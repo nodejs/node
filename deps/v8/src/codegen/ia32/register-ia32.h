@@ -69,6 +69,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
@@ -140,7 +147,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = ecx;
 constexpr Register kRuntimeCallFunctionRegister = edx;
 constexpr Register kRuntimeCallArgCountRegister = eax;
 constexpr Register kRuntimeCallArgvRegister = ecx;
-constexpr Register kWasmInstanceRegister = esi;
+constexpr Register kWasmImplicitArgRegister = esi;
 constexpr Register kWasmCompileLazyFuncIndexRegister = edi;
 
 constexpr Register kRootRegister = ebx;

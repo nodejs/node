@@ -51,7 +51,7 @@ called as shown below. For information on the BN_GENCB structure and the
 BN_GENCB_call function discussed below, refer to
 L<BN_generate_prime(3)>.
 
-DSA_generate_prime() is similar to DSA_generate_prime_ex() but
+DSA_generate_parameters() is similar to DSA_generate_parameters_ex() but
 expects an old-style callback function; see
 L<BN_generate_prime(3)> for information on the old-style callback.
 
@@ -126,7 +126,7 @@ DSA_generate_parameters_ex() instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

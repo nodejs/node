@@ -44,6 +44,23 @@ instead of `nsx` in the set above.
 You cannot build for TNS/E for FIPS, so you must specify the `no-fips`
 option to `./Configure`.
 
+Linking and Loading Considerations
+----------------------------------
+
+Because of how the NonStop Common Runtime Environment (CRE) works, there are
+restrictions on how programs can link and load with OpenSSL libraries.
+On current NonStop platforms, programs cannot both statically link OpenSSL
+libraries and dynamically load OpenSSL shared libraries concurrently. If this
+is done, there is a high probability of encountering a SIGSEGV condition
+relating to `atexit()` processing when a shared library is unloaded and when
+the program terminates. This limitation applies to all OpenSSL shared library
+components.
+
+It is possible to configure the build with `no-atexit` to avoid the SIGSEGV.
+Preferably, you can explicitly call `OPENSSL_cleanup()` from your application.
+It is not mandatory as it just deallocates various global data structures
+OpenSSL allocated.
+
 About Prefix and OpenSSLDir
 ---------------------------
 

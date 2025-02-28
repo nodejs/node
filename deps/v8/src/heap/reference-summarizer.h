@@ -24,10 +24,12 @@ class ReferenceSummary {
   // Produces a set of objects referred to by the object. This function uses a
   // realistic marking visitor, so its results are likely to match real GC
   // behavior. Intended only for verification.
-  static ReferenceSummary SummarizeReferencesFrom(Heap* heap, HeapObject obj);
+  static ReferenceSummary SummarizeReferencesFrom(Heap* heap,
+                                                  Tagged<HeapObject> obj);
 
   using UnorderedHeapObjectSet =
-      std::unordered_set<HeapObject, Object::Hasher, Object::KeyEqualSafe>;
+      std::unordered_set<Tagged<HeapObject>, Object::Hasher,
+                         Object::KeyEqualSafe>;
 
   // All objects which the chosen object has strong pointers to.
   UnorderedHeapObjectSet& strong_references() { return strong_references_; }

@@ -147,7 +147,10 @@ public:
     getNFKDInstance(UErrorCode &errorCode);
 
     /**
-     * Returns a Normalizer2 instance for Unicode NFKC_Casefold normalization.
+     * Returns a Normalizer2 instance for Unicode toNFKC_Casefold() normalization
+     * which is equivalent to applying the NFKC_Casefold mappings and then NFC.
+     * See https://www.unicode.org/reports/tr44/#NFKC_Casefold
+     *
      * Same as getInstance(nullptr, "nfkc_cf", UNORM2_COMPOSE, errorCode).
      * Returns an unmodifiable singleton instance. Do not delete it.
      * @param errorCode Standard ICU error code. Its input value must
@@ -161,6 +164,23 @@ public:
     getNFKCCasefoldInstance(UErrorCode &errorCode);
 
     /**
+     * Returns a Normalizer2 instance for a variant of Unicode toNFKC_Casefold() normalization
+     * which is equivalent to applying the NFKC_Simple_Casefold mappings and then NFC.
+     * See https://www.unicode.org/reports/tr44/#NFKC_Simple_Casefold
+     *
+     * Same as getInstance(nullptr, "nfkc_scf", UNORM2_COMPOSE, errorCode).
+     * Returns an unmodifiable singleton instance. Do not delete it.
+     * @param errorCode Standard ICU error code. Its input value must
+     *                  pass the U_SUCCESS() test, or else the function returns
+     *                  immediately. Check for U_FAILURE() on output or use with
+     *                  function chaining. (See User Guide for details.)
+     * @return the requested Normalizer2, if successful
+     * @stable ICU 74
+     */
+    static const Normalizer2 *
+    getNFKCSimpleCasefoldInstance(UErrorCode &errorCode);
+
+    /**
      * Returns a Normalizer2 instance which uses the specified data file
      * (packageName/name similar to ucnv_openPackage() and ures_open()/ResourceBundle)
      * and which composes or decomposes text according to the specified mode.
@@ -172,7 +192,7 @@ public:
      * Use name="nfkc_cf" and UNORM2_COMPOSE for Unicode standard NFKC_CF=NFKC_Casefold.
      *
      * @param packageName nullptr for ICU built-in data, otherwise application data package name
-     * @param name "nfc" or "nfkc" or "nfkc_cf" or name of custom data file
+     * @param name "nfc" or "nfkc" or "nfkc_cf" or "nfkc_scf" or name of custom data file
      * @param mode normalization mode (compose or decompose etc.)
      * @param errorCode Standard ICU error code. Its input value must
      *                  pass the U_SUCCESS() test, or else the function returns

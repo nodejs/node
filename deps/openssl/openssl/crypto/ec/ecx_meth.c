@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -712,7 +712,7 @@ const EVP_PKEY_ASN1_METHOD ossl_ed448_asn1_meth = {
 static int pkey_ecx_keygen(EVP_PKEY_CTX *ctx, EVP_PKEY *pkey)
 {
     ECX_KEY *ecx = ossl_ecx_key_op(NULL, NULL, 0, ctx->pmeth->pkey_id,
-                                   KEY_OP_PUBLIC, NULL, NULL);
+                                   KEY_OP_KEYGEN, NULL, NULL);
 
     if (ecx != NULL) {
         EVP_PKEY_assign(pkey, ctx->pmeth->pkey_id, ecx);

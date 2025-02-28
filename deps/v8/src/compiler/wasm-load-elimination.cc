@@ -46,6 +46,7 @@ bool MayAlias(Node* lhs, Node* rhs) {
 
 Node* ResolveAliases(Node* node) {
   while (node->opcode() == IrOpcode::kWasmTypeCast ||
+         node->opcode() == IrOpcode::kWasmTypeCastAbstract ||
          node->opcode() == IrOpcode::kAssertNotNull ||
          node->opcode() == IrOpcode::kTypeGuard) {
     node = NodeProperties::GetValueInput(node, 0);
@@ -58,6 +59,7 @@ Node* ResolveAliases(Node* node) {
 constexpr int kArrayLengthFieldIndex = -1;
 constexpr int kStringPrepareForGetCodeunitIndex = -2;
 constexpr int kStringAsWtf16Index = -3;
+constexpr int kAnyConvertExternIndex = -4;
 }  // namespace
 
 Reduction WasmLoadElimination::UpdateState(Node* node,
@@ -95,9 +97,28 @@ std::tuple<Node*, Node*> WasmLoadElimination::TruncateAndExtendOrType(
     return {ret, effect};
   }
 
-  wasm::TypeInModule node_type = NodeProperties::GetType(value).AsWasm();
+  // The value might be untyped in case of wasm inlined into JS if the value
+  // comes from a JS node.
+  if (!NodeProperties::IsTyped(value)) {
+    return {value, effect};
+  }
+
+  Type value_type = NodeProperties::GetType(value);
+  if (!value_type.IsWasm()) {
+    return {value, effect};
+  }
+
+  wasm::TypeInModule node_type = value_type.AsWasm();
 
   // TODO(12166): Adapt this if cross-module inlining is allowed.
+  if (wasm::TypesUnrelated(node_type.type, field_type, node_type.module,
+                           node_type.module)) {
+    // Unrelated types can occur as a result of unreachable code.
+    // Example: Storing a value x of type A in a struct, then casting the struct
+    // to a different struct type to then load type B from the same offset
+    // results in trying to replace the load with value x.
+    return {dead(), dead()};
+  }
   if (!wasm::IsSubtypeOf(node_type.type, field_type, node_type.module)) {
     Type type = Type::Wasm({field_type, node_type.module}, graph()->zone());
     Node* ret =
@@ -128,6 +149,8 @@ Reduction WasmLoadElimination::Reduce(Node* node) {
       return ReduceStringPrepareForGetCodeunit(node);
     case IrOpcode::kStringAsWtf16:
       return ReduceStringAsWtf16(node);
+    case IrOpcode::kWasmAnyConvertExtern:
+      return ReduceAnyConvertExtern(node);
     case IrOpcode::kEffectPhi:
       return ReduceEffectPhi(node);
     case IrOpcode::kDead:
@@ -141,33 +164,51 @@ Reduction WasmLoadElimination::Reduce(Node* node) {
 
 Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructGet);
-  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* input_struct = NodeProperties::GetValueInput(node, 0);
+  Node* object = ResolveAliases(input_struct);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
   const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
   bool is_mutable = field_info.type->mutability(field_info.field_index);
 
-  // - The node can only be typed as bottom in unreachable code.
-  // - We can only find the field in the wrong half-state in unreachable code.
-  if (NodeProperties::GetType(node).AsWasm().type.is_bottom() ||
-      !(is_mutable ? &state->immutable_state : &state->mutable_state)
-           ->LookupField(field_info.field_index, object)
-           .IsEmpty()) {
-    Node* unreachable =
-        graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
-    MachineRepresentation rep =
-        field_info.type->field(field_info.field_index).machine_representation();
-    Node* dead_value =
-        graph()->NewNode(jsgraph()->common()->DeadValue(rep), unreachable);
-    NodeProperties::SetType(dead_value, NodeProperties::GetType(node));
-    ReplaceWithValue(node, dead_value, unreachable, control);
-    node->Kill();
-    return Replace(dead_value);
+  if (!NodeProperties::IsTyped(input_struct) ||
+      !NodeProperties::GetType(input_struct).IsWasm()) {
+    // The input should always be typed.  https://crbug.com/1507106 reported
+    // that we can end up with Type None here instead of a wasm type.
+    // In the worst case this only means that we miss a potential optimization,
+    // still the assumption is that all inputs into StructGet should be typed.
+    return NoChange();
   }
+  // Skip reduction if the input type is nullref. in this case, the struct get
+  // will always trap.
+  wasm::ValueType struct_type =
+      NodeProperties::GetType(input_struct).AsWasm().type;
+  if (struct_type == wasm::kWasmNullRef) {
+    return NoChange();
+  }
+  // The node is in unreachable code if its input is uninhabitable (bottom or
+  // ref none type). It can also be treated as unreachable if the field index is
+  // in the wrong half state. This can happen if an object gets cast to two
+  // unrelated types subsequently (as the state only tracks the field index)
+  // independent of the underlying type.
+  if (struct_type.is_uninhabited() ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
+           .IsEmpty()) {
+    ReplaceWithValue(node, dead(), dead(), dead());
+    MergeControlToEnd(graph(), common(),
+                      graph()->NewNode(common()->Throw(), effect, control));
+    node->Kill();
+    return Replace(dead());
+  }
+  // If the input type is not (ref null? none) or bottom and we don't have type
+  // inconsistencies, then the result type must be valid.
+  DCHECK(!NodeProperties::GetType(node).AsWasm().type.is_bottom());
 
   HalfState const* half_state =
       is_mutable ? &state->mutable_state : &state->immutable_state;
@@ -179,6 +220,15 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
     std::tuple<Node*, Node*> replacement = TruncateAndExtendOrType(
         lookup_result.value, effect, control,
         field_info.type->field(field_info.field_index), field_info.is_signed);
+    if (std::get<0>(replacement) == dead()) {
+      // If the value is dead (unreachable), this whole code path is unreachable
+      // and we can mark this control flow path as dead.
+      ReplaceWithValue(node, dead(), dead(), dead());
+      MergeControlToEnd(graph(), common(),
+                        graph()->NewNode(common()->Throw(), effect, control));
+      node->Kill();
+      return Replace(dead());
+    }
     ReplaceWithValue(node, std::get<0>(replacement), std::get<1>(replacement),
                      control);
     node->Kill();
@@ -197,28 +247,57 @@ Reduction WasmLoadElimination::ReduceWasmStructGet(Node* node) {
 
 Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kWasmStructSet);
-  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
+  Node* input_struct = NodeProperties::GetValueInput(node, 0);
+  Node* object = ResolveAliases(input_struct);
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
+
+  if (!NodeProperties::IsTyped(input_struct) ||
+      !NodeProperties::GetType(input_struct).IsWasm()) {
+    // Also see the same pattern in ReduceWasmStructGet. Note that this is
+    // reached for cases where the StructSet has a value input that is
+    // DeadValue(). Above we check for `object->opcode() == IrOpcode::kDead.
+    // As an alternative that check could be extended to also check for
+    // ... || object->opcode() == IrOpcode::kDeadValue.
+    // It seems that the DeadValue may be caused by
+    // DeadCodeElimination::ReducePureNode. If that finds any input that is a
+    // Dead() node, it will replace that input with a DeadValue().
+    return NoChange();
+  }
+
+  // Skip reduction if the input type is nullref. in this case, the struct get
+  // will always trap.
+  wasm::ValueType struct_type =
+      NodeProperties::GetType(input_struct).AsWasm().type;
+  if (struct_type == wasm::kWasmNullRef) {
+    return NoChange();
+  }
 
   const WasmFieldInfo& field_info = OpParameter<WasmFieldInfo>(node->op());
   bool is_mutable = field_info.type->mutability(field_info.field_index);
 
-  if (is_mutable) {
-    // We can find the field in the wrong half-state only in unreachable code.
-    if (!(state->immutable_state.LookupField(field_info.field_index, object)
-              .IsEmpty())) {
-      Node* unreachable =
-          graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
-      ReplaceWithValue(node, unreachable, unreachable, control);
-      node->Kill();
-      return Replace(unreachable);
-    }
+  // The struct.set is unreachable if its input struct is an uninhabitable type.
+  // It can also be treated as unreachable if the field index is in the wrong
+  // half state. This can happen if an object gets cast to two unrelated types
+  // subsequently (as the state only tracks the field index) independent of the
+  // underlying type.
+  if (struct_type.is_uninhabited() ||
+      !(is_mutable ? state->immutable_state : state->mutable_state)
+           .LookupField(field_info.field_index, object)
+           .IsEmpty()) {
+    ReplaceWithValue(node, dead(), dead(), dead());
+    MergeControlToEnd(graph(), common(),
+                      graph()->NewNode(common()->Throw(), effect, control));
+    node->Kill();
+    return Replace(dead());
+  }
 
+  if (is_mutable) {
     HalfState const* mutable_state =
         state->mutable_state.KillField(field_info.field_index, object);
     mutable_state =
@@ -227,15 +306,6 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
         zone()->New<AbstractState>(*mutable_state, state->immutable_state);
     return UpdateState(node, new_state);
   } else {
-    // We can find the field in the wrong half-state only in unreachable code.
-    if (!(state->mutable_state.LookupField(field_info.field_index, object)
-              .IsEmpty())) {
-      Node* unreachable =
-          graph()->NewNode(jsgraph()->common()->Unreachable(), effect, control);
-      ReplaceWithValue(node, unreachable, unreachable, control);
-      node->Kill();
-      return Replace(unreachable);
-    }
     // We should not initialize the same immutable field twice.
     DCHECK(state->immutable_state.LookupField(field_info.field_index, object)
                .IsEmpty());
@@ -247,19 +317,23 @@ Reduction WasmLoadElimination::ReduceWasmStructSet(Node* node) {
   }
 }
 
-Reduction WasmLoadElimination::ReduceWasmArrayLength(Node* node) {
-  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayLength);
+Reduction WasmLoadElimination::ReduceLoadLikeFromImmutable(Node* node,
+                                                           int index) {
+  // The index must be negative as it is not a real load, to not confuse it with
+  // actual loads.
+  DCHECK_LT(index, 0);
   Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
   HalfState const* immutable_state = &state->immutable_state;
 
   FieldOrElementValue lookup_result =
-      immutable_state->LookupField(kArrayLengthFieldIndex, object);
+      immutable_state->LookupField(index, object);
 
   if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
     ReplaceWithValue(node, lookup_result.value, effect, control);
@@ -267,13 +341,17 @@ Reduction WasmLoadElimination::ReduceWasmArrayLength(Node* node) {
     return Replace(lookup_result.value);
   }
 
-  immutable_state =
-      immutable_state->AddField(kArrayLengthFieldIndex, object, node);
+  immutable_state = immutable_state->AddField(index, object, node);
 
   AbstractState const* new_state =
       zone()->New<AbstractState>(state->mutable_state, *immutable_state);
 
   return UpdateState(node, new_state);
+}
+
+Reduction WasmLoadElimination::ReduceWasmArrayLength(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmArrayLength);
+  return ReduceLoadLikeFromImmutable(node, kArrayLengthFieldIndex);
 }
 
 Reduction WasmLoadElimination::ReduceWasmArrayInitializeLength(Node* node) {
@@ -282,6 +360,7 @@ Reduction WasmLoadElimination::ReduceWasmArrayInitializeLength(Node* node) {
   Node* value = NodeProperties::GetValueInput(node, 1);
   Node* effect = NodeProperties::GetEffectInput(node);
 
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -301,6 +380,7 @@ Reduction WasmLoadElimination::ReduceStringPrepareForGetCodeunit(Node* node) {
   Node* effect = NodeProperties::GetEffectInput(node);
   Node* control = NodeProperties::GetControlInput(node);
 
+  if (object->opcode() == IrOpcode::kDead) return NoChange();
   AbstractState const* state = node_states_.Get(effect);
   if (state == nullptr) return NoChange();
 
@@ -332,31 +412,15 @@ Reduction WasmLoadElimination::ReduceStringPrepareForGetCodeunit(Node* node) {
 
 Reduction WasmLoadElimination::ReduceStringAsWtf16(Node* node) {
   DCHECK_EQ(node->opcode(), IrOpcode::kStringAsWtf16);
-  Node* object = ResolveAliases(NodeProperties::GetValueInput(node, 0));
-  Node* effect = NodeProperties::GetEffectInput(node);
-  Node* control = NodeProperties::GetControlInput(node);
+  return ReduceLoadLikeFromImmutable(node, kStringAsWtf16Index);
+}
 
-  AbstractState const* state = node_states_.Get(effect);
-  if (state == nullptr) return NoChange();
-
-  HalfState const* immutable_state = &state->immutable_state;
-
-  FieldOrElementValue lookup_result =
-      immutable_state->LookupField(kStringAsWtf16Index, object);
-
-  if (!lookup_result.IsEmpty() && !lookup_result.value->IsDead()) {
-    ReplaceWithValue(node, lookup_result.value, effect, control);
-    node->Kill();
-    return Replace(lookup_result.value);
-  }
-
-  immutable_state =
-      immutable_state->AddField(kStringAsWtf16Index, object, node);
-
-  AbstractState const* new_state =
-      zone()->New<AbstractState>(state->mutable_state, *immutable_state);
-
-  return UpdateState(node, new_state);
+Reduction WasmLoadElimination::ReduceAnyConvertExtern(Node* node) {
+  DCHECK_EQ(node->opcode(), IrOpcode::kWasmAnyConvertExtern);
+  // An externref is not immutable meaning it could change. However, the values
+  // relevant for any.convert_extern (null, HeapNumber, Smi) are immutable, so
+  // we can treat the externref as immutable.
+  return ReduceLoadLikeFromImmutable(node, kAnyConvertExternIndex);
 }
 
 Reduction WasmLoadElimination::ReduceOtherNode(Node* node) {
@@ -452,8 +516,11 @@ WasmLoadElimination::HalfState const* WasmLoadElimination::HalfState::KillField(
 WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
     Node* node, AbstractState const* state) const {
   DCHECK_EQ(node->opcode(), IrOpcode::kEffectPhi);
+  if (state->mutable_state.IsEmpty()) return state;
   std::queue<Node*> queue;
-  std::unordered_set<Node*> visited;
+  AccountingAllocator allocator;
+  Zone temp_set_zone(&allocator, ZONE_NAME);
+  ZoneUnorderedSet<Node*> visited(&temp_set_zone);
   visited.insert(node);
   for (int i = 1; i < node->InputCount() - 1; ++i) {
     queue.push(node->InputAt(i));
@@ -464,6 +531,12 @@ WasmLoadElimination::AbstractState const* WasmLoadElimination::ComputeLoopState(
     if (visited.insert(current).second) {
       if (current->opcode() == IrOpcode::kWasmStructSet) {
         Node* object = NodeProperties::GetValueInput(current, 0);
+        if (object->opcode() == IrOpcode::kDead ||
+            object->opcode() == IrOpcode::kDeadValue) {
+          // We are in dead code. Bail out with no mutable state.
+          return zone()->New<AbstractState>(HalfState(zone()),
+                                            state->immutable_state);
+        }
         WasmFieldInfo field_info = OpParameter<WasmFieldInfo>(current->op());
         bool is_mutable = field_info.type->mutability(field_info.field_index);
         if (is_mutable) {
@@ -509,6 +582,7 @@ WasmLoadElimination::WasmLoadElimination(Editor* editor, JSGraph* jsgraph,
       empty_state_(zone),
       node_states_(jsgraph->graph()->NodeCount(), zone),
       jsgraph_(jsgraph),
+      dead_(jsgraph->Dead()),
       zone_(zone) {}
 
 CommonOperatorBuilder* WasmLoadElimination::common() const {

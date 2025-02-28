@@ -47,8 +47,8 @@ class TestRangeBuilder {
   }
 
   TopLevelLiveRange* Build() {
-    TopLevelLiveRange* range =
-        zone_->New<TopLevelLiveRange>(id_, MachineRepresentation::kTagged);
+    TopLevelLiveRange* range = zone_->New<TopLevelLiveRange>(
+        id_, MachineRepresentation::kTagged, zone_);
     // Traverse the provided interval specifications backwards, because that is
     // what LiveRange expects.
     for (int i = static_cast<int>(pairs_.size()) - 1; i >= 0; --i) {
@@ -56,13 +56,13 @@ class TestRangeBuilder {
       LifetimePosition start = LifetimePosition::FromInt(pair.first);
       LifetimePosition end = LifetimePosition::FromInt(pair.second);
       CHECK(start < end);
-      range->AddUseInterval(start, end, zone_, v8_flags.trace_turbo_alloc);
+      range->AddUseInterval(start, end, zone_);
     }
     for (int pos : uses_) {
       UsePosition* use_position =
           zone_->New<UsePosition>(LifetimePosition::FromInt(pos), nullptr,
                                   nullptr, UsePositionHintType::kNone);
-      range->AddUsePosition(use_position, v8_flags.trace_turbo_alloc);
+      range->AddUsePosition(use_position, zone_);
     }
 
     pairs_.clear();
@@ -86,29 +86,33 @@ class LiveRangeUnitTest : public TestWithZone {
   }
 
   // Ranges first and second match structurally.
-  bool RangesMatch(LiveRange* first, LiveRange* second) {
+  bool RangesMatch(const LiveRange* first, const LiveRange* second) {
     if (first->Start() != second->Start() || first->End() != second->End()) {
       return false;
     }
-    UseInterval* i1 = first->first_interval();
-    UseInterval* i2 = second->first_interval();
+    auto i1 = first->intervals().begin();
+    auto i2 = second->intervals().begin();
 
-    while (i1 != nullptr && i2 != nullptr) {
-      if (i1->start() != i2->start() || i1->end() != i2->end()) return false;
-      i1 = i1->next();
-      i2 = i2->next();
+    while (i1 != first->intervals().end() && i2 != second->intervals().end()) {
+      if (*i1 != *i2) return false;
+      ++i1;
+      ++i2;
     }
-    if (i1 != nullptr || i2 != nullptr) return false;
-
-    UsePosition* p1 = first->first_pos();
-    UsePosition* p2 = second->first_pos();
-
-    while (p1 != nullptr && p2 != nullptr) {
-      if (p1->pos() != p2->pos()) return false;
-      p1 = p1->next();
-      p2 = p2->next();
+    if (i1 != first->intervals().end() || i2 != second->intervals().end()) {
+      return false;
     }
-    if (p1 != nullptr || p2 != nullptr) return false;
+
+    UsePosition* const* p1 = first->positions().begin();
+    UsePosition* const* p2 = second->positions().begin();
+
+    while (p1 != first->positions().end() && p2 != second->positions().end()) {
+      if ((*p1)->pos() != (*p2)->pos()) return false;
+      ++p1;
+      ++p2;
+    }
+    if (p1 != first->positions().end() || p2 != second->positions().end()) {
+      return false;
+    }
     return true;
   }
 };
@@ -116,11 +120,10 @@ class LiveRangeUnitTest : public TestWithZone {
 TEST_F(LiveRangeUnitTest, InvalidConstruction) {
   // Build a range manually, because the builder guards against empty cases.
   TopLevelLiveRange* range =
-      zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged);
+      zone()->New<TopLevelLiveRange>(1, MachineRepresentation::kTagged, zone());
   V8_ASSERT_DEBUG_DEATH(
       range->AddUseInterval(LifetimePosition::FromInt(0),
-                            LifetimePosition::FromInt(0), zone(),
-                            v8_flags.trace_turbo_alloc),
+                            LifetimePosition::FromInt(0), zone()),
       ".*");
 }
 
@@ -295,6 +298,144 @@ TEST_F(LiveRangeUnitTest, SplitManyIntervalUsePositionsAfter) {
   LiveRange* expected_bottom = TestRangeBuilder(zone()).Build(5, 6);
   EXPECT_TRUE(RangesMatch(expected_top, range));
   EXPECT_TRUE(RangesMatch(expected_bottom, child));
+}
+
+class DoubleEndedSplitVectorTest : public TestWithZone {};
+
+TEST_F(DoubleEndedSplitVectorTest, PushFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.push_front(zone(), 0);
+  vec.push_front(zone(), 1);
+  EXPECT_EQ(vec.front(), 1);
+  EXPECT_EQ(vec.back(), 0);
+
+  // Subsequent `push_front` should grow the backing allocation super-linearly.
+  vec.push_front(zone(), 2);
+  CHECK_EQ(vec.capacity(), 4);
+
+  // As long as there is remaining capacity, `push_front` should not copy or
+  // reallocate.
+  int* address_of_0 = &vec.back();
+  CHECK_EQ(*address_of_0, 0);
+  vec.push_front(zone(), 3);
+  EXPECT_EQ(address_of_0, &vec.back());
+}
+
+TEST_F(DoubleEndedSplitVectorTest, PopFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.push_front(zone(), 0);
+  vec.push_front(zone(), 1);
+  vec.pop_front();
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec.front(), 0);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, Insert) {
+  DoubleEndedSplitVector<int> vec;
+
+  // Inserts with `direction = kFrontOrBack` should not reallocate when
+  // there is space at either the front or back.
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+  CHECK_EQ(vec.capacity(), 4);
+
+  size_t memory_before = zone()->allocation_size();
+  vec.insert(zone(), vec.end(), 3);
+  size_t used_memory = zone()->allocation_size() - memory_before;
+  EXPECT_EQ(used_memory, 0u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, InsertFront) {
+  DoubleEndedSplitVector<int> vec;
+
+  // Inserts with `direction = kFront` should only copy elements to the left
+  // of the insert position, if there is space at the front.
+  vec.insert<kFront>(zone(), vec.begin(), 0);
+  vec.insert<kFront>(zone(), vec.begin(), 1);
+  vec.insert<kFront>(zone(), vec.begin(), 2);
+
+  int* address_of_0 = &vec.back();
+  CHECK_EQ(*address_of_0, 0);
+  vec.insert<kFront>(zone(), vec.begin(), 3);
+  EXPECT_EQ(address_of_0, &vec.back());
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtBegin) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> all_split_begin = vec.SplitAt(vec.begin());
+  EXPECT_EQ(all_split_begin.size(), 3u);
+  EXPECT_EQ(vec.size(), 0u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtEnd) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> empty_split_end = vec.SplitAt(vec.end());
+  EXPECT_EQ(empty_split_end.size(), 0u);
+  EXPECT_EQ(vec.size(), 3u);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, SplitAtMiddle) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> split_off = vec.SplitAt(vec.begin() + 1);
+  EXPECT_EQ(split_off.size(), 2u);
+  EXPECT_EQ(split_off[0], 1);
+  EXPECT_EQ(split_off[1], 2);
+  EXPECT_EQ(vec.size(), 1u);
+  EXPECT_EQ(vec[0], 0);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, AppendCheap) {
+  DoubleEndedSplitVector<int> vec;
+
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+  vec.insert(zone(), vec.end(), 2);
+
+  DoubleEndedSplitVector<int> split_off = vec.SplitAt(vec.begin() + 1);
+
+  // `Append`s of just split vectors should not allocate.
+  size_t memory_before = zone()->allocation_size();
+  vec.Append(zone(), split_off);
+  size_t used_memory = zone()->allocation_size() - memory_before;
+  EXPECT_EQ(used_memory, 0u);
+
+  EXPECT_EQ(vec[0], 0);
+  EXPECT_EQ(vec[1], 1);
+  EXPECT_EQ(vec[2], 2);
+}
+
+TEST_F(DoubleEndedSplitVectorTest, AppendGeneralCase) {
+  DoubleEndedSplitVector<int> vec;
+  vec.insert(zone(), vec.end(), 0);
+  vec.insert(zone(), vec.end(), 1);
+
+  DoubleEndedSplitVector<int> other;
+  other.insert(zone(), other.end(), 2);
+
+  // May allocate.
+  vec.Append(zone(), other);
+
+  EXPECT_EQ(vec[0], 0);
+  EXPECT_EQ(vec[1], 1);
+  EXPECT_EQ(vec[2], 2);
 }
 
 }  // namespace compiler

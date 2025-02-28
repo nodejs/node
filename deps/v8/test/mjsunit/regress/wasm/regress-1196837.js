@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(16, 32, false);
+builder.addMemory(16, 32);
 builder.addType(makeSig([kWasmI32, kWasmI32, kWasmI32], [kWasmI32]));
 builder.addFunction(undefined, 0 /* sig */)
   .addBodyWithEnd([
@@ -17,19 +17,19 @@ kExprLocalGet, 0x01,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x01,
-kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x00, 0x7a,
+kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x01, 0x7a,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x00,
 kExprMemoryGrow, 0x00,
-kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x00, 0x7a,
+kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x01, 0x7a,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x00,
-kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x00, 0x7a,
+kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x01, 0x7a,
 kExprLocalGet, 0x01,
 kExprLocalGet, 0x00,
-kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x00, 0x7a,
+kAtomicPrefix, kExprI32AtomicCompareExchange16U, 0x01, 0x7a,
 kExprLocalGet, 0x01,
 kExprReturnCall, 0x00,
 kExprEnd,

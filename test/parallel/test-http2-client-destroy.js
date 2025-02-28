@@ -22,7 +22,7 @@ const { getEventListeners } = require('events');
       server.close();
     });
 
-    destroyCallbacks.forEach((destroyCallback) => {
+    for (const destroyCallback of destroyCallbacks) {
       const client = h2.connect(`http://localhost:${server.address().port}`);
       client.on('connect', common.mustCall(() => {
         const socket = client[kSocket];
@@ -45,7 +45,7 @@ const { getEventListeners } = require('events');
 
         countdown.dec();
       }));
-    });
+    }
   }));
 }
 
@@ -284,4 +284,33 @@ const { getEventListeners } = require('events');
   }
   testH2ConnectAbort(false);
   testH2ConnectAbort(true);
+}
+
+// Destroy ClientHttp2Stream with AbortSignal
+{
+  const server = h2.createServer();
+  const controller = new AbortController();
+
+  server.on('stream', common.mustCall((stream) => {
+    stream.on('error', common.mustNotCall());
+    stream.on('close', common.mustCall(() => {
+      assert.strictEqual(stream.rstCode, h2.constants.NGHTTP2_CANCEL);
+      server.close();
+    }));
+    controller.abort();
+  }));
+  server.listen(0, common.mustCall(() => {
+    const client = h2.connect(`http://localhost:${server.address().port}`);
+    client.on('close', common.mustCall());
+
+    const { signal } = controller;
+    const req = client.request({}, { signal });
+    assert.strictEqual(getEventListeners(signal, 'abort').length, 1);
+    req.on('error', common.mustCall((err) => {
+      assert.strictEqual(err.code, 'ABORT_ERR');
+      assert.strictEqual(err.name, 'AbortError');
+      client.close();
+    }));
+    req.on('close', common.mustCall());
+  }));
 }

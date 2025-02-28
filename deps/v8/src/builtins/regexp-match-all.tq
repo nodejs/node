@@ -6,13 +6,13 @@
 
 namespace regexp {
 
-extern transitioning macro
-RegExpMatchAllAssembler::CreateRegExpStringIterator(
+extern transitioning macro RegExpMatchAllAssembler::CreateRegExpStringIterator(
     NativeContext, Object, String, bool, bool): JSAny;
 
 @export
-transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
-    nativeContext: NativeContext, receiver: JSAny, string: JSAny): JSAny {
+transitioning macro RegExpPrototypeMatchAllImpl(
+    implicit context: Context)(nativeContext: NativeContext, receiver: JSAny,
+    string: JSAny): JSAny {
   // 1. Let R be the this value.
   // 2. If Type(R) is not Object, throw a TypeError exception.
   ThrowIfNotJSReceiver(
@@ -102,7 +102,8 @@ transitioning macro RegExpPrototypeMatchAllImpl(implicit context: Context)(
 // https://tc39.github.io/proposal-string-matchall/
 // RegExp.prototype [ @@matchAll ] ( string )
 transitioning javascript builtin RegExpPrototypeMatchAll(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   return RegExpPrototypeMatchAllImpl(context, receiver, string);
 }
 

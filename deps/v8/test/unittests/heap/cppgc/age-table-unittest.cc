@@ -16,15 +16,15 @@ namespace cppgc::internal {
 
 namespace {
 
-class AgeTableTest : public testing::TestWithHeap {
+class AgeTableTest : public testing::TestSupportingAllocationOnly {
  public:
   using Age = AgeTable::Age;
   using AdjacentCardsPolicy = AgeTable::AdjacentCardsPolicy;
   static constexpr auto kCardSizeInBytes = AgeTable::kCardSizeInBytes;
 
-  AgeTableTest()
-      : disallow_gc_(GetHeapHandle()),
-        age_table_(CagedHeapLocalData::Get().age_table) {}
+  AgeTableTest() : age_table_(CagedHeapLocalData::Get().age_table) {
+    CagedHeap::CommitAgeTable(*(GetPlatform().GetPageAllocator()));
+  }
 
   ~AgeTableTest() override { age_table_.ResetForTesting(); }
 
@@ -35,7 +35,7 @@ class AgeTableTest : public testing::TestWithHeap {
     auto* page =
         NormalPage::TryCreate(*Heap::From(GetHeap())->page_backend(), *space);
     CHECK_NOT_NULL(page);
-    allocated_pages_.push_back({page, &BasePage::Destroy});
+    allocated_pages_.push_back({page, DestroyPage});
     return page;
   }
 
@@ -47,7 +47,7 @@ class AgeTableTest : public testing::TestWithHeap {
     auto* page = LargePage::TryCreate(*Heap::From(GetHeap())->page_backend(),
                                       *space, kObjectSize);
     CHECK_NOT_NULL(page);
-    allocated_pages_.push_back({page, &BasePage::Destroy});
+    allocated_pages_.push_back({page, DestroyPage});
     return page;
   }
 
@@ -76,7 +76,10 @@ class AgeTableTest : public testing::TestWithHeap {
   }
 
  private:
-  subtle::DisallowGarbageCollectionScope disallow_gc_;
+  static void DestroyPage(BasePage* page) {
+    BasePage::Destroy(page, FreeMemoryHandling::kDoNotDiscard);
+  }
+
   std::vector<std::unique_ptr<BasePage, void (*)(BasePage*)>> allocated_pages_;
   AgeTable& age_table_;
 };
@@ -201,11 +204,23 @@ TEST_F(AgeTableTest, SetAgeForMultipleCardsConsiderAdjacentCards) {
 
 TEST_F(AgeTableTest, MarkAllCardsAsYoung) {
   uint8_t* heap_start = reinterpret_cast<uint8_t*>(CagedHeapBase::GetBase());
-  void* heap_end = heap_start + kCagedHeapReservationSize - 1;
+  void* heap_end =
+      heap_start + api_constants::kCagedHeapDefaultReservationSize - 1;
   AssertAgeForAddressRange(heap_start, heap_end, Age::kOld);
   SetAgeForAddressRange(heap_start, heap_end, Age::kYoung,
                         AdjacentCardsPolicy::kIgnore);
   AssertAgeForAddressRange(heap_start, heap_end, Age::kYoung);
+}
+
+TEST_F(AgeTableTest, AgeTableSize) {
+  // The default cage size should yield a 1MB table.
+  EXPECT_EQ(1 * kMB, CagedHeapBase::GetAgeTableSize());
+
+  // Pretend there's a larger cage and verify that the age table reserves the
+  // correct amount of space for itself.
+  size_t age_table_size = AgeTable::CalculateAgeTableSizeForHeapSize(
+      api_constants::kCagedHeapDefaultReservationSize * 4);
+  EXPECT_EQ(4 * kMB, age_table_size);
 }
 
 }  // namespace cppgc::internal

@@ -4,6 +4,7 @@
 
 #include "src/compiler/turboshaft/types.h"
 
+#include <optional>
 #include <sstream>
 #include <string_view>
 
@@ -110,7 +111,7 @@ void Type::PrintTo(std::ostream& stream) const {
 void Type::Print() const {
   StdoutStream os;
   PrintTo(os);
-  os << std::endl;
+  os << '\n';
 }
 
 // static
@@ -143,8 +144,8 @@ Type Type::LeastUpperBound(const Type& lhs, const Type& rhs, Zone* zone) {
   }
 }
 
-base::Optional<Type> Type::ParseFromString(const std::string_view& str,
-                                           Zone* zone) {
+std::optional<Type> Type::ParseFromString(const std::string_view& str,
+                                          Zone* zone) {
   TypeParser parser(str, zone);
   return parser.Parse();
 }
@@ -561,9 +562,9 @@ FloatType<Bits> FloatType<Bits>::LeastUpperBound(const FloatType<Bits>& lhs,
     return Range(result_elements.front(), result_elements.back(),
                  special_values, zone);
   } else if (lhs.is_only_special_values()) {
-    return ReplacedSpecialValues(rhs, special_values);
+    return ReplacedSpecialValues(rhs, special_values).template AsFloat<Bits>();
   } else if (rhs.is_only_special_values()) {
-    return ReplacedSpecialValues(lhs, special_values);
+    return ReplacedSpecialValues(lhs, special_values).template AsFloat<Bits>();
   }
 
   // We need to construct a range.
@@ -691,7 +692,7 @@ Type TupleType::LeastUpperBound(const TupleType& lhs, const TupleType& rhs,
                                 Zone* zone) {
   if (lhs.size() != rhs.size()) return Type::Any();
   Payload p;
-  p.array = zone->NewArray<Type>(lhs.size());
+  p.array = zone->AllocateArray<Type>(lhs.size());
   for (int i = 0; i < lhs.size(); ++i) {
     p.array[i] = Type::LeastUpperBound(lhs.element(i), rhs.element(i), zone);
   }

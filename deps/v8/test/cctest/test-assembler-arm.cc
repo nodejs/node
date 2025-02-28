@@ -62,7 +62,7 @@ TEST(0) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(3, 4, 0, 0, 0));
@@ -98,7 +98,7 @@ TEST(1) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(100, 0, 0, 0, 0));
@@ -143,7 +143,7 @@ TEST(2) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(10, 0, 0, 0, 0));
@@ -189,7 +189,7 @@ TEST(3) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.i = 100000;
@@ -319,7 +319,7 @@ TEST(4) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.a = 1.5;
@@ -381,7 +381,7 @@ TEST(5) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     int res = reinterpret_cast<int>(f.Call(0xAAAAAAAA, 0, 0, 0, 0));
@@ -412,7 +412,7 @@ TEST(6) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(0xFFFF, 0, 0, 0, 0));
@@ -479,7 +479,7 @@ static void TestRoundingMode(VCVTTypes types,
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
   int res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -661,7 +661,7 @@ TEST(8) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
@@ -770,7 +770,7 @@ TEST(9) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
@@ -875,7 +875,7 @@ TEST(10) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto fn = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
   d.a = 1.1;
@@ -969,7 +969,7 @@ TEST(11) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   f.Call(&i, 0, 0, 0, 0);
@@ -1094,7 +1094,7 @@ TEST(13) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.a = 1.5;
@@ -1166,7 +1166,7 @@ TEST(14) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.left = base::bit_cast<double>(kHoleNanInt64);
@@ -2170,7 +2170,7 @@ TEST(15) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     t.src0 = 0x01020304;
@@ -2474,7 +2474,7 @@ TEST(16) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   t.src0 = 0x01020304;
@@ -2552,7 +2552,7 @@ TEST(sdiv) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     TEST_SDIV(0, kMinInt, 0);
@@ -2612,7 +2612,7 @@ TEST(udiv) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
     TEST_UDIV(0u, 0, 0);
@@ -2640,7 +2640,7 @@ TEST(smmla) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2665,7 +2665,7 @@ TEST(smmul) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2690,7 +2690,7 @@ TEST(sxtb) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2715,7 +2715,7 @@ TEST(sxtab) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2740,7 +2740,7 @@ TEST(sxth) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2765,7 +2765,7 @@ TEST(sxtah) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2790,7 +2790,7 @@ TEST(uxtb) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2815,7 +2815,7 @@ TEST(uxtab) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2840,7 +2840,7 @@ TEST(uxth) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2865,7 +2865,7 @@ TEST(uxtah) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code, std::cout);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   for (size_t i = 0; i < 128; ++i) {
@@ -2907,7 +2907,7 @@ TEST(rbit) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 
 #ifdef OBJECT_PRINT
-    code->Print(std::cout);
+    Print(*code, std::cout);
 #endif
 
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
@@ -3028,7 +3028,7 @@ TEST(msr_mrs) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_ippii>::FromCode(isolate, *code);
 
@@ -3125,7 +3125,7 @@ TEST(ARMv8_float32_vrintX) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
@@ -3226,7 +3226,7 @@ TEST(ARMv8_vrintX) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
 
@@ -3363,7 +3363,7 @@ TEST(ARMv8_vsel) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_ippii>::FromCode(isolate, *code);
 
@@ -3454,7 +3454,7 @@ TEST(ARMv8_vminmax_f64) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
@@ -3536,7 +3536,7 @@ TEST(ARMv8_vminmax_f32) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
@@ -3671,7 +3671,7 @@ static GeneratedCode<F_ppiii> GenerateMacroFloatMinMax(
       Factory::CodeBuilder(assm.isolate(), desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   return GeneratedCode<F_ppiii>::FromCode(assm.isolate(), *code);
 }
@@ -3846,7 +3846,7 @@ TEST(unaligned_loads) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
@@ -3889,7 +3889,7 @@ TEST(unaligned_stores) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_ppiii>::FromCode(isolate, *code);
 
@@ -3989,7 +3989,7 @@ TEST(vswp) {
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
   StdoutStream os;
-  code->Print(os);
+  Print(*code, os);
 #endif
   auto f = GeneratedCode<F_piiii>::FromCode(isolate, *code);
   f.Call(&t, 0, 0, 0, 0);
@@ -4201,7 +4201,7 @@ TEST(split_add_immediate) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -4221,7 +4221,7 @@ TEST(split_add_immediate) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));
@@ -4244,7 +4244,7 @@ TEST(split_add_immediate) {
         Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef DEBUG
     StdoutStream os;
-    code->Print(os);
+    Print(*code, os);
 #endif
     auto f = GeneratedCode<F_iiiii>::FromCode(isolate, *code);
     uint32_t res = reinterpret_cast<int>(f.Call(0, 0, 0, 0, 0));

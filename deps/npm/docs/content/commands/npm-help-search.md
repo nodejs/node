@@ -32,6 +32,8 @@ directly.
 
 Show extended information in `ls`, `search`, and `help-search`.
 
+
+
 ### See Also
 
 * [npm](/commands/npm)

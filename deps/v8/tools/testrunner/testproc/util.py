@@ -64,7 +64,7 @@ def base_test_record(test, result, run):
       'run': run + 1,
       'shard_id': test.shard_id,
       'shard_count': test.shard_count,
-      'target_name': test.get_shell(),
+      'target_name': test.shell,
       'variant': test.variant,
       'variant_flags': test.variant_flags,
   }
@@ -72,6 +72,8 @@ def base_test_record(test, result, run):
     record.update(
         exit_code=result.output.exit_code,
         duration=result.output.duration,
+        max_rss=result.output.stats.max_rss,
+        max_vms=result.output.stats.max_vms,
     )
   return record
 

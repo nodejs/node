@@ -718,10 +718,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -747,7 +748,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   %PrepareFunctionForOptimization(g);
   %OptimizeFunctionOnNextCall(g);
   done = false;
@@ -758,7 +758,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -785,7 +784,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   %PrepareFunctionForOptimization(g);
   done = false;
   %OptimizeFunctionOnNextCall(g);
@@ -796,7 +794,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinally() {
@@ -823,7 +820,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -832,7 +828,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinallyNoInline() {
@@ -860,7 +855,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -869,7 +863,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceNonCallableOpt() {
@@ -920,7 +913,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -929,7 +921,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinallyInlineDeopt() {
@@ -959,7 +950,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -968,7 +958,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function OptimizedReduceRight() {
@@ -1089,10 +1078,11 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   g(); g();
   let total = g();
   %OptimizeFunctionOnNextCall(g);
+  var turbofan = willBeTurbofanned(g);
   g();
   g();
   assertEquals(total, g());
-  assertOptimized(g);
+  if (turbofan) assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -1127,7 +1117,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceThrow() {
@@ -1154,7 +1143,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -1163,7 +1151,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinally() {
@@ -1190,7 +1177,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -1199,7 +1185,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinallyNoInline() {
@@ -1236,7 +1221,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceNonCallableOpt() {
@@ -1286,7 +1270,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -1295,7 +1278,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceFinallyInlineDeopt() {
@@ -1325,7 +1307,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
   done = false;
   %PrepareFunctionForOptimization(g);
   g(); g();
@@ -1334,7 +1315,6 @@ assertEquals(undefined, Object.seal(arr).reduceRight(function(val) { return val 
   assertEquals(6, g());
   done = true;
   assertEquals(null, g());
-  assertOptimized(g);
 })();
 
 (function ReduceHoleyArrayWithDefaultAccumulator() {

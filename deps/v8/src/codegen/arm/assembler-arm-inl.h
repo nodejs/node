@@ -53,7 +53,7 @@ int DoubleRegister::SupportedRegisterCount() {
   return CpuFeatures::IsSupported(VFP32DREGS) ? 32 : 16;
 }
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   if (RelocInfo::IsInternalReference(rmode_)) {
     // absolute code pointer inside code object moves with the code object.
     int32_t* p = reinterpret_cast<int32_t*>(pc_);
@@ -91,10 +91,10 @@ Address RelocInfo::constant_pool_entry_address() {
 
 int RelocInfo::target_address_size() { return kPointerSize; }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(
-      Object(Assembler::target_address_at(pc_, constant_pool_)));
+  return Cast<HeapObject>(
+      Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -106,15 +106,11 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
   return origin->relative_code_target_object_handle_at(pc_);
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                    icache_flush_mode);
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
-  }
 }
 
 Address RelocInfo::target_external_reference() {
@@ -122,7 +118,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -146,17 +142,6 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::WipeOut() {
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    Memory<Address>(pc_) = kNullAddress;
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
-  }
-}
-
 Handle<Code> Assembler::relative_code_target_object_handle_at(
     Address pc) const {
   Instruction* branch = Instruction::At(pc);
@@ -171,7 +156,7 @@ Operand::Operand(const ExternalReference& f)
   value_.immediate = static_cast<int32_t>(f.address());
 }
 
-Operand::Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
+Operand::Operand(Tagged<Smi> value) : rmode_(RelocInfo::NO_INFO) {
   value_.immediate = static_cast<intptr_t>(value.ptr());
 }
 
@@ -191,7 +176,7 @@ void Assembler::emit(Instr x) {
 }
 
 void Assembler::deserialization_set_special_target_at(
-    Address constant_pool_entry, Code code, Address target) {
+    Address constant_pool_entry, Tagged<Code> code, Address target) {
   DCHECK(!Builtins::IsIsolateIndependentBuiltin(code));
   Memory<Address>(constant_pool_entry) = target;
 }
@@ -305,6 +290,20 @@ void Assembler::set_target_address_at(Address pc, Address constant_pool,
       FlushInstructionCache(pc, kInstrSize);
     }
   }
+}
+
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  CHECK(is_constant_pool_load(pc));
+  return Memory<uint32_t>(constant_pool_entry_address(pc, constant_pool));
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  CHECK(is_constant_pool_load(pc));
+  Memory<uint32_t>(constant_pool_entry_address(pc, constant_pool)) =
+      new_constant;
+  // Icache flushing not needed for Ldr via the constant pool.
 }
 
 EnsureSpace::EnsureSpace(Assembler* assembler) { assembler->CheckBuffer(); }

@@ -5,7 +5,7 @@
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let builder = new WasmModuleBuilder();
-builder.addMemory(1, 10, true);
+builder.addMemory(1, 10);
 
 builder.addFunction("crash", kSig_i_i)
   .exportFunc()

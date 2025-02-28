@@ -43,6 +43,8 @@ class MemoryMeasurement {
     Handle<WeakFixedArray> contexts;
     std::vector<size_t> sizes;
     size_t shared;
+    size_t wasm_code;
+    size_t wasm_metadata;
     base::ElapsedTimer timer;
   };
   void ScheduleReportingTask();
@@ -57,6 +59,7 @@ class MemoryMeasurement {
   std::list<Request> processing_;
   std::list<Request> done_;
   Isolate* isolate_;
+  std::shared_ptr<v8::TaskRunner> task_runner_;
   bool reporting_task_pending_ = false;
   bool delayed_gc_task_pending_ = false;
   bool eager_gc_task_pending_ = false;
@@ -70,23 +73,15 @@ class V8_EXPORT_PRIVATE NativeContextInferrer {
   // It should be initialized to the context that will be used for the object
   // if the inference is not successful. The function performs more work if the
   // context is the shared context.
-  V8_INLINE bool Infer(Isolate* isolate, Map map, HeapObject object,
-                       Address* native_context);
-
- private:
-  bool InferForContext(Isolate* isolate, Context context,
-                       Address* native_context);
-  bool InferForJSFunction(Isolate* isolate, JSFunction function,
-                          Address* native_context);
-  bool InferForJSObject(Isolate* isolate, Map map, JSObject object,
-                        Address* native_context);
+  V8_INLINE bool Infer(PtrComprCageBase cage_base, Tagged<Map> map,
+                       Tagged<HeapObject> object, Address* native_context);
 };
 
 // Maintains mapping from native contexts to their sizes.
 class V8_EXPORT_PRIVATE NativeContextStats {
  public:
-  V8_INLINE void IncrementSize(Address context, Map map, HeapObject object,
-                               size_t size);
+  V8_INLINE void IncrementSize(Address context, Tagged<Map> map,
+                               Tagged<HeapObject> object, size_t size);
 
   size_t Get(Address context) const {
     const auto it = size_by_context_.find(context);
@@ -96,9 +91,12 @@ class V8_EXPORT_PRIVATE NativeContextStats {
   void Clear();
   void Merge(const NativeContextStats& other);
 
+  bool Empty() const { return size_by_context_.empty(); }
+
  private:
-  V8_INLINE bool HasExternalBytes(Map map);
-  void IncrementExternalSize(Address context, Map map, HeapObject object);
+  V8_INLINE bool HasExternalBytes(Tagged<Map> map);
+  void IncrementExternalSize(Address context, Tagged<Map> map,
+                             Tagged<HeapObject> object);
   std::unordered_map<Address, size_t> size_by_context_;
 };
 

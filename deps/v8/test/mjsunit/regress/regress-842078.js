@@ -6,9 +6,4 @@
 
 // Attempt to externalize a string that's in RO_SPACE, which is not allowed as
 // the string's map would need to be writable.
-assertThrows(() => {
-  externalizeString("1", false)
-});
-assertThrows(() => {
-  externalizeString("1", true)
-});
+assertThrows(() => {externalizeString('1')});

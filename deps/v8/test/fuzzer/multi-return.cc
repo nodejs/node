@@ -141,7 +141,8 @@ std::shared_ptr<wasm::NativeModule> AllocateNativeModule(i::Isolate* isolate,
   // WasmCallDescriptor assumes that code is on the native heap and not
   // within a code object.
   auto native_module = wasm::GetWasmEngine()->NewNativeModule(
-      isolate, i::wasm::WasmFeatures::All(), std::move(module), code_size);
+      isolate, wasm::WasmEnabledFeatures::All(), wasm::CompileTimeImports{},
+      std::move(module), code_size);
   native_module->SetWireBytes({});
   return native_module;
 }
@@ -160,7 +161,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   InputProvider input(data, size);
   // Create randomized descriptor.
   size_t param_count = input.NumNonZeroBytes(0, kNumTypes);
-  if (param_count > InstructionStream::kMaxArguments) return 0;
+  if (param_count > wasm::kV8MaxWasmFunctionParams) return 0;
 
   size_t return_count = input.NumNonZeroBytes(param_count + 1, kNumTypes);
   if (return_count > wasm::kV8MaxWasmFunctionReturns) return 0;
@@ -239,16 +240,16 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
 
   OptimizedCompilationInfo info(base::ArrayVector("testing"), &zone,
                                 CodeKind::FOR_TESTING);
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Pipeline::GenerateCodeForTesting(&info, i_isolate, desc, callee.graph(),
                                        AssemblerOptions::Default(i_isolate),
                                        callee.ExportForTest())
           .ToHandleChecked();
 
   std::shared_ptr<wasm::NativeModule> module =
-      AllocateNativeModule(i_isolate, code->InstructionSize());
+      AllocateNativeModule(i_isolate, code->instruction_size());
   wasm::WasmCodeRefScope wasm_code_ref_scope;
-  byte* code_start = module->AddCodeForTesting(code)->instructions().begin();
+  uint8_t* code_start = module->AddCodeForTesting(code)->instructions().begin();
   // Generate wrapper.
   int expect = 0;
 
@@ -285,7 +286,7 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // Call the wrapper.
   OptimizedCompilationInfo wrapper_info(base::ArrayVector("wrapper"), &zone,
                                         CodeKind::FOR_TESTING);
-  Handle<Code> wrapper_code =
+  DirectHandle<Code> wrapper_code =
       Pipeline::GenerateCodeForTesting(
           &wrapper_info, i_isolate, wrapper_desc, caller.graph(),
           AssemblerOptions::Default(i_isolate), caller.ExportForTest())

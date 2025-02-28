@@ -51,6 +51,17 @@ A couple of options of note:
   token for the registry. For other ways to pass in auth details, see the
   n-r-f docs.
 
+* `opts.provenance` - when running in a supported CI environment, will trigger
+  the generation of a signed provenance statement to be published alongside
+  the package. Mutually exclusive with the `provenanceFile` option.
+
+* `opts.provenanceFile` - specifies the path to an externally-generated
+  provenance statement to be published alongside the package. Mutually
+  exclusive with the `provenance` option. The specified file should be a
+  [Sigstore Bundle](https://github.com/sigstore/protobuf-specs/blob/main/protos/sigstore_bundle.proto)
+  containing a [DSSE](https://github.com/secure-systems-lab/dsse)-packaged
+  provenance statement.
+
 #### <a name="publish"></a> `> libpub.publish(manifest, tarData, [opts]) -> Promise`
 
 Sends the package represented by the `manifest` and `tarData` to the

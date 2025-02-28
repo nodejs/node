@@ -60,7 +60,7 @@
     toLocaleString: 7
   }
   arr[0] = obj;
-  assertThrows(() => arr.toLocaleString(), TypeError, '7 is not a function');
+  assertThrows(() => arr.toLocaleString(), TypeError, 'number 7 is not a function');
 
   // Verifies cycle detection still works properly after thrown error.
   arr[0] = {

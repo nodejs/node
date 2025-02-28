@@ -12,6 +12,7 @@ namespace internal {
 namespace compiler {
 
 class BinaryOperationFeedback;
+class TypeOfOpFeedback;
 class CallFeedback;
 class CompareOperationFeedback;
 class ElementAccessFeedback;
@@ -35,6 +36,7 @@ class ProcessedFeedback : public ZoneObject {
     kForIn,
     kGlobalAccess,
     kInstanceOf,
+    kTypeOf,
     kLiteral,
     kMegaDOMPropertyAccess,
     kNamedAccess,
@@ -47,6 +49,7 @@ class ProcessedFeedback : public ZoneObject {
   bool IsInsufficient() const { return kind() == kInsufficient; }
 
   BinaryOperationFeedback const& AsBinaryOperation() const;
+  TypeOfOpFeedback const& AsTypeOf() const;
   CallFeedback const& AsCall() const;
   CompareOperationFeedback const& AsCompareOperation() const;
   ElementAccessFeedback const& AsElementAccess() const;
@@ -152,6 +155,9 @@ class ElementAccessFeedback : public ProcessedFeedback {
   //
   ElementAccessFeedback const& Refine(
       JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const;
+  ElementAccessFeedback const& Refine(
+      JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+      bool always_keep_group_target = true) const;
 
  private:
   KeyedAccessMode const keyed_mode_;
@@ -160,10 +166,10 @@ class ElementAccessFeedback : public ProcessedFeedback {
 
 class NamedAccessFeedback : public ProcessedFeedback {
  public:
-  NamedAccessFeedback(NameRef const& name, ZoneVector<MapRef> const& maps,
+  NamedAccessFeedback(NameRef name, ZoneVector<MapRef> const& maps,
                       FeedbackSlotKind slot_kind);
 
-  NameRef const& name() const { return name_; }
+  NameRef name() const { return name_; }
   ZoneVector<MapRef> const& maps() const { return maps_; }
 
  private:
@@ -176,7 +182,7 @@ class MegaDOMPropertyAccessFeedback : public ProcessedFeedback {
   MegaDOMPropertyAccessFeedback(FunctionTemplateInfoRef info_ref,
                                 FeedbackSlotKind slot_kind);
 
-  FunctionTemplateInfoRef const& info() const { return info_; }
+  FunctionTemplateInfoRef info() const { return info_; }
 
  private:
   FunctionTemplateInfoRef const info_;
@@ -212,6 +218,7 @@ class SingleValueFeedback : public ProcessedFeedback {
       : ProcessedFeedback(K, slot_kind), value_(value) {
     DCHECK(
         (K == kBinaryOperation && slot_kind == FeedbackSlotKind::kBinaryOp) ||
+        (K == kTypeOf && slot_kind == FeedbackSlotKind::kTypeOf) ||
         (K == kCompareOperation && slot_kind == FeedbackSlotKind::kCompareOp) ||
         (K == kForIn && slot_kind == FeedbackSlotKind::kForIn) ||
         (K == kInstanceOf && slot_kind == FeedbackSlotKind::kInstanceOf) ||
@@ -228,6 +235,12 @@ class SingleValueFeedback : public ProcessedFeedback {
 class InstanceOfFeedback
     : public SingleValueFeedback<OptionalJSObjectRef,
                                  ProcessedFeedback::kInstanceOf> {
+  using SingleValueFeedback::SingleValueFeedback;
+};
+
+class TypeOfOpFeedback
+    : public SingleValueFeedback<TypeOfFeedback::Result,
+                                 ProcessedFeedback::kTypeOf> {
   using SingleValueFeedback::SingleValueFeedback;
 };
 

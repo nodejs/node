@@ -32,7 +32,6 @@ class UnifiedHeapMarkingState final {
   Heap* const heap_;
   MarkingState* const marking_state_;
   MarkingWorklists::Local* local_marking_worklist_ = nullptr;
-  const bool track_retaining_path_;
   const TracedHandles::MarkMode mark_mode_;
 };
 

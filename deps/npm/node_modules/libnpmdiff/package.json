@@ -1,10 +1,10 @@
 {
   "name": "libnpmdiff",
-  "version": "5.0.17",
+  "version": "8.0.0",
   "description": "The registry diff",
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/cli.git",
+    "url": "git+https://github.com/npm/cli.git",
     "directory": "workspaces/libnpmdiff"
   },
   "main": "lib/index.js",
@@ -13,7 +13,7 @@
     "lib/"
   ],
   "engines": {
-    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+    "node": "^20.17.0 || >=22.9.0"
   },
   "keywords": [
     "npm",
@@ -32,33 +32,33 @@
   ],
   "license": "ISC",
   "scripts": {
-    "lint": "eslint \"**/*.js\"",
-    "lintfix": "node ../.. run lint -- --fix",
+    "lint": "npm run eslint",
+    "lintfix": "npm run eslint -- --fix",
     "test": "tap",
-    "posttest": "node ../.. run lint",
+    "posttest": "npm run lint",
     "snap": "tap",
     "postlint": "template-oss-check",
-    "template-oss-apply": "template-oss-apply --force"
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
   },
   "devDependencies": {
-    "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.14.1",
-    "tap": "^16.3.4"
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/template-oss": "4.23.6",
+    "tap": "^16.3.8"
   },
   "dependencies": {
-    "@npmcli/arborist": "^6.2.9",
-    "@npmcli/disparity-colors": "^3.0.0",
-    "@npmcli/installed-package-contents": "^2.0.2",
-    "binary-extensions": "^2.2.0",
-    "diff": "^5.1.0",
-    "minimatch": "^9.0.0",
-    "npm-package-arg": "^10.1.0",
-    "pacote": "^15.0.8",
-    "tar": "^6.1.13"
+    "@npmcli/arborist": "^9.0.0",
+    "@npmcli/installed-package-contents": "^3.0.0",
+    "binary-extensions": "^3.0.0",
+    "diff": "^7.0.0",
+    "minimatch": "^9.0.4",
+    "npm-package-arg": "^12.0.0",
+    "pacote": "^21.0.0",
+    "tar": "^6.2.1"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.14.1",
+    "version": "4.23.6",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

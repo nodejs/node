@@ -25,6 +25,10 @@ if (versionParts[0] === '4' && versionParts[1] >= 2) {
   assert.strictEqual(process.release.lts, 'Gallium');
 } else if (versionParts[0] === '18' && versionParts[1] >= 12) {
   assert.strictEqual(process.release.lts, 'Hydrogen');
+} else if (versionParts[0] === '20' && versionParts[1] >= 9) {
+  assert.strictEqual(process.release.lts, 'Iron');
+} else if (versionParts[0] === '22' && versionParts[1] >= 11) {
+  assert.strictEqual(process.release.lts, 'Jod');
 } else {
   assert.strictEqual(process.release.lts, undefined);
 }

@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --no-assert-types
+// Flags: --turboshaft-enable-debug-features
 
 // Check that the branch elimination replace the redundant branch condition with
 // a phi node, and then the branch is folded in EffectControlLinearizationPhase.

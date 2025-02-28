@@ -22,10 +22,6 @@ namespace v8::internal::compiler::turboshaft {
 //   TURBOSHAFT_REDUCER_BOILERPLATE()
 //   using Adapter = UniformReducerAdapter<MyReducer, Next>;
 //
-//   template <typename... Args>
-//   explicit MyReducer(const std::tuple<Args...>& args)
-//       : Adapter(args) { /* ... */ }
-//
 //   OpIndex ReduceInputGraphConstant(OpIndex ig_index, const ConstantOp& op) {
 //     /* Handle ConstantOps separately */
 //     /* ... */
@@ -66,7 +62,7 @@ namespace v8::internal::compiler::turboshaft {
 //   /* ... */
 // };
 //
-// NOTICE: Inside the ReduceOperation and ReduceInputGraphOperation callbacks,
+// NOTICE: Inside the ReduceXyz and ReduceInputGraphXyz callbacks of MyReducer,
 // you need to make a choice:
 //
 //   A) Call Next::ReduceXyz (or Next::ReduceInputGraphXyz) to forward to the
@@ -78,7 +74,7 @@ namespace v8::internal::compiler::turboshaft {
 //      OperationXyz is also processed by those (in addition to the special
 //      handling in ReduceXyz and ReduceInputGraphXyz).
 //
-// For the above MyReducer, consider this OptimizationPhase<R1, MyReducer, R2>.
+// For the above MyReducer, consider this CopyingPhase<R1, MyReducer, R2>.
 // Then the ReduceInputGraph (RIG) and Reduce (R) implementations are visited as
 // follows for Operations OpA and OpB (and all other operations that are not
 // ConstantOp), when all reducers just forward to Next. For ConstantOp, the
@@ -113,40 +109,37 @@ namespace v8::internal::compiler::turboshaft {
 template <template <typename> typename Reducer, typename Next>
 class UniformReducerAdapter : public Next {
  public:
-  template <typename... Args>
-  explicit UniformReducerAdapter(const std::tuple<Args...>& args)
-      : Next(args) {}
-
   template <Opcode opcode, typename Continuation, typename... Args>
-  OpIndex ReduceOperation(Args... args) {
+  auto ReduceOperation(Args... args) {
     return Continuation{this}.Reduce(args...);
   }
 
   template <typename Op, typename Continuation>
-  OpIndex ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
+  auto ReduceInputGraphOperation(OpIndex ig_index, const Op& operation) {
     return Continuation{this}.ReduceInputGraph(ig_index, operation);
   }
 
 #define REDUCE(op)                                                           \
   struct Reduce##op##Continuation final {                                    \
     explicit Reduce##op##Continuation(Next* _this) : this_(_this) {}         \
-    OpIndex ReduceInputGraph(OpIndex ig_index, const op##Op& operation) {    \
+    using Op = op##Op;                                                       \
+    auto ReduceInputGraph(OpIndex ig_index, const op##Op& operation) {       \
       return this_->ReduceInputGraph##op(ig_index, operation);               \
     }                                                                        \
     template <typename... Args>                                              \
-    OpIndex Reduce(Args... args) const {                                     \
+    auto Reduce(Args... args) const {                                        \
       return this_->Reduce##op(args...);                                     \
     }                                                                        \
     Next* this_;                                                             \
   };                                                                         \
-  OpIndex ReduceInputGraph##op(OpIndex ig_index, const op##Op& operation) {  \
+  auto ReduceInputGraph##op(OpIndex ig_index, const op##Op& operation) {     \
     return static_cast<Reducer<Next>*>(this)                                 \
         ->template ReduceInputGraphOperation<op##Op,                         \
                                              Reduce##op##Continuation>(      \
             ig_index, operation);                                            \
   }                                                                          \
   template <typename... Args>                                                \
-  OpIndex Reduce##op(Args... args) {                                         \
+  auto Reduce##op(Args... args) {                                            \
     return static_cast<Reducer<Next>*>(this)                                 \
         ->template ReduceOperation<Opcode::k##op, Reduce##op##Continuation>( \
             args...);                                                        \

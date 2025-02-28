@@ -189,6 +189,7 @@ class RegisterConfig {
     int stack_param_count = params.stack_offset();
     return zone->New<CallDescriptor>(       // --
         CallDescriptor::kCallCodeObject,    // kind
+        kDefaultCodeEntrypointTag,          // tag
         target_type,                        // target MachineType
         target_loc,                         // target location
         locations.Build(),                  // location_sig
@@ -271,7 +272,7 @@ Handle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
     Node* target = b.graph()->NewNode(b.common()->HeapConstant(inner));
 
     // Add arguments to the call.
-    Node** args = zone.NewArray<Node*>(param_count + 3);
+    Node** args = zone.AllocateArray<Node*>(param_count + 3);
     int index = 0;
     args[index++] = target;
     for (int i = 0; i < param_count; i++) {
@@ -439,7 +440,7 @@ class Computer {
 
     {
       // constant mode.
-      Handle<Code> wrapper;
+      DirectHandle<Code> wrapper;
       {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -447,7 +448,7 @@ class Computer {
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(inner);
-        Node** inputs = zone.NewArray<Node*>(num_params + 1);
+        Node** inputs = zone.AllocateArray<Node*>(num_params + 1);
         int input_count = 0;
         inputs[input_count++] = target;
         for (int i = 0; i < num_params; i++) {
@@ -473,7 +474,7 @@ class Computer {
 
     {
       // buffer mode.
-      Handle<Code> wrapper;
+      DirectHandle<Code> wrapper;
       {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -482,7 +483,7 @@ class Computer {
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* base = raw.PointerConstant(io.input);
         Node* target = raw.HeapConstant(inner);
-        Node** inputs = zone.NewArray<Node*>(kMaxParamCount + 1);
+        Node** inputs = zone.AllocateArray<Node*>(kMaxParamCount + 1);
         int input_count = 0;
         inputs[input_count++] = target;
         for (int i = 0; i < num_params; i++) {
@@ -534,7 +535,7 @@ static void TestInt32Sub(CallDescriptor* desc) {
   }
 
   Handle<Code> inner_code = CompileGraph("Int32Sub", desc, inner.graph());
-  Handle<Code> wrapper = WrapWithCFunction(isolate, inner_code, desc);
+  DirectHandle<Code> wrapper = WrapWithCFunction(isolate, inner_code, desc);
   MachineSignature* msig = desc->GetMachineSignature(&zone);
   CodeRunner<int32_t> runnable(isolate, wrapper,
                                CSignature::FromMachine(&zone, msig));
@@ -573,7 +574,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   }
 
   CSignatureOf<int32_t> csig;
-  Handle<Code> wrapper;
+  DirectHandle<Code> wrapper;
   {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
@@ -582,7 +583,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
     Node* target = raw.HeapConstant(inner);
-    Node** inputs = zone.NewArray<Node*>(JSParameterCount(kNumParams));
+    Node** inputs = zone.AllocateArray<Node*>(JSParameterCount(kNumParams));
     int input_count = 0;
     inputs[input_count++] = target;
     for (int i = 0; i < kNumParams; i++) {
@@ -951,13 +952,13 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     r.Return(r.Parameter(which));
     inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
     CHECK(!inner.is_null());
-    CHECK(inner->IsCode());
+    CHECK(IsCode(*inner));
   }
 
   {
     // Build a call to the function that does the select.
     Node* target = raw->HeapConstant(inner);
-    Node** inputs = raw->zone()->NewArray<Node*>(num_params + 1);
+    Node** inputs = raw->zone()->AllocateArray<Node*>(num_params + 1);
     int input_count = 0;
     inputs[input_count++] = target;
     for (int i = 0; i < num_params; i++) {
@@ -1050,7 +1051,7 @@ void MixedParamTest(int start) {
 
     {
       // call the select.
-      Handle<Code> wrapper;
+      DirectHandle<Code> wrapper;
       int32_t expected_ret;
       char bytes[kDoubleSize];
       alignas(8) char output[kDoubleSize];
@@ -1064,7 +1065,7 @@ void MixedParamTest(int start) {
             Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(select);
-        Node** inputs = wrap_zone.NewArray<Node*>(num_params + 1);
+        Node** inputs = wrap_zone.AllocateArray<Node*>(num_params + 1);
         int input_count = 0;
         inputs[input_count++] = target;
         int64_t constant = 0x0102030405060708;

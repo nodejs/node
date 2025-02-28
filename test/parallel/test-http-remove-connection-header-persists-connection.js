@@ -1,5 +1,5 @@
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 
 const net = require('net');
@@ -9,6 +9,13 @@ const server = http.createServer(function(request, response) {
   // When the connection header is removed, for HTTP/1.1 the connection should still persist.
   // For HTTP/1.0, the connection should be closed after the response automatically.
   response.removeHeader('connection');
+
+  if (request.httpVersion === '1.0') {
+    const socket = request.socket;
+    response.on('finish', common.mustCall(function() {
+      assert.ok(socket.writableEnded);
+    }));
+  }
 
   response.end('beep boop\n');
 });
@@ -50,9 +57,7 @@ function makeHttp10Request(cb) {
                 '\r\n');
     socket.resume(); // Ignore the response itself
 
-    setTimeout(function() {
-      cb(socket);
-    }, 10);
+    socket.on('close', cb);
   });
 }
 
@@ -62,9 +67,7 @@ server.listen(0, function() {
       // Both HTTP/1.1 requests should have used the same socket:
       assert.strictEqual(firstSocket, secondSocket);
 
-      makeHttp10Request(function(socket) {
-        // The server should have immediately closed the HTTP/1.0 socket:
-        assert.strictEqual(socket.closed, true);
+      makeHttp10Request(function() {
         server.close();
       });
     });

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
+// Flags: --experimental-wasm-stringref
 
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
@@ -20,19 +20,19 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, structSuper,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]).exportFunc();
   builder.addFunction('createStructSub', makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, structSub,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]).exportFunc();
   builder.addFunction('createArray', makeSig([kWasmI32], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprArrayNewFixed, array, 1,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]).exportFunc();
   builder.addFunction('createFuncRef', makeSig([], [kWasmFuncRef]))
     .addBody([
@@ -47,6 +47,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     ["AnyArray", kArrayRefCode],
     ["Struct", kStructRefCode],
     ["Eq", kEqRefCode],
+    ["String", kStringRefCode],
     // 'ref.test any' is semantically the same as '!ref.is_null' here.
     ["Any", kAnyRefCode],
     ["None", kNullRefCode]
@@ -55,10 +56,10 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                         makeSig([kWasmExternRef], [kWasmI32, kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefTest, typeCode,
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefTestNull, typeCode,
     ]).exportFunc();
 
@@ -66,18 +67,18 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
                         makeSig([kWasmExternRef], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCast, typeCode,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]).exportFunc();
 
     builder.addFunction(`refCastNull${typeName}`,
                         makeSig([kWasmExternRef], [kWasmExternRef]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, typeCode,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ]).exportFunc();
 
     builder.addFunction(`brOnCast${typeName}`,
@@ -85,8 +86,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprBlock, kWasmRef, typeCode,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
-        kGCPrefix, kExprBrOnCast, 0, typeCode,
+        kGCPrefix, kExprAnyConvertExtern,
+        kGCPrefix, kExprBrOnCast, 0b01, 0, kAnyRefCode, typeCode,
         kExprI32Const, 0,
         kExprReturn,
       kExprEnd,
@@ -99,8 +100,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprBlock, kWasmRefNull, typeCode,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
-        kGCPrefix, kExprBrOnCastNull, 0, typeCode,
+        kGCPrefix, kExprAnyConvertExtern,
+        kGCPrefix, kExprBrOnCast, 0b11, 0, kAnyRefCode, typeCode,
         kExprI32Const, 0,
         kExprReturn,
       kExprEnd,
@@ -113,8 +114,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprBlock, kAnyRefCode,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
-        kGCPrefix, kExprBrOnCastFail, 0, typeCode,
+        kGCPrefix, kExprAnyConvertExtern,
+        kGCPrefix, kExprBrOnCastFail, 0b01, 0, kAnyRefCode, typeCode,
         kExprI32Const, 0,
         kExprReturn,
       kExprEnd,
@@ -127,8 +128,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprBlock, kAnyRefCode,
         kExprLocalGet, 0,
-        kGCPrefix, kExprExternInternalize,
-        kGCPrefix, kExprBrOnCastFailNull, 0, typeCode,
+        kGCPrefix, kExprAnyConvertExtern,
+        kGCPrefix, kExprBrOnCastFail, 0b11, 0, kAnyRefCode, typeCode,
         kExprI32Const, 0,
         kExprReturn,
       kExprEnd,
@@ -149,6 +150,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestStructSuper(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestStructSuper(1));
   assertEquals([0, 0], wasm.refTestStructSuper({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestStructSuper('string'));
 
   assertEquals([0, 1], wasm.refTestStructSub(null));
   assertEquals([0, 0], wasm.refTestStructSub(undefined));
@@ -158,6 +160,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestStructSub(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestStructSub(1));
   assertEquals([0, 0], wasm.refTestStructSub({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestStructSub('string'));
 
   assertEquals([0, 1], wasm.refTestArray(null));
   assertEquals([0, 0], wasm.refTestArray(undefined));
@@ -167,6 +170,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestArray(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestArray(1));
   assertEquals([0, 0], wasm.refTestArray({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestArray('string'));
 
   assertEquals([0, 1], wasm.refTestI31(null));
   assertEquals([0, 0], wasm.refTestI31(undefined));
@@ -176,6 +180,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestI31(wasm.createFuncRef()));
   assertEquals([1, 1], wasm.refTestI31(1));
   assertEquals([0, 0], wasm.refTestI31({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestI31('string'));
 
   assertEquals([0, 1], wasm.refTestAnyArray(null));
   assertEquals([0, 0], wasm.refTestAnyArray(undefined));
@@ -185,6 +190,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestAnyArray(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestAnyArray(1));
   assertEquals([0, 0], wasm.refTestAnyArray({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestAnyArray('string'));
 
   assertEquals([0, 1], wasm.refTestStruct(null));
   assertEquals([0, 0], wasm.refTestStruct(undefined));
@@ -194,6 +200,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestStruct(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestStruct(1));
   assertEquals([0, 0], wasm.refTestStruct({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestStruct('string'));
+
+  assertEquals([0, 1], wasm.refTestString(null));
+  assertEquals([0, 0], wasm.refTestString(undefined));
+  assertEquals([0, 0], wasm.refTestString(wasm.createStructSuper()));
+  assertEquals([0, 0], wasm.refTestString(wasm.createStructSub()));
+  assertEquals([0, 0], wasm.refTestString(wasm.createArray()));
+  assertEquals([0, 0], wasm.refTestString(wasm.createFuncRef()));
+  assertEquals([0, 0], wasm.refTestString(1));
+  assertEquals([0, 0], wasm.refTestString({'JavaScript': 'Object'}));
+  assertEquals([1, 1], wasm.refTestString('string'));
 
   assertEquals([0, 1], wasm.refTestEq(null));
   assertEquals([0, 0], wasm.refTestEq(undefined));
@@ -203,6 +220,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestEq(wasm.createFuncRef()));
   assertEquals([1, 1], wasm.refTestEq(1)); // ref.i31
   assertEquals([0, 0], wasm.refTestEq({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestEq('string'));
 
   assertEquals([0, 1], wasm.refTestAny(null));
   assertEquals([1, 1], wasm.refTestAny(undefined));
@@ -212,6 +230,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([1, 1], wasm.refTestAny(wasm.createFuncRef()));
   assertEquals([1, 1], wasm.refTestAny(1)); // ref.i31
   assertEquals([1, 1], wasm.refTestAny({'JavaScript': 'Object'}));
+  assertEquals([1, 1], wasm.refTestAny('string'));
 
   assertEquals([0, 1], wasm.refTestNone(null));
   assertEquals([0, 0], wasm.refTestNone(undefined));
@@ -221,12 +240,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals([0, 0], wasm.refTestNone(wasm.createFuncRef()));
   assertEquals([0, 0], wasm.refTestNone(1)); // ref.i31
   assertEquals([0, 0], wasm.refTestNone({'JavaScript': 'Object'}));
+  assertEquals([0, 0], wasm.refTestNone('string'));
 
   // ref.cast
   let structSuperObj = wasm.createStructSuper();
   let structSubObj = wasm.createStructSub();
   let arrayObj = wasm.createArray();
   let jsObj = {'JavaScript': 'Object'};
+  let strObj = 'string';
   let funcObj = wasm.createFuncRef();
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(null));
@@ -237,6 +258,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSuper(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(undefined));
@@ -246,6 +268,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStructSub(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastArray(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastArray(undefined));
@@ -255,6 +278,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastArray(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastArray(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastArray(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastArray(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastI31(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastI31(undefined));
@@ -264,6 +288,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastI31(funcObj));
   assertEquals(1, wasm.refCastI31(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastI31(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastI31(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(undefined));
@@ -273,6 +298,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastAnyArray(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(undefined));
@@ -282,6 +308,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastStruct(strObj));
+
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(structSuperObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastString(jsObj));
+  assertSame(strObj, wasm.refCastString(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastEq(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastEq(undefined));
@@ -291,6 +328,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastEq(funcObj));
   assertEquals(1, wasm.refCastEq(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastEq(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastEq(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastAny(null));
   assertSame(undefined, wasm.refCastAny(undefined));
@@ -300,6 +338,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertSame(funcObj, wasm.refCastAny(funcObj));
   assertEquals(1, wasm.refCastAny(1));
   assertSame(jsObj, wasm.refCastAny(jsObj));
+  assertSame(strObj, wasm.refCastAny(strObj));
 
   assertTraps(kTrapIllegalCast, () => wasm.refCastNone(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNone(undefined));
@@ -309,6 +348,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNone(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNone(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNone(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNone(strObj));
 
   // ref.cast null
   assertSame(null, wasm.refCastNullStructSuper(null));
@@ -319,6 +359,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSuper(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSuper(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSuper(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSuper(strObj));
 
   assertSame(null, wasm.refCastNullStructSub(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSub(undefined));
@@ -328,6 +369,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSub(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSub(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSub(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullStructSub(strObj));
 
   assertSame(null, wasm.refCastNullArray(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullArray(undefined));
@@ -337,6 +379,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullArray(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullArray(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullArray(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullArray(strObj));
 
   assertSame(null, wasm.refCastNullI31(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullI31(undefined));
@@ -346,6 +389,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullI31(funcObj));
   assertEquals(1, wasm.refCastNullI31(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullI31(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullI31(strObj));
 
   assertSame(null, wasm.refCastNullAnyArray(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullAnyArray(undefined));
@@ -355,6 +399,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullAnyArray(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullAnyArray(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullAnyArray(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullAnyArray(strObj));
 
   assertSame(null, wasm.refCastNullStruct(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStruct(undefined));
@@ -364,6 +409,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStruct(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStruct(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullStruct(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullStruct(strObj));
+
+  assertSame(null, wasm.refCastNullString(null));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(undefined));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(structSuperObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(structSubObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(arrayObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(funcObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(1));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullString(jsObj));
+  assertSame(strObj, wasm.refCastNullString(strObj));
 
   assertSame(null, wasm.refCastNullEq(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullEq(undefined));
@@ -373,6 +429,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullEq(funcObj));
   assertEquals(1, wasm.refCastNullEq(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullEq(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullEq(strObj));
 
   assertSame(null, wasm.refCastNullAny(null));
   assertSame(undefined, wasm.refCastNullAny(undefined));
@@ -382,6 +439,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertSame(funcObj, wasm.refCastNullAny(funcObj));
   assertEquals(1, wasm.refCastNullAny(1));
   assertSame(jsObj, wasm.refCastNullAny(jsObj));
+  assertSame(strObj, wasm.refCastNullAny(strObj));
 
   assertSame(null, wasm.refCastNullNone(null));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(undefined));
@@ -391,6 +449,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(funcObj));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(1));
   assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(jsObj));
+  assertTraps(kTrapIllegalCast, () => wasm.refCastNullNone(strObj));
 
   // br_on_cast
   assertEquals(0, wasm.brOnCastStructSuper(null));
@@ -401,6 +460,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastStructSuper(funcObj));
   assertEquals(0, wasm.brOnCastStructSuper(1));
   assertEquals(0, wasm.brOnCastStructSuper(jsObj));
+  assertEquals(0, wasm.brOnCastStructSuper(strObj));
 
   assertEquals(0, wasm.brOnCastStructSub(null));
   assertEquals(0, wasm.brOnCastStructSub(undefined));
@@ -410,6 +470,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastStructSub(funcObj));
   assertEquals(0, wasm.brOnCastStructSub(1));
   assertEquals(0, wasm.brOnCastStructSub(jsObj));
+  assertEquals(0, wasm.brOnCastStructSub(strObj));
 
   assertEquals(0, wasm.brOnCastArray(null));
   assertEquals(0, wasm.brOnCastArray(undefined));
@@ -419,6 +480,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastArray(funcObj));
   assertEquals(0, wasm.brOnCastArray(1));
   assertEquals(0, wasm.brOnCastArray(jsObj));
+  assertEquals(0, wasm.brOnCastArray(strObj));
 
   assertEquals(0, wasm.brOnCastI31(null));
   assertEquals(0, wasm.brOnCastI31(undefined));
@@ -428,6 +490,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastI31(funcObj));
   assertEquals(1, wasm.brOnCastI31(1));
   assertEquals(0, wasm.brOnCastI31(jsObj));
+  assertEquals(0, wasm.brOnCastI31(strObj));
 
   assertEquals(0, wasm.brOnCastAnyArray(null));
   assertEquals(0, wasm.brOnCastAnyArray(undefined));
@@ -437,6 +500,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastAnyArray(funcObj));
   assertEquals(0, wasm.brOnCastAnyArray(1));
   assertEquals(0, wasm.brOnCastAnyArray(jsObj));
+  assertEquals(0, wasm.brOnCastAnyArray(strObj));
 
   assertEquals(0, wasm.brOnCastStruct(null));
   assertEquals(0, wasm.brOnCastStruct(undefined));
@@ -446,6 +510,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastStruct(funcObj));
   assertEquals(0, wasm.brOnCastStruct(1));
   assertEquals(0, wasm.brOnCastStruct(jsObj));
+  assertEquals(0, wasm.brOnCastStruct(strObj));
 
   assertEquals(0, wasm.brOnCastEq(null));
   assertEquals(0, wasm.brOnCastEq(undefined));
@@ -455,6 +520,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastEq(funcObj));
   assertEquals(1, wasm.brOnCastEq(1));
   assertEquals(0, wasm.brOnCastEq(jsObj));
+  assertEquals(0, wasm.brOnCastEq(strObj));
+
+  assertEquals(0, wasm.brOnCastString(null));
+  assertEquals(0, wasm.brOnCastString(undefined));
+  assertEquals(0, wasm.brOnCastString(structSuperObj));
+  assertEquals(0, wasm.brOnCastString(structSubObj));
+  assertEquals(0, wasm.brOnCastString(arrayObj));
+  assertEquals(0, wasm.brOnCastString(funcObj));
+  assertEquals(0, wasm.brOnCastString(1));
+  assertEquals(0, wasm.brOnCastString(jsObj));
+  assertEquals(1, wasm.brOnCastString(strObj));
 
   assertEquals(0, wasm.brOnCastAny(null));
   assertEquals(1, wasm.brOnCastAny(undefined));
@@ -464,6 +540,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastAny(funcObj));
   assertEquals(1, wasm.brOnCastAny(1));
   assertEquals(1, wasm.brOnCastAny(jsObj));
+  assertEquals(1, wasm.brOnCastAny(strObj));
 
   assertEquals(0, wasm.brOnCastNone(null));
   assertEquals(0, wasm.brOnCastNone(undefined));
@@ -473,6 +550,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNone(funcObj));
   assertEquals(0, wasm.brOnCastNone(1));
   assertEquals(0, wasm.brOnCastNone(jsObj));
+  assertEquals(0, wasm.brOnCastNone(strObj));
 
   // br_on_cast null
   assertEquals(1, wasm.brOnCastNullStructSuper(null));
@@ -483,6 +561,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullStructSuper(funcObj));
   assertEquals(0, wasm.brOnCastNullStructSuper(1));
   assertEquals(0, wasm.brOnCastNullStructSuper(jsObj));
+  assertEquals(0, wasm.brOnCastNullStructSuper(strObj));
 
   assertEquals(1, wasm.brOnCastNullStructSub(null));
   assertEquals(0, wasm.brOnCastNullStructSub(undefined));
@@ -492,6 +571,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullStructSub(funcObj));
   assertEquals(0, wasm.brOnCastNullStructSub(1));
   assertEquals(0, wasm.brOnCastNullStructSub(jsObj));
+  assertEquals(0, wasm.brOnCastNullStructSub(strObj));
 
   assertEquals(1, wasm.brOnCastNullArray(null));
   assertEquals(0, wasm.brOnCastNullArray(undefined));
@@ -501,6 +581,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullArray(funcObj));
   assertEquals(0, wasm.brOnCastNullArray(1));
   assertEquals(0, wasm.brOnCastNullArray(jsObj));
+  assertEquals(0, wasm.brOnCastNullArray(strObj));
 
   assertEquals(1, wasm.brOnCastNullI31(null));
   assertEquals(0, wasm.brOnCastNullI31(undefined));
@@ -510,6 +591,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullI31(funcObj));
   assertEquals(1, wasm.brOnCastNullI31(1));
   assertEquals(0, wasm.brOnCastNullI31(jsObj));
+  assertEquals(0, wasm.brOnCastNullI31(strObj));
 
   assertEquals(1, wasm.brOnCastNullAnyArray(null));
   assertEquals(0, wasm.brOnCastNullAnyArray(undefined));
@@ -519,6 +601,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullAnyArray(funcObj));
   assertEquals(0, wasm.brOnCastNullAnyArray(1));
   assertEquals(0, wasm.brOnCastNullAnyArray(jsObj));
+  assertEquals(0, wasm.brOnCastNullAnyArray(strObj));
 
   assertEquals(1, wasm.brOnCastNullStruct(null));
   assertEquals(0, wasm.brOnCastNullStruct(undefined));
@@ -528,6 +611,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullStruct(funcObj));
   assertEquals(0, wasm.brOnCastNullStruct(1));
   assertEquals(0, wasm.brOnCastNullStruct(jsObj));
+  assertEquals(0, wasm.brOnCastNullStruct(strObj));
 
   assertEquals(1, wasm.brOnCastNullEq(null));
   assertEquals(0, wasm.brOnCastNullEq(undefined));
@@ -537,6 +621,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullEq(funcObj));
   assertEquals(1, wasm.brOnCastNullEq(1));
   assertEquals(0, wasm.brOnCastNullEq(jsObj));
+  assertEquals(0, wasm.brOnCastNullEq(strObj));
+
+  assertEquals(1, wasm.brOnCastNullString(null));
+  assertEquals(0, wasm.brOnCastNullString(undefined));
+  assertEquals(0, wasm.brOnCastNullString(structSuperObj));
+  assertEquals(0, wasm.brOnCastNullString(structSubObj));
+  assertEquals(0, wasm.brOnCastNullString(arrayObj));
+  assertEquals(0, wasm.brOnCastNullString(funcObj));
+  assertEquals(0, wasm.brOnCastNullString(1));
+  assertEquals(0, wasm.brOnCastNullString(jsObj));
+  assertEquals(1, wasm.brOnCastNullString(strObj));
 
   assertEquals(1, wasm.brOnCastNullAny(null));
   assertEquals(1, wasm.brOnCastNullAny(undefined));
@@ -546,6 +641,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastNullAny(funcObj));
   assertEquals(1, wasm.brOnCastNullAny(1));
   assertEquals(1, wasm.brOnCastNullAny(jsObj));
+  assertEquals(1, wasm.brOnCastNullAny(strObj));
 
   assertEquals(1, wasm.brOnCastNullNone(null));
   assertEquals(0, wasm.brOnCastNullNone(undefined));
@@ -555,6 +651,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastNullNone(funcObj));
   assertEquals(0, wasm.brOnCastNullNone(1));
   assertEquals(0, wasm.brOnCastNullNone(jsObj));
+  assertEquals(0, wasm.brOnCastNullNone(strObj));
 
   // br_on_cast_fail
   assertEquals(1, wasm.brOnCastFailStructSuper(null));
@@ -565,6 +662,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailStructSuper(funcObj));
   assertEquals(1, wasm.brOnCastFailStructSuper(1));
   assertEquals(1, wasm.brOnCastFailStructSuper(jsObj));
+  assertEquals(1, wasm.brOnCastFailStructSuper(strObj));
 
   assertEquals(1, wasm.brOnCastFailStructSub(null));
   assertEquals(1, wasm.brOnCastFailStructSub(undefined));
@@ -574,6 +672,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailStructSub(funcObj));
   assertEquals(1, wasm.brOnCastFailStructSub(1));
   assertEquals(1, wasm.brOnCastFailStructSub(jsObj));
+  assertEquals(1, wasm.brOnCastFailStructSub(strObj));
 
   assertEquals(1, wasm.brOnCastFailArray(null));
   assertEquals(1, wasm.brOnCastFailArray(undefined));
@@ -583,6 +682,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailArray(funcObj));
   assertEquals(1, wasm.brOnCastFailArray(1));
   assertEquals(1, wasm.brOnCastFailArray(jsObj));
+  assertEquals(1, wasm.brOnCastFailArray(strObj));
 
   assertEquals(1, wasm.brOnCastFailI31(null));
   assertEquals(1, wasm.brOnCastFailI31(undefined));
@@ -592,6 +692,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailI31(funcObj));
   assertEquals(0, wasm.brOnCastFailI31(1));
   assertEquals(1, wasm.brOnCastFailI31(jsObj));
+  assertEquals(1, wasm.brOnCastFailI31(strObj));
 
   assertEquals(1, wasm.brOnCastFailAnyArray(null));
   assertEquals(1, wasm.brOnCastFailAnyArray(undefined));
@@ -601,6 +702,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailAnyArray(funcObj));
   assertEquals(1, wasm.brOnCastFailAnyArray(1));
   assertEquals(1, wasm.brOnCastFailAnyArray(jsObj));
+  assertEquals(1, wasm.brOnCastFailAnyArray(strObj));
 
   assertEquals(1, wasm.brOnCastFailStruct(null));
   assertEquals(1, wasm.brOnCastFailStruct(undefined));
@@ -610,6 +712,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailStruct(funcObj));
   assertEquals(1, wasm.brOnCastFailStruct(1));
   assertEquals(1, wasm.brOnCastFailStruct(jsObj));
+  assertEquals(1, wasm.brOnCastFailStruct(strObj));
 
   assertEquals(1, wasm.brOnCastFailEq(null));
   assertEquals(1, wasm.brOnCastFailEq(undefined));
@@ -619,6 +722,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailEq(funcObj));
   assertEquals(0, wasm.brOnCastFailEq(1));
   assertEquals(1, wasm.brOnCastFailEq(jsObj));
+  assertEquals(1, wasm.brOnCastFailEq(strObj));
+
+  assertEquals(1, wasm.brOnCastFailString(null));
+  assertEquals(1, wasm.brOnCastFailString(undefined));
+  assertEquals(1, wasm.brOnCastFailString(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailString(structSubObj));
+  assertEquals(1, wasm.brOnCastFailString(arrayObj));
+  assertEquals(1, wasm.brOnCastFailString(funcObj));
+  assertEquals(1, wasm.brOnCastFailString(1));
+  assertEquals(1, wasm.brOnCastFailString(jsObj));
+  assertEquals(0, wasm.brOnCastFailString(strObj));
 
   assertEquals(1, wasm.brOnCastFailAny(null));
   assertEquals(0, wasm.brOnCastFailAny(undefined));
@@ -628,6 +742,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastFailAny(funcObj));
   assertEquals(0, wasm.brOnCastFailAny(1));
   assertEquals(0, wasm.brOnCastFailAny(jsObj));
+  assertEquals(0, wasm.brOnCastFailAny(strObj));
 
   assertEquals(1, wasm.brOnCastFailNone(null));
   assertEquals(1, wasm.brOnCastFailNone(undefined));
@@ -637,6 +752,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNone(funcObj));
   assertEquals(1, wasm.brOnCastFailNone(1));
   assertEquals(1, wasm.brOnCastFailNone(jsObj));
+  assertEquals(1, wasm.brOnCastFailNone(strObj));
 
   // br_on_cast_fail null
   assertEquals(0, wasm.brOnCastFailNullStructSuper(null));
@@ -647,6 +763,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullStructSuper(funcObj));
   assertEquals(1, wasm.brOnCastFailNullStructSuper(1));
   assertEquals(1, wasm.brOnCastFailNullStructSuper(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSuper(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullStructSub(null));
   assertEquals(1, wasm.brOnCastFailNullStructSub(undefined));
@@ -656,6 +773,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullStructSub(funcObj));
   assertEquals(1, wasm.brOnCastFailNullStructSub(1));
   assertEquals(1, wasm.brOnCastFailNullStructSub(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullStructSub(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullArray(null));
   assertEquals(1, wasm.brOnCastFailNullArray(undefined));
@@ -665,6 +783,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullArray(funcObj));
   assertEquals(1, wasm.brOnCastFailNullArray(1));
   assertEquals(1, wasm.brOnCastFailNullArray(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullArray(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullI31(null));
   assertEquals(1, wasm.brOnCastFailNullI31(undefined));
@@ -674,6 +793,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullI31(funcObj));
   assertEquals(0, wasm.brOnCastFailNullI31(1));
   assertEquals(1, wasm.brOnCastFailNullI31(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullI31(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullAnyArray(null));
   assertEquals(1, wasm.brOnCastFailNullAnyArray(undefined));
@@ -683,6 +803,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullAnyArray(funcObj));
   assertEquals(1, wasm.brOnCastFailNullAnyArray(1));
   assertEquals(1, wasm.brOnCastFailNullAnyArray(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullAnyArray(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullStruct(null));
   assertEquals(1, wasm.brOnCastFailNullStruct(undefined));
@@ -692,6 +813,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullStruct(funcObj));
   assertEquals(1, wasm.brOnCastFailNullStruct(1));
   assertEquals(1, wasm.brOnCastFailNullStruct(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullStruct(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullEq(null));
   assertEquals(1, wasm.brOnCastFailNullEq(undefined));
@@ -701,6 +823,17 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullEq(funcObj));
   assertEquals(0, wasm.brOnCastFailNullEq(1));
   assertEquals(1, wasm.brOnCastFailNullEq(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullEq(strObj));
+
+  assertEquals(0, wasm.brOnCastFailNullString(null));
+  assertEquals(1, wasm.brOnCastFailNullString(undefined));
+  assertEquals(1, wasm.brOnCastFailNullString(structSuperObj));
+  assertEquals(1, wasm.brOnCastFailNullString(structSubObj));
+  assertEquals(1, wasm.brOnCastFailNullString(arrayObj));
+  assertEquals(1, wasm.brOnCastFailNullString(funcObj));
+  assertEquals(1, wasm.brOnCastFailNullString(1));
+  assertEquals(1, wasm.brOnCastFailNullString(jsObj));
+  assertEquals(0, wasm.brOnCastFailNullString(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullAny(null));
   assertEquals(0, wasm.brOnCastFailNullAny(undefined));
@@ -710,6 +843,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(0, wasm.brOnCastFailNullAny(funcObj));
   assertEquals(0, wasm.brOnCastFailNullAny(1));
   assertEquals(0, wasm.brOnCastFailNullAny(jsObj));
+  assertEquals(0, wasm.brOnCastFailNullAny(strObj));
 
   assertEquals(0, wasm.brOnCastFailNullNone(null));
   assertEquals(1, wasm.brOnCastFailNullNone(undefined));
@@ -719,4 +853,5 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   assertEquals(1, wasm.brOnCastFailNullNone(funcObj));
   assertEquals(1, wasm.brOnCastFailNullNone(1));
   assertEquals(1, wasm.brOnCastFailNullNone(jsObj));
+  assertEquals(1, wasm.brOnCastFailNullNone(strObj));
 })();

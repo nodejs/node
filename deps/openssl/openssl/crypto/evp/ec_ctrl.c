@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -283,7 +283,9 @@ int EVP_PKEY_CTX_get0_ecdh_kdf_ukm(EVP_PKEY_CTX *ctx, unsigned char **pukm)
  */
 int EVP_PKEY_CTX_set_ec_paramgen_curve_nid(EVP_PKEY_CTX *ctx, int nid)
 {
-    return EVP_PKEY_CTX_ctrl(ctx, EVP_PKEY_EC, EVP_PKEY_OP_TYPE_GEN,
+    int keytype = nid == EVP_PKEY_SM2 ? EVP_PKEY_SM2 : EVP_PKEY_EC;
+
+    return EVP_PKEY_CTX_ctrl(ctx, keytype, EVP_PKEY_OP_TYPE_GEN,
                              EVP_PKEY_CTRL_EC_PARAMGEN_CURVE_NID,
                              nid, NULL);
 }

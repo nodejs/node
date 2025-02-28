@@ -91,45 +91,51 @@ TEST_F(CppgcAllocationTest,
   EXPECT_FALSE(HeapObjectHeader::FromObject(obj).IsFree());
 }
 
+// The test below requires that a large object is reused in the GC. This only
+// reliably works on 64-bit builds using caged heap. On 32-bit builds large
+// objects are mapped in individually and returned to the OS as a whole on
+// reclamation.
+#if defined(CPPGC_CAGED_HEAP)
+
 namespace {
-class LargeObject : public GarbageCollected<LargeObject> {
+class LargeObjectCheckingPayloadForZeroMemory final
+    : public GarbageCollected<LargeObjectCheckingPayloadForZeroMemory> {
  public:
   static constexpr size_t kDataSize = kLargeObjectSizeThreshold + 1;
   static size_t destructor_calls;
 
-  explicit LargeObject(bool check) {
-    if (!check) return;
-    for (size_t i = 0; i < LargeObject::kDataSize; ++i) {
+  LargeObjectCheckingPayloadForZeroMemory() {
+    for (size_t i = 0; i < kDataSize; ++i) {
       EXPECT_EQ(0, data[i]);
     }
   }
-  ~LargeObject() { ++destructor_calls; }
+  ~LargeObjectCheckingPayloadForZeroMemory() { ++destructor_calls; }
   void Trace(Visitor*) const {}
 
   char data[kDataSize];
 };
-size_t LargeObject::destructor_calls = 0u;
+size_t LargeObjectCheckingPayloadForZeroMemory::destructor_calls = 0u;
 }  // namespace
 
 TEST_F(CppgcAllocationTest, LargePagesAreZeroedOut) {
-  static constexpr size_t kNumObjects = 1u;
-  LargeObject::destructor_calls = 0u;
-  std::vector<void*> pages;
-  for (size_t i = 0; i < kNumObjects; ++i) {
-    auto* obj = MakeGarbageCollected<LargeObject>(GetAllocationHandle(), false);
-    pages.push_back(obj);
-    memset(obj->data, 0xff, LargeObject::kDataSize);
-  }
+  LargeObjectCheckingPayloadForZeroMemory::destructor_calls = 0u;
+  auto* initial_object =
+      MakeGarbageCollected<LargeObjectCheckingPayloadForZeroMemory>(
+          GetAllocationHandle());
+  memset(initial_object->data, 0xff,
+         LargeObjectCheckingPayloadForZeroMemory::kDataSize);
+  // GC ignores stack and thus frees the object.
   PreciseGC();
-  EXPECT_EQ(kNumObjects, LargeObject::destructor_calls);
-  bool reused_page = false;
-  for (size_t i = 0; i < kNumObjects; ++i) {
-    auto* obj = MakeGarbageCollected<LargeObject>(GetAllocationHandle(), true);
-    if (std::find(pages.begin(), pages.end(), obj) != pages.end())
-      reused_page = true;
-  }
-  EXPECT_TRUE(reused_page);
+  EXPECT_EQ(1u, LargeObjectCheckingPayloadForZeroMemory::destructor_calls);
+  auto* new_object =
+      MakeGarbageCollected<LargeObjectCheckingPayloadForZeroMemory>(
+          GetAllocationHandle());
+  // If the following check fails, then the GC didn't reuse the underlying page
+  // and the test doesn't check anything.
+  EXPECT_EQ(initial_object, new_object);
 }
+
+#endif  // defined(CPPGC_CAGED_HEAP)
 
 namespace {
 

@@ -4,7 +4,7 @@
 
 // Flags: --experimental-wasm-type-reflection
 
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let testcases = [
 {types: {parameters:[]}, sig: kSig_v_v},
@@ -46,4 +46,9 @@ let testcases = [
   testcases.forEach(function(expected, i) {
     assertEquals(instance.exports["ex" + i].type(), expected.types);
   })
+})();
+
+(function TestJSTag() {
+  print(arguments.callee.name);
+  assertEquals(WebAssembly.JSTag.type(), {parameters:['externref']});
 })();

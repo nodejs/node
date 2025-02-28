@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,7 +38,7 @@ int test_get_libctx(OSSL_LIB_CTX **libctx, OSSL_PROVIDER **default_null_prov,
         goto err;
     }
 
-    if (module_name != NULL
+    if (provider != NULL && module_name != NULL
             && (*provider = OSSL_PROVIDER_load(new_libctx, module_name)) == NULL) {
         opt_printf_stderr("Failed to load provider %s\n", module_name);
         goto err;
@@ -177,11 +177,11 @@ int fips_provider_version_match(OSSL_LIB_CTX *libctx, const char *versions)
     } mode;
 
     while (*versions != '\0') {
-        for (; isspace(*versions); versions++)
+        for (; isspace((unsigned char)(*versions)); versions++)
             continue;
         if (*versions == '\0')
             break;
-        for (p = versions; *versions != '\0' && !isspace(*versions); versions++)
+        for (p = versions; *versions != '\0' && !isspace((unsigned char)(*versions)); versions++)
             continue;
         if (*p == '!') {
             mode = MODE_NE;
@@ -201,7 +201,7 @@ int fips_provider_version_match(OSSL_LIB_CTX *libctx, const char *versions)
         } else if (*p == '>') {
             mode = MODE_GT;
             p++;
-        } else if (isdigit(*p)) {
+        } else if (isdigit((unsigned char)*p)) {
             mode = MODE_EQ;
         } else {
             TEST_info("Error matching FIPS version: mode %s\n", p);

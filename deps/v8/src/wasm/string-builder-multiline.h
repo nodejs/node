@@ -25,6 +25,13 @@ class DisassemblyCollector;
 namespace internal {
 namespace wasm {
 
+// Computes the number of decimal digits required to print {value}.
+inline int GetNumDigits(uint32_t value) {
+  int digits = 1;
+  for (uint32_t compare = 10; value >= compare; compare *= 10) digits++;
+  return digits;
+}
+
 struct LabelInfo {
   LabelInfo(size_t line_number, size_t offset,
             uint32_t index_by_occurrence_order)
@@ -54,6 +61,7 @@ class MultiLineStringBuilder : public StringBuilder {
   void set_current_line_bytecode_offset(uint32_t offset) {
     pending_bytecode_offset_ = offset;
   }
+  uint32_t current_line_bytecode_offset() { return pending_bytecode_offset_; }
 
   // Label backpatching support. Parameters:
   // {label}: Information about where to insert the label. Fields {line_number},
@@ -115,12 +123,36 @@ class MultiLineStringBuilder : public StringBuilder {
   // Note: implemented in wasm-disassembler.cc (which is also the only user).
   void ToDisassemblyCollector(v8::debug::DisassemblyCollector* collector);
 
-  void WriteTo(std::ostream& out) {
+  void WriteTo(std::ostream& out, bool print_offsets,
+               std::vector<uint32_t>* collect_offsets = nullptr) {
     if (length() != 0) NextLine(0);
+    if (lines_.size() == 0) return;
 
+    if (print_offsets) {
+      // The last offset is expected to be the largest.
+      int width = GetNumDigits(lines_.back().bytecode_offset);
+      // We could have used std::setw(width), but this is faster.
+      constexpr int kBufSize = 12;  // Enough for any uint32 plus '|'.
+      char buffer[kBufSize] = {32, 32, 32, 32, 32, 32, 32, 32, 32, 32, 32, '|'};
+      char* const buffer_end = buffer + kBufSize - 1;
+      char* const buffer_start = buffer_end - width;
+      for (const Line& l : lines_) {
+        uint32_t offset = l.bytecode_offset;
+        char* ptr = buffer_end;
+        do {
+          *(--ptr) = '0' + (offset % 10);
+          offset /= 10;
+          // We pre-filled the buffer with spaces, and the offsets are expected
+          // to be increasing, so we can just stop the loop here and don't need
+          // to write spaces until {ptr == buffer_start}.
+        } while (offset > 0);
+        out.write(buffer_start, width + 1);  // +1 for the '|'.
+        out.write(l.data, l.len);
+      }
+      return;
+    }
     // In the name of speed, batch up lines that happen to be stored
     // consecutively.
-    if (lines_.size() == 0) return;
     const Line& first = lines_[0];
     const char* last_start = first.data;
     size_t len = first.len;
@@ -135,6 +167,12 @@ class MultiLineStringBuilder : public StringBuilder {
       }
     }
     out.write(last_start, len);
+    if (collect_offsets) {
+      collect_offsets->reserve(lines_.size());
+      for (const Line& l : lines_) {
+        collect_offsets->push_back(l.bytecode_offset);
+      }
+    }
   }
 
   size_t ApproximateSizeMB() { return approximate_size_mb(); }

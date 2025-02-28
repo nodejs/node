@@ -6,21 +6,19 @@
 
 namespace proxy {
 
-extern transitioning runtime
-SetPropertyWithReceiver(implicit context: Context)(
-    Object, Name, Object, Object): void;
+extern transitioning runtime SetPropertyWithReceiver(
+    implicit context: Context)(Object, Name, Object, Object): void;
 
-transitioning macro CallThrowTypeErrorIfStrict(implicit context: Context)(
-    message: constexpr MessageTemplate): void {
+transitioning macro CallThrowTypeErrorIfStrict(
+    implicit context: Context)(message: constexpr MessageTemplate): void {
   ThrowTypeErrorIfStrict(SmiConstant(message), Null, Null);
 }
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
 // https://tc39.github.io/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-set-p-v-receiver
-transitioning builtin
-ProxySetProperty(implicit context: Context)(
-    proxy: JSProxy, name: PropertyKey|PrivateSymbol, value: JSAny,
-    receiverValue: JSAny): JSAny {
+transitioning builtin ProxySetProperty(
+    implicit context: Context)(proxy: JSProxy, name: PropertyKey|PrivateSymbol,
+    value: JSAny, receiverValue: JSAny): JSAny {
   // Handle deeply nested proxy.
   PerformStackCheck();
   // 1. Assert: IsPropertyKey(P) is true.

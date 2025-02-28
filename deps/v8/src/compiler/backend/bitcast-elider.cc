@@ -21,7 +21,7 @@ bool IsBitcast(Node* node) {
 }
 
 bool OwnedByWord32Op(Node* node) {
-#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64
+#if V8_TARGET_ARCH_LOONG64 || V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64
   return false;
 #else
   for (Node* const use : node->uses()) {
@@ -64,6 +64,8 @@ void BitcastElider::Revisit(Node* node) { to_visit_.push(node); }
 void BitcastElider::VisitNode(Node* node) {
   for (int i = 0; i < node->InputCount(); i++) {
     Node* input = node->InputAt(i);
+    // This can happen as a result of previous replacements.
+    if (input == nullptr) continue;
     if (input->opcode() == IrOpcode::kTruncateInt64ToInt32 &&
         OwnedByWord32Op(input)) {
       Replace(input, input->InputAt(0));

@@ -13,19 +13,21 @@ const util = require('util');
 const buf = Buffer.from([0xef, 0xbb, 0xbf, 0x74, 0x65,
                          0x73, 0x74, 0xe2, 0x82, 0xac]);
 
+const encoding_sets = ['unicode-1-1-utf-8', 'unicode11utf8', 'unicode20utf8',
+                       'utf8', 'utf-8', 'x-unicode20utf8'];
 // Make Sure TextDecoder exist
 assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: false
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     assert.strictEqual(dec.encoding, 'utf-8');
     const res = dec.decode(buf);
     assert.strictEqual(res, 'test€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i);
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
@@ -36,13 +38,13 @@ assert(TextDecoder);
 
 // Test TextDecoder, UTF-8, fatal: false, ignoreBOM: true
 {
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     const res = dec.decode(buf);
     assert.strictEqual(res, '\ufefftest€');
   });
 
-  ['unicode-1-1-utf-8', 'utf8', 'utf-8'].forEach((i) => {
+  encoding_sets.forEach((i) => {
     const dec = new TextDecoder(i, { ignoreBOM: true });
     let res = '';
     res += dec.decode(buf.slice(0, 8), { stream: true });
@@ -125,8 +127,8 @@ if (common.hasIntl) {
       '  encoding: \'utf-8\',\n' +
       '  fatal: false,\n' +
       '  ignoreBOM: true,\n' +
-      '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: undefined\n' +
+      '  Symbol(flags): 4,\n' +
+      '  Symbol(handle): undefined\n' +
       '}'
     );
   } else {
@@ -136,10 +138,10 @@ if (common.hasIntl) {
       "  encoding: 'utf-8',\n" +
       '  fatal: false,\n' +
       '  ignoreBOM: true,\n' +
-      '  [Symbol(flags)]: 4,\n' +
-      '  [Symbol(handle)]: StringDecoder {\n' +
+      '  Symbol(flags): 4,\n' +
+      '  Symbol(handle): StringDecoder {\n' +
       "    encoding: 'utf8',\n" +
-      '    [Symbol(kNativeDecoder)]: <Buffer 00 00 00 00 00 00 01>\n' +
+      '    Symbol(kNativeDecoder): <Buffer 00 00 00 00 00 00 01>\n' +
       '  }\n' +
       '}'
     );

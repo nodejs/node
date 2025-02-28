@@ -132,7 +132,7 @@ testOuterMemorySurvivalAcrossGc();
 function testOOBThrows() {
   var builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction("geti", kSig_i_ii)
     .addBody([
       kExprLocalGet, 0,
@@ -155,12 +155,16 @@ function testOOBThrows() {
   // Note that this test might be run concurrently in multiple Isolates, which
   // makes an exact comparison of the expected trap count unreliable. But is is
   // still possible to check the lower bound for the expected trap count.
-  for (let offset = 65534; offset < 66536; offset++) {
+  for (let offset = kMemSize - 3; offset <= kMemSize; offset++) {
     const trap_count = %GetWasmRecoveredTrapCount();
     assertTraps(kTrapMemOutOfBounds, () => read(offset));
     assertTraps(kTrapMemOutOfBounds, () => write(offset));
     if (%IsWasmTrapHandlerEnabled()) {
-      assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      if (%IsWasmPartialOOBWriteNoop()) {
+        assertTrue(trap_count + 2 <= %GetWasmRecoveredTrapCount());
+      } else {
+        assertTrue(trap_count + 1 <= %GetWasmRecoveredTrapCount());
+      }
     }
   }
 }

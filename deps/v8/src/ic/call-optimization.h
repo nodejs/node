@@ -5,6 +5,8 @@
 #ifndef V8_IC_CALL_OPTIMIZATION_H_
 #define V8_IC_CALL_OPTIMIZATION_H_
 
+#include <optional>
+
 #include "src/api/api-arguments.h"
 #include "src/objects/objects.h"
 
@@ -17,9 +19,17 @@ class CallOptimization {
   template <class IsolateT>
   CallOptimization(IsolateT* isolate, Handle<Object> function);
 
-  Context GetAccessorContext(Map holder_map) const;
-  bool IsCrossContextLazyAccessorPair(Context native_context,
-                                      Map holder_map) const;
+  // Gets accessor context by given holder map via holder's constructor.
+  // If the holder is a remote object returns empty optional.
+  // This method must not be called for holder maps with null constructor
+  // because they can't be holders for lazy accessor pairs anyway.
+  std::optional<Tagged<NativeContext>> GetAccessorContext(
+      Tagged<Map> holder_map) const;
+
+  // Return true if the accessor context for given holder doesn't match
+  // given native context of if the holder is a remote object.
+  bool IsCrossContextLazyAccessorPair(Tagged<NativeContext> native_context,
+                                      Tagged<Map> holder_map) const;
 
   bool is_constant_call() const { return !constant_function_.is_null(); }
   bool accept_any_receiver() const { return accept_any_receiver_; }
@@ -39,7 +49,7 @@ class CallOptimization {
     return expected_receiver_type_;
   }
 
-  Handle<CallHandlerInfo> api_call_info() const {
+  Handle<FunctionTemplateInfo> api_call_info() const {
     DCHECK(is_simple_api_call());
     return api_call_info_;
   }
@@ -65,11 +75,11 @@ class CallOptimization {
   // fast api call builtin.
   template <class IsolateT>
   void AnalyzePossibleApiFunction(IsolateT* isolate,
-                                  Handle<JSFunction> function);
+                                  DirectHandle<JSFunction> function);
 
   Handle<JSFunction> constant_function_;
   Handle<FunctionTemplateInfo> expected_receiver_type_;
-  Handle<CallHandlerInfo> api_call_info_;
+  Handle<FunctionTemplateInfo> api_call_info_;
 
   // TODO(gsathya): Change these to be a bitfield and do a single fast check
   // rather than two checks.

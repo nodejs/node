@@ -79,10 +79,10 @@ using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using EVPKeyPointer = DeleteFnPtr<EVP_PKEY, EVP_PKEY_free>;
 using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-using EVPMDPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
+using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
 using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using BignumPointer = DeleteFnPtr<BIGNUM, BN_free>;
+using BignumPointer = DeleteFnPtr<BIGNUM, BN_clear_free>;
 using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
 using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
@@ -105,10 +105,6 @@ an `ArrayBuffer` (`v8::BackingStore`), or allocated data.
   must remain valid until the `ByteSource` is destroyed.
 * If allocated data is used, then it must have been allocated using OpenSSL's
   allocator. It will be freed automatically when the `ByteSource` is destroyed.
-
-The `ByteSource::Builder` class can be used to allocate writable memory that can
-then be released as a `ByteSource`, making it read-only, or freed by destroying
-the `ByteSource::Builder` without releasing it as a `ByteSource`.
 
 ### `ArrayBufferOrViewContents`
 
@@ -149,15 +145,10 @@ threadpool).
 Refer to `crypto_keys.h` and `crypto_keys.cc` for all code relating to the
 core key objects.
 
-#### `ManagedEVPPKey`
-
-The `ManagedEVPPKey` class is a smart pointer for OpenSSL `EVP_PKEY`
-structures. These manage the lifecycle of Public and Private key pairs.
-
 #### `KeyObjectData`
 
 `KeyObjectData` is an internal thread-safe structure used to wrap either
-a `ManagedEVPPKey` (for Public or Private keys) or a `ByteSource` containing
+a `EVPKeyPointer` (for Public or Private keys) or a `ByteSource` containing
 a Secret key.
 
 #### `KeyObjectHandle`

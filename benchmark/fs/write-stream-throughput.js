@@ -1,14 +1,12 @@
 // Test the throughput of the fs.WriteStream class.
 'use strict';
 
-const path = require('path');
 const common = require('../common.js');
 const fs = require('fs');
 
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
-const filename = path.resolve(tmpdir.path,
-                              `.removeme-benchmark-garbage-${process.pid}`);
+const filename = tmpdir.resolve(`.removeme-benchmark-garbage-${process.pid}`);
 
 const bench = common.createBenchmark(main, {
   dur: [5],

@@ -25,7 +25,8 @@ namespace internal {
 // can never be disabled again.
 class ProgressBar final {
  public:
-  void Initialize() { value_ = kDisabledSentinel; }
+  ProgressBar() : value_(kDisabledSentinel) {}
+
   void Enable() { value_ = 0; }
   bool IsEnabled() const {
     return value_.load(std::memory_order_acquire) != kDisabledSentinel;

@@ -29,7 +29,7 @@ tmpdir.refresh();
 
 // Create the necessary files
 files.forEach(function(currentFile) {
-  fs.closeSync(fs.openSync(`${readdirDir}/${currentFile}`, 'w'));
+  fs.writeFileSync(`${readdirDir}/${currentFile}`, '', 'utf8');
 });
 
 
@@ -78,6 +78,22 @@ fs.readdir(readdirDir, {
   assertDirents(dirents);
 })().then(common.mustCall());
 
+// Check that mutating options doesn't affect results
+(async () => {
+  const options = { withFileTypes: true };
+  const direntsPromise = fs.promises.readdir(readdirDir, options);
+  options.withFileTypes = false;
+  assertDirents(await direntsPromise);
+})().then(common.mustCall());
+
+{
+  const options = { recursive: true, withFileTypes: true };
+  fs.readdir(readdirDir, options, common.mustSucceed((dirents) => {
+    assertDirents(dirents);
+  }));
+  options.withFileTypes = false;
+}
+
 // Check for correct types when the binding returns unknowns
 const UNKNOWN = constants.UV_DIRENT_UNKNOWN;
 const oldReaddir = binding.readdir;
@@ -95,7 +111,7 @@ binding.readdir = common.mustCall((path, encoding, types, req, ctx) => {
     };
     oldReaddir(path, encoding, types, req);
   } else {
-    const results = oldReaddir(path, encoding, types, req, ctx);
+    const results = oldReaddir(path, encoding, types);
     results[1] = results[1].map(() => UNKNOWN);
     return results;
   }

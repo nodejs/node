@@ -13,12 +13,13 @@
 # OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
 
 AC_PREREQ(2.57)
-AC_INIT([libuv], [1.44.2], [https://github.com/libuv/libuv/issues])
+AC_INIT([libuv], [1.50.0], [https://github.com/libuv/libuv/issues])
 AC_CONFIG_MACRO_DIR([m4])
 m4_include([m4/libuv-extra-automake-flags.m4])
 m4_include([m4/as_case.m4])
 m4_include([m4/libuv-check-flags.m4])
 AM_INIT_AUTOMAKE([-Wall -Werror foreign subdir-objects] UV_EXTRA_AUTOMAKE_FLAGS)
+AM_MAINTAINER_MODE([enable]) # pass --disable-maintainer-mode if autotools may be unavailable
 AC_CANONICAL_HOST
 AC_ENABLE_SHARED
 AC_ENABLE_STATIC
@@ -61,8 +62,7 @@ AM_CONDITIONAL([ANDROID],  [AS_CASE([$host_os],[linux-android*],[true], [false])
 AM_CONDITIONAL([CYGWIN],   [AS_CASE([$host_os],[cygwin*],       [true], [false])])
 AM_CONDITIONAL([DARWIN],   [AS_CASE([$host_os],[darwin*],       [true], [false])])
 AM_CONDITIONAL([DRAGONFLY],[AS_CASE([$host_os],[dragonfly*],    [true], [false])])
-AM_CONDITIONAL([FREEBSD],  [AS_CASE([$host_os],[*freebsd*],     [true], [false])])
-AM_CONDITIONAL([KFREEBSD], [AS_CASE([$host_os],[kfreebsd*],     [true], [false])])
+AM_CONDITIONAL([FREEBSD],  [AS_CASE([$host_os],[freebsd*],      [true], [false])])
 AM_CONDITIONAL([HAIKU],    [AS_CASE([$host_os],[haiku],         [true], [false])])
 AM_CONDITIONAL([HURD],     [AS_CASE([$host_os],[gnu*],          [true], [false])])
 AM_CONDITIONAL([LINUX],    [AS_CASE([$host_os],[linux*],        [true], [false])])
@@ -74,12 +74,12 @@ AM_CONDITIONAL([OS400],    [AS_CASE([$host_os],[os400],         [true], [false])
 AM_CONDITIONAL([SUNOS],    [AS_CASE([$host_os],[solaris*],      [true], [false])])
 AM_CONDITIONAL([WINNT],    [AS_CASE([$host_os],[mingw*],        [true], [false])])
 AS_CASE([$host_os],[mingw*], [
-    LIBS="$LIBS -lws2_32 -lpsapi -liphlpapi -lshell32 -luserenv -luser32"
+    LIBS="$LIBS -lws2_32 -lpsapi -liphlpapi -luserenv -luser32 -ldbghelp -lole32 -lshell32"
+])
+AS_CASE([$host_os], [solaris2.10], [
+    CFLAGS="$CFLAGS -DSUNOS_NO_IFADDRS"
 ])
 AS_CASE([$host_os], [netbsd*], [AC_CHECK_LIB([kvm], [kvm_open])])
-AS_CASE([$host_os], [kfreebsd*], [
-    LIBS="$LIBS -lfreebsd-glue"
-])
 AS_CASE([$host_os], [haiku], [
     LIBS="$LIBS -lnetwork"
 ])
@@ -88,4 +88,5 @@ AC_CONFIG_FILES([Makefile libuv.pc])
 AC_CONFIG_LINKS([test/fixtures/empty_file:test/fixtures/empty_file])
 AC_CONFIG_LINKS([test/fixtures/load_error.node:test/fixtures/load_error.node])
 AC_CONFIG_LINKS([test/fixtures/lorem_ipsum.txt:test/fixtures/lorem_ipsum.txt])
+AC_CONFIG_LINKS([test/fixtures/one_file/one_file:test/fixtures/one_file/one_file])
 AC_OUTPUT

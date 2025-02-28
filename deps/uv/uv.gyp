@@ -51,6 +51,7 @@
       'src/strscpy.h',
       'src/strtok.c',
       'src/strtok.h',
+      'src/thread-common.c',
       'src/threadpool.c',
       'src/timer.c',
       'src/uv-data-getter-setters.c',
@@ -101,7 +102,6 @@
       'include/uv/bsd.h',
       'include/uv/aix.h',
       'src/unix/async.c',
-      'src/unix/atomic-ops.h',
       'src/unix/core.c',
       'src/unix/dl.c',
       'src/unix/fs.c',
@@ -115,7 +115,6 @@
       'src/unix/process.c',
       'src/unix/random-devurandom.c',
       'src/unix/signal.c',
-      'src/unix/spinlock.h',
       'src/unix/stream.c',
       'src/unix/tcp.c',
       'src/unix/thread.c',
@@ -125,29 +124,22 @@
     'uv_sources_apple': [
       'src/unix/darwin.c',
       'src/unix/fsevents.c',
+      'src/unix/darwin-syscalls.h',
       'src/unix/darwin-proctitle.c',
       'src/unix/random-getentropy.c',
     ],
     'uv_sources_linux': [
-      'src/unix/epoll.c',
-      'src/unix/linux-core.c',
-      'src/unix/linux-inotify.c',
-      'src/unix/linux-syscalls.c',
-      'src/unix/linux-syscalls.h',
+      'src/unix/linux.c',
       'src/unix/procfs-exepath.c',
       'src/unix/random-getrandom.c',
       'src/unix/random-sysctl-linux.c',
     ],
     'uv_sources_android': [
-      'src/unix/linux-core.c',
-      'src/unix/linux-inotify.c',
-      'src/unix/linux-syscalls.c',
+      'src/unix/linux.c',
       'src/unix/procfs-exepath.c',
-      'src/unix/pthread-fixes.c',
       'src/unix/random-getentropy.c',
       'src/unix/random-getrandom.c',
       'src/unix/random-sysctl-linux.c',
-      'src/unix/epoll.c',
     ],
     'uv_sources_solaris': [
       'src/unix/no-proctitle.c',
@@ -162,6 +154,7 @@
   'targets': [
     {
       'target_name': 'libuv',
+      'toolsets': ['host', 'target'],
       'type': '<(uv_library)',
       'include_dirs': [
         'include',
@@ -202,7 +195,7 @@
       'conditions': [
         [ 'OS=="win"', {
           'defines': [
-            '_WIN32_WINNT=0x0600',
+            '_WIN32_WINNT=0x0602',
             '_GNU_SOURCE',
           ],
           'sources': [
@@ -211,11 +204,14 @@
           'link_settings': {
             'libraries': [
               '-ladvapi32',
+              '-ldbghelp',
+              '-lole32',
               '-liphlpapi',
               '-lpsapi',
               '-lshell32',
               '-luser32',
               '-luserenv',
+              '-luuid',
               '-lws2_32'
             ],
           },
@@ -224,7 +220,6 @@
             '<@(uv_sources_posix)',
           ],
           'link_settings': {
-            'libraries': [ '-lm' ],
             'conditions': [
               ['OS=="solaris"', {
                 'ldflags': [ '-pthreads' ],
@@ -234,6 +229,11 @@
               }],
               ['OS != "solaris" and OS != "android" and OS != "zos"', {
                 'ldflags': [ '-pthread' ],
+              }],
+              ['OS!="mac"', {
+                'libraries': [
+                  '-lm'
+                ],
               }],
             ],
           },
@@ -402,7 +402,6 @@
         }],
         ['OS=="zos"', {
           'sources': [
-            'src/unix/pthread-fixes.c',
             'src/unix/os390.c',
             'src/unix/os390-syscalls.c'
           ]

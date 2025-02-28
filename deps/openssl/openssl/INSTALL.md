@@ -2,8 +2,8 @@ Build and Install
 =================
 
 This document describes installation on all supported operating
-systems (the Unix/Linux family, including macOS), OpenVMS,
-and Windows).
+systems: the Unix/Linux family (including macOS), OpenVMS,
+and Windows.
 
 Table of Contents
 =================
@@ -480,7 +480,7 @@ Setting the FIPS HMAC key
 
 As part of its self-test validation, the FIPS module must verify itself
 by performing a SHA-256 HMAC computation on itself. The default key is
-the SHA256 value of "the holy handgrenade of antioch" and is sufficient
+the SHA256 value of "holy hand grenade of antioch" and is sufficient
 for meeting the FIPS requirements.
 
 To change the key to a different value, use this flag. The value should
@@ -545,6 +545,13 @@ be used even with this option.
 ### no-async
 
 Do not build support for async operations.
+
+### no-atexit
+
+Do not use `atexit()` in libcrypto builds.
+
+`atexit()` has varied semantics between platforms and can cause SIGSEGV in some
+circumstances. This option disables the atexit registration of OPENSSL_cleanup.
 
 ### no-autoalginit
 
@@ -796,14 +803,22 @@ By default OpenSSL will attempt to stay in memory until the process exits.
 This is so that libcrypto and libssl can be properly cleaned up automatically
 via an `atexit()` handler.  The handler is registered by libcrypto and cleans
 up both libraries.  On some platforms the `atexit()` handler will run on unload of
-libcrypto (if it has been dynamically loaded) rather than at process exit.  This
-option can be used to stop OpenSSL from attempting to stay in memory until the
+libcrypto (if it has been dynamically loaded) rather than at process exit.
+
+This option can be used to stop OpenSSL from attempting to stay in memory until the
 process exits.  This could lead to crashes if either libcrypto or libssl have
 already been unloaded at the point that the atexit handler is invoked, e.g.  on a
 platform which calls `atexit()` on unload of the library, and libssl is unloaded
-before libcrypto then a crash is likely to happen.  Applications can suppress
-running of the `atexit()` handler at run time by using the
-`OPENSSL_INIT_NO_ATEXIT` option to `OPENSSL_init_crypto()`.
+before libcrypto then a crash is likely to happen.
+
+Note that shared library pinning is not automatically disabled for static builds,
+i.e., `no-shared` does not imply `no-pinshared`. This may come as a surprise when
+linking libcrypto statically into a shared third-party library, because in this
+case the shared library will be pinned. To prevent this behaviour, you need to
+configure the static build using `no-shared` and `no-pinshared` together.
+
+Applications can suppress running of the `atexit()` handler at run time by
+using the `OPENSSL_INIT_NO_ATEXIT` option to `OPENSSL_init_crypto()`.
 See the man page for it for further details.
 
 ### no-posix-io
@@ -1153,7 +1168,7 @@ Configure OpenSSL
 ### Automatic Configuration
 
 In previous version, the `config` script determined the platform type and
-compiler and then called `Configure`. Starting with this release, they are
+compiler and then called `Configure`. Starting with version 3.0, they are
 the same.
 
 #### Unix / Linux / macOS
@@ -1607,7 +1622,7 @@ More about our support resources can be found in the [SUPPORT] file.
 
 ### Configuration Errors
 
-If the `./Configure` or `./Configure` command fails with an error message,
+If the `./config` or `./Configure` command fails with an error message,
 read the error message carefully and try to figure out whether you made
 a mistake (e.g., by providing a wrong option), or whether the script is
 working incorrectly. If you think you encountered a bug, please

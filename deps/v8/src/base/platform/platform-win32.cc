@@ -4,6 +4,8 @@
 
 // Platform-specific code for Win32.
 
+#include "src/base/platform/platform-win32.h"
+
 // Secure API functions are not available using MinGW with msvcrt.dll
 // on Windows XP. Make sure MINGW_HAS_SECURE_API is not defined to
 // disable definition of secure API functions in standard headers that
@@ -19,12 +21,15 @@
 
 // This has to come after windows.h.
 #include <VersionHelpers.h>
-#include <dbghelp.h>  // For SymLoadModule64 and al.
-#include <malloc.h>   // For _msize()
-#include <mmsystem.h>  // For timeGetTime().
-#include <tlhelp32.h>  // For Module32First and al.
+#include <dbghelp.h>            // For SymLoadModule64 and al.
+#include <malloc.h>             // For _msize()
+#include <mmsystem.h>           // For timeGetTime().
+#include <processthreadsapi.h>  // For GetProcessMitigationPolicy().
+#include <psapi.h>              // For GetProcessMemoryInfo().
+#include <tlhelp32.h>           // For Module32First and al.
 
 #include <limits>
+#include <optional>
 
 #include "src/base/bits.h"
 #include "src/base/lazy-instance.h"
@@ -33,7 +38,6 @@
 #include "src/base/platform/time.h"
 #include "src/base/timezone-cache.h"
 #include "src/base/utils/random-number-generator.h"
-#include "src/base/win32-headers.h"
 
 #if defined(_MSC_VER)
 #include <crtdbg.h>
@@ -133,12 +137,6 @@ int strncpy_s(char* dest, size_t dest_size, const char* source, size_t count) {
 
 namespace v8 {
 namespace base {
-
-namespace {
-
-bool g_hard_abort = false;
-
-}  // namespace
 
 class WindowsTimezoneCache : public TimezoneCache {
  public:
@@ -486,6 +484,18 @@ int OS::GetUserTime(uint32_t* secs,  uint32_t* usecs) {
   return 0;
 }
 
+int OS::GetPeakMemoryUsageKb() {
+  constexpr int KB = 1024;
+
+  PROCESS_MEMORY_COUNTERS mem_counters;
+  int ret;
+
+  ret = GetProcessMemoryInfo(GetCurrentProcess(), &mem_counters,
+                             sizeof(mem_counters));
+  if (ret == 0) return -1;
+
+  return static_cast<int>(mem_counters.PeakWorkingSetSize / KB);
+}
 
 // Returns current time as the number of milliseconds since
 // 00:00:00 UTC, January 1, 1970.
@@ -690,6 +700,7 @@ void OS::PrintError(const char* format, ...) {
   va_start(args, format);
   VPrintError(format, args);
   va_end(args);
+  fflush(stderr);
 }
 
 
@@ -739,8 +750,40 @@ DEFINE_LAZY_LEAKY_OBJECT_GETTER(RandomNumberGenerator,
                                 GetPlatformRandomNumberGenerator)
 static LazyMutex rng_mutex = LAZY_MUTEX_INITIALIZER;
 
-void OS::Initialize(bool hard_abort, const char* const gc_fake_mmap) {
-  g_hard_abort = hard_abort;
+namespace {
+
+bool UserShadowStackEnabled() {
+  auto is_user_cet_available_in_environment =
+      reinterpret_cast<decltype(&IsUserCetAvailableInEnvironment)>(
+          ::GetProcAddress(::GetModuleHandleW(L"kernel32.dll"),
+                           "IsUserCetAvailableInEnvironment"));
+  auto get_process_mitigation_policy =
+      reinterpret_cast<decltype(&GetProcessMitigationPolicy)>(::GetProcAddress(
+          ::GetModuleHandle(L"Kernel32.dll"), "GetProcessMitigationPolicy"));
+
+  if (!is_user_cet_available_in_environment || !get_process_mitigation_policy) {
+    return false;
+  }
+
+  if (!is_user_cet_available_in_environment(
+          USER_CET_ENVIRONMENT_WIN32_PROCESS)) {
+    return false;
+  }
+
+  PROCESS_MITIGATION_USER_SHADOW_STACK_POLICY uss_policy;
+  if (!get_process_mitigation_policy(GetCurrentProcess(),
+                                     ProcessUserShadowStackPolicy, &uss_policy,
+                                     sizeof(uss_policy))) {
+    return false;
+  }
+
+  return uss_policy.EnableUserShadowStack;
+}
+
+}  // namespace
+
+void OS::Initialize(AbortMode abort_mode, const char* const gc_fake_mmap) {
+  g_abort_mode = abort_mode;
 }
 
 typedef PVOID(__stdcall* VirtualAlloc2_t)(HANDLE, PVOID, SIZE_T, ULONG, ULONG,
@@ -769,6 +812,12 @@ void OS::EnsureWin32MemoryAPILoaded() {
 
     loaded = true;
   }
+}
+
+// static
+bool OS::IsHardwareEnforcedShadowStacksEnabled() {
+  static bool cet_enabled = UserShadowStackEnabled();
+  return cet_enabled;
 }
 
 // static
@@ -931,7 +980,7 @@ void* AllocateInternal(void* hint, size_t size, size_t alignment,
 
 void CheckIsOOMError(int error) {
   // We expect one of ERROR_NOT_ENOUGH_MEMORY or ERROR_COMMITMENT_LIMIT. We'd
-  // still like to get the actual error code when its not one of the expected
+  // still like to get the actual error code when it's not one of the expected
   // errors, so use the construct below to achieve that.
   if (error != ERROR_NOT_ENOUGH_MEMORY) CHECK_EQ(ERROR_COMMITMENT_LIMIT, error);
 }
@@ -1020,7 +1069,7 @@ void OS::SetDataReadOnly(void* address, size_t size) {
   DCHECK_EQ(0, reinterpret_cast<uintptr_t>(address) % CommitPageSize());
   DCHECK_EQ(0, size % CommitPageSize());
 
-  unsigned long old_protection;
+  DWORD old_protection;
   CHECK(VirtualProtect(address, size, PAGE_READONLY, &old_protection));
   CHECK(old_protection == PAGE_READWRITE || old_protection == PAGE_WRITECOPY);
 }
@@ -1073,13 +1122,16 @@ bool OS::DecommitPages(void* address, size_t size) {
 }
 
 // static
+bool OS::SealPages(void* address, size_t size) { return false; }
+
+// static
 bool OS::CanReserveAddressSpace() {
   return VirtualAlloc2 != nullptr && MapViewOfFile3 != nullptr &&
          UnmapViewOfFile2 != nullptr;
 }
 
 // static
-Optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
+std::optional<AddressSpaceReservation> OS::CreateAddressSpaceReservation(
     void* hint, size_t size, size_t alignment,
     MemoryPermission max_permission) {
   CHECK(CanReserveAddressSpace());
@@ -1129,6 +1181,57 @@ void OS::Sleep(TimeDelta interval) {
   ::Sleep(static_cast<DWORD>(interval.InMilliseconds()));
 }
 
+PreciseSleepTimer::PreciseSleepTimer() : timer_(NULL) {}
+PreciseSleepTimer::~PreciseSleepTimer() { Close(); }
+PreciseSleepTimer::PreciseSleepTimer(PreciseSleepTimer&& other) V8_NOEXCEPT {
+  Close();
+  timer_ = other.timer_;
+  other.timer_ = NULL;
+}
+PreciseSleepTimer& PreciseSleepTimer::operator=(PreciseSleepTimer&& other)
+    V8_NOEXCEPT {
+  Close();
+  timer_ = other.timer_;
+  other.timer_ = NULL;
+  return *this;
+}
+bool PreciseSleepTimer::IsInitialized() const { return timer_ != NULL; }
+void PreciseSleepTimer::Close() {
+  if (timer_ != NULL) {
+    CloseHandle(timer_);
+    timer_ = NULL;
+  }
+}
+
+void PreciseSleepTimer::TryInit() {
+  Close();
+  // This flag allows precise sleep times, but is only available since Windows
+  // 10 version 1803.
+  DWORD flags = CREATE_WAITABLE_TIMER_HIGH_RESOLUTION;
+  // The TIMER_MODIFY_STATE permission allows setting the timer, and SYNCHRONIZE
+  // allows waiting for it.
+  DWORD desired_access = TIMER_MODIFY_STATE | SYNCHRONIZE;
+  timer_ =
+      CreateWaitableTimerExW(NULL,  // Cannot be inherited by child processes
+                             NULL,  // Cannot be looked up by name
+                             flags, desired_access);
+}
+
+void PreciseSleepTimer::Sleep(TimeDelta interval) const {
+  // Time is specified in 100 nanosecond intervals. Negative values indicate
+  // relative time.
+  LARGE_INTEGER due_time;
+  due_time.QuadPart = -interval.InMicroseconds() * 10;
+  LONG period = 0;  // Not periodic; wake only once
+  PTIMERAPCROUTINE completion_routine = NULL;
+  LPVOID arg_to_completion_routine = NULL;
+  BOOL resume = false;  // No need to wake system from sleep
+  CHECK(SetWaitableTimer(timer_, &due_time, period, completion_routine,
+                         arg_to_completion_routine, resume));
+
+  DWORD timeout_interval = INFINITE;  // Return only when the object is signaled
+  CHECK_EQ(WAIT_OBJECT_0, WaitForSingleObject(timer_, timeout_interval));
+}
 
 void OS::Abort() {
   // Give a chance to debug the failure.
@@ -1140,9 +1243,17 @@ void OS::Abort() {
   fflush(stdout);
   fflush(stderr);
 
-  if (g_hard_abort) {
-    IMMEDIATE_CRASH();
+  switch (g_abort_mode) {
+    case AbortMode::kExitWithSuccessAndIgnoreDcheckFailures:
+      _exit(0);
+    case AbortMode::kExitWithFailureAndIgnoreDcheckFailures:
+      _exit(-1);
+    case AbortMode::kImmediateCrash:
+      IMMEDIATE_CRASH();
+    case AbortMode::kDefault:
+      break;
   }
+
   // Make the MSVCRT do a silent abort.
   raise(SIGABRT);
 
@@ -1242,7 +1353,8 @@ Win32MemoryMappedFile::~Win32MemoryMappedFile() {
   CloseHandle(file_);
 }
 
-Optional<AddressSpaceReservation> AddressSpaceReservation::CreateSubReservation(
+std::optional<AddressSpaceReservation>
+AddressSpaceReservation::CreateSubReservation(
     void* address, size_t size, OS::MemoryPermission max_permission) {
   // Nothing to do, the sub reservation must already have been split by now.
   DCHECK(Contains(address, size));
@@ -1589,7 +1701,7 @@ int OS::ActivationFrameAlignment() {
 #endif
 }
 
-#if (defined(_WIN32) || defined(_WIN64))
+#if defined(V8_OS_WIN)
 void EnsureConsoleOutputWin32() {
   UINT new_flags =
       SEM_FAILCRITICALERRORS | SEM_NOGPFAULTERRORBOX | SEM_NOOPENFILEERRORBOX;
@@ -1605,7 +1717,7 @@ void EnsureConsoleOutputWin32() {
   _set_error_mode(_OUT_TO_STDERR);
 #endif  // defined(_MSC_VER)
 }
-#endif  // (defined(_WIN32) || defined(_WIN64))
+#endif  // defined(V8_OS_WIN)
 
 // ----------------------------------------------------------------------------
 // Win32 thread support.
@@ -1700,11 +1812,9 @@ void Thread::SetThreadLocal(LocalStorageKey key, void* value) {
 
 void OS::AdjustSchedulingParams() {}
 
-std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
+std::optional<OS::MemoryRange> OS::GetFirstFreeMemoryRangeWithin(
     OS::Address boundary_start, OS::Address boundary_end, size_t minimum_size,
     size_t alignment) {
-  std::vector<OS::MemoryRange> result = {};
-
   // Search for the virtual memory (vm) ranges within the boundary.
   // If a range is free and larger than {minimum_size}, then push it to the
   // returned vector.
@@ -1728,14 +1838,14 @@ std::vector<OS::MemoryRange> OS::GetFreeMemoryRangesWithin(
           RoundDown(std::min(vm_end, boundary_end), alignment);
       if (overlap_start < overlap_end &&
           overlap_end - overlap_start >= minimum_size) {
-        result.push_back({overlap_start, overlap_end});
+        return OS::MemoryRange{overlap_start, overlap_end};
       }
     }
     // Continue to visit the next virtual memory range.
     vm_start = vm_end;
   }
 
-  return result;
+  return {};
 }
 
 // static

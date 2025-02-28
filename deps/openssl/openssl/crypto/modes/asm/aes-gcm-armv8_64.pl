@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -217,6 +217,7 @@ my $mod_constant="v8";
 my $mod_t="v31";
 
 my ($rk0,$rk1,$rk2,$rk3,$rk4,$rk5,$rk6,$rk7,$rk8,$rk9)=map("v$_.16b",(18..27));
+my ($rk0s,$rk1s,$rk2s,$rk3s,$rk4s,$rk5s,$rk6s,$rk7s,$rk8s,$rk9s)=map("v$_.4s",(18..27));
 my ($rk0q,$rk1q,$rk2q,$rk3q,$rk4q,$rk5q,$rk6q,$rk7q,$rk8q,$rk9q)=map("q$_",(18..27));
 my $rk2q1="v20.1q";
 my $rk3q1="v21.1q";
@@ -268,28 +269,36 @@ aes_gcm_enc_128_kernel:
 	stp     d14, d15, [sp, #96]
 
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]              @ ctr96_b64, ctr96_t32
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
 	ldp     $rk10_l, $rk10_h, [$cc, #160]                     @ load rk10
-
+#ifdef __AARCH64EB__
+	ror     $rk10_l, $rk10_l, #32
+	ror     $rk10_h, $rk10_h, #32
+#endif
 	ld1     {$acc_lb}, [$current_tag]
 	ext     $acc_lb, $acc_lb, $acc_lb, #8
 	rev64   $acc_lb, $acc_lb
 	lsr     $main_end_input_ptr, $bit_length, #3              @ byte_len
 	mov     $len, $main_end_input_ptr
 
-	ldr     $rk9q, [$cc, #144]                                @ load rk9
+	ld1     {$rk0s}, [$cc], #16								  @ load rk0
 	add     $end_input_ptr, $input_ptr, $bit_length, lsr #3   @ end_input_ptr
 	sub     $main_end_input_ptr, $main_end_input_ptr, #1      @ byte_len - 1
 
 	lsr     $rctr32x, $ctr96_t32x, #32
 	ldr     $h4q, [$current_tag, #112]                        @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
-
+#endif
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 1
 	rev     $rctr32w, $rctr32w                                @ rev_ctr32
 
 	add     $rctr32w, $rctr32w, #1                            @ increment rev_ctr32
 	orr     $ctr96_t32w, $ctr96_t32w, $ctr96_t32w
-	ldr     $rk0q, [$cc, #0]                                  @ load rk0
+	ld1     {$rk1s}, [$cc], #16								  @ load rk1
 
 	rev     $ctr32w, $rctr32w                                 @ CTR block 1
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 1
@@ -309,45 +318,50 @@ aes_gcm_enc_128_kernel:
 	rev     $ctr32w, $rctr32w                                 @ CTR block 3
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 3
-	ldr     $rk1q, [$cc, #16]                                 @ load rk1
+	ld1     {$rk2s}, [$cc], #16								  @ load rk2
 
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 3
 	fmov    $ctr3.d[1], $ctr32x                               @ CTR block 3
 
 	ldr     $h3q, [$current_tag, #80]                         @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
-
+#endif
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 0
-	ldr     $rk2q, [$cc, #32]                                 @ load rk2
+	ld1     {$rk3s}, [$cc], #16								  @ load rk3
 
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 0
 	ldr     $h1q, [$current_tag, #32]                         @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
+#endif
 
 	aese    $ctr0b, $rk0  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 0
-	ldr     $rk8q, [$cc, #128]                                @ load rk8
+	ld1     {$rk4s}, [$cc], #16								  @ load rk4
 
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 0
-	ldr     $rk3q, [$cc, #48]                                 @ load rk3
+	ld1     {$rk5s}, [$cc], #16								  @ load rk5
 
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 1
 	trn2    $h34k.2d,  $h3.2d,    $h4.2d                      @ h4l | h3l
 
 	aese    $ctr0b, $rk1  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 1
-	ldr     $rk6q, [$cc, #96]                                 @ load rk6
+	ld1     {$rk6s}, [$cc], #16								  @ load rk6
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 1
-	ldr     $rk7q, [$cc, #112]                                @ load rk7
+	ld1     {$rk7s}, [$cc], #16								  @ load rk7
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 1
 	trn1    $acc_h.2d, $h3.2d,    $h4.2d                      @ h4h | h3h
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 2
-	ldr     $rk5q, [$cc, #80]                                 @ load rk5
+	ld1     {$rk8s}, [$cc], #16								  @ load rk8
 
 	aese    $ctr1b, $rk2  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 2
 	ldr     $h2q, [$current_tag, #64]                         @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
+#endif
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 2
 
@@ -359,7 +373,7 @@ aes_gcm_enc_128_kernel:
 	aese    $ctr1b, $rk3  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 3
 
 	aese    $ctr2b, $rk3  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 3
-	ldr     $rk4q, [$cc, #64]                                 @ load rk4
+	ld1     {$rk9s}, [$cc], #16								  @ load rk9
 
 	aese    $ctr3b, $rk3  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 3
 
@@ -421,13 +435,25 @@ aes_gcm_enc_128_kernel:
 	b.ge    .L128_enc_tail                                    @ handle tail
 
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]            @ AES block 0 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]           @ AES block 2 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]           @ AES block 1 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]           @ AES block 3 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	eor     $input_l0, $input_l0, $rk10_l                     @ AES block 0 - round 10 low
 	eor     $input_h0, $input_h0, $rk10_h                     @ AES block 0 - round 10 high
 
@@ -492,6 +518,10 @@ aes_gcm_enc_128_kernel:
 
 	.L128_enc_main_loop:                                      @ main loop start
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]           @ AES block 4k+3 - load plaintext
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	rev64   $res0b, $res0b                                    @ GHASH block 4k (only t0 is free)
 	rev64   $res2b, $res2b                                    @ GHASH block 4k+2 (t0, t1, and t2 free)
 
@@ -520,7 +550,10 @@ aes_gcm_enc_128_kernel:
 	pmull2  $t1.1q, $res1.2d, $h3.2d                          @ GHASH block 4k+1 - high
 	eor     $t6.8b, $t6.8b, $res2.8b                          @ GHASH block 4k+2 - mid
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]            @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	aese    $ctr0b, $rk1  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 1
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4k+8
 
@@ -590,13 +623,19 @@ aes_gcm_enc_128_kernel:
 
 	aese    $ctr1b, $rk5  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 5
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]           @ AES block 4k+5 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	aese    $ctr3b, $rk3  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 3
 	eor     $acc_mb, $acc_mb, $t6.16b                         @ GHASH block 4k+2 - mid
 
 	aese    $ctr0b, $rk5  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 5
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]           @ AES block 4k+6 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	pmull   $mod_t.1q, $acc_h.1d, $mod_constant.1d            @ MODULO - top 64b align with mid
 	eor     $acc_lb, $acc_lb, $t8.16b                         @ GHASH block 4k+3 - low
 
@@ -853,7 +892,10 @@ aes_gcm_enc_128_kernel:
 
 	sub     $main_end_input_ptr, $end_input_ptr, $input_ptr   @ main_end_input_ptr is number of bytes left to process
 	ldp     $input_l0, $input_h0, [$input_ptr], #16           @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	cmp     $main_end_input_ptr, #48
 
 	ext     $t0.16b, $acc_lb, $acc_lb, #8                     @ prepare final partial tag
@@ -891,7 +933,10 @@ aes_gcm_enc_128_kernel:
 	st1     { $res1b}, [$output_ptr], #16                     @ AES final-3 block  - store result
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16           @ AES final-2 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	rev64   $res0b, $res1b                                    @ GHASH final-3 block
 
 	eor     $res0b, $res0b, $t0.16b                           @ feed in partial tag
@@ -920,7 +965,10 @@ aes_gcm_enc_128_kernel:
 
 	rev64   $res0b, $res1b                                    @ GHASH final-2 block
 	ldp     $input_l0, $input_h0, [$input_ptr], #16           @ AES final-1 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $res0b, $res0b, $t0.16b                           @ feed in partial tag
 
 	eor     $input_l0, $input_l0, $rk10_l                     @ AES final-1 block - round 10 low
@@ -954,7 +1002,10 @@ aes_gcm_enc_128_kernel:
 
 	rev64   $res0b, $res1b                                    @ GHASH final-1 block
 	ldp     $input_l0, $input_h0, [$input_ptr], #16           @ AES final block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $res0b, $res0b, $t0.16b                           @ feed in partial tag
 
 	eor     $input_h0, $input_h0, $rk10_h                     @ AES final block - round 10 high
@@ -1017,9 +1068,11 @@ aes_gcm_enc_128_kernel:
 	ld1     { $rk0}, [$output_ptr]                            @ load existing bytes where the possibly partial last block is to be stored
 
 	eor     $t0.8b, $t0.8b, $res0.8b                          @ GHASH final block - mid
-
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
-
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 	pmull2  $rk2q1, $res0.2d, $h1.2d                          @ GHASH final block - high
 
 	pmull   $t0.1q, $t0.1d, $h12k.1d                          @ GHASH final block - mid
@@ -1103,20 +1156,29 @@ aes_gcm_dec_128_kernel:
 	lsr     $main_end_input_ptr, $bit_length, #3              @ byte_len
 	mov     $len, $main_end_input_ptr
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]              @ ctr96_b64, ctr96_t32
-
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
+	ldp     $rk10_l, $rk10_h, [$cc, #160]                     @ load rk10
+#ifdef __AARCH64EB__
+	ror     $rk10_h, $rk10_h, 32
+	ror     $rk10_l, $rk10_l, 32
+#endif
 	sub     $main_end_input_ptr, $main_end_input_ptr, #1      @ byte_len - 1
-	ldr     $rk0q, [$cc, #0]                                  @ load rk0
+	ld1     {$rk0s}, [$cc], #16                                @ load rk0
 
 	and     $main_end_input_ptr, $main_end_input_ptr, #0xffffffffffffffc0 @ number of bytes to be processed in main loop (at least 1 byte must be handled by tail)
 	ld1     { $ctr0b}, [$counter]                             @ special case vector load initial counter so we can start first AES block as quickly as possible
 
 	ldr     $h2q, [$current_tag, #64]                         @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
-
+#endif
 	lsr     $rctr32x, $ctr96_t32x, #32
 	fmov    $ctr2d, $ctr96_b64x                               @ CTR block 2
 
-	ldr     $rk1q, [$cc, #16]                                 @ load rk1
+	ld1     {$rk1s}, [$cc], #16                                @ load rk1
 	orr     $ctr96_t32w, $ctr96_t32w, $ctr96_t32w
 	rev     $rctr32w, $rctr32w                                @ rev_ctr32
 
@@ -1127,7 +1189,7 @@ aes_gcm_dec_128_kernel:
 	rev     $ctr32w, $rctr32w                                 @ CTR block 1
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 1
-	ldr     $rk2q, [$cc, #32]                                 @ load rk2
+	ld1     {$rk2s}, [$cc], #16                                @ load rk2
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 1
 
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 1
@@ -1148,23 +1210,22 @@ aes_gcm_dec_128_kernel:
 	add     $end_input_ptr, $input_ptr, $bit_length, lsr #3   @ end_input_ptr
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 0
-	ldr     $rk3q, [$cc, #48]                                 @ load rk3
+	ld1     {$rk3s}, [$cc], #16                                @ load rk3
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 2
-	ldr     $rk6q, [$cc, #96]                                 @ load rk6
+	ld1     {$rk4s}, [$cc], #16                                @ load rk4
 
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 0
-	ldr     $rk7q, [$cc, #112]                                @ load rk7
+	ld1     {$rk5s}, [$cc], #16                                @ load rk5
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 1
-	ldr     $rk4q, [$cc, #64]                                 @ load rk4
+	ld1     {$rk6s}, [$cc], #16                                @ load rk6
 
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 0
 
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 1
 
 	aese    $ctr1b, $rk2  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 2
-	ldp     $rk10_l, $rk10_h, [$cc, #160]                     @ load rk10
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 1
 	ld1     { $acc_lb}, [$current_tag]
@@ -1172,14 +1233,14 @@ aes_gcm_dec_128_kernel:
 	rev64   $acc_lb, $acc_lb
 
 	aese    $ctr0b, $rk3  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 3
-	ldr     $rk5q, [$cc, #80]                                 @ load rk5
+	ld1     {$rk7s}, [$cc], #16                                @ load rk7
 
 	aese    $ctr1b, $rk3  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 3
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 2
 
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 2
-	ldr     $rk9q, [$cc, #144]                                @ load rk9
+	ld1     {$rk8s}, [$cc], #16                                @ load rk8
 
 	aese    $ctr1b, $rk4  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 4
 
@@ -1187,10 +1248,11 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr2b, $rk3  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 3
 	ldr     $h3q, [$current_tag, #80]                         @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
-
+#endif
 	aese    $ctr0b, $rk4  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 4
-	ldr     $rk8q, [$cc, #128]                                @ load rk8
+	ld1     {$rk9s}, [$cc], #16                                @ load rk9
 
 	aese    $ctr1b, $rk5  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 5
 
@@ -1202,8 +1264,9 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr2b, $rk5  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 5
 	ldr     $h1q, [$current_tag, #32]                         @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
-
+#endif
 	aese    $ctr3b, $rk5  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 5
 
 	aese    $ctr0b, $rk6  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 6
@@ -1216,7 +1279,9 @@ aes_gcm_dec_128_kernel:
 	trn1    $t0.2d,    $h1.2d,    $h2.2d                      @ h2h | h1h
 
 	ldr     $h4q, [$current_tag, #112]                        @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
+#endif
 	trn2    $h12k.2d,  $h1.2d,    $h2.2d                      @ h2l | h1l
 	add     $main_end_input_ptr, $main_end_input_ptr, $input_ptr
 
@@ -1250,12 +1315,10 @@ aes_gcm_dec_128_kernel:
 	eor     $h34k.16b, $h34k.16b, $acc_h.16b                  @ h4k | h3k
 	b.ge    .L128_dec_tail                                    @ handle tail
 
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 1 - load ciphertext
-
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 0 - load ciphertext
+	ld1     {$res0b, $res1b}, [$input_ptr], #32               @ AES block 0 - load ciphertext; AES block 1 - load ciphertext
 
 	eor     $ctr1b, $res1b, $ctr1b                            @ AES block 1 - result
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 2 - load ciphertext
+	ld1     {$res2b}, [$input_ptr], #16                       @ AES block 2 - load ciphertext
 
 	eor     $ctr0b, $res0b, $ctr0b                            @ AES block 0 - result
 	rev64   $res0b, $res0b                                    @ GHASH block 0
@@ -1263,10 +1326,9 @@ aes_gcm_dec_128_kernel:
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 4
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 3 - load ciphertext
+	ld1     {$res3b}, [$input_ptr], #16                       @ AES block 3 - load ciphertext
 
 	rev64   $res1b, $res1b                                    @ GHASH block 1
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 	mov     $output_l1, $ctr1.d[0]                            @ AES block 1 - mov low
 
 	mov     $output_h1, $ctr1.d[1]                            @ AES block 1 - mov high
@@ -1281,7 +1343,9 @@ aes_gcm_dec_128_kernel:
 	fmov    $ctr0.d[1], $ctr32x                               @ CTR block 4
 	rev     $ctr32w, $rctr32w                                 @ CTR block 5
 	eor     $output_l1, $output_l1, $rk10_l                   @ AES block 1 - round 10 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 5
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 5
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 5
@@ -1293,10 +1357,19 @@ aes_gcm_dec_128_kernel:
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 6
 
 	eor     $output_h1, $output_h1, $rk10_h                   @ AES block 1 - round 10 high
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES block 0 - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $ctr2b, $res2b, $ctr2b                            @ AES block 2 - result
 
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES block 0 - round 10 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 0 - store result
 
 	stp     $output_l1, $output_h1, [$output_ptr], #16        @ AES block 1 - store result
@@ -1356,9 +1429,14 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 1
 	eor     $output_l3, $output_l3, $rk10_l                   @ AES block 4k+3 - round 10 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	pmull   $t3.1q, $t3.1d, $h34k.1d                          @ GHASH block 4k+1 - mid
 	eor     $output_h2, $output_h2, $rk10_h                   @ AES block 4k+2 - round 10 high
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	mov     $t6d, $res2.d[1]                                  @ GHASH block 4k+2 - mid
 
 	aese    $ctr0b, $rk1  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 1
@@ -1389,13 +1467,17 @@ aes_gcm_dec_128_kernel:
 
 	pmull2  $t6.1q, $t6.2d, $h12k.2d                          @ GHASH block 4k+2 - mid
 	eor     $output_h3, $output_h3, $rk10_h                   @ AES block 4k+3 - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 2
 	eor     $t9.8b, $t9.8b, $res3.8b                          @ GHASH block 4k+3 - mid
 
 	aese    $ctr1b, $rk5  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 5
 	eor     $output_l2, $output_l2, $rk10_l                   @ AES block 4k+2 - round 10 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 	aese    $ctr0b, $rk5  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 5
 	movi    $mod_constant.8b, #0xc2
 
@@ -1412,7 +1494,7 @@ aes_gcm_dec_128_kernel:
 
 	pmull   $t9.1q, $t9.1d, $h12k.1d                          @ GHASH block 4k+3 - mid
 	eor     $acc_hb, $acc_hb, $t7.16b                         @ GHASH block 4k+3 - high
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 4k+4 - load ciphertext
+	ld1     {$res0b}, [$input_ptr], #16                       @ AES block 4k+3 - load ciphertext
 
 	aese    $ctr1b, $rk7  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 7
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+7
@@ -1433,7 +1515,7 @@ aes_gcm_dec_128_kernel:
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4k+8
 
 	pmull   $mod_t.1q, $acc_h.1d, $mod_constant.1d            @ MODULO - top 64b align with mid
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 4k+5 - load ciphertext
+	ld1     {$res1b}, [$input_ptr], #16                       @ AES block 4k+4 - load ciphertext
 	ext     $acc_hb, $acc_hb, $acc_hb, #8                     @ MODULO - other top alignment
 
 	aese    $ctr0b, $rk9                                      @ AES block 4k+4 - round 9
@@ -1448,17 +1530,16 @@ aes_gcm_dec_128_kernel:
 	eor     $ctr0b, $res0b, $ctr0b                            @ AES block 4k+4 - result
 
 	aese    $ctr3b, $rk5  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 5
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 4k+6 - load ciphertext
+	ld1     {$res2b}, [$input_ptr], #16                       @ AES block 4k+5 - load ciphertext
 
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+8
 	eor     $acc_mb, $acc_mb, $mod_t.16b                      @ MODULO - fold into mid
 	eor     $ctr1b, $res1b, $ctr1b                            @ AES block 4k+5 - result
 
 	aese    $ctr2b, $rk7  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 7
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 4k+3 - load ciphertext
+	ld1     {$res3b}, [$input_ptr], #16                       @ AES block 4k+6 - load ciphertext
 
 	aese    $ctr3b, $rk6  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 6
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 
 	rev64   $res1b, $res1b                                    @ GHASH block 4k+5
 	eor     $acc_mb, $acc_mb, $acc_hb                         @ MODULO - fold into mid
@@ -1480,11 +1561,15 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr3b, $rk8  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 8
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES block 4k+4 - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $acc_lb, $acc_lb, $mod_constant.16b               @ MODULO - fold into low
 	mov     $output_h1, $ctr1.d[1]                            @ AES block 4k+5 - mov high
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES block 4k+4 - round 10 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $ctr2b, $res2b, $ctr2b                            @ AES block 4k+6 - result
 	mov     $output_l1, $ctr1.d[0]                            @ AES block 4k+5 - mov low
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+9
@@ -1501,9 +1586,15 @@ aes_gcm_dec_128_kernel:
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+10
 
 	eor     $output_h1, $output_h1, $rk10_h                   @ AES block 4k+5 - round 10 high
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 4k+4 - store result
 
 	eor     $output_l1, $output_l1, $rk10_l                   @ AES block 4k+5 - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	stp     $output_l1, $output_h1, [$output_ptr], #16        @ AES block 4k+5 - store result
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 4k+10
@@ -1596,9 +1687,14 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 2
 	eor     $output_l3, $output_l3, $rk10_l                   @ AES block 4k+3 - round 10 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	pmull   $t9.1q, $t9.1d, $h12k.1d                          @ GHASH block 4k+3 - mid
 	eor     $output_l2, $output_l2, $rk10_l                   @ AES block 4k+2 - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 	eor     $acc_lb, $acc_lb, $t8.16b                         @ GHASH block 4k+3 - low
 
 	aese    $ctr2b, $rk3  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 3
@@ -1652,7 +1748,9 @@ aes_gcm_dec_128_kernel:
 
 	pmull   $mod_constant.1q, $acc_m.1d, $mod_constant.1d     @ MODULO - mid 64b align with low
 	eor     $output_h3, $output_h3, $rk10_h                   @ AES block 4k+3 - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 	aese    $ctr2b, $rk7  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 7
 	ext     $acc_mb, $acc_mb, $acc_mb, #8                     @ MODULO - other mid alignment
 
@@ -1665,7 +1763,9 @@ aes_gcm_dec_128_kernel:
 
 	aese    $ctr3b, $rk8  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 8
 	eor     $output_h2, $output_h2, $rk10_h                   @ AES block 4k+2 - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	aese    $ctr0b, $rk9                                      @ AES block 4k+4 - round 9
 	stp     $output_l2, $output_h2, [$output_ptr], #16        @ AES block 4k+2 - store result
 
@@ -1689,9 +1789,14 @@ aes_gcm_dec_128_kernel:
 	cmp     $main_end_input_ptr, #48
 
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES block 4k+4 - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	ext     $t0.16b, $acc_lb, $acc_lb, #8                     @ prepare final partial tag
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES block 4k+4 - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	b.gt    .L128_dec_blocks_more_than_3
 
 	mov     $ctr3b, $ctr2b
@@ -1735,9 +1840,14 @@ aes_gcm_dec_128_kernel:
 
 	movi    $t0.8b, #0                                        @ suppress further partial tag feed in
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES final-2 block - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	pmull   $acc_m.1q, $rk4v.1d, $acc_m.1d                    @ GHASH final-3 block - mid
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES final-2 block - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	.L128_dec_blocks_more_than_2:                             @ blocks left >  2
 
 	rev64   $res0b, $res1b                                    @ GHASH final-2 block
@@ -1763,12 +1873,18 @@ aes_gcm_dec_128_kernel:
 	pmull   $rk4v.1q, $rk4v.1d, $h34k.1d                      @ GHASH final-2 block - mid
 
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES final-1 block - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $acc_lb, $acc_lb, $rk3                            @ GHASH final-2 block - low
 
 	eor     $acc_hb, $acc_hb, $rk2                            @ GHASH final-2 block - high
 
 	eor     $acc_mb, $acc_mb, $rk4v.16b                       @ GHASH final-2 block - mid
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES final-1 block - round 10 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	.L128_dec_blocks_more_than_1:                             @ blocks left >  1
 
 	rev64   $res0b, $res1b                                    @ GHASH final-1 block
@@ -1799,8 +1915,13 @@ aes_gcm_dec_128_kernel:
 
 	eor     $acc_hb, $acc_hb, $rk2                            @ GHASH final-1 block - high
 	eor     $output_h0, $output_h0, $rk10_h                   @ AES final block - round 10 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $output_l0, $output_l0, $rk10_l                   @ AES final block - round 10 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $acc_mb, $acc_mb, $rk4v.16b                       @ GHASH final-1 block - mid
 	.L128_dec_blocks_less_than_1:                                            @ blocks left <= 1
 
@@ -1846,7 +1967,11 @@ aes_gcm_dec_128_kernel:
 	bic     $end_input_ptr, $end_input_ptr, $ctr32x           @ mask out low existing bytes
 	and     $output_l0, $output_l0, $ctr32x
 
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 
 	eor     $acc_mb, $acc_mb, $t0.16b                         @ GHASH final block - mid
 	movi    $mod_constant.8b, #0xc2
@@ -1955,6 +2080,7 @@ my $mod_t="v31";
 
 my ($rk0,$rk1,$rk2,$rk3,$rk4,$rk5,$rk6,$rk7,$rk8,$rk9,$rk10,$rk11)=map("v$_.16b",(18..29));
 my ($rk0q,$rk1q,$rk2q,$rk3q,$rk4q,$rk5q,$rk6q,$rk7q,$rk8q,$rk9q,$rk10q,$rk11q)=map("q$_",(18..29));
+my ($rk0s,$rk1s,$rk2s,$rk3s,$rk4s,$rk5s,$rk6s,$rk7s,$rk8s,$rk9s,$rk10s,$rk11s)=map("v$_.4s",(18..29));
 my $rk2q1="v20.1q";
 my $rk3q1="v21.1q";
 my $rk4v="v22";
@@ -1985,18 +2111,26 @@ aes_gcm_enc_192_kernel:
 	stp     d14, d15, [sp, #96]
 
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]             @ ctr96_b64, ctr96_t32
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
+	ldp     $rk12_l, $rk12_h, [$cc, #192]                     @ load rk12
+#ifdef __AARCH64EB__
+	ror     $rk12_l, $rk12_l, #32
+	ror     $rk12_h, $rk12_h, #32
+#endif
+	ld1     {$rk0s}, [$cc], #16	                             @ load rk0
 
-	ldr     $rk5q, [$cc, #80]                                @ load rk5
+	ld1     {$rk1s}, [$cc], #16	                             @ load rk1
 
-	ldr     $rk4q, [$cc, #64]                                @ load rk4
-
-	ldr     $rk8q, [$cc, #128]                               @ load rk8
+	ld1     {$rk2s}, [$cc], #16	                             @ load rk2
 
 	lsr     $rctr32x, $ctr96_t32x, #32
-	ldr     $rk6q, [$cc, #96]                                @ load rk6
+	ld1     {$rk3s}, [$cc], #16	                             @ load rk3
 	orr     $ctr96_t32w, $ctr96_t32w, $ctr96_t32w
 
-	ldr     $rk7q, [$cc, #112]                               @ load rk7
+	ld1     {$rk4s}, [$cc], #16	                             @ load rk4
 	rev     $rctr32w, $rctr32w                               @ rev_ctr32
 
 	add     $rctr32w, $rctr32w, #1                           @ increment rev_ctr32
@@ -2020,15 +2154,13 @@ aes_gcm_enc_192_kernel:
 	rev     $ctr32w, $rctr32w                                @ CTR block 3
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32           @ CTR block 3
-	ldr     $rk0q, [$cc, #0]                                 @ load rk0
+	ld1     {$rk5s}, [$cc], #16	                             @ load rk5
 
 	fmov    $ctr3.d[1], $ctr32x                              @ CTR block 3
 
-	ldr     $rk3q, [$cc, #48]                                @ load rk3
+	ld1     {$rk6s}, [$cc], #16	                             @ load rk6
 
-	ldp     $rk12_l, $rk12_h, [$cc, #192]                    @ load rk12
-
-	ldr     $rk1q, [$cc, #16]                                @ load rk1
+	ld1     {$rk7s}, [$cc], #16	                             @ load rk7
 
 	aese    $ctr0b, $rk0  \n  aesmc   $ctr0b, $ctr0b         @ AES block 0 - round 0
 	ld1     { $acc_lb}, [$current_tag]
@@ -2036,29 +2168,32 @@ aes_gcm_enc_192_kernel:
 	rev64   $acc_lb, $acc_lb
 
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b         @ AES block 3 - round 0
-	ldr     $rk11q, [$cc, #176]                              @ load rk11
+	ld1     {$rk8s}, [$cc], #16	                             @ load rk8
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b         @ AES block 1 - round 0
 	ldr     $h4q, [$current_tag, #112]                       @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
-
+#endif
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b         @ AES block 2 - round 0
-	ldr     $rk2q, [$cc, #32]                                @ load rk2
+	ld1     {$rk9s}, [$cc], #16	                             @ load rk9
 
 	aese    $ctr0b, $rk1  \n  aesmc   $ctr0b, $ctr0b         @ AES block 0 - round 1
-	ldr     $rk10q, [$cc, #160]                              @ load rk10
+	ld1     {$rk10s}, [$cc], #16	                         @ load rk10
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b         @ AES block 1 - round 1
 	ldr     $h1q, [$current_tag, #32]                        @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
-
+#endif
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b         @ AES block 2 - round 1
-	ldr     $rk9q, [$cc, #144]                               @ load rk9
+	ld1     {$rk11s}, [$cc], #16	                         @ load rk11
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b         @ AES block 3 - round 1
 	ldr     $h3q, [$current_tag, #80]                        @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
-
+#endif
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b         @ AES block 0 - round 2
 
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b         @ AES block 2 - round 2
@@ -2097,8 +2232,9 @@ aes_gcm_enc_192_kernel:
 
 	aese    $ctr2b, $rk6  \n  aesmc   $ctr2b, $ctr2b         @ AES block 2 - round 6
 	ldr     $h2q, [$current_tag, #64]                        @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
-
+#endif
 	aese    $ctr1b, $rk6  \n  aesmc   $ctr1b, $ctr1b         @ AES block 1 - round 6
 
 	aese    $ctr3b, $rk6  \n  aesmc   $ctr3b, $ctr3b         @ AES block 3 - round 6
@@ -2160,13 +2296,26 @@ aes_gcm_enc_192_kernel:
 
 	rev     $ctr32w, $rctr32w                                @ CTR block 4
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]           @ AES block 0 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32           @ CTR block 4
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]          @ AES block 2 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]          @ AES block 3 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]          @ AES block 1 - load plaintext
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	add     $input_ptr, $input_ptr, #64                      @ AES input_ptr update
 	cmp     $input_ptr, $main_end_input_ptr                  @ check if we have <= 8 blocks
 
@@ -2236,7 +2385,10 @@ aes_gcm_enc_192_kernel:
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b         @ AES block 4k+5 - round 0
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]          @ AES block 4k+5 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	ext     $acc_lb, $acc_lb, $acc_lb, #8                    @ PRE 0
 	fmov    $ctr3d, $ctr96_b64x                              @ CTR block 4k+3
 	rev64   $res0b, $res0b                                   @ GHASH block 4k (only t0 is free)
@@ -2247,10 +2399,16 @@ aes_gcm_enc_192_kernel:
 	pmull2  $t1.1q, $res1.2d, $h3.2d                         @ GHASH block 4k+1 - high
 	rev64   $res3b, $res3b                                   @ GHASH block 4k+3 (t0, t1, t2 and t3 free)
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]          @ AES block 4k+6 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	aese    $ctr0b, $rk0  \n  aesmc   $ctr0b, $ctr0b         @ AES block 4k+4 - round 0
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]          @ AES block 4k+3 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	pmull   $t2.1q, $res1.1d, $h3.1d                         @ GHASH block 4k+1 - low
 	eor     $res0b, $res0b, $acc_lb                          @ PRE 1
 
@@ -2327,7 +2485,10 @@ aes_gcm_enc_192_kernel:
 
 	aese    $ctr1b, $rk4  \n  aesmc   $ctr1b, $ctr1b         @ AES block 4k+5 - round 4
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]           @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	aese    $ctr0b, $rk6  \n  aesmc   $ctr0b, $ctr0b         @ AES block 4k+4 - round 6
 	eor     $acc_lb, $acc_lb, $t5.16b                        @ GHASH block 4k+2 - low
 
@@ -2624,7 +2785,10 @@ aes_gcm_enc_192_kernel:
 
 	sub     $main_end_input_ptr, $end_input_ptr, $input_ptr  @ main_end_input_ptr is number of bytes left to process
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $input_l0, $input_l0, $rk12_l                    @ AES block 4k+4 - round 12 low
 	eor     $input_h0, $input_h0, $rk12_h                    @ AES block 4k+4 - round 12 high
 
@@ -2661,7 +2825,10 @@ aes_gcm_enc_192_kernel:
 	st1     { $res1b}, [$output_ptr], #16                    @ AES final-3 block  - store result
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final-2 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	rev64   $res0b, $res1b                                   @ GHASH final-3 block
 
 	eor     $input_l0, $input_l0, $rk12_l                    @ AES final-2 block - round 12 low
@@ -2692,7 +2859,10 @@ aes_gcm_enc_192_kernel:
 
 	rev64   $res0b, $res1b                                   @ GHASH final-2 block
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final-1 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $res0b, $res0b, $t0.16b                          @ feed in partial tag
 
 	eor     $input_h0, $input_h0, $rk12_h                    @ AES final-1 block - round 12 high
@@ -2723,7 +2893,10 @@ aes_gcm_enc_192_kernel:
 	st1     { $res1b}, [$output_ptr], #16                    @ AES final-1 block - store result
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	rev64   $res0b, $res1b                                   @ GHASH final-1 block
 
 	eor     $input_l0, $input_l0, $rk12_l                    @ AES final block - round 12 low
@@ -2755,7 +2928,11 @@ aes_gcm_enc_192_kernel:
 	.L192_enc_blocks_less_than_1:                            @ blocks left <= 1
 
 	ld1     { $rk0}, [$output_ptr]                           @ load existing bytes where the possibly partial last block is to be stored
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 	and     $bit_length, $bit_length, #127                   @ bit_length %= 128
 
 	sub     $bit_length, $bit_length, #128                   @ bit_length -= 128
@@ -2871,14 +3048,22 @@ aes_gcm_dec_192_kernel:
 
 	add     $end_input_ptr, $input_ptr, $bit_length, lsr #3   @ end_input_ptr
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]              @ ctr96_b64, ctr96_t32
-
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
+	ldp     $rk12_l, $rk12_h, [$cc, #192]                     @ load rk12
+#ifdef __AARCH64EB__
+	ror     $rk12_l, $rk12_l, #32
+	ror     $rk12_h, $rk12_h, #32
+#endif
 	ld1     { $ctr0b}, [$counter]                             @ special case vector load initial counter so we can start first AES block as quickly as possible
 
-	ldr     $rk0q, [$cc, #0]                                  @ load rk0
+	ld1     {$rk0s}, [$cc], #16                                  @ load rk0
 
 	lsr     $main_end_input_ptr, $bit_length, #3              @ byte_len
 	mov     $len, $main_end_input_ptr
-	ldr     $rk2q, [$cc, #32]                                 @ load rk2
+	ld1     {$rk1s}, [$cc], #16                               @ load rk1
 
 	lsr     $rctr32x, $ctr96_t32x, #32
 	orr     $ctr96_t32w, $ctr96_t32w, $ctr96_t32w
@@ -2888,14 +3073,14 @@ aes_gcm_dec_192_kernel:
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 1
 
 	add     $rctr32w, $rctr32w, #1                            @ increment rev_ctr32
-	ldr     $rk1q, [$cc, #16]                                 @ load rk1
+	ld1     {$rk2s}, [$cc], #16                               @ load rk2
 
 	aese    $ctr0b, $rk0  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 0
 	rev     $ctr32w, $rctr32w                                 @ CTR block 1
 
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 1
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 1
-	ldr     $rk3q, [$cc, #48]                                 @ load rk3
+	ld1     {$rk3s}, [$cc], #16                               @ load rk3
 
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 1
 	rev     $ctr32w, $rctr32w                                 @ CTR block 2
@@ -2912,43 +3097,46 @@ aes_gcm_dec_192_kernel:
 
 	fmov    $ctr3.d[1], $ctr32x                               @ CTR block 3
 
-	ldr     $rk8q, [$cc, #128]                                @ load rk8
+	ld1     {$rk4s}, [$cc], #16                               @ load rk4
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 2
 
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 0
-	ldr     $rk11q, [$cc, #176]                               @ load rk11
+	ld1     {$rk5s}, [$cc], #16                               @ load rk5
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 0
 	ldr     $h4q, [$current_tag, #112]                        @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
-
+#endif
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 0
 	ldr     $h2q, [$current_tag, #64]                         @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
-
+#endif
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 1
 	ldr     $h3q, [$current_tag, #80]                         @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
-
+#endif
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 1
-	ldp     $rk12_l, $rk12_h, [$cc, #192]                     @ load rk12
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 1
 	ldr     $h1q, [$current_tag, #32]                         @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
-
+#endif
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 2
-	ldr     $rk10q, [$cc, #160]                               @ load rk10
+	ld1     {$rk6s}, [$cc], #16                               @ load rk6
 
 	aese    $ctr0b, $rk3  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 3
-	ldr     $rk9q, [$cc, #144]                                @ load rk9
+	ld1     {$rk7s}, [$cc], #16                               @ load rk7
 
 	aese    $ctr1b, $rk2  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 2
-	ldr     $rk7q, [$cc, #112]                                @ load rk7
+	ld1     {$rk8s}, [$cc], #16                               @ load rk8
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 2
-	ldr     $rk4q, [$cc, #64]                                 @ load rk4
+	ld1     {$rk9s}, [$cc], #16                               @ load rk9
 
 	aese    $ctr2b, $rk3  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 3
 	ld1     { $acc_lb}, [$current_tag]
@@ -2962,7 +3150,7 @@ aes_gcm_dec_192_kernel:
 	trn1    $acc_h.2d, $h3.2d,    $h4.2d                      @ h4h | h3h
 
 	aese    $ctr0b, $rk4  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 4
-	ldr     $rk5q, [$cc, #80]                                 @ load rk5
+	ld1     {$rk10s}, [$cc], #16                              @ load rk10
 
 	aese    $ctr1b, $rk4  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 4
 	trn2    $h34k.2d,  $h3.2d,    $h4.2d                      @ h4l | h3l
@@ -2973,7 +3161,7 @@ aes_gcm_dec_192_kernel:
 	trn2    $h12k.2d,  $h1.2d,    $h2.2d                      @ h2l | h1l
 
 	aese    $ctr0b, $rk5  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 5
-	ldr     $rk6q, [$cc, #96]                                 @ load rk6
+	ld1     {$rk11s}, [$cc], #16                              @ load rk11
 
 	aese    $ctr1b, $rk5  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 5
 
@@ -3037,17 +3225,13 @@ aes_gcm_dec_192_kernel:
 	aese    $ctr0b, $rk11                                     @ AES block 0 - round 11
 	b.ge    .L192_dec_tail                                    @ handle tail
 
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 1 - load ciphertext
-
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 0 - load ciphertext
+	ld1     {$res0b, $res1b}, [$input_ptr], #32               @ AES block 0,1 - load ciphertext
 
 	eor     $ctr1b, $res1b, $ctr1b                            @ AES block 1 - result
 
 	eor     $ctr0b, $res0b, $ctr0b                            @ AES block 0 - result
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 3 - load ciphertext
-
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 2 - load ciphertext
+	ld1     {$res2b, $res3b}, [$input_ptr], #32               @ AES block 2,3 - load ciphertext
 
 	mov     $output_l1, $ctr1.d[0]                            @ AES block 1 - mov low
 
@@ -3059,27 +3243,35 @@ aes_gcm_dec_192_kernel:
 
 	mov     $output_h0, $ctr0.d[1]                            @ AES block 0 - mov high
 	rev64   $res0b, $res0b                                    @ GHASH block 0
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 
 	fmov    $ctr0d, $ctr96_b64x                               @ CTR block 4
 	rev64   $res1b, $res1b                                    @ GHASH block 1
 	cmp     $input_ptr, $main_end_input_ptr                   @ check if we have <= 8 blocks
 
 	eor     $output_l1, $output_l1, $rk12_l                   @ AES block 1 - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	fmov    $ctr0.d[1], $ctr32x                               @ CTR block 4
 	rev     $ctr32w, $rctr32w                                 @ CTR block 5
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 5
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 5
 	eor     $output_h1, $output_h1, $rk12_h                   @ AES block 1 - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 5
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 5
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES block 0 - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	rev     $ctr32w, $rctr32w                                 @ CTR block 6
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES block 0 - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 0 - store result
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 6
 
@@ -3134,7 +3326,9 @@ aes_gcm_dec_192_kernel:
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 2
 	eor     $output_h2, $output_h2, $rk12_h                   @ AES block 4k+2 - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 1
 	eor     $t3.8b, $t3.8b, $res1.8b                          @ GHASH block 4k+1 - mid
 
@@ -3148,7 +3342,9 @@ aes_gcm_dec_192_kernel:
 	pmull   $t3.1q, $t3.1d, $h34k.1d                          @ GHASH block 4k+1 - mid
 	eor     $acc_lb, $acc_lb, $t2.16b                         @ GHASH block 4k+1 - low
 	eor     $output_l2, $output_l2, $rk12_l                   @ AES block 4k+2 - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 	aese    $ctr1b, $rk4  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 4
 
 	aese    $ctr0b, $rk3  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 3
@@ -3226,15 +3422,17 @@ aes_gcm_dec_192_kernel:
 	aese    $ctr1b, $rk10 \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 10
 
 	aese    $ctr2b, $rk6  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 6
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 4k+6 - load ciphertext
+	ld1     {$res0b}, [$input_ptr], #16                       @ AES block 4k+4 - load ciphertext
 
 	aese    $ctr3b, $rk6  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 6
 	eor     $acc_mb, $acc_mb, $t9.16b                         @ MODULO - karatsuba tidy up
 
 	pmull   $mod_t.1q, $acc_h.1d, $mod_constant.1d            @ MODULO - top 64b align with mid
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 4k+7 - load ciphertext
+	ld1     {$res1b}, [$input_ptr], #16                       @ AES block 4k+5 - load ciphertext
 	eor     $output_l3, $output_l3, $rk12_l                   @ AES block 4k+3 - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	aese    $ctr2b, $rk7  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 7
 	ext     $acc_hb, $acc_hb, $acc_hb, #8                     @ MODULO - other top alignment
 
@@ -3245,10 +3443,10 @@ aes_gcm_dec_192_kernel:
 	eor     $acc_mb, $acc_mb, $mod_t.16b                      @ MODULO - fold into mid
 
 	aese    $ctr2b, $rk8  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 8
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 4k+4 - load ciphertext
+	ld1     {$res2b}, [$input_ptr], #16                       @ AES block 4k+6 - load ciphertext
 
 	aese    $ctr1b, $rk11                                     @ AES block 4k+5 - round 11
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 4k+5 - load ciphertext
+	ld1     {$res3b}, [$input_ptr], #16                       @ AES block 4k+7 - load ciphertext
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4k+8
 
 	aese    $ctr3b, $rk8  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 8
@@ -3257,11 +3455,13 @@ aes_gcm_dec_192_kernel:
 	aese    $ctr2b, $rk9  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 9
 	eor     $acc_mb, $acc_mb, $acc_hb                         @ MODULO - fold into mid
 
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 	cmp     $input_ptr, $main_end_input_ptr                   @ LOOP CONTROL
 
 	eor     $ctr0b, $res0b, $ctr0b                            @ AES block 4k+4 - result
 	eor     $output_h3, $output_h3, $rk12_h                   @ AES block 4k+3 - round 12 high
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 	eor     $ctr1b, $res1b, $ctr1b                            @ AES block 4k+5 - result
 
 	aese    $ctr2b, $rk10 \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 10
@@ -3291,18 +3491,28 @@ aes_gcm_dec_192_kernel:
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4k+9
 
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES block 4k+4 - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 4k+9
 	eor     $acc_lb, $acc_lb, $mod_constant.16b               @ MODULO - fold into low
 
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 4k+9
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+9
 	eor     $output_l1, $output_l1, $rk12_l                   @ AES block 4k+5 - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 4k+9
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4k+10
 	eor     $output_h1, $output_h1, $rk12_h                   @ AES block 4k+5 - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES block 4k+4 - round 12 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 4k+4 - store result
 	eor     $acc_lb, $acc_lb, $acc_mb                         @ MODULO - fold into low
 
@@ -3351,17 +3561,28 @@ aes_gcm_dec_192_kernel:
 
 	pmull   $t2.1q, $res1.1d, $h3.1d                          @ GHASH block 4k+1 - low
 	eor     $output_h3, $output_h3, $rk12_h                   @ AES block 4k+3 - round 12 high
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 	fmov    $ctr3.d[1], $ctr32x                               @ CTR block 4k+7
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 2
 	eor     $output_l2, $output_l2, $rk12_l                   @ AES block 4k+2 - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 	pmull2  $t1.1q, $res1.2d, $h3.2d                          @ GHASH block 4k+1 - high
 	eor     $output_h2, $output_h2, $rk12_h                   @ AES block 4k+2 - round 12 high
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	eor     $t3.8b, $t3.8b, $res1.8b                          @ GHASH block 4k+1 - mid
 
 	pmull   $acc_m.1q, $t0.1d, $acc_m.1d                      @ GHASH block 4k - mid
 	eor     $output_l3, $output_l3, $rk12_l                   @ AES block 4k+3 - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	stp     $output_l2, $output_h2, [$output_ptr], #16        @ AES block 4k+2 - store result
 
 	rev64   $res3b, $res3b                                    @ GHASH block 4k+3
@@ -3513,8 +3734,13 @@ aes_gcm_dec_192_kernel:
 	cmp     $main_end_input_ptr, #48
 
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES block 4k+4 - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES block 4k+4 - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	b.gt    .L192_dec_blocks_more_than_3
 
 	movi    $acc_l.8b, #0
@@ -3558,10 +3784,16 @@ aes_gcm_dec_192_kernel:
 	pmull2  $acc_h.1q, $res0.2d, $h4.2d                       @ GHASH final-3 block - high
 
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES final-2 block - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	movi    $t0.8b, #0                                        @ suppress further partial tag feed in
 
 	pmull   $acc_m.1q, $rk4v.1d, $acc_m.1d                    @ GHASH final-3 block - mid
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES final-2 block - round 12 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	.L192_dec_blocks_more_than_2:                             @ blocks left >  2
 
 	rev64   $res0b, $res1b                                    @ GHASH final-2 block
@@ -3591,8 +3823,13 @@ aes_gcm_dec_192_kernel:
 
 	eor     $acc_hb, $acc_hb, $rk2                            @ GHASH final-2 block - high
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES final-1 block - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES final-1 block - round 12 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $acc_mb, $acc_mb, $rk4v.16b                       @ GHASH final-2 block - mid
 	.L192_dec_blocks_more_than_1:                             @ blocks left >  1
 
@@ -3623,9 +3860,13 @@ aes_gcm_dec_192_kernel:
 	movi    $t0.8b, #0                                        @ suppress further partial tag feed in
 	eor     $acc_lb, $acc_lb, $rk3                            @ GHASH final-1 block - low
 	eor     $output_h0, $output_h0, $rk12_h                   @ AES final block - round 12 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $output_l0, $output_l0, $rk12_l                   @ AES final block - round 12 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $acc_mb, $acc_mb, $rk4v.16b                       @ GHASH final-1 block - mid
 	.L192_dec_blocks_less_than_1:                             @ blocks left <= 1
 
@@ -3652,8 +3893,11 @@ aes_gcm_dec_192_kernel:
 
 	orr     $output_l0, $output_l0, $end_input_ptr
 	mov     $ctr0.d[1], $ctr96_b64x
-
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 
 	and     $res1b, $res1b, $ctr0b                            @ possibly partial last block has zeroes in highest bits
 	str     $ctr32w, [$counter, #12]                          @ store the updated counter
@@ -3778,6 +4022,7 @@ my $mod_constant="v8";
 my $mod_t="v7";
 
 my ($rk0,$rk1,$rk2,$rk3,$rk4,$rk5,$rk6,$rk7,$rk8,$rk9,$rk10,$rk11,$rk12,$rk13)=map("v$_.16b",(18..31));
+my ($rk0s,$rk1s,$rk2s,$rk3s,$rk4s,$rk5s,$rk6s,$rk7s,$rk8s,$rk9s,$rk10s,$rk11s,$rk12s,$rk13s)=map("v$_.4s",(18..31));
 my ($rk0q,$rk1q,$rk2q,$rk3q,$rk4q,$rk5q,$rk6q,$rk7q,$rk8q,$rk9q,$rk10q,$rk11q,$rk12q,$rk13q)=map("q$_",(18..31));
 my $rk2q1="v20.1q";
 my $rk3q1="v21.1q";
@@ -3812,14 +4057,22 @@ aes_gcm_enc_256_kernel:
 	lsr     $main_end_input_ptr, $bit_length, #3              @ byte_len
 	mov     $len, $main_end_input_ptr
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]              @ ctr96_b64, ctr96_t32
-
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
+	ldp     $rk14_l, $rk14_h, [$cc, #224]                     @ load rk14
+#ifdef __AARCH64EB__
+	ror     $rk14_l, $rk14_l, #32
+	ror     $rk14_h, $rk14_h, #32
+#endif
 	ld1     { $ctr0b}, [$counter]                             @ special case vector load initial counter so we can start first AES block as quickly as possible
 	sub     $main_end_input_ptr, $main_end_input_ptr, #1      @ byte_len - 1
 
-	ldr     $rk0q, [$cc, #0]                                  @ load rk0
+	ld1     {$rk0s}, [$cc], #16                               @ load rk0
 	and     $main_end_input_ptr, $main_end_input_ptr, #0xffffffffffffffc0 @ number of bytes to be processed in main loop (at least 1 byte must be handled by tail)
 
-	ldr     $rk7q, [$cc, #112]                                @ load rk7
+	ld1     {$rk1s}, [$cc], #16                               @ load rk1
 	add     $main_end_input_ptr, $main_end_input_ptr, $input_ptr
 
 	lsr     $rctr32x, $ctr96_t32x, #32
@@ -3838,14 +4091,14 @@ aes_gcm_enc_256_kernel:
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 1
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 1
-	ldr     $rk1q, [$cc, #16]                                 @ load rk1
+	ld1     {$rk2s}, [$cc], #16                               @ load rk2
 
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 1
 	rev     $ctr32w, $rctr32w                                 @ CTR block 2
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 2
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 2
-	ldr     $rk2q, [$cc, #32]                                 @ load rk2
+	ld1     {$rk3s}, [$cc], #16                               @ load rk3
 
 	fmov    $ctr2.d[1], $ctr32x                               @ CTR block 2
 	rev     $ctr32w, $rctr32w                                 @ CTR block 3
@@ -3856,46 +4109,48 @@ aes_gcm_enc_256_kernel:
 	fmov    $ctr3.d[1], $ctr32x                               @ CTR block 3
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 0
-	ldr     $rk3q, [$cc, #48]                                 @ load rk3
+	ld1     {$rk4s}, [$cc], #16                               @ load rk4
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 2
-	ldr     $rk6q, [$cc, #96]                                 @ load rk6
+	ld1     {$rk5s}, [$cc], #16                               @ load rk5
 
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 0
-	ldr     $rk5q, [$cc, #80]                                 @ load rk5
+	ld1     {$rk6s}, [$cc], #16                               @ load rk6
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 1
 	ldr     $h3q, [$current_tag, #80]                         @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
-
+#endif
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 0
-	ldr     $rk13q, [$cc, #208]                               @ load rk13
+	ld1     {$rk7s}, [$cc], #16                               @ load rk7
 
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 1
-	ldr     $rk4q, [$cc, #64]                                 @ load rk4
+	ld1     {$rk8s}, [$cc], #16                               @ load rk8
 
 	aese    $ctr1b, $rk2  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 2
 	ldr     $h2q, [$current_tag, #64]                         @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
-
+#endif
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 1
-	ldr     $rk12q, [$cc, #192]                               @ load rk12
+	ld1     {$rk9s}, [$cc], #16                               @ load rk9
 
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 2
 	ldr     $h4q, [$current_tag, #112]                        @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
-
+#endif
 	aese    $ctr1b, $rk3  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 3
-	ldr     $rk11q, [$cc, #176]                               @ load rk11
+	ld1     {$rk10s}, [$cc], #16                              @ load rk10
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 2
-	ldr     $rk8q, [$cc, #128]                                @ load rk8
+	ld1     {$rk11s}, [$cc], #16                              @ load rk11
 
 	aese    $ctr2b, $rk3  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 3
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 3
 
 	aese    $ctr0b, $rk3  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 3
-	ldp     $rk14_l, $rk14_h, [$cc, #224]                     @ load rk14
 
 	aese    $ctr3b, $rk3  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 3
 	ld1     { $acc_lb}, [$current_tag]
@@ -3922,14 +4177,15 @@ aes_gcm_enc_256_kernel:
 	trn2    $h34k.2d,  $h3.2d,    $h4.2d                      @ h4l | h3l
 
 	aese    $ctr3b, $rk6  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 6
-	ldr     $rk9q, [$cc, #144]                                @ load rk9
+	ld1     {$rk12s}, [$cc], #16                              @ load rk12
 
 	aese    $ctr0b, $rk6  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 6
 	ldr     $h1q, [$current_tag, #32]                         @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
-
+#endif
 	aese    $ctr2b, $rk6  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 6
-	ldr     $rk10q, [$cc, #160]                               @ load rk10
+	ld1     {$rk13s}, [$cc], #16                              @ load rk13
 
 	aese    $ctr1b, $rk7  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 7
 	trn1    $acc_h.2d, $h3.2d,    $h4.2d                      @ h4h | h3h
@@ -3994,13 +4250,26 @@ aes_gcm_enc_256_kernel:
 	b.ge    .L256_enc_tail                                    @ handle tail
 
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]           @ AES block 1 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]            @ AES block 0 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]           @ AES block 3 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]           @ AES block 2 - load plaintext
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 
 	eor     $input_l1, $input_l1, $rk14_l                     @ AES block 1 - round 14 low
@@ -4078,10 +4347,16 @@ aes_gcm_enc_256_kernel:
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 1
 	ldp     $input_l3, $input_h3, [$input_ptr, #48]           @ AES block 4k+7 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l3, $input_l3
+	rev     $input_h3, $input_h3
+#endif
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 1
 	ldp     $input_l2, $input_h2, [$input_ptr, #32]           @ AES block 4k+6 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l2, $input_l2
+	rev     $input_h2, $input_h2
+#endif
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 2
 	eor     $res0b, $res0b, $acc_lb                           @ PRE 1
 
@@ -4167,7 +4442,10 @@ aes_gcm_enc_256_kernel:
 
 	aese    $ctr3b, $rk6  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 6
 	ldp     $input_l1, $input_h1, [$input_ptr, #16]           @ AES block 4k+5 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l1, $input_l1
+	rev     $input_h1, $input_h1
+#endif
 	aese    $ctr1b, $rk8  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 8
 	mov     $t9d, $res3.d[1]                                  @ GHASH block 4k+3 - mid
 
@@ -4197,7 +4475,10 @@ aes_gcm_enc_256_kernel:
 
 	aese    $ctr2b, $rk8  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 8
 	ldp     $input_l0, $input_h0, [$input_ptr, #0]            @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	aese    $ctr0b, $rk10 \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 10
 	shl     $mod_constantd, $mod_constantd, #56               @ mod_constant
 
@@ -4492,7 +4773,10 @@ aes_gcm_enc_256_kernel:
 	ext     $t0.16b, $acc_lb, $acc_lb, #8                     @ prepare final partial tag
 	sub     $main_end_input_ptr, $end_input_ptr, $input_ptr   @ main_end_input_ptr is number of bytes left to process
 	ldp     $input_l0, $input_h0, [$input_ptr], #16           @ AES block 4k+4 - load plaintext
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $input_l0, $input_l0, $rk14_l                     @ AES block 4k+4 - round 14 low
 	eor     $input_h0, $input_h0, $rk14_h                     @ AES block 4k+4 - round 14 high
 
@@ -4527,7 +4811,10 @@ aes_gcm_enc_256_kernel:
 	st1     { $res1b}, [$output_ptr], #16                    @ AES final-3 block  - store result
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final-2 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	rev64   $res0b, $res1b                                   @ GHASH final-3 block
 
 	eor     $input_l0, $input_l0, $rk14_l                    @ AES final-2 block - round 14 low
@@ -4556,7 +4843,10 @@ aes_gcm_enc_256_kernel:
 	st1     { $res1b}, [$output_ptr], #16                    @ AES final-2 block - store result
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final-1 block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	rev64   $res0b, $res1b                                   @ GHASH final-2 block
 
 	eor     $input_l0, $input_l0, $rk14_l                    @ AES final-1 block - round 14 low
@@ -4592,7 +4882,10 @@ aes_gcm_enc_256_kernel:
 	rev64   $res0b, $res1b                                   @ GHASH final-1 block
 
 	ldp     $input_l0, $input_h0, [$input_ptr], #16          @ AES final block - load input low & high
-
+#ifdef __AARCH64EB__
+	rev     $input_l0, $input_l0
+	rev     $input_h0, $input_h0
+#endif
 	eor     $res0b, $res0b, $t0.16b                          @ feed in partial tag
 
 	movi    $t0.8b, #0                                       @ suppress further partial tag feed in
@@ -4653,7 +4946,11 @@ aes_gcm_enc_256_kernel:
 
 	pmull2  $rk2q1, $res0.2d, $h1.2d                         @ GHASH final block - high
 	mov     $t0d, $res0.d[1]                                 @ GHASH final block - mid
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 
 	pmull   $rk3q1, $res0.1d, $h1.1d                         @ GHASH final block - low
 
@@ -4743,21 +5040,29 @@ aes_gcm_dec_256_kernel:
 	lsr     $main_end_input_ptr, $bit_length, #3              @ byte_len
 	mov     $len, $main_end_input_ptr
 	ldp     $ctr96_b64x, $ctr96_t32x, [$counter]              @ ctr96_b64, ctr96_t32
-
-	ldr     $rk8q, [$cc, #128]                                @ load rk8
+#ifdef __AARCH64EB__
+	rev     $ctr96_b64x, $ctr96_b64x
+	rev     $ctr96_t32x, $ctr96_t32x
+#endif
+	ldp     $rk14_l, $rk14_h, [$cc, #224]                     @ load rk14
+#ifdef __AARCH64EB__
+	ror     $rk14_h, $rk14_h, #32
+	ror     $rk14_l, $rk14_l, #32
+#endif
+	ld1     {$rk0s}, [$cc], #16                               @ load rk0
 	sub     $main_end_input_ptr, $main_end_input_ptr, #1      @ byte_len - 1
 
-	ldr     $rk7q, [$cc, #112]                                @ load rk7
+	ld1     {$rk1s}, [$cc], #16                               @ load rk1
 	and     $main_end_input_ptr, $main_end_input_ptr, #0xffffffffffffffc0 @ number of bytes to be processed in main loop (at least 1 byte must be handled by tail)
 
 	add     $end_input_ptr, $input_ptr, $bit_length, lsr #3   @ end_input_ptr
-	ldr     $rk6q, [$cc, #96]                                 @ load rk6
+	ld1     {$rk2s}, [$cc], #16                               @ load rk2
 
 	lsr     $rctr32x, $ctr96_t32x, #32
-	ldr     $rk5q, [$cc, #80]                                 @ load rk5
+	ld1     {$rk3s}, [$cc], #16                               @ load rk3
 	orr     $ctr96_t32w, $ctr96_t32w, $ctr96_t32w
 
-	ldr     $rk3q, [$cc, #48]                                 @ load rk3
+	ld1     {$rk4s}, [$cc], #16                               @ load rk4
 	add     $main_end_input_ptr, $main_end_input_ptr, $input_ptr
 	rev     $rctr32w, $rctr32w                                @ rev_ctr32
 
@@ -4782,34 +5087,39 @@ aes_gcm_dec_256_kernel:
 	rev     $ctr32w, $rctr32w                                 @ CTR block 3
 
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 3
-	ldr     $rk0q, [$cc, #0]                                  @ load rk0
+	ld1     {$rk5s}, [$cc], #16                               @ load rk5
 
 	fmov    $ctr3.d[1], $ctr32x                               @ CTR block 3
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 3
 
-	ldr     $rk4q, [$cc, #64]                                 @ load rk4
+	ld1     {$rk6s}, [$cc], #16                               @ load rk6
 
-	ldr     $rk13q, [$cc, #208]                               @ load rk13
+	ld1     {$rk7s}, [$cc], #16                               @ load rk7
 
-	ldr     $rk1q, [$cc, #16]                                 @ load rk1
+	ld1     {$rk8s}, [$cc], #16                               @ load rk8
 
 	aese    $ctr0b, $rk0  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 0
 	ldr     $h3q, [$current_tag, #80]                         @ load h3l | h3h
+#ifndef __AARCH64EB__
 	ext     $h3b, $h3b, $h3b, #8
+#endif
 
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 0
 	ldr     $h4q, [$current_tag, #112]                        @ load h4l | h4h
+#ifndef __AARCH64EB__
 	ext     $h4b, $h4b, $h4b, #8
+#endif
 
 	aese    $ctr1b, $rk0  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 0
 	ldr     $h2q, [$current_tag, #64]                         @ load h2l | h2h
+#ifndef __AARCH64EB__
 	ext     $h2b, $h2b, $h2b, #8
+#endif
 
 	aese    $ctr2b, $rk0  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 0
-	ldr     $rk2q, [$cc, #32]                                 @ load rk2
+	ld1     {$rk9s}, [$cc], #16                                 @ load rk9
 
 	aese    $ctr0b, $rk1  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 1
-	ldp     $rk14_l, $rk14_h, [$cc, #224]                     @ load rk14
 
 	aese    $ctr1b, $rk1  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 1
 	ld1     { $acc_lb}, [$current_tag]
@@ -4817,17 +5127,18 @@ aes_gcm_dec_256_kernel:
 	rev64   $acc_lb, $acc_lb
 
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 1
-	ldr     $rk9q, [$cc, #144]                                @ load rk9
+	ld1     {$rk10s}, [$cc], #16                              @ load rk10
 
 	aese    $ctr3b, $rk1  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 1
-	ldr     $rk12q, [$cc, #192]                               @ load rk12
+	ld1     {$rk11s}, [$cc], #16                              @ load rk11
 
 	aese    $ctr0b, $rk2  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 2
 	ldr     $h1q, [$current_tag, #32]                         @ load h1l | h1h
+#ifndef __AARCH64EB__
 	ext     $h1b, $h1b, $h1b, #8
-
+#endif
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 2
-	ldr     $rk10q, [$cc, #160]                               @ load rk10
+	ld1     {$rk12s}, [$cc], #16                              @ load rk12
 
 	aese    $ctr3b, $rk2  \n  aesmc   $ctr3b, $ctr3b          @ AES block 3 - round 2
 
@@ -4883,7 +5194,7 @@ aes_gcm_dec_256_kernel:
 	aese    $ctr0b, $rk9  \n  aesmc   $ctr0b, $ctr0b          @ AES block 0 - round 9
 
 	aese    $ctr2b, $rk8  \n  aesmc   $ctr2b, $ctr2b          @ AES block 2 - round 8
-	ldr     $rk11q, [$cc, #176]                               @ load rk11
+	ld1     {$rk13s}, [$cc], #16                             @ load rk13
 
 	aese    $ctr1b, $rk9  \n  aesmc   $ctr1b, $ctr1b          @ AES block 1 - round 9
 
@@ -4933,9 +5244,7 @@ aes_gcm_dec_256_kernel:
 	aese    $ctr0b, $rk13                                     @ AES block 0 - round 13
 	b.ge    .L256_dec_tail                                    @ handle tail
 
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 0 - load ciphertext
-
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 1 - load ciphertext
+	ld1     {$res0b, $res1b}, [$input_ptr], #32               @ AES block 0,1 - load ciphertext
 
 	rev     $ctr32w, $rctr32w                                 @ CTR block 4
 
@@ -4943,7 +5252,7 @@ aes_gcm_dec_256_kernel:
 
 	eor     $ctr1b, $res1b, $ctr1b                            @ AES block 1 - result
 	rev64   $res1b, $res1b                                    @ GHASH block 1
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 3 - load ciphertext
+	ld1     {$res2b}, [$input_ptr], #16                       @ AES block 2 - load ciphertext
 
 	mov     $output_h0, $ctr0.d[1]                            @ AES block 0 - mov high
 
@@ -4963,22 +5272,32 @@ aes_gcm_dec_256_kernel:
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 5
 	mov     $output_h1, $ctr1.d[1]                            @ AES block 1 - mov high
 	eor     $output_h0, $output_h0, $rk14_h                   @ AES block 0 - round 14 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	eor     $output_l0, $output_l0, $rk14_l                   @ AES block 0 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 0 - store result
 	fmov    $ctr1d, $ctr96_b64x                               @ CTR block 5
 
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 2 - load ciphertext
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
+	ld1     {$res3b}, [$input_ptr], #16                       @ AES block 3 - load ciphertext
 
 	fmov    $ctr1.d[1], $ctr32x                               @ CTR block 5
 	rev     $ctr32w, $rctr32w                                 @ CTR block 6
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 6
 
 	eor     $output_l1, $output_l1, $rk14_l                   @ AES block 1 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	orr     $ctr32x, $ctr96_t32x, $ctr32x, lsl #32            @ CTR block 6
 
 	eor     $output_h1, $output_h1, $rk14_h                   @ AES block 1 - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	stp     $output_l1, $output_h1, [$output_ptr], #16        @ AES block 1 - store result
 
 	eor     $ctr2b, $res2b, $ctr2b                            @ AES block 2 - result
@@ -5021,7 +5340,9 @@ aes_gcm_dec_256_kernel:
 
 	aese    $ctr0b, $rk3  \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 3
 	eor     $output_h2, $output_h2, $rk14_h                   @ AES block 4k+2 - round 14 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	aese    $ctr2b, $rk1  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 1
 	mov     $acc_md, $h34k.d[1]                               @ GHASH block 4k - mid
 
@@ -5030,7 +5351,9 @@ aes_gcm_dec_256_kernel:
 
 	aese    $ctr3b, $rk0  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 0
 	eor     $output_l2, $output_l2, $rk14_l                   @ AES block 4k+2 - round 14 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 	aese    $ctr2b, $rk2  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 2
 	stp     $output_l2, $output_h2, [$output_ptr], #16        @ AES block 4k+2 - store result
 
@@ -5043,9 +5366,14 @@ aes_gcm_dec_256_kernel:
 
 	pmull   $acc_m.1q, $t0.1d, $acc_m.1d                      @ GHASH block 4k - mid
 	eor     $output_l3, $output_l3, $rk14_l                   @ AES block 4k+3 - round 14 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	pmull   $t2.1q, $res1.1d, $h3.1d                          @ GHASH block 4k+1 - low
 	eor     $output_h3, $output_h3, $rk14_h                   @ AES block 4k+3 - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 	eor     $acc_hb, $acc_hb, $t1.16b                         @ GHASH block 4k+1 - high
 
 	aese    $ctr2b, $rk4  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 4
@@ -5139,7 +5467,7 @@ aes_gcm_dec_256_kernel:
 	eor     $t9.16b, $acc_lb, $acc_hb                         @ MODULO - karatsuba tidy up
 
 	aese    $ctr1b, $rk9  \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 9
-	ldr     $res0q, [$input_ptr, #0]                          @ AES block 4k+4 - load ciphertext
+	ld1     {$res0b}, [$input_ptr], #16                       @ AES block 4k+4 - load ciphertext
 
 	aese    $ctr0b, $rk13                                     @ AES block 4k+4 - round 13
 	ext     $acc_hb, $acc_hb, $acc_hb, #8                     @ MODULO - other top alignment
@@ -5148,7 +5476,7 @@ aes_gcm_dec_256_kernel:
 	eor     $acc_mb, $acc_mb, $t9.16b                         @ MODULO - karatsuba tidy up
 
 	aese    $ctr2b, $rk9  \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 9
-	ldr     $res1q, [$input_ptr, #16]                         @ AES block 4k+5 - load ciphertext
+	ld1     {$res1b}, [$input_ptr], #16                       @ AES block 4k+5 - load ciphertext
 
 	aese    $ctr3b, $rk8  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 8
 	eor     $ctr0b, $res0b, $ctr0b                            @ AES block 4k+4 - result
@@ -5160,10 +5488,10 @@ aes_gcm_dec_256_kernel:
 	eor     $acc_mb, $acc_mb, $mod_t.16b                      @ MODULO - fold into mid
 
 	aese    $ctr3b, $rk9  \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 9
-	ldr     $res3q, [$input_ptr, #48]                         @ AES block 4k+7 - load ciphertext
+	ld1     {$res2b}, [$input_ptr], #16                       @ AES block 4k+6 - load ciphertext
 
 	aese    $ctr1b, $rk12 \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 12
-	ldr     $res2q, [$input_ptr, #32]                         @ AES block 4k+6 - load ciphertext
+	ld1     {$res3b}, [$input_ptr], #16                       @ AES block 4k+7 - load ciphertext
 
 	aese    $ctr2b, $rk11 \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 11
 	mov     $output_h0, $ctr0.d[1]                            @ AES block 4k+4 - mov high
@@ -5172,7 +5500,6 @@ aes_gcm_dec_256_kernel:
 	eor     $acc_mb, $acc_mb, $acc_hb                         @ MODULO - fold into mid
 
 	aese    $ctr1b, $rk13                                     @ AES block 4k+5 - round 13
-	add     $input_ptr, $input_ptr, #64                       @ AES input_ptr update
 	mov     $output_l0, $ctr0.d[0]                            @ AES block 4k+4 - mov low
 
 	aese    $ctr2b, $rk12 \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 12
@@ -5192,8 +5519,13 @@ aes_gcm_dec_256_kernel:
 	add     $rctr32w, $rctr32w, #1                            @ CTR block 4k+9
 
 	eor     $output_l0, $output_l0, $rk14_l                   @ AES block 4k+4 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $output_h0, $output_h0, $rk14_h                   @ AES block 4k+4 - round 14 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	mov     $output_h1, $ctr1.d[1]                            @ AES block 4k+5 - mov high
 	eor     $ctr2b, $res2b, $ctr2b                            @ AES block 4k+6 - result
 	eor     $acc_lb, $acc_lb, $mod_constant.16b               @ MODULO - fold into low
@@ -5213,9 +5545,15 @@ aes_gcm_dec_256_kernel:
 
 	rev64   $res1b, $res1b                                    @ GHASH block 4k+5
 	eor     $output_h1, $output_h1, $rk14_h                   @ AES block 4k+5 - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h1, $output_h1
+#endif
 	stp     $output_l0, $output_h0, [$output_ptr], #16        @ AES block 4k+4 - store result
 
 	eor     $output_l1, $output_l1, $rk14_l                   @ AES block 4k+5 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l1, $output_l1
+#endif
 	stp     $output_l1, $output_h1, [$output_ptr], #16        @ AES block 4k+5 - store result
 
 	rev64   $res0b, $res0b                                    @ GHASH block 4k+4
@@ -5379,10 +5717,14 @@ aes_gcm_dec_256_kernel:
 
 	aese    $ctr0b, $rk10 \n  aesmc   $ctr0b, $ctr0b          @ AES block 4k+4 - round 10
 	eor     $output_h2, $output_h2, $rk14_h                   @ AES block 4k+2 - round 14 high
-
+#ifdef __AARCH64EB__
+	rev     $output_h2, $output_h2
+#endif
 	aese    $ctr1b, $rk10 \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 10
 	eor     $output_l3, $output_l3, $rk14_l                   @ AES block 4k+3 - round 14 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l3, $output_l3
+#endif
 	aese    $ctr2b, $rk11 \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 11
 	eor     $acc_mb, $acc_mb, $acc_hb                         @ MODULO - fold into mid
 
@@ -5391,11 +5733,17 @@ aes_gcm_dec_256_kernel:
 
 	aese    $ctr1b, $rk11 \n  aesmc   $ctr1b, $ctr1b          @ AES block 4k+5 - round 11
 	eor     $output_l2, $output_l2, $rk14_l                   @ AES block 4k+2 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l2, $output_l2
+#endif
 
 	aese    $ctr2b, $rk12 \n  aesmc   $ctr2b, $ctr2b          @ AES block 4k+6 - round 12
 
 	pmull   $mod_constant.1q, $acc_m.1d, $mod_constant.1d     @ MODULO - mid 64b align with low
 	eor     $output_h3, $output_h3, $rk14_h                   @ AES block 4k+3 - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h3, $output_h3
+#endif
 
 	aese    $ctr3b, $rk11 \n  aesmc   $ctr3b, $ctr3b          @ AES block 4k+7 - round 11
 	stp     $output_l2, $output_h2, [$output_ptr], #16        @ AES block 4k+2 - store result
@@ -5432,8 +5780,14 @@ aes_gcm_dec_256_kernel:
 	cmp     $main_end_input_ptr, #48
 
 	eor     $output_l0, $output_l0, $rk14_l                   @ AES block 4k+4 - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 
 	eor     $output_h0, $output_h0, $rk14_h                   @ AES block 4k+4 - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	b.gt    .L256_dec_blocks_more_than_3
 
 	sub     $rctr32w, $rctr32w, #1
@@ -5481,9 +5835,15 @@ aes_gcm_dec_256_kernel:
 
 	pmull   $acc_m.1q, $rk4v.1d, $acc_m.1d                   @ GHASH final-3 block - mid
 	eor     $output_l0, $output_l0, $rk14_l                  @ AES final-2 block - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 
 	pmull   $acc_l.1q, $res0.1d, $h4.1d                      @ GHASH final-3 block - low
 	eor     $output_h0, $output_h0, $rk14_h                  @ AES final-2 block - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	.L256_dec_blocks_more_than_2:                            @ blocks left >  2
 
 	rev64   $res0b, $res1b                                   @ GHASH final-2 block
@@ -5511,9 +5871,15 @@ aes_gcm_dec_256_kernel:
 
 	eor     $acc_hb, $acc_hb, $rk2                           @ GHASH final-2 block - high
 	eor     $output_l0, $output_l0, $rk14_l                  @ AES final-1 block - round 14 low
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 
 	eor     $acc_mb, $acc_mb, $rk4v.16b                      @ GHASH final-2 block - mid
 	eor     $output_h0, $output_h0, $rk14_h                  @ AES final-1 block - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	.L256_dec_blocks_more_than_1:                            @ blocks left >  1
 
 	stp     $output_l0, $output_h0, [$output_ptr], #16       @ AES final-1 block  - store result
@@ -5541,13 +5907,18 @@ aes_gcm_dec_256_kernel:
 
 	pmull2  $rk4v.1q, $rk4v.2d, $h12k.2d                     @ GHASH final-1 block - mid
 	eor     $output_l0, $output_l0, $rk14_l                  @ AES final block - round 14 low
-
+#ifdef __AARCH64EB__
+	rev     $output_l0, $output_l0
+#endif
 	eor     $acc_lb, $acc_lb, $rk3                           @ GHASH final-1 block - low
 
 	eor     $acc_hb, $acc_hb, $rk2                           @ GHASH final-1 block - high
 
 	eor     $acc_mb, $acc_mb, $rk4v.16b                      @ GHASH final-1 block - mid
 	eor     $output_h0, $output_h0, $rk14_h                  @ AES final block - round 14 high
+#ifdef __AARCH64EB__
+	rev     $output_h0, $output_h0
+#endif
 	.L256_dec_blocks_less_than_1:                            @ blocks left <= 1
 
 	and     $bit_length, $bit_length, #127                   @ bit_length %= 128
@@ -5573,7 +5944,11 @@ aes_gcm_dec_256_kernel:
 	mov     $ctr0.d[1], $ctr96_b64x
 	bic     $end_input_ptr, $end_input_ptr, $ctr32x          @ mask out low existing bytes
 
+#ifndef __AARCH64EB__
 	rev     $ctr32w, $rctr32w
+#else
+	mov     $ctr32w, $rctr32w
+#endif
 
 	bic     $main_end_input_ptr, $main_end_input_ptr, $ctr96_b64x      @ mask out high existing bytes
 
@@ -5714,7 +6089,7 @@ if ($flavour =~ /64/) {         ######## 64-bit code
         if (s/^(\s+)mov\.([a-z]+)/$1mov$2/) {
             print "     it      $2\n";
         }
-
+        s/__AARCH64E([BL])__/__ARME$1__/go;
         print $_,"\n";
     }
 }

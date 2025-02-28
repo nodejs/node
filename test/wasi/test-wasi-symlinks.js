@@ -38,27 +38,29 @@ if (process.argv[2] === 'wasi-child') {
 
   // Setup the sandbox environment.
   tmpdir.refresh();
-  const sandbox = path.join(tmpdir.path, 'sandbox');
+  const sandbox = tmpdir.resolve('sandbox');
   const sandboxedFile = path.join(sandbox, 'input.txt');
-  const externalFile = path.join(tmpdir.path, 'outside.txt');
+  const externalFile = tmpdir.resolve('outside.txt');
   const sandboxedDir = path.join(sandbox, 'subdir');
+  const sandboxedFileInSubdir = path.join(sandboxedDir, 'input-in-subdir.txt');
   const sandboxedSymlink = path.join(sandboxedDir, 'input_link.txt');
   const escapingSymlink = path.join(sandboxedDir, 'outside.txt');
   const loopSymlink1 = path.join(sandboxedDir, 'loop1');
   const loopSymlink2 = path.join(sandboxedDir, 'loop2');
-  const sandboxedTmp = path.join(tmpdir.path, 'tmp');
+  const sandboxedTmp = tmpdir.resolve('tmp');
 
   fs.mkdirSync(sandbox);
   fs.mkdirSync(sandboxedDir);
   fs.mkdirSync(sandboxedTmp);
   fs.writeFileSync(sandboxedFile, 'hello from input.txt', 'utf8');
+  fs.writeFileSync(sandboxedFileInSubdir, 'hello from input in subdir.txt',
+                   'utf8');
   fs.writeFileSync(externalFile, 'this should be inaccessible', 'utf8');
-  fs.symlinkSync(path.join('.', 'input.txt'), sandboxedSymlink, 'file');
-  fs.symlinkSync(path.join('..', 'outside.txt'), escapingSymlink, 'file');
-  fs.symlinkSync(path.join('subdir', 'loop2'),
-                 loopSymlink1, 'file');
-  fs.symlinkSync(path.join('subdir', 'loop1'),
-                 loopSymlink2, 'file');
+  fs.symlinkSync(path.join('.', 'input-in-subdir.txt'),
+                 sandboxedSymlink, 'file');
+  fs.symlinkSync(path.join('..', '..', 'outside.txt'), escapingSymlink, 'file');
+  fs.symlinkSync('loop2', loopSymlink1, 'file');
+  fs.symlinkSync('loop1', loopSymlink2, 'file');
 
   function runWASI(options) {
     console.log('executing', options.test);
@@ -76,8 +78,10 @@ if (process.argv[2] === 'wasi-child') {
     assert.strictEqual(child.stdout.toString(), options.stdout || '');
   }
 
-  runWASI({ test: 'create_symlink', stdout: 'hello from input.txt' });
-  runWASI({ test: 'follow_symlink', stdout: 'hello from input.txt' });
+  runWASI({ test: 'create_symlink',
+            stdout: 'hello from input in subdir.txt' });
+  runWASI({ test: 'follow_symlink',
+            stdout: 'hello from input in subdir.txt' });
   runWASI({ test: 'link' });
   runWASI({ test: 'symlink_escape' });
   runWASI({ test: 'symlink_loop' });

@@ -20,7 +20,7 @@ server.listen(0, () => {
   const req = http.get({ port: server.address().port }, common.mustNotCall());
   req.on('error', common.mustCall((err) => {
     assert.match(err.message, /^Parse Error/);
-    assert.strictEqual(err.code, 'HPE_UNEXPECTED_CONTENT_LENGTH');
+    assert.strictEqual(err.code, 'HPE_INVALID_TRANSFER_ENCODING');
     server.close();
   }));
 });

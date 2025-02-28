@@ -5,104 +5,221 @@
 #ifndef V8_MAGLEV_MAGLEV_IR_INL_H_
 #define V8_MAGLEV_MAGLEV_IR_INL_H_
 
-#include "src/maglev/maglev-interpreter-frame-state.h"
+#include "src/interpreter/bytecode-register.h"
 #include "src/maglev/maglev-ir.h"
 
 namespace v8 {
 namespace internal {
 namespace maglev {
 
+inline const VirtualObject::List& GetVirtualObjects(
+    const DeoptFrame& deopt_frame) {
+  if (deopt_frame.type() == DeoptFrame::FrameType::kInterpretedFrame) {
+    return deopt_frame.as_interpreted().frame_state()->virtual_objects();
+  }
+  DCHECK_NOT_NULL(deopt_frame.parent());
+  return GetVirtualObjects(*deopt_frame.parent());
+}
+
 namespace detail {
 
-template <typename Function>
-void DeepForEachInputImpl(const DeoptFrame& frame,
-                          InputLocation* input_locations, int& index,
-                          Function&& f) {
-  if (frame.parent()) {
-    DeepForEachInputImpl(*frame.parent(), input_locations, index, f);
-  }
+enum class DeoptFrameVisitMode {
+  kDefault,
+  kRemoveIdentities,
+};
+
+template <DeoptFrameVisitMode mode, typename T>
+using const_if_default =
+    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, const T, T>;
+
+template <DeoptFrameVisitMode mode>
+using ValueNodeT =
+    std::conditional_t<mode == DeoptFrameVisitMode::kDefault, ValueNode*,
+                       ValueNode*&>;
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForEachInputSingleFrameImpl(
+    const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
+    Function&& f,
+    std::function<bool(interpreter::Register)> is_result_register) {
   switch (frame.type()) {
     case DeoptFrame::FrameType::kInterpretedFrame:
+      f(frame.as_interpreted().closure(), input_location);
       frame.as_interpreted().frame_state()->ForEachValue(
           frame.as_interpreted().unit(),
-          [&](ValueNode*& node, interpreter::Register reg) {
-            f(node, &input_locations[index++]);
+          [&](ValueNodeT<mode> node, interpreter::Register reg) {
+            // Skip over the result location for lazy deopts, since it is
+            // irrelevant for lazy deopts (unoptimized code will recreate the
+            // result).
+            if (is_result_register(reg)) return;
+            f(node, input_location);
           });
       break;
     case DeoptFrame::FrameType::kInlinedArgumentsFrame: {
-      for (ValueNode*& node : frame.as_inlined_arguments().arguments()) {
-        f(node, &input_locations[index++]);
+      // The inlined arguments frame can never be the top frame.
+      f(frame.as_inlined_arguments().closure(), input_location);
+      for (ValueNodeT<mode> node : frame.as_inlined_arguments().arguments()) {
+        f(node, input_location);
       }
       break;
     }
+    case DeoptFrame::FrameType::kConstructInvokeStubFrame: {
+      f(frame.as_construct_stub().receiver(), input_location);
+      f(frame.as_construct_stub().context(), input_location);
+      break;
+    }
     case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode*& node : frame.as_builtin_continuation().parameters()) {
-        f(node, &input_locations[index++]);
+      for (ValueNodeT<mode> node :
+           frame.as_builtin_continuation().parameters()) {
+        f(node, input_location);
       }
-      f(frame.as_builtin_continuation().context(), &input_locations[index++]);
+      f(frame.as_builtin_continuation().context(), input_location);
       break;
   }
+}
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForVirtualObject(VirtualObject* vobject,
+                          InputLocation*& input_location,
+                          const VirtualObject::List& virtual_objects,
+                          Function&& f) {
+  if (vobject->type() != VirtualObject::kDefault) return;
+  for (uint32_t i = 0; i < vobject->slot_count(); i++) {
+    ValueNode* value = vobject->get_by_index(i);
+    if (IsConstantNode(value->opcode())) {
+      // No location assigned to constants.
+      continue;
+    }
+    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
+      if (value->Is<Identity>()) {
+        value = value->input(0).node();
+        vobject->set_by_index(i, value);
+      }
+    }
+    // Special nodes.
+    switch (value->opcode()) {
+      case Opcode::kArgumentsElements:
+      case Opcode::kArgumentsLength:
+      case Opcode::kRestLength:
+        // No location assigned to these opcodes.
+        break;
+      case Opcode::kVirtualObject:
+        UNREACHABLE();
+      case Opcode::kInlinedAllocation: {
+        InlinedAllocation* alloc = value->Cast<InlinedAllocation>();
+        VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+        CHECK_NOT_NULL(vobject);
+        // Check if it has escaped.
+        if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+          input_location++;  // Reserved for the inlined allocation.
+          DeepForVirtualObject<mode>(vobject, input_location, virtual_objects,
+                                     f);
+        } else {
+          f(alloc, input_location);
+          input_location +=
+              vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+        }
+        break;
+      }
+      default:
+        f(value, input_location);
+        input_location++;
+        break;
+    }
+  }
+}
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForEachInputAndVirtualObject(
+    const_if_default<mode, DeoptFrame>& frame, InputLocation*& input_location,
+    Function&& f,
+    std::function<bool(interpreter::Register)> is_result_register =
+        [](interpreter::Register) { return false; }) {
+  const VirtualObject::List& virtual_objects = GetVirtualObjects(frame);
+  auto update_node = [&f, &virtual_objects](ValueNodeT<mode> node,
+                                            InputLocation*& input_location) {
+    DCHECK(!node->template Is<VirtualObject>());
+    if constexpr (mode == DeoptFrameVisitMode::kRemoveIdentities) {
+      if (node->template Is<Identity>()) {
+        node = node->input(0).node();
+      }
+    }
+    if (auto alloc = node->template TryCast<InlinedAllocation>()) {
+      VirtualObject* vobject = virtual_objects.FindAllocatedWith(alloc);
+      CHECK_NOT_NULL(vobject);
+      if (alloc->HasBeenAnalysed() && alloc->HasBeenElided()) {
+        input_location++;  // Reserved for the inlined allocation.
+        return DeepForVirtualObject<mode>(vobject, input_location,
+                                          virtual_objects, f);
+      } else {
+        f(alloc, input_location);
+        input_location += vobject->InputLocationSizeNeeded(virtual_objects) + 1;
+      }
+    } else {
+      f(node, input_location);
+      input_location++;
+    }
+  };
+  DeepForEachInputSingleFrameImpl<mode>(frame, input_location, update_node,
+                                        is_result_register);
+}
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForEachInputImpl(const_if_default<mode, DeoptFrame>& frame,
+                          InputLocation*& input_location, Function&& f) {
+  if (frame.parent()) {
+    DeepForEachInputImpl<mode>(*frame.parent(), input_location, f);
+  }
+  DeepForEachInputAndVirtualObject<mode>(frame, input_location, f);
+}
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForEachInputForEager(
+    const_if_default<mode, EagerDeoptInfo>* deopt_info, Function&& f) {
+  InputLocation* input_location = deopt_info->input_locations();
+  DeepForEachInputImpl<mode>(deopt_info->top_frame(), input_location,
+                             std::forward<Function>(f));
+}
+
+template <DeoptFrameVisitMode mode, typename Function>
+void DeepForEachInputForLazy(const_if_default<mode, LazyDeoptInfo>* deopt_info,
+                             Function&& f) {
+  InputLocation* input_location = deopt_info->input_locations();
+  auto& top_frame = deopt_info->top_frame();
+  if (top_frame.parent()) {
+    DeepForEachInputImpl<mode>(*top_frame.parent(), input_location, f);
+  }
+  DeepForEachInputAndVirtualObject<mode>(
+      top_frame, input_location, f, [deopt_info](interpreter::Register reg) {
+        return deopt_info->IsResultRegister(reg);
+      });
 }
 
 template <typename Function>
 void DeepForEachInput(const EagerDeoptInfo* deopt_info, Function&& f) {
-  int index = 0;
-  DeepForEachInputImpl(deopt_info->top_frame(), deopt_info->input_locations(),
-                       index, f);
+  return DeepForEachInputForEager<DeoptFrameVisitMode::kDefault>(deopt_info, f);
 }
 
 template <typename Function>
 void DeepForEachInput(const LazyDeoptInfo* deopt_info, Function&& f) {
-  int index = 0;
-  InputLocation* input_locations = deopt_info->input_locations();
-  const DeoptFrame& top_frame = deopt_info->top_frame();
-  if (top_frame.parent()) {
-    DeepForEachInputImpl(*top_frame.parent(), input_locations, index, f);
-  }
-  // Handle the top-of-frame info separately, since we have to skip the result
-  // location.
-  switch (top_frame.type()) {
-    case DeoptFrame::FrameType::kInterpretedFrame:
-      top_frame.as_interpreted().frame_state()->ForEachValue(
-          top_frame.as_interpreted().unit(),
-          [&](ValueNode*& node, interpreter::Register reg) {
-            // Skip over the result location since it is irrelevant for lazy
-            // deopts (unoptimized code will recreate the result).
-            if (deopt_info->IsResultRegister(reg)) return;
-            f(node, &input_locations[index++]);
-          });
-      break;
-    case DeoptFrame::FrameType::kInlinedArgumentsFrame:
-      // The inlined arguments frame can never be the top frame.
-      UNREACHABLE();
-    case DeoptFrame::FrameType::kBuiltinContinuationFrame:
-      for (ValueNode*& node :
-           top_frame.as_builtin_continuation().parameters()) {
-        f(node, &input_locations[index++]);
-      }
-      f(top_frame.as_builtin_continuation().context(),
-        &input_locations[index++]);
-      break;
-  }
+  return DeepForEachInputForLazy<DeoptFrameVisitMode::kDefault>(deopt_info, f);
+}
+
+template <typename Function>
+void DeepForEachInputRemovingIdentities(EagerDeoptInfo* deopt_info,
+                                        Function&& f) {
+  return DeepForEachInputForEager<DeoptFrameVisitMode::kRemoveIdentities>(
+      deopt_info, f);
+}
+
+template <typename Function>
+void DeepForEachInputRemovingIdentities(LazyDeoptInfo* deopt_info,
+                                        Function&& f) {
+  return DeepForEachInputForLazy<DeoptFrameVisitMode::kRemoveIdentities>(
+      deopt_info, f);
 }
 
 }  // namespace detail
-
-inline void AddDeoptRegistersToSnapshot(RegisterSnapshot* snapshot,
-                                        const EagerDeoptInfo* deopt_info) {
-  detail::DeepForEachInput(deopt_info, [&](ValueNode* node,
-                                           InputLocation* input) {
-    if (!input->IsAnyRegister()) return;
-    if (input->IsDoubleRegister()) {
-      snapshot->live_double_registers.set(input->AssignedDoubleRegister());
-    } else {
-      snapshot->live_registers.set(input->AssignedGeneralRegister());
-      if (node->is_tagged()) {
-        snapshot->live_tagged_registers.set(input->AssignedGeneralRegister());
-      }
-    }
-  });
-}
 
 #ifdef DEBUG
 inline RegList GetGeneralRegistersUsedAsInputs(
@@ -141,6 +258,7 @@ inline void DefineAsFixed(Node* node, Register reg) {
                                 reg.code(), kNoVreg);
 }
 
+// TODO(v8:7700): Create generic DefineSameAs(..., int input).
 inline void DefineSameAsFirst(Node* node) {
   node->result().SetUnallocated(kNoVreg, 0);
 }

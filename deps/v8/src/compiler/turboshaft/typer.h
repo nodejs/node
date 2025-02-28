@@ -87,7 +87,7 @@ struct WordOperationTyper {
   // element either by increasing the 'to' or decreasing the 'from' of the
   // range, whichever leads to a smaller range.
   static std::pair<word_t, word_t> MakeRange(
-      const base::Vector<const word_t>& elements) {
+      base::Vector<const word_t> elements) {
     DCHECK(!elements.empty());
     DCHECK(detail::is_unique_and_sorted(elements));
     if (elements[elements.size() - 1] - elements[0] <= max / 2) {
@@ -140,10 +140,10 @@ struct WordOperationTyper {
     std::pair<word_t, word_t> y = MakeRange(rhs);
 
     // If the result would not be a complete range, we compute it.
-    // Check: (lhs.to + rhs.to + 1) - (lhs.from + rhs.from + 1) < max
-    // =====> (lhs.to - lhs.from) + (rhs.to - rhs.from) < max
-    // =====> (lhs.to - lhs.from) < max - (rhs.to - rhs.from)
-    if (distance(x) < max - distance(y)) {
+    // Check: (lhs.to - lhs.from + 1) + rhs.to - rhs.from < max
+    // =====> (lhs.to - lhs.from + 1) < max - rhs.to + rhs.from
+    // =====> (lhs.to - lhs.from + 1) < max - (rhs.to - rhs.from)
+    if (distance(x) + 1 < max - distance(y)) {
       return type_t::Range(x.first + y.first, x.second + y.second, zone);
     }
 
@@ -169,8 +169,14 @@ struct WordOperationTyper {
     std::pair<word_t, word_t> x = MakeRange(lhs);
     std::pair<word_t, word_t> y = MakeRange(rhs);
 
-    if (is_wrapping(x) && is_wrapping(y)) {
-      return type_t::Range(x.first - y.second, x.second - y.first, zone);
+    if (!is_wrapping(x) && !is_wrapping(y)) {
+      // If the result would not be a complete range, we compute it.
+      // Check: (lhs.to - lhs.from + 1) + rhs.to - rhs.from < max
+      // =====> (lhs.to - lhs.from + 1) < max - rhs.to + rhs.from
+      // =====> (lhs.to - lhs.from + 1) < max - (rhs.to - rhs.from)
+      if (distance(x) + 1 < max - distance(y)) {
+        return type_t::Range(x.first - y.second, x.second - y.first, zone);
+      }
     }
 
     // TODO(nicohartmann@): Improve the wrapping cases.
@@ -267,21 +273,15 @@ struct WordOperationTyper {
   static type_t WidenMaximal(const type_t& old_type, const type_t& new_type,
                              Zone* zone) {
     if (new_type.is_any()) return new_type;
+    if (old_type.is_wrapping() || new_type.is_wrapping()) return type_t::Any();
 
-    if (old_type.is_wrapping()) {
-      DCHECK(new_type.is_wrapping());
-      return type_t::Any();
-    } else if (new_type.is_wrapping()) {
-      return type_t::Any();
-    } else {
-      word_t result_from = new_type.unsigned_min();
-      if (result_from < old_type.unsigned_min()) result_from = 0;
-      word_t result_to = new_type.unsigned_max();
-      if (result_to > old_type.unsigned_max()) {
-        result_to = std::numeric_limits<word_t>::max();
-      }
-      return type_t::Range(result_from, result_to, zone);
+    word_t result_from = new_type.unsigned_min();
+    if (result_from < old_type.unsigned_min()) result_from = 0;
+    word_t result_to = new_type.unsigned_max();
+    if (result_to > old_type.unsigned_max()) {
+      result_to = std::numeric_limits<word_t>::max();
     }
+    return type_t::Range(result_from, result_to, zone);
   }
 
   // Performs exponential widening, which means that the number of values
@@ -414,7 +414,11 @@ struct FloatOperationTyper {
   static type_t Range(float_t min, float_t max, uint32_t special_values,
                       Zone* zone) {
     DCHECK_LE(min, max);
-    if (min == max) return Set({min}, special_values, zone);
+    DCHECK_IMPLIES(detail::is_minus_zero(min),
+                   (special_values & type_t::kMinusZero));
+    DCHECK_IMPLIES(detail::is_minus_zero(max),
+                   (special_values & type_t::kMinusZero));
+    if (min == max) return Set({min + float_t{0}}, special_values, zone);
     return type_t::Range(min, max, special_values, zone);
   }
 
@@ -429,6 +433,10 @@ struct FloatOperationTyper {
     if (base::erase_if(elements, [](float_t v) { return IsMinusZero(v); }) >
         0) {
       special_values |= type_t::kMinusZero;
+    }
+    if (elements.empty()) {
+      DCHECK_NE(0, special_values);
+      return type_t::OnlySpecialValues(special_values);
     }
     return type_t::Set(elements, special_values, zone);
   }
@@ -678,12 +686,12 @@ struct FloatOperationTyper {
       }
       if V8_UNLIKELY (IsMinusZero(b)) {
         // +-0 / -0 ==> NaN
-        if (a == 0) return nan_v<Bits>;
+        if (a == 0 || std::isnan(a)) return nan_v<Bits>;
         return a > 0 ? -inf : inf;
       }
       if V8_UNLIKELY (b == 0) {
         // +-0 / 0 ==> NaN
-        if (a == 0) return nan_v<Bits>;
+        if (a == 0 || std::isnan(a)) return nan_v<Bits>;
         return a > 0 ? inf : -inf;
       }
       return a / b;
@@ -701,15 +709,19 @@ struct FloatOperationTyper {
         ((l_min == -inf || l_max == inf) && (r_min == -inf || r_max == inf));
 
     // Try to rule out -0.
-    // -0 / r (r > 0)
     bool maybe_minuszero =
+        // -0 / r (r > 0)
         (l.has_minus_zero() && r_max > 0)
-        // 0 / r (r < 0 || r == -0)
-        || (l.Contains(0) && (r_min < 0 || r.has_minus_zero()))
-        // l / inf (l < 0 || l == -0)
-        || (r_max == inf && (l_min < 0 || l.has_minus_zero()))
-        // l / -inf (l >= 0)
-        || (r_min == -inf && l_max >= 0);
+        // 0 / r (r < 0)
+        || (l.Contains(0) && r_min < 0)
+        // -0.0..01 / r (r > 1)
+        || (l.Contains(0) && l_min < 0 && r_max > 1)
+        // 0.0..01 / r (r < -1)
+        || (l.Contains(0) && l_max >= 0 && r_min < -1)
+        // l / large (l < 0)
+        || (l_max < 0 && detail::is_minus_zero(l_max / r_max))
+        // l / -large (l > 0)
+        || (l_min > 0 && detail::is_minus_zero(l_min / r_min));
 
     uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
                               (maybe_minuszero ? type_t::kMinusZero : 0);
@@ -771,7 +783,7 @@ struct FloatOperationTyper {
         l.has_nan() || IsZeroish(r) || l.min() == -inf || l.max() == inf;
 
     // Deal with -0 inputs, only the signbit of {lhs} matters for the result.
-    bool maybe_minuszero = false;
+    bool maybe_minuszero = l.min() < 0;
     if (l.has_minus_zero()) {
       maybe_minuszero = true;
       l = type_t::LeastUpperBound(l, type_t::Constant(0), zone);
@@ -899,16 +911,21 @@ struct FloatOperationTyper {
       return type_t::NaN();
     }
     bool maybe_nan = l.has_nan() || r.has_nan();
+    // +-1 ** +-Infinity => NaN.
+    if (r.Contains(-inf) || r.Contains(inf)) {
+      if (l.Contains(1) || l.Contains(-1)) maybe_nan = true;
+    }
 
     // a ** b produces NaN if a < 0 && b is fraction.
     if (l.min() < 0.0 && !IsIntegerSet(r)) maybe_nan = true;
 
-    // a ** b produces -0 iff a == -0 and b is odd. Checking for all the cases
-    // where b does only contain odd integer values seems not worth the
-    // additional information we get here. We accept this over-approximation for
-    // now. We could refine this whenever we see a benefit.
-    uint32_t special_values =
-        (maybe_nan ? type_t::kNaN : 0) | l.special_values();
+    // Precise checks for when the result can be -0 is difficult, because of
+    // large (negative) exponents. To be safe we add -0 whenever the left hand
+    // side can be negative. We might refine this when necessary.
+    bool maybe_minus_zero = l.min() < 0.0 || l.has_minus_zero();
+    uint32_t special_values = (maybe_nan ? type_t::kNaN : 0) |
+                              (maybe_minus_zero ? type_t::kMinusZero : 0) |
+                              l.special_values();
 
     // If both sides are decently small sets, we produce the product set.
     auto combine = [](float_t a, float_t b) { return std::pow(a, b); };
@@ -1138,6 +1155,8 @@ class Typer {
 
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
+      case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         // TODO(nicohartmann@): Support these representations.
         return Type::Any();
     }
@@ -1155,13 +1174,15 @@ class Typer {
   static Type TypeConstant(ConstantOp::Kind kind, ConstantOp::Storage value) {
     switch (kind) {
       case ConstantOp::Kind::kFloat32:
-        if (std::isnan(value.float32)) return Float32Type::NaN();
-        if (IsMinusZero(value.float32)) return Float32Type::MinusZero();
-        return Float32Type::Constant(value.float32);
+        if (value.float32.is_nan()) return Float32Type::NaN();
+        if (IsMinusZero(value.float32.get_scalar()))
+          return Float32Type::MinusZero();
+        return Float32Type::Constant(value.float32.get_scalar());
       case ConstantOp::Kind::kFloat64:
-        if (std::isnan(value.float64)) return Float64Type::NaN();
-        if (IsMinusZero(value.float64)) return Float64Type::MinusZero();
-        return Float64Type::Constant(value.float64);
+        if (value.float64.is_nan()) return Float64Type::NaN();
+        if (IsMinusZero(value.float64.get_scalar()))
+          return Float64Type::MinusZero();
+        return Float64Type::Constant(value.float64.get_scalar());
       case ConstantOp::Kind::kWord32:
         return Word32Type::Constant(static_cast<uint32_t>(value.integral));
       case ConstantOp::Kind::kWord64:
@@ -1400,6 +1421,8 @@ class Typer {
         return TypeFloat64Comparison(lhs, rhs, kind, zone);
       case RegisterRepresentation::Tagged():
       case RegisterRepresentation::Compressed():
+      case RegisterRepresentation::Simd128():
+      case RegisterRepresentation::Simd256():
         if (lhs.IsNone() || rhs.IsNone()) return Type::None();
         // TODO(nicohartmann@): Support those cases.
         return Word32Type::Set({0, 1}, zone);
@@ -1412,6 +1435,7 @@ class Typer {
     auto l = TruncateWord32Input(lhs, true, zone);
     auto r = TruncateWord32Input(rhs, true, zone);
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1428,6 +1452,7 @@ class Typer {
                                    ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
       case ComparisonOp::Kind::kSignedLessThan:
       case ComparisonOp::Kind::kSignedLessThanOrEqual:
         // TODO(nicohartmann@): Support this.
@@ -1446,6 +1471,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<32>::LessThan(lhs.AsFloat32(),
                                                  rhs.AsFloat32(), zone);
@@ -1462,6 +1490,9 @@ class Typer {
                                     ComparisonOp::Kind kind, Zone* zone) {
     if (lhs.IsNone() || rhs.IsNone()) return Type::None();
     switch (kind) {
+      case ComparisonOp::Kind::kEqual:
+        // TODO(nicohartmann@): Support this.
+        return Word32Type::Set({0, 1}, zone);
       case ComparisonOp::Kind::kSignedLessThan:
         return FloatOperationTyper<64>::LessThan(lhs.AsFloat64(),
                                                  rhs.AsFloat64(), zone);

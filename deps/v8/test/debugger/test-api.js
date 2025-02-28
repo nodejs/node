@@ -114,7 +114,6 @@ class DebugWrapper {
 
   // Returns the resulting breakpoint id.
   setBreakPoint(func, opt_line, opt_column, opt_condition) {
-    assertTrue(%IsFunction(func));
     assertFalse(%FunctionIsAPIFunction(func));
 
     const scriptid = %FunctionGetScriptId(func);
@@ -144,8 +143,6 @@ class DebugWrapper {
   }
 
   showBreakPoints(f) {
-    if (!%IsFunction(f)) throw new Error("Not passed a Function");
-
     const source = %FunctionGetSourceCode(f);
     const offset = %FunctionGetScriptSourcePosition(f);
     const locations = %GetBreakLocations(f);
@@ -338,13 +335,15 @@ class DebugWrapper {
       }
     }
 
-    if (found == null) return { isUndefined : () => true };
+    if (found == null) return { isUndefined: () => true };
+    if (found.value === undefined) return { isUnavailable: () => true };
 
     const val = { value : () => found.value.value };
     // Not undefined in the sense that we did find a property, even though
     // the value can be 'undefined'.
     return { value : () => val,
-             isUndefined : () => false,
+             isUndefined: () => false,
+             isUnavailable: () => false,
            };
   }
 
@@ -449,13 +448,15 @@ class DebugWrapper {
 
     const local = scope_details[index];
 
+    if (local.value === undefined) return { isUnavailable: () => true };
+
     let localValue;
     switch (local.value.type) {
       case "undefined": localValue = undefined; break;
       default: localValue = local.value.value; break;
     }
 
-    return { value : () => localValue };
+    return { value : () => localValue, isUnavailable: () => false };
   }
 
   reconstructValue(objectId) {
@@ -690,12 +691,16 @@ class DebugWrapper {
 
   dispatchMessage(message) {
     const method = message.method;
-    if (method == "Debugger.paused") {
-      this.handleDebuggerPaused(message);
-    } else if (method == "Debugger.scriptParsed") {
-      this.handleDebuggerScriptParsed(message);
-    } else if (method == "Debugger.scriptFailedToParse") {
-      this.handleDebuggerScriptFailedToParse(message);
+    try {
+      if (method == "Debugger.paused") {
+        this.handleDebuggerPaused(message);
+      } else if (method == "Debugger.scriptParsed") {
+        this.handleDebuggerScriptParsed(message);
+      } else if (method == "Debugger.scriptFailedToParse") {
+        this.handleDebuggerScriptFailedToParse(message);
+      }
+    } catch (e) {
+      print(e.stack);
     }
   }
 
@@ -712,9 +717,10 @@ class DebugWrapper {
         debugEvent = this.DebugEvent.OOM;
         break;
       case "other":
+      case "step":
+      case "ambiguous":
         debugEvent = this.DebugEvent.Break;
         break;
-      case "ambiguous":
       case "XHR":
       case "DOM":
       case "EventListener":

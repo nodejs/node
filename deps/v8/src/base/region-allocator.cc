@@ -4,6 +4,8 @@
 
 #include "src/base/region-allocator.h"
 
+#include <iterator>
+
 #include "src/base/bits.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"

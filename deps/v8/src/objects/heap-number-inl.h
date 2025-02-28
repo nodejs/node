@@ -5,9 +5,8 @@
 #ifndef V8_OBJECTS_HEAP_NUMBER_INL_H_
 #define V8_OBJECTS_HEAP_NUMBER_INL_H_
 
+#include "src/base/memory.h"
 #include "src/objects/heap-number.h"
-
-#include "src/objects/objects-inl.h"
 #include "src/objects/primitive-heap-object-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -16,33 +15,13 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/heap-number-tq-inl.inc"
+double HeapNumber::value() const { return value_.value(); }
+void HeapNumber::set_value(double value) { value_.set_value(value); }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(HeapNumber)
+uint64_t HeapNumber::value_as_bits() const { return value_.value_as_bits(); }
 
-uint64_t HeapNumber::value_as_bits(RelaxedLoadTag) const {
-  uint64_t value;
-  base::Relaxed_Memcpy(
-      reinterpret_cast<base::Atomic8*>(&value),
-      reinterpret_cast<base::Atomic8*>(field_address(kValueOffset)),
-      sizeof(uint64_t));
-  // Bug(v8:8875): HeapNumber's double may be unaligned.
-  return value;
-}
-
-void HeapNumber::set_value_as_bits(uint64_t bits, RelaxedStoreTag) {
-  base::Relaxed_Memcpy(
-      reinterpret_cast<base::Atomic8*>(field_address(kValueOffset)),
-      reinterpret_cast<base::Atomic8*>(&bits), sizeof(uint64_t));
-}
-
-int HeapNumber::get_exponent() {
-  return ((ReadField<int>(kExponentOffset) & kExponentMask) >> kExponentShift) -
-         kExponentBias;
-}
-
-int HeapNumber::get_sign() {
-  return ReadField<int>(kExponentOffset) & kSignMask;
+void HeapNumber::set_value_as_bits(uint64_t bits) {
+  value_.set_value_as_bits(bits);
 }
 
 }  // namespace internal

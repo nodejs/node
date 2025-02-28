@@ -8,12 +8,18 @@
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/recreate-schedule.h"
 
+namespace v8::internal::compiler {
+class TFPipelineData;
+}  // namespace v8::internal::compiler
+
 namespace v8::internal::compiler::turboshaft {
 
 struct RecreateSchedulePhase {
   DECL_TURBOSHAFT_PHASE_CONSTANTS(RecreateSchedule)
+  static constexpr bool kOutputIsTraceableGraph = false;
 
   RecreateScheduleResult Run(PipelineData* data, Zone* temp_zone,
+                             compiler::TFPipelineData* turbofan_data,
                              Linkage* linkage);
 };
 

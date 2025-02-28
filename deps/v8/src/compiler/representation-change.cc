@@ -220,6 +220,7 @@ Node* RepresentationChanger::GetRepresentationFor(
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetTaggedRepresentationFor(node, output_rep, output_type,
                                         use_info.truncation());
+    case MachineRepresentation::kFloat16:
     case MachineRepresentation::kFloat32:
       DCHECK_EQ(TypeCheckKind::kNone, use_info.type_check());
       return GetFloat32RepresentationFor(node, output_rep, output_type,
@@ -253,6 +254,8 @@ Node* RepresentationChanger::GetRepresentationFor(
     case MachineRepresentation::kCompressed:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kSandboxedPointer:
+    case MachineRepresentation::kProtectedPointer:
+    case MachineRepresentation::kIndirectPointer:
     case MachineRepresentation::kMapWord:
       UNREACHABLE();
   }
@@ -947,7 +950,7 @@ Node* RepresentationChanger::GetWord32RepresentationFor(
     } else if (output_type.Is(Type::Unsigned32())) {
       op = simplified()->ChangeTaggedToUint32();
     } else if (use_info.truncation().IsUsedAsWord32()) {
-      if (output_type.Is(Type::NumberOrOddball())) {
+      if (output_type.Is(Type::NumberOrOddballOrHole())) {
         op = simplified()->TruncateTaggedToWord32();
       } else if (use_info.type_check() == TypeCheckKind::kNumber) {
         op = simplified()->CheckedTruncateTaggedToWord32(
@@ -1138,7 +1141,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
     case IrOpcode::kHeapConstant: {
       HeapObjectMatcher m(node);
       if (m.HasResolvedValue() && m.Ref(broker_).IsBigInt() &&
-          use_info.truncation().IsUsedAsWord64()) {
+          (Is64() && use_info.truncation().IsUsedAsWord64())) {
         BigIntRef bigint = m.Ref(broker_).AsBigInt();
         return InsertTypeOverrideForVerifier(
             NodeProperties::GetType(node),
@@ -1245,7 +1248,7 @@ Node* RepresentationChanger::GetWord64RepresentationFor(
                        MachineRepresentation::kWord64);
     }
   } else if (IsAnyTagged(output_rep) &&
-             ((use_info.truncation().IsUsedAsWord64() &&
+             ((Is64() && use_info.truncation().IsUsedAsWord64() &&
                (use_info.type_check() == TypeCheckKind::kBigInt ||
                 output_type.Is(Type::BigInt()))) ||
               use_info.type_check() == TypeCheckKind::kBigInt64)) {

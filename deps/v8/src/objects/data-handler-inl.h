@@ -19,15 +19,15 @@ namespace internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(DataHandler)
 
 int DataHandler::data_field_count() const {
-  return (map().instance_size() - kSizeWithData0) / kTaggedSize;
+  return (map()->instance_size() - kSizeWithData0) / kTaggedSize;
 }
 
 WEAK_ACCESSORS_CHECKED(DataHandler, data1, kData1Offset,
-                       map().instance_size() >= kSizeWithData1)
+                       map()->instance_size() >= kSizeWithData1)
 WEAK_ACCESSORS_CHECKED(DataHandler, data2, kData2Offset,
-                       map().instance_size() >= kSizeWithData2)
+                       map()->instance_size() >= kSizeWithData2)
 WEAK_ACCESSORS_CHECKED(DataHandler, data3, kData3Offset,
-                       map().instance_size() >= kSizeWithData3)
+                       map()->instance_size() >= kSizeWithData3)
 
 }  // namespace internal
 }  // namespace v8

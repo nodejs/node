@@ -7,8 +7,6 @@
 
 #include "zutil.h"
 
-local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
-
 #define BASE 65521U     /* largest prime smaller than 65536 */
 #define NMAX 5552
 /* NMAX is the largest n such that 255n(n+1)/2 + (n+1)(BASE-1) <= 2^32-1 */
@@ -60,24 +58,24 @@ local uLong adler32_combine_ OF((uLong adler1, uLong adler2, z_off64_t len2));
 #endif
 
 #include "cpu_features.h"
-#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON)
+#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON) || defined(ADLER32_SIMD_RVV)
 #include "adler32_simd.h"
 #endif
 
 /* ========================================================================= */
-uLong ZEXPORT adler32_z(adler, buf, len)
-    uLong adler;
-    const Bytef *buf;
-    z_size_t len;
-{
+uLong ZEXPORT adler32_z(uLong adler, const Bytef *buf, z_size_t len) {
     unsigned long sum2;
     unsigned n;
-
+    /* TODO(cavalcantii): verify if this lengths are optimal for current CPUs. */
+#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON) \
+    || defined(ADLER32_SIMD_RVV)
 #if defined(ADLER32_SIMD_SSSE3)
     if (buf != Z_NULL && len >= 64 && x86_cpu_enable_ssse3)
-        return adler32_simd_(adler, buf, len);
 #elif defined(ADLER32_SIMD_NEON)
     if (buf != Z_NULL && len >= 64)
+#elif defined(ADLER32_SIMD_RVV)
+    if (buf != Z_NULL && len >= 32 && riscv_cpu_enable_rvv)
+#endif
         return adler32_simd_(adler, buf, len);
 #endif
 
@@ -96,9 +94,10 @@ uLong ZEXPORT adler32_z(adler, buf, len)
         return adler | (sum2 << 16);
     }
 
-#if defined(ADLER32_SIMD_SSSE3)
+#if defined(ADLER32_SIMD_SSSE3) || defined(ADLER32_SIMD_NEON) \
+    || defined(RISCV_RVV)
     /*
-     * Use SSSE3 to compute the adler32. Since this routine can be
+     * Use SIMD to compute the adler32. Since this function can be
      * freely used, check CPU features here. zlib convention is to
      * call adler32(0, NULL, 0), before making calls to adler32().
      * So this is a good early (and infrequent) place to cache CPU
@@ -159,20 +158,12 @@ uLong ZEXPORT adler32_z(adler, buf, len)
 }
 
 /* ========================================================================= */
-uLong ZEXPORT adler32(adler, buf, len)
-    uLong adler;
-    const Bytef *buf;
-    uInt len;
-{
+uLong ZEXPORT adler32(uLong adler, const Bytef *buf, uInt len) {
     return adler32_z(adler, buf, len);
 }
 
 /* ========================================================================= */
-local uLong adler32_combine_(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off64_t len2;
-{
+local uLong adler32_combine_(uLong adler1, uLong adler2, z_off64_t len2) {
     unsigned long sum1;
     unsigned long sum2;
     unsigned rem;
@@ -197,18 +188,10 @@ local uLong adler32_combine_(adler1, adler2, len2)
 }
 
 /* ========================================================================= */
-uLong ZEXPORT adler32_combine(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off_t len2;
-{
+uLong ZEXPORT adler32_combine(uLong adler1, uLong adler2, z_off_t len2) {
     return adler32_combine_(adler1, adler2, len2);
 }
 
-uLong ZEXPORT adler32_combine64(adler1, adler2, len2)
-    uLong adler1;
-    uLong adler2;
-    z_off64_t len2;
-{
+uLong ZEXPORT adler32_combine64(uLong adler1, uLong adler2, z_off64_t len2) {
     return adler32_combine_(adler1, adler2, len2);
 }

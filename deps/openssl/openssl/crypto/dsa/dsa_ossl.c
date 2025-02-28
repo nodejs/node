@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -20,6 +20,9 @@
 #include <openssl/sha.h>
 #include "dsa_local.h"
 #include <openssl/asn1.h>
+
+#define MIN_DSA_SIGN_QBITS   128
+#define MAX_DSA_SIGN_RETRIES 8
 
 static DSA_SIG *dsa_do_sign(const unsigned char *dgst, int dlen, DSA *dsa);
 static int dsa_sign_setup_no_digest(DSA *dsa, BN_CTX *ctx_in, BIGNUM **kinvp,
@@ -75,6 +78,7 @@ DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
     int reason = ERR_R_BN_LIB;
     DSA_SIG *ret = NULL;
     int rv = 0;
+    int retries = 0;
 
     if (dsa->params.p == NULL
         || dsa->params.q == NULL
@@ -129,7 +133,10 @@ DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
      *   s := blind^-1 * k^-1 * (blind * m + blind * r * priv_key) mod q
      */
 
-    /* Generate a blinding value */
+    /*
+     * Generate a blinding value
+     * The size of q is tested in dsa_sign_setup() so there should not be an infinite loop here.
+     */
     do {
         if (!BN_priv_rand_ex(blind, BN_num_bits(dsa->params.q) - 1,
                              BN_RAND_TOP_ANY, BN_RAND_BOTTOM_ANY, 0, ctx))
@@ -164,14 +171,19 @@ DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa)
         goto err;
 
     /*
-     * Redo if r or s is zero as required by FIPS 186-3: this is very
-     * unlikely.
+     * Redo if r or s is zero as required by FIPS 186-4: Section 4.6
+     * This is very unlikely.
+     * Limit the retries so there is no possibility of an infinite
+     * loop for bad domain parameter values.
      */
-    if (BN_is_zero(ret->r) || BN_is_zero(ret->s))
+    if (BN_is_zero(ret->r) || BN_is_zero(ret->s)) {
+        if (retries++ > MAX_DSA_SIGN_RETRIES) {
+            reason = DSA_R_TOO_MANY_RETRIES;
+            goto err;
+        }
         goto redo;
-
+    }
     rv = 1;
-
  err:
     if (rv == 0) {
         ERR_raise(ERR_LIB_DSA, reason);
@@ -212,7 +224,10 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
     /* Reject obviously invalid parameters */
     if (BN_is_zero(dsa->params.p)
         || BN_is_zero(dsa->params.q)
-        || BN_is_zero(dsa->params.g)) {
+        || BN_is_zero(dsa->params.g)
+        || BN_is_negative(dsa->params.p)
+        || BN_is_negative(dsa->params.q)
+        || BN_is_negative(dsa->params.g)) {
         ERR_raise(ERR_LIB_DSA, DSA_R_INVALID_PARAMETERS);
         return 0;
     }
@@ -220,7 +235,6 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
         ERR_raise(ERR_LIB_DSA, DSA_R_MISSING_PRIVATE_KEY);
         return 0;
     }
-
     k = BN_new();
     l = BN_new();
     if (k == NULL || l == NULL)
@@ -236,7 +250,8 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
     /* Preallocate space */
     q_bits = BN_num_bits(dsa->params.q);
     q_words = bn_get_top(dsa->params.q);
-    if (!bn_wexpand(k, q_words + 2)
+    if (q_bits < MIN_DSA_SIGN_QBITS
+        || !bn_wexpand(k, q_words + 2)
         || !bn_wexpand(l, q_words + 2))
         goto err;
 
@@ -247,12 +262,13 @@ static int dsa_sign_setup(DSA *dsa, BN_CTX *ctx_in,
              * We calculate k from SHA512(private_key + H(message) + random).
              * This protects the private key from a weak PRNG.
              */
-            if (!BN_generate_dsa_nonce(k, dsa->params.q, dsa->priv_key, dgst,
-                                       dlen, ctx))
+            if (!ossl_bn_gen_dsa_nonce_fixed_top(k, dsa->params.q,
+                                                 dsa->priv_key, dgst,
+                                                 dlen, ctx))
                 goto err;
-        } else if (!BN_priv_rand_range_ex(k, dsa->params.q, 0, ctx))
+        } else if (!ossl_bn_priv_rand_range_fixed_top(k, dsa->params.q, 0, ctx))
             goto err;
-    } while (BN_is_zero(k));
+    } while (ossl_bn_is_word_fixed_top(k, 0));
 
     BN_set_flags(k, BN_FLG_CONSTTIME);
     BN_set_flags(l, BN_FLG_CONSTTIME);
@@ -426,7 +442,6 @@ static int dsa_do_verify(const unsigned char *dgst, int dgst_len,
 static int dsa_init(DSA *dsa)
 {
     dsa->flags |= DSA_FLAG_CACHE_MONT_P;
-    ossl_ffc_params_init(&dsa->params);
     dsa->dirty_cnt++;
     return 1;
 }

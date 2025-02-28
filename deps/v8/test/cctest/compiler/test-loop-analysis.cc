@@ -46,7 +46,7 @@ class LoopFinderTester : HandleAndZoneScope {
         p0(graph.NewNode(common.Parameter(0), start)),
         zero(jsgraph.Int32Constant(0)),
         one(jsgraph.OneConstant()),
-        half(jsgraph.Constant(0.5)),
+        half(jsgraph.ConstantNoHole(0.5)),
         self(graph.NewNode(common.Int32Constant(0xAABBCCDD))),
         dead(graph.NewNode(common.Dead())),
         loop_tree(nullptr) {
@@ -927,7 +927,7 @@ TEST(LaEdgeMatrix3_5) { RunEdgeMatrix3_i(5); }
 
 static void RunManyChainedLoops_i(int count) {
   LoopFinderTester t;
-  Node** nodes = t.zone()->NewArray<Node*>(count * 4);
+  Node** nodes = t.zone()->AllocateArray<Node*>(count * 4);
   Node* k11 = t.jsgraph.Int32Constant(11);
   Node* k12 = t.jsgraph.Int32Constant(12);
   Node* last = t.start;
@@ -963,7 +963,7 @@ static void RunManyChainedLoops_i(int count) {
 
 static void RunManyNestedLoops_i(int count) {
   LoopFinderTester t;
-  Node** nodes = t.zone()->NewArray<Node*>(count * 5);
+  Node** nodes = t.zone()->AllocateArray<Node*>(count * 5);
   Node* k11 = t.jsgraph.Int32Constant(11);
   Node* k12 = t.jsgraph.Int32Constant(12);
   Node* outer = nullptr;

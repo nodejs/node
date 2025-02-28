@@ -5,6 +5,8 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include <cstdint>
+#include <optional>
+#include <string_view>
 #include "node_exit_code.h"
 #include "node_mutex.h"
 #include "v8.h"
@@ -14,16 +16,25 @@ namespace node {
 class ExternalReferenceRegistry;
 struct SnapshotData;
 
+std::optional<SnapshotConfig> ReadSnapshotConfig(const char* path);
+
 class NODE_EXTERN_PRIVATE SnapshotBuilder {
  public:
-  static ExitCode Generate(std::ostream& out,
-                           const std::vector<std::string> args,
-                           const std::vector<std::string> exec_args);
+  static ExitCode GenerateAsSource(const char* out_path,
+                                   const std::vector<std::string>& args,
+                                   const std::vector<std::string>& exec_args,
+                                   const SnapshotConfig& config,
+                                   bool use_array_literals = false);
 
-  // Generate the snapshot into out.
-  static ExitCode Generate(SnapshotData* out,
-                           const std::vector<std::string> args,
-                           const std::vector<std::string> exec_args);
+  // Generate the snapshot into out. builder_script_content should match
+  // config.builder_script_path. This is passed separately
+  // in case the script is already read for other purposes.
+  static ExitCode Generate(
+      SnapshotData* out,
+      const std::vector<std::string>& args,
+      const std::vector<std::string>& exec_args,
+      std::optional<std::string_view> builder_script_content,
+      const SnapshotConfig& config);
 
   // If nullptr is returned, the binary is not built with embedded
   // snapshot.
@@ -33,10 +44,8 @@ class NODE_EXTERN_PRIVATE SnapshotBuilder {
 
   static const std::vector<intptr_t>& CollectExternalReferences();
 
-  static ExitCode CreateSnapshot(
-      SnapshotData* out,
-      CommonEnvironmentSetup* setup,
-      /*SnapshotMetadata::Type*/ uint8_t snapshot_type);
+  static ExitCode CreateSnapshot(SnapshotData* out,
+                                 CommonEnvironmentSetup* setup);
 
  private:
   static std::unique_ptr<ExternalReferenceRegistry> registry_;

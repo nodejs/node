@@ -4,16 +4,18 @@
 
 #include "src/baseline/bytecode-offset-iterator.h"
 
-#include "src/objects/code-inl.h"
+#include "src/execution/isolate.h"
+#include "src/heap/local-heap.h"
+#include "src/objects/bytecode-array-inl.h"
 
 namespace v8 {
 namespace internal {
 namespace baseline {
 
-BytecodeOffsetIterator::BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
-                                               Handle<BytecodeArray> bytecodes)
+BytecodeOffsetIterator::BytecodeOffsetIterator(
+    Handle<TrustedByteArray> mapping_table, Handle<BytecodeArray> bytecodes)
     : mapping_table_(mapping_table),
-      data_start_address_(mapping_table_->GetDataStartAddress()),
+      data_start_address_(mapping_table_->begin()),
       data_length_(mapping_table_->length()),
       current_index_(0),
       bytecode_iterator_(bytecodes),
@@ -24,10 +26,10 @@ BytecodeOffsetIterator::BytecodeOffsetIterator(Handle<ByteArray> mapping_table,
   Initialize();
 }
 
-BytecodeOffsetIterator::BytecodeOffsetIterator(ByteArray mapping_table,
-                                               BytecodeArray bytecodes)
-    : data_start_address_(mapping_table.GetDataStartAddress()),
-      data_length_(mapping_table.length()),
+BytecodeOffsetIterator::BytecodeOffsetIterator(
+    Tagged<TrustedByteArray> mapping_table, Tagged<BytecodeArray> bytecodes)
+    : data_start_address_(mapping_table->begin()),
+      data_length_(mapping_table->length()),
       current_index_(0),
       bytecode_handle_storage_(bytecodes),
       // In the non-handlified version, no GC is allowed. We use a "dummy"
@@ -57,7 +59,7 @@ void BytecodeOffsetIterator::Initialize() {
 void BytecodeOffsetIterator::UpdatePointers() {
   DisallowGarbageCollection no_gc;
   DCHECK(!mapping_table_.is_null());
-  data_start_address_ = mapping_table_->GetDataStartAddress();
+  data_start_address_ = mapping_table_->begin();
 }
 
 }  // namespace baseline

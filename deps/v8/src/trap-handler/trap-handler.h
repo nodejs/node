@@ -22,8 +22,9 @@ namespace trap_handler {
     ((V8_OS_LINUX && !V8_OS_ANDROID) || V8_OS_WIN || V8_OS_DARWIN || \
      V8_OS_FREEBSD)
 #define V8_TRAP_HANDLER_SUPPORTED true
-// Arm64 (non-simulator) on Mac.
-#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && V8_OS_DARWIN
+// Arm64 (non-simulator) on Mac and Linux.
+#elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_ARM64 && \
+    (V8_OS_DARWIN || (V8_OS_LINUX && !V8_OS_ANDROID))
 #define V8_TRAP_HANDLER_SUPPORTED true
 // Arm64 simulator on x64 on Linux, Mac, or Windows.
 //
@@ -34,6 +35,21 @@ namespace trap_handler {
 #elif V8_TARGET_ARCH_ARM64 && V8_HOST_ARCH_X64 && \
     (V8_OS_LINUX || V8_OS_DARWIN || V8_OS_WIN) && \
     (!defined(_MSC_VER) || defined(__clang__))
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#define V8_TRAP_HANDLER_SUPPORTED true
+// Loong64 (non-simulator) on Linux.
+#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_LOONG64 && V8_OS_LINUX
+#define V8_TRAP_HANDLER_SUPPORTED true
+// Loong64 simulator on x64 on Linux
+#elif V8_TARGET_ARCH_LOONG64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
+#define V8_TRAP_HANDLER_VIA_SIMULATOR
+#define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 (non-simulator) on Linux.
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_RISCV64 && V8_OS_LINUX && \
+    !V8_OS_ANDROID
+#define V8_TRAP_HANDLER_SUPPORTED true
+// RISCV64 simulator on x64 on Linux
+#elif V8_TARGET_ARCH_RISCV64 && V8_HOST_ARCH_X64 && V8_OS_LINUX
 #define V8_TRAP_HANDLER_VIA_SIMULATOR
 #define V8_TRAP_HANDLER_SUPPORTED true
 // Everything else is unsupported.
@@ -50,11 +66,11 @@ namespace trap_handler {
 #endif
 
 // Setup for shared library export.
-#if defined(BUILDING_V8_SHARED) && defined(V8_OS_WIN)
+#if defined(BUILDING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllexport)
-#elif defined(BUILDING_V8_SHARED)
+#elif defined(BUILDING_V8_SHARED_PRIVATE)
 #define TH_EXPORT_PRIVATE __attribute__((visibility("default")))
-#elif defined(USING_V8_SHARED) && defined(V8_OS_WIN)
+#elif defined(USING_V8_SHARED_PRIVATE) && defined(V8_OS_WIN)
 #define TH_EXPORT_PRIVATE __declspec(dllimport)
 #else
 #define TH_EXPORT_PRIVATE
@@ -82,11 +98,6 @@ struct ProtectedInstructionData {
   // The offset of this instruction from the start of its code object.
   // Wasm code never grows larger than 2GB, so uint32_t is sufficient.
   uint32_t instr_offset;
-
-  // The offset of the landing pad from the start of its code object.
-  //
-  // TODO(eholk): Using a single landing pad and store parameters here.
-  uint32_t landing_offset;
 };
 
 const int kInvalidIndex = -1;
@@ -104,22 +115,32 @@ int TH_EXPORT_PRIVATE RegisterHandlerData(
 /// kInvalidIndex.
 void TH_EXPORT_PRIVATE ReleaseHandlerData(int index);
 
+/// Sets the base and size of the V8 sandbox region. If set, these will be used
+/// by the trap handler: only faulting accesses to memory inside the V8 sandbox
+/// should be handled by the trap handler since all Wasm memory objects are
+/// located inside the sandbox.
+void TH_EXPORT_PRIVATE SetV8SandboxBaseAndSize(uintptr_t base, size_t size);
+
 // Initially false, set to true if when trap handlers are enabled. Never goes
 // back to false then.
-extern bool g_is_trap_handler_enabled;
+TH_EXPORT_PRIVATE extern bool g_is_trap_handler_enabled;
 
 // Initially true, set to false when either {IsTrapHandlerEnabled} or
 // {EnableTrapHandler} is called to prevent calling {EnableTrapHandler}
 // repeatedly, or after {IsTrapHandlerEnabled}. Needs to be atomic because
 // {IsTrapHandlerEnabled} can be called from any thread. Updated using relaxed
 // semantics, since it's not used for synchronization.
-extern std::atomic<bool> g_can_enable_trap_handler;
+TH_EXPORT_PRIVATE extern std::atomic<bool> g_can_enable_trap_handler;
 
 // Enables trap handling for WebAssembly bounds checks.
 //
 // use_v8_handler indicates that V8 should install its own handler
 // rather than relying on the embedder to do it.
 TH_EXPORT_PRIVATE bool EnableTrapHandler(bool use_v8_handler);
+
+// Set the address that the trap handler should continue execution from when it
+// gets a fault at a recognised address.
+TH_EXPORT_PRIVATE void SetLandingPad(uintptr_t landing_pad);
 
 inline bool IsTrapHandlerEnabled() {
   TH_DCHECK(!g_is_trap_handler_enabled || V8_TRAP_HANDLER_SUPPORTED);

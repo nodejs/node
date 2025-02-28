@@ -445,7 +445,8 @@ listener_delegate = function(exec_state) {
                    debug.ScopeType.Local,
                    debug.ScopeType.Script,
                    debug.ScopeType.Global], exec_state);
-  CheckScopeContent({x:undefined}, 0, exec_state);
+  const prop = exec_state.frame().scope(0).scopeObject().property('x');
+  assertTrue(prop.isUnavailable());
 };
 uninitialized_1();
 EndTest();

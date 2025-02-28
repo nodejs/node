@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -50,7 +50,7 @@ static int asn1_print_info(BIO *bp, long offset, int depth, int hl, long len,
             pop_f_prefix = 1;
         }
         saved_indent = BIO_get_indent(bp);
-        if (BIO_set_prefix(bp, str) <= 0 || BIO_set_indent(bp, indent) < 0)
+        if (BIO_set_prefix(bp, str) <= 0 || BIO_set_indent(bp, indent) <= 0)
             goto err;
     }
 

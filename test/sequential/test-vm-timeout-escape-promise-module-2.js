@@ -39,4 +39,4 @@ assert.rejects(async () => {
 }, {
   code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',
   message: 'Script execution timed out after 10ms'
-});
+}).then(common.mustCall());

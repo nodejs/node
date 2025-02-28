@@ -1,30 +1,48 @@
 const t = require('tap')
-const fs = require('fs')
-const path = require('path')
+const fs = require('node:fs')
+const path = require('node:path')
 const ini = require('ini')
 
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const mockGlobals = require('../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 const MockRegistry = require('@npmcli/mock-registry')
-const stream = require('stream')
+const stream = require('node:stream')
+
+const mockAddUser = async (t, { stdin: stdinLines, registry: registryUrl, ...options } = {}) => {
+  if (stdinLines) {
+    const stdin = new stream.PassThrough()
+    for (const l of stdinLines) {
+      stdin.write(l + '\n')
+    }
+    mockGlobals(t, {
+      'process.stdin': stdin,
+      'process.stdout': new stream.PassThrough(), // to quiet readline
+    }, { replace: true })
+  }
+  const mock = await loadMockNpm(t, {
+    ...options,
+    command: 'adduser',
+  })
+  const registry = new MockRegistry({
+    tap: t,
+    registry: registryUrl ?? mock.npm.config.get('registry'),
+  })
+  return {
+    registry,
+    rc: () => ini.parse(fs.readFileSync(path.join(mock.home, '.npmrc'), 'utf8')),
+    ...mock,
+  }
+}
 
 t.test('usage', async t => {
-  const { npm } = await loadMockNpm(t)
-  const adduser = await npm.cmd('adduser')
+  const { adduser } = await loadMockNpm(t, { command: 'adduser' })
   t.match(adduser.usage, 'adduser', 'usage has command name in it')
 })
 
 t.test('legacy', async t => {
   t.test('simple adduser', async t => {
-    const stdin = new stream.PassThrough()
-    stdin.write('test-user\n')
-    stdin.write('test-password\n')
-    stdin.write('test-email@npmjs.org\n')
-    mockGlobals(t, {
-      'process.stdin': stdin,
-      'process.stdout': new stream.PassThrough(), // to quiet readline
-    }, { replace: true })
-    const { npm, home } = await loadMockNpm(t, {
+    const { npm, rc, registry, adduser } = await mockAddUser(t, {
+      stdin: ['test-user', 'test-password', 'test-email@npmjs.org'],
       config: { 'auth-type': 'legacy' },
       homeDir: {
         '.npmrc': [
@@ -34,44 +52,28 @@ t.test('legacy', async t => {
         ].join('\n'),
       },
     })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
-    })
     registry.couchadduser({
       username: 'test-user',
       password: 'test-password',
       email: 'test-email@npmjs.org',
       token: 'npm_test-token',
     })
-    await npm.exec('adduser', [])
+    await adduser.exec([])
     t.same(npm.config.get('email'), 'test-email-old@npmjs.org')
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
-    const rc = ini.parse(fs.readFileSync(path.join(home, '.npmrc'), 'utf8'))
-    t.same(rc, {
+    t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
       email: 'test-email-old@npmjs.org',
     }, 'should only have token and un-nerfed old email')
   })
 
   t.test('scoped adduser', async t => {
-    const stdin = new stream.PassThrough()
-    stdin.write('test-user\n')
-    stdin.write('test-password\n')
-    stdin.write('test-email@npmjs.org\n')
-    mockGlobals(t, {
-      'process.stdin': stdin,
-      'process.stdout': new stream.PassThrough(), // to quiet readline
-    }, { replace: true })
-    const { npm, home } = await loadMockNpm(t, {
+    const { npm, rc, registry, adduser } = await mockAddUser(t, {
+      stdin: ['test-user', 'test-password', 'test-email@npmjs.org'],
       config: {
         'auth-type': 'legacy',
         scope: '@myscope',
       },
-    })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
     })
     registry.couchadduser({
       username: 'test-user',
@@ -79,26 +81,19 @@ t.test('legacy', async t => {
       email: 'test-email@npmjs.org',
       token: 'npm_test-token',
     })
-    await npm.exec('adduser', [])
+    await adduser.exec([])
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
     t.same(npm.config.get('@myscope:registry'), 'https://registry.npmjs.org/')
-    const rc = ini.parse(fs.readFileSync(path.join(home, '.npmrc'), 'utf8'))
-    t.same(rc, {
+    t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
       '@myscope:registry': 'https://registry.npmjs.org/',
     }, 'should only have token and scope:registry')
   })
 
   t.test('scoped adduser with valid scoped registry config', async t => {
-    const stdin = new stream.PassThrough()
-    stdin.write('test-user\n')
-    stdin.write('test-password\n')
-    stdin.write('test-email@npmjs.org\n')
-    mockGlobals(t, {
-      'process.stdin': stdin,
-      'process.stdout': new stream.PassThrough(), // to quiet readline
-    }, { replace: true })
-    const { npm, home } = await loadMockNpm(t, {
+    const { npm, rc, registry, adduser } = await mockAddUser(t, {
+      stdin: ['test-user', 'test-password', 'test-email@npmjs.org'],
+      registry: 'https://diff-registry.npmjs.org',
       homeDir: {
         '.npmrc': '@myscope:registry=https://diff-registry.npmjs.org',
       },
@@ -107,44 +102,28 @@ t.test('legacy', async t => {
         scope: '@myscope',
       },
     })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: 'https://diff-registry.npmjs.org',
-    })
     registry.couchadduser({
       username: 'test-user',
       password: 'test-password',
       email: 'test-email@npmjs.org',
       token: 'npm_test-token',
     })
-    await npm.exec('adduser', [])
+    await adduser.exec([])
     t.same(npm.config.get('//diff-registry.npmjs.org/:_authToken'), 'npm_test-token')
     t.same(npm.config.get('@myscope:registry'), 'https://diff-registry.npmjs.org')
-    const rc = ini.parse(fs.readFileSync(path.join(home, '.npmrc'), 'utf8'))
-    t.same(rc, {
+    t.same(rc(), {
       '@myscope:registry': 'https://diff-registry.npmjs.org',
       '//diff-registry.npmjs.org/:_authToken': 'npm_test-token',
     }, 'should only have token and scope:registry')
   })
 
   t.test('save config failure', async t => {
-    const stdin = new stream.PassThrough()
-    stdin.write('test-user\n')
-    stdin.write('test-password\n')
-    stdin.write('test-email@npmjs.org\n')
-    mockGlobals(t, {
-      'process.stdin': stdin,
-      'process.stdout': new stream.PassThrough(), // to quiet readline
-    }, { replace: true })
-    const { npm } = await loadMockNpm(t, {
+    const { registry, adduser } = await mockAddUser(t, {
+      stdin: ['test-user', 'test-password', 'test-email@npmjs.org'],
       config: { 'auth-type': 'legacy' },
       homeDir: {
         '.npmrc': {},
       },
-    })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
     })
     registry.couchadduser({
       username: 'test-user',
@@ -152,60 +131,40 @@ t.test('legacy', async t => {
       email: 'test-email@npmjs.org',
       token: 'npm_test-token',
     })
-    await t.rejects(npm.exec('adduser', []))
+    await t.rejects(adduser.exec([]))
   })
   t.end()
 })
 
 t.test('web', t => {
   t.test('basic adduser', async t => {
-    const { npm, home } = await loadMockNpm(t, {
+    const { npm, rc, registry, adduser } = await mockAddUser(t, {
       config: { 'auth-type': 'web' },
     })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
-    })
     registry.webadduser({ token: 'npm_test-token' })
-    await npm.exec('adduser', [])
+    await adduser.exec([])
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
-    const rc = ini.parse(fs.readFileSync(path.join(home, '.npmrc'), 'utf8'))
-    t.same(rc, {
+    t.same(rc(), {
       '//registry.npmjs.org/:_authToken': 'npm_test-token',
     })
   })
 
   t.test('server error', async t => {
-    const { npm } = await loadMockNpm(t, {
+    const { adduser, registry } = await mockAddUser(t, {
       config: { 'auth-type': 'web' },
-    })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
     })
     registry.nock.post(registry.fullPath('/-/v1/login'))
       .reply(503, {})
     await t.rejects(
-      npm.exec('adduser', []),
+      adduser.exec([]),
       { message: /503/ }
     )
   })
 
   t.test('fallback', async t => {
-    const stdin = new stream.PassThrough()
-    stdin.write('test-user\n')
-    stdin.write('test-password\n')
-    stdin.write('test-email@npmjs.org\n')
-    mockGlobals(t, {
-      'process.stdin': stdin,
-      'process.stdout': new stream.PassThrough(), // to quiet readline
-    }, { replace: true })
-    const { npm } = await loadMockNpm(t, {
+    const { npm, registry, adduser } = await mockAddUser(t, {
+      stdin: ['test-user', 'test-password', 'test-email@npmjs.org'],
       config: { 'auth-type': 'web' },
-    })
-    const registry = new MockRegistry({
-      tap: t,
-      registry: npm.config.get('registry'),
     })
     registry.nock.post(registry.fullPath('/-/v1/login'))
       .reply(404, {})
@@ -215,7 +174,7 @@ t.test('web', t => {
       email: 'test-email@npmjs.org',
       token: 'npm_test-token',
     })
-    await npm.exec('adduser', [])
+    await adduser.exec([])
     t.same(npm.config.get('//registry.npmjs.org/:_authToken'), 'npm_test-token')
   })
   t.end()

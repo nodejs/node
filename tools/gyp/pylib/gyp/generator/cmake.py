@@ -103,7 +103,7 @@ def NormjoinPathForceCMakeSource(base_path, rel_path):
   """
     if os.path.isabs(rel_path):
         return rel_path
-    if any([rel_path.startswith(var) for var in FULL_PATH_VARS]):
+    if any(rel_path.startswith(var) for var in FULL_PATH_VARS):
         return rel_path
     # TODO: do we need to check base_path for absolute variables as well?
     return os.path.join(
@@ -251,7 +251,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
     extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_taget>] to append with generated targets.
+    extra_deps: [<cmake_target>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
@@ -328,7 +328,7 @@ def WriteActions(target_name, actions, extra_sources, extra_deps, path_to_gyp, o
 
 def NormjoinRulePathForceCMakeSource(base_path, rel_path, rule_source):
     if rel_path.startswith(("${RULE_INPUT_PATH}", "${RULE_INPUT_DIRNAME}")):
-        if any([rule_source.startswith(var) for var in FULL_PATH_VARS]):
+        if any(rule_source.startswith(var) for var in FULL_PATH_VARS):
             return rel_path
     return NormjoinPathForceCMakeSource(base_path, rel_path)
 
@@ -340,7 +340,7 @@ def WriteRules(target_name, rules, extra_sources, extra_deps, path_to_gyp, outpu
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
     extra_sources: [(<cmake_src>, <src>)] to append with generated source files.
-    extra_deps: [<cmake_taget>] to append with generated targets.
+    extra_deps: [<cmake_target>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
@@ -457,7 +457,7 @@ def WriteCopies(target_name, copies, extra_deps, path_to_gyp, output):
   Args:
     target_name: the name of the CMake target being generated.
     actions: the Gyp 'actions' dict for this target.
-    extra_deps: [<cmake_taget>] to append with generated targets.
+    extra_deps: [<cmake_target>] to append with generated targets.
     path_to_gyp: relative path from CMakeLists.txt being generated to
         the Gyp file in which the target being generated is defined.
   """
@@ -603,7 +603,7 @@ class CMakeNamer:
   """
 
     def __init__(self, target_list):
-        self.cmake_target_base_names_conficting = set()
+        self.cmake_target_base_names_conflicting = set()
 
         cmake_target_base_names_seen = set()
         for qualified_target in target_list:
@@ -612,11 +612,11 @@ class CMakeNamer:
             if cmake_target_base_name not in cmake_target_base_names_seen:
                 cmake_target_base_names_seen.add(cmake_target_base_name)
             else:
-                self.cmake_target_base_names_conficting.add(cmake_target_base_name)
+                self.cmake_target_base_names_conflicting.add(cmake_target_base_name)
 
     def CreateCMakeTargetName(self, qualified_target):
         base_name = CreateCMakeTargetBaseName(qualified_target)
-        if base_name in self.cmake_target_base_names_conficting:
+        if base_name in self.cmake_target_base_names_conflicting:
             return CreateCMakeTargetFullName(qualified_target)
         return base_name
 
@@ -929,10 +929,7 @@ def WriteTarget(
         product_prefix = spec.get("product_prefix", default_product_prefix)
         product_name = spec.get("product_name", default_product_name)
         product_ext = spec.get("product_extension")
-        if product_ext:
-            product_ext = "." + product_ext
-        else:
-            product_ext = default_product_ext
+        product_ext = "." + product_ext if product_ext else default_product_ext
 
         SetTargetProperty(output, cmake_target_name, "PREFIX", product_prefix)
         SetTargetProperty(

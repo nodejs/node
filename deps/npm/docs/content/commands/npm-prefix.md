@@ -7,7 +7,7 @@ description: Display prefix
 ### Synopsis
 
 ```bash
-npm prefix [-g]
+npm prefix
 ```
 
 Note: This command is unaware of workspaces.
@@ -48,6 +48,8 @@ folder instead of the current working directory. See
   of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
+
+
 
 ### See Also
 

@@ -29,7 +29,7 @@
 namespace v8 {
 namespace internal {
 
-static const int kProfilerStackSize = 64 * KB;
+static const int kProfilerStackSize = 256 * KB;
 
 class CpuSampler : public sampler::Sampler {
  public:
@@ -84,21 +84,21 @@ ProfilingScope::ProfilingScope(Isolate* isolate, ProfilerListener* listener)
   wasm::GetWasmEngine()->EnableCodeLogging(isolate_);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  V8FileLogger* logger = isolate_->v8_file_logger();
-  logger->AddLogEventListener(listener_);
+  CHECK(isolate_->logger()->AddListener(listener_));
+  V8FileLogger* file_logger = isolate_->v8_file_logger();
   // Populate the ProfilerCodeObserver with the initial functions and
   // callbacks on the heap.
   DCHECK(isolate_->heap()->HasBeenSetUp());
 
   if (!v8_flags.prof_browser_mode) {
-    logger->LogCodeObjects();
+    file_logger->LogCodeObjects();
   }
-  logger->LogCompiledFunctions();
-  logger->LogAccessorCallbacks();
+  file_logger->LogCompiledFunctions();
+  file_logger->LogAccessorCallbacks();
 }
 
 ProfilingScope::~ProfilingScope() {
-  isolate_->v8_file_logger()->RemoveLogEventListener(listener_);
+  CHECK(isolate_->logger()->RemoveListener(listener_));
 
   size_t profiler_count = isolate_->num_cpu_profilers();
   DCHECK_GT(profiler_count, 0);
@@ -129,6 +129,10 @@ SamplingEventsProcessor::SamplingEventsProcessor(
       sampler_(new CpuSampler(isolate, this)),
       period_(period),
       use_precise_sampling_(use_precise_sampling) {
+#if V8_OS_WIN
+  precise_sleep_timer_.TryInit();
+#endif  // V8_OS_WIN
+
   sampler_->Start();
 }
 
@@ -290,9 +294,13 @@ void SamplingEventsProcessor::Run() {
 #if V8_OS_WIN
       if (use_precise_sampling_ &&
           nextSampleTime - now < base::TimeDelta::FromMilliseconds(100)) {
-        // Do not use Sleep on Windows as it is very imprecise, with up to 16ms
-        // jitter, which is unacceptable for short profile intervals.
-        while (base::TimeTicks::Now() < nextSampleTime) {
+        if (precise_sleep_timer_.IsInitialized()) {
+          precise_sleep_timer_.Sleep(nextSampleTime - now);
+        } else {
+          // Do not use Sleep on Windows as it is very imprecise, with up to
+          // 16ms jitter, which is unacceptable for short profile intervals.
+          while (base::TimeTicks::Now() < nextSampleTime) {
+          }
         }
       } else  // NOLINT
 #else
@@ -334,7 +342,7 @@ void SamplingEventsProcessor::SetSamplingInterval(base::TimeDelta period) {
   period_ = period;
   running_.store(true, std::memory_order_relaxed);
 
-  StartSynchronously();
+  CHECK(StartSynchronously());
 }
 
 void* SamplingEventsProcessor::operator new(size_t size) {
@@ -415,9 +423,9 @@ void ProfilerCodeObserver::LogBuiltins() {
        ++builtin) {
     CodeEventsContainer evt_rec(CodeEventRecord::Type::kReportBuiltin);
     ReportBuiltinEventRecord* rec = &evt_rec.ReportBuiltinEventRecord_;
-    Code code = builtins->code(builtin);
-    rec->instruction_start = code.InstructionStart();
-    rec->instruction_size = code.InstructionSize();
+    Tagged<Code> code = builtins->code(builtin);
+    rec->instruction_start = code->instruction_start();
+    rec->instruction_size = code->instruction_size();
     rec->builtin = builtin;
     CodeEventHandlerInternal(evt_rec);
   }
@@ -627,7 +635,7 @@ CpuProfilingResult CpuProfiler::StartProfiling(
 }
 
 CpuProfilingResult CpuProfiler::StartProfiling(
-    String title, CpuProfilingOptions options,
+    Tagged<String> title, CpuProfilingOptions options,
     std::unique_ptr<DiscardedSamplesDelegate> delegate) {
   return StartProfiling(profiles_->GetName(title), std::move(options),
                         std::move(delegate));
@@ -657,7 +665,7 @@ void CpuProfiler::StartProcessorIfNotStarted() {
 
   // Enable stack sampling.
   processor_->AddCurrentStack();
-  processor_->StartSynchronously();
+  CHECK(processor_->StartSynchronously());
 }
 
 CpuProfile* CpuProfiler::StopProfiling(const char* title) {
@@ -685,7 +693,7 @@ CpuProfile* CpuProfiler::StopProfiling(ProfilerId id) {
   return profile;
 }
 
-CpuProfile* CpuProfiler::StopProfiling(String title) {
+CpuProfile* CpuProfiler::StopProfiling(Tagged<String> title) {
   return StopProfiling(profiles_->GetName(title));
 }
 

@@ -10,12 +10,16 @@
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
 #include "src/objects/descriptor-array.h"
+#include "src/objects/dictionary.h"
 #include "src/objects/field-type.h"
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/lookup-cache-inl.h"
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/property.h"
 #include "src/objects/struct-inl.h"
+#include "src/objects/tagged-field-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -42,21 +46,21 @@ inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
 }
 
-void DescriptorArray::CopyEnumCacheFrom(DescriptorArray array) {
-  set_enum_cache(array.enum_cache());
+void DescriptorArray::CopyEnumCacheFrom(Tagged<DescriptorArray> array) {
+  set_enum_cache(array->enum_cache());
 }
 
-InternalIndex DescriptorArray::Search(Name name, int valid_descriptors,
+InternalIndex DescriptorArray::Search(Tagged<Name> name, int valid_descriptors,
                                       bool concurrent_search) {
-  DCHECK(name.IsUniqueName());
+  DCHECK(IsUniqueName(name));
   return InternalIndex(internal::Search<VALID_ENTRIES>(
       this, name, valid_descriptors, nullptr, concurrent_search));
 }
 
-InternalIndex DescriptorArray::Search(Name name, Map map,
+InternalIndex DescriptorArray::Search(Tagged<Name> name, Tagged<Map> map,
                                       bool concurrent_search) {
-  DCHECK(name.IsUniqueName());
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+  DCHECK(IsUniqueName(name));
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(name, number_of_own_descriptors, concurrent_search);
 }
@@ -74,16 +78,17 @@ InternalIndex DescriptorArray::Search(int field_index, int valid_descriptors) {
   return InternalIndex::NotFound();
 }
 
-InternalIndex DescriptorArray::Search(int field_index, Map map) {
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+InternalIndex DescriptorArray::Search(int field_index, Tagged<Map> map) {
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
   return Search(field_index, number_of_own_descriptors);
 }
 
-InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate, Name name,
-                                               Map map) {
-  DCHECK(name.IsUniqueName());
-  int number_of_own_descriptors = map.NumberOfOwnDescriptors();
+InternalIndex DescriptorArray::SearchWithCache(Isolate* isolate,
+                                               Tagged<Name> name,
+                                               Tagged<Map> map) {
+  DCHECK(IsUniqueName(name));
+  int number_of_own_descriptors = map->NumberOfOwnDescriptors();
   if (number_of_own_descriptors == 0) return InternalIndex::NotFound();
 
   DescriptorLookupCache* cache = isolate->descriptor_lookup_cache();
@@ -113,20 +118,21 @@ ObjectSlot DescriptorArray::GetDescriptorSlot(int descriptor) {
   return RawField(OffsetOfDescriptorAt(descriptor));
 }
 
-Name DescriptorArray::GetKey(InternalIndex descriptor_number) const {
+Tagged<Name> DescriptorArray::GetKey(InternalIndex descriptor_number) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetKey(PtrComprCageBase cage_base,
-                             InternalIndex descriptor_number) const {
+Tagged<Name> DescriptorArray::GetKey(PtrComprCageBase cage_base,
+                                     InternalIndex descriptor_number) const {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  return Name::cast(
+  return Cast<Name>(
       EntryKeyField::Relaxed_Load(cage_base, *this, entry_offset));
 }
 
-void DescriptorArray::SetKey(InternalIndex descriptor_number, Name key) {
+void DescriptorArray::SetKey(InternalIndex descriptor_number,
+                             Tagged<Name> key) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryKeyField::Relaxed_Store(*this, entry_offset, key);
@@ -137,13 +143,13 @@ int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
   return GetDetails(InternalIndex(descriptor_number)).pointer();
 }
 
-Name DescriptorArray::GetSortedKey(int descriptor_number) {
+Tagged<Name> DescriptorArray::GetSortedKey(int descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetSortedKey(cage_base, descriptor_number);
 }
 
-Name DescriptorArray::GetSortedKey(PtrComprCageBase cage_base,
-                                   int descriptor_number) {
+Tagged<Name> DescriptorArray::GetSortedKey(PtrComprCageBase cage_base,
+                                           int descriptor_number) {
   return GetKey(cage_base, InternalIndex(GetSortedKeyIndex(descriptor_number)));
 }
 
@@ -152,31 +158,32 @@ void DescriptorArray::SetSortedKey(int descriptor_number, int pointer) {
   SetDetails(InternalIndex(descriptor_number), details.set_pointer(pointer));
 }
 
-Object DescriptorArray::GetStrongValue(InternalIndex descriptor_number) {
+Tagged<Object> DescriptorArray::GetStrongValue(
+    InternalIndex descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return GetStrongValue(cage_base, descriptor_number);
+  return Cast<Object>(GetStrongValue(cage_base, descriptor_number));
 }
 
-Object DescriptorArray::GetStrongValue(PtrComprCageBase cage_base,
-                                       InternalIndex descriptor_number) {
-  return GetValue(cage_base, descriptor_number).cast<Object>();
+Tagged<Object> DescriptorArray::GetStrongValue(
+    PtrComprCageBase cage_base, InternalIndex descriptor_number) {
+  return Cast<Object>(GetValue(cage_base, descriptor_number));
 }
 
 void DescriptorArray::SetValue(InternalIndex descriptor_number,
-                               MaybeObject value) {
+                               Tagged<MaybeObject> value) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryValueField::Relaxed_Store(*this, entry_offset, value);
   WEAK_WRITE_BARRIER(*this, entry_offset + kEntryValueOffset, value);
 }
 
-MaybeObject DescriptorArray::GetValue(InternalIndex descriptor_number) {
+Tagged<MaybeObject> DescriptorArray::GetValue(InternalIndex descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetValue(cage_base, descriptor_number);
 }
 
-MaybeObject DescriptorArray::GetValue(PtrComprCageBase cage_base,
-                                      InternalIndex descriptor_number) {
+Tagged<MaybeObject> DescriptorArray::GetValue(PtrComprCageBase cage_base,
+                                              InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   return EntryValueField::Relaxed_Load(cage_base, *this, entry_offset);
@@ -185,7 +192,7 @@ MaybeObject DescriptorArray::GetValue(PtrComprCageBase cage_base,
 PropertyDetails DescriptorArray::GetDetails(InternalIndex descriptor_number) {
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
-  Smi details = EntryDetailsField::Relaxed_Load(*this, entry_offset);
+  Tagged<Smi> details = EntryDetailsField::Relaxed_Load(*this, entry_offset);
   return PropertyDetails(details);
 }
 
@@ -201,28 +208,30 @@ int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
   return GetDetails(descriptor_number).field_index();
 }
 
-FieldType DescriptorArray::GetFieldType(InternalIndex descriptor_number) {
+Tagged<FieldType> DescriptorArray::GetFieldType(
+    InternalIndex descriptor_number) {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return GetFieldType(cage_base, descriptor_number);
 }
 
-FieldType DescriptorArray::GetFieldType(PtrComprCageBase cage_base,
-                                        InternalIndex descriptor_number) {
+Tagged<FieldType> DescriptorArray::GetFieldType(
+    PtrComprCageBase cage_base, InternalIndex descriptor_number) {
   DCHECK_EQ(GetDetails(descriptor_number).location(), PropertyLocation::kField);
-  MaybeObject wrapped_type = GetValue(cage_base, descriptor_number);
+  Tagged<MaybeObject> wrapped_type = GetValue(cage_base, descriptor_number);
   return Map::UnwrapFieldType(wrapped_type);
 }
 
-void DescriptorArray::Set(InternalIndex descriptor_number, Name key,
-                          MaybeObject value, PropertyDetails details) {
+void DescriptorArray::Set(InternalIndex descriptor_number, Tagged<Name> key,
+                          Tagged<MaybeObject> value, PropertyDetails details) {
+  CHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   SetKey(descriptor_number, key);
   SetDetails(descriptor_number, details);
   SetValue(descriptor_number, value);
 }
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
-  Name key = *desc->GetKey();
-  MaybeObject value = *desc->GetValue();
+  Tagged<Name> key = *desc->GetKey();
+  Tagged<MaybeObject> value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
 }
 
@@ -240,8 +249,8 @@ void DescriptorArray::Append(Descriptor* desc) {
   int insertion;
 
   for (insertion = descriptor_number; insertion > 0; --insertion) {
-    Name key = GetSortedKey(insertion - 1);
-    collision_hash = key.hash();
+    Tagged<Name> key = GetSortedKey(insertion - 1);
+    collision_hash = key->hash();
     if (collision_hash <= desc_hash) break;
     SetSortedKey(insertion, GetSortedKeyIndex(insertion - 1));
   }
@@ -261,10 +270,11 @@ void DescriptorArray::SwapSortedKeys(int first, int second) {
 
 // static
 bool DescriptorArrayMarkingState::TryUpdateIndicesToMark(
-    unsigned gc_epoch, DescriptorArray array, DescriptorIndex index_to_mark) {
+    unsigned gc_epoch, Tagged<DescriptorArray> array,
+    DescriptorIndex index_to_mark) {
   const auto current_epoch = gc_epoch & Epoch::kMask;
   while (true) {
-    const RawGCStateType raw_gc_state = array.raw_gc_state(kRelaxedLoad);
+    const RawGCStateType raw_gc_state = array->raw_gc_state(kRelaxedLoad);
     const auto epoch_from_state = Epoch::decode(raw_gc_state);
     RawGCStateType new_raw_gc_state = 0;
     if (current_epoch != epoch_from_state) {
@@ -293,10 +303,10 @@ bool DescriptorArrayMarkingState::TryUpdateIndicesToMark(
 std::pair<DescriptorArrayMarkingState::DescriptorIndex,
           DescriptorArrayMarkingState::DescriptorIndex>
 DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
-    unsigned gc_epoch, DescriptorArray array) {
+    unsigned gc_epoch, Tagged<DescriptorArray> array) {
   const auto current_epoch = gc_epoch & Epoch::kMask;
   while (true) {
-    const RawGCStateType raw_gc_state = array.raw_gc_state(kRelaxedLoad);
+    const RawGCStateType raw_gc_state = array->raw_gc_state(kRelaxedLoad);
     const DescriptorIndex marked = Marked::decode(raw_gc_state);
     const DescriptorIndex delta = Delta::decode(raw_gc_state);
     // We may encounter an array here that was merely pushed to the marker. In
@@ -312,8 +322,8 @@ DescriptorArrayMarkingState::AcquireDescriptorRangeToMark(
       // and delta as valid state which leads to double-accounting through the
       // marking barrier (when nof>1 in the barrier).
       const int16_t number_of_descriptors =
-          array.number_of_descriptors() ? array.number_of_descriptors()
-                                        : array.number_of_all_descriptors();
+          array->number_of_descriptors() ? array->number_of_descriptors()
+                                         : array->number_of_all_descriptors();
       DCHECK_GT(number_of_descriptors, 0);
       if (SwapState(array, raw_gc_state,
                     NewState(current_epoch, number_of_descriptors, 0))) {

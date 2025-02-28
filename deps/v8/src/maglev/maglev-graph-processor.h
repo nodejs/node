@@ -5,6 +5,7 @@
 #ifndef V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 #define V8_MAGLEV_MAGLEV_GRAPH_PROCESSOR_H_
 
+#include "src/base/macros.h"
 #include "src/compiler/bytecode-analysis.h"
 #include "src/maglev/maglev-basic-block.h"
 #include "src/maglev/maglev-compilation-info.h"
@@ -31,7 +32,7 @@ namespace maglev {
 //   void PostProcessGraph(Graph* graph);
 //
 //   // A function that processes each basic block before its nodes are walked.
-//   void PreProcessBasicBlock(BasicBlock* block);
+//   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
 //
 //   // Process methods for each Node type. The GraphProcessor switches over
 //   // the Node's opcode, casts it to the appropriate FooNode, and dispatches
@@ -42,6 +43,25 @@ namespace maglev {
 //
 template <typename NodeProcessor, bool visit_identity_nodes = false>
 class GraphProcessor;
+
+enum class BlockProcessResult {
+  kContinue,  // Process exited normally.
+  kSkip,      // Skip processing this block (no MultiProcessor support).
+};
+
+enum class ProcessResult {
+  kContinue,   // Process exited normally, and the following processors will be
+               // called on the node.
+  kRemove,     // Remove the current node from the graph (and do not call the
+               // following processors).
+  kHoist,      // Hoist the current instruction to the parent basic block
+               // and reset the current instruction to the beginning of the
+               // block. Parent block must be dominating.
+  kAbort,      // Stop processing now, do not process subsequent nodes/blocks.
+               // Should not be used when processing Constants.
+  kSkipBlock,  // Stop processing this block and skip the remaining nodes (no
+               // MultiProcessor support).
+};
 
 class ProcessingState {
  public:
@@ -78,49 +98,117 @@ class GraphProcessor {
 
     node_processor_.PreProcessGraph(graph);
 
-    for (const auto& [ref, constant] : graph->constants()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(ref);
-    }
-    for (const auto& [index, constant] : graph->root()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(index);
-    }
-    for (const auto& [index, constant] : graph->smi()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(index);
-    }
-    for (const auto& [index, constant] : graph->int32()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(index);
-    }
-    for (const auto& [index, constant] : graph->float64()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(index);
-    }
-    for (const auto& [address, constant] : graph->external_references()) {
-      node_processor_.Process(constant, GetCurrentState());
-      USE(address);
-    }
+    auto process_constants = [&](auto& map) {
+      for (auto it = map.begin(); it != map.end();) {
+        ProcessResult result =
+            node_processor_.Process(it->second, GetCurrentState());
+        switch (result) {
+          [[likely]] case ProcessResult::kContinue:
+            ++it;
+            break;
+          case ProcessResult::kRemove:
+            it = map.erase(it);
+            break;
+          case ProcessResult::kHoist:
+          case ProcessResult::kAbort:
+          case ProcessResult::kSkipBlock:
+            UNREACHABLE();
+        }
+      }
+    };
+    process_constants(graph->constants());
+    process_constants(graph->root());
+    process_constants(graph->smi());
+    process_constants(graph->tagged_index());
+    process_constants(graph->int32());
+    process_constants(graph->uint32());
+    process_constants(graph->float64());
+    process_constants(graph->external_references());
+    process_constants(graph->trusted_constants());
 
     for (block_it_ = graph->begin(); block_it_ != graph->end(); ++block_it_) {
       BasicBlock* block = *block_it_;
 
-      node_processor_.PreProcessBasicBlock(block);
+      BlockProcessResult preprocess_result =
+          node_processor_.PreProcessBasicBlock(block);
+      switch (preprocess_result) {
+        [[likely]] case BlockProcessResult::kContinue:
+          break;
+        case BlockProcessResult::kSkip:
+          continue;
+      }
 
       if (block->has_phi()) {
-        for (Phi* phi : *block->phis()) {
-          node_processor_.Process(phi, GetCurrentState());
+        auto& phis = *block->phis();
+        for (auto it = phis.begin(); it != phis.end();) {
+          Phi* phi = *it;
+          ProcessResult result =
+              node_processor_.Process(phi, GetCurrentState());
+          switch (result) {
+            [[likely]] case ProcessResult::kContinue:
+              ++it;
+              break;
+            case ProcessResult::kRemove:
+              it = phis.RemoveAt(it);
+              break;
+            case ProcessResult::kAbort:
+              return;
+            case ProcessResult::kSkipBlock:
+              goto skip_block;
+            case ProcessResult::kHoist:
+              UNREACHABLE();
+          }
         }
       }
 
-      for (node_it_ = block->nodes().begin(); node_it_ != block->nodes().end();
-           ++node_it_) {
+      node_processor_.PostPhiProcessing();
+
+      for (node_it_ = block->nodes().begin();
+           node_it_ != block->nodes().end();) {
         Node* node = *node_it_;
-        ProcessNodeBase(node, GetCurrentState());
+        ProcessResult result = ProcessNodeBase(node, GetCurrentState());
+        switch (result) {
+          [[likely]] case ProcessResult::kContinue:
+            ++node_it_;
+            break;
+          case ProcessResult::kRemove:
+            node_it_ = block->nodes().RemoveAt(node_it_);
+            break;
+          case ProcessResult::kHoist: {
+            DCHECK(block->predecessor_count() == 1 ||
+                   (block->predecessor_count() == 2 && block->is_loop()));
+            BasicBlock* target = block->predecessor_at(0);
+            DCHECK(target->successors().size() == 1);
+            Node* cur = *node_it_;
+            cur->set_owner(target);
+            block->nodes().RemoveAt(node_it_);
+            target->nodes().Add(cur);
+            node_it_ = block->nodes().begin();
+            break;
+          }
+          case ProcessResult::kAbort:
+            return;
+          case ProcessResult::kSkipBlock:
+            goto skip_block;
+        }
       }
 
-      ProcessNodeBase(block->control_node(), GetCurrentState());
+      {
+        ProcessResult control_result =
+            ProcessNodeBase(block->control_node(), GetCurrentState());
+        switch (control_result) {
+          [[likely]] case ProcessResult::kContinue:
+          case ProcessResult::kSkipBlock:
+            break;
+          case ProcessResult::kAbort:
+            return;
+          case ProcessResult::kRemove:
+          case ProcessResult::kHoist:
+            UNREACHABLE();
+        }
+      }
+    skip_block:
+      continue;
     }
 
     node_processor_.PostProcessGraph(graph);
@@ -134,17 +222,17 @@ class GraphProcessor {
     return ProcessingState(block_it_, &node_it_);
   }
 
-  void ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
+  ProcessResult ProcessNodeBase(NodeBase* node, const ProcessingState& state) {
     switch (node->opcode()) {
 #define CASE(OPCODE)                                        \
   case Opcode::k##OPCODE:                                   \
     if constexpr (!visit_identity_nodes &&                  \
                   Opcode::k##OPCODE == Opcode::kIdentity) { \
-      return;                                               \
+      return ProcessResult::kContinue;                      \
     }                                                       \
     PreProcess(node->Cast<OPCODE>(), state);                \
-    node_processor_.Process(node->Cast<OPCODE>(), state);   \
-    break;
+    return node_processor_.Process(node->Cast<OPCODE>(), state);
+
       NODE_BASE_LIST(CASE)
 #undef CASE
     }
@@ -168,8 +256,14 @@ class NodeMultiProcessor<> {
  public:
   void PreProcessGraph(Graph* graph) {}
   void PostProcessGraph(Graph* graph) {}
-  void PreProcessBasicBlock(BasicBlock* block) {}
-  void Process(NodeBase* node, const ProcessingState& state) {}
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    return BlockProcessResult::kContinue;
+  }
+  V8_INLINE ProcessResult Process(NodeBase* node,
+                                  const ProcessingState& state) {
+    return ProcessResult::kContinue;
+  }
+  void PostPhiProcessing() {}
 };
 
 template <typename Processor, typename... Processors>
@@ -187,9 +281,20 @@ class NodeMultiProcessor<Processor, Processors...>
       : Base(std::forward<Args>(processors)...) {}
 
   template <typename Node>
-  void Process(Node* node, const ProcessingState& state) {
-    processor_.Process(node, state);
-    Base::Process(node, state);
+  ProcessResult Process(Node* node, const ProcessingState& state) {
+    auto res = processor_.Process(node, state);
+    switch (res) {
+      [[likely]] case ProcessResult::kContinue:
+        return Base::Process(node, state);
+      case ProcessResult::kAbort:
+      case ProcessResult::kRemove:
+        return res;
+      case ProcessResult::kHoist:
+      case ProcessResult::kSkipBlock:
+        // TODO(olivf): How to combine these with multiple processors depends on
+        // the needs of the actual processors. Implement once needed.
+        UNREACHABLE();
+    }
   }
   void PreProcessGraph(Graph* graph) {
     processor_.PreProcessGraph(graph);
@@ -200,9 +305,20 @@ class NodeMultiProcessor<Processor, Processors...>
     Base::PostProcessGraph(graph);
     processor_.PostProcessGraph(graph);
   }
-  void PreProcessBasicBlock(BasicBlock* block) {
-    processor_.PreProcessBasicBlock(block);
-    Base::PreProcessBasicBlock(block);
+  BlockProcessResult PreProcessBasicBlock(BasicBlock* block) {
+    BlockProcessResult res = processor_.PreProcessBasicBlock(block);
+    switch (res) {
+      [[likely]] case BlockProcessResult::kContinue:
+        return Base::PreProcessBasicBlock(block);
+      case BlockProcessResult::kSkip:
+        // TODO(olivf): How to combine this with multiple processors depends on
+        // the needs of the actual processors. Implement once needed.
+        UNREACHABLE();
+    }
+  }
+  void PostPhiProcessing() {
+    processor_.PostPhiProcessing();
+    Base::PostPhiProcessing();
   }
 
  private:

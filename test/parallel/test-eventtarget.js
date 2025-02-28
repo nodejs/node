@@ -16,8 +16,8 @@ const {
 
 const { once } = require('events');
 
-const { promisify, inspect } = require('util');
-const delay = promisify(setTimeout);
+const { inspect } = require('util');
+const { setTimeout: delay } = require('timers/promises');
 
 // The globals are defined.
 ok(Event);
@@ -345,7 +345,9 @@ let asyncTest = Promise.resolve();
 {
   const target = new EventTarget();
   const event = new Event('foo');
+  strictEqual(event.cancelBubble, false);
   event.stopImmediatePropagation();
+  strictEqual(event.cancelBubble, true);
   target.addEventListener('foo', common.mustNotCall());
   target.dispatchEvent(event);
 }
@@ -681,7 +683,7 @@ let asyncTest = Promise.resolve();
   const et = new EventTarget();
   et.addEventListener('foo', common.mustNotCall(), { [kWeakHandler]: {} });
   setImmediate(() => {
-    global.gc();
+    globalThis.gc();
     et.dispatchEvent(new Event('foo'));
   });
 }
@@ -725,4 +727,29 @@ let asyncTest = Promise.resolve();
   throws(() => {
     et.removeEventListener(Symbol('symbol'), () => {});
   }, TypeError);
+}
+
+{
+  // Test that event listeners are removed by signal even when
+  // signal's abort event propagation stopped
+  const controller = new AbortController();
+  const { signal } = controller;
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation(), { once: true });
+  const et = new EventTarget();
+  et.addEventListener('foo', common.mustNotCall(), { signal });
+  controller.abort();
+  et.dispatchEvent(new Event('foo'));
+}
+
+{
+  const event = new Event('foo');
+  strictEqual(event.cancelBubble, false);
+  event.cancelBubble = true;
+  strictEqual(event.cancelBubble, true);
+}
+
+{
+  // A null eventInitDict should not throw an error.
+  new Event('', null);
+  new Event('', undefined);
 }

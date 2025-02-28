@@ -32,7 +32,7 @@
   int uv_##name##_start(uv_##name##_t* handle, uv_##name##_cb cb) {           \
     if (uv__is_active(handle)) return 0;                                      \
     if (cb == NULL) return UV_EINVAL;                                         \
-    QUEUE_INSERT_HEAD(&handle->loop->name##_handles, &handle->queue);         \
+    uv__queue_insert_head(&handle->loop->name##_handles, &handle->queue);     \
     handle->name##_cb = cb;                                                   \
     uv__handle_start(handle);                                                 \
     return 0;                                                                 \
@@ -40,21 +40,21 @@
                                                                               \
   int uv_##name##_stop(uv_##name##_t* handle) {                               \
     if (!uv__is_active(handle)) return 0;                                     \
-    QUEUE_REMOVE(&handle->queue);                                             \
+    uv__queue_remove(&handle->queue);                                         \
     uv__handle_stop(handle);                                                  \
     return 0;                                                                 \
   }                                                                           \
                                                                               \
   void uv__run_##name(uv_loop_t* loop) {                                      \
     uv_##name##_t* h;                                                         \
-    QUEUE queue;                                                              \
-    QUEUE* q;                                                                 \
-    QUEUE_MOVE(&loop->name##_handles, &queue);                                \
-    while (!QUEUE_EMPTY(&queue)) {                                            \
-      q = QUEUE_HEAD(&queue);                                                 \
-      h = QUEUE_DATA(q, uv_##name##_t, queue);                                \
-      QUEUE_REMOVE(q);                                                        \
-      QUEUE_INSERT_TAIL(&loop->name##_handles, q);                            \
+    struct uv__queue queue;                                                   \
+    struct uv__queue* q;                                                      \
+    uv__queue_move(&loop->name##_handles, &queue);                            \
+    while (!uv__queue_empty(&queue)) {                                        \
+      q = uv__queue_head(&queue);                                             \
+      h = uv__queue_data(q, uv_##name##_t, queue);                            \
+      uv__queue_remove(q);                                                    \
+      uv__queue_insert_tail(&loop->name##_handles, q);                        \
       h->name##_cb(h);                                                        \
     }                                                                         \
   }                                                                           \

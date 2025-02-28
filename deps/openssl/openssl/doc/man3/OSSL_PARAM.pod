@@ -40,11 +40,11 @@ suitable form for the internal structure of the object.
 
 =item * Request parameters of some object
 
-The caller (the I<requestor>) sets up the B<OSSL_PARAM> array and
+The caller (the I<requester>) sets up the B<OSSL_PARAM> array and
 calls some function (the I<responder>) that has intimate knowledge
 about the object, which can take the internal data of the object and
 copy (possibly convert) that to the memory prepared by the
-I<requestor> and pointed at with the B<OSSL_PARAM> I<data>.
+I<requester> and pointed at with the B<OSSL_PARAM> I<data>.
 
 =item * Request parameter descriptors
 
@@ -108,10 +108,10 @@ B<OSSL_PARAM_UTF8_STRING> in relation to C strings.  When setting
 parameters, the size should be set to the length of the string, not
 counting the terminating NUL byte.  When requesting parameters, the
 size should be set to the size of the buffer to be populated, which
-should accomodate enough space for a terminating NUL byte.
+should accommodate enough space for a terminating NUL byte.
 
 When I<requesting parameters>, it's acceptable for I<data> to be NULL.
-This can be used by the I<requestor> to figure out dynamically exactly
+This can be used by the I<requester> to figure out dynamically exactly
 how much buffer space is needed to store the parameter data.
 In this case, I<data_size> is ignored.
 
@@ -267,6 +267,14 @@ B<OSSL_PARAM_OCTET_STRING>), but this is in no way mandatory.
 
 =item *
 
+If I<data> for a B<OSSL_PARAM_OCTET_STRING> or a
+B<OSSL_PARAM_UTF8_STRING> is NULL, the I<responder> should
+set I<return_size> to the size of the item to be returned
+and return success. Later the responder will be called again
+with I<data> pointing at the place for the value to be put.
+
+=item *
+
 If a I<responder> finds that some data sizes are too small for the
 requested data, it must set I<return_size> for each such
 B<OSSL_PARAM> item to the minimum required size, and eventually return
@@ -356,7 +364,7 @@ B<OSSL_PARAM> was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

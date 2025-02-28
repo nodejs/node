@@ -15,6 +15,10 @@ function Test(regexp, subject, expectedResult, expectedLastIndex) {
   assertEquals(expectedLastIndex, regexp.lastIndex);
 }
 
+function AssertUnsupported(regexp) {
+  assertNotEquals(%RegexpTypeTag(regexp), 'EXPERIMENTAL');
+}
+
 // The empty regexp.
 Test(new RegExp(""), "asdf", [""], 0);
 
@@ -95,4 +99,39 @@ Test(/^a/m, "x\na", ["a"], 0);
 Test(/x$/m, "x\na", ["x"], 0);
 
 // The dotall flag.
-Test(/asdf.xyz/s,  "asdf\nxyz", ["asdf\nxyz"], 0);
+Test(/asdf.xyz/s, 'asdf\nxyz', ['asdf\nxyz'], 0);
+
+// Lookbehinds.
+Test(/ab(?<=a(?<=a)b)c/, 'abc', ['abc'], 0);
+Test(/ab(?<=a(?<=a)b)(c)/, 'abc', ['abc', 'c'], 0);
+
+// Negative lookbehind.
+Test(/ab(?<=b)c/, 'abc', ['abc'], 0);
+Test(/ab(?<=a(?<!b)b)c/, 'abc', ['abc'], 0);
+Test(/ab(?<=a(?<!(b))b)c/, 'abc', ['abc', undefined], 0);
+Test(/ab(?<=a(?<!b)b)(c)/, 'abc', ['abc', 'c'], 0);
+Test(/ab(?<=a(?<!(b))b)(c)/, 'abc', ['abc', undefined, 'c'], 0);
+
+// Global and Sticky flags are not yet supported in combination with lookbehinds
+AssertUnsupported(/ab(?<=b)c/g);
+AssertUnsupported(/ab(?<=b)c/y);
+
+// Capture reset with quantifiers
+Test(/(?:(a)|b)*/, 'aba', ['aba', 'a'], 0);
+Test(/(?:(a)|b)+/, 'aba', ['aba', 'a'], 0);
+Test(/(?:(a)|b){2,8}/, 'aba', ['aba', 'a'], 0);
+Test(/(?:(a)|b)*/, 'abb', ['abb', undefined], 0);
+Test(/(?:(a)|b)+/, 'abb', ['abb', undefined], 0);
+Test(/(?:(a)|b){2,8}/, 'abb', ['abb', undefined], 0);
+
+Test(/(?:(?:(a)|b)+|c)*/, 'abc', ['abc', undefined], 0);
+Test(/(?:(?:(a)|b)+?|c)+/, 'aba', ['aba', 'a'], 0);
+Test(/(?:(?:(a)|b){2,}|c)*/, 'abcabc', ['abcabc', undefined], 0);
+Test(/(?:(?:(a)|b){1}|c){3,4}/, 'abcabc', ['abca', 'a'], 0);
+Test(/(?:(?:(a)|b)*?|c)+?/, 'abcaac', ['', undefined], 0);
+Test(/(?:(?:(a)|b)+|c){3}/, 'bbcbac', ['bbcba', 'a'], 0);
+
+// This test allows to detect abnormal memory usage. Itself cannot check the
+// consumption or trigger an out-of-memory error, but it creates a detectable
+// anomaly.
+Test(/(((((a?)+)+)+)+)b/, ('a'.repeat(100000)), null, 0);

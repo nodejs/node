@@ -90,7 +90,19 @@ enum VSew {
       kVsInvalid
 };
 
-constexpr size_t kMaxPCRelativeCodeRangeInMB = 4094;
+// RISC-V can perform PC-relative jumps within a 32-bit range using the
+// following two instructions:
+//   auipc   t6, imm20    ; t0 = PC + imm20 * 2^12
+//   jalr    ra, t6, imm12; ra = PC + 4, PC = t0 + imm12,
+// Both imm20 and imm12 are treated as two's-complement signed values, usually
+// calculated as:
+//   imm20 = (offset + 0x800) >> 12
+//   imm12 = offset & 0xfff
+// offset is the signed offset from the auipc instruction. Adding 0x800 handles
+// the offset, but if the offset is >= 2^31 - 2^11, it will overflow. Therefore,
+// the true 32-bit range is:
+//   [-2^31 - 2^11, 2^31 - 2^11)
+constexpr size_t kMaxPCRelativeCodeRangeInMB = 2047;
 
 // -----------------------------------------------------------------------------
 // Registers and FPURegisters.
@@ -231,6 +243,8 @@ enum DebugParameters : uint32_t {
 // RISCV constants
 const int kBaseOpcodeShift = 0;
 const int kBaseOpcodeBits = 7;
+const int kFunct6Shift = 26;
+const int kFunct6Bits = 6;
 const int kFunct7Shift = 25;
 const int kFunct7Bits = 7;
 const int kFunct5Shift = 27;
@@ -261,6 +275,7 @@ const int kImm11Shift = 2;
 const int kImm11Bits = 11;
 const int kShamtShift = 20;
 const int kShamtBits = 5;
+const uint32_t kShamtMask = (((1 << kShamtBits) - 1) << kShamtShift);
 const int kShamtWShift = 20;
 // FIXME: remove this once we have a proper way to handle the wide shift amount
 const int kShamtWBits = 6;
@@ -390,6 +405,7 @@ const uint32_t kBaseOpcodeMask = ((1 << kBaseOpcodeBits) - 1)
                                  << kBaseOpcodeShift;
 const uint32_t kFunct3Mask = ((1 << kFunct3Bits) - 1) << kFunct3Shift;
 const uint32_t kFunct5Mask = ((1 << kFunct5Bits) - 1) << kFunct5Shift;
+const uint32_t kFunct6Mask = ((1 << kFunct6Bits) - 1) << kFunct6Shift;
 const uint32_t kFunct7Mask = ((1 << kFunct7Bits) - 1) << kFunct7Shift;
 const uint32_t kFunct2Mask = 0b11 << kFunct7Shift;
 const uint32_t kRTypeMask = kBaseOpcodeMask | kFunct3Mask | kFunct7Mask;
@@ -424,7 +440,7 @@ const uint32_t kImm16Mask = ((1 << kImm16Bits) - 1) << kImm16Shift;
 // The 'U' prefix is used to specify unsigned comparisons.
 // Opposite conditions must be paired as odd/even numbers
 // because 'NegateCondition' function flips LSB to negate condition.
-enum Condition {  // Any value < 0 is considered no_condition.
+enum Condition : int {  // Any value < 0 is considered no_condition.
   overflow = 0,
   no_overflow = 1,
   Uless = 2,
@@ -749,6 +765,9 @@ class InstructionBase {
   // Safe to call within R-type instructions
   inline int Funct7FieldRaw() const { return InstructionBits() & kFunct7Mask; }
 
+  // Safe to call within R-type instructions
+  inline int Funct6FieldRaw() const { return InstructionBits() & kFunct6Mask; }
+
   // Safe to call within R-, I-, S-, or B-type instructions
   inline int Funct3FieldRaw() const { return InstructionBits() & kFunct3Mask; }
 
@@ -787,6 +806,11 @@ class InstructionBase {
 template <class T>
 class InstructionGetters : public T {
  public:
+  uint32_t OperandFunct3() const {
+    return this->InstructionBits() & (kBaseOpcodeMask | kFunct3Mask);
+  }
+  bool IsLoad();
+  bool IsStore();
   inline int BaseOpcode() const {
     return this->InstructionBits() & kBaseOpcodeMask;
   }
@@ -971,7 +995,8 @@ class InstructionGetters : public T {
 
   inline int Shamt() const {
     // Valid only for shift instructions (SLLI, SRLI, SRAI)
-    DCHECK((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM &&
+    DCHECK(((this->InstructionBits() & kBaseOpcodeMask) == OP_IMM ||
+            (this->InstructionBits() & kBaseOpcodeMask) == OP_IMM_32) &&
            (this->Funct3Value() == 0b001 || this->Funct3Value() == 0b101));
     // | 0A0000 | shamt | rs1 | funct3 | rd | opcode |
     //  31       25    20
@@ -1223,7 +1248,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(uint8_t* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 

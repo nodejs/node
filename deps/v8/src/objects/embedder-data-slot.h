@@ -89,32 +89,26 @@ class EmbedderDataSlot
 
   static constexpr int kRequiredPtrAlignment = kSmiTagSize;
 
-  using EmbedderDataSlotSnapshot = Address;
-  V8_INLINE static void PopulateEmbedderDataSnapshot(Map map,
-                                                     JSObject js_object,
-                                                     int entry_index,
-                                                     EmbedderDataSlotSnapshot&);
-
   EmbedderDataSlot() : SlotBase(kNullAddress) {}
-  V8_INLINE EmbedderDataSlot(EmbedderDataArray array, int entry_index);
-  V8_INLINE EmbedderDataSlot(JSObject object, int embedder_field_index);
-  V8_INLINE explicit EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot);
+  V8_INLINE EmbedderDataSlot(Tagged<EmbedderDataArray> array, int entry_index);
+  V8_INLINE EmbedderDataSlot(Tagged<JSObject> object, int embedder_field_index);
 
   // Opaque type used for storing raw embedder data.
   using RawData = Address;
 
-  V8_INLINE void Initialize(Object initial_value);
+  V8_INLINE void Initialize(Tagged<Object> initial_value);
 
-  V8_INLINE Object load_tagged() const;
-  V8_INLINE void store_smi(Smi value);
+  V8_INLINE Tagged<Object> load_tagged() const;
+  V8_INLINE void store_smi(Tagged<Smi> value);
 
   // Setting an arbitrary tagged value requires triggering a write barrier
   // which requires separate object and offset values, therefore these static
   // functions also has the target object parameter.
-  static V8_INLINE void store_tagged(EmbedderDataArray array, int entry_index,
-                                     Object value);
-  static V8_INLINE void store_tagged(JSObject object, int embedder_field_index,
-                                     Object value);
+  static V8_INLINE void store_tagged(Tagged<EmbedderDataArray> array,
+                                     int entry_index, Tagged<Object> value);
+  static V8_INLINE void store_tagged(Tagged<JSObject> object,
+                                     int embedder_field_index,
+                                     Tagged<Object> value);
 
   // Tries reinterpret the value as an aligned pointer and sets *out_result to
   // the pointer-like value. Note, that some Smis could still look like an
@@ -127,9 +121,11 @@ class EmbedderDataSlot
 
   // Returns true if the pointer was successfully stored or false it the pointer
   // was improperly aligned.
-  V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(Isolate* isolate,
-                                                             void* ptr);
+  V8_INLINE V8_WARN_UNUSED_RESULT bool store_aligned_pointer(
+      Isolate* isolate, Tagged<HeapObject> host, void* ptr);
 
+  V8_INLINE bool MustClearDuringSerialization(
+      const DisallowGarbageCollection& no_gc);
   V8_INLINE RawData load_raw(Isolate* isolate,
                              const DisallowGarbageCollection& no_gc) const;
   V8_INLINE void store_raw(Isolate* isolate, RawData data,

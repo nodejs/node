@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -141,6 +141,9 @@ int ossl_namemap_doall_names(const OSSL_NAMEMAP *namemap, int number,
 
     cbdata.number = number;
     cbdata.found = 0;
+
+    if (namemap == NULL)
+        return 0;
 
     /*
      * We collect all the names first under a read lock. Subsequently we call

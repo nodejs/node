@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,6 +23,7 @@
 #include "internal/nelem.h"
 #include "internal/sizes.h"
 #include "internal/tlsgroups.h"
+#include "internal/cryptlib.h"
 #include "ssl_local.h"
 #include <openssl/ct.h>
 
@@ -600,6 +601,7 @@ uint16_t tls1_shared_group(SSL *s, int nmatch)
     const uint16_t *pref, *supp;
     size_t num_pref, num_supp, i;
     int k;
+    SSL_CTX *ctx = s->ctx;
 
     /* Can't do anything on client side */
     if (s->server == 0)
@@ -636,10 +638,29 @@ uint16_t tls1_shared_group(SSL *s, int nmatch)
 
     for (k = 0, i = 0; i < num_pref; i++) {
         uint16_t id = pref[i];
+        const TLS_GROUP_INFO *inf;
 
         if (!tls1_in_list(id, supp, num_supp)
-            || !tls_group_allowed(s, id, SSL_SECOP_CURVE_SHARED))
-                    continue;
+                || !tls_group_allowed(s, id, SSL_SECOP_CURVE_SHARED))
+            continue;
+        inf = tls1_group_id_lookup(ctx, id);
+        if (!ossl_assert(inf != NULL))
+            return 0;
+        if (SSL_IS_DTLS(s)) {
+            if (inf->maxdtls == -1)
+                continue;
+            if ((inf->mindtls != 0 && DTLS_VERSION_LT(s->version, inf->mindtls))
+                    || (inf->maxdtls != 0
+                        && DTLS_VERSION_GT(s->version, inf->maxdtls)))
+                continue;
+        } else {
+            if (inf->maxtls == -1)
+                continue;
+            if ((inf->mintls != 0 && s->version < inf->mintls)
+                    || (inf->maxtls != 0 && s->version > inf->maxtls))
+                continue;
+        }
+
         if (nmatch == k)
             return id;
          k++;
@@ -713,7 +734,8 @@ static int gid_cb(const char *elem, int len, void *arg)
         return 0;
     if (garg->gidcnt == garg->gidmax) {
         uint16_t *tmp =
-            OPENSSL_realloc(garg->gid_arr, garg->gidmax + GROUPLIST_INCREMENT);
+            OPENSSL_realloc(garg->gid_arr,
+                            (garg->gidmax + GROUPLIST_INCREMENT) * sizeof(*garg->gid_arr));
         if (tmp == NULL)
             return 0;
         garg->gidmax += GROUPLIST_INCREMENT;
@@ -765,6 +787,7 @@ int tls1_set_groups_list(SSL_CTX *ctx, uint16_t **pext, size_t *pextlen,
     tmparr = OPENSSL_memdup(gcb.gid_arr, gcb.gidcnt * sizeof(*tmparr));
     if (tmparr == NULL)
         goto end;
+    OPENSSL_free(*pext);
     *pext = tmparr;
     *pextlen = gcb.gidcnt;
     ret = 1;
@@ -3378,6 +3401,8 @@ int SSL_set_tlsext_max_fragment_length(SSL *ssl, uint8_t mode)
 
 uint8_t SSL_SESSION_get_max_fragment_length(const SSL_SESSION *session)
 {
+    if (session->ext.max_fragment_len_mode == TLSEXT_max_fragment_length_UNSPECIFIED)
+        return TLSEXT_max_fragment_length_DISABLED;
     return session->ext.max_fragment_len_mode;
 }
 

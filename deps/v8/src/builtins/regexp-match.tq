@@ -6,21 +6,20 @@
 
 namespace regexp {
 
-const kATOM: constexpr int31
-    generates 'JSRegExp::ATOM';
-const kTagIndex: constexpr int31
-    generates 'JSRegExp::kTagIndex';
-const kAtomPatternIndex: constexpr int31
-    generates 'JSRegExp::kAtomPatternIndex';
+const kATOM: constexpr uint8
+    generates 'static_cast<uint8_t>(RegExpData::Type::ATOM)';
+const kRegExpDataIndirectPointerTag:
+    constexpr uint64 generates 'kRegExpDataIndirectPointerTag';
 
 extern transitioning macro RegExpBuiltinsAssembler::FlagGetter(
     implicit context: Context)(Object, constexpr Flag, constexpr bool): bool;
 
-extern macro UnsafeLoadFixedArrayElement(
-    RegExpMatchInfo, constexpr int31): Object;
+extern macro LoadTrustedPointerFromObject(
+    HeapObject, constexpr int31, constexpr uint64): TrustedObject;
 
-transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
-    regexp: JSReceiver, string: String, isFastPath: constexpr bool): JSAny {
+transitioning macro RegExpPrototypeMatchBody(
+    implicit context: Context)(regexp: JSReceiver, string: String,
+    isFastPath: constexpr bool): JSAny {
   if constexpr (isFastPath) {
     dcheck(Is<FastJSRegExp>(regexp));
   }
@@ -48,9 +47,12 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
   let searchString: String = EmptyStringConstant();
   if constexpr (isFastPath) {
     const maybeAtomRegexp = UnsafeCast<JSRegExp>(regexp);
-    const data = UnsafeCast<FixedArray>(maybeAtomRegexp.data);
-    if (UnsafeCast<Smi>(data.objects[kTagIndex]) == kATOM) {
-      searchString = UnsafeCast<String>(data.objects[kAtomPatternIndex]);
+    const data: RegExpData =
+        UnsafeCast<RegExpData>(LoadTrustedPointerFromObject(
+            maybeAtomRegexp, kJSRegExpRegExpDataOffset,
+            kRegExpDataIndirectPointerTag));
+    if (data.type_tag == kATOM) {
+      searchString = UnsafeCast<AtomRegExpData>(data).pattern;
       atom = true;
     }
   }
@@ -67,10 +69,8 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
         if (atom) {
           match = searchString;
         } else {
-          const matchFrom = UnsafeLoadFixedArrayElement(
-              matchIndices, kRegExpMatchInfoFirstCaptureIndex);
-          const matchTo = UnsafeLoadFixedArrayElement(
-              matchIndices, kRegExpMatchInfoFirstCaptureIndex + 1);
+          const matchFrom = matchIndices.GetStartOfCapture(0);
+          const matchTo = matchIndices.GetEndOfCapture(0);
           match = SubString(
               string, UnsafeCast<Smi>(matchFrom), UnsafeCast<Smi>(matchTo));
         }
@@ -120,28 +120,29 @@ transitioning macro RegExpPrototypeMatchBody(implicit context: Context)(
   VerifiedUnreachable();
 }
 
-transitioning macro FastRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning macro FastRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, true);
 }
 
-transitioning macro SlowRegExpPrototypeMatchBody(implicit context: Context)(
-    receiver: JSReceiver, string: String): JSAny {
+transitioning macro SlowRegExpPrototypeMatchBody(
+    implicit context: Context)(receiver: JSReceiver, string: String): JSAny {
   return RegExpPrototypeMatchBody(receiver, string, false);
 }
 
 // Helper that skips a few initial checks. and assumes...
 // 1) receiver is a "fast" RegExp
 // 2) pattern is a string
-transitioning builtin RegExpMatchFast(implicit context: Context)(
-    receiver: FastJSRegExp, string: String): JSAny {
+transitioning builtin RegExpMatchFast(
+    implicit context: Context)(receiver: FastJSRegExp, string: String): JSAny {
   return FastRegExpPrototypeMatchBody(receiver, string);
 }
 
 // ES#sec-regexp.prototype-@@match
 // RegExp.prototype [ @@match ] ( string )
 transitioning javascript builtin RegExpPrototypeMatch(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   ThrowIfNotJSReceiver(
       receiver, MessageTemplate::kIncompatibleMethodReceiver,
       'RegExp.prototype.@@match');

@@ -14,7 +14,6 @@ const filename = path.resolve(__dirname,
                               `.removeme-benchmark-garbage-${process.pid}`);
 const fs = require('fs');
 const zlib = require('zlib');
-const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
   duration: [5],
@@ -35,20 +34,28 @@ function main({ len, duration, concurrent, encoding }) {
 
   const zipData = Buffer.alloc(1024, 'a');
 
+  let waitConcurrent = 0;
+
+  // Plus one because of zip
+  const targetConcurrency = concurrent + 1;
+  const startedAt = Date.now();
+  const endAt = startedAt + (duration * 1000);
+
   let reads = 0;
   let zips = 0;
-  let benchEnded = false;
+
   bench.start();
-  setTimeout(() => {
+
+  function stop() {
     const totalOps = reads + zips;
-    benchEnded = true;
     bench.end(totalOps);
+
     try {
       fs.unlinkSync(filename);
     } catch {
       // Continue regardless of error.
     }
-  }, duration * 1000);
+  }
 
   function read() {
     fs.readFile(filename, encoding, afterRead);
@@ -56,11 +63,6 @@ function main({ len, duration, concurrent, encoding }) {
 
   function afterRead(er, data) {
     if (er) {
-      if (er.code === 'ENOENT') {
-        // Only OK if unlinked by the timer from main.
-        assert.ok(benchEnded);
-        return;
-      }
       throw er;
     }
 
@@ -68,8 +70,13 @@ function main({ len, duration, concurrent, encoding }) {
       throw new Error('wrong number of bytes returned');
 
     reads++;
-    if (!benchEnded)
+    const benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === targetConcurrency) {
+      stop();
+    } else if (!benchEnded) {
       read();
+    }
   }
 
   function zip() {
@@ -81,12 +88,17 @@ function main({ len, duration, concurrent, encoding }) {
       throw er;
 
     zips++;
-    if (!benchEnded)
+    const benchEnded = Date.now() >= endAt;
+
+    if (benchEnded && (++waitConcurrent) === targetConcurrency) {
+      stop();
+    } else if (!benchEnded) {
       zip();
+    }
   }
 
   // Start reads
-  while (concurrent-- > 0) read();
+  for (let i = 0; i < concurrent; i++) read();
 
   // Start a competing zip
   zip();

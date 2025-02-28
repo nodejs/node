@@ -47,8 +47,6 @@ const { getSystemErrorName } = require('util');
     delete providers.WORKER;
     // TODO(danbev): Test for these
     delete providers.JSUDPWRAP;
-    if (!common.isMainThread)
-      delete providers.INSPECTORJSBINDING;
     delete providers.KEYPAIRGENREQUEST;
     delete providers.KEYGENREQUEST;
     delete providers.KEYEXPORTREQUEST;
@@ -70,6 +68,8 @@ const { getSystemErrorName } = require('util');
     delete providers.QUIC_PACKET;
     delete providers.QUIC_UDP;
     delete providers.QUIC_ENDPOINT;
+    delete providers.QUIC_SESSION;
+    delete providers.QUIC_STREAM;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)
@@ -163,7 +163,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   req.oncomplete = () => { };
 
   testInitialized(req, 'FSReqCallback');
-  binding.access(path.toNamespacedPath('../'), fs.F_OK, req);
+  binding.access(path.toNamespacedPath('../'), fs.constants.F_OK, req);
 
   const StatWatcher = binding.StatWatcher;
   testInitialized(new StatWatcher(), 'StatWatcher');
@@ -294,7 +294,7 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
 
   // TLSWrap is exposed, but needs to be instantiated via tls_wrap.wrap().
   const tls_wrap = internalBinding('tls_wrap');
-  testInitialized(tls_wrap.wrap(tcp, credentials.context, true), 'TLSWrap');
+  testInitialized(tls_wrap.wrap(tcp, credentials.context, true, false), 'TLSWrap');
 }
 
 {
@@ -312,13 +312,6 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   req.oncomplete = () => handle.close();
   handle.send(req, [Buffer.alloc(1)], 1, req.port, req.address, true);
   testInitialized(req, 'SendWrap');
-}
-
-if (process.features.inspector && common.isMainThread) {
-  const binding = internalBinding('inspector');
-  const handle = new binding.Connection(() => {});
-  testInitialized(handle, 'Connection');
-  handle.disconnect();
 }
 
 // PROVIDER_HEAPDUMP

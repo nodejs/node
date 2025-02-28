@@ -1,5 +1,5 @@
+const { stripVTControlCharacters: strip } = require('node:util')
 const { Minipass } = require('minipass')
-const columnify = require('columnify')
 
 // This module consumes package data in the following format:
 //
@@ -15,14 +15,48 @@ const columnify = require('columnify')
 // The returned stream will format this package data
 // into a byte stream of formatted, displayable output.
 
+function filter (data, exclude) {
+  const words = [data.name]
+    .concat(data.maintainers.map(m => m.username))
+    .concat(data.keywords || [])
+    .map(f => f?.trim?.())
+    .filter(Boolean)
+    .join(' ')
+    .toLowerCase()
+
+  if (exclude.find(pattern => {
+    // Treats both /foo and /foo/ as regex searches
+    if (pattern.startsWith('/')) {
+      if (pattern.endsWith('/')) {
+        pattern = pattern.slice(0, -1)
+      }
+      return words.match(new RegExp(pattern.slice(1)))
+    }
+    return words.includes(pattern)
+  })) {
+    return false
+  }
+
+  return true
+}
+
 module.exports = (opts) => {
-  return opts.json ? new JSONOutputStream() : new TextOutputStream(opts)
+  return opts.json ? new JSONOutputStream(opts) : new TextOutputStream(opts)
 }
 
 class JSONOutputStream extends Minipass {
   #didFirst = false
+  #exclude
+
+  constructor (opts) {
+    super()
+    this.#exclude = opts.exclude
+  }
 
   write (obj) {
+    if (!filter(obj, this.#exclude)) {
+      return
+    }
     if (!this.#didFirst) {
       super.write('[\n')
       this.#didFirst = true
@@ -40,121 +74,100 @@ class JSONOutputStream extends Minipass {
 }
 
 class TextOutputStream extends Minipass {
+  #args
+  #chalk
+  #exclude
+  #parseable
+
   constructor (opts) {
     super()
-    this._opts = opts
-    this._line = 0
+    // Consider a search for "cowboys" and "boy".  If we highlight "boys" first the "cowboys" string will no longer string match because of the ansi highlighting added to "boys".  If we highlight "boy" second then the ansi reset at the end will make the highlighting only on "cowboy" with a normal "s".  Neither is perfect but at least the first option doesn't do partial highlighting. So, we sort strings smaller to larger
+    this.#args = opts.args
+      .map(s => s.toLowerCase())
+      .filter(Boolean)
+      .sort((a, b) => a.length - b.length)
+    this.#chalk = opts.npm.chalk
+    this.#exclude = opts.exclude
+    this.#parseable = opts.parseable
   }
 
-  write (pkg) {
-    return super.write(prettify(pkg, ++this._line, this._opts))
-  }
-}
-
-function prettify (data, num, opts) {
-  var truncate = !opts.long
-
-  var pkg = normalizePackage(data, opts)
-
-  var columns = ['name', 'description', 'author', 'date', 'version', 'keywords']
-
-  if (opts.parseable) {
-    return columns.map(function (col) {
-      return pkg[col] && ('' + pkg[col]).replace(/\t/g, ' ')
-    }).join('\t')
-  }
-
-  // stdout in tap is never a tty
-  /* istanbul ignore next */
-  const maxWidth = process.stdout.isTTY ? process.stdout.getWindowSize()[0] : Infinity
-  let output = columnify(
-    [pkg],
-    {
-      include: columns,
-      showHeaders: num <= 1,
-      columnSplitter: ' | ',
-      truncate: truncate,
-      config: {
-        name: { minWidth: 25, maxWidth: 25, truncate: false, truncateMarker: '' },
-        description: { minWidth: 20, maxWidth: 20 },
-        author: { minWidth: 15, maxWidth: 15 },
-        date: { maxWidth: 11 },
-        version: { minWidth: 8, maxWidth: 8 },
-        keywords: { maxWidth: Infinity },
-      },
+  write (data) {
+    if (!filter(data, this.#exclude)) {
+      return
     }
-  ).split('\n').map(line => line.slice(0, maxWidth)).join('\n')
+    // Normalize
+    const pkg = {
+      authors: data.maintainers.map((m) => `${strip(m.username)}`).join(' '),
+      publisher: strip(data.publisher?.username || ''),
+      date: data.date ? data.date.toISOString().slice(0, 10) : 'prehistoric',
+      description: strip(data.description ?? ''),
+      keywords: [],
+      name: strip(data.name),
+      version: data.version,
+    }
+    if (Array.isArray(data.keywords)) {
+      pkg.keywords = data.keywords.map(strip)
+    } else if (typeof data.keywords === 'string') {
+      pkg.keywords = strip(data.keywords.replace(/[,\s]+/, ' ')).split(' ')
+    }
 
-  if (opts.color) {
-    output = highlightSearchTerms(output, opts.args)
+    let output
+    if (this.#parseable) {
+      output = [pkg.name, pkg.description, pkg.author, pkg.date, pkg.version, pkg.keywords]
+        .filter(Boolean)
+        .map(col => ('' + col).replace(/\t/g, ' ')).join('\t')
+      return super.write(output)
+    }
+
+    const keywords = pkg.keywords.map(k => {
+      if (this.#args.includes(k)) {
+        return this.#chalk.cyan(k)
+      } else {
+        return k
+      }
+    }).join(' ')
+
+    const description = this.#highlight(pkg.description)
+    let name
+    if (this.#args.includes(pkg.name)) {
+      name = this.#chalk.cyan(pkg.name)
+    } else {
+      name = this.#highlight(pkg.name)
+      name = this.#chalk.blue(name)
+    }
+
+    if (description.length) {
+      output = `${name}\n${description}\n`
+    } else {
+      output = `${name}\n`
+    }
+    if (pkg.publisher) {
+      output += `Version ${this.#chalk.blue(pkg.version)} published ${this.#chalk.blue(pkg.date)} by ${this.#chalk.blue(pkg.publisher)}\n`
+    } else {
+      output += `Version ${this.#chalk.blue(pkg.version)} published ${this.#chalk.blue(pkg.date)} by ${this.#chalk.yellow('???')}\n`
+    }
+    output += `Maintainers: ${pkg.authors}\n`
+    if (keywords) {
+      output += `Keywords: ${keywords}\n`
+    }
+    output += `${this.#chalk.blue(`https://npm.im/${pkg.name}`)}\n`
+    return super.write(output)
   }
 
-  return output
-}
-
-var colors = [31, 33, 32, 36, 34, 35]
-var cl = colors.length
-
-function addColorMarker (str, arg, i) {
-  var m = i % cl + 1
-  var markStart = String.fromCharCode(m)
-  var markEnd = String.fromCharCode(0)
-
-  if (arg.charAt(0) === '/') {
-    return str.replace(
-      new RegExp(arg.slice(1, -1), 'gi'),
-      bit => markStart + bit + markEnd
-    )
-  }
-
-  // just a normal string, do the split/map thing
-  var pieces = str.toLowerCase().split(arg.toLowerCase())
-  var p = 0
-
-  return pieces.map(function (piece) {
-    piece = str.slice(p, p + piece.length)
-    var mark = markStart +
-               str.slice(p + piece.length, p + piece.length + arg.length) +
-               markEnd
-    p += piece.length + arg.length
-    return piece + mark
-  }).join('')
-}
-
-function colorize (line) {
-  for (var i = 0; i < cl; i++) {
-    var m = i + 1
-    var color = '\u001B[' + colors[i] + 'm'
-    line = line.split(String.fromCharCode(m)).join(color)
-  }
-  var uncolor = '\u001B[0m'
-  return line.split('\u0000').join(uncolor)
-}
-
-function highlightSearchTerms (str, terms) {
-  terms.forEach(function (arg, i) {
-    str = addColorMarker(str, arg, i)
-  })
-
-  return colorize(str).trim()
-}
-
-function normalizePackage (data, opts) {
-  return {
-    name: data.name,
-    description: data.description,
-    author: data.maintainers.map((m) => `=${m.username}`).join(' '),
-    keywords: Array.isArray(data.keywords)
-      ? data.keywords.join(' ')
-      : typeof data.keywords === 'string'
-        ? data.keywords.replace(/[,\s]+/, ' ')
-        : '',
-    version: data.version,
-    date: (data.date &&
-          (data.date.toISOString() // remove time
-            .split('T').join(' ')
-            .replace(/:[0-9]{2}\.[0-9]{3}Z$/, ''))
-            .slice(0, -5)) ||
-          'prehistoric',
+  #highlight (input) {
+    let output = input
+    for (const arg of this.#args) {
+      let i = output.toLowerCase().indexOf(arg)
+      while (i > -1) {
+        const highlit = this.#chalk.cyan(output.slice(i, i + arg.length))
+        output = [
+          output.slice(0, i),
+          highlit,
+          output.slice(i + arg.length),
+        ].join('')
+        i = output.toLowerCase().indexOf(arg, i + highlit.length)
+      }
+    }
+    return output
   }
 }

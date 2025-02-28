@@ -53,6 +53,14 @@ struct TraceDescriptor {
   TraceCallback callback;
 };
 
+/**
+ * Callback for getting a TraceDescriptor for a given address.
+ *
+ * \param address Possibly inner address of an object.
+ * \returns a TraceDescriptor for the provided address.
+ */
+using TraceDescriptorCallback = TraceDescriptor (*)(const void* address);
+
 namespace internal {
 
 struct V8_EXPORT TraceTraitFromInnerAddressImpl {

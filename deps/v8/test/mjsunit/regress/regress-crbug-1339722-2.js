@@ -2,6 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --no-lazy-feedback-allocation --throw-on-failed-access-check
+// Flags: --no-lazy-feedback-allocation
 
 d8.file.execute('test/mjsunit/regress/regress-crbug-1339722.js');

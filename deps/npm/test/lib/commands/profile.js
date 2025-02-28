@@ -9,13 +9,6 @@ const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, config, ...opt
       async createToken () {},
     },
     'qrcode-terminal': qrcode || { generate: (url, cb) => cb() },
-    'cli-table3': class extends Array {
-      toString () {
-        return this.filter(Boolean)
-          .map(i => [...Object.entries(i)].map(v => v.join(': ')))
-          .join('\n')
-      }
-    },
     '{LIB}/utils/read-user-info.js': readUserInfo || {
       async password () {},
       async otp () {},
@@ -24,6 +17,7 @@ const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, config, ...opt
 
   const mock = await mockNpm(t, {
     ...opts,
+    command: 'profile',
     config: {
       color: false,
       ...config,
@@ -37,10 +31,6 @@ const mockProfile = async (t, { npmProfile, readUserInfo, qrcode, config, ...opt
   return {
     ...mock,
     result: () => mock.joinedOutput(),
-    profile: {
-      exec: (args) => mock.npm.exec('profile', args),
-      usage: () => mock.npm.cmd('profile').then(c => c.usage),
-    },
   }
 }
 
@@ -61,7 +51,7 @@ const userProfile = {
 
 t.test('no args', async t => {
   const { profile } = await mockProfile(t)
-  await t.rejects(profile.exec([]), await profile.usage())
+  await t.rejects(profile.exec([]), await profile.usage)
 })
 
 t.test('profile get no args', async t => {
@@ -97,16 +87,6 @@ t.test('profile get no args', async t => {
 
     await profile.exec(['get'])
     t.matchSnapshot(result(), 'should output all profile info as parseable result')
-  })
-
-  t.test('--color', async t => {
-    const { profile, result } = await mockProfile(t, {
-      npmProfile: defaultNpmProfile,
-      config: { color: 'always' },
-    })
-
-    await profile.exec(['get'])
-    t.matchSnapshot(result(), 'should output all profile info with color result')
   })
 
   t.test('no tfa enabled', async t => {
@@ -476,8 +456,8 @@ t.test('profile set <key> <value>', async t => {
     await profile.exec(['set', 'password'])
 
     t.equal(
-      logs.warn[0][1],
-      'Passwords do not match, please try again.',
+      logs.warn.byTitle('profile')[0],
+      'profile Passwords do not match, please try again.',
       'should log password mismatch message'
     )
 
@@ -560,7 +540,7 @@ t.test('enable-2fa', async t => {
 
   t.test('from basic username/password auth', async t => {
     const npmProfile = {
-      async createToken (pass) {
+      async createToken () {
         return {}
       },
     }
@@ -607,7 +587,7 @@ t.test('enable-2fa', async t => {
       async get () {
         return userProfile
       },
-      async set (newProfile, conf) {
+      async set (newProfile) {
         t.match(
           newProfile,
           {
@@ -679,7 +659,7 @@ t.test('enable-2fa', async t => {
           },
         }
       },
-      async set (newProfile, conf) {
+      async set (newProfile) {
         setCount++
 
         // when profile response shows that 2fa is pending the
@@ -767,7 +747,7 @@ t.test('enable-2fa', async t => {
           },
         }
       },
-      async set (newProfile, conf) {
+      async set () {
         return {
           ...userProfile,
           tfa: 'http://foo?secret=1234',
@@ -779,7 +759,7 @@ t.test('enable-2fa', async t => {
       async password () {
         return 'password1234'
       },
-      async otp (label) {
+      async otp () {
         return '123456'
       },
     }
@@ -806,7 +786,7 @@ t.test('enable-2fa', async t => {
       async get () {
         return userProfile
       },
-      async set (newProfile, conf) {
+      async set () {
         return {
           ...userProfile,
           tfa: null,
@@ -829,7 +809,7 @@ t.test('enable-2fa', async t => {
       config: { otp: '123456' },
     })
 
-    npm.config.getCredentialsByURI = reg => {
+    npm.config.getCredentialsByURI = () => {
       return { token: 'token' }
     }
 
@@ -850,7 +830,7 @@ t.test('enable-2fa', async t => {
           tfa: undefined,
         }
       },
-      async set (newProfile, conf) {
+      async set () {
         return {
           ...userProfile,
           tfa: null,
@@ -872,7 +852,7 @@ t.test('enable-2fa', async t => {
       readUserInfo,
     })
 
-    npm.config.getCredentialsByURI = reg => {
+    npm.config.getCredentialsByURI = () => {
       return { token: 'token' }
     }
 
@@ -893,7 +873,7 @@ t.test('enable-2fa', async t => {
           tfa: undefined,
         }
       },
-      async set (newProfile, conf) {
+      async set () {
         return {
           ...userProfile,
           tfa: null,
@@ -915,7 +895,7 @@ t.test('enable-2fa', async t => {
       readUserInfo,
     })
 
-    npm.config.getCredentialsByURI = reg => {
+    npm.config.getCredentialsByURI = () => {
       return { token: 'token' }
     }
 
@@ -953,7 +933,7 @@ t.test('disable-2fa', async t => {
       async get () {
         return userProfile
       },
-      async set (newProfile, conf) {
+      async set (newProfile) {
         t.same(
           newProfile,
           {
@@ -1034,7 +1014,7 @@ t.test('disable-2fa', async t => {
       async get () {
         return userProfile
       },
-      async set (newProfile, conf) {
+      async set (newProfile) {
         t.same(
           newProfile,
           {
@@ -1052,7 +1032,7 @@ t.test('disable-2fa', async t => {
       async password () {
         return 'password1234'
       },
-      async otp (label) {
+      async otp () {
         throw new Error('should not ask for otp')
       },
     }
@@ -1081,8 +1061,7 @@ t.test('unknown subcommand', async t => {
 
 t.test('completion', async t => {
   const testComp = async (t, { argv, expect, title } = {}) => {
-    const { npm } = await mockProfile(t)
-    const profile = await npm.cmd('profile')
+    const { profile } = await mockProfile(t)
     t.resolveMatch(profile.completion({ conf: { argv: { remain: argv } } }), expect, title)
   }
 
@@ -1114,8 +1093,7 @@ t.test('completion', async t => {
   })
 
   t.test('npm profile unknown subcommand autocomplete', async t => {
-    const { npm } = await mockProfile(t)
-    const profile = await npm.cmd('profile')
+    const { profile } = await mockProfile(t)
     t.rejects(
       profile.completion({ conf: { argv: { remain: ['npm', 'profile', 'asdf'] } } }),
       { message: 'asdf not recognized' },

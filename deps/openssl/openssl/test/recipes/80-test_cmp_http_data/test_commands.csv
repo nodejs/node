@@ -54,6 +54,11 @@ expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infoty
 0,geninfo bad syntax: double ':', -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:int::987,,,,
 0,geninfo bad syntax: missing ':int', -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -geninfo,1.2.3,,,,
 ,,,,,,,,,,,,,,,,,,,
-1,reqout+rspout, -section,, -cmd,ir,,-reqout,_RESULT_DIR/req1.der _RESULT_DIR/req2.der,,-rspout,_RESULT_DIR/rsp1.der _RESULT_DIR/rsp2.der,,BLANK,,BLANK,
-1,reqin, -section,, -cmd,ir,,-reqin,_RESULT_DIR/req1.der _RESULT_DIR/req2.der,,BLANK,,,BLANK,,BLANK,
-1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/rsp1.der _RESULT_DIR/rsp2.der,,BLANK,,BLANK,
+1,reqout ir+certConf rspout ip+pkiConf, -section,, -cmd,ir,,-reqout,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,-rspout,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
+1,reqout cr rspout cp, -section,, -cmd,cr,,-reqout,_RESULT_DIR/cr.der,,-rspout,_RESULT_DIR/cp.der,,BLANK,,BLANK,
+1,reqin old tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
+1,reqin new tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,-reqin_new_tid
+0,reqin wrong req, -section,, -cmd,ir,,-reqin,_RESULT_DIR/cr.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
+1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
+0,rspin too few files - server must reject, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK,-secret,_PBM_SECRET
+0,rspin too few files - no server, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK, -server, """"

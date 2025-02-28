@@ -28,6 +28,7 @@
 #include "src/diagnostics/perf-jit.h"
 
 #include "src/common/assert-scope.h"
+#include "src/flags/flags.h"
 
 // Only compile the {LinuxPerfJitLogger} on Linux.
 #if V8_OS_LINUX
@@ -42,6 +43,7 @@
 #include "src/codegen/assembler.h"
 #include "src/codegen/source-position-table.h"
 #include "src/diagnostics/eh-frame.h"
+#include "src/objects/code-kind.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/snapshot/embedded/embedded-data.h"
@@ -116,7 +118,7 @@ struct PerfJitCodeUnwindingInfo : PerfJitBase {
   // Followed by size_ - sizeof(PerfJitCodeUnwindingInfo) bytes of data.
 };
 
-const char LinuxPerfJitLogger::kFilenameFormatString[] = "./jit-%d.dump";
+const char LinuxPerfJitLogger::kFilenameFormatString[] = "%s/jit-%d.dump";
 
 // Extra padding for the PID in the filename
 const int LinuxPerfJitLogger::kFilenameBufferPadding = 16;
@@ -135,9 +137,11 @@ void LinuxPerfJitLogger::OpenJitDumpFile() {
   // Open the perf JIT dump file.
   perf_output_handle_ = nullptr;
 
-  int bufferSize = sizeof(kFilenameFormatString) + kFilenameBufferPadding;
+  size_t bufferSize = strlen(v8_flags.perf_prof_path) +
+                      sizeof(kFilenameFormatString) + kFilenameBufferPadding;
   base::ScopedVector<char> perf_dump_name(bufferSize);
-  int size = SNPrintF(perf_dump_name, kFilenameFormatString, process_id_);
+  int size = SNPrintF(perf_dump_name, kFilenameFormatString,
+                      v8_flags.perf_prof_path.value(), process_id_);
   CHECK_NE(size, -1);
 
   int fd = open(perf_dump_name.begin(), O_CREAT | O_TRUNC | O_RDWR, 0666);
@@ -217,14 +221,12 @@ uint64_t LinuxPerfJitLogger::GetTimestamp() {
 }
 
 void LinuxPerfJitLogger::LogRecordedBuffer(
-    AbstractCode abstract_code, MaybeHandle<SharedFunctionInfo> maybe_shared,
-    const char* name, int length) {
+    Tagged<AbstractCode> abstract_code,
+    MaybeHandle<SharedFunctionInfo> maybe_sfi, const char* name, int length) {
   DisallowGarbageCollection no_gc;
   if (v8_flags.perf_basic_prof_only_functions) {
-    CodeKind code_kind = abstract_code.kind(isolate_);
-    if (code_kind != CodeKind::INTERPRETED_FUNCTION &&
-        code_kind != CodeKind::TURBOFAN && code_kind != CodeKind::MAGLEV &&
-        code_kind != CodeKind::BASELINE) {
+    CodeKind code_kind = abstract_code->kind(isolate_);
+    if (!CodeKindIsJSFunction(code_kind)) {
       return;
     }
   }
@@ -234,27 +236,29 @@ void LinuxPerfJitLogger::LogRecordedBuffer(
   if (perf_output_handle_ == nullptr) return;
 
   // We only support non-interpreted functions.
-  if (!abstract_code.IsCode(isolate_)) return;
-  Code code = Code::cast(abstract_code);
+  if (!IsCode(abstract_code, isolate_)) return;
+  Tagged<Code> code = Cast<Code>(abstract_code);
 
   // Debug info has to be emitted first.
-  Handle<SharedFunctionInfo> shared;
-  if (v8_flags.perf_prof && maybe_shared.ToHandle(&shared)) {
+  Handle<SharedFunctionInfo> sfi;
+  if (v8_flags.perf_prof && maybe_sfi.ToHandle(&sfi)) {
     // TODO(herhut): This currently breaks for js2wasm/wasm2js functions.
-    CodeKind kind = code.kind();
+    CodeKind kind = code->kind();
     if (kind != CodeKind::JS_TO_WASM_FUNCTION &&
         kind != CodeKind::WASM_TO_JS_FUNCTION) {
-      LogWriteDebugInfo(code, shared);
+      DCHECK_IMPLIES(IsScript(sfi->script()),
+                     Cast<Script>(sfi->script())->has_line_ends());
+      LogWriteDebugInfo(code, sfi);
     }
   }
 
   const char* code_name = name;
-  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code.InstructionStart());
+  uint8_t* code_pointer = reinterpret_cast<uint8_t*>(code->instruction_start());
 
   // Unwinding info comes right after debug info.
   if (v8_flags.perf_prof_unwinding_info) LogWriteUnwindingInfo(code);
 
-  WriteJitCodeLoadEntry(code_pointer, code.InstructionSize(), code_name,
+  WriteJitCodeLoadEntry(code_pointer, code->instruction_size(), code_name,
                         length);
 }
 
@@ -302,19 +306,21 @@ constexpr size_t kUnknownScriptNameStringLen =
     arraysize(kUnknownScriptNameString) - 1;
 
 namespace {
-base::Vector<const char> GetScriptName(Object maybeScript,
+base::Vector<const char> GetScriptName(Tagged<Object> maybeScript,
                                        std::unique_ptr<char[]>* storage,
                                        const DisallowGarbageCollection& no_gc) {
-  if (maybeScript.IsScript()) {
-    Object name_or_url = Script::cast(maybeScript).GetNameOrSourceURL();
-    if (name_or_url.IsSeqOneByteString()) {
-      SeqOneByteString str = SeqOneByteString::cast(name_or_url);
-      return {reinterpret_cast<char*>(str.GetChars(no_gc)),
-              static_cast<size_t>(str.length())};
-    } else if (name_or_url.IsString()) {
+  if (IsScript(maybeScript)) {
+    Tagged<Object> name_or_url =
+        Cast<Script>(maybeScript)->GetNameOrSourceURL();
+    if (IsSeqOneByteString(name_or_url)) {
+      Tagged<SeqOneByteString> str = Cast<SeqOneByteString>(name_or_url);
+      return {reinterpret_cast<char*>(str->GetChars(no_gc)),
+              static_cast<size_t>(str->length())};
+    } else if (IsString(name_or_url)) {
       int length;
-      *storage = String::cast(name_or_url)
-                     .ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
+      *storage =
+          Cast<String>(name_or_url)
+              ->ToCString(DISALLOW_NULLS, FAST_STRING_TRAVERSAL, &length);
       return {storage->get(), static_cast<size_t>(length)};
     }
   }
@@ -323,11 +329,11 @@ base::Vector<const char> GetScriptName(Object maybeScript,
 
 }  // namespace
 
-SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Code code,
+SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Tagged<Code> code,
                                          Handle<SharedFunctionInfo> function,
                                          SourcePosition pos) {
   DisallowGarbageCollection disallow;
-  if (code.is_turbofanned()) {
+  if (code->is_turbofanned()) {
     return pos.FirstInfo(isolate, code);
   } else {
     return SourcePositionInfo(isolate, pos, function);
@@ -336,34 +342,34 @@ SourcePositionInfo GetSourcePositionInfo(Isolate* isolate, Code code,
 
 }  // namespace
 
-void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
+void LinuxPerfJitLogger::LogWriteDebugInfo(Tagged<Code> code,
                                            Handle<SharedFunctionInfo> shared) {
   // Line ends of all scripts have been initialized prior to this.
   DisallowGarbageCollection no_gc;
   // The WasmToJS wrapper stubs have source position entries.
-  SharedFunctionInfo raw_shared = *shared;
-  if (!raw_shared.HasSourceCode()) return;
+  Tagged<SharedFunctionInfo> raw_shared = *shared;
+  if (!raw_shared->HasSourceCode()) return;
 
   PerfJitCodeDebugInfo debug_info;
   uint32_t size = sizeof(debug_info);
 
-  ByteArray source_position_table =
-      code.SourcePositionTable(isolate_, raw_shared);
+  Tagged<TrustedByteArray> source_position_table =
+      code->SourcePositionTable(isolate_, raw_shared);
   // Compute the entry count and get the names of all scripts.
   // Avoid additional work if the script name is repeated. Multiple script
   // names only occur for cross-script inlining.
   uint32_t entry_count = 0;
-  Object last_script = Smi::zero();
+  Tagged<Object> last_script = Smi::zero();
   size_t last_script_name_size = 0;
   std::vector<base::Vector<const char>> script_names;
   for (SourcePositionTableIterator iterator(source_position_table);
        !iterator.done(); iterator.Advance()) {
     SourcePositionInfo info(GetSourcePositionInfo(isolate_, code, shared,
                                                   iterator.source_position()));
-    Object current_script = *info.script;
+    Tagged<Object> current_script = *info.script;
     if (current_script != last_script) {
       std::unique_ptr<char[]> name_storage;
-      auto name = GetScriptName(raw_shared.script(), &name_storage, no_gc);
+      auto name = GetScriptName(raw_shared->script(), &name_storage, no_gc);
       script_names.push_back(name);
       // Add the size of the name after each entry.
       last_script_name_size = name.size() + sizeof(kStringTerminator);
@@ -379,7 +385,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
 
   debug_info.event_ = PerfJitCodeLoad::kDebugInfo;
   debug_info.time_stamp_ = GetTimestamp();
-  debug_info.address_ = code.InstructionStart();
+  debug_info.address_ = code->instruction_start();
   debug_info.entry_count_ = entry_count;
 
   // Add the sizes of fixed parts of entries.
@@ -389,7 +395,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
   debug_info.size_ = size + padding;
   LogWriteBytes(reinterpret_cast<const char*>(&debug_info), sizeof(debug_info));
 
-  Address code_start = code.InstructionStart();
+  Address code_start = code->instruction_start();
 
   last_script = Smi::zero();
   int script_names_index = 0;
@@ -405,7 +411,7 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
     entry.line_number_ = info.line + 1;
     entry.column_ = info.column + 1;
     LogWriteBytes(reinterpret_cast<const char*>(&entry), sizeof(entry));
-    Object current_script = *info.script;
+    Tagged<Object> current_script = *info.script;
     auto name_string = script_names[script_names_index];
     LogWriteBytes(name_string.begin(),
                   static_cast<uint32_t>(name_string.size()));
@@ -421,6 +427,10 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(Code code,
 
 #if V8_ENABLE_WEBASSEMBLY
 void LinuxPerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
+  if (code->IsAnonymous()) {
+    return;
+  }
+
   wasm::WasmModuleSourceMap* source_map =
       code->native_module()->GetWasmSourceMap();
   wasm::WireBytesRef code_ref =
@@ -488,14 +498,14 @@ void LinuxPerfJitLogger::LogWriteDebugInfo(const wasm::WasmCode* code) {
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
+void LinuxPerfJitLogger::LogWriteUnwindingInfo(Tagged<Code> code) {
   PerfJitCodeUnwindingInfo unwinding_info_header;
   unwinding_info_header.event_ = PerfJitCodeLoad::kUnwindingInfo;
   unwinding_info_header.time_stamp_ = GetTimestamp();
   unwinding_info_header.eh_frame_hdr_size_ = EhFrameConstants::kEhFrameHdrSize;
 
-  if (code.has_unwinding_info()) {
-    unwinding_info_header.unwinding_size_ = code.unwinding_info_size();
+  if (code->has_unwinding_info()) {
+    unwinding_info_header.unwinding_size_ = code->unwinding_info_size();
     unwinding_info_header.mapped_size_ = unwinding_info_header.unwinding_size_;
   } else {
     unwinding_info_header.unwinding_size_ = EhFrameConstants::kEhFrameHdrSize;
@@ -510,9 +520,9 @@ void LinuxPerfJitLogger::LogWriteUnwindingInfo(Code code) {
   LogWriteBytes(reinterpret_cast<const char*>(&unwinding_info_header),
                 sizeof(unwinding_info_header));
 
-  if (code.has_unwinding_info()) {
-    LogWriteBytes(reinterpret_cast<const char*>(code.unwinding_info_start()),
-                  code.unwinding_info_size());
+  if (code->has_unwinding_info()) {
+    LogWriteBytes(reinterpret_cast<const char*>(code->unwinding_info_start()),
+                  code->unwinding_info_size());
   } else {
     OFStream perf_output_stream(perf_output_handle_);
     EhFrameWriter::WriteEmptyEhFrame(perf_output_stream);

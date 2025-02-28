@@ -86,6 +86,13 @@ class InstructionOperandConverter {
     return static_cast<uint8_t>(InputInt32(index) & 0x3F);
   }
 
+  CodeEntrypointTag InputCodeEntrypointTag(size_t index) {
+    // Tags are stored shifted to the right so they fit into 32-bits.
+    uint64_t shifted_tag = InputUint32(index);
+    return static_cast<CodeEntrypointTag>(shifted_tag
+                                          << kCodeEntrypointTagShift);
+  }
+
   ExternalReference InputExternalReference(size_t index) {
     return ToExternalReference(instr_->InputAt(index));
   }
@@ -108,12 +115,12 @@ class InstructionOperandConverter {
     return ToRegister(instr_->TempAt(index));
   }
 
-  FloatRegister OutputFloatRegister() {
-    return ToFloatRegister(instr_->Output());
+  FloatRegister OutputFloatRegister(size_t index = 0) {
+    return ToFloatRegister(instr_->OutputAt(index));
   }
 
-  DoubleRegister OutputDoubleRegister() {
-    return ToDoubleRegister(instr_->Output());
+  DoubleRegister OutputDoubleRegister(size_t index = 0) {
+    return ToDoubleRegister(instr_->OutputAt(index));
   }
 
   DoubleRegister TempDoubleRegister(size_t index) {
@@ -165,7 +172,13 @@ class InstructionOperandConverter {
   }
 
   Simd128Register ToSimd128Register(InstructionOperand* op) {
-    return LocationOperand::cast(op)->GetSimd128Register();
+    LocationOperand* loc_op = LocationOperand::cast(op);
+#ifdef V8_TARGET_ARCH_X64
+    if (loc_op->IsSimd256Register()) {
+      return loc_op->GetSimd256RegisterAsSimd128();
+    }
+#endif
+    return loc_op->GetSimd128Register();
   }
 
 #if defined(V8_TARGET_ARCH_X64)

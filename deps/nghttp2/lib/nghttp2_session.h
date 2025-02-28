@@ -39,6 +39,7 @@
 #include "nghttp2_buf.h"
 #include "nghttp2_callbacks.h"
 #include "nghttp2_mem.h"
+#include "nghttp2_ratelim.h"
 
 /* The global variable for tests where we want to disable strict
    preface handling. */
@@ -104,6 +105,14 @@ typedef struct {
 
 /* The default value of maximum number of concurrent streams. */
 #define NGHTTP2_DEFAULT_MAX_CONCURRENT_STREAMS 0xffffffffu
+
+/* The default values for stream reset rate limiter. */
+#define NGHTTP2_DEFAULT_STREAM_RESET_BURST 1000
+#define NGHTTP2_DEFAULT_STREAM_RESET_RATE 33
+
+/* The default max number of CONTINUATION frames following an incoming
+   HEADER frame. */
+#define NGHTTP2_DEFAULT_MAX_CONTINUATIONS 8
 
 /* Internal state when receiving incoming frame */
 typedef enum {
@@ -178,7 +187,9 @@ typedef enum {
   /* Flag means GOAWAY was sent */
   NGHTTP2_GOAWAY_SENT = 0x4,
   /* Flag means GOAWAY was received */
-  NGHTTP2_GOAWAY_RECV = 0x8
+  NGHTTP2_GOAWAY_RECV = 0x8,
+  /* Flag means GOAWAY has been submitted at least once */
+  NGHTTP2_GOAWAY_SUBMITTED = 0x10
 } nghttp2_goaway_flag;
 
 /* nghttp2_inflight_settings stores the SETTINGS entries which local
@@ -235,6 +246,9 @@ struct nghttp2_session {
   /* Queue of In-flight SETTINGS values.  SETTINGS bearing ACK is not
      considered as in-flight. */
   nghttp2_inflight_settings *inflight_settings_head;
+  /* Stream reset rate limiter.  If receiving excessive amount of
+     stream resets, GOAWAY will be sent. */
+  nghttp2_ratelim stream_reset_ratelim;
   /* Sequential number across all streams to process streams in
      FIFO. */
   uint64_t stream_seq;
@@ -280,6 +294,12 @@ struct nghttp2_session {
   size_t max_send_header_block_length;
   /* The maximum number of settings accepted per SETTINGS frame. */
   size_t max_settings;
+  /* The maximum number of CONTINUATION frames following an incoming
+     HEADER frame. */
+  size_t max_continuations;
+  /* The number of CONTINUATION frames following an incoming HEADER
+     frame.  This variable is reset when END_HEADERS flag is seen. */
+  size_t num_continuations;
   /* Next Stream ID. Made unsigned int to detect >= (1 << 31). */
   uint32_t next_stream_id;
   /* The last stream ID this session initiated.  For client session,

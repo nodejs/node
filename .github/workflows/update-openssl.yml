@@ -14,32 +14,20 @@ jobs:
     if: github.repository == 'nodejs/node'
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
-      - name: Check if update branch already exists
-        run: |
-          BRANCH_EXISTS=$(git ls-remote --heads origin actions/tools-update-openssl)
-          echo "BRANCH_EXISTS=$BRANCH_EXISTS" >> $GITHUB_ENV
       - name: Check and download new OpenSSL version
-        # Only run rest of the workflow if the update branch does not yet exist
-        if: ${{ env.BRANCH_EXISTS == '' }}
         run: |
-          NEW_VERSION=$(gh api repos/quictls/openssl/releases -q '.[].tag_name|select(contains("openssl-3"))|ltrimstr("openssl-")' | head -n1)
-          NEW_VERSION_NO_RELEASE_1=$(case $NEW_VERSION in *quic1) echo ${NEW_VERSION%1};; *) echo $NEW_VERSION;; esac)
-          VERSION_H="./deps/openssl/config/archs/linux-x86_64/asm/include/openssl/opensslv.h"
-          CURRENT_VERSION=$(grep "OPENSSL_FULL_VERSION_STR" $VERSION_H | sed -n "s/^.*VERSION_STR \"\(.*\)\"/\1/p" | sed 's/+/-/g')
-          echo "comparing current version: $CURRENT_VERSION with $NEW_VERSION_NO_RELEASE_1"
-          if [ "$NEW_VERSION_NO_RELEASE_1" != "$CURRENT_VERSION" ]; then
-            echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-            echo "HAS_UPDATE=true" >> $GITHUB_ENV
-            ./tools/dep_updaters/update-openssl.sh download "$NEW_VERSION"
-          fi
+          ./tools/dep_updaters/update-openssl.sh download > temp-output
+          cat temp-output
+          tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+          rm temp-output
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Create PR with first commit
-        if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
+        if: env.NEW_VERSION
+        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         # Creates a PR with the new OpenSSL source code committed
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
@@ -48,12 +36,12 @@ jobs:
           body: This is an automated update of OpenSSL to ${{ env.NEW_VERSION }}.
           branch: actions/tools-update-openssl  # Custom branch *just* for this Action.
           commit-message: 'deps: upgrade openssl sources to quictls/openssl-${{ env.NEW_VERSION }}'
-          labels: dependencies
+          labels: dependencies, openssl
           title: 'deps: update OpenSSL to ${{ env.NEW_VERSION }}'
           path: deps/openssl
           update-pull-request-title-and-body: true
       - name: Regenerate platform specific files
-        if: env.HAS_UPDATE
+        if: env.NEW_VERSION
         run: |
           sudo apt install -y nasm libtext-template-perl
           ./tools/dep_updaters/update-openssl.sh regenerate
@@ -61,8 +49,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
       - name: Add second commit
         # Adds a second commit to the PR with the generated platform-dependent files
-        if: env.HAS_UPDATE
-        uses: gr2m/create-or-update-pull-request-action@df20b2c073090271599a08c55ae26e0c3522b329  # v1.9.2
+        if: env.NEW_VERSION
+        uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         env:
           GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:

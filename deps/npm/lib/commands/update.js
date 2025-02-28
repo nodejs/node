@@ -1,10 +1,8 @@
-const path = require('path')
-
-const log = require('../utils/log-shim.js')
-
+const path = require('node:path')
+const { log } = require('proc-log')
 const reifyFinish = require('../utils/reify-finish.js')
-
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
+
 class Update extends ArboristWorkspaceCmd {
   static description = 'Update packages'
   static name = 'update'
@@ -16,6 +14,7 @@ class Update extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'global-style',
     'omit',
+    'include',
     'strict-peer-deps',
     'package-lock',
     'foreground-scripts',
@@ -31,9 +30,9 @@ class Update extends ArboristWorkspaceCmd {
 
   // TODO
   /* istanbul ignore next */
-  async completion (opts) {
-    const completion = require('../utils/completion/installed-deep.js')
-    return completion(this.npm, opts)
+  static async completion (opts, npm) {
+    const completion = require('../utils/installed-deep.js')
+    return completion(npm, opts)
   }
 
   async exec (args) {
@@ -65,4 +64,5 @@ class Update extends ArboristWorkspaceCmd {
     await reifyFinish(this.npm, arb)
   }
 }
+
 module.exports = Update

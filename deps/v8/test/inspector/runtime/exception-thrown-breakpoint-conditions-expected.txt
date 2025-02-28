@@ -7,7 +7,19 @@ Exception thrown: SyntaxError: Unexpected end of input
     at smallFnWithLogpoint (test.js:3:17)
     at <anonymous>:1:1
 
-Running test: testRepeatedErrorsOnlyCauseOneEvent
+Running test: testRepeatedErrorsCauseOneEventEach
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
+Exception thrown: SyntaxError: Unexpected end of input
+    at smallFnWithLogpoint (test.js:3:17)
+    at <anonymous>:1:29
 Exception thrown: SyntaxError: Unexpected end of input
     at smallFnWithLogpoint (test.js:3:17)
     at <anonymous>:1:29

@@ -106,6 +106,7 @@ class V8_EXPORT_PRIVATE Node final {
 
   class Inputs;
   inline Inputs inputs() const;
+  inline base::Vector<Node*> inputs_vector() const;
 
   class UseEdges final {
    public:
@@ -417,7 +418,7 @@ class V8_EXPORT_PRIVATE Node::Inputs final {
   int count_;
 };
 
-// An encapsulation for information associated with a single use of node as a
+// An encapsulation for information associated with a single use of a node as an
 // input from another node, allowing access to both the defining node and
 // the node having the input.
 class Edge final {
@@ -481,6 +482,16 @@ Node::Inputs Node::inputs() const {
     return Inputs(inline_inputs(), inline_count);
   } else {
     return Inputs(outline_inputs()->inputs(), outline_inputs()->count_);
+  }
+}
+
+base::Vector<Node*> Node::inputs_vector() const {
+  int inline_count = InlineCountField::decode(bit_field_);
+  if (inline_count != kOutlineMarker) {
+    return base::VectorOf<Node*>(inline_inputs(), inline_count);
+  } else {
+    return base::VectorOf<Node*>(outline_inputs()->inputs(),
+                                 outline_inputs()->count_);
   }
 }
 

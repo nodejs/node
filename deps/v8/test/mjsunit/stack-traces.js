@@ -154,6 +154,29 @@ function testClassNames() {
   (new MyObjCreator).Create();
 }
 
+function testChangeMessage() {
+  const e = new Error('old');
+  e.message = 'new';
+  throw e;
+}
+
+class CustomErrorWithMessage extends Error {
+  constructor(message) {
+    super(message);
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+function testCustomErrorWithMessage() {
+  throw new CustomErrorWithMessage('custom message');
+}
+
+function testCustomErrorWithChangedMessage() {
+  const e = new CustomErrorWithMessage('custom message');
+  e.message = 'changed message';
+  throw e;
+}
+
 // Utility function for testing that the expected strings occur
 // in the stack trace produced when running the given function.
 function testTrace(name, fun, expected, unexpected) {
@@ -289,6 +312,12 @@ testTrace("testStrippedCustomError", testStrippedCustomError, ["hep-hey"],
     ["new CustomError", "collectStackTrace"]);
 testTrace("testClassNames", testClassNames,
           ["new MyObj", "MyObjCreator.Create"], ["as Create"]);
+testTrace("testChangeMessage", testChangeMessage, ["Error: old"], ["Error: new"]);
+testTrace("testCustomErrorWithMessage", testCustomErrorWithMessage,
+    ["Error: custom message"]);
+testTrace("testCustomErrorWithChangedMessage", testCustomErrorWithChangedMessage,
+    ["Error: custom message"], ["Error: changed message"]);
+
 testCallerCensorship();
 testUnintendedCallerCensorship();
 testErrorsDuringFormatting();
@@ -360,6 +389,14 @@ my_error = {};
 Object.preventExtensions(my_error);
 assertThrows(function() { Error.captureStackTrace(my_error); });
 
+var error = new Error();
+var proxy = new Proxy(error, {});
+Error.captureStackTrace(error);
+assertEquals(undefined, error.__lookupGetter__("stack").call(proxy));
+assertEquals(undefined, error.__lookupSetter__("stack").call(proxy, 153));
+assertEquals(undefined, error.__lookupGetter__("stack").call(42));
+assertEquals(undefined, error.__lookupSetter__("stack").call(42, 153));
+
 var fake_error = {};
 my_error = new Error();
 var stolen_getter = Object.getOwnPropertyDescriptor(my_error, 'stack').get;
@@ -391,7 +428,7 @@ assertEquals([], Object.keys(o));
 var desc = Object.getOwnPropertyDescriptor(o, "stack");
 assertFalse(desc.enumerable);
 assertTrue(desc.configurable);
-assertTrue(desc.writable);
+assertEquals(desc.writable, undefined);
 
 // Check that exceptions thrown within prepareStackTrace throws an exception.
 Error.prepareStackTrace = function(e, frames) { throw 42; }

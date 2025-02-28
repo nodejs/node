@@ -3,14 +3,13 @@
 const common = require('../common');
 const fs = require('fs');
 const { once } = require('events');
-const { join } = require('path');
 const readline = require('readline');
 const assert = require('assert');
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const filename = join(tmpdir.path, 'test.txt');
+const filename = tmpdir.resolve('test.txt');
 
 const testContents = [
   '',

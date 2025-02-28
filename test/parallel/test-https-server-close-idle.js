@@ -52,7 +52,6 @@ server.listen(0, function() {
         assert(response.startsWith('HTTP/1.1 200 OK\r\nConnection: keep-alive'));
         assert.strictEqual(connections, 2);
 
-        server.closeIdleConnections();
         server.close(common.mustCall());
 
         // Check that only the idle connection got closed

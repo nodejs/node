@@ -6,8 +6,7 @@ namespace array {
 
 extern builtin ArrayConcat(Context, JSFunction, JSAny, int32): JSAny;
 
-transitioning javascript builtin
-ArrayPrototypeConcat(
+transitioning javascript builtin ArrayPrototypeConcat(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // Fast path if we invoke as `x.concat()`.
   if (arguments.length == 0) {

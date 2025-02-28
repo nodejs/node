@@ -26,18 +26,33 @@ class MaglevCompilationUnit : public ZoneObject {
                                     Handle<JSFunction> function) {
     return zone->New<MaglevCompilationUnit>(info, function);
   }
-  static MaglevCompilationUnit* NewInner(Zone* zone,
+  static MaglevCompilationUnit* NewInner(
+      Zone* zone, const MaglevCompilationUnit* caller,
+      compiler::SharedFunctionInfoRef shared_function_info,
+      compiler::FeedbackVectorRef feedback_vector) {
+    return zone->New<MaglevCompilationUnit>(
+        caller->info(), caller, shared_function_info, feedback_vector);
+  }
+  static MaglevCompilationUnit* NewDummy(Zone* zone,
                                          const MaglevCompilationUnit* caller,
-                                         compiler::JSFunctionRef function) {
-    return zone->New<MaglevCompilationUnit>(caller->info(), caller, function);
+                                         int register_count,
+                                         uint16_t parameter_count,
+                                         uint16_t max_arguments) {
+    return zone->New<MaglevCompilationUnit>(
+        caller->info(), caller, register_count, parameter_count, max_arguments);
   }
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
-                        Handle<JSFunction> function);
+                        DirectHandle<JSFunction> function);
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
                         const MaglevCompilationUnit* caller,
-                        compiler::JSFunctionRef function);
+                        compiler::SharedFunctionInfoRef shared_function_info,
+                        compiler::FeedbackVectorRef feedback_vector);
+
+  MaglevCompilationUnit(MaglevCompilationInfo* info,
+                        const MaglevCompilationUnit* caller, int register_count,
+                        uint16_t parameter_count, uint16_t max_arguments);
 
   MaglevCompilationInfo* info() const { return info_; }
   const MaglevCompilationUnit* caller() const { return caller_; }
@@ -45,28 +60,31 @@ class MaglevCompilationUnit : public ZoneObject {
   LocalIsolate* local_isolate() const;
   Zone* zone() const;
   int register_count() const { return register_count_; }
-  int parameter_count() const { return parameter_count_; }
+  uint16_t parameter_count() const { return parameter_count_; }
+  uint16_t max_arguments() const { return max_arguments_; }
+  bool is_osr() const;
+  BytecodeOffset osr_offset() const;
   int inlining_depth() const { return inlining_depth_; }
+  bool is_inline() const { return inlining_depth_ != 0; }
   bool has_graph_labeller() const;
   MaglevGraphLabeller* graph_labeller() const;
-  const compiler::SharedFunctionInfoRef& shared_function_info() const {
-    return shared_function_info_;
+  compiler::SharedFunctionInfoRef shared_function_info() const {
+    return shared_function_info_.value();
   }
-  const compiler::JSFunctionRef& function() const { return function_; }
-  const compiler::BytecodeArrayRef& bytecode() const { return bytecode_; }
-  const compiler::FeedbackVectorRef& feedback() const { return feedback_; }
+  compiler::BytecodeArrayRef bytecode() const { return bytecode_.value(); }
+  compiler::FeedbackVectorRef feedback() const { return feedback_.value(); }
 
   void RegisterNodeInGraphLabeller(const Node* node);
 
  private:
   MaglevCompilationInfo* const info_;
   const MaglevCompilationUnit* const caller_;
-  const compiler::JSFunctionRef function_;
-  const compiler::SharedFunctionInfoRef shared_function_info_;
-  const compiler::BytecodeArrayRef bytecode_;
-  const compiler::FeedbackVectorRef feedback_;
+  const compiler::OptionalSharedFunctionInfoRef shared_function_info_;
+  const compiler::OptionalBytecodeArrayRef bytecode_;
+  const compiler::OptionalFeedbackVectorRef feedback_;
   const int register_count_;
-  const int parameter_count_;
+  const uint16_t parameter_count_;
+  const uint16_t max_arguments_;
   const int inlining_depth_;
 };
 

@@ -28,12 +28,12 @@
 
 
 #define CHECK_HANDLE(handle) \
-  ASSERT((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client)
+  ASSERT_NE((uv_udp_t*)(handle) == &server || (uv_udp_t*)(handle) == &client, 0)
 
 #if defined(__APPLE__)          || \
     defined(_AIX)               || \
     defined(__MVS__)            || \
-    defined(__FreeBSD_kernel__) || \
+    defined(__FreeBSD__)        || \
     defined(__NetBSD__)         || \
     defined(__OpenBSD__)
   #define MULTICAST_ADDR "ff02::1%lo0"
@@ -59,7 +59,7 @@ static void alloc_cb(uv_handle_t* handle,
                      uv_buf_t* buf) {
   static char slab[65536];
   CHECK_HANDLE(handle);
-  ASSERT(suggested_size <= sizeof(slab));
+  ASSERT_LE(suggested_size, sizeof(slab));
   buf->base = slab;
   buf->len = sizeof(slab);
 }
@@ -73,7 +73,7 @@ static void close_cb(uv_handle_t* handle) {
 
 static void sv_send_cb(uv_udp_send_t* req, int status) {
   ASSERT_NOT_NULL(req);
-  ASSERT(status == 0);
+  ASSERT_OK(status);
   CHECK_HANDLE(req->handle);
 
   sv_send_cb_called++;
@@ -89,7 +89,7 @@ static int do_send(uv_udp_send_t* send_req) {
   
   buf = uv_buf_init("PING", 4);
 
-  ASSERT(0 == uv_ip6_addr(MULTICAST_ADDR, TEST_PORT, &addr));
+  ASSERT_OK(uv_ip6_addr(MULTICAST_ADDR, TEST_PORT, &addr));
 
   /* client sends "PING" */
   return uv_udp_send(send_req,
@@ -107,7 +107,7 @@ static void cl_recv_cb(uv_udp_t* handle,
                        const struct sockaddr* addr,
                        unsigned flags) {
   CHECK_HANDLE(handle);
-  ASSERT(flags == 0);
+  ASSERT_OK(flags);
 
   if (nread < 0) {
     ASSERT(0 && "unexpected error");
@@ -120,7 +120,7 @@ static void cl_recv_cb(uv_udp_t* handle,
   }
 
   ASSERT_NOT_NULL(addr);
-  ASSERT(nread == 4);
+  ASSERT_EQ(4, nread);
   ASSERT(!memcmp("PING", buf->base, nread));
 
   cl_recv_cb_called++;
@@ -133,16 +133,16 @@ static void cl_recv_cb(uv_udp_t* handle,
     char source_addr[64];
 
     r = uv_ip6_name((const struct sockaddr_in6*)addr, source_addr, sizeof(source_addr));
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     r = uv_udp_set_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, UV_LEAVE_GROUP);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     r = uv_udp_set_source_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, source_addr, UV_JOIN_GROUP);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     r = do_send(&req_ss);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
   }
 }
 
@@ -173,47 +173,52 @@ TEST_IMPL(udp_multicast_join6) {
   if (!can_ipv6_external())
     RETURN_SKIP("No external IPv6 interface available");
 
-  ASSERT(0 == uv_ip6_addr("::", TEST_PORT, &addr));
+  ASSERT_OK(uv_ip6_addr("::", TEST_PORT, &addr));
 
   r = uv_udp_init(uv_default_loop(), &server);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   r = uv_udp_init(uv_default_loop(), &client);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   /* bind to the desired port */
   r = uv_udp_bind(&server, (const struct sockaddr*) &addr, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   r = uv_udp_set_membership(&server, MULTICAST_ADDR, INTERFACE_ADDR, UV_JOIN_GROUP);
   if (r == UV_ENODEV) {
-    MAKE_VALGRIND_HAPPY();
+    MAKE_VALGRIND_HAPPY(uv_default_loop());
     RETURN_SKIP("No ipv6 multicast route");
   }
 
-  ASSERT(r == 0);
+  ASSERT_OK(r);
+
+#if defined(__ANDROID__)
+  /* It returns an ENOSYS error */
+  RETURN_SKIP("Test does not currently work in ANDROID");
+#endif
 
 /* TODO(gengjiawen): Fix test on QEMU. */
 #if defined(__QEMU__)
   RETURN_SKIP("Test does not currently work in QEMU");
 #endif
   r = uv_udp_recv_start(&server, alloc_cb, cl_recv_cb);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   
   r = do_send(&req);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
-  ASSERT(close_cb_called == 0);
-  ASSERT(cl_recv_cb_called == 0);
-  ASSERT(sv_send_cb_called == 0);
+  ASSERT_OK(close_cb_called);
+  ASSERT_OK(cl_recv_cb_called);
+  ASSERT_OK(sv_send_cb_called);
 
   /* run the loop till all events are processed */
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(cl_recv_cb_called == 2);
-  ASSERT(sv_send_cb_called == 2);
-  ASSERT(close_cb_called == 2);
+  ASSERT_EQ(2, cl_recv_cb_called);
+  ASSERT_EQ(2, sv_send_cb_called);
+  ASSERT_EQ(2, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

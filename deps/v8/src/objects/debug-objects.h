@@ -54,8 +54,11 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // and DebugBytecodeArray returns the instrumented bytecode.
   inline bool HasInstrumentedBytecodeArray();
 
-  inline BytecodeArray OriginalBytecodeArray();
-  inline BytecodeArray DebugBytecodeArray();
+  inline Tagged<BytecodeArray> OriginalBytecodeArray(Isolate* isolate);
+  inline Tagged<BytecodeArray> DebugBytecodeArray(Isolate* isolate);
+
+  DECL_TRUSTED_POINTER_ACCESSORS(original_bytecode_array, BytecodeArray)
+  DECL_TRUSTED_POINTER_ACCESSORS(debug_bytecode_array, BytecodeArray)
 
   // --- Break points ---
   // --------------------
@@ -74,18 +77,20 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
   // Check if there is a break point at a source position.
   bool HasBreakPoint(Isolate* isolate, int source_position);
   // Attempt to clear a break point. Return true if successful.
-  static bool ClearBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info,
-                              Handle<BreakPoint> break_point);
+  static bool ClearBreakPoint(Isolate* isolate,
+                              DirectHandle<DebugInfo> debug_info,
+                              DirectHandle<BreakPoint> break_point);
   // Set a break point.
-  static void SetBreakPoint(Isolate* isolate, Handle<DebugInfo> debug_info,
+  static void SetBreakPoint(Isolate* isolate,
+                            DirectHandle<DebugInfo> debug_info,
                             int source_position,
-                            Handle<BreakPoint> break_point);
+                            DirectHandle<BreakPoint> break_point);
   // Get the break point objects for a source position.
   Handle<Object> GetBreakPoints(Isolate* isolate, int source_position);
   // Find the break point info holding this break point object.
-  static Handle<Object> FindBreakPointInfo(Isolate* isolate,
-                                           Handle<DebugInfo> debug_info,
-                                           Handle<BreakPoint> break_point);
+  static Handle<Object> FindBreakPointInfo(
+      Isolate* isolate, DirectHandle<DebugInfo> debug_info,
+      DirectHandle<BreakPoint> break_point);
   // Get the number of break points for this function.
   int GetBreakPointCount(Isolate* isolate);
 
@@ -133,11 +138,11 @@ class DebugInfo : public TorqueGeneratedDebugInfo<DebugInfo, Struct> {
 
   static const int kEstimatedNofBreakPointsInFunction = 4;
 
-  using BodyDescriptor = StructBodyDescriptor;
+  class BodyDescriptor;
 
  private:
   // Get the break point info object for a source position.
-  Object GetBreakPointInfo(Isolate* isolate, int source_position);
+  Tagged<Object> GetBreakPointInfo(Isolate* isolate, int source_position);
 
   TQ_OBJECT_CONSTRUCTORS(DebugInfo)
 };
@@ -149,18 +154,18 @@ class BreakPointInfo
     : public TorqueGeneratedBreakPointInfo<BreakPointInfo, Struct> {
  public:
   // Removes a break point.
-  static void ClearBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
-                              Handle<BreakPoint> break_point);
+  static void ClearBreakPoint(Isolate* isolate,
+                              DirectHandle<BreakPointInfo> info,
+                              DirectHandle<BreakPoint> break_point);
   // Set a break point.
-  static void SetBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
-                            Handle<BreakPoint> break_point);
+  static void SetBreakPoint(Isolate* isolate, DirectHandle<BreakPointInfo> info,
+                            DirectHandle<BreakPoint> break_point);
   // Check if break point info has this break point.
-  static bool HasBreakPoint(Isolate* isolate, Handle<BreakPointInfo> info,
-                            Handle<BreakPoint> break_point);
+  static bool HasBreakPoint(Isolate* isolate, DirectHandle<BreakPointInfo> info,
+                            DirectHandle<BreakPoint> break_point);
   // Check if break point info has break point with this id.
-  static MaybeHandle<BreakPoint> GetBreakPointById(Isolate* isolate,
-                                                   Handle<BreakPointInfo> info,
-                                                   int breakpoint_id);
+  static MaybeHandle<BreakPoint> GetBreakPointById(
+      Isolate* isolate, DirectHandle<BreakPointInfo> info, int breakpoint_id);
   // Get the number of break points for this code offset.
   int GetBreakPointCount(Isolate* isolate);
 
@@ -208,10 +213,10 @@ class StackFrameInfo
  public:
   NEVER_READ_ONLY_SPACE
 
-  static int GetSourcePosition(Handle<StackFrameInfo> info);
+  static int GetSourcePosition(DirectHandle<StackFrameInfo> info);
 
   // The script for the stack frame.
-  inline Script script() const;
+  inline Tagged<Script> script() const;
 
   // The bytecode offset or source position for the stack frame.
   DECL_INT_ACCESSORS(bytecode_offset_or_source_position)
@@ -237,31 +242,18 @@ class ErrorStackData
   NEVER_READ_ONLY_SPACE
 
   inline bool HasFormattedStack() const;
-  DECL_ACCESSORS(formatted_stack, Object)
+  DECL_ACCESSORS(formatted_stack, Tagged<Object>)
   inline bool HasCallSiteInfos() const;
-  DECL_ACCESSORS(call_site_infos, FixedArray)
+  DECL_ACCESSORS(call_site_infos, Tagged<FixedArray>)
 
   static void EnsureStackFrameInfos(Isolate* isolate,
-                                    Handle<ErrorStackData> error_stack);
+                                    DirectHandle<ErrorStackData> error_stack);
 
   DECL_VERIFIER(ErrorStackData)
 
   using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(ErrorStackData)
-};
-
-class PromiseOnStack
-    : public TorqueGeneratedPromiseOnStack<PromiseOnStack, Struct> {
- public:
-  NEVER_READ_ONLY_SPACE
-
-  static MaybeHandle<JSObject> GetPromise(
-      Handle<PromiseOnStack> promise_on_stack);
-
-  class BodyDescriptor;
-
-  TQ_OBJECT_CONSTRUCTORS(PromiseOnStack)
 };
 
 }  // namespace internal

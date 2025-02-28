@@ -68,11 +68,10 @@ declare namespace InternalAsyncWrapBinding {
     SIGNREQUEST: 54;
     TLSWRAP: 55;
     VERIFYREQUEST: 56;
-    INSPECTORJSBINDING: 57;
   }
 }
 
-declare function InternalBinding(binding: 'async_wrap'): {
+export interface AsyncWrapBinding {
   setupHooks(): {
     init: (
       asyncId: number,
@@ -129,4 +128,4 @@ declare function InternalBinding(binding: 'async_wrap'): {
     kDefaultTriggerAsyncId: 3;
   };
   Providers: InternalAsyncWrapBinding.Providers;
-};
+}

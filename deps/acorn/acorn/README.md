@@ -9,9 +9,7 @@ Acorn is open source software released under an
 
 You are welcome to
 [report bugs](https://github.com/acornjs/acorn/issues) or create pull
-requests on [github](https://github.com/acornjs/acorn). For questions
-and discussion, please use the
-[Tern discussion forum](https://discuss.ternjs.net).
+requests on [github](https://github.com/acornjs/acorn).
 
 ## Installation
 
@@ -52,12 +50,11 @@ Options are provided by in a second argument, which should be an
 object containing any of these fields (only `ecmaVersion` is
 required):
 
-- **ecmaVersion**: Indicates the ECMAScript version to parse. Must be
-  either 3, 5, 6 (or 2015), 7 (2016), 8 (2017), 9 (2018), 10 (2019),
-  11 (2020), 12 (2021), 13 (2022), 14 (2023), or `"latest"` (the
-  latest the library supports). This influences support for strict
-  mode, the set of reserved words, and support for new syntax
-  features.
+- **ecmaVersion**: Indicates the ECMAScript version to parse. Can be a
+  number, either in year (`2022`) or plain version number (`6`) form,
+  or `"latest"` (the latest the library supports). This influences
+  support for strict mode, the set of reserved words, and support for
+  new syntax features.
 
   **NOTE**: Only 'stage 4' (finalized) ECMAScript features are being
   implemented by Acorn. Other proposed new features must be
@@ -96,10 +93,11 @@ required):
   (when `sourceType` is not `"module"`).
 
 - **allowAwaitOutsideFunction**: If `false`, `await` expressions can
-  only appear inside `async` functions. Defaults to `true` for
-  `ecmaVersion` 2022 and later, `false` for lower versions. Setting this option to
-  `true` allows to have top-level `await` expressions. They are
-  still not allowed in non-`async` functions, though.
+  only appear inside `async` functions. Defaults to `true` in modules
+  for `ecmaVersion` 2022 and later, `false` for lower versions.
+  Setting this option to `true` allows to have top-level `await`
+  expressions. They are still not allowed in non-`async` functions,
+  though.
 
 - **allowSuperOutsideMethod**: By default, `super` outside a method
   raises an error. Set this to `true` to accept such code.
@@ -107,6 +105,10 @@ required):
 - **allowHashBang**: When this is enabled, if the code starts with the
   characters `#!` (as in a shellscript), the first line will be
   treated as a comment. Defaults to true when `ecmaVersion` >= 2023.
+
+- **checkPrivateFields**: By default, the parser will verify that
+  private properties are only used in places where they are valid and
+  have been declared. Set this to false to turn such checks off.
 
 - **locations**: When `true`, each node has a `loc` object attached
   with `start` and `end` subobjects, each of which contains the
@@ -198,6 +200,13 @@ end, type, value}` object (with added `loc` property when the
 option is enabled). When the token's type is `tokTypes.eof`, you
 should stop calling the method, since it will keep returning that same
 token forever.
+
+Note that tokenizing JavaScript without parsing it is, in modern
+versions of the language, not really possible due to the way syntax is
+overloaded in ways that can only be disambiguated by the parse
+context. This package applies a bunch of heuristics to try and do a
+reasonable job, but you are advised to use `parse` with the `onToken`
+option instead of this.
 
 In ES6 environment, returned result can be used as any other
 protocol-compliant iterable:

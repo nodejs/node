@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -226,6 +226,9 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
     char *dirpath = NULL;
     OPENSSL_DIR_CTX *dirctx = NULL;
 #endif
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+    int numincludes = 0;
+#endif
 
     if ((buff = BUF_MEM_new()) == NULL) {
         ERR_raise(ERR_LIB_CONF, ERR_R_BUF_LIB);
@@ -329,7 +332,7 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
 
         v = NULL;
         /* check for line continuation */
-        if (bufnum >= 1) {
+        if (!again && bufnum >= 1) {
             /*
              * If we have bytes and the last char '\\' and second last char
              * is not '\\'
@@ -441,6 +444,20 @@ static int def_load_bio(CONF *conf, BIO *in, long *line)
                 BIO *next;
                 const char *include_dir = ossl_safe_getenv("OPENSSL_CONF_INCLUDE");
                 char *include_path = NULL;
+
+#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+                /*
+                 * The include processing below can cause the "conf" fuzzer to
+                 * timeout due to the fuzzer inserting large and complicated
+                 * includes - with a large amount of time spent in
+                 * OPENSSL_strlcat/OPENSSL_strcpy. This is not a security
+                 * concern because config files should never come from untrusted
+                 * sources. We just set an arbitrary limit on the allowed
+                 * number of includes when fuzzing to prevent this timeout.
+                 */
+                if (numincludes++ > 10)
+                    goto err;
+#endif
 
                 if (include_dir == NULL)
                     include_dir = conf->includedir;

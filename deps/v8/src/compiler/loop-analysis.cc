@@ -4,7 +4,6 @@
 
 #include "src/compiler/loop-analysis.h"
 
-#include "src/base/v8-fallthrough.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
@@ -13,10 +12,6 @@
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
 #include "src/zone/zone.h"
-
-#if V8_ENABLE_WEBASSEMBLY
-#include "src/wasm/wasm-code-manager.h"
-#endif
 
 namespace v8 {
 namespace internal {
@@ -298,7 +293,7 @@ class LoopFinderImpl {
   void ResizeBackwardMarks() {
     int new_width = width_ + 1;
     int max = num_nodes();
-    uint32_t* new_backward = zone_->NewArray<uint32_t>(new_width * max);
+    uint32_t* new_backward = zone_->AllocateArray<uint32_t>(new_width * max);
     memset(new_backward, 0, new_width * max * sizeof(uint32_t));
     if (width_ > 0) {  // copy old matrix data.
       for (int i = 0; i < max; i++) {
@@ -313,7 +308,7 @@ class LoopFinderImpl {
 
   void ResizeForwardMarks() {
     int max = num_nodes();
-    forward_ = zone_->NewArray<uint32_t>(width_ * max);
+    forward_ = zone_->AllocateArray<uint32_t>(width_ * max);
     memset(forward_, 0, width_ * max * sizeof(uint32_t));
   }
 
@@ -619,29 +614,27 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
             callee->opcode() != IrOpcode::kRelocatableInt64Constant) {
           return nullptr;
         }
-        intptr_t info =
-            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value();
-        using WasmCode = v8::internal::wasm::WasmCode;
-        constexpr intptr_t unrollable_builtins[] = {
+        Builtin builtin = static_cast<Builtin>(
+            OpParameter<RelocatablePtrConstantInfo>(callee->op()).value());
+        constexpr Builtin unrollable_builtins[] = {
             // Exists in every stack check.
-            WasmCode::kWasmStackGuard,
+            Builtin::kWasmStackGuard,
             // Fast table operations.
-            WasmCode::kWasmTableGet, WasmCode::kWasmTableSet,
-            WasmCode::kWasmTableGetFuncRef, WasmCode::kWasmTableSetFuncRef,
-            WasmCode::kWasmTableGrow,
+            Builtin::kWasmTableGet, Builtin::kWasmTableSet,
+            Builtin::kWasmTableGetFuncRef, Builtin::kWasmTableSetFuncRef,
+            Builtin::kWasmTableGrow,
             // Atomics.
-            WasmCode::kWasmAtomicNotify, WasmCode::kWasmI32AtomicWait,
-            WasmCode::kWasmI64AtomicWait,
+            Builtin::kWasmI32AtomicWait, Builtin::kWasmI64AtomicWait,
             // Exceptions.
-            WasmCode::kWasmAllocateFixedArray, WasmCode::kWasmThrow,
-            WasmCode::kWasmRethrow, WasmCode::kWasmRethrowExplicitContext,
+            Builtin::kWasmAllocateFixedArray, Builtin::kWasmThrow,
+            Builtin::kWasmRethrow, Builtin::kWasmRethrowExplicitContext,
             // Fast wasm-gc operations.
-            WasmCode::kWasmRefFunc,
+            Builtin::kWasmRefFunc,
             // While a built-in call, this is the slow path, so it should not
             // prevent loop unrolling for stringview_wtf16.get_codeunit.
-            WasmCode::kWasmStringViewWtf16GetCodeUnit};
+            Builtin::kWasmStringViewWtf16GetCodeUnit};
         if (std::count(std::begin(unrollable_builtins),
-                       std::end(unrollable_builtins), info) == 0) {
+                       std::end(unrollable_builtins), builtin) == 0) {
           return nullptr;
         }
         ENQUEUE_USES(use, true)
@@ -650,8 +643,6 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
       case IrOpcode::kWasmStructGet: {
         // When a chained load occurs in the loop, assume that peeling might
         // help.
-        // Extending this idea to array.get/array.len has been found to hurt
-        // more than it helps (tested on Sheets, Feb 2023).
         Node* object = node->InputAt(0);
         if (object->opcode() == IrOpcode::kWasmStructGet &&
             visited->find(object) != visited->end()) {
@@ -660,9 +651,15 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
         ENQUEUE_USES(use, true);
         break;
       }
+      case IrOpcode::kWasmArrayGet:
+        // Rationale for array.get: loops that contain an array.get also
+        // contain a bounds check, which needs to load the array's length,
+        // which benefits from load elimination after peeling.
       case IrOpcode::kStringPrepareForGetCodeunit:
+        // Rationale for PrepareForGetCodeunit: this internal operation is
+        // specifically designed for being hoisted out of loops.
         has_instruction_worth_peeling = true;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       default:
         ENQUEUE_USES(use, true)
         break;
@@ -696,8 +693,8 @@ ZoneUnorderedSet<Node*>* LoopFinder::FindSmallInnermostLoopFromHeader(
   }
 
   // Only peel functions containing instructions for which loop peeling is known
-  // to be useful. TODO(7748): Add more instructions to get more benefits out of
-  // loop peeling.
+  // to be useful. TODO(14034): Add more instructions to get more benefits out
+  // of loop peeling.
   if (purpose == Purpose::kLoopPeeling && !has_instruction_worth_peeling) {
     return nullptr;
   }

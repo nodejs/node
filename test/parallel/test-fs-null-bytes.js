@@ -52,7 +52,7 @@ function check(async, sync) {
 }
 
 check(fs.access, fs.accessSync, 'foo\u0000bar');
-check(fs.access, fs.accessSync, 'foo\u0000bar', fs.F_OK);
+check(fs.access, fs.accessSync, 'foo\u0000bar', fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, 'foo\u0000bar', 'abc');
 check(fs.chmod, fs.chmodSync, 'foo\u0000bar', '0644');
 check(fs.chown, fs.chownSync, 'foo\u0000bar', 12, 34);
@@ -66,6 +66,7 @@ check(fs.mkdir, fs.mkdirSync, 'foo\u0000bar', '0755');
 check(fs.open, fs.openSync, 'foo\u0000bar', 'r');
 check(fs.readFile, fs.readFileSync, 'foo\u0000bar');
 check(fs.readdir, fs.readdirSync, 'foo\u0000bar');
+check(fs.readdir, fs.readdirSync, 'foo\u0000bar', { recursive: true });
 check(fs.readlink, fs.readlinkSync, 'foo\u0000bar');
 check(fs.realpath, fs.realpathSync, 'foo\u0000bar');
 check(fs.rename, fs.renameSync, 'foo\u0000bar', 'foobar');
@@ -86,7 +87,7 @@ const fileUrl = new URL('file:///C:/foo\u0000bar');
 const fileUrl2 = new URL('file:///C:/foo%00bar');
 
 check(fs.access, fs.accessSync, fileUrl);
-check(fs.access, fs.accessSync, fileUrl, fs.F_OK);
+check(fs.access, fs.accessSync, fileUrl, fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, fileUrl, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl, '0644');
 check(fs.chown, fs.chownSync, fileUrl, 12, 34);
@@ -100,6 +101,7 @@ check(fs.mkdir, fs.mkdirSync, fileUrl, '0755');
 check(fs.open, fs.openSync, fileUrl, 'r');
 check(fs.readFile, fs.readFileSync, fileUrl);
 check(fs.readdir, fs.readdirSync, fileUrl);
+check(fs.readdir, fs.readdirSync, fileUrl, { recursive: true });
 check(fs.readlink, fs.readlinkSync, fileUrl);
 check(fs.realpath, fs.realpathSync, fileUrl);
 check(fs.rename, fs.renameSync, fileUrl, 'foobar');
@@ -117,7 +119,7 @@ check(null, fs.watchFile, fileUrl, assert.fail);
 check(fs.writeFile, fs.writeFileSync, fileUrl, 'abc');
 
 check(fs.access, fs.accessSync, fileUrl2);
-check(fs.access, fs.accessSync, fileUrl2, fs.F_OK);
+check(fs.access, fs.accessSync, fileUrl2, fs.constants.F_OK);
 check(fs.appendFile, fs.appendFileSync, fileUrl2, 'abc');
 check(fs.chmod, fs.chmodSync, fileUrl2, '0644');
 check(fs.chown, fs.chownSync, fileUrl2, 12, 34);
@@ -131,6 +133,7 @@ check(fs.mkdir, fs.mkdirSync, fileUrl2, '0755');
 check(fs.open, fs.openSync, fileUrl2, 'r');
 check(fs.readFile, fs.readFileSync, fileUrl2);
 check(fs.readdir, fs.readdirSync, fileUrl2);
+check(fs.readdir, fs.readdirSync, fileUrl2, { recursive: true });
 check(fs.readlink, fs.readlinkSync, fileUrl2);
 check(fs.realpath, fs.realpathSync, fileUrl2);
 check(fs.rename, fs.renameSync, fileUrl2, 'foobar');

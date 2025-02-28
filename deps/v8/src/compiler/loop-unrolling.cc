@@ -82,7 +82,7 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
         /*** Step 2: Create merges for loop exits. ***/
         if (node->InputAt(1) == loop_node) {
           // Create a merge node from all iteration exits.
-          Node** merge_inputs = tmp_zone->NewArray<Node*>(iteration_count);
+          Node** merge_inputs = tmp_zone->AllocateArray<Node*>(iteration_count);
           merge_inputs[0] = node;
           for (uint32_t i = 1; i < iteration_count; i++) {
             merge_inputs[i] = COPY(node, i - 1);
@@ -105,7 +105,7 @@ void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
                     LoopExitValueRepresentationOf(use->op()), iteration_count);
               }
               Node** phi_inputs =
-                  tmp_zone->NewArray<Node*>(iteration_count + 1);
+                  tmp_zone->AllocateArray<Node*>(iteration_count + 1);
               phi_inputs[0] = use;
               for (uint32_t i = 1; i < iteration_count; i++) {
                 phi_inputs[i] = COPY(use, i - 1);

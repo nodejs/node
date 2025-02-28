@@ -40,7 +40,7 @@
 
 #if V8_TARGET_ARCH_S390
 
-#if V8_HOST_ARCH_S390
+#if V8_HOST_ARCH_S390 && !V8_OS_ZOS
 #include <elf.h>  // Required for auxv checks for STFLE support
 #include <sys/auxv.h>
 #endif
@@ -61,6 +61,14 @@ static unsigned CpuFeaturesImpliedByCompiler() {
 }
 
 static bool supportsCPUFeature(const char* feature) {
+#if V8_OS_ZOS
+  // TODO(gabylb): zos - use cpu_init() and cpu_supports() to test support of
+  // z/OS features when the current compiler supports them.
+  // Currently the only feature to be checked is Vector Extension Facility
+  // ("vector128" on z/OS, "vx" on LoZ) - hence the assert in case that changed.
+  assert(strcmp(feature, "vx") == 0);
+  return __is_vxf_available();
+#else
   static std::set<std::string>& features = *new std::set<std::string>();
   static std::set<std::string>& all_available_features =
       *new std::set<std::string>({"iesan3", "zarch", "stfle", "msa", "ldisp",
@@ -96,6 +104,7 @@ static bool supportsCPUFeature(const char* feature) {
   }
   USE(all_available_features);
   return features.find(feature) != features.end();
+#endif  // !V8_OS_ZOS
 }
 
 #undef CHECK_AVAILABILITY_FOR
@@ -104,7 +113,9 @@ static bool supportsCPUFeature(const char* feature) {
 // Check whether Store Facility STFLE instruction is available on the platform.
 // Instruction returns a bit vector of the enabled hardware facilities.
 static bool supportsSTFLE() {
-#if V8_HOST_ARCH_S390
+#if V8_OS_ZOS
+  return __is_stfle_available();
+#elif V8_HOST_ARCH_S390
   static bool read_tried = false;
   static uint32_t auxv_hwcap = 0;
 
@@ -191,6 +202,10 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
     //   Bit 45 - Distinct Operands for instructions like ARK, SRK, etc.
     // As such, we require only 1 double word
     int64_t facilities[3] = {0L};
+#if V8_OS_ZOS
+    int64_t reg0 = 2;
+    asm volatile(" stfle %0" : "=m"(facilities), __ZL_NR("+", r0)(reg0)::"cc");
+#else
     int16_t reg0;
     // LHI sets up GPR0
     // STFLE is specified as .insn, as opcode is not recognized.
@@ -201,6 +216,7 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
         : "=Q"(facilities), "=r"(reg0)
         :
         : "cc", "r0");
+#endif  // V8_OS_ZOS
 
     uint64_t one = static_cast<uint64_t>(1);
     // Test for Distinct Operands Facility - Bit 45
@@ -338,7 +354,7 @@ MemOperand::MemOperand(Register rn, int32_t offset)
 MemOperand::MemOperand(Register rx, Register rb, int32_t offset)
     : baseRegister(rb), indexRegister(rx), offset_(offset) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
   for (auto& request : heap_number_requests_) {
     Address pc = reinterpret_cast<Address>(buffer_start_) + request.offset();
@@ -355,14 +371,19 @@ void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
 
 Assembler::Assembler(const AssemblerOptions& options,
                      std::unique_ptr<AssemblerBuffer> buffer)
-    : AssemblerBase(options, std::move(buffer)), scratch_register_list_({ip}) {
+    : AssemblerBase(options, std::move(buffer)),
+      scratch_register_list_(DefaultTmpList()),
+      scratch_double_register_list_(DefaultFPTmpList()) {
   reloc_info_writer.Reposition(buffer_start_ + buffer_->size(), pc_);
   last_bound_pos_ = 0;
   relocations_.reserve(128);
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  GetCode(isolate->main_thread_local_isolate(), desc);
+}
+void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create Code objects (mostly in tests), add another Align
@@ -384,8 +405,12 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -398,7 +423,8 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -668,6 +694,17 @@ void Assembler::nop(int type) {
       // TODO(john.yan): Use a better NOP break
       oill(r3, Operand::Zero());
       break;
+#if V8_OS_ZOS
+    case BASR_CALL_TYPE_NOP:
+      emit2bytes(0x0000);
+      break;
+    case BRAS_CALL_TYPE_NOP:
+      emit2bytes(0x0001);
+      break;
+    case BRASL_CALL_TYPE_NOP:
+      emit2bytes(0x0011);
+      break;
+#endif
     default:
       UNIMPLEMENTED();
   }
@@ -753,7 +790,7 @@ void Assembler::GrowBuffer(int needed) {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -781,32 +818,26 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dh(uint16_t data) {
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
+  *reinterpret_cast<uint16_t*>(pc_) = data;
+  pc_ += sizeof(uint16_t);
+}
+
+void Assembler::dd(uint32_t data) {
+  CheckBuffer();
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t value, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t value) {
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   *reinterpret_cast<uint64_t*>(pc_) = value;
   pc_ += sizeof(uint64_t);
 }
 
-void Assembler::dp(uintptr_t data, RelocInfo::Mode rmode) {
+void Assembler::dp(uintptr_t data) {
   CheckBuffer();
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
-  }
   *reinterpret_cast<uintptr_t*>(pc_) = data;
   pc_ += sizeof(uintptr_t);
 }
@@ -833,7 +864,7 @@ void Assembler::EmitRelocations() {
        it != relocations_.end(); it++) {
     RelocInfo::Mode rmode = it->rmode();
     Address pc = reinterpret_cast<Address>(buffer_start_) + it->position();
-    RelocInfo rinfo(pc, rmode, it->data(), Code(), InstructionStream());
+    RelocInfo rinfo(pc, rmode, it->data());
 
     // Fix up internal references now that they are guaranteed to be bound.
     if (RelocInfo::IsInternalReference(rmode)) {
@@ -852,19 +883,11 @@ void Assembler::EmitRelocations() {
   }
 }
 
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : assembler_(assembler),
-      old_available_(*assembler->GetScratchRegisterList()) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *assembler_->GetScratchRegisterList() = old_available_;
+RegList Assembler::DefaultTmpList() { return {r1, ip}; }
+DoubleRegList Assembler::DefaultFPTmpList() {
+  return {kScratchDoubleReg, kDoubleRegZero};
 }
 
-Register UseScratchRegisterScope::Acquire() {
-  RegList* available = assembler_->GetScratchRegisterList();
-  DCHECK_NOT_NULL(available);
-  return available->PopFirst();
-}
 }  // namespace internal
 }  // namespace v8
 #endif  // V8_TARGET_ARCH_S390

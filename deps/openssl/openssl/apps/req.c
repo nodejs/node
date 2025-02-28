@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -199,7 +199,7 @@ static int duplicated(LHASH_OF(OPENSSL_STRING) *addexts, char *kv)
 
     /* Check syntax. */
     /* Skip leading whitespace, make a copy. */
-    while (*kv && isspace(*kv))
+    while (*kv && isspace(_UC(*kv)))
         if (*++kv == '\0')
             return 1;
     if ((p = strchr(kv, '=')) == NULL)
@@ -210,7 +210,7 @@ static int duplicated(LHASH_OF(OPENSSL_STRING) *addexts, char *kv)
 
     /* Skip trailing space before the equal sign. */
     for (p = kv + off; p > kv; --p)
-        if (!isspace(p[-1]))
+        if (!isspace(_UC(p[-1])))
             break;
     if (p == kv) {
         OPENSSL_free(kv);
@@ -569,7 +569,7 @@ int req_main(int argc, char **argv)
         X509V3_CTX ctx;
 
         X509V3_set_ctx_test(&ctx);
-        X509V3_set_nconf(&ctx, addext_conf);
+        X509V3_set_nconf(&ctx, req_conf);
         if (!X509V3_EXT_add_nconf(addext_conf, &ctx, "default", NULL)) {
             BIO_printf(bio_err, "Error checking extensions defined using -addext\n");
             goto end;
@@ -635,8 +635,10 @@ int req_main(int argc, char **argv)
     if (newreq && pkey == NULL) {
         app_RAND_load_conf(req_conf, section);
 
-        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len))
+        if (!NCONF_get_number(req_conf, section, BITS, &newkey_len)) {
+            ERR_clear_error();
             newkey_len = DEFAULT_KEY_LENGTH;
+        }
 
         genctx = set_keygen_ctx(keyalg, &keyalgstr, &newkey_len, gen_eng);
         if (genctx == NULL)
@@ -683,6 +685,8 @@ int req_main(int argc, char **argv)
         EVP_PKEY_CTX_set_app_data(genctx, bio_err);
 
         pkey = app_keygen(genctx, keyalgstr, newkey_len, verbose);
+        if (pkey == NULL)
+            goto end;
 
         EVP_PKEY_CTX_free(genctx);
         genctx = NULL;
@@ -729,7 +733,7 @@ int req_main(int argc, char **argv)
             }
             goto end;
         }
-        BIO_free(out);
+        BIO_free_all(out);
         out = NULL;
         BIO_printf(bio_err, "-----\n");
     }
@@ -988,10 +992,10 @@ int req_main(int argc, char **argv)
         else
             tpubkey = X509_REQ_get0_pubkey(req);
         if (tpubkey == NULL) {
-            fprintf(stdout, "Modulus is unavailable\n");
+            BIO_puts(bio_err, "Modulus is unavailable\n");
             goto end;
         }
-        fprintf(stdout, "Modulus=");
+        BIO_puts(out, "Modulus=");
         if (EVP_PKEY_is_a(tpubkey, "RSA") || EVP_PKEY_is_a(tpubkey, "RSA-PSS")) {
             BIGNUM *n = NULL;
 
@@ -1000,9 +1004,9 @@ int req_main(int argc, char **argv)
             BN_print(out, n);
             BN_free(n);
         } else {
-            fprintf(stdout, "Wrong Algorithm type");
+            BIO_puts(out, "Wrong Algorithm type");
         }
-        fprintf(stdout, "\n");
+        BIO_puts(out, "\n");
     }
 
     if (!noout && !gen_x509) {

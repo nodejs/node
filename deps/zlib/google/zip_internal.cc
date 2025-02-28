@@ -8,11 +8,11 @@
 #include <string.h>
 
 #include <algorithm>
-#include <unordered_set>
+#include <string_view>
 
+#include "base/containers/fixed_flat_set.h"
 #include "base/files/file_path.h"
 #include "base/logging.h"
-#include "base/no_destructor.h"
 #include "base/notreached.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
@@ -166,7 +166,6 @@ struct ZipBuffer {
 void* OpenZipBuffer(void* opaque, const void* /*filename*/, int mode) {
   if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER) != ZLIB_FILEFUNC_MODE_READ) {
     NOTREACHED();
-    return NULL;
   }
   ZipBuffer* buffer = static_cast<ZipBuffer*>(opaque);
   if (!buffer || !buffer->data || !buffer->length)
@@ -197,7 +196,6 @@ uLong WriteZipBuffer(void* /*opaque*/,
                      const void* /*buf*/,
                      uLong /*size*/) {
   NOTREACHED();
-  return 0;
 }
 
 // Returns the offset from the beginning of the data.
@@ -229,7 +227,6 @@ long SeekZipBuffer(void* opaque,
     return 0;
   }
   NOTREACHED();
-  return -1;
 }
 
 // Closes the input offset and deletes all resources used for compressing or
@@ -398,18 +395,16 @@ Compression GetCompressionMethod(const base::FilePath& path) {
   if (ext.empty())
     return kDeflated;
 
-  using StringPiece = base::FilePath::StringPieceType;
 
   // Skip the leading dot.
-  StringPiece ext_without_dot = ext;
+  base::FilePath::StringViewType ext_without_dot = ext;
   DCHECK_EQ(ext_without_dot.front(), FILE_PATH_LITERAL('.'));
   ext_without_dot.remove_prefix(1);
 
   // Well known filename extensions of files that a likely to be already
   // compressed. The extensions are in lower case without the leading dot.
-  static const base::NoDestructor<
-      std::unordered_set<StringPiece, base::StringPieceHashImpl<StringPiece>>>
-      exts(std::initializer_list<StringPiece>{
+  static constexpr auto kExts =
+      base::MakeFixedFlatSet<base::FilePath::StringViewType>({
           FILE_PATH_LITERAL("3g2"),   //
           FILE_PATH_LITERAL("3gp"),   //
           FILE_PATH_LITERAL("7z"),    //
@@ -459,8 +454,9 @@ Compression GetCompressionMethod(const base::FilePath& path) {
           FILE_PATH_LITERAL("zip"),   //
       });
 
-  if (exts->count(ext_without_dot))
+  if (kExts.count(ext_without_dot)) {
     return kStored;
+  }
 
   return kDeflated;
 }

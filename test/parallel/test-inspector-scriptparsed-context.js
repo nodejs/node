@@ -8,8 +8,8 @@ const script = `
   'use strict';
   const assert = require('assert');
   const vm = require('vm');
-  global.outer = true;
-  global.inner = false;
+  globalThis.outer = true;
+  globalThis.inner = false;
   const context = vm.createContext({
     outer: false,
     inner: true
@@ -46,10 +46,13 @@ async function runTests() {
   const instance = new NodeInstance(['--inspect-brk=0', '--expose-internals'],
                                     script);
   const session = await instance.connectInspectorSession();
-  await session.send([
-    { 'method': 'Debugger.enable' },
-    { 'method': 'Runtime.runIfWaitingForDebugger' },
-  ]);
+
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
+  await session.send({ 'method': 'Debugger.enable' });
+  await session.send({ method: 'Runtime.runIfWaitingForDebugger' });
+  await session.send({ method: 'NodeRuntime.disable' });
+
   await session.waitForBreakOnLine(2, '[eval]');
 
   await session.send({ 'method': 'Runtime.enable' });

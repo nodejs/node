@@ -11,9 +11,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-SpillPlacer::SpillPlacer(LiveRangeFinder* finder,
-                         TopTierRegisterAllocationData* data, Zone* zone)
-    : finder_(finder), data_(data), zone_(zone) {}
+SpillPlacer::SpillPlacer(RegisterAllocationData* data, Zone* zone)
+    : data_(data), zone_(zone) {}
 
 SpillPlacer::~SpillPlacer() {
   if (assigned_indices_ > 0) {
@@ -56,10 +55,9 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
        child = child->next()) {
     if (child->spilled()) {
       // Add every block that contains part of this live range.
-      for (UseInterval* interval = child->first_interval(); interval != nullptr;
-           interval = interval->next()) {
+      for (const UseInterval& interval : child->intervals()) {
         RpoNumber start_block =
-            code->GetInstructionBlock(interval->start().ToInstructionIndex())
+            code->GetInstructionBlock(interval.start().ToInstructionIndex())
                 ->rpo_number();
         if (start_block == top_start_block_number) {
           // Can't do late spilling if the first spill is within the
@@ -69,7 +67,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
           DCHECK(!IsLatestVreg(range->vreg()));
           return;
         }
-        LifetimePosition end = interval->end();
+        LifetimePosition end = interval.end();
         int end_instruction = end.ToInstructionIndex();
         // The end position is exclusive, so an end position exactly on a block
         // boundary indicates that the range applies only to the prior block.
@@ -86,8 +84,7 @@ void SpillPlacer::Add(TopLevelLiveRange* range) {
       }
     } else {
       // Add every block that contains a use which requires the on-stack value.
-      for (const UsePosition* pos = child->first_pos(); pos != nullptr;
-           pos = pos->next()) {
+      for (const UsePosition* pos : child->positions()) {
         if (pos->type() != UsePositionType::kRequiresSlot) continue;
         InstructionBlock* block =
             code->GetInstructionBlock(pos->pos().ToInstructionIndex());
@@ -211,12 +208,12 @@ int SpillPlacer::GetOrCreateIndexForLatestVreg(int vreg) {
       DCHECK_EQ(entries_, nullptr);
       // We lazily allocate these arrays because many functions don't have any
       // values that use SpillPlacer.
-      entries_ =
-          zone_->NewArray<Entry>(data()->code()->instruction_blocks().size());
+      entries_ = zone_->AllocateArray<Entry>(
+          data()->code()->instruction_blocks().size());
       for (size_t i = 0; i < data()->code()->instruction_blocks().size(); ++i) {
         new (&entries_[i]) Entry();
       }
-      vreg_numbers_ = zone_->NewArray<int>(kValueIndicesPerEntry);
+      vreg_numbers_ = zone_->AllocateArray<int>(kValueIndicesPerEntry);
     }
 
     if (assigned_indices_ == kValueIndicesPerEntry) {
@@ -464,19 +461,19 @@ void SpillPlacer::SecondBackwardPass() {
 
 void SpillPlacer::CommitSpill(int vreg, InstructionBlock* predecessor,
                               InstructionBlock* successor) {
-  TopLevelLiveRange* top = data()->live_ranges()[vreg];
-  LiveRangeBoundArray* array = finder_->ArrayFor(vreg);
+  TopLevelLiveRange* live_range = data()->live_ranges()[vreg];
   LifetimePosition pred_end = LifetimePosition::InstructionFromInstructionIndex(
       predecessor->last_instruction_index());
-  LiveRangeBound* bound = array->Find(pred_end);
-  InstructionOperand pred_op = bound->range_->GetAssignedOperand();
+  LiveRange* child_range = live_range->GetChildCovers(pred_end);
+  DCHECK_NOT_NULL(child_range);
+  InstructionOperand pred_op = child_range->GetAssignedOperand();
   DCHECK(pred_op.IsAnyRegister());
   DCHECK_EQ(successor->PredecessorCount(), 1);
   data()->AddGapMove(successor->first_instruction_index(),
                      Instruction::GapPosition::START, pred_op,
-                     top->GetSpillRangeOperand());
+                     live_range->GetSpillRangeOperand());
   successor->mark_needs_frame();
-  top->SetLateSpillingSelected(true);
+  live_range->SetLateSpillingSelected(true);
 }
 
 }  // namespace compiler

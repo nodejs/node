@@ -1,19 +1,31 @@
+/* MIT License
+ *
+ * Copyright (c) 2009 Daniel Stenberg
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
+ */
 #ifndef __CARES_BUILD_H
 #define __CARES_BUILD_H
 
-
-/* Copyright (C) 2009 - 2021 by Daniel Stenberg et al
- *
- * Permission to use, copy, modify, and distribute this software and its
- * documentation for any purpose and without fee is hereby granted, provided
- * that the above copyright notice appear in all copies and that both that
- * copyright notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in advertising or
- * publicity pertaining to distribution of the software without specific,
- * written prior permission.  M.I.T. makes no representations about the
- * suitability of this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
- */
 
 /* ================================================================ */
 /*               NOTES FOR CONFIGURE CAPABLE SYSTEMS                */
@@ -122,73 +134,58 @@
 #elif defined(_WIN32_WCE)
 #  define CARES_TYPEOF_ARES_SOCKLEN_T int
 
-#elif defined(__MINGW32__)
-#  define CARES_TYPEOF_ARES_SOCKLEN_T int
-
 #elif defined(__VMS)
 #  define CARES_TYPEOF_ARES_SOCKLEN_T unsigned int
 
 #elif defined(__OS400__)
 #  if defined(__ILEC400__)
 #    define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-#    define CARES_PULL_SYS_TYPES_H      1
-#    define CARES_PULL_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_TYPES_H      1
+#    define CARES_HAVE_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_SELECT_H     1
 #  endif
 
 #elif defined(__MVS__)
 #  if defined(__IBMC__) || defined(__IBMCPP__)
 #    define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-#    define CARES_PULL_SYS_TYPES_H      1
-#    define CARES_PULL_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_TYPES_H      1
+#    define CARES_HAVE_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_SELECT_H     1
 #  endif
 
 #elif defined(__370__)
 #  if defined(__IBMC__) || defined(__IBMCPP__)
 #    define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-#    define CARES_PULL_SYS_TYPES_H      1
-#    define CARES_PULL_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_TYPES_H      1
+#    define CARES_HAVE_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_SELECT_H     1
 #  endif
 
 #elif defined(TPF)
 #  define CARES_TYPEOF_ARES_SOCKLEN_T int
 
-/* ===================================== */
-/*    KEEP MSVC THE PENULTIMATE ENTRY    */
-/* ===================================== */
-
-#elif defined(_MSC_VER)
+#elif defined(_WIN32)
 #  define CARES_TYPEOF_ARES_SOCKLEN_T int
+#  define CARES_HAVE_WINDOWS_H          1
+#  define CARES_HAVE_SYS_TYPES_H        1
 
-/* ===================================== */
-/*    KEEP GENERIC GCC THE LAST ENTRY    */
-/* ===================================== */
+#  if defined(WATT32)
+#    define CARES_HAVE_SYS_SOCKET_H     1
+#    define CARES_HAVE_SYS_SELECT_H     1
+#  else
+#    define CARES_HAVE_WS2TCPIP_H       1
+#    define CARES_HAVE_WINSOCK2_H       1
+#  endif
 
 #elif defined(__GNUC__)
 #  define CARES_TYPEOF_ARES_SOCKLEN_T socklen_t
-#  define CARES_PULL_SYS_TYPES_H      1
-#  define CARES_PULL_SYS_SOCKET_H     1
+#  define CARES_HAVE_SYS_TYPES_H      1
+#  define CARES_HAVE_SYS_SOCKET_H     1
+#  define CARES_HAVE_SYS_SELECT_H     1
 
 #else
 #  error "Unknown non-configure build target!"
    Error Compilation_aborted_Unknown_non_configure_build_target
-#endif
-
-/* CARES_PULL_SYS_TYPES_H is defined above when inclusion of header file  */
-/* sys/types.h is required here to properly make type definitions below.  */
-#ifdef CARES_PULL_SYS_TYPES_H
-#  include <sys/types.h>
-#endif
-
-/* CARES_PULL_SYS_SOCKET_H is defined above when inclusion of header file  */
-/* sys/socket.h is required here to properly make type definitions below.  */
-#ifdef CARES_PULL_SYS_SOCKET_H
-#  include <sys/socket.h>
-#endif
-
-/* Data type definition of ares_socklen_t. */
-
-#ifdef CARES_TYPEOF_ARES_SOCKLEN_T
-  typedef CARES_TYPEOF_ARES_SOCKLEN_T ares_socklen_t;
 #endif
 
 /* Data type definition of ares_ssize_t. */
@@ -201,7 +198,5 @@
 #else
 #  define CARES_TYPEOF_ARES_SSIZE_T ssize_t
 #endif
-
-typedef CARES_TYPEOF_ARES_SSIZE_T ares_ssize_t;
 
 #endif /* __CARES_BUILD_H */

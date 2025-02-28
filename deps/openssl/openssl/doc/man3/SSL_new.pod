@@ -35,7 +35,7 @@ MUST NOT have yet started the SSL handshake.  For connections that are not in
 their initial state SSL_dup() just increments an internal
 reference count and returns the I<same> handle.  It may be possible to
 use L<SSL_clear(3)> to recycle an SSL handle that is not in its initial
-state for re-use, but this is best avoided.  Instead, save and restore
+state for reuse, but this is best avoided.  Instead, save and restore
 the session, if desired, and construct a fresh handle for each connection.
 
 The subset of settings in I<s> that are duplicated are:
@@ -124,7 +124,7 @@ L<ssl(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

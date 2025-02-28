@@ -162,7 +162,7 @@ CharsetDetector::CharsetDetector(UErrorCode &status)
         return;
     }
 
-    resultArray = (CharsetMatch **)uprv_malloc(sizeof(CharsetMatch *)*fCSRecognizers_size);
+    resultArray = static_cast<CharsetMatch**>(uprv_malloc(sizeof(CharsetMatch*) * fCSRecognizers_size));
 
     if (resultArray == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
@@ -443,47 +443,47 @@ UEnumeration * CharsetDetector::getAllDetectableCharsets(UErrorCode &status)
     setRecognizers(status);
 
     if(U_FAILURE(status)) {
-        return 0;
+        return nullptr;
     }
 
     UEnumeration *en = NEW_ARRAY(UEnumeration, 1);
     if (en == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        return 0;
+        return nullptr;
     }
     memcpy(en, &gCSDetEnumeration, sizeof(UEnumeration));
     en->context = (void*)NEW_ARRAY(Context, 1);
     if (en->context == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         DELETE_ARRAY(en);
-        return 0;
+        return nullptr;
     }
     uprv_memset(en->context, 0, sizeof(Context));
-    ((Context*)en->context)->all = true;
+    static_cast<Context*>(en->context)->all = true;
     return en;
 }
 
 UEnumeration * CharsetDetector::getDetectableCharsets(UErrorCode &status) const
 {
     if(U_FAILURE(status)) {
-        return 0;
+        return nullptr;
     }
 
     UEnumeration *en = NEW_ARRAY(UEnumeration, 1);
     if (en == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
-        return 0;
+        return nullptr;
     }
     memcpy(en, &gCSDetEnumeration, sizeof(UEnumeration));
     en->context = (void*)NEW_ARRAY(Context, 1);
     if (en->context == nullptr) {
         status = U_MEMORY_ALLOCATION_ERROR;
         DELETE_ARRAY(en);
-        return 0;
+        return nullptr;
     }
     uprv_memset(en->context, 0, sizeof(Context));
-    ((Context*)en->context)->all = false;
-    ((Context*)en->context)->enabledRecognizers = fEnabledRecognizers;
+    static_cast<Context*>(en->context)->all = false;
+    static_cast<Context*>(en->context)->enabledRecognizers = fEnabledRecognizers;
     return en;
 }
 

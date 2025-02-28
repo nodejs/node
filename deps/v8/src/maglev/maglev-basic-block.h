@@ -9,8 +9,10 @@
 
 #include "src/base/small-vector.h"
 #include "src/codegen/label.h"
+#include "src/compiler/turboshaft/snapshot-table.h"
 #include "src/maglev/maglev-interpreter-frame-state.h"
 #include "src/maglev/maglev-ir.h"
+#include "src/zone/zone-list.h"
 #include "src/zone/zone.h"
 
 namespace v8 {
@@ -22,10 +24,18 @@ using NodeConstIterator = Node::List::Iterator;
 
 class BasicBlock {
  public:
-  explicit BasicBlock(MergePointInterpreterFrameState* state)
-      : control_node_(nullptr), state_(state) {}
+  using Snapshot = compiler::turboshaft::SnapshotTable<ValueNode*>::Snapshot;
+  using MaybeSnapshot =
+      compiler::turboshaft::SnapshotTable<ValueNode*>::MaybeSnapshot;
 
-  uint32_t first_id() const {
+  explicit BasicBlock(MergePointInterpreterFrameState* state, Zone* zone)
+      : type_(state ? kMerge : kOther),
+        control_node_(nullptr),
+        state_(state),
+        reload_hints_(0, zone),
+        spill_hints_(0, zone) {}
+
+  NodeIdT first_id() const {
     if (has_phi()) return phis()->first()->id();
     if (nodes_.is_empty()) {
       return control_node()->id();
@@ -37,7 +47,7 @@ class BasicBlock {
     return node ? node->id() : control_node()->id();
   }
 
-  uint32_t FirstNonGapMoveId() const {
+  NodeIdT FirstNonGapMoveId() const {
     if (has_phi()) return phis()->first()->id();
     if (!nodes_.is_empty()) {
       for (const Node* node : nodes_) {
@@ -59,12 +69,14 @@ class BasicBlock {
 
   bool has_phi() const { return has_state() && state_->has_phi(); }
 
-  bool is_edge_split_block() const { return is_edge_split_block_; }
+  bool is_merge_block() const { return type_ == kMerge; }
+  bool is_edge_split_block() const { return type_ == kEdgeSplit; }
 
   bool is_loop() const { return has_state() && state()->is_loop(); }
 
   MergePointRegisterState& edge_split_block_register_state() {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplit);
+    DCHECK_NOT_NULL(edge_split_block_register_state_);
     return *edge_split_block_register_state_;
   }
 
@@ -74,18 +86,26 @@ class BasicBlock {
 
   void set_edge_split_block_register_state(
       MergePointRegisterState* register_state) {
-    DCHECK(is_edge_split_block());
+    DCHECK_EQ(type_, kEdgeSplit);
     edge_split_block_register_state_ = register_state;
   }
 
-  void set_edge_split_block() {
-    DCHECK_IMPLIES(!nodes_.is_empty(),
-                   nodes_.LengthForTest() == 1 &&
-                       nodes_.first()->Is<IncreaseInterruptBudget>());
+  void set_edge_split_block(BasicBlock* predecessor) {
+    DCHECK_EQ(type_, kOther);
+    DCHECK(nodes_.is_empty());
     DCHECK(control_node()->Is<Jump>());
-    DCHECK_NULL(state_);
-    is_edge_split_block_ = true;
-    edge_split_block_register_state_ = nullptr;
+    type_ = kEdgeSplit;
+    predecessor_ = predecessor;
+  }
+
+  BasicBlock* predecessor() const {
+    DCHECK(type_ == kEdgeSplit || type_ == kOther);
+    return predecessor_;
+  }
+  void set_predecessor(BasicBlock* predecessor) {
+    DCHECK(type_ == kEdgeSplit || type_ == kOther);
+    DCHECK_NULL(edge_split_block_register_state_);
+    predecessor_ = predecessor;
   }
 
   bool is_start_block_of_switch_case() const {
@@ -99,10 +119,24 @@ class BasicBlock {
     DCHECK(has_phi());
     return state_->phis();
   }
+  void AddPhi(Phi* phi) const {
+    DCHECK(has_state());
+    state_->phis()->Add(phi);
+  }
+
+  int predecessor_count() const {
+    DCHECK(has_state());
+    return state()->predecessor_count();
+  }
 
   BasicBlock* predecessor_at(int i) const {
-    DCHECK_NOT_NULL(state_);
+    DCHECK(has_state());
     return state_->predecessor_at(i);
+  }
+
+  BasicBlock* backedge_predecessor() const {
+    DCHECK(is_loop());
+    return predecessor_at(predecessor_count() - 1);
   }
 
   int predecessor_id() const {
@@ -114,19 +148,136 @@ class BasicBlock {
 
   base::SmallVector<BasicBlock*, 2> successors() const;
 
-  Label* label() { return &label_; }
+  template <typename Func>
+  void ForEachPredecessor(Func&& functor) const {
+    if (type_ == kEdgeSplit || type_ == kOther) {
+      BasicBlock* predecessor_block = predecessor();
+      if (predecessor_block) {
+        functor(predecessor_block);
+      }
+    } else {
+      for (int i = 0; i < predecessor_count(); i++) {
+        functor(predecessor_at(i));
+      }
+    }
+  }
+
+  template <typename Func>
+  void ForEachSuccessor(Func&& functor) const {
+    ControlNode* control = control_node();
+    if (auto node = control->TryCast<UnconditionalControlNode>()) {
+      functor(node->target());
+    } else if (auto node = control->TryCast<BranchControlNode>()) {
+      functor(node->if_true());
+      functor(node->if_false());
+    } else if (auto node = control->TryCast<Switch>()) {
+      for (int i = 0; i < node->size(); i++) {
+        functor(node->targets()[i].block_ptr());
+      }
+      if (node->has_fallthrough()) {
+        functor(node->fallthrough());
+      }
+    }
+  }
+
+  Label* label() {
+    // If this fails, jump threading is missing for the node. See
+    // MaglevCodeGeneratingNodeProcessor::PatchJumps.
+    DCHECK_EQ(this, RealJumpTarget());
+    return &label_;
+  }
   MergePointInterpreterFrameState* state() const {
     DCHECK(has_state());
     return state_;
   }
-  bool has_state() const { return !is_edge_split_block() && state_ != nullptr; }
+  bool has_state() const { return type_ == kMerge && state_ != nullptr; }
 
   bool is_exception_handler_block() const {
     return has_state() && state_->is_exception_handler();
   }
 
+  Snapshot snapshot() const {
+    DCHECK(snapshot_.has_value());
+    return snapshot_.value();
+  }
+
+  void SetSnapshot(Snapshot snapshot) { snapshot_.Set(snapshot); }
+
+  ZonePtrList<ValueNode>& reload_hints() { return reload_hints_; }
+  ZonePtrList<ValueNode>& spill_hints() { return spill_hints_; }
+
+  // If the basic block is an empty (unnecessary) block containing only an
+  // unconditional jump to the successor block, return the successor block.
+  BasicBlock* RealJumpTarget() {
+    if (real_jump_target_cache_ != nullptr) {
+      return real_jump_target_cache_;
+    }
+
+    BasicBlock* current = this;
+    while (true) {
+      if (!current->nodes_.is_empty() || current->is_loop() ||
+          current->is_exception_handler_block() ||
+          current->HasPhisOrRegisterMerges()) {
+        break;
+      }
+      Jump* control = current->control_node()->TryCast<Jump>();
+      if (!control) {
+        break;
+      }
+      BasicBlock* next = control->target();
+      if (next->HasPhisOrRegisterMerges()) {
+        break;
+      }
+      current = next;
+    }
+    real_jump_target_cache_ = current;
+    return current;
+  }
+
+  bool is_deferred() const { return deferred_; }
+  void set_deferred(bool deferred) { deferred_ = deferred; }
+
  private:
-  bool is_edge_split_block_ = false;
+  bool HasPhisOrRegisterMerges() const {
+    if (!has_state()) {
+      return false;
+    }
+    if (has_phi()) {
+      return true;
+    }
+    bool has_register_merge = false;
+#ifdef V8_ENABLE_MAGLEV
+    if (!state()->register_state().is_initialized()) {
+      // This can happen when the graph has disconnected blocks; bail out and
+      // don't jump thread them.
+      return true;
+    }
+
+    state()->register_state().ForEachGeneralRegister(
+        [&](Register reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+    state()->register_state().ForEachDoubleRegister(
+        [&](DoubleRegister reg, RegisterState& state) {
+          ValueNode* node;
+          RegisterMerge* merge;
+          if (LoadMergeState(state, &node, &merge)) {
+            has_register_merge = true;
+          }
+        });
+#endif  // V8_ENABLE_MAGLEV
+    return has_register_merge;
+  }
+
+  enum : uint8_t {
+    kMerge,
+    kEdgeSplit,
+    kOther
+  } type_;
   bool is_start_block_of_switch_case_ = false;
   Node::List nodes_;
   ControlNode* control_node_;
@@ -134,7 +285,18 @@ class BasicBlock {
     MergePointInterpreterFrameState* state_;
     MergePointRegisterState* edge_split_block_register_state_;
   };
+  // For kEdgeSplit and kOther blocks.
+  BasicBlock* predecessor_ = nullptr;
   Label label_;
+  // Hints about which nodes should be in registers or spilled when entering
+  // this block. Only relevant for loop headers.
+  ZonePtrList<ValueNode> reload_hints_;
+  ZonePtrList<ValueNode> spill_hints_;
+  // {snapshot_} is used during PhiRepresentationSelection in order to track to
+  // phi tagging nodes that come out of this basic block.
+  MaybeSnapshot snapshot_;
+  BasicBlock* real_jump_target_cache_ = nullptr;
+  bool deferred_ = false;
 };
 
 inline base::SmallVector<BasicBlock*, 2> BasicBlock::successors() const {

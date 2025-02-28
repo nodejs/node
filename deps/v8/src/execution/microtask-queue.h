@@ -21,6 +21,8 @@ class Isolate;
 class Microtask;
 class Object;
 class RootVisitor;
+template <typename T>
+class Tagged;
 
 class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
  public:
@@ -51,7 +53,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
            !HasMicrotasksSuppressions();
   }
 
-  void EnqueueMicrotask(Microtask microtask);
+  void EnqueueMicrotask(Tagged<Microtask> microtask);
   void AddMicrotasksCompletedCallback(
       MicrotasksCompletedCallbackWithData callback, void* data) override;
   void RemoveMicrotasksCompletedCallback(
@@ -100,7 +102,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   intptr_t size() const { return size_; }
   intptr_t start() const { return start_; }
 
-  Microtask get(intptr_t index) const;
+  Tagged<Microtask> get(intptr_t index) const;
 
   MicrotaskQueue* next() const { return next_; }
   MicrotaskQueue* prev() const { return prev_; }
@@ -116,7 +118,7 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
  private:
   void PerformCheckpointInternal(v8::Isolate* v8_isolate);
 
-  void OnCompleted(Isolate* isolate) const;
+  void OnCompleted(Isolate* isolate);
 
   MicrotaskQueue();
   void ResizeBuffer(intptr_t new_capacity);
@@ -146,9 +148,11 @@ class V8_EXPORT_PRIVATE MicrotaskQueue final : public v8::MicrotaskQueue {
   v8::MicrotasksPolicy microtasks_policy_ = v8::MicrotasksPolicy::kAuto;
 
   bool is_running_microtasks_ = false;
+  bool is_running_completed_callbacks_ = false;
   using CallbackWithData =
       std::pair<MicrotasksCompletedCallbackWithData, void*>;
   std::vector<CallbackWithData> microtasks_completed_callbacks_;
+  std::vector<CallbackWithData> microtasks_completed_callbacks_cow_;
 };
 
 }  // namespace internal

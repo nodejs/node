@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -566,7 +566,7 @@ BIO *BIO_new_accept(const char *str)
     ret = BIO_new(BIO_s_accept());
     if (ret == NULL)
         return NULL;
-    if (BIO_set_accept_name(ret, str))
+    if (BIO_set_accept_name(ret, str) > 0)
         return ret;
     BIO_free(ret);
     return NULL;

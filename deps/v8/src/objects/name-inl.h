@@ -7,6 +7,7 @@
 
 #include "src/base/logging.h"
 #include "src/heap/heap-write-barrier-inl.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/map-inl.h"
 #include "src/objects/name.h"
 #include "src/objects/primitive-heap-object-inl.h"
@@ -19,10 +20,14 @@
 namespace v8 {
 namespace internal {
 
-#include "torque-generated/src/objects/name-tq-inl.inc"
-
-TQ_OBJECT_CONSTRUCTORS_IMPL(Name)
-TQ_OBJECT_CONSTRUCTORS_IMPL(Symbol)
+Tagged<PrimitiveHeapObject> Symbol::description() const {
+  return description_.load();
+}
+void Symbol::set_description(Tagged<PrimitiveHeapObject> value,
+                             WriteBarrierMode mode) {
+  SLOW_DCHECK(IsString(value) || IsUndefined(value));
+  description_.store(this, value, mode);
+}
 
 BIT_FIELD_ACCESSORS(Symbol, flags, is_private, Symbol::IsPrivateBit)
 BIT_FIELD_ACCESSORS(Symbol, flags, is_well_known_symbol,
@@ -57,32 +62,31 @@ void Symbol::set_is_private_name() {
   set_flags(Symbol::IsPrivateNameBit::update(flags(), true));
 }
 
-DEF_GETTER(Name, IsUniqueName, bool) {
-  uint32_t type = map(cage_base).instance_type();
+DEF_HEAP_OBJECT_PREDICATE(Name, IsUniqueName) {
+  uint32_t type = obj->map()->instance_type();
   bool result = (type & (kIsNotStringMask | kIsNotInternalizedMask)) !=
                 (kStringTag | kNotInternalizedTag);
-  SLOW_DCHECK(result == HeapObject::IsUniqueName());
-  DCHECK_IMPLIES(result, HasHashCode());
+  SLOW_DCHECK(result == IsUniqueName(Cast<HeapObject>(obj)));
+  DCHECK_IMPLIES(result, obj->HasHashCode());
   return result;
 }
 
-bool Name::Equals(Name other) {
-  if (other == *this) return true;
-  if ((this->IsInternalizedString() && other.IsInternalizedString()) ||
-      this->IsSymbol() || other.IsSymbol()) {
+bool Name::Equals(Tagged<Name> other) {
+  if (other == this) return true;
+  if ((IsInternalizedString(this) && IsInternalizedString(other)) ||
+      IsSymbol(this) || IsSymbol(other)) {
     return false;
   }
-  return String::cast(*this).SlowEquals(String::cast(other));
+  return Cast<String>(this)->SlowEquals(Cast<String>(other));
 }
 
 bool Name::Equals(Isolate* isolate, Handle<Name> one, Handle<Name> two) {
   if (one.is_identical_to(two)) return true;
-  if ((one->IsInternalizedString() && two->IsInternalizedString()) ||
-      one->IsSymbol() || two->IsSymbol()) {
+  if ((IsInternalizedString(*one) && IsInternalizedString(*two)) ||
+      IsSymbol(*one) || IsSymbol(*two)) {
     return false;
   }
-  return String::SlowEquals(isolate, Handle<String>::cast(one),
-                            Handle<String>::cast(two));
+  return String::SlowEquals(isolate, Cast<String>(one), Cast<String>(two));
 }
 
 // static
@@ -160,7 +164,7 @@ bool Name::HasExternalForwardingIndex(AcquireLoadTag) const {
 uint32_t Name::GetRawHashFromForwardingTable(uint32_t raw_hash) const {
   DCHECK(IsForwardingIndex(raw_hash));
   // TODO(pthier): Add parameter for isolate so we don't need to calculate it.
-  Isolate* isolate = GetIsolateFromWritableObject(*this);
+  Isolate* isolate = GetIsolateFromWritableObject(this);
   const int index = ForwardingIndexValueBits::decode(raw_hash);
   return isolate->string_forwarding_table()->GetRawHash(isolate, index);
 }
@@ -174,7 +178,7 @@ uint32_t Name::EnsureRawHash() {
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetRawHash();
+  return Cast<String>(this)->ComputeAndSetRawHash();
 }
 
 uint32_t Name::EnsureRawHash(
@@ -187,7 +191,7 @@ uint32_t Name::EnsureRawHash(
     return GetRawHashFromForwardingTable(field);
   }
   // Slow case: compute hash code and set it. Has to be a string.
-  return String::cast(*this).ComputeAndSetRawHash(access_guard);
+  return Cast<String>(this)->ComputeAndSetRawHash(access_guard);
 }
 
 uint32_t Name::RawHash() {
@@ -205,19 +209,17 @@ uint32_t Name::EnsureHash(const SharedStringAccessGuardIfNeeded& access_guard) {
 }
 
 void Name::set_raw_hash_field_if_empty(uint32_t hash) {
-  uint32_t result = base::AsAtomic32::Release_CompareAndSwap(
-      reinterpret_cast<uint32_t*>(FIELD_ADDR(*this, kRawHashFieldOffset)),
-      kEmptyHashField, hash);
+  uint32_t field_value = kEmptyHashField;
+  bool result = raw_hash_field_.compare_exchange_strong(field_value, hash);
   USE(result);
   // CAS can only fail if the string is shared or we use the forwarding table
   // for all strings and the hash was already set (by another thread) or it is
   // a forwarding index (that overwrites the previous hash).
   // In all cases we don't want overwrite the old value, so we don't handle the
   // failure case.
-  DCHECK_IMPLIES(result != kEmptyHashField,
-                 (String::cast(*this).IsShared() ||
-                  v8_flags.always_use_string_forwarding_table) &&
-                     (result == hash || IsForwardingIndex(hash)));
+  DCHECK_IMPLIES(!result, (Cast<String>(this)->IsShared() ||
+                           v8_flags.always_use_string_forwarding_table) &&
+                              (field_value == hash || IsForwardingIndex(hash)));
 }
 
 uint32_t Name::hash() const {
@@ -242,34 +244,38 @@ bool Name::TryGetHash(uint32_t* hash) const {
   return false;
 }
 
-DEF_GETTER(Name, IsInterestingSymbol, bool) {
-  return IsSymbol(cage_base) && Symbol::cast(*this).is_interesting_symbol();
+bool Name::IsInteresting(Isolate* isolate) {
+  // TODO(ishell): consider using ReadOnlyRoots::IsNameForProtector() trick for
+  // these strings and interesting symbols.
+  return (IsSymbol(this) && Cast<Symbol>(this)->is_interesting_symbol()) ||
+         this == *isolate->factory()->toJSON_string() ||
+         this == *isolate->factory()->get_string();
 }
 
-DEF_GETTER(Name, IsPrivate, bool) {
-  return this->IsSymbol(cage_base) && Symbol::cast(*this).is_private();
+bool Name::IsPrivate() {
+  return IsSymbol(this) && Cast<Symbol>(this)->is_private();
 }
 
-DEF_GETTER(Name, IsPrivateName, bool) {
+bool Name::IsPrivateName() {
   bool is_private_name =
-      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_name();
+      IsSymbol(this) && Cast<Symbol>(this)->is_private_name();
   DCHECK_IMPLIES(is_private_name, IsPrivate());
   return is_private_name;
 }
 
-DEF_GETTER(Name, IsPrivateBrand, bool) {
+bool Name::IsPrivateBrand() {
   bool is_private_brand =
-      this->IsSymbol(cage_base) && Symbol::cast(*this).is_private_brand();
+      IsSymbol(this) && Cast<Symbol>(this)->is_private_brand();
   DCHECK_IMPLIES(is_private_brand, IsPrivateName());
   return is_private_brand;
 }
 
 bool Name::AsArrayIndex(uint32_t* index) {
-  return IsString() && String::cast(*this).AsArrayIndex(index);
+  return IsString(this) && Cast<String>(this)->AsArrayIndex(index);
 }
 
 bool Name::AsIntegerIndex(size_t* index) {
-  return IsString() && String::cast(*this).AsIntegerIndex(index);
+  return IsString(this) && Cast<String>(this)->AsIntegerIndex(index);
 }
 
 // static

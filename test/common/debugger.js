@@ -4,10 +4,11 @@ const spawn = require('child_process').spawn;
 
 const BREAK_MESSAGE = new RegExp('(?:' + [
   'assert', 'break', 'break on start', 'debugCommand',
-  'exception', 'other', 'promiseRejection',
+  'exception', 'other', 'promiseRejection', 'step',
 ].join('|') + ') in', 'i');
 
-let TIMEOUT = common.platformTimeout(5000);
+// Some macOS machines require more time to receive the outputs from the client.
+let TIMEOUT = common.platformTimeout(10000);
 if (common.isWindows) {
   // Some of the windows machines in the CI need more time to receive
   // the outputs from the client.
@@ -121,13 +122,13 @@ function startCLI(args, flags = [], spawnOpts = {}) {
     get breakInfo() {
       const output = this.output;
       const breakMatch =
-        output.match(/break (?:on start )?in ([^\n]+):(\d+)\n/i);
+        output.match(/(step |break (?:on start )?)in ([^\n]+):(\d+)\n/i);
 
       if (breakMatch === null) {
         throw new Error(
           `Could not find breakpoint info in ${JSON.stringify(output)}`);
       }
-      return { filename: breakMatch[1], line: +breakMatch[2] };
+      return { filename: breakMatch[2], line: +breakMatch[3] };
     },
 
     ctrlC() {

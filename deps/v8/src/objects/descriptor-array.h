@@ -20,10 +20,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
-
-class Isolate;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/descriptor-array-tq.inc"
@@ -48,7 +44,8 @@ class EnumCache : public TorqueGeneratedEnumCache<EnumCache, Struct> {
 //   Elements:
 //     [kHeaderSize + 0]: first key (and internalized String)
 //     [kHeaderSize + 1]: first descriptor details (see PropertyDetails)
-//     [kHeaderSize + 2]: first value for constants / Smi(1) when not used
+//     [kHeaderSize + 2]: first value for constants / Tagged<Smi>(1) when not
+//     used
 //   Slack:
 //     [kHeaderSize + number of descriptors * 3]: start of slack
 // The "value" fields store either values or field types. A field type is either
@@ -63,41 +60,42 @@ class DescriptorArray
   inline int number_of_entries() const;
 
   void ClearEnumCache();
-  inline void CopyEnumCacheFrom(DescriptorArray array);
+  inline void CopyEnumCacheFrom(Tagged<DescriptorArray> array);
   static void InitializeOrChangeEnumCache(
-      Handle<DescriptorArray> descriptors, Isolate* isolate,
-      Handle<FixedArray> keys, Handle<FixedArray> indices,
+      DirectHandle<DescriptorArray> descriptors, Isolate* isolate,
+      DirectHandle<FixedArray> keys, DirectHandle<FixedArray> indices,
       AllocationType allocation_if_initialize);
 
   // Accessors for fetching instance descriptor at descriptor number.
-  inline Name GetKey(InternalIndex descriptor_number) const;
-  inline Name GetKey(PtrComprCageBase cage_base,
-                     InternalIndex descriptor_number) const;
-  inline Object GetStrongValue(InternalIndex descriptor_number);
-  inline Object GetStrongValue(PtrComprCageBase cage_base,
-                               InternalIndex descriptor_number);
-  inline MaybeObject GetValue(InternalIndex descriptor_number);
-  inline MaybeObject GetValue(PtrComprCageBase cage_base,
-                              InternalIndex descriptor_number);
+  inline Tagged<Name> GetKey(InternalIndex descriptor_number) const;
+  inline Tagged<Name> GetKey(PtrComprCageBase cage_base,
+                             InternalIndex descriptor_number) const;
+  inline Tagged<Object> GetStrongValue(InternalIndex descriptor_number);
+  inline Tagged<Object> GetStrongValue(PtrComprCageBase cage_base,
+                                       InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(InternalIndex descriptor_number);
+  inline Tagged<MaybeObject> GetValue(PtrComprCageBase cage_base,
+                                      InternalIndex descriptor_number);
   inline PropertyDetails GetDetails(InternalIndex descriptor_number);
   inline int GetFieldIndex(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(InternalIndex descriptor_number);
-  inline FieldType GetFieldType(PtrComprCageBase cage_base,
-                                InternalIndex descriptor_number);
+  inline Tagged<FieldType> GetFieldType(InternalIndex descriptor_number);
+  inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
+                                        InternalIndex descriptor_number);
 
-  inline Name GetSortedKey(int descriptor_number);
-  inline Name GetSortedKey(PtrComprCageBase cage_base, int descriptor_number);
+  inline Tagged<Name> GetSortedKey(int descriptor_number);
+  inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
+                                   int descriptor_number);
   inline int GetSortedKeyIndex(int descriptor_number);
 
   // Accessor for complete descriptor.
   inline void Set(InternalIndex descriptor_number, Descriptor* desc);
-  inline void Set(InternalIndex descriptor_number, Name key, MaybeObject value,
-                  PropertyDetails details);
+  inline void Set(InternalIndex descriptor_number, Tagged<Name> key,
+                  Tagged<MaybeObject> value, PropertyDetails details);
   void Replace(InternalIndex descriptor_number, Descriptor* descriptor);
 
   // Generalizes constness, representation and field type of all field
   // descriptors.
-  void GeneralizeAllFields();
+  void GeneralizeAllFields(bool clear_constness);
 
   // Append automatically sets the enumeration index. This should only be used
   // to add descriptors in bulk at the end, followed by sorting the descriptor
@@ -105,16 +103,12 @@ class DescriptorArray
   inline void Append(Descriptor* desc);
 
   static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
-                                          Handle<DescriptorArray> desc,
+                                          DirectHandle<DescriptorArray> desc,
                                           int enumeration_index, int slack = 0);
 
   static Handle<DescriptorArray> CopyUpToAddAttributes(
-      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
-      PropertyAttributes attributes, int slack = 0);
-
-  static Handle<DescriptorArray> CopyForFastObjectClone(
-      Isolate* isolate, Handle<DescriptorArray> desc, int enumeration_index,
-      int slack = 0);
+      Isolate* isolate, DirectHandle<DescriptorArray> desc,
+      int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
   // Sort the instance descriptors by the hash codes of their keys.
   V8_EXPORT_PRIVATE void Sort();
@@ -130,21 +124,23 @@ class DescriptorArray
   // Search the instance descriptors for given name. {concurrent_search} signals
   // if we are doing the search on a background thread. If so, we will sacrifice
   // speed for thread-safety.
-  V8_INLINE InternalIndex Search(Name name, int number_of_own_descriptors,
+  V8_INLINE InternalIndex Search(Tagged<Name> name,
+                                 int number_of_own_descriptors,
                                  bool concurrent_search = false);
-  V8_INLINE InternalIndex Search(Name name, Map map,
+  V8_INLINE InternalIndex Search(Tagged<Name> name, Tagged<Map> map,
                                  bool concurrent_search = false);
 
   // Search the instance descriptors for given field offset.
   V8_INLINE InternalIndex Search(int field_offset,
                                  int number_of_own_descriptors);
-  V8_INLINE InternalIndex Search(int field_offset, Map map);
+  V8_INLINE InternalIndex Search(int field_offset, Tagged<Map> map);
 
   // As the above, but uses DescriptorLookupCache and updates it when
   // necessary.
-  V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Name name, Map map);
+  V8_INLINE InternalIndex SearchWithCache(Isolate* isolate, Tagged<Name> name,
+                                          Tagged<Map> map);
 
-  bool IsEqualUpTo(DescriptorArray desc, int nof_descriptors);
+  bool IsEqualUpTo(Tagged<DescriptorArray> desc, int nof_descriptors);
 
   // Allocates a DescriptorArray, but returns the singleton
   // empty descriptor array object if number_of_descriptors is 0.
@@ -153,8 +149,9 @@ class DescriptorArray
       IsolateT* isolate, int nof_descriptors, int slack,
       AllocationType allocation = AllocationType::kYoung);
 
-  void Initialize(EnumCache enum_cache, HeapObject undefined_value,
-                  int nof_descriptors, int slack, uint32_t raw_gc_state);
+  void Initialize(Tagged<EnumCache> enum_cache,
+                  Tagged<HeapObject> undefined_value, int nof_descriptors,
+                  int slack, uint32_t raw_gc_state);
 
   // Constant for denoting key was not found.
   static const int kNotFound = -1;
@@ -208,7 +205,7 @@ class DescriptorArray
   V8_EXPORT_PRIVATE bool IsSortedNoDuplicates();
 
   // Are two DescriptorArrays equal?
-  bool IsEqualTo(DescriptorArray other);
+  bool IsEqualTo(Tagged<DescriptorArray> other);
 #endif
 
   static constexpr int ToDetailsIndex(int descriptor_number) {
@@ -229,14 +226,15 @@ class DescriptorArray
   using EntryValueField = TaggedField<MaybeObject, kEntryValueOffset>;
 
  private:
-  inline void SetKey(InternalIndex descriptor_number, Name key);
-  inline void SetValue(InternalIndex descriptor_number, MaybeObject value);
+  inline void SetKey(InternalIndex descriptor_number, Tagged<Name> key);
+  inline void SetValue(InternalIndex descriptor_number,
+                       Tagged<MaybeObject> value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.
-  void CopyFrom(InternalIndex index, DescriptorArray src);
+  void CopyFrom(InternalIndex index, Tagged<DescriptorArray> src);
 
   inline void SetSortedKey(int pointer, int descriptor_number);
 
@@ -287,7 +285,7 @@ class DescriptorArrayMarkingState final {
   // The call issues and Acq/Rel barrier to allow synchronizing other state
   // (e.g. value of descriptor slots) with it.
   static inline bool TryUpdateIndicesToMark(unsigned gc_epoch,
-                                            DescriptorArray array,
+                                            Tagged<DescriptorArray> array,
                                             DescriptorIndex index_to_mark);
 
   // Used from the visitor when processing a DescriptorArray. Returns a range of
@@ -295,7 +293,8 @@ class DescriptorArrayMarkingState final {
   // end. The method signals the first invocation by returning start == 0, and
   // end != 0.
   static inline std::pair<DescriptorIndex, DescriptorIndex>
-  AcquireDescriptorRangeToMark(unsigned gc_epoch, DescriptorArray array);
+  AcquireDescriptorRangeToMark(unsigned gc_epoch,
+                               Tagged<DescriptorArray> array);
 
  private:
   static constexpr RawGCStateType NewState(unsigned masked_epoch,
@@ -305,7 +304,7 @@ class DescriptorArrayMarkingState final {
            Delta::encode(delta);
   }
 
-  static bool SwapState(DescriptorArray array, RawGCStateType old_state,
+  static bool SwapState(Tagged<DescriptorArray> array, RawGCStateType old_state,
                         RawGCStateType new_state) {
     return static_cast<RawGCStateType>(base::AcquireRelease_CompareAndSwap(
                reinterpret_cast<base::Atomic32*>(

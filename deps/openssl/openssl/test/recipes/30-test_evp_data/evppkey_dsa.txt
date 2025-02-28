@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -142,6 +142,23 @@ Kr2KShQB0FlSgvcCDTX7g8eJ/UuIWo6wX4hSdHDhBB4CHAdVVg1m5ikOICUBo37Y
 /TqkTaCFsMDwcDc20Jg=
 -----END PRIVATE KEY-----
 
+PrivateKey = DSA-2048-160
+-----BEGIN PRIVATE KEY-----
+MIICTAIBADCCAi0GByqGSM44BAEwggIgAoIBAQCOypCJyAO7uNZSPSNGalSkyjQC
+xdFVIGfMJKjEXzJnH4g3ts0UqUyO8126REDJEXDeMi22841xsSvzz0ZJeT5YvMLW
+t1BtSTiYg2QOar1qEGJunHgjsWKJbVzIqWNw60ZP7pNKmlR7PKa3WDaPhdeVP8zJ
+PEMeUHOSprO5Jk/Hjr8jxV0znIIixb9L9PgJAwxiM7rkRHS2Oz1FCYDmNmuFhQDh
+Cb3wY9t1AcAHZ05uZ4PtNjdRPwFLPeVdckPj0ntApvOrH18xPWBmwcVeHAH1SV2k
+7LPK7wILHVzcKm74ubX/s1wKysyyXyKM+oCgG9jvfh09VQJcHTHaVS643ohZAhUA
+uQMLDZqMQbh9TYlm9xYCEBaeVs0CggEAcum3PgEQIRfukytMQ7gKMyfxHqhMmJ6t
+RolRhgMrSfl99dmMoqJV+sdSjYvZSkwl71N1Y4Al8GcJB1SzTSb8qGRzM+43pa4k
+SyQZ62WA8w5gaIQJ85JUrWiT8C6SgwAbruS5BVHRbQD6FxZwro9+s8uPnLesMTQX
+p4maNSQaqYX7tqGl6Z7Wo0PsEwuDRvBlI6sl97gl4q3FQPByCq/64UW/eF6Illo1
+dpfbiWCszsp8oczXCEuP+2Y67WUIj3LjFA7WM/R8K4SfdMQ/VXY/cyRhlUqQl8Qe
+ndBVKe0IeSdqvMcLNoUip7DGcOXW2ogZl+wgeP4xL3pdo8uS025kjwQWAhRfutAE
+r/MlbdGMvcA7l0XmzzY85w==
+-----END PRIVATE KEY-----
+
 PrivateKey = DSA-2048-224
 -----BEGIN PRIVATE KEY-----
 MIICXAIBADCCAjUGByqGSM44BAEwggIoAoIBAQDVjuiHR3XA9yAjToNQOmdg2rN9
@@ -249,8 +266,16 @@ bDfJavyQoCWW6EF260m2+rWtl6ILGhhWIbDN5KfXBhrOPvxvHQQiAiBZM1KxUjGw
 h2C/91Z0b0Xg4QYNOtVUbfqQTJQAqEpaRg==
 -----END PRIVATE KEY-----
 
-
 Title = FIPS Tests (using different key sizes and digests)
+
+# Test sign with a 2048 bit key with N == 160 is not allowed in fips mode
+Availablein = fips
+FIPSversion = <3.4.0
+DigestSign = SHA256
+Key = DSA-2048-160
+Input = "Hello"
+Output = 00
+Result = DIGESTSIGNINIT_ERROR
 
 # Test sign with a 2048 bit key with N == 224 is allowed in fips mode
 DigestSign = SHA256
@@ -289,10 +314,18 @@ Key = DSA-1024
 Input = "Hello "
 Output = 302c0214602d21ed37e46051bb3d06cc002adddeb4cdb3bd02144f39f75587b286588862d06366b2f29bddaf8cf6
 
+# Test verify with a 2048/160 bit key is allowed in fips mode
+FIPSversion = >3.1.1
+DigestVerify = SHA256
+Key = DSA-2048-160
+Input = "Hello"
+Output = 302e021500a51ca7f70ae206f221dc9b805bb04bfc07d6e448021500b16e45f9dac8aff04e115f96c00f4237d0fced41
+
 Title = Fips Negative Tests (using different key sizes and digests)
 
 # Test sign with a 1024 bit key is not allowed in fips mode
 Availablein = fips
+FIPSversion = <3.4.0
 DigestSign = SHA256
 Securitycheck = 1
 Key = DSA-1024-FIPS186-2
@@ -309,6 +342,7 @@ Result = DIGESTSIGNINIT_ERROR
 
 # Test sign with a 3072 bit key with N == 224 is not allowed in fips mode
 Availablein = fips
+FIPSversion = <3.4.0
 DigestSign = SHA256
 Securitycheck = 1
 Key = DSA-3072-224
@@ -317,6 +351,7 @@ Result = DIGESTSIGNINIT_ERROR
 
 # Test sign with a 4096 bit key is not allowed in fips mode
 Availablein = fips
+FIPSversion = <3.4.0
 DigestSign = SHA256
 Securitycheck = 1
 Key = DSA-4096-256

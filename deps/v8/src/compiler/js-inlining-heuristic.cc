@@ -26,7 +26,7 @@ bool IsSmall(int const size) {
 }
 
 bool CanConsiderForInlining(JSHeapBroker* broker,
-                            FeedbackCellRef const& feedback_cell) {
+                            FeedbackCellRef feedback_cell) {
   OptionalFeedbackVectorRef feedback_vector =
       feedback_cell.feedback_vector(broker);
   if (!feedback_vector.has_value()) {
@@ -72,8 +72,7 @@ bool CanConsiderForInlining(JSHeapBroker* broker,
   return true;
 }
 
-bool CanConsiderForInlining(JSHeapBroker* broker,
-                            JSFunctionRef const& function) {
+bool CanConsiderForInlining(JSHeapBroker* broker, JSFunctionRef function) {
   FeedbackCellRef feedback_cell = function.raw_feedback_cell(broker);
   bool const result = CanConsiderForInlining(broker, feedback_cell);
   if (result) {
@@ -152,7 +151,7 @@ JSInliningHeuristic::Candidate JSInliningHeuristic::CollectFunctions(
 
 Reduction JSInliningHeuristic::Reduce(Node* node) {
 #if V8_ENABLE_WEBASSEMBLY
-  if (mode() == kWasmOnly) {
+  if (mode() == kWasmWrappersOnly || mode() == kWasmFullInlining) {
     if (node->opcode() == IrOpcode::kJSWasmCall) {
       return inliner_.ReduceJSWasmCall(node);
     }
@@ -300,6 +299,7 @@ void JSInliningHeuristic::Finalize() {
     int total_size =
         total_inlined_bytecode_size_ + static_cast<int>(size_of_candidate);
     if (total_size > max_inlined_bytecode_size_cumulative_) {
+      info_->set_could_not_inline_all_candidates();
       // Try if any smaller functions are available to inline.
       continue;
     }
@@ -413,7 +413,8 @@ FrameState JSInliningHeuristic::DuplicateFrameStateAndRename(
 
 bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
                                            Node** if_successes, Node** calls,
-                                           Node** inputs, int input_count) {
+                                           Node** inputs, int input_count,
+                                           int* num_calls) {
   // We will try to reuse the control flow branch created for computing
   // the {callee} target of the call. We only reuse the branch if there
   // is no side-effect between the call and the branch, and if the callee is
@@ -504,7 +505,6 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   // Bailout if the call is not polymorphic anymore (other reducers might
   // have replaced the callee phi with a constant).
   if (callee->opcode() != IrOpcode::kPhi) return false;
-  int const num_calls = callee->op()->ValueInputCount();
 
   // If there is a control node between the callee computation
   // and the call, bail out.
@@ -601,9 +601,11 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
     if (!found) return false;
   }
 
+  *num_calls = callee->op()->ValueInputCount();
+
   // Clone the call and the framestate, including the uniquely reachable
   // state values, making sure that we replace the phi with the constant.
-  for (int i = 0; i < num_calls; ++i) {
+  for (int i = 0; i < *num_calls; ++i) {
     // Clone the calls for each branch.
     // We need to specialize the calls to the correct target, effect, and
     // control. We also need to duplicate the checkpoint and the lazy
@@ -617,7 +619,7 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
       // Duplicate the checkpoint.
       FrameState new_checkpoint_state = DuplicateFrameStateAndRename(
           FrameState{checkpoint_state}, callee, target,
-          (i == num_calls - 1) ? kChangeInPlace : kCloneState);
+          (i == *num_calls - 1) ? kChangeInPlace : kCloneState);
       effect_phi_effect = graph()->NewNode(
           checkpoint->op(), new_checkpoint_state, effect_phi_effect, control);
     }
@@ -625,7 +627,7 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
     // Duplicate the call.
     FrameState new_lazy_frame_state = DuplicateFrameStateAndRename(
         frame_state, callee, target,
-        (i == num_calls - 1) ? kChangeInPlace : kCloneState);
+        (i == *num_calls - 1) ? kChangeInPlace : kCloneState);
     inputs[0] = target;
     inputs[input_count - 3] = new_lazy_frame_state;
     inputs[input_count - 2] = effect_phi_effect;
@@ -636,8 +638,8 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
 
   // Mark the control inputs dead, so that we can kill the merge.
   node->ReplaceInput(input_count - 1, jsgraph()->Dead());
-  callee->ReplaceInput(num_calls, jsgraph()->Dead());
-  effect_phi->ReplaceInput(num_calls, jsgraph()->Dead());
+  callee->ReplaceInput(*num_calls, jsgraph()->Dead());
+  effect_phi->ReplaceInput(*num_calls, jsgraph()->Dead());
   if (checkpoint) {
     checkpoint->ReplaceInput(2, jsgraph()->Dead());
   }
@@ -646,30 +648,28 @@ bool JSInliningHeuristic::TryReuseDispatch(Node* node, Node* callee,
   return true;
 }
 
-void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
-                                                Candidate const& candidate,
-                                                Node** if_successes,
-                                                Node** calls, Node** inputs,
-                                                int input_count) {
+void JSInliningHeuristic::CreateOrReuseDispatch(
+    Node* node, Node* callee, Candidate const& candidate, Node** if_successes,
+    Node** calls, Node** inputs, int input_count, int* num_calls) {
   SourcePositionTable::Scope position(
       source_positions_, source_positions_->GetSourcePosition(node));
-  if (TryReuseDispatch(node, callee, if_successes, calls, inputs,
-                       input_count)) {
+  if (TryReuseDispatch(node, callee, if_successes, calls, inputs, input_count,
+                       num_calls)) {
     return;
   }
 
   static_assert(JSCallOrConstructNode::kHaveIdenticalLayouts);
 
   Node* fallthrough_control = NodeProperties::GetControlInput(node);
-  int const num_calls = candidate.num_functions;
+  *num_calls = candidate.num_functions;
 
   // Create the appropriate control flow to dispatch to the cloned calls.
-  for (int i = 0; i < num_calls; ++i) {
+  for (int i = 0; i < *num_calls; ++i) {
     // TODO(2206): Make comparison be based on underlying SharedFunctionInfo
     // instead of the target JSFunction reference directly.
     Node* target =
-        jsgraph()->Constant(candidate.functions[i].value(), broker());
-    if (i != (num_calls - 1)) {
+        jsgraph()->ConstantNoHole(candidate.functions[i].value(), broker());
+    if (i != (*num_calls - 1)) {
       Node* check =
           graph()->NewNode(simplified()->ReferenceEqual(), callee, target);
       Node* branch =
@@ -702,7 +702,7 @@ void JSInliningHeuristic::CreateOrReuseDispatch(Node* node, Node* callee,
 
 Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
                                                bool small_function) {
-  int const num_calls = candidate.num_functions;
+  int num_calls = candidate.num_functions;
   Node* const node = candidate.node;
 #if V8_ENABLE_WEBASSEMBLY
   DCHECK_NE(node->opcode(), IrOpcode::kJSWasmCall);
@@ -724,14 +724,14 @@ Reduction JSInliningHeuristic::InlineCandidate(Candidate const& candidate,
 
   // Setup the inputs for the cloned call nodes.
   int const input_count = node->InputCount();
-  Node** inputs = graph()->zone()->NewArray<Node*>(input_count);
+  Node** inputs = graph()->zone()->AllocateArray<Node*>(input_count);
   for (int i = 0; i < input_count; ++i) {
     inputs[i] = node->InputAt(i);
   }
 
   // Create the appropriate control flow to dispatch to the cloned calls.
   CreateOrReuseDispatch(node, callee, candidate, if_successes, calls, inputs,
-                        input_count);
+                        input_count, &num_calls);
 
   // Check if we have an exception projection for the call {node}.
   Node* if_exception = nullptr;

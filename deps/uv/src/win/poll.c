@@ -34,7 +34,9 @@ static const GUID uv_msafd_provider_ids[UV_MSAFD_PROVIDER_COUNT] = {
   {0xf9eab0c0, 0x26d4, 0x11d0,
       {0xbb, 0xbf, 0x00, 0xaa, 0x00, 0x6c, 0x34, 0xe4}},
   {0x9fc48064, 0x7298, 0x43e4,
-      {0xb7, 0xbd, 0x18, 0x1f, 0x20, 0x89, 0x79, 0x2a}}
+      {0xb7, 0xbd, 0x18, 0x1f, 0x20, 0x89, 0x79, 0x2a}},
+  {0xa00943d9, 0x9c2e, 0x4633,
+      {0x9b, 0x59, 0x00, 0x57, 0xa3, 0x16, 0x09, 0x94}}
 };
 
 typedef struct uv_single_fd_set_s {
@@ -423,9 +425,8 @@ int uv_poll_init_socket(uv_loop_t* loop, uv_poll_t* handle,
     return uv_translate_sys_error(WSAGetLastError());
 
 /* Try to obtain a base handle for the socket. This increases this chances that
- * we find an AFD handle and are able to use the fast poll mechanism. This will
- * always fail on windows XP/2k3, since they don't support the. SIO_BASE_HANDLE
- * ioctl. */
+ * we find an AFD handle and are able to use the fast poll mechanism.
+ */
 #ifndef NDEBUG
   base_socket = INVALID_SOCKET;
 #endif

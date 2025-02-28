@@ -1,8 +1,6 @@
 // Copyright 2016 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
-//
-// Flags: --harmony-symbol-as-weakmap-key
 
 let {session, contextGroup, Protocol} = InspectorTest.start("Check internal properties reported in object preview.");
 
@@ -75,6 +73,7 @@ InspectorTest.runTestSuite([
     checkExpression("[1,2,3]")
       .then(() => checkExpression("/123/"))
       .then(() => checkExpression("({})"))
+      .then(() => checkExpression("Boolean.prototype"))
       .then(next);
   },
 

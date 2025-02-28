@@ -45,7 +45,7 @@ struct epoll_event {
 };
 
 typedef struct {
-  QUEUE member;
+  struct uv__queue member;
   struct pollfd* items;
   unsigned long size;
   int msg_queue;

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc --wasm-test-streaming
+// Flags: --wasm-test-streaming --turbofan --no-always-turbofan
 // Flags: --allow-natives-syntax
 
 d8.file.execute('test/mjsunit/wasm/gc-js-interop-helpers.js');
@@ -70,9 +70,10 @@ for (const wasm_obj of [struct, array]) {
   testThrowsRepeated(
       () => new WebAssembly.Tag({parameters: [wasm_obj]}), TypeError);
 
-  let tag = new WebAssembly.Tag({parameters: ['structref']});
+  let tag = new WebAssembly.Tag({
+    parameters: [wasm_obj == struct ? 'structref' : 'arrayref']});
   testThrowsRepeated(() => new WebAssembly.Exception(wasm_obj), TypeError);
-  repeated(() => new WebAssembly.Exception(tag, wasm_obj));
+  testThrowsRepeated(() => new WebAssembly.Exception(tag, wasm_obj), TypeError);
   repeated(() => new WebAssembly.Exception(tag, [wasm_obj]));
   let exception = new WebAssembly.Exception(tag, [wasm_obj]);
   testThrowsRepeated(() => exception.is(wasm_obj), TypeError);

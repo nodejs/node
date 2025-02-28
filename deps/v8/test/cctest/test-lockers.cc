@@ -70,8 +70,9 @@ class DeoptimizeCodeThread : public v8::base::Thread {
   const char* source_;
 };
 
-void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   // Gets the pointer to the thread that will trigger the deoptimization of the
   // code.
   DeoptimizeCodeThread* deoptimizer =
@@ -91,8 +92,9 @@ void UnlockForDeoptimization(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void UnlockForDeoptimizationIfReady(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::Isolate* isolate = args.GetIsolate();
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::Isolate* isolate = info.GetIsolate();
   bool* ready_to_deoptimize = reinterpret_cast<bool*>(isolate->GetData(1));
   if (*ready_to_deoptimize) {
     // The test should enter here only once, so put the flag back to false.
@@ -859,19 +861,18 @@ TEST(LockUnlockLockDefaultIsolateMultithreaded) {
 #else
   const int kNThreads = 100;
 #endif
-  Local<v8::Context> context;
   std::vector<JoinableThread*> threads;
   threads.reserve(kNThreads);
+  CcTest::isolate()->Exit();
   {
     v8::Locker locker_(CcTest::isolate());
     v8::Isolate::Scope isolate_scope(CcTest::isolate());
     v8::HandleScope handle_scope(CcTest::isolate());
-    context = v8::Context::New(CcTest::isolate());
+    Local<v8::Context> context = v8::Context::New(CcTest::isolate());
     for (int i = 0; i < kNThreads; i++) {
       threads.push_back(new LockUnlockLockDefaultIsolateThread(context));
     }
   }
-  CcTest::isolate()->Exit();
   StartJoinAndDeleteThreads(threads);
   CcTest::isolate()->Enter();
 }

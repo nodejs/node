@@ -18,7 +18,7 @@ namespace wasm {
 struct CompilationEnv;
 class DebugSideTable;
 struct FunctionBody;
-class WasmFeatures;
+class WasmDetectedFeatures;
 
 // Note: If this list changes, also the histogram "V8.LiftoffBailoutReasons"
 // on the chromium side needs to be updated.
@@ -58,8 +58,7 @@ struct LiftoffOptions {
   int func_index = -1;
   ForDebugging for_debugging = kNotForDebugging;
   Counters* counters = nullptr;
-  AssemblerBufferCache* assembler_buffer_cache = nullptr;
-  WasmFeatures* detected_features = nullptr;
+  WasmDetectedFeatures* detected_features = nullptr;
   base::Vector<const int> breakpoints = {};
   std::unique_ptr<DebugSideTable>* debug_sidetable = nullptr;
   int dead_breakpoint = 0;
@@ -79,7 +78,6 @@ struct LiftoffOptions {
   SETTER(func_index)
   SETTER(for_debugging)
   SETTER(counters)
-  SETTER(assembler_buffer_cache)
   SETTER(detected_features)
   SETTER(breakpoints)
   SETTER(debug_sidetable)

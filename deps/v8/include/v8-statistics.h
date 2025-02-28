@@ -13,6 +13,7 @@
 #include <vector>
 
 #include "v8-local-handle.h"  // NOLINT(build/include_directory)
+#include "v8-memory-span.h"   // NOLINT(build/include_directory)
 #include "v8-promise.h"       // NOLINT(build/include_directory)
 #include "v8config.h"         // NOLINT(build/include_directory)
 
@@ -46,6 +47,10 @@ enum class MeasureMemoryExecution { kDefault, kEager, kLazy };
  *
  * It specifies the contexts that need to be measured and gets called when
  * the measurement is completed to report the results.
+ *
+ * Both MeasurementComplete() callbacks will be invoked on completion.
+ * Each implementation of this class should hence implement only one of them,
+ * and leave the other empty.
  */
 class V8_EXPORT MeasureMemoryDelegate {
  public:
@@ -56,20 +61,36 @@ class V8_EXPORT MeasureMemoryDelegate {
    */
   virtual bool ShouldMeasure(Local<Context> context) = 0;
 
+  /** Holds the result of a memory measurement request. */
+  struct Result {
+    /**
+     * Two spans of equal length: the first includes each context for which
+     * ShouldMeasure returned true and that was not garbage collected while
+     * the memory measurement was in progress; the second includes the size
+     * of the respective context.
+     */
+    const MemorySpan<const Local<Context>>& contexts;
+    const MemorySpan<const size_t>& sizes_in_bytes;
+
+    /**
+     * Total size of objects that were not attributed to any context (i.e. are
+     * likely shared objects).
+     */
+    size_t unattributed_size_in_bytes;
+
+    /** Total size of generated code for Wasm (shared across contexts). */
+    size_t wasm_code_size_in_bytes;
+
+    /** Total size of Wasm metadata (except code; shared across contexts). */
+    size_t wasm_metadata_size_in_bytes;
+  };
+
   /**
    * This function is called when memory measurement finishes.
    *
-   * \param context_sizes_in_bytes a vector of (context, size) pairs that
-   *   includes each context for which ShouldMeasure returned true and that
-   *   was not garbage collected while the memory measurement was in progress.
-   *
-   * \param unattributed_size_in_bytes total size of objects that were not
-   *   attributed to any context (i.e. are likely shared objects).
+   * \param result the result of the measurement.
    */
-  virtual void MeasurementComplete(
-      const std::vector<std::pair<Local<Context>, size_t>>&
-          context_sizes_in_bytes,
-      size_t unattributed_size_in_bytes) = 0;
+  virtual void MeasurementComplete(Result result) {}
 
   /**
    * Returns a default delegate that resolves the given promise when

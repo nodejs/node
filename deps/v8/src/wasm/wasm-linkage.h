@@ -11,8 +11,8 @@
 
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/assembler-arch.h"
+#include "src/codegen/linkage-location.h"
 #include "src/codegen/machine-type.h"
-#include "src/wasm/value-type.h"
 
 namespace v8 {
 namespace internal {
@@ -74,14 +74,14 @@ constexpr DoubleRegister kFpReturnRegisters[] = {f2, f4};
 // ===========================================================================
 // == LOONG64 ================================================================
 // ===========================================================================
-constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
+constexpr Register kGpParamRegisters[] = {a7, a0, a2, a3, a4, a5, a6};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {f0, f1, f2, f3, f4, f5, f6, f7};
 constexpr DoubleRegister kFpReturnRegisters[] = {f0, f1};
 
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 // ===========================================================================
-// == ppc & ppc64 ============================================================
+// == ppc64 ==================================================================
 // ===========================================================================
 constexpr Register kGpParamRegisters[] = {r10, r3, r5, r6, r7, r8, r9};
 constexpr Register kGpReturnRegisters[] = {r3, r4};
@@ -95,7 +95,7 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d1, d2};
 constexpr Register kGpParamRegisters[] = {r6, r2, r4, r5};
 constexpr Register kGpReturnRegisters[] = {r2, r3};
 constexpr DoubleRegister kFpParamRegisters[] = {d0, d2, d4, d6};
-constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2, d4, d6};
+constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 
 #elif V8_TARGET_ARCH_S390
 // ===========================================================================
@@ -111,8 +111,8 @@ constexpr DoubleRegister kFpReturnRegisters[] = {d0, d2};
 // == riscv64 =================================================================
 // ===========================================================================
 // Note that kGpParamRegisters and kFpParamRegisters are used in
-// Builtins::Generate_WasmCompileLazy (builtins-riscv64.cc)
-constexpr Register kGpParamRegisters[] = {a0, a2, a3, a4, a5, a6, a7};
+// Builtins::Generate_WasmCompileLazy (builtins-riscv.cc)
+constexpr Register kGpParamRegisters[] = {a7, a0, a2, a3, a4, a5, a6};
 constexpr Register kGpReturnRegisters[] = {a0, a1};
 constexpr DoubleRegister kFpParamRegisters[] = {fa0, fa1, fa2, fa3,
                                                 fa4, fa5, fa6, fa7};
@@ -130,11 +130,29 @@ constexpr DoubleRegister kFpReturnRegisters[] = {};
 
 #endif
 
-// The parameter index where the instance parameter should be placed in wasm
+#if V8_TARGET_ARCH_PPC64
+// Platforms where a Floating Point value is represented in Double Precision
+// format in a FP register.
+constexpr bool kIsFpAlwaysDouble = true;
+#else
+constexpr bool kIsFpAlwaysDouble = false;
+#endif
+#if V8_TARGET_BIG_ENDIAN
+constexpr bool kIsBigEndian = true;
+#else
+constexpr bool kIsBigEndian = false;
+#endif
+#if V8_TARGET_ARCH_S390_LE_SIM
+constexpr bool kIsBigEndianOnSim = true;
+#else
+constexpr bool kIsBigEndianOnSim = false;
+#endif
+
+// The parameter index where the trusted instance data should be placed in wasm
 // call descriptors. This is used by the Int64Lowering::LowerNode method.
-constexpr int kWasmInstanceParameterIndex = 0;
-static_assert(kWasmInstanceRegister ==
-              kGpParamRegisters[kWasmInstanceParameterIndex]);
+constexpr int kWasmInstanceDataParameterIndex = 0;
+static_assert(kWasmImplicitArgRegister ==
+              kGpParamRegisters[kWasmInstanceDataParameterIndex]);
 
 class LinkageAllocator {
  public:
@@ -251,6 +269,41 @@ class LinkageAllocator {
   AlignedSlotAllocator slot_allocator_;
 };
 
+// Helper for allocating either an GP or FP reg, or the next stack slot.
+class LinkageLocationAllocator {
+ public:
+  template <size_t kNumGpRegs, size_t kNumFpRegs>
+  constexpr LinkageLocationAllocator(const Register (&gp)[kNumGpRegs],
+                                     const DoubleRegister (&fp)[kNumFpRegs],
+                                     int slot_offset)
+      : allocator_(LinkageAllocator(gp, fp)), slot_offset_(slot_offset) {}
+
+  LinkageLocation Next(MachineRepresentation rep) {
+    MachineType type = MachineType::TypeForRepresentation(rep);
+    if (IsFloatingPoint(rep)) {
+      if (allocator_.CanAllocateFP(rep)) {
+        int reg_code = allocator_.NextFpReg(rep);
+        return LinkageLocation::ForRegister(reg_code, type);
+      }
+    } else if (allocator_.CanAllocateGP()) {
+      int reg_code = allocator_.NextGpReg();
+      return LinkageLocation::ForRegister(reg_code, type);
+    }
+    // Cannot use register; use stack slot.
+    int index = -1 - (slot_offset_ + allocator_.NextStackSlot(rep));
+    return LinkageLocation::ForCallerFrameSlot(index, type);
+  }
+
+  int NumStackSlots() const { return allocator_.NumStackSlots(); }
+  void EndSlotArea() { allocator_.EndSlotArea(); }
+
+ private:
+  LinkageAllocator allocator_;
+  // Since params and returns are in different stack frames, we must allocate
+  // them separately. Parameter slots don't need an offset, but return slots
+  // must be offset to just before the param slots, using this |slot_offset_|.
+  int slot_offset_;
+};
 }  // namespace wasm
 }  // namespace internal
 }  // namespace v8

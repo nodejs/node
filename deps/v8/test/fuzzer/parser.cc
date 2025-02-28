@@ -13,7 +13,9 @@
 #include "include/v8-exception.h"
 #include "include/v8-isolate.h"
 #include "include/v8-local-handle.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
+#include "src/objects/string.h"
 #include "src/parsing/parse-info.h"
 #include "src/parsing/parsing.h"
 #include "test/fuzzer/fuzzer-support.h"
@@ -92,8 +94,6 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
     info.pending_error_handler()->PrepareErrors(i_isolate,
                                                 info.ast_value_factory());
     info.pending_error_handler()->ReportErrors(i_isolate, script);
-
-    i_isolate->OptionalRescheduleException(true);
   }
   isolate->RequestGarbageCollectionForTesting(
       v8::Isolate::kFullGarbageCollection);

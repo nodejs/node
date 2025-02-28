@@ -9,79 +9,102 @@
 
 #include "src/common/assert-scope.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/large-spaces.h"
 #include "src/heap/local-heap.h"
+#include "src/heap/main-allocator-inl.h"
+#include "src/heap/parked-scope.h"
+#include "src/heap/zapping.h"
 
 namespace v8 {
 namespace internal {
 
+#define ROOT_ACCESSOR(type, name, CamelName) \
+  inline Tagged<type> LocalHeap::name() { return heap()->name(); }
+MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
+
 AllocationResult LocalHeap::AllocateRaw(int size_in_bytes, AllocationType type,
                                         AllocationOrigin origin,
                                         AllocationAlignment alignment) {
-  DCHECK(!v8_flags.enable_third_party_heap);
-#if DEBUG
-  VerifyCurrent();
-  DCHECK(AllowHandleAllocation::IsAllowed());
-  DCHECK(AllowHeapAllocation::IsAllowed());
-  DCHECK_IMPLIES(type == AllocationType::kCode || type == AllocationType::kMap,
-                 alignment == AllocationAlignment::kTaggedAligned);
-  Heap::HeapState state = heap()->gc_state();
-  DCHECK(state == Heap::TEAR_DOWN || state == Heap::NOT_IN_GC);
-  DCHECK(IsRunning());
-#endif
+  return heap_allocator_.AllocateRaw(size_in_bytes, type, origin, alignment);
+}
 
-  // Each allocation is supposed to be a safepoint.
-  Safepoint();
-
-  bool large_object = size_in_bytes > heap_->MaxRegularHeapObjectSize(type);
-
-  if (type == AllocationType::kCode) {
-    AllocationResult alloc;
-    if (large_object) {
-      alloc =
-          heap()->code_lo_space()->AllocateRawBackground(this, size_in_bytes);
-    } else {
-      alloc =
-          code_space_allocator()->AllocateRaw(size_in_bytes, alignment, origin);
-    }
-    HeapObject object;
-    if (alloc.To(&object) && !V8_ENABLE_THIRD_PARTY_HEAP_BOOL) {
-      heap()->UnprotectAndRegisterMemoryChunk(
-          object, UnprotectMemoryOrigin::kMaybeOffMainThread);
-      heap()->ZapCodeObject(object.address(), size_in_bytes);
-    }
-    return alloc;
-  }
-
-  if (type == AllocationType::kOld) {
-    if (large_object)
-      return heap()->lo_space()->AllocateRawBackground(this, size_in_bytes);
-    else
-      return old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                origin);
-  }
-
-  DCHECK_EQ(type, AllocationType::kSharedOld);
-  if (large_object) {
-    return heap()->shared_lo_allocation_space()->AllocateRawBackground(
-        this, size_in_bytes);
-  } else {
-    return shared_old_space_allocator()->AllocateRaw(size_in_bytes, alignment,
-                                                     origin);
-  }
+template <typename HeapAllocator::AllocationRetryMode mode>
+Tagged<HeapObject> LocalHeap::AllocateRawWith(int object_size,
+                                              AllocationType type,
+                                              AllocationOrigin origin,
+                                              AllocationAlignment alignment) {
+  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
+  return heap_allocator_.AllocateRawWith<mode>(object_size, type, origin,
+                                               alignment);
 }
 
 Address LocalHeap::AllocateRawOrFail(int object_size, AllocationType type,
                                      AllocationOrigin origin,
                                      AllocationAlignment alignment) {
-  object_size = ALIGN_TO_ALLOCATION_ALIGNMENT(object_size);
-  DCHECK(!v8_flags.enable_third_party_heap);
-  AllocationResult result = AllocateRaw(object_size, type, origin, alignment);
-  HeapObject object;
-  if (result.To(&object)) return object.address();
-  return PerformCollectionAndAllocateAgain(object_size, type, origin,
-                                           alignment);
+  return AllocateRawWith<HeapAllocator::kRetryOrFail>(object_size, type, origin,
+                                                      alignment)
+      .address();
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ParkAndExecuteCallback(Callback callback) {
+  // This method is given as a callback to the stack trampoline, when the stack
+  // marker has just been set.
+#if defined(V8_ENABLE_DIRECT_HANDLE) && defined(DEBUG)
+  // Reset the number of direct handles that are below the stack marker.
+  // It will be restored before the method returns.
+  DirectHandleBase::ResetNumberOfHandlesScope scope;
+#endif  // V8_ENABLE_DIRECT_HANDLE && DEBUG
+  ParkedScope parked(this);
+  // Provide the parked scope as a witness, if the callback expects it.
+  if constexpr (std::is_invocable_v<Callback, const ParkedScope&>) {
+    callback(parked);
+  } else {
+    callback();
+  }
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteWithStackMarker(Callback callback) {
+  if (is_main_thread()) {
+    heap()->stack().SetMarkerAndCallback(callback);
+  } else {
+    heap()->stack().SetMarkerForBackgroundThreadAndCallback(
+        ThreadId::Current().ToInteger(), callback);
+  }
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteWhileParked(Callback callback) {
+  ExecuteWithStackMarker(
+      [this, callback]() { ParkAndExecuteCallback(callback); });
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteMainThreadWhileParked(Callback callback) {
+  DCHECK(is_main_thread());
+  heap()->stack().SetMarkerAndCallback(
+      [this, callback]() { ParkAndExecuteCallback(callback); });
+}
+
+template <typename Callback>
+V8_INLINE void LocalHeap::ExecuteBackgroundThreadWhileParked(
+    Callback callback) {
+  DCHECK(!is_main_thread());
+  heap()->stack().SetMarkerForBackgroundThreadAndCallback(
+      ThreadId::Current().ToInteger(),
+      [this, callback]() { ParkAndExecuteCallback(callback); });
+}
+
+V8_INLINE bool LocalHeap::is_in_trampoline() const {
+  if (is_main_thread()) {
+    return heap_->stack().IsMarkerSet();
+  } else {
+    return heap_->stack().IsMarkerSetForBackgroundThread(
+        ThreadId::Current().ToInteger());
+  }
 }
 
 }  // namespace internal

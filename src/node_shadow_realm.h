@@ -24,13 +24,12 @@ class ShadowRealm : public Realm {
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-  void OnEnvironmentDestruct();
-
  protected:
   v8::MaybeLocal<v8::Value> BootstrapRealm() override;
 
  private:
   static void WeakCallback(const v8::WeakCallbackInfo<ShadowRealm>& data);
+  static void DeleteMe(void* data);
 
   explicit ShadowRealm(Environment* env);
   ~ShadowRealm();

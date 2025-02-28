@@ -28,7 +28,7 @@
 #ifndef NAPI_EXTERN
 #ifdef _WIN32
 #define NAPI_EXTERN __declspec(dllexport)
-#elif defined(__wasm32__)
+#elif defined(__wasm__)
 #define NAPI_EXTERN                                                            \
   __attribute__((visibility("default")))                                       \
   __attribute__((__import_module__("napi")))
@@ -49,8 +49,8 @@
 
 EXTERN_C_START
 
-NAPI_EXTERN napi_status NAPI_CDECL
-napi_get_last_error_info(napi_env env, const napi_extended_error_info** result);
+NAPI_EXTERN napi_status NAPI_CDECL napi_get_last_error_info(
+    node_api_basic_env env, const napi_extended_error_info** result);
 
 // Getters for defined singletons
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_undefined(napi_env env,
@@ -92,16 +92,42 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_string_utf16(napi_env env,
                                                             const char16_t* str,
                                                             size_t length,
                                                             napi_value* result);
+#if NAPI_VERSION >= 10
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_external_string_latin1(
+    napi_env env,
+    char* str,
+    size_t length,
+    node_api_basic_finalize finalize_callback,
+    void* finalize_hint,
+    napi_value* result,
+    bool* copied);
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_create_external_string_utf16(napi_env env,
+                                      char16_t* str,
+                                      size_t length,
+                                      node_api_basic_finalize finalize_callback,
+                                      void* finalize_hint,
+                                      napi_value* result,
+                                      bool* copied);
+
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_property_key_latin1(
+    napi_env env, const char* str, size_t length, napi_value* result);
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_property_key_utf8(
+    napi_env env, const char* str, size_t length, napi_value* result);
+NAPI_EXTERN napi_status NAPI_CDECL node_api_create_property_key_utf16(
+    napi_env env, const char16_t* str, size_t length, napi_value* result);
+#endif  // NAPI_VERSION >= 10
+
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_symbol(napi_env env,
                                                       napi_value description,
                                                       napi_value* result);
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 9
 NAPI_EXTERN napi_status NAPI_CDECL
 node_api_symbol_for(napi_env env,
                     const char* utf8description,
                     size_t length,
                     napi_value* result);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 9
 NAPI_EXTERN napi_status NAPI_CDECL napi_create_function(napi_env env,
                                                         const char* utf8name,
                                                         size_t length,
@@ -120,10 +146,10 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_create_range_error(napi_env env,
                                                            napi_value code,
                                                            napi_value msg,
                                                            napi_value* result);
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 9
 NAPI_EXTERN napi_status NAPI_CDECL node_api_create_syntax_error(
     napi_env env, napi_value code, napi_value msg, napi_value* result);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 9
 
 // Methods to get the native napi_value from Primitive type
 NAPI_EXTERN napi_status NAPI_CDECL napi_typeof(napi_env env,
@@ -271,7 +297,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_instanceof(napi_env env,
 
 // Gets all callback info in a single call. (Ugly, but faster.)
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_cb_info(
-    napi_env env,               // [in] NAPI environment handle
+    napi_env env,               // [in] Node-API environment handle
     napi_callback_info cbinfo,  // [in] Opaque callback-info handle
     size_t* argc,      // [in-out] Specifies the size of the provided argv array
                        // and receives the actual count of args.
@@ -292,12 +318,13 @@ napi_define_class(napi_env env,
                   napi_value* result);
 
 // Methods to work with external data objects
-NAPI_EXTERN napi_status NAPI_CDECL napi_wrap(napi_env env,
-                                             napi_value js_object,
-                                             void* native_object,
-                                             napi_finalize finalize_cb,
-                                             void* finalize_hint,
-                                             napi_ref* result);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_wrap(napi_env env,
+          napi_value js_object,
+          void* native_object,
+          node_api_basic_finalize finalize_cb,
+          void* finalize_hint,
+          napi_ref* result);
 NAPI_EXTERN napi_status NAPI_CDECL napi_unwrap(napi_env env,
                                                napi_value js_object,
                                                void** result);
@@ -307,7 +334,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_remove_wrap(napi_env env,
 NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_external(napi_env env,
                      void* data,
-                     napi_finalize finalize_cb,
+                     node_api_basic_finalize finalize_cb,
                      void* finalize_hint,
                      napi_value* result);
 NAPI_EXTERN napi_status NAPI_CDECL napi_get_value_external(napi_env env,
@@ -378,11 +405,11 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_throw_type_error(napi_env env,
 NAPI_EXTERN napi_status NAPI_CDECL napi_throw_range_error(napi_env env,
                                                           const char* code,
                                                           const char* msg);
-#ifdef NAPI_EXPERIMENTAL
+#if NAPI_VERSION >= 9
 NAPI_EXTERN napi_status NAPI_CDECL node_api_throw_syntax_error(napi_env env,
                                                                const char* code,
                                                                const char* msg);
-#endif  // NAPI_EXPERIMENTAL
+#endif  // NAPI_VERSION >= 9
 NAPI_EXTERN napi_status NAPI_CDECL napi_is_error(napi_env env,
                                                  napi_value value,
                                                  bool* result);
@@ -406,7 +433,7 @@ NAPI_EXTERN napi_status NAPI_CDECL
 napi_create_external_arraybuffer(napi_env env,
                                  void* external_data,
                                  size_t byte_length,
-                                 napi_finalize finalize_cb,
+                                 node_api_basic_finalize finalize_cb,
                                  void* finalize_hint,
                                  napi_value* result);
 #endif  // NODE_API_NO_EXTERNAL_BUFFERS_ALLOWED
@@ -448,7 +475,7 @@ napi_get_dataview_info(napi_env env,
                        size_t* byte_offset);
 
 // version management
-NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(napi_env env,
+NAPI_EXTERN napi_status NAPI_CDECL napi_get_version(node_api_basic_env env,
                                                     uint32_t* result);
 
 // Promises
@@ -472,7 +499,7 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_run_script(napi_env env,
 
 // Memory management
 NAPI_EXTERN napi_status NAPI_CDECL napi_adjust_external_memory(
-    napi_env env, int64_t change_in_bytes, int64_t* adjusted_value);
+    node_api_basic_env env, int64_t change_in_bytes, int64_t* adjusted_value);
 
 #if NAPI_VERSION >= 5
 
@@ -490,14 +517,26 @@ NAPI_EXTERN napi_status NAPI_CDECL napi_get_date_value(napi_env env,
                                                        double* result);
 
 // Add finalizer for pointer
-NAPI_EXTERN napi_status NAPI_CDECL napi_add_finalizer(napi_env env,
-                                                      napi_value js_object,
-                                                      void* finalize_data,
-                                                      napi_finalize finalize_cb,
-                                                      void* finalize_hint,
-                                                      napi_ref* result);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_add_finalizer(napi_env env,
+                   napi_value js_object,
+                   void* finalize_data,
+                   node_api_basic_finalize finalize_cb,
+                   void* finalize_hint,
+                   napi_ref* result);
 
 #endif  // NAPI_VERSION >= 5
+
+#ifdef NAPI_EXPERIMENTAL
+#define NODE_API_EXPERIMENTAL_HAS_POST_FINALIZER
+
+NAPI_EXTERN napi_status NAPI_CDECL
+node_api_post_finalizer(node_api_basic_env env,
+                        napi_finalize finalize_cb,
+                        void* finalize_data,
+                        void* finalize_hint);
+
+#endif  // NAPI_EXPERIMENTAL
 
 #if NAPI_VERSION >= 6
 
@@ -536,11 +575,14 @@ napi_get_all_property_names(napi_env env,
                             napi_value* result);
 
 // Instance data
-NAPI_EXTERN napi_status NAPI_CDECL napi_set_instance_data(
-    napi_env env, void* data, napi_finalize finalize_cb, void* finalize_hint);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_set_instance_data(node_api_basic_env env,
+                       void* data,
+                       napi_finalize finalize_cb,
+                       void* finalize_hint);
 
-NAPI_EXTERN napi_status NAPI_CDECL napi_get_instance_data(napi_env env,
-                                                          void** data);
+NAPI_EXTERN napi_status NAPI_CDECL
+napi_get_instance_data(node_api_basic_env env, void** data);
 #endif  // NAPI_VERSION >= 6
 
 #if NAPI_VERSION >= 7

@@ -5,7 +5,8 @@
 
 namespace node {
 
-void CleanupQueue::Drain() {
+std::vector<CleanupQueue::CleanupHookCallback> CleanupQueue::GetOrdered()
+    const {
   // Copy into a vector, since we can't sort an unordered_set in-place.
   std::vector<CleanupHookCallback> callbacks(cleanup_hooks_.begin(),
                                              cleanup_hooks_.end());
@@ -19,6 +20,12 @@ void CleanupQueue::Drain() {
               // callbacks are run first.
               return a.insertion_order_counter_ > b.insertion_order_counter_;
             });
+
+  return callbacks;
+}
+
+void CleanupQueue::Drain() {
+  std::vector<CleanupHookCallback> callbacks = GetOrdered();
 
   for (const CleanupHookCallback& cb : callbacks) {
     if (cleanup_hooks_.count(cb) == 0) {

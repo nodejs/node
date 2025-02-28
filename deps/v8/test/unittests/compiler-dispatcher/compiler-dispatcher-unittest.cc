@@ -207,30 +207,27 @@ class MockPlatform : public v8::Platform {
   int NumberOfWorkerThreads() override { return 1; }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
+      v8::Isolate* isolate, TaskPriority priority) override {
     return std::make_shared<MockForegroundTaskRunner>(this);
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
     UNREACHABLE();
   }
 
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override {
     UNREACHABLE();
   }
 
   bool IdleTasksEnabled(v8::Isolate* isolate) override { return true; }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    auto handle = deferred_post_job_.CreateJob(priority, std::move(job_task));
-    deferred_post_job_.NotifyConcurrencyIncrease();
-    return handle;
-  }
-
-  std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+  std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) override {
     return deferred_post_job_.CreateJob(priority, std::move(job_task));
   }
 
@@ -289,18 +286,23 @@ class MockPlatform : public v8::Platform {
     explicit MockForegroundTaskRunner(MockPlatform* platform)
         : platform_(platform) {}
 
-    void PostTask(std::unique_ptr<v8::Task> task) override { UNREACHABLE(); }
-
-    void PostNonNestableTask(std::unique_ptr<v8::Task> task) override {
+    void PostTaskImpl(std::unique_ptr<v8::Task>,
+                      const SourceLocation&) override {
       UNREACHABLE();
     }
 
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) override {
+    void PostNonNestableTaskImpl(std::unique_ptr<v8::Task>,
+                                 const SourceLocation&) override {
       UNREACHABLE();
     }
 
-    void PostIdleTask(std::unique_ptr<IdleTask> task) override {
+    void PostDelayedTaskImpl(std::unique_ptr<Task>, double,
+                             const SourceLocation&) override {
+      UNREACHABLE();
+    }
+
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation&) override {
       DCHECK(IdleTasksEnabled());
       base::MutexGuard lock(&platform_->idle_task_mutex_);
       ASSERT_TRUE(platform_->idle_task_ == nullptr);
@@ -536,8 +538,8 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskException) {
     raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; };";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script.c_str(), strlen(raw_script.c_str()), JSParameterCount(1));
   Handle<SharedFunctionInfo> shared =
       test::CreateSharedFunctionInfo(i_isolate(), script);
   ASSERT_FALSE(shared->is_compiled());
@@ -550,7 +552,7 @@ TEST_F(LazyCompileDispatcherTest, IdleTaskException) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_FALSE(i_isolate()->has_pending_exception());
+  ASSERT_FALSE(i_isolate()->has_exception());
   dispatcher.AbortAll();
 }
 
@@ -627,8 +629,8 @@ TEST_F(LazyCompileDispatcherTest, FinishNowException) {
     raw_script += "'x' + 'x' - ";
   }
   raw_script += " 'x'; };";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script.c_str(), strlen(raw_script.c_str()));
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script.c_str(), strlen(raw_script.c_str()), JSParameterCount(1));
   Handle<SharedFunctionInfo> shared =
       test::CreateSharedFunctionInfo(i_isolate(), script);
   ASSERT_FALSE(shared->is_compiled());
@@ -639,9 +641,9 @@ TEST_F(LazyCompileDispatcherTest, FinishNowException) {
 
   ASSERT_FALSE(dispatcher.IsEnqueued(shared));
   ASSERT_FALSE(shared->is_compiled());
-  ASSERT_TRUE(i_isolate()->has_pending_exception());
+  ASSERT_TRUE(i_isolate()->has_exception());
 
-  i_isolate()->clear_pending_exception();
+  i_isolate()->clear_exception();
   ASSERT_FALSE(platform.IdleTaskPending());
   dispatcher.AbortAll();
 }
@@ -740,9 +742,9 @@ TEST_F(LazyCompileDispatcherTest, CompileLazyFinishesDispatcherJob) {
   LazyCompileDispatcher* dispatcher = i_isolate()->lazy_compile_dispatcher();
 
   const char raw_script[] = "function lazy() { return 42; }; lazy;";
-  test::ScriptResource* script =
-      new test::ScriptResource(raw_script, strlen(raw_script));
-  Handle<JSFunction> f = RunJS<JSFunction>(script);
+  test::ScriptResource* script = new test::ScriptResource(
+      raw_script, strlen(raw_script), JSParameterCount(0));
+  DirectHandle<JSFunction> f = RunJS<JSFunction>(script);
   Handle<SharedFunctionInfo> shared(f->shared(), i_isolate());
   ASSERT_FALSE(shared->is_compiled());
 
@@ -761,16 +763,16 @@ TEST_F(LazyCompileDispatcherTest, CompileLazy2FinishesDispatcherJob) {
   LazyCompileDispatcher* dispatcher = i_isolate()->lazy_compile_dispatcher();
 
   const char raw_source_2[] = "function lazy2() { return 42; }; lazy2;";
-  test::ScriptResource* source_2 =
-      new test::ScriptResource(raw_source_2, strlen(raw_source_2));
-  Handle<JSFunction> lazy2 = RunJS<JSFunction>(source_2);
+  test::ScriptResource* source_2 = new test::ScriptResource(
+      raw_source_2, strlen(raw_source_2), JSParameterCount(0));
+  DirectHandle<JSFunction> lazy2 = RunJS<JSFunction>(source_2);
   Handle<SharedFunctionInfo> shared_2(lazy2->shared(), i_isolate());
   ASSERT_FALSE(shared_2->is_compiled());
 
   const char raw_source_1[] = "function lazy1() { return lazy2(); }; lazy1;";
-  test::ScriptResource* source_1 =
-      new test::ScriptResource(raw_source_1, strlen(raw_source_1));
-  Handle<JSFunction> lazy1 = RunJS<JSFunction>(source_1);
+  test::ScriptResource* source_1 = new test::ScriptResource(
+      raw_source_1, strlen(raw_source_1), JSParameterCount(0));
+  DirectHandle<JSFunction> lazy1 = RunJS<JSFunction>(source_1);
   Handle<SharedFunctionInfo> shared_1(lazy1->shared(), i_isolate());
   ASSERT_FALSE(shared_1->is_compiled());
 

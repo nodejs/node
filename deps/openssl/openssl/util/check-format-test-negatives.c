@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Siemens AG 2015-2022
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -13,6 +13,7 @@
  * There are some known false positives, though, which are marked below.
  */
 
+#include <errno.h> /* should not report whitespace nits within <...> */
 #define F                                       \
     void f()                                    \
     {                                           \
@@ -22,9 +23,19 @@
         return;                                 \
     }
 
-/*-
- * allow extra SPC in format-tagged multi-line comment
+/* allow extra  SPC in single-line comment */
+/*
+ * allow extra  SPC in regular multi-line comment
  */
+/*-
+ * allow extra  SPC in format-tagged multi-line comment
+ */
+/** allow extra '*' in comment opening */
+/*! allow extra '!' in comment opening */
+/*
+ ** allow "**" as first non-space chars of a line within multi-line comment
+ */
+
 int f(void) /*
              * trailing multi-line comment
              */
@@ -109,17 +120,24 @@ int g(void)
         /* leading comment has same indentation as normal code */ stmt;
         /* entire-line comment may have same indent as normal code */
     }
-
-    for (;;)
-        ;
-    for (i = 0;;)
-        ;
-    for (i = 0; i < 1;)
-        ;
-    for (;;)
+    for (i = 0; i < n; i++)
         for (; i < n; i++)
-            for (;; p++)
-                ;
+            for (i = 0; ; i++)
+                for (i = 0;; i++)
+                    for (i = 0; i < n; )
+                        for (i = 0; i < n;)
+                            ;
+    for (i = 0; ; )
+        for (i = 0; ;)
+            for (i = 0;; )
+                for (i = 0;;)
+                    for (; i < n; )
+                        for (; j < n;)
+                            for (; ; i++)
+                                for (;; i++)
+                                    ;
+    for (;;) /* the only variant allowed in case of "empty" for (...) */
+        ;
     for (;;) ; /* should not trigger: space before ';' */
  lab: ;  /* should not trigger: space before ';' */
 
@@ -236,16 +254,20 @@ int g(void)
             && expr_line3)
         hanging_stmt;
 }
+#define m \
+    do { /* should not be confused with function header followed by '{' */ \
+    } while (0)
 
 /* should not trigger: constant on LHS of comparison or assignment operator */
 X509 *x509 = NULL;
 int y = a + 1 < b;
 int ret, was_NULL = *certs == NULL;
 
-/* should not trigger: no space before binary ... operator */
+/* should not trigger: missing space before ... */
 float z = 1e-6 * (-1) * b[+6] * 1e+1 * (a)->f * (long)+1
     - (tmstart.tv_sec + tmstart.tv_nsec * 1e-9);
 struct st = {-1, 0};
+int x = (y <<= 1) + (z <= 5.0);
 
 const OPTIONS passwd_options[] = {
     {"aixmd5", OPT_AIXMD5, '-', "AIX MD5-based password algorithm"},
@@ -269,12 +291,52 @@ typedef OSSL_CMP_MSG *(*cmp_srv_process_cb_t)
     (OSSL_CMP_SRV_CTX *ctx, OSSL_CMP_MSG *msg)
     xx;
 
+#define IF(cond) if (cond)
+
+_Pragma("GCC diagnostic push")
+_Pragma("GCC diagnostic pop")
+
+#define CB_ERR_IF(cond, ctx, cert, depth, err) \
+    if ((cond) && ((depth) < 0 || verify_cb_cert(ctx, cert, depth, err) == 0)) \
+        return err
+static int verify_cb_crl(X509_STORE_CTX *ctx, int err)
+{
+    ctx->error = err;
+    return ctx->verify_cb(0, ctx);
+}
+
+#ifdef CMP_FALLBACK_EST
+# define CMP_FALLBACK_CERT_FILE "cert.pem"
+#endif
+
+#define X509_OBJECT_get0_X509(obj)                                      \
+    ((obj) == NULL || (obj)->type != X509_LU_X509 ? NULL : (obj)->data.x509)
+#define X509_STORE_CTX_set_current_cert(ctx, x) { (ctx)->current_cert = (x); }
+#define X509_STORE_set_ex_data(ctx, idx, data) \
+    CRYPTO_set_ex_data(&(ctx)->ex_data, (idx), (data))
+
+typedef int (*X509_STORE_CTX_check_revocation_fn)(X509_STORE_CTX *ctx);
+#define X509_STORE_CTX_set_error_depth(ctx, depth) \
+    { (ctx)->error_depth = (depth); }
+#define EVP_PKEY_up_ref(x) ((x)->references++)
+/* should not report missing blank line: */
+DECLARE_STACK_OF(OPENSSL_CSTRING)
+bool UTIL_iterate_dir(int (*fn)(const char *file, void *arg), void *arg,
+                      const char *path, bool recursive);
+size_t UTIL_url_encode(
+                       size_t *size_needed
+                       );
+size_t UTIL_url_encode(const char  *source,
+                       char        *destination,
+                       size_t      destination_len,
+                       size_t      *size_needed);
+#error well. oops.
+
 int f()
 {
     c;
-    if (1) {
+    if (1)
         c;
-    }
     c;
     if (1)
         if (2)

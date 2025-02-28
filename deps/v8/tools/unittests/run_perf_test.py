@@ -3,6 +3,8 @@
 # Use of this source code is governed by a BSD-style license that can be
 # found in the LICENSE file.
 
+from pathlib import Path
+
 import json
 import os
 import platform
@@ -28,7 +30,7 @@ from testrunner.objects.output import Output, NULL_OUTPUT
 RUN_PERF = os.path.join(TOOLS_ROOT, 'run_perf.py')
 TEST_DATA = os.path.join(TOOLS_ROOT, 'unittests', 'testdata')
 
-TEST_WORKSPACE = os.path.join(tempfile.gettempdir(), 'test-v8-run-perf')
+TEST_WORKSPACE = Path(tempfile.gettempdir()) / 'test-v8-run-perf'
 
 SORT_KEY = lambda x: x['graphs']
 
@@ -169,7 +171,8 @@ class PerfTest(unittest.TestCase):
             stdout=output,
             timed_out=kwargs.get('timed_out', False),
             exit_code=kwargs.get('exit_code', 0),
-            duration=42) for output in raw_outputs
+            start_time=0,
+            end_time=42) for output in raw_outputs
     ]
 
     def create_cmd(*args, **kwargs):
@@ -283,6 +286,56 @@ class PerfTest(unittest.TestCase):
     self._VerifyMock(
         os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js')
 
+  def testWarmup_OnEmpty(self):
+    warmup_cache = TEST_WORKSPACE / 'test_cache.json'
+    mock.patch('run_perf.WARMUP_CACHE_FILE', warmup_cache).start()
+    mock.patch('psutil.boot_time', return_value=42).start()
+    mock.patch('time.time', return_value=123).start()
+    cache_handler = run_perf.CacheHandler(warmup_cache)
+    self.assertFalse(cache_handler.cache_file.exists())
+    self._WriteTestInput(V8_JSON)
+
+    # Require 2 runs. One for the warm-up.
+    self._MockCommand(2 * ['.'], 2 * ['Richards: 1\nDeltaBlue: 2\n'])
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
+
+    # The warm-up ran at the current time and cache is up to date.
+    self.assertDictEqual({'test': 123}, cache_handler.read_cache())
+
+  def testWarmup_NotNeeded(self):
+    warmup_cache = TEST_WORKSPACE / 'test_cache.json'
+    mock.patch('run_perf.WARMUP_CACHE_FILE', warmup_cache).start()
+    mock.patch('psutil.boot_time', return_value=42).start()
+    mock.patch('time.time', return_value=123).start()
+    cache_handler = run_perf.CacheHandler(warmup_cache)
+
+    # Test that the old entry is trimmed.
+    cache_handler.write_cache({'test': 87, 'some_old_entry': 23})
+    self._WriteTestInput(V8_JSON)
+
+    # One run only since no warm-up is required.
+    self._MockCommand(1 * ['.'], 1 * ['Richards: 1\nDeltaBlue: 2\n'])
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
+
+    # No warm-up ran, cache is only trimmed.
+    self.assertDictEqual({'test': 87}, cache_handler.read_cache())
+
+  def testWarmup_Needed(self):
+    warmup_cache = TEST_WORKSPACE / 'test_cache.json'
+    mock.patch('run_perf.WARMUP_CACHE_FILE', warmup_cache).start()
+    mock.patch('psutil.boot_time', return_value=42).start()
+    mock.patch('time.time', return_value=123).start()
+    cache_handler = run_perf.CacheHandler(warmup_cache)
+    cache_handler.write_cache({'test': 23})
+    self._WriteTestInput(V8_JSON)
+
+    # Require 2 runs. One for the warm-up.
+    self._MockCommand(2 * ['.'], 2 * ['Richards: 1\nDeltaBlue: 2\n'])
+    self.assertEqual(0, self._CallMain('--checked-warmup'))
+
+    # The warm-up ran at the current time and cache is up to date.
+    self.assertDictEqual({'test': 123}, cache_handler.read_cache())
+
   def testOneRunVariants(self):
     self._WriteTestInput(V8_VARIANTS_JSON)
     self._MockCommand(['.', '.', '.'], [
@@ -302,6 +355,65 @@ class PerfTest(unittest.TestCase):
             'units': 'score',
             'graphs': ['test', 'default', 'DeltaBlue'],
             'results': [1000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'Richards'],
+            'results': [2.2],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantA', 'DeltaBlue'],
+            'results': [2000],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'Richards'],
+            'results': [3.3],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'VariantB', 'DeltaBlue'],
+            'results': [3000],
+            'stddev': ''
+        },
+    ])
+    self._VerifyErrors([])
+    self._VerifyMockMultiple(
+        (os.path.join('out', 'x64.release', 'd7'), '--flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-a-flag', 'run.js'),
+        (os.path.join('out', 'x64.release',
+                      'd7'), '--flag', '--variant-b-flag', 'run.js'))
+
+  def testOneRunVariantsWithDefault(self):
+    config = dict(V8_VARIANTS_JSON)
+
+    # Default value for DeltaBlue
+    config['tests'][1]['results_default'] = 42
+
+    self._WriteTestInput(config)
+    self._MockCommand(['.', '.', '.'], [
+        'x\nRichards: 3.3\nDeltaBlue: 3000\ny\n',
+        'x\nRichards: 2.2\nDeltaBlue: 2000\ny\n',
+        'x\nRichards: 1.1\ny\n',  # One variant lacks DeltaBlue.
+    ])
+    self.assertEqual(0, self._CallMain())
+    self._VerifyResultTraces([
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'Richards'],
+            'results': [1.1],
+            'stddev': ''
+        },
+        {
+            'units': 'score',
+            'graphs': ['test', 'default', 'DeltaBlue'],
+            'results': [42],  # Expected default value.
             'stddev': ''
         },
         {

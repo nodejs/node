@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -79,6 +79,15 @@ void RECORD_LAYER_release(RECORD_LAYER *rl)
 int RECORD_LAYER_read_pending(const RECORD_LAYER *rl)
 {
     return SSL3_BUFFER_get_left(&rl->rbuf) != 0;
+}
+
+int RECORD_LAYER_data_present(const RECORD_LAYER *rl)
+{
+    if (rl->rstate == SSL_ST_READ_BODY)
+        return 1;
+    if (RECORD_LAYER_processed_read_pending(rl))
+        return 1;
+    return 0;
 }
 
 /* Checks if we have decrypted unread record data pending */
@@ -215,28 +224,16 @@ int ssl3_read_n(SSL *s, size_t n, size_t max, int extend, int clearold,
         /* start with empty packet ... */
         if (left == 0)
             rb->offset = align;
-        else if (align != 0 && left >= SSL3_RT_HEADER_LENGTH) {
-            /*
-             * check if next packet length is large enough to justify payload
-             * alignment...
-             */
-            pkt = rb->buf + rb->offset;
-            if (pkt[0] == SSL3_RT_APPLICATION_DATA
-                && (pkt[3] << 8 | pkt[4]) >= 128) {
-                /*
-                 * Note that even if packet is corrupted and its length field
-                 * is insane, we can only be led to wrong decision about
-                 * whether memmove will occur or not. Header values has no
-                 * effect on memmove arguments and therefore no buffer
-                 * overrun can be triggered.
-                 */
-                memmove(rb->buf + align, pkt, left);
-                rb->offset = align;
-            }
-        }
+
         s->rlayer.packet = rb->buf + rb->offset;
         s->rlayer.packet_length = 0;
         /* ... now we can act as if 'extend' was set */
+    }
+
+    if (!ossl_assert(s->rlayer.packet != NULL)) {
+        /* does not happen */
+        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
+        return -1;
     }
 
     len = s->rlayer.packet_length;
@@ -318,6 +315,10 @@ int ssl3_read_n(SSL *s, size_t n, size_t max, int extend, int clearold,
                     SSL_set_shutdown(s, SSL_RECEIVED_SHUTDOWN);
                     s->s3.warn_alert = SSL_AD_CLOSE_NOTIFY;
                 } else {
+                    /*
+                     * This reason code is part of the API and may be used by
+                     * applications for control flow decisions.
+                     */
                     SSLfatal(s, SSL_AD_DECODE_ERROR,
                              SSL_R_UNEXPECTED_EOF_WHILE_READING);
                 }
@@ -626,14 +627,13 @@ int ssl3_write_bytes(SSL *s, int type, const void *buf_, size_t len,
         if (numpipes > maxpipes)
             numpipes = maxpipes;
 
-        if (n / numpipes >= max_send_fragment) {
+        if (n / numpipes >= split_send_fragment) {
             /*
              * We have enough data to completely fill all available
              * pipelines
              */
-            for (j = 0; j < numpipes; j++) {
-                pipelens[j] = max_send_fragment;
-            }
+            for (j = 0; j < numpipes; j++)
+                pipelens[j] = split_send_fragment;
         } else {
             /* We can partially fill all available pipelines */
             tmppipelen = n / numpipes;

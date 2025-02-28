@@ -80,7 +80,7 @@ Up to eight additional "r_i" prime factors are supported.
 =item "rsa-exponent10" (B<OSSL_PKEY_PARAM_RSA_EXPONENT10>) <unsigned integer>
 
 RSA CRT (Chinese Remainder Theorem) exponents. The exponents are known
-as "dP", "dQ" and "d_i in RFC8017".
+as "dP", "dQ" and "d_i" in RFC8017.
 Up to eight additional "d_i" exponents are supported.
 
 =item "rsa-coefficient1" (B<OSSL_PKEY_PARAM_RSA_COEFFICIENT1>) <unsigned integer>
@@ -189,7 +189,7 @@ both return 1 unconditionally.
 
 For RSA keys, L<EVP_PKEY_public_check(3)> conforms to the SP800-56Br1 I<public key
 check> when the OpenSSL FIPS provider is used. The OpenSSL default provider
-performs similiar tests but relaxes the keysize restrictions for backwards
+performs similar tests but relaxes the keysize restrictions for backwards
 compatibility.
 
 For RSA keys, L<EVP_PKEY_public_check_quick(3)> is the same as

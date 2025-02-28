@@ -7,30 +7,29 @@
 namespace typed_array {
 const kBuiltinNameSet: constexpr string = '%TypedArray%.prototype.set';
 
-extern runtime TypedArraySet(
-    Context, JSTypedArray, Object, Number, Number): void;
+extern runtime TypedArraySet(Context, JSTypedArray, Object, Number, Number):
+    void;
 
 extern macro
-TypedArrayBuiltinsAssembler::CallCCopyFastNumberJSArrayElementsToTypedArray(
-    Context,
-    FastJSArray,           // source
-    AttachedJSTypedArray,  // dest
-    uintptr,               // sourceLength
-    uintptr                // destOffset
-    ): void;
+    TypedArrayBuiltinsAssembler::CallCCopyFastNumberJSArrayElementsToTypedArray(
+        Context,
+        FastJSArray,           // source
+        AttachedJSTypedArray,  // dest
+        uintptr,               // sourceLength
+        uintptr                // destOffset
+        ): void;
 
 extern macro
-TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
-    AttachedJSTypedArray,  // source
-    AttachedJSTypedArray,  // dest
-    uintptr,               // sourceLength
-    uintptr                // destOffset
-    ): void;
+    TypedArrayBuiltinsAssembler::CallCCopyTypedArrayElementsToTypedArray(
+        AttachedJSTypedArray,  // source
+        AttachedJSTypedArray,  // dest
+        uintptr,               // sourceLength
+        uintptr                // destOffset
+        ): void;
 
 // %TypedArray%.prototype.set ( overloaded [ , offset ] )
 // https://tc39.es/ecma262/#sec-%typedarray%.prototype.set-overloaded-offset
-transitioning javascript builtin
-TypedArrayPrototypeSet(
+transitioning javascript builtin TypedArrayPrototypeSet(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // Steps 2-8 are the same for
   // %TypedArray%.prototype.set ( array [ , offset ] ) and
@@ -109,10 +108,9 @@ TypedArrayPrototypeSet(
 
 // SetTypedArrayFromArrayLike
 // https://tc39.es/ecma262/#sec-settypedarrayfromarraylike
-transitioning macro
-TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
-    target: JSTypedArray, targetLength: uintptr, arrayArg: JSAny,
-    targetOffset: uintptr,
+transitioning macro TypedArrayPrototypeSetArray(
+    implicit context: Context, receiver: JSAny)(target: JSTypedArray,
+    targetLength: uintptr, arrayArg: JSAny, targetOffset: uintptr,
     targetOffsetOverflowed: bool): void labels IfOffsetOutOfBounds {
   // 4. Let src be ? ToObject(source).
   const src: JSReceiver = ToObject_Inline(context, arrayArg);
@@ -170,8 +168,8 @@ TypedArrayPrototypeSetArray(implicit context: Context, receiver: JSAny)(
 
 // SetTypedArrayFromTypedArray
 // https://tc39.es/ecma262/#sec-settypedarrayfromtypedarray
-transitioning macro
-TypedArrayPrototypeSetTypedArray(implicit context: Context, receiver: JSAny)(
+transitioning macro TypedArrayPrototypeSetTypedArray(
+    implicit context: Context, receiver: JSAny)(
     attachedTargetAndLength: AttachedJSTypedArrayAndLength,
     attachedSourceAndLength: AttachedJSTypedArrayAndLength,
     targetOffset: uintptr,

@@ -5,9 +5,8 @@
 #include "src/heap/cppgc/concurrent-marker.h"
 
 #include "include/cppgc/platform.h"
+#include "src/heap/cppgc/heap-base.h"
 #include "src/heap/cppgc/heap-object-header.h"
-#include "src/heap/cppgc/heap.h"
-#include "src/heap/cppgc/liveness-broker.h"
 #include "src/heap/cppgc/marking-state.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -26,7 +25,7 @@ template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
           typename WorklistLocal, typename Callback>
 bool DrainWorklistWithYielding(
     JobDelegate* job_delegate, ConcurrentMarkingState& marking_state,
-    IncrementalMarkingSchedule& incremental_marking_schedule,
+    heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
     WorklistLocal& worklist_local, Callback callback) {
   return DrainWorklistWithPredicate<kDeadlineCheckInterval>(
       [&incremental_marking_schedule, &marking_state, job_delegate]() {
@@ -84,7 +83,7 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
       concurrent_marker_.CreateConcurrentMarkingVisitor(
           concurrent_marking_state);
   ProcessWorklists(job_delegate, concurrent_marking_state,
-                   *concurrent_marking_visitor.get());
+                   *concurrent_marking_visitor);
   concurrent_marker_.incremental_marking_schedule().AddConcurrentlyMarkedBytes(
       concurrent_marking_state.RecentlyMarkedBytes());
   concurrent_marking_state.Publish();
@@ -174,7 +173,7 @@ void ConcurrentMarkingTask::ProcessWorklists(
 
 ConcurrentMarkerBase::ConcurrentMarkerBase(
     HeapBase& heap, MarkingWorklists& marking_worklists,
-    IncrementalMarkingSchedule& incremental_marking_schedule,
+    heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
     cppgc::Platform* platform)
     : heap_(heap),
       marking_worklists_(marking_worklists),
@@ -252,7 +251,8 @@ void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
               last_concurrently_marked_bytes_update_)
                  .InMilliseconds() >
              kMarkingScheduleRatioBeforeConcurrentPriorityIncrease *
-                 IncrementalMarkingSchedule::kEstimatedMarkingTimeMs) {
+                 heap::base::IncrementalMarkingSchedule::kEstimatedMarkingTime
+                     .InMillisecondsF()) {
     concurrent_marking_handle_->UpdatePriority(
         cppgc::TaskPriority::kUserBlocking);
     concurrent_marking_priority_increased_ = true;

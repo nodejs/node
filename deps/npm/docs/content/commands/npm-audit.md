@@ -32,6 +32,13 @@ vulnerability is found. It may be useful in CI environments to include the
 will cause the command to fail. This option does not filter the report
 output, it simply changes the command's failure threshold.
 
+### Package lock
+
+By default npm requires a package-lock or shrinkwrap in order to run the
+audit.  You can bypass the package lock with `--no-package-lock` but be
+aware the results may be different with every run, since npm will
+re-build the dependency tree each time.
+
 ### Audit Signatures
 
 To ensure the integrity of packages you download from the public npm registry, or any registry that supports signatures, you can verify the registry signatures of downloaded packages using the npm CLI.
@@ -41,6 +48,13 @@ Registry signatures can be verified using the following `audit` command:
 ```bash
 $ npm audit signatures
 ```
+
+The `audit signatures` command will also verify the provenance attestations of
+downloaded packages. Because provenance attestations are such a new feature,
+security features may be added to (or changed in) the attestation format over
+time. To ensure that you're always able to verify attestation signatures check
+that you're running the latest version of the npm CLI. Please note this often
+means updating npm beyond the version that ships with Node.js.
 
 The npm CLI supports registry signatures and signing keys provided by any registry if the following conventions are followed:
 
@@ -76,13 +90,13 @@ The `sig` is generated using the following template: `${package.name}@${package.
 
 Keys response:
 
-- `expires`: null or a simplified extended <a href="https://en.wikipedia.org/wiki/ISO_8601" target="_blank">ISO 8601 format</a>: `YYYY-MM-DDTHH:mm:ss.sssZ`
+- `expires`: null or a simplified extended [ISO 8601 format](https://en.wikipedia.org/wiki/ISO_8601): `YYYY-MM-DDTHH:mm:ss.sssZ`
 - `keydid`: sha256 fingerprint of the public key
 - `keytype`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `scheme`: only `ecdsa-sha2-nistp256` is currently supported by the npm CLI
 - `key`: base64 encoded public key
 
-See this <a href="https://registry.npmjs.org/-/npm/v1/keys" target="_blank">example key's response from the public npm registry</a>.
+See this [example key's response from the public npm registry](https://registry.npmjs.org/-/npm/v1/keys).
 
 ### Audit Endpoints
 
@@ -246,6 +260,8 @@ $ npm audit --audit-level=moderate
 The minimum level of vulnerability for `npm audit` to exit with a non-zero
 exit code.
 
+
+
 #### `dry-run`
 
 * Default: false
@@ -258,6 +274,8 @@ commands that modify your local installation, eg, `install`, `update`,
 
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
+
+
 
 #### `force`
 
@@ -285,6 +303,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
 
+
+
 #### `json`
 
 * Default: false
@@ -296,6 +316,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 #### `package-lock-only`
 
@@ -310,6 +332,18 @@ instead of checking `node_modules` and downloading dependencies.
 
 For `list` this means the output will be based on the tree described by the
 `package-lock.json`, rather than the contents of `node_modules`.
+
+
+
+#### `package-lock`
+
+* Default: true
+* Type: Boolean
+
+If set to false, then ignore `package-lock.json` files when installing. This
+will also prevent _writing_ `package-lock.json` if `save` is true.
+
+
 
 #### `omit`
 
@@ -329,9 +363,26 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
+
+
+
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
@@ -340,6 +391,8 @@ input, output, and error with the main npm process.
 
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
+
+
 
 #### `ignore-scripts`
 
@@ -352,6 +405,8 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
+
+
 
 #### `workspace`
 
@@ -414,6 +469,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

@@ -6,33 +6,36 @@
 
 namespace runtime {
 
-extern runtime JSWeakRefAddToKeptObjects(implicit context: Context)(
-    JSReceiver | Symbol): void;
+extern runtime JSWeakRefAddToKeptObjects(
+    implicit context: Context)(JSReceiver|Symbol): void;
 
 }  // namespace runtime
 
 namespace weakref {
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-weak-ref-target
-transitioning javascript builtin
-WeakRefConstructor(
+// https://tc39.es/ecma262/#sec-weak-ref-target
+transitioning javascript builtin WeakRefConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
-    target: JSFunction)(weakTarget: JSAny): JSWeakRef {
+    target: JSFunction)(...arguments): JSWeakRef {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (newTarget == Undefined) {
     ThrowTypeError(MessageTemplate::kConstructorNotFunction, 'WeakRef');
   }
 
+  if (arguments.actual_count == 0) {
+    ThrowTypeError(MessageTemplate::kInvalidWeakRefsWeakRefConstructorTarget);
+  }
+
   // 2. If CanBeHeldWeakly(weakTarget) is false, throw a TypeError exception.
-  GotoIfCannotBeHeldWeakly(weakTarget) otherwise ThrowTypeError(
+  GotoIfCannotBeHeldWeakly(arguments[0]) otherwise ThrowTypeError(
       MessageTemplate::kInvalidWeakRefsWeakRefConstructorTarget);
+  const weakTarget = UnsafeCast<(JSReceiver | Symbol)>(arguments[0]);
 
   // 3. Let weakRef be ? OrdinaryCreateFromConstructor(NewTarget,
   // "%WeakRefPrototype%", « [[WeakRefTarget]] »).
   const map = GetDerivedMap(target, UnsafeCast<JSReceiver>(newTarget));
   const weakRef = UnsafeCast<JSWeakRef>(AllocateFastOrSlowJSObjectFromMap(map));
   // 4. Perfom ! AddToKeptObjects(target).
-  const weakTarget = UnsafeCast<(JSReceiver | Symbol)>(weakTarget);
   runtime::JSWeakRefAddToKeptObjects(weakTarget);
   // 5. Set weakRef.[[WeakRefTarget]] to target.
   weakRef.target = weakTarget;
@@ -40,8 +43,8 @@ WeakRefConstructor(
   return weakRef;
 }
 
-transitioning javascript builtin
-WeakRefDeref(js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
+transitioning javascript builtin WeakRefDeref(
+    js-implicit context: NativeContext, receiver: JSAny)(): JSAny {
   // 1. Let weakRef be the this value.
   // 2. Perform ? RequireInternalSlot(weakRef, [[WeakRefTarget]]).
   const weakRef = Cast<JSWeakRef>(receiver) otherwise

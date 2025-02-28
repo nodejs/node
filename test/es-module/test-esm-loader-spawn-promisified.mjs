@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-describe('Loader hooks throwing errors', { concurrency: true }, () => {
+describe('Loader hooks throwing errors', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('throws on nonexistent modules', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -28,7 +28,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
       '--input-type=module',
       '--eval',
-      `import '${fixtures.fileURL('/es-modules/file.unknown')}'`,
+      `import ${JSON.stringify(fixtures.fileURL('/es-modules/file.unknown'))}`,
     ]);
 
     assert.match(stderr, /ERR_UNKNOWN_FILE_EXTENSION/);
@@ -142,7 +142,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
       `import assert from 'node:assert';
       await Promise.allSettled([
         import('nonexistent/file.mjs'),
-        import('${fixtures.fileURL('/es-modules/file.unknown')}'),
+        import(${JSON.stringify(fixtures.fileURL('/es-modules/file.unknown'))}),
         import('esmHook/badReturnVal.mjs'),
         import('esmHook/format.false'),
         import('esmHook/format.true'),
@@ -161,7 +161,7 @@ describe('Loader hooks throwing errors', { concurrency: true }, () => {
   });
 });
 
-describe('Loader hooks parsing modules', { concurrency: true }, () => {
+describe('Loader hooks parsing modules', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('can parse .js files as ESM', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -170,7 +170,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-module-loaders/js-as-esm.js')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-module-loaders/js-as-esm.js'))})
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         assert.strictEqual(parsedModule.namedExport, 'named-export');
@@ -191,7 +191,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/file.ext')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-modules/file.ext'))})
       .then((parsedModule) => {
         assert.strictEqual(typeof parsedModule, 'object');
         const { default: defaultExport } = parsedModule;
@@ -258,7 +258,7 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
       '--input-type=module',
       '--eval',
       `import assert from 'node:assert';
-      await import('${fixtures.fileURL('/es-modules/stateful.mjs')}')
+      await import(${JSON.stringify(fixtures.fileURL('/es-modules/stateful.mjs'))})
       .then(({ default: count }) => {
         assert.strictEqual(count(), 1);
       });`,
@@ -283,6 +283,22 @@ describe('Loader hooks parsing modules', { concurrency: true }, () => {
     assert.strictEqual(stderr, '');
     assert.strictEqual(stdout, '');
     assert.strictEqual(code, 0);
+    assert.strictEqual(signal, null);
+  });
+
+  it('throw maximum call stack error on the loader', async () => {
+    const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-loader',
+      fixtures.fileURL('/es-module-loaders/hooks-custom.mjs'),
+      '--input-type=module',
+      '--eval',
+      'await import("esmHook/maximumCallStack.mjs")',
+    ]);
+
+    assert(stderr.includes('Maximum call stack size exceeded'));
+    assert.strictEqual(stdout, '');
+    assert.strictEqual(code, 1);
     assert.strictEqual(signal, null);
   });
 });

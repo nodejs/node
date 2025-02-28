@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@ static void cms_env_set_version(CMS_EnvelopedData *env);
 #define CMS_ENVELOPED_STANDARD 1
 #define CMS_ENVELOPED_AUTH     2
 
-static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
+static int cms_get_enveloped_type_simple(const CMS_ContentInfo *cms)
 {
     int nid = OBJ_obj2nid(cms->contentType);
 
@@ -38,8 +38,25 @@ static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
         return CMS_ENVELOPED_AUTH;
 
     default:
-        ERR_raise(ERR_LIB_CMS, CMS_R_CONTENT_TYPE_NOT_ENVELOPED_DATA);
         return 0;
+    }
+}
+
+static int cms_get_enveloped_type(const CMS_ContentInfo *cms)
+{
+    int ret = cms_get_enveloped_type_simple(cms);
+
+    if (ret == 0)
+        ERR_raise(ERR_LIB_CMS, CMS_R_CONTENT_TYPE_NOT_ENVELOPED_DATA);
+    return ret;
+}
+
+void ossl_cms_env_enc_content_free(const CMS_ContentInfo *cinf)
+{
+    if (cms_get_enveloped_type_simple(cinf) != 0) {
+        CMS_EncryptedContentInfo *ec = ossl_cms_get0_env_enc_content(cinf);
+        if (ec != NULL)
+            OPENSSL_clear_free(ec->key, ec->keylen);
     }
 }
 
@@ -138,14 +155,16 @@ int ossl_cms_env_asn1_ctrl(CMS_RecipientInfo *ri, int cmd)
     return 1;
 }
 
-CMS_EncryptedContentInfo* ossl_cms_get0_env_enc_content(const CMS_ContentInfo *cms)
+CMS_EncryptedContentInfo *ossl_cms_get0_env_enc_content(const CMS_ContentInfo *cms)
 {
     switch (cms_get_enveloped_type(cms)) {
     case CMS_ENVELOPED_STANDARD:
-        return cms->d.envelopedData->encryptedContentInfo;
+        return cms->d.envelopedData == NULL ? NULL
+            : cms->d.envelopedData->encryptedContentInfo;
 
     case CMS_ENVELOPED_AUTH:
-        return cms->d.authEnvelopedData->authEncryptedContentInfo;
+        return cms->d.authEnvelopedData == NULL ? NULL
+            : cms->d.authEnvelopedData->authEncryptedContentInfo;
 
     default:
         return NULL;

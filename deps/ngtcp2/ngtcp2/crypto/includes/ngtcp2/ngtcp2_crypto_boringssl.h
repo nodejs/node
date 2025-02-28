@@ -31,29 +31,29 @@
 
 #ifdef __cplusplus
 extern "C" {
-#endif
+#endif /* defined(__cplusplus) */
 
 /**
  * @function
  *
  * `ngtcp2_crypto_boringssl_from_ssl_encryption_level` translates
- * |ssl_level| to :type:`ngtcp2_crypto_level`.  This function is only
- * available for BoringSSL backend.
+ * |ssl_level| to :type:`ngtcp2_encryption_level`.  This function is
+ * only available for BoringSSL backend.
  */
-NGTCP2_EXTERN ngtcp2_crypto_level
+NGTCP2_EXTERN ngtcp2_encryption_level
 ngtcp2_crypto_boringssl_from_ssl_encryption_level(
-    enum ssl_encryption_level_t ssl_level);
+  enum ssl_encryption_level_t ssl_level);
 
 /**
  * @function
  *
- * `ngtcp2_crypto_boringssl_from_ngtcp2_crypto_level` translates
- * |crypto_level| to ssl_encryption_level_t.  This function is only
- * available for BoringSSL backend.
+ * `ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level` translates
+ * |encryption_level| to ssl_encryption_level_t.  This function is
+ * only available for BoringSSL backend.
  */
 NGTCP2_EXTERN enum ssl_encryption_level_t
-ngtcp2_crypto_boringssl_from_ngtcp2_crypto_level(
-    ngtcp2_crypto_level crypto_level);
+ngtcp2_crypto_boringssl_from_ngtcp2_encryption_level(
+  ngtcp2_encryption_level encryption_level);
 
 /**
  * @function
@@ -99,6 +99,6 @@ ngtcp2_crypto_boringssl_configure_client_context(SSL_CTX *ssl_ctx);
 
 #ifdef __cplusplus
 }
-#endif
+#endif /* defined(__cplusplus) */
 
-#endif /* NGTCP2_CRYPTO_BORINGSSL_H */
+#endif /* !defined(NGTCP2_CRYPTO_BORINGSSL_H) */

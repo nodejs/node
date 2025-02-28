@@ -3,5 +3,5 @@
 // found in the LICENSE file.
 
 @abstract
-extern class PrimitiveHeapObject extends HeapObject {
-}
+@cppObjectLayoutDefinition
+extern class PrimitiveHeapObject extends HeapObject {}

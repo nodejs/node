@@ -97,8 +97,7 @@ transitioning javascript builtin ArrayBufferPrototypeGetDetached(
 }
 
 // #sec-get-growablesharedarraybuffer.prototype.maxbytelength
-transitioning javascript builtin
-SharedArrayBufferPrototypeGetMaxByteLength(
+transitioning javascript builtin SharedArrayBufferPrototypeGetMaxByteLength(
     js-implicit context: NativeContext, receiver: JSAny)(): Number {
   // 1. Let O be the this value.
   // 2. Perform ? RequireInternalSlot(O, [[ArrayBufferData]]).

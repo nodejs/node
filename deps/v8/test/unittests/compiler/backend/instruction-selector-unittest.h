@@ -85,8 +85,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
                  InstructionSelector::SourcePositionMode source_position_mode =
                      InstructionSelector::kAllSourcePositions);
 
-    const FrameStateFunctionInfo* GetFrameStateFunctionInfo(int parameter_count,
-                                                            int local_count);
+    const FrameStateFunctionInfo* GetFrameStateFunctionInfo(
+        uint16_t parameter_count, int local_count);
 
     // Create a simple call descriptor for testing.
     static CallDescriptor* MakeSimpleCallDescriptor(Zone* zone,
@@ -123,6 +123,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
 
       return zone->New<CallDescriptor>(  // --
           CallDescriptor::kCallAddress,  // kind
+          kDefaultCodeEntrypointTag,     // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
           locations.Build(),             // location_sig

@@ -28,7 +28,8 @@ class MemoryRetainerNode : public v8::EmbedderGraph::Node {
     CHECK_NOT_NULL(retainer_);
     v8::HandleScope handle_scope(tracker->isolate());
     v8::Local<v8::Object> obj = retainer_->WrappedObject();
-    if (!obj.IsEmpty()) wrapper_node_ = tracker->graph()->V8Node(obj);
+    if (!obj.IsEmpty())
+      wrapper_node_ = tracker->graph()->V8Node(obj.As<v8::Value>());
 
     name_ = retainer_->MemoryInfoName();
     size_ = retainer_->SelfSize();
@@ -230,7 +231,9 @@ void MemoryTracker::TrackField(const char* edge_name,
                                const v8::Local<T>& value,
                                const char* node_name) {
   if (!value.IsEmpty())
-    graph_->AddEdge(CurrentNode(), graph_->V8Node(value), edge_name);
+    graph_->AddEdge(CurrentNode(),
+                    graph_->V8Node(value.template As<v8::Value>()),
+                    edge_name);
 }
 
 template <typename T>
@@ -292,6 +295,27 @@ void MemoryTracker::TrackInlineField(const MemoryRetainer* retainer,
   Track(retainer, edge_name);
   CHECK(CurrentNode());
   CurrentNode()->size_ -= retainer->SelfSize();
+}
+
+template <typename T>
+inline void MemoryTracker::TraitTrack(const T& retainer,
+                                      const char* edge_name) {
+  MemoryRetainerNode* n =
+      PushNode(MemoryRetainerTraits<T>::MemoryInfoName(retainer),
+               MemoryRetainerTraits<T>::SelfSize(retainer),
+               edge_name);
+  MemoryRetainerTraits<T>::MemoryInfo(this, retainer);
+  CHECK_EQ(CurrentNode(), n);
+  CHECK_NE(n->size_, 0);
+  PopNode();
+}
+
+template <typename T>
+inline void MemoryTracker::TraitTrackInline(const T& retainer,
+                                            const char* edge_name) {
+  TraitTrack(retainer, edge_name);
+  CHECK(CurrentNode());
+  CurrentNode()->size_ -= MemoryRetainerTraits<T>::SelfSize(retainer);
 }
 
 MemoryRetainerNode* MemoryTracker::CurrentNode() const {

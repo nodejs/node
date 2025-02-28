@@ -50,7 +50,7 @@ extern const float16 kFP16DefaultNaN;
 }  // end of extern "C"
 #endif
 
-unsigned CalcLSDataSize(LoadStoreOp op);
+unsigned CalcLSDataSizeLog2(LoadStoreOp op);
 unsigned CalcLSPairDataSize(LoadStorePairOp op);
 
 enum ImmBranchType {
@@ -144,7 +144,7 @@ class Instruction {
   double ImmNEONFP64() const;
 
   unsigned SizeLS() const {
-    return CalcLSDataSize(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
+    return CalcLSDataSizeLog2(static_cast<LoadStoreOp>(Mask(LoadStoreMask)));
   }
 
   unsigned SizeLSPair() const {
@@ -308,7 +308,7 @@ class Instruction {
     }
   }
 
-  static int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
+  static constexpr int ImmBranchRangeBitwidth(ImmBranchType branch_type) {
     switch (branch_type) {
       case UncondBranchType:
         return ImmUncondBranch_width;
@@ -324,7 +324,7 @@ class Instruction {
   }
 
   // The range of the branch instruction, expressed as 'instr +- range'.
-  static int32_t ImmBranchRange(ImmBranchType branch_type) {
+  static constexpr int32_t ImmBranchRange(ImmBranchType branch_type) {
     return (1 << (ImmBranchRangeBitwidth(branch_type) + kInstrSizeLog2)) / 2 -
            kInstrSize;
   }
@@ -416,7 +416,12 @@ class Instruction {
 
   // Check if the offset is in range of a given branch type. The offset is
   // a byte offset, unscaled.
-  static bool IsValidImmPCOffset(ImmBranchType branch_type, ptrdiff_t offset);
+  static constexpr bool IsValidImmPCOffset(ImmBranchType branch_type,
+                                           ptrdiff_t offset) {
+    DCHECK_EQ(offset % kInstrSize, 0);
+    return is_intn(offset / kInstrSize, ImmBranchRangeBitwidth(branch_type));
+  }
+
   bool IsTargetInImmPCOffsetRange(Instruction* target);
   // Patch a PC-relative offset to refer to 'target'. 'this' may be a branch or
   // a PC-relative addressing instruction.
@@ -460,7 +465,38 @@ class Instruction {
   static const int ImmPCRelRangeBitwidth = 21;
   static bool IsValidPCRelOffset(ptrdiff_t offset) { return is_int21(offset); }
   void SetPCRelImmTarget(const AssemblerOptions& options, Instruction* target);
-  V8_EXPORT_PRIVATE void SetBranchImmTarget(Instruction* target);
+
+  template <ImmBranchType branch_type>
+  void SetBranchImmTarget(Instruction* target) {
+    DCHECK(IsAligned(DistanceTo(target), kInstrSize));
+    DCHECK(IsValidImmPCOffset(branch_type, DistanceTo(target)));
+    int offset = static_cast<int>(DistanceTo(target) >> kInstrSizeLog2);
+    Instr branch_imm = 0;
+    uint32_t imm_mask = 0;
+    switch (branch_type) {
+      case CondBranchType:
+      case CompareBranchType:
+        static_assert(ImmCondBranch_mask == ImmCmpBranch_mask);
+        static_assert(ImmCondBranch_offset == ImmCmpBranch_offset);
+        // We use a checked truncation here to catch certain bugs where we fail
+        // to check whether a veneer is required. See e.g. crbug.com/1485829.
+        branch_imm = checked_truncate_to_int19(offset) << ImmCondBranch_offset;
+        imm_mask = ImmCondBranch_mask;
+        break;
+      case UncondBranchType:
+        branch_imm = checked_truncate_to_int26(offset)
+                     << ImmUncondBranch_offset;
+        imm_mask = ImmUncondBranch_mask;
+        break;
+      case TestBranchType:
+        branch_imm = checked_truncate_to_int14(offset) << ImmTestBranch_offset;
+        imm_mask = ImmTestBranch_mask;
+        break;
+      default:
+        UNREACHABLE();
+    }
+    SetInstructionBits(Mask(~imm_mask) | branch_imm);
+  }
 };
 
 // Simulator/Debugger debug instructions ---------------------------------------
@@ -474,6 +510,10 @@ const Instr kImmExceptionIsRedirectedCall = 0xca11;
 // Represent unreachable code. This is used as a guard in parts of the code that
 // should not be reachable, such as in data encoded inline in the instructions.
 const Instr kImmExceptionIsUnreachable = 0xdebf;
+
+// Indicate that the stack is being switched, so the simulator must update its
+// stack limit. The new stack limit is passed in x16.
+const Instr kImmExceptionIsSwitchStackLimit = 0x5915;
 
 // A pseudo 'printf' instruction. The arguments will be passed to the platform
 // printf method.
@@ -654,6 +694,13 @@ class NEONFormatDecoder {
     // NEON FP vector formats: NF_2S, NF_4S, NF_2D.
     static const NEONFormatMap map = {{22, 30},
                                       {NF_2S, NF_4S, NF_UNDEF, NF_2D}};
+    return &map;
+  }
+
+  // The FP half-precision format map uses one Q bit to encode the
+  // NEON FP vector formats: NF_4H, NF_8H.
+  static const NEONFormatMap* FPHPFormatMap() {
+    static const NEONFormatMap map = {{30}, {NF_4H, NF_8H}};
     return &map;
   }
 

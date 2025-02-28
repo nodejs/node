@@ -60,7 +60,7 @@ TEST(Object, InstanceTypeListOrder) {
   int prev = -1;
   InstanceType current_type = static_cast<InstanceType>(current);
   EXPECT_EQ(current_type, InstanceType::FIRST_TYPE);
-  EXPECT_EQ(current_type, InstanceType::INTERNALIZED_STRING_TYPE);
+  EXPECT_EQ(current_type, InstanceType::INTERNALIZED_TWO_BYTE_STRING_TYPE);
 #define TEST_INSTANCE_TYPE(type)                                           \
   current_type = InstanceType::type;                                       \
   current = static_cast<int>(current_type);                                \
@@ -103,7 +103,7 @@ using ObjectWithIsolate = TestWithIsolate;
 
 TEST_F(ObjectWithIsolate, DictionaryGrowth) {
   Handle<NumberDictionary> dict = NumberDictionary::New(isolate(), 1);
-  Handle<Object> value = isolate()->factory()->null_value();
+  DirectHandle<Object> value = isolate()->factory()->null_value();
   PropertyDetails details = PropertyDetails::Empty();
 
   // This test documents the expected growth behavior of a dictionary getting
@@ -159,12 +159,12 @@ TEST_F(ObjectWithIsolate, DictionaryGrowth) {
 
 TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
   // Check that the empty_function has a properly set up ScopeInfo.
-  Handle<JSFunction> function = RunJS<JSFunction>("(function(){})");
+  DirectHandle<JSFunction> function = RunJS<JSFunction>("(function(){})");
 
-  Handle<ScopeInfo> scope_info(function->shared().scope_info(),
-                               function->GetIsolate());
-  Handle<ScopeInfo> empty_function_scope_info(
-      isolate()->empty_function()->shared().scope_info(),
+  DirectHandle<ScopeInfo> scope_info(function->shared()->scope_info(),
+                                     function->GetIsolate());
+  DirectHandle<ScopeInfo> empty_function_scope_info(
+      isolate()->empty_function()->shared()->scope_info(),
       function->GetIsolate());
 
   EXPECT_EQ(scope_info->Flags(), empty_function_scope_info->Flags());
@@ -174,76 +174,36 @@ TEST_F(TestWithNativeContext, EmptyFunctionScopeInfo) {
             empty_function_scope_info->ContextLocalCount());
 }
 
-TEST_F(TestWithNativeContext, RecreateScopeInfoWithLocalsBlocklistWorks) {
-  // Create a JSFunction to get a {ScopeInfo} we can use for the test.
-  Handle<JSFunction> function = RunJS<JSFunction>("(function foo() {})");
-  Handle<ScopeInfo> original_scope_info(function->shared().scope_info(),
-                                        isolate());
-  ASSERT_FALSE(original_scope_info->HasLocalsBlockList());
-
-  Handle<String> foo_string =
-      isolate()->factory()->NewStringFromStaticChars("foo");
-  Handle<String> bar_string =
-      isolate()->factory()->NewStringFromStaticChars("bar");
-
-  Handle<StringSet> blocklist = StringSet::New(isolate());
-  StringSet::Add(isolate(), blocklist, foo_string);
-
-  Handle<ScopeInfo> scope_info = ScopeInfo::RecreateWithBlockList(
-      isolate(), original_scope_info, blocklist);
-
-  DisallowGarbageCollection no_gc;
-  EXPECT_TRUE(scope_info->HasLocalsBlockList());
-  EXPECT_TRUE(scope_info->LocalsBlockList().Has(isolate(), foo_string));
-  EXPECT_FALSE(scope_info->LocalsBlockList().Has(isolate(), bar_string));
-
-  EXPECT_EQ(original_scope_info->length() + 1, scope_info->length());
-
-  // Check that all variable fields *before* the blocklist stayed the same.
-  for (int i = ScopeInfo::kVariablePartIndex;
-       i < scope_info->LocalsBlockListIndex(); ++i) {
-    EXPECT_EQ(original_scope_info->get(i), scope_info->get(i));
-  }
-
-  // Check that all variable fields *after* the blocklist stayed the same.
-  for (int i = scope_info->LocalsBlockListIndex() + 1; i < scope_info->length();
-       ++i) {
-    EXPECT_EQ(original_scope_info->get(i - 1), scope_info->get(i));
-  }
-}
-
 using ObjectTest = TestWithContext;
 
-static void CheckObject(Isolate* isolate, Handle<Object> obj,
+static void CheckObject(Isolate* isolate, DirectHandle<Object> obj,
                         const char* string) {
-  Handle<String> print_string = String::Flatten(
+  DirectHandle<String> print_string = String::Flatten(
       isolate,
-      Handle<String>::cast(Object::NoSideEffectsToString(isolate, obj)));
+      indirect_handle(Object::NoSideEffectsToString(isolate, obj), isolate));
   CHECK(print_string->IsOneByteEqualTo(base::CStrVector(string)));
 }
 
 static void CheckSmi(Isolate* isolate, int value, const char* string) {
-  Handle<Object> handle(Smi::FromInt(value), isolate);
+  DirectHandle<Object> handle(Smi::FromInt(value), isolate);
   CheckObject(isolate, handle, string);
 }
 
 static void CheckString(Isolate* isolate, const char* value,
                         const char* string) {
-  Handle<String> handle(isolate->factory()->NewStringFromAsciiChecked(value));
+  DirectHandle<String> handle(
+      isolate->factory()->NewStringFromAsciiChecked(value));
   CheckObject(isolate, handle, string);
 }
 
 static void CheckNumber(Isolate* isolate, double value, const char* string) {
-  Handle<Object> number = isolate->factory()->NewNumber(value);
-  CHECK(number->IsNumber());
+  DirectHandle<Object> number = isolate->factory()->NewNumber(value);
+  CHECK(IsNumber(*number));
   CheckObject(isolate, number, string);
 }
 
 static void CheckBoolean(Isolate* isolate, bool value, const char* string) {
-  CheckObject(isolate,
-              value ? isolate->factory()->true_value()
-                    : isolate->factory()->false_value(),
-              string);
+  CheckObject(isolate, isolate->factory()->ToBoolean(value), string);
 }
 
 TEST_F(ObjectTest, NoSideEffectsToString) {
@@ -308,153 +268,157 @@ TEST_F(ObjectTest, EnumCache) {
       "cc.b = 2;"
       "cc.cc = 4;");
 
-  Handle<JSObject> a = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> a = Cast<JSObject>(v8::Utils::OpenDirectHandle(
       *context()->Global()->Get(context(), NewString("a")).ToLocalChecked()));
-  Handle<JSObject> b = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> b = Cast<JSObject>(v8::Utils::OpenDirectHandle(
       *context()->Global()->Get(context(), NewString("b")).ToLocalChecked()));
-  Handle<JSObject> c = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> c = Cast<JSObject>(v8::Utils::OpenDirectHandle(
       *context()->Global()->Get(context(), NewString("c")).ToLocalChecked()));
-  Handle<JSObject> cc = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> cc = Cast<JSObject>(v8::Utils::OpenDirectHandle(
       *context()->Global()->Get(context(), NewString("cc")).ToLocalChecked()));
 
   // Check the transition tree.
-  CHECK_EQ(a->map().instance_descriptors(), b->map().instance_descriptors());
-  CHECK_EQ(b->map().instance_descriptors(), c->map().instance_descriptors());
-  CHECK_NE(c->map().instance_descriptors(), cc->map().instance_descriptors());
-  CHECK_NE(b->map().instance_descriptors(), cc->map().instance_descriptors());
+  CHECK_EQ(a->map()->instance_descriptors(), b->map()->instance_descriptors());
+  CHECK_EQ(b->map()->instance_descriptors(), c->map()->instance_descriptors());
+  CHECK_NE(c->map()->instance_descriptors(), cc->map()->instance_descriptors());
+  CHECK_NE(b->map()->instance_descriptors(), cc->map()->instance_descriptors());
 
   // Check that the EnumLength is unset.
-  CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-  CHECK_EQ(cc->map().EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+  CHECK_EQ(cc->map()->EnumLength(), kInvalidEnumCacheSentinel);
 
   // Check that the EnumCache is empty.
-  CHECK_EQ(a->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(b->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(c->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
-  CHECK_EQ(cc->map().instance_descriptors().enum_cache(),
+  CHECK_EQ(cc->map()->instance_descriptors()->enum_cache(),
            *factory->empty_enum_cache());
 
   // The EnumCache is shared on the DescriptorArray, creating it on {cc} has no
   // effect on the other maps.
   RunJS("var s = 0; for (let key in cc) { s += cc[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(),
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
 
-    EnumCache enum_cache = cc->map().instance_descriptors().enum_cache();
+    Tagged<EnumCache> enum_cache =
+        cc->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
   }
 
   // Initializing the EnumCache for the the topmost map {a} will not create the
   // cache for the other maps.
   RunJS("var s = 0; for (let key in a) { s += a[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    EnumCache enum_cache = a->map().instance_descriptors().enum_cache();
+    Tagged<EnumCache> enum_cache =
+        a->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
 
-    CHECK_EQ(enum_cache.keys().length(), 1);
-    CHECK_EQ(enum_cache.indices().length(), 1);
+    CHECK_EQ(enum_cache->keys()->length(), 1);
+    CHECK_EQ(enum_cache->indices()->length(), 1);
   }
 
   // Creating the EnumCache for {c} will create a new EnumCache on the shared
   // DescriptorArray.
-  Handle<EnumCache> previous_enum_cache(
-      a->map().instance_descriptors().enum_cache(), a->GetIsolate());
-  Handle<FixedArray> previous_keys(previous_enum_cache->keys(),
-                                   a->GetIsolate());
-  Handle<FixedArray> previous_indices(previous_enum_cache->indices(),
-                                      a->GetIsolate());
+  DirectHandle<EnumCache> previous_enum_cache(
+      a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
+  DirectHandle<FixedArray> previous_keys(previous_enum_cache->keys(),
+                                         a->GetIsolate());
+  DirectHandle<FixedArray> previous_indices(previous_enum_cache->indices(),
+                                            a->GetIsolate());
   RunJS("var s = 0; for (let key in c) { s += c[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), kInvalidEnumCacheSentinel);
-    CHECK_EQ(c->map().EnumLength(), 3);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), kInvalidEnumCacheSentinel);
+    CHECK_EQ(c->map()->EnumLength(), 3);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
+    Tagged<EnumCache> enum_cache =
+        c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_NE(enum_cache.keys(), *previous_keys);
-    CHECK_NE(enum_cache.indices(), *previous_indices);
+    CHECK_NE(enum_cache->keys(), *previous_keys);
+    CHECK_NE(enum_cache->indices(), *previous_indices);
     CHECK_EQ(previous_keys->length(), 1);
     CHECK_EQ(previous_indices->length(), 1);
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 
   // {b} can reuse the existing EnumCache, hence we only need to set the correct
   // EnumLength on the map without modifying the cache itself.
   previous_enum_cache =
-      handle(a->map().instance_descriptors().enum_cache(), a->GetIsolate());
+      handle(a->map()->instance_descriptors()->enum_cache(), a->GetIsolate());
   previous_keys = handle(previous_enum_cache->keys(), a->GetIsolate());
   previous_indices = handle(previous_enum_cache->indices(), a->GetIsolate());
   RunJS("var s = 0; for (let key in b) { s += b[key] };");
   {
-    CHECK_EQ(a->map().EnumLength(), 1);
-    CHECK_EQ(b->map().EnumLength(), 2);
-    CHECK_EQ(c->map().EnumLength(), 3);
-    CHECK_EQ(cc->map().EnumLength(), 3);
+    CHECK_EQ(a->map()->EnumLength(), 1);
+    CHECK_EQ(b->map()->EnumLength(), 2);
+    CHECK_EQ(c->map()->EnumLength(), 3);
+    CHECK_EQ(cc->map()->EnumLength(), 3);
 
-    EnumCache enum_cache = c->map().instance_descriptors().enum_cache();
+    Tagged<EnumCache> enum_cache =
+        c->map()->instance_descriptors()->enum_cache();
     CHECK_NE(enum_cache, *factory->empty_enum_cache());
     // The keys and indices caches are not updated.
     CHECK_EQ(enum_cache, *previous_enum_cache);
-    CHECK_EQ(enum_cache.keys(), *previous_keys);
-    CHECK_EQ(enum_cache.indices(), *previous_indices);
-    CHECK_EQ(enum_cache.keys().length(), 3);
-    CHECK_EQ(enum_cache.indices().length(), 3);
+    CHECK_EQ(enum_cache->keys(), *previous_keys);
+    CHECK_EQ(enum_cache->indices(), *previous_indices);
+    CHECK_EQ(enum_cache->keys()->length(), 3);
+    CHECK_EQ(enum_cache->indices()->length(), 3);
 
     // The enum cache is shared on the descriptor array of maps {a}, {b} and
     // {c} only.
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *factory->empty_enum_cache());
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_NE(cc->map().instance_descriptors().enum_cache(),
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_NE(cc->map()->instance_descriptors()->enum_cache(),
              *previous_enum_cache);
-    CHECK_EQ(a->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(b->map().instance_descriptors().enum_cache(), enum_cache);
-    CHECK_EQ(c->map().instance_descriptors().enum_cache(), enum_cache);
+    CHECK_EQ(a->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(b->map()->instance_descriptors()->enum_cache(), enum_cache);
+    CHECK_EQ(c->map()->instance_descriptors()->enum_cache(), enum_cache);
   }
 }
 
@@ -462,20 +426,20 @@ TEST_F(ObjectTest, ObjectMethodsThatTruncateMinusZero) {
   Factory* factory = i_isolate()->factory();
 
   Handle<Object> minus_zero = factory->NewNumber(-1.0 * 0.0);
-  CHECK(minus_zero->IsMinusZero());
+  CHECK(IsMinusZero(*minus_zero));
 
-  Handle<Object> result =
+  DirectHandle<Object> result =
       Object::ToInteger(i_isolate(), minus_zero).ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 
   result = Object::ToLength(i_isolate(), minus_zero).ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 
   // Choose an error message template, doesn't matter which.
   result = Object::ToIndex(i_isolate(), minus_zero,
                            MessageTemplate::kInvalidAtomicAccessIndex)
                .ToHandleChecked();
-  CHECK(result->IsZero());
+  CHECK(IsZero(*result));
 }
 
 #define TEST_FUNCTION_KIND(Name)                                            \
@@ -654,15 +618,18 @@ TEST_FUNCTION_KIND(IsStrictFunctionWithoutPrototype)
 #undef TEST_FUNCTION_KIND
 
 TEST_F(ObjectTest, ConstructorInstanceTypes) {
+  bool flag_was_enabled = i::v8_flags.js_float16array;
+  i::v8_flags.js_float16array = true;
   v8::HandleScope scope(isolate());
 
-  Handle<NativeContext> context = i_isolate()->native_context();
+  DirectHandle<NativeContext> context = i_isolate()->native_context();
 
   DisallowGarbageCollection no_gc;
   for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
-    Object value = context->get(i);
-    if (!value.IsJSFunction()) continue;
-    InstanceType instance_type = JSFunction::cast(value).map().instance_type();
+    Tagged<Object> value = context->get(i);
+    if (!IsJSFunction(value)) continue;
+    InstanceType instance_type =
+        Cast<JSFunction>(value)->map()->instance_type();
 
     switch (i) {
       case Context::ARRAY_FUNCTION_INDEX:
@@ -688,6 +655,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
         break;
     }
   }
+  i::v8_flags.js_float16array = flag_was_enabled;
 }
 
 TEST_F(ObjectTest, AddDataPropertyNameCollision) {
@@ -698,8 +666,8 @@ TEST_F(ObjectTest, AddDataPropertyNameCollision) {
       factory->NewJSObject(i_isolate()->object_function());
 
   Handle<String> key = factory->NewStringFromStaticChars("key_string");
-  Handle<Object> value1(Smi::FromInt(0), i_isolate());
-  Handle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
+  DirectHandle<Object> value1(Smi::FromInt(0), i_isolate());
+  DirectHandle<Object> value2 = factory->NewStringFromAsciiChecked("corrupt");
 
   LookupIterator outer_it(i_isolate(), object, key, object,
                           LookupIterator::OWN_SKIP_INTERCEPTOR);
@@ -729,15 +697,15 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a = {'regular_prop':5};"
       "b = {'regular_prop':5};");
 
-  Handle<JSObject> a = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  Handle<JSObject> a = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("a")).ToLocalChecked()));
-  Handle<JSObject> b = Handle<JSObject>::cast(v8::Utils::OpenHandle(
+  DirectHandle<JSObject> b = Cast<JSObject>(v8::Utils::OpenHandle(
       *context()->Global()->Get(context(), NewString("b")).ToLocalChecked()));
 
   CHECK(a->map() == b->map());
 
   Handle<String> key = factory->NewStringFromStaticChars("corrupted_prop");
-  Handle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
+  DirectHandle<Object> value = factory->NewStringFromAsciiChecked("corrupt");
   LookupIterator it(i_isolate(), a, key, a,
                     LookupIterator::OWN_SKIP_INTERCEPTOR);
 
@@ -746,7 +714,7 @@ TEST_F(ObjectTest, AddDataPropertyNameCollisionDeprecatedMap) {
       "a.corrupted_prop = 1;"
       "b.regular_prop = 5.5;");
 
-  CHECK(a->map().is_deprecated());
+  CHECK(a->map()->is_deprecated());
 
   EXPECT_DEATH_IF_SUPPORTED(
       Object::AddDataProperty(&it, value, NONE,

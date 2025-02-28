@@ -3,11 +3,8 @@
 // found in the LICENSE file.
 
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
-#include "src/base/platform/time.h"
+#include "src/base/platform/yield-processor.h"
 #include "src/builtins/builtins-utils-inl.h"
-#include "src/builtins/builtins.h"
-#include "src/codegen/code-factory.h"
 #include "src/common/globals.h"
 #include "src/execution/futex-emulation.h"
 #include "src/heap/factory.h"
@@ -45,23 +42,22 @@ BUILTIN(AtomicsIsLockFree) {
   Handle<Object> size = args.atOrUndefined(isolate, 1);
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, size,
                                      Object::ToNumber(isolate, size));
-  return *isolate->factory()->ToBoolean(AtomicIsLockFree(size->Number()));
+  return *isolate->factory()->ToBoolean(
+      AtomicIsLockFree(Object::NumberValue(*size)));
 }
 
 // https://tc39.es/ecma262/#sec-validatesharedintegertypedarray
 V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
     Isolate* isolate, Handle<Object> object, const char* method_name,
     bool only_int32_and_big_int64 = false) {
-  if (object->IsJSTypedArray()) {
-    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(object);
+  if (IsJSTypedArray(*object)) {
+    Handle<JSTypedArray> typed_array = Cast<JSTypedArray>(object);
 
     if (typed_array->IsDetachedOrOutOfBounds()) {
       THROW_NEW_ERROR(
-          isolate,
-          NewTypeError(
-              MessageTemplate::kDetachedOperation,
-              isolate->factory()->NewStringFromAsciiChecked(method_name)),
-          JSTypedArray);
+          isolate, NewTypeError(MessageTemplate::kDetachedOperation,
+                                isolate->factory()->NewStringFromAsciiChecked(
+                                    method_name)));
     }
 
     if (only_int32_and_big_int64) {
@@ -78,18 +74,16 @@ V8_WARN_UNUSED_RESULT MaybeHandle<JSTypedArray> ValidateIntegerTypedArray(
   }
 
   THROW_NEW_ERROR(
-      isolate,
-      NewTypeError(only_int32_and_big_int64
-                       ? MessageTemplate::kNotInt32OrBigInt64TypedArray
-                       : MessageTemplate::kNotIntegerTypedArray,
-                   object),
-      JSTypedArray);
+      isolate, NewTypeError(only_int32_and_big_int64
+                                ? MessageTemplate::kNotInt32OrBigInt64TypedArray
+                                : MessageTemplate::kNotIntegerTypedArray,
+                            object));
 }
 
 // https://tc39.es/ecma262/#sec-validateatomicaccess
 // ValidateAtomicAccess( typedArray, requestIndex )
 V8_WARN_UNUSED_RESULT Maybe<size_t> ValidateAtomicAccess(
-    Isolate* isolate, Handle<JSTypedArray> typed_array,
+    Isolate* isolate, DirectHandle<JSTypedArray> typed_array,
     Handle<Object> request_index) {
   Handle<Object> access_index_obj;
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
@@ -124,6 +118,9 @@ inline size_t GetAddress32(size_t index, size_t byte_offset) {
 // ES #sec-atomics.notify
 // Atomics.notify( typedArray, index, count )
 BUILTIN(AtomicsNotify) {
+  // TODO(clemensb): This builtin only allocates (an exception) in the case of
+  // an error; we could try to avoid allocating the HandleScope in the non-error
+  // case.
   HandleScope scope(isolate);
   Handle<Object> array = args.atOrUndefined(isolate, 1);
   Handle<Object> index = args.atOrUndefined(isolate, 2);
@@ -144,12 +141,12 @@ BUILTIN(AtomicsNotify) {
   //   a. Let intCount be ? ToInteger(count).
   //   b. Let c be max(intCount, 0).
   uint32_t c;
-  if (count->IsUndefined(isolate)) {
+  if (IsUndefined(*count, isolate)) {
     c = kMaxUInt32;
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, count,
                                        Object::ToInteger(isolate, count));
-    double count_double = count->Number();
+    double count_double = Object::NumberValue(*count);
     if (count_double < 0) {
       count_double = 0;
     } else if (count_double > kMaxUInt32) {
@@ -161,26 +158,27 @@ BUILTIN(AtomicsNotify) {
   // Steps 5-9 performed in FutexEmulation::Wake.
 
   // 10. If IsSharedArrayBuffer(buffer) is false, return 0.
-  Handle<JSArrayBuffer> array_buffer = sta->GetBuffer();
-  size_t wake_addr;
+  DirectHandle<JSArrayBuffer> array_buffer = sta->GetBuffer();
 
-  if (V8_UNLIKELY(!sta->GetBuffer()->is_shared())) {
-    return Smi::FromInt(0);
+  if (V8_UNLIKELY(!array_buffer->is_shared())) {
+    return Smi::zero();
   }
 
   // Steps 11-17 performed in FutexEmulation::Wake.
+  size_t wake_addr;
   if (sta->type() == kExternalBigInt64Array) {
     wake_addr = GetAddress64(i, sta->byte_offset());
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
     wake_addr = GetAddress32(i, sta->byte_offset());
   }
-  return FutexEmulation::Wake(array_buffer, wake_addr, c);
+  int num_waiters_woken = FutexEmulation::Wake(*array_buffer, wake_addr, c);
+  return Smi::FromInt(num_waiters_woken);
 }
 
-Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
-              Handle<Object> array, Handle<Object> index, Handle<Object> value,
-              Handle<Object> timeout) {
+Tagged<Object> DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
+                      Handle<Object> array, Handle<Object> index,
+                      Handle<Object> value, Handle<Object> timeout) {
   // 1. Let buffer be ? ValidateIntegerTypedArray(typedArray, true).
   Handle<JSTypedArray> sta;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -213,14 +211,16 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   // 7. Let q be ? ToNumber(timeout).
   // 8. If q is NaN, let t be +∞, else let t be max(q, 0).
   double timeout_number;
-  if (timeout->IsUndefined(isolate)) {
-    timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+  if (IsUndefined(*timeout, isolate)) {
+    timeout_number =
+        Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
   } else {
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, timeout,
                                        Object::ToNumber(isolate, timeout));
-    timeout_number = timeout->Number();
+    timeout_number = Object::NumberValue(*timeout);
     if (std::isnan(timeout_number))
-      timeout_number = ReadOnlyRoots(isolate).infinity_value().Number();
+      timeout_number =
+          Object::NumberValue(ReadOnlyRoots(isolate).infinity_value());
     else if (timeout_number < 0)
       timeout_number = 0;
   }
@@ -241,7 +241,7 @@ Object DoWait(Isolate* isolate, FutexEmulation::WaitMode mode,
   if (sta->type() == kExternalBigInt64Array) {
     return FutexEmulation::WaitJs64(
         isolate, mode, array_buffer, GetAddress64(i, sta->byte_offset()),
-        Handle<BigInt>::cast(value)->AsInt64(), timeout_number);
+        Cast<BigInt>(value)->AsInt64(), timeout_number);
   } else {
     DCHECK(sta->type() == kExternalInt32Array);
     return FutexEmulation::WaitJs32(isolate, mode, array_buffer,
@@ -272,6 +272,73 @@ BUILTIN(AtomicsWaitAsync) {
 
   return DoWait(isolate, FutexEmulation::WaitMode::kAsync, array, index, value,
                 timeout);
+}
+
+namespace {
+V8_NOINLINE Maybe<bool> CheckAtomicsPauseIterationNumber(
+    Isolate* isolate, DirectHandle<Object> iteration_number) {
+  constexpr char method_name[] = "Atomics.pause";
+
+  enum { None, BadType, Negative } error_type = None;
+  if (IsNumber(*iteration_number)) {
+    // a. If iterationNumber is not an integral Number, throw a TypeError
+    // exception.
+    // b. If ℝ(iterationNumber) < 0, throw a RangeError exception.
+    double iter = Object::NumberValue(*iteration_number);
+    if (!std::isfinite(iter) || nearbyint(iter) != iter) {
+      error_type = BadType;
+    } else if (iter < 0) {
+      error_type = Negative;
+    }
+  } else {
+    error_type = BadType;
+  }
+
+  if (error_type != None) {
+    THROW_NEW_ERROR_RETURN_VALUE(
+        isolate,
+        NewError(error_type == BadType ? isolate->type_error_function()
+                                       : isolate->range_error_function(),
+                 MessageTemplate::kArgumentIsNotUndefinedOrNonNegativeInteger,
+                 isolate->factory()->NewStringFromAsciiChecked(method_name)),
+        Nothing<bool>());
+  }
+
+  return Just(true);
+}
+}  // namespace
+
+// https://tc39.es/proposal-atomics-microwait/
+BUILTIN(AtomicsPause) {
+  HandleScope scope(isolate);
+  DirectHandle<Object> iteration_number = args.atOrUndefined(isolate, 1);
+
+  // 1. If iterationNumber is not undefined, then
+  if (V8_UNLIKELY(
+          !IsUndefined(*iteration_number, isolate) &&
+          !(IsSmi(*iteration_number) && Smi::ToInt(*iteration_number) >= 0))) {
+    MAYBE_RETURN_ON_EXCEPTION_VALUE(
+        isolate, CheckAtomicsPauseIterationNumber(isolate, iteration_number),
+        ReadOnlyRoots(isolate).exception());
+  }
+
+  // 2. If the execution environment of the ECMAScript implementation supports a
+  //    signal that the current executing code is in a spin-wait loop, send that
+  //    signal. An ECMAScript implementation may send that signal multiple
+  //    times, determined by iterationNumber when not undefined. The number of
+  //    times the signal is sent for an integral Number N is at most the number
+  //    of times it is sent for N + 1.
+  //
+  // In the non-inlined version, JS call overhead is sufficiently expensive that
+  // iterationNumber is not used to determine how many times YIELD_PROCESSOR is
+  // performed.
+  //
+  // TODO(352359899): Try to estimate the call overhead and adjust the yield
+  // count while taking iterationNumber into account.
+  YIELD_PROCESSOR;
+
+  // 3. Return undefined.
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

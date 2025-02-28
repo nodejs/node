@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2013-2014 Timo Teräs <timo.teras@gmail.com>
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -44,9 +44,6 @@
 
 # ifndef PATH_MAX
 #  define PATH_MAX 4096
-# endif
-# ifndef NAME_MAX
-#  define NAME_MAX 255
 # endif
 # define MAX_COLLISIONS  256
 
@@ -340,6 +337,11 @@ static int ends_with_dirsep(const char *path)
     return *path == '/';
 }
 
+static int sk_strcmp(const char * const *a, const char * const *b)
+{
+    return strcmp(*a, *b);
+}
+
 /*
  * Process a directory; return number of errors found.
  */
@@ -350,41 +352,50 @@ static int do_dir(const char *dirname, enum Hash h)
     OPENSSL_DIR_CTX *d = NULL;
     struct stat st;
     unsigned char idmask[MAX_COLLISIONS / 8];
-    int n, numfiles, nextid, buflen, errs = 0;
-    size_t i;
-    const char *pathsep;
+    int n, numfiles, nextid, dirlen, buflen, errs = 0;
+    size_t i, fname_max_len = 20; /* maximum length of "%08x.r%d" */
+    const char *pathsep = "";
     const char *filename;
-    char *buf, *copy = NULL;
+    char *buf = NULL, *copy = NULL;
     STACK_OF(OPENSSL_STRING) *files = NULL;
 
     if (app_access(dirname, W_OK) < 0) {
         BIO_printf(bio_err, "Skipping %s, can't write\n", dirname);
         return 1;
     }
-    buflen = strlen(dirname);
-    pathsep = (buflen && !ends_with_dirsep(dirname)) ? "/": "";
-    buflen += NAME_MAX + 1 + 1;
-    buf = app_malloc(buflen, "filename buffer");
+    dirlen = strlen(dirname);
+    if (dirlen != 0 && !ends_with_dirsep(dirname)) {
+        pathsep = "/";
+        dirlen++;
+    }
 
     if (verbose)
         BIO_printf(bio_out, "Doing %s\n", dirname);
 
-    if ((files = sk_OPENSSL_STRING_new_null()) == NULL) {
+    if ((files = sk_OPENSSL_STRING_new(sk_strcmp)) == NULL) {
         BIO_printf(bio_err, "Skipping %s, out of memory\n", dirname);
         errs = 1;
         goto err;
     }
     while ((filename = OPENSSL_DIR_read(&d, dirname)) != NULL) {
+        size_t fname_len = strlen(filename);
+
         if ((copy = OPENSSL_strdup(filename)) == NULL
                 || sk_OPENSSL_STRING_push(files, copy) == 0) {
             OPENSSL_free(copy);
+            OPENSSL_DIR_end(&d);
             BIO_puts(bio_err, "out of memory\n");
             errs = 1;
             goto err;
         }
+        if (fname_len > fname_max_len)
+            fname_max_len = fname_len;
     }
     OPENSSL_DIR_end(&d);
     sk_OPENSSL_STRING_sort(files);
+
+    buflen = dirlen + fname_max_len + 1;
+    buf = app_malloc(buflen, "filename buffer");
 
     numfiles = sk_OPENSSL_STRING_num(files);
     for (n = 0; n < numfiles; ++n) {
@@ -422,12 +433,12 @@ static int do_dir(const char *dirname, enum Hash h)
                     while (bit_isset(idmask, nextid))
                         nextid++;
 
-                    BIO_snprintf(buf, buflen, "%s%s%n%08x.%s%d",
-                                 dirname, pathsep, &n, bp->hash,
+                    BIO_snprintf(buf, buflen, "%s%s%08x.%s%d",
+                                 dirname, pathsep, bp->hash,
                                  suffixes[bp->type], nextid);
                     if (verbose)
                         BIO_printf(bio_out, "link %s -> %s\n",
-                                   ep->filename, &buf[n]);
+                                   ep->filename, &buf[dirlen]);
                     if (unlink(buf) < 0 && errno != ENOENT) {
                         BIO_printf(bio_err,
                                    "%s: Can't unlink %s, %s\n",
@@ -444,12 +455,12 @@ static int do_dir(const char *dirname, enum Hash h)
                     bit_set(idmask, nextid);
                 } else if (remove_links) {
                     /* Link to be deleted */
-                    BIO_snprintf(buf, buflen, "%s%s%n%08x.%s%d",
-                                 dirname, pathsep, &n, bp->hash,
+                    BIO_snprintf(buf, buflen, "%s%s%08x.%s%d",
+                                 dirname, pathsep, bp->hash,
                                  suffixes[bp->type], ep->old_id);
                     if (verbose)
                         BIO_printf(bio_out, "unlink %s\n",
-                                   &buf[n]);
+                                   &buf[dirlen]);
                     if (unlink(buf) < 0 && errno != ENOENT) {
                         BIO_printf(bio_err,
                                    "%s: Can't unlink %s, %s\n",

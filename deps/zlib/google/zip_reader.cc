@@ -5,6 +5,7 @@
 #include "third_party/zlib/google/zip_reader.h"
 
 #include <algorithm>
+#include <string_view>
 #include <utility>
 
 #include "base/check.h"
@@ -15,7 +16,6 @@
 #include "base/logging.h"
 #include "base/numerics/safe_conversions.h"
 #include "base/strings/strcat.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/string_util.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/task/sequenced_task_runner.h"
@@ -246,14 +246,14 @@ bool ZipReader::OpenEntry() {
 
   // Construct the last modified time. The timezone info is not present in ZIP
   // archives, so we construct the time as UTC.
-  base::Time::Exploded exploded_time = {};
-  exploded_time.year = info.tmu_date.tm_year;
-  exploded_time.month = info.tmu_date.tm_mon + 1;  // 0-based vs 1-based
-  exploded_time.day_of_month = info.tmu_date.tm_mday;
-  exploded_time.hour = info.tmu_date.tm_hour;
-  exploded_time.minute = info.tmu_date.tm_min;
-  exploded_time.second = info.tmu_date.tm_sec;
-  exploded_time.millisecond = 0;
+  const base::Time::Exploded exploded_time = {
+      .year = static_cast<int>(info.tmu_date.tm_year),
+      .month =
+          static_cast<int>(info.tmu_date.tm_mon + 1),  // 0-based vs 1-based
+      .day_of_month = static_cast<int>(info.tmu_date.tm_mday),
+      .hour = static_cast<int>(info.tmu_date.tm_hour),
+      .minute = static_cast<int>(info.tmu_date.tm_min),
+      .second = static_cast<int>(info.tmu_date.tm_sec)};
 
   if (!base::Time::FromUTCExploded(exploded_time, &entry_.last_modified))
     entry_.last_modified = base::Time::UnixEpoch();
@@ -267,7 +267,7 @@ bool ZipReader::OpenEntry() {
   return true;
 }
 
-void ZipReader::Normalize(base::StringPiece16 in) {
+void ZipReader::Normalize(std::u16string_view in) {
   entry_.is_unsafe = true;
 
   // Directory entries in ZIP have a path ending with "/".
@@ -281,15 +281,16 @@ void ZipReader::Normalize(base::StringPiece16 in) {
 
   for (;;) {
     // Consume initial path separators.
-    const base::StringPiece16::size_type i = in.find_first_not_of(u'/');
-    if (i == base::StringPiece16::npos)
+    const std::u16string_view::size_type i = in.find_first_not_of(u'/');
+    if (i == std::u16string_view::npos) {
       break;
+    }
 
     in.remove_prefix(i);
     DCHECK(!in.empty());
 
     // Isolate next path component.
-    const base::StringPiece16 part = in.substr(0, in.find_first_of(u'/'));
+    const std::u16string_view part = in.substr(0, in.find_first_of(u'/'));
     DCHECK(!part.empty());
 
     in.remove_prefix(part.size());

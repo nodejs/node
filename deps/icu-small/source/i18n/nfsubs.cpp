@@ -62,7 +62,7 @@ public:
     virtual double transformNumber(double number) const override { return number; }
     virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const override { return newRuleValue; }
     virtual double calcUpperBound(double oldUpperBound) const override { return oldUpperBound; }
-    virtual char16_t tokenChar() const override { return (char16_t)0x003d; } // '='
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003d); } // '='
 
 public:
     static UClassID getStaticClassID();
@@ -73,6 +73,7 @@ SameValueSubstitution::~SameValueSubstitution() {}
 
 class MultiplierSubstitution : public NFSubstitution {
     int64_t divisor;
+    const NFRule* owningRule;
 
 public:
     MultiplierSubstitution(int32_t _pos,
@@ -80,7 +81,7 @@ public:
         const NFRuleSet* _ruleSet,
         const UnicodeString& description,
         UErrorCode& status)
-        : NFSubstitution(_pos, _ruleSet, description, status), divisor(rule->getDivisor())
+        : NFSubstitution(_pos, _ruleSet, description, status), divisor(rule->getDivisor()), owningRule(rule)
     {
         if (divisor == 0) {
             status = U_PARSE_ERROR;
@@ -103,7 +104,22 @@ public:
     }
 
     virtual double transformNumber(double number) const override {
-        if (getRuleSet()) {
+        // Most of the time, when a number is handled by an NFSubstitution, we do a floor() on it, but
+        // if a substitution uses a DecimalFormat to format the number instead of a ruleset, we generally
+        // don't want to do a floor()-- we want to keep the value intact so that the DecimalFormat can
+        // either include the fractional part or round properly.  The big exception to this is here in
+        // MultiplierSubstitution.  If the rule includes two substitutions, the MultiplierSubstitution
+        // (which is handling the larger part of the number) really _does_ want to do a floor(), because
+        // the ModulusSubstitution (which is handling the smaller part of the number) will take
+        // care of the fractional part.  (Consider something like `1/12: <0< feet >0.0> inches;`.)
+        // But if there is no ModulusSubstitution, we're shortening the number in some way-- the "larger part"
+        // of the number is the only part we're keeping.  Even if the DecimalFormat doesn't include the
+        // fractional part in its output, we still want it to round.  (Consider something like `1/1000: <0<K;`.)
+        // (TODO: The kRoundFloor thing is a kludge to preserve the previous floor-always behavior.  What we
+        // probably really want to do is just set the rounding mode on the DecimalFormat to match the rounding
+        // mode on the RuleBasedNumberFormat and then pass the number to it whole and let it do its own rounding.
+        // But before making that change, we'd have to make sure it didn't have undesirable side effects.)
+        if (getRuleSet() != nullptr || owningRule->hasModulusSubstitution() || owningRule->formatter->getRoundingMode() == NumberFormat::kRoundFloor) {
             return uprv_floor(number / divisor);
         } else {
             return number / divisor;
@@ -116,7 +132,7 @@ public:
 
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return static_cast<double>(divisor); }
 
-    virtual char16_t tokenChar() const override { return (char16_t)0x003c; } // '<'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003c); } // '<'
 
 public:
     static UClassID getStaticClassID();
@@ -159,6 +175,7 @@ public:
         double upperBound,
         UBool lenientParse,
         uint32_t nonNumericalExecutedRuleMask,
+        int32_t recursionCount,
         Formattable& result) const override;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override {
@@ -169,7 +186,7 @@ public:
 
     virtual UBool isModulusSubstitution() const override { return true; }
 
-    virtual char16_t tokenChar() const override { return (char16_t)0x003e; } // '>'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003e); } // '>'
 
     virtual void toString(UnicodeString& result) const override;
 
@@ -193,7 +210,7 @@ public:
     virtual double transformNumber(double number) const override { return uprv_floor(number); }
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue + oldRuleValue; }
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return DBL_MAX; }
-    virtual char16_t tokenChar() const override { return (char16_t)0x003c; } // '<'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003c); } // '<'
 
 public:
     static UClassID getStaticClassID();
@@ -226,11 +243,12 @@ public:
         double upperBound,
         UBool lenientParse,
         uint32_t nonNumericalExecutedRuleMask,
+        int32_t recursionCount,
         Formattable& result) const override;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue + oldRuleValue; }
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return 0.0; }
-    virtual char16_t tokenChar() const override { return (char16_t)0x003e; } // '>'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003e); } // '>'
 
 public:
     static UClassID getStaticClassID();
@@ -252,7 +270,7 @@ public:
     virtual double transformNumber(double number) const override { return uprv_fabs(number); }
     virtual double composeRuleValue(double newRuleValue, double /*oldRuleValue*/) const override { return -newRuleValue; }
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return DBL_MAX; }
-    virtual char16_t tokenChar() const override { return (char16_t)0x003e; } // '>'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003e); } // '>'
 
 public:
     static UClassID getStaticClassID();
@@ -298,11 +316,12 @@ public:
         double upperBound,
         UBool /*lenientParse*/,
         uint32_t nonNumericalExecutedRuleMask,
+        int32_t recursionCount,
         Formattable& result) const override;
 
     virtual double composeRuleValue(double newRuleValue, double oldRuleValue) const override { return newRuleValue / oldRuleValue; }
     virtual double calcUpperBound(double /*oldUpperBound*/) const override { return denominator; }
-    virtual char16_t tokenChar() const override { return (char16_t)0x003c; } // '<'
+    virtual char16_t tokenChar() const override { return static_cast<char16_t>(0x003c); } // '<'
 private:
     static const char16_t LTLT[2];
 
@@ -349,7 +368,7 @@ NFSubstitution::makeSubstitution(int32_t pos,
         // if the rule set containing the rule is a fraction
         // rule set, return a NumeratorSubstitution
         else if (ruleSet->isFractionRuleSet()) {
-            return new NumeratorSubstitution(pos, (double)rule->getBaseValue(),
+            return new NumeratorSubstitution(pos, static_cast<double>(rule->getBaseValue()),
                 formatter->getDefaultRuleSet(), description, status);
         }
 
@@ -580,17 +599,11 @@ NFSubstitution::doSubstitution(int64_t number, UnicodeString& toInsertInto, int3
         ruleSet->format(transformNumber(number), toInsertInto, _pos + this->pos, recursionCount, status);
     } else if (numberFormat != nullptr) {
         if (number <= MAX_INT64_IN_DOUBLE) {
-            // or perform the transformation on the number (preserving
-            // the result's fractional part if the formatter it set
-            // to show it), then use that formatter's format() method
+            // or perform the transformation on the number,
+            // then use that formatter's format() method
             // to format the result
-            double numberToFormat = transformNumber((double)number);
-            if (numberFormat->getMaximumFractionDigits() == 0) {
-                numberToFormat = uprv_floor(numberToFormat);
-            }
-
             UnicodeString temp;
-            numberFormat->format(numberToFormat, temp, status);
+            numberFormat->format(transformNumber(static_cast<double>(number)), temp, status);
             toInsertInto.insert(_pos + this->pos, temp);
         } 
         else { 
@@ -696,6 +709,7 @@ NFSubstitution::doParse(const UnicodeString& text,
                         double upperBound,
                         UBool lenientParse,
                         uint32_t nonNumericalExecutedRuleMask,
+                        int32_t recursionCount,
                         Formattable& result) const
 {
 #ifdef RBNF_DEBUG
@@ -716,7 +730,7 @@ NFSubstitution::doParse(const UnicodeString& text,
     // on), then also try parsing the text using a default-
     // constructed NumberFormat
     if (ruleSet != nullptr) {
-        ruleSet->parse(text, parsePosition, upperBound, nonNumericalExecutedRuleMask, result);
+        ruleSet->parse(text, parsePosition, upperBound, nonNumericalExecutedRuleMask, recursionCount, result);
         if (lenientParse && !ruleSet->isFractionRuleSet() && parsePosition.getIndex() == 0) {
             UErrorCode status = U_ZERO_ERROR;
             NumberFormat* fmt = NumberFormat::createInstance(status);
@@ -939,18 +953,19 @@ ModulusSubstitution::doParse(const UnicodeString& text,
                              double upperBound,
                              UBool lenientParse,
                              uint32_t nonNumericalExecutedRuleMask,
+                             int32_t recursionCount,
                              Formattable& result) const
 {
     // if this isn't a >>> substitution, we can just use the
     // inherited parse() routine to do the parsing
     if (ruleToUse == nullptr) {
-        return NFSubstitution::doParse(text, parsePosition, baseValue, upperBound, lenientParse, nonNumericalExecutedRuleMask, result);
+        return NFSubstitution::doParse(text, parsePosition, baseValue, upperBound, lenientParse, nonNumericalExecutedRuleMask, recursionCount, result);
 
         // but if it IS a >>> substitution, we have to do it here: we
         // use the specific rule's doParse() method, and then we have to
         // do some of the other work of NFRuleSet.parse()
     } else {
-        ruleToUse->doParse(text, parsePosition, false, upperBound, nonNumericalExecutedRuleMask, result);
+        ruleToUse->doParse(text, parsePosition, false, upperBound, nonNumericalExecutedRuleMask, recursionCount, result);
 
         if (parsePosition.getIndex() != 0) {
             UErrorCode status = U_ZERO_ERROR;
@@ -1021,7 +1036,7 @@ FractionalPartSubstitution::FractionalPartSubstitution(int32_t _pos,
         }
     } else {
         // cast away const
-        ((NFRuleSet*)getRuleSet())->makeIntoFractionRuleSet();
+        const_cast<NFRuleSet*>(getRuleSet())->makeIntoFractionRuleSet();
     }
 }
 
@@ -1093,7 +1108,7 @@ FractionalPartSubstitution::doSubstitution(double number, UnicodeString& toInser
     if (!pad) {
       // hack around lack of precision in digitlist. if we would end up with
       // "foo point" make sure we add a " zero" to the end.
-      getRuleSet()->format((int64_t)0, toInsertInto, _pos + getPos(), recursionCount, status);
+      getRuleSet()->format(static_cast<int64_t>(0), toInsertInto, _pos + getPos(), recursionCount, status);
     }
   }
 }
@@ -1126,12 +1141,13 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
                 double /*upperBound*/,
                 UBool lenientParse,
                 uint32_t nonNumericalExecutedRuleMask,
+                int32_t recursionCount,
                 Formattable& resVal) const
 {
     // if we're not in byDigits mode, we can just use the inherited
     // doParse()
     if (!byDigits) {
-        return NFSubstitution::doParse(text, parsePosition, baseValue, 0, lenientParse, nonNumericalExecutedRuleMask, resVal);
+        return NFSubstitution::doParse(text, parsePosition, baseValue, 0, lenientParse, nonNumericalExecutedRuleMask, recursionCount, resVal);
 
         // if we ARE in byDigits mode, parse the text one digit at a time
         // using this substitution's owning rule set (we do this by setting
@@ -1150,7 +1166,7 @@ FractionalPartSubstitution::doParse(const UnicodeString& text,
         while (workText.length() > 0 && workPos.getIndex() != 0) {
             workPos.setIndex(0);
             Formattable temp;
-            getRuleSet()->parse(workText, workPos, 10, nonNumericalExecutedRuleMask, temp);
+            getRuleSet()->parse(workText, workPos, 10, nonNumericalExecutedRuleMask, recursionCount, temp);
             UErrorCode status = U_ZERO_ERROR;
             digit = temp.getLong(status);
 //            digit = temp.getType() == Formattable::kLong ?
@@ -1230,7 +1246,7 @@ NumeratorSubstitution::doSubstitution(double number, UnicodeString& toInsertInto
         int32_t len = toInsertInto.length();
         while ((nf *= 10) < denominator) {
             toInsertInto.insert(apos + getPos(), gSpace);
-            aruleSet->format((int64_t)0, toInsertInto, apos + getPos(), recursionCount, status);
+            aruleSet->format(static_cast<int64_t>(0), toInsertInto, apos + getPos(), recursionCount, status);
         }
         apos += toInsertInto.length() - len;
     }
@@ -1261,6 +1277,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
                                double upperBound,
                                UBool /*lenientParse*/,
                                uint32_t nonNumericalExecutedRuleMask,
+                               int32_t recursionCount,
                                Formattable& result) const
 {
     // we don't have to do anything special to do the parsing here,
@@ -1279,7 +1296,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
 
         while (workText.length() > 0 && workPos.getIndex() != 0) {
             workPos.setIndex(0);
-            getRuleSet()->parse(workText, workPos, 1, nonNumericalExecutedRuleMask, temp); // parse zero or nothing at all
+            getRuleSet()->parse(workText, workPos, 1, nonNumericalExecutedRuleMask, recursionCount, temp); // parse zero or nothing at all
             if (workPos.getIndex() == 0) {
                 // we failed, either there were no more zeros, or the number was formatted with digits
                 // either way, we're done
@@ -1296,12 +1313,12 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
         }
 
         workText = text;
-        workText.remove(0, (int32_t)parsePosition.getIndex());
+        workText.remove(0, parsePosition.getIndex());
         parsePosition.setIndex(0);
     }
 
     // we've parsed off the zeros, now let's parse the rest from our current position
-    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, false, nonNumericalExecutedRuleMask, result);
+    NFSubstitution::doParse(workText, parsePosition, withZeros ? 1 : baseValue, upperBound, false, nonNumericalExecutedRuleMask, recursionCount, result);
 
     if (withZeros) {
         // any base value will do in this case.  is there a way to
@@ -1319,7 +1336,7 @@ NumeratorSubstitution::doParse(const UnicodeString& text,
             --zeroCount;
         }
         // d is now our true denominator
-        result.setDouble((double)n/(double)d);
+        result.setDouble(static_cast<double>(n) / static_cast<double>(d));
     }
 
     return true;

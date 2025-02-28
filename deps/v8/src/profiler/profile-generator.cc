@@ -205,13 +205,14 @@ void CodeEntry::set_deopt_info(
   rare_data->deopt_inlined_frames_ = std::move(inlined_frames);
 }
 
-void CodeEntry::FillFunctionInfo(SharedFunctionInfo shared) {
-  if (!shared.script().IsScript()) return;
-  Script script = Script::cast(shared.script());
-  set_script_id(script.id());
-  set_position(shared.StartPosition());
-  if (shared.optimization_disabled()) {
-    set_bailout_reason(GetBailoutReason(shared.disabled_optimization_reason()));
+void CodeEntry::FillFunctionInfo(Tagged<SharedFunctionInfo> shared) {
+  if (!IsScript(shared->script())) return;
+  Tagged<Script> script = Cast<Script>(shared->script());
+  set_script_id(script->id());
+  set_position(shared->StartPosition());
+  if (shared->optimization_disabled()) {
+    set_bailout_reason(
+        GetBailoutReason(shared->disabled_optimization_reason()));
   }
 }
 
@@ -241,7 +242,7 @@ size_t CodeEntry::EstimatedSize() const {
   }
 
   if (line_info_) {
-    estimated_size += line_info_.get()->Size();
+    estimated_size += line_info_->Size();
   }
   return sizeof(*this) + estimated_size;
 }
@@ -540,7 +541,7 @@ template <typename Callback>
 void ProfileTree::TraverseDepthFirst(Callback* callback) {
   std::vector<Position> stack;
   stack.emplace_back(root_);
-  while (stack.size() > 0) {
+  while (!stack.empty()) {
     Position& current = stack.back();
     if (current.has_current_child()) {
       callback->BeforeTraversingChild(current.node, current.current_child());
@@ -1199,9 +1200,10 @@ void CpuProfilesCollection::AddPathToCurrentProfiles(
         context_filter.Accept(embedder_native_context_address);
 
     // if FilterContext is set, do not propagate StateTag if not accepted.
-    // GC is exception because native context address is guaranteed to be empty.
-    DCHECK(state != StateTag::GC || native_context_address == kNullAddress);
-    if (!accepts_context && state != StateTag::GC) {
+    // GC (and LOGGING when during GC) is the exception, because native context
+    // address can be empty but we still want to know that this is GC.
+    if (!accepts_context && state != StateTag::GC &&
+        state != StateTag::LOGGING) {
       state = StateTag::IDLE;
     }
     profile->AddPath(timestamp, accepts_context ? path : empty_path, src_line,

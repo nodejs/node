@@ -43,6 +43,17 @@ class ObjectAccess : public AllStatic {
     return ToTagged(FixedAddressArray::OffsetOfElementAt(index));
   }
 
+  // Get the offset into a trusted fixed address array for a given {index}.
+  static constexpr int ElementOffsetInTaggedTrustedFixedAddressArray(
+      int index) {
+    return ToTagged(TrustedFixedAddressArray::OffsetOfElementAt(index));
+  }
+
+  // Get the offset into a ProtectedFixedArray for a given {index}.
+  static constexpr int ElementOffsetInProtectedFixedArray(int index) {
+    return ToTagged(ProtectedFixedArray::OffsetOfElementAt(index));
+  }
+
   // Get the offset of the context stored in a {JSFunction} object.
   static constexpr int ContextOffsetInTaggedJSFunction() {
     return ToTagged(JSFunction::kContextOffset);

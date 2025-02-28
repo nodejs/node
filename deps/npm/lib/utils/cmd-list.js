@@ -1,3 +1,5 @@
+const abbrev = require('abbrev')
+
 // These correspond to filenames in lib/commands
 // Please keep this list sorted alphabetically
 const commands = [
@@ -24,7 +26,6 @@ const commands = [
   'get',
   'help',
   'help-search',
-  'hook',
   'init',
   'install',
   'install-ci-test',
@@ -50,6 +51,7 @@ const commands = [
   'restart',
   'root',
   'run-script',
+  'sbom',
   'search',
   'set',
   'shrinkwrap',
@@ -60,6 +62,7 @@ const commands = [
   'team',
   'test',
   'token',
+  'undeprecate',
   'uninstall',
   'unpublish',
   'unstar',
@@ -136,7 +139,40 @@ const aliases = {
   'add-user': 'adduser',
 }
 
+const deref = (c) => {
+  if (!c) {
+    return
+  }
+
+  // Translate camelCase to snake-case (i.e. installTest to install-test)
+  if (c.match(/[A-Z]/)) {
+    c = c.replace(/([A-Z])/g, m => '-' + m.toLowerCase())
+  }
+
+  // if they asked for something exactly we are done
+  if (commands.includes(c)) {
+    return c
+  }
+
+  // if they asked for a direct alias
+  if (aliases[c]) {
+    return aliases[c]
+  }
+
+  const abbrevs = abbrev(commands.concat(Object.keys(aliases)))
+
+  // first deref the abbrev, if there is one
+  // then resolve any aliases
+  // so `npm install-cl` will resolve to `install-clean` then to `ci`
+  let a = abbrevs[c]
+  while (aliases[a]) {
+    a = aliases[a]
+  }
+  return a
+}
+
 module.exports = {
   aliases,
   commands,
+  deref,
 }

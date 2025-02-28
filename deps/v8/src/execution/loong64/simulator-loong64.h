@@ -266,8 +266,13 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes LOONG64 instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -393,6 +398,18 @@ class Simulator : public SimulatorBase {
     FLOAT_DOUBLE,
     WORD_DWORD
   };
+
+  // "Probe" if an address range can be read. This is currently implemented
+  // by doing a 1-byte read of the last accessed byte, since the assumption is
+  // that if the last byte is accessible, also all lower bytes are accessible
+  // (which holds true for Wasm).
+  // Returns true if the access was successful, false if the access raised a
+  // signal which was then handled by the trap handler (also see
+  // {trap_handler::ProbeMemory}). If the access raises a signal which is not
+  // handled by the trap handler (e.g. because the current PC is not registered
+  // as a protected instruction), the signal will propagate and make the process
+  // crash. If no trap handler is available, this always returns true.
+  bool ProbeMemory(uintptr_t address, uintptr_t access_size);
 
   // Read and write memory.
   inline uint32_t ReadBU(int64_t addr);
@@ -584,9 +601,17 @@ class Simulator : public SimulatorBase {
   uint32_t FCSR_;
 
   // Simulator support.
-  // Allocate 1MB for stack.
-  size_t stack_size_;
-  char* stack_;
+  uintptr_t stack_;
+  static const size_t kStackProtectionSize = KB;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+    return (v8_flags.sim_stack_size * KB) + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() { return v8_flags.sim_stack_size * KB; }
+  uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 4 * KB;
+
   bool pc_modified_;
   int64_t icount_;
   int break_count_;

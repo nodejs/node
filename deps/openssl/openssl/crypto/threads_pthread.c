@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,8 +72,6 @@ CRYPTO_RWLOCK *CRYPTO_THREAD_lock_new(void)
 #  if !defined (__TANDEM) && !defined (_SPT_MODEL_)
 #   if !defined(NDEBUG) && !defined(OPENSSL_NO_MUTEX_ERRORCHECK)
     pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_ERRORCHECK);
-#   else
-    pthread_mutexattr_settype(&attr, PTHREAD_MUTEX_NORMAL);
 #   endif
 #  else
     /* The SPT Thread Library does not define MUTEX attributes. */

@@ -70,6 +70,8 @@ T Nabs(T a) {
 }
 
 #if defined(USE_SIMULATOR)
+typedef signed __int128_t __attribute__((__mode__(__TI__)));
+typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 // Running with a simulator.
 
 #include "src/base/hashmap.h"
@@ -430,7 +432,7 @@ class Simulator : public SimulatorBase {
   int32_t get_fpu_register_signed_word(int fpureg) const;
   int32_t get_fpu_register_hi_word(int fpureg) const;
   float get_fpu_register_float(int fpureg) const;
-  Float32 get_fpu_register_Float32(int fpureg) const;
+  Float32 get_fpu_register_Float32(int fpureg, bool check_nanbox = true) const;
   double get_fpu_register_double(int fpureg) const;
   Float64 get_fpu_register_Float64(int fpureg) const;
 
@@ -525,17 +527,63 @@ class Simulator : public SimulatorBase {
 
   Address get_sp() const { return static_cast<Address>(get_register(sp)); }
 
-  // Accessor to the internal simulator stack area.
+  // Accessor to the internal simulator stack area. Adds a safety
+  // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
+  // Return current stack view, without additional safety margins.
+  // Users, for example wasm::StackMemory, can add their own.
+  base::Vector<uint8_t> GetCurrentStackView() const;
 
   // Executes RISC-V instructions until the PC reaches end_sim_pc.
   void Execute();
 
+  // Only arguments up to 64 bits in size are supported.
+  class CallArgument {
+   public:
+    template <typename T>
+    explicit CallArgument(T argument) {
+      bits_ = 0;
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      bits_ = ConvertArg(argument);
+      type_ = GP_ARG;
+    }
+    explicit CallArgument(double argument) {
+      DCHECK(sizeof(argument) == sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
+    }
+    explicit CallArgument(float argument) {
+      // TODO(all): CallArgument(float) is untested.
+      UNIMPLEMENTED();
+    }
+    // This indicates the end of the arguments list, so that CallArgument
+    // objects can be passed into varargs functions.
+    static CallArgument End() { return CallArgument(); }
+    int64_t bits() const { return bits_; }
+    bool IsEnd() const { return type_ == NO_ARG; }
+    bool IsGP() const { return type_ == GP_ARG; }
+    bool IsFP() const { return type_ == FP_ARG; }
+
+   private:
+    enum CallArgumentType { GP_ARG, FP_ARG, NO_ARG };
+    // All arguments are aligned to at least 64 bits and we don't support
+    // passing bigger arguments, so the payload size can be fixed at 64 bits.
+    int64_t bits_;
+    CallArgumentType type_;
+    CallArgument() { type_ = NO_ARG; }
+  };
+
   template <typename Return, typename... Args>
   Return Call(Address entry, Args... args) {
+#ifdef V8_TARGET_ARCH_RISCV64
+    // Convert all arguments to CallArgument.
+    CallArgument call_args[] = {CallArgument(args)..., CallArgument::End()};
+    CallImpl(entry, call_args);
+    return ReadReturn<Return>();
+#else
     return VariadicCall<Return>(this, &Simulator::CallImpl, entry, args...);
+#endif
   }
-
   // Alternative: call a 2-argument double function.
   double CallFP(Address entry, double d0, double d1);
 
@@ -575,9 +623,26 @@ class Simulator : public SimulatorBase {
     Unpredictable = 0xbadbeaf
   };
 
+#ifdef V8_TARGET_ARCH_RISCV64
+  V8_EXPORT_PRIVATE void CallImpl(Address entry, CallArgument* args);
+  void CallAnyCTypeFunction(Address target_address,
+                            const EncodedCSignature& signature);
+  // Read floating point return values.
+  template <typename T>
+  typename std::enable_if<std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return static_cast<T>(get_fpu_register_double(fa0));
+  }
+  // Read non-float return values.
+  template <typename T>
+  typename std::enable_if<!std::is_floating_point<T>::value, T>::type
+  ReadReturn() {
+    return ConvertReturn<T>(get_register(a0));
+  }
+#else
   V8_EXPORT_PRIVATE intptr_t CallImpl(Address entry, int argument_count,
                                       const intptr_t* arguments);
-
+#endif
   // Unsupported instructions use Format to print an error and stop execution.
   void Format(Instruction* instr, const char* format);
 
@@ -594,6 +659,18 @@ class Simulator : public SimulatorBase {
     // FLOAT_DOUBLE,
     // WORD_DWORD
   };
+
+  // "Probe" if an address range can be read. This is currently implemented
+  // by doing a 1-byte read of the last accessed byte, since the assumption is
+  // that if the last byte is accessible, also all lower bytes are accessible
+  // (which holds true for Wasm).
+  // Returns true if the access was successful, false if the access raised a
+  // signal which was then handled by the trap handler (also see
+  // {trap_handler::ProbeMemory}). If the access raises a signal which is not
+  // handled by the trap handler (e.g. because the current PC is not registered
+  // as a protected instruction), the signal will propagate and make the process
+  // crash. If no trap handler is available, this always returns true.
+  bool ProbeMemory(uintptr_t address, uintptr_t access_size);
 
   // RISCV Memory read/write methods
   template <typename T>
@@ -842,8 +919,8 @@ class Simulator : public SimulatorBase {
         if (trace_buf_[i] == '\0') break;
       }
       SNPrintF(trace_buf_.SubVector(i, trace_buf_.length()),
-               "  sew:%s lmul:%s vstart:%lu vl:%lu", rvv_sew_s(), rvv_lmul_s(),
-               rvv_vstart(), rvv_vl());
+               "  sew:%s lmul:%s vstart:%" PRId64 "vl:%" PRId64, rvv_sew_s(),
+               rvv_lmul_s(), rvv_vstart(), rvv_vl());
     }
   }
 
@@ -1091,8 +1168,21 @@ class Simulator : public SimulatorBase {
 #endif
   // Simulator support.
   // Allocate 1MB for stack.
-  size_t stack_size_;
-  char* stack_;
+  uint8_t* stack_;
+  static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
+  // This includes a protection margin at each end of the stack area.
+  static size_t AllocatedStackSize() {
+#if V8_TARGET_ARCH_RISCV64
+    size_t stack_size = v8_flags.sim_stack_size * KB;
+#else
+    size_t stack_size = 1 * MB;  // allocate 1MB for stack
+#endif
+    return stack_size + (2 * kStackProtectionSize);
+  }
+  static size_t UsableStackSize() {
+    return AllocatedStackSize() - kStackProtectionSize;
+  }
+
   bool pc_modified_;
   int64_t icount_;
   sreg_t* watch_address_ = nullptr;

@@ -46,7 +46,11 @@ class V8_EXPORT AgeTable final {
   enum class AdjacentCardsPolicy : uint8_t { kConsider, kIgnore };
 
   static constexpr size_t kCardSizeInBytes =
-      api_constants::kCagedHeapReservationSize / kRequiredSize;
+      api_constants::kCagedHeapDefaultReservationSize / kRequiredSize;
+
+  static constexpr size_t CalculateAgeTableSizeForHeapSize(size_t heap_size) {
+    return heap_size / kCardSizeInBytes;
+  }
 
   void SetAge(uintptr_t cage_offset, Age age) {
     table_[card(cage_offset)] = age;
@@ -81,21 +85,27 @@ class V8_EXPORT AgeTable final {
 #endif  // !V8_HAS_BUILTIN_CTZ
     static_assert((1 << kGranularityBits) == kCardSizeInBytes);
     const size_t entry = offset >> kGranularityBits;
-    CPPGC_DCHECK(table_.size() > entry);
+    CPPGC_DCHECK(CagedHeapBase::GetAgeTableSize() > entry);
     return entry;
   }
 
-  std::array<Age, kRequiredSize> table_;
+#if defined(V8_CC_GNU)
+  // gcc disallows flexible arrays in otherwise empty classes.
+  Age table_[0];
+#else   // !defined(V8_CC_GNU)
+  Age table_[];
+#endif  // !defined(V8_CC_GNU)
 };
-
-static_assert(sizeof(AgeTable) == 1 * api_constants::kMB,
-              "Size of AgeTable is 1MB");
 
 #endif  // CPPGC_YOUNG_GENERATION
 
 struct CagedHeapLocalData final {
   V8_INLINE static CagedHeapLocalData& Get() {
     return *reinterpret_cast<CagedHeapLocalData*>(CagedHeapBase::GetBase());
+  }
+
+  static constexpr size_t CalculateLocalDataSizeForHeapSize(size_t heap_size) {
+    return AgeTable::CalculateAgeTableSizeForHeapSize(heap_size);
   }
 
 #if defined(CPPGC_YOUNG_GENERATION)

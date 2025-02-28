@@ -71,13 +71,18 @@ which collects the HTTP request header lines.
 
 OSSL_HTTP_REQ_CTX_free() frees up the HTTP request context I<rctx>.
 The I<rbio> is not free'd, I<wbio> will be free'd if I<free_wbio> is set.
+If the argument is NULL, nothing is done.
 
-OSSL_HTTP_REQ_CTX_set_request_line() adds the HTTP request line to the context.
+OSSL_HTTP_REQ_CTX_set_request_line() adds the 1st HTTP request line to I<rctx>.
 The HTTP method is determined by I<method_POST>,
 which should be 1 to indicate C<POST> or 0 to indicate C<GET>.
-I<server> and I<port> may be set to indicate a proxy server and port
-that the request should go through, otherwise they should be left NULL.
-I<path> is the HTTP request path; if left NULL, C</> is used.
+I<server> and I<port> may be set to give the server and the optional port that
+an HTTP proxy shall forward the request to, otherwise they must be left NULL.
+I<path> provides the HTTP request path; if left NULL, C</> is used.
+For backward compatibility, I<path> may begin with C<http://> and thus convey
+an absoluteURI. In this case it indicates HTTP proxy use and provides also the
+server (and optionally the port) that the proxy shall forward the request to.
+In this case the I<server> and I<port> arguments must be NULL.
 
 OSSL_HTTP_REQ_CTX_add1_header() adds header I<name> with value I<value> to the
 context I<rctx>. It can be called more than once to add multiple header lines.
@@ -133,7 +138,7 @@ The function may need to be called again if its result is -1, which indicates
 L<BIO_should_retry(3)>.  In such a case it is advisable to sleep a little in
 between, using L<BIO_wait(3)> on the read BIO to prevent a busy loop.
 
-OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on successs
+OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on success
 in addition parses the response, which must be a DER-encoded ASN.1 structure,
 using the ASN.1 template I<it> and places the result in I<*pval>.
 
@@ -256,7 +261,7 @@ The functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

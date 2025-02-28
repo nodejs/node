@@ -35,6 +35,7 @@
 #include "uresimp.h"
 #include "hash.h"
 #include "gregoimp.h"
+#include "ulocimp.h"
 #include "uresimp.h"
 
 
@@ -187,7 +188,7 @@ DateIntervalInfo::getIntervalPattern(const UnicodeString& skeleton,
         return result;
     }
 
-    const UnicodeString* patternsOfOneSkeleton = (UnicodeString*) fIntervalPatterns->get(skeleton);
+    const UnicodeString* patternsOfOneSkeleton = static_cast<UnicodeString*>(fIntervalPatterns->get(skeleton));
     if ( patternsOfOneSkeleton != nullptr ) {
         IntervalPatternIndex index = calendarFieldToIntervalIndex(field, status);
         if ( U_FAILURE(status) ) {
@@ -363,7 +364,7 @@ struct DateIntervalInfo::DateIntervalSink : public ResourceSink {
 
         UnicodeString skeleton(currentSkeleton, -1, US_INV);
         UnicodeString* patternsOfOneSkeleton =
-            (UnicodeString*)(dateIntervalInfo.fIntervalPatterns->get(skeleton));
+            static_cast<UnicodeString*>(dateIntervalInfo.fIntervalPatterns->get(skeleton));
 
         if (patternsOfOneSkeleton == nullptr || patternsOfOneSkeleton[index].isEmpty()) {
             UnicodeString pattern = value.getUnicodeString(errorCode);
@@ -397,17 +398,15 @@ DateIntervalInfo::initializeData(const Locale& locale, UErrorCode& status)
 
     // Get the correct calendar type
     const char * calendarTypeToUse = gGregorianTag; // initial default
-    char         calendarType[ULOC_KEYWORDS_CAPACITY]; // to be filled in with the type to use, if all goes well
     char         localeWithCalendarKey[ULOC_LOCALE_IDENTIFIER_CAPACITY];
     // obtain a locale that always has the calendar key value that should be used
     (void)ures_getFunctionalEquivalent(localeWithCalendarKey, ULOC_LOCALE_IDENTIFIER_CAPACITY, nullptr,
                                      "calendar", "calendar", locName, nullptr, false, &status);
     localeWithCalendarKey[ULOC_LOCALE_IDENTIFIER_CAPACITY-1] = 0; // ensure null termination
     // now get the calendar key value from that locale
-    int32_t calendarTypeLen = uloc_getKeywordValue(localeWithCalendarKey, "calendar", calendarType,
-                                                   ULOC_KEYWORDS_CAPACITY, &status);
-    if (U_SUCCESS(status) && calendarTypeLen < ULOC_KEYWORDS_CAPACITY) {
-        calendarTypeToUse = calendarType;
+    CharString calendarType = ulocimp_getKeywordValue(localeWithCalendarKey, "calendar", status);
+    if (U_SUCCESS(status)) {
+        calendarTypeToUse = calendarType.data();
     }
     status = U_ZERO_ERROR;
 
@@ -492,7 +491,7 @@ DateIntervalInfo::setIntervalPatternInternally(const UnicodeString& skeleton,
     if ( U_FAILURE(status) ) {
         return;
     }
-    UnicodeString* patternsOfOneSkeleton = (UnicodeString*)(fIntervalPatterns->get(skeleton));
+    UnicodeString* patternsOfOneSkeleton = static_cast<UnicodeString*>(fIntervalPatterns->get(skeleton));
     UBool emptyHash = false;
     if ( patternsOfOneSkeleton == nullptr ) {
         patternsOfOneSkeleton = new UnicodeString[kIPI_MAX_INDEX];
@@ -518,7 +517,7 @@ DateIntervalInfo::parseSkeleton(const UnicodeString& skeleton,
     int32_t i;
     for ( i = 0; i < skeleton.length(); ++i ) {
         // it is an ASCII char in skeleton
-        int8_t ch = (int8_t)skeleton.charAt(i);
+        int8_t ch = static_cast<int8_t>(skeleton.charAt(i));
         ++skeletonFieldWidth[ch - PATTERN_CHAR_BASE];
     }
 }
@@ -613,7 +612,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
     const UHashElement* elem = nullptr;
     while ( (elem = fIntervalPatterns->nextElement(pos)) != nullptr ) {
         const UHashTok keyTok = elem->key;
-        UnicodeString* newSkeleton = (UnicodeString*)keyTok.pointer;
+        UnicodeString* newSkeleton = static_cast<UnicodeString*>(keyTok.pointer);
 #ifdef DTITVINF_DEBUG
     skeleton->extract(0,  skeleton->length(), result, "UTF-8");
     snprintf(mesg, sizeof(mesg), "available skeletons: skeleton: %s; \n", result);
@@ -642,7 +641,7 @@ DateIntervalInfo::getBestSkeleton(const UnicodeString& skeleton,
                 fieldDifference = -1;
                 distance += DIFFERENT_FIELD;
             } else if (stringNumeric(inputFieldWidth, fieldWidth,
-                                     (char)(i+BASE) ) ) {
+                                     static_cast<char>(i + BASE))) {
                 distance += STRING_NUMERIC_DIFFERENCE;
             } else {
                 distance += (inputFieldWidth > fieldWidth) ?
@@ -724,7 +723,7 @@ DateIntervalInfo::deleteHash(Hashtable* hTable)
     const UHashElement* element = nullptr;
     while ( (element = hTable->nextElement(pos)) != nullptr ) {
         const UHashTok valueTok = element->value;
-        const UnicodeString* value = (UnicodeString*)valueTok.pointer;
+        const UnicodeString* value = static_cast<UnicodeString*>(valueTok.pointer);
         delete[] value;
     }
     delete fIntervalPatterns;
@@ -788,9 +787,9 @@ DateIntervalInfo::copyHash(const Hashtable* source,
     if ( source ) {
         while ( (element = source->nextElement(pos)) != nullptr ) {
             const UHashTok keyTok = element->key;
-            const UnicodeString* key = (UnicodeString*)keyTok.pointer;
+            const UnicodeString* key = static_cast<UnicodeString*>(keyTok.pointer);
             const UHashTok valueTok = element->value;
-            const UnicodeString* value = (UnicodeString*)valueTok.pointer;
+            const UnicodeString* value = static_cast<UnicodeString*>(valueTok.pointer);
             UnicodeString* copy = new UnicodeString[kIPI_MAX_INDEX];
             if (copy == nullptr) {
                 status = U_MEMORY_ALLOCATION_ERROR;

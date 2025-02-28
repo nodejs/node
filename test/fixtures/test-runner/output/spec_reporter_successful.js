@@ -1,4 +1,4 @@
-// Flags: --no-warnings --test-reporter=spec
+// Flags: --test-reporter=spec
 'use strict';
 require('../../../common');
 const { it } = require('node:test');

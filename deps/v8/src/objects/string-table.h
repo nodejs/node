@@ -47,8 +47,8 @@ class SeqOneByteString;
 // StringTable::Data for details.
 class V8_EXPORT_PRIVATE StringTable {
  public:
-  static constexpr Smi empty_element() { return Smi::FromInt(0); }
-  static constexpr Smi deleted_element() { return Smi::FromInt(1); }
+  static constexpr Tagged<Smi> empty_element() { return Smi::FromInt(0); }
+  static constexpr Tagged<Smi> deleted_element() { return Smi::FromInt(1); }
 
   explicit StringTable(Isolate* isolate);
   ~StringTable();
@@ -58,19 +58,26 @@ class V8_EXPORT_PRIVATE StringTable {
 
   // Find string in the string table. If it is not there yet, it is
   // added. The return value is the string found.
-  Handle<String> LookupString(Isolate* isolate, Handle<String> key);
+  DirectHandle<String> LookupString(Isolate* isolate, DirectHandle<String> key);
 
   // Find string in the string table, using the given key. If the string is not
   // there yet, it is created (by the key) and added. The return value is the
   // string found.
   template <typename StringTableKey, typename IsolateT>
-  Handle<String> LookupKey(IsolateT* isolate, StringTableKey* key);
+  DirectHandle<String> LookupKey(IsolateT* isolate, StringTableKey* key);
 
   // {raw_string} must be a tagged String pointer.
   // Returns a tagged pointer: either a Smi if the string is an array index, an
   // internalized string, or a Smi sentinel.
   static Address TryStringToIndexOrLookupExisting(Isolate* isolate,
                                                   Address raw_string);
+
+  // Insert a range of strings. Only for use during isolate deserialization.
+  void InsertForIsolateDeserialization(
+      Isolate* isolate, const base::Vector<DirectHandle<String>>& strings);
+
+  // Insert the single empty string. Only for use during heap bootstrapping.
+  void InsertEmptyStringForBootstrapping(Isolate* isolate);
 
   void Print(PtrComprCageBase cage_base) const;
   size_t GetCurrentMemoryUsage() const;
@@ -84,6 +91,7 @@ class V8_EXPORT_PRIVATE StringTable {
   void VerifyIfOwnedBy(Isolate* isolate);
 
  private:
+  class OffHeapStringHashSet;
   class Data;
 
   Data* EnsureCapacity(PtrComprCageBase cage_base, int additional_elements);

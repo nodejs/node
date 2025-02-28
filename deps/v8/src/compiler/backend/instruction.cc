@@ -7,15 +7,21 @@
 #include <cstddef>
 #include <iomanip>
 
+#include "src/base/iterator.h"
 #include "src/codegen/aligned-slot-allocator.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/register-configuration.h"
 #include "src/codegen/source-position.h"
+#include "src/compiler/backend/instruction-codes.h"
 #include "src/compiler/common-operator.h"
+#include "src/compiler/frame-states.h"
 #include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turboshaft/graph.h"
+#include "src/compiler/turboshaft/loop-finder.h"
+#include "src/compiler/turboshaft/operations.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/frames.h"
 #include "src/execution/isolate-utils-inl.h"
@@ -75,6 +81,8 @@ FlagsCondition CommuteFlagsCondition(FlagsCondition condition) {
     case kNotOverflow:
     case kUnorderedEqual:
     case kUnorderedNotEqual:
+    case kIsNaN:
+    case kIsNotNaN:
       return condition;
   }
   UNREACHABLE();
@@ -253,6 +261,9 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
         case MachineRepresentation::kWord64:
           os << "|w64";
           break;
+        case MachineRepresentation::kFloat16:
+          os << "|f16";
+          break;
         case MachineRepresentation::kFloat32:
           os << "|f32";
           break;
@@ -279,6 +290,12 @@ std::ostream& operator<<(std::ostream& os, const InstructionOperand& op) {
           break;
         case MachineRepresentation::kCompressed:
           os << "|c";
+          break;
+        case MachineRepresentation::kProtectedPointer:
+          os << "|pp";
+          break;
+        case MachineRepresentation::kIndirectPointer:
+          os << "|ip";
           break;
         case MachineRepresentation::kSandboxedPointer:
           os << "|sb";
@@ -470,6 +487,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsMode& fm) {
       return os << "trap";
     case kFlags_select:
       return os << "select";
+    case kFlags_conditional_set:
+      return os << "conditional set";
+    case kFlags_conditional_branch:
+      return os << "conditional branch";
   }
   UNREACHABLE();
 }
@@ -524,6 +545,10 @@ std::ostream& operator<<(std::ostream& os, const FlagsCondition& fc) {
       return os << "positive or zero";
     case kNegative:
       return os << "negative";
+    case kIsNaN:
+      return os << "is nan";
+    case kIsNotNaN:
+      return os << "is not nan";
   }
   UNREACHABLE();
 }
@@ -589,7 +614,7 @@ Handle<HeapObject> Constant::ToHeapObject() const {
 Handle<Code> Constant::ToCode() const {
   DCHECK_EQ(kHeapObject, type());
   Handle<Code> value(reinterpret_cast<Address*>(static_cast<intptr_t>(value_)));
-  DCHECK(value->IsCode(GetPtrComprCageBaseSlow(*value)));
+  DCHECK(IsCode(*value));
   return value;
 }
 
@@ -604,7 +629,7 @@ std::ostream& operator<<(std::ostream& os, const Constant& constant) {
     case Constant::kFloat64:
       return os << constant.ToFloat64().value();
     case Constant::kExternalReference:
-      return os << constant.ToExternalReference().address();
+      return os << constant.ToExternalReference();
     case Constant::kHeapObject:  // Fall through.
     case Constant::kCompressedHeapObject:
       return os << Brief(*constant.ToHeapObject());
@@ -650,7 +675,8 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       loop_header_alignment_(false),
       needs_frame_(false),
       must_construct_frame_(false),
-      must_deconstruct_frame_(false) {}
+      must_deconstruct_frame_(false),
+      omitted_by_jump_threading_(false) {}
 
 size_t InstructionBlock::PredecessorIndexOf(RpoNumber rpo_number) const {
   size_t j = 0;
@@ -666,9 +692,23 @@ static RpoNumber GetRpo(const BasicBlock* block) {
   return RpoNumber::FromInt(block->rpo_number());
 }
 
+static RpoNumber GetRpo(const turboshaft::Block* block) {
+  if (block == nullptr) return RpoNumber::Invalid();
+  return RpoNumber::FromInt(block->index().id());
+}
+
 static RpoNumber GetLoopEndRpo(const BasicBlock* block) {
   if (!block->IsLoopHeader()) return RpoNumber::Invalid();
   return RpoNumber::FromInt(block->loop_end()->rpo_number());
+}
+
+static RpoNumber GetLoopEndRpo(const turboshaft::Block* block) {
+  if (!block->IsLoop()) return RpoNumber::Invalid();
+  // In Turbofan, the `block->loop_end()` refers to the first after (outside)
+  // the loop. In the relevant use cases, we retrieve the backedge block by
+  // subtracting one from the rpo_number, so for Turboshaft we "fake" this by
+  // adding 1 to the backedge block's rpo_number.
+  return RpoNumber::FromInt(GetRpo(block->LastPredecessor()).ToInt() + 1);
 }
 
 static InstructionBlock* InstructionBlockFor(Zone* zone,
@@ -691,6 +731,40 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
       block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
     instr_block->set_switch_target(true);
   }
+  return instr_block;
+}
+
+static InstructionBlock* InstructionBlockFor(
+    Zone* zone, const turboshaft::Graph& graph, const turboshaft::Block* block,
+    const turboshaft::Block* loop_header) {
+  bool is_handler =
+      block->FirstOperation(graph).Is<turboshaft::CatchBlockBeginOp>();
+  bool deferred = block->get_custom_data(
+      turboshaft::Block::CustomDataKind::kDeferredInSchedule);
+  InstructionBlock* instr_block = zone->New<InstructionBlock>(
+      zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
+      GetRpo(block->GetDominator()), deferred, is_handler);
+  if (block->PredecessorCount() == 1) {
+    const turboshaft::Block* predecessor = block->LastPredecessor();
+    if (V8_UNLIKELY(
+            predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
+      instr_block->set_switch_target(true);
+    }
+  }
+  // Map successors and predecessors.
+  base::SmallVector<turboshaft::Block*, 4> succs =
+      turboshaft::SuccessorBlocks(block->LastOperation(graph));
+  instr_block->successors().reserve(succs.size());
+  for (const turboshaft::Block* successor : succs) {
+    instr_block->successors().push_back(GetRpo(successor));
+  }
+  instr_block->predecessors().reserve(block->PredecessorCount());
+  for (const turboshaft::Block* predecessor = block->LastPredecessor();
+       predecessor; predecessor = predecessor->NeighboringPredecessor()) {
+    instr_block->predecessors().push_back(GetRpo(predecessor));
+  }
+  std::reverse(instr_block->predecessors().begin(),
+               instr_block->predecessors().end());
   return instr_block;
 }
 
@@ -746,15 +820,36 @@ std::ostream& operator<<(std::ostream& os,
 
 InstructionBlocks* InstructionSequence::InstructionBlocksFor(
     Zone* zone, const Schedule* schedule) {
-  InstructionBlocks* blocks = zone->NewArray<InstructionBlocks>(1);
+  InstructionBlocks* blocks = zone->AllocateArray<InstructionBlocks>(1);
   new (blocks) InstructionBlocks(
       static_cast<int>(schedule->rpo_order()->size()), nullptr, zone);
   size_t rpo_number = 0;
   for (BasicBlockVector::const_iterator it = schedule->rpo_order()->begin();
        it != schedule->rpo_order()->end(); ++it, ++rpo_number) {
     DCHECK(!(*blocks)[rpo_number]);
-    DCHECK(GetRpo(*it).ToSize() == rpo_number);
+    DCHECK_EQ(GetRpo(*it).ToSize(), rpo_number);
     (*blocks)[rpo_number] = InstructionBlockFor(zone, *it);
+  }
+  return blocks;
+}
+
+InstructionBlocks* InstructionSequence::InstructionBlocksFor(
+    Zone* zone, const turboshaft::Graph& graph) {
+  InstructionBlocks* blocks = zone->AllocateArray<InstructionBlocks>(1);
+  new (blocks)
+      InstructionBlocks(static_cast<int>(graph.block_count()), nullptr, zone);
+  size_t rpo_number = 0;
+  // TODO(dmercadier): currently, the LoopFinder is just used to compute loop
+  // headers. Since it's somewhat expensive to compute this, we should also use
+  // the LoopFinder to compute the special RPO (we would only need to run the
+  // LoopFinder once to compute both the special RPO and the loop headers).
+  turboshaft::LoopFinder loop_finder(zone, &graph);
+  for (const turboshaft::Block& block : graph.blocks()) {
+    DCHECK(!(*blocks)[rpo_number]);
+    DCHECK_EQ(RpoNumber::FromInt(block.index().id()).ToSize(), rpo_number);
+    (*blocks)[rpo_number] = InstructionBlockFor(
+        zone, graph, &block, loop_finder.GetLoopHeader(&block));
+    ++rpo_number;
   }
   return blocks;
 }
@@ -818,7 +913,7 @@ void InstructionSequence::ComputeAssemblyOrder() {
   int ao = 0;
   RpoNumber invalid = RpoNumber::Invalid();
 
-  ao_blocks_ = zone()->NewArray<InstructionBlocks>(1);
+  ao_blocks_ = zone()->AllocateArray<InstructionBlocks>(1);
   new (ao_blocks_) InstructionBlocks(zone());
   ao_blocks_->reserve(instruction_blocks_->size());
 
@@ -879,9 +974,12 @@ InstructionSequence::InstructionSequence(Isolate* isolate,
       zone_(instruction_zone),
       instruction_blocks_(instruction_blocks),
       ao_blocks_(nullptr),
-      source_positions_(zone()),
-      constants_(ConstantMap::key_compare(),
-                 ConstantMap::allocator_type(zone())),
+      // Pre-allocate the hash map of source positions based on the block count.
+      // (The actual number of instructions is only known after instruction
+      // selection, but should at least correlate with the block count.)
+      source_positions_(zone(), instruction_blocks->size() * 2),
+      // Avoid collisions for functions with 256 or less constant vregs.
+      constants_(zone(), 256),
       immediates_(zone()),
       rpo_immediates_(instruction_blocks->size(), zone()),
       instructions_(zone()),
@@ -936,17 +1034,14 @@ int InstructionSequence::AddInstruction(Instruction* instr) {
   return index;
 }
 
-InstructionBlock* InstructionSequence::GetInstructionBlock(
-    int instruction_index) const {
-  return instructions()[instruction_index]->block();
-}
-
 static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
   switch (rep) {
     case MachineRepresentation::kBit:
     case MachineRepresentation::kWord8:
     case MachineRepresentation::kWord16:
       return InstructionSequence::DefaultRepresentation();
+    case MachineRepresentation::kFloat16:
+      return MachineRepresentation::kFloat32;
     case MachineRepresentation::kWord32:
     case MachineRepresentation::kWord64:
     case MachineRepresentation::kTaggedSigned:
@@ -958,14 +1053,14 @@ static MachineRepresentation FilterRepresentation(MachineRepresentation rep) {
     case MachineRepresentation::kSimd256:
     case MachineRepresentation::kCompressedPointer:
     case MachineRepresentation::kCompressed:
+    case MachineRepresentation::kProtectedPointer:
     case MachineRepresentation::kSandboxedPointer:
       return rep;
     case MachineRepresentation::kNone:
     case MachineRepresentation::kMapWord:
-      break;
+    case MachineRepresentation::kIndirectPointer:
+      UNREACHABLE();
   }
-
-  UNREACHABLE();
 }
 
 MachineRepresentation InstructionSequence::GetRepresentation(
@@ -1059,7 +1154,8 @@ namespace {
 size_t GetConservativeFrameSizeInBytes(FrameStateType type,
                                        size_t parameters_count,
                                        size_t locals_count,
-                                       BytecodeOffset bailout_id) {
+                                       BytecodeOffset bailout_id,
+                                       uint32_t wasm_liftoff_frame_size) {
   switch (type) {
     case FrameStateType::kUnoptimizedFunction: {
       auto info = UnoptimizedFrameInfo::Conservative(
@@ -1075,11 +1171,16 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
       // here.
       return UnoptimizedFrameInfo::GetStackSizeForAdditionalArguments(
           static_cast<int>(parameters_count));
-    case FrameStateType::kConstructStub: {
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kWasmInlinedIntoJS:
+#endif
+    case FrameStateType::kConstructCreateStub: {
       auto info = ConstructStubFrameInfo::Conservative(
           static_cast<int>(parameters_count));
       return info.frame_size_in_bytes();
     }
+    case FrameStateType::kConstructInvokeStub:
+      return FastConstructStubFrameInfo::Conservative().frame_size_in_bytes();
     case FrameStateType::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
@@ -1094,6 +1195,10 @@ size_t GetConservativeFrameSizeInBytes(FrameStateType type,
           config);
       return info.frame_size_in_bytes();
     }
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      return wasm_liftoff_frame_size;
+#endif  // V8_ENABLE_WEBASSEMBLY
   }
   UNREACHABLE();
 }
@@ -1102,13 +1207,14 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
                                             size_t parameters_count,
                                             size_t locals_count,
                                             BytecodeOffset bailout_id,
+                                            uint32_t wasm_liftoff_frame_size,
                                             FrameStateDescriptor* outer_state) {
   size_t outer_total_conservative_frame_size_in_bytes =
       (outer_state == nullptr)
           ? 0
           : outer_state->total_conservative_frame_size_in_bytes();
   return GetConservativeFrameSizeInBytes(type, parameters_count, locals_count,
-                                         bailout_id) +
+                                         bailout_id, wasm_liftoff_frame_size) +
          outer_total_conservative_frame_size_in_bytes;
 }
 
@@ -1116,22 +1222,26 @@ size_t GetTotalConservativeFrameSizeInBytes(FrameStateType type,
 
 FrameStateDescriptor::FrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-    OutputFrameStateCombine state_combine, size_t parameters_count,
-    size_t locals_count, size_t stack_count,
+    OutputFrameStateCombine state_combine, uint16_t parameters_count,
+    uint16_t max_arguments, size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
-    FrameStateDescriptor* outer_state)
+    FrameStateDescriptor* outer_state, uint32_t wasm_liftoff_frame_size,
+    uint32_t wasm_function_index)
     : type_(type),
       bailout_id_(bailout_id),
       frame_state_combine_(state_combine),
       parameters_count_(parameters_count),
+      max_arguments_(max_arguments),
       locals_count_(locals_count),
       stack_count_(stack_count),
       total_conservative_frame_size_in_bytes_(
           GetTotalConservativeFrameSizeInBytes(
-              type, parameters_count, locals_count, bailout_id, outer_state)),
+              type, parameters_count, locals_count, bailout_id,
+              wasm_liftoff_frame_size, outer_state)),
       values_(zone),
       shared_info_(shared_info),
-      outer_state_(outer_state) {}
+      outer_state_(outer_state),
+      wasm_function_index_(wasm_function_index) {}
 
 size_t FrameStateDescriptor::GetHeight() const {
   switch (type()) {
@@ -1140,12 +1250,14 @@ size_t FrameStateDescriptor::GetHeight() const {
     case FrameStateType::kBuiltinContinuation:
 #if V8_ENABLE_WEBASSEMBLY
     case FrameStateType::kJSToWasmBuiltinContinuation:
+    case FrameStateType::kWasmInlinedIntoJS:
 #endif
       // Custom, non-JS calling convention (that does not have a notion of
       // a receiver or context).
       return parameters_count();
     case FrameStateType::kInlinedExtraArguments:
-    case FrameStateType::kConstructStub:
+    case FrameStateType::kConstructCreateStub:
+    case FrameStateType::kConstructInvokeStub:
     case FrameStateType::kJavaScriptBuiltinContinuation:
     case FrameStateType::kJavaScriptBuiltinContinuationWithCatch:
       // JS linkage. The parameters count
@@ -1154,13 +1266,17 @@ size_t FrameStateDescriptor::GetHeight() const {
       //   CreateJavaScriptBuiltinContinuationFrameState), and
       // - does *not* include the context.
       return parameters_count();
+#if V8_ENABLE_WEBASSEMBLY
+    case FrameStateType::kLiftoffFunction:
+      return locals_count() + parameters_count();
+#endif
   }
   UNREACHABLE();
 }
 
 size_t FrameStateDescriptor::GetSize() const {
-  return 1 + parameters_count() + locals_count() + stack_count() +
-         (HasContext() ? 1 : 0);
+  return (HasClosure() ? 1 : 0) + parameters_count() + locals_count() +
+         stack_count() + (HasContext() ? 1 : 0);
 }
 
 size_t FrameStateDescriptor::GetTotalSize() const {
@@ -1195,12 +1311,12 @@ size_t FrameStateDescriptor::GetJSFrameCount() const {
 #if V8_ENABLE_WEBASSEMBLY
 JSToWasmFrameStateDescriptor::JSToWasmFrameStateDescriptor(
     Zone* zone, FrameStateType type, BytecodeOffset bailout_id,
-    OutputFrameStateCombine state_combine, size_t parameters_count,
+    OutputFrameStateCombine state_combine, uint16_t parameters_count,
     size_t locals_count, size_t stack_count,
     MaybeHandle<SharedFunctionInfo> shared_info,
     FrameStateDescriptor* outer_state, const wasm::FunctionSig* wasm_signature)
     : FrameStateDescriptor(zone, type, bailout_id, state_combine,
-                           parameters_count, locals_count, stack_count,
+                           parameters_count, 0, locals_count, stack_count,
                            shared_info, outer_state),
       return_kind_(wasm::WasmReturnTypeFromSignature(wasm_signature)) {}
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -1224,6 +1340,34 @@ std::ostream& operator<<(std::ostream& os, const InstructionSequence& code) {
     os << PrintableInstructionBlock{block, &code};
   }
   return os;
+}
+
+std::ostream& operator<<(std::ostream& os, StateValueKind kind) {
+  switch (kind) {
+    case StateValueKind::kArgumentsElements:
+      return os << "ArgumentsElements";
+    case StateValueKind::kArgumentsLength:
+      return os << "ArgumentsLength";
+    case StateValueKind::kRestLength:
+      return os << "RestLength";
+    case StateValueKind::kPlain:
+      return os << "Plain";
+    case StateValueKind::kOptimizedOut:
+      return os << "OptimizedOut";
+    case StateValueKind::kNested:
+      return os << "Nested";
+    case StateValueKind::kDuplicate:
+      return os << "Duplicate";
+  }
+}
+
+void StateValueDescriptor::Print(std::ostream& os) const {
+  os << "kind=" << kind_ << ", type=" << type_;
+  if (kind_ == StateValueKind::kDuplicate || kind_ == StateValueKind::kNested) {
+    os << ", id=" << id_;
+  } else if (kind_ == StateValueKind::kArgumentsElements) {
+    os << ", args_type=" << args_type_;
+  }
 }
 
 }  // namespace compiler

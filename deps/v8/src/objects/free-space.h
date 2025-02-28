@@ -33,16 +33,15 @@ namespace internal {
 class FreeSpace : public TorqueGeneratedFreeSpace<FreeSpace, HeapObject> {
  public:
   // [size]: size of the free space including the header.
-  DECL_RELAXED_SMI_ACCESSORS(size)
-
+  DECL_RELAXED_INT_ACCESSORS(size)
+  static inline void SetSize(const WritableFreeSpace& writable_free_space,
+                             int size, RelaxedStoreTag);
   inline int Size();
 
   // Accessors for the next field.
-  inline FreeSpace next() const;
-  inline void set_next(FreeSpace next);
-
-  inline static FreeSpace cast(HeapObject obj);
-  inline static FreeSpace unchecked_cast(const Object obj);
+  inline Tagged<FreeSpace> next() const;
+  inline void SetNext(const WritableFreeSpace& writable_free_space,
+                      Tagged<FreeSpace> next);
 
   // Dispatched behavior.
   DECL_PRINTER(FreeSpace)

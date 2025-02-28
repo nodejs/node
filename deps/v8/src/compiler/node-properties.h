@@ -117,9 +117,11 @@ class V8_EXPORT_PRIVATE NodeProperties {
   static bool IsPhi(Node* node) {
     return IrOpcode::IsPhiOpcode(node->opcode());
   }
+#if V8_ENABLE_WEBASSEMBLY
   static bool IsSimd128Operation(Node* node) {
     return IrOpcode::IsSimd128Opcode(node->opcode());
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   // Determines whether exceptions thrown by the given node are handled locally
   // within the graph (i.e. an IfException projection is present). Optionally
@@ -136,9 +138,6 @@ class V8_EXPORT_PRIVATE NodeProperties {
     switch (node->opcode()) {
       case IrOpcode::kTypeGuard:
         *out_value = GetValueInput(node, 0);
-        return true;
-      case IrOpcode::kFoldConstant:
-        *out_value = GetValueInput(node, 1);
         return true;
       default:
         return false;
@@ -178,6 +177,8 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // Safe wrapper to mutate the operator of a node. Checks that the node is
   // currently in a state that satisfies constraints of the new operator.
   static void ChangeOp(Node* node, const Operator* new_op);
+  // Like `ChangeOp`, but without checking constraints.
+  static void ChangeOpUnchecked(Node* node, const Operator* new_op);
 
   // ---------------------------------------------------------------------------
   // Miscellaneous utilities.
@@ -223,7 +224,7 @@ class V8_EXPORT_PRIVATE NodeProperties {
   // DO NOT USE InferMapsUnsafe IN NEW CODE. Use MapInference instead.
   static InferMapsResult InferMapsUnsafe(JSHeapBroker* broker, Node* receiver,
                                          Effect effect,
-                                         ZoneRefUnorderedSet<MapRef>* maps_out);
+                                         ZoneRefSet<Map>* maps_out);
 
   // Return the initial map of the new-target if the allocation can be inlined.
   static OptionalMapRef GetJSCreateMap(JSHeapBroker* broker, Node* receiver);

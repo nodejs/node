@@ -11,6 +11,7 @@ import multiprocessing
 import os.path
 import re
 import signal
+import shutil
 import subprocess
 import sys
 import gyp
@@ -1583,7 +1584,7 @@ class NinjaWriter:
         elif spec["type"] == "static_library":
             self.target.binary = self.ComputeOutput(spec)
             if (
-                self.flavor not in ("mac", "openbsd", "netbsd", "win")
+                self.flavor not in ("ios", "mac", "netbsd", "openbsd", "win")
                 and not self.is_standalone_static_library
             ):
                 self.ninja.build(
@@ -1815,10 +1816,7 @@ class NinjaWriter:
             "executable": default_variables["EXECUTABLE_SUFFIX"],
         }
         extension = spec.get("product_extension")
-        if extension:
-            extension = "." + extension
-        else:
-            extension = DEFAULT_EXTENSION.get(type, "")
+        extension = "." + extension if extension else DEFAULT_EXTENSION.get(type, "")
 
         if "product_name" in spec:
             # If we were given an explicit name, use that.
@@ -2213,6 +2211,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
     options = params["options"]
     flavor = gyp.common.GetFlavor(params)
     generator_flags = params.get("generator_flags", {})
+    generate_compile_commands = generator_flags.get("compile_commands", False)
 
     # build_dir: relative path from source root to our output files.
     # e.g. "out/Debug"
@@ -2496,7 +2495,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             ),
         )
 
-    if flavor != "mac" and flavor != "win":
+    if flavor not in ("ios", "mac", "win"):
         master_ninja.rule(
             "alink",
             description="AR $out",
@@ -2533,7 +2532,7 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             description="SOLINK $lib",
             restat=True,
             command=mtime_preserving_solink_base
-            % {"suffix": "@$link_file_list"},  # noqa: E501
+            % {"suffix": "@$link_file_list"},
             rspfile="$link_file_list",
             rspfile_content=(
                 "-Wl,--whole-archive $in $solibs -Wl," "--no-whole-archive $libs"
@@ -2596,9 +2595,9 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
             "alink",
             description="LIBTOOL-STATIC $out, POSTBUILDS",
             command="rm -f $out && "
-            "./gyp-mac-tool filter-libtool libtool $libtool_flags "
+            "%s gyp-mac-tool filter-libtool libtool $libtool_flags "
             "-static -o $out $in"
-            "$postbuilds",
+            "$postbuilds" % sys.executable,
         )
         master_ninja.rule(
             "lipo",
@@ -2699,41 +2698,44 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
         master_ninja.rule(
             "copy_infoplist",
             description="COPY INFOPLIST $in",
-            command="$env ./gyp-mac-tool copy-info-plist $in $out $binary $keys",
+            command="$env %s gyp-mac-tool copy-info-plist $in $out $binary $keys"
+            % sys.executable,
         )
         master_ninja.rule(
             "merge_infoplist",
             description="MERGE INFOPLISTS $in",
-            command="$env ./gyp-mac-tool merge-info-plist $out $in",
+            command="$env %s gyp-mac-tool merge-info-plist $out $in" % sys.executable,
         )
         master_ninja.rule(
             "compile_xcassets",
             description="COMPILE XCASSETS $in",
-            command="$env ./gyp-mac-tool compile-xcassets $keys $in",
+            command="$env %s gyp-mac-tool compile-xcassets $keys $in" % sys.executable,
         )
         master_ninja.rule(
             "compile_ios_framework_headers",
             description="COMPILE HEADER MAPS AND COPY FRAMEWORK HEADERS $in",
-            command="$env ./gyp-mac-tool compile-ios-framework-header-map $out "
-            "$framework $in && $env ./gyp-mac-tool "
-            "copy-ios-framework-headers $framework $copy_headers",
+            command="$env %(python)s gyp-mac-tool compile-ios-framework-header-map "
+            "$out $framework $in && $env %(python)s gyp-mac-tool "
+            "copy-ios-framework-headers $framework $copy_headers"
+            % {'python': sys.executable},
         )
         master_ninja.rule(
             "mac_tool",
             description="MACTOOL $mactool_cmd $in",
-            command="$env ./gyp-mac-tool $mactool_cmd $in $out $binary",
+            command="$env %s gyp-mac-tool $mactool_cmd $in $out $binary"
+            % sys.executable,
         )
         master_ninja.rule(
             "package_framework",
             description="PACKAGE FRAMEWORK $out, POSTBUILDS",
-            command="./gyp-mac-tool package-framework $out $version$postbuilds "
-            "&& touch $out",
+            command="%s gyp-mac-tool package-framework $out $version$postbuilds "
+            "&& touch $out" % sys.executable,
         )
         master_ninja.rule(
             "package_ios_framework",
             description="PACKAGE IOS FRAMEWORK $out, POSTBUILDS",
-            command="./gyp-mac-tool package-ios-framework $out $postbuilds "
-            "&& touch $out",
+            command="%s gyp-mac-tool package-ios-framework $out $postbuilds "
+            "&& touch $out" % sys.executable,
         )
     if flavor == "win":
         master_ninja.rule(
@@ -2880,6 +2882,35 @@ def GenerateOutputForConfig(target_list, target_dicts, data, params, config_name
         master_ninja.default(generator_flags.get("default_target", "all"))
 
     master_ninja_file.close()
+
+    if generate_compile_commands:
+        compile_db = GenerateCompileDBWithNinja(toplevel_build)
+        compile_db_file = OpenOutput(
+            os.path.join(toplevel_build, "compile_commands.json")
+        )
+        compile_db_file.write(json.dumps(compile_db, indent=2))
+        compile_db_file.close()
+
+
+def GenerateCompileDBWithNinja(path, targets=["all"]):
+    """Generates a compile database using ninja.
+
+    Args:
+        path: The build directory to generate a compile database for.
+        targets: Additional targets to pass to ninja.
+
+    Returns:
+        List of the contents of the compile database.
+    """
+    ninja_path = shutil.which("ninja")
+    if ninja_path is None:
+        raise Exception("ninja not found in PATH")
+    json_compile_db = subprocess.check_output(
+        [ninja_path, "-C", path]
+        + targets
+        + ["-t", "compdb", "cc", "cxx", "objc", "objcxx"]
+    )
+    return json.loads(json_compile_db)
 
 
 def PerformBuild(data, configurations, params):

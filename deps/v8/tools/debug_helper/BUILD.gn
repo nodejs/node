@@ -89,13 +89,13 @@ v8_component("v8_debug_helper_internal") {
     "get-object-properties.cc",
     "heap-constants.cc",
     "heap-constants.h",
-    "list-object-classes.cc",
   ]
 
   deps = [
     ":gen_heap_constants",
     "../..:generate_bytecode_builtins_list",
     "../..:run_torque",
+    "../..:v8_abseil",
     "../..:v8_headers",
     "../..:v8_internal_headers",
     "../..:v8_libbase",

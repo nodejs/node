@@ -1,6 +1,6 @@
 {
   "name": "libnpmsearch",
-  "version": "6.0.2",
+  "version": "9.0.0",
   "description": "Programmatic API for searching in npm and compatible registries.",
   "author": "GitHub Inc.",
   "main": "lib/index.js",
@@ -16,36 +16,37 @@
   ],
   "license": "ISC",
   "scripts": {
-    "posttest": "node ../.. run lint",
+    "posttest": "npm run lint",
     "test": "tap",
-    "lint": "eslint \"**/*.js\"",
+    "lint": "npm run eslint",
     "postlint": "template-oss-check",
-    "lintfix": "node ../.. run lint -- --fix",
+    "lintfix": "npm run eslint -- --fix",
     "snap": "tap",
-    "template-oss-apply": "template-oss-apply --force"
+    "template-oss-apply": "template-oss-apply --force",
+    "eslint": "eslint \"**/*.{js,cjs,ts,mjs,jsx,tsx}\""
   },
   "devDependencies": {
-    "@npmcli/eslint-config": "^4.0.0",
-    "@npmcli/template-oss": "4.14.1",
-    "nock": "^13.3.0",
-    "tap": "^16.3.4"
+    "@npmcli/eslint-config": "^5.0.1",
+    "@npmcli/template-oss": "4.23.6",
+    "nock": "^13.3.3",
+    "tap": "^16.3.8"
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/npm/cli.git",
+    "url": "git+https://github.com/npm/cli.git",
     "directory": "workspaces/libnpmsearch"
   },
   "bugs": "https://github.com/npm/libnpmsearch/issues",
   "homepage": "https://npmjs.com/package/libnpmsearch",
   "dependencies": {
-    "npm-registry-fetch": "^14.0.3"
+    "npm-registry-fetch": "^18.0.1"
   },
   "engines": {
-    "node": "^14.17.0 || ^16.13.0 || >=18.0.0"
+    "node": "^20.17.0 || >=22.9.0"
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.14.1",
+    "version": "4.23.6",
     "content": "../../scripts/template-oss/index.js"
   },
   "tap": {

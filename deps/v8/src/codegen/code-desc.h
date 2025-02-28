@@ -32,6 +32,7 @@ class CodeDesc {
   static void Initialize(CodeDesc* desc, Assembler* assembler,
                          int safepoint_table_offset, int handler_table_offset,
                          int constant_pool_offset, int code_comments_offset,
+                         int builtin_jump_table_info_offset,
                          int reloc_info_offset);
 
 #ifdef DEBUG
@@ -41,7 +42,7 @@ class CodeDesc {
 #endif
 
  public:
-  byte* buffer = nullptr;
+  uint8_t* buffer = nullptr;
   int buffer_size = 0;
 
   // The instruction area contains executable code plus inlined metadata.
@@ -62,6 +63,9 @@ class CodeDesc {
   int code_comments_offset = 0;
   int code_comments_size = 0;
 
+  int builtin_jump_table_info_offset = 0;
+  int builtin_jump_table_info_size = 0;
+
   // TODO(jgruber,v8:11036): Remove these functions once CodeDesc fields have
   // been made consistent with InstructionStream layout.
   int body_size() const { return instr_size + unwinding_info_size; }
@@ -79,6 +83,9 @@ class CodeDesc {
   int code_comments_offset_relative() const {
     return code_comments_offset - instruction_size();
   }
+  int builtin_jump_table_info_offset_relative() const {
+    return builtin_jump_table_info_offset - instruction_size();
+  }
 
   // Relocation info is located at the end of the buffer and not part of the
   // instructions area.
@@ -88,12 +95,13 @@ class CodeDesc {
 
   // Unwinding information.
 
-  byte* unwinding_info = nullptr;
+  uint8_t* unwinding_info = nullptr;
   int unwinding_info_size = 0;
   int unwinding_info_offset_relative() const {
     // TODO(jgruber,v8:11036): Remove this function once unwinding_info setup
     // is more consistent with other metadata tables.
-    return code_comments_offset_relative() + code_comments_size;
+    return builtin_jump_table_info_offset_relative() +
+           builtin_jump_table_info_size;
   }
 
   Assembler* origin = nullptr;

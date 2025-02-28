@@ -1,9 +1,12 @@
 'use strict'
 
-const net = require('net')
-const assert = require('assert')
+const net = require('node:net')
+const assert = require('node:assert')
 const util = require('./util')
 const { InvalidArgumentError, ConnectTimeoutError } = require('./errors')
+const timers = require('../util/timers')
+
+function noop () {}
 
 let tls // include tls conditionally since it is not always available
 
@@ -13,7 +16,9 @@ let tls // include tls conditionally since it is not always available
 // re-use is enabled.
 
 let SessionCache
-if (global.FinalizationRegistry) {
+// FIXME: remove workaround when the Node bug is fixed
+// https://github.com/nodejs/node/issues/49344#issuecomment-1741776308
+if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
   SessionCache = class WeakSessionCache {
     constructor (maxCachedSessions) {
       this._maxCachedSessions = maxCachedSessions
@@ -71,7 +76,7 @@ if (global.FinalizationRegistry) {
   }
 }
 
-function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
+function buildConnector ({ allowH2, maxCachedSessions, socketPath, timeout, session: customSession, ...opts }) {
   if (maxCachedSessions != null && (!Number.isInteger(maxCachedSessions) || maxCachedSessions < 0)) {
     throw new InvalidArgumentError('maxCachedSessions must be a positive integer or zero')
   }
@@ -79,19 +84,21 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
   const options = { path: socketPath, ...opts }
   const sessionCache = new SessionCache(maxCachedSessions == null ? 100 : maxCachedSessions)
   timeout = timeout == null ? 10e3 : timeout
-
+  allowH2 = allowH2 != null ? allowH2 : false
   return function connect ({ hostname, host, protocol, port, servername, localAddress, httpSocket }, callback) {
     let socket
     if (protocol === 'https:') {
       if (!tls) {
-        tls = require('tls')
+        tls = require('node:tls')
       }
       servername = servername || options.servername || util.getServerName(host) || null
 
       const sessionKey = servername || hostname
-      const session = sessionCache.get(sessionKey) || null
-
       assert(sessionKey)
+
+      const session = customSession || sessionCache.get(sessionKey) || null
+
+      port = port || 443
 
       socket = tls.connect({
         highWaterMark: 16384, // TLS in node can't have bigger HWM anyway...
@@ -99,8 +106,10 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         servername,
         session,
         localAddress,
+        // TODO(HTTP/2): Add support for h2c
+        ALPNProtocols: allowH2 ? ['http/1.1', 'h2'] : ['http/1.1'],
         socket: httpSocket, // upgrade socket connection
-        port: port || 443,
+        port,
         host: hostname
       })
 
@@ -111,11 +120,14 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         })
     } else {
       assert(!httpSocket, 'httpSocket can only be sent on TLS update')
+
+      port = port || 80
+
       socket = net.connect({
         highWaterMark: 64 * 1024, // Same as nodejs fs streams.
         ...options,
         localAddress,
-        port: port || 80,
+        port,
         host: hostname
       })
     }
@@ -126,12 +138,12 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
       socket.setKeepAlive(true, keepAliveInitialDelay)
     }
 
-    const cancelTimeout = setupTimeout(() => onConnectTimeout(socket), timeout)
+    const clearConnectTimeout = setupConnectTimeout(new WeakRef(socket), { timeout, hostname, port })
 
     socket
       .setNoDelay(true)
       .once(protocol === 'https:' ? 'secureConnect' : 'connect', function () {
-        cancelTimeout()
+        queueMicrotask(clearConnectTimeout)
 
         if (callback) {
           const cb = callback
@@ -140,7 +152,7 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
         }
       })
       .on('error', function (err) {
-        cancelTimeout()
+        queueMicrotask(clearConnectTimeout)
 
         if (callback) {
           const cb = callback
@@ -153,33 +165,76 @@ function buildConnector ({ maxCachedSessions, socketPath, timeout, ...opts }) {
   }
 }
 
-function setupTimeout (onConnectTimeout, timeout) {
-  if (!timeout) {
-    return () => {}
-  }
-
-  let s1 = null
-  let s2 = null
-  const timeoutId = setTimeout(() => {
-    // setImmediate is added to make sure that we priotorise socket error events over timeouts
-    s1 = setImmediate(() => {
-      if (process.platform === 'win32') {
-        // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
-        s2 = setImmediate(() => onConnectTimeout())
-      } else {
-        onConnectTimeout()
+/**
+ * @param {WeakRef<net.Socket>} socketWeakRef
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ * @returns {() => void}
+ */
+const setupConnectTimeout = process.platform === 'win32'
+  ? (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
       }
-    })
-  }, timeout)
-  return () => {
-    clearTimeout(timeoutId)
-    clearImmediate(s1)
-    clearImmediate(s2)
-  }
-}
 
-function onConnectTimeout (socket) {
-  util.destroy(socket, new ConnectTimeoutError())
+      let s1 = null
+      let s2 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+        // Windows needs an extra setImmediate probably due to implementation differences in the socket logic
+          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts))
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+        clearImmediate(s2)
+      }
+    }
+  : (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop
+      }
+
+      let s1 = null
+      const fastTimer = timers.setFastTimeout(() => {
+      // setImmediate is added to make sure that we prioritize socket error events over timeouts
+        s1 = setImmediate(() => {
+          onConnectTimeout(socketWeakRef.deref(), opts)
+        })
+      }, opts.timeout)
+      return () => {
+        timers.clearFastTimeout(fastTimer)
+        clearImmediate(s1)
+      }
+    }
+
+/**
+ * @param {net.Socket} socket
+ * @param {object} opts
+ * @param {number} opts.timeout
+ * @param {string} opts.hostname
+ * @param {number} opts.port
+ */
+function onConnectTimeout (socket, opts) {
+  // The socket could be already garbage collected
+  if (socket == null) {
+    return
+  }
+
+  let message = 'Connect Timeout Error'
+  if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+    message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(', ')},`
+  } else {
+    message += ` (attempted address: ${opts.hostname}:${opts.port},`
+  }
+
+  message += ` timeout: ${opts.timeout}ms)`
+
+  util.destroy(socket, new ConnectTimeoutError(message))
 }
 
 module.exports = buildConnector

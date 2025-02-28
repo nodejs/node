@@ -125,7 +125,7 @@
   my @lib_cflags_no_inst = ( $target{no_inst_lib_cflags} // @lib_cflags );
   my @lib_cflags_cont = ( $target{shared_cflag} || (),
                           @{$config{lib_cflags}}, @{$config{shared_cflag}},
-                          $cnf_cflags, '$(CFLAGS)');
+                          @cnf_cflags, '$(CFLAGS)');
   our $lib_cflags = join('', @lib_cflags, @lib_cflags_cont );
   our $lib_cflags_no_inst = join('', @lib_cflags_no_inst, @lib_cflags_cont );
   our $lib_ldflags =
@@ -161,7 +161,7 @@
   my @dso_cflags_no_inst = ( $target{no_inst_dso_cflags} // @dso_cflags );
   my @dso_cflags_cont = ( $target{module_cflag} || (),
                           @{$config{dso_cflags}}, @{$config{module_cflag}},
-                          $cnf_cflags, '$(CFLAGS)');
+                          @cnf_cflags, '$(CFLAGS)');
   our $dso_cflags = join('', @dso_cflags, @dso_cflags_cont );
   our $dso_cflags_no_inst = join('', @dso_cflags_no_inst, @dso_cflags_cont );
   our $dso_ldflags =
@@ -196,13 +196,9 @@
   my @bin_cflags = ( $target{bin_cflags} // () );
   my @bin_cflags_no_inst = ( $target{no_inst_bin_cflags} // @bin_cflags );
   my @bin_cflags_cont = ( @{$config{bin_cflags}},
-                          $cnf_cflags, '$(CFLAGS)');
+                          @cnf_cflags, '$(CFLAGS)');
   our $bin_cflags = join('', @bin_cflags, @bin_cflags_cont );
   our $bin_cflags_no_inst = join('', @bin_cflags_no_inst, @bin_cflags_cont );
-  our $bin_cflags =
-      join('', $target{bin_cflags} || (),
-               @{$config{bin_cflags}},
-               @cnf_cflags, '$(CFLAGS)');
   our $bin_ldflags =
       join('', $target{bin_lflags} || (),
                @{$config{bin_lflags}},
@@ -482,7 +478,8 @@ build_all_generated : $(GENERATED_MANDATORY) $(GENERATED) build_docs
 all : build_sw build_docs
 
 test : tests
-{- dependmagic('tests'); -} : build_programs_nodep, build_modules_nodep run_tests
+{- dependmagic('tests'); -} : build_programs_nodep, build_modules_nodep
+	$(MMS) $(MMSQUALIFIERS) run_tests
 run_tests :
         @ ! {- output_off() if $disabled{tests}; "" -}
         DEFINE SRCTOP "$(SRCDIR)"
@@ -714,13 +711,15 @@ vmsconfig.pm : configdata.pm
         WRITE CONFIG "  shlib_version => '","{- $config{shlib_version} -}","',"
         WRITE CONFIG "  shlib_major => '","{- $config{shlib_major} -}","',"
         WRITE CONFIG "  shlib_minor => '","{- $config{shlib_minor} -}","',"
-        WRITE CONFIG "  no_shared => '","{- $disabled{shared} -}","',"
         WRITE CONFIG "  INSTALLTOP => '$(INSTALLTOP)',"
         WRITE CONFIG "  OPENSSLDIR => '$(OPENSSLDIR)',"
+        WRITE CONFIG ");"
+        WRITE CONFIG "our %target = ("
         WRITE CONFIG "  pointer_size => '","{- $target{pointer_size} -}","',"
         WRITE CONFIG ");"
-        WRITE CONFIG "our %target = ();"
-        WRITE CONFIG "our %disabled = ();"
+        WRITE CONFIG "our %disabled = ("
+        WRITE CONFIG "  shared => '","{- $disabled{shared} -}","',"
+        WRITE CONFIG ");"
         WRITE CONFIG "our %withargs = ();"
         WRITE CONFIG "our %unified_info = ();"
         WRITE CONFIG "1;"

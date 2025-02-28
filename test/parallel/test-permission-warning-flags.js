@@ -5,7 +5,9 @@ const { spawnSync } = require('child_process');
 const assert = require('assert');
 
 const warnFlags = [
+  '--allow-addons',
   '--allow-child-process',
+  '--allow-wasi',
   '--allow-worker',
 ];
 
@@ -13,7 +15,7 @@ for (const flag of warnFlags) {
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission', flag, '-e',
+      '--permission', flag, '-e',
       'setTimeout(() => {}, 1)',
     ]
   );

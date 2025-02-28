@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@
 #include <openssl/err.h>
 #include <openssl/proverr.h>
 #include "e_os.h"
+#include "internal/tsan_assist.h"
 #include "prov/providercommon.h"
 
 /*
@@ -47,7 +48,6 @@
 
 static int FIPS_conditional_error_check = 1;
 static CRYPTO_RWLOCK *self_test_lock = NULL;
-static CRYPTO_RWLOCK *fips_state_lock = NULL;
 static unsigned char fixed_key[32] = { FIPS_KEY_ELEMENTS };
 
 static CRYPTO_ONCE fips_self_test_init = CRYPTO_ONCE_STATIC_INIT;
@@ -59,7 +59,6 @@ DEFINE_RUN_ONCE_STATIC(do_fips_self_test_init)
      * platform then we just leak it deliberately.
      */
     self_test_lock = CRYPTO_THREAD_lock_new();
-    fips_state_lock = CRYPTO_THREAD_lock_new();
     return self_test_lock != NULL;
 }
 
@@ -155,12 +154,12 @@ void __TERM__cleanup(void) {
 # define DEP_INITIAL_STATE  FIPS_STATE_SELFTEST
 #endif
 
-static int FIPS_state = DEP_INITIAL_STATE;
+static TSAN_QUALIFIER int FIPS_state = DEP_INITIAL_STATE;
 
 #if defined(DEP_INIT_ATTRIBUTE)
 DEP_INIT_ATTRIBUTE void init(void)
 {
-    FIPS_state = FIPS_STATE_SELFTEST;
+    tsan_store(&FIPS_state, FIPS_STATE_SELFTEST);
 }
 #endif
 
@@ -168,7 +167,6 @@ DEP_INIT_ATTRIBUTE void init(void)
 DEP_FINI_ATTRIBUTE void cleanup(void)
 {
     CRYPTO_THREAD_lock_free(self_test_lock);
-    CRYPTO_THREAD_lock_free(fips_state_lock);
 }
 #endif
 
@@ -229,10 +227,7 @@ err:
 
 static void set_fips_state(int state)
 {
-    if (ossl_assert(CRYPTO_THREAD_write_lock(fips_state_lock) != 0)) {
-        FIPS_state = state;
-        CRYPTO_THREAD_unlock(fips_state_lock);
-    }
+    tsan_store(&FIPS_state, state);
 }
 
 /* This API is triggered either on loading of the FIPS module or on demand */
@@ -250,10 +245,7 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
     if (!RUN_ONCE(&fips_self_test_init, do_fips_self_test_init))
         return 0;
 
-    if (!CRYPTO_THREAD_read_lock(fips_state_lock))
-        return 0;
-    loclstate = FIPS_state;
-    CRYPTO_THREAD_unlock(fips_state_lock);
+    loclstate = tsan_load(&FIPS_state);
 
     if (loclstate == FIPS_STATE_RUNNING) {
         if (!on_demand_test)
@@ -265,24 +257,17 @@ int SELF_TEST_post(SELF_TEST_POST_PARAMS *st, int on_demand_test)
 
     if (!CRYPTO_THREAD_write_lock(self_test_lock))
         return 0;
-    if (!CRYPTO_THREAD_read_lock(fips_state_lock)) {
-        CRYPTO_THREAD_unlock(self_test_lock);
-        return 0;
-    }
-    if (FIPS_state == FIPS_STATE_RUNNING) {
-        CRYPTO_THREAD_unlock(fips_state_lock);
+    loclstate = tsan_load(&FIPS_state);
+    if (loclstate == FIPS_STATE_RUNNING) {
         if (!on_demand_test) {
             CRYPTO_THREAD_unlock(self_test_lock);
             return 1;
         }
         set_fips_state(FIPS_STATE_SELFTEST);
-    } else if (FIPS_state != FIPS_STATE_SELFTEST) {
-        CRYPTO_THREAD_unlock(fips_state_lock);
+    } else if (loclstate != FIPS_STATE_SELFTEST) {
         CRYPTO_THREAD_unlock(self_test_lock);
         ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_STATE);
         return 0;
-    } else {
-        CRYPTO_THREAD_unlock(fips_state_lock);
     }
 
     if (st == NULL
@@ -393,20 +378,13 @@ void ossl_set_error_state(const char *type)
 
 int ossl_prov_is_running(void)
 {
-    int res;
-    static unsigned int rate_limit = 0;
+    int res, loclstate;
+    static TSAN_QUALIFIER unsigned int rate_limit = 0;
 
-    if (!CRYPTO_THREAD_read_lock(fips_state_lock))
-        return 0;
-    res = FIPS_state == FIPS_STATE_RUNNING
-                        || FIPS_state == FIPS_STATE_SELFTEST;
-    if (FIPS_state == FIPS_STATE_ERROR) {
-        CRYPTO_THREAD_unlock(fips_state_lock);
-        if (!CRYPTO_THREAD_write_lock(fips_state_lock))
-            return 0;
-        if (rate_limit++ < FIPS_ERROR_REPORTING_RATE_LIMIT)
+    loclstate = tsan_load(&FIPS_state);
+    res = loclstate == FIPS_STATE_RUNNING || loclstate == FIPS_STATE_SELFTEST;
+    if (loclstate == FIPS_STATE_ERROR)
+        if (tsan_counter(&rate_limit) < FIPS_ERROR_REPORTING_RATE_LIMIT)
             ERR_raise(ERR_LIB_PROV, PROV_R_FIPS_MODULE_IN_ERROR_STATE);
-    }
-    CRYPTO_THREAD_unlock(fips_state_lock);
     return res;
 }

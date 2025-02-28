@@ -16,21 +16,21 @@ namespace v8::internal::compiler {
 class Schedule;
 class Graph;
 class CallDescriptor;
+class TFPipelineData;
 }  // namespace v8::internal::compiler
 namespace v8::internal::compiler::turboshaft {
 class Graph;
+class PipelineData;
 
 struct RecreateScheduleResult {
   compiler::Graph* graph;
   Schedule* schedule;
 };
 
-RecreateScheduleResult RecreateSchedule(const Graph& graph,
-                                        JSHeapBroker* broker,
+RecreateScheduleResult RecreateSchedule(PipelineData* data,
+                                        compiler::TFPipelineData* turbofan_data,
                                         CallDescriptor* call_descriptor,
-                                        Zone* graph_zone, Zone* phase_zone,
-                                        SourcePositionTable* source_positions,
-                                        NodeOriginTable* origins);
+                                        Zone* phase_zone);
 
 }  // namespace v8::internal::compiler::turboshaft
 

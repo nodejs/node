@@ -4,7 +4,7 @@ import assert from 'node:assert';
 import { execPath } from 'node:process';
 import { describe, it } from 'node:test';
 
-describe('Worker threads do not spawn infinitely', { concurrency: true }, () => {
+describe('Worker threads do not spawn infinitely', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should not trigger an infinite loop when using a loader exports no recognized hooks', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -48,8 +48,14 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
     ]);
 
     assert.strictEqual(stderr, '');
+    // We are validating that:
+    // 1. the `--require` flag is run first from the main thread (and A is printed).
+    // 2. the `--require` flag is then run on the loader thread (and A is printed).
+    // 3. the `--loader` module is executed (and B is printed).
+    // 4. the `--import` module is evaluated once, on the main thread (and C is printed).
+    // 5. the user code is finally executed (and D is printed).
     // The worker code should always run before the --import, but the console.log might arrive late.
-    assert.match(stdout, /^A\r?\nA\r?\n(B\r?\nC|C\r?\nB)\r?\nD\r?\n$/);
+    assert.match(stdout, /^A\r?\n(A\r?\nB\r?\nC|A\r?\nC\r?\nB|C\r?\nA\r?\nB)\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });
@@ -70,7 +76,7 @@ describe('Worker threads do not spawn infinitely', { concurrency: true }, () => 
 
     assert.strictEqual(stderr, '');
     // The worker code should always run before the --import, but the console.log might arrive late.
-    assert.match(stdout, /^A\r?\nA\r?\n(B\r?\nC|C\r?\nB)\r?\nD\r?\n$/);
+    assert.match(stdout, /^A\r?\n(A\r?\nB\r?\nC|A\r?\nC\r?\nB|C\r?\nA\r?\nB)\r?\nD\r?\n$/);
     assert.strictEqual(code, 0);
     assert.strictEqual(signal, null);
   });

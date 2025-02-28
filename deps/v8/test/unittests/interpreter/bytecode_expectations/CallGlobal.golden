@@ -22,7 +22,7 @@ bytecodes: [
   /*   43 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["t"],
 ]
 handlers: [
 ]
@@ -49,7 +49,7 @@ bytecodes: [
   /*   57 S> */ B(Return),
 ]
 constant pool: [
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["t"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["t"],
 ]
 handlers: [
 ]

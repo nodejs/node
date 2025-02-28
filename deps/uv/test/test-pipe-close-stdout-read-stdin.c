@@ -26,6 +26,10 @@
 #include <sys/wait.h>
 #include <sys/types.h>
 
+#ifdef __APPLE__
+#include <TargetConditionals.h>
+#endif
+
 #include "uv.h"
 #include "task.h"
 
@@ -57,9 +61,15 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
   uv_pipe_t stdin_pipe;
 
   r = pipe(fd);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
+    
+#if defined(__APPLE__) && (TARGET_OS_TV || TARGET_OS_WATCH)
+  pid = -1;
+#else
+  pid = fork();
+#endif
 
-  if ((pid = fork()) == 0) {
+  if (pid == 0) {
     /*
      * Make the read side of the pipe our stdin.
      * The write side will be closed by the parent process.
@@ -70,24 +80,24 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     ASSERT(-1 <= r && r <= 1);
     close(0);
     r = dup(fd[0]);
-    ASSERT(r != -1);
+    ASSERT_NE(r, -1);
 
     /* Create a stream that reads from the pipe. */
     r = uv_pipe_init(uv_default_loop(), (uv_pipe_t *)&stdin_pipe, 0);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     r = uv_pipe_open((uv_pipe_t *)&stdin_pipe, 0);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     r = uv_read_start((uv_stream_t *)&stdin_pipe, alloc_buffer, read_stdin);
-    ASSERT(r == 0);
+    ASSERT_OK(r);
 
     /*
      * Because the other end of the pipe was closed, there should
      * be no event left to process after one run of the event loop.
      * Otherwise, it means that events were not processed correctly.
      */
-    ASSERT(uv_run(uv_default_loop(), UV_RUN_NOWAIT) == 0);
+    ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_NOWAIT));
   } else {
     /*
      * Close both ends of the pipe so that the child
@@ -101,7 +111,7 @@ TEST_IMPL(pipe_close_stdout_read_stdin) {
     ASSERT(WIFEXITED(status) && WEXITSTATUS(status) == 0);
   }
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 

@@ -319,7 +319,7 @@ class NodeBase {
   }
 
   // Publishes all internal state to be consumed by other threads.
-  Handle<Object> Publish(Object object) {
+  Handle<Object> Publish(Tagged<Object> object) {
     DCHECK(!AsChild()->IsInUse());
     data_.parameter = nullptr;
     AsChild()->MarkAsUsed();
@@ -335,7 +335,7 @@ class NodeBase {
     DCHECK(!AsChild()->IsInUse());
   }
 
-  Object object() const { return Object(object_); }
+  Tagged<Object> object() const { return Tagged<Object>(object_); }
   FullObjectSlot location() { return FullObjectSlot(&object_); }
   Handle<Object> handle() { return Handle<Object>(&object_); }
   Address raw_object() const { return object_; }
@@ -407,8 +407,9 @@ class NodeBase {
 
 namespace {
 
-void ExtractInternalFields(JSObject jsobject, void** embedder_fields, int len) {
-  int field_count = jsobject.GetEmbedderFieldCount();
+void ExtractInternalFields(Tagged<JSObject> jsobject, void** embedder_fields,
+                           int len) {
+  int field_count = jsobject->GetEmbedderFieldCount();
   Isolate* isolate = GetIsolateForSandbox(jsobject);
   for (int i = 0; i < len; ++i) {
     if (field_count == i) break;
@@ -541,13 +542,13 @@ class GlobalHandles::Node final : public NodeBase<GlobalHandles::Node> {
     void* embedder_fields[v8::kEmbedderFieldsInWeakCallback] = {nullptr,
                                                                 nullptr};
     if (weakness_type() == WeaknessType::kCallbackWithTwoEmbedderFields &&
-        object().IsJSObject()) {
-      ExtractInternalFields(JSObject::cast(object()), embedder_fields,
+        IsJSObject(object())) {
+      ExtractInternalFields(Cast<JSObject>(object()), embedder_fields,
                             v8::kEmbedderFieldsInWeakCallback);
     }
 
     // Zap with something dangerous.
-    location().store(Object(0xCA11));
+    location().store(Tagged<Object>(0xCA11));
 
     pending_phantom_callbacks->push_back(std::make_pair(
         this,
@@ -614,13 +615,13 @@ GlobalHandles::~GlobalHandles() = default;
 namespace {
 
 template <typename NodeType>
-bool NeedsTrackingInYoungNodes(Object value, NodeType* node) {
+bool NeedsTrackingInYoungNodes(Tagged<Object> value, NodeType* node) {
   return ObjectInYoungGeneration(value) && !node->is_in_young_list();
 }
 
 }  // namespace
 
-Handle<Object> GlobalHandles::Create(Object value) {
+Handle<Object> GlobalHandles::Create(Tagged<Object> value) {
   GlobalHandles::Node* node = regular_nodes_->Allocate();
   if (NeedsTrackingInYoungNodes(value, node)) {
     young_nodes_.push_back(node);
@@ -630,7 +631,7 @@ Handle<Object> GlobalHandles::Create(Object value) {
 }
 
 Handle<Object> GlobalHandles::Create(Address value) {
-  return Create(Object(value));
+  return Create(Tagged<Object>(value));
 }
 
 Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
@@ -639,7 +640,7 @@ Handle<Object> GlobalHandles::CopyGlobal(Address* location) {
       Node::FromLocation(location)->global_handles();
 #ifdef VERIFY_HEAP
   if (v8_flags.verify_heap) {
-    Object(*location).ObjectVerify(global_handles->isolate());
+    Object::ObjectVerify(Tagged<Object>(*location), global_handles->isolate());
   }
 #endif  // VERIFY_HEAP
   return global_handles->Create(*location);
@@ -699,7 +700,7 @@ V8_INLINE bool GlobalHandles::ResetWeakNodeIfDead(
       node->ResetPhantomHandle();
       break;
     case WeaknessType::kCallback:
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case WeaknessType::kCallbackWithTwoEmbedderFields:
       node->CollectPhantomCallbackData(&pending_phantom_callbacks_);
       break;
@@ -742,7 +743,7 @@ void GlobalHandles::ProcessWeakYoungObjects(
 }
 
 void GlobalHandles::InvokeSecondPassPhantomCallbacks() {
-  DCHECK(AllowJavascriptExecution::IsAllowed(isolate()));
+  AllowJavascriptExecution js(isolate());
   DCHECK(AllowGarbageCollection::IsAllowed());
 
   if (second_pass_callbacks_.empty()) return;
@@ -1030,7 +1031,7 @@ void EternalHandles::IterateYoungRoots(RootVisitor* visitor) {
 void EternalHandles::PostGarbageCollectionProcessing() {
   size_t last = 0;
   for (int index : young_node_indices_) {
-    if (ObjectInYoungGeneration(Object(*GetLocation(index)))) {
+    if (ObjectInYoungGeneration(Tagged<Object>(*GetLocation(index)))) {
       young_node_indices_[last++] = index;
     }
   }
@@ -1038,10 +1039,11 @@ void EternalHandles::PostGarbageCollectionProcessing() {
   young_node_indices_.resize(last);
 }
 
-void EternalHandles::Create(Isolate* isolate, Object object, int* index) {
+void EternalHandles::Create(Isolate* isolate, Tagged<Object> object,
+                            int* index) {
   DCHECK_EQ(kInvalidIndex, *index);
-  if (object == Object()) return;
-  Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
+  if (object == Tagged<Object>()) return;
+  Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
   DCHECK_NE(the_hole, object);
   int block = size_ >> kShift;
   int offset = size_ & kMask;

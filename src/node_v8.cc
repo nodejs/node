@@ -32,6 +32,7 @@
 namespace node {
 namespace v8_utils {
 using v8::Array;
+using v8::CFunction;
 using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -152,18 +153,18 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
   InternalFieldInfo* casted_info = static_cast<InternalFieldInfo*>(info);
   BindingData* binding =
-      realm->AddBindingData<BindingData>(context, holder, casted_info);
+      realm->AddBindingData<BindingData>(holder, casted_info);
   CHECK_NOT_NULL(binding);
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info = internal_field_info_;
   internal_field_info_ = nullptr;
   return info;
@@ -237,6 +238,23 @@ void SetFlagsFromString(const FunctionCallbackInfo<Value>& args) {
   String::Utf8Value flags(args.GetIsolate(), args[0]);
   V8::SetFlagsFromString(*flags, static_cast<size_t>(flags.length()));
 }
+
+static void IsStringOneByteRepresentation(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_EQ(args.Length(), 1);
+  CHECK(args[0]->IsString());
+  bool is_one_byte = args[0].As<String>()->IsOneByte();
+  args.GetReturnValue().Set(is_one_byte);
+}
+
+static bool FastIsStringOneByteRepresentation(Local<Value> receiver,
+                                              const Local<Value> target) {
+  CHECK(target->IsString());
+  return target.As<String>()->IsOneByte();
+}
+
+CFunction fast_is_string_one_byte_representation_(
+    CFunction::Make(FastIsStringOneByteRepresentation));
 
 static const char* GetGCTypeName(v8::GCType gc_type) {
   switch (gc_type) {
@@ -369,7 +387,7 @@ void GCProfiler::New(const FunctionCallbackInfo<Value>& args) {
 void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   GCProfiler* profiler;
-  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.This());
   if (profiler->state != GCProfiler::GCProfilerState::kInitialized) {
     return;
   }
@@ -394,7 +412,7 @@ void GCProfiler::Start(const FunctionCallbackInfo<Value>& args) {
 void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   GCProfiler* profiler;
-  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&profiler, args.This());
   if (profiler->state != GCProfiler::GCProfilerState::kStarted) {
     return;
   }
@@ -409,11 +427,10 @@ void GCProfiler::Stop(const FunctionCallbackInfo<v8::Value>& args) {
   profiler->writer()->json_end();
   profiler->state = GCProfiler::GCProfilerState::kStopped;
   auto string = profiler->out_stream()->str();
-  args.GetReturnValue().Set(String::NewFromUtf8(env->isolate(),
-                                                string.data(),
-                                                v8::NewStringType::kNormal,
-                                                string.size())
-                                .ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(env->context(), string, env->isolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void Initialize(Local<Object> target,
@@ -422,8 +439,7 @@ void Initialize(Local<Object> target,
                 void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   SetMethodNoSideEffect(
@@ -480,6 +496,13 @@ void Initialize(Local<Object> target,
   // Export symbols used by v8.setFlagsFromString()
   SetMethod(context, target, "setFlagsFromString", SetFlagsFromString);
 
+  // Export symbols used by v8.isStringOneByteRepresentation()
+  SetFastMethodNoSideEffect(context,
+                            target,
+                            "isStringOneByteRepresentation",
+                            IsStringOneByteRepresentation,
+                            &fast_is_string_one_byte_representation_);
+
   // GCProfiler
   Local<FunctionTemplate> t =
       NewFunctionTemplate(env->isolate(), GCProfiler::New);
@@ -499,6 +522,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GCProfiler::New);
   registry->Register(GCProfiler::Start);
   registry->Register(GCProfiler::Stop);
+  registry->Register(IsStringOneByteRepresentation);
+  registry->Register(FastIsStringOneByteRepresentation);
+  registry->Register(fast_is_string_one_byte_representation_.GetTypeInfo());
 }
 
 }  // namespace v8_utils

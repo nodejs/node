@@ -4,10 +4,10 @@
 const common = require('../common');
 const { once, EventEmitter } = require('events');
 const {
-  strictEqual,
   deepStrictEqual,
   fail,
   rejects,
+  strictEqual,
 } = require('assert');
 const { kEvents } = require('internal/event_target');
 
@@ -24,17 +24,15 @@ async function onceAnEvent() {
   strictEqual(ee.listenerCount('myevent'), 0);
 }
 
-async function onceAnEventWithNullOptions() {
+async function onceAnEventWithInvalidOptions() {
   const ee = new EventEmitter();
 
-  process.nextTick(() => {
-    ee.emit('myevent', 42);
-  });
-
-  const [value] = await once(ee, 'myevent', null);
-  strictEqual(value, 42);
+  await Promise.all([1, 'hi', null, false, () => {}, Symbol(), 1n].map((options) => {
+    return rejects(once(ee, 'myevent', options), {
+      code: 'ERR_INVALID_ARG_TYPE',
+    });
+  }));
 }
-
 
 async function onceAnEventWithTwoArgs() {
   const ee = new EventEmitter();
@@ -233,6 +231,18 @@ async function eventTargetAbortSignalBefore() {
   });
 }
 
+async function eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped() {
+  const et = new EventTarget();
+  const ac = new AbortController();
+  const { signal } = ac;
+  signal.addEventListener('abort', (e) => e.stopImmediatePropagation(), { once: true });
+
+  process.nextTick(() => ac.abort());
+  return rejects(once(et, 'foo', { signal }), {
+    name: 'AbortError',
+  });
+}
+
 async function eventTargetAbortSignalAfter() {
   const et = new EventTarget();
   const ac = new AbortController();
@@ -255,7 +265,7 @@ async function eventTargetAbortSignalAfterEvent() {
 
 Promise.all([
   onceAnEvent(),
-  onceAnEventWithNullOptions(),
+  onceAnEventWithInvalidOptions(),
   onceAnEventWithTwoArgs(),
   catchesErrors(),
   catchesErrorsWithAbortSignal(),
@@ -270,6 +280,7 @@ Promise.all([
   abortSignalAfterEvent(),
   abortSignalRemoveListener(),
   eventTargetAbortSignalBefore(),
+  eventTargetAbortSignalBeforeEvenWhenSignalPropagationStopped(),
   eventTargetAbortSignalAfter(),
   eventTargetAbortSignalAfterEvent(),
 ]).then(common.mustCall());

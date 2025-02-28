@@ -4,8 +4,8 @@
 
 namespace object {
 
-transitioning macro ObjectFromEntriesFastCase(implicit context: Context)(
-    iterable: JSAny): JSObject labels IfSlow {
+transitioning macro ObjectFromEntriesFastCase(
+    implicit context: Context)(iterable: JSAny): JSObject labels IfSlow {
   typeswitch (iterable) {
     case (array: FastJSArrayWithNoCustomIteration): {
       const elements: FixedArray =
@@ -46,8 +46,7 @@ transitioning macro ObjectFromEntriesFastCase(implicit context: Context)(
   }
 }
 
-transitioning javascript builtin
-ObjectFromEntries(
+transitioning javascript builtin ObjectFromEntries(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const iterable: JSAny = arguments[0];
   try {

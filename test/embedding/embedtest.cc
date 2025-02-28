@@ -1,9 +1,11 @@
 #ifdef NDEBUG
 #undef NDEBUG
 #endif
-#include "node.h"
-#include "uv.h"
 #include <assert.h>
+#include "executable_wrapper.h"
+#include "node.h"
+
+#include <algorithm>
 
 // Note: This file is being referred to from doc/api/embedding.md, and excerpts
 // from it are included in the documentation. Try to keep these in sync.
@@ -25,14 +27,23 @@ static int RunNodeInstance(MultiIsolatePlatform* platform,
                            const std::vector<std::string>& args,
                            const std::vector<std::string>& exec_args);
 
-int main(int argc, char** argv) {
-  argv = uv_setup_args(argc, argv);
+NODE_MAIN(int argc, node::argv_type raw_argv[]) {
+  char** argv = nullptr;
+  node::FixupMain(argc, raw_argv, &argv);
+
   std::vector<std::string> args(argv, argv + argc);
-  std::unique_ptr<node::InitializationResult> result =
+  std::shared_ptr<node::InitializationResult> result =
       node::InitializeOncePerProcess(
           args,
-          {node::ProcessInitializationFlags::kNoInitializeV8,
-           node::ProcessInitializationFlags::kNoInitializeNodeV8Platform});
+          {
+              node::ProcessInitializationFlags::kNoInitializeV8,
+              node::ProcessInitializationFlags::kNoInitializeNodeV8Platform,
+              // This is used to test NODE_REPL_EXTERNAL_MODULE is disabled with
+              // kDisableNodeOptionsEnv. If other tests need NODE_OPTIONS
+              // support in the future, split this configuration out as a
+              // command line option.
+              node::ProcessInitializationFlags::kDisableNodeOptionsEnv,
+          });
 
   for (const std::string& error : result->errors())
     fprintf(stderr, "%s: %s\n", args[0].c_str(), error.c_str());
@@ -60,23 +71,58 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
                     const std::vector<std::string>& exec_args) {
   int exit_code = 0;
 
+  // Format of the arguments of this binary:
+  // Building snapshot:
+  // embedtest js_code_to_eval arg1 arg2...
+  //           --embedder-snapshot-blob blob-path
+  //           --embedder-snapshot-create
+  //           [--embedder-snapshot-as-file]
+  //           [--without-code-cache]
+  // Running snapshot:
+  // embedtest --embedder-snapshot-blob blob-path
+  //           [--embedder-snapshot-as-file]
+  //           arg1 arg2...
+  // No snapshot:
+  // embedtest arg1 arg2...
   node::EmbedderSnapshotData::Pointer snapshot;
-  auto snapshot_build_mode_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-create");
-  auto snapshot_arg_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-blob");
-  auto snapshot_as_file_it =
-      std::find(args.begin(), args.end(), "--embedder-snapshot-as-file");
-  if (snapshot_arg_it < args.end() - 1 &&
-      snapshot_build_mode_it == args.end()) {
-    const char* filename = (snapshot_arg_it + 1)->c_str();
-    FILE* fp = fopen(filename, "r");
+
+  std::string binary_path = args[0];
+  std::vector<std::string> filtered_args;
+  bool is_building_snapshot = false;
+  bool snapshot_as_file = false;
+  std::optional<node::SnapshotConfig> snapshot_config;
+  std::string snapshot_blob_path;
+  for (size_t i = 0; i < args.size(); ++i) {
+    const std::string& arg = args[i];
+    if (arg == "--embedder-snapshot-create") {
+      is_building_snapshot = true;
+    } else if (arg == "--embedder-snapshot-as-file") {
+      snapshot_as_file = true;
+    } else if (arg == "--without-code-cache") {
+      if (!snapshot_config.has_value()) {
+        snapshot_config = node::SnapshotConfig{};
+      }
+      snapshot_config.value().flags = static_cast<node::SnapshotFlags>(
+          static_cast<uint32_t>(snapshot_config.value().flags) |
+          static_cast<uint32_t>(node::SnapshotFlags::kWithoutCodeCache));
+    } else if (arg == "--embedder-snapshot-blob") {
+      assert(i + 1 < args.size());
+      snapshot_blob_path = args[i + 1];
+      i++;
+    } else {
+      filtered_args.push_back(arg);
+    }
+  }
+
+  if (!snapshot_blob_path.empty() && !is_building_snapshot) {
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "rb");
     assert(fp != nullptr);
-    if (snapshot_as_file_it != args.end()) {
+    if (snapshot_as_file) {
       snapshot = node::EmbedderSnapshotData::FromFile(fp);
     } else {
       uv_fs_t req = uv_fs_t();
-      int statret = uv_fs_stat(nullptr, &req, filename, nullptr);
+      int statret =
+          uv_fs_stat(nullptr, &req, snapshot_blob_path.c_str(), nullptr);
       assert(statret == 0);
       size_t filesize = req.statbuf.st_size;
       uv_fs_req_cleanup(&req);
@@ -91,17 +137,37 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     assert(ret == 0);
   }
 
+  if (is_building_snapshot) {
+    // It contains at least the binary path, the code to snapshot,
+    // and --embedder-snapshot-create (which is filtered, so at least
+    // 2 arguments should remain after filtering).
+    assert(filtered_args.size() >= 2);
+    // Insert an anonymous filename as process.argv[1].
+    filtered_args.insert(filtered_args.begin() + 1,
+                         node::GetAnonymousMainPath());
+  }
+
   std::vector<std::string> errors;
-  std::unique_ptr<CommonEnvironmentSetup> setup =
-      snapshot ? CommonEnvironmentSetup::CreateFromSnapshot(
-                     platform, &errors, snapshot.get(), args, exec_args)
-      : snapshot_build_mode_it != args.end()
-          ? CommonEnvironmentSetup::CreateForSnapshotting(
-                platform, &errors, args, exec_args)
-          : CommonEnvironmentSetup::Create(platform, &errors, args, exec_args);
+  std::unique_ptr<CommonEnvironmentSetup> setup;
+
+  if (snapshot) {
+    setup = CommonEnvironmentSetup::CreateFromSnapshot(
+        platform, &errors, snapshot.get(), filtered_args, exec_args);
+  } else if (is_building_snapshot) {
+    if (snapshot_config.has_value()) {
+      setup = CommonEnvironmentSetup::CreateForSnapshotting(
+          platform, &errors, filtered_args, exec_args, snapshot_config.value());
+    } else {
+      setup = CommonEnvironmentSetup::CreateForSnapshotting(
+          platform, &errors, filtered_args, exec_args);
+    }
+  } else {
+    setup = CommonEnvironmentSetup::Create(
+        platform, &errors, filtered_args, exec_args);
+  }
   if (!setup) {
     for (const std::string& err : errors)
-      fprintf(stderr, "%s: %s\n", args[0].c_str(), err.c_str());
+      fprintf(stderr, "%s: %s\n", binary_path.c_str(), err.c_str());
     return 1;
   }
 
@@ -115,17 +181,24 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     Context::Scope context_scope(setup->context());
 
     MaybeLocal<Value> loadenv_ret;
-    if (snapshot) {
+    if (snapshot) {  // Deserializing snapshot
       loadenv_ret = node::LoadEnvironment(env, node::StartExecutionCallback{});
+    } else if (is_building_snapshot) {
+      // Environment created for snapshotting must set process.argv[1] to
+      // the name of the main script, which was inserted above.
+      loadenv_ret = node::LoadEnvironment(
+          env,
+          "const assert = require('assert');"
+          "assert(require('v8').startupSnapshot.isBuildingSnapshot());"
+          "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
+          "globalThis.require = require;"
+          "require('vm').runInThisContext(process.argv[2]);");
     } else {
       loadenv_ret = node::LoadEnvironment(
           env,
-          // Snapshots do not support userland require()s (yet)
-          "if (!require('v8').startupSnapshot.isBuildingSnapshot()) {"
-          "  const publicRequire ="
-          "    require('module').createRequire(process.cwd() + '/');"
-          "  globalThis.require = publicRequire;"
-          "} else globalThis.require = require;"
+          "const publicRequire = require('module').createRequire(process.cwd() "
+          "+ '/');"
+          "globalThis.require = publicRequire;"
           "globalThis.embedVars = { nön_ascıı: '🏳️‍🌈' };"
           "require('vm').runInThisContext(process.argv[1]);");
     }
@@ -136,14 +209,13 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
     exit_code = node::SpinEventLoop(env).FromMaybe(1);
   }
 
-  if (snapshot_arg_it < args.end() - 1 &&
-      snapshot_build_mode_it != args.end()) {
+  if (!snapshot_blob_path.empty() && is_building_snapshot) {
     snapshot = setup->CreateSnapshot();
     assert(snapshot);
 
-    FILE* fp = fopen((snapshot_arg_it + 1)->c_str(), "w");
+    FILE* fp = fopen(snapshot_blob_path.c_str(), "wb");
     assert(fp != nullptr);
-    if (snapshot_as_file_it != args.end()) {
+    if (snapshot_as_file) {
       snapshot->ToFile(fp);
     } else {
       const std::vector<char> vec = snapshot->ToBlob();

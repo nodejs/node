@@ -62,8 +62,9 @@ class SafepointTable {
  public:
   // The isolate and pc arguments are used for figuring out whether pc
   // belongs to the embedded or un-embedded code blob.
-  explicit SafepointTable(Isolate* isolate, Address pc, InstructionStream code);
-  explicit SafepointTable(Isolate* isolate, Address pc, Code code);
+  explicit SafepointTable(Isolate* isolate, Address pc,
+                          Tagged<InstructionStream> code);
+  explicit SafepointTable(Isolate* isolate, Address pc, Tagged<Code> code);
 #if V8_ENABLE_WEBASSEMBLY
   explicit SafepointTable(const wasm::WasmCode* code);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -115,13 +116,16 @@ class SafepointTable {
 
   // Returns the entry for the given pc.
   SafepointEntry FindEntry(Address pc) const;
-  static SafepointEntry FindEntry(Isolate* isolate, GcSafeCode code,
+  static SafepointEntry FindEntry(Isolate* isolate, Tagged<GcSafeCode> code,
                                   Address pc);
+  // Tries to find the entry for the given pc. If the entry does not exist, it
+  // returns an uninitialized entry.
+  SafepointEntry TryFindEntry(Address pc) const;
 
   void Print(std::ostream&) const;
 
  private:
-  SafepointTable(Isolate* isolate, Address pc, GcSafeCode code);
+  SafepointTable(Isolate* isolate, Address pc, Tagged<GcSafeCode> code);
 
   // Layout information.
   static constexpr int kLengthOffset = 0;
@@ -222,8 +226,10 @@ class SafepointTableBuilder : public SafepointTableBuilderBase {
     SafepointTableBuilder* const table_;
   };
 
-  // Define a new safepoint for the current position in the body.
-  Safepoint DefineSafepoint(Assembler* assembler);
+  // Define a new safepoint for the current position in the body. The
+  // `pc_offset` parameter allows to define a different offset than the current
+  // pc_offset.
+  Safepoint DefineSafepoint(Assembler* assembler, int pc_offset = 0);
 
   // Emit the safepoint table after the body. The number of bits per
   // entry must be enough to hold all the pointer indexes.

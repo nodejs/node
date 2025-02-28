@@ -15,7 +15,7 @@ void LateEscapeAnalysisAnalyzer::RecordAllocateUse(OpIndex alloc, OpIndex use) {
   auto [it, new_entry] = alloc_uses_.try_emplace(alloc, phase_zone_);
   auto& uses = it->second;
   if (new_entry) {
-    uses.reserve(graph_.Get(alloc).saturated_use_count);
+    uses.reserve(graph_.Get(alloc).saturated_use_count.Get());
   }
   uses.push_back(use);
 }
@@ -80,14 +80,14 @@ bool LateEscapeAnalysisAnalyzer::EscapesThroughUse(OpIndex alloc,
 }
 
 void LateEscapeAnalysisAnalyzer::MarkToRemove(OpIndex alloc) {
-  graph_.MarkAsUnused(alloc);
+  if (ShouldSkipOptimizationStep()) return;
+  graph_.KillOperation(alloc);
   if (alloc_uses_.find(alloc) == alloc_uses_.end()) {
     return;
   }
 
   // The uses of {alloc} should also be skipped.
   for (OpIndex use : alloc_uses_.at(alloc)) {
-    graph_.MarkAsUnused(use);
     const StoreOp& store = graph_.Get(use).Cast<StoreOp>();
     if (graph_.Get(store.value()).Is<AllocateOp>()) {
       // This store was storing the result of an allocation. Because we now
@@ -95,6 +95,7 @@ void LateEscapeAnalysisAnalyzer::MarkToRemove(OpIndex alloc) {
       // as well.
       allocs_.push_back(store.value());
     }
+    graph_.KillOperation(use);
   }
 }
 

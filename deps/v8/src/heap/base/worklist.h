@@ -61,7 +61,7 @@ class Worklist final {
   class Local;
   class Segment;
 
-  static constexpr int kMinSegmentSizeForTesting = MinSegmentSize;
+  static constexpr int kMinSegmentSize = MinSegmentSize;
 
   Worklist() = default;
   ~Worklist() { CHECK(IsEmpty()); }
@@ -224,6 +224,7 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     } else {
       result = v8::base::AllocateAtLeast<char>(wanted_bytes);
     }
+    CHECK_NOT_NULL(result.ptr);
     return new (result.ptr)
         Segment(CapacityForMallocSize(result.count * sizeof(char)));
   }
@@ -306,7 +307,10 @@ class Worklist<EntryType, MinSegmentSize>::Local final {
 
   // Moving needs to specify whether the `worklist_` pointer is preserved or
   // not.
-  Local(Local&&) V8_NOEXCEPT = delete;
+  Local(Local&& other) V8_NOEXCEPT : worklist_(other.worklist_) {
+    std::swap(push_segment_, other.push_segment_);
+    std::swap(pop_segment_, other.pop_segment_);
+  }
   Local& operator=(Local&&) V8_NOEXCEPT = delete;
 
   // Having multiple copies of the same local view may be unsafe.
@@ -386,6 +390,7 @@ template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::Push(EntryType entry) {
   if (V8_UNLIKELY(push_segment_->IsFull())) {
     PublishPushSegment();
+    push_segment_ = NewSegment();
   }
   push_segment()->Push(entry);
 }
@@ -420,14 +425,19 @@ bool Worklist<EntryType, MinSegmentSize>::Local::IsGlobalEmpty() const {
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::Publish() {
-  if (!push_segment_->IsEmpty()) PublishPushSegment();
-  if (!pop_segment_->IsEmpty()) PublishPopSegment();
+  if (!push_segment_->IsEmpty()) {
+    PublishPushSegment();
+    push_segment_ = internal::SegmentBase::GetSentinelSegmentAddress();
+  }
+  if (!pop_segment_->IsEmpty()) {
+    PublishPopSegment();
+    pop_segment_ = internal::SegmentBase::GetSentinelSegmentAddress();
+  }
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::Merge(
     Worklist<EntryType, MinSegmentSize>::Local& other) {
-  other.Publish();
   worklist_.Merge(other.worklist_);
 }
 
@@ -435,14 +445,12 @@ template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPushSegment() {
   if (push_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_.Push(push_segment());
-  push_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>
 void Worklist<EntryType, MinSegmentSize>::Local::PublishPopSegment() {
   if (pop_segment_ != internal::SegmentBase::GetSentinelSegmentAddress())
     worklist_.Push(pop_segment());
-  pop_segment_ = NewSegment();
 }
 
 template <typename EntryType, uint16_t MinSegmentSize>

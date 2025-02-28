@@ -52,6 +52,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                           Handle<ByteArray> nibble_table,
+                           int advance_by) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -88,7 +91,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
   // returning.
   // {raw_code} is an Address because this is called via ExternalReference.
   static int64_t CheckStackGuardState(Address* return_address, Address raw_code,
-                                      Address re_frame);
+                                      Address re_frame, uintptr_t extra_space);
 
   void print_regexp_frame_constants();
 
@@ -163,7 +166,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerMIPS
 
 
   // Generate a call to CheckStackGuardState.
-  void CallCheckStackGuardState(Register scratch);
+  void CallCheckStackGuardState(Register scratch,
+                                Operand extra_space = Operand(0));
   void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // The ebp-relative location of a regexp register.

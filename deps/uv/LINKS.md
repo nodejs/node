@@ -1,16 +1,20 @@
 ### Apps / VM
+* [AliceO2](https://github.com/AliceO2Group/AliceO2): The framework and detector specific code for the reconstruction, calibration and simulation for the ALICE experiment at CERN.
+* [Beam](https://github.com/BeamMW/beam): A scalable, confidential cryptocurrency based on the Mimblewimble protocol.
 * [BIND 9](https://bind.isc.org/): DNS software system including an authoritative server, a recursive resolver and related utilities.
 * [cjdns](https://github.com/cjdelisle/cjdns): Encrypted self-configuring network/VPN routing engine
 * [clearskies_core](https://github.com/larroy/clearskies_core): Clearskies file synchronization program. (C++11)
 * [CMake](https://cmake.org) open-source, cross-platform family of tools designed to build, test and package software
-* [Coherence](https://github.com/liesware/coherence/): Cryptographic server for modern web apps. 
+* [Cocos-Engine](https://github.com/cocos/cocos-engine): The runtime framework for Cocos Creator editor.
+* [Coherence](https://github.com/liesware/coherence/): Cryptographic server for modern web apps.
+* [DPS8M](https://dps8m.gitlab.io): GE ∕ Honeywell ∕ Bull DPS‑8/M and 6180/L68 mainframe simulator.
 * [DPS-For-IoT](https://github.com/intel/dps-for-iot/wiki): Fully distributed publish/subscribe protocol.
 * [HashLink](https://github.com/HaxeFoundation/hashlink): Haxe run-time with libuv support included.
 * [Haywire](https://github.com/kellabyte/Haywire): Asynchronous HTTP server.
 * [H2O](https://github.com/h2o/h2o): An optimized HTTP server with support for HTTP/1.x and HTTP/2.
 * [Igropyr](https://github.com/guenchi/Igropyr): a async Scheme http server base on libuv.
 * [Julia](http://julialang.org/): Scientific computing programming language
-* [Kestrel](https://github.com/aspnet/AspNetCore/tree/master/src/Servers/Kestrel): web server (C# + libuv + [ASP.NET Core](http://github.com/aspnet))
+* [Kestrel](https://github.com/dotnet/aspnetcore/tree/main/src/Servers/Kestrel): web server (C# + libuv + [ASP.NET Core](http://github.com/aspnet))
 * [Knot DNS Resolver](https://www.knot-resolver.cz/): A minimalistic DNS caching resolver
 * [Lever](http://leverlanguage.com): runtime, libuv at the 0.9.0 release
 * [libnode](https://github.com/plenluno/libnode): C++ implementation of Node.js
@@ -30,8 +34,11 @@
 * [phastlight](https://github.com/phastlight/phastlight): Command line tool and web server written in PHP 5.3+ inspired by Node.js
 * [pilight](https://www.pilight.org/): home automation ("domotica")
 * [pixie](https://github.com/pixie-lang/pixie): clojure-inspired lisp with a tracing JIT
+* [Pixie-io](https://github.com/pixie-io/pixie): Open-source observability tool for Kubernetes applications.
 * [potion](https://github.com/perl11/potion)/[p2](https://github.com/perl11/p2): runtime
 * [racer](https://libraries.io/rubygems/racer): Ruby web server written as an C extension
+* [scala-native-loop](https://github.com/scala-native/scala-native-loop): Extensible event loop and async-oriented IO for Scala Native; powered by libuv
+* [Socket Runtime](https://sockets.sh): A runtime for creating native cross-platform software on mobile and desktop using HTML, CSS, and JavaScript
 * [spider-gazelle](https://github.com/cotag/spider-gazelle): Ruby web server using libuv bindings
 * [Suave](http://suave.io/): A simple web development F# library providing a lightweight web server and a set of combinators to manipulate route flow and task composition
 * [Swish](https://github.com/becls/swish/): Concurrency engine with Erlang-like concepts. Includes a web server.
@@ -39,6 +46,7 @@
 * [Urbit](http://urbit.org): runtime
 * [uv_callback](https://github.com/litesync/uv_callback) libuv thread communication
 * [uvloop](https://github.com/MagicStack/uvloop): Ultra fast implementation of python's asyncio event loop on top of libuv
+* [WPILib](https://github.com/wpilibsuite/allwpilib): Libraries for creating robot programs for the roboRIO.
 * [Wren CLI](https://github.com/wren-lang/wren-cli): For io, process, scheduler and timer modules
 
 ### Other
@@ -59,6 +67,7 @@
    * [lluv](https://github.com/moteus/lua-lluv)
 * C++11
    * [uvpp](https://github.com/larroy/uvpp) - Not complete, exposes very few aspects of `libuv`
+   * [nsuv](https://github.com/nodesource/nsuv) - Template wrapper focused on enforcing compile-time type safety when propagating data
 * C++17
    * [uvw](https://github.com/skypjack/uvw) - Header-only, event based, tiny and easy to use *libuv* wrapper in modern C++.
 * Python

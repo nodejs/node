@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,6 +23,7 @@
 #include <openssl/rsa.h>
 #include <openssl/dh.h>
 #include <openssl/core_names.h>
+#include <openssl/ui.h>
 
 #include "testutil.h"
 #include "internal/nelem.h"
@@ -387,6 +388,7 @@ static int test_dh_paramgen(void)
     EVP_PKEY_free(pkey);
     return ret;
 }
+
 #endif
 
 #ifndef OPENSSL_NO_EC
@@ -664,6 +666,52 @@ static int test_PEM_read_bio_negative(int testid)
     EVP_PKEY_free(pkey);
     BIO_free(key_bio);
     OSSL_PROVIDER_unload(provider);
+
+    return ok;
+}
+
+static int test_PEM_read_bio_negative_wrong_password(int testid)
+{
+    int ok = 0;
+    OSSL_PROVIDER *provider = OSSL_PROVIDER_load(NULL, "default");
+    EVP_PKEY *read_pkey = NULL;
+    EVP_PKEY *write_pkey = EVP_RSA_gen(1024);
+    BIO *key_bio = BIO_new(BIO_s_mem());
+    const UI_METHOD *undo_ui_method = NULL;
+    const UI_METHOD *ui_method = NULL;
+    if (testid > 0)
+        ui_method = UI_null();
+
+    if (!TEST_ptr(provider))
+        goto err;
+    if (!TEST_ptr(key_bio))
+        goto err;
+    if (!TEST_ptr(write_pkey))
+        goto err;
+    undo_ui_method = UI_get_default_method();
+    UI_set_default_method(ui_method);
+
+    if (/* Output Encrypted private key in PEM form */
+        !TEST_true(PEM_write_bio_PrivateKey(key_bio, write_pkey, EVP_aes_256_cbc(),
+                                           NULL, 0, NULL, "pass")))
+        goto err;
+
+    ERR_clear_error();
+    read_pkey = PEM_read_bio_PrivateKey(key_bio, NULL, NULL, NULL);
+    if (!TEST_ptr_null(read_pkey))
+        goto err;
+
+    if (!TEST_int_eq(ERR_GET_REASON(ERR_get_error()), PEM_R_PROBLEMS_GETTING_PASSWORD))
+        goto err;
+    ok = 1;
+
+ err:
+    test_openssl_errors();
+    EVP_PKEY_free(read_pkey);
+    EVP_PKEY_free(write_pkey);
+    BIO_free(key_bio);
+    OSSL_PROVIDER_unload(provider);
+    UI_set_default_method(undo_ui_method);
 
     return ok;
 }
@@ -974,6 +1022,47 @@ err:
     OSSL_PARAM_free(to_params);
     return ret;
 }
+
+/*
+ * Test that OSSL_PKEY_PARAM_FFC_DIGEST_PROPS is set properly when using fromdata
+ * This test:
+ *   checks for failure when the property query is bad (tstid == 0)
+ *   checks for success when the property query is valid (tstid == 1)
+ */
+static int test_dsa_fromdata_digest_prop(int tstid)
+{
+    EVP_PKEY_CTX *ctx = NULL, *gctx = NULL;
+    EVP_PKEY *pkey = NULL,  *pkey2 = NULL;
+    OSSL_PARAM params[4], *p = params;
+    int ret = 0;
+    int expected = (tstid == 0 ? 0 : 1);
+    unsigned int pbits = 512; /* minimum allowed for speed */
+
+    *p++ = OSSL_PARAM_construct_uint(OSSL_PKEY_PARAM_FFC_PBITS, &pbits);
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST, "SHA512", 0);
+    /* Setting a bad prop query here should fail during paramgen - when it tries to do a fetch */
+    *p++ = OSSL_PARAM_construct_utf8_string(OSSL_PKEY_PARAM_FFC_DIGEST_PROPS,
+                                            tstid == 0 ? "provider=unknown" : "provider=default", 0);
+    *p++ = OSSL_PARAM_construct_end();
+
+    if (!TEST_ptr(ctx = EVP_PKEY_CTX_new_from_name(mainctx, "DSA", NULL))
+        || !TEST_int_eq(EVP_PKEY_fromdata_init(ctx), 1)
+        || !TEST_int_eq(EVP_PKEY_fromdata(ctx, &pkey, EVP_PKEY_KEY_PARAMETERS, params), 1))
+        goto err;
+
+    if (!TEST_ptr(gctx = EVP_PKEY_CTX_new_from_pkey(mainctx, pkey, NULL))
+        || !TEST_int_eq(EVP_PKEY_paramgen_init(gctx), 1)
+        || !TEST_int_eq(EVP_PKEY_paramgen(gctx, &pkey2), expected))
+        goto err;
+
+    ret = 1;
+err:
+    EVP_PKEY_free(pkey2);
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(ctx);
+    EVP_PKEY_CTX_free(gctx);
+    return ret;
+}
 #endif /* OPENSSL_NO_DSA */
 
 static int test_pkey_todata_null(void)
@@ -1132,6 +1221,24 @@ err:
 }
 #endif
 
+/*
+ * Currently, EVP_<OBJ>_fetch doesn't support
+ * colon separated alternative names for lookup
+ * so add a test here to ensure that when one is provided
+ * libcrypto returns an error
+ */
+static int evp_test_name_parsing(void)
+{
+    EVP_MD *md;
+
+    if (!TEST_ptr_null(md = EVP_MD_fetch(mainctx, "SHA256:BogusName", NULL))) {
+        EVP_MD_free(md);
+        return 0;
+    }
+
+    return 1;
+}
+
 int setup_tests(void)
 {
     if (!test_get_libctx(&mainctx, &nullprov, NULL, NULL, NULL)) {
@@ -1140,6 +1247,7 @@ int setup_tests(void)
         return 0;
     }
 
+    ADD_TEST(evp_test_name_parsing);
     ADD_TEST(test_alternative_default);
     ADD_ALL_TESTS(test_d2i_AutoPrivateKey_ex, OSSL_NELEM(keydata));
 #ifndef OPENSSL_NO_EC
@@ -1155,6 +1263,7 @@ int setup_tests(void)
 #ifndef OPENSSL_NO_DSA
     ADD_TEST(test_dsa_todata);
     ADD_TEST(test_dsa_tofrom_data_select);
+    ADD_ALL_TESTS(test_dsa_fromdata_digest_prop, 2);
 #endif
 #ifndef OPENSSL_NO_DH
     ADD_TEST(test_dh_tofrom_data_select);
@@ -1169,6 +1278,7 @@ int setup_tests(void)
     ADD_TEST(test_pkcs8key_nid_bio);
 #endif
     ADD_ALL_TESTS(test_PEM_read_bio_negative, OSSL_NELEM(keydata));
+    ADD_ALL_TESTS(test_PEM_read_bio_negative_wrong_password, 2);
     ADD_TEST(test_rsa_pss_sign);
     ADD_TEST(test_evp_md_ctx_copy);
     ADD_ALL_TESTS(test_provider_unload_effective, 2);

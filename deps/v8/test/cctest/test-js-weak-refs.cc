@@ -23,10 +23,10 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
       factory->NewStringFromStaticChars("FinalizationRegistry");
   Handle<Object> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> finalization_registry_fun = Handle<JSFunction>::cast(
+  Handle<JSFunction> finalization_registry_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, finalization_registry_name)
           .ToHandleChecked());
-  auto finalization_registry = Handle<JSFinalizationRegistry>::cast(
+  auto finalization_registry = Cast<JSFinalizationRegistry>(
       JSObject::New(finalization_registry_fun, finalization_registry_fun,
                     Handle<AllocationSite>::null())
           .ToHandleChecked());
@@ -44,15 +44,15 @@ Handle<JSFinalizationRegistry> ConstructJSFinalizationRegistry(
   return finalization_registry;
 }
 
-Handle<JSWeakRef> ConstructJSWeakRef(Handle<JSReceiver> target,
+Handle<JSWeakRef> ConstructJSWeakRef(DirectHandle<JSReceiver> target,
                                      Isolate* isolate) {
   Factory* factory = isolate->factory();
   Handle<String> weak_ref_name = factory->WeakRef_string();
   Handle<Object> global =
       handle(isolate->native_context()->global_object(), isolate);
-  Handle<JSFunction> weak_ref_fun = Handle<JSFunction>::cast(
+  Handle<JSFunction> weak_ref_fun = Cast<JSFunction>(
       Object::GetProperty(isolate, global, weak_ref_name).ToHandleChecked());
-  auto weak_ref = Handle<JSWeakRef>::cast(
+  auto weak_ref = Cast<JSWeakRef>(
       JSObject::New(weak_ref_fun, weak_ref_fun, Handle<AllocationSite>::null())
           .ToHandleChecked());
   weak_ref->set_target(*target);
@@ -78,7 +78,7 @@ Handle<WeakCell> FinalizationRegistryRegister(
     Handle<JSObject> target, Handle<Object> held_value,
     Handle<Object> unregister_token, Isolate* isolate) {
   Factory* factory = isolate->factory();
-  Handle<JSFunction> regfunc = Handle<JSFunction>::cast(
+  Handle<JSFunction> regfunc = Cast<JSFunction>(
       Object::GetProperty(isolate, finalization_registry,
                           factory->NewStringFromStaticChars("register"))
           .ToHandleChecked());
@@ -86,9 +86,9 @@ Handle<WeakCell> FinalizationRegistryRegister(
   Execution::Call(isolate, regfunc, finalization_registry, arraysize(args),
                   args)
       .ToHandleChecked();
-  CHECK(finalization_registry->active_cells().IsWeakCell());
+  CHECK(IsWeakCell(finalization_registry->active_cells()));
   Handle<WeakCell> weak_cell =
-      handle(WeakCell::cast(finalization_registry->active_cells()), isolate);
+      handle(Cast<WeakCell>(finalization_registry->active_cells()), isolate);
 #ifdef VERIFY_HEAP
   weak_cell->WeakCellVerify(isolate);
 #endif  // VERIFY_HEAP
@@ -104,34 +104,36 @@ Handle<WeakCell> FinalizationRegistryRegister(
                                       undefined, isolate);
 }
 
-void NullifyWeakCell(Handle<WeakCell> weak_cell, Isolate* isolate) {
-  auto empty_func = [](HeapObject object, ObjectSlot slot, Object target) {};
+void NullifyWeakCell(DirectHandle<WeakCell> weak_cell, Isolate* isolate) {
+  auto empty_func = [](Tagged<HeapObject> object, ObjectSlot slot,
+                       Tagged<Object> target) {};
   weak_cell->Nullify(isolate, empty_func);
 #ifdef VERIFY_HEAP
   weak_cell->WeakCellVerify(isolate);
 #endif  // VERIFY_HEAP
 }
 
-Object PopClearedCellHoldings(
-    Handle<JSFinalizationRegistry> finalization_registry, Isolate* isolate) {
+Tagged<Object> PopClearedCellHoldings(
+    DirectHandle<JSFinalizationRegistry> finalization_registry,
+    Isolate* isolate) {
   // PopClearedCell is implemented in Torque. Reproduce that implementation here
   // for testing.
-  Handle<WeakCell> weak_cell =
-      handle(WeakCell::cast(finalization_registry->cleared_cells()), isolate);
-  DCHECK(weak_cell->prev().IsUndefined(isolate));
+  DirectHandle<WeakCell> weak_cell(
+      Cast<WeakCell>(finalization_registry->cleared_cells()), isolate);
+  DCHECK(IsUndefined(weak_cell->prev(), isolate));
   finalization_registry->set_cleared_cells(weak_cell->next());
   weak_cell->set_next(ReadOnlyRoots(isolate).undefined_value());
 
-  if (finalization_registry->cleared_cells().IsWeakCell()) {
-    WeakCell cleared_cells_head =
-        WeakCell::cast(finalization_registry->cleared_cells());
-    DCHECK_EQ(cleared_cells_head.prev(), *weak_cell);
-    cleared_cells_head.set_prev(ReadOnlyRoots(isolate).undefined_value());
+  if (IsWeakCell(finalization_registry->cleared_cells())) {
+    Tagged<WeakCell> cleared_cells_head =
+        Cast<WeakCell>(finalization_registry->cleared_cells());
+    DCHECK_EQ(cleared_cells_head->prev(), *weak_cell);
+    cleared_cells_head->set_prev(ReadOnlyRoots(isolate).undefined_value());
   } else {
-    DCHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+    DCHECK(IsUndefined(finalization_registry->cleared_cells(), isolate));
   }
 
-  if (!weak_cell->unregister_token().IsUndefined(isolate)) {
+  if (!IsUndefined(weak_cell->unregister_token(), isolate)) {
     JSFinalizationRegistry::RemoveCellFromUnregisterTokenMap(
         isolate, finalization_registry->ptr(), weak_cell->ptr());
   }
@@ -141,7 +143,8 @@ Object PopClearedCellHoldings(
 
 // Usage: VerifyWeakCellChain(isolate, list_head, n, cell1, cell2, ..., celln);
 // verifies that list_head == cell1 and cell1, cell2, ..., celln. form a list.
-void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
+void VerifyWeakCellChain(Isolate* isolate, Tagged<Object> list_head, int n_args,
+                         ...) {
   CHECK_GE(n_args, 0);
 
   va_list args;
@@ -149,55 +152,60 @@ void VerifyWeakCellChain(Isolate* isolate, Object list_head, int n_args, ...) {
 
   if (n_args == 0) {
     // Verify empty list
-    CHECK(list_head.IsUndefined(isolate));
+    CHECK(IsUndefined(list_head, isolate));
   } else {
-    WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
+    Tagged<WeakCell> current =
+        Cast<WeakCell>(Tagged<Object>(va_arg(args, Address)));
     CHECK_EQ(current, list_head);
-    CHECK(current.prev().IsUndefined(isolate));
+    CHECK(IsUndefined(current->prev(), isolate));
 
     for (int i = 1; i < n_args; i++) {
-      WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current.next(), next);
-      CHECK_EQ(next.prev(), current);
+      Tagged<WeakCell> next =
+          Cast<WeakCell>(Tagged<Object>(va_arg(args, Address)));
+      CHECK_EQ(current->next(), next);
+      CHECK_EQ(next->prev(), current);
       current = next;
     }
-    CHECK(current.next().IsUndefined(isolate));
+    CHECK(IsUndefined(current->next(), isolate));
   }
   va_end(args);
 }
 
 // Like VerifyWeakCellChain but verifies the chain created with key_list_prev
 // and key_list_next instead of prev and next.
-void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
-                            Object unregister_token, int n_args, ...) {
+void VerifyWeakCellKeyChain(Isolate* isolate,
+                            Tagged<SimpleNumberDictionary> key_map,
+                            Tagged<Object> unregister_token, int n_args, ...) {
   CHECK_GE(n_args, 0);
 
   va_list args;
   va_start(args, n_args);
 
-  Object hash = unregister_token.GetHash();
+  Tagged<Object> hash = Object::GetHash(unregister_token);
   InternalIndex entry = InternalIndex::NotFound();
-  if (!hash.IsUndefined(isolate)) {
+  if (!IsUndefined(hash, isolate)) {
     uint32_t key = Smi::ToInt(hash);
-    entry = key_map.FindEntry(isolate, key);
+    entry = key_map->FindEntry(isolate, key);
   }
   if (n_args == 0) {
     // Verify empty list
     CHECK(entry.is_not_found());
   } else {
     CHECK(entry.is_found());
-    WeakCell current = WeakCell::cast(Object(va_arg(args, Address)));
-    Object list_head = key_map.ValueAt(entry);
+    Tagged<WeakCell> current =
+        Cast<WeakCell>(Tagged<Object>(va_arg(args, Address)));
+    Tagged<Object> list_head = key_map->ValueAt(entry);
     CHECK_EQ(current, list_head);
-    CHECK(current.key_list_prev().IsUndefined(isolate));
+    CHECK(IsUndefined(current->key_list_prev(), isolate));
 
     for (int i = 1; i < n_args; i++) {
-      WeakCell next = WeakCell::cast(Object(va_arg(args, Address)));
-      CHECK_EQ(current.key_list_next(), next);
-      CHECK_EQ(next.key_list_prev(), current);
+      Tagged<WeakCell> next =
+          Cast<WeakCell>(Tagged<Object>(va_arg(args, Address)));
+      CHECK_EQ(current->key_list_next(), next);
+      CHECK_EQ(next->key_list_prev(), current);
       current = next;
     }
-    CHECK(current.key_list_next().IsUndefined(isolate));
+    CHECK(IsUndefined(current->key_list_next(), isolate));
   }
   va_end(args);
 }
@@ -205,7 +213,7 @@ void VerifyWeakCellKeyChain(Isolate* isolate, SimpleNumberDictionary key_map,
 Handle<JSWeakRef> MakeWeakRefAndKeepDuringJob(Isolate* isolate) {
   HandleScope inner_scope(isolate);
 
-  Handle<JSObject> js_object =
+  DirectHandle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
   isolate->heap()->KeepDuringJob(js_object);
@@ -226,30 +234,30 @@ TEST(TestRegister) {
       isolate->factory()->NewJSObject(isolate->object_function());
 
   // Register a weak reference and verify internal data structures.
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 1,
                       *weak_cell1);
-  CHECK(weak_cell1->key_list_prev().IsUndefined(isolate));
-  CHECK(weak_cell1->key_list_next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->key_list_prev(), isolate));
+  CHECK(IsUndefined(weak_cell1->key_list_next(), isolate));
 
-  CHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->cleared_cells(), isolate));
 
   // No key was used during registration, key-based map stays uninitialized.
-  CHECK(finalization_registry->key_map().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->key_map(), isolate));
 
   // Register another weak reference and verify internal data structures.
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 2,
                       *weak_cell2, *weak_cell1);
-  CHECK(weak_cell2->key_list_prev().IsUndefined(isolate));
-  CHECK(weak_cell2->key_list_next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->key_list_prev(), isolate));
+  CHECK(IsUndefined(weak_cell2->key_list_next(), isolate));
 
-  CHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
-  CHECK(finalization_registry->key_map().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->cleared_cells(), isolate));
+  CHECK(IsUndefined(finalization_registry->key_map(), isolate));
 }
 
 TEST(TestRegisterWithKey) {
@@ -268,36 +276,36 @@ TEST(TestRegisterWithKey) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   // Register a weak reference with a key and verify internal data structures.
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 0);
   }
 
   // Register another weak reference with a different key and verify internal
   // data structures.
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 1, *weak_cell2);
   }
 
   // Register another weak reference with token1 and verify internal data
   // structures.
-  Handle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell3,
                            *weak_cell1);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 1, *weak_cell2);
@@ -314,28 +322,28 @@ TEST(TestWeakCellNullify1) {
   Handle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   // Nullify the first WeakCell and verify internal data structures.
   NullifyWeakCell(weak_cell1, isolate);
   CHECK_EQ(finalization_registry->active_cells(), *weak_cell2);
-  CHECK(weak_cell2->prev().IsUndefined(isolate));
-  CHECK(weak_cell2->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->prev(), isolate));
+  CHECK(IsUndefined(weak_cell2->next(), isolate));
   CHECK_EQ(finalization_registry->cleared_cells(), *weak_cell1);
-  CHECK(weak_cell1->prev().IsUndefined(isolate));
-  CHECK(weak_cell1->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->prev(), isolate));
+  CHECK(IsUndefined(weak_cell1->next(), isolate));
 
   // Nullify the second WeakCell and verify internal data structures.
   NullifyWeakCell(weak_cell2, isolate);
-  CHECK(finalization_registry->active_cells().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->active_cells(), isolate));
   CHECK_EQ(finalization_registry->cleared_cells(), *weak_cell2);
   CHECK_EQ(weak_cell2->next(), *weak_cell1);
-  CHECK(weak_cell2->prev().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->prev(), isolate));
   CHECK_EQ(weak_cell1->prev(), *weak_cell2);
-  CHECK(weak_cell1->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->next(), isolate));
 }
 
 TEST(TestWeakCellNullify2) {
@@ -348,27 +356,27 @@ TEST(TestWeakCellNullify2) {
   Handle<JSObject> js_object =
       isolate->factory()->NewJSObject(isolate->object_function());
 
-  Handle<WeakCell> weak_cell1 =
+  DirectHandle<WeakCell> weak_cell1 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
-  Handle<WeakCell> weak_cell2 =
+  DirectHandle<WeakCell> weak_cell2 =
       FinalizationRegistryRegister(finalization_registry, js_object, isolate);
 
   // Like TestWeakCellNullify1 but nullify the WeakCells in opposite order.
   NullifyWeakCell(weak_cell2, isolate);
   CHECK_EQ(finalization_registry->active_cells(), *weak_cell1);
-  CHECK(weak_cell1->prev().IsUndefined(isolate));
-  CHECK(weak_cell1->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->prev(), isolate));
+  CHECK(IsUndefined(weak_cell1->next(), isolate));
   CHECK_EQ(finalization_registry->cleared_cells(), *weak_cell2);
-  CHECK(weak_cell2->prev().IsUndefined(isolate));
-  CHECK(weak_cell2->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->prev(), isolate));
+  CHECK(IsUndefined(weak_cell2->next(), isolate));
 
   NullifyWeakCell(weak_cell1, isolate);
-  CHECK(finalization_registry->active_cells().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->active_cells(), isolate));
   CHECK_EQ(finalization_registry->cleared_cells(), *weak_cell1);
   CHECK_EQ(weak_cell1->next(), *weak_cell2);
-  CHECK(weak_cell1->prev().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->prev(), isolate));
   CHECK_EQ(weak_cell2->prev(), *weak_cell1);
-  CHECK(weak_cell2->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->next(), isolate));
 }
 
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
@@ -385,43 +393,46 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings1) {
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, undefined, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, undefined, isolate);
   Handle<Object> holdings3 = factory->NewStringFromAsciiChecked("holdings3");
-  Handle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell3 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings3, undefined, isolate);
 
   NullifyWeakCell(weak_cell2, isolate);
   NullifyWeakCell(weak_cell3, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings3);
-  CHECK(weak_cell3->prev().IsUndefined(isolate));
-  CHECK(weak_cell3->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell3->prev(), isolate));
+  CHECK(IsUndefined(weak_cell3->next(), isolate));
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared2 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings2);
-  CHECK(weak_cell2->prev().IsUndefined(isolate));
-  CHECK(weak_cell2->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell2->prev(), isolate));
+  CHECK(IsUndefined(weak_cell2->next(), isolate));
 
   CHECK(!finalization_registry->NeedsCleanup());
 
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared3 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared3 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared3, *holdings1);
-  CHECK(weak_cell1->prev().IsUndefined(isolate));
-  CHECK(weak_cell1->next().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_cell1->prev(), isolate));
+  CHECK(IsUndefined(weak_cell1->next(), isolate));
 
   CHECK(!finalization_registry->NeedsCleanup());
-  CHECK(finalization_registry->active_cells().IsUndefined(isolate));
-  CHECK(finalization_registry->cleared_cells().IsUndefined(isolate));
+  CHECK(IsUndefined(finalization_registry->active_cells(), isolate));
+  CHECK(IsUndefined(finalization_registry->cleared_cells(), isolate));
 }
 
 TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
@@ -439,10 +450,10 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   Handle<JSObject> token1 = CreateKey("token1", isolate);
 
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
   Handle<Object> holdings2 = factory->NewStringFromAsciiChecked("holdings2");
-  Handle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings2, token1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
@@ -451,27 +462,29 @@ TEST(TestJSFinalizationRegistryPopClearedCellHoldings2) {
   // Nullifying doesn't affect the key chains (just moves WeakCells from
   // active_cells to cleared_cells).
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell2,
                            *weak_cell1);
   }
 
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings2);
 
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
   }
 
-  Object cleared2 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared2 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared2, *holdings1);
 
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
 }
@@ -491,22 +504,22 @@ TEST(TestUnregisterActiveCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 4,
                       *weak_cell2b, *weak_cell2a, *weak_cell1b, *weak_cell1a);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 2, *weak_cell2b,
@@ -515,8 +528,8 @@ TEST(TestUnregisterActiveCells) {
 
   JSFinalizationRegistry::Unregister(finalization_registry, token1, isolate);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 2, *weak_cell2b,
                            *weak_cell2a);
@@ -543,14 +556,14 @@ TEST(TestUnregisterActiveAndClearedCells) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   NullifyWeakCell(weak_cell2a, isolate);
@@ -560,8 +573,8 @@ TEST(TestUnregisterActiveAndClearedCells) {
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 1,
                       *weak_cell2a);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 2, *weak_cell2b,
@@ -575,8 +588,8 @@ TEST(TestUnregisterActiveAndClearedCells) {
                       *weak_cell1b, *weak_cell1a);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 0);
@@ -597,15 +610,15 @@ TEST(TestWeakCellUnregisterTwice) {
   Handle<Object> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 1,
                       *weak_cell1);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 1, *weak_cell1);
   }
 
@@ -614,8 +627,8 @@ TEST(TestWeakCellUnregisterTwice) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
 
@@ -624,8 +637,8 @@ TEST(TestWeakCellUnregisterTwice) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
 }
@@ -642,20 +655,21 @@ TEST(TestWeakCellUnregisterPopped) {
       isolate->factory()->NewJSObject(isolate->object_function());
   Handle<JSObject> token1 = CreateKey("token1", isolate);
   Handle<Object> holdings1 = factory->NewStringFromAsciiChecked("holdings1");
-  Handle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1 = FinalizationRegistryRegister(
       finalization_registry, js_object, holdings1, token1, isolate);
 
   NullifyWeakCell(weak_cell1, isolate);
 
   CHECK(finalization_registry->NeedsCleanup());
-  Object cleared1 = PopClearedCellHoldings(finalization_registry, isolate);
+  Tagged<Object> cleared1 =
+      PopClearedCellHoldings(finalization_registry, isolate);
   CHECK_EQ(cleared1, *holdings1);
 
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
 
@@ -664,8 +678,8 @@ TEST(TestWeakCellUnregisterPopped) {
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 0);
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 0);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 0);
   }
 }
@@ -675,9 +689,9 @@ TEST(TestWeakCellUnregisterNonexistentKey) {
   LocalContext context;
   Isolate* isolate = CcTest::i_isolate();
   HandleScope outer_scope(isolate);
-  Handle<JSFinalizationRegistry> finalization_registry =
+  DirectHandle<JSFinalizationRegistry> finalization_registry =
       ConstructJSFinalizationRegistry(isolate);
-  Handle<JSObject> token1 = CreateKey("token1", isolate);
+  DirectHandle<JSObject> token1 = CreateKey("token1", isolate);
 
   JSFinalizationRegistry::Unregister(finalization_registry, token1, isolate);
 }
@@ -690,26 +704,27 @@ TEST(TestJSWeakRef) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       CcTest::heap());
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref;
+  IndirectHandle<JSWeakRef> weak_ref;
   {
     HandleScope inner_scope(isolate);
 
-    Handle<JSObject> js_object =
+    IndirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
-    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
+    IndirectHandle<JSWeakRef> inner_weak_ref =
+        ConstructJSWeakRef(js_object, isolate);
 
-    CcTest::CollectAllGarbage();
-    CHECK(!inner_weak_ref->target().IsUndefined(isolate));
+    heap::InvokeMajorGC(CcTest::heap());
+    CHECK(!IsUndefined(inner_weak_ref->target(), isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(CcTest::heap());
 
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 }
 
 TEST(TestJSWeakRefIncrementalMarking) {
@@ -724,28 +739,29 @@ TEST(TestJSWeakRefIncrementalMarking) {
   Heap* heap = isolate->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref;
+  IndirectHandle<JSWeakRef> weak_ref;
   {
     HandleScope inner_scope(isolate);
 
-    Handle<JSObject> js_object =
+    IndirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
     // This doesn't add the target into the KeepDuringJob set.
-    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
+    IndirectHandle<JSWeakRef> inner_weak_ref =
+        ConstructJSWeakRef(js_object, isolate);
 
     heap::SimulateIncrementalMarking(heap, true);
-    CcTest::CollectAllGarbage();
-    CHECK(!inner_weak_ref->target().IsUndefined(isolate));
+    heap::InvokeMajorGC(heap);
+    CHECK(!IsUndefined(inner_weak_ref->target(), isolate));
 
     weak_ref = inner_scope.CloseAndEscape(inner_weak_ref);
   }
 
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
 
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 }
 
 TEST(TestJSWeakRefKeepDuringJob) {
@@ -757,35 +773,35 @@ TEST(TestJSWeakRefKeepDuringJob) {
       CcTest::heap());
 
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
-  CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  IndirectHandle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // Clears the KeepDuringJob set.
   context->GetIsolate()->ClearKeptObjects();
-  CcTest::CollectAllGarbage();
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 
   weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
-  CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // ClearKeptObjects should be called by PerformMicrotasksCheckpoint.
   CcTest::isolate()->PerformMicrotaskCheckpoint();
-  CcTest::CollectAllGarbage();
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 
   weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
-  CHECK(!weak_ref->target().IsUndefined(isolate));
-  CcTest::CollectAllGarbage();
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // ClearKeptObjects should be called by MicrotasksScope::PerformCheckpoint.
   v8::MicrotasksScope::PerformCheckpoint(CcTest::isolate());
-  CcTest::CollectAllGarbage();
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  heap::InvokeMajorGC(CcTest::heap());
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 }
 
 TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
@@ -800,21 +816,21 @@ TEST(TestJSWeakRefKeepDuringJobIncrementalMarking) {
   Heap* heap = isolate->heap();
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
+  IndirectHandle<JSWeakRef> weak_ref = MakeWeakRefAndKeepDuringJob(isolate);
 
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
 
-  CHECK(!weak_ref->target().IsUndefined(isolate));
+  CHECK(!IsUndefined(weak_ref->target(), isolate));
 
   // Clears the KeepDuringJob set.
   context->GetIsolate()->ClearKeptObjects();
   heap::SimulateIncrementalMarking(heap, true);
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
 
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 }
 
 TEST(TestRemoveUnregisterToken) {
@@ -832,14 +848,14 @@ TEST(TestRemoveUnregisterToken) {
   Handle<HeapObject> undefined =
       handle(ReadOnlyRoots(isolate).undefined_value(), isolate);
 
-  Handle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
-  Handle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell1b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token1, isolate);
 
-  Handle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2a = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
-  Handle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
+  DirectHandle<WeakCell> weak_cell2b = FinalizationRegistryRegister(
       finalization_registry, js_object, undefined, token2, isolate);
 
   NullifyWeakCell(weak_cell2a, isolate);
@@ -849,8 +865,8 @@ TEST(TestRemoveUnregisterToken) {
   VerifyWeakCellChain(isolate, finalization_registry->cleared_cells(), 1,
                       *weak_cell2a);
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 2, *weak_cell2b,
@@ -858,9 +874,9 @@ TEST(TestRemoveUnregisterToken) {
   }
 
   finalization_registry->RemoveUnregisterToken(
-      JSReceiver::cast(*token2), isolate,
+      Cast<JSReceiver>(*token2), isolate,
       JSFinalizationRegistry::kKeepMatchedCellsInRegistry,
-      [](HeapObject, ObjectSlot, Object) {});
+      [](Tagged<HeapObject>, ObjectSlot, Tagged<Object>) {});
 
   // Both weak_cell2a and weak_cell2b remain on the weak cell chains.
   VerifyWeakCellChain(isolate, finalization_registry->active_cells(), 3,
@@ -870,8 +886,8 @@ TEST(TestRemoveUnregisterToken) {
 
   // But both weak_cell2a and weak_cell2b are removed from the key chain.
   {
-    SimpleNumberDictionary key_map =
-        SimpleNumberDictionary::cast(finalization_registry->key_map());
+    Tagged<SimpleNumberDictionary> key_map =
+        Cast<SimpleNumberDictionary>(finalization_registry->key_map());
     VerifyWeakCellKeyChain(isolate, key_map, *token1, 2, *weak_cell1b,
                            *weak_cell1a);
     VerifyWeakCellKeyChain(isolate, key_map, *token2, 0);
@@ -891,14 +907,15 @@ TEST(JSWeakRefScavengedInWorklist) {
 
   {
     HandleScope outer_scope(isolate);
-    Handle<JSWeakRef> weak_ref;
+    IndirectHandle<JSWeakRef> weak_ref;
 
     // Make a WeakRef that points to a target, both of which become unreachable.
     {
       HandleScope inner_scope(isolate);
-      Handle<JSObject> js_object =
+      IndirectHandle<JSObject> js_object =
           isolate->factory()->NewJSObject(isolate->object_function());
-      Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
+      IndirectHandle<JSWeakRef> inner_weak_ref =
+          ConstructJSWeakRef(js_object, isolate);
       CHECK(Heap::InYoungGeneration(*js_object));
       CHECK(Heap::InYoungGeneration(*inner_weak_ref));
 
@@ -907,8 +924,8 @@ TEST(JSWeakRefScavengedInWorklist) {
 
     // Store weak_ref in Global such that it is part of the root set when
     // starting incremental marking.
-    v8::Global<Value> global_weak_ref(
-        CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
+    v8::Global<Value> global_weak_ref(CcTest::isolate(),
+                                      Utils::ToLocal(Cast<Object>(weak_ref)));
 
     // Do marking. This puts the WeakRef above into the js_weak_refs worklist
     // since its target isn't marked.
@@ -922,11 +939,11 @@ TEST(JSWeakRefScavengedInWorklist) {
   }
 
   // Now collect both weak_ref and its target. The worklist should be empty.
-  CcTest::CollectGarbage(NEW_SPACE);
+  heap::InvokeMinorGC(heap);
   CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor shouldn't see zapped WeakRefs in the worklist.
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
 }
 
 TEST(JSWeakRefTenuredInWorklist) {
@@ -942,14 +959,15 @@ TEST(JSWeakRefTenuredInWorklist) {
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(heap);
 
   HandleScope outer_scope(isolate);
-  Handle<JSWeakRef> weak_ref;
+  IndirectHandle<JSWeakRef> weak_ref;
 
   // Make a WeakRef that points to a target. The target becomes unreachable.
   {
     HandleScope inner_scope(isolate);
-    Handle<JSObject> js_object =
+    IndirectHandle<JSObject> js_object =
         isolate->factory()->NewJSObject(isolate->object_function());
-    Handle<JSWeakRef> inner_weak_ref = ConstructJSWeakRef(js_object, isolate);
+    IndirectHandle<JSWeakRef> inner_weak_ref =
+        ConstructJSWeakRef(js_object, isolate);
     CHECK(Heap::InYoungGeneration(*js_object));
     CHECK(Heap::InYoungGeneration(*inner_weak_ref));
 
@@ -957,9 +975,9 @@ TEST(JSWeakRefTenuredInWorklist) {
   }
   // Store weak_ref such that it is part of the root set when starting
   // incremental marking.
-  v8::Global<Value> global_weak_ref(
-      CcTest::isolate(), Utils::ToLocal(Handle<Object>::cast(weak_ref)));
-  JSWeakRef old_weak_ref_location = *weak_ref;
+  v8::Global<Value> global_weak_ref(CcTest::isolate(),
+                                    Utils::ToLocal(Cast<Object>(weak_ref)));
+  Address old_weak_ref_location = weak_ref->address();
 
   // Do marking. This puts the WeakRef above into the js_weak_refs worklist
   // since its target isn't marked.
@@ -971,16 +989,16 @@ TEST(JSWeakRefTenuredInWorklist) {
 
   // Now collect weak_ref's target. We still have a Handle to weak_ref, so it is
   // moved and remains on the worklist.
-  CcTest::CollectGarbage(NEW_SPACE);
-  JSWeakRef new_weak_ref_location = *weak_ref;
+  heap::InvokeMinorGC(heap);
+  Address new_weak_ref_location = weak_ref->address();
   CHECK_NE(old_weak_ref_location, new_weak_ref_location);
   CHECK(
       !heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
 
   // The mark-compactor should see the moved WeakRef in the worklist.
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
   CHECK(heap->mark_compact_collector()->weak_objects()->js_weak_refs.IsEmpty());
-  CHECK(weak_ref->target().IsUndefined(isolate));
+  CHECK(IsUndefined(weak_ref->target(), isolate));
 }
 
 TEST(UnregisterTokenHeapVerifier) {
@@ -1013,8 +1031,8 @@ TEST(UnregisterTokenHeapVerifier) {
 
   // GC so the WeakCell corresponding to o is moved from the active_cells to
   // cleared_cells.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
+  heap::InvokeMajorGC(heap);
 
   {
     // Override the unregister token to make the original object collectible.
@@ -1071,8 +1089,8 @@ TEST(UnregisteredAndUnclearedCellHeapVerifier) {
   }
 
   // Trigger GC.
-  CcTest::CollectAllGarbage();
-  CcTest::CollectAllGarbage();
+  heap::InvokeMajorGC(heap);
+  heap::InvokeMajorGC(heap);
 
   // Pump message loop to run the finalizer task, then the incremental marking
   // task. The verifier will verify that live WeakCells don't point to dead

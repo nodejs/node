@@ -8,14 +8,14 @@ import { mkdir, writeFile } from 'fs/promises';
 
 import gfm from 'remark-gfm';
 import remarkParse from 'remark-parse';
-import { toVFile } from 'to-vfile';
+import { readSync } from 'to-vfile';
 import { unified } from 'unified';
 
 const rootDir = new URL('../../', import.meta.url);
 const doc = new URL('./doc/api/addons.md', rootDir);
 const verifyDir = new URL('./test/addons/', rootDir);
 
-const file = toVFile.readSync(doc, 'utf8');
+const file = readSync(doc, 'utf8');
 const tree = unified().use(remarkParse).use(gfm).parse(file);
 const addons = {};
 let id = 0;
@@ -61,9 +61,9 @@ function verifyFiles(files, blockName) {
       files[name] = `'use strict';
 const common = require('../../common');
 ${files[name].replace(
-    "'./build/Release/addon'",
-    // eslint-disable-next-line no-template-curly-in-string
-    '`./build/${common.buildType}/addon`')}
+  "'./build/Release/addon'",
+  // eslint-disable-next-line no-template-curly-in-string
+  '`./build/${common.buildType}/addon`')}
 `;
     }
     return {

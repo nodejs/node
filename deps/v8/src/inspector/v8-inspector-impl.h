@@ -65,6 +65,9 @@ class V8InspectorImpl : public V8Inspector {
   v8::Isolate* isolate() const { return m_isolate; }
   V8InspectorClient* client() { return m_client; }
   V8Debugger* debugger() { return m_debugger.get(); }
+  PromiseHandlerTracker& promiseHandlerTracker() {
+    return m_promiseHandlerTracker;
+  }
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
   uint64_t isolateId() const { return m_isolateId; }
@@ -154,7 +157,6 @@ class V8InspectorImpl : public V8Inspector {
     const InjectedScript::Scope& m_scope;
     v8::Isolate* m_isolate;
     std::shared_ptr<CancelToken> m_cancelToken;
-    v8::Isolate::SafeForTerminationScope m_safeForTerminationScope;
   };
 
  private:
@@ -191,6 +193,7 @@ class V8InspectorImpl : public V8Inspector {
   std::map<std::pair<int64_t, int64_t>, int> m_uniqueIdToContextId;
 
   std::unique_ptr<V8Console> m_console;
+  PromiseHandlerTracker m_promiseHandlerTracker;
 };
 
 }  // namespace v8_inspector

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 //
-// Flags: --allow-natives-syntax --maglev --interrupt-budget-for-maglev=128 --single-threaded --verify-heap
+// Flags: --allow-natives-syntax --maglev --invocation-count-for-maglev=4 --single-threaded --verify-heap
 
 for (let v0 = 0; v0 < 10; v0++) {
     function f1(a2) {

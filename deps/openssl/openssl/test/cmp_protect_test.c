@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -37,15 +37,17 @@ static OSSL_PROVIDER *default_null_provider = NULL, *provider = NULL;
 
 static void tear_down(CMP_PROTECT_TEST_FIXTURE *fixture)
 {
-    OSSL_CMP_CTX_free(fixture->cmp_ctx);
-    OSSL_CMP_MSG_free(fixture->msg);
-    OSSL_CMP_PKISI_free(fixture->si);
+    if (fixture != NULL) {
+        OSSL_CMP_CTX_free(fixture->cmp_ctx);
+        OSSL_CMP_MSG_free(fixture->msg);
+        OSSL_CMP_PKISI_free(fixture->si);
 
-    OPENSSL_free(fixture->mem);
-    sk_X509_free(fixture->certs);
-    sk_X509_free(fixture->chain);
+        OPENSSL_free(fixture->mem);
+        sk_X509_free(fixture->certs);
+        sk_X509_free(fixture->chain);
 
-    OPENSSL_free(fixture);
+        OPENSSL_free(fixture);
+    }
 }
 
 static CMP_PROTECT_TEST_FIXTURE *set_up(const char *const test_case_name)
@@ -528,6 +530,8 @@ void cleanup_tests(void)
     X509_free(intermediate);
     OSSL_CMP_MSG_free(ir_protected);
     OSSL_CMP_MSG_free(ir_unprotected);
+    OSSL_PROVIDER_unload(default_null_provider);
+    OSSL_PROVIDER_unload(provider);
     OSSL_LIB_CTX_free(libctx);
 }
 

@@ -63,6 +63,8 @@ namespace node {
   V(QUIC_ENDPOINT)                                                             \
   V(QUIC_LOGSTREAM)                                                            \
   V(QUIC_PACKET)                                                               \
+  V(QUIC_SESSION)                                                              \
+  V(QUIC_STREAM)                                                               \
   V(QUIC_UDP)                                                                  \
   V(SHUTDOWNWRAP)                                                              \
   V(SIGNALWRAP)                                                                \
@@ -100,17 +102,9 @@ namespace node {
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 #endif  // HAVE_OPENSSL
 
-#if HAVE_INSPECTOR
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)                                \
-  V(INSPECTORJSBINDING)
-#else
-#define NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
-#endif  // HAVE_INSPECTOR
-
-#define NODE_ASYNC_PROVIDER_TYPES(V)                                          \
-  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                     \
-  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                         \
-  NODE_ASYNC_INSPECTOR_PROVIDER_TYPES(V)
+#define NODE_ASYNC_PROVIDER_TYPES(V)                                           \
+  NODE_ASYNC_NON_CRYPTO_PROVIDER_TYPES(V)                                      \
+  NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)
 
 class Environment;
 class DestroyParam;
@@ -151,8 +145,8 @@ class AsyncWrap : public BaseObject {
                                          v8::Local<v8::Value> unused,
                                          v8::Local<v8::Context> context,
                                          void* priv);
-  static void CreatePerIsolateProperties(
-      IsolateData* isolate_data, v8::Local<v8::FunctionTemplate> target);
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> target);
 
   static void GetAsyncId(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void PushAsyncContext(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -193,9 +187,10 @@ class AsyncWrap : public BaseObject {
   inline double get_async_id() const;
   inline double get_trigger_async_id() const;
 
+  inline v8::Local<v8::Value> context_frame() const;
+
   void AsyncReset(v8::Local<v8::Object> resource,
-                  double execution_async_id = kInvalidAsyncId,
-                  bool silent = false);
+                  double execution_async_id = kInvalidAsyncId);
 
   // Only call these within a valid HandleScope.
   v8::MaybeLocal<v8::Value> MakeCallback(const v8::Local<v8::Function> cb,
@@ -228,23 +223,13 @@ class AsyncWrap : public BaseObject {
   bool IsDoneInitializing() const override;
 
  private:
-  friend class PromiseWrap;
-
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            bool silent);
-  AsyncWrap(Environment* env,
-            v8::Local<v8::Object> promise,
-            ProviderType provider,
-            double execution_async_id,
-            double trigger_async_id);
   ProviderType provider_type_ = PROVIDER_NONE;
   bool init_hook_ran_ = false;
   // Because the values may be Reset(), cannot be made const.
   double async_id_ = kInvalidAsyncId;
   double trigger_async_id_ = kInvalidAsyncId;
+
+  v8::Global<v8::Value> context_frame_;
 };
 
 }  // namespace node

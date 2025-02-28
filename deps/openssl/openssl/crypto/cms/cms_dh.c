@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -309,17 +309,17 @@ static int dh_cms_encrypt(CMS_RecipientInfo *ri)
      */
     penc = NULL;
     penclen = i2d_X509_ALGOR(wrap_alg, &penc);
-    if (penc == NULL || penclen == 0)
+    if (penclen <= 0)
         goto err;
     wrap_str = ASN1_STRING_new();
     if (wrap_str == NULL)
         goto err;
     ASN1_STRING_set0(wrap_str, penc, penclen);
     penc = NULL;
-    X509_ALGOR_set0(talg, OBJ_nid2obj(NID_id_smime_alg_ESDH),
-                    V_ASN1_SEQUENCE, wrap_str);
-
-    rv = 1;
+    rv = X509_ALGOR_set0(talg, OBJ_nid2obj(NID_id_smime_alg_ESDH),
+                         V_ASN1_SEQUENCE, wrap_str);
+    if (!rv)
+        ASN1_STRING_free(wrap_str);
 
  err:
     OPENSSL_free(penc);

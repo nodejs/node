@@ -216,9 +216,12 @@ Note that commands explicitly intended to run a particular script, such as
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
 
+
+
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
@@ -228,6 +231,8 @@ input, output, and error with the main npm process.
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
 
+
+
 #### `script-shell`
 
 * Default: '/bin/sh' on POSIX systems, 'cmd.exe' on Windows
@@ -235,6 +240,8 @@ but can be useful for debugging.
 
 The shell to use for scripts run with the `npm exec`, `npm run` and `npm
 init <package-spec>` commands.
+
+
 
 ### See Also
 

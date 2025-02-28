@@ -31,7 +31,7 @@ const tmpdir = require('../common/tmpdir');
 
 // Make a path that will be at least 260 chars long.
 const fileNameLen = Math.max(260 - tmpdir.path.length - 1, 1);
-const fileName = path.join(tmpdir.path, 'x'.repeat(fileNameLen));
+const fileName = tmpdir.resolve('x'.repeat(fileNameLen));
 const fullPath = path.resolve(fileName);
 
 tmpdir.refresh();
@@ -46,4 +46,7 @@ fs.writeFile(fullPath, 'ok', common.mustSucceed(() => {
 
   // Tests https://github.com/nodejs/node/issues/39721
   fs.realpath.native(fullPath, common.mustSucceed());
+
+  // Tests https://github.com/nodejs/node/issues/51031
+  fs.promises.realpath(fullPath).then(common.mustCall(), common.mustNotCall());
 }));

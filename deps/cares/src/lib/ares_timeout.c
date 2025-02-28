@@ -1,88 +1,151 @@
-
-/* Copyright 1998 by the Massachusetts Institute of Technology.
+/* MIT License
  *
- * Permission to use, copy, modify, and distribute this
- * software and its documentation for any purpose and without
- * fee is hereby granted, provided that the above copyright
- * notice appear in all copies and that both that copyright
- * notice and this permission notice appear in supporting
- * documentation, and that the name of M.I.T. not be used in
- * advertising or publicity pertaining to distribution of the
- * software without specific, written prior permission.
- * M.I.T. makes no representations about the suitability of
- * this software for any purpose.  It is provided "as is"
- * without express or implied warranty.
+ * Copyright (c) 1998 Massachusetts Institute of Technology
+ * Copyright (c) The c-ares project and its contributors
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a copy
+ * of this software and associated documentation files (the "Software"), to deal
+ * in the Software without restriction, including without limitation the rights
+ * to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the Software is
+ * furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice (including the next
+ * paragraph) shall be included in all copies or substantial portions of the
+ * Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+ * IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+ * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+ * SOFTWARE.
+ *
+ * SPDX-License-Identifier: MIT
  */
 
-#include "ares_setup.h"
-
-#ifdef HAVE_LIMITS_H
-#include <limits.h>
-#endif
-
-#include "ares.h"
 #include "ares_private.h"
 
-/* return time offset between now and (future) check, in milliseconds */
-static long timeoffset(struct timeval *now, struct timeval *check)
+#ifdef HAVE_LIMITS_H
+#  include <limits.h>
+#endif
+
+
+void ares_timeval_remaining(ares_timeval_t       *remaining,
+                            const ares_timeval_t *now,
+                            const ares_timeval_t *tout)
 {
-  return (check->tv_sec - now->tv_sec)*1000 +
-         (check->tv_usec - now->tv_usec)/1000;
+  memset(remaining, 0, sizeof(*remaining));
+
+  /* Expired! */
+  if (tout->sec < now->sec ||
+      (tout->sec == now->sec && tout->usec < now->usec)) {
+    return;
+  }
+
+  remaining->sec = tout->sec - now->sec;
+  if (tout->usec < now->usec) {
+    remaining->sec  -= 1;
+    remaining->usec  = (tout->usec + 1000000) - now->usec;
+  } else {
+    remaining->usec = tout->usec - now->usec;
+  }
 }
 
-/* WARNING: Beware that this is linear in the number of outstanding
- * requests! You are probably far better off just calling ares_process()
- * once per second, rather than calling ares_timeout() to figure out
- * when to next call ares_process().
- */
-struct timeval *ares_timeout(ares_channel channel, struct timeval *maxtv,
-                             struct timeval *tvbuf)
+void ares_timeval_diff(ares_timeval_t *tvdiff, const ares_timeval_t *tvstart,
+                       const ares_timeval_t *tvstop)
 {
-  struct query *query;
-  struct list_node* list_head;
-  struct list_node* list_node;
-  struct timeval now;
-  struct timeval nextstop;
-  long offset, min_offset;
+  tvdiff->sec = tvstop->sec - tvstart->sec;
+  if (tvstop->usec > tvstart->usec) {
+    tvdiff->usec = tvstop->usec - tvstart->usec;
+  } else {
+    tvdiff->sec  -= 1;
+    tvdiff->usec  = tvstop->usec + 1000000 - tvstart->usec;
+  }
+}
 
-  /* No queries, no timeout (and no fetch of the current time). */
-  if (ares__is_list_empty(&(channel->all_queries)))
+static void ares_timeval_to_struct_timeval(struct timeval       *tv,
+                                           const ares_timeval_t *atv)
+{
+#ifdef USE_WINSOCK
+  tv->tv_sec = (long)atv->sec;
+#else
+  tv->tv_sec = (time_t)atv->sec;
+#endif
+
+  tv->tv_usec = (int)atv->usec;
+}
+
+static void struct_timeval_to_ares_timeval(ares_timeval_t       *atv,
+                                           const struct timeval *tv)
+{
+  atv->sec  = (ares_int64_t)tv->tv_sec;
+  atv->usec = (unsigned int)tv->tv_usec;
+}
+
+static struct timeval *ares_timeout_int(const ares_channel_t *channel,
+                                        struct timeval       *maxtv,
+                                        struct timeval       *tvbuf)
+{
+  const ares_query_t *query;
+  ares_slist_node_t  *node;
+  ares_timeval_t      now;
+  ares_timeval_t      atvbuf;
+  ares_timeval_t      amaxtv;
+
+  /* The minimum timeout of all queries is always the first entry in
+   * channel->queries_by_timeout */
+  node = ares_slist_node_first(channel->queries_by_timeout);
+  /* no queries/timeout */
+  if (node == NULL) {
     return maxtv;
+  }
 
-  /* Find the minimum timeout for the current set of queries. */
-  now = ares__tvnow();
-  min_offset = -1;
+  query = ares_slist_node_val(node);
 
-  list_head = &(channel->all_queries);
-  for (list_node = list_head->next; list_node != list_head;
-       list_node = list_node->next)
-    {
-      query = list_node->data;
-      if (query->timeout.tv_sec == 0)
-        continue;
-      offset = timeoffset(&now, &query->timeout);
-      if (offset < 0)
-        offset = 0;
-      if (min_offset == -1 || offset < min_offset)
-        min_offset = offset;
-    }
+  ares_tvnow(&now);
 
-  /* If we found a minimum timeout and it's sooner than the one specified in
-   * maxtv (if any), return it.  Otherwise go with maxtv.
-   */
-  if (min_offset != -1)
-    {
-      int ioffset = (min_offset > (long)INT_MAX) ? INT_MAX : (int)min_offset;
+  ares_timeval_remaining(&atvbuf, &now, &query->timeout);
 
-      nextstop.tv_sec = ioffset/1000;
-      nextstop.tv_usec = (ioffset%1000)*1000;
+  ares_timeval_to_struct_timeval(tvbuf, &atvbuf);
 
-      if (!maxtv || ares__timedout(maxtv, &nextstop))
-        {
-          *tvbuf = nextstop;
-          return tvbuf;
-        }
-    }
+  if (maxtv == NULL) {
+    return tvbuf;
+  }
 
-  return maxtv;
+  /* Return the minimum time between maxtv and tvbuf */
+  struct_timeval_to_ares_timeval(&amaxtv, maxtv);
+
+  if (atvbuf.sec > amaxtv.sec) {
+    return maxtv;
+  }
+
+  if (atvbuf.sec < amaxtv.sec) {
+    return tvbuf;
+  }
+
+  if (atvbuf.usec > amaxtv.usec) {
+    return maxtv;
+  }
+
+  return tvbuf;
+}
+
+struct timeval *ares_timeout(const ares_channel_t *channel,
+                             struct timeval *maxtv, struct timeval *tvbuf)
+{
+  struct timeval *rv;
+
+  if (channel == NULL || tvbuf == NULL) {
+    return NULL;
+  }
+
+  ares_channel_lock(channel);
+
+  rv = ares_timeout_int(channel, maxtv, tvbuf);
+
+  ares_channel_unlock(channel);
+
+  return rv;
 }

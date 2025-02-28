@@ -13,6 +13,7 @@
 #include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
+#include "src/heap/marking-inl.h"
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
 #include "src/objects/objects-inl.h"
@@ -23,8 +24,7 @@ namespace internal {
 class BasicTracedReferenceExtractor final {
  public:
   static Address* GetObjectSlotForMarking(const TracedReferenceBase& ref) {
-    return const_cast<Address*>(
-        reinterpret_cast<const Address*>(ref.GetSlotThreadSafe()));
+    return const_cast<Address*>(ref.GetSlotThreadSafe());
   }
 };
 
@@ -40,19 +40,20 @@ void UnifiedHeapMarkingState::MarkAndPush(
   if (!traced_handle_location) {
     return;
   }
-  Object object = TracedHandles::Mark(traced_handle_location, mark_mode_);
-  if (!object.IsHeapObject()) {
+  Tagged<Object> object =
+      TracedHandles::Mark(traced_handle_location, mark_mode_);
+  if (!IsHeapObject(object)) {
     // The embedder is not aware of whether numbers are materialized as heap
     // objects are just passed around as Smis.
     return;
   }
-  HeapObject heap_object = HeapObject::cast(object);
-  if (heap_object.InReadOnlySpace()) return;
-  if (marking_state_->TryMark(heap_object)) {
-    local_marking_worklist_->Push(heap_object);
-  }
-  if (V8_UNLIKELY(track_retaining_path_)) {
-    heap_->AddRetainingRoot(Root::kWrapperTracing, heap_object);
+  Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+  const auto worklist_target =
+      MarkingHelper::ShouldMarkObject(heap_, heap_object);
+  if (worklist_target) {
+    MarkingHelper::TryMarkAndPush(heap_, local_marking_worklist_,
+                                  marking_state_, worklist_target.value(),
+                                  heap_object);
   }
 }
 

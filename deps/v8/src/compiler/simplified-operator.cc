@@ -41,7 +41,7 @@ std::ostream& operator<<(std::ostream& os,
                          ConstFieldInfo const& const_field_info) {
   if (const_field_info.IsConst()) {
     return os << "const (field owner: "
-              << Brief(*const_field_info.owner_map.ToHandleChecked()) << ")";
+              << Brief(*const_field_info.owner_map->object()) << ")";
   } else {
     return os << "mutable";
   }
@@ -49,11 +49,11 @@ std::ostream& operator<<(std::ostream& os,
 }
 
 bool operator==(ConstFieldInfo const& lhs, ConstFieldInfo const& rhs) {
-  return lhs.owner_map.address() == rhs.owner_map.address();
+  return lhs.owner_map == rhs.owner_map;
 }
 
 size_t hash_value(ConstFieldInfo const& const_field_info) {
-  return static_cast<size_t>(const_field_info.owner_map.address());
+  return hash_value(const_field_info.owner_map);
 }
 
 bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
@@ -61,8 +61,7 @@ bool operator==(FieldAccess const& lhs, FieldAccess const& rhs) {
   // really only relevant for eliminating loads and they don't care about the
   // write barrier mode.
   return lhs.base_is_tagged == rhs.base_is_tagged && lhs.offset == rhs.offset &&
-         lhs.map.address() == rhs.map.address() &&
-         lhs.machine_type == rhs.machine_type &&
+         lhs.map == rhs.map && lhs.machine_type == rhs.machine_type &&
          lhs.const_field_info == rhs.const_field_info &&
          lhs.is_store_in_literal == rhs.is_store_in_literal;
 }
@@ -88,9 +87,8 @@ std::ostream& operator<<(std::ostream& os, FieldAccess const& access) {
     name->NamePrint(os);
     os << ", ";
   }
-  Handle<Map> map;
-  if (access.map.ToHandle(&map)) {
-    os << Brief(*map) << ", ";
+  if (access.map.has_value()) {
+    os << Brief(*access.map->object()) << ", ";
   }
 #endif
   os << access.type << ", " << access.machine_type << ", "
@@ -300,14 +298,14 @@ CheckMapsParameters const& CheckMapsParametersOf(Operator const* op) {
   return OpParameter<CheckMapsParameters>(op);
 }
 
-ZoneHandleSet<Map> const& CompareMapsParametersOf(Operator const* op) {
+ZoneRefSet<Map> const& CompareMapsParametersOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kCompareMaps, op->opcode());
-  return OpParameter<ZoneHandleSet<Map>>(op);
+  return OpParameter<ZoneRefSet<Map>>(op);
 }
 
-ZoneHandleSet<Map> const& MapGuardMapsOf(Operator const* op) {
+ZoneRefSet<Map> const& MapGuardMapsOf(Operator const* op) {
   DCHECK_EQ(IrOpcode::kMapGuard, op->opcode());
-  return OpParameter<ZoneHandleSet<Map>>(op);
+  return OpParameter<ZoneRefSet<Map>>(op);
 }
 
 size_t hash_value(CheckTaggedInputMode mode) {
@@ -358,25 +356,25 @@ const GrowFastElementsParameters& GrowFastElementsParametersOf(
 }
 
 bool operator==(ElementsTransition const& lhs, ElementsTransition const& rhs) {
-  return lhs.mode() == rhs.mode() &&
-         lhs.source().address() == rhs.source().address() &&
-         lhs.target().address() == rhs.target().address();
+  return lhs.mode() == rhs.mode() && lhs.source() == rhs.source() &&
+         lhs.target() == rhs.target();
 }
 
 size_t hash_value(ElementsTransition transition) {
   return base::hash_combine(static_cast<uint8_t>(transition.mode()),
-                            transition.source().address(),
-                            transition.target().address());
+                            transition.source(), transition.target());
 }
 
 std::ostream& operator<<(std::ostream& os, ElementsTransition transition) {
   switch (transition.mode()) {
     case ElementsTransition::kFastTransition:
-      return os << "fast-transition from " << Brief(*transition.source())
-                << " to " << Brief(*transition.target());
+      return os << "fast-transition from "
+                << Brief(*transition.source().object()) << " to "
+                << Brief(*transition.target().object());
     case ElementsTransition::kSlowTransition:
-      return os << "slow-transition from " << Brief(*transition.source())
-                << " to " << Brief(*transition.target());
+      return os << "slow-transition from "
+                << Brief(*transition.source().object()) << " to "
+                << Brief(*transition.target().object());
   }
   UNREACHABLE();
 }
@@ -391,36 +389,34 @@ namespace {
 // Parameters for the TransitionAndStoreElement opcode.
 class TransitionAndStoreElementParameters final {
  public:
-  TransitionAndStoreElementParameters(Handle<Map> double_map,
-                                      Handle<Map> fast_map);
+  TransitionAndStoreElementParameters(MapRef double_map, MapRef fast_map);
 
-  Handle<Map> double_map() const { return double_map_; }
-  Handle<Map> fast_map() const { return fast_map_; }
+  MapRef double_map() const { return double_map_; }
+  MapRef fast_map() const { return fast_map_; }
 
  private:
-  Handle<Map> const double_map_;
-  Handle<Map> const fast_map_;
+  MapRef const double_map_;
+  MapRef const fast_map_;
 };
 
 TransitionAndStoreElementParameters::TransitionAndStoreElementParameters(
-    Handle<Map> double_map, Handle<Map> fast_map)
+    MapRef double_map, MapRef fast_map)
     : double_map_(double_map), fast_map_(fast_map) {}
 
 bool operator==(TransitionAndStoreElementParameters const& lhs,
                 TransitionAndStoreElementParameters const& rhs) {
-  return lhs.fast_map().address() == rhs.fast_map().address() &&
-         lhs.double_map().address() == rhs.double_map().address();
+  return lhs.fast_map() == rhs.fast_map() &&
+         lhs.double_map() == rhs.double_map();
 }
 
 size_t hash_value(TransitionAndStoreElementParameters parameters) {
-  return base::hash_combine(parameters.fast_map().address(),
-                            parameters.double_map().address());
+  return base::hash_combine(parameters.fast_map(), parameters.double_map());
 }
 
 std::ostream& operator<<(std::ostream& os,
                          TransitionAndStoreElementParameters parameters) {
-  return os << "fast-map" << Brief(*parameters.fast_map()) << " double-map"
-            << Brief(*parameters.double_map());
+  return os << "fast-map" << Brief(*parameters.fast_map().object())
+            << " double-map" << Brief(*parameters.double_map().object());
 }
 
 }  // namespace
@@ -430,37 +426,36 @@ namespace {
 // Parameters for the TransitionAndStoreNonNumberElement opcode.
 class TransitionAndStoreNonNumberElementParameters final {
  public:
-  TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
+  TransitionAndStoreNonNumberElementParameters(MapRef fast_map,
                                                Type value_type);
 
-  Handle<Map> fast_map() const { return fast_map_; }
+  MapRef fast_map() const { return fast_map_; }
   Type value_type() const { return value_type_; }
 
  private:
-  Handle<Map> const fast_map_;
+  MapRef const fast_map_;
   Type value_type_;
 };
 
 TransitionAndStoreNonNumberElementParameters::
-    TransitionAndStoreNonNumberElementParameters(Handle<Map> fast_map,
+    TransitionAndStoreNonNumberElementParameters(MapRef fast_map,
                                                  Type value_type)
     : fast_map_(fast_map), value_type_(value_type) {}
 
 bool operator==(TransitionAndStoreNonNumberElementParameters const& lhs,
                 TransitionAndStoreNonNumberElementParameters const& rhs) {
-  return lhs.fast_map().address() == rhs.fast_map().address() &&
+  return lhs.fast_map() == rhs.fast_map() &&
          lhs.value_type() == rhs.value_type();
 }
 
 size_t hash_value(TransitionAndStoreNonNumberElementParameters parameters) {
-  return base::hash_combine(parameters.fast_map().address(),
-                            parameters.value_type());
+  return base::hash_combine(parameters.fast_map(), parameters.value_type());
 }
 
 std::ostream& operator<<(
     std::ostream& os, TransitionAndStoreNonNumberElementParameters parameters) {
   return os << parameters.value_type() << ", fast-map"
-            << Brief(*parameters.fast_map());
+            << Brief(*parameters.fast_map().object());
 }
 
 }  // namespace
@@ -470,35 +465,35 @@ namespace {
 // Parameters for the TransitionAndStoreNumberElement opcode.
 class TransitionAndStoreNumberElementParameters final {
  public:
-  explicit TransitionAndStoreNumberElementParameters(Handle<Map> double_map);
+  explicit TransitionAndStoreNumberElementParameters(MapRef double_map);
 
-  Handle<Map> double_map() const { return double_map_; }
+  MapRef double_map() const { return double_map_; }
 
  private:
-  Handle<Map> const double_map_;
+  MapRef const double_map_;
 };
 
 TransitionAndStoreNumberElementParameters::
-    TransitionAndStoreNumberElementParameters(Handle<Map> double_map)
+    TransitionAndStoreNumberElementParameters(MapRef double_map)
     : double_map_(double_map) {}
 
 bool operator==(TransitionAndStoreNumberElementParameters const& lhs,
                 TransitionAndStoreNumberElementParameters const& rhs) {
-  return lhs.double_map().address() == rhs.double_map().address();
+  return lhs.double_map() == rhs.double_map();
 }
 
 size_t hash_value(TransitionAndStoreNumberElementParameters parameters) {
-  return base::hash_combine(parameters.double_map().address());
+  return base::hash_combine(parameters.double_map());
 }
 
 std::ostream& operator<<(std::ostream& os,
                          TransitionAndStoreNumberElementParameters parameters) {
-  return os << "double-map" << Brief(*parameters.double_map());
+  return os << "double-map" << Brief(*parameters.double_map().object());
 }
 
 }  // namespace
 
-Handle<Map> DoubleMapParameterOf(const Operator* op) {
+MapRef DoubleMapParameterOf(const Operator* op) {
   if (op->opcode() == IrOpcode::kTransitionAndStoreElement) {
     return OpParameter<TransitionAndStoreElementParameters>(op).double_map();
   } else if (op->opcode() == IrOpcode::kTransitionAndStoreNumberElement) {
@@ -514,7 +509,7 @@ Type ValueTypeParameterOf(const Operator* op) {
       .value_type();
 }
 
-Handle<Map> FastMapParameterOf(const Operator* op) {
+MapRef FastMapParameterOf(const Operator* op) {
   if (op->opcode() == IrOpcode::kTransitionAndStoreElement) {
     return OpParameter<TransitionAndStoreElementParameters>(op).fast_map();
   } else if (op->opcode() == IrOpcode::kTransitionAndStoreNonNumberElement) {
@@ -594,7 +589,9 @@ BigIntOperationHint BigIntOperationHintOf(const Operator* op) {
          op->opcode() == IrOpcode::kSpeculativeBigIntEqual ||
          op->opcode() == IrOpcode::kSpeculativeBigIntLessThan ||
          op->opcode() == IrOpcode::kSpeculativeBigIntLessThanOrEqual);
-  return OpParameter<BigIntOperationHint>(op);
+  BigIntOperationHint hint = OpParameter<BigIntOperationHint>(op);
+  DCHECK_IMPLIES(hint == BigIntOperationHint::kBigInt64, Is64());
+  return hint;
 }
 
 bool operator==(NumberOperationParameters const& lhs,
@@ -839,6 +836,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(ChangeTaggedToFloat64, Operator::kNoProperties, 1, 0)         \
   V(ChangeTaggedToTaggedSigned, Operator::kNoProperties, 1, 0)    \
   V(ChangeFloat64ToTaggedPointer, Operator::kNoProperties, 1, 0)  \
+  V(ChangeFloat64HoleToTagged, Operator::kNoProperties, 1, 0)     \
   V(ChangeInt31ToTaggedSigned, Operator::kNoProperties, 1, 0)     \
   V(ChangeInt32ToTagged, Operator::kNoProperties, 1, 0)           \
   V(ChangeInt64ToTagged, Operator::kNoProperties, 1, 0)           \
@@ -938,6 +936,7 @@ bool operator==(AssertNotNullParameters const& lhs,
   V(CheckNumber, 1, 1)                   \
   V(CheckSmi, 1, 1)                      \
   V(CheckString, 1, 1)                   \
+  V(CheckStringOrStringWrapper, 1, 1)    \
   V(CheckBigInt, 1, 1)                   \
   V(CheckedBigIntToBigInt64, 1, 1)       \
   V(CheckedInt32ToTaggedSigned, 1, 1)    \
@@ -1187,7 +1186,7 @@ struct SimplifiedOperatorGlobalCache final {
               IrOpcode::kConvertReceiver,  // opcode
               Operator::kEliminatable,     // flags
               "ConvertReceiver",           // name
-              2, 1, 1, 1, 1, 0,            // counts
+              3, 1, 1, 1, 1, 0,            // counts
               kMode) {}                    // param
   };
   ConvertReceiverOperator<ConvertReceiverMode::kAny>
@@ -1275,7 +1274,8 @@ struct SimplifiedOperatorGlobalCache final {
 
   struct StringAsWtf16Operator final : public Operator {
     StringAsWtf16Operator()
-        : Operator(IrOpcode::kStringAsWtf16, Operator::kEliminatable,
+        : Operator(IrOpcode::kStringAsWtf16,
+                   Operator::kEliminatable | Operator::kIdempotent,
                    "StringAsWtf16", 1, 1, 1, 1, 1, 1) {}
   };
   StringAsWtf16Operator kStringAsWtf16;
@@ -1341,6 +1341,26 @@ struct SimplifiedOperatorGlobalCache final {
       kSpeculativeToBigIntBigInt64Operator;
   SpeculativeToBigIntOperator<BigIntOperationHint::kBigInt>
       kSpeculativeToBigIntBigIntOperator;
+
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  struct GetContinuationPreservedEmbedderDataOperator : public Operator {
+    GetContinuationPreservedEmbedderDataOperator()
+        : Operator(IrOpcode::kGetContinuationPreservedEmbedderData,
+                   Operator::kNoThrow | Operator::kNoDeopt | Operator::kNoWrite,
+                   "GetContinuationPreservedEmbedderData", 0, 1, 0, 1, 1, 0) {}
+  };
+  GetContinuationPreservedEmbedderDataOperator
+      kGetContinuationPreservedEmbedderData;
+
+  struct SetContinuationPreservedEmbedderDataOperator : public Operator {
+    SetContinuationPreservedEmbedderDataOperator()
+        : Operator(IrOpcode::kSetContinuationPreservedEmbedderData,
+                   Operator::kNoThrow | Operator::kNoDeopt | Operator::kNoRead,
+                   "SetContinuationPreservedEmbedderData", 1, 1, 0, 0, 1, 0) {}
+  };
+  SetContinuationPreservedEmbedderDataOperator
+      kSetContinuationPreservedEmbedderData;
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 };
 
 namespace {
@@ -1466,14 +1486,14 @@ const Operator* SimplifiedOperatorBuilder::SpeculativeBigIntAsUintN(
 const Operator* SimplifiedOperatorBuilder::AssertType(Type type) {
   DCHECK(type.CanBeAsserted());
   return zone()->New<Operator1<Type>>(IrOpcode::kAssertType,
-                                      Operator::kNoThrow | Operator::kNoDeopt,
-                                      "AssertType", 1, 0, 0, 1, 0, 0, type);
+                                      Operator::kEliminatable, "AssertType", 1,
+                                      1, 0, 0, 1, 0, type);
 }
 
 const Operator* SimplifiedOperatorBuilder::VerifyType() {
   return zone()->New<Operator>(IrOpcode::kVerifyType,
                                Operator::kNoThrow | Operator::kNoDeopt,
-                               "VerifyType", 1, 0, 0, 1, 0, 0);
+                               "VerifyType", 1, 1, 0, 0, 1, 0);
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckTurboshaftTypeOf() {
@@ -1490,12 +1510,28 @@ const Operator* SimplifiedOperatorBuilder::WasmTypeCheck(
       "WasmTypeCheck", 2, 1, 1, 1, 1, 1, config);
 }
 
+const Operator* SimplifiedOperatorBuilder::WasmTypeCheckAbstract(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCheckAbstract,
+      Operator::kEliminatable | Operator::kIdempotent, "WasmTypeCheckAbstract",
+      1, 1, 1, 1, 1, 1, config);
+}
+
 const Operator* SimplifiedOperatorBuilder::WasmTypeCast(
     WasmTypeCheckConfig config) {
   return zone_->New<Operator1<WasmTypeCheckConfig>>(
       IrOpcode::kWasmTypeCast,
       Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
       "WasmTypeCast", 2, 1, 1, 1, 1, 1, config);
+}
+
+const Operator* SimplifiedOperatorBuilder::WasmTypeCastAbstract(
+    WasmTypeCheckConfig config) {
+  return zone_->New<Operator1<WasmTypeCheckConfig>>(
+      IrOpcode::kWasmTypeCastAbstract,
+      Operator::kNoWrite | Operator::kNoThrow | Operator::kIdempotent,
+      "WasmTypeCastAbstract", 1, 1, 1, 1, 1, 1, config);
 }
 
 const Operator* SimplifiedOperatorBuilder::RttCanon(int index) {
@@ -1555,15 +1591,15 @@ const Operator* SimplifiedOperatorBuilder::StringPrepareForGetCodeunit() {
   return &cache_.kStringPrepareForGetCodeunit;
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmExternInternalize() {
-  return zone()->New<Operator>(IrOpcode::kWasmExternInternalize,
-                               Operator::kEliminatable, "WasmExternInternalize",
+const Operator* SimplifiedOperatorBuilder::WasmAnyConvertExtern() {
+  return zone()->New<Operator>(IrOpcode::kWasmAnyConvertExtern,
+                               Operator::kEliminatable, "WasmAnyConvertExtern",
                                1, 1, 1, 1, 1, 1);
 }
 
-const Operator* SimplifiedOperatorBuilder::WasmExternExternalize() {
-  return zone()->New<Operator>(IrOpcode::kWasmExternExternalize,
-                               Operator::kEliminatable, "WasmExternExternalize",
+const Operator* SimplifiedOperatorBuilder::WasmExternConvertAny() {
+  return zone()->New<Operator>(IrOpcode::kWasmExternConvertAny,
+                               Operator::kEliminatable, "WasmExternConvertAny",
                                1, 1, 1, 1, 1, 1);
 }
 
@@ -1751,7 +1787,7 @@ const Operator* SimplifiedOperatorBuilder::CheckedTruncateTaggedToWord32(
 }
 
 const Operator* SimplifiedOperatorBuilder::CheckMaps(
-    CheckMapsFlags flags, ZoneHandleSet<Map> maps,
+    CheckMapsFlags flags, ZoneRefSet<Map> maps,
     const FeedbackSource& feedback) {
   CheckMapsParameters const parameters(flags, maps, feedback);
   Operator::Properties operator_props = Operator::kNoThrow;
@@ -1766,24 +1802,23 @@ const Operator* SimplifiedOperatorBuilder::CheckMaps(
       parameters);                                     // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneHandleSet<Map> maps) {
+const Operator* SimplifiedOperatorBuilder::MapGuard(ZoneRefSet<Map> maps) {
   DCHECK_LT(0, maps.size());
-  return zone()->New<Operator1<ZoneHandleSet<Map>>>(  // --
-      IrOpcode::kMapGuard, Operator::kEliminatable,   // opcode
-      "MapGuard",                                     // name
-      1, 1, 1, 0, 1, 0,                               // counts
-      maps);                                          // parameter
+  return zone()->New<Operator1<ZoneRefSet<Map>>>(    // --
+      IrOpcode::kMapGuard, Operator::kEliminatable,  // opcode
+      "MapGuard",                                    // name
+      1, 1, 1, 0, 1, 0,                              // counts
+      maps);                                         // parameter
 }
 
-const Operator* SimplifiedOperatorBuilder::CompareMaps(
-    ZoneHandleSet<Map> maps) {
+const Operator* SimplifiedOperatorBuilder::CompareMaps(ZoneRefSet<Map> maps) {
   DCHECK_LT(0, maps.size());
-  return zone()->New<Operator1<ZoneHandleSet<Map>>>(  // --
-      IrOpcode::kCompareMaps,                         // opcode
-      Operator::kNoThrow | Operator::kNoWrite,        // flags
-      "CompareMaps",                                  // name
-      1, 1, 1, 1, 1, 0,                               // counts
-      maps);                                          // parameter
+  return zone()->New<Operator1<ZoneRefSet<Map>>>(  // --
+      IrOpcode::kCompareMaps,                      // opcode
+      Operator::kNoThrow | Operator::kNoWrite,     // flags
+      "CompareMaps",                               // name
+      1, 1, 1, 1, 1, 0,                            // counts
+      maps);                                       // parameter
 }
 
 const Operator* SimplifiedOperatorBuilder::ConvertReceiver(
@@ -2104,11 +2139,10 @@ const Operator* SimplifiedOperatorBuilder::Allocate(Type type,
 }
 
 const Operator* SimplifiedOperatorBuilder::AllocateRaw(
-    Type type, AllocationType allocation,
-    AllowLargeObjects allow_large_objects) {
+    Type type, AllocationType allocation) {
   return zone()->New<Operator1<AllocateParameters>>(
       IrOpcode::kAllocateRaw, Operator::kEliminatable, "AllocateRaw", 1, 1, 1,
-      1, 1, 1, AllocateParameters(type, allocation, allow_large_objects));
+      1, 1, 1, AllocateParameters(type, allocation));
 }
 
 #define SPECULATIVE_NUMBER_BINOP(Name)                                        \
@@ -2186,6 +2220,18 @@ const Operator* SimplifiedOperatorBuilder::StoreField(
       2, 1, 1, 0, 1, 0, store_access);
 }
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+const Operator*
+SimplifiedOperatorBuilder::GetContinuationPreservedEmbedderData() {
+  return &cache_.kGetContinuationPreservedEmbedderData;
+}
+
+const Operator*
+SimplifiedOperatorBuilder::SetContinuationPreservedEmbedderData() {
+  return &cache_.kSetContinuationPreservedEmbedderData;
+}
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
 const Operator* SimplifiedOperatorBuilder::LoadMessage() {
   return zone()->New<Operator>(IrOpcode::kLoadMessage, Operator::kEliminatable,
                                "LoadMessage", 1, 1, 1, 1, 1, 0);
@@ -2203,7 +2249,7 @@ const Operator* SimplifiedOperatorBuilder::LoadStackArgument() {
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreElement(
-    Handle<Map> double_map, Handle<Map> fast_map) {
+    MapRef double_map, MapRef fast_map) {
   TransitionAndStoreElementParameters parameters(double_map, fast_map);
   return zone()->New<Operator1<TransitionAndStoreElementParameters>>(
       IrOpcode::kTransitionAndStoreElement,
@@ -2218,7 +2264,7 @@ const Operator* SimplifiedOperatorBuilder::StoreSignedSmallElement() {
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
-    Handle<Map> double_map) {
+    MapRef double_map) {
   TransitionAndStoreNumberElementParameters parameters(double_map);
   return zone()->New<Operator1<TransitionAndStoreNumberElementParameters>>(
       IrOpcode::kTransitionAndStoreNumberElement,
@@ -2227,7 +2273,7 @@ const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNumberElement(
 }
 
 const Operator* SimplifiedOperatorBuilder::TransitionAndStoreNonNumberElement(
-    Handle<Map> fast_map, Type value_type) {
+    MapRef fast_map, Type value_type) {
   TransitionAndStoreNonNumberElementParameters parameters(fast_map, value_type);
   return zone()->New<Operator1<TransitionAndStoreNonNumberElementParameters>>(
       IrOpcode::kTransitionAndStoreNonNumberElement,
@@ -2242,37 +2288,40 @@ const Operator* SimplifiedOperatorBuilder::FastApiCall(
 
   // All function overloads have the same number of arguments and options.
   const CFunctionInfo* signature = c_functions[0].signature;
-  const int argument_count = signature->ArgumentCount();
+  const int c_arg_count = signature->ArgumentCount();
   for (size_t i = 1; i < c_functions.size(); i++) {
     CHECK_NOT_NULL(c_functions[i].signature);
-    DCHECK_EQ(c_functions[i].signature->ArgumentCount(), argument_count);
+    DCHECK_EQ(c_functions[i].signature->ArgumentCount(), c_arg_count);
     DCHECK_EQ(c_functions[i].signature->HasOptions(),
               c_functions[0].signature->HasOptions());
   }
+  // Arguments for CallApiCallbackOptimizedXXX builtin (including context)
+  // plus JS arguments (including receiver).
+  int slow_arg_count = static_cast<int>(descriptor->ParameterCount());
 
   int value_input_count =
-      argument_count +
-      static_cast<int>(descriptor->ParameterCount()) +  // slow call
-      FastApiCallNode::kEffectAndControlInputCount;
+      FastApiCallNode::ArityForArgc(c_arg_count, slow_arg_count);
   return zone()->New<Operator1<FastApiCallParameters>>(
-      IrOpcode::kFastApiCall, Operator::kNoThrow, "FastApiCall",
-      value_input_count, 1, 1, 1, 1, 0,
+      IrOpcode::kFastApiCall, Operator::kNoProperties, "FastApiCall",
+      value_input_count, 1, 1, 1, 1, 2,
       FastApiCallParameters(c_functions, feedback, descriptor));
 }
 
-int FastApiCallNode::FastCallArgumentCount() const {
-  FastApiCallParameters p = FastApiCallParametersOf(node()->op());
+// static
+int FastApiCallNode::FastCallArgumentCount(Node* node) {
+  FastApiCallParameters p = FastApiCallParametersOf(node->op());
   const CFunctionInfo* signature = p.c_functions()[0].signature;
   CHECK_NOT_NULL(signature);
   return signature->ArgumentCount();
 }
 
-int FastApiCallNode::SlowCallArgumentCount() const {
-  FastApiCallParameters p = FastApiCallParametersOf(node()->op());
+// static
+int FastApiCallNode::SlowCallArgumentCount(Node* node) {
+  FastApiCallParameters p = FastApiCallParametersOf(node->op());
   CallDescriptor* descriptor = p.descriptor();
   CHECK_NOT_NULL(descriptor);
-  return static_cast<int>(descriptor->ParameterCount()) +
-         kContextAndFrameStateInputCount;
+  return kSlowCodeTarget + static_cast<int>(descriptor->ParameterCount()) +
+         kFrameState;
 }
 
 #undef PURE_OP_LIST

@@ -43,15 +43,17 @@ static void close_cb(uv_handle_t* handle) {
 
 
 static void connect_cb(uv_connect_t* connect_req, int status) {
-  ASSERT(status == UV_ENOENT);
-  uv_close((uv_handle_t*)connect_req->handle, close_cb);
+  ASSERT_EQ(status, UV_ENOENT);
+  uv_close((uv_handle_t*) connect_req->handle, close_cb);
   connect_cb_called++;
 }
 
 
 static void connect_cb_file(uv_connect_t* connect_req, int status) {
-  ASSERT(status == UV_ENOTSOCK || status == UV_ECONNREFUSED);
-  uv_close((uv_handle_t*)connect_req->handle, close_cb);
+  if (status != UV_ENOTSOCK)
+    if (status != UV_EACCES)
+      ASSERT_EQ(status, UV_ECONNREFUSED);
+  uv_close((uv_handle_t*) connect_req->handle, close_cb);
   connect_cb_called++;
 }
 
@@ -62,15 +64,15 @@ TEST_IMPL(pipe_connect_bad_name) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &client, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   uv_pipe_connect(&req, &client, BAD_PIPENAME, connect_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
-  ASSERT(connect_cb_called == 1);
+  ASSERT_EQ(1, close_cb_called);
+  ASSERT_EQ(1, connect_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -82,14 +84,14 @@ TEST_IMPL(pipe_connect_to_file) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &client, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   uv_pipe_connect(&req, &client, path, connect_cb_file);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
-  ASSERT(connect_cb_called == 1);
+  ASSERT_EQ(1, close_cb_called);
+  ASSERT_EQ(1, connect_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

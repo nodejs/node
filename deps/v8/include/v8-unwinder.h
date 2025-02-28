@@ -33,7 +33,7 @@ struct V8_EXPORT RegisterState {
 };
 
 // A StateTag represents a possible state of the VM.
-enum StateTag : int {
+enum StateTag : uint16_t {
   JS,
   GC,
   PARSER,
@@ -42,7 +42,8 @@ enum StateTag : int {
   OTHER,
   EXTERNAL,
   ATOMICS_WAIT,
-  IDLE
+  IDLE,
+  LOGGING,
 };
 
 // The output structure filled up by GetStackSample API function.

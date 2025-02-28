@@ -5,7 +5,7 @@ const { builtinModules } = require('module');
 const common = require('../common.js');
 
 const tmpdir = require('../../test/common/tmpdir');
-let benchmarkDirectory = path.join(tmpdir.path, 'nodejs-benchmark-module');
+let benchmarkDirectory = tmpdir.resolve('nodejs-benchmark-module');
 
 // Filter all irregular modules.
 const otherModules = builtinModules.filter((name) => !/\/|^_|^sys/.test(name));
@@ -16,7 +16,7 @@ const bench = common.createBenchmark(main, {
   files: [5e2],
   n: [1, 1e3],
   cache: ['true', 'false'],
-});
+}, { flags: '--no-warnings' });
 
 function main({ n, name, cache, files, dir }) {
   tmpdir.refresh();

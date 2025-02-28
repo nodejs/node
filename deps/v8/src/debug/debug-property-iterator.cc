@@ -20,7 +20,7 @@ std::unique_ptr<DebugPropertyIterator> DebugPropertyIterator::Create(
   auto iterator = std::unique_ptr<DebugPropertyIterator>(
       new DebugPropertyIterator(isolate, receiver, skip_indices));
 
-  if (receiver->IsJSProxy()) {
+  if (IsJSProxy(*receiver)) {
     iterator->AdvanceToPrototype();
   }
 
@@ -95,8 +95,8 @@ Handle<Name> DebugPropertyIterator::raw_name() const {
   if (stage_ == kExoticIndices) {
     return isolate_->factory()->SizeToString(current_key_index_);
   } else {
-    return Handle<Name>::cast(FixedArray::get(
-        *current_keys_, static_cast<int>(current_key_index_), isolate_));
+    return Cast<Name>(handle(
+        current_keys_->get(static_cast<int>(current_key_index_)), isolate_));
   }
 }
 
@@ -186,18 +186,17 @@ bool DebugPropertyIterator::FillKeysForCurrentPrototypeAndStage() {
   Handle<JSReceiver> receiver =
       PrototypeIterator::GetCurrent<JSReceiver>(prototype_iterator_);
   if (stage_ == kExoticIndices) {
-    if (skip_indices_ || !receiver->IsJSTypedArray()) return true;
-    Handle<JSTypedArray> typed_array = Handle<JSTypedArray>::cast(receiver);
+    if (skip_indices_ || !IsJSTypedArray(*receiver)) return true;
+    auto typed_array = Cast<JSTypedArray>(receiver);
     current_keys_length_ =
-        typed_array->WasDetached() ? 0 : typed_array->length();
+        typed_array->WasDetached() ? 0 : typed_array->GetLength();
     return true;
   }
   PropertyFilter filter =
       stage_ == kEnumerableStrings ? ENUMERABLE_STRINGS : ALL_PROPERTIES;
   if (KeyAccumulator::GetKeys(isolate_, receiver, KeyCollectionMode::kOwnOnly,
                               filter, GetKeysConversion::kConvertToString,
-                              false,
-                              skip_indices_ || receiver->IsJSTypedArray())
+                              false, skip_indices_ || IsJSTypedArray(*receiver))
           .ToHandle(&current_keys_)) {
     current_keys_length_ = current_keys_->length();
     return true;
@@ -220,8 +219,8 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
   if (it.state() != LookupIterator::ACCESSOR) {
     return debug::NativeAccessorType::None;
   }
-  Handle<Object> structure = it.GetAccessors();
-  if (!structure->IsAccessorInfo()) return debug::NativeAccessorType::None;
+  DirectHandle<Object> structure = it.GetAccessors();
+  if (!IsAccessorInfo(*structure)) return debug::NativeAccessorType::None;
   base::Flags<debug::NativeAccessorType, int> result;
   if (*structure == *isolate->factory()->value_unavailable_accessor()) {
     return debug::NativeAccessorType::IsValueUnavailable;
@@ -231,11 +230,11 @@ base::Flags<debug::NativeAccessorType, int> GetNativeAccessorDescriptorInternal(
     return debug::NativeAccessorType::None;
   ACCESSOR_INFO_LIST_GENERATOR(IS_BUILTIN_ACCESSOR, /* not used */)
 #undef IS_BUILTIN_ACCESSOR
-  Handle<AccessorInfo> accessor_info = Handle<AccessorInfo>::cast(structure);
-  if (accessor_info->has_getter()) {
+  auto accessor_info = Cast<AccessorInfo>(structure);
+  if (accessor_info->has_getter(isolate)) {
     result |= debug::NativeAccessorType::HasGetter;
   }
-  if (accessor_info->has_setter()) {
+  if (accessor_info->has_setter(isolate)) {
     result |= debug::NativeAccessorType::HasSetter;
   }
   return result;

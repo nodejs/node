@@ -30,10 +30,9 @@ class CommonOperatorReducerTest : public GraphTest {
       AdvancedReducer::Editor* editor, Node* node,
       BranchSemantics branch_semantics,
       MachineOperatorBuilder::Flags flags = MachineOperatorBuilder::kNoFlags) {
-    JSHeapBroker broker(isolate(), zone());
     MachineOperatorBuilder machine(zone(), MachineType::PointerRepresentation(),
                                    flags);
-    CommonOperatorReducer reducer(editor, graph(), &broker, common(), &machine,
+    CommonOperatorReducer reducer(editor, graph(), broker(), common(), &machine,
                                   zone(), branch_semantics);
     return reducer.Reduce(node);
   }
@@ -378,6 +377,7 @@ TEST_F(CommonOperatorReducerTest, ReturnWithPhiAndEffectPhiAndMerge) {
   graph()->SetEnd(graph()->NewNode(common()->End(1), ret));
   StrictMock<MockAdvancedReducerEditor> editor;
   EXPECT_CALL(editor, Replace(merge, IsDead()));
+  EXPECT_CALL(editor, Revisit(graph()->end())).Times(2);
   Reduction const r = Reduce(&editor, ret, BranchSemantics::kJS);
   ASSERT_TRUE(r.Changed());
   EXPECT_THAT(r.replacement(), IsDead());

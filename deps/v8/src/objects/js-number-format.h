@@ -44,7 +44,7 @@ class JSNumberFormat
  public:
   // ecma402/#sec-initializenumberformat
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSNumberFormat> New(
-      Isolate* isolate, Handle<Map> map, Handle<Object> locales,
+      Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
       Handle<Object> options, const char* service);
 
   // ecma402/#sec-unwrapnumberformat
@@ -53,26 +53,26 @@ class JSNumberFormat
 
   // #sec-number-format-functions
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> NumberFormatFunction(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
   // ecma402/#sec-intl.numberformat.prototype.resolvedoptions
-  static Handle<JSObject> ResolvedOptions(Isolate* isolate,
-                                          Handle<JSNumberFormat> number_format);
+  static Handle<JSObject> ResolvedOptions(
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatToParts(
-      Isolate* isolate, Handle<JSNumberFormat> number_format,
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
       Handle<Object> numeric_obj);
 
   // ecma402/#sec-formatnumericrange
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumericRange(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
-      Handle<Object> y);
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
+      Handle<Object> x, Handle<Object> y);
 
   // ecma402/#sec-formatnumericrangetoparts
   V8_WARN_UNUSED_RESULT static MaybeHandle<JSArray> FormatNumericRangeToParts(
-      Isolate* isolate, Handle<JSNumberFormat> number_format, Handle<Object> x,
-      Handle<Object> y);
+      Isolate* isolate, DirectHandle<JSNumberFormat> number_format,
+      Handle<Object> x, Handle<Object> y);
 
   V8_WARN_UNUSED_RESULT static MaybeHandle<String> FormatNumeric(
       Isolate* isolate,
@@ -89,25 +89,33 @@ class JSNumberFormat
   static bool SignificantDigitsFromSkeleton(const icu::UnicodeString& skeleton,
                                             int32_t* minimum, int32_t* maximum);
 
+  static Handle<String> RoundingModeString(Isolate* isolate,
+                                           const icu::UnicodeString& skeleton);
+  static Handle<String> RoundingPriorityString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
+  static Handle<String> TrailingZeroDisplayString(
+      Isolate* isolate, const icu::UnicodeString& skeleton);
+  static Handle<Object> RoundingIncrement(Isolate* isolate,
+                                          const icu::UnicodeString& skeleton);
+
   enum class ShowTrailingZeros { kShow, kHide };
 
   static icu::number::UnlocalizedNumberFormatter SetDigitOptionsToFormatter(
       const icu::number::UnlocalizedNumberFormatter& settings,
-      const Intl::NumberFormatDigitOptions& digit_options,
-      int rounding_increment, ShowTrailingZeros show);
+      const Intl::NumberFormatDigitOptions& digit_options);
 
   static const icu::UnicodeString NumberingSystemFromSkeleton(
       const icu::UnicodeString& skeleton);
 
   V8_WARN_UNUSED_RESULT static Maybe<icu::number::LocalizedNumberRangeFormatter>
   GetRangeFormatter(
-      Isolate* isolate, String locale,
+      Isolate* isolate, Tagged<String> locale,
       const icu::number::LocalizedNumberFormatter& number_formatter);
 
   DECL_PRINTER(JSNumberFormat)
 
   DECL_ACCESSORS(icu_number_formatter,
-                 Managed<icu::number::LocalizedNumberFormatter>)
+                 Tagged<Managed<icu::number::LocalizedNumberFormatter>>)
 
   TQ_OBJECT_CONSTRUCTORS(JSNumberFormat)
 };

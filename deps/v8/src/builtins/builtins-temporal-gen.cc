@@ -5,13 +5,15 @@
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/growable-fixed-array-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/js-temporal-objects-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class TemporalBuiltinsAssembler : public IteratorBuiltinsAssembler {
  public:
@@ -217,6 +219,8 @@ TF_BUILTIN(TemporalCalendarPrototypeFields, TemporalBuiltinsAssembler) {
   TNode<Object> iterable = args.GetOptionalArgumentValue(0);
   Return(CalendarFieldsArrayFromIterable(context, calendar, iterable));
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

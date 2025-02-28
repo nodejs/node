@@ -36,38 +36,45 @@ class FrontendChannelImpl : public v8_inspector::V8Inspector::Channel {
       int callId,
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
     task_runner_->Append(
-        std::make_unique<SendMessageTask>(this, ToVector(message->string())));
+        std::make_unique<SendMessageTask>(session_id_, std::move(message)));
   }
   void sendNotification(
       std::unique_ptr<v8_inspector::StringBuffer> message) override {
     task_runner_->Append(
-        std::make_unique<SendMessageTask>(this, ToVector(message->string())));
+        std::make_unique<SendMessageTask>(session_id_, std::move(message)));
   }
   void flushProtocolNotifications() override {}
 
   class SendMessageTask : public TaskRunner::Task {
    public:
-    SendMessageTask(FrontendChannelImpl* channel,
-                    const std::vector<uint16_t>& message)
-        : channel_(channel), message_(message) {}
+    SendMessageTask(int session_id,
+                    std::unique_ptr<v8_inspector::StringBuffer> message)
+        : session_id_(session_id), message_(std::move(message)) {}
     ~SendMessageTask() override = default;
     bool is_priority_task() final { return false; }
 
    private:
     void Run(InspectorIsolateData* data) override {
       v8::HandleScope handle_scope(data->isolate());
+      auto* channel = ChannelHolder::GetChannel(session_id_);
+      if (!channel) {
+        // Session got disconnected. Ignore this message.
+        return;
+      }
+
       v8::Local<v8::Context> context =
-          data->GetDefaultContext(channel_->context_group_id_);
+          data->GetDefaultContext(channel->context_group_id_);
       v8::MicrotasksScope microtasks_scope(context,
                                            v8::MicrotasksScope::kRunMicrotasks);
       v8::Context::Scope context_scope(context);
-      v8::Local<v8::Value> message = ToV8String(data->isolate(), message_);
+      v8::Local<v8::Value> message =
+          ToV8String(data->isolate(), message_->string());
       v8::MaybeLocal<v8::Value> result;
-      result = channel_->function_.Get(data->isolate())
+      result = channel->function_.Get(data->isolate())
                    ->Call(context, context->Global(), 1, &message);
     }
-    FrontendChannelImpl* channel_;
-    std::vector<uint16_t> message_;
+    int session_id_;
+    std::unique_ptr<v8_inspector::StringBuffer> message_;
   };
 
   TaskRunner* task_runner_;

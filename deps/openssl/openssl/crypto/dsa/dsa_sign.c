@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -155,6 +155,11 @@ int ossl_dsa_sign_int(int type, const unsigned char *dgst, int dlen,
                       unsigned char *sig, unsigned int *siglen, DSA *dsa)
 {
     DSA_SIG *s;
+
+    if (sig == NULL) {
+        *siglen = DSA_size(dsa);
+        return 1;
+    }
 
     /* legacy case uses the method table */
     if (dsa->libctx == NULL || dsa->meth != DSA_get_default_method())

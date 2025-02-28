@@ -158,7 +158,7 @@
         <td>Select nodes according to regular expression, always including invisible nodes regardless of checkbox.</td>
       </tr>
     </table>
-    <div style="font-weight: bold;">Useful patterns</div>
+    <div style="font-weight: bold; margin-top: 0.5em;">Useful patterns</div>
     <table>
       <tr>
         <td>IfTrue</td>
@@ -174,5 +174,55 @@
           changed in-place.</td>
       </tr>
     </table>
+  </div>
+  <div id="info-ts-graph" class="info-topic">
+    <div class="info-topic-header">Turboshaft operation effects</div>
+    <div class="info-topic-content">
+      <table>
+        <tr>
+          <td>🁣</td>
+          <td>neither produce nor consume: can be reordered freely</td>
+        </tr>
+        <tr>
+          <td>🁤</td>
+          <td>produce: do not move after consume in same dimension</td>
+        </tr>
+        <tr>
+          <td>🁪</td>
+          <td>consume: do not move before produce in same dimension</td>
+        </tr>
+        <tr>
+          <td>🁫</td>
+          <td>produce and consume</td>
+        </tr>
+      </table>
+      <div style="font-weight: bold; margin-top: 0.5em;">Dimensions</div>
+      <table>
+        <tr>
+          <td>🁣🁣</td>
+          <td> load_heap_memory </td>
+          <td> load_off_heap_memory </td>
+        </tr>
+        <tr>
+          <td>🁣🁣</td>
+          <td> store_heap_memory</td>
+          <td> store_off_heap_memory </td>
+        </tr>
+        <tr>
+          <td>🁣🁣</td>
+          <td> before_raw_heap_access </td>
+          <td> after_raw_heap_access </td>
+        </tr>
+        <tr>
+          <td>🁣</td>
+          <td> control_flow</td>
+        </tr>
+        <tr>
+          <td>(i|_)(a|_)</td>
+          <td> can_create_identity </td>
+          <td> can_allocate </td>
+        </tr>
+      </table>
+    </div>
   </div>
 </div>

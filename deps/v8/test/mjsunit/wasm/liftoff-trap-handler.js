@@ -21,7 +21,7 @@ function testCompileLoadStore() {
                 kExprI32StoreMem, 0, 0x80, 0x80, 0x80, 1,
                 kExprLocalGet, 1])
       .exportFunc();
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   const instance = builder.instantiate();
 }
 testCompileLoadStore();

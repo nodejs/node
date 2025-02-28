@@ -3,6 +3,8 @@
 // found in the LICENSE file.
 
 // Flags: --allow-natives-syntax --expose-gc --turbo-inline-array-builtins
+// This test is too slow with stress-incremental-marking, especially in TSAN.
+// Flags: --no-stress-incremental-marking
 
 "".stack;;var isNeverOptimize;var isAlwaysOptimize;var isInterpreted;var isOptimized;var isCrankshafted;var isTurboFanned;var failWithMessage;(function(){{;}
 function PrettyPrint(){switch(typeof value){case"string":return JSON.stringify();case"number":if(1/value<0);case"object":if(value===null);switch(objectClass){case"Number":case"String":case"Boolean":case"Date":return objectClass+"("+PrettyPrint();return objectClass+"(["+joined+"])";case"Object":break;default:return objectClass+"()";}

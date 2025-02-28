@@ -4,16 +4,14 @@
 #include "src/builtins/builtins-collections-gen.h"
 
 namespace runtime {
-extern runtime
-ShrinkFinalizationRegistryUnregisterTokenMap(
+extern runtime ShrinkFinalizationRegistryUnregisterTokenMap(
     Context, JSFinalizationRegistry): void;
 extern runtime JSFinalizationRegistryRegisterWeakCellWithUnregisterToken(
     implicit context: Context)(JSFinalizationRegistry, WeakCell): void;
 }
 
 namespace weakref {
-extern transitioning macro
-RemoveFinalizationRegistryCellFromUnregisterTokenMap(
+extern transitioning macro RemoveFinalizationRegistryCellFromUnregisterTokenMap(
     JSFinalizationRegistry, WeakCell): void;
 
 extern macro WeakCollectionsBuiltinsAssembler::GotoIfCannotBeHeldWeakly(JSAny):
@@ -33,9 +31,9 @@ macro SplitOffTail(weakCell: WeakCell): WeakCell|Undefined {
   return weakCellTail;
 }
 
-transitioning macro
-PopClearedCell(finalizationRegistry: JSFinalizationRegistry): WeakCell|
-    Undefined {
+transitioning macro PopClearedCell(finalizationRegistry:
+                                       JSFinalizationRegistry): WeakCell
+    |Undefined {
   typeswitch (finalizationRegistry.cleared_cells) {
     case (Undefined): {
       return Undefined;
@@ -71,9 +69,9 @@ transitioning macro PushCell(
   finalizationRegistry.active_cells = cell;
 }
 
-transitioning macro
-FinalizationRegistryCleanupLoop(implicit context: Context)(
-    finalizationRegistry: JSFinalizationRegistry, callback: Callable): void {
+transitioning macro FinalizationRegistryCleanupLoop(
+    implicit context: Context)(finalizationRegistry: JSFinalizationRegistry,
+    callback: Callable): void {
   while (true) {
     const weakCellHead = PopClearedCell(finalizationRegistry);
     typeswitch (weakCellHead) {
@@ -96,17 +94,19 @@ FinalizationRegistryCleanupLoop(implicit context: Context)(
       context, finalizationRegistry);
 }
 
-transitioning javascript builtin
-FinalizationRegistryConstructor(
+transitioning javascript builtin FinalizationRegistryConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny,
-    target: JSFunction)(cleanupCallback: JSAny): JSFinalizationRegistry {
+    target: JSFunction)(...arguments): JSFinalizationRegistry {
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (newTarget == Undefined) {
     ThrowTypeError(
         MessageTemplate::kConstructorNotFunction, 'FinalizationRegistry');
   }
   // 2. If IsCallable(cleanupCallback) is false, throw a TypeError exception.
-  const cleanupCallback = Cast<Callable>(cleanupCallback) otherwise
+  if (arguments.actual_count == 0) {
+    ThrowTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable);
+  }
+  const cleanupCallback = Cast<Callable>(arguments[0]) otherwise
   ThrowTypeError(MessageTemplate::kWeakRefsCleanupMustBeCallable);
   // 3. Let finalizationRegistry be ? OrdinaryCreateFromConstructor(NewTarget,
   // "%FinalizationRegistryPrototype%", « [[Realm]], [[CleanupCallback]],
@@ -129,9 +129,8 @@ FinalizationRegistryConstructor(
   return finalizationRegistry;
 }
 
-// https://tc39.es/proposal-symbols-as-weakmap-keys/#sec-finalization-registry.prototype.register
-transitioning javascript builtin
-FinalizationRegistryRegister(
+// https://tc39.es/ecma262/#sec-finalization-registry.prototype.register
+transitioning javascript builtin FinalizationRegistryRegister(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let finalizationRegistry be the this value.
   // 2. Perform ? RequireInternalSlot(finalizationRegistry, [[Cells]]).
@@ -194,8 +193,7 @@ FinalizationRegistryRegister(
   return Undefined;
 }
 
-transitioning javascript builtin
-FinalizationRegistryPrototypeCleanupSome(
+transitioning javascript builtin FinalizationRegistryPrototypeCleanupSome(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let finalizationRegistry be the this value.
   //

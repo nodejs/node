@@ -7,7 +7,8 @@ namespace string {
 // String.prototype.substr ( start, length )
 // ES6 #sec-string.prototype.substr
 transitioning javascript builtin StringPrototypeSubstr(
-    js-implicit context: NativeContext, receiver: JSAny)(...arguments): String {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): String {
   const methodName: constexpr string = 'String.prototype.substr';
   // 1. Let O be ? RequireObjectCoercible(this value).
   // 2. Let S be ? ToString(O).

@@ -13,13 +13,21 @@
 namespace v8 {
 namespace internal {
 
+#ifdef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
+#define IF_TSA(TSA_MACRO, CSA_MACRO) TSA_MACRO
+#else
+#define IF_TSA(TSA_MACRO, CSA_MACRO) CSA_MACRO
+#endif
+
 // CPP: Builtin in C++. Entered via BUILTIN_EXIT frame.
 //      Args: name
 // TFJ: Builtin in Turbofan, with JS linkage (callable as Javascript function).
 //      Args: name, arguments count, explicit argument names...
 // TFS: Builtin in Turbofan, with CodeStub linkage.
-//      Args: name, explicit argument names...
+//      Args: name, needs context, explicit argument names...
 // TFC: Builtin in Turbofan, with CodeStub linkage and custom descriptor.
+//      Args: name, interface descriptor
+// TSC: Builtin in Turboshaft, with CodeStub linkage and custom descriptor.
 //      Args: name, interface descriptor
 // TFH: Handlers in Turbofan, with CodeStub linkage.
 //      Args: name, interface descriptor
@@ -53,113 +61,120 @@ namespace internal {
   /* Adaptor for CPP builtins. */                             \
   TFC(AdaptorWithBuiltinExitFrame, CppBuiltinAdaptor)
 
-#define BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)                  \
-  /* TSAN support for stores in generated code. */                             \
-  IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANRelaxedStore8SaveFP, TSANStore)                             \
-  IF_TSAN(TFC, TSANRelaxedStore16IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANRelaxedStore16SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANRelaxedStore32IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANRelaxedStore32SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANRelaxedStore64IgnoreFP, TSANStore)                          \
-  IF_TSAN(TFC, TSANRelaxedStore64SaveFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANSeqCstStore8IgnoreFP, TSANStore)                            \
-  IF_TSAN(TFC, TSANSeqCstStore8SaveFP, TSANStore)                              \
-  IF_TSAN(TFC, TSANSeqCstStore16IgnoreFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANSeqCstStore16SaveFP, TSANStore)                             \
-  IF_TSAN(TFC, TSANSeqCstStore32IgnoreFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                             \
-  IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                           \
-  IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                             \
-                                                                               \
-  /* TSAN support for loads in generated code. */                              \
-  IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                            \
-  IF_TSAN(TFC, TSANRelaxedLoad32SaveFP, TSANLoad)                              \
-  IF_TSAN(TFC, TSANRelaxedLoad64IgnoreFP, TSANLoad)                            \
-  IF_TSAN(TFC, TSANRelaxedLoad64SaveFP, TSANLoad)                              \
-                                                                               \
-  /* Calls */                                                                  \
-  /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */              \
-  ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                  \
-  ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)               \
-  ASM(CallFunction_ReceiverIsAny, CallTrampoline)                              \
-  /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */            \
-  ASM(CallBoundFunction, CallTrampoline)                                       \
-  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */   \
-  TFC(CallWrappedFunction, CallTrampoline)                                     \
-  /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                         \
-  ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                          \
-  ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                       \
-  ASM(Call_ReceiverIsAny, CallTrampoline)                                      \
-  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                         \
-      CallTrampoline_Baseline_Compact)                                         \
-  TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)        \
-  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                      \
-      CallTrampoline_Baseline_Compact)                                         \
-  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)     \
-  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)    \
-  TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                    \
-  TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                             \
-      CallTrampoline_WithFeedback)                                             \
-  TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                          \
-      CallTrampoline_WithFeedback)                                             \
-  TFC(Call_ReceiverIsAny_WithFeedback, CallTrampoline_WithFeedback)            \
-                                                                               \
-  /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */             \
-  TFC(CallProxy, CallTrampoline)                                               \
-  ASM(CallVarargs, CallVarargs)                                                \
-  TFC(CallWithSpread, CallWithSpread)                                          \
-  TFC(CallWithSpread_Baseline, CallWithSpread_Baseline)                        \
-  TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)                \
-  TFC(CallWithArrayLike, CallWithArrayLike)                                    \
-  TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)          \
-  ASM(CallForwardVarargs, CallForwardVarargs)                                  \
-  ASM(CallFunctionForwardVarargs, CallForwardVarargs)                          \
-  /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */   \
-  /* access and compatible receiver checks. */                                 \
-  TFC(CallFunctionTemplate_CheckAccess, CallFunctionTemplate)                  \
-  TFC(CallFunctionTemplate_CheckCompatibleReceiver, CallFunctionTemplate)      \
-  TFC(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,                   \
-      CallFunctionTemplate)                                                    \
-                                                                               \
-  /* Construct */                                                              \
-  /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */            \
-  ASM(ConstructFunction, JSTrampoline)                                         \
-  /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */           \
-  ASM(ConstructBoundFunction, JSTrampoline)                                    \
-  ASM(ConstructedNonConstructable, JSTrampoline)                               \
-  /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */         \
-  ASM(Construct, JSTrampoline)                                                 \
-  ASM(ConstructVarargs, ConstructVarargs)                                      \
-  TFC(ConstructWithSpread, ConstructWithSpread)                                \
-  TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)              \
-  TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)      \
-  TFC(ConstructWithArrayLike, ConstructWithArrayLike)                          \
-  TFC(ConstructWithArrayLike_WithFeedback,                                     \
-      ConstructWithArrayLike_WithFeedback)                                     \
-  ASM(ConstructForwardVarargs, ConstructForwardVarargs)                        \
-  ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)                \
-  TFC(Construct_Baseline, Construct_Baseline)                                  \
-  TFC(Construct_WithFeedback, Construct_WithFeedback)                          \
-  ASM(JSConstructStubGeneric, ConstructStub)                                   \
-  ASM(JSBuiltinsConstructStub, ConstructStub)                                  \
-  TFC(FastNewObject, FastNewObject)                                            \
-  TFS(FastNewClosure, kSharedFunctionInfo, kFeedbackCell)                      \
-  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */           \
-  TFC(ConstructProxy, JSTrampoline)                                            \
-                                                                               \
-  /* Apply and entries */                                                      \
-  ASM(JSEntry, JSEntry)                                                        \
-  ASM(JSConstructEntry, JSEntry)                                               \
-  ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                                \
-  /* Call a JSValue. */                                                        \
-  ASM(JSEntryTrampoline, JSTrampoline)                                         \
-  /* Construct a JSValue. */                                                   \
-  ASM(JSConstructEntryTrampoline, JSTrampoline)                                \
-  ASM(ResumeGeneratorTrampoline, ResumeGenerator)                              \
-                                                                               \
-  /* String helpers */                                                         \
-  TFC(StringFromCodePointAt, StringAtAsString)                                 \
+#define BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
+  /* GC write barriers */                                                     \
+  TFC(IndirectPointerBarrierSaveFP, IndirectPointerWriteBarrier)              \
+  TFC(IndirectPointerBarrierIgnoreFP, IndirectPointerWriteBarrier)            \
+                                                                              \
+  /* TSAN support for stores in generated code. */                            \
+  IF_TSAN(TFC, TSANRelaxedStore8IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANRelaxedStore8SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANRelaxedStore16IgnoreFP, TSANStore)                         \
+  IF_TSAN(TFC, TSANRelaxedStore16SaveFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANRelaxedStore32IgnoreFP, TSANStore)                         \
+  IF_TSAN(TFC, TSANRelaxedStore32SaveFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANRelaxedStore64IgnoreFP, TSANStore)                         \
+  IF_TSAN(TFC, TSANRelaxedStore64SaveFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANSeqCstStore8IgnoreFP, TSANStore)                           \
+  IF_TSAN(TFC, TSANSeqCstStore8SaveFP, TSANStore)                             \
+  IF_TSAN(TFC, TSANSeqCstStore16IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANSeqCstStore16SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANSeqCstStore32IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANSeqCstStore32SaveFP, TSANStore)                            \
+  IF_TSAN(TFC, TSANSeqCstStore64IgnoreFP, TSANStore)                          \
+  IF_TSAN(TFC, TSANSeqCstStore64SaveFP, TSANStore)                            \
+                                                                              \
+  /* TSAN support for loads in generated code. */                             \
+  IF_TSAN(TFC, TSANRelaxedLoad32IgnoreFP, TSANLoad)                           \
+  IF_TSAN(TFC, TSANRelaxedLoad32SaveFP, TSANLoad)                             \
+  IF_TSAN(TFC, TSANRelaxedLoad64IgnoreFP, TSANLoad)                           \
+  IF_TSAN(TFC, TSANRelaxedLoad64SaveFP, TSANLoad)                             \
+                                                                              \
+  /* Calls */                                                                 \
+  /* ES6 section 9.2.1 [[Call]] ( thisArgument, argumentsList) */             \
+  ASM(CallFunction_ReceiverIsNullOrUndefined, CallTrampoline)                 \
+  ASM(CallFunction_ReceiverIsNotNullOrUndefined, CallTrampoline)              \
+  ASM(CallFunction_ReceiverIsAny, CallTrampoline)                             \
+  /* ES6 section 9.4.1.1 [[Call]] ( thisArgument, argumentsList) */           \
+  ASM(CallBoundFunction, CallTrampoline)                                      \
+  /* #sec-wrapped-function-exotic-objects-call-thisargument-argumentslist */  \
+  TFC(CallWrappedFunction, CallTrampoline)                                    \
+  /* ES6 section 7.3.12 Call(F, V, [argumentsList]) */                        \
+  ASM(Call_ReceiverIsNullOrUndefined, CallTrampoline)                         \
+  ASM(Call_ReceiverIsNotNullOrUndefined, CallTrampoline)                      \
+  ASM(Call_ReceiverIsAny, CallTrampoline)                                     \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline_Compact,                        \
+      CallTrampoline_Baseline_Compact)                                        \
+  TFC(Call_ReceiverIsNullOrUndefined_Baseline, CallTrampoline_Baseline)       \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline_Compact,                     \
+      CallTrampoline_Baseline_Compact)                                        \
+  TFC(Call_ReceiverIsNotNullOrUndefined_Baseline, CallTrampoline_Baseline)    \
+  TFC(Call_ReceiverIsAny_Baseline_Compact, CallTrampoline_Baseline_Compact)   \
+  TFC(Call_ReceiverIsAny_Baseline, CallTrampoline_Baseline)                   \
+  TFC(Call_ReceiverIsNullOrUndefined_WithFeedback,                            \
+      CallTrampoline_WithFeedback)                                            \
+  TFC(Call_ReceiverIsNotNullOrUndefined_WithFeedback,                         \
+      CallTrampoline_WithFeedback)                                            \
+  TFC(Call_ReceiverIsAny_WithFeedback, CallTrampoline_WithFeedback)           \
+                                                                              \
+  /* ES6 section 9.5.12[[Call]] ( thisArgument, argumentsList ) */            \
+  TFC(CallProxy, CallTrampoline)                                              \
+  ASM(CallVarargs, CallVarargs)                                               \
+  TFC(CallWithSpread, CallWithSpread)                                         \
+  TFC(CallWithSpread_Baseline, CallWithSpread_Baseline)                       \
+  TFC(CallWithSpread_WithFeedback, CallWithSpread_WithFeedback)               \
+  TFC(CallWithArrayLike, CallWithArrayLike)                                   \
+  TFC(CallWithArrayLike_WithFeedback, CallWithArrayLike_WithFeedback)         \
+  ASM(CallForwardVarargs, CallForwardVarargs)                                 \
+  ASM(CallFunctionForwardVarargs, CallForwardVarargs)                         \
+  /* Call an API callback via a {FunctionTemplateInfo}, doing appropriate */  \
+  /* access and compatible receiver checks. */                                \
+  TFC(CallFunctionTemplate_Generic, CallFunctionTemplateGeneric)              \
+  TFC(CallFunctionTemplate_CheckAccess, CallFunctionTemplate)                 \
+  TFC(CallFunctionTemplate_CheckCompatibleReceiver, CallFunctionTemplate)     \
+  TFC(CallFunctionTemplate_CheckAccessAndCompatibleReceiver,                  \
+      CallFunctionTemplate)                                                   \
+                                                                              \
+  /* Construct */                                                             \
+  /* ES6 section 9.2.2 [[Construct]] ( argumentsList, newTarget) */           \
+  ASM(ConstructFunction, JSTrampoline)                                        \
+  /* ES6 section 9.4.1.2 [[Construct]] (argumentsList, newTarget) */          \
+  ASM(ConstructBoundFunction, JSTrampoline)                                   \
+  ASM(ConstructedNonConstructable, JSTrampoline)                              \
+  /* ES6 section 7.3.13 Construct (F, [argumentsList], [newTarget]) */        \
+  ASM(Construct, JSTrampoline)                                                \
+  ASM(ConstructVarargs, ConstructVarargs)                                     \
+  TFC(ConstructWithSpread, ConstructWithSpread)                               \
+  TFC(ConstructWithSpread_Baseline, ConstructWithSpread_Baseline)             \
+  TFC(ConstructWithSpread_WithFeedback, ConstructWithSpread_WithFeedback)     \
+  TFC(ConstructWithArrayLike, ConstructWithArrayLike)                         \
+  ASM(ConstructForwardVarargs, ConstructForwardVarargs)                       \
+  ASM(ConstructForwardAllArgs, ConstructForwardAllArgs)                       \
+  TFC(ConstructForwardAllArgs_Baseline, ConstructForwardAllArgs_Baseline)     \
+  TFC(ConstructForwardAllArgs_WithFeedback,                                   \
+      ConstructForwardAllArgs_WithFeedback)                                   \
+  ASM(ConstructFunctionForwardVarargs, ConstructForwardVarargs)               \
+  TFC(Construct_Baseline, Construct_Baseline)                                 \
+  TFC(Construct_WithFeedback, Construct_WithFeedback)                         \
+  ASM(JSConstructStubGeneric, ConstructStub)                                  \
+  ASM(JSBuiltinsConstructStub, ConstructStub)                                 \
+  TFC(FastNewObject, FastNewObject)                                           \
+  TFS(FastNewClosure, NeedsContext::kYes, kSharedFunctionInfo, kFeedbackCell) \
+  /* ES6 section 9.5.14 [[Construct]] ( argumentsList, newTarget) */          \
+  TFC(ConstructProxy, JSTrampoline)                                           \
+                                                                              \
+  /* Apply and entries */                                                     \
+  ASM(JSEntry, JSEntry)                                                       \
+  ASM(JSConstructEntry, JSEntry)                                              \
+  ASM(JSRunMicrotasksEntry, RunMicrotasksEntry)                               \
+  /* Call a JSValue. */                                                       \
+  ASM(JSEntryTrampoline, JSEntry)                                             \
+  /* Construct a JSValue. */                                                  \
+  ASM(JSConstructEntryTrampoline, JSEntry)                                    \
+  ASM(ResumeGeneratorTrampoline, ResumeGenerator)                             \
+                                                                              \
+  /* String helpers */                                                        \
+  IF_TSA(TSC, TFC)(StringFromCodePointAt, StringAtAsString)                    \
   TFC(StringEqual, StringEqual)                                                \
   TFC(StringGreaterThan, CompareNoContext)                                     \
   TFC(StringGreaterThanOrEqual, CompareNoContext)                              \
@@ -169,17 +184,20 @@ namespace internal {
   TFC(StringSubstring, StringSubstring)                                        \
                                                                                \
   /* OrderedHashTable helpers */                                               \
-  TFS(OrderedHashTableHealIndex, kTable, kIndex)                               \
+  TFS(OrderedHashTableHealIndex, NeedsContext::kYes, kTable, kIndex)           \
                                                                                \
   /* Interpreter */                                                            \
   /* InterpreterEntryTrampoline dispatches to the interpreter to run a */      \
   /* JSFunction in the form of bytecodes */                                    \
   ASM(InterpreterEntryTrampoline, JSTrampoline)                                \
   ASM(InterpreterEntryTrampolineForProfiling, JSTrampoline)                    \
+  ASM(InterpreterForwardAllArgsThenConstruct, ConstructForwardAllArgs)         \
   ASM(InterpreterPushArgsThenCall, InterpreterPushArgsThenCall)                \
   ASM(InterpreterPushUndefinedAndArgsThenCall, InterpreterPushArgsThenCall)    \
   ASM(InterpreterPushArgsThenCallWithFinalSpread, InterpreterPushArgsThenCall) \
   ASM(InterpreterPushArgsThenConstruct, InterpreterPushArgsThenConstruct)      \
+  ASM(InterpreterPushArgsThenFastConstructFunction,                            \
+      InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructArrayFunction,                           \
       InterpreterPushArgsThenConstruct)                                        \
   ASM(InterpreterPushArgsThenConstructWithFinalSpread,                         \
@@ -199,6 +217,10 @@ namespace internal {
                                                                                \
   /* Maglev Compiler */                                                        \
   ASM(MaglevOnStackReplacement, OnStackReplacement)                            \
+  ASM(MaglevFunctionEntryStackCheck_WithoutNewTarget, Void)                    \
+  ASM(MaglevFunctionEntryStackCheck_WithNewTarget, Void)                       \
+  ASM(MaglevOptimizeCodeOrTailCallOptimizedCodeSlot,                           \
+      MaglevOptimizeCodeOrTailCallOptimizedCodeSlot)                           \
                                                                                \
   /* Code life-cycle */                                                        \
   TFC(CompileLazy, JSTrampoline)                                               \
@@ -232,22 +254,25 @@ namespace internal {
   ASM(ContinueToJavaScriptBuiltinWithResult, ContinueToBuiltin)                \
                                                                                \
   /* API callback handling */                                                  \
-  ASM(CallApiCallback, ApiCallback)                                            \
+  ASM(CallApiCallbackGeneric, CallApiCallbackGeneric)                          \
+  ASM(CallApiCallbackOptimizedNoProfiling, CallApiCallbackOptimized)           \
+  ASM(CallApiCallbackOptimized, CallApiCallbackOptimized)                      \
   ASM(CallApiGetter, ApiGetter)                                                \
-  CPP(HandleApiCall)                                                           \
-  CPP(HandleApiCallAsFunction)                                                 \
-  CPP(HandleApiCallAsConstructor)                                              \
+  TFC(HandleApiCallOrConstruct, JSTrampoline)                                  \
+  CPP(HandleApiConstruct)                                                      \
+  CPP(HandleApiCallAsFunctionDelegate)                                         \
+  CPP(HandleApiCallAsConstructorDelegate)                                      \
                                                                                \
   /* Adapters for Turbofan into runtime */                                     \
   TFC(AllocateInYoungGeneration, Allocate)                                     \
-  TFC(AllocateRegularInYoungGeneration, Allocate)                              \
   TFC(AllocateInOldGeneration, Allocate)                                       \
-  TFC(AllocateRegularInOldGeneration, Allocate)                                \
+  IF_WASM(TFC, WasmAllocateInYoungGeneration, Allocate)                        \
+  IF_WASM(TFC, WasmAllocateInOldGeneration, Allocate)                          \
                                                                                \
   TFC(NewHeapNumber, NewHeapNumber)                                            \
                                                                                \
   /* TurboFan support builtins */                                              \
-  TFS(CopyFastSmiOrObjectElements, kObject)                                    \
+  TFS(CopyFastSmiOrObjectElements, NeedsContext::kNo, kObject)                 \
   TFC(GrowFastDoubleElements, GrowArrayElements)                               \
   TFC(GrowFastSmiOrObjectElements, GrowArrayElements)                          \
                                                                                \
@@ -264,6 +289,7 @@ namespace internal {
   TFC(ToNumberConvertBigInt, TypeConversion)                                   \
   TFC(ToBigIntConvertNumber, TypeConversion)                                   \
   TFC(Typeof, Typeof)                                                          \
+  TFC(Typeof_Baseline, UnaryOp_Baseline)                                       \
   TFC(BigIntToI64, BigIntToI64)                                                \
   TFC(BigIntToI32Pair, BigIntToI32Pair)                                        \
   TFC(I64ToBigInt, I64ToBigInt)                                                \
@@ -277,45 +303,49 @@ namespace internal {
                                                                                \
   /* Handlers */                                                               \
   TFH(KeyedLoadIC_PolymorphicName, LoadWithVector)                             \
-  TFH(KeyedStoreIC_Megamorphic, Store)                                         \
-  TFH(DefineKeyedOwnIC_Megamorphic, Store)                                     \
+  TFH(KeyedStoreIC_Megamorphic, StoreWithVector)                               \
+  TFH(DefineKeyedOwnIC_Megamorphic, StoreNoFeedback)                           \
   TFH(LoadGlobalIC_NoFeedback, LoadGlobalNoFeedback)                           \
   TFH(LoadIC_FunctionPrototype, LoadWithVector)                                \
   TFH(LoadIC_StringLength, LoadWithVector)                                     \
   TFH(LoadIC_StringWrapperLength, LoadWithVector)                              \
   TFH(LoadIC_NoFeedback, LoadNoFeedback)                                       \
   TFH(StoreGlobalIC_Slow, StoreWithVector)                                     \
-  TFH(StoreIC_NoFeedback, Store)                                               \
-  TFH(DefineNamedOwnIC_NoFeedback, Store)                                      \
+  TFH(StoreIC_NoFeedback, StoreNoFeedback)                                     \
+  TFH(DefineNamedOwnIC_NoFeedback, StoreNoFeedback)                            \
   TFH(KeyedLoadIC_SloppyArguments, LoadWithVector)                             \
   TFH(LoadIndexedInterceptorIC, LoadWithVector)                                \
-  TFH(KeyedStoreIC_SloppyArguments_Standard, StoreWithVector)                  \
-  TFH(KeyedStoreIC_SloppyArguments_GrowNoTransitionHandleCOW, StoreWithVector) \
-  TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreOOB, StoreWithVector)     \
+  TFH(KeyedStoreIC_SloppyArguments_InBounds, StoreWithVector)                  \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionGrowAndHandleCOW,               \
+      StoreWithVector)                                                         \
+  TFH(KeyedStoreIC_SloppyArguments_NoTransitionIgnoreTypedArrayOOB,            \
+      StoreWithVector)                                                         \
   TFH(KeyedStoreIC_SloppyArguments_NoTransitionHandleCOW, StoreWithVector)     \
-  TFH(StoreFastElementIC_Standard, StoreWithVector)                            \
-  TFH(StoreFastElementIC_GrowNoTransitionHandleCOW, StoreWithVector)           \
-  TFH(StoreFastElementIC_NoTransitionIgnoreOOB, StoreWithVector)               \
+  TFH(StoreFastElementIC_InBounds, StoreWithVector)                            \
+  TFH(StoreFastElementIC_NoTransitionGrowAndHandleCOW, StoreWithVector)        \
+  TFH(StoreFastElementIC_NoTransitionIgnoreTypedArrayOOB, StoreWithVector)     \
   TFH(StoreFastElementIC_NoTransitionHandleCOW, StoreWithVector)               \
-  TFH(ElementsTransitionAndStore_Standard, StoreTransition)                    \
-  TFH(ElementsTransitionAndStore_GrowNoTransitionHandleCOW, StoreTransition)   \
-  TFH(ElementsTransitionAndStore_NoTransitionIgnoreOOB, StoreTransition)       \
+  TFH(ElementsTransitionAndStore_InBounds, StoreTransition)                    \
+  TFH(ElementsTransitionAndStore_NoTransitionGrowAndHandleCOW,                 \
+      StoreTransition)                                                         \
+  TFH(ElementsTransitionAndStore_NoTransitionIgnoreTypedArrayOOB,              \
+      StoreTransition)                                                         \
   TFH(ElementsTransitionAndStore_NoTransitionHandleCOW, StoreTransition)       \
   TFH(KeyedHasIC_PolymorphicName, LoadWithVector)                              \
   TFH(KeyedHasIC_SloppyArguments, LoadWithVector)                              \
   TFH(HasIndexedInterceptorIC, LoadWithVector)                                 \
                                                                                \
   /* Microtask helpers */                                                      \
-  TFS(EnqueueMicrotask, kMicrotask)                                            \
+  TFS(EnqueueMicrotask, NeedsContext::kYes, kMicrotask)                        \
   ASM(RunMicrotasksTrampoline, RunMicrotasksEntry)                             \
   TFC(RunMicrotasks, RunMicrotasks)                                            \
                                                                                \
   /* Object property helpers */                                                \
-  TFS(HasProperty, kObject, kKey)                                              \
-  TFS(DeleteProperty, kObject, kKey, kLanguageMode)                            \
+  TFS(HasProperty, NeedsContext::kYes, kObject, kKey)                          \
+  TFS(DeleteProperty, NeedsContext::kYes, kObject, kKey, kLanguageMode)        \
   /* ES #sec-copydataproperties */                                             \
-  TFS(CopyDataProperties, kTarget, kSource)                                    \
-  TFS(SetDataProperties, kTarget, kSource)                                     \
+  TFS(CopyDataProperties, NeedsContext::kYes, kTarget, kSource)                \
+  TFS(SetDataProperties, NeedsContext::kYes, kTarget, kSource)                 \
   TFC(CopyDataPropertiesWithExcludedPropertiesOnStack,                         \
       CopyDataPropertiesWithExcludedPropertiesOnStack)                         \
   TFC(CopyDataPropertiesWithExcludedProperties,                                \
@@ -329,9 +359,13 @@ namespace internal {
   /* Special internal builtins */                                              \
   CPP(EmptyFunction)                                                           \
   CPP(Illegal)                                                                 \
+  CPP(IllegalInvocationThrower)                                                \
   CPP(StrictPoisonPillThrower)                                                 \
   CPP(UnsupportedThrower)                                                      \
   TFJ(ReturnReceiver, kJSArgcReceiverSlots, kReceiver)                         \
+                                                                               \
+  /* AbstractModuleSource */                                                   \
+  CPP(AbstractModuleSourceToStringTag)                                         \
                                                                                \
   /* Array */                                                                  \
   TFC(ArrayConstructor, JSTrampoline)                                          \
@@ -373,28 +407,28 @@ namespace internal {
   /* ES6 #sec-array.prototype.fill */                                          \
   CPP(ArrayPrototypeFill)                                                      \
   /* ES7 #sec-array.prototype.includes */                                      \
-  TFS(ArrayIncludesSmi, kElements, kSearchElement, kLength, kFromIndex)        \
-  TFS(ArrayIncludesSmiOrObject, kElements, kSearchElement, kLength,            \
-      kFromIndex)                                                              \
-  TFS(ArrayIncludesPackedDoubles, kElements, kSearchElement, kLength,          \
-      kFromIndex)                                                              \
-  TFS(ArrayIncludesHoleyDoubles, kElements, kSearchElement, kLength,           \
-      kFromIndex)                                                              \
+  TFS(ArrayIncludesSmi, NeedsContext::kYes, kElements, kSearchElement,         \
+      kLength, kFromIndex)                                                     \
+  TFS(ArrayIncludesSmiOrObject, NeedsContext::kYes, kElements, kSearchElement, \
+      kLength, kFromIndex)                                                     \
+  TFS(ArrayIncludesPackedDoubles, NeedsContext::kYes, kElements,               \
+      kSearchElement, kLength, kFromIndex)                                     \
+  TFS(ArrayIncludesHoleyDoubles, NeedsContext::kYes, kElements,                \
+      kSearchElement, kLength, kFromIndex)                                     \
   TFJ(ArrayIncludes, kDontAdaptArgumentsSentinel)                              \
   /* ES6 #sec-array.prototype.indexof */                                       \
-  TFS(ArrayIndexOfSmi, kElements, kSearchElement, kLength, kFromIndex)         \
-  TFS(ArrayIndexOfSmiOrObject, kElements, kSearchElement, kLength, kFromIndex) \
-  TFS(ArrayIndexOfPackedDoubles, kElements, kSearchElement, kLength,           \
+  TFS(ArrayIndexOfSmi, NeedsContext::kYes, kElements, kSearchElement, kLength, \
       kFromIndex)                                                              \
-  TFS(ArrayIndexOfHoleyDoubles, kElements, kSearchElement, kLength,            \
-      kFromIndex)                                                              \
+  TFS(ArrayIndexOfSmiOrObject, NeedsContext::kYes, kElements, kSearchElement,  \
+      kLength, kFromIndex)                                                     \
+  TFS(ArrayIndexOfPackedDoubles, NeedsContext::kYes, kElements,                \
+      kSearchElement, kLength, kFromIndex)                                     \
+  TFS(ArrayIndexOfHoleyDoubles, NeedsContext::kYes, kElements, kSearchElement, \
+      kLength, kFromIndex)                                                     \
   TFJ(ArrayIndexOf, kDontAdaptArgumentsSentinel)                               \
   /* ES6 #sec-array.prototype.pop */                                           \
   CPP(ArrayPop)                                                                \
   TFJ(ArrayPrototypePop, kDontAdaptArgumentsSentinel)                          \
-  /* ES6 #sec-array.prototype.group */                                         \
-  CPP(ArrayPrototypeGroup)                                                     \
-  CPP(ArrayPrototypeGroupToMap)                                                \
   /* ES6 #sec-array.prototype.push */                                          \
   CPP(ArrayPush)                                                               \
   TFJ(ArrayPrototypePush, kDontAdaptArgumentsSentinel)                         \
@@ -402,11 +436,16 @@ namespace internal {
   CPP(ArrayShift)                                                              \
   /* ES6 #sec-array.prototype.unshift */                                       \
   CPP(ArrayUnshift)                                                            \
-  CPP(ArrayFromAsync)                                                          \
   /* Support for Array.from and other array-copying idioms */                  \
-  TFS(CloneFastJSArray, kSource)                                               \
-  TFS(CloneFastJSArrayFillingHoles, kSource)                                   \
-  TFS(ExtractFastJSArray, kSource, kBegin, kCount)                             \
+  TFS(CloneFastJSArray, NeedsContext::kYes, kSource)                           \
+  TFS(CloneFastJSArrayFillingHoles, NeedsContext::kYes, kSource)               \
+  TFS(ExtractFastJSArray, NeedsContext::kYes, kSource, kBegin, kCount)         \
+  TFS(CreateArrayFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,     \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFS(CreateObjectFromSlowBoilerplate, NeedsContext::kYes, kFeedbackVector,    \
+      kSlot, kBoilerplateDescriptor, kFlags)                                   \
+  TFC(CreateArrayFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)   \
+  TFC(CreateObjectFromSlowBoilerplateHelper, CreateFromSlowBoilerplateHelper)  \
   /* ES6 #sec-array.prototype.entries */                                       \
   TFJ(ArrayPrototypeEntries, kJSArgcReceiverSlots, kReceiver)                  \
   /* ES6 #sec-array.prototype.keys */                                          \
@@ -415,14 +454,6 @@ namespace internal {
   TFJ(ArrayPrototypeValues, kJSArgcReceiverSlots, kReceiver)                   \
   /* ES6 #sec-%arrayiteratorprototype%.next */                                 \
   TFJ(ArrayIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)             \
-  /* https://tc39.github.io/proposal-flatMap/#sec-FlattenIntoArray */          \
-  TFS(FlattenIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth)       \
-  TFS(FlatMapIntoArray, kTarget, kSource, kSourceLength, kStart, kDepth,       \
-      kMapperFunction, kThisArg)                                               \
-  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flat */      \
-  TFJ(ArrayPrototypeFlat, kDontAdaptArgumentsSentinel)                         \
-  /* https://tc39.github.io/proposal-flatMap/#sec-Array.prototype.flatMap */   \
-  TFJ(ArrayPrototypeFlatMap, kDontAdaptArgumentsSentinel)                      \
                                                                                \
   /* ArrayBuffer */                                                            \
   /* ES #sec-arraybuffer-constructor */                                        \
@@ -436,12 +467,11 @@ namespace internal {
   CPP(ArrayBufferPrototypeTransferToFixedLength)                               \
                                                                                \
   /* AsyncFunction */                                                          \
-  TFS(AsyncFunctionEnter, kClosure, kReceiver)                                 \
-  TFS(AsyncFunctionReject, kAsyncFunctionObject, kReason)                      \
-  TFS(AsyncFunctionResolve, kAsyncFunctionObject, kValue)                      \
+  TFS(AsyncFunctionEnter, NeedsContext::kYes, kClosure, kReceiver)             \
+  TFS(AsyncFunctionReject, NeedsContext::kYes, kAsyncFunctionObject, kReason)  \
+  TFS(AsyncFunctionResolve, NeedsContext::kYes, kAsyncFunctionObject, kValue)  \
   TFC(AsyncFunctionLazyDeoptContinuation, AsyncFunctionStackParameter)         \
-  TFS(AsyncFunctionAwaitCaught, kAsyncFunctionObject, kValue)                  \
-  TFS(AsyncFunctionAwaitUncaught, kAsyncFunctionObject, kValue)                \
+  TFS(AsyncFunctionAwait, NeedsContext::kYes, kAsyncFunctionObject, kValue)    \
   TFJ(AsyncFunctionAwaitRejectClosure, kJSArgcReceiverSlots + 1, kReceiver,    \
       kSentError)                                                              \
   TFJ(AsyncFunctionAwaitResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,   \
@@ -578,6 +608,27 @@ namespace internal {
   CPP(DatePrototypeToJson)                                                     \
   CPP(DateUTC)                                                                 \
                                                                                \
+  /* DisposabeStack*/                                                          \
+  CPP(DisposableStackConstructor)                                              \
+  CPP(DisposableStackPrototypeUse)                                             \
+  CPP(DisposableStackPrototypeDispose)                                         \
+  CPP(DisposableStackPrototypeGetDisposed)                                     \
+  CPP(DisposableStackPrototypeAdopt)                                           \
+  CPP(DisposableStackPrototypeDefer)                                           \
+  CPP(DisposableStackPrototypeMove)                                            \
+                                                                               \
+  /* Async DisposabeStack*/                                                    \
+  CPP(AsyncDisposableStackOnFulfilled)                                         \
+  CPP(AsyncDisposableStackOnRejected)                                          \
+  CPP(AsyncDisposeFromSyncDispose)                                             \
+  CPP(AsyncDisposableStackConstructor)                                         \
+  CPP(AsyncDisposableStackPrototypeUse)                                        \
+  CPP(AsyncDisposableStackPrototypeDisposeAsync)                               \
+  CPP(AsyncDisposableStackPrototypeGetDisposed)                                \
+  CPP(AsyncDisposableStackPrototypeAdopt)                                      \
+  CPP(AsyncDisposableStackPrototypeDefer)                                      \
+  CPP(AsyncDisposableStackPrototypeMove)                                       \
+                                                                               \
   /* Error */                                                                  \
   CPP(ErrorConstructor)                                                        \
   CPP(ErrorCaptureStackTrace)                                                  \
@@ -587,15 +638,16 @@ namespace internal {
   CPP(FunctionConstructor)                                                     \
   ASM(FunctionPrototypeApply, JSTrampoline)                                    \
   CPP(FunctionPrototypeBind)                                                   \
+  IF_WASM(CPP, WebAssemblyFunctionPrototypeBind)                               \
   ASM(FunctionPrototypeCall, JSTrampoline)                                     \
   /* ES6 #sec-function.prototype.tostring */                                   \
   CPP(FunctionPrototypeToString)                                               \
                                                                                \
   /* Belongs to Objects but is a dependency of GeneratorPrototypeResume */     \
-  TFS(CreateIterResultObject, kValue, kDone)                                   \
+  TFS(CreateIterResultObject, NeedsContext::kYes, kValue, kDone)               \
                                                                                \
   /* Generator and Async */                                                    \
-  TFS(CreateGeneratorObject, kClosure, kReceiver)                              \
+  TFS(CreateGeneratorObject, NeedsContext::kYes, kClosure, kReceiver)          \
   CPP(GeneratorFunctionConstructor)                                            \
   /* ES6 #sec-generator.prototype.next */                                      \
   TFJ(GeneratorPrototypeNext, kDontAdaptArgumentsSentinel)                     \
@@ -640,23 +692,26 @@ namespace internal {
   TFH(LoadSuperIC, LoadWithReceiverAndVector)                                  \
   TFH(LoadSuperICBaseline, LoadWithReceiverBaseline)                           \
   TFH(KeyedLoadIC, KeyedLoadWithVector)                                        \
+  TFH(EnumeratedKeyedLoadIC, EnumeratedKeyedLoad)                              \
   TFH(KeyedLoadIC_Megamorphic, KeyedLoadWithVector)                            \
-  TFH(KeyedLoadIC_MegamorphicStringKey, KeyedLoadWithVector)                   \
   TFH(KeyedLoadICTrampoline, KeyedLoad)                                        \
   TFH(KeyedLoadICBaseline, KeyedLoadBaseline)                                  \
+  TFH(EnumeratedKeyedLoadICBaseline, EnumeratedKeyedLoadBaseline)              \
   TFH(KeyedLoadICTrampoline_Megamorphic, KeyedLoad)                            \
-  TFH(KeyedLoadICTrampoline_MegamorphicStringKey, KeyedLoad)                   \
   TFH(StoreGlobalIC, StoreGlobalWithVector)                                    \
   TFH(StoreGlobalICTrampoline, StoreGlobal)                                    \
   TFH(StoreGlobalICBaseline, StoreGlobalBaseline)                              \
   TFH(StoreIC, StoreWithVector)                                                \
+  TFH(StoreIC_Megamorphic, StoreWithVector)                                    \
   TFH(StoreICTrampoline, Store)                                                \
+  TFH(StoreICTrampoline_Megamorphic, Store)                                    \
   TFH(StoreICBaseline, StoreBaseline)                                          \
   TFH(DefineNamedOwnIC, StoreWithVector)                                       \
   TFH(DefineNamedOwnICTrampoline, Store)                                       \
   TFH(DefineNamedOwnICBaseline, StoreBaseline)                                 \
   TFH(KeyedStoreIC, StoreWithVector)                                           \
   TFH(KeyedStoreICTrampoline, Store)                                           \
+  TFH(KeyedStoreICTrampoline_Megamorphic, Store)                               \
   TFH(KeyedStoreICBaseline, StoreBaseline)                                     \
   TFH(DefineKeyedOwnIC, DefineKeyedOwnWithVector)                              \
   TFH(DefineKeyedOwnICTrampoline, DefineKeyedOwn)                              \
@@ -688,18 +743,21 @@ namespace internal {
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
-  TFS(IterableToList, kIterable, kIteratorFn)                                  \
-  TFS(IterableToFixedArray, kIterable, kIteratorFn)                            \
-  TFS(IterableToListWithSymbolLookup, kIterable)                               \
-  TFS(IterableToFixedArrayWithSymbolLookupSlow, kIterable)                     \
-  TFS(IterableToListMayPreserveHoles, kIterable, kIteratorFn)                  \
-  IF_WASM(TFS, IterableToFixedArrayForWasm, kIterable, kExpectedLength)        \
+  TFS(IterableToList, NeedsContext::kYes, kIterable, kIteratorFn)              \
+  TFS(IterableToFixedArray, NeedsContext::kYes, kIterable, kIteratorFn)        \
+  TFS(IterableToListWithSymbolLookup, NeedsContext::kYes, kIterable)           \
+  TFS(IterableToFixedArrayWithSymbolLookupSlow, NeedsContext::kYes, kIterable) \
+  TFS(IterableToListMayPreserveHoles, NeedsContext::kYes, kIterable,           \
+      kIteratorFn)                                                             \
+  TFS(IterableToListConvertHoles, NeedsContext::kYes, kIterable, kIteratorFn)  \
+  IF_WASM(TFS, IterableToFixedArrayForWasm, NeedsContext::kYes, kIterable,     \
+          kExpectedLength)                                                     \
                                                                                \
   /* #sec-createstringlistfromiterable */                                      \
-  TFS(StringListFromIterable, kIterable)                                       \
+  TFS(StringListFromIterable, NeedsContext::kYes, kIterable)                   \
                                                                                \
   /* Map */                                                                    \
-  TFS(FindOrderedHashMapEntry, kTable, kKey)                                   \
+  TFS(FindOrderedHashMapEntry, NeedsContext::kYes, kTable, kKey)               \
   TFJ(MapConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(MapPrototypeSet, kJSArgcReceiverSlots + 2, kReceiver, kKey, kValue)      \
   TFJ(MapPrototypeDelete, kJSArgcReceiverSlots + 1, kReceiver, kKey)           \
@@ -718,7 +776,7 @@ namespace internal {
   TFJ(MapPrototypeValues, kJSArgcReceiverSlots, kReceiver)                     \
   /* ES #sec-%mapiteratorprototype%.next */                                    \
   TFJ(MapIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)               \
-  TFS(MapIteratorToList, kSource)                                              \
+  TFS(MapIteratorToList, NeedsContext::kYes, kSource)                          \
                                                                                \
   /* ES #sec-number-constructor */                                             \
   CPP(NumberPrototypeToExponential)                                            \
@@ -787,7 +845,7 @@ namespace internal {
   TFC(Decrement_Baseline, UnaryOp_Baseline)                                    \
   TFC(Increment_Baseline, UnaryOp_Baseline)                                    \
   TFC(Negate_Baseline, UnaryOp_Baseline)                                       \
-  TFC(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)                           \
+  IF_TSA(TSC, TFC)(BitwiseNot_WithFeedback, UnaryOp_WithFeedback)              \
   TFC(Decrement_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Increment_WithFeedback, UnaryOp_WithFeedback)                            \
   TFC(Negate_WithFeedback, UnaryOp_WithFeedback)                               \
@@ -823,7 +881,7 @@ namespace internal {
   CPP(ObjectPrototypeGetProto)                                                 \
   CPP(ObjectPrototypeSetProto)                                                 \
   CPP(ObjectSeal)                                                              \
-  TFS(ObjectToString, kReceiver)                                               \
+  TFS(ObjectToString, NeedsContext::kYes, kReceiver)                           \
   TFJ(ObjectValues, kJSArgcReceiverSlots + 1, kReceiver, kObject)              \
                                                                                \
   /* instanceof */                                                             \
@@ -833,9 +891,9 @@ namespace internal {
   TFC(InstanceOf_Baseline, Compare_Baseline)                                   \
                                                                                \
   /* for-in */                                                                 \
-  TFS(ForInEnumerate, kReceiver)                                               \
+  TFS(ForInEnumerate, NeedsContext::kYes, kReceiver)                           \
   TFC(ForInPrepare, ForInPrepare)                                              \
-  TFS(ForInFilter, kKey, kObject)                                              \
+  TFS(ForInFilter, NeedsContext::kYes, kKey, kObject)                          \
                                                                                \
   /* Reflect */                                                                \
   ASM(ReflectApply, JSTrampoline)                                              \
@@ -869,13 +927,15 @@ namespace internal {
   CPP(RegExpRightContextGetter)                                                \
                                                                                \
   /* RegExp helpers */                                                         \
-  TFS(RegExpExecAtom, kRegExp, kString, kLastIndex, kMatchInfo)                \
-  TFS(RegExpExecInternal, kRegExp, kString, kLastIndex, kMatchInfo)            \
-  ASM(RegExpInterpreterTrampoline, CCall)                                      \
-  ASM(RegExpExperimentalTrampoline, CCall)                                     \
+  TFS(RegExpExecAtom, NeedsContext::kYes, kRegExp, kString, kLastIndex,        \
+      kMatchInfo)                                                              \
+  TFS(RegExpExecInternal, NeedsContext::kYes, kRegExp, kString, kLastIndex,    \
+      kMatchInfo)                                                              \
+  ASM(RegExpInterpreterTrampoline, RegExpTrampoline)                           \
+  ASM(RegExpExperimentalTrampoline, RegExpTrampoline)                          \
                                                                                \
   /* Set */                                                                    \
-  TFS(FindOrderedHashSetEntry, kTable, kKey)                                   \
+  TFS(FindOrderedHashSetEntry, NeedsContext::kYes, kTable, kKey)               \
   TFJ(SetConstructor, kDontAdaptArgumentsSentinel)                             \
   TFJ(SetPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
   TFJ(SetPrototypeAdd, kJSArgcReceiverSlots + 1, kReceiver, kKey)              \
@@ -891,11 +951,12 @@ namespace internal {
   TFJ(SetPrototypeValues, kJSArgcReceiverSlots, kReceiver)                     \
   /* ES #sec-%setiteratorprototype%.next */                                    \
   TFJ(SetIteratorPrototypeNext, kJSArgcReceiverSlots, kReceiver)               \
-  TFS(SetOrSetIteratorToList, kSource)                                         \
+  TFS(SetOrSetIteratorToList, NeedsContext::kYes, kSource)                     \
                                                                                \
   /* ShadowRealm */                                                            \
   CPP(ShadowRealmConstructor)                                                  \
-  TFS(ShadowRealmGetWrappedValue, kCreationContext, kTargetContext, kValue)    \
+  TFS(ShadowRealmGetWrappedValue, NeedsContext::kYes, kCreationContext,        \
+      kTargetContext, kValue)                                                  \
   CPP(ShadowRealmPrototypeEvaluate)                                            \
   TFJ(ShadowRealmPrototypeImportValue, kJSArgcReceiverSlots + 2, kReceiver,    \
       kSpecifier, kExportName)                                                 \
@@ -916,8 +977,8 @@ namespace internal {
       kIndexOrFieldName, kValue)                                               \
   TFJ(AtomicsExchange, kJSArgcReceiverSlots + 3, kReceiver,                    \
       kArrayOrSharedObject, kIndexOrFieldName, kValue)                         \
-  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver, kArray,     \
-      kIndex, kOldValue, kNewValue)                                            \
+  TFJ(AtomicsCompareExchange, kJSArgcReceiverSlots + 4, kReceiver,             \
+      kArrayOrSharedObject, kIndexOrFieldName, kOldValue, kNewValue)           \
   TFJ(AtomicsAdd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsSub, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
   TFJ(AtomicsAnd, kJSArgcReceiverSlots + 3, kReceiver, kArray, kIndex, kValue) \
@@ -927,12 +988,13 @@ namespace internal {
   CPP(AtomicsIsLockFree)                                                       \
   CPP(AtomicsWait)                                                             \
   CPP(AtomicsWaitAsync)                                                        \
+  CPP(AtomicsPause)                                                            \
                                                                                \
   /* String */                                                                 \
   /* ES #sec-string.fromcodepoint */                                           \
   CPP(StringFromCodePoint)                                                     \
   /* ES6 #sec-string.fromcharcode */                                           \
-  TFJ(StringFromCharCode, kDontAdaptArgumentsSentinel)                         \
+  IF_TSA(TSJ, TFJ)(StringFromCharCode, kDontAdaptArgumentsSentinel)            \
   /* ES6 #sec-string.prototype.lastindexof */                                  \
   CPP(StringPrototypeLastIndexOf)                                              \
   /* ES #sec-string.prototype.matchAll */                                      \
@@ -984,22 +1046,134 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
                                                                                \
   /* Wasm */                                                                   \
-  IF_WASM(ASM, GenericJSToWasmWrapper, WasmDummy)                              \
-  IF_WASM(ASM, WasmReturnPromiseOnSuspend, WasmDummy)                          \
+  IF_WASM_DRUMBRAKE(ASM, WasmInterpreterEntry, WasmDummy)                      \
+  IF_WASM_DRUMBRAKE(ASM, GenericJSToWasmInterpreterWrapper, WasmDummy)         \
+  IF_WASM_DRUMBRAKE(ASM, WasmInterpreterCWasmEntry, WasmDummy)                 \
+  IF_WASM_DRUMBRAKE(ASM, GenericWasmToJSInterpreterWrapper, WasmDummy)         \
+                                                                               \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I32LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I32LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I32LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I32LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem32S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem32U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_I64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_F32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2r_F64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem32S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem32U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I32LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I32LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I32LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I32LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem32S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem32U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_I64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_F32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2r_F64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem8S, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem8U, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem16S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem16U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem32S, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem32U, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F32LoadMem, WasmDummy)              \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F64LoadMem, WasmDummy)              \
+                                                                               \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem8S_LocalSet, WasmDummy)   \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem8U_LocalSet, WasmDummy)   \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem16S_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem16U_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem8S_LocalSet, WasmDummy)   \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem8U_LocalSet, WasmDummy)   \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem16S_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem16U_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem32S_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem32U_LocalSet, WasmDummy)  \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadMem_LocalSet, WasmDummy)     \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadMem_LocalSet, WasmDummy)     \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F32LoadMem_LocalSet, WasmDummy)     \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F64LoadMem_LocalSet, WasmDummy)     \
+                                                                               \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32StoreMem8, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32StoreMem16, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64StoreMem8, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64StoreMem16, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64StoreMem32, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F32StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F64StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32StoreMem8, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32StoreMem16, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64StoreMem8, WasmDummy)            \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64StoreMem16, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64StoreMem32, WasmDummy)           \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F32StoreMem, WasmDummy)             \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F64StoreMem, WasmDummy)             \
+                                                                               \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I32LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_I64LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F32LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, r2s_F64LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I32LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_I64LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F32LoadStoreMem, WasmDummy)         \
+  IF_WASM_DRUMBRAKE_INSTR_HANDLER(ASM, s2s_F64LoadStoreMem, WasmDummy)         \
+                                                                               \
+  IF_WASM(ASM, JSToWasmWrapperAsm, WasmJSToWasmWrapper)                        \
+  IF_WASM(ASM, WasmReturnPromiseOnSuspendAsm, WasmJSToWasmWrapper)             \
+  IF_WASM(ASM, WasmToJsWrapperAsm, WasmDummy)                                  \
+  IF_WASM(TFC, WasmToJsWrapperCSA, WasmToJSWrapper)                            \
+  IF_WASM(TFC, WasmToJsWrapperInvalidSig, WasmToJSWrapper)                     \
   IF_WASM(ASM, WasmSuspend, WasmSuspend)                                       \
-  IF_WASM(ASM, WasmResume, WasmDummy)                                          \
-  IF_WASM(ASM, WasmReject, WasmDummy)                                          \
+  IF_WASM(ASM, WasmResume, WasmDummyWithJSLinkage)                             \
+  IF_WASM(ASM, WasmReject, WasmDummyWithJSLinkage)                             \
+  IF_WASM(ASM, WasmTrapHandlerLandingPad, WasmDummy)                           \
   IF_WASM(ASM, WasmCompileLazy, WasmDummy)                                     \
   IF_WASM(ASM, WasmLiftoffFrameSetup, WasmDummy)                               \
   IF_WASM(ASM, WasmDebugBreak, WasmDummy)                                      \
   IF_WASM(ASM, WasmOnStackReplace, WasmDummy)                                  \
+  IF_WASM(ASM, WasmHandleStackOverflow, WasmHandleStackOverflow)               \
   IF_WASM(TFC, WasmFloat32ToNumber, WasmFloat32ToNumber)                       \
-  IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToNumber)                       \
+  IF_WASM(TFC, WasmFloat64ToNumber, WasmFloat64ToTagged)                       \
+  IF_WASM(TFC, WasmFloat64ToString, WasmFloat64ToTagged)                       \
   IF_WASM(TFC, JSToWasmLazyDeoptContinuation, SingleParameterOnStack)          \
+  IF_WASM(ASM, WasmToOnHeapWasmToJsTrampoline, WasmDummy)                      \
                                                                                \
   /* WeakMap */                                                                \
   TFJ(WeakMapConstructor, kDontAdaptArgumentsSentinel)                         \
-  TFS(WeakMapLookupHashIndex, kTable, kKey)                                    \
+  TFS(WeakMapLookupHashIndex, NeedsContext::kYes, kTable, kKey)                \
   TFJ(WeakMapGet, kJSArgcReceiverSlots + 1, kReceiver, kKey)                   \
   TFJ(WeakMapPrototypeHas, kJSArgcReceiverSlots + 1, kReceiver, kKey)          \
   TFJ(WeakMapPrototypeSet, kJSArgcReceiverSlots + 2, kReceiver, kKey, kValue)  \
@@ -1012,27 +1186,38 @@ namespace internal {
   TFJ(WeakSetPrototypeDelete, kJSArgcReceiverSlots + 1, kReceiver, kValue)     \
                                                                                \
   /* WeakSet / WeakMap Helpers */                                              \
-  TFS(WeakCollectionDelete, kCollection, kKey)                                 \
-  TFS(WeakCollectionSet, kCollection, kKey, kValue)                            \
+  TFS(WeakCollectionDelete, NeedsContext::kYes, kCollection, kKey)             \
+  TFS(WeakCollectionSet, NeedsContext::kYes, kCollection, kKey, kValue)        \
                                                                                \
   /* JS Structs and friends */                                                 \
+  CPP(SharedSpaceJSObjectHasInstance)                                          \
   CPP(SharedStructTypeConstructor)                                             \
+  CPP(SharedStructTypeIsSharedStruct)                                          \
   CPP(SharedStructConstructor)                                                 \
   CPP(SharedArrayConstructor)                                                  \
+  CPP(SharedArrayIsSharedArray)                                                \
   CPP(AtomicsMutexConstructor)                                                 \
+  CPP(AtomicsMutexIsMutex)                                                     \
   CPP(AtomicsMutexLock)                                                        \
+  CPP(AtomicsMutexLockAsync)                                                   \
+  CPP(AtomicsMutexLockWithTimeout)                                             \
   CPP(AtomicsMutexTryLock)                                                     \
+  CPP(AtomicsMutexAsyncUnlockResolveHandler)                                   \
+  CPP(AtomicsMutexAsyncUnlockRejectHandler)                                    \
   CPP(AtomicsConditionConstructor)                                             \
+  CPP(AtomicsConditionAcquireLock)                                             \
+  CPP(AtomicsConditionIsCondition)                                             \
   CPP(AtomicsConditionWait)                                                    \
   CPP(AtomicsConditionNotify)                                                  \
+  CPP(AtomicsConditionWaitAsync)                                               \
                                                                                \
   /* AsyncGenerator */                                                         \
                                                                                \
-  TFS(AsyncGeneratorResolve, kGenerator, kValue, kDone)                        \
-  TFS(AsyncGeneratorReject, kGenerator, kValue)                                \
-  TFS(AsyncGeneratorYieldWithAwait, kGenerator, kValue, kIsCaught)             \
-  TFS(AsyncGeneratorReturn, kGenerator, kValue, kIsCaught)                     \
-  TFS(AsyncGeneratorResumeNext, kGenerator)                                    \
+  TFS(AsyncGeneratorResolve, NeedsContext::kYes, kGenerator, kValue, kDone)    \
+  TFS(AsyncGeneratorReject, NeedsContext::kYes, kGenerator, kValue)            \
+  TFS(AsyncGeneratorYieldWithAwait, NeedsContext::kYes, kGenerator, kValue)    \
+  TFS(AsyncGeneratorReturn, NeedsContext::kYes, kGenerator, kValue)            \
+  TFS(AsyncGeneratorResumeNext, NeedsContext::kYes, kGenerator)                \
                                                                                \
   /* AsyncGeneratorFunction( p1, p2, ... pn, body ) */                         \
   /* proposal-async-iteration/#sec-asyncgeneratorfunction-constructor */       \
@@ -1049,8 +1234,7 @@ namespace internal {
                                                                                \
   /* Await (proposal-async-iteration/#await), with resume behaviour */         \
   /* specific to Async Generators. Internal / Not exposed to JS code. */       \
-  TFS(AsyncGeneratorAwaitCaught, kAsyncGeneratorObject, kValue)                \
-  TFS(AsyncGeneratorAwaitUncaught, kAsyncGeneratorObject, kValue)              \
+  TFS(AsyncGeneratorAwait, NeedsContext::kYes, kAsyncGeneratorObject, kValue)  \
   TFJ(AsyncGeneratorAwaitResolveClosure, kJSArgcReceiverSlots + 1, kReceiver,  \
       kValue)                                                                  \
   TFJ(AsyncGeneratorAwaitRejectClosure, kJSArgcReceiverSlots + 1, kReceiver,   \
@@ -1074,34 +1258,39 @@ namespace internal {
   TFJ(AsyncFromSyncIteratorPrototypeThrow, kDontAdaptArgumentsSentinel)        \
   /* #sec-%asyncfromsynciteratorprototype%.return */                           \
   TFJ(AsyncFromSyncIteratorPrototypeReturn, kDontAdaptArgumentsSentinel)       \
+  /* #sec-asyncfromsynciteratorcontinuation */                                 \
+  TFJ(AsyncFromSyncIteratorCloseSyncAndRethrow, kJSArgcReceiverSlots + 1,      \
+      kReceiver, kError)                                                       \
   /* #sec-async-iterator-value-unwrap-functions */                             \
   TFJ(AsyncIteratorValueUnwrap, kJSArgcReceiverSlots + 1, kReceiver, kValue)   \
                                                                                \
   /* CEntry */                                                                 \
-  ASM(CEntry_Return1_ArgvInRegister_NoBuiltinExit, CEntryDummy)                \
+  ASM(CEntry_Return1_ArgvInRegister_NoBuiltinExit, InterpreterCEntry1)         \
   ASM(CEntry_Return1_ArgvOnStack_BuiltinExit, CEntry1ArgvOnStack)              \
   ASM(CEntry_Return1_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
-  ASM(CEntry_Return2_ArgvInRegister_NoBuiltinExit, CEntryDummy)                \
+  ASM(CEntry_Return2_ArgvInRegister_NoBuiltinExit, InterpreterCEntry2)         \
   ASM(CEntry_Return2_ArgvOnStack_BuiltinExit, CEntryDummy)                     \
   ASM(CEntry_Return2_ArgvOnStack_NoBuiltinExit, CEntryDummy)                   \
+  ASM(WasmCEntry, CEntryDummy)                                                 \
   ASM(DirectCEntry, CEntryDummy)                                               \
                                                                                \
   /* String helpers */                                                         \
-  TFS(StringAdd_CheckNone, kLeft, kRight)                                      \
-  TFS(SubString, kString, kFrom, kTo)                                          \
+  TFS(StringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)                  \
+  TFS(SubString, NeedsContext::kYes, kString, kFrom, kTo)                      \
                                                                                \
   /* Miscellaneous */                                                          \
   ASM(DoubleToI, Void)                                                         \
   TFC(GetProperty, GetProperty)                                                \
-  TFS(GetPropertyWithReceiver, kObject, kKey, kReceiver, kOnNonExistent)       \
-  TFS(SetProperty, kReceiver, kKey, kValue)                                    \
-  TFS(CreateDataProperty, kReceiver, kKey, kValue)                             \
-  TFS(GetOwnPropertyDescriptor, kReceiver, kKey)                               \
+  TFS(GetPropertyWithReceiver, NeedsContext::kYes, kObject, kKey, kReceiver,   \
+      kOnNonExistent)                                                          \
+  TFS(SetProperty, NeedsContext::kYes, kReceiver, kKey, kValue)                \
+  TFS(CreateDataProperty, NeedsContext::kYes, kReceiver, kKey, kValue)         \
+  TFS(GetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)           \
   ASM(MemCopyUint8Uint8, CCall)                                                \
   ASM(MemMove, CCall)                                                          \
   TFC(FindNonDefaultConstructorOrConstruct,                                    \
       FindNonDefaultConstructorOrConstruct)                                    \
-  TFS(OrdinaryGetOwnPropertyDescriptor, kReceiver, kKey)                       \
+  TFS(OrdinaryGetOwnPropertyDescriptor, NeedsContext::kYes, kReceiver, kKey)   \
                                                                                \
   /* Trace */                                                                  \
   CPP(IsTraceCategoryEnabled)                                                  \
@@ -1697,7 +1886,8 @@ namespace internal {
   /* Temporal #sec-temporal.calendar.prototype.inleapyear */                   \
   CPP(TemporalCalendarPrototypeInLeapYear)                                     \
   /* Temporal #sec-temporal.calendar.prototype.fields */                       \
-  TFJ(TemporalCalendarPrototypeFields, kJSArgcReceiverSlots, kIterable)        \
+  TFJ(TemporalCalendarPrototypeFields, kJSArgcReceiverSlots + 1, kReceiver,    \
+      kIterable)                                                               \
   /* Temporal #sec-temporal.calendar.prototype.mergefields */                  \
   CPP(TemporalCalendarPrototypeMergeFields)                                    \
   /* Temporal #sec-temporal.calendar.prototype.tostring */                     \
@@ -1708,12 +1898,14 @@ namespace internal {
   CPP(DatePrototypeToTemporalInstant)                                          \
                                                                                \
   /* "Private" (created but not exposed) Bulitins needed by Temporal */        \
-  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)           \
-  TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots, kIterable)
+  TFJ(StringFixedArrayFromIterable, kJSArgcReceiverSlots + 1, kReceiver,       \
+      kIterable)                                                               \
+  TFJ(TemporalInstantFixedArrayFromIterable, kJSArgcReceiverSlots + 1,         \
+      kReceiver, kIterable)
 
-#define BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)
+#define BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM) \
+  BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)
 
 #ifdef V8_INTL_SUPPORT
 #define BUILTIN_LIST_INTL(CPP, TFJ, TFS)                               \
@@ -1795,6 +1987,22 @@ namespace internal {
   CPP(LocalePrototypeCollation)                                        \
   /* ecma402 #sec-Intl.Locale.prototype.collations */                  \
   CPP(LocalePrototypeCollations)                                       \
+  /* ecma402 #sec-Intl.Locale.prototype.firstDayOfWeek */              \
+  CPP(LocalePrototypeFirstDayOfWeek)                                   \
+  /* ecma402 #sec-Intl.Locale.prototype.getCalendars */                \
+  CPP(LocalePrototypeGetCalendars)                                     \
+  /* ecma402 #sec-Intl.Locale.prototype.getCollations */               \
+  CPP(LocalePrototypeGetCollations)                                    \
+  /* ecma402 #sec-Intl.Locale.prototype.getHourCycles */               \
+  CPP(LocalePrototypeGetHourCycles)                                    \
+  /* ecma402 #sec-Intl.Locale.prototype.getNumberingSystems */         \
+  CPP(LocalePrototypeGetNumberingSystems)                              \
+  /* ecma402 #sec-Intl.Locale.prototype.getTimeZones */                \
+  CPP(LocalePrototypeGetTimeZones)                                     \
+  /* ecma402 #sec-Intl.Locale.prototype.getTextInfo */                 \
+  CPP(LocalePrototypeGetTextInfo)                                      \
+  /* ecma402 #sec-Intl.Locale.prototype.getWeekInfo */                 \
+  CPP(LocalePrototypeGetWeekInfo)                                      \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycle */                   \
   CPP(LocalePrototypeHourCycle)                                        \
   /* ecma402 #sec-Intl.Locale.prototype.hourCycles */                  \
@@ -1883,7 +2091,7 @@ namespace internal {
   TFJ(StringPrototypeToLowerCaseIntl, kJSArgcReceiverSlots, kReceiver) \
   /* ES #sec-string.prototype.touppercase */                           \
   CPP(StringPrototypeToUpperCaseIntl)                                  \
-  TFS(StringToLowerCaseIntl, kString)                                  \
+  TFS(StringToLowerCaseIntl, NeedsContext::kYes, kString)              \
                                                                        \
   /* Temporal */                                                       \
   /* Temporal #sec-temporal.calendar.prototype.era */                  \
@@ -1934,10 +2142,10 @@ namespace internal {
   CPP(StringPrototypeToUpperCase)
 #endif  // V8_INTL_SUPPORT
 
-#define BUILTIN_LIST(CPP, TFJ, TFC, TFS, TFH, BCH, ASM)  \
-  BUILTIN_LIST_BASE(CPP, TFJ, TFC, TFS, TFH, ASM)        \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM) \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                       \
+#define BUILTIN_LIST(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE(CPP, TSJ, TFJ, TSC, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)          \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // See the comment on top of BUILTIN_LIST_BASE_TIER0 for an explanation of
@@ -1945,10 +2153,10 @@ namespace internal {
 #define BUILTIN_LIST_TIER0(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
   BUILTIN_LIST_BASE_TIER0(CPP, TFJ, TFC, TFS, TFH, ASM)
 
-#define BUILTIN_LIST_TIER1(CPP, TFJ, TFC, TFS, TFH, BCH, ASM) \
-  BUILTIN_LIST_BASE_TIER1(CPP, TFJ, TFC, TFS, TFH, ASM)       \
-  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)      \
-  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                            \
+#define BUILTIN_LIST_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, BCH, ASM) \
+  BUILTIN_LIST_BASE_TIER1(CPP, TSJ, TFJ, TFC, TFS, TFH, ASM)       \
+  BUILTIN_LIST_FROM_TORQUE(CPP, TFJ, TFC, TFS, TFH, ASM)           \
+  BUILTIN_LIST_INTL(CPP, TFJ, TFS)                                 \
   BUILTIN_LIST_BYTECODE_HANDLERS(BCH)
 
 // The exception thrown in the following builtins are caught
@@ -1957,11 +2165,9 @@ namespace internal {
   V(AsyncFromSyncIteratorPrototypeNext)              \
   V(AsyncFromSyncIteratorPrototypeReturn)            \
   V(AsyncFromSyncIteratorPrototypeThrow)             \
-  V(AsyncFunctionAwaitCaught)                        \
-  V(AsyncFunctionAwaitUncaught)                      \
+  V(AsyncFunctionAwait)                              \
   V(AsyncGeneratorResolve)                           \
-  V(AsyncGeneratorAwaitCaught)                       \
-  V(AsyncGeneratorAwaitUncaught)                     \
+  V(AsyncGeneratorAwait)                             \
   V(PromiseAll)                                      \
   V(PromiseAny)                                      \
   V(PromiseConstructor)                              \
@@ -1973,25 +2179,50 @@ namespace internal {
 
 #define IGNORE_BUILTIN(...)
 
-#define BUILTIN_LIST_C(V)                                         \
-  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+#define BUILTIN_LIST_C(V)                                                      \
+  BUILTIN_LIST(V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TSJ(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFJ(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TSC(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFC(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFS(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_TFH(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN,              \
+               IGNORE_BUILTIN)
+
+#define BUILTIN_LIST_BCH(V)                                                    \
+  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V,              \
+               IGNORE_BUILTIN)
 
 #define BUILTIN_LIST_A(V)                                                      \
   BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, V)
-
-#define BUILTIN_LIST_TFS(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, V, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-
-#define BUILTIN_LIST_TFJ(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, V, IGNORE_BUILTIN, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
-
-#define BUILTIN_LIST_TFC(V)                                       \
-  BUILTIN_LIST(IGNORE_BUILTIN, IGNORE_BUILTIN, V, IGNORE_BUILTIN, \
-               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN)
+               IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, IGNORE_BUILTIN, \
+               V)
 
 }  // namespace internal
 }  // namespace v8

@@ -359,17 +359,18 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   }
 
   if constexpr (kind == ArrayIndexOfIncludesKind::DOUBLE) {
-    FixedDoubleArray fixed_array = FixedDoubleArray::cast(Object(array_start));
+    Tagged<FixedDoubleArray> fixed_array =
+        Cast<FixedDoubleArray>(Tagged<Object>(array_start));
     double* array = static_cast<double*>(
-        fixed_array.RawField(FixedDoubleArray::OffsetOfElementAt(0))
+        fixed_array->RawField(FixedDoubleArray::OffsetOfElementAt(0))
             .ToVoidPtr());
 
     double search_num;
-    if (Object(search_element).IsSmi()) {
-      search_num = Object(search_element).ToSmi().value();
+    if (IsSmi(Tagged<Object>(search_element))) {
+      search_num = Tagged<Object>(search_element).ToSmi().value();
     } else {
-      DCHECK(Object(search_element).IsHeapNumber());
-      search_num = HeapNumber::cast(Object(search_element)).value();
+      DCHECK(IsHeapNumber(Tagged<Object>(search_element)));
+      search_num = Cast<HeapNumber>(Tagged<Object>(search_element))->value();
     }
 
     DCHECK(!std::isnan(search_num));
@@ -377,12 +378,12 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
     if (reinterpret_cast<uintptr_t>(array) % sizeof(double) != 0) {
       // Slow scalar search for unaligned double array.
       for (; from_index < array_len; from_index++) {
-        if (fixed_array.is_the_hole(static_cast<int>(from_index))) {
+        if (fixed_array->is_the_hole(static_cast<int>(from_index))) {
           // |search_num| cannot be NaN, so there is no need to check against
           // holes.
           continue;
         }
-        if (fixed_array.get_scalar(static_cast<int>(from_index)) ==
+        if (fixed_array->get_scalar(static_cast<int>(from_index)) ==
             search_num) {
           return from_index;
         }
@@ -394,13 +395,14 @@ Address ArrayIndexOfIncludes(Address array_start, uintptr_t array_len,
   }
 
   if constexpr (kind == ArrayIndexOfIncludesKind::OBJECTORSMI) {
-    FixedArray fixed_array = FixedArray::cast(Object(array_start));
-    Tagged_t* array =
-        static_cast<Tagged_t*>(fixed_array.data_start().ToVoidPtr());
+    Tagged<FixedArray> fixed_array =
+        Cast<FixedArray>(Tagged<Object>(array_start));
+    Tagged_t* array = static_cast<Tagged_t*>(
+        fixed_array->RawFieldOfFirstElement().ToVoidPtr());
 
-    DCHECK(!Object(search_element).IsHeapNumber());
-    DCHECK(!Object(search_element).IsBigInt());
-    DCHECK(!Object(search_element).IsString());
+    DCHECK(!IsHeapNumber(Tagged<Object>(search_element)));
+    DCHECK(!IsBigInt(Tagged<Object>(search_element)));
+    DCHECK(!IsString(Tagged<Object>(search_element)));
 
     return search<Tagged_t>(array, array_len, from_index,
                             static_cast<Tagged_t>(search_element));

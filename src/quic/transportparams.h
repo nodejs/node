@@ -4,6 +4,7 @@
 #if HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 
 #include <env.h>
+#include <memory_tracker.h>
 #include <ngtcp2/ngtcp2.h>
 #include <node_sockaddr.h>
 #include <optional>
@@ -12,8 +13,7 @@
 #include "data.h"
 #include "tokens.h"
 
-namespace node {
-namespace quic {
+namespace node::quic {
 
 class Endpoint;
 class Session;
@@ -23,14 +23,12 @@ class Session;
 // should use when communicating with this session.
 class TransportParams final {
  public:
-  enum class Type {
-    CLIENT_HELLO = NGTCP2_TRANSPORT_PARAMS_TYPE_CLIENT_HELLO,
-    ENCRYPTED_EXTENSIONS = NGTCP2_TRANSPORT_PARAMS_TYPE_ENCRYPTED_EXTENSIONS,
-  };
+  static void Initialize(Environment* env, v8::Local<v8::Object> target);
 
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL = 256 * 1024;
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE = 256 * 1024;
-  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA_UNI = 256 * 1024;
+  static constexpr int QUIC_TRANSPORT_PARAMS_V1 = NGTCP2_TRANSPORT_PARAMS_V1;
+  static constexpr int QUIC_TRANSPORT_PARAMS_VERSION =
+      NGTCP2_TRANSPORT_PARAMS_VERSION;
+  static constexpr uint64_t DEFAULT_MAX_STREAM_DATA = 256 * 1024;
   static constexpr uint64_t DEFAULT_MAX_DATA = 1 * 1024 * 1024;
   static constexpr uint64_t DEFAULT_MAX_IDLE_TIMEOUT = 10;  // seconds
   static constexpr uint64_t DEFAULT_MAX_STREAMS_BIDI = 100;
@@ -46,7 +44,9 @@ class TransportParams final {
            const CID& retry_scid = CID::kInvalid);
   };
 
-  struct Options {
+  struct Options : public MemoryRetainer {
+    int transportParamsVersion = QUIC_TRANSPORT_PARAMS_V1;
+
     // Set only on server Sessions, the preferred address communicates the IP
     // address and port that the server would prefer the client to use when
     // communicating with it. See the QUIC specification for more detail on how
@@ -57,19 +57,17 @@ class TransportParams final {
     // The initial size of the flow control window of locally initiated streams.
     // This is the maximum number of bytes that the *remote* endpoint can send
     // when the connection is started.
-    uint64_t initial_max_stream_data_bidi_local =
-        DEFAULT_MAX_STREAM_DATA_BIDI_LOCAL;
+    uint64_t initial_max_stream_data_bidi_local = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the flow control window of remotely initiated
     // streams. This is the maximum number of bytes that the remote endpoint can
     // send when the connection is started.
-    uint64_t initial_max_stream_data_bidi_remote =
-        DEFAULT_MAX_STREAM_DATA_BIDI_REMOTE;
+    uint64_t initial_max_stream_data_bidi_remote = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the flow control window of remotely initiated
     // unidirectional streams. This is the maximum number of bytes that the
     // remote endpoint can send when the connection is started.
-    uint64_t initial_max_stream_data_uni = DEFAULT_MAX_STREAM_DATA_UNI;
+    uint64_t initial_max_stream_data_uni = DEFAULT_MAX_STREAM_DATA;
 
     // The initial size of the session-level flow control window.
     uint64_t initial_max_data = DEFAULT_MAX_DATA;
@@ -109,17 +107,26 @@ class TransportParams final {
     // When true, communicates that the Session does not support active
     // connection migration. See the QUIC specification for more details on
     // connection migration.
-    bool disable_active_migration = false;
+    // TODO(@jasnell): We currently do not implementation active migration.
+    bool disable_active_migration = true;
 
-    static v8::Maybe<const Options> From(Environment* env,
-                                         v8::Local<v8::Value> value);
+    static const Options kDefault;
+
+    void MemoryInfo(MemoryTracker* tracker) const override;
+    SET_MEMORY_INFO_NAME(TransportParams::Options)
+    SET_SELF_SIZE(Options)
+
+    static v8::Maybe<Options> From(Environment* env,
+                                   v8::Local<v8::Value> value);
+
+    std::string ToString() const;
   };
 
-  explicit TransportParams(Type type);
+  explicit TransportParams();
 
   // Creates an instance of TransportParams wrapping the existing const
   // ngtcp2_transport_params pointer.
-  TransportParams(Type type, const ngtcp2_transport_params* ptr);
+  TransportParams(const ngtcp2_transport_params* ptr);
 
   TransportParams(const Config& config, const Options& options);
 
@@ -127,14 +134,13 @@ class TransportParams final {
   // If the parameters cannot be successfully decoded, the error()
   // property will be set with an appropriate QuicError and the bool()
   // operator will return false.
-  TransportParams(Type type, const ngtcp2_vec& buf);
+  TransportParams(const ngtcp2_vec& buf,
+                  int version = QUIC_TRANSPORT_PARAMS_V1);
 
-  void GenerateStatelessResetToken(const TokenSecret& token_secret,
-                                   const CID& cid);
-  CID GeneratePreferredAddressToken(const Session& session);
+  void GenerateSessionTokens(Session* session);
+  void GenerateStatelessResetToken(const Endpoint& endpoint, const CID& cid);
+  void GeneratePreferredAddressToken(Session* session);
   void SetPreferredAddress(const SocketAddress& address);
-
-  Type type() const;
 
   operator const ngtcp2_transport_params&() const;
   operator const ngtcp2_transport_params*() const;
@@ -146,17 +152,15 @@ class TransportParams final {
   // Returns an ArrayBuffer containing the encoded transport parameters.
   // If an error occurs during encoding, an empty shared_ptr will be returned
   // and the error() property will be set to an appropriate QuicError.
-  Store Encode(Environment* env);
+  Store Encode(Environment* env, int version = QUIC_TRANSPORT_PARAMS_V1) const;
 
  private:
-  Type type_;
   ngtcp2_transport_params params_{};
   const ngtcp2_transport_params* ptr_;
   QuicError error_ = QuicError::TRANSPORT_NO_ERROR;
 };
 
-}  // namespace quic
-}  // namespace node
+}  // namespace node::quic
 
 #endif  // HAVE_OPENSSL && NODE_OPENSSL_HAS_QUIC
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

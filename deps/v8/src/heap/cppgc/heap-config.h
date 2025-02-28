@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_HEAP_CONFIG_H_
 
 #include "include/cppgc/heap.h"
+#include "src/base/platform/time.h"
 
 namespace cppgc::internal {
 
@@ -14,6 +15,11 @@ using StackState = cppgc::Heap::StackState;
 enum class CollectionType : uint8_t {
   kMinor,
   kMajor,
+};
+
+enum class FreeMemoryHandling : uint8_t {
+  kDoNotDiscard,
+  kDiscardWherePossible
 };
 
 struct MarkingConfig {
@@ -29,12 +35,13 @@ struct MarkingConfig {
   StackState stack_state = StackState::kMayContainHeapPointers;
   MarkingType marking_type = MarkingType::kIncremental;
   IsForcedGC is_forced_gc = IsForcedGC::kNotForced;
+  bool bailout_of_marking_when_ahead_of_schedule = false;
 };
 
 struct SweepingConfig {
   using SweepingType = cppgc::Heap::SweepingType;
   enum class CompactableSpaceHandling { kSweep, kIgnore };
-  enum class FreeMemoryHandling { kDoNotDiscard, kDiscardWherePossible };
+  using FreeMemoryHandling = cppgc::internal::FreeMemoryHandling;
 
   SweepingType sweeping_type = SweepingType::kIncrementalAndConcurrent;
   CompactableSpaceHandling compactable_space_handling =

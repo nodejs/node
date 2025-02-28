@@ -20,7 +20,7 @@
  */
 
 #ifndef _WIN32_WINNT
-# define _WIN32_WINNT   0x0600
+# define _WIN32_WINNT   0x0A00
 #endif
 
 #if !defined(_SSIZE_T_) && !defined(_SSIZE_T_DEFINED)
@@ -32,20 +32,12 @@ typedef intptr_t ssize_t;
 
 #include <winsock2.h>
 
-#if defined(__MINGW32__) && !defined(__MINGW64_VERSION_MAJOR)
-typedef struct pollfd {
-  SOCKET fd;
-  short  events;
-  short  revents;
-} WSAPOLLFD, *PWSAPOLLFD, *LPWSAPOLLFD;
-#endif
-
 #ifndef LOCALE_INVARIANT
 # define LOCALE_INVARIANT 0x007f
 #endif
 
 #include <mswsock.h>
-// Disable the typedef in mstcpip.h of MinGW.
+/* Disable the typedef in mstcpip.h of MinGW. */
 #define _TCP_INITIAL_RTO_PARAMETERS _TCP_INITIAL_RTO_PARAMETERS__AVOID
 #define TCP_INITIAL_RTO_PARAMETERS TCP_INITIAL_RTO_PARAMETERS__AVOID
 #define PTCP_INITIAL_RTO_PARAMETERS PTCP_INITIAL_RTO_PARAMETERS__AVOID
@@ -59,12 +51,7 @@ typedef struct pollfd {
 #include <signal.h>
 #include <fcntl.h>
 #include <sys/stat.h>
-
-#if defined(_MSC_VER) && _MSC_VER < 1600
-# include "uv/stdint-msvc2008.h"
-#else
-# include <stdint.h>
-#endif
+#include <stdint.h>
 
 #include "uv/tree.h"
 #include "uv/threadpool.h"
@@ -73,6 +60,11 @@ typedef struct pollfd {
 
 #ifndef S_IFLNK
 # define S_IFLNK 0xA000
+#endif
+
+/* Define missing in Windows Kit Include\{VERSION}\ucrt\sys\stat.h */
+#if defined(_CRT_INTERNAL_NONSTDC_NAMES) && _CRT_INTERNAL_NONSTDC_NAMES && !defined(S_IFIFO)
+# define S_IFIFO _S_IFIFO
 #endif
 
 /* Additional signals supported by uv_signal and or uv_kill. The CRT defines
@@ -91,6 +83,7 @@ typedef struct pollfd {
  * variants (Linux and Darwin)
  */
 #define SIGHUP                1
+#define SIGQUIT               3
 #define SIGKILL               9
 #define SIGWINCH             28
 
@@ -223,7 +216,7 @@ typedef struct _AFD_POLL_INFO {
   AFD_POLL_HANDLE_INFO Handles[1];
 } AFD_POLL_INFO, *PAFD_POLL_INFO;
 
-#define UV_MSAFD_PROVIDER_COUNT 3
+#define UV_MSAFD_PROVIDER_COUNT 4
 
 
 /**
@@ -274,11 +267,12 @@ typedef struct {
 } uv_rwlock_t;
 
 typedef struct {
-  unsigned int n;
-  unsigned int count;
+  unsigned threshold;
+  unsigned in;
   uv_mutex_t mutex;
-  uv_sem_t turnstile1;
-  uv_sem_t turnstile2;
+  /* TODO: in v2 make this a uv_cond_t, without unused_ */
+  CONDITION_VARIABLE cond;
+  unsigned out;
 } uv_barrier_t;
 
 typedef struct {
@@ -288,8 +282,8 @@ typedef struct {
 #define UV_ONCE_INIT { 0, NULL }
 
 typedef struct uv_once_s {
-  unsigned char ran;
-  HANDLE event;
+  unsigned char unused;
+  INIT_ONCE init_once;
 } uv_once_t;
 
 /* Platform-specific definitions for uv_spawn support. */
@@ -348,14 +342,14 @@ typedef struct {
   uv_idle_t* next_idle_handle;                                                \
   /* This handle holds the peer sockets for the fast variant of uv_poll_t */  \
   SOCKET poll_peer_sockets[UV_MSAFD_PROVIDER_COUNT];                          \
-  /* Counter to keep track of active tcp streams */                           \
+  /* No longer used. */                                                       \
   unsigned int active_tcp_streams;                                            \
-  /* Counter to keep track of active udp streams */                           \
+  /* No longer used. */                                                       \
   unsigned int active_udp_streams;                                            \
   /* Counter to started timer */                                              \
   uint64_t timer_counter;                                                     \
   /* Threadpool */                                                            \
-  void* wq[2];                                                                \
+  struct uv__queue wq;                                                        \
   uv_mutex_t wq_mutex;                                                        \
   uv_async_t wq_async;
 
@@ -382,6 +376,7 @@ typedef struct {
       ULONG_PTR result; /* overlapped.Internal is reused to hold the result */\
       HANDLE pipeHandle;                                                      \
       DWORD duplex_flags;                                                     \
+      WCHAR* name;                                                             \
     } connect;                                                                \
   } u;                                                                        \
   struct uv_req_s* next_req;
@@ -483,7 +478,7 @@ typedef struct {
     uint32_t payload_remaining;                                               \
     uint64_t dummy; /* TODO: retained for ABI compat; remove this in v2.x. */ \
   } ipc_data_frame;                                                           \
-  void* ipc_xfer_queue[2];                                                    \
+  struct uv__queue ipc_xfer_queue;                                            \
   int ipc_xfer_queue_length;                                                  \
   uv_write_t* non_overlapped_writes_tail;                                     \
   CRITICAL_SECTION readfile_thread_lock;                                      \
@@ -497,7 +492,7 @@ typedef struct {
     struct { uv_pipe_connection_fields } conn;                                \
   } pipe;
 
-/* TODO: put the parser states in an union - TTY handles are always half-duplex
+/* TODO: put the parser states in a union - TTY handles are always half-duplex
  * so read-state can safely overlap write-state. */
 #define UV_TTY_PRIVATE_FIELDS                                                 \
   HANDLE handle;                                                              \
@@ -547,7 +542,10 @@ typedef struct {
   unsigned char events;
 
 #define UV_TIMER_PRIVATE_FIELDS                                               \
-  void* heap_node[3];                                                         \
+  union {                                                                     \
+    void* heap[3];                                                            \
+    struct uv__queue queue;                                                   \
+  } node;                                                                     \
   int unused;                                                                 \
   uint64_t timeout;                                                           \
   uint64_t repeat;                                                            \
@@ -605,7 +603,7 @@ typedef struct {
   struct uv_process_exit_s {                                                  \
     UV_REQ_FIELDS                                                             \
   } exit_req;                                                                 \
-  BYTE* child_stdio_buffer;                                                   \
+  void* unused; /* TODO: retained for ABI compat; remove this in v2.x. */     \
   int exit_signal;                                                            \
   HANDLE wait_handle;                                                         \
   HANDLE process_handle;                                                      \

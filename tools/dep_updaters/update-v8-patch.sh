@@ -4,11 +4,14 @@ set -e
 
 BASE_DIR=$(cd "$(dirname "$0")/../.." && pwd)
 
+# shellcheck disable=SC1091
+. "$BASE_DIR/tools/dep_updaters/utils.sh"
+
 cd "$BASE_DIR"
 
-IS_UP_TO_DATE=$(git node v8 minor | grep "V8 is up-to-date")
+CAN_UPDATE=$(git node v8 minor | grep -q "V8 is up-to-date" || echo "1")
 
-if [ -n "$IS_UP_TO_DATE" ]; then
+if [ -z "$CAN_UPDATE" ]; then
   echo "Skipped because V8 is on the latest version."
   exit 0
 fi
@@ -21,6 +24,7 @@ CURRENT_BUILD_VERSION=$(grep "#define V8_BUILD_NUMBER" "$DEPS_DIR/v8/include/v8-
 CURRENT_PATCH_VERSION=$(grep "#define V8_PATCH_LEVEL" "$DEPS_DIR/v8/include/v8-version.h" | cut -d ' ' -f3)
 
 NEW_VERSION="$CURRENT_MAJOR_VERSION.$CURRENT_MINOR_VERSION.$CURRENT_BUILD_VERSION.$CURRENT_PATCH_VERSION"
+
 
 echo "All done!"
 echo ""

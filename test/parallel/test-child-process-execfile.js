@@ -10,7 +10,7 @@ const os = require('os');
 
 const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
-const execOpts = { encoding: 'utf8', shell: true };
+const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
 
 {
   execFile(
@@ -46,7 +46,12 @@ const execOpts = { encoding: 'utf8', shell: true };
 
 {
   // Verify the shell option works properly
-  execFile(process.execPath, [fixture, 0], execOpts, common.mustSucceed());
+  execFile(
+    `"${common.isWindows ? execOpts.env.NODE : '$NODE'}"`,
+    [`"${common.isWindows ? execOpts.env.FIXTURE : '$FIXTURE'}"`, 0],
+    execOpts,
+    common.mustSucceed(),
+  );
 }
 
 {
@@ -84,7 +89,7 @@ const execOpts = { encoding: 'utf8', shell: true };
   // Verify that if something different than Abortcontroller.signal
   // is passed, ERR_INVALID_ARG_TYPE is thrown
   assert.throws(() => {
-    const callback = common.mustNotCall(() => {});
+    const callback = common.mustNotCall();
 
     execFile(process.execPath, [echoFixture, 0], { signal: 'hello' }, callback);
   }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });

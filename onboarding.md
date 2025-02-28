@@ -10,7 +10,7 @@ onboarding session.
   possible to add them to the organization if they are not using two-factor
   authentication. If they cannot receive SMS messages from GitHub, try
   [using a TOTP mobile app][].
-* Suggest the new Collaborator install [`node-core-utils`][] and
+* Suggest the new Collaborator install [`@node-core/utils`][] and
   [set up the credentials][] for it.
 
 ## Fifteen minutes before the onboarding session
@@ -102,7 +102,10 @@ The project has a venue for real-time discussion:
 
 * When a discussion gets heated, you can request that other collaborators keep
   an eye on it by opening an issue at the private
-  [nodejs/moderation](https://github.com/nodejs/moderation) repository.
+  [nodejs/moderation](https://github.com/nodejs/moderation) repository. Note
+  that while that repository is not public, it can be accessed by anyone in the
+  nodejs org, so refrain from using it to report individuals (reporting
+  spam/bots there is fine of course).
   * This is a repository to which all members of the `nodejs` GitHub
     organization (not just collaborators on Node.js core) have access. Its
     contents should not be shared externally.
@@ -114,7 +117,7 @@ The project has a venue for real-time discussion:
   * You can always refer to the
     [full moderation policy](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md).
   * You can contact someone in the
-    [full list of moderation team members](https://github.com/nodejs/moderation#moderation-team-members).
+    [full list of moderation team members](https://github.com/nodejs/admin/blob/main/Moderation-Policy.md#current-members-of-moderation-team).
 
 ## Reviewing pull requests
 
@@ -213,9 +216,14 @@ needs to be pointed out separately during the onboarding.
     `git show --format=%B 6669b3857f0f43ee0296eb7ac45086cd907b9e94`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
+* Commit, including a `Fixes: <collaborator-nomination-issue-url>` trailer
   so that when the commit lands, the nomination issue url will be
   automatically closed.
+* Run `tools/find-inactive-collaborators.mjs`. If that command outputs your name,
+  amend the commit to include an addition to the [mailmap](.mailmap) file. See
+  [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
+  format of the mailmap file.
+* Push the commit to your own fork.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels. The `fast-track` label should cause the Node.js GitHub bot to post a
   comment in the pull request asking collaborators to approve the pull request
@@ -230,7 +238,7 @@ needs to be pointed out separately during the onboarding.
   request.
   * Be sure to add the `PR-URL: <full-pr-url>` and appropriate `Reviewed-By:`
     metadata.
-  * [`node-core-utils`][] automates the generation of metadata and the landing
+  * [`@node-core/utils`][] automates the generation of metadata and the landing
     process. See the documentation of [`git-node`][].
   * [`core-validate-commit`][] automates the validation of commit messages.
     This will be run during `git node land --final` of the [`git-node`][]
@@ -260,10 +268,10 @@ needs to be pointed out separately during the onboarding.
 [Labels]: doc/contributing/collaborator-guide.md#labels
 [Landing pull requests]: doc/contributing/collaborator-guide.md#landing-pull-requests
 [Publicizing or hiding organization membership]: https://help.github.com/articles/publicizing-or-hiding-organization-membership/
+[`@node-core/utils`]: https://github.com/nodejs/node-core-utils
 [`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
-[`node-core-utils`]: https://github.com/nodejs/node-core-utils
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/

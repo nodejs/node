@@ -1,6 +1,7 @@
 #include <js_native_api.h>
-#include "../common.h"
 #include <string.h>
+#include "../common.h"
+#include "../entry_point.h"
 
 // these tests validate the handle scope functions in the normal
 // flow.  Forcing gc behavior to fully validate they are doing

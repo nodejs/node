@@ -92,6 +92,7 @@ Register ToRegister(int num) {
 // Implementation of RelocInfo.
 
 const int RelocInfo::kApplyMask =
+    RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
     RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
     RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET);
 
@@ -134,7 +135,7 @@ MemOperand::MemOperand(Register base, int32_t offset)
 MemOperand::MemOperand(Register base, Register index)
     : base_(base), index_(index), offset_(0) {}
 
-void Assembler::AllocateAndInstallRequestedHeapNumbers(Isolate* isolate) {
+void Assembler::AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate) {
   DCHECK_IMPLIES(isolate == nullptr, heap_number_requests_.empty());
   for (auto& request : heap_number_requests_) {
     Handle<HeapObject> object;
@@ -176,8 +177,11 @@ Assembler::Assembler(const AssemblerOptions& options,
   block_buffer_growth_ = false;
 }
 
-void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
-                        SafepointTableBuilder* safepoint_table_builder,
+void Assembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+  GetCode(isolate->main_thread_local_isolate(), desc);
+}
+void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
+                        SafepointTableBuilderBase* safepoint_table_builder,
                         int handler_table_offset) {
   // As a crutch to avoid having to add manual Align calls wherever we use a
   // raw workflow to create InstructionStream objects (mostly in tests), add
@@ -201,8 +205,12 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
+  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int code_comments_offset = instruction_size - code_comments_size;
+  const int builtin_jump_table_info_offset =
+      instruction_size - kBuiltinJumpTableInfoSize;
+  const int code_comments_offset =
+      builtin_jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -215,7 +223,8 @@ void Assembler::GetCode(Isolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, reloc_info_offset);
+                       code_comments_offset, builtin_jump_table_info_offset,
+                       reloc_info_offset);
 }
 
 void Assembler::Align(int m) {
@@ -357,10 +366,9 @@ bool Assembler::IsMov(Instr instr, Register rd, Register rj) {
   return instr == instr1;
 }
 
-bool Assembler::IsPcAddi(Instr instr, Register rd, int32_t si20) {
-  DCHECK(is_int20(si20));
-  Instr instr1 = PCADDI | (si20 & 0xfffff) << kRjShift | rd.code();
-  return instr == instr1;
+bool Assembler::IsPcAddi(Instr instr) {
+  uint32_t opcode = (instr >> 25) << 25;
+  return opcode == PCADDI;
 }
 
 bool Assembler::IsNop(Instr instr, unsigned int type) {
@@ -449,26 +457,23 @@ int Assembler::target_at(int pos, bool is_internal) {
     }
   }
 
-  // Check we have a branch or jump instruction.
-  DCHECK(IsBranch(instr) || IsPcAddi(instr, t8, 16));
+  // Check we have a branch, jump or pcaddi instruction.
+  DCHECK(IsBranch(instr) || IsPcAddi(instr));
   // Do NOT change this to <<2. We rely on arithmetic shifts here, assuming
   // the compiler uses arithmetic shifts for signed integers.
   if (IsBranch(instr)) {
     return AddBranchOffset(pos, instr);
-  } else {
-    DCHECK(IsPcAddi(instr, t8, 16));
-    // see BranchLong(Label* L) and BranchAndLinkLong ??
-    int32_t imm32;
-    Instr instr_lu12i_w = instr_at(pos + 1 * kInstrSize);
-    Instr instr_ori = instr_at(pos + 2 * kInstrSize);
-    DCHECK(IsLu12i_w(instr_lu12i_w));
-    imm32 = ((instr_lu12i_w >> 5) & 0xfffff) << 12;
-    imm32 |= ((instr_ori >> 10) & static_cast<int32_t>(kImm12Mask));
-    if (imm32 == kEndOfJumpChain) {
+  } else if (IsPcAddi(instr)) {
+    // see LoadLabelRelative
+    int32_t si20;
+    si20 = (instr >> kRjShift) & 0xfffff;
+    if (si20 == kEndOfJumpChain) {
       // EndOfChain sentinel is returned directly, not relative to pc or pos.
       return kEndOfChain;
     }
-    return pos + imm32;
+    return pos + (si20 << 2);
+  } else {
+    UNREACHABLE();
   }
 }
 
@@ -514,6 +519,18 @@ void Assembler::target_at_put(int pos, int target_pos, bool is_internal) {
     // Make label relative to Code pointer of generated Code object.
     instr_at_put(
         pos, target_pos + (InstructionStream::kHeaderSize - kHeapObjectTag));
+    return;
+  }
+
+  if (IsPcAddi(instr)) {
+    // For LoadLabelRelative function.
+    int32_t imm = target_pos - pos;
+    DCHECK_EQ(imm & 3, 0);
+    DCHECK(is_int22(imm));
+    uint32_t siMask = 0xfffff << kRjShift;
+    uint32_t si20 = ((imm >> 2) << kRjShift) & siMask;
+    instr = (instr & ~siMask) | si20;
+    instr_at_put(pos, instr);
     return;
   }
 
@@ -581,7 +598,7 @@ void Assembler::bind_to(Label* L, int pos) {
         target_at_put(fixup_pos, pos, false);
       } else {
         DCHECK(IsJ(instr) || IsLu12i_w(instr) || IsEmittedConstant(instr) ||
-               IsPcAddi(instr, t8, 8));
+               IsPcAddi(instr));
         target_at_put(fixup_pos, pos, false);
       }
     }
@@ -2089,7 +2106,8 @@ int Assembler::RelocateInternalReference(RelocInfo::Mode rmode, Address pc,
 
 void Assembler::RelocateRelativeReference(RelocInfo::Mode rmode, Address pc,
                                           intptr_t pc_delta) {
-  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode));
+  DCHECK(RelocInfo::IsRelativeCodeTarget(rmode) ||
+         RelocInfo::IsNearBuiltinEntry(rmode));
   Instr instr = instr_at(pc);
   int32_t offset = instr & kImm26Mask;
   offset = (((offset & 0x3ff) << 22 >> 6) | ((offset >> 10) & kImm16Mask)) << 2;
@@ -2115,7 +2133,7 @@ void Assembler::GrowBuffer() {
   // Set up new buffer.
   std::unique_ptr<AssemblerBuffer> new_buffer = buffer_->Grow(new_size);
   DCHECK_EQ(new_size, new_buffer->size());
-  byte* new_start = new_buffer->start();
+  uint8_t* new_start = new_buffer->start();
 
   // Copy the data.
   intptr_t pc_delta = new_start - buffer_start_;
@@ -2156,25 +2174,17 @@ void Assembler::db(uint8_t data) {
   pc_ += sizeof(uint8_t);
 }
 
-void Assembler::dd(uint32_t data, RelocInfo::Mode rmode) {
+void Assembler::dd(uint32_t data) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
-  }
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint32_t*>(pc_) = data;
   pc_ += sizeof(uint32_t);
 }
 
-void Assembler::dq(uint64_t data, RelocInfo::Mode rmode) {
+void Assembler::dq(uint64_t data) {
   if (!is_buffer_growth_blocked()) {
     CheckBuffer();
-  }
-  if (!RelocInfo::IsNoInfo(rmode)) {
-    DCHECK(RelocInfo::IsLiteralConstant(rmode));
-    RecordRelocInfo(rmode);
   }
   *reinterpret_cast<uint64_t*>(pc_) = data;
   pc_ += sizeof(uint64_t);
@@ -2199,8 +2209,7 @@ void Assembler::dd(Label* label) {
 void Assembler::RecordRelocInfo(RelocInfo::Mode rmode, intptr_t data) {
   if (!ShouldRecordRelocInfo(rmode)) return;
   // We do not try to reuse pool constants.
-  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data, Code(),
-                  InstructionStream());
+  RelocInfo rinfo(reinterpret_cast<Address>(pc_), rmode, data);
   DCHECK_GE(buffer_space(), kMaxRelocSize);  // Too late to grow buffer here.
   reloc_info_writer.Write(&rinfo);
 }
@@ -2381,35 +2390,6 @@ void Assembler::set_target_compressed_value_at(
   if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
     FlushInstructionCache(pc, 2 * kInstrSize);
   }
-}
-
-UseScratchRegisterScope::UseScratchRegisterScope(Assembler* assembler)
-    : available_(assembler->GetScratchRegisterList()),
-      availablefp_(assembler->GetScratchFPRegisterList()),
-      old_available_(*available_),
-      old_availablefp_(*availablefp_) {}
-
-UseScratchRegisterScope::~UseScratchRegisterScope() {
-  *available_ = old_available_;
-  *availablefp_ = old_availablefp_;
-}
-
-Register UseScratchRegisterScope::Acquire() {
-  DCHECK_NOT_NULL(available_);
-  return available_->PopFirst();
-}
-
-DoubleRegister UseScratchRegisterScope::AcquireFp() {
-  DCHECK_NOT_NULL(availablefp_);
-  return availablefp_->PopFirst();
-}
-
-bool UseScratchRegisterScope::hasAvailable() const {
-  return !available_->is_empty();
-}
-
-bool UseScratchRegisterScope::hasAvailableFp() const {
-  return !availablefp_->is_empty();
 }
 
 }  // namespace internal

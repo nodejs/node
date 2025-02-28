@@ -42,10 +42,10 @@ class V8_EXPORT_PRIVATE Int64Lowering {
 
   void LowerGraph();
 
+ private:
   static int GetParameterCountAfterLowering(
       Signature<MachineRepresentation>* signature);
 
- private:
   enum class State : uint8_t { kUnvisited, kOnStack, kVisited };
 
   struct Replacement {

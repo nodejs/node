@@ -4,9 +4,11 @@
 
 #include "src/compiler/backend/instruction-scheduler.h"
 
+#include <optional>
+
 #include "src/base/iterator.h"
-#include "src/base/optional.h"
 #include "src/base/utils/random-number-generator.h"
+#include "src/compiler/backend/instruction-codes.h"
 
 namespace v8 {
 namespace internal {
@@ -84,7 +86,7 @@ InstructionScheduler::InstructionScheduler(Zone* zone,
       operands_map_(zone) {
   if (v8_flags.turbo_stress_instruction_scheduling) {
     random_number_generator_ =
-        base::Optional<base::RandomNumberGenerator>(v8_flags.random_seed);
+        std::optional<base::RandomNumberGenerator>(v8_flags.random_seed);
   }
 }
 
@@ -301,6 +303,14 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       // effects.
       return kIsLoadOperation;
 
+#if V8_ENABLE_WEBASSEMBLY
+    case kArchStackPointer:
+    case kArchSetStackPointer:
+      // Instructions that load or set the stack pointer must not be reordered
+      // with instructions with side effects or with each other.
+      return kHasSideEffect;
+#endif  // V8_ENABLE_WEBASSEMBLY
+
     case kArchPrepareCallCFunction:
     case kArchPrepareTailCall:
     case kArchTailCallCodeObject:
@@ -319,6 +329,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
       return kIsBarrier;
 
     case kArchCallCFunction:
+    case kArchCallCFunctionWithFrameState:
     case kArchCallCodeObject:
     case kArchCallJSFunction:
 #if V8_ENABLE_WEBASSEMBLY
@@ -333,6 +344,7 @@ int InstructionScheduler::GetInstructionFlags(const Instruction* instr) const {
 
     case kArchStoreWithWriteBarrier:
     case kArchAtomicStoreWithWriteBarrier:
+    case kArchStoreIndirectWithWriteBarrier:
       return kHasSideEffect;
 
     case kAtomicLoadInt8:

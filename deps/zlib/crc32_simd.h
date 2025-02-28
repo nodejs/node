@@ -19,12 +19,18 @@ uint32_t ZLIB_INTERNAL crc32_sse42_simd_(const unsigned char* buf,
                                          z_size_t len,
                                          uint32_t crc);
 
+uint32_t ZLIB_INTERNAL crc32_avx512_simd_(const unsigned char* buf,
+                                          z_size_t len,
+                                          uint32_t crc);
+
 /*
  * crc32_sse42_simd_ buffer size constraints: see the use in zlib/crc32.c
  * for computing the crc32 of an arbitrary length buffer.
  */
 #define Z_CRC32_SSE42_MINIMUM_LENGTH 64
 #define Z_CRC32_SSE42_CHUNKSIZE_MASK 15
+#define Z_CRC32_AVX512_MINIMUM_LENGTH 256
+#define Z_CRC32_AVX512_CHUNKSIZE_MASK 63
 
 /*
  * CRC32 checksums using ARMv8-a crypto instructions.

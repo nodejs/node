@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 var values = [];
+values.length = 1;
 Object.prototype.__defineGetter__(0, function() {
   throw new Error('foo');
 });

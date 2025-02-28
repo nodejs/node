@@ -25,6 +25,12 @@ The SHA-1 algorithm which produces a 160-bit output from a given input.
 
 =back
 
+=head1 NOTES
+
+Developers should be aware of the negative performance implications of
+calling this function multiple times and should consider using
+L<EVP_MD_fetch(3)> with L<EVP_MD-SHA1(7)> instead.
+See L<crypto(7)/Performance> for further information.
 
 =head1 RETURN VALUES
 
@@ -43,7 +49,7 @@ L<EVP_DigestInit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

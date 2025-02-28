@@ -41,11 +41,10 @@ class Operand {
       : rm_(no_reg), rmode_(RelocInfo::EXTERNAL_REFERENCE) {
     value_.immediate = static_cast<int64_t>(f.address());
   }
+  V8_INLINE explicit Operand(Tagged<Smi> value)
+      : Operand(static_cast<intptr_t>(value.ptr())) {}
+
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value)
-      : rm_(no_reg), rmode_(RelocInfo::NO_INFO) {
-    value_.immediate = static_cast<intptr_t>(value.ptr());
-  }
 
   static Operand EmbeddedNumber(double number);  // Smi or HeapNumber.
 
@@ -127,13 +126,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -167,7 +168,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // but it may be bound only once.
   void bind(Label* L);  // Binds an unbound label L to current code position.
 
-  enum OffsetSize : int { kOffset26 = 26, kOffset21 = 21, kOffset16 = 16 };
+  enum OffsetSize : int {
+    kOffset26 = 26,
+    kOffset21 = 21,
+    kOffset20 = 20,
+    kOffset16 = 16
+  };
 
   // Determines if Label is bound and near enough so that branch instruction
   // can be used to reach it, instead of jump instruction.
@@ -234,6 +240,11 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   inline Handle<Code> code_target_object_handle_at(Address pc,
                                                    Address constant_pool);
 
+  // During code generation builtin targets in PC-relative call/jump
+  // instructions are temporarily encoded as builtin ID until the generated
+  // code is moved into the code space.
+  static inline Builtin target_builtin_at(Address pc);
+
   static void set_target_value_at(
       Address pc, uint64_t target,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
@@ -247,7 +258,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // This is for calls and branches within generated code.  The serializer
   // has already deserialized the lui/ori instructions etc.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, Tagged<Code> code, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -262,6 +273,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
       Address pc, Address constant_pool);
   inline Handle<HeapObject> embedded_object_handle_at(Address pc,
                                                       Address constant_pool);
+
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
@@ -756,11 +773,9 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used for
   // inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO) {
-    dq(data, rmode);
-  }
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data) { dq(data); }
   void dd(Label* label);
 
   // Postpone the generation of the trampoline pool for the specified number of
@@ -800,7 +815,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   static bool IsJump(Instr instr);
   static bool IsMov(Instr instr, Register rd, Register rs);
-  static bool IsPcAddi(Instr instr, Register rd, int32_t si20);
+  static bool IsPcAddi(Instr instr);
 
   static bool IsJ(Instr instr);
   static bool IsLu12i_w(Instr instr);
@@ -1079,14 +1094,14 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Keep track of the last Call's position to ensure that safepoint can get the
   // correct information even if there is a trampoline immediately after the
   // Call.
-  byte* pc_for_safepoint_;
+  uint8_t* pc_for_safepoint_;
 
   RegList scratch_register_list_;
 
   DoubleRegList scratch_fpregister_list_;
 
  private:
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -1103,13 +1118,28 @@ class EnsureSpace {
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : available_(assembler->GetScratchRegisterList()),
+        availablefp_(assembler->GetScratchFPRegisterList()),
+        old_available_(*available_),
+        old_availablefp_(*availablefp_) {}
 
-  Register Acquire();
-  DoubleRegister AcquireFp();
-  bool hasAvailable() const;
-  bool hasAvailableFp() const;
+  ~UseScratchRegisterScope() {
+    *available_ = old_available_;
+    *availablefp_ = old_availablefp_;
+  }
+
+  Register Acquire() {
+    return available_->PopFirst();
+  }
+
+  DoubleRegister AcquireFp() {
+    return availablefp_->PopFirst();
+  }
+
+  bool hasAvailable() const { return !available_->is_empty(); }
+
+  bool hasAvailableFp() const { return !availablefp_->is_empty(); }
 
   void Include(const RegList& list) { *available_ |= list; }
   void IncludeFp(const DoubleRegList& list) { *availablefp_ |= list; }

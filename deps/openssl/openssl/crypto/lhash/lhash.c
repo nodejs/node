@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -266,12 +266,12 @@ static void contract(OPENSSL_LHASH *lh)
         if (n == NULL) {
             /* fputs("realloc error in lhash",stderr); */
             lh->error++;
-            return;
+        } else {
+            lh->b = n;
         }
         lh->num_alloc_nodes /= 2;
         lh->pmax /= 2;
         lh->p = lh->pmax - 1;
-        lh->b = n;
     } else
         lh->p--;
 

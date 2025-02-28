@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 (function TestTables() {
   print(arguments.callee.name);
@@ -155,7 +153,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     table, wasmI32Const(0),
     [[...wasmI32Const(111), ...wasmI32Const(222),
       kGCPrefix, kExprArrayNewFixed, array_type, 2],
-     [...wasmI32Const(-31), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-31), kGCPrefix, kExprRefI31],
      [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type],
      [kExprRefNull, kEqRefCode]],
     kWasmAnyRef);
@@ -165,7 +163,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addLocals(wasmRefNullType(array_type), 1)
     .addBody([
       kExprI32Const, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array_type,
       kExprLocalSet, 0,
       kExprLocalGet, 0,
@@ -178,7 +175,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("i31_getter", kSig_i_v)
    .addBody([
      kExprI32Const, 1, kExprTableGet, 0,
-     kGCPrefix, kExprRefAsI31,
+     kGCPrefix, kExprRefCast, kI31RefCode,
      kGCPrefix, kExprI31GetS])
    .exportFunc();
 
@@ -186,7 +183,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("struct_getter", kSig_i_v)
     .addBody([
       kExprI32Const, 2, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsStruct, kGCPrefix, kExprRefCast, struct_type,
+      kGCPrefix, kExprRefCast, struct_type,
       kGCPrefix, kExprStructGet, struct_type, 0])
     .exportFunc();
 
@@ -220,7 +217,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     table, wasmI32Const(0),
     [[...wasmI32Const(111), ...wasmI32Const(222),
       kGCPrefix, kExprArrayNewFixed, array_type, 2],
-     [...wasmI32Const(-31), kGCPrefix, kExprI31New],
+     [...wasmI32Const(-31), kGCPrefix, kExprRefI31],
      [...wasmI32Const(10), kGCPrefix, kExprStructNew, struct_type]],
      wasmRefType(kWasmAnyRef));
 
@@ -229,7 +226,6 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addLocals(wasmRefNullType(array_type), 1)
     .addBody([
       kExprI32Const, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsArray,
       kGCPrefix, kExprRefCast, array_type,
       kExprLocalSet, 0,
       kExprLocalGet, 0,
@@ -242,7 +238,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("i31_getter", kSig_i_v)
    .addBody([
      kExprI32Const, 1, kExprTableGet, 0,
-     kGCPrefix, kExprRefAsI31,
+     kGCPrefix, kExprRefCast, kI31RefCode,
      kGCPrefix, kExprI31GetS])
    .exportFunc();
 
@@ -250,7 +246,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   builder.addFunction("struct_getter", kSig_i_i)
     .addBody([
       kExprLocalGet, 0, kExprTableGet, 0,
-      kGCPrefix, kExprRefAsStruct, kGCPrefix, kExprRefCast, struct_type,
+      kGCPrefix, kExprRefCast, struct_type,
       kGCPrefix, kExprStructGet, struct_type, 0])
     .exportFunc();
 
@@ -267,7 +263,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -329,8 +325,8 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let table = builder.addTable(kWasmI31Ref, 4, 4);
   builder.addActiveElementSegment(
     table, wasmI32Const(0),
-    [[...wasmI32Const(10), kGCPrefix, kExprI31New],
-     [...wasmI32Const(-42), kGCPrefix, kExprI31New],
+    [[...wasmI32Const(10), kGCPrefix, kExprRefI31],
+     [...wasmI32Const(-42), kGCPrefix, kExprRefI31],
      [kExprRefNull, kI31RefCode]],
      kWasmI31Ref);
 
@@ -471,14 +467,14 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI64Const, 44,
       kGCPrefix, kExprStructNew, struct_type_invalid,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   builder.addFunction("valid_struct", makeSig([], [kWasmExternRef]))
     .addBody([
       kExprI32Const, 44,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
     builder.addFunction("valid_struct_sub", makeSig([], [kWasmExternRef]))
@@ -486,20 +482,20 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
       kExprI32Const, 55,
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_sub,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
   let instance = builder.instantiate({imports: {table}});
 
-  table.grow(5, undefined);
+  assertThrows(() => table.grow(5, undefined), TypeError);
+  table.grow(5);
   assertThrows(() => table.set(1, instance.exports.invalid_struct()),
                TypeError);
   table.set(1, instance.exports.valid_struct());
   table.set(2, instance.exports.valid_struct_sub());
   table.set(3, null);
-  assertThrows(() => table.set(1, undefined),
-               TypeError);
+  assertThrows(() => table.set(1, undefined), TypeError);
 })();
 
 (function TestMultiModuleRefTableSuperType() {
@@ -524,7 +520,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprI32Const, 66,
       kGCPrefix, kExprStructNew, struct_type_base,
-      kGCPrefix, kExprExternExternalize])
+      kGCPrefix, kExprExternConvertAny])
     .exportFunc();
 
   let table = exporting_instance.exports.table;
@@ -546,7 +542,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, struct_type,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
@@ -585,7 +581,7 @@ d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
   let sub_struct = builder.addStruct(
     [makeField(kWasmI32, false), makeField(kWasmI32, false)], super_struct);
   let super_sig = builder.addType(
-    makeSig([kWasmI32], [wasmRefType(super_struct)]));
+    makeSig([kWasmI32], [wasmRefType(super_struct)]), kNoSuperType, false);
   let sub_sig = builder.addType(
     makeSig([kWasmI32], [wasmRefType(sub_struct)]), super_sig);
 

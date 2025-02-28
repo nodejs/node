@@ -28,7 +28,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -66,22 +66,32 @@ void nghttp3_objalloc_free(nghttp3_objalloc *objalloc);
 void nghttp3_objalloc_clear(nghttp3_objalloc *objalloc);
 
 #ifndef NOMEMPOOL
-#  define nghttp3_objalloc_def(NAME, TYPE, OPLENTFIELD)                        \
+#  define nghttp3_objalloc_decl(NAME, TYPE, OPLENTFIELD)                       \
     inline static void nghttp3_objalloc_##NAME##_init(                         \
-        nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {    \
+      nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {      \
       nghttp3_objalloc_init(                                                   \
-          objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);  \
+        objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);    \
     }                                                                          \
                                                                                \
-    inline static TYPE *nghttp3_objalloc_##NAME##_get(                         \
-        nghttp3_objalloc *objalloc) {                                          \
+    TYPE *nghttp3_objalloc_##NAME##_get(nghttp3_objalloc *objalloc);           \
+                                                                               \
+    TYPE *nghttp3_objalloc_##NAME##_len_get(nghttp3_objalloc *objalloc,        \
+                                            size_t len);                       \
+                                                                               \
+    inline static void nghttp3_objalloc_##NAME##_release(                      \
+      nghttp3_objalloc *objalloc, TYPE *obj) {                                 \
+      nghttp3_opl_push(&objalloc->opl, &obj->OPLENTFIELD);                     \
+    }
+
+#  define nghttp3_objalloc_def(NAME, TYPE, OPLENTFIELD)                        \
+    TYPE *nghttp3_objalloc_##NAME##_get(nghttp3_objalloc *objalloc) {          \
       nghttp3_opl_entry *oplent = nghttp3_opl_pop(&objalloc->opl);             \
       TYPE *obj;                                                               \
       int rv;                                                                  \
                                                                                \
       if (!oplent) {                                                           \
-        rv = nghttp3_balloc_get(&objalloc->balloc, (void **)&obj,              \
-                                sizeof(TYPE));                                 \
+        rv =                                                                   \
+          nghttp3_balloc_get(&objalloc->balloc, (void **)&obj, sizeof(TYPE));  \
         if (rv != 0) {                                                         \
           return NULL;                                                         \
         }                                                                      \
@@ -92,8 +102,8 @@ void nghttp3_objalloc_clear(nghttp3_objalloc *objalloc);
       return nghttp3_struct_of(oplent, TYPE, OPLENTFIELD);                     \
     }                                                                          \
                                                                                \
-    inline static TYPE *nghttp3_objalloc_##NAME##_len_get(                     \
-        nghttp3_objalloc *objalloc, size_t len) {                              \
+    TYPE *nghttp3_objalloc_##NAME##_len_get(nghttp3_objalloc *objalloc,        \
+                                            size_t len) {                      \
       nghttp3_opl_entry *oplent = nghttp3_opl_pop(&objalloc->opl);             \
       TYPE *obj;                                                               \
       int rv;                                                                  \
@@ -108,34 +118,31 @@ void nghttp3_objalloc_clear(nghttp3_objalloc *objalloc);
       }                                                                        \
                                                                                \
       return nghttp3_struct_of(oplent, TYPE, OPLENTFIELD);                     \
-    }                                                                          \
-                                                                               \
-    inline static void nghttp3_objalloc_##NAME##_release(                      \
-        nghttp3_objalloc *objalloc, TYPE *obj) {                               \
-      nghttp3_opl_push(&objalloc->opl, &obj->OPLENTFIELD);                     \
     }
-#else /* NOMEMPOOL */
-#  define nghttp3_objalloc_def(NAME, TYPE, OPLENTFIELD)                        \
+#else /* defined(NOMEMPOOL) */
+#  define nghttp3_objalloc_decl(NAME, TYPE, OPLENTFIELD)                       \
     inline static void nghttp3_objalloc_##NAME##_init(                         \
-        nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {    \
+      nghttp3_objalloc *objalloc, size_t nmemb, const nghttp3_mem *mem) {      \
       nghttp3_objalloc_init(                                                   \
-          objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);  \
+        objalloc, ((sizeof(TYPE) + 0xfu) & ~(uintptr_t)0xfu) * nmemb, mem);    \
     }                                                                          \
                                                                                \
     inline static TYPE *nghttp3_objalloc_##NAME##_get(                         \
-        nghttp3_objalloc *objalloc) {                                          \
+      nghttp3_objalloc *objalloc) {                                            \
       return nghttp3_mem_malloc(objalloc->balloc.mem, sizeof(TYPE));           \
     }                                                                          \
                                                                                \
     inline static TYPE *nghttp3_objalloc_##NAME##_len_get(                     \
-        nghttp3_objalloc *objalloc, size_t len) {                              \
+      nghttp3_objalloc *objalloc, size_t len) {                                \
       return nghttp3_mem_malloc(objalloc->balloc.mem, len);                    \
     }                                                                          \
                                                                                \
     inline static void nghttp3_objalloc_##NAME##_release(                      \
-        nghttp3_objalloc *objalloc, TYPE *obj) {                               \
+      nghttp3_objalloc *objalloc, TYPE *obj) {                                 \
       nghttp3_mem_free(objalloc->balloc.mem, obj);                             \
     }
-#endif /* NOMEMPOOL */
 
-#endif /* NGHTTP3_OBJALLOC_H */
+#  define nghttp3_objalloc_def(NAME, TYPE, OPLENTFIELD)
+#endif /* defined(NOMEMPOOL) */
+
+#endif /* !defined(NGHTTP3_OBJALLOC_H) */

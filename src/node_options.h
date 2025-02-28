@@ -28,24 +28,20 @@ class HostPort {
 
   void set_host(const std::string& host) { host_name_ = host; }
 
-  void set_port(int port) { port_ = port; }
+  void set_port(uint16_t port) { port_ = port; }
 
   const std::string& host() const { return host_name_; }
 
-  int port() const {
-    // TODO(joyeecheung): make port a uint16_t
-    CHECK_GE(port_, 0);
-    return port_;
-  }
+  uint16_t port() const { return port_; }
 
   void Update(const HostPort& other) {
     if (!other.host_name_.empty()) host_name_ = other.host_name_;
-    if (other.port_ >= 0) port_ = other.port_;
+    port_ = other.port_;
   }
 
  private:
   std::string host_name_;
-  int port_;
+  uint16_t port_;
 };
 
 class Options {
@@ -75,6 +71,8 @@ class DebugOptions : public Options {
   bool allow_attaching_debugger = true;
   // --inspect
   bool inspector_enabled = false;
+  // --inspect-wait
+  bool inspect_wait = false;
   // --debug
   bool deprecated_debug = false;
   // --inspect-brk
@@ -96,7 +94,16 @@ class DebugOptions : public Options {
     break_first_line = true;
   }
 
+  void DisableWaitOrBreakFirstLine() {
+    inspect_wait = false;
+    break_first_line = false;
+  }
+
   bool wait_for_connect() const {
+    return break_first_line || break_node_first_line || inspect_wait;
+  }
+
+  bool should_break_first_line() const {
     return break_first_line || break_node_first_line;
   }
 
@@ -108,37 +115,52 @@ class EnvironmentOptions : public Options {
  public:
   bool abort_on_uncaught_exception = false;
   std::vector<std::string> conditions;
+  bool detect_module = true;
+  bool disable_sigusr1 = false;
+  bool print_required_tla = false;
+  bool require_module = true;
   std::string dns_result_order;
   bool enable_source_maps = false;
+  bool experimental_addon_modules = false;
+  bool experimental_eventsource = false;
   bool experimental_fetch = true;
-  bool experimental_global_customevent = true;
+  bool experimental_websocket = true;
+  bool experimental_sqlite = true;
+  bool experimental_webstorage = false;
+#ifdef NODE_OPENSSL_HAS_QUIC
+  bool experimental_quic = false;
+#endif
+  std::string localstorage_file;
+  bool experimental_global_navigator = true;
   bool experimental_global_web_crypto = true;
-  bool experimental_https_modules = false;
   bool experimental_wasm_modules = false;
   bool experimental_import_meta_resolve = false;
-  std::string module_type;
-  std::string experimental_policy;
-  std::string experimental_policy_integrity;
-  bool has_policy_integrity_string = false;
-  bool experimental_permission = false;
-  std::string allow_fs_read;
-  std::string allow_fs_write;
+  std::string input_type;  // Value of --input-type
+  bool entry_is_url = false;
+  bool permission = false;
+  std::vector<std::string> allow_fs_read;
+  std::vector<std::string> allow_fs_write;
+  bool allow_addons = false;
   bool allow_child_process = false;
+  bool allow_wasi = false;
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
+  bool async_context_frame = false;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;
   int64_t heap_snapshot_near_heap_limit = 0;
   std::string heap_snapshot_signal;
   bool network_family_autoselection = true;
+  uint64_t network_family_autoselection_attempt_timeout = 250;
   uint64_t max_http_header_size = 16 * 1024;
   bool deprecation = true;
   bool force_async_hooks_checks = true;
   bool allow_native_addons = true;
   bool global_search_paths = true;
   bool warnings = true;
+  std::vector<std::string> disable_warnings;
   bool force_context_aware = false;
   bool pending_deprecation = false;
   bool preserve_symlinks = false;
@@ -150,6 +172,7 @@ class EnvironmentOptions : public Options {
   uint64_t cpu_prof_interval = kDefaultCpuProfInterval;
   std::string cpu_prof_name;
   bool cpu_prof = false;
+  bool experimental_network_inspection = false;
   std::string heap_prof_dir;
   std::string heap_prof_name;
   static const uint64_t kDefaultHeapProfInterval = 512 * 1024;
@@ -158,21 +181,41 @@ class EnvironmentOptions : public Options {
 #endif  // HAVE_INSPECTOR
   std::string redirect_warnings;
   std::string diagnostic_dir;
+  std::string env_file;
+  std::string optional_env_file;
+  bool has_env_file_string = false;
   bool test_runner = false;
+  uint64_t test_runner_concurrency = 0;
+  uint64_t test_runner_timeout = 0;
   bool test_runner_coverage = false;
+  bool test_runner_force_exit = false;
+  uint64_t test_coverage_branches = 0;
+  uint64_t test_coverage_functions = 0;
+  uint64_t test_coverage_lines = 0;
+  bool test_runner_module_mocks = false;
+  bool test_runner_update_snapshots = false;
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
   bool test_only = false;
   bool test_udp_no_try_send = false;
+  std::string test_isolation = "process";
+  std::string test_shard;
+  std::vector<std::string> test_skip_pattern;
+  std::vector<std::string> coverage_include_pattern;
+  std::vector<std::string> coverage_exclude_pattern;
   bool throw_deprecation = false;
-  bool trace_atomics_wait = false;
   bool trace_deprecation = false;
   bool trace_exit = false;
   bool trace_sync_io = false;
   bool trace_tls = false;
   bool trace_uncaught = false;
   bool trace_warnings = false;
+  bool trace_promises = false;
+  bool trace_env = false;
+  bool trace_env_js_stack = false;
+  bool trace_env_native_stack = false;
+  std::string trace_require_module;
   bool extra_info_on_fatal_exception = true;
   std::string unhandled_rejections;
   std::vector<std::string> userland_loaders;
@@ -208,7 +251,15 @@ class EnvironmentOptions : public Options {
 
   std::vector<std::string> preload_esm_modules;
 
+  bool experimental_strip_types = true;
+  bool experimental_transform_types = false;
+
   std::vector<std::string> user_argv;
+
+  bool report_exclude_env = false;
+  bool report_exclude_network = false;
+  std::string experimental_config_file_path;
+  bool experimental_default_config_file = false;
 
   inline DebugOptions* get_debug_options() { return &debug_options_; }
   inline const DebugOptions& debug_options() const { return debug_options_; }
@@ -222,16 +273,26 @@ class EnvironmentOptions : public Options {
 
 class PerIsolateOptions : public Options {
  public:
+  PerIsolateOptions() = default;
+  PerIsolateOptions(PerIsolateOptions&&) = default;
+
   std::shared_ptr<EnvironmentOptions> per_env { new EnvironmentOptions() };
   bool track_heap_objects = false;
   bool report_uncaught_exception = false;
   bool report_on_signal = false;
   bool experimental_shadow_realm = false;
+  int64_t stack_trace_limit = 10;
   std::string report_signal = "SIGUSR2";
   bool build_snapshot = false;
+  std::string build_snapshot_config;
   inline EnvironmentOptions* get_per_env_options();
   void CheckOptions(std::vector<std::string>* errors,
                     std::vector<std::string>* argv) override;
+
+  inline std::shared_ptr<PerIsolateOptions> Clone() const;
+
+ private:
+  PerIsolateOptions(const PerIsolateOptions&) = default;
 };
 
 class PerProcessOptions : public Options {
@@ -265,6 +326,7 @@ class PerProcessOptions : public Options {
   bool print_v8_help = false;
   bool print_version = false;
   std::string experimental_sea_config;
+  std::string run;
 
 #ifdef NODE_HAVE_I18N_SUPPORT
   std::string icu_data_dir;
@@ -283,6 +345,7 @@ class PerProcessOptions : public Options {
   bool ssl_openssl_cert_store = false;
 #endif
   bool use_openssl_ca = false;
+  bool use_system_ca = false;
   bool use_bundled_ca = false;
   bool enable_fips_crypto = false;
   bool force_fips_crypto = false;
@@ -291,6 +354,8 @@ class PerProcessOptions : public Options {
   bool openssl_legacy_provider = false;
   bool openssl_shared_config = false;
 #endif
+
+  bool disable_wasm_trap_handler = false;
 
   // Per-process because reports can be triggered outside a known V8 context.
   bool report_on_fatalerror = false;
@@ -327,6 +392,7 @@ enum OptionType {
   kHostPort,
   kStringList,
 };
+std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
 
 template <typename Options>
 class OptionsParser {
@@ -502,8 +568,15 @@ class OptionsParser {
   template <typename OtherOptions>
   friend class OptionsParser;
 
-  friend void GetCLIOptions(const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetCLIOptionsValues(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend void GetCLIOptionsInfo(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   friend std::string GetBashCompletion();
+  friend std::unordered_map<std::string, OptionType>
+  MapEnvOptionsFlagInputType();
+  friend void GetEnvOptionsInputType(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using StringVector = std::vector<std::string>;

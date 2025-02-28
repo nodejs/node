@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_DEAD_CODE_ELIMINATION_REDUCER_H_
 
 #include <iomanip>
+#include <optional>
 
 #include "src/common/globals.h"
 #include "src/compiler/backend/instruction-codes.h"
@@ -17,6 +18,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // General overview
 //
 // DeadCodeAnalysis iterates the graph backwards to propagate liveness
@@ -25,7 +28,7 @@ namespace v8::internal::compiler::turboshaft {
 //
 // OperationState reflects the liveness of operations. An operation is live if
 //
-//   1) The operation has the `is_required_when_unused` property
+//   1) The operation has the `IsRequiredWhenUnused()` property.
 //   2) Any of its outputs is live (is used in a live operation).
 //
 // If the operation is not live, it is dead and can be eliminated.
@@ -176,13 +179,14 @@ class DeadCodeAnalysis {
  public:
   explicit DeadCodeAnalysis(Graph& graph, Zone* phase_zone)
       : graph_(graph),
-        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone),
+        liveness_(graph.op_id_count(), OperationState::kDead, phase_zone,
+                  &graph),
         entry_control_state_(graph.block_count(), ControlState::Unreachable(),
                              phase_zone),
         rewritable_branch_targets_(phase_zone) {}
 
   template <bool trace_analysis>
-  std::pair<FixedSidetable<OperationState::Liveness>,
+  std::pair<FixedOpIndexSidetable<OperationState::Liveness>,
             ZoneMap<uint32_t, BlockIndex>>
   Run() {
     if constexpr (trace_analysis) {
@@ -253,7 +257,13 @@ class DeadCodeAnalysis {
       if constexpr (trace_analysis) std::cout << index << ":" << op << "\n";
       OperationState::Liveness op_state = liveness_[index];
 
-      if (op.Is<BranchOp>()) {
+      if (op.Is<DeadOp>()) {
+        // Operation is already recognized as dead by a previous analysis.
+        DCHECK_EQ(op_state, OperationState::kDead);
+      } else if (op.Is<CallOp>()) {
+        // The function contains a call, so it's not a leaf function.
+        is_leaf_function_ = false;
+      } else if (op.Is<BranchOp>() || op.Is<GotoOp>()) {
         if (control_state != ControlState::NotEliminatable()) {
           // Branch is still dead.
           DCHECK_EQ(op_state, OperationState::kDead);
@@ -271,15 +281,7 @@ class DeadCodeAnalysis {
             rewritable_branch_targets_.erase(it);
           }
         }
-      } else if (op.saturated_use_count == 0) {
-        // Operation is already recognized as dead by a previous analysis.
-        DCHECK_EQ(op_state, OperationState::kDead);
-      } else if (op.Is<GotoOp>()) {
-        // We mark Gotos as live, but they do not influence operation or control
-        // state, so we skip them here.
-        liveness_[index] = OperationState::kLive;
-        continue;
-      } else if (op.Properties().is_required_when_unused) {
+      } else if (op.IsRequiredWhenUnused()) {
         op_state = OperationState::kLive;
       } else if (op.Is<PhiOp>()) {
         has_live_phis = has_live_phis || (op_state == OperationState::kLive);
@@ -402,26 +404,33 @@ class DeadCodeAnalysis {
     entry_control_state_[block.index()] = control_state;
   }
 
+  bool is_leaf_function() const { return is_leaf_function_; }
+
  private:
   Graph& graph_;
-  FixedSidetable<OperationState::Liveness> liveness_;
+  FixedOpIndexSidetable<OperationState::Liveness> liveness_;
   FixedBlockSidetable<ControlState> entry_control_state_;
   ZoneMap<uint32_t, BlockIndex> rewritable_branch_targets_;
+  // The stack check at function entry of leaf functions can be eliminated, as
+  // it is guaranteed that another stack check will be hit eventually. This flag
+  // records if the current function is a leaf function.
+  bool is_leaf_function_ = true;
 };
 
 template <class Next>
 class DeadCodeEliminationReducer
     : public UniformReducerAdapter<DeadCodeEliminationReducer, Next> {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(DeadCodeElimination)
 
   using Adapter = UniformReducerAdapter<DeadCodeEliminationReducer, Next>;
 
-  template <class... Args>
-  explicit DeadCodeEliminationReducer(const std::tuple<Args...>& args)
-      : Adapter(args),
-        branch_rewrite_targets_(Asm().phase_zone()),
-        analyzer_(Asm().modifiable_input_graph(), Asm().phase_zone()) {}
+  // DeadCodeElimination can change the control flow in somewhat unexpected ways
+  // (ie, a block with a single predecessor in the input graph can end up with
+  // multiple predecessors in the output graph), so we prevent the CopyingPhase
+  // from automatically inlining blocks with a single predecessor when we run
+  // the DeadCodeEliminationReducer.
+  bool CanAutoInlineBlocksWithSinglePredecessor() const { return false; }
 
   void Analyze() {
     // TODO(nicohartmann@): We might want to make this a flag.
@@ -431,14 +440,14 @@ class DeadCodeEliminationReducer
     Next::Analyze();
   }
 
-  OpIndex ReduceInputGraphBranch(OpIndex ig_index, const BranchOp& branch) {
-    auto it = branch_rewrite_targets_.find(ig_index.id());
-    if (it != branch_rewrite_targets_.end()) {
-      BlockIndex goto_target = it->second;
-      Asm().Goto(Asm().input_graph().Get(goto_target).MapToNextGraph());
-      return OpIndex::Invalid();
-    }
+  OpIndex REDUCE_INPUT_GRAPH(Branch)(OpIndex ig_index, const BranchOp& branch) {
+    if (TryRewriteBranch(ig_index)) return OpIndex::Invalid();
     return Next::ReduceInputGraphBranch(ig_index, branch);
+  }
+
+  V<None> REDUCE_INPUT_GRAPH(Goto)(V<None> ig_index, const GotoOp& gto) {
+    if (TryRewriteBranch(ig_index)) return {};
+    return Next::ReduceInputGraphGoto(ig_index, gto);
   }
 
   template <typename Op, typename Continuation>
@@ -449,16 +458,25 @@ class DeadCodeEliminationReducer
     return Continuation{this}.ReduceInputGraph(ig_index, op);
   }
 
-  template <Opcode opcode, typename Continuation, typename... Args>
-  OpIndex ReduceOperation(const Args&... args) {
-    return Continuation{this}.Reduce(args...);
-  }
+  bool IsLeafFunction() const { return analyzer_.is_leaf_function(); }
 
  private:
-  base::Optional<FixedSidetable<OperationState::Liveness>> liveness_;
-  ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_;
-  DeadCodeAnalysis analyzer_;
+  bool TryRewriteBranch(OpIndex index) {
+    auto it = branch_rewrite_targets_.find(index.id());
+    if (it != branch_rewrite_targets_.end()) {
+      BlockIndex goto_target = it->second;
+      Asm().Goto(Asm().MapToNewGraph(&Asm().input_graph().Get(goto_target)));
+      return true;
+    }
+    return false;
+  }
+  std::optional<FixedOpIndexSidetable<OperationState::Liveness>> liveness_;
+  ZoneMap<uint32_t, BlockIndex> branch_rewrite_targets_{Asm().phase_zone()};
+  DeadCodeAnalysis analyzer_{Asm().modifiable_input_graph(),
+                             Asm().phase_zone()};
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

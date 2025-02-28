@@ -5,6 +5,7 @@
 #include "src/compiler/scheduler.h"
 
 #include <iomanip>
+#include <optional>
 
 #include "src/base/iterator.h"
 #include "src/builtins/profile-data-reader.h"
@@ -166,7 +167,7 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
   // Reduce the use count of the node's inputs to potentially make them
   // schedulable. If all the uses of a node have been scheduled, then the node
   // itself can be scheduled.
-  base::Optional<int> coupled_control_edge = GetCoupledControlEdge(node);
+  std::optional<int> coupled_control_edge = GetCoupledControlEdge(node);
   for (Edge const edge : node->input_edges()) {
     DCHECK_EQ(node, edge.from());
     if (edge.index() != coupled_control_edge) {
@@ -176,7 +177,7 @@ void Scheduler::UpdatePlacement(Node* node, Placement placement) {
   data->placement_ = placement;
 }
 
-base::Optional<int> Scheduler::GetCoupledControlEdge(Node* node) {
+std::optional<int> Scheduler::GetCoupledControlEdge(Node* node) {
   if (GetPlacement(node) == kCoupled) {
     return NodeProperties::FirstControlIndex(node);
   }
@@ -353,6 +354,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef BUILD_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           BuildBlocksForSuccessors(node);
         }
@@ -397,6 +399,7 @@ class CFGBuilder : public ZoneObject {
 // JS opcodes are just like calls => fall through.
 #undef CONNECT_BLOCK_JS_CASE
       case IrOpcode::kCall:
+      case IrOpcode::kFastApiCall:
         if (NodeProperties::IsExceptionalCall(node)) {
           scheduler_->UpdatePlacement(node, Scheduler::kFixed);
           ConnectCall(node);
@@ -420,7 +423,7 @@ class CFGBuilder : public ZoneObject {
 
   void BuildBlocksForSuccessors(Node* node) {
     size_t const successor_cnt = node->op()->ControlOutputCount();
-    Node** successors = zone_->NewArray<Node*>(successor_cnt);
+    Node** successors = zone_->AllocateArray<Node*>(successor_cnt);
     NodeProperties::CollectControlProjections(node, successors, successor_cnt);
     for (size_t index = 0; index < successor_cnt; ++index) {
       BuildBlockForNode(successors[index]);
@@ -513,7 +516,7 @@ class CFGBuilder : public ZoneObject {
   void ConnectSwitch(Node* sw) {
     size_t const successor_count = sw->op()->ControlOutputCount();
     BasicBlock** successor_blocks =
-        zone_->NewArray<BasicBlock*>(successor_count);
+        zone_->AllocateArray<BasicBlock*>(successor_count);
     CollectSuccessorBlocks(sw, successor_blocks, successor_count);
 
     if (sw == component_entry_) {
@@ -710,7 +713,7 @@ class SpecialRPONumberer : public ZoneObject {
     return empty_;
   }
 
-  bool HasLoopBlocks() const { return loops_.size() != 0; }
+  bool HasLoopBlocks() const { return !loops_.empty(); }
 
  private:
   using Backedge = std::pair<BasicBlock*, size_t>;
@@ -1339,7 +1342,7 @@ class PrepareUsesVisitor {
   void VisitInputs(Node* node) {
     DCHECK_NE(scheduler_->GetPlacement(node), Scheduler::kUnknown);
     bool is_scheduled = schedule_->IsScheduled(node);
-    base::Optional<int> coupled_control_edge =
+    std::optional<int> coupled_control_edge =
         scheduler_->GetCoupledControlEdge(node);
     for (auto edge : node->input_edges()) {
       Node* to = edge.to();
@@ -1815,7 +1818,7 @@ class ScheduleLateNodeVisitor {
 
   Node* CloneNode(Node* node) {
     int const input_count = node->InputCount();
-    base::Optional<int> coupled_control_edge =
+    std::optional<int> coupled_control_edge =
         scheduler_->GetCoupledControlEdge(node);
     for (int index = 0; index < input_count; ++index) {
       if (index != coupled_control_edge) {
@@ -1878,6 +1881,15 @@ void Scheduler::SealFinalSchedule() {
       }
     }
   }
+#ifdef LOG_BUILTIN_BLOCK_COUNT
+  if (const ProfileDataFromFile* profile_data = this->profile_data()) {
+    for (BasicBlock* block : *schedule_->all_blocks()) {
+      uint64_t executed_count =
+          profile_data->GetExecutedCount(block->id().ToSize());
+      block->set_pgo_execution_count(executed_count);
+    }
+  }
+#endif
 }
 
 

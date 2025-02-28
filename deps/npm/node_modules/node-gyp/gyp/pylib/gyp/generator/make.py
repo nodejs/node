@@ -25,6 +25,7 @@
 import os
 import re
 import subprocess
+import sys
 import gyp
 import gyp.common
 import gyp.xcode_emulation
@@ -378,7 +379,7 @@ CXX.target ?= %(CXX.target)s
 CXXFLAGS.target ?= $(CPPFLAGS) $(CXXFLAGS)
 LINK.target ?= %(LINK.target)s
 LDFLAGS.target ?= $(LDFLAGS)
-AR.target ?= $(AR)
+AR.target ?= %(AR.target)s
 PLI.target ?= %(PLI.target)s
 
 # C++ apps need to be linked with g++.
@@ -442,13 +443,21 @@ DEPFLAGS = %(makedep_args)s -MF $(depfile).raw
 define fixup_dep
 # The depfile may not exist if the input file didn't have any #includes.
 touch $(depfile).raw
-# Fixup path as in (1).
-sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)
+# Fixup path as in (1).""" +
+    (r"""
+sed -e "s|^$(notdir $@)|$@|" -re 's/\\\\([^$$])/\/\1/g' $(depfile).raw >> $(depfile)"""
+    if sys.platform == 'win32' else r"""
+sed -e "s|^$(notdir $@)|$@|" $(depfile).raw >> $(depfile)""") +
+    r"""
 # Add extra rules as in (2).
 # We remove slashes and replace spaces with new lines;
 # remove blank lines;
-# delete the first line and append a colon to the remaining lines.
-sed -e 's|\\||' -e 'y| |\n|' $(depfile).raw |\
+# delete the first line and append a colon to the remaining lines.""" +
+    ("""
+sed -e 's/\\\\\\\\$$//' -e 's/\\\\\\\\/\\//g' -e 'y| |\\n|' $(depfile).raw |\\"""
+    if sys.platform == 'win32' else """
+sed -e 's|\\\\||' -e 'y| |\\n|' $(depfile).raw |\\""") +
+    r"""
   grep -v '^$$'                             |\
   sed -e 1d -e 's|$$|:|'                     \
     >> $(depfile)
@@ -681,10 +690,7 @@ COMPILABLE_EXTENSIONS = {
 
 def Compilable(filename):
     """Return true if the file is compilable (should be in OBJS)."""
-    for res in (filename.endswith(e) for e in COMPILABLE_EXTENSIONS):
-        if res:
-            return True
-    return False
+    return any(res for res in (filename.endswith(e) for e in COMPILABLE_EXTENSIONS))
 
 
 def Linkable(filename):
@@ -727,6 +733,10 @@ def QuoteIfNecessary(string):
         string = '"' + string.replace('"', '\\"') + '"'
     return string
 
+def replace_sep(string):
+    if sys.platform == 'win32':
+        string = string.replace('\\\\', '/').replace('\\', '/')
+    return string
 
 def StringToMakefileVariable(string):
     """Convert a string to a value that is acceptable as a make variable name."""
@@ -778,7 +788,7 @@ class MakefileWriter:
         self.suffix_rules_objdir2 = {}
 
         # Generate suffix rules for all compilable extensions.
-        for ext in COMPILABLE_EXTENSIONS.keys():
+        for ext in COMPILABLE_EXTENSIONS:
             # Suffix rules for source folder.
             self.suffix_rules_srcdir.update(
                 {
@@ -862,7 +872,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.output = self.ComputeMacBundleOutput(spec)
             self.output_binary = self.ComputeMacBundleBinaryOutput(spec)
         else:
-            self.output = self.output_binary = self.ComputeOutput(spec)
+            self.output = self.output_binary = replace_sep(self.ComputeOutput(spec))
 
         self.is_standalone_static_library = bool(
             spec.get("standalone_static_library", 0)
@@ -988,7 +998,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         # sub-project dir (see test/subdirectory/gyptest-subdir-all.py).
         self.WriteLn(
             "export builddir_name ?= %s"
-            % os.path.join(os.path.dirname(output_filename), build_dir)
+            % replace_sep(os.path.join(os.path.dirname(output_filename), build_dir))
         )
         self.WriteLn(".PHONY: all")
         self.WriteLn("all:")
@@ -1066,7 +1076,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # libraries, but until everything is made cross-compile safe, also use
             # target libraries.
             # TODO(piman): when everything is cross-compile safe, remove lib.target
-            if self.flavor == "zos" or self.flavor == "aix":
+            if self.flavor in {"zos", "aix"}:
                 self.WriteLn(
                     "cmd_%s = LIBPATH=$(builddir)/lib.host:"
                     "$(builddir)/lib.target:$$LIBPATH; "
@@ -1992,10 +2002,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 and self.toolset == "target"
             ):
                 # On mac, products are created in install_path immediately.
-                assert install_path == self.output, "{} != {}".format(
-                    install_path,
-                    self.output,
-                )
+                assert install_path == self.output, f"{install_path} != {self.output}"
 
             # Point the target alias to the final binary output.
             self.WriteMakeRule(
@@ -2034,7 +2041,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 installable_deps.append(
                     self.GetUnversionedSidedeckFromSidedeck(install_path)
                 )
-            if self.output != self.alias and self.alias != self.target:
+            if self.alias not in (self.output, self.target):
                 self.WriteMakeRule(
                     [self.alias],
                     installable_deps,
@@ -2069,7 +2076,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         """
         values = ""
         if value_list:
-            value_list = [quoter(prefix + value) for value in value_list]
+            value_list = [replace_sep(quoter(prefix + value)) for value in value_list]
             values = " \\\n\t" + " \\\n\t".join(value_list)
         self.fp.write(f"{variable} :={values}\n\n")
 
@@ -2375,10 +2382,12 @@ def WriteAutoRegenerationRule(params, root_makefile, makefile_name, build_files)
         "\t$(call do_cmd,regen_makefile)\n\n"
         % {
             "makefile_name": makefile_name,
-            "deps": " ".join(SourceifyAndQuoteSpaces(bf) for bf in build_files),
-            "cmd": gyp.common.EncodePOSIXShellList(
-                [gyp_binary, "-fmake"] + gyp.RegenerateFlags(options) + build_files_args
+            "deps": replace_sep(
+                " ".join(SourceifyAndQuoteSpaces(bf) for bf in build_files)
             ),
+            "cmd": replace_sep(gyp.common.EncodePOSIXShellList(
+                [gyp_binary, "-fmake"] + gyp.RegenerateFlags(options) + build_files_args
+            )),
         }
     )
 
@@ -2441,33 +2450,52 @@ def GenerateOutput(target_list, target_dicts, data, params):
         makefile_path = os.path.join(
             options.toplevel_dir, options.generator_output, makefile_name
         )
-        srcdir = gyp.common.RelativePath(srcdir, options.generator_output)
+        srcdir = replace_sep(gyp.common.RelativePath(srcdir, options.generator_output))
         srcdir_prefix = "$(srcdir)/"
 
     flock_command = "flock"
     copy_archive_arguments = "-af"
     makedep_arguments = "-MMD"
+
+    # wasm-ld doesn't support --start-group/--end-group
+    link_commands = LINK_COMMANDS_LINUX
+    if flavor in ["wasi", "wasm"]:
+        link_commands = link_commands.replace(' -Wl,--start-group', '').replace(
+            ' -Wl,--end-group', ''
+        )
+
+    CC_target = replace_sep(GetEnvironFallback(("CC_target", "CC"), "$(CC)"))
+    AR_target = replace_sep(GetEnvironFallback(("AR_target", "AR"), "$(AR)"))
+    CXX_target = replace_sep(GetEnvironFallback(("CXX_target", "CXX"), "$(CXX)"))
+    LINK_target = replace_sep(GetEnvironFallback(("LINK_target", "LINK"), "$(LINK)"))
+    PLI_target = replace_sep(GetEnvironFallback(("PLI_target", "PLI"), "pli"))
+    CC_host = replace_sep(GetEnvironFallback(("CC_host", "CC"), "gcc"))
+    AR_host = replace_sep(GetEnvironFallback(("AR_host", "AR"), "ar"))
+    CXX_host = replace_sep(GetEnvironFallback(("CXX_host", "CXX"), "g++"))
+    LINK_host = replace_sep(GetEnvironFallback(("LINK_host", "LINK"), "$(CXX.host)"))
+    PLI_host = replace_sep(GetEnvironFallback(("PLI_host", "PLI"), "pli"))
+
     header_params = {
         "default_target": default_target,
         "builddir": builddir_name,
         "default_configuration": default_configuration,
         "flock": flock_command,
         "flock_index": 1,
-        "link_commands": LINK_COMMANDS_LINUX,
+        "link_commands": link_commands,
         "extra_commands": "",
         "srcdir": srcdir,
         "copy_archive_args": copy_archive_arguments,
         "makedep_args": makedep_arguments,
-        "CC.target": GetEnvironFallback(("CC_target", "CC"), "$(CC)"),
-        "AR.target": GetEnvironFallback(("AR_target", "AR"), "$(AR)"),
-        "CXX.target": GetEnvironFallback(("CXX_target", "CXX"), "$(CXX)"),
-        "LINK.target": GetEnvironFallback(("LINK_target", "LINK"), "$(LINK)"),
-        "PLI.target": GetEnvironFallback(("PLI_target", "PLI"), "pli"),
-        "CC.host": GetEnvironFallback(("CC_host", "CC"), "gcc"),
-        "AR.host": GetEnvironFallback(("AR_host", "AR"), "ar"),
-        "CXX.host": GetEnvironFallback(("CXX_host", "CXX"), "g++"),
-        "LINK.host": GetEnvironFallback(("LINK_host", "LINK"), "$(CXX.host)"),
-        "PLI.host": GetEnvironFallback(("PLI_host", "PLI"), "pli"),
+        "CC.target": CC_target,
+        "AR.target": AR_target,
+        "CXX.target": CXX_target,
+        "LINK.target": LINK_target,
+        "PLI.target": PLI_target,
+        "CC.host": CC_host,
+        "AR.host": AR_host,
+        "CXX.host": CXX_host,
+        "LINK.host": LINK_host,
+        "PLI.host": PLI_host,
     }
     if flavor == "mac":
         flock_command = "./gyp-mac-tool flock"

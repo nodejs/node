@@ -27,6 +27,9 @@ class Protectors : public AllStatic {
   V(NoElements, NoElementsProtector, no_elements_protector)                   \
                                                                               \
   V(MegaDOM, MegaDOMProtector, mega_dom_protector)                            \
+  V(NoProfiling, NoProfilingProtector, no_profiling_protector)                \
+  V(NoUndetectableObjects, NoUndetectableObjectsProtector,                    \
+    no_undetectable_objects_protector)                                        \
                                                                               \
   /* The MapIterator protector protects the original iteration behaviors   */ \
   /* of Map.prototype.keys(), Map.prototype.values(), and                  */ \
@@ -40,15 +43,17 @@ class Protectors : public AllStatic {
   /*   property holder is the %IteratorPrototype%. Note that this also     */ \
   /*   invalidates the SetIterator protector (see below).                  */ \
   V(MapIteratorLookupChain, MapIteratorProtector, map_iterator_protector)     \
-  /* String.prototype.replace looks up Symbol.replace (aka @@replace) on   */ \
+  /* String.prototype.{matchAll|replace|split} looks up                    */ \
+  /* Symbol.{matchAll|replace|split} (aka @@matchAll, @@replace @split) on */ \
   /* the search term to check if it is regexp-like.                        */ \
   /* This protector ensures the prototype chain of String.prototype and    */ \
-  /* Number.prototype does not contain Symbol.replace.                     */ \
-  /* It enables a fast-path for String.prototype.replace by ensuring that  */ \
+  /* Number.prototype does not contain Symbol.{matchAll|replace|split}.    */ \
+  /* It enables a fast-path for String.prototype.{matchAll|replace|split}  */ \
+  /* by ensuring that                                                      */ \
   /* the implicit wrapper object for strings and numbers do not contain    */ \
-  /* the property Symbol.replace.                                          */ \
-  V(NumberStringPrototypeNoReplace, NumberStringPrototypeNoReplaceProtector,  \
-    number_string_prototype_no_replace_protector)                             \
+  /* the property Symbol.{matchAll|replace|split}.                         */ \
+  V(NumberStringNotRegexpLike, NumberStringNotRegexpLikeProtector,            \
+    number_string_not_regexp_like_protector)                                  \
   V(RegExpSpeciesLookupChain, RegExpSpeciesProtector,                         \
     regexp_species_protector)                                                 \
   V(PromiseHook, PromiseHookProtector, promise_hook_protector)                \
@@ -89,6 +94,10 @@ class Protectors : public AllStatic {
     string_iterator_protector)                                                \
   V(StringLengthOverflowLookupChain, StringLengthProtector,                   \
     string_length_protector)                                                  \
+  /* This protects the ToPrimitive conversion of string wrappers (with the */ \
+  /* default type hint NUMBER). */                                            \
+  V(StringWrapperToPrimitive, StringWrapperToPrimitiveProtector,              \
+    string_wrapper_to_primitive_protector)                                    \
   V(TypedArraySpeciesLookupChain, TypedArraySpeciesProtector,                 \
     typed_array_species_protector)
 

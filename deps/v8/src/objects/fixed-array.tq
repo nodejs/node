@@ -3,11 +3,12 @@
 // found in the LICENSE file.
 
 @abstract
+@cppObjectDefinition
 extern class FixedArrayBase extends HeapObject {
-  // length of the array.
   const length: Smi;
 }
 
+@cppObjectDefinition
 @generateBodyDescriptor
 extern class FixedArray extends FixedArrayBase {
   objects[length]: Object;
@@ -15,28 +16,53 @@ extern class FixedArray extends FixedArrayBase {
 
 type EmptyFixedArray extends FixedArray;
 
+@cppObjectDefinition
+extern class TrustedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: Object;
+}
+
+@cppObjectDefinition
+extern class ProtectedFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: TrustedObject|Smi;
+}
+
+@cppObjectDefinition
 extern class FixedDoubleArray extends FixedArrayBase {
   floats[length]: float64_or_hole;
 }
 
-@generateBodyDescriptor
+@cppObjectDefinition
 extern class WeakFixedArray extends HeapObject {
   const length: Smi;
-  @cppRelaxedLoad objects[length]: MaybeObject;
+  objects[length]: MaybeObject;
 }
 
+@cppObjectDefinition
+extern class TrustedWeakFixedArray extends TrustedObject {
+  const length: Smi;
+  objects[length]: MaybeObject;
+}
+
+@cppObjectDefinition
 extern class ByteArray extends FixedArrayBase {
   bytes[length]: uint8;
 }
 
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class ArrayList extends FixedArray {
+@cppObjectDefinition
+extern class TrustedByteArray extends TrustedObject {
+  const length: Smi;
+  bytes[length]: uint8;
 }
 
-@hasSameInstanceTypeAsParent
-@doNotGenerateCast
-extern class TemplateList extends FixedArray {
+extern macro CodeStubAssembler::AllocateByteArray(uintptr): ByteArray;
+
+@cppObjectDefinition
+extern class ArrayList extends HeapObject {
+  const capacity: Smi;
+  length: Smi;
+  objects[capacity]: Object;
 }
 
 @generateBodyDescriptor
@@ -95,9 +121,13 @@ operator '[]=' macro StoreFixedArrayDirect(
     a: FixedArray, i: Smi, v: Object): void {
   a.objects[i] = v;
 }
-
+extern macro AllocateFixedArray(
+    constexpr ElementsKind, intptr): FixedArrayBase;
 extern macro AllocateFixedArray(
     constexpr ElementsKind, intptr, constexpr AllocationFlag): FixedArrayBase;
+
+extern macro FillEntireFixedArrayWithSmiZero(
+    constexpr ElementsKind, FixedArray, intptr): void;
 
 extern macro AllocateZeroedFixedArray(intptr): FixedArray;
 extern macro AllocateZeroedFixedDoubleArray(intptr): FixedDoubleArray;
@@ -109,8 +139,10 @@ extern macro FillFixedArrayWithSmiZero(
 extern macro FillFixedDoubleArrayWithZero(
     FixedDoubleArray, intptr, intptr): void;
 
+extern macro AllocateFixedArrayWithHoles(intptr): FixedArray;
 extern macro AllocateFixedArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedArray;
+extern macro AllocateFixedDoubleArrayWithHoles(intptr): FixedDoubleArray;
 extern macro AllocateFixedDoubleArrayWithHoles(
     intptr, constexpr AllocationFlag): FixedDoubleArray;
 extern macro CopyFixedArrayElements(
@@ -121,14 +153,14 @@ extern macro CopyFixedArrayElements(
     intptr, intptr, intptr): void;
 
 macro ExtractFixedArray(
-    source: FixedArray, first: intptr, count: intptr,
-    capacity: intptr): FixedArray {
+    source: FixedArray, first: intptr, count: intptr, capacity: intptr,
+    initialElement: Hole): FixedArray {
   // TODO(turbofan): This should be optimized to use memcpy for initialization.
   return NewFixedArray(
       capacity,
       IteratorSequence<Object>(
           (&source.objects).Iterator(first, first + count),
-          ConstantIterator(TheHole)));
+          ConstantIterator(initialElement)));
 }
 macro ExtractFixedDoubleArray(
     source: FixedDoubleArray, first: intptr, count: intptr,
@@ -145,7 +177,8 @@ namespace runtime {
 extern runtime FatalProcessOutOfMemoryInvalidArrayLength(NoContext): never;
 }
 
-macro NewFixedArray<Iterator: type>(length: intptr, it: Iterator): FixedArray {
+macro NewFixedArray<Iterator: type>(
+    length: intptr, it: Iterator): FixedArray {
   if (length == 0) return kEmptyFixedArray;
   if (length > kFixedArrayMaxLength) deferred {
       runtime::FatalProcessOutOfMemoryInvalidArrayLength(kNoContext);

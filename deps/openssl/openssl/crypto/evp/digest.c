@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -409,7 +409,7 @@ int EVP_DigestUpdate(EVP_MD_CTX *ctx, const void *data, size_t count)
 
     /* Code below to be removed when legacy support is dropped. */
  legacy:
-    return ctx->update(ctx, data, count);
+    return ctx->update != NULL ? ctx->update(ctx, data, count) : 0;
 }
 
 /* The caller can assume that this removes any secret data from the context */
@@ -447,7 +447,7 @@ int EVP_DigestFinal_ex(EVP_MD_CTX *ctx, unsigned char *md, unsigned int *isize)
 
     if (isize != NULL) {
         if (size <= UINT_MAX) {
-            *isize = (int)size;
+            *isize = (unsigned int)size;
         } else {
             ERR_raise(ERR_LIB_EVP, EVP_R_FINAL_ERROR);
             ret = 0;
@@ -762,7 +762,7 @@ int EVP_MD_CTX_get_params(EVP_MD_CTX *ctx, OSSL_PARAM params[])
         return pctx->op.sig.signature->get_ctx_md_params(pctx->op.sig.algctx,
                                                          params);
 
-    if (ctx->digest != NULL && ctx->digest->get_params != NULL)
+    if (ctx->digest != NULL && ctx->digest->get_ctx_params != NULL)
         return ctx->digest->get_ctx_params(ctx->algctx, params);
 
     return 0;

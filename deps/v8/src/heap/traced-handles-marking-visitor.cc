@@ -4,8 +4,12 @@
 
 #include "src/heap/traced-handles-marking-visitor.h"
 
+#include <algorithm>
+#include <iterator>
+
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/marking-worklist-inl.h"
+#include "src/heap/marking.h"
 
 namespace v8 {
 namespace internal {
@@ -36,20 +40,20 @@ void ConservativeTracedHandlesMarkingVisitor::VisitPointer(
         const_cast<Address*>(reinterpret_cast<const Address*>(address)),
         const_cast<Address*>(reinterpret_cast<const Address*>(bounds->first)),
         mark_mode_);
-    if (!object.IsHeapObject()) {
+    if (!IsHeapObject(object)) {
       // The embedder is not aware of whether numbers are materialized as heap
       // objects are just passed around as Smis. This branch also filters out
       // intentionally passed `Smi::zero()` that indicate that there's no
       // object to mark.
       return;
     }
-    HeapObject heap_object = HeapObject::cast(object);
-    if (heap_object.InReadOnlySpace()) return;
-    if (marking_state_.TryMark(heap_object)) {
-      local_marking_worklist_.Push(heap_object);
-    }
-    if (V8_UNLIKELY(v8_flags.track_retaining_path)) {
-      heap_.AddRetainingRoot(Root::kWrapperTracing, heap_object);
+    Tagged<HeapObject> heap_object = Cast<HeapObject>(object);
+    const auto target_worklist =
+        MarkingHelper::ShouldMarkObject(&heap_, heap_object);
+    if (target_worklist) {
+      MarkingHelper::TryMarkAndPush(&heap_, &local_marking_worklist_,
+                                    &marking_state_, target_worklist.value(),
+                                    heap_object);
     }
   }
 }

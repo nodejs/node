@@ -1,25 +1,26 @@
 'use strict'
 
-const fs = require('graceful-fs')
+const { createWriteStream, promises: fs } = require('graceful-fs')
 const os = require('os')
+const { backOff } = require('exponential-backoff')
 const tar = require('tar')
 const path = require('path')
-const util = require('util')
-const stream = require('stream')
+const { Transform, promises: { pipeline } } = require('stream')
 const crypto = require('crypto')
-const log = require('npmlog')
+const log = require('./log')
 const semver = require('semver')
-const fetch = require('make-fetch-happen')
+const { download } = require('./download')
 const processRelease = require('./process-release')
+
 const win = process.platform === 'win32'
-const streamPipeline = util.promisify(stream.pipeline)
 
-/**
- * @param {typeof import('graceful-fs')} fs
- */
-
-async function install (fs, gyp, argv) {
+async function install (gyp, argv) {
+  log.stdout()
   const release = processRelease(argv, gyp, process.version, process.release)
+  // Detecting target_arch based on logic from create-cnfig-gyp.js. Used on Windows only.
+  const arch = win ? (gyp.opts.target_arch || gyp.opts.arch || process.arch || 'ia32') : ''
+  // Used to prevent downloading tarball if only new node.lib is required on Windows.
+  let shouldDownloadTarball = true
 
   // Determine which node dev files version we are installing
   log.verbose('install', 'input version string %j', release.version)
@@ -54,7 +55,7 @@ async function install (fs, gyp, argv) {
   if (gyp.opts.ensure) {
     log.verbose('install', '--ensure was passed, so won\'t reinstall if already installed')
     try {
-      await fs.promises.stat(devDir)
+      await fs.stat(devDir)
     } catch (err) {
       if (err.code === 'ENOENT') {
         log.verbose('install', 'version not already installed, continuing with install', release.version)
@@ -72,7 +73,7 @@ async function install (fs, gyp, argv) {
     const installVersionFile = path.resolve(devDir, 'installVersion')
     let installVersion = 0
     try {
-      const ver = await fs.promises.readFile(installVersionFile, 'ascii')
+      const ver = await fs.readFile(installVersionFile, 'ascii')
       installVersion = parseInt(ver, 10) || 0
     } catch (err) {
       if (err.code !== 'ENOENT') {
@@ -90,6 +91,26 @@ async function install (fs, gyp, argv) {
       }
     }
     log.verbose('install', 'version is good')
+    if (win) {
+      log.verbose('on Windows; need to check node.lib')
+      const nodeLibPath = path.resolve(devDir, arch, 'node.lib')
+      try {
+        await fs.stat(nodeLibPath)
+      } catch (err) {
+        if (err.code === 'ENOENT') {
+          log.verbose('install', `version not already installed for ${arch}, continuing with install`, release.version)
+          try {
+            shouldDownloadTarball = false
+            return await go()
+          } catch (err) {
+            return rollback(err)
+          }
+        } else if (err.code === 'EACCES') {
+          return eaccesFallback(err)
+        }
+        throw err
+      }
+    }
   } else {
     try {
       return await go()
@@ -98,15 +119,49 @@ async function install (fs, gyp, argv) {
     }
   }
 
+  async function copyDirectory (src, dest) {
+    try {
+      await fs.stat(src)
+    } catch {
+      throw new Error(`Missing source directory for copy: ${src}`)
+    }
+    await fs.mkdir(dest, { recursive: true })
+    const entries = await fs.readdir(src, { withFileTypes: true })
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        await copyDirectory(path.join(src, entry.name), path.join(dest, entry.name))
+      } else if (entry.isFile()) {
+        // with parallel installs, copying files may cause file errors on
+        // Windows so use an exponential backoff to resolve collisions
+        await backOff(async () => {
+          try {
+            await fs.copyFile(path.join(src, entry.name), path.join(dest, entry.name))
+          } catch (err) {
+            // if ensure, check if file already exists and that's good enough
+            if (gyp.opts.ensure && err.code === 'EBUSY') {
+              try {
+                await fs.stat(path.join(dest, entry.name))
+                return
+              } catch {}
+            }
+            throw err
+          }
+        })
+      } else {
+        throw new Error('Unexpected file directory entry type')
+      }
+    }
+  }
+
   async function go () {
-    log.verbose('ensuring nodedir is created', devDir)
+    log.verbose('ensuring devDir is created', devDir)
 
     // first create the dir for the node dev files
     try {
-      const created = await fs.promises.mkdir(devDir, { recursive: true })
+      const created = await fs.mkdir(devDir, { recursive: true })
 
       if (created) {
-        log.verbose('created nodedir', created)
+        log.verbose('created devDir', created)
       }
     } catch (err) {
       if (err.code === 'EACCES') {
@@ -118,6 +173,7 @@ async function install (fs, gyp, argv) {
 
     // now download the node tarball
     const tarPath = gyp.opts.tarball
+    let extractErrors = false
     let extractCount = 0
     const contentShasums = {}
     const expectShasums = {}
@@ -136,71 +192,102 @@ async function install (fs, gyp, argv) {
       return isValid
     }
 
+    function onwarn (code, message) {
+      extractErrors = true
+      log.error('error while extracting tarball', code, message)
+    }
+
     // download the tarball and extract!
+    // Ommited on Windows if only new node.lib is required
 
-    if (tarPath) {
-      await tar.extract({
-        file: tarPath,
-        strip: 1,
-        filter: isValid,
-        cwd: devDir
-      })
-    } else {
-      try {
-        const res = await download(gyp, release.tarballUrl)
+    // on Windows there can be file errors from tar if parallel installs
+    // are happening (not uncommon with multiple native modules) so
+    // extract the tarball to a temp directory first and then copy over
+    const tarExtractDir = win ? await fs.mkdtemp(path.join(os.tmpdir(), 'node-gyp-tmp-')) : devDir
 
-        if (res.status !== 200) {
-          throw new Error(`${res.status} response downloading ${release.tarballUrl}`)
-        }
-
-        await streamPipeline(
-          res.body,
-          // content checksum
-          new ShaSum((_, checksum) => {
-            const filename = path.basename(release.tarballUrl).trim()
-            contentShasums[filename] = checksum
-            log.verbose('content checksum', filename, checksum)
-          }),
-          tar.extract({
+    try {
+      if (shouldDownloadTarball) {
+        if (tarPath) {
+          await tar.extract({
+            file: tarPath,
             strip: 1,
-            cwd: devDir,
-            filter: isValid
+            filter: isValid,
+            onwarn,
+            cwd: tarExtractDir
           })
-        )
-      } catch (err) {
-        // something went wrong downloading the tarball?
-        if (err.code === 'ENOTFOUND') {
-          throw new Error('This is most likely not a problem with node-gyp or the package itself and\n' +
-            'is related to network connectivity. In most cases you are behind a proxy or have bad \n' +
-            'network settings.')
+        } else {
+          try {
+            const res = await download(gyp, release.tarballUrl)
+
+            if (res.status !== 200) {
+              throw new Error(`${res.status} response downloading ${release.tarballUrl}`)
+            }
+
+            await pipeline(
+              res.body,
+              // content checksum
+              new ShaSum((_, checksum) => {
+                const filename = path.basename(release.tarballUrl).trim()
+                contentShasums[filename] = checksum
+                log.verbose('content checksum', filename, checksum)
+              }),
+              tar.extract({
+                strip: 1,
+                cwd: tarExtractDir,
+                filter: isValid,
+                onwarn
+              })
+            )
+          } catch (err) {
+          // something went wrong downloading the tarball?
+            if (err.code === 'ENOTFOUND') {
+              throw new Error('This is most likely not a problem with node-gyp or the package itself and\n' +
+              'is related to network connectivity. In most cases you are behind a proxy or have bad \n' +
+              'network settings.')
+            }
+            throw err
+          }
         }
-        throw err
+
+        // invoked after the tarball has finished being extracted
+        if (extractErrors || extractCount === 0) {
+          throw new Error('There was a fatal problem while downloading/extracting the tarball')
+        }
+
+        log.verbose('tarball', 'done parsing tarball')
       }
-    }
 
-    // invoked after the tarball has finished being extracted
-    if (extractCount === 0) {
-      throw new Error('There was a fatal problem while downloading/extracting the tarball')
-    }
-
-    log.verbose('tarball', 'done parsing tarball')
-
-    const installVersionPath = path.resolve(devDir, 'installVersion')
-    await Promise.all([
+      const installVersionPath = path.resolve(tarExtractDir, 'installVersion')
+      await Promise.all([
       // need to download node.lib
-      ...(win ? downloadNodeLib() : []),
-      // write the "installVersion" file
-      fs.promises.writeFile(installVersionPath, gyp.package.installVersion + '\n'),
-      // Only download SHASUMS.txt if we downloaded something in need of SHA verification
-      ...(!tarPath || win ? [downloadShasums()] : [])
-    ])
+        ...(win ? [downloadNodeLib()] : []),
+        // write the "installVersion" file
+        fs.writeFile(installVersionPath, gyp.package.installVersion + '\n'),
+        // Only download SHASUMS.txt if we downloaded something in need of SHA verification
+        ...(!tarPath || win ? [downloadShasums()] : [])
+      ])
 
-    log.verbose('download contents checksum', JSON.stringify(contentShasums))
-    // check content shasums
-    for (const k in contentShasums) {
-      log.verbose('validating download checksum for ' + k, '(%s == %s)', contentShasums[k], expectShasums[k])
-      if (contentShasums[k] !== expectShasums[k]) {
-        throw new Error(k + ' local checksum ' + contentShasums[k] + ' not match remote ' + expectShasums[k])
+      log.verbose('download contents checksum', JSON.stringify(contentShasums))
+      // check content shasums
+      for (const k in contentShasums) {
+        log.verbose('validating download checksum for ' + k, '(%s == %s)', contentShasums[k], expectShasums[k])
+        if (contentShasums[k] !== expectShasums[k]) {
+          throw new Error(k + ' local checksum ' + contentShasums[k] + ' not match remote ' + expectShasums[k])
+        }
+      }
+
+      // copy over the files from the temp tarball extract directory to devDir
+      if (tarExtractDir !== devDir) {
+        await copyDirectory(tarExtractDir, devDir)
+      }
+    } finally {
+      if (tarExtractDir !== devDir) {
+        try {
+          // try to cleanup temp dir
+          await fs.rm(tarExtractDir, { recursive: true })
+        } catch {
+          log.warn('failed to clean up temp tarball extract directory')
+        }
       }
     }
 
@@ -228,43 +315,33 @@ async function install (fs, gyp, argv) {
       log.verbose('checksum data', JSON.stringify(expectShasums))
     }
 
-    function downloadNodeLib () {
+    async function downloadNodeLib () {
       log.verbose('on Windows; need to download `' + release.name + '.lib`...')
-      const archs = ['ia32', 'x64', 'arm64']
-      return archs.map(async (arch) => {
-        const dir = path.resolve(devDir, arch)
-        const targetLibPath = path.resolve(dir, release.name + '.lib')
-        const { libUrl, libPath } = release[arch]
-        const name = `${arch} ${release.name}.lib`
-        log.verbose(name, 'dir', dir)
-        log.verbose(name, 'url', libUrl)
+      const dir = path.resolve(tarExtractDir, arch)
+      const targetLibPath = path.resolve(dir, release.name + '.lib')
+      const { libUrl, libPath } = release[arch]
+      const name = `${arch} ${release.name}.lib`
+      log.verbose(name, 'dir', dir)
+      log.verbose(name, 'url', libUrl)
 
-        await fs.promises.mkdir(dir, { recursive: true })
-        log.verbose('streaming', name, 'to:', targetLibPath)
+      await fs.mkdir(dir, { recursive: true })
+      log.verbose('streaming', name, 'to:', targetLibPath)
 
-        const res = await download(gyp, libUrl)
+      const res = await download(gyp, libUrl)
 
-        if (res.status === 403 || res.status === 404) {
-          if (arch === 'arm64') {
-            // Arm64 is a newer platform on Windows and not all node distributions provide it.
-            log.verbose(`${name} was not found in ${libUrl}`)
-          } else {
-            log.warn(`${name} was not found in ${libUrl}`)
-          }
-          return
-        } else if (res.status !== 200) {
-          throw new Error(`${res.status} status code downloading ${name}`)
-        }
+      // Since only required node.lib is downloaded throw error if it is not fetched
+      if (res.status !== 200) {
+        throw new Error(`${res.status} status code downloading ${name}`)
+      }
 
-        return streamPipeline(
-          res.body,
-          new ShaSum((_, checksum) => {
-            contentShasums[libPath] = checksum
-            log.verbose('content checksum', libPath, checksum)
-          }),
-          fs.createWriteStream(targetLibPath)
-        )
-      })
+      return pipeline(
+        res.body,
+        new ShaSum((_, checksum) => {
+          contentShasums[libPath] = checksum
+          log.verbose('content checksum', libPath, checksum)
+        }),
+        createWriteStream(targetLibPath)
+      )
     } // downloadNodeLib()
   } // go()
 
@@ -281,7 +358,7 @@ async function install (fs, gyp, argv) {
   async function rollback (err) {
     log.warn('install', 'got an error, rolling back install')
     // roll-back the install if anything went wrong
-    await util.promisify(gyp.commands.remove)([release.versionDir])
+    await gyp.commands.remove([release.versionDir])
     throw err
   }
 
@@ -312,11 +389,11 @@ async function install (fs, gyp, argv) {
       log.verbose('tmpdir == cwd', 'automatically will remove dev files after to save disk space')
       gyp.todo.push({ name: 'remove', args: argv })
     }
-    return util.promisify(gyp.commands.install)([noretry].concat(argv))
+    return gyp.commands.install([noretry].concat(argv))
   }
 }
 
-class ShaSum extends stream.Transform {
+class ShaSum extends Transform {
   constructor (callback) {
     super()
     this._callback = callback
@@ -334,43 +411,5 @@ class ShaSum extends stream.Transform {
   }
 }
 
-async function download (gyp, url) {
-  log.http('GET', url)
-
-  const requestOpts = {
-    headers: {
-      'User-Agent': `node-gyp v${gyp.version} (node ${process.version})`,
-      Connection: 'keep-alive'
-    },
-    proxy: gyp.opts.proxy,
-    noProxy: gyp.opts.noproxy
-  }
-
-  const cafile = gyp.opts.cafile
-  if (cafile) {
-    requestOpts.ca = await readCAFile(cafile)
-  }
-
-  const res = await fetch(url, requestOpts)
-  log.http(res.status, res.url)
-
-  return res
-}
-
-async function readCAFile (filename) {
-  // The CA file can contain multiple certificates so split on certificate
-  // boundaries.  [\S\s]*? is used to match everything including newlines.
-  const ca = await fs.promises.readFile(filename, 'utf8')
-  const re = /(-----BEGIN CERTIFICATE-----[\S\s]*?-----END CERTIFICATE-----)/g
-  return ca.match(re)
-}
-
-module.exports = function (gyp, argv, callback) {
-  install(fs, gyp, argv).then(callback.bind(undefined, null), callback)
-}
-module.exports.test = {
-  download,
-  install,
-  readCAFile
-}
+module.exports = install
 module.exports.usage = 'Install node development files for the specified node version.'

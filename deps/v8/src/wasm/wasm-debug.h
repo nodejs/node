@@ -23,8 +23,6 @@
 namespace v8 {
 namespace internal {
 
-template <typename T>
-class Handle;
 class WasmFrame;
 
 namespace wasm {
@@ -103,6 +101,8 @@ class DebugSideTable {
 
     void Print(std::ostream&) const;
 
+    size_t EstimateCurrentMemoryConsumption() const;
+
    private:
     int pc_offset_;
     int stack_height_;
@@ -151,6 +151,8 @@ class DebugSideTable {
 
   void Print(std::ostream&) const;
 
+  size_t EstimateCurrentMemoryConsumption() const;
+
  private:
   struct EntryPositionLess {
     bool operator()(const Entry& a, const Entry& b) const {
@@ -172,18 +174,19 @@ class V8_EXPORT_PRIVATE DebugInfo {
   // For the frame inspection methods below:
   // {fp} is the frame pointer of the Liftoff frame, {debug_break_fp} that of
   // the {WasmDebugBreak} frame (if any).
-  int GetNumLocals(Address pc);
+  int GetNumLocals(Address pc, Isolate* isolate);
   WasmValue GetLocalValue(int local, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate);
-  int GetStackDepth(Address pc);
+  int GetStackDepth(Address pc, Isolate* isolate);
 
-  const wasm::WasmFunction& GetFunctionAtAddress(Address pc);
+  const wasm::WasmFunction& GetFunctionAtAddress(Address pc, Isolate* isolate);
 
   WasmValue GetStackValue(int index, Address pc, Address fp,
                           Address debug_break_fp, Isolate* isolate);
 
   void SetBreakpoint(int func_index, int offset, Isolate* current_isolate);
 
+  bool IsFrameBlackboxed(WasmFrame* frame);
   // Returns true if we stay inside the passed frame (or a called frame) after
   // the step. False if the frame will return after the step.
   bool PrepareStep(WasmFrame*);
@@ -208,6 +211,8 @@ class V8_EXPORT_PRIVATE DebugInfo {
   DebugSideTable* GetDebugSideTableIfExists(const WasmCode*) const;
 
   void RemoveIsolate(Isolate*);
+
+  size_t EstimateCurrentMemoryConsumption() const;
 
  private:
   std::unique_ptr<DebugInfoImpl> impl_;

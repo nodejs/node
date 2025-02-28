@@ -5,16 +5,22 @@
 #ifndef V8_INTERPRETER_BYTECODE_REGISTER_H_
 #define V8_INTERPRETER_BYTECODE_REGISTER_H_
 
-#include "src/interpreter/bytecodes.h"
+#include <optional>
 
 #include "src/base/macros.h"
 #include "src/base/platform/platform.h"
 #include "src/common/globals.h"
 #include "src/execution/frame-constants.h"
+#include "src/interpreter/bytecodes.h"
 
 namespace v8 {
 namespace internal {
 namespace interpreter {
+
+constexpr int OffsetFromFPToRegisterIndex(int offset) {
+  return (InterpreterFrameConstants::kRegisterFileFromFp - offset) /
+         kSystemPointerSize;
+}
 
 // An interpreter Register which is located in the function's Register file
 // in its stack-frame. Register hold parameters, this, and expression values.
@@ -22,49 +28,53 @@ class V8_EXPORT_PRIVATE Register final {
  public:
   constexpr explicit Register(int index = kInvalidIndex) : index_(index) {}
 
-  int index() const { return index_; }
-  bool is_parameter() const { return index() < 0; }
-  bool is_valid() const { return index_ != kInvalidIndex; }
+  constexpr int index() const { return index_; }
+  constexpr bool is_parameter() const { return index() < 0; }
+  constexpr bool is_valid() const { return index_ != kInvalidIndex; }
 
-  static Register FromParameterIndex(int index);
-  int ToParameterIndex() const;
+  static constexpr Register FromParameterIndex(int index);
+  constexpr int ToParameterIndex() const;
 
-  static Register receiver() { return FromParameterIndex(0); }
-  bool is_receiver() const { return ToParameterIndex() == 0; }
+  static constexpr Register receiver() { return FromParameterIndex(0); }
+  constexpr bool is_receiver() const { return ToParameterIndex() == 0; }
 
   // Returns an invalid register.
-  static Register invalid_value() { return Register(); }
+  static constexpr Register invalid_value() { return Register(); }
 
   // Returns the register for the function's closure object.
-  static Register function_closure();
-  bool is_function_closure() const;
+  static constexpr Register function_closure();
+  constexpr bool is_function_closure() const;
 
   // Returns the register which holds the current context object.
-  static Register current_context();
-  bool is_current_context() const;
+  static constexpr Register current_context();
+  constexpr bool is_current_context() const;
 
   // Returns the register for the bytecode array.
-  static Register bytecode_array();
-  bool is_bytecode_array() const;
+  static constexpr Register bytecode_array();
+  constexpr bool is_bytecode_array() const;
 
   // Returns the register for the saved bytecode offset.
-  static Register bytecode_offset();
-  bool is_bytecode_offset() const;
+  static constexpr Register bytecode_offset();
+  constexpr bool is_bytecode_offset() const;
+
+  // Returns the register for the cached feedback vector.
+  static constexpr Register feedback_vector();
+  constexpr bool is_feedback_vector() const;
 
   // Returns the register for the argument count.
-  static Register argument_count();
+  static constexpr Register argument_count();
 
   // Returns a register that can be used to represent the accumulator
   // within code in the interpreter, but should never be emitted in
   // bytecode.
-  static Register virtual_accumulator();
+  static constexpr Register virtual_accumulator();
 
-  OperandSize SizeOfOperand() const;
+  constexpr OperandSize SizeOfOperand() const;
 
   constexpr int32_t ToOperand() const {
     return kRegisterFileStartOffset - index_;
   }
-  static Register FromOperand(int32_t operand) {
+  static constexpr Register FromOperand(int32_t operand) {
     return Register(kRegisterFileStartOffset - operand);
   }
 
@@ -74,7 +84,7 @@ class V8_EXPORT_PRIVATE Register final {
                     static_cast<int>(bytecode));
   }
 
-  const base::Optional<Bytecode> TryToShortStar() const {
+  constexpr std::optional<Bytecode> TryToShortStar() const {
     if (index() >= 0 && index() < Bytecodes::kShortStarCount) {
       Bytecode bytecode =
           static_cast<Bytecode>(static_cast<int>(Bytecode::kStar0) - index());
@@ -85,38 +95,53 @@ class V8_EXPORT_PRIVATE Register final {
     return {};
   }
 
-  static bool AreContiguous(Register reg1, Register reg2,
-                            Register reg3 = invalid_value(),
-                            Register reg4 = invalid_value(),
-                            Register reg5 = invalid_value());
-
   std::string ToString() const;
 
-  bool operator==(const Register& other) const {
+  constexpr bool operator==(const Register& other) const {
     return index() == other.index();
   }
-  bool operator!=(const Register& other) const {
+  constexpr bool operator!=(const Register& other) const {
     return index() != other.index();
   }
-  bool operator<(const Register& other) const {
+  constexpr bool operator<(const Register& other) const {
     return index() < other.index();
   }
-  bool operator<=(const Register& other) const {
+  constexpr bool operator<=(const Register& other) const {
     return index() <= other.index();
   }
-  bool operator>(const Register& other) const {
+  constexpr bool operator>(const Register& other) const {
     return index() > other.index();
   }
-  bool operator>=(const Register& other) const {
+  constexpr bool operator>=(const Register& other) const {
     return index() >= other.index();
   }
 
  private:
   DISALLOW_NEW_AND_DELETE()
 
-  static const int kInvalidIndex = kMaxInt;
-  static const int kRegisterFileStartOffset =
-      InterpreterFrameConstants::kRegisterFileFromFp / kSystemPointerSize;
+  static constexpr int kInvalidIndex = kMaxInt;
+
+  static constexpr int kRegisterFileStartOffset =
+      OffsetFromFPToRegisterIndex(0);
+  static constexpr int kFirstParamRegisterIndex =
+      OffsetFromFPToRegisterIndex(InterpreterFrameConstants::kFirstParamFromFp);
+  static constexpr int kFunctionClosureRegisterIndex =
+      OffsetFromFPToRegisterIndex(StandardFrameConstants::kFunctionOffset);
+  static constexpr int kCurrentContextRegisterIndex =
+      OffsetFromFPToRegisterIndex(StandardFrameConstants::kContextOffset);
+  static constexpr int kBytecodeArrayRegisterIndex =
+      OffsetFromFPToRegisterIndex(
+          InterpreterFrameConstants::kBytecodeArrayFromFp);
+  static constexpr int kBytecodeOffsetRegisterIndex =
+      OffsetFromFPToRegisterIndex(
+          InterpreterFrameConstants::kBytecodeOffsetFromFp);
+  static constexpr int kFeedbackVectorRegisterIndex =
+      OffsetFromFPToRegisterIndex(
+          InterpreterFrameConstants::kFeedbackVectorFromFp);
+  static constexpr int kCallerPCOffsetRegisterIndex =
+      OffsetFromFPToRegisterIndex(InterpreterFrameConstants::kCallerPCOffset);
+  static constexpr int kArgumentCountRegisterIndex =
+      OffsetFromFPToRegisterIndex(InterpreterFrameConstants::kArgCOffset);
 
   int index_;
 };
@@ -172,6 +197,79 @@ class RegisterList {
   int first_reg_index_;
   int register_count_;
 };
+
+constexpr Register Register::FromParameterIndex(int index) {
+  DCHECK_GE(index, 0);
+  int register_index = kFirstParamRegisterIndex - index;
+  DCHECK_LT(register_index, 0);
+  return Register(register_index);
+}
+
+constexpr int Register::ToParameterIndex() const {
+  DCHECK(is_parameter());
+  return kFirstParamRegisterIndex - index();
+}
+
+constexpr Register Register::function_closure() {
+  return Register(kFunctionClosureRegisterIndex);
+}
+
+constexpr bool Register::is_function_closure() const {
+  return index() == kFunctionClosureRegisterIndex;
+}
+
+constexpr Register Register::current_context() {
+  return Register(kCurrentContextRegisterIndex);
+}
+
+constexpr bool Register::is_current_context() const {
+  return index() == kCurrentContextRegisterIndex;
+}
+
+constexpr Register Register::bytecode_array() {
+  return Register(kBytecodeArrayRegisterIndex);
+}
+
+constexpr bool Register::is_bytecode_array() const {
+  return index() == kBytecodeArrayRegisterIndex;
+}
+
+constexpr Register Register::bytecode_offset() {
+  return Register(kBytecodeOffsetRegisterIndex);
+}
+
+constexpr bool Register::is_bytecode_offset() const {
+  return index() == kBytecodeOffsetRegisterIndex;
+}
+
+constexpr Register Register::feedback_vector() {
+  return Register(kFeedbackVectorRegisterIndex);
+}
+
+constexpr bool Register::is_feedback_vector() const {
+  return index() == kFeedbackVectorRegisterIndex;
+}
+
+// static
+constexpr Register Register::virtual_accumulator() {
+  return Register(kCallerPCOffsetRegisterIndex);
+}
+
+// static
+constexpr Register Register::argument_count() {
+  return Register(kArgumentCountRegisterIndex);
+}
+
+constexpr OperandSize Register::SizeOfOperand() const {
+  int32_t operand = ToOperand();
+  if (operand >= kMinInt8 && operand <= kMaxInt8) {
+    return OperandSize::kByte;
+  } else if (operand >= kMinInt16 && operand <= kMaxInt16) {
+    return OperandSize::kShort;
+  } else {
+    return OperandSize::kQuad;
+  }
+}
 
 }  // namespace interpreter
 }  // namespace internal

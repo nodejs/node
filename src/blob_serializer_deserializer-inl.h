@@ -13,8 +13,8 @@
 
 #include "debug_utils-inl.h"
 
-// This is related to the blob that is used in snapshots and has nothing to do
-// with `node_blob.h`.
+// This is related to the blob that is used in snapshots and single executable
+// applications and has nothing to do with `node_blob.h`.
 
 namespace node {
 
@@ -130,22 +130,28 @@ std::vector<T> BlobDeserializer<Impl>::ReadVector() {
 
 template <typename Impl>
 std::string BlobDeserializer<Impl>::ReadString() {
+  std::string_view view = ReadStringView(StringLogMode::kAddressAndContent);
+  return std::string(view);
+}
+
+template <typename Impl>
+std::string_view BlobDeserializer<Impl>::ReadStringView(StringLogMode mode) {
   size_t length = ReadArithmetic<size_t>();
+  Debug("ReadStringView(), length=%zu: ", length);
 
-  if (is_debug) {
-    Debug("ReadString(), length=%d: ", length);
+  if (length == 0) {
+    Debug("ReadStringView() read an empty view\n");
+    return std::string_view();
   }
 
-  CHECK_GT(length, 0);  // There should be no empty strings.
-  MallocedBuffer<char> buf(length + 1);
-  memcpy(buf.data, sink.data() + read_total, length + 1);
-  std::string result(buf.data, length);  // This creates a copy of buf.data.
-
-  if (is_debug) {
-    Debug("\"%s\", read %zu bytes\n", result.c_str(), length + 1);
+  std::string_view result(sink.data() + read_total, length);
+  Debug("%p, read %zu bytes", result.data(), result.size());
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug(", content:%s%s", length > 32 ? "\n" : " ", result);
   }
+  Debug("\n");
 
-  read_total += length + 1;
+  read_total += length;
   return result;
 }
 
@@ -232,7 +238,8 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
   if (is_debug) {
     std::string str = std::is_arithmetic_v<T> ? "" : ToStr(data);
     std::string name = GetName<T>();
-    Debug("\nWriteVector<%s>() (%d-byte), count=%d: %s\n",
+    Debug("\nAt 0x%x: WriteVector<%s>() (%d-byte), count=%d: %s\n",
+          sink.size(),
           name.c_str(),
           sizeof(T),
           data.size(),
@@ -240,7 +247,7 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
   }
 
   size_t written_total = WriteArithmetic<size_t>(data.size());
-  if (data.size() == 0) {
+  if (data.empty()) {
     return written_total;
   }
 
@@ -262,25 +269,36 @@ size_t BlobSerializer<Impl>::WriteVector(const std::vector<T>& data) {
 // [  4/8 bytes     ] length
 // [ |length| bytes ] contents
 template <typename Impl>
-size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
-  CHECK_GT(data.size(), 0);  // No empty strings should be written.
+size_t BlobSerializer<Impl>::WriteStringView(std::string_view data,
+                                             StringLogMode mode) {
+  Debug("At 0x%x: WriteStringView(), length=%zu: %p\n",
+        sink.size(),
+        data.size(),
+        data.data());
   size_t written_total = WriteArithmetic<size_t>(data.size());
-  if (is_debug) {
-    std::string str = ToStr(data);
-    Debug("WriteString(), length=%zu: \"%s\"\n", data.size(), data.c_str());
-  }
 
-  // Write the null-terminated string.
-  size_t length = data.size() + 1;
-  sink.insert(sink.end(), data.c_str(), data.c_str() + length);
+  size_t length = data.size();
+  if (length == 0) {
+    Debug("WriteStringView() wrote an empty view\n");
+    return written_total;
+  }
+  sink.insert(sink.end(), data.data(), data.data() + length);
   written_total += length;
 
-  if (is_debug) {
-    Debug("WriteString() wrote %zu bytes\n", written_total);
+  Debug("WriteStringView() wrote %zu bytes\n", written_total);
+  if (mode == StringLogMode::kAddressAndContent) {
+    Debug("%s", data);
   }
 
   return written_total;
 }
+
+template <typename Impl>
+size_t BlobSerializer<Impl>::WriteString(const std::string& data) {
+  return WriteStringView(data, StringLogMode::kAddressAndContent);
+}
+
+static size_t kPreviewCount = 16;
 
 // Helper for writing an array of numeric types.
 template <typename Impl>
@@ -289,10 +307,18 @@ size_t BlobSerializer<Impl>::WriteArithmetic(const T* data, size_t count) {
   static_assert(std::is_arithmetic_v<T>, "Arithmetic type");
   DCHECK_GT(count, 0);  // Should not write contents for vectors of size 0.
   if (is_debug) {
-    std::string str =
-        "{ " + std::to_string(data[0]) + (count > 1 ? ", ... }" : " }");
+    size_t preview_count = count < kPreviewCount ? count : kPreviewCount;
+    std::string str = "{ ";
+    for (size_t i = 0; i < preview_count; ++i) {
+      str += (std::to_string(data[i]) + ",");
+    }
+    if (count > preview_count) {
+      str += "...";
+    }
+    str += "}";
     std::string name = GetName<T>();
-    Debug("Write<%s>() (%zu-byte), count=%zu: %s",
+    Debug("At 0x%x: Write<%s>() (%zu-byte), count=%zu: %s",
+          sink.size(),
           name.c_str(),
           sizeof(T),
           count,

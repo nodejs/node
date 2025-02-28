@@ -45,6 +45,7 @@
 #include "test/cctest/cctest.h"
 #include "test/cctest/test-utils-arm64.h"
 #include "test/common/assembler-tester.h"
+#include "third_party/fp16/src/include/fp16.h"
 
 namespace v8 {
 namespace internal {
@@ -134,7 +135,6 @@ static void InitializeVM() {
       AllocateAssemblerBuffer(buf_size, nullptr, JitPermission::kNoJit);      \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes,        \
                       ExternalAssemblerBuffer(owned_buf->start(), buf_size)); \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;                   \
   Decoder<DispatchingDecoderVisitor>* decoder =                               \
       new Decoder<DispatchingDecoderVisitor>();                               \
   Simulator simulator(decoder);                                               \
@@ -167,7 +167,7 @@ static void InitializeVM() {
   START_AFTER_RESET();
 
 #define RUN() \
-  simulator.RunFrom(reinterpret_cast<Instruction*>(code->code_entry_point()))
+  simulator.RunFrom(reinterpret_cast<Instruction*>(code->instruction_start()))
 
 #define END()                                                                  \
   __ Debug("End test.", __LINE__, TRACE_DISABLE | LOG_ALL);                    \
@@ -178,7 +178,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (v8_flags.print_code) code->Print();                                    \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #else  // ifdef USE_SIMULATOR.
@@ -191,7 +191,6 @@ static void InitializeVM() {
   HandleScope scope(isolate);                                          \
   CHECK_NOT_NULL(isolate);                                             \
   auto owned_buf = AllocateAssemblerBuffer(buf_size);                  \
-  std::optional<AssemblerBufferWriteScope> rw_buffer_scope;            \
   MacroAssembler masm(isolate, v8::internal::CodeObjectRequired::kYes, \
                       owned_buf->CreateView());                        \
   HandleScope handle_scope(isolate);                                   \
@@ -199,7 +198,6 @@ static void InitializeVM() {
   RegisterDump core;
 
 #define RESET()                                                \
-  rw_buffer_scope.emplace(*owned_buf);                         \
   __ Reset();                                                  \
   __ CodeEntry();                                              \
   /* Reset the machine state (like simulator.ResetState()). */ \
@@ -216,7 +214,6 @@ static void InitializeVM() {
 #define RUN()                                                  \
   {                                                            \
     /* Reset the scope and thus make the buffer executable. */ \
-    rw_buffer_scope.reset();                                   \
     auto f = GeneratedCode<void>::FromCode(isolate, *code);    \
     f.Call();                                                  \
   }
@@ -229,7 +226,7 @@ static void InitializeVM() {
     CodeDesc desc;                                                             \
     __ GetCode(masm.isolate(), &desc);                                         \
     code = Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build(); \
-    if (v8_flags.print_code) code->Print();                                    \
+    if (v8_flags.print_code) Print(*code);                                     \
   }
 
 #endif  // ifdef USE_SIMULATOR.
@@ -250,7 +247,7 @@ static void InitializeVM() {
   CHECK(Equal64(expected, &core, result))
 
 #define CHECK_FULL_HEAP_OBJECT_IN_REGISTER(expected, result) \
-  CHECK(Equal64(expected->ptr(), &core, result))
+  CHECK(Equal64((*expected).ptr(), &core, result))
 
 #define CHECK_NOT_ZERO_AND_NOT_EQUAL_64(reg0, reg1) \
   {                                                 \
@@ -6789,7 +6786,7 @@ static void LdrLiteralRangeHelper(
   END();
 
   if (outcome == EmitExpected) {
-    Address pool_start = code->InstructionStart() + pc_offset_before_emission;
+    Address pool_start = code->instruction_start() + pc_offset_before_emission;
     Instruction* branch = reinterpret_cast<Instruction*>(pool_start);
     CHECK(branch->IsImmBranch());
     CHECK_EQ(expected_pool_size, branch->ImmPCOffset());
@@ -11794,7 +11791,7 @@ TEST(system_msr) {
   // All FPCR fields (including fields which may be read-as-zero):
   //  Stride, FZ16, Len
   //  IDE, IXE, UFE, OFE, DZE, IOE
-  const uint64_t fpcr_all = fpcr_core | 0x003F9F00;
+  const uint64_t fpcr_all = fpcr_core | 0x003F9F07;
 
   SETUP();
 
@@ -14771,12 +14768,12 @@ static void AtomicMemoryWHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2, uint64_t expected,
                                 uint64_t result_mask) {
-  uint64_t data0[2] = {arg2, 0};
-  uint64_t data1[2] = {arg2, 0};
-  uint64_t data2[2] = {arg2, 0};
-  uint64_t data3[2] = {arg2, 0};
-  uint64_t data4[2] = {arg2, 0};
-  uint64_t data5[2] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);
@@ -14838,12 +14835,12 @@ static void AtomicMemoryXHelper(AtomicMemoryLoadSignature* load_funcs,
                                 AtomicMemoryStoreSignature* store_funcs,
                                 uint64_t arg1, uint64_t arg2,
                                 uint64_t expected) {
-  uint64_t data0[2] = {arg2, 0};
-  uint64_t data1[2] = {arg2, 0};
-  uint64_t data2[2] = {arg2, 0};
-  uint64_t data3[2] = {arg2, 0};
-  uint64_t data4[2] = {arg2, 0};
-  uint64_t data5[2] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data0[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data1[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data2[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data3[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data4[] = {arg2, 0};
+  alignas(kXRegSize * 2) uint64_t data5[] = {arg2, 0};
 
   SETUP();
   SETUP_FEATURE(LSE);
@@ -15799,7 +15796,6 @@ TEST(pool_size) {
 
   // This test does not execute any code. It only tests that the size of the
   // pools is read correctly from the RelocInfo.
-  rw_buffer_scope.emplace(*owned_buf);
 
   Label exit;
   __ b(&exit);
@@ -16003,6 +15999,167 @@ TEST(internal_reference_linked) {
 
   CHECK_EQUAL_64(0x1, x0);
 }
+
+TEST(scalar_movi) {
+  INIT_V8();
+  SETUP();
+  START();
+
+  // Make sure that V0 is initialized to a non-zero value.
+  __ Movi(v0.V16B(), 0xFF);
+  // This constant value can't be encoded in a MOVI instruction,
+  // so the program would use a fallback path that must set the
+  // upper 64 bits of the destination vector to 0.
+  __ Movi(v0.V1D(), 0xDECAFC0FFEE);
+  __ Mov(x0, v0.V2D(), 1);
+
+  END();
+  RUN();
+
+  CHECK_EQUAL_64(0, x0);
+}
+
+TEST(neon_pmull) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(PMULL1Q);
+  START();
+
+  __ Movi(v0.V2D(), 0xDECAFC0FFEE);
+  __ Movi(v1.V8H(), 0xBEEF);
+  __ Movi(v2.V8H(), 0xC0DE);
+  __ Movi(v3.V16B(), 42);
+
+  __ Pmull(v0.V8H(), v0.V8B(), v0.V8B());
+  __ Pmull2(v1.V8H(), v1.V16B(), v1.V16B());
+  __ Pmull(v2.V1Q(), v2.V1D(), v2.V1D());
+  __ Pmull2(v3.V1Q(), v3.V2D(), v3.V2D());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x515450, 0x4455500055555454, q0);
+    CHECK_EQUAL_128(0x4554545545545455, 0x4554545545545455, q1);
+    CHECK_EQUAL_128(0x5000515450005154, 0x5000515450005154, q2);
+    CHECK_EQUAL_128(0x444044404440444, 0x444044404440444, q3);
+  }
+}
+
+TEST(neon_3extension_dot_product) {
+  INIT_V8();
+  SETUP();
+  SETUP_FEATURE(DOTPROD);
+  START();
+
+  __ Movi(v0.V2D(), 0x7122712271227122, 0x7122712271227122);
+  __ Movi(v1.V2D(), 0xe245e245f245f245, 0xe245e245f245f245);
+  __ Movi(v2.V2D(), 0x3939393900000000, 0x3939393900000000);
+
+  __ Movi(v16.V2D(), 0x0000400000004000, 0x0000400000004000);
+  __ Movi(v17.V2D(), 0x0000400000004000, 0x0000400000004000);
+
+  __ Sdot(v16.V4S(), v0.V16B(), v1.V16B());
+  __ Sdot(v17.V2S(), v1.V8B(), v2.V8B());
+
+  END();
+
+  if (CAN_RUN()) {
+    RUN();
+
+    CHECK_EQUAL_128(0x000037d8000045f8, 0x000037d8000045f8, q16);
+    CHECK_EQUAL_128(0, 0x0000515e00004000, q17);
+  }
+}
+
+#define FP16_OP_LIST(V) \
+  V(fadd)               \
+  V(fsub)               \
+  V(fmul)               \
+  V(fdiv)               \
+  V(fmax)               \
+  V(fmin)
+
+namespace {
+
+float f16_round(float f) {
+  return fp16_ieee_to_fp32_value(fp16_ieee_from_fp32_value(f));
+}
+
+float fadd(float a, float b) { return a + b; }
+
+float fsub(float a, float b) { return a - b; }
+
+float fmul(float a, float b) { return a * b; }
+
+float fdiv(float a, float b) { return a / b; }
+
+float fmax(float a, float b) { return a > b ? a : b; }
+
+float fmin(float a, float b) { return a < b ? a : b; }
+}  // namespace
+
+#define TEST_FP16_OP(op)                                             \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float a = 42.15;                                                 \
+    float b = 13.31;                                                 \
+    __ Fmov(s0, a);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ Fmov(s1, b);                                                  \
+    __ Fcvt(s1.H(), s1.S());                                         \
+    __ Dup(v1.V8H(), v1.H(), 0);                                     \
+    __ op(v2.V8H(), v0.V8H(), v1.V8H());                             \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res =                                                 \
+          fp16_ieee_from_fp32_value(op(f16_round(a), f16_round(b))); \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v2);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
+
+#define FP16_OP_LIST(V) \
+  V(fabs, std::abs)     \
+  V(fsqrt, std::sqrt)   \
+  V(fneg, -)            \
+  V(frintp, ceilf)
+
+#define TEST_FP16_OP(op, cop)                                        \
+  TEST(vector_fp16_##op) {                                           \
+    INIT_V8();                                                       \
+    SETUP();                                                         \
+    SETUP_FEATURE(FP16);                                             \
+    START();                                                         \
+    float f = 42.15f16;                                              \
+    __ Fmov(s0, f);                                                  \
+    __ Fcvt(s0.H(), s0.S());                                         \
+    __ Dup(v0.V8H(), v0.H(), 0);                                     \
+    __ op(v1.V8H(), v0.V8H());                                       \
+    END();                                                           \
+    if (CAN_RUN()) {                                                 \
+      RUN();                                                         \
+      uint64_t res = fp16_ieee_from_fp32_value(cop(f16_round(f)));   \
+      uint64_t half = res | (res << 16) | (res << 32) | (res << 48); \
+      CHECK_EQUAL_128(half, half, v1);                               \
+    }                                                                \
+  }
+
+FP16_OP_LIST(TEST_FP16_OP)
+
+#undef TEST_FP16_OP
+#undef FP16_OP_LIST
 
 }  // namespace internal
 }  // namespace v8

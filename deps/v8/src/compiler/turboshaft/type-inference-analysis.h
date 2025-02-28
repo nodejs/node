@@ -6,6 +6,7 @@
 #define V8_COMPILER_TURBOSHAFT_TYPE_INFERENCE_ANALYSIS_H_
 
 #include <limits>
+#include <optional>
 
 #include "src/base/logging.h"
 #include "src/base/vector.h"
@@ -41,15 +42,15 @@ class TypeInferenceAnalysis {
       : graph_(graph),
         // TODO(nicohartmann@): Might put types back into phase_zone once we
         // don't store them in the graph anymore.
-        types_(graph.op_id_count(), Type{}, graph.graph_zone()),
+        types_(graph.op_id_count(), Type{}, graph.graph_zone(), &graph),
         table_(phase_zone),
-        op_to_key_mapping_(phase_zone),
-        block_to_snapshot_mapping_(graph.block_count(), base::nullopt,
+        op_to_key_mapping_(phase_zone, &graph),
+        block_to_snapshot_mapping_(graph.block_count(), std::nullopt,
                                    phase_zone),
         predecessors_(phase_zone),
         graph_zone_(graph.graph_zone()) {}
 
-  GrowingSidetable<Type> Run(
+  GrowingOpIndexSidetable<Type> Run(
       GrowingBlockSidetable<std::vector<std::pair<OpIndex, Type>>>*
           block_refinements = nullptr) {
 #ifdef DEBUG
@@ -60,8 +61,16 @@ class TypeInferenceAnalysis {
          unprocessed_index < graph_.block_count();) {
       BlockIndex block_index = static_cast<BlockIndex>(unprocessed_index);
       ++unprocessed_index;
-
       const Block& block = graph_.Get(block_index);
+
+#ifdef DEBUG
+      if (V8_UNLIKELY(v8_flags.turboshaft_trace_typing)) {
+        std::stringstream os;
+        os << block.kind() << " " << block.index().id();
+        TURBOSHAFT_TRACE_TYPING("=== %s ===\n", os.str().c_str());
+      }
+#endif  // DEBUG
+
       ProcessBlock<false>(block, &unprocessed_index);
     }
     TURBOSHAFT_TRACE_TYPING("=== Completed Type Inference Analysis ===\n");
@@ -88,9 +97,8 @@ class TypeInferenceAnalysis {
     // Collect the snapshots of all predecessors.
     {
       predecessors_.clear();
-      for (const Block* pred = block.LastPredecessor(); pred != nullptr;
-           pred = pred->NeighboringPredecessor()) {
-        base::Optional<table_t::Snapshot> pred_snapshot =
+      for (const Block* pred : block.PredecessorsIterable()) {
+        std::optional<table_t::Snapshot> pred_snapshot =
             block_to_snapshot_mapping_[pred->index()];
         if (pred_snapshot.has_value()) {
           predecessors_.push_back(pred_snapshot.value());
@@ -108,7 +116,7 @@ class TypeInferenceAnalysis {
     // predecessors.
     {
       auto MergeTypes = [&](table_t::Key,
-                            base::Vector<Type> predecessors) -> Type {
+                            base::Vector<const Type> predecessors) -> Type {
         DCHECK_GT(predecessors.size(), 0);
         Type result_type = predecessors[0];
         for (size_t i = 1; i < predecessors.size(); ++i) {
@@ -123,8 +131,8 @@ class TypeInferenceAnalysis {
 
     // Check if the predecessor is a branch that allows us to refine a few
     // types.
-    DCHECK_IMPLIES(revisit_loop_header, block.HasExactlyNPredecessors(2));
-    if (block.HasExactlyNPredecessors(1)) {
+    DCHECK_IMPLIES(revisit_loop_header, block.PredecessorCount() == 2);
+    if (block.PredecessorCount() == 1) {
       Block* predecessor = block.LastPredecessor();
       const Operation& terminator = predecessor->LastOperation(graph_);
       if (const BranchOp* branch = terminator.TryCast<BranchOp>()) {
@@ -148,12 +156,17 @@ class TypeInferenceAnalysis {
         case Opcode::kReturn:
         case Opcode::kStore:
         case Opcode::kRetain:
-        case Opcode::kTrapIf:
         case Opcode::kUnreachable:
         case Opcode::kSwitch:
         case Opcode::kTuple:
         case Opcode::kStaticAssert:
         case Opcode::kDebugBreak:
+        case Opcode::kDebugPrint:
+#if V8_ENABLE_WEBASSEMBLY
+        case Opcode::kGlobalSet:
+        case Opcode::kTrapIf:
+#endif
+        case Opcode::kCheckException:
           // These operations do not produce any output that needs to be typed.
           DCHECK_EQ(0, op.outputs_rep().size());
           break;
@@ -177,10 +190,12 @@ class TypeInferenceAnalysis {
           ProcessProjection(index, op.Cast<ProjectionOp>());
           break;
         case Opcode::kWordBinop:
-          ProcessWordBinop(index, op.Cast<WordBinopOp>());
+          ProcessWordBinop(V<Word>::Cast(index), op.Cast<WordBinopOp>());
           break;
+        case Opcode::kWord32PairBinop:
+        case Opcode::kAtomicWord32Pair:
         case Opcode::kPendingLoopPhi:
-          // Input graph must not contain PendingLoopPhi.
+          // Input graph must not contain these op codes.
           UNREACHABLE();
         case Opcode::kPhi:
           if constexpr (revisit_loop_header) {
@@ -193,62 +208,22 @@ class TypeInferenceAnalysis {
         case Opcode::kGoto: {
           const GotoOp& gto = op.Cast<GotoOp>();
           // Check if this is a backedge.
-          if (gto.destination->IsLoop() &&
-              gto.destination->index() < current_block_->index()) {
-            ProcessBlock<true>(*gto.destination, unprocessed_index);
+          if (gto.destination->IsLoop()) {
+            if (gto.destination->index() < current_block_->index()) {
+              ProcessBlock<true>(*gto.destination, unprocessed_index);
+            } else if (gto.destination->index() == current_block_->index()) {
+              // This is a single block loop. We must only revisit the current
+              // header block if we actually need to, in order to prevent
+              // infinite recursion.
+              if (!revisit_loop_header || loop_needs_revisit) {
+                ProcessBlock<true>(*gto.destination, unprocessed_index);
+              }
+            }
           }
           break;
         }
 
-        case Opcode::kWordUnary:
-        case Opcode::kFloatUnary:
-        case Opcode::kShift:
-        case Opcode::kEqual:
-        case Opcode::kChange:
-        case Opcode::kChangeOrDeopt:
-        case Opcode::kTryChange:
-        case Opcode::kFloat64InsertWord32:
-        case Opcode::kTaggedBitcast:
-        case Opcode::kSelect:
-        case Opcode::kLoad:
-        case Opcode::kAllocate:
-        case Opcode::kDecodeExternalPointer:
-        case Opcode::kParameter:
-        case Opcode::kOsrValue:
-        case Opcode::kStackPointerGreaterThan:
-        case Opcode::kStackSlot:
-        case Opcode::kFrameConstant:
-        case Opcode::kCall:
-        case Opcode::kCallAndCatchException:
-        case Opcode::kLoadException:
-        case Opcode::kTailCall:
-        case Opcode::kObjectIs:
-        case Opcode::kFloatIs:
-        case Opcode::kConvertToObject:
-        case Opcode::kConvertToObjectOrDeopt:
-        case Opcode::kConvertObjectToPrimitive:
-        case Opcode::kConvertObjectToPrimitiveOrDeopt:
-        case Opcode::kTruncateObjectToPrimitive:
-        case Opcode::kTag:
-        case Opcode::kUntag:
-        case Opcode::kNewConsString:
-        case Opcode::kNewArray:
-        case Opcode::kDoubleArrayMinMax:
-        case Opcode::kLoadFieldByIndex:
-        case Opcode::kBigIntBinop:
-        case Opcode::kBigIntEqual:
-        case Opcode::kBigIntComparison:
-        case Opcode::kBigIntUnary:
-        case Opcode::kStringAt:
-#ifdef V8_INTL_SUPPORT
-        case Opcode::kStringToCaseIntl:
-#endif  // V8_INTL_SUPPORT
-        case Opcode::kStringLength:
-        case Opcode::kStringIndexOf:
-        case Opcode::kStringFromCodePointAt:
-        case Opcode::kStringSubstring:
-        case Opcode::kStringEqual:
-        case Opcode::kStringComparison:
+        default:
           // TODO(nicohartmann@): Support remaining operations. For now we
           // compute fallback types.
           if (op.outputs_rep().size() > 0) {
@@ -394,7 +369,7 @@ class TypeInferenceAnalysis {
     SetType(index, result_type);
   }
 
-  void ProcessWordBinop(OpIndex index, const WordBinopOp& binop) {
+  void ProcessWordBinop(V<Word> index, const WordBinopOp& binop) {
     Type left_type = GetType(binop.left());
     Type right_type = GetType(binop.right());
 
@@ -404,9 +379,21 @@ class TypeInferenceAnalysis {
   }
 
   Type ComputeTypeForPhi(const PhiOp& phi) {
-    Type result_type = GetTypeOrDefault(phi.inputs()[0], Type::None());
+    // Word64 values are truncated to word32 implicitly, we need to handle this
+    // here.
+    auto MaybeTruncate = [&](Type t) -> Type {
+      if (t.IsNone()) return t;
+      if (phi.rep == RegisterRepresentation::Word32()) {
+        return Typer::TruncateWord32Input(t, true, graph_zone_);
+      }
+      return t;
+    };
+
+    Type result_type =
+        MaybeTruncate(GetTypeOrDefault(phi.inputs()[0], Type::None()));
     for (size_t i = 1; i < phi.inputs().size(); ++i) {
-      Type input_type = GetTypeOrDefault(phi.inputs()[i], Type::None());
+      Type input_type =
+          MaybeTruncate(GetTypeOrDefault(phi.inputs()[i], Type::None()));
       result_type = Type::LeastUpperBound(result_type, input_type, graph_zone_);
     }
     return result_type;
@@ -542,12 +529,12 @@ class TypeInferenceAnalysis {
 
  private:
   const Graph& graph_;
-  GrowingSidetable<Type> types_;
+  GrowingOpIndexSidetable<Type> types_;
   using table_t = SnapshotTable<Type>;
   table_t table_;
   const Block* current_block_ = nullptr;
-  GrowingSidetable<base::Optional<table_t::Key>> op_to_key_mapping_;
-  GrowingBlockSidetable<base::Optional<table_t::Snapshot>>
+  GrowingOpIndexSidetable<std::optional<table_t::Key>> op_to_key_mapping_;
+  GrowingBlockSidetable<std::optional<table_t::Snapshot>>
       block_to_snapshot_mapping_;
   // {predecessors_} is used during merging, but we use an instance variable for
   // it, in order to save memory and not reallocate it for each merge.

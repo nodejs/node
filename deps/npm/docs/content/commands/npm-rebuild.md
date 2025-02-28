@@ -14,14 +14,29 @@ alias: rb
 
 ### Description
 
-This command runs the `npm build` command on the matched folders.  This is
-useful when you install a new version of node, and must recompile all your
-C++ addons with the new binary.  It is also useful when installing with
-`--ignore-scripts` and `--no-bin-links`, to explicitly choose which
-packages to build and/or link bins.
+This command does the following:
 
-If one or more package specs are provided, then only packages with a
-name and version matching one of the specifiers will be rebuilt.
+1. Execute lifecycle scripts (`preinstall`, `install`, `postinstall`, `prepare`)
+2. Links bins depending on whether bin links are enabled
+
+This command is particularly useful in scenarios including but not limited to:
+
+1. Installing a new version of **node.js**, where you need to recompile all your C++ add-ons with the updated binary.
+2. Installing with `--ignore-scripts` and `--no-bin-links`, to explicitly choose which packages to build and/or link bins.
+
+If one or more package specs are provided, then only packages with a name and version matching one of the specifiers will be rebuilt.
+
+Usually, you should not need to run `npm rebuild` as it is already done for you as part of npm install (unless you suppressed these steps with `--ignore-scripts` or `--no-bin-links`).
+
+If there is a `binding.gyp` file in the root of your package, then npm will use a default install hook:
+
+```
+"scripts": {
+    "install": "node-gyp rebuild"
+}
+```
+
+This default behavior is suppressed if the `package.json` has its own `install` or `preinstall` scripts. It is also suppressed if the package specifies `"gypfile": false`
 
 ### Configuration
 
@@ -39,6 +54,8 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `bin-links`
 
 * Default: true
@@ -51,9 +68,12 @@ Set to false to have it not do this. This can be used to work around the
 fact that some file systems don't support symlinks, even on ostensibly Unix
 systems.
 
+
+
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
@@ -62,6 +82,8 @@ input, output, and error with the main npm process.
 
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
+
+
 
 #### `ignore-scripts`
 
@@ -74,6 +96,8 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
+
+
 
 #### `workspace`
 
@@ -136,6 +160,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

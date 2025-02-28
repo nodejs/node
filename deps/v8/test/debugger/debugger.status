@@ -64,10 +64,8 @@
   'debug/es8/async-debug-caught-exception-cases3': [SKIP],
   'debug/es8/async-function-debug-scopes': [SKIP],
 
-  # https://crbug.com/v8/8141
-  'debug/debug-liveedit-1': [SKIP],
-  'debug/es6/debug-liveedit-new-target-3': [SKIP],
-  'debug/side-effect/debug-evaluate-no-side-effect-control': [SKIP],
+  # https://crbug.com/v8/14420
+  'debug/side-effect/debug-evaluate-no-side-effect-builtins': [SKIP],
 }],  # 'gc_stress == True'
 
 ##############################################################################
@@ -77,7 +75,7 @@
 }],  # 'gc_fuzzer'
 
 ##############################################################################
-['predictable == True', {
+['verify_predictable', {
   # https://crbug.com/v8/8147
   'debug/debug-liveedit-*': [SKIP],
   'debug/debug-set-variable-value': [SKIP],
@@ -86,7 +84,7 @@
   'debug/regress/regress-opt-after-debug-deopt': [SKIP],
   'debug/regress/regress-prepare-break-while-recompile': [SKIP],
   'regress/regress-7421': [SKIP],
-}],  # 'predictable == True'
+}],  # 'verify_predictable'
 
 ##############################################################################
 ['variant == no_wasm_traps', {
@@ -142,17 +140,5 @@
 ['variant == stress_snapshot', {
   '*': [SKIP],  # only relevant for mjsunit tests.
 }],
-
-################################################################################
-['third_party_heap', {
-  # Requires --concurrent_recompilation
-  'debug/regress/regress-opt-after-debug-deopt': [SKIP],
-  'debug/regress/regress-prepare-break-while-recompile': [SKIP],
-  'regress/regress-7421': [SKIP],
-  # Requires a second isolate
-  'debug/debug-step': [SKIP],
-  'debug/deserialize-script-id': [SKIP],
-  'regress/regress-crbug-507070': [SKIP],
-}], # third_party_heap
 
 ]

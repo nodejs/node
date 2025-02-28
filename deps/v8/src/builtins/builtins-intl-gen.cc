@@ -8,7 +8,7 @@
 
 #include "src/builtins/builtins-iterator-gen.h"
 #include "src/builtins/builtins-utils-gen.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/js-list-format-inl.h"
 #include "src/objects/js-list-format.h"
 #include "src/objects/objects-inl.h"
@@ -16,6 +16,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class IntlBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -31,16 +33,17 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   TNode<IntPtrT> PointerToSeqStringData(TNode<String> seq_string) {
     CSA_DCHECK(this,
                IsSequentialStringInstanceType(LoadInstanceType(seq_string)));
-    static_assert(SeqOneByteString::kHeaderSize ==
-                  SeqTwoByteString::kHeaderSize);
-    return IntPtrAdd(
-        BitcastTaggedToWord(seq_string),
-        IntPtrConstant(SeqOneByteString::kHeaderSize - kHeapObjectTag));
+    static_assert(OFFSET_OF_DATA_START(SeqOneByteString) ==
+                  OFFSET_OF_DATA_START(SeqTwoByteString));
+    return IntPtrAdd(BitcastTaggedToWord(seq_string),
+                     IntPtrConstant(OFFSET_OF_DATA_START(SeqOneByteString) -
+                                    kHeapObjectTag));
   }
 
   TNode<Uint8T> GetChar(TNode<SeqOneByteString> seq_string, int index) {
-    int effective_offset =
-        SeqOneByteString::kHeaderSize - kHeapObjectTag + index;
+    size_t effective_offset = OFFSET_OF_DATA_START(SeqOneByteString) +
+                              sizeof(SeqOneByteString::Char) * index -
+                              kHeapObjectTag;
     return Load<Uint8T>(seq_string, IntPtrConstant(effective_offset));
   }
 
@@ -48,7 +51,8 @@ class IntlBuiltinsAssembler : public CodeStubAssembler {
   // {pattern} ignoring case.
   void JumpIfStartsWithIgnoreCase(TNode<SeqOneByteString> seq_string,
                                   const char* pattern, Label* target) {
-    int effective_offset = SeqOneByteString::kHeaderSize - kHeapObjectTag;
+    size_t effective_offset =
+        OFFSET_OF_DATA_START(SeqOneByteString) - kHeapObjectTag;
     TNode<Uint16T> raw =
         Load<Uint16T>(seq_string, IntPtrConstant(effective_offset));
     DCHECK_EQ(strlen(pattern), 2);
@@ -123,8 +127,10 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
     Label fast(this), check_locale(this);
     // Check for fast locales.
     GotoIf(IsUndefined(maybe_locales), &fast);
-    // Passing a smi here is equivalent to passing an empty list of locales.
-    GotoIf(TaggedIsSmi(maybe_locales), &fast);
+    // Passing a Smi as locales requires performing a ToObject conversion
+    // followed by reading the length property and the "indexed" properties of
+    // it until a valid locale is found.
+    GotoIf(TaggedIsSmi(maybe_locales), &runtime);
     GotoIfNot(IsString(CAST(maybe_locales)), &runtime);
     GotoIfNot(IsSeqOneByteString(CAST(maybe_locales)), &runtime);
     TNode<SeqOneByteString> locale = CAST(maybe_locales);
@@ -153,11 +159,8 @@ void IntlBuiltinsAssembler::ToLowerCaseImpl(
   const TNode<Uint32T> length = LoadStringLengthAsWord32(string);
   GotoIf(Word32Equal(length, Uint32Constant(0)), &return_string);
 
-  const TNode<Int32T> instance_type = to_direct.instance_type();
-  CSA_DCHECK(this,
-             Word32BinaryNot(IsIndirectStringInstanceType(instance_type)));
-
-  GotoIfNot(IsOneByteStringInstanceType(instance_type), &runtime);
+  const TNode<BoolT> is_one_byte = to_direct.IsOneByte();
+  GotoIfNot(is_one_byte, &runtime);
 
   // For short strings, do the conversion in CSA through the lookup table.
 
@@ -287,6 +290,8 @@ TF_BUILTIN(ListFormatPrototypeFormatToParts, IntlBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount),
       Runtime::kFormatListToParts, "Intl.ListFormat.prototype.formatToParts");
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

@@ -1,6 +1,7 @@
-#include <stdlib.h>
 #include <js_native_api.h>
+#include <stdlib.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static size_t g_call_count = 0;
 

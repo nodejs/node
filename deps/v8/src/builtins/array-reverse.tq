@@ -6,30 +6,33 @@ namespace array {
 macro LoadElement<Elements : type extends FixedArrayBase, T: type>(
     elements: FixedArrayBase, index: Smi): T;
 
-LoadElement<FixedArray, Object>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi): Object {
+LoadElement<FixedArray, Object>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi): Object {
   const elements: FixedArray = UnsafeCast<FixedArray>(elements);
   return elements.objects[index];
 }
 
-LoadElement<FixedDoubleArray, float64_or_hole>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi): float64_or_hole {
+LoadElement<FixedDoubleArray, float64_or_hole>(
+    implicit context: Context)(elements: FixedArrayBase,
+    index: Smi): float64_or_hole {
   const elements: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
   return elements.floats[index];
 }
 
 macro StoreElement<Elements : type extends FixedArrayBase, T: type>(
-    implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: T): void;
+    implicit context: Context)(elements: FixedArrayBase, index: Smi,
+    value: T): void;
 
-StoreElement<FixedArray, Object>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: Object): void {
+StoreElement<FixedArray, Object>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi,
+    value: Object): void {
   const elements: FixedArray = UnsafeCast<FixedArray>(elements);
   elements.objects[index] = value;
 }
 
-StoreElement<FixedDoubleArray, float64_or_hole>(implicit context: Context)(
-    elements: FixedArrayBase, index: Smi, value: float64_or_hole): void {
+StoreElement<FixedDoubleArray, float64_or_hole>(
+    implicit context: Context)(elements: FixedArrayBase, index: Smi,
+    value: float64_or_hole): void {
   const elems: FixedDoubleArray = UnsafeCast<FixedDoubleArray>(elements);
   elems.floats[index] = value;
 }
@@ -52,8 +55,8 @@ macro FastArrayReverse<Elements : type extends FixedArrayBase, T: type>(
   }
 }
 
-transitioning macro GenericArrayReverse(
-    context: Context, receiver: JSAny): JSAny {
+transitioning macro GenericArrayReverse(context: Context, receiver: JSAny):
+    JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 

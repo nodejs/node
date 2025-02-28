@@ -16,7 +16,9 @@ const normalizedValues = ['a', '1', 'true', 'undefined', 'null', '\uFFFD',
                           '[object Object]'];
 
 const m = new URL('http://example.org');
+const ownSymbolsBeforeGetterAccess = Object.getOwnPropertySymbols(m);
 const sp = m.searchParams;
+assert.deepStrictEqual(Object.getOwnPropertySymbols(m), ownSymbolsBeforeGetterAccess);
 
 assert(sp);
 assert.strictEqual(sp.toString(), '');
@@ -40,6 +42,42 @@ assert.strictEqual(sp.get('a'), 'a');
 assert.strictEqual(sp.toString(), serialized);
 
 assert.strictEqual(m.search, `?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.href, `http://example.org/?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.toString(), `http://example.org/?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+assert.strictEqual(m.toJSON(), `http://example.org/?${serialized}`);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+m.href = 'http://example.org';
+assert.strictEqual(m.href, 'http://example.org/');
+assert.strictEqual(sp.size, 0);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+m.search = '';
+assert.strictEqual(m.href, 'http://example.org/');
+assert.strictEqual(sp.size, 0);
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+m.pathname = '/test';
+assert.strictEqual(m.href, `http://example.org/test?${serialized}`);
+m.pathname = '';
+
+sp.delete('a');
+values.forEach((i) => sp.append('a', i));
+m.hash = '#test';
+assert.strictEqual(m.href, `http://example.org/?${serialized}#test`);
+m.hash = '';
 
 assert.strictEqual(sp[Symbol.iterator], sp.entries);
 

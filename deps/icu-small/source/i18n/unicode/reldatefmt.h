@@ -248,8 +248,6 @@ typedef enum UDateDirection {
 #endif  // U_HIDE_DEPRECATED_API
 } UDateDirection;
 
-#if !UCONFIG_NO_BREAK_ITERATION
-
 U_NAMESPACE_BEGIN
 
 class BreakIterator;
@@ -386,8 +384,10 @@ class U_I18N_API FormattedRelativeDateTime : public UMemory, public FormattedVal
  * </pre>
  * </blockquote>
  * <p>
- * In the future, we may add more forms, such as abbreviated/short forms
- * (3 secs ago), and relative day periods ("yesterday afternoon"), etc.
+ * The UDateRelativeDateTimeFormatterStyle parameter allows selection of
+ * different length styles: LONG ("3 seconds ago"), SHORT ("3 sec. ago"),
+ * NARROW ("3s ago"). In the future, we may add more forms, such as
+ * relative day periods ("yesterday afternoon"), etc.
  *
  * The RelativeDateTimeFormatter class is not intended for public subclassing.
  *
@@ -560,7 +560,7 @@ public:
      *
      * This method returns a String. To get more information about the
      * formatting result, use formatNumericToValue().
-     * 
+     *
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.
@@ -586,7 +586,7 @@ public:
      *
      * This method returns a FormattedRelativeDateTime, which exposes more
      * information than the String returned by formatNumeric().
-     * 
+     *
      * @param offset    The signed offset for the specified unit. This
      *                  will be formatted according to this object's
      *                  NumberFormat object.
@@ -696,11 +696,19 @@ private:
     const SharedPluralRules *fPluralRules;
     UDateRelativeDateTimeFormatterStyle fStyle;
     UDisplayContext fContext;
+#if !UCONFIG_NO_BREAK_ITERATION
     const SharedBreakIterator *fOptBreakIterator;
+#else
+    std::nullptr_t fOptBreakIterator = nullptr;
+#endif // !UCONFIG_NO_BREAK_ITERATION
     Locale fLocale;
     void init(
             NumberFormat *nfToAdopt,
+#if !UCONFIG_NO_BREAK_ITERATION
             BreakIterator *brkIter,
+#else
+            std::nullptr_t,
+#endif // !UCONFIG_NO_BREAK_ITERATION
             UErrorCode &status);
     UnicodeString& adjustForContext(UnicodeString &) const;
     UBool checkNoAdjustForContext(UErrorCode& status) const;
@@ -743,7 +751,6 @@ private:
 
 U_NAMESPACE_END
 
-#endif /* !UCONFIG_NO_BREAK_ITERATION */
 #endif /* !UCONFIG_NO_FORMATTING */
 
 #endif /* U_SHOW_CPLUSPLUS_API */

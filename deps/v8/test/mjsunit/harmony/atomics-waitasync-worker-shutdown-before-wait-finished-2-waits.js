@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --allow-natives-syntax --harmony-sharedarraybuffer --harmony-atomics-waitasync
+// Flags: --allow-natives-syntax
 
 (function test() {
   const sab = new SharedArrayBuffer(16);
@@ -11,7 +11,7 @@
 
   (function createWorker() {
     function workerCode(location) {
-      onmessage = function(msg) {
+      onmessage = function({data:msg}) {
         if (msg.sab) {
           const i32a = new Int32Array(msg.sab);
           // Start 2 async waits in the same location.

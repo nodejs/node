@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstddef>
+#include <optional>
 
 #include "src/api/api-inl.h"
 #include "src/base/logging.h"
@@ -71,7 +72,7 @@ MicrotaskQueue::~MicrotaskQueue() {
 Address MicrotaskQueue::CallEnqueueMicrotask(Isolate* isolate,
                                              intptr_t microtask_queue_pointer,
                                              Address raw_microtask) {
-  Microtask microtask = Microtask::cast(Object(raw_microtask));
+  Tagged<Microtask> microtask = Cast<Microtask>(Tagged<Object>(raw_microtask));
   reinterpret_cast<MicrotaskQueue*>(microtask_queue_pointer)
       ->EnqueueMicrotask(microtask);
   return Smi::zero().ptr();
@@ -81,8 +82,8 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
                                       v8::Local<Function> function) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   HandleScope scope(isolate);
-  Handle<CallableTask> microtask = isolate->factory()->NewCallableTask(
-      Utils::OpenHandle(*function), isolate->native_context());
+  DirectHandle<CallableTask> microtask = isolate->factory()->NewCallableTask(
+      Utils::OpenDirectHandle(*function), isolate->native_context());
   EnqueueMicrotask(*microtask);
 }
 
@@ -91,13 +92,15 @@ void MicrotaskQueue::EnqueueMicrotask(v8::Isolate* v8_isolate,
                                       void* data) {
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   HandleScope scope(isolate);
-  Handle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(callback)),
-      isolate->factory()->NewForeign(reinterpret_cast<Address>(data)));
+  DirectHandle<CallbackTask> microtask = isolate->factory()->NewCallbackTask(
+      isolate->factory()->NewForeign<kMicrotaskCallbackTag>(
+          reinterpret_cast<Address>(callback)),
+      isolate->factory()->NewForeign<kMicrotaskCallbackDataTag>(
+          reinterpret_cast<Address>(data)));
   EnqueueMicrotask(*microtask);
 }
 
-void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
+void MicrotaskQueue::EnqueueMicrotask(Tagged<Microtask> microtask) {
   if (size_ == capacity_) {
     // Keep the capacity of |ring_buffer_| power of 2, so that the JIT
     // implementation can calculate the modulo easily.
@@ -112,15 +115,15 @@ void MicrotaskQueue::EnqueueMicrotask(Microtask microtask) {
 
 void MicrotaskQueue::PerformCheckpointInternal(v8::Isolate* v8_isolate) {
   DCHECK(ShouldPerfomCheckpoint());
-  std::unique_ptr<MicrotasksScope> microtasks_scope;
+  std::optional<MicrotasksScope> microtasks_scope;
   if (microtasks_policy_ == v8::MicrotasksPolicy::kScoped) {
     // If we're using microtask scopes to schedule microtask execution, V8
     // API calls will check that there's always a microtask scope on the
     // stack. As the microtasks we're about to execute could invoke embedder
     // callbacks which then calls back into V8, we create an artificial
     // microtask scope here to avoid running into the CallDepthScope check.
-    microtasks_scope.reset(new v8::MicrotasksScope(
-        v8_isolate, this, v8::MicrotasksScope::kDoNotRunMicrotasks));
+    microtasks_scope.emplace(v8_isolate, this,
+                             v8::MicrotasksScope::kDoNotRunMicrotasks);
   }
   Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
   RunMicrotasks(isolate);
@@ -148,6 +151,10 @@ class SetIsRunningMicrotasks {
 }  // namespace
 
 int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
+  SetIsRunningMicrotasks scope(&is_running_microtasks_);
+  v8::Isolate::SuppressMicrotaskExecutionScope suppress(
+      reinterpret_cast<v8::Isolate*>(isolate), this);
+
   if (!size()) {
     OnCompleted(isolate);
     return 0;
@@ -161,11 +168,15 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
   HandleScope handle_scope(isolate);
   MaybeHandle<Object> maybe_result;
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  DirectHandle<Object> continuation_preserved_embedder_data(
+      isolate->isolate_data()->continuation_preserved_embedder_data(), isolate);
+  isolate->isolate_data()->set_continuation_preserved_embedder_data(
+      ReadOnlyRoots(isolate).undefined_value());
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
   int processed_microtask_count;
   {
-    SetIsRunningMicrotasks scope(&is_running_microtasks_);
-    v8::Isolate::SuppressMicrotaskExecutionScope suppress(
-        reinterpret_cast<v8::Isolate*>(isolate), this);
     HandleScopeImplementer::EnteredContextRewindScope rewind_scope(
         isolate->handle_scope_implementer());
     TRACE_EVENT_BEGIN0("v8.execute", "RunMicrotasks");
@@ -179,8 +190,13 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
                      processed_microtask_count);
   }
 
+#ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  isolate->isolate_data()->set_continuation_preserved_embedder_data(
+      *continuation_preserved_embedder_data);
+#endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+
   if (isolate->is_execution_terminating()) {
-    DCHECK(isolate->has_scheduled_exception());
+    DCHECK(isolate->has_exception());
     DCHECK(maybe_result.is_null());
     delete[] ring_buffer_;
     ring_buffer_ = nullptr;
@@ -191,6 +207,7 @@ int MicrotaskQueue::RunMicrotasks(Isolate* isolate) {
     OnCompleted(isolate);
     return -1;
   }
+
   DCHECK_EQ(0, size());
   OnCompleted(isolate);
 
@@ -202,10 +219,10 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
     // Iterate pending Microtasks as root objects to avoid the write barrier for
     // all single Microtask. If this hurts the GC performance, use a FixedArray.
     visitor->VisitRootPointers(
-        Root::kStrongRoots, nullptr, FullObjectSlot(ring_buffer_ + start_),
+        Root::kMicroTasks, nullptr, FullObjectSlot(ring_buffer_ + start_),
         FullObjectSlot(ring_buffer_ + std::min(start_ + size_, capacity_)));
     visitor->VisitRootPointers(
-        Root::kStrongRoots, nullptr, FullObjectSlot(ring_buffer_),
+        Root::kMicroTasks, nullptr, FullObjectSlot(ring_buffer_),
         FullObjectSlot(ring_buffer_ + std::max(start_ + size_ - capacity_,
                                                static_cast<intptr_t>(0))));
   }
@@ -226,35 +243,65 @@ void MicrotaskQueue::IterateMicrotasks(RootVisitor* visitor) {
 
 void MicrotaskQueue::AddMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
+  std::vector<CallbackWithData>* microtasks_completed_callbacks =
+      &microtasks_completed_callbacks_;
+  if (is_running_completed_callbacks_) {
+    // Use the COW vector if we are iterating the callbacks right now.
+    microtasks_completed_callbacks = &microtasks_completed_callbacks_cow_;
+    if (microtasks_completed_callbacks->empty()) {
+      *microtasks_completed_callbacks = microtasks_completed_callbacks_;
+    }
+  }
+
   CallbackWithData callback_with_data(callback, data);
-  auto pos =
-      std::find(microtasks_completed_callbacks_.begin(),
-                microtasks_completed_callbacks_.end(), callback_with_data);
-  if (pos != microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.push_back(callback_with_data);
+  const auto pos =
+      std::find(microtasks_completed_callbacks->begin(),
+                microtasks_completed_callbacks->end(), callback_with_data);
+  if (pos != microtasks_completed_callbacks->end()) {
+    return;
+  }
+  microtasks_completed_callbacks->push_back(callback_with_data);
 }
 
 void MicrotaskQueue::RemoveMicrotasksCompletedCallback(
     MicrotasksCompletedCallbackWithData callback, void* data) {
+  std::vector<CallbackWithData>* microtasks_completed_callbacks =
+      &microtasks_completed_callbacks_;
+  if (is_running_completed_callbacks_) {
+    // Use the COW vector if we are iterating the callbacks right now.
+    microtasks_completed_callbacks = &microtasks_completed_callbacks_cow_;
+    if (microtasks_completed_callbacks->empty()) {
+      *microtasks_completed_callbacks = microtasks_completed_callbacks_;
+    }
+  }
+
   CallbackWithData callback_with_data(callback, data);
-  auto pos =
-      std::find(microtasks_completed_callbacks_.begin(),
-                microtasks_completed_callbacks_.end(), callback_with_data);
-  if (pos == microtasks_completed_callbacks_.end()) return;
-  microtasks_completed_callbacks_.erase(pos);
+  const auto pos =
+      std::find(microtasks_completed_callbacks->begin(),
+                microtasks_completed_callbacks->end(), callback_with_data);
+  if (pos == microtasks_completed_callbacks->end()) {
+    return;
+  }
+  microtasks_completed_callbacks->erase(pos);
 }
 
-void MicrotaskQueue::OnCompleted(Isolate* isolate) const {
-  std::vector<CallbackWithData> callbacks(microtasks_completed_callbacks_);
-  for (auto& callback : callbacks) {
+void MicrotaskQueue::OnCompleted(Isolate* isolate) {
+  is_running_completed_callbacks_ = true;
+  for (auto& callback : microtasks_completed_callbacks_) {
     callback.first(reinterpret_cast<v8::Isolate*>(isolate), callback.second);
+  }
+  is_running_completed_callbacks_ = false;
+  if (V8_UNLIKELY(!microtasks_completed_callbacks_cow_.empty())) {
+    microtasks_completed_callbacks_ =
+        std::move(microtasks_completed_callbacks_cow_);
+    microtasks_completed_callbacks_cow_.clear();
   }
 }
 
-Microtask MicrotaskQueue::get(intptr_t index) const {
+Tagged<Microtask> MicrotaskQueue::get(intptr_t index) const {
   DCHECK_LT(index, size_);
-  Object microtask(ring_buffer_[(index + start_) % capacity_]);
-  return Microtask::cast(microtask);
+  Tagged<Object> microtask(ring_buffer_[(index + start_) % capacity_]);
+  return Cast<Microtask>(microtask);
 }
 
 void MicrotaskQueue::ResizeBuffer(intptr_t new_capacity) {

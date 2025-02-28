@@ -1,15 +1,11 @@
-const fs = require('fs')
-const util = require('util')
-const readdir = util.promisify(fs.readdir)
-const { resolve } = require('path')
-
+const { readdir } = require('node:fs/promises')
+const { resolve } = require('node:path')
 const npa = require('npm-package-arg')
-const rpj = require('read-package-json-fast')
+const pkgJson = require('@npmcli/package-json')
 const semver = require('semver')
-
 const reifyFinish = require('../utils/reify-finish.js')
-
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
+
 class Link extends ArboristWorkspaceCmd {
   static description = 'Symlink a package folder'
   static name = 'link'
@@ -27,6 +23,7 @@ class Link extends ArboristWorkspaceCmd {
     'strict-peer-deps',
     'package-lock',
     'omit',
+    'include',
     'ignore-scripts',
     'audit',
     'bin-links',
@@ -35,8 +32,8 @@ class Link extends ArboristWorkspaceCmd {
     ...super.params,
   ]
 
-  async completion (opts) {
-    const dir = this.npm.globalDir
+  static async completion (opts, npm) {
+    const dir = npm.globalDir
     const files = await readdir(dir)
     return files.filter(f => !/^[._-]/.test(f))
   }
@@ -96,24 +93,25 @@ class Link extends ArboristWorkspaceCmd {
     const names = []
     for (const a of args) {
       const arg = npa(a)
-      names.push(
-        arg.type === 'directory'
-          ? (await rpj(resolve(arg.fetchSpec, 'package.json'))).name
-          : arg.name
-      )
+      if (arg.type === 'directory') {
+        const { content } = await pkgJson.normalize(arg.fetchSpec)
+        names.push(content.name)
+      } else {
+        names.push(arg.name)
+      }
     }
 
     // npm link should not save=true by default unless you're
     // using any of --save-dev or other types
     const save =
       Boolean(
-        this.npm.config.find('save') !== 'default' ||
+        (this.npm.config.find('save') !== 'default' &&
+        this.npm.config.get('save')) ||
         this.npm.config.get('save-optional') ||
         this.npm.config.get('save-peer') ||
         this.npm.config.get('save-dev') ||
         this.npm.config.get('save-prod')
       )
-
     // create a new arborist instance for the local prefix and
     // reify all the pending names as symlinks there
     const localArb = new Arborist({
@@ -187,4 +185,5 @@ class Link extends ArboristWorkspaceCmd {
     return missing
   }
 }
+
 module.exports = Link

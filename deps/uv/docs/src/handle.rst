@@ -94,7 +94,7 @@ Public members
 
 .. c:member:: uv_handle_type uv_handle_t.type
 
-    The :c:type:`uv_handle_type`, indicating the type of the underlying handle. Readonly.
+    The :c:enum:`uv_handle_type`, indicating the type of the underlying handle. Readonly.
 
 .. c:member:: void* uv_handle_t.data
 
@@ -152,6 +152,9 @@ API
 
     In-progress requests, like uv_connect_t or uv_write_t, are cancelled and
     have their callbacks called asynchronously with status=UV_ECANCELED.
+
+    `close_cb` can be `NULL` in cases where no cleanup or deallocation is
+    necessary.
 
 .. c:function:: void uv_ref(uv_handle_t* handle)
 
@@ -245,7 +248,7 @@ just for some handle types.
 
     .. versionadded:: 1.19.0
 
-.. c:function:: void* uv_handle_set_data(uv_handle_t* handle, void* data)
+.. c:function:: void uv_handle_set_data(uv_handle_t* handle, void* data)
 
     Sets `handle->data` to `data`.
 

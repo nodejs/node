@@ -1,5 +1,5 @@
 const t = require('tap')
-const mockGlobals = require('../fixtures/mock-globals')
+const mockGlobals = require('@npmcli/mock-globals')
 const tmock = require('../fixtures/tmock')
 
 const npm = require.resolve('../../bin/npm-cli.js')

@@ -21,13 +21,17 @@
 // Flags: --no-warnings
 'use strict';
 const common = require('../common');
-if (!common.hasCrypto)
+if (!common.hasCrypto) {
   common.skip('missing crypto');
+}
 
 const assert = require('assert');
 const crypto = require('crypto');
 const { inspect } = require('util');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
+
+const isFipsEnabled = crypto.getFips();
 
 //
 // Test authenticated encryption modes.
@@ -47,46 +51,13 @@ const errMessages = {
 
 const ciphers = crypto.getCiphers();
 
-const expectedWarnings = common.hasFipsCrypto ?
-  [] : [
-    ['Use Cipheriv for counter mode of aes-192-gcm'],
-    ['Use Cipheriv for counter mode of aes-192-ccm'],
-    ['Use Cipheriv for counter mode of aes-192-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-256-ccm'],
-    ['Use Cipheriv for counter mode of aes-128-ccm'],
-  ];
-
-const expectedDeprecationWarnings = [
-  ['crypto.createCipher is deprecated.', 'DEP0106'],
-];
-
-common.expectWarning({
-  Warning: expectedWarnings,
-  DeprecationWarning: expectedDeprecationWarnings
-});
-
 for (const test of TEST_CASES) {
   if (!ciphers.includes(test.algo)) {
     common.printSkipMessage(`unsupported ${test.algo} test`);
     continue;
   }
 
-  if (common.hasFipsCrypto && test.iv.length < 24) {
+  if (isFipsEnabled && test.iv.length < 24) {
     common.printSkipMessage('IV len < 12 bytes unsupported in FIPS mode');
     continue;
   }
@@ -128,7 +99,7 @@ for (const test of TEST_CASES) {
   }
 
   {
-    if (isCCM && common.hasFipsCrypto) {
+    if (isCCM && isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv(test.algo,
                                 Buffer.from(test.key, 'hex'),
@@ -153,45 +124,6 @@ for (const test of TEST_CASES) {
       } else {
         // Assert that final throws if input data could not be verified!
         assert.throws(function() { decrypt.final('hex'); }, errMessages.auth);
-      }
-    }
-  }
-
-  if (test.password) {
-    if (common.hasFipsCrypto) {
-      assert.throws(() => { crypto.createCipher(test.algo, test.password); },
-                    errMessages.FIPS);
-    } else {
-      const encrypt = crypto.createCipher(test.algo, test.password, options);
-      if (test.aad)
-        encrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
-      let hex = encrypt.update(test.plain, 'ascii', 'hex');
-      hex += encrypt.final('hex');
-      const auth_tag = encrypt.getAuthTag();
-      // Only test basic encryption run if output is marked as tampered.
-      if (!test.tampered) {
-        assert.strictEqual(hex, test.ct);
-        assert.strictEqual(auth_tag.toString('hex'), test.tag);
-      }
-    }
-  }
-
-  if (test.password) {
-    if (common.hasFipsCrypto) {
-      assert.throws(() => { crypto.createDecipher(test.algo, test.password); },
-                    errMessages.FIPS);
-    } else {
-      const decrypt = crypto.createDecipher(test.algo, test.password, options);
-      decrypt.setAuthTag(Buffer.from(test.tag, 'hex'));
-      if (test.aad)
-        decrypt.setAAD(Buffer.from(test.aad, 'hex'), aadOptions);
-      let msg = decrypt.update(test.ct, 'hex', 'ascii');
-      if (!test.tampered) {
-        msg += decrypt.final('ascii');
-        assert.strictEqual(msg, test.plain);
-      } else {
-        // Assert that final throws if input data could not be verified!
-        assert.throws(function() { decrypt.final('ascii'); }, errMessages.auth);
       }
     }
   }
@@ -284,7 +216,7 @@ for (const test of TEST_CASES) {
     cipher.update('01234567', 'hex');
     cipher.final();
     const tag = cipher.getAuthTag();
-    assert.strictEqual(tag.toString('hex'), fullTag.substr(0, 2 * e));
+    assert.strictEqual(tag.toString('hex'), fullTag.slice(0, 2 * e));
   }
 }
 
@@ -344,26 +276,6 @@ for (const test of TEST_CASES) {
       message: "The property 'options.authTagLength' is invalid. " +
         `Received ${inspect(authTagLength)}`
     });
-
-    if (!common.hasFipsCrypto) {
-      assert.throws(() => {
-        crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, {
-        name: 'TypeError',
-        code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
-      });
-
-      assert.throws(() => {
-        crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, {
-        name: 'TypeError',
-        code: 'ERR_INVALID_ARG_VALUE',
-        message: "The property 'options.authTagLength' is invalid. " +
-          `Received ${inspect(authTagLength)}`
-      });
-    }
   }
 
   // The following values will not be caught by the JS layer and thus will not
@@ -378,7 +290,7 @@ for (const test of TEST_CASES) {
                             });
     }, errMessages.authTagLength);
 
-    if (!common.hasFipsCrypto) {
+    if (!isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv('aes-256-ccm',
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -386,14 +298,6 @@ for (const test of TEST_CASES) {
                                 {
                                   authTagLength
                                 });
-      }, errMessages.authTagLength);
-
-      assert.throws(() => {
-        crypto.createCipher('aes-256-ccm', 'bad password', { authTagLength });
-      }, errMessages.authTagLength);
-
-      assert.throws(() => {
-        crypto.createDecipher('aes-256-ccm', 'bad password', { authTagLength });
       }, errMessages.authTagLength);
     }
   }
@@ -412,23 +316,11 @@ for (const test of TEST_CASES) {
     });
 
     // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
-    if (!common.hasFipsCrypto) {
+    if (!isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv(`aes-256-${mode}`,
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
                                 'qkuZpJWCewa6S');
-      }, {
-        message: `authTagLength required for aes-256-${mode}`
-      });
-
-      assert.throws(() => {
-        crypto.createCipher(`aes-256-${mode}`, 'very bad password');
-      }, {
-        message: `authTagLength required for aes-256-${mode}`
-      });
-
-      assert.throws(() => {
-        crypto.createDecipher(`aes-256-${mode}`, 'very bad password');
       }, {
         message: `authTagLength required for aes-256-${mode}`
       });
@@ -500,7 +392,7 @@ for (const test of TEST_CASES) {
     cipher.setAAD(Buffer.from('0123456789', 'hex'));
   }, /options\.plaintextLength required for CCM mode with AAD/);
 
-  if (!common.hasFipsCrypto) {
+  if (!isFipsEnabled) {
     assert.throws(() => {
       const cipher = crypto.createDecipheriv('aes-256-ccm',
                                              'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -515,7 +407,7 @@ for (const test of TEST_CASES) {
 
 // Test that final() throws in CCM mode when no authentication tag is provided.
 {
-  if (!common.hasFipsCrypto) {
+  if (!isFipsEnabled) {
     const key = Buffer.from('1ed2233fa2223ef5d7df08546049406c', 'hex');
     const iv = Buffer.from('7305220bca40d4c90e1791e9', 'hex');
     const ct = Buffer.from('8beba09d4d4d861f957d51c0794f4abf8030848e', 'hex');
@@ -670,12 +562,11 @@ for (const test of TEST_CASES) {
   const opts = { authTagLength: 10 };
 
   for (const cipher of [
-    crypto.createCipher(algo, 'foo', opts),
     crypto.createCipheriv(algo, key, iv, opts),
   ]) {
     assert.throws(() => {
       cipher.final();
-    }, common.hasOpenSSL3 ? {
+    }, hasOpenSSL3 ? {
       code: 'ERR_OSSL_TAG_NOT_SET'
     } : {
       message: /Unsupported state/

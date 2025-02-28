@@ -1,7 +1,9 @@
-.TH "CONFIG" "7" "May 2023" "" ""
+.TH "CONFIG" "7" "January 2025" "NPM@11.1.0" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
+.P
+This article details npm configuration in general. To learn about the \fBconfig\fR command, see npm help config.
 .P
 npm gets its configuration values from the following sources, sorted by priority:
 .SS "Command Line Flags"
@@ -350,10 +352,20 @@ Type: Boolean
 
 .P
 Run git commit hooks when using the \fBnpm version\fR command.
+.SS "\fBcpu\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override CPU architecture of native modules to install. Acceptable values are same as \fBcpu\fR field of package.json, which comes from \fBprocess.arch\fR.
 .SS "\fBdepth\fR"
 .RS 0
 .IP \(bu 4
-Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB1\fR
+Default: \fBInfinity\fR if \fB--all\fR is set, otherwise \fB0\fR
 .IP \(bu 4
 Type: null or Number
 .RE 0
@@ -488,6 +500,30 @@ Type: Boolean
 If set to true, then npm will stubbornly refuse to install (or even consider installing) any package that claims to not be compatible with the current Node.js version.
 .P
 This can be overridden by setting the \fB--force\fR flag.
+.SS "\fBexpect-result-count\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Number
+.RE 0
+
+.P
+Tells to expect a specific number of results from the command.
+.P
+This config can not be used with: \fBexpect-results\fR
+.SS "\fBexpect-results\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or Boolean
+.RE 0
+
+.P
+Tells npm whether or not to expect results from the command. Can be either true (expect some results) or false (expect no results).
+.P
+This config can not be used with: \fBexpect-result-count\fR
 .SS "\fBfetch-retries\fR"
 .RS 0
 .IP \(bu 4
@@ -580,7 +616,7 @@ If you don't have a clear idea of what you want to do, it is strongly recommende
 .SS "\fBforeground-scripts\fR"
 .RS 0
 .IP \(bu 4
-Default: false
+Default: \fBfalse\fR unless when using \fBnpm pack\fR or \fBnpm publish\fR where it defaults to \fBtrue\fR
 .IP \(bu 4
 Type: Boolean
 .RE 0
@@ -855,6 +891,16 @@ If a package cannot be installed because of overly strict \fBpeerDependencies\fR
 This differs from \fB--omit=peer\fR, in that \fB--omit=peer\fR will avoid unpacking \fBpeerDependencies\fR on disk, but will still design a tree such that \fBpeerDependencies\fR \fIcould\fR be unpacked in a correct place.
 .P
 Use of \fBlegacy-peer-deps\fR is not recommended, as it will not enforce the \fBpeerDependencies\fR contract that meta-dependencies may rely on.
+.SS "\fBlibc\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override libc of native modules to install. Acceptable values are same as \fBlibc\fR field of package.json
 .SS "\fBlink\fR"
 .RS 0
 .IP \(bu 4
@@ -1038,6 +1084,16 @@ Type: Boolean
 
 .P
 This option causes npm to create lock files without a \fBresolved\fR key for registry dependencies. Subsequent installs will need to resolve tarball endpoints with the configured registry, likely resulting in a longer install time.
+.SS "\fBos\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: null or String
+.RE 0
+
+.P
+Override OS of native modules to install. Acceptable values are same as \fBos\fR field of package.json, which comes from \fBprocess.platform\fR.
 .SS "\fBotp\fR"
 .RS 0
 .IP \(bu 4
@@ -1080,8 +1136,6 @@ Type: Boolean
 
 .P
 If set to false, then ignore \fBpackage-lock.json\fR files when installing. This will also prevent \fIwriting\fR \fBpackage-lock.json\fR if \fBsave\fR is true.
-.P
-This configuration does not affect \fBnpm ci\fR.
 .SS "\fBpackage-lock-only\fR"
 .RS 0
 .IP \(bu 4
@@ -1106,6 +1160,16 @@ Type: Boolean
 
 .P
 Output parseable results from commands that write to standard output. For \fBnpm search\fR, this will be tab-separated table format.
+.SS "\fBprefer-dedupe\fR"
+.RS 0
+.IP \(bu 4
+Default: false
+.IP \(bu 4
+Type: Boolean
+.RE 0
+
+.P
+Prefer to deduplicate packages if possible, rather than choosing a newer version of a dependency.
 .SS "\fBprefer-offline\fR"
 .RS 0
 .IP \(bu 4
@@ -1155,7 +1219,7 @@ Type: Boolean
 .RE 0
 
 .P
-When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR is a TTY.
+When set to \fBtrue\fR, npm will display a progress bar during time intensive operations, if \fBprocess.stderr\fR and \fBprocess.stdout\fR are a TTY.
 .P
 Set to \fBfalse\fR to suppress the progress bar.
 .SS "\fBprovenance\fR"
@@ -1168,6 +1232,20 @@ Type: Boolean
 
 .P
 When publishing from a supported cloud CI/CD system, the package will be publicly linked to where it was built and published from.
+.P
+This config can not be used with: \fBprovenance-file\fR
+.SS "\fBprovenance-file\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+When publishing, the provenance bundle at the given path will be used.
+.P
+This config can not be used with: \fBprovenance\fR
 .SS "\fBproxy\fR"
 .RS 0
 .IP \(bu 4
@@ -1313,6 +1391,26 @@ Type: Boolean
 Save installed packages into \fBdependencies\fR specifically. This is useful if a package already exists in \fBdevDependencies\fR or \fBoptionalDependencies\fR, but you want to move it to be a non-optional production dependency.
 .P
 This is the default behavior if \fB--save\fR is true, and neither \fB--save-dev\fR or \fB--save-optional\fR are true.
+.SS "\fBsbom-format\fR"
+.RS 0
+.IP \(bu 4
+Default: null
+.IP \(bu 4
+Type: "cyclonedx" or "spdx"
+.RE 0
+
+.P
+SBOM format to use when generating SBOMs.
+.SS "\fBsbom-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "library"
+.IP \(bu 4
+Type: "library", "application", or "framework"
+.RE 0
+
+.P
+The type of package described by the generated SBOM. For SPDX, this is the value for the \fBprimaryPackagePurpose\fR field. For CycloneDX, this is the value for the \fBtype\fR field.
 .SS "\fBscope\fR"
 .RS 0
 .IP \(bu 4
@@ -1469,9 +1567,12 @@ Type: String
 .P
 If you ask npm to install a package and don't tell it a specific version, then it will install the specified tag.
 .P
-Also the tag that is added to the package@version specified by the \fBnpm tag\fR command, if no explicit tag is given.
+It is the tag added to the package@version specified in the \fBnpm dist-tag
+add\fR command, if no explicit tag is given.
 .P
 When used by the \fBnpm diff\fR command, this is the tag used to fetch the tarball that will be compared with the local files by default.
+.P
+If used in the \fBnpm publish\fR command, this is the tag that will be added to the package submitted to the registry.
 .SS "\fBtag-version-prefix\fR"
 .RS 0
 .IP \(bu 4
@@ -1734,7 +1835,7 @@ Default: null
 .IP \(bu 4
 Type: null or String
 .IP \(bu 4
-DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcertfile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:certfile=/path/to/cert.crt
+DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcafile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:cafile=/path/to/cert.crt
 .RE 0
 
 .P
@@ -1746,19 +1847,7 @@ cert="-----BEGIN CERTIFICATE-----\[rs]nXXXX\[rs]nXXXX\[rs]n-----END CERTIFICATE-
 .fi
 .RE
 .P
-It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
-.SS "\fBci-name\fR"
-.RS 0
-.IP \(bu 4
-Default: The name of the current CI system, or \fBnull\fR when not on a known CI platform.
-.IP \(bu 4
-Type: null or String
-.IP \(bu 4
-DEPRECATED: This config is deprecated and will not be changeable in future version of npm.
-.RE 0
-
-.P
-The name of a continuous integration system. If not set explicitly, npm will detect the current CI environment using the \fB\fBci-info\fR\fR \fI\(lahttp://npm.im/ci-info\(ra\fR module.
+It is \fInot\fR the path to a certificate file, though you can set a registry-scoped "cafile" path like "//other-registry.tld/:cafile=/path/to/cert.pem".
 .SS "\fBdev\fR"
 .RS 0
 .IP \(bu 4
@@ -1862,7 +1951,7 @@ Default: null
 .IP \(bu 4
 Type: null or String
 .IP \(bu 4
-DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcertfile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:certfile=/path/to/cert.crt
+DEPRECATED: \fBkey\fR and \fBcert\fR are no longer used for most registry operations. Use registry scoped \fBkeyfile\fR and \fBcafile\fR instead. Example: //other-registry.tld/:keyfile=/path/to/key.pem //other-registry.tld/:cafile=/path/to/cert.crt
 .RE 0
 
 .P
@@ -1937,18 +2026,6 @@ DEPRECATED: Use the --package-lock setting instead.
 
 .P
 Alias for --package-lock
-.SS "\fBtmp\fR"
-.RS 0
-.IP \(bu 4
-Default: The value returned by the Node.js \fBos.tmpdir()\fR method \fI\(lahttps://nodejs.org/api/os.html#os_os_tmpdir\(ra\fR
-.IP \(bu 4
-Type: Path
-.IP \(bu 4
-DEPRECATED: This setting is no longer used. npm stores temporary files in a special location in the cache, and they are managed by \fB\fBcacache\fR\fR \fI\(lahttp://npm.im/cacache\(ra\fR.
-.RE 0
-
-.P
-Historically, the location where temporary files were stored. No longer relevant.
 .SS "See also"
 .RS 0
 .IP \(bu 4

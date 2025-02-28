@@ -73,7 +73,8 @@ myEmitter.on('event', function(a, b) {
   //     _events: [Object: null prototype] { event: [Function (anonymous)] },
   //     _eventsCount: 1,
   //     _maxListeners: undefined,
-  //     [Symbol(kCapture)]: false
+  //     Symbol(shapeMode): false,
+  //     Symbol(kCapture): false
   //   } true
 });
 myEmitter.emit('event', 'a', 'b');
@@ -90,7 +91,8 @@ myEmitter.on('event', function(a, b) {
   //     _events: [Object: null prototype] { event: [Function (anonymous)] },
   //     _eventsCount: 1,
   //     _maxListeners: undefined,
-  //     [Symbol(kCapture)]: false
+  //     Symbol(shapeMode): false,
+  //     Symbol(kCapture): false
   //   } true
 });
 myEmitter.emit('event', 'a', 'b');
@@ -105,7 +107,7 @@ class MyEmitter extends EventEmitter {}
 const myEmitter = new MyEmitter();
 myEmitter.on('event', (a, b) => {
   console.log(a, b, this);
-  // Prints: a b {}
+  // Prints: a b undefined
 });
 myEmitter.emit('event', 'a', 'b');
 ```
@@ -960,7 +962,7 @@ myEmitter.emit('event');
 ```
 
 Because listeners are managed using an internal array, calling this will
-change the position indices of any listener registered _after_ the listener
+change the position indexes of any listener registered _after_ the listener
 being removed. This will not impact the order in which listeners are called,
 but it means that any copies of the listener array as returned by
 the `emitter.listeners()` method will need to be recreated.
@@ -1169,6 +1171,10 @@ that a "possible EventEmitter memory leak" has been detected. For any single
 `EventEmitter`, the `emitter.getMaxListeners()` and `emitter.setMaxListeners()`
 methods can be used to temporarily avoid this warning:
 
+`defaultMaxListeners` has no effect on `AbortSignal` instances. While it is
+still possible to use [`emitter.setMaxListeners(n)`][] to set a warning limit
+for individual `AbortSignal` instances, per default `AbortSignal` instances will not warn.
+
 ```mjs
 import { EventEmitter } from 'node:events';
 const emitter = new EventEmitter();
@@ -1271,7 +1277,9 @@ const { getEventListeners, EventEmitter } = require('node:events');
 ## `events.getMaxListeners(emitterOrTarget)`
 
 <!-- YAML
-added: v19.9.0
+added:
+  - v19.9.0
+  - v18.17.0
 -->
 
 * `emitterOrTarget` {EventEmitter|EventTarget}
@@ -1333,7 +1341,7 @@ changes:
 -->
 
 * `emitter` {EventEmitter}
-* `name` {string}
+* `name` {string|symbol}
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel waiting for the event.
 * Returns: {Promise}
@@ -1455,8 +1463,7 @@ async function foo(emitter, event, signal) {
 }
 
 foo(ee, 'foo', ac.signal);
-ac.abort(); // Abort waiting for the event
-ee.emit('foo'); // Prints: Waiting for the event was canceled!
+ac.abort(); // Prints: Waiting for the event was canceled!
 ```
 
 ```cjs
@@ -1479,8 +1486,7 @@ async function foo(emitter, event, signal) {
 }
 
 foo(ee, 'foo', ac.signal);
-ac.abort(); // Abort waiting for the event
-ee.emit('foo'); // Prints: Waiting for the event was canceled!
+ac.abort(); // Prints: Waiting for the event was canceled!
 ```
 
 ### Awaiting multiple events emitted on `process.nextTick()`
@@ -1657,12 +1663,33 @@ console.log(listenerCount(myEmitter, 'event'));
 added:
  - v13.6.0
  - v12.16.0
+changes:
+  - version:
+    - v22.0.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52080
+    description: Support `highWaterMark` and `lowWaterMark` options,
+                 For consistency. Old options are still supported.
+  - version:
+    - v20.0.0
+    pr-url: https://github.com/nodejs/node/pull/41276
+    description: The `close`, `highWatermark`, and `lowWatermark`
+                 options are supported now.
 -->
 
 * `emitter` {EventEmitter}
 * `eventName` {string|symbol} The name of the event being listened for
 * `options` {Object}
   * `signal` {AbortSignal} Can be used to cancel awaiting events.
+  * `close` - {string\[]} Names of events that will end the iteration.
+  * `highWaterMark` - {integer} **Default:** `Number.MAX_SAFE_INTEGER`
+    The high watermark. The emitter is paused every time the size of events
+    being buffered is higher than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
+  * `lowWaterMark` - {integer} **Default:** `1`
+    The low watermark. The emitter is resumed every time the size of events
+    being buffered is lower than it. Supported only on emitters implementing
+    `pause()` and `resume()` methods.
 * Returns: {AsyncIterator} that iterates `eventName` events emitted by the `emitter`
 
 ```mjs
@@ -1801,6 +1828,66 @@ const emitter = new EventEmitter();
 setMaxListeners(5, target, emitter);
 ```
 
+## `events.addAbortListener(signal, listener)`
+
+<!-- YAML
+added:
+ - v20.5.0
+ - v18.18.0
+-->
+
+> Stability: 1 - Experimental
+
+* `signal` {AbortSignal}
+* `listener` {Function|EventListener}
+* Returns: {Disposable} A Disposable that removes the `abort` listener.
+
+Listens once to the `abort` event on the provided `signal`.
+
+Listening to the `abort` event on abort signals is unsafe and may
+lead to resource leaks since another third party with the signal can
+call [`e.stopImmediatePropagation()`][]. Unfortunately Node.js cannot change
+this since it would violate the web standard. Additionally, the original
+API makes it easy to forget to remove listeners.
+
+This API allows safely using `AbortSignal`s in Node.js APIs by solving these
+two issues by listening to the event such that `stopImmediatePropagation` does
+not prevent the listener from running.
+
+Returns a disposable so that it may be unsubscribed from more easily.
+
+```cjs
+const { addAbortListener } = require('node:events');
+
+function example(signal) {
+  let disposable;
+  try {
+    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+    disposable = addAbortListener(signal, (e) => {
+      // Do something when signal is aborted.
+    });
+  } finally {
+    disposable?.[Symbol.dispose]();
+  }
+}
+```
+
+```mjs
+import { addAbortListener } from 'node:events';
+
+function example(signal) {
+  let disposable;
+  try {
+    signal.addEventListener('abort', (e) => e.stopImmediatePropagation());
+    disposable = addAbortListener(signal, (e) => {
+      // Do something when signal is aborted.
+    });
+  } finally {
+    disposable?.[Symbol.dispose]();
+  }
+}
+```
+
 ## Class: `events.EventEmitterAsyncResource extends EventEmitter`
 
 <!-- YAML
@@ -1880,8 +1967,7 @@ same options as `EventEmitter` and `AsyncResource` themselves.
   * `captureRejections` {boolean} It enables
     [automatic capturing of promise rejection][capturerejections].
     **Default:** `false`.
-  * `name` {string} The type of async event. **Default::**
-    [`new.target.name`][].
+  * `name` {string} The type of async event. **Default:** [`new.target.name`][].
   * `triggerAsyncId` {number} The ID of the execution context that created this
     async event. **Default:** `executionAsyncId()`.
   * `requireManualDestroy` {boolean} If set to `true`, disables `emitDestroy`
@@ -2344,9 +2430,21 @@ Removes the `listener` from the list of handlers for event `type`.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version: v23.0.0
+    pr-url: https://github.com/nodejs/node/pull/52723
+    description: No longer experimental.
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
+  - version: v19.0.0
+    pr-url: https://github.com/nodejs/node/pull/44860
+    description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Extends: {Event}
 
@@ -2359,9 +2457,15 @@ Instances are created internally by Node.js.
 added:
   - v18.7.0
   - v16.17.0
+changes:
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
 -->
 
-> Stability: 1 - Experimental.
+> Stability: 2 - Stable
 
 * Type: {any} Returns custom data passed when initializing.
 
@@ -2543,6 +2647,7 @@ to the `EventTarget`.
 [`EventTarget` error handling]: #eventtarget-error-handling
 [`Event` Web API]: https://dom.spec.whatwg.org/#event
 [`domain`]: domain.md
+[`e.stopImmediatePropagation()`]: #eventstopimmediatepropagation
 [`emitter.listenerCount()`]: #emitterlistenercounteventname-listener
 [`emitter.removeListener()`]: #emitterremovelistenereventname-listener
 [`emitter.setMaxListeners(n)`]: #emittersetmaxlistenersn

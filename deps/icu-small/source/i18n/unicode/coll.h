@@ -58,12 +58,18 @@
 
 #if !UCONFIG_NO_COLLATION
 
+#include <functional>
+#include <string_view>
+#include <type_traits>
+
+#include "unicode/char16ptr.h"
 #include "unicode/uobject.h"
 #include "unicode/ucol.h"
 #include "unicode/unorm.h"
 #include "unicode/locid.h"
 #include "unicode/uniset.h"
 #include "unicode/umisc.h"
+#include "unicode/unistr.h"
 #include "unicode/uiter.h"
 #include "unicode/stringpiece.h"
 
@@ -535,7 +541,7 @@ public:
      * Generates the hash code for the collation object
      * @stable ICU 2.0
      */
-    virtual int32_t hashCode(void) const = 0;
+    virtual int32_t hashCode() const = 0;
 
 #ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
@@ -588,6 +594,52 @@ public:
      */
     UBool equals(const UnicodeString& source, const UnicodeString& target) const;
 
+#ifndef U_HIDE_DRAFT_API
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::equal_to</code> but uses the collator instead of <code>operator==</code>.
+     * @draft ICU 76
+     */
+    inline auto equal_to() const { return Predicate<std::equal_to, UCOL_EQUAL>(*this); }
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::greater</code> but uses the collator instead of <code>operator&gt;</code>.
+     * @draft ICU 76
+     */
+    inline auto greater() const { return Predicate<std::equal_to, UCOL_GREATER>(*this); }
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::less</code> but uses the collator instead of <code>operator&lt;</code>.
+     * @draft ICU 76
+     */
+    inline auto less() const { return Predicate<std::equal_to, UCOL_LESS>(*this); }
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::not_equal_to</code> but uses the collator instead of <code>operator!=</code>.
+     * @draft ICU 76
+     */
+    inline auto not_equal_to() const { return Predicate<std::not_equal_to, UCOL_EQUAL>(*this); }
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::greater_equal</code> but uses the collator instead of <code>operator&gt;=</code>.
+     * @draft ICU 76
+     */
+    inline auto greater_equal() const { return Predicate<std::not_equal_to, UCOL_LESS>(*this); }
+
+    /**
+     * Creates a comparison function object that uses this collator.
+     * Like <code>std::less_equal</code> but uses the collator instead of <code>operator&lt;=</code>.
+     * @draft ICU 76
+     */
+    inline auto less_equal() const { return Predicate<std::not_equal_to, UCOL_GREATER>(*this); }
+
+#endif  // U_HIDE_DRAFT_API
+
 #ifndef U_FORCE_HIDE_DEPRECATED_API
     /**
      * Determines the minimum strength that will be used in comparison or
@@ -599,7 +651,7 @@ public:
      * @see Collator#setStrength
      * @deprecated ICU 2.6 Use getAttribute(UCOL_STRENGTH...) instead
      */
-    virtual ECollationStrength getStrength(void) const;
+    virtual ECollationStrength getStrength() const;
 
     /**
      * Sets the minimum strength to be used in comparison or transformation.
@@ -730,7 +782,7 @@ public:
      * @return a StringEnumeration over the locales available at the time of the call
      * @stable ICU 2.6
      */
-    static StringEnumeration* U_EXPORT2 getAvailableLocales(void);
+    static StringEnumeration* U_EXPORT2 getAvailableLocales();
 
     /**
      * Create a string enumerator of all possible keywords that are relevant to
@@ -864,7 +916,7 @@ public:
      *         IDs.
      * @stable ICU 2.0
      */
-    virtual UClassID getDynamicClassID(void) const override = 0;
+    virtual UClassID getDynamicClassID() const override = 0;
 
     /**
      * Universal attribute setter
@@ -1210,6 +1262,47 @@ private:
     friend class ICUCollatorService;
     static Collator* makeInstance(const Locale& desiredLocale,
                                   UErrorCode& status);
+
+#ifndef U_HIDE_DRAFT_API
+    /**
+     * Function object for performing comparisons using a Collator.
+     * @internal
+     */
+    template <template <typename...> typename Compare, UCollationResult result>
+    class Predicate {
+      public:
+        explicit Predicate(const Collator& parent) : collator(parent) {}
+
+        template <
+            typename T, typename U,
+            typename = std::enable_if_t<ConvertibleToU16StringView<T> && ConvertibleToU16StringView<U>>>
+        bool operator()(const T& lhs, const U& rhs) const {
+            UErrorCode status = U_ZERO_ERROR;
+            return compare(
+                collator.compare(
+                    UnicodeString::readOnlyAlias(lhs),
+                    UnicodeString::readOnlyAlias(rhs),
+                    status),
+                result);
+        }
+
+        bool operator()(std::string_view lhs, std::string_view rhs) const {
+            UErrorCode status = U_ZERO_ERROR;
+            return compare(collator.compareUTF8(lhs, rhs, status), result);
+        }
+
+#if defined(__cpp_char8_t)
+        bool operator()(std::u8string_view lhs, std::u8string_view rhs) const {
+            UErrorCode status = U_ZERO_ERROR;
+            return compare(collator.compareUTF8(lhs, rhs, status), result);
+        }
+#endif
+
+      private:
+        const Collator& collator;
+        static constexpr Compare<UCollationResult> compare{};
+    };
+#endif  // U_HIDE_DRAFT_API
 };
 
 #if !UCONFIG_NO_SERVICE
@@ -1245,7 +1338,7 @@ public:
      * @return true if the factory is visible.
      * @stable ICU 2.6
      */
-    virtual UBool visible(void) const;
+    virtual UBool visible() const;
 
     /**
      * Return a collator for the provided locale.  If the locale

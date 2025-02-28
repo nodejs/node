@@ -4,6 +4,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "aliased_buffer.h"
+#include "memory_tracker-inl.h"
 #include "util-inl.h"
 
 namespace node {
@@ -70,8 +71,8 @@ AliasedBufferBase<NativeT, V8T>::AliasedBufferBase(
       count_(that.count_),
       byte_offset_(that.byte_offset_),
       buffer_(that.buffer_) {
-  DCHECK(is_valid());
   js_array_ = v8::Global<V8T>(that.isolate_, that.GetJSArray());
+  DCHECK(is_valid());
 }
 
 template <typename NativeT, typename V8T>
@@ -127,18 +128,9 @@ void AliasedBufferBase<NativeT, V8T>::Release() {
 }
 
 template <typename NativeT, typename V8T>
-inline void AliasedBufferBase<NativeT, V8T>::WeakCallback(
-    const v8::WeakCallbackInfo<AliasedBufferBase<NativeT, V8T>>& data) {
-  AliasedBufferBase<NativeT, V8T>* buffer = data.GetParameter();
-  DCHECK(buffer->is_valid());
-  buffer->cleared_ = true;
-  buffer->js_array_.Reset();
-}
-
-template <typename NativeT, typename V8T>
 inline void AliasedBufferBase<NativeT, V8T>::MakeWeak() {
   DCHECK(is_valid());
-  js_array_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
+  js_array_.SetWeak();
 }
 
 template <typename NativeT, typename V8T>
@@ -223,7 +215,7 @@ void AliasedBufferBase<NativeT, V8T>::reserve(size_t new_capacity) {
 
 template <typename NativeT, typename V8T>
 inline bool AliasedBufferBase<NativeT, V8T>::is_valid() const {
-  return index_ == nullptr && !cleared_;
+  return index_ == nullptr && !js_array_.IsEmpty();
 }
 
 template <typename NativeT, typename V8T>

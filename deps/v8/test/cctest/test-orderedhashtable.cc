@@ -15,14 +15,14 @@ static Isolate* GetIsolateFrom(LocalContext* context) {
   return reinterpret_cast<Isolate*>((*context)->GetIsolate());
 }
 
-void CopyHashCode(Handle<JSReceiver> from, Handle<JSReceiver> to) {
-  int hash = Smi::ToInt(from->GetHash());
+void CopyHashCode(DirectHandle<JSReceiver> from, DirectHandle<JSReceiver> to) {
+  int hash = Smi::ToInt(Object::GetHash(*from));
   to->SetIdentityHash(hash);
 }
 
-void Verify(Isolate* isolate, Handle<HeapObject> obj) {
+void Verify(Isolate* isolate, DirectHandle<HeapObject> obj) {
 #if VERIFY_HEAP
-  obj->ObjectVerify(isolate);
+  Object::ObjectVerify(*obj, isolate);
 #endif
 }
 
@@ -59,19 +59,20 @@ Handle<OrderedNameDictionary> Add(Isolate* isolate,
 // version for
 // OrderedHashMap, OrderedHashSet
 template <typename T>
-bool HasKey(Isolate* isolate, Handle<T> table, Object key) {
+bool HasKey(Isolate* isolate, Handle<T> table, Tagged<Object> key) {
   return T::HasKey(isolate, *table, key);
 }
 
 template <>
-bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table, Object key) {
+bool HasKey(Isolate* isolate, Handle<OrderedNameDictionary> table,
+            Tagged<Object> key) {
   return table->FindEntry(isolate, key).is_found();
 }
 
 // version for
 // OrderedHashTable, OrderedHashSet
 template <typename T>
-Handle<T> Delete(Isolate* isolate, Handle<T> table, Object key) {
+Handle<T> Delete(Isolate* isolate, Handle<T> table, Tagged<Object> key) {
   T::Delete(isolate, *table, key);
   return table;
 }
@@ -79,7 +80,7 @@ Handle<T> Delete(Isolate* isolate, Handle<T> table, Object key) {
 template <>
 Handle<OrderedNameDictionary> Delete(Isolate* isolate,
                                      Handle<OrderedNameDictionary> table,
-                                     Object key) {
+                                     Tagged<Object> key) {
   // OrderedNameDictionary doesn't have Delete, but only DeleteEntry, which
   // requires the key to be deleted to be present
   InternalIndex entry = table->FindEntry(isolate, key);
@@ -100,7 +101,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK_EQ(0, set->NumberOfElements());
 
   // Add a new key.
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!set->HasKey(isolate, key1));
   set = SmallOrderedHashSet::Add(isolate, set, key1).ToHandleChecked();
   Verify(isolate, set);
@@ -115,7 +116,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK_EQ(1, set->NumberOfElements());
   CHECK(set->HasKey(isolate, key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!set->HasKey(isolate, key2));
   set = SmallOrderedHashSet::Add(isolate, set, key2).ToHandleChecked();
   Verify(isolate, set);
@@ -131,7 +132,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK(set->HasKey(isolate, key1));
   CHECK(set->HasKey(isolate, key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!set->HasKey(isolate, key3));
   set = SmallOrderedHashSet::Add(isolate, set, key3).ToHandleChecked();
   Verify(isolate, set);
@@ -149,7 +150,7 @@ TEST(SmallOrderedHashSetInsertion) {
   CHECK(set->HasKey(isolate, key2));
   CHECK(set->HasKey(isolate, key3));
 
-  Handle<Object> key4 = factory->NewHeapNumber(42.0);
+  DirectHandle<Object> key4 = factory->NewHeapNumber(42.0);
   CHECK(!set->HasKey(isolate, key4));
   set = SmallOrderedHashSet::Add(isolate, set, key4).ToHandleChecked();
   Verify(isolate, set);
@@ -182,8 +183,8 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK_EQ(0, map->NumberOfElements());
 
   // Add a new key.
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
   CHECK(!map->HasKey(isolate, key1));
   map = SmallOrderedHashMap::Add(isolate, map, key1, value1).ToHandleChecked();
   Verify(isolate, map);
@@ -198,8 +199,8 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(map->HasKey(isolate, key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
-  Handle<String> value = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> value = factory->NewStringFromAsciiChecked("foo");
   CHECK(!map->HasKey(isolate, key2));
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
   Verify(isolate, map);
@@ -215,7 +216,7 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK(map->HasKey(isolate, key1));
   CHECK(map->HasKey(isolate, key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!map->HasKey(isolate, key3));
   map = SmallOrderedHashMap::Add(isolate, map, key3, value).ToHandleChecked();
   Verify(isolate, map);
@@ -233,7 +234,7 @@ TEST(SmallOrderedHashMapInsertion) {
   CHECK(map->HasKey(isolate, key2));
   CHECK(map->HasKey(isolate, key3));
 
-  Handle<Object> key4 = factory->NewHeapNumber(42.0);
+  DirectHandle<Object> key4 = factory->NewHeapNumber(42.0);
   CHECK(!map->HasKey(isolate, key4));
   map = SmallOrderedHashMap::Add(isolate, map, key4, value).ToHandleChecked();
   Verify(isolate, map);
@@ -261,14 +262,14 @@ TEST(SmallOrderedHashSetDuplicateHashCode) {
   HandleScope scope(isolate);
 
   Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
   set = SmallOrderedHashSet::Add(isolate, set, key1).ToHandleChecked();
   Verify(isolate, set);
   CHECK_EQ(2, set->NumberOfBuckets());
   CHECK_EQ(1, set->NumberOfElements());
   CHECK(set->HasKey(isolate, key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   set = SmallOrderedHashSet::Add(isolate, set, key2).ToHandleChecked();
@@ -286,20 +287,20 @@ TEST(SmallOrderedHashMapDuplicateHashCode) {
   HandleScope scope(isolate);
 
   Handle<SmallOrderedHashMap> map = factory->NewSmallOrderedHashMap();
-  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> value = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
   map = SmallOrderedHashMap::Add(isolate, map, key1, value).ToHandleChecked();
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(map->HasKey(isolate, key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
-  CHECK(!key1->SameValue(*key2));
-  Object hash1 = key1->GetHash();
-  Object hash2 = key2->GetHash();
+  CHECK(!Object::SameValue(*key1, *key2));
+  Tagged<Object> hash1 = Object::GetHash(*key1);
+  Tagged<Object> hash2 = Object::GetHash(*key2);
   CHECK_EQ(hash1, hash2);
 
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
@@ -567,8 +568,8 @@ TEST(OrderedHashTableInsertion) {
   CHECK_EQ(0, map->NumberOfElements());
 
   // Add a new key.
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key1));
   map = OrderedHashMap::Add(isolate, map, key1, value1).ToHandleChecked();
   Verify(isolate, map);
@@ -583,8 +584,8 @@ TEST(OrderedHashTableInsertion) {
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
-  Handle<String> value = factory->NewStringFromAsciiChecked("bar");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> value = factory->NewStringFromAsciiChecked("bar");
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key2));
   map = OrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
   Verify(isolate, map);
@@ -600,7 +601,7 @@ TEST(OrderedHashTableInsertion) {
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key3));
   map = OrderedHashMap::Add(isolate, map, key3, value).ToHandleChecked();
   Verify(isolate, map);
@@ -618,7 +619,7 @@ TEST(OrderedHashTableInsertion) {
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key2));
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key3));
 
-  Handle<Object> key4 = factory->NewHeapNumber(42.0);
+  DirectHandle<Object> key4 = factory->NewHeapNumber(42.0);
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key4));
   map = OrderedHashMap::Add(isolate, map, key4, value).ToHandleChecked();
   Verify(isolate, map);
@@ -646,15 +647,15 @@ TEST(OrderedHashMapDuplicateHashCode) {
   HandleScope scope(isolate);
 
   Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> value = factory->NewJSObjectWithNullProto();
   map = OrderedHashMap::Add(isolate, map, key1, value).ToHandleChecked();
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
   CHECK_EQ(1, map->NumberOfElements());
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   map = OrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
@@ -670,8 +671,8 @@ TEST(OrderedHashMapDeletion) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
-  Handle<String> value = factory->NewStringFromAsciiChecked("bar");
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<String> value = factory->NewStringFromAsciiChecked("bar");
 
   Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
   Verify(isolate, map);
@@ -680,7 +681,7 @@ TEST(OrderedHashMapDeletion) {
   CHECK_EQ(0, map->NumberOfDeletedElements());
 
   // Delete from an empty hash table
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!OrderedHashMap::Delete(isolate, *map, *key1));
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
@@ -710,7 +711,7 @@ TEST(OrderedHashMapDeletion) {
   CHECK_EQ(1, map->NumberOfDeletedElements());
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key2));
   map = OrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
   Verify(isolate, map);
@@ -719,7 +720,7 @@ TEST(OrderedHashMapDeletion) {
   CHECK_EQ(1, map->NumberOfDeletedElements());
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!OrderedHashMap::HasKey(isolate, *map, *key3));
   map = OrderedHashMap::Add(isolate, map, key3, value).ToHandleChecked();
   Verify(isolate, map);
@@ -793,8 +794,8 @@ TEST(SmallOrderedHashMapDeletion) {
   Isolate* isolate = GetIsolateFrom(&context);
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
-  Handle<String> value = factory->NewStringFromAsciiChecked("bar");
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<String> value = factory->NewStringFromAsciiChecked("bar");
 
   Handle<SmallOrderedHashMap> map = factory->NewSmallOrderedHashMap();
   Verify(isolate, map);
@@ -803,7 +804,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK_EQ(0, map->NumberOfDeletedElements());
 
   // Delete from an empty hash table
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!SmallOrderedHashMap::Delete(isolate, *map, *key1));
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
@@ -833,7 +834,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK_EQ(1, map->NumberOfDeletedElements());
   CHECK(map->HasKey(isolate, key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!map->HasKey(isolate, key2));
   map = SmallOrderedHashMap::Add(isolate, map, key2, value).ToHandleChecked();
   Verify(isolate, map);
@@ -842,7 +843,7 @@ TEST(SmallOrderedHashMapDeletion) {
   CHECK_EQ(1, map->NumberOfDeletedElements());
   CHECK(map->HasKey(isolate, key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!map->HasKey(isolate, key3));
   map = SmallOrderedHashMap::Add(isolate, map, key3, value).ToHandleChecked();
   Verify(isolate, map);
@@ -917,8 +918,8 @@ TEST(OrderedHashMapDuplicateHashCodeDeletion) {
   HandleScope scope(isolate);
 
   Handle<OrderedHashMap> map = factory->NewOrderedHashMap();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> value = factory->NewJSObjectWithNullProto();
   map = OrderedHashMap::Add(isolate, map, key1, value).ToHandleChecked();
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
@@ -926,7 +927,7 @@ TEST(OrderedHashMapDuplicateHashCodeDeletion) {
   CHECK_EQ(0, map->NumberOfDeletedElements());
   CHECK(OrderedHashMap::HasKey(isolate, *map, *key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   // We shouldn't be able to delete the key!
@@ -946,8 +947,8 @@ TEST(SmallOrderedHashMapDuplicateHashCodeDeletion) {
   HandleScope scope(isolate);
 
   Handle<SmallOrderedHashMap> map = factory->NewSmallOrderedHashMap();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
-  Handle<JSObject> value = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> value = factory->NewJSObjectWithNullProto();
   map = SmallOrderedHashMap::Add(isolate, map, key1, value).ToHandleChecked();
   Verify(isolate, map);
   CHECK_EQ(2, map->NumberOfBuckets());
@@ -955,7 +956,7 @@ TEST(SmallOrderedHashMapDuplicateHashCodeDeletion) {
   CHECK_EQ(0, map->NumberOfDeletedElements());
   CHECK(map->HasKey(isolate, key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   // We shouldn't be able to delete the key!
@@ -981,7 +982,7 @@ TEST(OrderedHashSetDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
 
   // Delete from an empty hash table
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!OrderedHashSet::Delete(isolate, *set, *key1));
   Verify(isolate, set);
   CHECK_EQ(2, set->NumberOfBuckets());
@@ -1011,7 +1012,7 @@ TEST(OrderedHashSetDeletion) {
   CHECK_EQ(1, set->NumberOfDeletedElements());
   CHECK(OrderedHashSet::HasKey(isolate, *set, *key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key2));
   set = OrderedHashSet::Add(isolate, set, key2).ToHandleChecked();
   Verify(isolate, set);
@@ -1020,7 +1021,7 @@ TEST(OrderedHashSetDeletion) {
   CHECK_EQ(1, set->NumberOfDeletedElements());
   CHECK(OrderedHashSet::HasKey(isolate, *set, *key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!OrderedHashSet::HasKey(isolate, *set, *key3));
   set = OrderedHashSet::Add(isolate, set, key3).ToHandleChecked();
   Verify(isolate, set);
@@ -1102,7 +1103,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
 
   // Delete from an empty hash table
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
   CHECK(!SmallOrderedHashSet::Delete(isolate, *set, *key1));
   Verify(isolate, set);
   CHECK_EQ(2, set->NumberOfBuckets());
@@ -1132,7 +1133,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK_EQ(1, set->NumberOfDeletedElements());
   CHECK(set->HasKey(isolate, key1));
 
-  Handle<String> key2 = factory->NewStringFromAsciiChecked("foo");
+  DirectHandle<String> key2 = factory->NewStringFromAsciiChecked("foo");
   CHECK(!set->HasKey(isolate, key2));
   set = SmallOrderedHashSet::Add(isolate, set, key2).ToHandleChecked();
   Verify(isolate, set);
@@ -1141,7 +1142,7 @@ TEST(SmallOrderedHashSetDeletion) {
   CHECK_EQ(1, set->NumberOfDeletedElements());
   CHECK(set->HasKey(isolate, key2));
 
-  Handle<Symbol> key3 = factory->NewSymbol();
+  DirectHandle<Symbol> key3 = factory->NewSymbol();
   CHECK(!set->HasKey(isolate, key3));
   set = SmallOrderedHashSet::Add(isolate, set, key3).ToHandleChecked();
   Verify(isolate, set);
@@ -1216,7 +1217,7 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   HandleScope scope(isolate);
 
   Handle<OrderedHashSet> set = factory->NewOrderedHashSet();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
   set = OrderedHashSet::Add(isolate, set, key1).ToHandleChecked();
   Verify(isolate, set);
   CHECK_EQ(2, set->NumberOfBuckets());
@@ -1224,7 +1225,7 @@ TEST(OrderedHashSetDuplicateHashCodeDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
   CHECK(OrderedHashSet::HasKey(isolate, *set, *key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   // We shouldn't be able to delete the key!
@@ -1244,7 +1245,7 @@ TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
   HandleScope scope(isolate);
 
   Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
-  Handle<JSObject> key1 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key1 = factory->NewJSObjectWithNullProto();
   set = SmallOrderedHashSet::Add(isolate, set, key1).ToHandleChecked();
   Verify(isolate, set);
   CHECK_EQ(2, set->NumberOfBuckets());
@@ -1252,7 +1253,7 @@ TEST(SmallOrderedHashSetDuplicateHashCodeDeletion) {
   CHECK_EQ(0, set->NumberOfDeletedElements());
   CHECK(set->HasKey(isolate, key1));
 
-  Handle<JSObject> key2 = factory->NewJSObjectWithNullProto();
+  DirectHandle<JSObject> key2 = factory->NewJSObjectWithNullProto();
   CopyHashCode(key1, key2);
 
   // We shouldn't be able to delete the key!
@@ -1288,7 +1289,7 @@ TEST(OrderedHashSetHandlerInsertion) {
   CHECK(SmallOrderedHashSet::Is(set));
 
   for (int i = 0; i < 1024; i++) {
-    Handle<Smi> key_i(Smi::FromInt(i), isolate);
+    DirectHandle<Smi> key_i(Smi::FromInt(i), isolate);
     set = OrderedHashSetHandler::Add(isolate, set, key_i).ToHandleChecked();
     Verify(isolate, set);
     for (int j = 0; j <= i; j++) {
@@ -1310,7 +1311,7 @@ TEST(OrderedHashMapHandlerInsertion) {
 
   // Add a new key.
   Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
   CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key1));
   map =
       OrderedHashMapHandler::Add(isolate, map, key1, value1).ToHandleChecked();
@@ -1325,8 +1326,8 @@ TEST(OrderedHashMapHandlerInsertion) {
   CHECK(SmallOrderedHashMap::Is(map));
 
   for (int i = 0; i < 1024; i++) {
-    Handle<Smi> key_i(Smi::FromInt(i), isolate);
-    Handle<Smi> value_i(Smi::FromInt(i), isolate);
+    DirectHandle<Smi> key_i(Smi::FromInt(i), isolate);
+    DirectHandle<Smi> value_i(Smi::FromInt(i), isolate);
     map = OrderedHashMapHandler::Add(isolate, map, key_i, value_i)
               .ToHandleChecked();
     Verify(isolate, map);
@@ -1386,7 +1387,7 @@ TEST(OrderedHashMapHandlerDeletion) {
 
   // Add a new key.
   Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
   CHECK(!OrderedHashMapHandler::HasKey(isolate, map, key1));
   map =
       OrderedHashMapHandler::Add(isolate, map, key1, value1).ToHandleChecked();
@@ -1421,13 +1422,14 @@ TEST(OrderedNameDictionaryInsertion) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1438,7 +1440,7 @@ TEST(OrderedNameDictionaryInsertion) {
 
   CHECK_EQ(InternalIndex(0), dict->FindEntry(isolate, *key1));
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1455,13 +1457,14 @@ TEST(OrderedNameDictionaryFindEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details)
              .ToHandleChecked();
@@ -1473,7 +1476,7 @@ TEST(OrderedNameDictionaryFindEntry) {
   CHECK_EQ(entry, InternalIndex(0));
   CHECK(entry.is_found());
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
   Verify(isolate, dict);
@@ -1495,13 +1498,14 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1512,18 +1516,19 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(InternalIndex(0), dict->FindEntry(isolate, *key1));
 
   InternalIndex entry = dict->FindEntry(isolate, *key1);
-  Handle<Object> found = handle(dict->ValueAt(entry), isolate);
+  DirectHandle<Object> found(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
-  Handle<String> other_value = isolate->factory()->InternalizeUtf8String("baz");
+  DirectHandle<String> other_value =
+      isolate->factory()->InternalizeUtf8String("baz");
   dict->ValueAtPut(entry, *other_value);
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1534,18 +1539,18 @@ TEST(OrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(InternalIndex(1), dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 
   entry = dict->FindEntry(isolate, *key2);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
   dict->ValueAtPut(entry, *other_value);
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 }
 
@@ -1555,13 +1560,14 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1583,7 +1589,7 @@ TEST(OrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_NE(PropertyDetails::Empty().AsSmi(), found.AsSmi());
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = OrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1618,8 +1624,8 @@ TEST(SmallOrderedNameDictionaryInsertion) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1629,7 +1635,7 @@ TEST(SmallOrderedNameDictionaryInsertion) {
   CHECK_EQ(1, dict->NumberOfElements());
   CHECK_EQ(InternalIndex(0), dict->FindEntry(isolate, *key1));
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1647,13 +1653,13 @@ TEST(SmallOrderedNameDictionaryInsertionMax) {
   HandleScope scope(isolate);
   Handle<SmallOrderedNameDictionary> dict =
       factory->NewSmallOrderedNameDictionary();
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   PropertyDetails details = PropertyDetails::Empty();
 
   char buf[10];
   for (int i = 0; i < SmallOrderedNameDictionary::kMaxCapacity; i++) {
     CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
-    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    DirectHandle<String> key = isolate->factory()->InternalizeUtf8String(buf);
     dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
     Verify(isolate, dict);
@@ -1681,8 +1687,8 @@ TEST(SmallOrderedNameDictionaryFindEntry) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
 
@@ -1696,7 +1702,7 @@ TEST(SmallOrderedNameDictionaryFindEntry) {
   InternalIndex entry = dict->FindEntry(isolate, *key1);
   CHECK(entry.is_found());
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1720,8 +1726,8 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1732,18 +1738,19 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(InternalIndex(0), dict->FindEntry(isolate, *key1));
 
   InternalIndex entry = dict->FindEntry(isolate, *key1);
-  Handle<Object> found = handle(dict->ValueAt(entry), isolate);
+  DirectHandle<Object> found(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
-  Handle<String> other_value = isolate->factory()->InternalizeUtf8String("baz");
+  DirectHandle<String> other_value =
+      isolate->factory()->InternalizeUtf8String("baz");
   dict->ValueAtPut(entry, *other_value);
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1754,18 +1761,18 @@ TEST(SmallOrderedNameDictionaryValueAtAndValueAtPut) {
   CHECK_EQ(InternalIndex(1), dict->FindEntry(isolate, *key2));
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 
   entry = dict->FindEntry(isolate, *key2);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
   dict->ValueAtPut(entry, *other_value);
 
   entry = dict->FindEntry(isolate, *key1);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
 }
 
@@ -1781,8 +1788,8 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key1).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key1, value, details)
@@ -1804,7 +1811,7 @@ TEST(SmallOrderedNameDictionaryDetailsAtAndDetailsAtPut) {
   CHECK_NE(PropertyDetails::Empty().AsSmi(), found.AsSmi());
   CHECK_EQ(other.AsSmi(), found.AsSmi());
 
-  Handle<Symbol> key2 = factory->NewSymbol();
+  DirectHandle<Symbol> key2 = factory->NewSymbol();
   CHECK(dict->FindEntry(isolate, *key2).is_not_found());
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key2, value, details)
              .ToHandleChecked();
@@ -1834,7 +1841,7 @@ TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
   HandleScope scope(isolate);
   Handle<SmallOrderedNameDictionary> dict =
       factory->NewSmallOrderedNameDictionary();
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   PropertyDetails details = PropertyDetails::Empty();
 
   CHECK_EQ(PropertyArray::kNoHashSentinel, dict->Hash());
@@ -1844,7 +1851,7 @@ TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
   char buf[10];
   for (int i = 0; i < SmallOrderedNameDictionary::kMaxCapacity; i++) {
     CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
-    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    DirectHandle<String> key = isolate->factory()->InternalizeUtf8String(buf);
     dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
     Verify(isolate, dict);
@@ -1855,10 +1862,10 @@ TEST(SmallOrderedNameDictionarySetAndMigrateHash) {
 TEST(OrderedNameDictionarySetAndMigrateHash) {
   LocalContext context;
   Isolate* isolate = GetIsolateFrom(&context);
-  Factory* factory = isolate->factory();
   HandleScope scope(isolate);
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
   PropertyDetails details = PropertyDetails::Empty();
 
   CHECK_EQ(PropertyArray::kNoHashSentinel, dict->Hash());
@@ -1868,7 +1875,7 @@ TEST(OrderedNameDictionarySetAndMigrateHash) {
   char buf[10];
   for (int i = 0; i <= 1024; i++) {
     CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", i));
-    Handle<String> key = isolate->factory()->InternalizeUtf8String(buf);
+    DirectHandle<String> key = isolate->factory()->InternalizeUtf8String(buf);
     dict = OrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
     Verify(isolate, dict);
@@ -1883,19 +1890,19 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
 
   Handle<HeapObject> table =
       OrderedNameDictionaryHandler::Allocate(isolate, 4).ToHandleChecked();
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   Verify(isolate, table);
 
   // Add a new key.
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  Handle<String> key = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key = isolate->factory()->InternalizeUtf8String("foo");
   PropertyDetails details = PropertyDetails::Empty();
 
   table = OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
               .ToHandleChecked();
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_found());
 
@@ -1906,25 +1913,25 @@ TEST(OrderedNameDictionaryHandlerInsertion) {
     table =
         OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
             .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, table);
 
     for (int j = 0; j <= i; j++) {
       CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
-      Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
+      DirectHandle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
       CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j)
                 .is_found());
     }
 
     for (int j = i + 1; j < 1024; j++) {
       CHECK_LT(0, snprintf(buf, sizeof(buf), "foo%d", j));
-      Handle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
+      DirectHandle<Name> key_j = isolate->factory()->InternalizeUtf8String(buf);
       CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key_j)
                 .is_not_found());
     }
   }
 
-  CHECK(table->IsOrderedNameDictionary());
+  CHECK(IsOrderedNameDictionary(*table));
 }
 
 TEST(OrderedNameDictionaryHandlerDeletion) {
@@ -1934,27 +1941,27 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
 
   Handle<HeapObject> table =
       OrderedNameDictionaryHandler::Allocate(isolate, 4).ToHandleChecked();
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   Verify(isolate, table);
 
   // Add a new key.
-  Handle<String> value = isolate->factory()->InternalizeUtf8String("bar");
-  Handle<String> key = isolate->factory()->InternalizeUtf8String("foo");
-  Handle<String> key2 = isolate->factory()->InternalizeUtf8String("foo2");
+  DirectHandle<String> value = isolate->factory()->InternalizeUtf8String("bar");
+  DirectHandle<String> key = isolate->factory()->InternalizeUtf8String("foo");
+  DirectHandle<String> key2 = isolate->factory()->InternalizeUtf8String("foo2");
   PropertyDetails details = PropertyDetails::Empty();
 
   table = OrderedNameDictionaryHandler::Add(isolate, table, key, value, details)
               .ToHandleChecked();
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_found());
 
   // Remove a non-existing key.
   OrderedNameDictionaryHandler::Delete(isolate, table, key2);
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key2)
             .is_not_found());
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
@@ -1963,11 +1970,11 @@ TEST(OrderedNameDictionaryHandlerDeletion) {
   // Remove an existing key.
   OrderedNameDictionaryHandler::Delete(isolate, table, key);
   Verify(isolate, table);
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
   CHECK(OrderedNameDictionaryHandler::FindEntry(isolate, *table, *key)
             .is_not_found());
 
-  CHECK(table->IsSmallOrderedNameDictionary());
+  CHECK(IsSmallOrderedNameDictionary(*table));
 }
 
 TEST(OrderedNameDictionarySetEntry) {
@@ -1976,14 +1983,15 @@ TEST(OrderedNameDictionarySetEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
   CHECK_EQ(0, dict->NumberOfDeletedElements());
 
-  Handle<String> key = factory->InternalizeUtf8String("foo");
-  Handle<String> value = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> key = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> value = factory->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key, value, details)
@@ -1994,20 +2002,21 @@ TEST(OrderedNameDictionarySetEntry) {
 
   InternalIndex entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(InternalIndex(0), entry);
-  Handle<Object> found = handle(dict->ValueAt(entry), isolate);
+  DirectHandle<Object> found(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
-  Handle<String> other_value = isolate->factory()->InternalizeUtf8String("baz");
+  DirectHandle<String> other_value =
+      isolate->factory()->InternalizeUtf8String("baz");
   PropertyDetails other_details = PropertyDetails(
       PropertyKind::kAccessor, READ_ONLY, PropertyCellType::kNoCell);
   dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(InternalIndex(0), entry);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
-  found = handle(dict->KeyAt(entry), isolate);
+  found = direct_handle(dict->KeyAt(entry), isolate);
   CHECK_EQ(*found, *key);
   PropertyDetails found_details = dict->DetailsAt(entry);
   CHECK_EQ(found_details.AsSmi(), other_details.AsSmi());
@@ -2025,8 +2034,8 @@ TEST(SmallOrderedNameDictionarySetEntry) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key = factory->InternalizeUtf8String("foo");
-  Handle<String> value = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> key = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> value = factory->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
@@ -2038,20 +2047,20 @@ TEST(SmallOrderedNameDictionarySetEntry) {
 
   InternalIndex entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(InternalIndex(0), entry);
-  Handle<Object> found = handle(dict->ValueAt(entry), isolate);
+  DirectHandle<Object> found(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *value);
 
   // Change the value
-  Handle<String> other_value = factory->InternalizeUtf8String("baz");
+  DirectHandle<String> other_value = factory->InternalizeUtf8String("baz");
   PropertyDetails other_details = PropertyDetails(
       PropertyKind::kAccessor, READ_ONLY, PropertyCellType::kNoCell);
   dict->SetEntry(entry, *key, *other_value, other_details);
 
   entry = dict->FindEntry(isolate, *key);
   CHECK_EQ(InternalIndex(0), entry);
-  found = handle(dict->ValueAt(entry), isolate);
+  found = direct_handle(dict->ValueAt(entry), isolate);
   CHECK_EQ(*found, *other_value);
-  found = handle(dict->KeyAt(entry), isolate);
+  found = direct_handle(dict->KeyAt(entry), isolate);
   CHECK_EQ(*found, *key);
   PropertyDetails found_details = dict->DetailsAt(entry);
   CHECK_EQ(found_details.AsSmi(), other_details.AsSmi());
@@ -2063,13 +2072,14 @@ TEST(OrderedNameDictionaryDeleteEntry) {
   Factory* factory = isolate->factory();
   HandleScope scope(isolate);
 
-  Handle<OrderedNameDictionary> dict = factory->NewOrderedNameDictionary();
+  Handle<OrderedNameDictionary> dict =
+      OrderedNameDictionary::Allocate(isolate, 2).ToHandleChecked();
   Verify(isolate, dict);
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key = factory->InternalizeUtf8String("foo");
-  Handle<String> value = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> key = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> value = factory->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = OrderedNameDictionary::Add(isolate, dict, key, value, details)
@@ -2094,7 +2104,7 @@ TEST(OrderedNameDictionaryDeleteEntry) {
     key = factory->InternalizeUtf8String(buf);
     dict = OrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, dict);
   }
 
@@ -2130,8 +2140,8 @@ TEST(SmallOrderedNameDictionaryDeleteEntry) {
   CHECK_EQ(2, dict->NumberOfBuckets());
   CHECK_EQ(0, dict->NumberOfElements());
 
-  Handle<String> key = factory->InternalizeUtf8String("foo");
-  Handle<String> value = factory->InternalizeUtf8String("bar");
+  DirectHandle<String> key = factory->InternalizeUtf8String("foo");
+  DirectHandle<String> value = factory->InternalizeUtf8String("bar");
   CHECK(dict->FindEntry(isolate, *key).is_not_found());
   PropertyDetails details = PropertyDetails::Empty();
   dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
@@ -2156,7 +2166,7 @@ TEST(SmallOrderedNameDictionaryDeleteEntry) {
     key = factory->InternalizeUtf8String(buf);
     dict = SmallOrderedNameDictionary::Add(isolate, dict, key, value, details)
                .ToHandleChecked();
-    DCHECK(key->IsUniqueName());
+    DCHECK(IsUniqueName(*key));
     Verify(isolate, dict);
   }
 
@@ -2244,8 +2254,8 @@ TEST(ZeroSizeOrderedHashMap) {
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);
 
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
 
   Handle<OrderedHashMap> empty =
       Handle<OrderedHashMap>(ro_roots.empty_ordered_hash_map(), isolate);
@@ -2261,7 +2271,8 @@ TEST(ZeroSizeOrderedHashMap) {
   {
     Handle<OrderedHashMap> map = empty;
 
-    map = OrderedHashMap::EnsureGrowable(isolate, map).ToHandleChecked();
+    map =
+        OrderedHashMap::EnsureCapacityForAdding(isolate, map).ToHandleChecked();
 
     CHECK_LT(0, map->NumberOfBuckets());
     CHECK_EQ(0, map->NumberOfElements());
@@ -2318,8 +2329,8 @@ TEST(ZeroSizeOrderedHashSet) {
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);
 
-  Handle<Smi> key1(Smi::FromInt(1), isolate);
-  Handle<Smi> value1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> key1(Smi::FromInt(1), isolate);
+  DirectHandle<Smi> value1(Smi::FromInt(1), isolate);
 
   Handle<OrderedHashSet> empty =
       Handle<OrderedHashSet>(ro_roots.empty_ordered_hash_set(), isolate);
@@ -2336,7 +2347,8 @@ TEST(ZeroSizeOrderedHashSet) {
   {
     Handle<OrderedHashSet> set = empty;
 
-    set = OrderedHashSet::EnsureGrowable(isolate, set).ToHandleChecked();
+    set =
+        OrderedHashSet::EnsureCapacityForAdding(isolate, set).ToHandleChecked();
 
     CHECK_LT(0, set->NumberOfBuckets());
     CHECK_EQ(0, set->NumberOfElements());
@@ -2393,8 +2405,9 @@ TEST(ZeroSizeOrderedNameDictionary) {
   HandleScope scope(isolate);
   ReadOnlyRoots ro_roots(isolate);
 
-  Handle<String> key1 = isolate->factory()->InternalizeUtf8String("key1");
-  Handle<String> value1 = isolate->factory()->InternalizeUtf8String("value1");
+  DirectHandle<String> key1 = isolate->factory()->InternalizeUtf8String("key1");
+  DirectHandle<String> value1 =
+      isolate->factory()->InternalizeUtf8String("value1");
   PropertyDetails details = PropertyDetails::Empty();
 
   Handle<OrderedNameDictionary> empty = Handle<OrderedNameDictionary>(

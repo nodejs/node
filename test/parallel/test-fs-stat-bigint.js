@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const promiseFs = require('fs').promises;
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const { isDate } = require('util').types;
 const { inspect } = require('util');
@@ -14,7 +13,7 @@ tmpdir.refresh();
 let testIndex = 0;
 
 function getFilename() {
-  const filename = path.join(tmpdir.path, `test-file-${++testIndex}`);
+  const filename = tmpdir.resolve(`test-file-${++testIndex}`);
   fs.writeFileSync(filename, 'test');
   return filename;
 }
@@ -213,3 +212,36 @@ if (!common.isWindows) {
   verifyStats(bigintStats, numStats, allowableDelta);
   await handle.close();
 })().then(common.mustCall());
+
+{
+  // These two tests have an equivalent in ./test-fs-stat.js
+
+  // BigIntStats Date properties can be set before reading them
+  fs.stat(__filename, { bigint: true }, common.mustSucceed((s) => {
+    s.atime = 2;
+    s.mtime = 3;
+    s.ctime = 4;
+    s.birthtime = 5;
+
+    assert.strictEqual(s.atime, 2);
+    assert.strictEqual(s.mtime, 3);
+    assert.strictEqual(s.ctime, 4);
+    assert.strictEqual(s.birthtime, 5);
+  }));
+
+  // BigIntStats Date properties can be set after reading them
+  fs.stat(__filename, { bigint: true }, common.mustSucceed((s) => {
+    // eslint-disable-next-line no-unused-expressions
+    s.atime, s.mtime, s.ctime, s.birthtime;
+
+    s.atime = 2;
+    s.mtime = 3;
+    s.ctime = 4;
+    s.birthtime = 5;
+
+    assert.strictEqual(s.atime, 2);
+    assert.strictEqual(s.mtime, 3);
+    assert.strictEqual(s.ctime, 4);
+    assert.strictEqual(s.birthtime, 5);
+  }));
+}

@@ -30,14 +30,12 @@ import argparse
 import datetime
 from distutils.version import LooseVersion
 import glob
-import imp
 import json
 import os
 import re
 import shutil
 import subprocess
 import sys
-import textwrap
 import time
 import urllib
 
@@ -131,7 +129,7 @@ def NormalizeVersionTags(version_tags):
   # Remove tags/ prefix because of packed refs.
   for current_tag in version_tags:
     version_tag = SanitizeVersionTag(current_tag)
-    if version_tag != None:
+    if version_tag is not None:
       normalized_version_tags.append(version_tag)
 
   return normalized_version_tags
@@ -552,7 +550,15 @@ class Step(GitRecipesMixin):
     all_tags = self.vc.GetTags()
     only_version_tags = NormalizeVersionTags(all_tags)
 
-    version = sorted(only_version_tags,
+    def patched_dev_version(tag):
+      """True if this tag represents a patched dev or mini branch."""
+      parts = tag.split('.')
+      return len(parts) >= 3 and int(parts[2]) > 999
+
+    filtered_version_tags = [
+      tag for tag in only_version_tags if not patched_dev_version(tag)]
+
+    version = sorted(filtered_version_tags,
                      key=LooseVersion, reverse=True)[0]
     self["latest_version"] = version
     return version

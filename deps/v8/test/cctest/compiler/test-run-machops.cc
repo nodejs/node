@@ -473,6 +473,22 @@ TEST(RunSelectUnorderedNotEqual) {
 }
 
 namespace {
+template <typename T>
+ExternalReference ExternalRefFromFunc(RawMachineAssemblerTester<T>* m,
+                                      Address func_address) {
+  ExternalReference::Type func_type = ExternalReference::FAST_C_CALL;
+  ApiFunction func(func_address);
+  ExternalReference ref = ExternalReference::Create(&func, func_type);
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  EncodedCSignature sig = m->call_descriptor()->ToEncodedCSignature();
+  m->main_isolate()->simulator_data()->AddSignatureForTargetForTesting(
+      func_address, sig);
+#endif
+  return ref;
+}
+}  // namespace
+
+namespace {
 void FooForSelect() {}
 }  // namespace
 
@@ -484,14 +500,13 @@ TEST(RunWord32SelectWithMemoryInput) {
   }
 
   // Test that the generated code also works with values spilled on the stack.
-
-  auto* foo_ptr = &FooForSelect;
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(FooForSelect));
   constexpr int input1 = 16;
   int input2 = 3443;
   // Load {value2} before the function call so that it gets spilled.
   Node* value2 = m.LoadFromPointer(&input2, MachineType::Int32());
-  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
   // Call a function so that {value2} gets spilled on the stack.
+  Node* function = m.ExternalConstant(ref);
   m.CallCFunction(function, MachineType::Int32());
   Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
   m.Return(m.Word32Select(cmp, m.Parameter(0), value2));
@@ -511,13 +526,13 @@ TEST(RunWord64SelectWithMemoryInput) {
 
   // Test that the generated code also works with values spilled on the stack.
 
-  auto* foo_ptr = &FooForSelect;
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(FooForSelect));
   constexpr int64_t input1 = 16;
   int64_t input2 = 0x12345678ABCD;
   // Load {value2} before the function call so that it gets spilled.
   Node* value2 = m.LoadFromPointer(&input2, MachineType::Int64());
-  Node* function = m.LoadFromPointer(&foo_ptr, MachineType::Pointer());
   // Call a function so that {value2} gets spilled on the stack.
+  Node* function = m.ExternalConstant(ref);
   m.CallCFunction(function, MachineType::Int32());
   Node* cmp = m.Word32Equal(m.Parameter(1), m.Int32Constant(0));
   m.Return(m.Word64Select(cmp, m.Parameter(0), value2));
@@ -605,16 +620,18 @@ TEST(RunFloat32SelectImmediateIntCompare) {
     return;
   }
 
-  float tval = -1.0;
+  float tval = -0.0;
   float fval = 1.0;
   Node* cmp = m.Int32LessThanOrEqual(m.Parameter(0), m.Parameter(1));
-  m.Return(m.Float64Select(cmp, m.Float32Constant(tval),
-                           m.Float32Constant(fval)));
+  m.Return(
+      m.Float32Select(cmp, m.Float32Constant(tval), m.Float32Constant(fval)));
 
   FOR_INT32_INPUTS(pl) {
     FOR_INT32_INPUTS(pr) {
       float expected_result = pl <= pr ? tval : fval;
-      CHECK_FLOAT_EQ(expected_result, m.Call(pl, pr));
+      float actual_result = m.Call(pl, pr);
+      CHECK_FLOAT_EQ(expected_result, actual_result);
+      CHECK_EQ(std::signbit(expected_result), std::signbit(actual_result));
     }
   }
 }
@@ -627,7 +644,7 @@ TEST(RunFloat64SelectImmediateIntCompare) {
   }
 
   double tval = -1.0;
-  double fval = 1.0;
+  double fval = 0.0;
   Node* cmp = m.Int64LessThan(m.Parameter(0), m.Parameter(1));
   m.Return(m.Float64Select(cmp, m.Float64Constant(tval),
                            m.Float64Constant(fval)));
@@ -635,7 +652,9 @@ TEST(RunFloat64SelectImmediateIntCompare) {
   FOR_INT64_INPUTS(pl) {
     FOR_INT64_INPUTS(pr) {
       double expected_result = pl < pr ? tval : fval;
-      CHECK_DOUBLE_EQ(expected_result, m.Call(pl, pr));
+      double actual_result = m.Call(pl, pr);
+      CHECK_DOUBLE_EQ(expected_result, actual_result);
+      CHECK_EQ(std::signbit(expected_result), std::signbit(actual_result));
     }
   }
 }
@@ -1157,7 +1176,7 @@ TEST(RunDiamondPhiConst) {
 
 
 TEST(RunDiamondPhiNumber) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
   double false_val = -11.1;
   double true_val = 200.1;
   Node* true_node = m.NumberConstant(true_val);
@@ -1170,7 +1189,7 @@ TEST(RunDiamondPhiNumber) {
 
 
 TEST(RunDiamondPhiString) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
   const char* false_val = "false";
   const char* true_val = "true";
   Node* true_node = m.StringConstant(true_val);
@@ -4516,7 +4535,7 @@ TEST(RunTruncateFloat32ToInt32) {
       } else {
         DCHECK(std::isnan(i));
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
@@ -4538,7 +4557,7 @@ TEST(RunTruncateFloat32ToInt32) {
       } else {
         DCHECK(std::isnan(i));
 #if V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
-    V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+    V8_TARGET_ARCH_PPC64
         CHECK_EQ(std::numeric_limits<int32_t>::min(), m.Call(i));
 #elif V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_LOONG64
         CHECK_EQ(0, m.Call(i));
@@ -5162,9 +5181,9 @@ TEST(RunRefDiamond) {
   RawMachineAssemblerTester<int32_t> m;
 
   const int magic = 99644;
-  Handle<String> rexpected =
+  DirectHandle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("A");
-  String buffer;
+  Tagged<String> buffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* k1 = m.StringConstant("A");
@@ -5187,7 +5206,7 @@ TEST(RunRefDiamond) {
   m.Return(m.Int32Constant(magic));
 
   CHECK_EQ(magic, m.Call());
-  CHECK(rexpected->SameValue(buffer));
+  CHECK(Object::SameValue(*rexpected, buffer));
 }
 
 
@@ -5197,9 +5216,9 @@ TEST(RunDoubleRefDiamond) {
   const int magic = 99648;
   double dbuffer = 0.1;
   double dconstant = 99.99;
-  Handle<String> rexpected =
+  DirectHandle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AX");
-  String rbuffer;
+  Tagged<String> rbuffer;
 
   RawMachineLabel blocka, blockb, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -5228,7 +5247,7 @@ TEST(RunDoubleRefDiamond) {
 
   CHECK_EQ(magic, m.Call());
   CHECK_EQ(dconstant, dbuffer);
-  CHECK(rexpected->SameValue(rbuffer));
+  CHECK(Object::SameValue(*rexpected, rbuffer));
 }
 
 
@@ -5238,9 +5257,9 @@ TEST(RunDoubleRefDoubleDiamond) {
   const int magic = 99649;
   double dbuffer = 0.1;
   double dconstant = 99.997;
-  Handle<String> rexpected =
+  DirectHandle<String> rexpected =
       CcTest::i_isolate()->factory()->InternalizeUtf8String("AD");
-  String rbuffer;
+  Tagged<String> rbuffer;
 
   RawMachineLabel blocka, blockb, mid, blockd, blocke, end;
   Node* d1 = m.Float64Constant(dconstant);
@@ -5279,7 +5298,7 @@ TEST(RunDoubleRefDoubleDiamond) {
 
   CHECK_EQ(magic, m.Call());
   CHECK_EQ(dconstant, dbuffer);
-  CHECK(rexpected->SameValue(rbuffer));
+  CHECK(Object::SameValue(*rexpected, rbuffer));
 }
 
 
@@ -5745,7 +5764,7 @@ TEST(RunSpillConstantsAndParameters) {
 
 
 TEST(RunNewSpaceConstantsInPhi) {
-  RawMachineAssemblerTester<Object> m(MachineType::Int32());
+  RawMachineAssemblerTester<Tagged<Object>> m(MachineType::Int32());
 
   Isolate* isolate = CcTest::i_isolate();
   Handle<HeapNumber> true_val = isolate->factory()->NewHeapNumber(11.2);
@@ -6778,20 +6797,6 @@ TEST(RunCallCFunction9) {
 #endif  // !USE_SIMULATOR
 
 #ifdef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
-#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-#define IF_SIMULATOR_ADD_SIGNATURE                                     \
-  EncodedCSignature sig = m.call_descriptor()->ToEncodedCSignature();  \
-  m.main_isolate()->simulator_data()->AddSignatureForTargetForTesting( \
-      func_address, sig);
-#else
-#define IF_SIMULATOR_ADD_SIGNATURE
-#endif  // V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
-
-#define EXTERNAL_REF_FROM_FUNC(FUNC)                                  \
-  Address func_address = FUNCTION_ADDR(&FUNC);                        \
-  ExternalReference::Type func_type = ExternalReference::FAST_C_CALL; \
-  ApiFunction func(func_address);                                     \
-  ExternalReference ref = ExternalReference::Create(&func, func_type);
 
 namespace {
 
@@ -6919,8 +6924,7 @@ double int_foo10(int64_t a, int64_t b, int64_t c, int64_t d, int64_t e,
 
 TEST(RunCallDoubleCFunction0) {
   RawMachineAssemblerTester<double> m;
-  EXTERNAL_REF_FROM_FUNC(double_foo0)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo0));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(m.CallCFunction(function, MachineType::Float64()));
@@ -6929,8 +6933,7 @@ TEST(RunCallDoubleCFunction0) {
 
 TEST(RunCallDoubleCFunction1) {
   RawMachineAssemblerTester<double> m(MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo1)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo1));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -6942,8 +6945,7 @@ TEST(RunCallDoubleCFunction1) {
 TEST(RunCallDoubleCFunction2) {
   RawMachineAssemblerTester<double> m(MachineType::Float64(),
                                       MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo2)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo2));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -6961,8 +6963,7 @@ TEST(RunCallDoubleCFunction8) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo8)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo8));
 
   Node* function = m.ExternalConstant(ref);
   Node* param = m.Parameter(0);
@@ -6986,8 +6987,7 @@ TEST(RunCallDoubleCFunction9) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(double_foo9)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo9));
 
   Node* function = m.ExternalConstant(ref);
   Node* param = m.Parameter(0);
@@ -7022,8 +7022,7 @@ TEST(RunCallDoubleCFunction10) {
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Float64(), MachineType::Float64(), MachineType::Float64(),
       MachineType::Int64());
-  EXTERNAL_REF_FROM_FUNC(double_foo10)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(double_foo10));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -7051,8 +7050,7 @@ TEST(RunCallIntCFunction10) {
       MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
       MachineType::Int64(), MachineType::Int64(), MachineType::Int64(),
       MachineType::Float64());
-  EXTERNAL_REF_FROM_FUNC(int_foo10)
-  IF_SIMULATOR_ADD_SIGNATURE
+  ExternalReference ref = ExternalRefFromFunc(&m, FUNCTION_ADDR(int_foo10));
 
   Node* function = m.ExternalConstant(ref);
   m.Return(
@@ -7551,6 +7549,7 @@ TEST(RunComputedCodeObject) {
   Signature<LinkageLocation> loc(1, 0, ret);
   auto call_descriptor = r.zone()->New<CallDescriptor>(  // --
       CallDescriptor::kCallCodeObject,                   // kind
+      kDefaultCodeEntrypointTag,                         // tag
       MachineType::AnyTagged(),                          // target_type
       c->GetInputLocation(0),                            // target_loc
       &loc,                                              // location_sig
@@ -7679,16 +7678,6 @@ TEST(Regression738952) {
 }
 
 #if V8_TARGET_ARCH_64_BIT
-TEST(Regression12330) {
-  FLAG_SCOPE(turbo_force_mid_tier_regalloc);
-
-  RawMachineAssemblerTester<int32_t> m(MachineType::Int64());
-  Node* add = m.Int64SubWithOverflow(m.Int64Constant(0), m.Parameter(0));
-  Node* ovf = m.Projection(1, add);
-  m.Return(ovf);
-  m.GenerateCode();
-}
-
 TEST(Regression12373) {
   FOR_INT64_INPUTS(i) {
     RawMachineAssemblerTester<int64_t> m(MachineType::Int64(),

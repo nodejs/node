@@ -1,6 +1,6 @@
 import * as common from '../common/index.mjs';
-import * as tmpdir from '../common/tmpdir.js';
 import * as fixtures from '../common/fixtures.mjs';
+import tmpdir from '../common/tmpdir.js';
 import assert from 'node:assert';
 import path from 'node:path';
 import fs from 'node:fs/promises';
@@ -11,7 +11,11 @@ common.skipIfInspectorDisabled();
 tmpdir.refresh();
 
 {
-  const child = new NodeInstance(['--test', '--inspect-brk=0'], undefined, fixtures.path('test-runner/index.test.js'));
+  const child = new NodeInstance(
+    ['--test', '--test-reporter=tap', '--inspect-brk=0'],
+    undefined,
+    fixtures.path('test-runner/default-behavior/index.test.js')
+  );
 
   let stdout = '';
   let stderr = '';
@@ -20,9 +24,12 @@ tmpdir.refresh();
 
   const session = await child.connectInspectorSession();
 
+  await session.send({ method: 'NodeRuntime.enable' });
+  await session.waitForNotification('NodeRuntime.waitingForDebugger');
   await session.send([
     { method: 'Runtime.enable' },
     { method: 'Runtime.runIfWaitingForDebugger' }]);
+  await session.send({ method: 'NodeRuntime.disable' });
 
   session.disconnect();
   assert.match(stderr,
@@ -31,7 +38,10 @@ tmpdir.refresh();
 
 
 {
-  const args = ['--test', '--inspect=0', fixtures.path('test-runner/index.js')];
+  const args = [
+    '--test', '--test-reporter=tap', '--inspect=0',
+    fixtures.path('test-runner/index.js'),
+  ];
   const { stderr, stdout, code, signal } = await common.spawnPromisified(process.execPath, args);
 
   assert.match(stderr,
@@ -57,7 +67,7 @@ tmpdir.refresh();
 
 // Outputs coverage when event loop is drained, with no async logic.
 {
-  const coverageDirectory = path.join(tmpdir.path, 'coverage');
+  const coverageDirectory = tmpdir.resolve('coverage');
   async function getCoveredFiles() {
     const coverageFiles = await fs.readdir(coverageDirectory);
     const files = new Set();

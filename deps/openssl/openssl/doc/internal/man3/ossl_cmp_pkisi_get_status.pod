@@ -43,8 +43,8 @@ ossl_cmp_pkisi_check_pkifailureinfo
 # define OSSL_CMP_PKIFAILUREINFO_duplicateCertReq    26
 # define OSSL_CMP_PKIFAILUREINFO_MAX                 26
 
-  X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CERTRESPONSE *crep,
-                                        const OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
+  X509 *ossl_cmp_certresponse_get1_cert(const OSSL_CMP_CTX *ctx,
+                                        const OSSL_CMP_CERTRESPONSE *crep);
   int ossl_cmp_pkisi_get_status(const OSSL_CMP_PKISI *si);
   const char *ossl_cmp_PKIStatus_to_string(int status);
   OSSL_CMP_PKIFREETEXT *ossl_cmp_pkisi_get0_statusString(const OSSL_CMP_PKISI *si);
@@ -55,7 +55,7 @@ ossl_cmp_pkisi_check_pkifailureinfo
 
 ossl_cmp_certresponse_get1_cert() returns a pointer to a copy of the newly
 enrolled certificate from the given certResponse I<crep>, or NULL on error.
-In case of indirect POPO uses data from the I<ctx> and the private key I<pkey>.
+Uses data from I<ctx>, which in case of indirect POPO includes the private key.
 
 ossl_cmp_pkisi_get_status() returns the PKIStatus of I<si>, or -1 on error.
 
@@ -89,7 +89,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

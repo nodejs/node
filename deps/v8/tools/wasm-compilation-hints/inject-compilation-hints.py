@@ -42,7 +42,7 @@ if __name__ == "__main__":
       while True:
         id, bs = read_varuintN(fin)
         fout.write(bs)
-        if id == None:
+        if id is None:
           break
         payload_length, bs = read_varuintN(fin)
         fout.write(bs)

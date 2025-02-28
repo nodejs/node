@@ -43,8 +43,11 @@ The ABI/API changes can be tracked [here](http://abi-laboratory.pro/tracker/time
 
 ## Licensing
 
-libuv is licensed under the MIT license. Check the [LICENSE file](LICENSE).
-The documentation is licensed under the CC BY 4.0 license. Check the [LICENSE-docs file](LICENSE-docs).
+libuv is licensed under the MIT license. Check the [LICENSE](LICENSE) and
+[LICENSE-extra](LICENSE-extra) files.
+
+The documentation is licensed under the CC BY 4.0 license. Check the
+[LICENSE-docs file](LICENSE-docs).
 
 ## Community
 
@@ -219,6 +222,27 @@ Note to OS X users:
 Make sure that you specify the architecture you wish to build for in the
 "ARCHS" flag. You can specify more than one by delimiting with a space
 (e.g. "x86_64 i386").
+
+### Install with vcpkg
+
+```bash
+$ git clone https://github.com/microsoft/vcpkg.git
+$ ./bootstrap-vcpkg.bat # for powershell
+$ ./bootstrap-vcpkg.sh # for bash
+$ ./vcpkg install libuv
+```
+
+### Install with Conan
+
+You can install pre-built binaries for libuv or build it from source using [Conan](https://conan.io/). Use the following command:
+
+```bash
+conan install --requires="libuv/[*]" --build=missing
+```
+
+The libuv Conan recipe is kept up to date by Conan maintainers and community contributors.
+If the version is out of date, please [create an issue or pull request](https://github.com/conan-io/conan-center-index) on the ConanCenterIndex repository.
+
 
 ### Running tests
 

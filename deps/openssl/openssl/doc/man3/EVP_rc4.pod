@@ -43,6 +43,13 @@ interface.
 
 =back
 
+=head1 NOTES
+
+Developers should be aware of the negative performance implications of
+calling these functions multiple times and should consider using
+L<EVP_CIPHER_fetch(3)> with L<EVP_CIPHER-RC4(7)> instead.
+See L<crypto(7)/Performance> for further information.
+
 =head1 RETURN VALUES
 
 These functions return an B<EVP_CIPHER> structure that contains the
@@ -57,7 +64,7 @@ L<EVP_CIPHER_meth_new(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

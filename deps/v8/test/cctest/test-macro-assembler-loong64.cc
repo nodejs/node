@@ -32,6 +32,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/compiler/access-builder.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/objects/objects-inl.h"
@@ -59,9 +60,7 @@ TEST(BYTESWAP) {
   struct T {
     uint64_t s8;
     uint64_t s4;
-    uint64_t s2;
     uint64_t u4;
-    uint64_t u2;
   };
 
   T t;
@@ -81,24 +80,16 @@ TEST(BYTESWAP) {
   MacroAssembler* masm = &assembler;
 
   __ Ld_d(a4, MemOperand(a0, offsetof(T, s8)));
-  __ ByteSwapSigned(a4, a4, 8);
+  __ ByteSwap(a4, a4, 8);
   __ St_d(a4, MemOperand(a0, offsetof(T, s8)));
 
   __ Ld_d(a4, MemOperand(a0, offsetof(T, s4)));
-  __ ByteSwapSigned(a4, a4, 4);
+  __ ByteSwap(a4, a4, 4);
   __ St_d(a4, MemOperand(a0, offsetof(T, s4)));
 
-  __ Ld_d(a4, MemOperand(a0, offsetof(T, s2)));
-  __ ByteSwapSigned(a4, a4, 2);
-  __ St_d(a4, MemOperand(a0, offsetof(T, s2)));
-
   __ Ld_d(a4, MemOperand(a0, offsetof(T, u4)));
-  __ ByteSwapSigned(a4, a4, 4);
+  __ ByteSwap(a4, a4, 4);
   __ St_d(a4, MemOperand(a0, offsetof(T, u4)));
-
-  __ Ld_d(a4, MemOperand(a0, offsetof(T, u2)));
-  __ ByteSwapSigned(a4, a4, 2);
-  __ St_d(a4, MemOperand(a0, offsetof(T, u2)));
 
   __ jirl(zero_reg, ra, 0);
 
@@ -110,23 +101,17 @@ TEST(BYTESWAP) {
 
   for (size_t i = 0; i < arraysize(test_values); i++) {
     int32_t in_s4 = static_cast<int32_t>(test_values[i]);
-    int16_t in_s2 = static_cast<int16_t>(test_values[i]);
     uint32_t in_u4 = static_cast<uint32_t>(test_values[i]);
-    uint16_t in_u2 = static_cast<uint16_t>(test_values[i]);
 
     t.s8 = test_values[i];
     t.s4 = static_cast<uint64_t>(in_s4);
-    t.s2 = static_cast<uint64_t>(in_s2);
     t.u4 = static_cast<uint64_t>(in_u4);
-    t.u2 = static_cast<uint64_t>(in_u2);
 
     f.Call(&t, 0, 0, 0, 0);
 
     CHECK_EQ(ByteReverse<uint64_t>(test_values[i]), t.s8);
     CHECK_EQ(ByteReverse<int32_t>(in_s4), static_cast<int32_t>(t.s4));
-    CHECK_EQ(ByteReverse<int16_t>(in_s2), static_cast<int16_t>(t.s2));
     CHECK_EQ(ByteReverse<uint32_t>(in_u4), static_cast<uint32_t>(t.u4));
-    CHECK_EQ(ByteReverse<uint16_t>(in_u2), static_cast<uint16_t>(t.u2));
   }
 }
 
@@ -218,7 +203,7 @@ TEST(jump_tables4) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -302,7 +287,7 @@ TEST(jump_tables6) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kSwitchTableCases; ++i) {
@@ -826,7 +811,9 @@ TEST(min_max_nan) {
   auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ LoadRoot(t8, RootIndex::kNanValue);
-    __ Fld_d(dst, FieldMemOperand(t8, HeapNumber::kValueOffset));
+    __ Fld_d(dst,
+             FieldMemOperand(
+                 t8, compiler::AccessBuilder::ForHeapNumberValue().offset));
     __ Branch(back);
   };
 
@@ -1492,8 +1479,7 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
       Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
           .Build();
 #ifdef DEBUG
-  StdoutStream os;
-  code->Print(os);
+  Print(*code);
 #endif
   return GeneratedCode<F4>::FromCode(masm->isolate(), *code);
 }
@@ -1639,8 +1625,7 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
       Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
           .Build();
 #ifdef DEBUG
-  StdoutStream os;
-  code->Print(os);
+  Print(*code);
 #endif
   return GeneratedCode<F4>::FromCode(masm->isolate(), *code);
 }
@@ -1737,7 +1722,7 @@ uint64_t run_Sub_w(uint64_t imm, int32_t num_instr) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 
@@ -1821,7 +1806,7 @@ uint64_t run_Sub_d(uint64_t imm, int32_t num_instr) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F2>::FromCode(isolate, *code);
 

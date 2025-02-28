@@ -8,14 +8,13 @@ const assert = require('assert');
 const http2 = require('http2');
 const fs = require('fs');
 const net = require('net');
-const path = require('path');
 
 // HTTP/2 servers can listen on a named pipe.
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 const loc = fixtures.path('person-large.jpg');
-const fn = path.join(tmpdir.path, 'person-large.jpg');
+const fn = tmpdir.resolve('person-large.jpg');
 
 const server = http2.createServer();
 

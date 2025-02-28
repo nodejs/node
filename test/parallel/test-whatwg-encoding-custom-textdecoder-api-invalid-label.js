@@ -8,8 +8,17 @@ const assert = require('assert');
 [
   'utf-8',
   'unicode-1-1-utf-8',
+  'unicode11utf8',
+  'unicode20utf8',
+  'x-unicode20utf8',
   'utf8',
+  'unicodefffe',
   'utf-16be',
+  'csunicode',
+  'iso-10646-ucs-2',
+  'ucs-2',
+  'unicode',
+  'unicodefeff',
   'utf-16le',
   'utf-16',
 ].forEach((i) => {

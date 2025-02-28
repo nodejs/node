@@ -14,19 +14,17 @@
 namespace node {
 namespace performance {
 
+using v8::Array;
 using v8::Context;
 using v8::DontDelete;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::GCCallbackFlags;
 using v8::GCType;
-using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
-using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::PropertyAttribute;
@@ -44,6 +42,8 @@ const double performance_process_start_timestamp =
 uint64_t performance_v8_start;
 
 PerformanceState::PerformanceState(Isolate* isolate,
+                                   uint64_t time_origin,
+                                   double time_origin_timestamp,
                                    const PerformanceState::SerializeInfo* info)
     : root(isolate,
            sizeof(performance_state_internal),
@@ -59,24 +59,55 @@ PerformanceState::PerformanceState(Isolate* isolate,
                 root,
                 MAYBE_FIELD_PTR(info, observers)) {
   if (info == nullptr) {
-    for (size_t i = 0; i < milestones.Length(); i++) milestones[i] = -1.;
+    // For performance states initialized from scratch, reset
+    // all the milestones and initialize the time origin.
+    // For deserialized performance states, we will do the
+    // initialization in the deserialize callback.
+    ResetMilestones();
+    Initialize(time_origin, time_origin_timestamp);
+  }
+}
+
+void PerformanceState::ResetMilestones() {
+  size_t milestones_length = milestones.Length();
+  for (size_t i = 0; i < milestones_length; ++i) {
+    milestones[i] = -1;
   }
 }
 
 PerformanceState::SerializeInfo PerformanceState::Serialize(
     v8::Local<v8::Context> context, v8::SnapshotCreator* creator) {
+  // Reset all the milestones to improve determinism in the snapshot.
+  // We'll re-initialize them after deserialization.
+  ResetMilestones();
+
   SerializeInfo info{root.Serialize(context, creator),
                      milestones.Serialize(context, creator),
                      observers.Serialize(context, creator)};
   return info;
 }
 
-void PerformanceState::Deserialize(v8::Local<v8::Context> context) {
+void PerformanceState::Initialize(uint64_t time_origin,
+                                  double time_origin_timestamp) {
+  // We are only reusing the milestone array to store the time origin
+  // and time origin timestamp, so do not use the Mark() method.
+  // The time origin milestone is not exposed to user land.
+  this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN] =
+      static_cast<double>(time_origin);
+  this->milestones[NODE_PERFORMANCE_MILESTONE_TIME_ORIGIN_TIMESTAMP] =
+      time_origin_timestamp;
+}
+
+void PerformanceState::Deserialize(v8::Local<v8::Context> context,
+                                   uint64_t time_origin,
+                                   double time_origin_timestamp) {
+  // Resets the pointers.
   root.Deserialize(context);
-  // This is just done to set up the pointers, we will actually reset
-  // all the milestones after deserialization.
   milestones.Deserialize(context);
   observers.Deserialize(context);
+
+  // Re-initialize the time origin and timestamp i.e. the process start time.
+  Initialize(time_origin, time_origin_timestamp);
 }
 
 std::ostream& operator<<(std::ostream& o,
@@ -95,18 +126,6 @@ void PerformanceState::Mark(PerformanceMilestone milestone, uint64_t ts) {
       TRACING_CATEGORY_NODE1(bootstrap),
       GetPerformanceMilestoneName(milestone),
       TRACE_EVENT_SCOPE_THREAD, ts / 1000);
-}
-
-// Allows specific Node.js lifecycle milestones to be set from JavaScript
-void MarkMilestone(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-  // TODO(legendecas): Remove this check once the sub-realms are supported.
-  CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
-  Environment* env = realm->env();
-  PerformanceMilestone milestone =
-      static_cast<PerformanceMilestone>(args[0].As<Int32>()->Value());
-  if (milestone != NODE_PERFORMANCE_MILESTONE_INVALID)
-    env->performance_state()->Mark(milestone);
 }
 
 void SetupPerformanceObservers(const FunctionCallbackInfo<Value>& args) {
@@ -172,8 +191,9 @@ void MarkGarbageCollectionEnd(
   }
   env->performance_state()->current_gc_type = 0;
   // If no one is listening to gc performance entries, do not create them.
-  if (LIKELY(!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]))
+  if (!state->observers[NODE_PERFORMANCE_ENTRY_TYPE_GC]) [[likely]] {
     return;
+  }
 
   double start_time =
       (state->performance_last_gc_start_mark - env->time_origin()) /
@@ -222,18 +242,6 @@ static void RemoveGarbageCollectionTracking(
   GarbageCollectionCleanupHook(env);
 }
 
-// Gets the name of a function
-inline Local<Value> GetName(Local<Function> fn) {
-  Local<Value> val = fn->GetDebugName();
-  if (val.IsEmpty() || val->IsUndefined()) {
-    Local<Value> boundFunction = fn->GetBoundFunction();
-    if (!boundFunction.IsEmpty() && !boundFunction->IsUndefined()) {
-      val = GetName(boundFunction.As<Function>());
-    }
-  }
-  return val;
-}
-
 // Notify a custom PerformanceEntry to observers
 void Notify(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -252,7 +260,22 @@ void Notify(const FunctionCallbackInfo<Value>& args) {
 void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
-  args.GetReturnValue().Set(1.0 * idle_time / 1e6);
+  args.GetReturnValue().Set(1.0 * idle_time / NANOS_PER_MILLIS);
+}
+
+void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  uv_metrics_t metrics;
+  // uv_metrics_info always return 0
+  CHECK_EQ(uv_metrics_info(env->event_loop(), &metrics), 0);
+  Local<Value> data[] = {
+      Integer::New(isolate, metrics.loop_count),
+      Integer::New(isolate, metrics.events),
+      Integer::New(isolate, metrics.events_waiting),
+  };
+  Local<Array> arr = Array::New(env->isolate(), data, arraysize(data));
+  args.GetReturnValue().Set(arr);
 }
 
 void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
@@ -276,18 +299,6 @@ void CreateELDHistogram(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(histogram->object());
 }
 
-void GetTimeOrigin(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(
-      Number::New(args.GetIsolate(), env->time_origin() / NANOS_PER_MILLIS));
-}
-
-void GetTimeOriginTimeStamp(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(Number::New(
-      args.GetIsolate(), env->time_origin_timestamp() / MICROS_PER_MILLIS));
-}
-
 void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
   Realm* realm = Realm::GetCurrent(args);
   CHECK_EQ(realm->kind(), Realm::Kind::kPrincipal);
@@ -295,29 +306,44 @@ void MarkBootstrapComplete(const FunctionCallbackInfo<Value>& args) {
       performance::NODE_PERFORMANCE_MILESTONE_BOOTSTRAP_COMPLETE);
 }
 
+static double PerformanceNowImpl() {
+  return static_cast<double>(uv_hrtime() - performance_process_start) /
+         NANOS_PER_MILLIS;
+}
+
+static double FastPerformanceNow(v8::Local<v8::Value> receiver) {
+  return PerformanceNowImpl();
+}
+
+static void SlowPerformanceNow(const FunctionCallbackInfo<Value>& args) {
+  args.GetReturnValue().Set(PerformanceNowImpl());
+}
+
+static v8::CFunction fast_performance_now(
+    v8::CFunction::Make(FastPerformanceNow));
+
 static void CreatePerIsolateProperties(IsolateData* isolate_data,
-                                       Local<FunctionTemplate> target) {
+                                       Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> proto = target->PrototypeTemplate();
 
-  HistogramBase::Initialize(isolate_data, proto);
+  HistogramBase::Initialize(isolate_data, target);
 
-  SetMethod(isolate, proto, "markMilestone", MarkMilestone);
-  SetMethod(isolate, proto, "setupObservers", SetupPerformanceObservers);
+  SetMethod(isolate, target, "setupObservers", SetupPerformanceObservers);
   SetMethod(isolate,
-            proto,
+            target,
             "installGarbageCollectionTracking",
             InstallGarbageCollectionTracking);
   SetMethod(isolate,
-            proto,
+            target,
             "removeGarbageCollectionTracking",
             RemoveGarbageCollectionTracking);
-  SetMethod(isolate, proto, "notify", Notify);
-  SetMethod(isolate, proto, "loopIdleTime", LoopIdleTime);
-  SetMethod(isolate, proto, "getTimeOrigin", GetTimeOrigin);
-  SetMethod(isolate, proto, "getTimeOriginTimestamp", GetTimeOriginTimeStamp);
-  SetMethod(isolate, proto, "createELDHistogram", CreateELDHistogram);
-  SetMethod(isolate, proto, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(isolate, target, "notify", Notify);
+  SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
+  SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
+  SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
+  SetMethod(isolate, target, "uvMetricsInfo", UvMetricsInfo);
+  SetFastMethodNoSideEffect(
+      isolate, target, "now", SlowPerformanceNow, &fast_performance_now);
 }
 
 void CreatePerContextProperties(Local<Object> target,
@@ -375,16 +401,17 @@ void CreatePerContextProperties(Local<Object> target,
 }
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
-  registry->Register(MarkMilestone);
   registry->Register(SetupPerformanceObservers);
   registry->Register(InstallGarbageCollectionTracking);
   registry->Register(RemoveGarbageCollectionTracking);
   registry->Register(Notify);
   registry->Register(LoopIdleTime);
-  registry->Register(GetTimeOrigin);
-  registry->Register(GetTimeOriginTimeStamp);
   registry->Register(CreateELDHistogram);
   registry->Register(MarkBootstrapComplete);
+  registry->Register(UvMetricsInfo);
+  registry->Register(SlowPerformanceNow);
+  registry->Register(FastPerformanceNow);
+  registry->Register(fast_performance_now.GetTypeInfo());
   HistogramBase::RegisterExternalReferences(registry);
   IntervalHistogram::RegisterExternalReferences(registry);
 }

@@ -16,7 +16,6 @@
 #include "src/wasm/wasm-objects.h"
 #include "src/wasm/wasm-opcodes.h"
 #include "src/wasm/wasm-result.h"
-#include "test/common/wasm/wasm-interpreter.h"
 
 namespace v8 {
 namespace internal {
@@ -26,9 +25,9 @@ namespace testing {
 MaybeHandle<WasmModuleObject> CompileForTesting(Isolate* isolate,
                                                 ErrorThrower* thrower,
                                                 ModuleWireBytes bytes) {
-  auto enabled_features = WasmFeatures::FromIsolate(isolate);
-  MaybeHandle<WasmModuleObject> module =
-      GetWasmEngine()->SyncCompile(isolate, enabled_features, thrower, bytes);
+  auto enabled_features = WasmEnabledFeatures::FromIsolate(isolate);
+  MaybeHandle<WasmModuleObject> module = GetWasmEngine()->SyncCompile(
+      isolate, enabled_features, CompileTimeImports{}, thrower, bytes);
   DCHECK_EQ(thrower->error(), module.is_null());
   return module;
 }
@@ -40,48 +39,6 @@ MaybeHandle<WasmInstanceObject> CompileAndInstantiateForTesting(
   if (module.is_null()) return {};
   return GetWasmEngine()->SyncInstantiate(isolate, thrower,
                                           module.ToHandleChecked(), {}, {});
-}
-
-base::OwnedVector<WasmValue> MakeDefaultInterpreterArguments(
-    Isolate* isolate, const FunctionSig* sig) {
-  size_t param_count = sig->parameter_count();
-  auto arguments = base::OwnedVector<WasmValue>::New(param_count);
-
-  for (size_t i = 0; i < param_count; ++i) {
-    switch (sig->GetParam(i).kind()) {
-      case kI32:
-        arguments[i] = WasmValue(static_cast<int32_t>(i));
-        break;
-      case kI64:
-        arguments[i] = WasmValue(static_cast<int64_t>(i));
-        break;
-      case kF32:
-        arguments[i] = WasmValue(static_cast<float>(i));
-        break;
-      case kF64:
-        arguments[i] = WasmValue(static_cast<double>(i));
-        break;
-      case kS128: {
-        uint8_t s128_bytes[sizeof(Simd128)] = {static_cast<uint8_t>(i)};
-        arguments[i] = WasmValue(Simd128{s128_bytes});
-        break;
-      }
-      case kRefNull:
-        arguments[i] =
-            WasmValue(Handle<Object>::cast(isolate->factory()->null_value()),
-                      sig->GetParam(i));
-        break;
-      case kRef:
-      case kRtt:
-      case kI8:
-      case kI16:
-      case kVoid:
-      case kBottom:
-        UNREACHABLE();
-    }
-  }
-
-  return arguments;
 }
 
 base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
@@ -111,6 +68,7 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
       case kRtt:
       case kI8:
       case kI16:
+      case kF16:
       case kVoid:
       case kBottom:
         UNREACHABLE();
@@ -120,8 +78,8 @@ base::OwnedVector<Handle<Object>> MakeDefaultArguments(Isolate* isolate,
   return arguments;
 }
 
-int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
-                                const byte* module_end) {
+int32_t CompileAndRunWasmModule(Isolate* isolate, const uint8_t* module_start,
+                                const uint8_t* module_end) {
   HandleScope scope(isolate);
   ErrorThrower thrower(isolate, "CompileAndRunWasmModule");
   MaybeHandle<WasmInstanceObject> instance = CompileAndInstantiateForTesting(
@@ -133,77 +91,11 @@ int32_t CompileAndRunWasmModule(Isolate* isolate, const byte* module_start,
                                     {});
 }
 
-WasmInterpretationResult InterpretWasmModule(
-    Isolate* isolate, Handle<WasmInstanceObject> instance,
-    int32_t function_index, WasmValue* args) {
-  // Don't execute more than 16k steps.
-  constexpr int kMaxNumSteps = 16 * 1024;
-
-  Zone zone(isolate->allocator(), ZONE_NAME);
-  v8::internal::HandleScope scope(isolate);
-  const WasmFunction* func = &instance->module()->functions[function_index];
-
-  CHECK(func->exported);
-  // This would normally be handled by export wrappers.
-  if (!IsJSCompatibleSignature(func->sig)) {
-    return WasmInterpretationResult::Trapped(false);
-  }
-
-  WasmInterpreter interpreter{
-      isolate, instance->module(),
-      ModuleWireBytes{instance->module_object().native_module()->wire_bytes()},
-      instance};
-  interpreter.InitFrame(func, args);
-  WasmInterpreter::State interpreter_result = interpreter.Run(kMaxNumSteps);
-
-  bool stack_overflow = isolate->has_pending_exception();
-  isolate->clear_pending_exception();
-
-  if (stack_overflow) return WasmInterpretationResult::Failed();
-
-  if (interpreter.state() == WasmInterpreter::TRAPPED) {
-    return WasmInterpretationResult::Trapped(
-        interpreter.PossibleNondeterminism());
-  }
-
-  if (interpreter_result == WasmInterpreter::FINISHED) {
-    // Get the result as an {int32_t}. Keep this in sync with
-    // {CallWasmFunctionForTesting}, because fuzzers will compare the results.
-    int32_t result = -1;
-    if (func->sig->return_count() > 0) {
-      WasmValue return_value = interpreter.GetReturnValue();
-      switch (func->sig->GetReturn(0).kind()) {
-        case kI32:
-          result = return_value.to<int32_t>();
-          break;
-        case kI64:
-          result = static_cast<int32_t>(return_value.to<int64_t>());
-          break;
-        case kF32:
-          result = static_cast<int32_t>(return_value.to<float>());
-          break;
-        case kF64:
-          result = static_cast<int32_t>(return_value.to<double>());
-          break;
-        default:
-          break;
-      }
-    }
-    return WasmInterpretationResult::Finished(
-        result, interpreter.PossibleNondeterminism());
-  }
-
-  // The interpreter did not finish within the limited number of steps, so it
-  // might execute an infinite loop or infinite recursion. Return "failed"
-  // status in that case.
-  return WasmInterpretationResult::Failed();
-}
-
 MaybeHandle<WasmExportedFunction> GetExportedFunction(
     Isolate* isolate, Handle<WasmInstanceObject> instance, const char* name) {
   Handle<JSObject> exports_object;
   Handle<Name> exports = isolate->factory()->InternalizeUtf8String("exports");
-  exports_object = Handle<JSObject>::cast(
+  exports_object = Cast<JSObject>(
       JSObject::GetProperty(isolate, instance, exports).ToHandleChecked());
 
   Handle<Name> main_name = isolate->factory()->NewStringFromAsciiChecked(name);
@@ -211,9 +103,9 @@ MaybeHandle<WasmExportedFunction> GetExportedFunction(
   Maybe<bool> property_found = JSReceiver::GetOwnPropertyDescriptor(
       isolate, exports_object, main_name, &desc);
   if (!property_found.FromMaybe(false)) return {};
-  if (!desc.value()->IsJSFunction()) return {};
+  if (!IsJSFunction(*desc.value())) return {};
 
-  return Handle<WasmExportedFunction>::cast(desc.value());
+  return Cast<WasmExportedFunction>(desc.value());
 }
 
 int32_t CallWasmFunctionForTesting(Isolate* isolate,
@@ -224,43 +116,43 @@ int32_t CallWasmFunctionForTesting(Isolate* isolate,
   DCHECK_IMPLIES(exception != nullptr, *exception == nullptr);
   MaybeHandle<WasmExportedFunction> maybe_export =
       GetExportedFunction(isolate, instance, name);
-  Handle<WasmExportedFunction> main_export;
-  if (!maybe_export.ToHandle(&main_export)) {
+  Handle<WasmExportedFunction> exported_function;
+  if (!maybe_export.ToHandle(&exported_function)) {
     return -1;
   }
 
   // Call the JS function.
   Handle<Object> undefined = isolate->factory()->undefined_value();
-  MaybeHandle<Object> retval = Execution::Call(isolate, main_export, undefined,
-                                               args.length(), args.begin());
+  MaybeHandle<Object> retval = Execution::Call(
+      isolate, exported_function, undefined, args.length(), args.begin());
 
   // The result should be a number.
   if (retval.is_null()) {
-    DCHECK(isolate->has_pending_exception());
+    DCHECK(isolate->has_exception());
     if (exception) {
-      Handle<String> exception_string = Object::NoSideEffectsToString(
-          isolate, handle(isolate->pending_exception(), isolate));
+      DirectHandle<String> exception_string = Object::NoSideEffectsToString(
+          isolate, direct_handle(isolate->exception(), isolate));
       *exception = exception_string->ToCString();
     }
-    isolate->clear_pending_exception();
+    isolate->clear_internal_exception();
     return -1;
   }
   Handle<Object> result = retval.ToHandleChecked();
 
   // Multi-value returns, get the first return value (see InterpretWasmModule).
-  if (result->IsJSArray()) {
-    auto receiver = Handle<JSReceiver>::cast(result);
+  if (IsJSArray(*result)) {
+    auto receiver = Cast<JSReceiver>(result);
     result = JSObject::GetElement(isolate, receiver, 0).ToHandleChecked();
   }
 
-  if (result->IsSmi()) {
+  if (IsSmi(*result)) {
     return Smi::ToInt(*result);
   }
-  if (result->IsHeapNumber()) {
-    return static_cast<int32_t>(HeapNumber::cast(*result).value());
+  if (IsHeapNumber(*result)) {
+    return static_cast<int32_t>(Cast<HeapNumber>(*result)->value());
   }
-  if (result->IsBigInt()) {
-    return static_cast<int32_t>(BigInt::cast(*result).AsInt64());
+  if (IsBigInt(*result)) {
+    return static_cast<int32_t>(Cast<BigInt>(*result)->AsInt64());
   }
   return -1;
 }

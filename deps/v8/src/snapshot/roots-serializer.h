@@ -34,14 +34,14 @@ class RootsSerializer : public Serializer {
     return root_has_been_serialized_.test(static_cast<size_t>(root_index));
   }
 
-  bool IsRootAndHasBeenSerialized(HeapObject obj) const {
+  bool IsRootAndHasBeenSerialized(Tagged<HeapObject> obj) const {
     RootIndex root_index;
     return root_index_map()->Lookup(obj, &root_index) &&
            root_has_been_serialized(root_index);
   }
 
  protected:
-  void CheckRehashability(HeapObject obj);
+  void CheckRehashability(Tagged<HeapObject> obj);
 
   // Serializes |object| if not previously seen and returns its cache index.
   int SerializeInObjectCache(Handle<HeapObject> object);

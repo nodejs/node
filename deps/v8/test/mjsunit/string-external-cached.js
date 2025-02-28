@@ -31,16 +31,16 @@
 function test() {
   // Test string.charAt.
   var charat_str = new Array(5);
-  charat_str[0] = "0123456789ABCDEF0123456789ABCDEF\
+  charat_str[0] = createExternalizableString('0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
 0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF\
-0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF";
-  charat_str[1] = "0123456789ABCDEF";
+0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF0123456789ABCDEF');
+  charat_str[1] = createExternalizableString('0123456789ABCDEF');
   for (var i = 0; i < 6; i++) charat_str[1] += charat_str[1];
   try {  // String can only be externalized once
-    externalizeString(charat_str[0], false);
-    externalizeString(charat_str[1], true);
+    externalizeString(charat_str[0]);
+    externalizeString(charat_str[1]);
   } catch (ex) { }
   charat_str[2] = charat_str[0].slice(0, -1);
   charat_str[3] = charat_str[1].slice(0, -1);
@@ -53,20 +53,20 @@ function test() {
     assertEquals('B', charat_str[i].charAt(3*16 + 11));
   }
 
-  charat_short = "01234";
+  charat_short = createExternalizableString('01234');
   try {  // String can only be externalized once
-    externalizeString(charat_short, true);
+    externalizeString(charat_short);
   } catch (ex) { }
   assertEquals("1", charat_short.charAt(1));
 
   // Test regexp and short substring.
   var re = /(A|B)/;
-  var rere = /(T.{1,2}B)/;
-  var ascii = "ABCDEFGHIJKLMNOPQRST";
-  var twobyte = "_ABCDEFGHIJKLMNOPQRST";
-  try {
-    externalizeString(ascii, false);
-    externalizeString(twobyte, true);
+  var rere = /(T.{1,3}B)/u;
+  var ascii = createExternalizableString('ABCDEFGHIJKLMNOPQRST');
+  var twobyte = createExternalizableString('_ABCDEFGHIJKLMNOPQRST🤓');
+  try {  // String can only be externalized once
+    externalizeString(ascii);
+    externalizeString(twobyte);
   } catch (ex) { }
   assertTrue(isOneByteString(ascii));
   assertFalse(isOneByteString(twobyte));
@@ -80,7 +80,7 @@ function test() {
     assertEquals(["TAB", "TAB"], rere.exec(ascii_cons));
     assertEquals(["A", "A"], re.exec(twobyte));
     assertEquals(["B", "B"], re.exec(twobyte_slice));
-    assertEquals(["T_AB", "T_AB"], rere.exec(twobyte_cons));
+    assertEquals(["T🤓_AB", "T🤓_AB"], rere.exec(twobyte_cons));
     assertEquals("DEFG", ascii_slice.substr(2, 4));
     assertEquals("DEFG", twobyte_slice.substr(2, 4));
     assertEquals("DEFG", ascii_cons.substr(3, 4));
@@ -88,26 +88,30 @@ function test() {
   }
 
   // Test adding external strings
-  var short_ascii = "E=";
-  var long_ascii = "MCsquared";
-  var short_twobyte = "E\u1234";
-  var long_twobyte = "MCsquare\u1234";
+  var long_ascii = createExternalizableString('MCsquared');
+  var long_twobyte = createExternalizableString('MCsquare\u1234');
+  var min_short_ascii = 'E='.padEnd(kExternalStringMinOneByteLength, '.');
+  var min_short_twobyte =
+      'E=\u1234'.padEnd(kExternalStringMinTwoByteLength, '\u1234');
+  var short_ascii = createExternalizableString(min_short_ascii);
+  var short_twobyte = createExternalizableString(min_short_twobyte);
   try {  // String can only be externalized once
-    externalizeString(short_ascii, false);
-    externalizeString(long_ascii, false);
-    externalizeString(short_twobyte, true);
-    externalizeString(long_twobyte, true);
+    externalizeString(short_ascii);
+    externalizeString(long_ascii);
+    externalizeString(short_twobyte);
+    externalizeString(long_twobyte);
     assertTrue(isOneByteString(short_asii) && isOneByteString(long_ascii));
     assertFalse(isOneByteString(short_twobyte) || isOneByteString(long_twobyte));
   } catch (ex) { }
-  assertEquals("E=MCsquared", short_ascii + long_ascii);
+  assertEquals(min_short_ascii + 'MCsquared', short_ascii + long_ascii);
   assertTrue(isOneByteString(short_ascii + long_ascii));
-  assertEquals("MCsquaredE=", long_ascii + short_ascii);
-  assertEquals("E\u1234MCsquare\u1234", short_twobyte + long_twobyte);
+  assertEquals('MCsquared' + min_short_ascii, long_ascii + short_ascii);
+  assertEquals(
+      min_short_twobyte + 'MCsquare\u1234', short_twobyte + long_twobyte);
   assertFalse(isOneByteString(short_twobyte + long_twobyte));
   assertEquals("E=MCsquared", "E=" + long_ascii);
-  assertEquals("E\u1234MCsquared", short_twobyte + "MCsquared");
-  assertEquals("E\u1234MCsquared", short_twobyte + long_ascii);
+  assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + 'MCsquared');
+  assertEquals(min_short_twobyte + 'MCsquared', short_twobyte + long_ascii);
   assertFalse(isOneByteString(short_twobyte + long_ascii));
 }
 

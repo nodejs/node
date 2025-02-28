@@ -7,8 +7,8 @@
 namespace error {
 
 transitioning javascript builtin AggregateErrorConstructor(
-    js-implicit context: NativeContext, target: JSFunction,
-    newTarget: JSAny)(...arguments): JSAny {
+    js-implicit context: NativeContext, target: JSFunction, newTarget: JSAny)(
+    ...arguments): JSAny {
   // 1. If NewTarget is undefined, let newTarget be the active function
   // object, else let newTarget be NewTarget.
   // 2. Let O be ? OrdinaryCreateFromConstructor(newTarget,

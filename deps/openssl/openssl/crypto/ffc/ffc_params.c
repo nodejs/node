@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -182,6 +182,8 @@ int ossl_ffc_params_copy(FFC_PARAMS *dst, const FFC_PARAMS *src)
         || !ffc_bn_cpy(&dst->j, src->j))
         return 0;
 
+    dst->mdname = src->mdname;
+    dst->mdprops = src->mdprops;
     OPENSSL_free(dst->seed);
     dst->seedlen = src->seedlen;
     if (src->seed != NULL) {

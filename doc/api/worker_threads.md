@@ -100,6 +100,46 @@ if (isMainThread) {
 }
 ```
 
+## `worker.isInternalThread`
+
+<!-- YAML
+added:
+  - v23.7.0
+  - v22.14.0
+-->
+
+* {boolean}
+
+Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
+
+```bash
+node --experimental-loader ./loader.js main.js
+```
+
+```cjs
+// loader.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // true
+```
+
+```mjs
+// loader.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // true
+```
+
+```cjs
+// main.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // false
+```
+
+```mjs
+// main.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // false
+```
+
 ## `worker.isMainThread`
 
 <!-- YAML
@@ -174,7 +214,7 @@ There is no equivalent to this API in browsers.
 ## `worker.isMarkedAsUntransferable(object)`
 
 <!-- YAML
-added: REPLACEME
+added: v21.0.0
 -->
 
 * `object` {any} Any JavaScript value.
@@ -190,6 +230,40 @@ const pooledBuffer = new ArrayBuffer(8);
 markAsUntransferable(pooledBuffer);
 
 isMarkedAsUntransferable(pooledBuffer);  // Returns true.
+```
+
+There is no equivalent to this API in browsers.
+
+## `worker.markAsUncloneable(object)`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+-->
+
+* `object` {any} Any arbitrary JavaScript value.
+
+Mark an object as not cloneable. If `object` is used as [`message`](#event-message) in
+a [`port.postMessage()`][] call, an error is thrown. This is a no-op if `object` is a
+primitive value.
+
+This has no effect on `ArrayBuffer`, or any `Buffer` like objects.
+
+This operation cannot be undone.
+
+```js
+const { markAsUncloneable } = require('node:worker_threads');
+
+const anyObject = { foo: 'bar' };
+markAsUncloneable(anyObject);
+const { port1 } = new MessageChannel();
+try {
+  // This will throw an error, because anyObject is not cloneable.
+  port1.postMessage(anyObject);
+} catch (error) {
+  // error.name === 'DataCloneError'
+}
 ```
 
 There is no equivalent to this API in browsers.
@@ -217,7 +291,7 @@ inherits from its global `Object` class. Objects passed to the
 and inherit from its global `Object` class.
 
 However, the created `MessagePort` no longer inherits from
-[`EventTarget`][], and only [`port.onmessage()`][] can be used to receive
+{EventTarget}, and only [`port.onmessage()`][] can be used to receive
 events using it.
 
 ## `worker.parentPort`
@@ -250,6 +324,114 @@ if (isMainThread) {
     parentPort.postMessage(message);
   });
 }
+```
+
+## `worker.postMessageToThread(threadId, value[, transferList][, timeout])`
+
+<!-- YAML
+added: v22.5.0
+-->
+
+> Stability: 1.1 - Active development
+
+* `threadId` {number} The target thread ID. If the thread ID is invalid, a
+  [`ERR_WORKER_MESSAGING_FAILED`][] error will be thrown. If the target thread ID is the current thread ID,
+  a [`ERR_WORKER_MESSAGING_SAME_THREAD`][] error will be thrown.
+* `value` {any} The value to send.
+* `transferList` {Object\[]} If one or more `MessagePort`-like objects are passed in `value`,
+  a `transferList` is required for those items or [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`][] is thrown.
+  See [`port.postMessage()`][] for more information.
+* `timeout` {number} Time to wait for the message to be delivered in milliseconds.
+  By default it's `undefined`, which means wait forever. If the operation times out,
+  a [`ERR_WORKER_MESSAGING_TIMEOUT`][] error is thrown.
+* Returns: {Promise} A promise which is fulfilled if the message was successfully processed by destination thread.
+
+Sends a value to another worker, identified by its thread ID.
+
+If the target thread has no listener for the `workerMessage` event, then the operation will throw
+a [`ERR_WORKER_MESSAGING_FAILED`][] error.
+
+If the target thread threw an error while processing the `workerMessage` event, then the operation will throw
+a [`ERR_WORKER_MESSAGING_ERRORED`][] error.
+
+This method should be used when the target thread is not the direct
+parent or child of the current thread.
+If the two threads are parent-children, use the [`require('node:worker_threads').parentPort.postMessage()`][]
+and the [`worker.postMessage()`][] to let the threads communicate.
+
+The example below shows the use of of `postMessageToThread`: it creates 10 nested threads,
+the last one will try to communicate with the main thread.
+
+```mjs
+import { fileURLToPath } from 'node:url';
+import process from 'node:process';
+import {
+  postMessageToThread,
+  threadId,
+  workerData,
+  Worker,
+} from 'node:worker_threads';
+
+const channel = new BroadcastChannel('sync');
+const level = workerData?.level ?? 0;
+
+if (level < 10) {
+  const worker = new Worker(fileURLToPath(import.meta.url), {
+    workerData: { level: level + 1 },
+  });
+}
+
+if (level === 0) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    postMessageToThread(source, { message: 'pong' });
+  });
+} else if (level === 10) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    channel.postMessage('done');
+    channel.close();
+  });
+
+  await postMessageToThread(0, { message: 'ping' });
+}
+
+channel.onmessage = channel.close;
+```
+
+```cjs
+const {
+  postMessageToThread,
+  threadId,
+  workerData,
+  Worker,
+} = require('node:worker_threads');
+
+const channel = new BroadcastChannel('sync');
+const level = workerData?.level ?? 0;
+
+if (level < 10) {
+  const worker = new Worker(__filename, {
+    workerData: { level: level + 1 },
+  });
+}
+
+if (level === 0) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    postMessageToThread(source, { message: 'pong' });
+  });
+} else if (level === 10) {
+  process.on('workerMessage', (value, source) => {
+    console.log(`${source} -> ${threadId}:`, value);
+    channel.postMessage('done');
+    channel.close();
+  });
+
+  postMessageToThread(0, { message: 'ping' });
+}
+
+channel.onmessage = channel.close;
 ```
 
 ## `worker.receiveMessageOnPort(port)`
@@ -600,7 +782,7 @@ are part of the channel.
 <!-- YAML
 added: v10.5.0
 changes:
-  - version: REPLACEME
+  - version: v21.0.0
     pr-url: https://github.com/nodejs/node/pull/47604
     description: An error is thrown when an untransferable object is in the
                  transfer list.
@@ -669,14 +851,14 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][], and
+`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][], and
 [`FileHandle`][] objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
 [child processes][], transferring handles such as network sockets is currently
 not supported.
 
-If `value` contains [`SharedArrayBuffer`][] instances, those are accessible
+If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
 
 `value` may still contain `ArrayBuffer` instances that are not in
@@ -714,8 +896,8 @@ behind this API, see the [serialization API of the `node:v8` module][v8.serdes].
 
 #### Considerations when transferring TypedArrays and Buffers
 
-All `TypedArray` and `Buffer` instances are views over an underlying
-`ArrayBuffer`. That is, it is the `ArrayBuffer` that actually stores
+All {TypedArray|Buffer} instances are views over an underlying
+{ArrayBuffer}. That is, it is the `ArrayBuffer` that actually stores
 the raw data while the `TypedArray` and `Buffer` objects provide a
 way of viewing and manipulating the data. It is possible and common
 for multiple views to be created over the same `ArrayBuffer` instance.
@@ -764,9 +946,11 @@ those `ArrayBuffer`s unusable.
 
 Because object cloning uses the [HTML structured clone algorithm][],
 non-enumerable properties, property accessors, and object prototypes are
-not preserved. In particular, [`Buffer`][] objects will be read as
-plain [`Uint8Array`][]s on the receiving side, and instances of JavaScript
+not preserved. In particular, {Buffer} objects will be read as
+plain {Uint8Array}s on the receiving side, and instances of JavaScript
 classes will be cloned as plain JavaScript objects.
+
+<!-- eslint-disable no-unused-private-class-members -->
 
 ```js
 const b = Symbol('b');
@@ -886,7 +1070,8 @@ Notable differences inside a Worker environment are:
   unless otherwise specified. Changes to one copy are not visible in other
   threads, and are not visible to native add-ons (unless
   [`worker.SHARE_ENV`][] is passed as the `env` option to the
-  [`Worker`][] constructor).
+  [`Worker`][] constructor). On Windows, unlike the main thread, a copy of the
+  environment variables operates in a case-sensitive manner.
 * [`process.title`][] cannot be modified.
 * Signals are not delivered through [`process.on('...')`][Signals events].
 * Execution may stop at any point as a result of [`worker.terminate()`][]
@@ -1046,9 +1231,18 @@ changes:
       used for generated code.
     * `stackSizeMb` {number} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
-  * `name` {string} An optional `name` to be appended to the worker title
-    for debugging/identification purposes, making the final title as
-    `[worker ${id}] ${name}`. **Default:** `''`.
+  * `name` {string} An optional `name` to be replaced in the thread name
+    and to the worker title for debugging/identification purposes,
+    making the final title as `[worker ${id}] ${name}`.
+    This parameter has a maximum allowed size, depending on the operating
+    system. If the provided name exceeds the limit, it will be truncated
+    * Maximum sizes:
+      * Windows: 32,767 characters
+      * macOS: 64 characters
+      * Linux: 16 characters
+      * NetBSD: limited to `PTHREAD_MAX_NAMELEN_NP`
+      * FreeBSD and OpenBSD: limited to `MAXCOMLEN`
+        **Default:** `'WorkerThread'`.
 
 ### Event: `'error'`
 
@@ -1164,7 +1358,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* Returns {Object}
+* Returns: {Object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
@@ -1342,7 +1536,7 @@ Node.js event loop.
 import {
   Worker,
   isMainThread,
-} from 'worker_threads';
+} from 'node:worker_threads';
 
 if (isMainThread) {
   new Worker(new URL(import.meta.url));
@@ -1391,19 +1585,18 @@ thread spawned will spawn another until the application crashes.
 [`'close'` event]: #event-close
 [`'exit'` event]: #event-exit
 [`'online'` event]: #event-online
-[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-megabytes
-[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-megabytes
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
+[`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
+[`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
-[`Buffer`]: buffer.md
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
+[`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
+[`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed
+[`ERR_WORKER_MESSAGING_SAME_THREAD`]: errors.md#err_worker_messaging_same_thread
+[`ERR_WORKER_MESSAGING_TIMEOUT`]: errors.md#err_worker_messaging_timeout
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
-[`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport
-[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker constructor options`]: #new-workerfilename-options
 [`Worker`]: #class-worker

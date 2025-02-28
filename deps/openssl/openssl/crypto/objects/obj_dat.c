@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,7 @@ static unsigned long added_obj_hash(const ADDED_OBJ *ca)
     a = ca->obj;
     switch (ca->type) {
     case ADDED_DATA:
-        ret = a->length << 20L;
+        ret = (unsigned long)a->length << 20UL;
         p = (unsigned char *)a->data;
         for (i = 0; i < a->length; i++)
             ret ^= p[i] << ((i * 3) % 24);
@@ -443,6 +443,25 @@ int OBJ_obj2txt(char *buf, int buf_len, const ASN1_OBJECT *a, int no_name)
     first = 1;
     bl = NULL;
 
+    /*
+     * RFC 2578 (STD 58) says this about OBJECT IDENTIFIERs:
+     *
+     * > 3.5. OBJECT IDENTIFIER values
+     * >
+     * > An OBJECT IDENTIFIER value is an ordered list of non-negative
+     * > numbers. For the SMIv2, each number in the list is referred to as a
+     * > sub-identifier, there are at most 128 sub-identifiers in a value,
+     * > and each sub-identifier has a maximum value of 2^32-1 (4294967295
+     * > decimal).
+     *
+     * So a legitimate OID according to this RFC is at most (32 * 128 / 7),
+     * i.e. 586 bytes long.
+     *
+     * Ref: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
+     */
+    if (len > 586)
+        goto err;
+
     while (len > 0) {
         l = 0;
         use_bn = 0;
@@ -623,13 +642,14 @@ const void *OBJ_bsearch_ex_(const void *key, const void *base, int num,
     if (p == NULL) {
         const char *base_ = base;
         int l, h, i = 0, c = 0;
+        char *p1;
 
         for (i = 0; i < num; ++i) {
-            p = &(base_[i * size]);
-            c = (*cmp) (key, p);
+            p1 = &(base_[i * size]);
+            c = (*cmp) (key, p1);
             if (c == 0
                 || (c < 0 && (flags & OBJ_BSEARCH_VALUE_ON_NOMATCH)))
-                return p;
+                return p1;
         }
     }
 #endif

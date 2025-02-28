@@ -31,7 +31,7 @@ const {
 } = require('internal/webstreams/util');
 
 const {
-  makeTransferable,
+  markTransferMode,
   kClone,
   kTransfer,
   kDeserialize,
@@ -105,7 +105,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -155,7 +157,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(readable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(readable, [readable]);
@@ -206,7 +210,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(writable), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(writable, [writable]);
@@ -292,7 +298,9 @@ const theData = 'hello';
   });
 
   assert.throws(() => port2.postMessage(transform), {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST',
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   port2.postMessage(transform, [transform]);
@@ -318,13 +326,13 @@ const theData = 'hello';
     assert.rejects(reader.read(), {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
     port1.close();
   };
 
   port2.postMessage(readable, [readable]);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -332,7 +340,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   controller.enqueue(notActuallyTransferable);
 }
@@ -351,7 +360,7 @@ const theData = 'hello';
 
   const writable = new WritableStream(source);
 
-  const notActuallyTransferable = makeTransferable({
+  const notActuallyTransferable = {
     [kClone]() {
       return {
         data: {},
@@ -359,7 +368,8 @@ const theData = 'hello';
       };
     },
     [kDeserialize]: common.mustNotCall(),
-  });
+  };
+  markTransferMode(notActuallyTransferable, true, false);
 
   port1.onmessage = common.mustCall(({ data }) => {
     const writer = data.getWriter();
@@ -367,7 +377,7 @@ const theData = 'hello';
     assert.rejects(writer.closed, {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
 
     writer.write(notActuallyTransferable).then(common.mustCall());
 
@@ -397,7 +407,7 @@ const theData = 'hello';
   port1.onmessage = common.mustCall(({ data }) => {
     const writer = data.getWriter();
 
-    assert.rejects(writer.closed, error);
+    assert.rejects(writer.closed, error).then(common.mustCall());
 
     writer.abort(error).then(common.mustCall());
     port1.close();
@@ -428,7 +438,7 @@ const theData = 'hello';
     assert.rejects(writer.abort(m), {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
     port1.close();
   });
 
@@ -454,12 +464,23 @@ const theData = 'hello';
       tracker.verify();
     });
 
+    // We create an interval to keep the event loop alive while
+    // we wait for the stream read to complete. The reason this is needed is because there's
+    // otherwise nothing to keep the worker thread event loop alive long enough to actually
+    // complete the read from the stream. Under the covers the ReadableStream uses an
+    // unref'd MessagePort to communicate with the main thread. Because the MessagePort
+    // is unref'd, it's existence would not keep the thread alive on its own. There was previously
+    // a bug where this MessagePort was ref'd which would block the thread and main thread
+    // from terminating at all unless the stream was consumed/closed.
+    const i = setInterval(() => {}, 1000);
+
     parentPort.onmessage = tracker.calls(({ data }) => {
       assert(isReadableStream(data));
       const reader = data.getReader();
       reader.read().then(tracker.calls((result) => {
         assert(!result.done);
         assert(result.value instanceof Uint8Array);
+        clearInterval(i);
       }));
       parentPort.close();
     });
@@ -521,7 +542,7 @@ const theData = 'hello';
     assert.rejects(cancel, {
       code: 25,
       name: 'DataCloneError',
-    });
+    }).then(common.mustCall());
 
     port1.close();
   });
@@ -547,7 +568,7 @@ const theData = 'hello';
     const m = new WebAssembly.Memory({ initial: 1 });
     const writer = data.getWriter();
     const write = writer.write(m);
-    assert.rejects(write, { code: 25, name: 'DataCloneError' });
+    assert.rejects(write, { code: 25, name: 'DataCloneError' }).then(common.mustCall());
     port1.close();
   });
 

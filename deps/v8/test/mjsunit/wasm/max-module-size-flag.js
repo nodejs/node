@@ -39,12 +39,12 @@ assertPromiseResult((async function TestAsyncSmallModule() {
 
 (function TestSyncBigModule() {
   assertThrows(
-      () => new WebAssembly.Module(big_binary), RangeError,
+      () => new WebAssembly.Module(big_binary), WebAssembly.CompileError,
       'WebAssembly.Module(): ' + big_error_msg);
 })();
 
 (function TestAsyncBigModule() {
   assertThrowsAsync(
-      WebAssembly.compile(big_binary), RangeError,
+      WebAssembly.compile(big_binary), WebAssembly.CompileError,
       'WebAssembly.compile(): ' + big_error_msg);
 })();

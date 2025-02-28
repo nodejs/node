@@ -163,9 +163,9 @@ use its own default policy. (Optional)
 =item B<-no_nonce>
 
 No nonce is specified in the request if this option is
-given. Otherwise a 64 bit long pseudo-random none is
-included in the request. It is recommended to use nonce to
-protect against replay-attacks. (Optional)
+given. Otherwise, a 64-bit long pseudo-random nonce is
+included in the request. It is recommended to use a nonce to
+protect against replay attacks. (Optional)
 
 =item B<-cert>
 
@@ -490,7 +490,7 @@ Default is no.  (Optional)
 =item B<ess_cert_id_alg>
 
 This option specifies the hash function to be used to calculate the TSA's
-public key certificate identifier. Default is sha256. (Optional)
+public key certificate identifier. Default is sha1. (Optional)
 
 =back
 
@@ -652,7 +652,7 @@ L<ossl_store-file(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

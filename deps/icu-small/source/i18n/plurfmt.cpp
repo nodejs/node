@@ -149,13 +149,8 @@ PluralFormat::PluralFormat(const PluralFormat& other)
 void
 PluralFormat::copyObjects(const PluralFormat& other) {
     UErrorCode status = U_ZERO_ERROR;
-    if (numberFormat != nullptr) {
-        delete numberFormat;
-    }
-    if (pluralRulesWrapper.pluralRules != nullptr) {
-        delete pluralRulesWrapper.pluralRules;
-    }
-
+    delete numberFormat;
+    delete pluralRulesWrapper.pluralRules;
     if (other.numberFormat == nullptr) {
         numberFormat = NumberFormat::createInstance(locale, status);
     } else {
@@ -239,7 +234,7 @@ PluralFormat::format(int32_t number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode& status) const {
-    return format(Formattable(number), (double)number, appendTo, pos, status);
+    return format(Formattable(number), static_cast<double>(number), appendTo, pos, status);
 }
 
 UnicodeString&
@@ -247,7 +242,7 @@ PluralFormat::format(double number,
                      UnicodeString& appendTo,
                      FieldPosition& pos,
                      UErrorCode& status) const {
-    return format(Formattable(number), (double)number, appendTo, pos, status);
+    return format(Formattable(number), number, appendTo, pos, status);
 }
 
 UnicodeString&

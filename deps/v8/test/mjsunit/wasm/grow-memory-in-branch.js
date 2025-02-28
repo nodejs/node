@@ -11,7 +11,7 @@ var maximumMemoryPages = 5;
 
 function generateBuilder() {
   let builder = new WasmModuleBuilder();
-  builder.addMemory(initialMemoryPages, maximumMemoryPages, true);
+  builder.addMemory(initialMemoryPages, maximumMemoryPages);
   builder.addFunction('load', kSig_i_i)
       .addBody([kExprLocalGet, 0, kExprI32LoadMem, 0, 0])
       .exportFunc();

@@ -249,7 +249,7 @@ void GenAndRunTestForLRSC(T value, Func test_generator) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #if defined(DEBUG)
-  code->Print();
+  Print(*code);
 #endif
   using INT_T =
       typename std::conditional<sizeof(T) == 4, int32_t, int64_t>::type;
@@ -312,7 +312,7 @@ OUTPUT_T GenAndRunTestForAMO(INPUT_T input0, INPUT_T input1,
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #if defined(DEBUG)
-  code->Print();
+  Print(*code);
 #endif
   OUTPUT_T tmp = 0;
   auto f = GeneratedCode<OUTPUT_T(void* base, INPUT_T, INPUT_T)>::FromCode(

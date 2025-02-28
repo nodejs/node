@@ -6,9 +6,8 @@
 
 namespace regexp {
 
-transitioning macro
-RegExpPrototypeSearchBodyFast(implicit context: Context)(
-    regexp: JSRegExp, string: String): JSAny {
+transitioning macro RegExpPrototypeSearchBodyFast(
+    implicit context: Context)(regexp: JSRegExp, string: String): JSAny {
   dcheck(IsFastRegExpPermissive(regexp));
 
   // Grab the initial value of last index.
@@ -29,8 +28,7 @@ RegExpPrototypeSearchBodyFast(implicit context: Context)(
     FastStoreLastIndex(regexp, previousLastIndex);
 
     // Return the index of the match.
-    return UnsafeCast<Smi>(
-        matchIndices.objects[kRegExpMatchInfoFirstCaptureIndex]);
+    return matchIndices.GetStartOfCapture(0);
   } label DidNotMatch {
     // Reset last index and return -1.
     FastStoreLastIndex(regexp, previousLastIndex);
@@ -42,13 +40,13 @@ extern macro RegExpBuiltinsAssembler::BranchIfRegExpResult(
     implicit context: Context)(Object): never labels IsUnmodified,
     IsModified;
 
-macro
-IsRegExpResult(implicit context: Context)(execResult: HeapObject): bool {
+macro IsRegExpResult(implicit context: Context)(execResult: HeapObject):
+    bool {
   BranchIfRegExpResult(execResult) otherwise return true, return false;
 }
 
-transitioning macro RegExpPrototypeSearchBodySlow(implicit context: Context)(
-    regexp: JSReceiver, string: String): JSAny {
+transitioning macro RegExpPrototypeSearchBodySlow(
+    implicit context: Context)(regexp: JSReceiver, string: String): JSAny {
   // Grab the initial value of last index.
   const previousLastIndex = SlowLoadLastIndex(regexp);
   const smiZero: Smi = 0;
@@ -81,15 +79,16 @@ transitioning macro RegExpPrototypeSearchBodySlow(implicit context: Context)(
 // Helper that skips a few initial checks. and assumes...
 // 1) receiver is a "fast permissive" RegExp
 // 2) pattern is a string
-transitioning builtin RegExpSearchFast(implicit context: Context)(
-    receiver: JSRegExp, string: String): JSAny {
+transitioning builtin RegExpSearchFast(
+    implicit context: Context)(receiver: JSRegExp, string: String): JSAny {
   return RegExpPrototypeSearchBodyFast(receiver, string);
 }
 
 // ES#sec-regexp.prototype-@@search
 // RegExp.prototype [ @@search ] ( string )
 transitioning javascript builtin RegExpPrototypeSearch(
-    js-implicit context: NativeContext, receiver: JSAny)(string: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    string: JSAny): JSAny {
   ThrowIfNotJSReceiver(
       receiver, MessageTemplate::kIncompatibleMethodReceiver,
       'RegExp.prototype.@@search');

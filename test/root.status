@@ -1,3 +1,5 @@
+[true]
+
 [$mode==debug]
 async-hooks/test-callback-error: SLOW
 async-hooks/test-emit-init: SLOW

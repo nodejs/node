@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2018-2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -361,6 +361,7 @@ int ossl_rsa_sp800_56b_generate_key(RSA *rsa, int nbits, const BIGNUM *efixed,
     BN_CTX *ctx = NULL;
     BIGNUM *e = NULL;
     RSA_ACVP_TEST *info = NULL;
+    BIGNUM *tmp;
 
 #if defined(FIPS_MODULE) && !defined(OPENSSL_NO_ACVP_TESTS)
     info = rsa->acvp_test;
@@ -392,6 +393,14 @@ int ossl_rsa_sp800_56b_generate_key(RSA *rsa, int nbits, const BIGNUM *efixed,
         /* (Step 2) Generate prime factors */
         if (!ossl_rsa_fips186_4_gen_prob_primes(rsa, info, nbits, e, ctx, cb))
             goto err;
+
+        /* p>q check and skipping in case of acvp test */
+        if (info == NULL && BN_cmp(rsa->p, rsa->q) < 0) {
+            tmp = rsa->p;
+            rsa->p = rsa->q;
+            rsa->q = tmp;
+        }
+
         /* (Steps 3-5) Compute params d, n, dP, dQ, qInv */
         ok = ossl_rsa_sp800_56b_derive_params_from_pq(rsa, nbits, e, ctx);
         if (ok < 0)

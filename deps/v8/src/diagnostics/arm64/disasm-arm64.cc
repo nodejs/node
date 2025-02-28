@@ -1250,7 +1250,7 @@ void DisassemblingDecoder::VisitFPCompare(Instruction* instr) {
     case FCMP_s_zero:
     case FCMP_d_zero:
       form = form_zero;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case FCMP_s:
     case FCMP_d:
       mnemonic = "fcmp";
@@ -1632,6 +1632,9 @@ void DisassemblingDecoder::VisitSystem(Instruction* instr) {
       case NOP:
         mnemonic = "nop";
         break;
+      case YIELD:
+        mnemonic = "yield";
+        break;
       case CSDB:
         mnemonic = "csdb";
         break;
@@ -1805,6 +1808,28 @@ void DisassemblingDecoder::VisitNEON3Same(Instruction* instr) {
   Format(instr, mnemonic, nfd.Substitute(form));
 }
 
+void DisassemblingDecoder::VisitNEON3SameHP(Instruction* instr) {
+  const char* mnemonic = "unimplemented";
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";
+  NEONFormatDecoder nfd(instr, NEONFormatDecoder::FPHPFormatMap());
+
+  static const char* mnemonics[] = {
+      "fmaxnm", "fmaxnmp", "fminnm",  "fminnmp", "fmla",  "uqadd", "fmls",
+      "uqadd",  "fadd",    "faddp",   "fsub",    "fabd",  "fmulx", "fmul",
+      "fmul",   "fmul",    "fcmeq",   "fcmge",   "shsub", "fcmgt", "sqsub",
+      "facge",  "sqsub",   "facgt",   "fmax",    "fmaxp", "fmin",  "fminp",
+      "frecps", "fdiv",    "frsqrts", "fdiv"};
+
+  // Operation is determined by the opcode bits (13-11), the top bit of
+  // size (23) and the U bit (29).
+  unsigned index =
+      (instr->Bits(13, 11) << 2) | (instr->Bit(23) << 1) | instr->Bit(29);
+  DCHECK_LT(index, arraysize(mnemonics));
+  mnemonic = mnemonics[index];
+
+  Format(instr, mnemonic, nfd.Substitute(form));
+}
+
 void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
   const char* mnemonic = "unimplemented";
   const char* form = "'Vd.%s, 'Vn.%s";
@@ -1913,8 +1938,12 @@ void DisassemblingDecoder::VisitNEON2RegMisc(Instruction* instr) {
   } else {
     // These instructions all use a one bit size field, except XTN, SQXTUN,
     // SHLL, SQXTN and UQXTN, which use a two bit size field.
-    nfd.SetFormatMaps(nfd.FPFormatMap());
-    switch (instr->Mask(NEON2RegMiscFPMask)) {
+    if (instr->Mask(NEON2RegMiscHPFixed) == NEON2RegMiscHPFixed) {
+      nfd.SetFormatMaps(nfd.FPHPFormatMap());
+    } else {
+      nfd.SetFormatMaps(nfd.FPFormatMap());
+    }
+    switch (instr->Mask(NEON2RegMiscFPMask ^ NEON2RegMiscHPFixed)) {
       case NEON_FABS:
         mnemonic = "fabs";
         break;
@@ -2086,8 +2115,8 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
   // Ignore the Q bit. Appending a "2" suffix is handled later.
   switch (instr->Mask(NEON3DifferentMask) & ~NEON_Q) {
     case NEON_PMULL:
-      mnemonic = "pmull";
-      break;
+      DisassembleNEONPolynomialMul(instr);
+      return;
     case NEON_SABAL:
       mnemonic = "sabal";
       break;
@@ -2179,6 +2208,28 @@ void DisassemblingDecoder::VisitNEON3Different(Instruction* instr) {
       form = "(NEON3Different)";
   }
   Format(instr, nfd.Mnemonic(mnemonic), nfd.Substitute(form));
+}
+
+void DisassemblingDecoder::VisitNEON3Extension(Instruction* instr) {
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s";
+  const char* mnemonic = "unimplemented";
+
+  switch (instr->Mask(NEON3ExtensionMask)) {
+    case NEON_SDOT:
+      if (instr->NEONSize() != 2) {
+        VisitUnallocated(instr);
+        return;
+      }
+
+      form = instr->Bit(30) == 1 ? "'Vd.4s, 'Vn.16b, 'Vm.16b"
+                                 : "'Vd.2s, 'Vn.8b, 'Vm.8b";
+      mnemonic = "sdot";
+      break;
+    default:
+      form = "(NEON3Extension)";
+  }
+
+  Format(instr, mnemonic, form);
 }
 
 void DisassemblingDecoder::VisitNEONAcrossLanes(Instruction* instr) {
@@ -4263,7 +4314,7 @@ int DisassemblingDecoder::SubstituteShiftField(Instruction* instr,
   switch (format[1]) {
     case 'D': {  // NDP.
       DCHECK(instr->ShiftDP() != ROR);
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     }
     case 'L': {  // NLo.
       if (instr->ImmDPShift() != 0) {
@@ -4452,6 +4503,29 @@ void DisassemblingDecoder::AppendToOutput(const char* format, ...) {
   va_end(args);
 }
 
+void DisassemblingDecoder::DisassembleNEONPolynomialMul(Instruction* instr) {
+  int q = instr->Bit(30);
+  const char* mnemonic = q ? "pmull2" : "pmull";
+  const char* form = NULL;
+  int size = instr->NEONSize();
+  if (size == 0) {
+    if (q == 0) {
+      form = "'Vd.8h, 'Vn.8b, 'Vm.8b";
+    } else {
+      form = "'Vd.8h, 'Vn.16b, 'Vm.16b";
+    }
+  } else if (size == 3) {
+    if (q == 0) {
+      form = "'Vd.1q, 'Vn.1d, 'Vm.1d";
+    } else {
+      form = "'Vd.1q, 'Vn.2d, 'Vm.2d";
+    }
+  } else {
+    mnemonic = "undefined";
+  }
+  Format(instr, mnemonic, form);
+}
+
 void PrintDisassembler::ProcessOutput(Instruction* instr) {
   fprintf(stream_, "0x%016" PRIx64 "  %08" PRIx32 "\t\t%s\n",
           reinterpret_cast<uint64_t>(instr), instr->InstructionBits(),
@@ -4463,12 +4537,12 @@ void PrintDisassembler::ProcessOutput(Instruction* instr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -4492,7 +4566,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // ARM64 does not have any XMM registers
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code, so we will not try
   // to access any memory.
   return "";
@@ -4517,7 +4591,7 @@ class BufferDisassembler : public v8::internal::DisassemblingDecoder {
 };
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instr) {
+                                    uint8_t* instr) {
   USE(converter_);  // avoid unused field warning
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   BufferDisassembler disasm(buffer);
@@ -4527,18 +4601,18 @@ int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
   return v8::internal::kInstrSize;
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instr) {
+int Disassembler::ConstantPoolSizeAt(uint8_t* instr) {
   return v8::internal::Assembler::ConstantPoolSizeAt(
       reinterpret_cast<v8::internal::Instruction*>(instr));
 }
 
-void Disassembler::Disassemble(FILE* file, byte* start, byte* end,
+void Disassembler::Disassemble(FILE* file, uint8_t* start, uint8_t* end,
                                UnimplementedOpcodeAction) {
   v8::internal::Decoder<v8::internal::DispatchingDecoderVisitor> decoder;
   v8::internal::PrintDisassembler disasm(file);
   decoder.AppendVisitor(&disasm);
 
-  for (byte* pc = start; pc < end; pc += v8::internal::kInstrSize) {
+  for (uint8_t* pc = start; pc < end; pc += v8::internal::kInstrSize) {
     decoder.Decode(reinterpret_cast<v8::internal::Instruction*>(pc));
   }
 }

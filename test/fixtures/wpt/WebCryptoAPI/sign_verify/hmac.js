@@ -117,6 +117,7 @@ function run_test() {
             promise_test(function(test) {
                 return subtle.sign({name: "HMAC", hash: vector.hash}, vector.key, vector.plaintext)
                 .then(function(signature) {
+                    assert_true(equalBuffers(signature, vector.signature), "Signing did not give the expected output");
                     // Can we get the verify the new signature?
                     return subtle.verify({name: "HMAC", hash: vector.hash}, vector.key, signature, vector.plaintext)
                     .then(function(is_verified) {

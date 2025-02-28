@@ -35,9 +35,9 @@ DeoptimizedFrameInfo::DeoptimizedFrameInfo(TranslatedState* state,
   // In case the debugger mutates this value, we should deoptimize
   // the function and remember the value in the materialized value store.
   DCHECK_EQ(parameter_count,
-            Handle<JSFunction>::cast(stack_it->GetValue())
+            Cast<JSFunction>(stack_it->GetValue())
                 ->shared()
-                .internal_formal_parameter_count_without_receiver());
+                ->internal_formal_parameter_count_without_receiver());
 
   stack_it++;  // Skip the function.
   stack_it++;  // Skip the receiver.

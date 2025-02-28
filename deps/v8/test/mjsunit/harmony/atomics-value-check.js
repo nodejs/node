@@ -2,14 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer
-//
-
 var sab = new SharedArrayBuffer(4);
 var sta = new Int8Array(sab);
 sta[0] = 5;
 function workerCode() {
-  onmessage = function(msg) {
+  onmessage = function({data:msg}) {
     postMessage(0);
   };
 }

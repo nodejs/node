@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -192,7 +192,12 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
 #endif
     }
 
-    if (cipher->prov != NULL) {
+    if (!ossl_assert(cipher->prov != NULL)) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+        return 0;
+    }
+
+    if (cipher != ctx->fetched_cipher) {
         if (!EVP_CIPHER_up_ref((EVP_CIPHER *)cipher)) {
             ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
             return 0;
@@ -217,6 +222,42 @@ static int evp_cipher_init_internal(EVP_CIPHER_CTX *ctx,
         if (!EVP_CIPHER_CTX_set_padding(ctx, 0))
             return 0;
     }
+
+#ifndef FIPS_MODULE
+    /*
+     * Fix for CVE-2023-5363
+     * Passing in a size as part of the init call takes effect late
+     * so, force such to occur before the initialisation.
+     *
+     * The FIPS provider's internal library context is used in a manner
+     * such that this is not an issue.
+     */
+    if (params != NULL) {
+        OSSL_PARAM param_lens[3] = { OSSL_PARAM_END, OSSL_PARAM_END,
+                                     OSSL_PARAM_END };
+        OSSL_PARAM *q = param_lens;
+        const OSSL_PARAM *p;
+
+        p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_KEYLEN); 
+        if (p != NULL)
+            memcpy(q++, p, sizeof(*q));
+
+        /*
+         * Note that OSSL_CIPHER_PARAM_AEAD_IVLEN is a synomym for
+         * OSSL_CIPHER_PARAM_IVLEN so both are covered here.
+         */
+        p = OSSL_PARAM_locate_const(params, OSSL_CIPHER_PARAM_IVLEN);
+        if (p != NULL)
+            memcpy(q++, p, sizeof(*q));
+
+        if (q != param_lens) {
+            if (!EVP_CIPHER_CTX_set_params(ctx, param_lens)) {
+                ERR_raise(ERR_LIB_EVP, EVP_R_INVALID_LENGTH);
+                return 0;
+            }
+        }
+    }
+#endif
 
     if (enc) {
         if (ctx->cipher->einit == NULL) {

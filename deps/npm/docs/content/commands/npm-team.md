@@ -33,7 +33,7 @@ on your `authtype`.
 
 * create / destroy:
   Create a new team, or destroy an existing one. Note: You cannot remove the
-  `developers` team, <a href="https://docs.npmjs.com/about-developers-team" target="_blank">learn more.</a>
+  `developers` team, [learn more.](https://docs.npmjs.com/about-developers-team)
 
   Here's how to create a new team `newteam` under the `org` org:
 
@@ -109,6 +109,8 @@ use the `npm access` command to grant or revoke the appropriate permissions.
 
 The base URL of the npm registry.
 
+
+
 #### `otp`
 
 * Default: null
@@ -120,6 +122,8 @@ when publishing or changing package permissions with `npm access`.
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
 
+
+
 #### `parseable`
 
 * Default: false
@@ -127,6 +131,8 @@ password, npm will prompt on the command line for one.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `json`
 
@@ -139,6 +145,8 @@ Whether or not to output JSON data, rather than the normal output.
   saving them to your `package.json`.
 
 Not supported by all npm commands.
+
+
 
 ### See Also
 

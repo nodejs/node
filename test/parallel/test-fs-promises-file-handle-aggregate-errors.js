@@ -7,7 +7,6 @@ const tmpdir = require('../common/tmpdir');
 // The following tests validate aggregate errors are thrown correctly
 // when both an operation and close throw.
 
-const path = require('path');
 const {
   readFile,
   writeFile,
@@ -23,7 +22,7 @@ const originalFd = Object.getOwnPropertyDescriptor(FileHandle.prototype, 'fd');
 
 let count = 0;
 async function createFile() {
-  const filePath = path.join(tmpdir.path, `aggregate_errors_${++count}.txt`);
+  const filePath = tmpdir.resolve(`aggregate_errors_${++count}.txt`);
   await writeFile(filePath, 'content');
   return filePath;
 }
@@ -66,7 +65,7 @@ async function checkAggregateError(op) {
   await checkAggregateError((filePath) => truncate(filePath));
   await checkAggregateError((filePath) => readFile(filePath));
   await checkAggregateError((filePath) => writeFile(filePath, '123'));
-  if (common.isOSX) {
+  if (common.isMacOS) {
     await checkAggregateError((filePath) => lchmod(filePath, 0o777));
   }
 })().then(common.mustCall());

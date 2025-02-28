@@ -20,7 +20,7 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Cell)
 
-DEF_RELAXED_GETTER(Cell, value, Object) {
+DEF_RELAXED_GETTER(Cell, value, Tagged<Object>) {
   return TaggedField<Object, kValueOffset>::Relaxed_Load(cage_base, *this);
 }
 

@@ -164,7 +164,7 @@ def _FixPath(path, separator="\\"):
         fixpath_prefix
         and path
         and not os.path.isabs(path)
-        and not path[0] == "$"
+        and path[0] != "$"
         and not _IsWindowsAbsPath(path)
     ):
         path = os.path.join(fixpath_prefix, path)
@@ -276,19 +276,19 @@ def _ToolAppend(tools, tool_name, setting, value, only_if_unset=False):
 def _ToolSetOrAppend(tools, tool_name, setting, value, only_if_unset=False):
     # TODO(bradnelson): ugly hack, fix this more generally!!!
     if "Directories" in setting or "Dependencies" in setting:
-        if type(value) == str:
+        if isinstance(value, str):
             value = value.replace("/", "\\")
         else:
             value = [i.replace("/", "\\") for i in value]
     if not tools.get(tool_name):
-        tools[tool_name] = dict()
+        tools[tool_name] = {}
     tool = tools[tool_name]
-    if "CompileAsWinRT" == setting:
+    if setting == "CompileAsWinRT":
         return
     if tool.get(setting):
         if only_if_unset:
             return
-        if type(tool[setting]) == list and type(value) == list:
+        if isinstance(tool[setting], list) and isinstance(value, list):
             tool[setting] += value
         else:
             raise TypeError(
@@ -412,10 +412,7 @@ def _BuildCommandLineForRuleRaw(
         return input_dir_preamble + cmd
     else:
         # Convert cat --> type to mimic unix.
-        if cmd[0] == "cat":
-            command = ["type"]
-        else:
-            command = [cmd[0].replace("/", "\\")]
+        command = ["type"] if cmd[0] == "cat" else [cmd[0].replace("/", "\\")]
         # Add call before command to ensure that commands can be tied together one
         # after the other without aborting in Incredibuild, since IB makes a bat
         # file out of the raw command string, and some commands (like python) are
@@ -438,6 +435,7 @@ def _BuildCommandLineForRuleRaw(
             # Support a mode for using cmd directly.
             # Convert any paths to native form (first element is used directly).
             # TODO(quote):  regularize quoting path names throughout the module
+            command[1] = '"%s"' % command[1]
             arguments = ['"%s"' % i for i in arguments]
         # Collapse into a single command.
         return input_dir_preamble + " ".join(command + arguments)
@@ -687,7 +685,7 @@ def _GenerateExternalRules(rules, output_dir, spec, sources, options, actions_to
             all_outputs.update(OrderedSet(outputs))
             # Only use one target from each rule as the dependency for
             # 'all' so we don't try to build each rule multiple times.
-            first_outputs.append(list(outputs)[0])
+            first_outputs.append(next(iter(outputs)))
             # Get the unique output directories for this rule.
             output_dirs = [os.path.split(i)[0] for i in outputs]
             for od in output_dirs:
@@ -756,7 +754,7 @@ def _EscapeEnvironmentVariableExpansion(s):
 
   Returns:
       The escaped string.
-  """  # noqa: E731,E123,E501
+  """
     s = s.replace("%", "%%")
     return s
 
@@ -1189,7 +1187,7 @@ def _AddConfigurationToMSVSProject(p, spec, config_type, config_name, config):
     precompiled_header = config.get("msvs_precompiled_header")
 
     # Prepare the list of tools as a dictionary.
-    tools = dict()
+    tools = {}
     # Add in user specified msvs_settings.
     msvs_settings = config.get("msvs_settings", {})
     MSVSSettings.ValidateMSVSSettings(msvs_settings)
@@ -1384,10 +1382,7 @@ def _GetDefines(config):
   """
     defines = []
     for d in config.get("defines", []):
-        if type(d) == list:
-            fd = "=".join([str(dpart) for dpart in d])
-        else:
-            fd = str(d)
+        fd = "=".join([str(dpart) for dpart in d]) if isinstance(d, list) else str(d)
         defines.append(fd)
     return defines
 
@@ -1428,7 +1423,7 @@ def _ConvertToolsToExpectedForm(tools):
         # Collapse settings with lists.
         settings_fixed = {}
         for setting, value in settings.items():
-            if type(value) == list:
+            if isinstance(value, list):
                 if (
                     tool == "VCLinkerTool" and setting == "AdditionalDependencies"
                 ) or setting == "AdditionalOptions":
@@ -1578,10 +1573,10 @@ def _AdjustSourcesAndConvertToFilterHierarchy(
     # such as ../../src/modules/module1 etc.
     if version.UsesVcxproj():
         while (
-            all([isinstance(s, MSVSProject.Filter) for s in sources])
+            all(isinstance(s, MSVSProject.Filter) for s in sources)
             and len({s.name for s in sources}) == 1
         ):
-            assert all([len(s.contents) == 1 for s in sources])
+            assert all(len(s.contents) == 1 for s in sources)
             sources = [s.contents[0] for s in sources]
     else:
         while len(sources) == 1 and isinstance(sources[0], MSVSProject.Filter):
@@ -1598,10 +1593,7 @@ def _IdlFilesHandledNonNatively(spec, sources):
         if rule["extension"] == "idl" and int(rule.get("msvs_external_rule", 0)):
             using_idl = True
             break
-    if using_idl:
-        excluded_idl = [i for i in sources if i.endswith(".idl")]
-    else:
-        excluded_idl = []
+    excluded_idl = [i for i in sources if i.endswith(".idl")] if using_idl else []
     return excluded_idl
 
 
@@ -1786,11 +1778,9 @@ def _GetCopies(spec):
                 outer_dir = posixpath.split(src_bare)[1]
                 fixed_dst = _FixPath(dst)
                 full_dst = f'"{fixed_dst}\\{outer_dir}\\"'
-                cmd = 'mkdir {} 2>nul & cd "{}" && xcopy /e /f /y "{}" {}'.format(
-                    full_dst,
-                    _FixPath(base_dir),
-                    outer_dir,
-                    full_dst,
+                cmd = (
+                    f'mkdir {full_dst} 2>nul & cd "{_FixPath(base_dir)}" '
+                    f'&& xcopy /e /f /y "{outer_dir}" {full_dst}'
                 )
                 copies.append(
                     (
@@ -1802,10 +1792,9 @@ def _GetCopies(spec):
                 )
             else:
                 fix_dst = _FixPath(cpy["destination"])
-                cmd = 'mkdir "{}" 2>nul & set ERRORLEVEL=0 & copy /Y "{}" "{}"'.format(
-                    fix_dst,
-                    _FixPath(src),
-                    _FixPath(dst),
+                cmd = (
+                    f'mkdir "{fix_dst}" 2>nul & set ERRORLEVEL=0 & '
+                    f'copy /Y "{_FixPath(src)}" "{_FixPath(dst)}"'
                 )
                 copies.append(([src], [dst], cmd, f"Copying {src} to {fix_dst}"))
     return copies
@@ -1819,7 +1808,7 @@ def _GetPathDict(root, path):
     parent, folder = os.path.split(path)
     parent_dict = _GetPathDict(root, parent)
     if folder not in parent_dict:
-        parent_dict[folder] = dict()
+        parent_dict[folder] = {}
     return parent_dict[folder]
 
 
@@ -1827,7 +1816,7 @@ def _DictsToFolders(base_path, bucket, flat):
     # Convert to folders recursively.
     children = []
     for folder, contents in bucket.items():
-        if type(contents) == dict:
+        if isinstance(contents, dict):
             folder_children = _DictsToFolders(
                 os.path.join(base_path, folder), contents, flat
             )
@@ -1849,9 +1838,10 @@ def _CollapseSingles(parent, node):
     # Recursively explorer the tree of dicts looking for projects which are
     # the sole item in a folder which has the same name as the project. Bring
     # such projects up one level.
-    if type(node) == dict and len(node) == 1 and next(iter(node)) == parent + ".vcproj":
+    if (isinstance(node, dict) and len(node) == 1 and
+        next(iter(node)) == parent + ".vcproj"):
         return node[next(iter(node))]
-    if type(node) != dict:
+    if not isinstance(node, dict):
         return node
     for child in node:
         node[child] = _CollapseSingles(child, node[child])
@@ -1871,7 +1861,7 @@ def _GatherSolutionFolders(sln_projects, project_objects, flat):
     # Walk down from the top until we hit a folder that has more than one entry.
     # In practice, this strips the top-level "src/" dir from the hierarchy in
     # the solution.
-    while len(root) == 1 and type(root[next(iter(root))]) == dict:
+    while len(root) == 1 and isinstance(root[next(iter(root))], dict):
         root = root[next(iter(root))]
     # Collapse singles.
     root = _CollapseSingles("", root)
@@ -1907,10 +1897,8 @@ def _GetPlatformOverridesOfProject(spec):
     for config_name, c in spec["configurations"].items():
         config_fullname = _ConfigFullName(config_name, c)
         platform = c.get("msvs_target_platform", _ConfigPlatform(c))
-        fixed_config_fullname = "{}|{}".format(
-            _ConfigBaseName(config_name, _ConfigPlatform(c)),
-            platform,
-        )
+        base_name = _ConfigBaseName(config_name, _ConfigPlatform(c))
+        fixed_config_fullname = f"{base_name}|{platform}"
         if spec["toolset"] == "host" and generator_supports_multiple_toolsets:
             fixed_config_fullname = f"{config_name}|x64"
         config_platform_overrides[config_fullname] = fixed_config_fullname
@@ -3013,18 +3001,26 @@ def _GetMSBuildConfigurationDetails(spec, build_file):
         msbuild_attributes = _GetMSBuildAttributes(spec, settings, build_file)
         condition = _GetConfigurationCondition(name, settings, spec)
         character_set = msbuild_attributes.get("CharacterSet")
+        vctools_version = msbuild_attributes.get("VCToolsVersion")
         config_type = msbuild_attributes.get("ConfigurationType")
         _AddConditionalProperty(properties, condition, "ConfigurationType", config_type)
+        spectre_mitigation = msbuild_attributes.get('SpectreMitigation')
+        if spectre_mitigation:
+            _AddConditionalProperty(properties, condition, "SpectreMitigation",
+                                    spectre_mitigation)
         if config_type == "Driver":
             _AddConditionalProperty(properties, condition, "DriverType", "WDM")
             _AddConditionalProperty(
                 properties, condition, "TargetVersion", _ConfigTargetVersion(settings)
             )
-        if character_set:
-            if "msvs_enable_winrt" not in spec:
-                _AddConditionalProperty(
-                    properties, condition, "CharacterSet", character_set
-                )
+        if character_set and "msvs_enable_winrt" not in spec:
+            _AddConditionalProperty(
+                properties, condition, "CharacterSet", character_set
+            )
+        if vctools_version and "msvs_enable_winrt" not in spec:
+            _AddConditionalProperty(
+                properties, condition, "VCToolsVersion", vctools_version
+            )
     return _GetMSBuildPropertyGroup(spec, "Configuration", properties)
 
 
@@ -3104,6 +3100,10 @@ def _ConvertMSVSBuildAttributes(spec, config, build_file):
             msbuild_attributes[a] = _ConvertMSVSCharacterSet(msvs_attributes[a])
         elif a == "ConfigurationType":
             msbuild_attributes[a] = _ConvertMSVSConfigurationType(msvs_attributes[a])
+        elif a == "SpectreMitigation":
+            msbuild_attributes[a] = msvs_attributes[a]
+        elif a == "VCToolsVersion":
+            msbuild_attributes[a] = msvs_attributes[a]
         else:
             print("Warning: Do not know how to convert MSVS attribute " + a)
     return msbuild_attributes
@@ -3275,7 +3275,7 @@ def _GetMSBuildPropertyGroup(spec, label, properties):
     num_configurations = len(spec["configurations"])
 
     def GetEdges(node):
-        # Use a definition of edges such that user_of_variable -> used_varible.
+        # Use a definition of edges such that user_of_variable -> used_variable.
         # This happens to be easier in this case, since a variable's
         # definition contains all variables it references in a single string.
         edges = set()
@@ -3326,15 +3326,14 @@ def _GetMSBuildToolSettingsSections(spec, configurations):
         for tool_name, tool_settings in sorted(msbuild_settings.items()):
             # Skip the tool named '' which is a holder of global settings handled
             # by _GetMSBuildConfigurationGlobalProperties.
-            if tool_name:
-                if tool_settings:
-                    tool = [tool_name]
-                    for name, value in sorted(tool_settings.items()):
-                        formatted_value = _GetValueFormattedForMSBuild(
-                            tool_name, name, value
-                        )
-                        tool.append([name, formatted_value])
-                    group.append(tool)
+            if tool_name and tool_settings:
+                tool = [tool_name]
+                for name, value in sorted(tool_settings.items()):
+                    formatted_value = _GetValueFormattedForMSBuild(
+                        tool_name, name, value
+                    )
+                    tool.append([name, formatted_value])
+                group.append(tool)
         groups.append(group)
     return groups
 
@@ -3413,7 +3412,11 @@ def _FinalizeMSBuildSettings(spec, configuration):
     )
     # Turn on precompiled headers if appropriate.
     if precompiled_header:
-        precompiled_header = os.path.split(precompiled_header)[1]
+        # While MSVC works with just file name eg. "v8_pch.h", ClangCL requires
+        # the full path eg. "tools/msvs/pch/v8_pch.h" to find the file.
+        # P.S. Only ClangCL defines msbuild_toolset, for MSVC it is None.
+        if configuration.get("msbuild_toolset") != 'ClangCL':
+            precompiled_header = os.path.split(precompiled_header)[1]
         _ToolAppend(msbuild_settings, "ClCompile", "PrecompiledHeader", "Use")
         _ToolAppend(
             msbuild_settings, "ClCompile", "PrecompiledHeaderFile", precompiled_header
@@ -3443,7 +3446,7 @@ def _FinalizeMSBuildSettings(spec, configuration):
 
 
 def _GetValueFormattedForMSBuild(tool_name, name, value):
-    if type(value) == list:
+    if isinstance(value, list):
         # For some settings, VS2010 does not automatically extends the settings
         # TODO(jeanluc) Is this what we want?
         if name in [
@@ -3462,10 +3465,7 @@ def _GetValueFormattedForMSBuild(tool_name, name, value):
             "Link": ["AdditionalOptions"],
             "Lib": ["AdditionalOptions"],
         }
-        if tool_name in exceptions and name in exceptions[tool_name]:
-            char = " "
-        else:
-            char = ";"
+        char = " " if name in exceptions.get(tool_name, []) else ";"
         formatted_value = char.join(
             [MSVSSettings.ConvertVCMacrosToMSBuild(i) for i in value]
         )

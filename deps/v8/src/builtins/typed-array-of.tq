@@ -9,9 +9,9 @@ const kBuiltinNameOf: constexpr string = '%TypedArray%.of';
 
 // %TypedArray%.of ( ...items )
 // https://tc39.github.io/ecma262/#sec-%typedarray%.of
-transitioning javascript builtin
-TypedArrayOf(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
-    JSTypedArray {
+transitioning javascript builtin TypedArrayOf(
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
   try {
     // 1. Let len be the actual number of arguments passed to this function.
     const len: uintptr = Unsigned(arguments.length);
@@ -38,7 +38,7 @@ TypedArrayOf(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
       // 7b. Let Pk be ! ToString(k).
       // 7c. Perform ? Set(newObj, Pk, kValue, true).
       // Buffer may be detached during executing ToNumber/ToBigInt.
-      accessor.StoreJSAny(context, newObj, k, kValue) otherwise IfDetached;
+      accessor.StoreJSAny(context, newObj, k, kValue);
 
       // 7d. Increase k by 1. (done by the loop).
     }
@@ -47,8 +47,6 @@ TypedArrayOf(js-implicit context: NativeContext, receiver: JSAny)(...arguments):
     return newObj;
   } label NotConstructor deferred {
     ThrowTypeError(MessageTemplate::kNotConstructor, receiver);
-  } label IfDetached deferred {
-    ThrowTypeError(MessageTemplate::kDetachedOperation, kBuiltinNameOf);
   }
 }
 }

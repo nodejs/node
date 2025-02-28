@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -35,33 +35,16 @@
 
 #define NGHTTP3_TNODE_MAX_CYCLE_GAP (1llu << 24)
 
-typedef enum nghttp3_node_id_type {
-  NGHTTP3_NODE_ID_TYPE_STREAM = 0x00,
-  NGHTTP3_NODE_ID_TYPE_PUSH = 0x01,
-} nghttp3_node_id_type;
-
-typedef struct nghttp3_node_id {
-  nghttp3_node_id_type type;
-  int64_t id;
-} nghttp3_node_id;
-
-nghttp3_node_id *nghttp3_node_id_init(nghttp3_node_id *nid,
-                                      nghttp3_node_id_type type, int64_t id);
-
-int nghttp3_node_id_eq(const nghttp3_node_id *a, const nghttp3_node_id *b);
-
 typedef struct nghttp3_tnode {
   nghttp3_pq_entry pe;
   size_t num_children;
-  nghttp3_node_id nid;
-  uint64_t seq;
+  int64_t id;
   uint64_t cycle;
   /* pri is a stream priority produced by nghttp3_pri_to_uint8. */
-  uint8_t pri;
+  nghttp3_pri pri;
 } nghttp3_tnode;
 
-void nghttp3_tnode_init(nghttp3_tnode *tnode, const nghttp3_node_id *nid,
-                        uint64_t seq, uint8_t pri);
+void nghttp3_tnode_init(nghttp3_tnode *tnode, int64_t id);
 
 void nghttp3_tnode_free(nghttp3_tnode *tnode);
 
@@ -80,4 +63,4 @@ int nghttp3_tnode_schedule(nghttp3_tnode *tnode, nghttp3_pq *pq,
  */
 int nghttp3_tnode_is_scheduled(nghttp3_tnode *tnode);
 
-#endif /* NGHTTP3_TNODE_H */
+#endif /* !defined(NGHTTP3_TNODE_H) */

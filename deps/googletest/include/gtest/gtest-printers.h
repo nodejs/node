@@ -43,6 +43,9 @@
 //   1. foo::PrintTo(const T&, ostream*)
 //   2. operator<<(ostream&, const T&) defined in either foo or the
 //      global namespace.
+// * Prefer AbslStringify(..) to operator<<(..), per https://abseil.io/tips/215.
+// * Define foo::PrintTo(..) if the type already has AbslStringify(..), but an
+//   alternative presentation in test results is of interest.
 //
 // However if T is an STL-style container then it is printed element-wise
 // unless foo::PrintTo(const T&, ostream*) is defined. Note that
@@ -112,8 +115,20 @@
 #include <utility>
 #include <vector>
 
+#ifdef GTEST_HAS_ABSL
+#include "absl/strings/has_absl_stringify.h"
+#include "absl/strings/str_cat.h"
+#endif  // GTEST_HAS_ABSL
 #include "gtest/internal/gtest-internal.h"
 #include "gtest/internal/gtest-port.h"
+
+#if GTEST_INTERNAL_HAS_STD_SPAN
+#include <span>  // NOLINT
+#endif           // GTEST_INTERNAL_HAS_STD_SPAN
+
+#if GTEST_INTERNAL_HAS_COMPARE_LIB
+#include <compare>  // NOLINT
+#endif              // GTEST_INTERNAL_HAS_COMPARE_LIB
 
 namespace testing {
 
@@ -124,13 +139,32 @@ namespace internal {
 template <typename T>
 void UniversalPrint(const T& value, ::std::ostream* os);
 
+template <typename T>
+struct IsStdSpan {
+  static constexpr bool value = false;
+};
+
+#if GTEST_INTERNAL_HAS_STD_SPAN
+template <typename E>
+struct IsStdSpan<std::span<E>> {
+  static constexpr bool value = true;
+};
+#endif  // GTEST_INTERNAL_HAS_STD_SPAN
+
 // Used to print an STL-style container when the user doesn't define
 // a PrintTo() for it.
+//
+// NOTE: Since std::span does not have const_iterator until C++23, it would
+// fail IsContainerTest before C++23. However, IsContainerTest only uses
+// the presence of const_iterator to avoid treating iterators as containers
+// because of iterator::iterator. Which means std::span satisfies the *intended*
+// condition of IsContainerTest.
 struct ContainerPrinter {
   template <typename T,
             typename = typename std::enable_if<
-                (sizeof(IsContainerTest<T>(0)) == sizeof(IsContainer)) &&
-                !IsRecursiveContainer<T>::value>::type>
+                ((sizeof(IsContainerTest<T>(0)) == sizeof(IsContainer)) &&
+                 !IsRecursiveContainer<T>::value) ||
+                IsStdSpan<T>::value>::type>
   static void PrintValue(const T& container, std::ostream* os) {
     const size_t kMaxCount = 32;  // The maximum number of elements to print.
     *os << '{';
@@ -206,12 +240,13 @@ struct StreamPrinter {
             // Don't accept member pointers here. We'd print them via implicit
             // conversion to bool, which isn't useful.
             typename = typename std::enable_if<
-                !std::is_member_pointer<T>::value>::type,
-            // Only accept types for which we can find a streaming operator via
-            // ADL (possibly involving implicit conversions).
-            typename = decltype(std::declval<std::ostream&>()
-                                << std::declval<const T&>())>
-  static void PrintValue(const T& value, ::std::ostream* os) {
+                !std::is_member_pointer<T>::value>::type>
+  // Only accept types for which we can find a streaming operator via
+  // ADL (possibly involving implicit conversions).
+  // (Use SFINAE via return type, because it seems GCC < 12 doesn't handle name
+  // lookup properly when we do it in the template parameter list.)
+  static auto PrintValue(const T& value,
+                         ::std::ostream* os) -> decltype((void)(*os << value)) {
     // Call streaming operator found by ADL, possibly with implicit conversions
     // of the arguments.
     *os << value;
@@ -259,6 +294,17 @@ struct ConvertibleToStringViewPrinter {
 #endif
 };
 
+#ifdef GTEST_HAS_ABSL
+struct ConvertibleToAbslStringifyPrinter {
+  template <typename T,
+            typename = typename std::enable_if<
+                absl::HasAbslStringify<T>::value>::type>  // NOLINT
+  static void PrintValue(const T& value, ::std::ostream* os) {
+    *os << absl::StrCat(value);
+  }
+};
+#endif  // GTEST_HAS_ABSL
+
 // Prints the given number of bytes in the given object to the given
 // ostream.
 GTEST_API_ void PrintBytesInObjectTo(const unsigned char* obj_bytes,
@@ -297,8 +343,8 @@ struct FindFirstPrinter<
 //  - Print containers (they have begin/end/etc).
 //  - Print function pointers.
 //  - Print object pointers.
-//  - Use the stream operator, if available.
 //  - Print protocol buffers.
+//  - Use the stream operator, if available.
 //  - Print types convertible to BiggestInt.
 //  - Print types convertible to StringView, if available.
 //  - Fallback to printing the raw bytes of the object.
@@ -306,9 +352,13 @@ template <typename T>
 void PrintWithFallback(const T& value, ::std::ostream* os) {
   using Printer = typename FindFirstPrinter<
       T, void, ContainerPrinter, FunctionPointerPrinter, PointerPrinter,
+      ProtobufPrinter,
+#ifdef GTEST_HAS_ABSL
+      ConvertibleToAbslStringifyPrinter,
+#endif  // GTEST_HAS_ABSL
       internal_stream_operator_without_lexical_name_lookup::StreamPrinter,
-      ProtobufPrinter, ConvertibleToIntegerPrinter,
-      ConvertibleToStringViewPrinter, RawBytesPrinter, FallbackPrinter>::type;
+      ConvertibleToIntegerPrinter, ConvertibleToStringViewPrinter,
+      RawBytesPrinter, FallbackPrinter>::type;
   Printer::PrintValue(value, os);
 }
 
@@ -473,7 +523,7 @@ GTEST_API_ void PrintTo(char32_t c, ::std::ostream* os);
 inline void PrintTo(char16_t c, ::std::ostream* os) {
   PrintTo(ImplicitCast_<char32_t>(c), os);
 }
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 inline void PrintTo(char8_t c, ::std::ostream* os) {
   PrintTo(ImplicitCast_<char32_t>(c), os);
 }
@@ -506,43 +556,63 @@ int AppropriateResolution(FloatType val) {
   int full = std::numeric_limits<FloatType>::max_digits10;
   if (val < 0) val = -val;
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wfloat-equal"
+#endif
   if (val < 1000000) {
     FloatType mulfor6 = 1e10;
-    if (val >= 100000.0) {  // 100,000 to 999,999
+    // Without these static casts, the template instantiation for float would
+    // fail to compile when -Wdouble-promotion is enabled, as the arithmetic and
+    // comparison logic would promote floats to doubles.
+    if (val >= static_cast<FloatType>(100000.0)) {  // 100,000 to 999,999
       mulfor6 = 1.0;
-    } else if (val >= 10000.0) {
+    } else if (val >= static_cast<FloatType>(10000.0)) {
       mulfor6 = 1e1;
-    } else if (val >= 1000.0) {
+    } else if (val >= static_cast<FloatType>(1000.0)) {
       mulfor6 = 1e2;
-    } else if (val >= 100.0) {
+    } else if (val >= static_cast<FloatType>(100.0)) {
       mulfor6 = 1e3;
-    } else if (val >= 10.0) {
+    } else if (val >= static_cast<FloatType>(10.0)) {
       mulfor6 = 1e4;
-    } else if (val >= 1.0) {
+    } else if (val >= static_cast<FloatType>(1.0)) {
       mulfor6 = 1e5;
-    } else if (val >= 0.1) {
+    } else if (val >= static_cast<FloatType>(0.1)) {
       mulfor6 = 1e6;
-    } else if (val >= 0.01) {
+    } else if (val >= static_cast<FloatType>(0.01)) {
       mulfor6 = 1e7;
-    } else if (val >= 0.001) {
+    } else if (val >= static_cast<FloatType>(0.001)) {
       mulfor6 = 1e8;
-    } else if (val >= 0.0001) {
+    } else if (val >= static_cast<FloatType>(0.0001)) {
       mulfor6 = 1e9;
     }
-    if (static_cast<int32_t>(val * mulfor6 + 0.5) / mulfor6 == val) return 6;
-  } else if (val < 1e10) {
-    FloatType divfor6 = 1.0;
-    if (val >= 1e9) {  // 1,000,000,000 to 9,999,999,999
+    if (static_cast<FloatType>(static_cast<int32_t>(
+            val * mulfor6 + (static_cast<FloatType>(0.5)))) /
+            mulfor6 ==
+        val)
+      return 6;
+  } else if (val < static_cast<FloatType>(1e10)) {
+    FloatType divfor6 = static_cast<FloatType>(1.0);
+    if (val >= static_cast<FloatType>(1e9)) {  // 1,000,000,000 to 9,999,999,999
       divfor6 = 10000;
-    } else if (val >= 1e8) {  // 100,000,000 to 999,999,999
+    } else if (val >=
+               static_cast<FloatType>(1e8)) {  // 100,000,000 to 999,999,999
       divfor6 = 1000;
-    } else if (val >= 1e7) {  // 10,000,000 to 99,999,999
+    } else if (val >=
+               static_cast<FloatType>(1e7)) {  // 10,000,000 to 99,999,999
       divfor6 = 100;
-    } else if (val >= 1e6) {  // 1,000,000 to 9,999,999
+    } else if (val >= static_cast<FloatType>(1e6)) {  // 1,000,000 to 9,999,999
       divfor6 = 10;
     }
-    if (static_cast<int32_t>(val / divfor6 + 0.5) * divfor6 == val) return 6;
+    if (static_cast<FloatType>(static_cast<int32_t>(
+            val / divfor6 + (static_cast<FloatType>(0.5)))) *
+            divfor6 ==
+        val)
+      return 6;
   }
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif
   return full;
 }
 
@@ -580,7 +650,7 @@ inline void PrintTo(const unsigned char* s, ::std::ostream* os) {
 inline void PrintTo(unsigned char* s, ::std::ostream* os) {
   PrintTo(ImplicitCast_<const void*>(s), os);
 }
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 // Overloads for u8 strings.
 GTEST_API_ void PrintTo(const char8_t* s, ::std::ostream* os);
 inline void PrintTo(char8_t* s, ::std::ostream* os) {
@@ -716,6 +786,41 @@ void PrintTo(const std::shared_ptr<T>& ptr, std::ostream* os) {
   (PrintSmartPointer<T>)(ptr, os, 0);
 }
 
+#if GTEST_INTERNAL_HAS_COMPARE_LIB
+template <typename T>
+void PrintOrderingHelper(T ordering, std::ostream* os) {
+  if (ordering == T::less) {
+    *os << "(less)";
+  } else if (ordering == T::greater) {
+    *os << "(greater)";
+  } else if (ordering == T::equivalent) {
+    *os << "(equivalent)";
+  } else {
+    *os << "(unknown ordering)";
+  }
+}
+
+inline void PrintTo(std::strong_ordering ordering, std::ostream* os) {
+  if (ordering == std::strong_ordering::equal) {
+    *os << "(equal)";
+  } else {
+    PrintOrderingHelper(ordering, os);
+  }
+}
+
+inline void PrintTo(std::partial_ordering ordering, std::ostream* os) {
+  if (ordering == std::partial_ordering::unordered) {
+    *os << "(unordered)";
+  } else {
+    PrintOrderingHelper(ordering, os);
+  }
+}
+
+inline void PrintTo(std::weak_ordering ordering, std::ostream* os) {
+  PrintOrderingHelper(ordering, os);
+}
+#endif
+
 // Helper function for printing a tuple.  T must be instantiated with
 // a tuple type.
 template <typename T>
@@ -850,7 +955,7 @@ class UniversalPrinter<Variant<T...>> {
  public:
   static void Print(const Variant<T...>& value, ::std::ostream* os) {
     *os << '(';
-#if GTEST_HAS_ABSL
+#ifdef GTEST_HAS_ABSL
     absl::visit(Visitor{os, value.index()}, value);
 #else
     std::visit(Visitor{os, value.index()}, value);
@@ -900,7 +1005,7 @@ void UniversalPrintArray(const T* begin, size_t len, ::std::ostream* os) {
 GTEST_API_ void UniversalPrintArray(const char* begin, size_t len,
                                     ::std::ostream* os);
 
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 // This overload prints a (const) char8_t array compactly.
 GTEST_API_ void UniversalPrintArray(const char8_t* begin, size_t len,
                                     ::std::ostream* os);
@@ -996,7 +1101,7 @@ template <>
 class UniversalTersePrinter<char*> : public UniversalTersePrinter<const char*> {
 };
 
-#ifdef __cpp_char8_t
+#ifdef __cpp_lib_char8_t
 template <>
 class UniversalTersePrinter<const char8_t*> {
  public:

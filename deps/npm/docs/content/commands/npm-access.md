@@ -7,7 +7,7 @@ description: Set access level on published packages
 ### Synopsis
 
 ```bash
-npm access list packages [<user>|<scope>|<scope:team> [<package>]
+npm access list packages [<user>|<scope>|<scope:team>] [<package>]
 npm access list collaborators [<package> [<user>]]
 npm access get status [<package>]
 npm access set status=public|private [<package>]
@@ -90,6 +90,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `otp`
 
 * Default: null
@@ -101,12 +103,16 @@ when publishing or changing package permissions with `npm access`.
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
 
+
+
 #### `registry`
 
 * Default: "https://registry.npmjs.org/"
 * Type: URL
 
 The base URL of the npm registry.
+
+
 
 ### See Also
 

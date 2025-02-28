@@ -54,7 +54,6 @@ import itertools
 import math  # for log
 import os
 import re
-import sre_compile
 import string
 import sys
 import sysconfig
@@ -64,9 +63,20 @@ import xml.etree.ElementTree
 # if empty, use defaults
 _valid_extensions = set([])
 
-__VERSION__ = '1.6.0'
+__VERSION__ = '1.6.1'
+
+# sre_compile will be/has been removed in Python 3.13
+# use re._compiler instead
+# Refs: https://github.com/python/cpython/issues/105456
+# Refs: https://github.com/python/cpython/issues/91308
+try:
+    srecompile = re._compiler.compile
+except AttributeError:
+    import sre_compile
+    srecompile = sre_compile.compile
 
 try:
+  #  -- pylint: disable=used-before-assignment
   xrange          # Python 2
 except NameError:
   #  -- pylint: disable=redefined-builtin
@@ -97,9 +107,10 @@ Syntax: cpplint.py [--verbose=#] [--output=emacs|eclipse|vs7|junit|sed|gsed]
   certain of the problem, and 1 meaning it could be a legitimate construct.
   This will miss some errors, and is not a substitute for a code review.
 
-  To suppress false-positive errors of a certain category, add a
-  'NOLINT(category)' comment to the line.  NOLINT or NOLINT(*)
-  suppresses errors of all categories on that line.
+  To suppress false-positive errors of certain categories, add a
+  'NOLINT(category[, category...])' comment to the line.  NOLINT or NOLINT(*)
+  suppresses errors of all categories on that line. To suppress categories
+  on the next line use NOLINTNEXTLINE instead of NOLINT.
 
   The files passed in will be linted; at least one file must be provided.
   Default linted extensions are %s.
@@ -314,7 +325,6 @@ _ERROR_CATEGORIES = [
     'readability/casting',
     'readability/check',
     'readability/constructors',
-    'readability/fn_size',
     'readability/inheritance',
     'readability/pointer_notation',
     'readability/multiline_comment',
@@ -377,11 +387,20 @@ _LEGACY_ERROR_CATEGORIES = [
     'readability/function',
     ]
 
+# These prefixes for categories should be ignored since they relate to other
+# tools which also use the NOLINT syntax, e.g. clang-tidy.
+_OTHER_NOLINT_CATEGORY_PREFIXES = [
+    'clang-analyzer',
+    ]
+
 # The default state of the category filter. This is overridden by the --filter=
 # flag. By default all errors are on, so only add here categories that should be
 # off by default (i.e., categories that must be enabled by the --filter= flags).
 # All entries here should start with a '-' or '+', as in the --filter= flag.
-_DEFAULT_FILTERS = ['-build/include_alpha']
+_DEFAULT_FILTERS = [
+    '-build/include_alpha',
+    '-readability/fn_size',
+    ]
 
 # The default list of categories suppressed for C (not C++) files.
 _DEFAULT_C_SUPPRESSED_CATEGORIES = [
@@ -405,7 +424,7 @@ _CPP_HEADERS = frozenset([
     'alloc.h',
     'builtinbuf.h',
     'bvector.h',
-    'complex.h',
+    # 'complex.h', collides with System C header "complex.h"
     'defalloc.h',
     'deque.h',
     'editbuf.h',
@@ -517,6 +536,22 @@ _CPP_HEADERS = frozenset([
     'optional',
     'string_view',
     'variant',
+    # 17.6.1.2 C++20 headers
+    'barrier',
+    'bit',
+    'compare',
+    'concepts',
+    'coroutine',
+    'format',
+    'latch'
+    'numbers',
+    'ranges',
+    'semaphore',
+    'source_location',
+    'span',
+    'stop_token',
+    'syncstream',
+    'version',
     # 17.6.1.2 C++ headers for C library facilities
     'cassert',
     'ccomplex',
@@ -889,12 +924,14 @@ _line_length = 80
 _include_order = "default"
 
 try:
+  #  -- pylint: disable=used-before-assignment
   unicode
 except NameError:
   #  -- pylint: disable=redefined-builtin
   basestring = unicode = str
 
 try:
+  #  -- pylint: disable=used-before-assignment
   long
 except NameError:
   #  -- pylint: disable=redefined-builtin
@@ -988,14 +1025,16 @@ def ParseNolintSuppressions(filename, raw_line, linenum, error):
       suppressed_line = linenum + 1
     else:
       suppressed_line = linenum
-    category = matched.group(2)
-    if category in (None, '(*)'):  # => "suppress all"
+    categories = matched.group(2)
+    if categories in (None, '(*)'):  # => "suppress all"
       _error_suppressions.setdefault(None, set()).add(suppressed_line)
-    else:
-      if category.startswith('(') and category.endswith(')'):
-        category = category[1:-1]
+    elif categories.startswith('(') and categories.endswith(')'):
+      for category in set(map(lambda c: c.strip(), categories[1:-1].split(','))):
         if category in _ERROR_CATEGORIES:
           _error_suppressions.setdefault(category, set()).add(suppressed_line)
+        elif any(c for c in _OTHER_NOLINT_CATEGORY_PREFIXES if category.startswith(c)):
+          # Ignore any categories from other tools.
+          pass
         elif category not in _LEGACY_ERROR_CATEGORIES:
           error(filename, linenum, 'readability/nolint', 5,
                 'Unknown NOLINT error category: %s' % category)
@@ -1049,7 +1088,7 @@ def Match(pattern, s):
   # performance reasons; factoring it out into a separate function turns out
   # to be noticeably expensive.
   if pattern not in _regexp_compile_cache:
-    _regexp_compile_cache[pattern] = sre_compile.compile(pattern)
+    _regexp_compile_cache[pattern] = srecompile(pattern)
   return _regexp_compile_cache[pattern].match(s)
 
 
@@ -1067,14 +1106,14 @@ def ReplaceAll(pattern, rep, s):
     string with replacements made (or original string if no replacements)
   """
   if pattern not in _regexp_compile_cache:
-    _regexp_compile_cache[pattern] = sre_compile.compile(pattern)
+    _regexp_compile_cache[pattern] = srecompile(pattern)
   return _regexp_compile_cache[pattern].sub(rep, s)
 
 
 def Search(pattern, s):
   """Searches the string for the pattern, caching the compiled regexp."""
   if pattern not in _regexp_compile_cache:
-    _regexp_compile_cache[pattern] = sre_compile.compile(pattern)
+    _regexp_compile_cache[pattern] = srecompile(pattern)
   return _regexp_compile_cache[pattern].search(s)
 
 
@@ -5108,7 +5147,8 @@ def _ClassifyInclude(fileinfo, include, used_angle_brackets, include_order="defa
             or Search(r'(?:%s)\/.*\.h' % "|".join(C_STANDARD_HEADER_FOLDERS), include))
 
   # Headers with C++ extensions shouldn't be considered C system headers
-  is_system = used_angle_brackets and not os.path.splitext(include)[1] in ['.hpp', '.hxx', '.h++']
+  include_ext = os.path.splitext(include)[1]
+  is_system = used_angle_brackets and not include_ext in ['.hh', '.hpp', '.hxx', '.h++']
 
   if is_system:
     if is_cpp_header:
@@ -5183,7 +5223,7 @@ def CheckIncludeLine(filename, clean_lines, linenum, include_state, error):
   match = _RE_PATTERN_INCLUDE.search(line)
   if match:
     include = match.group(2)
-    used_angle_brackets = (match.group(1) == '<')
+    used_angle_brackets = match.group(1) == '<'
     duplicate_line = include_state.FindHeader(include)
     if duplicate_line >= 0:
       error(filename, linenum, 'build/include', 4,
@@ -5947,7 +5987,8 @@ def CheckCStyleCast(filename, clean_lines, linenum, cast_type, pattern, error):
     return False
 
   # operator++(int) and operator--(int)
-  if context.endswith(' operator++') or context.endswith(' operator--'):
+  if (context.endswith(' operator++') or context.endswith(' operator--') or
+      context.endswith('::operator++') or context.endswith('::operator--')):
     return False
 
   # A single unnamed argument for a function tends to look like old style cast.
@@ -6628,7 +6669,7 @@ def ProcessConfigOverrides(filename):
       continue
 
     try:
-      with open(cfg_file, encoding='utf-8') as file_handle:
+      with codecs.open(cfg_file, 'r', 'utf8', 'replace') as file_handle:
         for line in file_handle:
           line, _, _ = line.partition('#')  # Remove comments.
           if not line.strip():

@@ -47,12 +47,12 @@ class ConcurrentSearchThread final : public v8::base::Thread {
 
     sema_started_->Signal();
 
-    for (Handle<JSObject> handle : handles_) {
+    for (DirectHandle<JSObject> handle : handles_) {
       // Lookup the named property on the {map}.
-      EXPECT_TRUE(name_->IsUniqueName());
-      Handle<Map> map(handle->map(), &local_heap);
+      EXPECT_TRUE(IsUniqueName(*name_));
+      DirectHandle<Map> map(handle->map(), &local_heap);
 
-      Handle<DescriptorArray> descriptors(
+      DirectHandle<DescriptorArray> descriptors(
           map->instance_descriptors(kAcquireLoad), &local_heap);
       bool is_background_thread = true;
       InternalIndex const number =
@@ -114,7 +114,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_EQ(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_EQ(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   thread->Join();
 }
@@ -148,7 +148,7 @@ TEST_F(ConcurrentDescriptorArrayTest, LinearSearchFlatObject_ManyElements) {
                                                       filler_value, NONE)
         .Check();
   }
-  EXPECT_GT(js_object->map().NumberOfOwnDescriptors(), 8);
+  EXPECT_GT(js_object->map()->NumberOfOwnDescriptors(), 8);
 
   for (int i = 0; i < kNumHandles; i++) {
     handles.push_back(ph->NewHandle(js_object));

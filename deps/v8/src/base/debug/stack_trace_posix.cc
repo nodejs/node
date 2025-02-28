@@ -154,7 +154,7 @@ void ProcessBacktrace(void* const* trace, size_t size,
   if (in_signal_handler == 0) {
     std::unique_ptr<char*, FreeDeleter> trace_symbols(
         backtrace_symbols(trace, static_cast<int>(size)));
-    if (trace_symbols.get()) {
+    if (trace_symbols) {
       for (size_t i = 0; i < size; ++i) {
         std::string trace_symbol = trace_symbols.get()[i];
         DemangleSymbols(&trace_symbol);
@@ -341,7 +341,11 @@ bool EnableInProcessStackDumping() {
 
   struct sigaction action;
   memset(&action, 0, sizeof(action));
-  action.sa_flags = SA_RESETHAND | SA_SIGINFO;
+  // Use SA_ONSTACK so that iff an alternate stack has been registered, the
+  // handler will run on that stack instead of the default stack. This can be
+  // useful for example if the stack pointer gets corrupted or in case of stack
+  // overflows, since that might prevent the handler from running properly.
+  action.sa_flags = SA_RESETHAND | SA_SIGINFO | SA_ONSTACK;
   action.sa_sigaction = &StackDumpSignalHandler;
   sigemptyset(&action.sa_mask);
 

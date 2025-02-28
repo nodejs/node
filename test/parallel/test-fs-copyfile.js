@@ -10,9 +10,8 @@ const {
   UV_ENOENT,
   UV_EEXIST
 } = internalBinding('uv');
-const path = require('path');
 const src = fixtures.path('a.js');
-const dest = path.join(tmpdir.path, 'copyfile.out');
+const dest = tmpdir.resolve('copyfile.out');
 const {
   COPYFILE_EXCL,
   COPYFILE_FICLONE,

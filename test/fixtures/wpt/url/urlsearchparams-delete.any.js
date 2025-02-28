@@ -70,3 +70,14 @@ test(() => {
   params.delete('a', 'c');
   assert_equals(params.toString(), 'a=b&a=d');
 }, "Two-argument delete()");
+
+test(() => {
+  const params = new URLSearchParams();
+  params.append('a', 'b');
+  params.append('a', 'c');
+  params.append('b', 'c');
+  params.append('b', 'd');
+  params.delete('b', 'c');
+  params.delete('a', undefined);
+  assert_equals(params.toString(), 'b=d');
+}, "Two-argument delete() respects undefined as second arg");

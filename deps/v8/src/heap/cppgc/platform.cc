@@ -87,8 +87,9 @@ TracingController* Platform::GetTracingController() {
   return tracing_controller.get();
 }
 
-void InitializeProcess(PageAllocator* page_allocator) {
-#if defined(V8_USE_ADDRESS_SANITIZER) && defined(V8_TARGET_ARCH_64_BIT)
+void InitializeProcess(PageAllocator* page_allocator,
+                       size_t desired_heap_size) {
+#if defined(V8_USE_ADDRESS_SANITIZER) && defined(V8_HOST_ARCH_64_BIT)
   // Retrieve asan's internal shadow memory granularity and check that Oilpan's
   // object alignment/sizes are multiple of this granularity. This is needed to
   // perform poisoness checks.
@@ -104,7 +105,7 @@ void InitializeProcess(PageAllocator* page_allocator) {
   CHECK(!internal::g_page_allocator);
   internal::GlobalGCInfoTable::Initialize(allocator);
 #if defined(CPPGC_CAGED_HEAP)
-  internal::CagedHeap::InitializeIfNeeded(allocator);
+  internal::CagedHeap::InitializeIfNeeded(allocator, desired_heap_size);
 #endif  // defined(CPPGC_CAGED_HEAP)
   internal::g_page_allocator = &allocator;
 }

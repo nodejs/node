@@ -29,27 +29,35 @@ class PropertyArray
   inline void SetHash(int hash);
   inline int Hash() const;
 
-  inline Object get(int index) const;
-  inline Object get(PtrComprCageBase cage_base, int index) const;
-  inline Object get(int index, SeqCstAccessTag tag) const;
-  inline Object get(PtrComprCageBase cage_base, int index,
-                    SeqCstAccessTag tag) const;
+  inline Tagged<JSAny> get(int index) const;
+  inline Tagged<JSAny> get(PtrComprCageBase cage_base, int index) const;
+  inline Tagged<JSAny> get(int index, SeqCstAccessTag tag) const;
+  inline Tagged<JSAny> get(PtrComprCageBase cage_base, int index,
+                           SeqCstAccessTag tag) const;
 
-  inline void set(int index, Object value);
-  inline void set(int index, Object value, SeqCstAccessTag tag);
+  inline void set(int index, Tagged<Object> value);
+  inline void set(int index, Tagged<Object> value, SeqCstAccessTag tag);
   // Setter with explicit barrier mode.
-  inline void set(int index, Object value, WriteBarrierMode mode);
+  inline void set(int index, Tagged<Object> value, WriteBarrierMode mode);
 
-  inline Object Swap(int index, Object value, SeqCstAccessTag tag);
-  inline Object Swap(PtrComprCageBase cage_base, int index, Object value,
-                     SeqCstAccessTag tag);
+  inline Tagged<Object> Swap(int index, Tagged<Object> value,
+                             SeqCstAccessTag tag);
+  inline Tagged<Object> Swap(PtrComprCageBase cage_base, int index,
+                             Tagged<Object> value, SeqCstAccessTag tag);
+
+  inline Tagged<Object> CompareAndSwap(int index, Tagged<Object> expected,
+                                       Tagged<Object> value,
+                                       SeqCstAccessTag tag);
 
   // Signature must be in sync with FixedArray::CopyElements().
-  inline void CopyElements(Isolate* isolate, int dst_index, PropertyArray src,
-                           int src_index, int len, WriteBarrierMode mode);
+  inline static void CopyElements(Isolate* isolate, Tagged<PropertyArray> dst,
+                                  int dst_index, Tagged<PropertyArray> src,
+                                  int src_index, int len,
+                                  WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
 
   // Gives access to raw memory which stores the array's data.
   inline ObjectSlot data_start();
+  inline ObjectSlot RawFieldOfElementAt(int index);
 
   // Garbage collection support.
   static constexpr int SizeFor(int length) {

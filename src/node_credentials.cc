@@ -1,4 +1,5 @@
 #include "env-inl.h"
+#include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "util-inl.h"
@@ -12,6 +13,7 @@
 #include <unistd.h>  // setuid, getuid
 #endif
 #ifdef __linux__
+#include <dlfcn.h>  // dlsym()
 #include <linux/capability.h>
 #include <sys/auxv.h>
 #include <sys/syscall.h>
@@ -22,13 +24,9 @@ namespace node {
 using v8::Array;
 using v8::Context;
 using v8::FunctionCallbackInfo;
-using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
-using v8::String;
-using v8::TryCatch;
 using v8::Uint32;
 using v8::Value;
 
@@ -49,10 +47,10 @@ namespace credentials {
 
 #if defined(__linux__)
 // Returns true if the current process only has the passed-in capability.
-bool HasOnly(int capability) {
+static bool HasOnly(int capability) {
   DCHECK(cap_valid(capability));
 
-  struct __user_cap_data_struct cap_data[2];
+  struct __user_cap_data_struct cap_data[_LINUX_CAPABILITY_U32S_3];
   struct __user_cap_header_struct cap_header_data = {
     _LINUX_CAPABILITY_VERSION_3,
     getpid()};
@@ -61,12 +59,11 @@ bool HasOnly(int capability) {
   if (syscall(SYS_capget, &cap_header_data, &cap_data) != 0) {
     return false;
   }
-  if (capability < 32) {
-    return cap_data[0].permitted ==
-        static_cast<unsigned int>(CAP_TO_MASK(capability));
-  }
-  return cap_data[1].permitted ==
-      static_cast<unsigned int>(CAP_TO_MASK(capability));
+
+  static_assert(arraysize(cap_data) == 2);
+  return cap_data[CAP_TO_INDEX(capability)].permitted ==
+             static_cast<unsigned int>(CAP_TO_MASK(capability)) &&
+         cap_data[1 - CAP_TO_INDEX(capability)].permitted == 0;
 }
 #endif
 
@@ -74,10 +71,7 @@ bool HasOnly(int capability) {
 // process only has the capability CAP_NET_BIND_SERVICE set. If the current
 // process does not have any capabilities set and the process is running as
 // setuid root then lookup will not be allowed.
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars,
-                v8::Isolate* isolate) {
+bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
@@ -85,46 +79,28 @@ bool SafeGetenv(const char* key,
 #else
   if (linux_at_secure() || getuid() != geteuid() || getgid() != getegid())
 #endif
-    goto fail;
+    return false;
 #endif
 
-  if (env_vars != nullptr) {
-    DCHECK_NOT_NULL(isolate);
-    HandleScope handle_scope(isolate);
-    TryCatch ignore_errors(isolate);
-    MaybeLocal<String> maybe_value = env_vars->Get(
-        isolate, String::NewFromUtf8(isolate, key).ToLocalChecked());
-    Local<String> value;
-    if (!maybe_value.ToLocal(&value)) goto fail;
-    String::Utf8Value utf8_value(isolate, value);
-    if (*utf8_value == nullptr) goto fail;
-    *text = std::string(*utf8_value, utf8_value.length());
-    return true;
+  // Fallback to system environment which reads the real environment variable
+  // through uv_os_getenv.
+  std::shared_ptr<KVStore> env_vars;
+  if (env == nullptr) {
+    env_vars = per_process::system_environment;
+  } else {
+    env_vars = env->env_vars();
   }
 
-  {
-    Mutex::ScopedLock lock(per_process::env_var_mutex);
+  std::optional<std::string> value = env_vars->Get(key);
 
-    size_t init_sz = 256;
-    MaybeStackBuffer<char, 256> val;
-    int ret = uv_os_getenv(key, *val, &init_sz);
-
-    if (ret == UV_ENOBUFS) {
-      // Buffer is not large enough, reallocate to the updated init_sz
-      // and fetch env value again.
-      val.AllocateSufficientStorage(init_sz);
-      ret = uv_os_getenv(key, *val, &init_sz);
-    }
-
-    if (ret >= 0) {  // Env key value fetch success.
-      *text = *val;
-      return true;
-    }
+  bool has_env = value.has_value();
+  if (has_env) {
+    *text = value.value();
   }
 
-fail:
-  text->clear();
-  return false;
+  TraceEnvVar(env, "get", key);
+
+  return has_env;
 }
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
@@ -133,10 +109,38 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env->env_vars(), isolate)) return;
-  Local<Value> result =
-      ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
-  args.GetReturnValue().Set(result);
+  if (!SafeGetenv(*strenvtag, &text, env)) return;
+  Local<Value> result;
+  if (ToV8Value(isolate->GetCurrentContext(), text).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
+}
+
+static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  std::string dir;
+
+  // Let's wrap SafeGetEnv since it returns true for empty string.
+  auto get_env = [&dir, &env](std::string_view key) {
+    USE(SafeGetenv(key.data(), &dir, env));
+    return !dir.empty();
+  };
+
+  // Try TMPDIR, TMP, and TEMP in that order.
+  if (!get_env("TMPDIR") && !get_env("TMP") && !get_env("TEMP")) {
+    return;
+  }
+
+  if (dir.size() > 1 && dir.ends_with("/")) {
+    dir.pop_back();
+  }
+
+  Local<Value> result;
+  if (ToV8Value(isolate->GetCurrentContext(), dir).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
@@ -233,6 +237,27 @@ static gid_t gid_by_name(Isolate* isolate, Local<Value> value) {
   }
 }
 
+static bool UvMightBeUsingIoUring() {
+#ifdef __linux__
+  // Support for io_uring is only included in libuv 1.45.0 and later. Starting
+  // with 1.49.0 is disabled by default. Check the version in case Node.js is
+  // dynamically to an io_uring-enabled version of libuv.
+  unsigned int version = uv_version();
+  return version >= 0x012d00u && version < 0x013100u;
+#else
+  return false;
+#endif
+}
+
+static bool ThrowIfUvMightBeUsingIoUring(Environment* env, const char* fn) {
+  if (UvMightBeUsingIoUring()) {
+    node::THROW_ERR_INVALID_STATE(
+        env, "%s() disabled: io_uring may be enabled. See CVE-2024-22017.", fn);
+    return true;
+  }
+  return false;
+}
+
 static void GetUid(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(env->has_run_bootstrapping_code());
@@ -268,6 +293,8 @@ static void SetGid(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
 
+  if (ThrowIfUvMightBeUsingIoUring(env, "setgid")) return;
+
   gid_t gid = gid_by_name(env->isolate(), args[0]);
 
   if (gid == gid_not_found) {
@@ -286,6 +313,8 @@ static void SetEGid(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
+
+  if (ThrowIfUvMightBeUsingIoUring(env, "setegid")) return;
 
   gid_t gid = gid_by_name(env->isolate(), args[0]);
 
@@ -306,6 +335,8 @@ static void SetUid(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
 
+  if (ThrowIfUvMightBeUsingIoUring(env, "setuid")) return;
+
   uid_t uid = uid_by_name(env->isolate(), args[0]);
 
   if (uid == uid_not_found) {
@@ -324,6 +355,8 @@ static void SetEUid(const FunctionCallbackInfo<Value>& args) {
 
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
+
+  if (ThrowIfUvMightBeUsingIoUring(env, "seteuid")) return;
 
   uid_t uid = uid_by_name(env->isolate(), args[0]);
 
@@ -354,9 +387,10 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   gid_t egid = getegid();
   if (std::find(groups.begin(), groups.end(), egid) == groups.end())
     groups.push_back(egid);
-  MaybeLocal<Value> array = ToV8Value(env->context(), groups);
-  if (!array.IsEmpty())
-    args.GetReturnValue().Set(array.ToLocalChecked());
+  Local<Value> result;
+  if (ToV8Value(env->context(), groups).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {
@@ -365,13 +399,19 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsArray());
 
+  if (ThrowIfUvMightBeUsingIoUring(env, "setgroups")) return;
+
   Local<Array> groups_list = args[0].As<Array>();
   size_t size = groups_list->Length();
   MaybeStackBuffer<gid_t, 64> groups(size);
 
   for (size_t i = 0; i < size; i++) {
-    gid_t gid = gid_by_name(
-        env->isolate(), groups_list->Get(env->context(), i).ToLocalChecked());
+    Local<Value> val;
+    if (!groups_list->Get(env->context(), i).ToLocal(&val)) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    }
+    gid_t gid = gid_by_name(env->isolate(), val);
 
     if (gid == gid_not_found) {
       // Tells JS to throw ERR_INVALID_CREDENTIAL
@@ -395,6 +435,8 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 2);
   CHECK(args[0]->IsUint32() || args[0]->IsString());
   CHECK(args[1]->IsUint32() || args[1]->IsString());
+
+  if (ThrowIfUvMightBeUsingIoUring(env, "initgroups")) return;
 
   Utf8Value arg0(env->isolate(), args[0]);
   gid_t extra_group;
@@ -435,6 +477,7 @@ static void InitGroups(const FunctionCallbackInfo<Value>& args) {
 
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(SafeGetenv);
+  registry->Register(GetTempDir);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   registry->Register(GetUid);
@@ -457,6 +500,7 @@ static void Initialize(Local<Object> target,
                        Local<Context> context,
                        void* priv) {
   SetMethod(context, target, "safeGetenv", SafeGetenv);
+  SetMethod(context, target, "getTempDir", GetTempDir);
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   Environment* env = Environment::GetCurrent(context);

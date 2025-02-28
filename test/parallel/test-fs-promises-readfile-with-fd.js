@@ -5,14 +5,13 @@
 
 const common = require('../common');
 const assert = require('assert');
-const path = require('path');
 const { writeFileSync } = require('fs');
 const { open } = require('fs').promises;
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
 
-const fn = path.join(tmpdir.path, 'test.txt');
+const fn = tmpdir.resolve('test.txt');
 writeFileSync(fn, 'Hello World');
 
 async function readFileTest() {

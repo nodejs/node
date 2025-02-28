@@ -4,7 +4,6 @@ const common = require('../common');
 const assert = require('assert');
 const timers = require('timers');
 const { promisify } = require('util');
-const child_process = require('child_process');
 
 const { getEventListeners } = require('events');
 const { NodeEventTarget } = require('internal/event_target');
@@ -12,7 +11,6 @@ const { NodeEventTarget } = require('internal/event_target');
 const timerPromises = require('timers/promises');
 
 const setPromiseTimeout = promisify(timers.setTimeout);
-const exec = promisify(child_process.exec);
 
 assert.strictEqual(setPromiseTimeout, timerPromises.setTimeout);
 
@@ -65,35 +63,27 @@ process.on('multipleResolves', common.mustNotCall());
 }
 
 {
-  Promise.all(
-    [1, '', false, Infinity].map(
-      (i) => assert.rejects(setPromiseTimeout(10, null, i), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      })
-    )
-  ).then(common.mustCall());
+  for (const delay of ['', false]) {
+    assert.rejects(() => setPromiseTimeout(delay, null, {}), /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  }
 
-  Promise.all(
-    [1, '', false, Infinity, null, {}].map(
-      (signal) => assert.rejects(setPromiseTimeout(10, null, { signal }), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      })
-    )
-  ).then(common.mustCall());
+  for (const options of [1, '', false, Infinity]) {
+    assert.rejects(() => setPromiseTimeout(10, null, options), /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  }
 
-  Promise.all(
-    [1, '', Infinity, null, {}].map(
-      (ref) => assert.rejects(setPromiseTimeout(10, null, { ref }), {
-        code: 'ERR_INVALID_ARG_TYPE'
-      })
-    )
-  ).then(common.mustCall());
+  for (const signal of [1, '', false, Infinity, null, {}]) {
+    assert.rejects(() => setPromiseTimeout(10, null, { signal }), /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  }
+
+  for (const ref of [1, '', Infinity, null, {}]) {
+    assert.rejects(() => setPromiseTimeout(10, null, { ref }), /ERR_INVALID_ARG_TYPE/).then(common.mustCall());
+  }
 }
 
 {
-  exec(`${process.execPath} -pe "const assert = require('assert');` +
+  common.spawnPromisified(process.execPath, ['-pe', 'const assert = require(\'assert\');' +
     'require(\'timers/promises\').setTimeout(1000, null, { ref: false }).' +
-    'then(assert.fail)"').then(common.mustCall(({ stderr }) => {
+    'then(assert.fail)']).then(common.mustCall(({ stderr }) => {
     assert.strictEqual(stderr, '');
   }));
 }

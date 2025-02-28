@@ -1,6 +1,6 @@
 const t = require('tap')
-const fs = require('fs')
-const { resolve } = require('path')
+const fs = require('node:fs')
+const { resolve } = require('node:path')
 const _mockNpm = require('../../fixtures/mock-npm')
 
 const mockNpm = async (t, opts = {}) => {
@@ -188,19 +188,15 @@ t.test('no args global but no package.json', async t => {
   )
 })
 
-t.test('unknown error reading from localPrefix package.json', async t => {
+t.test('non ENOENT error reading from localPrefix package.json', async t => {
   const { uninstall } = await mockNpm(t, {
     config: { global: true },
-    mocks: {
-      'read-package-json-fast': async () => {
-        throw new Error('ERR')
-      },
-    },
+    prefixDir: { 'package.json': 'not[json]' },
   })
 
   await t.rejects(
     uninstall([]),
-    /ERR/,
-    'should throw unknown error'
+    { code: 'EJSONPARSE' },
+    'should throw non ENOENT error'
   )
 })

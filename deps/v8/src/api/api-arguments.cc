@@ -10,48 +10,50 @@ namespace v8 {
 namespace internal {
 
 PropertyCallbackArguments::PropertyCallbackArguments(
-    Isolate* isolate, Object data, Object self, JSObject holder,
-    Maybe<ShouldThrow> should_throw)
+    Isolate* isolate, Tagged<Object> data, Tagged<Object> self,
+    Tagged<JSObject> holder, Maybe<ShouldThrow> should_throw)
     : Super(isolate)
 #ifdef DEBUG
       ,
       javascript_execution_counter_(isolate->javascript_execution_counter())
 #endif  // DEBUG
 {
+  if (DEBUG_BOOL) {
+    // Zap these fields to ensure that they are initialized by a subsequent
+    // CallXXX(..).
+    Tagged<Object> zap_value(kZapValue);
+    slot_at(T::kPropertyKeyIndex).store(zap_value);
+    slot_at(T::kReturnValueIndex).store(zap_value);
+  }
   slot_at(T::kThisIndex).store(self);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kDataIndex).store(data);
-  slot_at(T::kIsolateIndex).store(Object(reinterpret_cast<Address>(isolate)));
+  slot_at(T::kIsolateIndex)
+      .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
   int value = Internals::kInferShouldThrowMode;
   if (should_throw.IsJust()) {
     value = should_throw.FromJust();
   }
   slot_at(T::kShouldThrowOnErrorIndex).store(Smi::FromInt(value));
-
-  // Here the hole is set as default value.
-  // It cannot escape into js as it's removed in Call below.
-  HeapObject the_hole = ReadOnlyRoots(isolate).the_hole_value();
-  slot_at(T::kReturnValueDefaultValueIndex).store(the_hole);
-  slot_at(T::kReturnValueIndex).store(the_hole);
-  DCHECK((*slot_at(T::kHolderIndex)).IsHeapObject());
-  DCHECK((*slot_at(T::kIsolateIndex)).IsSmi());
+  slot_at(T::kHolderV2Index).store(Smi::zero());
+  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
+  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
 FunctionCallbackArguments::FunctionCallbackArguments(
-    internal::Isolate* isolate, internal::Object data, internal::Object holder,
-    internal::HeapObject new_target, internal::Address* argv, int argc)
+    Isolate* isolate, Tagged<FunctionTemplateInfo> target,
+    Tagged<Object> holder, Tagged<HeapObject> new_target, Address* argv,
+    int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
-  slot_at(T::kDataIndex).store(data);
+  slot_at(T::kTargetIndex).store(target);
   slot_at(T::kHolderIndex).store(holder);
   slot_at(T::kNewTargetIndex).store(new_target);
-  slot_at(T::kIsolateIndex).store(Object(reinterpret_cast<Address>(isolate)));
-  // Here the hole is set as default value.
-  // It cannot escape into js as it's remove in Call below.
-  HeapObject the_hole = ReadOnlyRoots(isolate).the_hole_value();
-  slot_at(T::kReturnValueDefaultValueIndex).store(the_hole);
-  slot_at(T::kReturnValueIndex).store(the_hole);
-  DCHECK((*slot_at(T::kHolderIndex)).IsHeapObject());
-  DCHECK((*slot_at(T::kIsolateIndex)).IsSmi());
+  slot_at(T::kIsolateIndex)
+      .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
+  slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
+  slot_at(T::kContextIndex).store(isolate->context());
+  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
+  DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 
 }  // namespace internal

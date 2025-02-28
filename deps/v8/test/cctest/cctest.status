@@ -34,7 +34,14 @@
 
   # These tests always fail.  They are here to test test.py.  If
   # they don't fail then test.py has failed.
-  'test-serialize/TestThatAlwaysFails': [FAIL],
+  #
+  # With the official_build flag CHECK failures and UNREACHABLE do not pass
+  # through the normal V8_Fatal and we can't distinguish FAIL from CRASH.
+  # TODO(v8:13945, olivf) We could make FAILs in official builds
+  #                       distinguishable from crashes and improve the test
+  #                       runner. So far, it only affects very few tests.
+  'test-serialize/TestCheckThatAlwaysFails': [FAIL, ['official_build', CRASH]],
+  'test-serialize/TestFatal': [FAIL],
   'test-api/SealHandleScope': [FAIL],
 
   # These tests are expected to hit a CHECK (i.e. a FAIL result actually means
@@ -85,20 +92,16 @@
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail1': [FAIL],
   'test-serialize/SnapshotCreatorNoExternalReferencesCustomFail2': [FAIL],
 
-  # BUG(v8:8739). Wasm interpreter does not create proper stack traces.
-  'test-wasm-stack/RunWasmInterpreter_CollectDetailedWasmStack_WasmError': [SKIP],
-
   # Test that misuse of PopAndReturn does not compile.
-  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL],
-  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL],
+  'test-code-stub-assembler/PopAndReturnFromJSBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
+  'test-code-stub-assembler/PopAndReturnFromTFCBuiltinWithStackParameters' : [FAIL, ['official_build', CRASH]],
 
   # Slow tests.
+  'test-api/FastApiCalls': [PASS, SLOW],
   'test-api/InternalFieldsSubclassing': [PASS, SLOW],
   'test-debug/CallFunctionInDebugger': [PASS, ['mode == debug', SLOW]],
   'test-heap/TestInternalWeakLists': [PASS, SLOW],
   'test-heap-profiler/ManyLocalsInSharedContext': [PASS, SLOW],
-  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, SLOW],
-  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, SLOW],
   'test-serialize/CustomSnapshotDataBlobImmortalImmovableRoots': [PASS, ['mode == debug', SKIP]],
   'test-serialize/SharedStrings': [PASS, SLOW],
   'test-serialize/StartupSerializerOnce': [PASS, SLOW],
@@ -106,25 +109,29 @@
   'test-strings/StringOOM*': [PASS, ['mode == debug', SKIP]],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'test-accessors/HandleScopePop': [PASS, HEAVY],
-  'test-api/FastApiCalls': [PASS, HEAVY],
+  'test-allocation/AccountingAllocatorOOM': [PASS, HEAVY],
+  'test-allocation/MallocedOperatorNewOOM': [PASS, HEAVY],
   'test-api/NewStringRangeError': [PASS, HEAVY],
-  'test-api/Threading8': [PASS, HEAVY],
+  'test-jump-table-assembler/JumpTablePatchingStress': [PASS, HEAVY],
+  'test-lockers/LockerUnlocker': [PASS, HEAVY],
   'test-lockers/LockTwiceAndUnlock': [PASS, HEAVY],
-  'test-run-machops/RunInt32AddWithOverflowImm': [PASS, HEAVY],
-  'test-run-machops/RunInt32MulAndInt32AddP': [PASS, HEAVY],
-  'test-run-machops/RunInt64SubWithOverflowImm': [PASS, HEAVY],
+  'test-lockers/SeparateIsolatesLocksNonexclusive': [PASS, HEAVY],
+  'test-ptr-compr-cage/SharedPtrComprCageRace': [PASS, HEAVY],
   'test-serialize/ContextSerializerContext': [PASS, HEAVY],
   'test-serialize/ContextSerializerCustomContext': [PASS, HEAVY],
   'test-serialize/SnapshotCompression': [PASS, HEAVY],
   'test-serialize/StartupSerializerOnceRunScript': [PASS, HEAVY],
   'test-serialize/StartupSerializerTwiceRunScript': [PASS, HEAVY],
-  'test-serialize/StaticRootsPredictableSnapshot': [PASS, HEAVY],
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, SLOW, HEAVY],
+  'test-spaces/OldLargeObjectSpace': [PASS, HEAVY],
+  'test-spaces/OldSpace': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromOneByte': [PASS, HEAVY],
   'test-strings/StringOOMNewStringFromUtf8': [PASS, HEAVY],
-  'test-strings/Traverse': [PASS, HEAVY],
-  'test-swiss-name-dictionary-csa/DeleteAtBoundaries': [PASS, HEAVY],
-  'test-swiss-name-dictionary-csa/SameH2': [PASS, HEAVY],
+
+  # TODO(nicohartmann@): Turboshaft's LateLoadElimination is currently not able
+  # to verify this tests assumptions (static_assert). We should improve it and
+  # reenable this test.
+  'test-torque/TestLoadEliminationVariable': [SKIP],
 }],  # ALWAYS
 
 ##############################################################################
@@ -161,9 +168,6 @@
 
   # BUG(v8:3446).
   'test-mark-compact/Promotion': [PASS, FAIL],
-
-  # BUG(v8:3434).
-  'test-api/LoadICFastApi_DirectCall_GCMoveStubWithProfiler': [SKIP],
 }],  # 'arch == arm64'
 
 ['arch == arm64 and simulator_run', {
@@ -179,12 +183,6 @@
   # Apple silicon. See:
   # https://developer.apple.com/library/archive/documentation/Xcode/Conceptual/iPhoneOSABIReference/Articles/ARM64FunctionCallingConventions.html
   'test-assembler-arm64/printf_no_preserve': [SKIP],
-
-  # https://crbug.com/v8/12588
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfma_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F32x4Qfms_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfma_interpreter': [SKIP],
-  'test-run-wasm-relaxed-simd/RunWasm_F64x2Qfms_interpreter': [SKIP],
 }],  # arch == arm64 and system == macos and not simulator_run
 
 ##############################################################################
@@ -206,14 +204,25 @@
   'test-wasm-serialization/*': [SKIP],
   'test-streaming-compilation/SingleThreadedTestDeserializationBypassesCompilation': [SKIP],
   'test-streaming-compilation/SingleThreadedTestDeserializationFails': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationFails': [SKIP],
   'test-streaming-compilation/AsyncTestDeserializationBypassesCompilation': [SKIP],
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
 
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-verify-type/*': [SKIP],
+
+  # Field representation tracking is disabled in nooptimization mode.
+  'test-field-type-tracking/*': [SKIP],
 }],  # variant == nooptimization
+
+##############################################################################
+['variant == stress_concurrent_allocation', {
+  # https://crbug.com/42204548
+  'test-mark-compact/MarkCompactCollector': [PASS, SKIP],
+}],  # variant == stress_concurrent_allocation
 
 ##############################################################################
 ['asan == True', {
@@ -227,16 +236,6 @@
 ['asan or tsan', {
   # Tests that need to run sequentially (e.g. due to memory consumption).
   'regress/regress-crbug-9161': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Add': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_DivS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_DivU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Eq': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GeS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_GtS': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_Ior': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_LeU': [PASS, HEAVY],
-  'test-run-wasm/RunWasmInterpreter_I32Binop_LtU': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_Add': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_DivS': [PASS, HEAVY],
   'test-run-wasm/RunWasmLiftoff_I32Binop_DivU': [PASS, HEAVY],
@@ -267,15 +266,26 @@
   # the --stress-concurrent-allocation variant.
   'test-heap/OutOfMemorySmallObjects': [PASS, NO_VARIANTS],
   'test-heap/OutOfMemory': [PASS, NO_VARIANTS],
+
+  # Too slow for tsan in debug mode:
+  'test-serialize/StaticRootsPredictableSnapshot': [PASS, ['mode == debug', SKIP]],
 }],  # 'tsan == True'
 
 ##############################################################################
-['is_full_debug', {
+['ubsan', {
+  # https://crbug.com/v8/14309
+  'test-run-wasm-simd/RunWasm*': [SKIP],
+}],  # 'ubsan'
+
+##############################################################################
+['full_debug', {
   # Tests too slow in non-optimized debug mode.
   'test-api/InternalFieldsSubclassing': [SKIP],
   'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
   'test-heap/TestInternalWeakLists': [SKIP],
-}],  # 'is_full_debug'
+  'test-serialize/StartupSerializerOnce': [SKIP],
+  'test-serialize/StartupSerializerTwice': [SKIP],
+}],  # 'full_debug'
 
 ##############################################################################
 ['byteorder == big', {
@@ -378,25 +388,22 @@
   # this test is unstable, sometimes fail when running w/ other tests.
   'test-cpu-profiler/CrossScriptInliningCallerLineNumbers2': [SKIP],
 
-  # SIMD not fully implemented yet.
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
 
   # Some wasm functionality is not implemented yet.
-  'test-run-wasm-atomics64/*': [SKIP],
-  'test-run-wasm-atomics/*': [SKIP],
-  'test-run-wasm-64/*': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_Select_s128_parameters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_Select_s128_parameters': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF64x2OneNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4AllNaN': [SKIP],
-  'test-liftoff-for-fuzzing/NondeterminismUnopF32x4OneNaN': [SKIP],
 
-  # riscv64 sign extend on uint32.
-  'test-run-load-store/RunUnalignedLoadStoreZeroExtend64': [SKIP],
-  'test-run-load-store/RunLoadStoreZeroExtend64': [SKIP],
-}],  # 'arch == riscv64'
+  # According to riscv's NaN generation and propagation scheme, the payload
+  # is not guaranteed. So the test fails when src bits has payload.
+  'test-run-wasm/RunWasmLiftoff_F32ReinterpretI32': [SKIP],
+  'test-run-wasm/RunWasmTurbofan_F32ReinterpretI32': [SKIP],
+
+  'test-serialize/StaticRootsPredictableSnapshot': ['pointer_compression', SKIP],
+
+  'test-run-wasm-f16/*': [SKIP],
+}],  # 'arch == riscv64 or (arch == riscv32)'
+['arch == riscv32', {
+  # Some wasm functionality is not implemented yet.
+  'test-run-wasm-64/*': [SKIP],
+}],  # 'arch == riscv32'
 
 ##############################################################################
 ['((arch == riscv64) or (arch == riscv32)) and simulator_run', {
@@ -431,6 +438,16 @@
 }],  # 'system != android and arch in [arm, arm64] and not simulator_run'
 
 ##############################################################################
+['arch == ppc64', {
+  # Generated instructions could differ due to codegen non-determinism
+  # which periodically fails this test on ppc. Test is also only targeting
+  # builds with static-roots enabled which is off by default on ppc.
+  # BUG(v8:42204346)
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP]
+
+}],  # 'arch == ppc64'
+
+##############################################################################
 ['system == aix or (arch == ppc64 and byteorder == big)', {
 
   # TODO(ppc): Fix for platforms with function desciptors.
@@ -438,43 +455,37 @@
   'test-run-wasm-module/Run_WasmModule_Return114' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallAdd' : [SKIP],
   'test-run-wasm-module/Run_WasmModule_CallMain_recursive' : [SKIP],
-  # TODO(ppc): Implement load/store reverse byte instructions
-  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad': [SKIP],
-  'test-run-wasm-simd/RunWasm_SimdLoadStoreLoad_turbofan': [SKIP],
   # slow in PASE emulator
   'test-cpu-profiler/Inlining2': [PASS, SLOW],
   'test-cpu-profiler/CollectCpuProfileCallerLineNumbers': [PASS, SLOW],
 }],  # 'system == aix or (arch == ppc64 and byteorder == big)'
 
 ##############################################################################
-['arch == ppc and simulator_run or arch == ppc64 and simulator_run', {
+['system == zos', {
+  # Currently no profiler support on z/OS:
+  'test-cpu-profiler/*': [SKIP],
+}],
+
+##############################################################################
+['arch == ppc64 and simulator_run', {
 
   # Pass but take too long with the simulator.
   'test-api/Threading*': [PASS, SLOW],
   'test-api/ExternalArrays': [PASS, SLOW],
+  'test-debug/DebugBreakStackTrace': [PASS, SLOW],
+  'turboshaft-test-compare-combine/CombineCompareWord64Logic1': [PASS, SLOW],
+  'turboshaft-test-compare-combine/CombineCompareTwoLogicInputs': [PASS, SLOW],
 
 }],  # 'arch == ppc64 and simulator_run'
 
 ##############################################################################
-['arch == ppc or arch == ppc64 or arch == s390 or arch == s390x', {
+['arch == ppc64 or arch == s390 or arch == s390x', {
 
   # TODO(ppc/s390): support concurrent patching of jump table
   'test-jump-table-assembler/*': [SKIP],
 
   'test-wasm-breakpoints/*' : [SKIP],
-
-  # TODO(11856): Port nondeterminism detection.
-  'test-liftoff-for-fuzzing/*': [SKIP],
-
-}],  # 'arch == ppc or arch == ppc64 or arch == s390 or arch == s390x'
-
-['arch == ppc64', {
-  # SIMD / Liftoff not fully implemented yet
-  'test-run-wasm-simd-liftoff/*': [SKIP],
-  'test-run-wasm-relaxed-simd/*': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
-  'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
-}],
+}],  # 'arch == ppc64 or arch == s390 or arch == s390x'
 
 ##############################################################################
 ['variant == stress_incremental_marking', {
@@ -524,6 +535,7 @@
   'test-jump-table-assembler/*': [SKIP],
   'test-gc/*': [SKIP],
   'test-grow-memory/*': [SKIP],
+  'test-heap-profiler/HeapSnapshotWithWasmInstance': [SKIP],
   'test-js-to-wasm/*': [SKIP],
   'test-liftoff-for-fuzzing/*': [SKIP],
   'test-liftoff-inspection/*': [SKIP],
@@ -539,6 +551,19 @@
   'test-wasm-trap-position/*': [SKIP],
   'wasm-run-utils/*': [SKIP],
 }],  # not has_webassembly or variant == jitless
+
+##############################################################################
+['has_wasm_interpreter', {
+  # Skip tests that require Wasm experimental features not supported by the
+  # Wasm interpreter.
+
+  # --experimental-wasm-memory64
+  'test-run-wasm-memory64/*': [SKIP],
+
+  # --experimental-wasm-fp16
+  'test-run-wasm-f16/*': [SKIP],
+
+ }],  # has_wasm_interpreter
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
@@ -561,18 +586,35 @@
   'test-multiple-return/*': [SKIP],
   'test-run-calls-to-external-references/*': [SKIP],
   'test-run-intrinsics/*': [SKIP],
-
   'test-run-load-store/*': [SKIP],
   'test-run-machops/*': [SKIP],
   'test-run-native-calls/*': [SKIP],
   'test-run-stackcheck/*': [SKIP],
   'test-run-unwinding-info/*': [SKIP],
   'test-run-variables/*': [SKIP],
+  'test-select-combine/*': [SKIP],
   'test-serialize/*': [SKIP],
   'test-swiss-name-dictionary-csa/*': [SKIP],
   'test-torque/*': [SKIP],
-  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
   'test-verify-type/*': [SKIP],
+  'test-concurrent-shared-function-info/*': [SKIP],
+  'test-concurrent-allocation/*': [SKIP],
+  'test-sync-primitives-arm/*': [SKIP],
+  'test-sync-primitives-arm64/*': [SKIP],
+  'turboshaft-test-branch-combine/*': [SKIP],
+  'turboshaft-test-compare-combine/*': [SKIP],
+  'turboshaft-test-select-combine/*': [SKIP],
+
+  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
+  'test-heap-profiler/WeakReference': [SKIP],
+  'test-alloc/StressJS': [SKIP],
+  'test-alloc/StressHandles': [SKIP],
+  'test-heap/CodeLargeObjectSpace': [SKIP],
+  'test-heap/CodeLargeObjectSpace64k': [SKIP],
+  'test-heap/CodeObjectRegistry': [SKIP],
+  'test-heap/HeapObjects': [SKIP],
+  'test-heap/Regress10900': [SKIP],
+  'test-weak-references/WeakReferencesBasic': [SKIP],
 
   # Field representation tracking is disabled in jitless mode.
   'test-field-type-tracking/*': [SKIP],
@@ -582,14 +624,14 @@
 }], # lite_mode or variant == jitless
 
 ##############################################################################
-['jitless_build_mode', {
+['has_jitless', {
   # invocation_count maintenance is disabled.
   'test-debug/DebugCoverage*': [SKIP],
   # Feedback collection maintenance is (mostly) disabled.
   'test-heap/IncrementalMarkingPreservesMonomorphicCallIC': [SKIP],
   # WebAssembly not included.
   'test-api/Threading8': [SKIP],
-}],  # jitless_build_mode
+}],  # has_jitless
 
 ##############################################################################
 ['lite_mode', {
@@ -608,11 +650,6 @@
   'test-cpu-profiler/TickLinesOptimized': [SKIP],
   'test-heap/TestOptimizeAfterBytecodeFlushingCandidate': [SKIP],
   'test-js-to-wasm/*': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallDirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallExternal': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchCallIndirect': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchThrow': [SKIP],
-  'test-run-wasm-exceptions/RunWasmInterpreter_TryCatchTrapTypeError': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallDirect': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallExternal': [SKIP],
   'test-run-wasm-exceptions/RunWasmLiftoff_TryCatchCallIndirect': [SKIP],
@@ -632,11 +669,12 @@
   'test-macro-assembler-arm/ExtractLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/LoadAndStoreWithRepresentation': [PASS, ['arch == arm and not simulator_run', SKIP]],
   'test-macro-assembler-arm/ReplaceLane': [PASS, ['arch == arm and not simulator_run', SKIP]],
-
-  # Too slow on arm64 simulator on Mac.
-  'test-cpu-profiler/MultipleIsolates': [PASS, ['arch == arm64 and system == macos and simulator_run', SKIP]],
 }], # variant == jitless
 
+##############################################################################
+['variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit', {
+  'test-regexp/InterruptAndTransitionSubjectFromTwoByteToOneByte': [SKIP],
+}],  # variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit
 
 ################################################################################
 ['variant == stress_snapshot', {
@@ -648,6 +686,7 @@
   'test-run-wasm-relaxed-simd/*': [SKIP],
   'test-run-wasm-simd-liftoff/*': [SKIP],
   'test-run-wasm-simd/*': [SKIP],
+  'test-run-wasm-f16/*': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmTurbofan_RefTrivialCasts': [SKIP],
   'test-gc/RunWasmLiftoff_RefTrivialCastsStatic': [SKIP],
@@ -677,391 +716,7 @@
 }], # variant == stress_concurrent_inlining
 
 ################################################################################
-['third_party_heap', {
-  # v8::Unwinder::PCIsInV8 is not supported
-  'test-unwinder-code-pages/PCIsInV8_LargeCodeObject_CodePagesAPI': [SKIP],
-  'test-unwinder-code-pages/Unwind_CodeObjectPCInMiddle_Success_CodePagesAPI': [SKIP],
-  # Calls Space::FirstPageAddress
-  'test-debug-helper/GetObjectProperties': [SKIP],
-  # Calls Heap::SizeOfObjects
-  'test-heap/TestSizeOfObjectsVsHeapObjectIteratorPrecision': [SKIP],
-  # Test on heap profiler
-  'test-heap-profiler/SamplingHeapProfilerApiSamples': [SKIP],
-  'test-heap-profiler/SamplingHeapProfiler': [SKIP],
-  'test-heap-profiler/SamplingHeapProfilerRateAgnosticEstimates': [SKIP],
-  'test-heap-profiler/SamplingHeapProfilerApiAllocation': [SKIP],
-  'test-heap-profiler/SamplingHeapProfilerLargeInterval': [SKIP],
-  # Test old/new space backing store allocation
-  'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreases': [SKIP],
-  # Read data from read_only_space->pages()
-  'test-serialize/CodeSerializerExternalScriptName': [SKIP],
-  'test-serialize/CodeSerializerThreeBigStrings': [SKIP],
-  # Requires heap::SimulateFullSpace
-  'test-invalidated-slots/InvalidatedSlotsAfterTrimming': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsAllInvalidatedRanges': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsCleanupEachObject': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsCleanupFull': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsCleanupRightTrim': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsEvacuationCandidate': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsNoInvalidatedRanges': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsResetObjectRegression': [SKIP],
-  'test-invalidated-slots/InvalidatedSlotsSomeInvalidatedRanges': [SKIP],
-  # Requires --finalize_streaming_on_background:
-  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadIsParked': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadParksAndUnparks': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationWhileMainThreadRunsWithSafepoints': [SKIP],
-  # Tests on V8 stock GC
-  'test-spaces/*': [SKIP],
-  'test-compaction/*': [SKIP],
-  'test-mark-compact/*': [SKIP],
-  'test-lab/*': [SKIP],
-  'test-heap/TestAlignedOverAllocation': [SKIP],
-  'test-heap/RememberedSetRemoveRange': [SKIP],
-  'test-heap/CodeObjectRegistry': [SKIP],
-  'test-heap/DeepEagerCompilationPeakMemory': [SKIP],
-  'test-api/GetHeapStatistics': [SKIP],
-  'test-api/GetHeapSpaceStatistics': [SKIP],
-  # Requires --concurrent_recompilation
-  'test-debug/BreakPointBuiltinConcurrentOpt': [SKIP],
-  # Requires a second isolate
-  'test-api-array-buffer/BackingStore_HoldAllocatorAlive_AfterIsolateShutdown': [SKIP],
-  'test-api-array-buffer/BackingStore_HoldAllocatorAlive_UntilIsolateShutdown': [SKIP],
-  'test-api-array-buffer/BackingStore_ReleaseAllocator_NullptrBackingStore': [SKIP],
-  'test-api/CodeCache': [SKIP],
-  'test-api/CodeCacheModuleScriptMismatch': [SKIP],
-  'test-api/CodeCacheScriptModuleMismatch': [SKIP],
-  'test-api/ExternalInternalizedStringCollectedAtTearDown': [SKIP],
-  'test-api/ExternalStringCollectedAtTearDown': [SKIP],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread_AddHistogramSampleFunction': [SKIP],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread_CounterFunction': [SKIP],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread_CreateHistogramFunction': [SKIP],
-  'test-api/InitializeDefaultIsolateOnSecondaryThread_FatalHandler': [SKIP],
-  'test-api/IsolateDifferentContexts': [SKIP],
-  'test-api/IsolateNewDispose': [SKIP],
-  'test-api/ModuleCodeCache': [SKIP],
-  'test-api/MultipleIsolatesOnIndividualThreads': [SKIP],
-  'test-api/NestedIsolates': [SKIP],
-  'test-api/RunTwoIsolatesOnSingleThread': [SKIP],
-  'test-api/VerifyArrayPrototypeGuarantees': [SKIP],
-  'test-cpu-profiler/MultipleIsolates': [SKIP],
-  'test-heap/Regress538257': [SKIP],
-  'test-heap/ReinitializeStringHashSeed': [SKIP],
-  'test-lockers/*': [SKIP],
-  'test-mark-compact/RegressJoinThreadsOnIsolateDeinit': [SKIP],
-  'test-memory-measurement/RandomizedTimeout': [SKIP],
-  'test-random-number-generator/*': [SKIP],
-  'test-serialize/CodeSerializerAfterExecute': [SKIP],
-  'test-serialize/CodeSerializerBitFlip': [SKIP],
-  'test-serialize/CodeSerializerFlagChange': [SKIP],
-  'test-serialize/CodeSerializerIsolates': [SKIP],
-  'test-serialize/CodeSerializerIsolatesEager': [SKIP],
-  'test-serialize/CodeSerializerWithHarmonyScoping': [SKIP],
-  'test-serialize/ContextSerializerContext': [SKIP],
-  'test-serialize/ContextSerializerCustomContext': [SKIP],
-  'test-serialize/CustomSnapshotDataBlob1': [SKIP],
-  'test-serialize/CustomSnapshotDataBlob2': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobArrayBufferWithOffset': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobDataView': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobDetachedArrayBuffer': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobOnOrOffHeapTypedArray': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobOutdatedContextWithOverflow': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobOverwriteGlobal': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobSharedArrayBuffer': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobStringNotInternalized': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobTypedArrayNoEmbedderFieldCallback': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithIrregexpCodeClearCode': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithIrregexpCodeKeepCode': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithKeep': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithLocker': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithOffHeapTypedArray': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobWithWarmup': [SKIP],
-  'test-serialize/ReinitializeHashSeedJSCollectionRehashable': [SKIP],
-  'test-serialize/ReinitializeHashSeedRehashable': [SKIP],
-  'test-serialize/SnapshotCreatorAddData': [SKIP],
-  'test-serialize/SnapshotCreatorArrayJoinWithKeep': [SKIP],
-  'test-serialize/SnapshotCreatorDuplicateFunctions': [SKIP],
-  'test-serialize/SnapshotCreatorExternalReferences': [SKIP],
-  'test-serialize/SnapshotCreatorIncludeGlobalProxy': [SKIP],
-  'test-serialize/SnapshotCreatorMultipleContexts': [SKIP],
-  'test-serialize/SnapshotCreatorNoExternalReferencesDefault': [SKIP],
-  'test-serialize/SnapshotCreatorPreparseDataAndNoOuterScope': [SKIP],
-  'test-serialize/SnapshotCreatorShortExternalReferences': [SKIP],
-  'test-serialize/SnapshotCreatorTemplates': [SKIP],
-  'test-serialize/SnapshotDataBlobWithWarmup': [SKIP],
-  'test-serialize/StartupSerializerOnce': [SKIP],
-  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
-  'test-serialize/StartupSerializerTwice': [SKIP],
-  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
-  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
-  'test-serialize/WeakArraySerializationInSnapshot': [SKIP],
-  'test-typedarrays/SpeciesConstructor': [SKIP],
-  'test-typedarrays/SpeciesConstructorAccessor': [SKIP],
-  'test-typedarrays/SpeciesModified': [SKIP],
-  'test-typedarrays/SpeciesParentConstructor': [SKIP],
-  'test-typedarrays/SpeciesProto': [SKIP],
-  'test-wasm-serialization/*': [SKIP],
-  'test-wasm-shared-engine/*': [SKIP],
-  'test-shared-heap/*': [SKIP],
-  # Performs GC or expects OOM
-  'test-alloc/StressHandles': [SKIP],
-  'test-alloc/StressJS': [SKIP],
-  'test-api/DontLeakGlobalObjects': [SKIP],
-  'test-api/ExternalInternalizedStringCollectedAtGC': [SKIP],
-  'test-api/ExternalStringWithDisposeHandling': [SKIP],
-  'test-api/ExternalizeOldSpaceOneByteCons': [SKIP],
-  'test-api/ExternalizeOldSpaceTwoByteCons': [SKIP],
-  'test-api/GCFromWeakCallbacks': [SKIP],
-  'test-api/GlobalValueMap': [SKIP],
-  'test-api/IndependentWeakHandle': [SKIP],
-  'test-api/InternalFieldCallback': [SKIP],
-  'test-api/MemoryPressure': [SKIP],
-  'test-api/NumberOfDetachedContexts': [SKIP],
-  'test-api/NumberOfNativeContexts': [SKIP],
-  'test-api/Recorder_GetContext': [SKIP],
-  'test-api/Regress1516': [SKIP],
-  'test-api/Regress528': [SKIP],
-  'test-api/ResetWeakHandle': [SKIP],
-  'test-api/ScavengeExternalOneByteString': [SKIP],
-  'test-api/ScavengeExternalString': [SKIP],
-  'test-api/ScriptMakingExternalOneByteString': [SKIP],
-  'test-api/ScriptMakingExternalString': [SKIP],
-  'test-api/ScriptUsingOneByteStringResource': [SKIP],
-  'test-api/ScriptUsingStringResource': [SKIP],
-  'test-api/SetJitCodeEventHandler': [SKIP],
-  'test-api/Threading1': [SKIP],
-  'test-api/Threading3': [SKIP],
-  'test-api/Threading5': [SKIP],
-  'test-api/TriggerDelayedMainThreadMetricsEvent': [SKIP],
-  'test-api/TriggerMainThreadMetricsEvent': [SKIP],
-  'test-api/TwoPassPhantomCallbacks': [SKIP],
-  'test-api/TwoPassPhantomCallbacksNestedGc': [SKIP],
-  'test-api/TwoPassPhantomCallbacksTriggeredByStringAlloc': [SKIP],
-  'test-api/WeakCallbackApi': [SKIP],
-  'test-array-buffer-tracker/ArrayBuffer_Compaction': [SKIP],
-  'test-array-buffer-tracker/ArrayBuffer_ExternalBackingStoreSizeIncreasesMarkCompact': [SKIP],
-  'test-array-buffer-tracker/ArrayBuffer_OnlyMC': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationInOldSpace': [SKIP],
-  'test-concurrent-allocation/ConcurrentAllocationInOldSpaceFromMainThread': [SKIP],
-  'test-cpu-profiler/BytecodeFlushEventsEagerLogging': [SKIP],
-  'test-cpu-profiler/ClearUnusedWithEagerLogging': [SKIP],
-  'test-debug/AfterCompileEventWhenEventListenerIsReset': [SKIP],
-  'test-debug/BreakEventWhenEventListenerIsReset': [SKIP],
-  'test-debug/BreakPointApiAccessor': [SKIP],
-  'test-debug/BreakPointApiConstructor': [SKIP],
-  'test-debug/BreakPointApiFunction': [SKIP],
-  'test-debug/BreakPointApiGetter': [SKIP],
-  'test-debug/BreakPointApiIntrinsics': [SKIP],
-  'test-debug/BreakPointApiSetter': [SKIP],
-  'test-debug/BreakPointBoundBuiltin': [SKIP],
-  'test-debug/BreakPointBuiltin': [SKIP],
-  'test-debug/BreakPointBuiltinNewContext': [SKIP],
-  'test-debug/BreakPointBuiltinTFOperator': [SKIP],
-  'test-debug/BreakPointCondition': [SKIP],
-  'test-debug/BreakPointConditionBuiltin': [SKIP],
-  'test-debug/BreakPointConstructCallWithGC': [SKIP],
-  'test-debug/BreakPointConstructorBuiltin': [SKIP],
-  'test-debug/BreakPointICCall': [SKIP],
-  'test-debug/BreakPointICCallWithGC': [SKIP],
-  'test-debug/BreakPointICLoad': [SKIP],
-  'test-debug/BreakPointICStore': [SKIP],
-  'test-debug/BreakPointInlineApiFunction': [SKIP],
-  'test-debug/BreakPointInlineBoundBuiltin': [SKIP],
-  'test-debug/BreakPointInlinedBuiltin': [SKIP],
-  'test-debug/BreakPointInlinedConstructorBuiltin': [SKIP],
-  'test-debug/BreakPointInlining': [SKIP],
-  'test-debug/BreakPointJSBuiltin': [SKIP],
-  'test-debug/BreakPointSurviveGC': [SKIP],
-  'test-debug/ConditionalBreakpointWithCodeGenerationDisallowed': [SKIP],
-  'test-debug/ContextData': [SKIP],
-  'test-debug/DebugBreak': [SKIP],
-  'test-debug/DebugBreakInDoWhileCondition1': [SKIP],
-  'test-debug/DebugBreakInDoWhileCondition2': [SKIP],
-  'test-debug/DebugBreakInDoWhileTrue1': [SKIP],
-  'test-debug/DebugBreakInDoWhileTrue2': [SKIP],
-  'test-debug/DebugBreakInFor1': [SKIP],
-  'test-debug/DebugBreakInFor2': [SKIP],
-  'test-debug/DebugBreakInForCondition1': [SKIP],
-  'test-debug/DebugBreakInForCondition2': [SKIP],
-  'test-debug/DebugBreakInWhileCondition1': [SKIP],
-  'test-debug/DebugBreakInWhileCondition2': [SKIP],
-  'test-debug/DebugBreakInWhileTrue1': [SKIP],
-  'test-debug/DebugBreakInWhileTrue2': [SKIP],
-  'test-debug/DebugBreakInWrappedScript': [SKIP],
-  'test-debug/DebugBreakWithoutJS': [SKIP],
-  'test-debug/DebugConditional': [SKIP],
-  'test-debug/DebugSetOutOfMemoryListener': [SKIP],
-  'test-debug/DebugStepDeclarations': [SKIP],
-  'test-debug/DebugStepDoWhile': [SKIP],
-  'test-debug/DebugStepFor': [SKIP],
-  'test-debug/DebugStepForBreak': [SKIP],
-  'test-debug/DebugStepForContinue': [SKIP],
-  'test-debug/DebugStepForIn': [SKIP],
-  'test-debug/DebugStepFunctionApply': [SKIP],
-  'test-debug/DebugStepFunctionCall': [SKIP],
-  'test-debug/DebugStepFunctionCallApply': [SKIP],
-  'test-debug/DebugStepIf': [SKIP],
-  'test-debug/DebugStepKeyedLoadLoop': [SKIP],
-  'test-debug/DebugStepKeyedStoreLoop': [SKIP],
-  'test-debug/DebugStepLinear': [SKIP],
-  'test-debug/DebugStepLinearMixedICs': [SKIP],
-  'test-debug/DebugStepLocals': [SKIP],
-  'test-debug/DebugStepNamedLoadLoop': [SKIP],
-  'test-debug/DebugStepNamedStoreLoop': [SKIP],
-  'test-debug/DebugStepNatives': [SKIP],
-  'test-debug/DebugStepSwitch': [SKIP],
-  'test-debug/DebugStepWhile': [SKIP],
-  'test-debug/DebugStepWith': [SKIP],
-  'test-debug/DebuggerStatement': [SKIP],
-  'test-debug/DebuggerStatementBreakpoint': [SKIP],
-  'test-debug/DebuggerUnload': [SKIP],
-  'test-debug/DisableBreak': [SKIP],
-  'test-debug/EvalContextData': [SKIP],
-  'test-debug/GCDuringBreakPointProcessing': [SKIP],
-  'test-debug/NoBreakWhenBootstrapping': [SKIP],
-  'test-debug/NoDebugBreakInAfterCompileEventListener': [SKIP],
-  'test-debug/PauseInScript': [SKIP],
-  'test-debug/Regress1163547': [SKIP],
-  'test-debug/RepeatDebugBreak': [SKIP],
-  'test-debug/TerminateOnResumeAtBreakOnEntry': [SKIP],
-  'test-debug/TerminateOnResumeAtBreakOnEntryUserDefinedFunction': [SKIP],
-  'test-debug/TerminateOnResumeAtBreakpoint': [SKIP],
-  'test-debug/TerminateOnResumeAtException': [SKIP],
-  'test-debug/TerminateOnResumeAtInterruptFromOtherThread': [SKIP],
-  'test-debug/TerminateOnResumeAtUnhandledRejection': [SKIP],
-  'test-debug/TerminateOnResumeAtUnhandledRejectionCppImpl': [SKIP],
-  'test-debug/TerminateOnResumeFromMicrotask': [SKIP],
-  'test-debug/TerminateOnResumeFromOtherThread': [SKIP],
-  'test-debug/TerminateOnResumeRunJavaScriptAtBreakpoint': [SKIP],
-  'test-debug/TerminateOnResumeRunMicrotaskAtBreakpoint': [SKIP],
-  'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesAfterExternalization': [SKIP],
-  'test-external-string-tracker/ExternalString_ExternalBackingStoreSizeIncreasesMarkCompact': [SKIP],
-  'test-heap-profiler/HeapSnapshotDeleteDuringTakeSnapshot': [SKIP],
-  'test-heap-profiler/HeapSnapshotObjectsStats': [SKIP],
-  'test-heap-profiler/SamplingHeapProfilerPretenuredInlineAllocations': [SKIP],
-  'test-heap-profiler/TrackBumpPointerAllocations': [SKIP],
-  'test-heap/AllocateExternalBackingStore': [SKIP],
-  'test-heap/BytecodeArray': [SKIP],
-  'test-heap/CellsInOptimizedCodeAreWeak': [SKIP],
-  'test-heap/CompilationCacheCachingBehavior': [SKIP],
-  'test-heap/DeleteWeakGlobalHandle': [SKIP],
-  'test-heap/EnsureAllocationSiteDependentCodesProcessed': [SKIP],
-  'test-heap/LeakNativeContextViaFunction': [SKIP],
-  'test-heap/LeakNativeContextViaMap': [SKIP],
-  'test-heap/LeakNativeContextViaMapKeyed': [SKIP],
-  'test-heap/LeakNativeContextViaMapProto': [SKIP],
-  'test-heap/LiveBytes': [SKIP],
-  'test-heap/MonomorphicStaysMonomorphicAfterGC': [SKIP],
-  'test-heap/NextCodeLinkInCodeDataContainerIsCleared': [SKIP],
-  'test-heap/NextCodeLinkIsWeak': [SKIP],
-  'test-heap/NextCodeLinkIsWeak2': [SKIP],
-  'test-heap/ObjectsInEagerlyDeoptimizedCodeAreWeak': [SKIP],
-  'test-heap/ObjectsInOptimizedCodeAreWeak': [SKIP],
-  'test-heap/OldSpaceAllocationCounter': [SKIP],
-  'test-heap/OutOfMemoryIneffectiveGCRunningJS': [SKIP],
-  'test-heap/Regress10843': [SKIP],
-  'test-heap/Regress3877': [SKIP],
-  'test-heap/Regress609761': [SKIP],
-  'test-heap/ReleaseOverReservedPages': [SKIP],
-  'test-heap/ReleaseStackTraceData': [SKIP],
-  'test-heap/RememberedSet_OldToOld': [SKIP],
-  'test-heap/TestBytecodeFlushing': [SKIP],
-  'test-heap/TestInternalWeakLists': [SKIP],
-  'test-heap/TestSizeOfObjects': [SKIP],
-  'test-heap/TransitionArrayShrinksDuringAllocToOne': [SKIP],
-  'test-heap/TransitionArrayShrinksDuringAllocToOnePropertyFound': [SKIP],
-  'test-heap/TransitionArrayShrinksDuringAllocToZero': [SKIP],
-  'test-heap/UncommitUnusedLargeObjectMemory': [SKIP],
-  'test-heap/WeakFunctionInConstructor': [SKIP],
-  'test-heap/WeakGlobalHandlesMark': [SKIP],
-  'test-heap/WeakGlobalUnmodifiedApiHandlesScavenge': [SKIP],
-  'test-heap/WeakMapInMonomorphicCompareNilIC': [SKIP],
-  'test-heap/WeakMapInMonomorphicKeyedLoadIC': [SKIP],
-  'test-heap/WeakMapInMonomorphicKeyedStoreIC': [SKIP],
-  'test-heap/WeakMapInMonomorphicLoadIC': [SKIP],
-  'test-heap/WeakMapInMonomorphicStoreIC': [SKIP],
-  'test-heap/WeakMapInPolymorphicKeyedLoadIC': [SKIP],
-  'test-heap/WeakMapInPolymorphicKeyedStoreIC': [SKIP],
-  'test-heap/WeakMapInPolymorphicLoadIC': [SKIP],
-  'test-heap/WeakMapInPolymorphicStoreIC': [SKIP],
-  'test-js-weak-refs/TestJSWeakRef': [SKIP],
-  'test-js-weak-refs/TestJSWeakRefKeepDuringJob': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I32SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_I64SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmInterpreter_LoadMemI32_const_oob_misaligned': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I32SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_I64SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmLiftoff_LoadMemI32_const_oob_misaligned': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I32SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64AddOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64DivSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64DivUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64MulOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64RemSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64RemUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64ShlOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64ShrSOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64ShrUOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_I64SubOnDifferentRegisters': [SKIP],
-  'test-run-wasm/RunWasmTurbofan_LoadMemI32_const_oob_misaligned': [SKIP],
-  'test-serialize/CustomSnapshotDataBlobStackOverflow': [SKIP],
-  'test-serialize/CustomSnapshotManyArrayBuffers': [SKIP],
-  'test-weak-references/PrototypeUsersCompacted': [SKIP],
-  'test-weak-references/WeakArrayListBasic': [SKIP],
-  'test-weak-references/WeakArraysBasic': [SKIP],
-  'test-weak-references/WeakReferencesBasic': [SKIP],
-  # Timeout (too many GCs)
-  'test-heap/Regress8014': [SKIP],
-  'test-accessors/HandleScopePop': [SKIP],
-}], # third_party_heap
-
-################################################################################
-['variant == always_sparkplug', {
+['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # %ObserveNode tests rely on TurboFan.
   'test-calls-with-arraylike-or-spread/*': [SKIP],
 }],
@@ -1095,9 +750,96 @@
 
 ##############################################################################
 ['variant == turboshaft', {
-  # TODO(v8:12783, nicohartmann@): FastApiCalls temporarily disabled on
-  # Turboshaft until support has been properly ported.
-  'test-api/FastApiCalls': [SKIP],
+  # The 'turboshaft' variant sets the '--no-liftoff' flag, which means that Wasm
+  # compiles directly to Turboshaft. This makes the cache no longer incremental,
+  # and these tests don't make sense.
+  # TODO(14108): Remove once we remove '--no-liftoff' from the 'turboshaft'
+  # variant.
+  'test-streaming-compilation/AsyncTestIncrementalCaching': [SKIP],
+  'test-streaming-compilation/SingleThreadedTestIncrementalCaching': [SKIP],
 }],  # variant == turboshaft
 
+##############################################################################
+['variant != turboshaft and variant != future', {
+  # Some ops' revectorization support only implemented in turboshaft.
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I16x16ExtMulI8x16U': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I32x8ExtMulI16x8U': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4S': [SKIP],
+  'test-run-wasm-simd/RunWasmTurbofan_I64x4ExtMulI32x4U': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I8x32RelaxedLaneSelect': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I16x16RelaxedLaneSelect': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x8RelaxedLaneSelect': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I64x4RelaxedLaneSelect': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I32x8DotI8x32I7x32AddS': [SKIP],
+  'test-run-wasm-relaxed-simd/RunWasm_I16x16DotI8x32I7x32S': [SKIP],
+}],  # variant != turboshaft and variant != future
+
+##############################################################################
+# Behavioural differences between Maglev and Turbofan when the former is used
+# for OptimizeFunctionOnNextCall.
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
+  # Maglev doesn't support compiler::NodeObserver machinery.
+  'test-js-to-wasm/TestFastJSWasmCall_I32Arg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_Nop': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_MixedMistypedArgs': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_MistypedArgs': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F64Result': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_MixedArgs': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I64Result': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_NoArgs': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_I64Arg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_I32ArgNotSmi': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_I64ArgExpectsBigInt': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_I32ArgDoesntExpectBigInt': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_VoidResult': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_I32Result': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_I64NegativeResult': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_LazyDeopt_F32Result': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_MismatchedArity': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_MultipleArgs': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_EagerDeopt': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_F64ArgDoesntExpectBigInt': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_ExternrefArg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_F32Arg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_F64Arg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_NoReturnTypes': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_ExternrefNullArg': [FAIL],
+  'test-js-to-wasm/TestFastJSWasmCall_F32ArgDoesntExpectBigInt': [FAIL],
+  'test-calls-with-arraylike-or-spread/ReduceJSCallWithArrayLike': [FAIL],
+  'test-calls-with-arraylike-or-spread/ReduceJSCallWithSpread': [FAIL],
+  'test-calls-with-arraylike-or-spread/ReduceJSCreateBoundFunction': [FAIL],
+  'test-calls-with-arraylike-or-spread/ReduceJSCreateClosure': [FAIL],
+  'test-verify-type/TestVerifyType': [FAIL],
+  # Maglev doesn't support FastApi calls.
+  'test-api/FastApiCalls': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGCInJS': [FAIL],
+  'test-api/FastApiCallWithAllocationAndGCInC': [FAIL],
+  'test-api/FastApiSequenceOverloads': [FAIL],
+  'test-api/FastApiCallRecursionNoException': [FAIL],
+  'test-api/FastApiCallRecursionWithException': [FAIL],
+  'test-api/FastApiCallWithThrowInReentrantCode': [FAIL],
+}],  # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
+['conservative_stack_scanning', {
+  # Needs --predictable.
+  'test-serialize/StaticRootsPredictableSnapshot': [SKIP],
+}],  # conservative_stack_scanning
+
+['clang_coverage and mode == debug', {
+  # Too slow tests.
+  'test-concurrent-allocation/ConcurrentAllocationInLargeSpace': [SKIP],
+  'test-serialize/ContextSerializerContext': [SKIP],
+  'test-serialize/ContextSerializerCustomContext': [SKIP],
+  'test-serialize/StartupSerializerOnceRunScript': [SKIP],
+  'test-serialize/StartupSerializerTwiceRunScript': [SKIP],
+  'test-api/Threading8': [SKIP],
+  'test-heap/TestInternalWeakLists': [SKIP],
+}],  # 'clang_coverage and mode == debug'
+
+['leaptiering', {
+  # Skip tests that test the old tiering behavior.
+  'test-heap/TestUseOfIncrementalBarrierOnCompileLazy': [SKIP],
+}],  # 'leaptiering'
 ]

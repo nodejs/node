@@ -6,11 +6,10 @@ require('../common');
 const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
 const fs = require('fs');
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 {
   // The list of modules supported in the snapshot is unstable, so just check
   // a few that are known to work.
@@ -20,7 +19,7 @@ const blobPath = path.join(tmpdir.path, 'snapshot.blob');
     require("node:fs/promises");
   `;
   fs.writeFileSync(
-    path.join(tmpdir.path, 'entry.js'),
+    tmpdir.resolve('entry.js'),
     code,
     'utf8'
   );
@@ -37,6 +36,6 @@ const blobPath = path.join(tmpdir.path, 'snapshot.blob');
     console.log(child.stdout.toString());
     assert.strictEqual(child.status, 0);
   }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }

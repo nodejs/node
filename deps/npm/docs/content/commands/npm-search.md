@@ -7,7 +7,7 @@ description: Search for packages
 ### Synopsis
 
 ```bash
-npm search [search terms ...]
+npm search <search term> [<search term> ...]
 
 aliases: find, s, se
 ```
@@ -39,13 +39,6 @@ expression characters in most shells.)
 
 ### Configuration
 
-#### `long`
-
-* Default: false
-* Type: Boolean
-
-Show extended information in `ls`, `search`, and `help-search`.
-
 #### `json`
 
 * Default: false
@@ -58,6 +51,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `color`
 
 * Default: true unless the NO_COLOR environ is set to something other than '0'
@@ -65,6 +60,8 @@ Not supported by all npm commands.
 
 If false, never shows colors. If `"always"` then always shows colors. If
 true, then only prints color codes for tty file descriptors.
+
+
 
 #### `parseable`
 
@@ -74,12 +71,26 @@ true, then only prints color codes for tty file descriptors.
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
 
+
+
 #### `description`
 
 * Default: true
 * Type: Boolean
 
 Show the description in `npm search`
+
+
+
+#### `searchlimit`
+
+* Default: 20
+* Type: Number
+
+Number of items to limit search results to. Will not apply at all to legacy
+searches.
+
+
 
 #### `searchopts`
 
@@ -88,12 +99,16 @@ Show the description in `npm search`
 
 Space-separated options that are always passed to search.
 
+
+
 #### `searchexclude`
 
 * Default: ""
 * Type: String
 
 Space-separated options that limit the results from search.
+
+
 
 #### `registry`
 
@@ -102,6 +117,8 @@ Space-separated options that limit the results from search.
 
 The base URL of the npm registry.
 
+
+
 #### `prefer-online`
 
 * Default: false
@@ -109,6 +126,8 @@ The base URL of the npm registry.
 
 If true, staleness checks for cached data will be forced, making the CLI
 look for updates immediately even for fresh package data.
+
+
 
 #### `prefer-offline`
 
@@ -119,6 +138,8 @@ If true, staleness checks for cached data will be bypassed, but missing data
 will be requested from the server. To force full offline mode, use
 `--offline`.
 
+
+
 #### `offline`
 
 * Default: false
@@ -126,6 +147,8 @@ will be requested from the server. To force full offline mode, use
 
 Force offline mode: no network requests will be done during install. To
 allow the CLI to fill in missing cache data, see `--prefer-offline`.
+
+
 
 ### See Also
 

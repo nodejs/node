@@ -108,7 +108,9 @@ def _default_args():
                 "-fno-strict-aliasing",
                 "-Werror",
                 "-Wextra",
-                "-Wno-unknown-warning-option",
+                "-Wno-unneeded-internal-declaration",
+                "-Wno-unknown-warning-option", # b/330781959
+                "-Wno-cast-function-type-mismatch",  # b/330781959
                 "-Wno-bitwise-instead-of-logical",
                 "-Wno-builtin-assume-aligned-alignment",
                 "-Wno-unused-parameter",
@@ -121,7 +123,8 @@ def _default_args():
         }) + select({
             "@v8//bazel/config:is_clang": [
                 "-Wno-invalid-offsetof",
-                "-std=c++17",
+                "-Wno-deprecated-this-capture",
+                "-std=c++20",
             ],
             "@v8//bazel/config:is_gcc": [
                 "-Wno-extra",
@@ -136,12 +139,13 @@ def _default_args():
                 "-Wno-redundant-move",
                 "-Wno-return-type",
                 "-Wno-stringop-overflow",
+                "-Wno-deprecated-this-capture",
                 # Use GNU dialect, because GCC doesn't allow using
                 # ##__VA_ARGS__ when in standards-conforming mode.
-                "-std=gnu++17",
+                "-std=gnu++2a",
             ],
             "@v8//bazel/config:is_windows": [
-                "/std:c++17",
+                "/std:c++20",
             ],
             "//conditions:default": [],
         }) + select({
@@ -308,11 +312,11 @@ def v8_library(
             **kwargs
         )
 
-def _torque_initializers_impl(ctx):
-    if ctx.workspace_name == "v8":
-        v8root = "."
-    else:
-        v8root = "external/v8"
+# Use a single generator target for torque definitions and initializers. We can
+# split the set of outputs by using OutputGroupInfo, that way we do not need to
+# run the torque generator twice.
+def _torque_files_impl(ctx):
+    v8root = "."
 
     # Arguments
     args = []
@@ -327,7 +331,8 @@ def _torque_initializers_impl(ctx):
     args += [f.path for f in ctx.files.srcs]
 
     # Generate/declare output files
-    outs = []
+    defs = []
+    inits = []
     for src in ctx.files.srcs:
         root, _period, _ext = src.path.rpartition(".")
 
@@ -335,26 +340,39 @@ def _torque_initializers_impl(ctx):
         if root[:len(v8root)] == v8root:
             root = root[len(v8root):]
         file = ctx.attr.prefix + "/torque-generated/" + root
-        outs.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
-        outs.append(ctx.actions.declare_file(file + "-tq-csa.h"))
-    outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
+        defs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
+        defs.append(ctx.actions.declare_file(file + "-tq.inc"))
+        defs.append(ctx.actions.declare_file(file + "-tq.cc"))
+        inits.append(ctx.actions.declare_file(file + "-tq-csa.cc"))
+        inits.append(ctx.actions.declare_file(file + "-tq-csa.h"))
+
+    defs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.definition_extras]
+    inits += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.initializer_extras]
+    outs = defs + inits
     ctx.actions.run(
         outputs = outs,
         inputs = ctx.files.srcs,
         arguments = args,
         executable = ctx.executable.tool,
-        mnemonic = "GenTorqueInitializers",
-        progress_message = "Generating Torque initializers",
+        mnemonic = "GenTorqueFiles",
+        progress_message = "Generating Torque files",
     )
-    return [DefaultInfo(files = depset(outs))]
+    return [
+        DefaultInfo(files = depset(outs)),
+        OutputGroupInfo(
+            initializers = depset(inits),
+            definitions = depset(defs),
+        ),
+    ]
 
-_v8_torque_initializers = rule(
-    implementation = _torque_initializers_impl,
+_v8_torque_files = rule(
+    implementation = _torque_files_impl,
     # cfg = v8_target_cpu_transition,
     attrs = {
         "prefix": attr.string(mandatory = True),
         "srcs": attr.label_list(allow_files = True, mandatory = True),
-        "extras": attr.string_list(),
+        "definition_extras": attr.string_list(),
+        "initializer_extras": attr.string_list(),
         "tool": attr.label(
             allow_files = True,
             executable = True,
@@ -364,105 +382,26 @@ _v8_torque_initializers = rule(
     },
 )
 
-def v8_torque_initializers(name, noicu_srcs, icu_srcs, args, extras):
-    _v8_torque_initializers(
+def v8_torque_files(name, noicu_srcs, icu_srcs, args, definition_extras, initializer_extras):
+    _v8_torque_files(
         name = "noicu/" + name,
         prefix = "noicu",
         srcs = noicu_srcs,
         args = args,
-        extras = extras,
+        definition_extras = definition_extras,
+        initializer_extras = initializer_extras,
         tool = select({
             "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
             "//conditions:default": ":noicu/torque",
         }),
     )
-    _v8_torque_initializers(
+    _v8_torque_files(
         name = "icu/" + name,
         prefix = "icu",
         srcs = icu_srcs,
         args = args,
-        extras = extras,
-        tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
-            "//conditions:default": ":icu/torque",
-        }),
-    )
-
-def _torque_definitions_impl(ctx):
-    if ctx.workspace_name == "v8":
-        v8root = "."
-    else:
-        v8root = "external/v8"
-
-    # Arguments
-    args = []
-    args += ctx.attr.args
-    args.append("-o")
-    args.append(ctx.bin_dir.path + "/" + v8root + "/" + ctx.attr.prefix + "/torque-generated")
-    args.append("-strip-v8-root")
-    args.append("-v8-root")
-    args.append(v8root)
-
-    # Sources
-    args += [f.path for f in ctx.files.srcs]
-
-    # Generate/declare output files
-    outs = []
-    for src in ctx.files.srcs:
-        root, _period, _ext = src.path.rpartition(".")
-
-        # Strip v8root
-        if root[:len(v8root)] == v8root:
-            root = root[len(v8root):]
-        file = ctx.attr.prefix + "/torque-generated/" + root
-        outs.append(ctx.actions.declare_file(file + "-tq-inl.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.inc"))
-        outs.append(ctx.actions.declare_file(file + "-tq.cc"))
-    outs += [ctx.actions.declare_file(ctx.attr.prefix + "/torque-generated/" + f) for f in ctx.attr.extras]
-    ctx.actions.run(
-        outputs = outs,
-        inputs = ctx.files.srcs,
-        arguments = args,
-        executable = ctx.executable.tool,
-        mnemonic = "GenTorqueDefinitions",
-        progress_message = "Generating Torque definitions",
-    )
-    return [DefaultInfo(files = depset(outs))]
-
-_v8_torque_definitions = rule(
-    implementation = _torque_definitions_impl,
-    # cfg = v8_target_cpu_transition,
-    attrs = {
-        "prefix": attr.string(mandatory = True),
-        "srcs": attr.label_list(allow_files = True, mandatory = True),
-        "extras": attr.string_list(),
-        "tool": attr.label(
-            allow_files = True,
-            executable = True,
-            cfg = "exec",
-        ),
-        "args": attr.string_list(),
-    },
-)
-
-def v8_torque_definitions(name, noicu_srcs, icu_srcs, args, extras):
-    _v8_torque_definitions(
-        name = "noicu/" + name,
-        prefix = "noicu",
-        srcs = noicu_srcs,
-        args = args,
-        extras = extras,
-        tool = select({
-            "@v8//bazel/config:v8_target_is_32_bits": ":noicu/torque_non_pointer_compression",
-            "//conditions:default": ":noicu/torque",
-        }),
-    )
-    _v8_torque_definitions(
-        name = "icu/" + name,
-        prefix = "icu",
-        srcs = icu_srcs,
-        args = args,
-        extras = extras,
+        definition_extras = definition_extras,
+        initializer_extras = initializer_extras,
         tool = select({
             "@v8//bazel/config:v8_target_is_32_bits": ":icu/torque_non_pointer_compression",
             "//conditions:default": ":icu/torque",
@@ -475,7 +414,7 @@ def _v8_target_cpu_transition_impl(settings,
     # Check for an existing v8_target_cpu flag.
     if "@v8//bazel/config:v8_target_cpu" in settings:
         if settings["@v8//bazel/config:v8_target_cpu"] != "none":
-            return
+            return {}
 
     # Auto-detect target architecture based on the --cpu flag.
     mapping = {
@@ -541,9 +480,6 @@ _v8_mksnapshot = rule(
             cfg = "exec",
         ),
         "target_os": attr.string(mandatory = True),
-        "_allowlist_function_transition": attr.label(
-            default = "@bazel_tools//tools/allowlists/function_transition_allowlist",
-        ),
         "prefix": attr.string(mandatory = True),
         "suffix": attr.string(mandatory = True),
     },
@@ -592,57 +528,73 @@ def _json(kv_pairs):
     return content
 
 def build_config_content(cpu, icu):
+    arch = cpu
+    if cpu == 'x86':
+        arch = 'ia32'
     return _json([
+        ("arch", arch),
+        ("asan", "false"),
+        ("atomic_object_field_writes", "false"),
+        ("cfi", "false"),
+        ("clang_coverage", "false"),
+        ("clang", "true"),
+        ("code_comments", "false"),
+        ("component_build", "false"),
+        ("concurrent_marking", "false"),
+        ("conservative_stack_scanning", "false"),
         ("current_cpu", cpu),
         ("dcheck_always_on", "false"),
+        ("debug_code", "false"),
+        ("DEBUG_defined", "false"),
+        ("debugging_features", "false"),
+        ("dict_property_const_tracking", "false"),
+        ("direct_handle", "false"),
+        ("disassembler", "false"),
+        ("full_debug", "false"),
+        ("gdbjit", "false"),
+        ("has_jitless", "false"),
+        ("has_maglev", "true"),
+        ("has_turbofan", "true"),
+        ("has_webassembly", "false"),
+        ("has_wasm_interpreter", "false"),
+        ("i18n", icu),
         ("is_android", "false"),
-        ("is_asan", "false"),
-        ("is_cfi", "false"),
-        ("is_clang", "true"),
-        ("is_clang_coverage", "false"),
-        ("is_component_build", "false"),
-        ("is_debug", "false"),
-        ("is_full_debug", "false"),
-        ("is_msan", "false"),
-        ("is_tsan", "false"),
-        ("is_ubsan_vptr", "false"),
+        ("is_ios", "false"),
+        ("js_shared_memory", "false"),
+        ("leaptiering", "true"),
+        ("lite_mode", "false"),
+        ("local_off_stack_check", "false"),
+        ("memory_corruption_api", "false"),
+        ("mips_arch_variant", '""'),
+        ("mips_use_msa", "false"),
+        ("msan", "false"),
+        ("official_build", "false"),
+        ("pointer_compression_shared_cage", "false"),
+        ("pointer_compression", "true"),
+        ("runtime_call_stats", "false"),
+        ("sandbox", "false"),
+        ("shared_ro_heap", "false"),
+        ("simd_mips", "false"),
+        ("simulator_run", "false"),
+        ("single_generation", "false"),
+        ("slow_dchecks", "false"),
         ("target_cpu", cpu),
+        ("tsan", "false"),
+        ("ubsan", "false"),
+        ("use_sanitizer", "false"),
+        ("v8_cfi", "false"),
         ("v8_current_cpu", cpu),
-        ("v8_dict_property_const_tracking", "false"),
-        ("v8_enable_atomic_object_field_writes", "false"),
-        ("v8_enable_conservative_stack_scanning", "false"),
-        ("v8_enable_concurrent_marking", "false"),
-        ("v8_enable_i18n_support", icu),
-        ("v8_enable_verify_predictable", "false"),
-        ("v8_enable_verify_csa", "false"),
-        ("v8_enable_lite_mode", "false"),
-        ("v8_enable_runtime_call_stats", "false"),
-        ("v8_enable_pointer_compression", "true"),
-        ("v8_enable_pointer_compression_shared_cage", "false"),
-        ("v8_enable_third_party_heap", "false"),
-        ("v8_enable_webassembly", "false"),
-        ("v8_control_flow_integrity", "false"),
-        ("v8_enable_single_generation", "false"),
-        ("v8_enable_sandbox", "false"),
-        ("v8_enable_shared_ro_heap", "false"),
-        ("v8_disable_write_barriers", "false"),
         ("v8_target_cpu", cpu),
-        ("v8_code_comments", "false"),
-        ("v8_enable_debug_code", "false"),
-        ("v8_enable_verify_heap", "false"),
-        ("v8_enable_slow_dchecks", "false"),
-        ("v8_enable_maglev", "false"),
-        ("v8_enable_turbofan", "true"),
-        ("v8_enable_disassembler", "false"),
-        ("is_DEBUG_defined", "false"),
-        ("v8_enable_gdbjit", "false"),
-        ("v8_jitless", "false"),
+        ("verify_csa", "false"),
+        ("verify_heap", "false"),
+        ("verify_predictable", "false"),
+        ("write_barriers", "false"),
     ])
 
 # TODO(victorgomes): Create a rule (instead of a macro), that can
 # dynamically populate the build config.
-def v8_build_config(name):
-    cpu = _quote("x64")
+def v8_build_config(name, arch):
+    cpu = '"' + arch + '"'
     native.genrule(
         name = "noicu/" + name,
         outs = ["noicu/" + name + ".json"],

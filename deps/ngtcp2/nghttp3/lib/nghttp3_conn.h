@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <nghttp3/nghttp3.h>
 
@@ -62,6 +62,9 @@
 /* NGHTTP3_CONN_FLAG_QPACK_DECODER_OPENED is set when a QPACK decoder
    stream has opened. */
 #define NGHTTP3_CONN_FLAG_QPACK_DECODER_OPENED 0x0008u
+/* NGHTTP3_CONN_FLAG_SHUTDOWN_COMMENCED is set when graceful shutdown
+   has started. */
+#define NGHTTP3_CONN_FLAG_SHUTDOWN_COMMENCED 0x0010u
 /* NGHTTP3_CONN_FLAG_GOAWAY_RECVED indicates that GOAWAY frame has
    received. */
 #define NGHTTP3_CONN_FLAG_GOAWAY_RECVED 0x0020u
@@ -73,7 +76,7 @@ typedef struct nghttp3_chunk {
   nghttp3_opl_entry oplent;
 } nghttp3_chunk;
 
-nghttp3_objalloc_def(chunk, nghttp3_chunk, oplent);
+nghttp3_objalloc_decl(chunk, nghttp3_chunk, oplent);
 
 struct nghttp3_conn {
   nghttp3_objalloc out_chunk_objalloc;
@@ -90,7 +93,6 @@ struct nghttp3_conn {
   void *user_data;
   int server;
   uint16_t flags;
-  uint64_t next_seq;
 
   struct {
     nghttp3_settings settings;
@@ -109,6 +111,10 @@ struct nghttp3_conn {
          initiated bidirectional stream ID the remote endpoint can
          issue.  This field is used on server side only. */
       uint64_t max_client_streams;
+      /* num_streams is the number of client initiated bidirectional
+         streams that are currently open.  This field is for server
+         use only. */
+      size_t num_streams;
     } bidi;
     nghttp3_settings settings;
   } remote;
@@ -198,4 +204,4 @@ int nghttp3_conn_reject_stream(nghttp3_conn *conn, nghttp3_stream *stream);
  */
 nghttp3_stream *nghttp3_conn_get_next_tx_stream(nghttp3_conn *conn);
 
-#endif /* NGHTTP3_CONN_H */
+#endif /* !defined(NGHTTP3_CONN_H) */

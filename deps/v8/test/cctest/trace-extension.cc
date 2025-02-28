@@ -61,19 +61,21 @@ v8::Local<v8::FunctionTemplate> TraceExtension::GetNativeFunctionTemplate(
   UNREACHABLE();
 }
 
-
-Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& args) {
+Address TraceExtension::GetFP(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // Convert frame pointer from encoding as smis in the arguments to a pointer.
-  CHECK_EQ(2, args.Length());  // Ignore second argument on 32-bit platform.
+  CHECK_EQ(2, info.Length());  // Ignore second argument on 32-bit platform.
+  CHECK(i::ValidateCallbackInfo(info));
 #if defined(V8_HOST_ARCH_32_BIT)
-  Address fp = *reinterpret_cast<Address*>(*args[0]);
+  Address fp = internal::ValueHelper::ValueAsAddress(*info[0]);
 #elif defined(V8_HOST_ARCH_64_BIT)
   uint64_t kSmiValueMask =
       (static_cast<uintptr_t>(1) << (kSmiValueSize - 1)) - 1;
   uint64_t low_bits =
-      Smi(*reinterpret_cast<Address*>(*args[0])).value() & kSmiValueMask;
+      Tagged<Smi>(internal::ValueHelper::ValueAsAddress(*info[0])).value() &
+      kSmiValueMask;
   uint64_t high_bits =
-      Smi(*reinterpret_cast<Address*>(*args[1])).value() & kSmiValueMask;
+      Tagged<Smi>(internal::ValueHelper::ValueAsAddress(*info[1])).value() &
+      kSmiValueMask;
   Address fp =
       static_cast<Address>((high_bits << (kSmiValueSize - 1)) | low_bits);
 #else
@@ -99,15 +101,14 @@ void TraceExtension::DoTrace(Address fp) {
                          TickSample::kSkipCEntryFrame, true);
 }
 
-
-void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+void TraceExtension::Trace(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
   Address address = reinterpret_cast<Address>(&TraceExtension::Trace);
   i::ExternalCallbackScope call_scope(isolate, address);
-  DoTrace(GetFP(args));
+  DoTrace(GetFP(info));
 }
-
 
 // Hide c_entry_fp to emulate situation when sampling is done while
 // pure JS code is being executed
@@ -120,37 +121,35 @@ static void DoTraceHideCEntryFPAddress(Address fp) {
   *(CcTest::i_isolate()->c_entry_fp_address()) = saved_c_frame_fp;
 }
 
-
-void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& args) {
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(args.GetIsolate());
+void TraceExtension::JSTrace(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
   i::VMState<EXTERNAL> state(isolate);
   Address address = reinterpret_cast<Address>(&TraceExtension::JSTrace);
   i::ExternalCallbackScope call_scope(isolate, address);
-  DoTraceHideCEntryFPAddress(GetFP(args));
+  DoTraceHideCEntryFPAddress(GetFP(info));
 }
-
 
 Address TraceExtension::GetJsEntrySp() {
   CHECK(CcTest::i_isolate()->thread_local_top());
   return CcTest::i_isolate()->js_entry_sp();
 }
 
-
 void TraceExtension::JSEntrySP(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   CHECK(GetJsEntrySp());
 }
 
-
 void TraceExtension::JSEntrySPLevel2(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::HandleScope scope(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::HandleScope scope(info.GetIsolate());
   const Address js_entry_sp = GetJsEntrySp();
   CHECK(js_entry_sp);
   CompileRun("js_entry_sp();");
   CHECK_EQ(js_entry_sp, GetJsEntrySp());
 }
-
 
 }  // namespace internal
 }  // namespace v8

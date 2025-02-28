@@ -37,8 +37,8 @@ class PredictablePlatform final : public Platform {
   }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
-    return platform_->GetForegroundTaskRunner(isolate);
+      v8::Isolate* isolate, TaskPriority priority) override {
+    return platform_->GetForegroundTaskRunner(isolate, priority);
   }
 
   int NumberOfWorkerThreads() override {
@@ -48,7 +48,9 @@ class PredictablePlatform final : public Platform {
     return platform_->NumberOfWorkerThreads();
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
     // We post worker tasks on the foreground task runner of the
     // {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate. The task
     // queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue} isolate
@@ -58,29 +60,23 @@ class PredictablePlatform final : public Platform {
     // background thread. The reason is that code is executed sequentially with
     // the PredictablePlatform, and that the {DefaultPlatform} does not access
     // the isolate but only uses it as the key in a HashMap.
-    GetForegroundTaskRunner(kProcessGlobalPredictablePlatformWorkerTaskQueue)
+    platform_
+        ->GetForegroundTaskRunner(
+            kProcessGlobalPredictablePlatformWorkerTaskQueue, priority)
         ->PostTask(std::move(task));
   }
 
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override {
     // Never run delayed tasks.
   }
 
   bool IdleTasksEnabled(Isolate* isolate) override { return false; }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    // Do not call {platform_->PostJob} here, as this would create a job that
-    // posts tasks directly to the underlying default platform.
-    std::unique_ptr<JobHandle> handle =
-        CreateJob(priority, std::move(job_task));
-    handle->NotifyConcurrencyIncrease();
-    return handle;
-  }
-
-  std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
+  std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) override {
     // Do not call {platform_->PostJob} here, as this would create a job that
     // posts tasks directly to the underlying default platform.
     return platform::NewDefaultJobHandle(this, priority, std::move(job_task),
@@ -148,9 +144,9 @@ class DelayedTasksPlatform final : public Platform {
   }
 
   std::shared_ptr<TaskRunner> GetForegroundTaskRunner(
-      v8::Isolate* isolate) override {
+      v8::Isolate* isolate, TaskPriority priority) override {
     std::shared_ptr<TaskRunner> runner =
-        platform_->GetForegroundTaskRunner(isolate);
+        platform_->GetForegroundTaskRunner(isolate, priority);
 
     base::MutexGuard lock_guard(&mutex_);
     // Check if we can re-materialize the weak ptr in our map.
@@ -173,28 +169,28 @@ class DelayedTasksPlatform final : public Platform {
     return platform_->NumberOfWorkerThreads();
   }
 
-  void CallOnWorkerThread(std::unique_ptr<Task> task) override {
-    platform_->CallOnWorkerThread(MakeDelayedTask(std::move(task)));
+  void PostTaskOnWorkerThreadImpl(TaskPriority priority,
+                                  std::unique_ptr<Task> task,
+                                  const SourceLocation& location) override {
+    platform_->CallOnWorkerThread(MakeDelayedTask(std::move(task)), location);
   }
 
-  void CallDelayedOnWorkerThread(std::unique_ptr<Task> task,
-                                 double delay_in_seconds) override {
+  void PostDelayedTaskOnWorkerThreadImpl(
+      TaskPriority priority, std::unique_ptr<Task> task,
+      double delay_in_seconds, const SourceLocation& location) override {
     platform_->CallDelayedOnWorkerThread(MakeDelayedTask(std::move(task)),
-                                         delay_in_seconds);
+                                         delay_in_seconds, location);
   }
 
   bool IdleTasksEnabled(Isolate* isolate) override {
     return platform_->IdleTasksEnabled(isolate);
   }
 
-  std::unique_ptr<JobHandle> PostJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->PostJob(priority, MakeDelayedJob(std::move(job_task)));
-  }
-
-  std::unique_ptr<JobHandle> CreateJob(
-      TaskPriority priority, std::unique_ptr<JobTask> job_task) override {
-    return platform_->CreateJob(priority, MakeDelayedJob(std::move(job_task)));
+  std::unique_ptr<JobHandle> CreateJobImpl(
+      TaskPriority priority, std::unique_ptr<JobTask> job_task,
+      const SourceLocation& location) override {
+    return platform_->CreateJob(priority, MakeDelayedJob(std::move(job_task)),
+                                location);
   }
 
   double MonotonicallyIncreasingTime() override {
@@ -217,30 +213,36 @@ class DelayedTasksPlatform final : public Platform {
                       DelayedTasksPlatform* platform)
         : task_runner_(task_runner), platform_(platform) {}
 
-    void PostTask(std::unique_ptr<Task> task) final {
-      task_runner_->PostTask(platform_->MakeDelayedTask(std::move(task)));
-    }
-
-    void PostNonNestableTask(std::unique_ptr<Task> task) final {
-      task_runner_->PostNonNestableTask(
-          platform_->MakeDelayedTask(std::move(task)));
-    }
-
-    void PostDelayedTask(std::unique_ptr<Task> task,
-                         double delay_in_seconds) final {
-      task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
-                                    delay_in_seconds);
-    }
-
-    void PostIdleTask(std::unique_ptr<IdleTask> task) final {
-      task_runner_->PostIdleTask(
-          platform_->MakeDelayedIdleTask(std::move(task)));
-    }
-
     bool IdleTasksEnabled() final { return task_runner_->IdleTasksEnabled(); }
 
     bool NonNestableTasksEnabled() const final {
       return task_runner_->NonNestableTasksEnabled();
+    }
+
+   private:
+    void PostTaskImpl(std::unique_ptr<Task> task,
+                      const SourceLocation& location) final {
+      task_runner_->PostTask(platform_->MakeDelayedTask(std::move(task)),
+                             location);
+    }
+
+    void PostNonNestableTaskImpl(std::unique_ptr<Task> task,
+                                 const SourceLocation& location) final {
+      task_runner_->PostNonNestableTask(
+          platform_->MakeDelayedTask(std::move(task)), location);
+    }
+
+    void PostDelayedTaskImpl(std::unique_ptr<Task> task,
+                             double delay_in_seconds,
+                             const SourceLocation& location) final {
+      task_runner_->PostDelayedTask(platform_->MakeDelayedTask(std::move(task)),
+                                    delay_in_seconds, location);
+    }
+
+    void PostIdleTaskImpl(std::unique_ptr<IdleTask> task,
+                          const SourceLocation& location) final {
+      task_runner_->PostIdleTask(
+          platform_->MakeDelayedIdleTask(std::move(task)), location);
     }
 
    private:

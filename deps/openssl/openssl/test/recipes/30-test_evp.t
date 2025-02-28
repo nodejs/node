@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -173,7 +173,8 @@ sub test_errors { # actually tests diagnostics of OSSL_STORE
 }
 
 SKIP: {
-    skip "DSA not disabled", 2 if !disabled("dsa");
+    skip "DSA not disabled or ERR disabled", 2
+        if !disabled("dsa") || disabled("err");
 
     ok(test_errors(key => 'server-dsa-key.pem',
                    out => 'server-dsa-key.err'),

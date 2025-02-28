@@ -6,11 +6,10 @@
 #define V8_HEAP_INDEX_GENERATOR_H_
 
 #include <cstddef>
+#include <optional>
 #include <queue>
-#include <stack>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 
 namespace v8 {
@@ -24,17 +23,13 @@ class V8_EXPORT_PRIVATE IndexGenerator {
   IndexGenerator(const IndexGenerator&) = delete;
   IndexGenerator& operator=(const IndexGenerator&) = delete;
 
-  base::Optional<size_t> GetNext();
-  void GiveBack(size_t index);
+  std::optional<size_t> GetNext();
 
  private:
   base::Mutex lock_;
-  // Pending indices that are ready to be handed out, prioritized over
-  // |pending_ranges_| when non-empty.
-  std::stack<size_t> pending_indices_;
-  // Pending [start, end] (exclusive) ranges to split and hand out indices from.
+  bool first_use_;
+  // Pending [start, end) ranges to split and hand out indices from.
   std::queue<std::pair<size_t, size_t>> ranges_to_split_;
-  const size_t size_;
 };
 
 }  // namespace internal

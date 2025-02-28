@@ -5,7 +5,8 @@
 #ifndef V8_COMPILER_PROPERTY_ACCESS_BUILDER_H_
 #define V8_COMPILER_PROPERTY_ACCESS_BUILDER_H_
 
-#include "src/base/optional.h"
+#include <optional>
+
 #include "src/codegen/machine-type.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node.h"
@@ -46,15 +47,14 @@ class PropertyAccessBuilder {
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
-  Node* BuildLoadDataField(NameRef const& name,
-                           PropertyAccessInfo const& access_info,
+  Node* BuildLoadDataField(NameRef name, PropertyAccessInfo const& access_info,
                            Node* lookup_start_object, Node** effect,
                            Node** control);
 
   // Tries to load a constant value from a prototype object in dictionary mode
   // and constant-folds it. Returns {} if the constant couldn't be safely
   // retrieved.
-  base::Optional<Node*> FoldLoadDictPrototypeConstant(
+  std::optional<Node*> FoldLoadDictPrototypeConstant(
       PropertyAccessInfo const& access_info);
 
   static MachineRepresentation ConvertRepresentation(
@@ -71,7 +71,7 @@ class PropertyAccessBuilder {
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
 
-  Node* TryFoldLoadConstantDataField(NameRef const& name,
+  Node* TryFoldLoadConstantDataField(NameRef name,
                                      PropertyAccessInfo const& access_info,
                                      Node* lookup_start_object);
   // Returns a node with the holder for the property access described by
@@ -79,8 +79,8 @@ class PropertyAccessBuilder {
   Node* ResolveHolder(PropertyAccessInfo const& access_info,
                       Node* lookup_start_object);
 
-  Node* BuildLoadDataField(NameRef const& name, Node* holder,
-                           FieldAccess& field_access, bool is_inobject,
+  Node* BuildLoadDataField(NameRef name, Node* holder,
+                           FieldAccess&& field_access, bool is_inobject,
                            Node** effect, Node** control);
 
   JSGraph* jsgraph_;

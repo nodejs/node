@@ -110,7 +110,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     DCHECK_LE(0, length);
     int data_length = (length + kDataBits - 1) >> kDataBitShift;
     if (data_length > 1) {
-      data_.ptr_ = zone->NewArray<uintptr_t>(data_length);
+      data_.ptr_ = zone->AllocateArray<uintptr_t>(data_length);
       std::fill_n(data_.ptr_, data_length, 0);
       data_begin_ = data_.ptr_;
       data_end_ = data_begin_ + data_length;
@@ -122,11 +122,34 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     if (!other.is_inline()) {
       int data_length = other.data_length();
       DCHECK_LT(1, data_length);
-      data_.ptr_ = zone->NewArray<uintptr_t>(data_length);
+      data_.ptr_ = zone->AllocateArray<uintptr_t>(data_length);
       data_begin_ = data_.ptr_;
       data_end_ = data_begin_ + data_length;
       std::copy_n(other.data_begin_, data_length, data_begin_);
     }
+  }
+
+  // Disallow copy and copy-assignment.
+  BitVector(const BitVector&) = delete;
+  BitVector& operator=(const BitVector&) = delete;
+
+  BitVector(BitVector&& other) V8_NOEXCEPT { *this = std::move(other); }
+
+  BitVector& operator=(BitVector&& other) V8_NOEXCEPT {
+    length_ = other.length_;
+    data_ = other.data_;
+    if (other.is_inline()) {
+      data_begin_ = &data_.inline_;
+      data_end_ = data_begin_ + other.data_length();
+    } else {
+      data_begin_ = other.data_begin_;
+      data_end_ = other.data_end_;
+      // Reset other to inline.
+      other.length_ = 0;
+      other.data_begin_ = &other.data_.inline_;
+      other.data_end_ = other.data_begin_ + 1;
+    }
+    return *this;
   }
 
   void CopyFrom(const BitVector& other) {
@@ -141,7 +164,7 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
     DCHECK_LE(1, old_data_length);
     int new_data_length = (new_length + kDataBits - 1) >> kDataBitShift;
     if (new_data_length > old_data_length) {
-      uintptr_t* new_data = zone->NewArray<uintptr_t>(new_data_length);
+      uintptr_t* new_data = zone->AllocateArray<uintptr_t>(new_data_length);
 
       // Copy over the data.
       std::copy_n(data_begin_, old_data_length, new_data);
@@ -241,8 +264,6 @@ class V8_EXPORT_PRIVATE BitVector : public ZoneObject {
   void Print() const;
 #endif
 
-  MOVE_ONLY_NO_DEFAULT_CONSTRUCTOR(BitVector);
-
  private:
   union DataStorage {
     uintptr_t* ptr_;    // valid if >1 machine word is needed
@@ -282,6 +303,8 @@ class GrowableBitVector {
     if (V8_UNLIKELY(!InBitsRange(value))) Grow(value, zone);
     bits_.Add(value);
   }
+
+  bool IsEmpty() const { return bits_.IsEmpty(); }
 
   void Clear() { bits_.Clear(); }
 

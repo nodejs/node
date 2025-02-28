@@ -21,6 +21,7 @@ using v8::Value;
 Realm::Realm(Environment* env, v8::Local<v8::Context> context, Kind kind)
     : env_(env), isolate_(context->GetIsolate()), kind_(kind) {
   context_.Reset(isolate_, context);
+  env->AssignToContext(context, this, ContextInfo(""));
 }
 
 Realm::~Realm() {
@@ -33,7 +34,7 @@ void Realm::MemoryInfo(MemoryTracker* tracker) const {
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
 
-  tracker->TrackField("cleanup_queue", cleanup_queue_);
+  tracker->TrackField("base_object_list", base_object_list_);
   tracker->TrackField("builtins_with_cache", builtins_with_cache);
   tracker->TrackField("builtins_without_cache", builtins_without_cache);
 }
@@ -214,7 +215,7 @@ void Realm::RunCleanup() {
   for (size_t i = 0; i < binding_data_store_.size(); ++i) {
     binding_data_store_[i].reset();
   }
-  cleanup_queue_.Drain();
+  base_object_list_.Cleanup();
 }
 
 void Realm::PrintInfoForSnapshot() {
@@ -222,7 +223,7 @@ void Realm::PrintInfoForSnapshot() {
   fprintf(stderr, "BaseObjects of the Realm:\n");
   size_t i = 0;
   ForEachBaseObject([&](BaseObject* obj) {
-    std::cout << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
+    std::cerr << "#" << i++ << " " << obj << ": " << obj->MemoryInfoName()
               << "\n";
   });
 
@@ -278,11 +279,15 @@ v8::Local<v8::Context> Realm::context() const {
   return PersistentToLocal::Strong(context_);
 }
 
+// Per-realm strong value accessors. The per-realm values should avoid being
+// accessed across realms.
 #define V(PropertyName, TypeName)                                              \
   v8::Local<TypeName> PrincipalRealm::PropertyName() const {                   \
     return PersistentToLocal::Strong(PropertyName##_);                         \
   }                                                                            \
   void PrincipalRealm::set_##PropertyName(v8::Local<TypeName> value) {         \
+    DCHECK_IMPLIES(!value.IsEmpty(),                                           \
+                   isolate()->GetCurrentContext() == context());               \
     PropertyName##_.Reset(isolate(), value);                                   \
   }
 PER_REALM_STRONG_PERSISTENT_VALUES(V)
@@ -298,6 +303,13 @@ PrincipalRealm::PrincipalRealm(Environment* env,
   if (realm_info == nullptr) {
     CreateProperties();
   }
+}
+
+PrincipalRealm::~PrincipalRealm() {
+  DCHECK(!context_.IsEmpty());
+
+  HandleScope handle_scope(isolate());
+  env_->UnassignFromContext(context());
 }
 
 MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
@@ -332,10 +344,11 @@ MaybeLocal<Value> PrincipalRealm::BootstrapRealm() {
     return MaybeLocal<Value>();
   }
 
+  // Setup process.env proxy.
   Local<String> env_string = FIXED_ONE_BYTE_STRING(isolate_, "env");
   Local<Object> env_proxy;
-  CreateEnvProxyTemplate(isolate_, env_->isolate_data());
-  if (!env_->env_proxy_template()->NewInstance(context()).ToLocal(&env_proxy) ||
+  if (!isolate_data()->env_proxy_template()->NewInstance(context()).ToLocal(
+          &env_proxy) ||
       process_object()->Set(context(), env_string, env_proxy).IsNothing()) {
     return MaybeLocal<Value>();
   }

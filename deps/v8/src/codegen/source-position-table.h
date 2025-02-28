@@ -16,10 +16,7 @@
 namespace v8 {
 namespace internal {
 
-class ByteArray;
-template <typename T>
-class Handle;
-class Isolate;
+class TrustedByteArray;
 class Zone;
 
 struct PositionTableEntry {
@@ -56,8 +53,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
 
   template <typename IsolateT>
   EXPORT_TEMPLATE_DECLARE(V8_EXPORT_PRIVATE)
-  Handle<ByteArray> ToSourcePositionTable(IsolateT* isolate);
-  base::OwnedVector<byte> ToSourcePositionTableVector();
+  Handle<TrustedByteArray> ToSourcePositionTable(IsolateT* isolate);
+  base::OwnedVector<uint8_t> ToSourcePositionTableVector();
 
   inline bool Omit() const { return mode_ != RECORD_SOURCE_POSITIONS; }
   inline bool Lazy() const { return mode_ == LAZY_SOURCE_POSITIONS; }
@@ -66,7 +63,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableBuilder {
   void AddEntry(const PositionTableEntry& entry);
 
   RecordingMode mode_;
-  ZoneVector<byte> bytes_;
+  ZoneVector<uint8_t> bytes_;
 #ifdef ENABLE_SLOW_DCHECKS
   ZoneVector<PositionTableEntry> raw_entries_;
 #endif
@@ -100,7 +97,7 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // Handlified iterator allows allocation, but it needs a handle (and thus
   // a handle scope). This is the preferred version.
   explicit SourcePositionTableIterator(
-      Handle<ByteArray> byte_array,
+      Handle<TrustedByteArray> byte_array,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -108,13 +105,14 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
   // allocation during its lifetime. This is useful if there is no handle
   // scope around.
   explicit SourcePositionTableIterator(
-      ByteArray byte_array, IterationFilter iteration_filter = kJavaScriptOnly,
+      Tagged<TrustedByteArray> byte_array,
+      IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
   // Handle-safe iterator based on an a vector located outside the garbage
   // collected heap, allows allocation during its lifetime.
   explicit SourcePositionTableIterator(
-      base::Vector<const byte> bytes,
+      base::Vector<const uint8_t> bytes,
       IterationFilter iteration_filter = kJavaScriptOnly,
       FunctionEntryFilter function_entry_filter = kSkipFunctionEntry);
 
@@ -152,8 +150,8 @@ class V8_EXPORT_PRIVATE SourcePositionTableIterator {
 
   static const int kDone = -1;
 
-  base::Vector<const byte> raw_table_;
-  Handle<ByteArray> table_;
+  base::Vector<const uint8_t> raw_table_;
+  Handle<TrustedByteArray> table_;
   int index_ = 0;
   PositionTableEntry current_;
   IterationFilter iteration_filter_;

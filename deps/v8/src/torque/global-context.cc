@@ -29,7 +29,10 @@ TargetArchitecture::TargetArchitecture(bool force_32bit)
           kSmiTagSize + (force_32bit ? SmiTagging<kApiInt32Size>::kSmiShiftSize
                                      : kSmiShiftSize)),
       external_ptr_size_(force_32bit ? sizeof(int32_t)
-                                     : kExternalPointerSlotSize) {}
+                                     : kExternalPointerSlotSize),
+      cppheap_ptr_size_(force_32bit ? sizeof(int32_t)
+                                    : kCppHeapPointerSlotSize),
+      trusted_ptr_size_(force_32bit ? sizeof(int32_t) : kTrustedPointerSize) {}
 
 }  // namespace torque
 }  // namespace internal

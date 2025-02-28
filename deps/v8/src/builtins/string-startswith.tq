@@ -7,8 +7,8 @@
 namespace string {
 // https://tc39.github.io/ecma262/#sec-string.prototype.startswith
 transitioning javascript builtin StringPrototypeStartsWith(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): Boolean {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): Boolean {
   const searchString: JSAny = arguments[0];
   const position: JSAny = arguments[1];
   const kBuiltinName: constexpr string = 'String.prototype.startsWith';

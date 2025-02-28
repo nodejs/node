@@ -162,7 +162,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
             if (iter.charValue > 0xFF) {
                 doubleByteCharCount++;
 
-                if (commonChars != 0) {
+                if (commonChars != nullptr) {
                     if (binarySearch(commonChars, commonCharsLen, static_cast<uint16_t>(iter.charValue)) >= 0){
                         commonCharCount += 1;
                     }
@@ -205,7 +205,7 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         return confidence;
     }
 
-    if (commonChars == 0) {
+    if (commonChars == nullptr) {
         // We have no statistics on frequently occurring characters.
         //  Assess confidence purely on having a reasonable number of
         //  multi-byte characters (the more the better)
@@ -219,9 +219,9 @@ int32_t CharsetRecog_mbcs::match_mbcs(InputText *det, const uint16_t commonChars
         // Frequency of occurrence statistics exist.
         //
 
-        double maxVal = log((double)doubleByteCharCount / 4); /*(float)?*/
+        double maxVal = log(static_cast<double>(doubleByteCharCount) / 4); /*(float)?*/
         double scaleFactor = 90.0 / maxVal;
-        confidence = (int32_t)(log((double)commonCharCount+1) * scaleFactor + 10.0);
+        confidence = static_cast<int32_t>(log(static_cast<double>(commonCharCount) + 1) * scaleFactor + 10.0);
 
         confidence = min(confidence, 100);
     }

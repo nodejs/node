@@ -5,15 +5,19 @@
 #ifndef V8_HEAP_FACTORY_INL_H_
 #define V8_HEAP_FACTORY_INL_H_
 
+#include "src/common/globals.h"
 #include "src/heap/factory.h"
 
 // Clients of this interface shouldn't depend on lots of heap internals.
 // Do not include anything from src/heap here!
+// TODO(all): Remove the heap-inl.h include below.
 #include "src/execution/isolate-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/factory-base-inl.h"
+#include "src/heap/heap-inl.h"  // For MaxNumberToStringCacheSize.
 #include "src/objects/feedback-cell.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
 #include "src/objects/string-inl.h"
@@ -30,20 +34,55 @@ namespace internal {
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-bool Factory::CodeBuilder::CompiledWithConcurrentBaseline() const {
-  return v8_flags.concurrent_sparkplug && kind_ == CodeKind::BASELINE &&
-         !local_isolate_->is_main_thread();
+template <typename T, typename>
+Handle<String> Factory::InternalizeString(Handle<T> string) {
+  // T should be a subtype of String, which is enforced by the second template
+  // argument.
+  if (IsInternalizedString(*string)) return string;
+  return indirect_handle(
+      isolate()->string_table()->LookupString(isolate(), string), isolate());
 }
 
-Handle<String> Factory::InternalizeString(Handle<String> string) {
-  if (string->IsInternalizedString()) return string;
+template <typename T, typename>
+Handle<Name> Factory::InternalizeName(Handle<T> name) {
+  // T should be a subtype of Name, which is enforced by the second template
+  // argument.
+  if (IsUniqueName(*name)) return name;
+  return indirect_handle(
+      isolate()->string_table()->LookupString(isolate(), Cast<String>(name)),
+      isolate());
+}
+
+#ifdef V8_ENABLE_DIRECT_HANDLE
+template <typename T, typename>
+DirectHandle<String> Factory::InternalizeString(DirectHandle<T> string) {
+  // T should be a subtype of String, which is enforced by the second template
+  // argument.
+  if (IsInternalizedString(*string)) return string;
   return isolate()->string_table()->LookupString(isolate(), string);
 }
 
-Handle<Name> Factory::InternalizeName(Handle<Name> name) {
-  if (name->IsUniqueName()) return name;
-  return isolate()->string_table()->LookupString(isolate(),
-                                                 Handle<String>::cast(name));
+template <typename T, typename>
+DirectHandle<Name> Factory::InternalizeName(DirectHandle<T> name) {
+  // T should be a subtype of Name, which is enforced by the second template
+  // argument.
+  if (IsUniqueName(*name)) return name;
+  return isolate()->string_table()->LookupString(isolate(), Cast<String>(name));
+}
+#endif
+
+template <size_t N>
+Handle<String> Factory::NewStringFromStaticChars(const char (&str)[N],
+                                                 AllocationType allocation) {
+  DCHECK_EQ(N, strlen(str) + 1);
+  return NewStringFromOneByte(base::StaticOneByteVector(str), allocation)
+      .ToHandleChecked();
+}
+
+Handle<String> Factory::NewStringFromAsciiChecked(const char* str,
+                                                  AllocationType allocation) {
+  return NewStringFromOneByte(base::OneByteVector(str), allocation)
+      .ToHandleChecked();
 }
 
 Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
@@ -51,20 +90,42 @@ Handle<String> Factory::NewSubString(Handle<String> str, int begin, int end) {
   return NewProperSubString(str, begin, end);
 }
 
-Handle<JSArray> Factory::NewJSArrayWithElements(Handle<FixedArrayBase> elements,
-                                                ElementsKind elements_kind,
-                                                AllocationType allocation) {
+Handle<JSArray> Factory::NewJSArrayWithElements(
+    DirectHandle<FixedArrayBase> elements, ElementsKind elements_kind,
+    AllocationType allocation) {
   return NewJSArrayWithElements(elements, elements_kind, elements->length(),
                                 allocation);
 }
 
 Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(
-    Handle<Map> map, int number_of_slow_properties, AllocationType allocation,
-    Handle<AllocationSite> allocation_site) {
-  return map->is_dictionary_map()
-             ? NewSlowJSObjectFromMap(map, number_of_slow_properties,
-                                      allocation, allocation_site)
-             : NewJSObjectFromMap(map, allocation, allocation_site);
+    DirectHandle<Map> map, int number_of_slow_properties,
+    AllocationType allocation, DirectHandle<AllocationSite> allocation_site,
+    NewJSObjectType new_js_object_type) {
+  auto js_object =
+      map->is_dictionary_map()
+          ? NewSlowJSObjectFromMap(map, number_of_slow_properties, allocation,
+                                   allocation_site, new_js_object_type)
+          : NewJSObjectFromMap(map, allocation, allocation_site,
+                               new_js_object_type);
+  return js_object;
+}
+
+Handle<JSObject> Factory::NewFastOrSlowJSObjectFromMap(DirectHandle<Map> map) {
+  return NewFastOrSlowJSObjectFromMap(map,
+                                      PropertyDictionary::kInitialCapacity);
+}
+
+template <ExternalPointerTag tag>
+Handle<Foreign> Factory::NewForeign(Address addr,
+                                    AllocationType allocation_type) {
+  // Statically ensure that it is safe to allocate foreigns in paged spaces.
+  static_assert(Foreign::kSize <= kMaxRegularHeapObjectSize);
+  Tagged<Map> map = *foreign_map();
+  Tagged<Foreign> foreign = Cast<Foreign>(
+      AllocateRawWithImmortalMap(map->instance_size(), allocation_type, map));
+  DisallowGarbageCollection no_gc;
+  foreign->init_foreign_address<tag>(isolate(), addr);
+  return handle(foreign, isolate());
 }
 
 Handle<Object> Factory::NewURIError() {
@@ -80,40 +141,47 @@ HeapAllocator* Factory::allocator() const {
   return isolate()->heap()->allocator();
 }
 
+Factory::CodeBuilder& Factory::CodeBuilder::set_empty_source_position_table() {
+  return set_source_position_table(
+      isolate_->factory()->empty_trusted_byte_array());
+}
+
 Factory::CodeBuilder& Factory::CodeBuilder::set_interpreter_data(
-    Handle<HeapObject> interpreter_data) {
+    Handle<TrustedObject> interpreter_data) {
   // This DCHECK requires this function to be in -inl.h.
-  DCHECK(interpreter_data->IsInterpreterData() ||
-         interpreter_data->IsBytecodeArray());
+  DCHECK(IsInterpreterData(*interpreter_data) ||
+         IsBytecodeArray(*interpreter_data));
   interpreter_data_ = interpreter_data;
   return *this;
 }
 
-void Factory::NumberToStringCacheSet(Handle<Object> number, int hash,
-                                     Handle<String> js_string) {
-  if (!number_string_cache()->get(hash * 2).IsUndefined(isolate()) &&
+void Factory::NumberToStringCacheSet(DirectHandle<Object> number, int hash,
+                                     DirectHandle<String> js_string) {
+  if (!IsUndefined(number_string_cache()->get(hash * 2), isolate()) &&
       !v8_flags.optimize_for_size) {
     int full_size = isolate()->heap()->MaxNumberToStringCacheSize();
     if (number_string_cache()->length() != full_size) {
-      Handle<FixedArray> new_cache =
+      DirectHandle<FixedArray> new_cache =
           NewFixedArray(full_size, AllocationType::kOld);
       isolate()->heap()->set_number_string_cache(*new_cache);
       return;
     }
   }
   DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
-  cache.set(hash * 2, *number);
-  cache.set(hash * 2 + 1, *js_string);
+  Tagged<FixedArray> cache = *number_string_cache();
+  cache->set(hash * 2, *number);
+  cache->set(hash * 2 + 1, *js_string);
 }
 
-Handle<Object> Factory::NumberToStringCacheGet(Object number, int hash) {
+Handle<Object> Factory::NumberToStringCacheGet(Tagged<Object> number,
+                                               int hash) {
   DisallowGarbageCollection no_gc;
-  FixedArray cache = *number_string_cache();
-  Object key = cache.get(hash * 2);
-  if (key == number || (key.IsHeapNumber() && number.IsHeapNumber() &&
-                        key.Number() == number.Number())) {
-    return Handle<String>(String::cast(cache.get(hash * 2 + 1)), isolate());
+  Tagged<FixedArray> cache = *number_string_cache();
+  Tagged<Object> key = cache->get(hash * 2);
+  if (key == number ||
+      (IsHeapNumber(key) && IsHeapNumber(number) &&
+       Cast<HeapNumber>(key)->value() == Cast<HeapNumber>(number)->value())) {
+    return Handle<String>(Cast<String>(cache->get(hash * 2 + 1)), isolate());
   }
   return undefined_value();
 }

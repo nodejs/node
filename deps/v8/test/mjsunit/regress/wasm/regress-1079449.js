@@ -7,7 +7,7 @@
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 const builder = new WasmModuleBuilder();
-builder.addMemory(16, 32, false, true);
+builder.addMemory(16, 32, true);
 const sig = builder.addType(makeSig(
     [
       kWasmI64, kWasmI32, kWasmI64, kWasmI32, kWasmI32, kWasmI32, kWasmI32,
@@ -26,7 +26,7 @@ builder.addFunction(undefined, sig)
       kExprI32Const, 0x00,  // i32.const
       kExprI64Const, 0x00,  // i64.const
       kExprI64Const, 0x00,  // i64.const
-      kAtomicPrefix, kExprI64AtomicCompareExchange, 0x00,
+      kAtomicPrefix, kExprI64AtomicCompareExchange, 0x03,
       0x8,      // i64.atomic.cmpxchng64
       kExprEnd,  // end @124
     ]);

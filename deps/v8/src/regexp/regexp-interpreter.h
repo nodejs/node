@@ -12,7 +12,7 @@
 namespace v8 {
 namespace internal {
 
-class ByteArray;
+class TrustedByteArray;
 
 class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
  public:
@@ -26,9 +26,12 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
 
   // In case a StackOverflow occurs, a StackOverflowException is created and
   // EXCEPTION is returned.
-  static Result MatchForCallFromRuntime(
-      Isolate* isolate, Handle<JSRegExp> regexp, Handle<String> subject_string,
-      int* output_registers, int output_register_count, int start_position);
+  static Result MatchForCallFromRuntime(Isolate* isolate,
+                                        DirectHandle<IrRegExpData> regexp_data,
+                                        DirectHandle<String> subject_string,
+                                        int* output_registers,
+                                        int output_register_count,
+                                        int start_position);
 
   // In case a StackOverflow occurs, EXCEPTION is returned. The caller is
   // responsible for creating the exception.
@@ -47,19 +50,21 @@ class V8_EXPORT_PRIVATE IrregexpInterpreter : public AllStatic {
                                    int* output_registers,
                                    int32_t output_register_count,
                                    RegExp::CallOrigin call_origin,
-                                   Isolate* isolate, Address regexp);
+                                   Isolate* isolate, Address regexp_data);
 
-  static Result MatchInternal(Isolate* isolate, ByteArray code_array,
-                              String subject_string, int* output_registers,
-                              int output_register_count,
+  static Result MatchInternal(Isolate* isolate,
+                              Tagged<TrustedByteArray> code_array,
+                              Tagged<String> subject_string,
+                              int* output_registers, int output_register_count,
                               int total_register_count, int start_position,
                               RegExp::CallOrigin call_origin,
                               uint32_t backtrack_limit);
 
  private:
-  static Result Match(Isolate* isolate, JSRegExp regexp, String subject_string,
-                      int* output_registers, int output_register_count,
-                      int start_position, RegExp::CallOrigin call_origin);
+  static Result Match(Isolate* isolate, Tagged<IrRegExpData> regexp_data,
+                      Tagged<String> subject_string, int* output_registers,
+                      int output_register_count, int start_position,
+                      RegExp::CallOrigin call_origin);
 };
 
 }  // namespace internal

@@ -3,14 +3,13 @@ require('../common');
 const assert = require('assert');
 const fixtures = require('../common/fixtures');
 const fs = require('fs');
-const path = require('path');
 const stream = require('stream');
 const tmpdir = require('../common/tmpdir');
 const firstEncoding = 'base64';
 const secondEncoding = 'latin1';
 
 const examplePath = fixtures.path('x.txt');
-const dummyPath = path.join(tmpdir.path, 'x.txt');
+const dummyPath = tmpdir.resolve('x.txt');
 
 tmpdir.refresh();
 

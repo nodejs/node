@@ -8,9 +8,9 @@ import sys
 import itertools
 
 def do_exist(file_name, lines, imported):
-  if not any(not re.match('using \w+::{0};'.format(imported), line) and
-             re.search('\\b{0}\\b'.format(imported), line) for line in lines):
-    print('File "{0}" does not use "{1}"'.format(file_name, imported))
+  if not any(not re.match(fr'using \w+::{imported};', line) and
+             re.search(fr'\b{imported}\b', line) for line in lines):
+    print(f'File "{file_name}" does not use "{imported}"')
     return False
   return True
 
@@ -27,18 +27,16 @@ def is_valid(file_name):
       usings.append(matches.group(1))
       importeds.append(matches.group(2))
 
-  valid = all([do_exist(file_name, lines, imported) for imported in importeds])
+  valid = all(do_exist(file_name, lines, imported) for imported in importeds)
 
   sorted_usings = sorted(usings, key=lambda x: x.lower())
   if sorted_usings != usings:
-    print("using statements aren't sorted in '{0}'.".format(file_name))
+    print(f"using statements aren't sorted in '{file_name}'.")
     for num, actual, expected in zip(line_numbers, usings, sorted_usings):
       if actual != expected:
-        print('\tLine {0}: Actual: {1}, Expected: {2}'
-            .format(num, actual, expected))
+        print(f'\tLine {num}: Actual: {actual}, Expected: {expected}')
     return False
-  else:
-    return valid
+  return valid
 
 if __name__ == '__main__':
   if len(sys.argv) > 1:

@@ -22,7 +22,7 @@ scope-configured registry (see
 
 
 A `package` is interpreted the same way as other commands (like
-`npm install` and can be:
+`npm install`) and can be:
 
 * a) a folder containing a program described by a
   [`package.json`](/configuring-npm/package-json) file
@@ -85,6 +85,9 @@ See [`developers`](/using-npm/developers) for full details on what's
 included in the published package, as well as details on how the package is
 built.
 
+See [`package.json`](/configuring-npm/package-json) for more info on
+what can and can't be ignored.
+
 ### Configuration
 
 #### `tag`
@@ -95,11 +98,16 @@ built.
 If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.
 
-Also the tag that is added to the package@version specified by the `npm tag`
-command, if no explicit tag is given.
+It is the tag added to the package@version specified in the `npm dist-tag
+add` command, if no explicit tag is given.
 
 When used by the `npm diff` command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.
+
+If used in the `npm publish` command, this is the tag that will be added to
+the package submitted to the registry.
+
+
 
 #### `access`
 
@@ -117,6 +125,8 @@ packages. Specifying a value of `restricted` or `public` during publish will
 change the access for an existing package the same way that `npm access set
 status` would.
 
+
+
 #### `dry-run`
 
 * Default: false
@@ -130,6 +140,8 @@ commands that modify your local installation, eg, `install`, `update`,
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
 
+
+
 #### `otp`
 
 * Default: null
@@ -140,6 +152,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 #### `workspace`
 
@@ -201,6 +215,17 @@ This value is not exported to the environment for child processes.
 
 When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.
+
+This config can not be used with: `provenance-file`
+
+#### `provenance-file`
+
+* Default: null
+* Type: Path
+
+When publishing, the provenance bundle at the given path will be used.
+
+This config can not be used with: `provenance`
 
 ### See Also
 

@@ -9,12 +9,14 @@
 #include "src/execution/isolate.h"
 #include "src/execution/local-isolate.h"
 #include "src/handles/handles.h"
+#include "src/heap/page-metadata-inl.h"
 #include "src/heap/read-only-heap.h"
 #include "src/objects/api-callbacks.h"
 #include "src/objects/cell.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/feedback-vector.h"
 #include "src/objects/heap-number.h"
+#include "src/objects/hole.h"
 #include "src/objects/literal-objects.h"
 #include "src/objects/map.h"
 #include "src/objects/oddball.h"
@@ -24,6 +26,7 @@
 #include "src/objects/slots.h"
 #include "src/objects/string.h"
 #include "src/objects/swiss-name-dictionary.h"
+#include "src/objects/tagged.h"
 #include "src/roots/roots.h"
 #include "src/roots/static-roots.h"
 
@@ -75,26 +78,34 @@ ReadOnlyRoots::ReadOnlyRoots(const Isolate* isolate)
 ReadOnlyRoots::ReadOnlyRoots(LocalIsolate* isolate)
     : ReadOnlyRoots(isolate->factory()->read_only_roots()) {}
 
-// We use unchecked_cast below because we trust our read-only roots to
+// We use UncheckedCast below because we trust our read-only roots to
 // have the right type, and to avoid the heavy #includes that would be
 // required for checked casts.
 
-#define ROOT_ACCESSOR(Type, name, CamelName)                         \
-  Type ReadOnlyRoots::name() const {                                 \
-    DCHECK(CheckType_##name());                                      \
-    return unchecked_##name();                                       \
-  }                                                                  \
-  Type ReadOnlyRoots::unchecked_##name() const {                     \
-    return Type::unchecked_cast(object_at(RootIndex::k##CamelName)); \
-  }                                                                  \
-  Handle<Type> ReadOnlyRoots::name##_handle() const {                \
-    DCHECK(CheckType_##name());                                      \
-    Address* location = GetLocation(RootIndex::k##CamelName);        \
-    return Handle<Type>(location);                                   \
+#define ROOT_ACCESSOR(Type, name, CamelName)                        \
+  Tagged<Type> ReadOnlyRoots::name() const {                        \
+    DCHECK(CheckType_##name());                                     \
+    return unchecked_##name();                                      \
+  }                                                                 \
+  Tagged<Type> ReadOnlyRoots::unchecked_##name() const {            \
+    return UncheckedCast<Type>(object_at(RootIndex::k##CamelName)); \
+  }                                                                 \
+  Handle<Type> ReadOnlyRoots::name##_handle() const {               \
+    DCHECK(CheckType_##name());                                     \
+    Address* location = GetLocation(RootIndex::k##CamelName);       \
+    return Handle<Type>(location);                                  \
   }
 
 READ_ONLY_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
+
+Tagged<Boolean> ReadOnlyRoots::boolean_value(bool value) const {
+  return value ? Tagged<Boolean>(true_value()) : Tagged<Boolean>(false_value());
+}
+Handle<Boolean> ReadOnlyRoots::boolean_value_handle(bool value) const {
+  return value ? Handle<Boolean>(true_value_handle())
+               : Handle<Boolean>(false_value_handle());
+}
 
 Address* ReadOnlyRoots::GetLocation(RootIndex root_index) const {
   size_t index = static_cast<size_t>(root_index);
@@ -115,7 +126,7 @@ Address ReadOnlyRoots::last_name_for_protector() const {
   return address_at(RootIndex::kLastNameForProtector);
 }
 
-bool ReadOnlyRoots::IsNameForProtector(HeapObject object) const {
+bool ReadOnlyRoots::IsNameForProtector(Tagged<HeapObject> object) const {
   return base::IsInRange(object.ptr(), first_name_for_protector(),
                          last_name_for_protector());
 }
@@ -123,16 +134,16 @@ bool ReadOnlyRoots::IsNameForProtector(HeapObject object) const {
 void ReadOnlyRoots::VerifyNameForProtectorsPages() const {
   // The symbols and strings that can cause protector invalidation should
   // reside on the same page so we can do a fast range check.
-  CHECK_EQ(Page::FromAddress(first_name_for_protector()),
-           Page::FromAddress(last_name_for_protector()));
+  CHECK_EQ(PageMetadata::FromAddress(first_name_for_protector()),
+           PageMetadata::FromAddress(last_name_for_protector()));
 }
 
 Handle<Object> ReadOnlyRoots::handle_at(RootIndex root_index) const {
   return Handle<Object>(GetLocation(root_index));
 }
 
-Object ReadOnlyRoots::object_at(RootIndex root_index) const {
-  return Object(address_at(root_index));
+Tagged<Object> ReadOnlyRoots::object_at(RootIndex root_index) const {
+  return Tagged<Object>(address_at(root_index));
 }
 
 Address ReadOnlyRoots::address_at(RootIndex root_index) const {

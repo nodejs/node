@@ -59,8 +59,8 @@ let moduleBinaryImporting2Memories = (() => {
 
 let moduleBinaryWithMemSectionAndMemImport = (() => {
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, 1, false);
   builder.addImportedMemory('', 'memory1');
+  builder.addMemory(1, 1);
   return new Int8Array(builder.toBuffer());
 })();
 
@@ -262,11 +262,11 @@ let exportingModuleBinary2 = (() => {
       '(module (func (export "a")) (memory (export "b") 1) (table (export "c") 1 anyfunc) (global (export "⚡") i32 (i32.const 0)))';
   let builder = new WasmModuleBuilder();
   builder.addFunction('foo', kSig_v_v).addBody([]).exportAs('a');
-  builder.addMemory(1, 1, false);
+  builder.addMemory(1, 1);
   builder.exportMemoryAs('b');
   builder.setTableBounds(1, 1);
   builder.addExportOfKind('c', kExternalTable, 0);
-  var o = builder.addGlobal(kWasmI32, false).exportAs('x');
+  var o = builder.addGlobal(kWasmI32, false, false).exportAs('x');
   return new Int8Array(builder.toBuffer());
 })();
 var arr = moduleExports(new Module(exportingModuleBinary2));
@@ -673,9 +673,12 @@ assertEq(get.call(tbl1, 0), null);
 assertEq(get.call(tbl1, 0, Infinity), null);
 assertEq(get.call(tbl1, 1), null);
 assertEq(get.call(tbl1, 1.5), null);
-assertThrows(() => get.call(tbl1, 2), RangeError, /invalid index \d+ into function table/);
 assertThrows(
-    () => get.call(tbl1, 2.5), RangeError, /invalid index \d+ into function table/);
+    () => get.call(tbl1, 2), RangeError,
+    /invalid index 2 into funcref table of size 2/);
+assertThrows(
+    () => get.call(tbl1, 2.5), RangeError,
+    /invalid index 2 into funcref table of size 2/);
 assertThrows(() => get.call(tbl1, -1), TypeError, /must be non-negative/);
 assertThrows(
     () => get.call(tbl1, Math.pow(2, 33)), TypeError,
@@ -701,7 +704,8 @@ assertThrows(
     () => set.call(tbl1, undefined), TypeError,
     /must be convertible to a valid number/);
 assertThrows(
-    () => set.call(tbl1, 2, null), RangeError, /invalid index \d+ into function table/);
+    () => set.call(tbl1, 2, null), RangeError,
+    /invalid index 2 into funcref table of size 2/);
 assertThrows(
     () => set.call(tbl1, -1, null), TypeError, /must be non-negative/);
 assertThrows(
@@ -777,9 +781,8 @@ assertThrows(
 assertThrows(() => WebAssembly.validate(), TypeError);
 assertThrows(() => WebAssembly.validate('hi'), TypeError);
 assertTrue(WebAssembly.validate(emptyModuleBinary));
-// TODO: other ways for validate to return false.
-assertFalse(WebAssembly.validate(moduleBinaryImporting2Memories));
-assertFalse(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
+assertTrue(WebAssembly.validate(moduleBinaryImporting2Memories));
+assertTrue(WebAssembly.validate(moduleBinaryWithMemSectionAndMemImport));
 
 // 'WebAssembly.compile' data property
 let compileDesc = Object.getOwnPropertyDescriptor(WebAssembly, 'compile');

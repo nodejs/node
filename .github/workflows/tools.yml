@@ -16,113 +16,46 @@ on:
           - acorn
           - acorn-walk
           - ada
-          - base64
+          - amaro
           - brotli
           - c-ares
           - cjs-module-lexer
           - corepack
           - doc
-          - eslint
           - googletest
+          - gyp-next
+          - histogram
           - icu
           - libuv
-          - lint-md-dependencies
           - llhttp
+          - minimatch
+          - nbytes
           - nghttp2
           - nghttp3
           - ngtcp2
           - postject
           - root-certificates
+          - simdjson
           - simdutf
+          - sqlite
           - undici
           - uvwasi
+          - zlib
 
 env:
-  PYTHON_VERSION: '3.11'
+  PYTHON_VERSION: '3.12'
 
 permissions:
   contents: read
 
 jobs:
   tools-deps-update:
-    if: github.repository == 'nodejs/node'
+    if: github.repository == 'nodejs/node' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false  # Prevent other jobs from aborting if one fails
       matrix:
         include:
-          - id: eslint
-            subsystem: tools
-            label: tools
-            run: |
-              ./tools/dep_updaters/update-eslint.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: corepack
-            subsystem: deps
-            label: dependencies
-            run: |
-              make corepack-update
-              echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
-          - id: lint-md-dependencies
-            subsystem: tools
-            label: tools
-            run: |
-              cd tools/lint-md
-              npm ci
-              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
-              if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                rm -rf package-lock.json node_modules
-                # Include $NEW_VERSION to explicitly update the package.json
-                # entry for the dependency and also so that semver-major updates
-                # are not skipped.
-                npm install --ignore-scripts $NEW_VERSION
-                npm install --ignore-scripts
-                cd ../..
-                make lint-md-rollup
-              fi
-          - id: doc
-            subsystem: tools
-            label: tools
-            run: |
-              cd tools/doc
-              npm ci
-              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
-              if [ "$NEW_VERSION" != "" ]; then
-                echo "NEW_VERSION=$NEW_VERSION" >> $GITHUB_ENV
-                rm -rf package-lock.json node_modules
-                # Include $NEW_VERSION to explicitly update the package.json
-                # entry for the dependency and also so that semver-major updates
-                # are not skipped.
-                npm install --ignore-scripts $NEW_VERSION
-                npm install --ignore-scripts
-              fi
-          - id: undici
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-undici.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: postject
-            subsystem: deps,test
-            label: test
-            run: |
-              ./tools/dep_updaters/update-postject.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: base64
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-base64.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: acorn
             subsystem: deps
             label: dependencies
@@ -139,22 +72,6 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: libuv
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-libuv.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: simdutf
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-simdutf.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: ada
             subsystem: deps
             label: dependencies
@@ -163,11 +80,97 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: nghttp2
+          - id: amaro
+            subsystem: deps
+            label: dependencies, strip-types
+            run: |
+              ./tools/dep_updaters/update-amaro.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: brotli
+            subsystem: deps
+            label: dependencies, zlib
+            run: |
+              ./tools/dep_updaters/update-brotli.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: c-ares
+            subsystem: deps
+            label: dependencies, cares
+            run: |
+              ./tools/dep_updaters/update-c-ares.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: cjs-module-lexer
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-nghttp2.sh > temp-output
+              ./tools/dep_updaters/update-cjs-module-lexer.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: corepack
+            subsystem: deps
+            label: dependencies
+            run: |
+              make corepack-update
+              echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
+          - id: doc
+            subsystem: tools
+            label: tools
+            run: |
+              cd tools/doc
+              npm ci
+              NEW_VERSION=$(npm outdated --parseable | cut -d: -f4 | xargs)
+              if [ "$NEW_VERSION" != "" ]; then
+                echo "NEW_VERSION=new version" >> $GITHUB_ENV
+                rm -rf package-lock.json node_modules
+                # Include $NEW_VERSION to explicitly update the package.json
+                # entry for the dependency and also so that semver-major updates
+                # are not skipped.
+                npm install --ignore-scripts $NEW_VERSION
+                npm install --ignore-scripts
+              fi
+          - id: googletest
+            subsystem: deps
+            label: dependencies, test
+            run: |
+              ./tools/dep_updaters/update-googletest.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: gyp-next
+            subsystem: tools
+            label: tools, gyp
+            run: |
+              ./tools/dep_updaters/update-gyp-next.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: histogram
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-histogram.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: icu
+            subsystem: deps
+            label: dependencies, test, icu
+            run: |
+              ./tools/dep_updaters/update-icu.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: libuv
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-libuv.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -179,22 +182,6 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: c-ares
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-c-ares.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: brotli
-            subsystem: deps
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-brotli.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
           - id: minimatch
             subsystem: deps
             label: dependencies
@@ -203,16 +190,27 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: root-certificates
-            subsystem: crypto
-            label: crypto, notable-change
-            run: |
-              node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
-          - id: cjs-module-lexer
+          - id: nbytes
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-cjs-module-lexer.sh > temp-output
+              ./tools/dep_updaters/update-nbytes.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nghttp2
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-nghttp2.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: nghttp3
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-nghttp3.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -224,11 +222,48 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: nghttp3
+          - id: postject
+            subsystem: deps,test
+            label: test
+            run: |
+              ./tools/dep_updaters/update-postject.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: root-certificates
+            subsystem: crypto
+            label: crypto, notable-change
+            run: |
+              node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
+          - id: simdjson
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-nghttp3.sh > temp-output
+              ./tools/dep_updaters/update-simdjson.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: simdutf
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-simdutf.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: sqlite
+            subsystem: deps
+            label: dependencies, sqlite
+            run: |
+              ./tools/dep_updaters/update-sqlite.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: undici
+            subsystem: deps
+            label: dependencies
+            run: |
+              ./tools/dep_updaters/update-undici.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -242,36 +277,24 @@ jobs:
               rm temp-output
           - id: zlib
             subsystem: deps
-            label: dependencies
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: googletest
-            subsystem: deps
-            label: dependencies, test
-            run: |
-              ./tools/dep_updaters/update-googletest.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: icu
-            subsystem: deps
-            label: dependencies, test
-            run: |
-              ./tools/dep_updaters/update-icu.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - name: Setup Git config
+        run: |
+           git config --global user.name "Node.js GitHub Bot"
+           git config --global user.email "github-bot@iojs.org"
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
         if: matrix.id == 'icu' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
-        uses: actions/setup-python@57ded4d7d5e986d7296eab16560982c6dd7c923b  # v4.6.0
+        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - run: ${{ matrix.run }}
@@ -282,17 +305,15 @@ jobs:
         if: env.COMMIT_MSG == '' && (github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id)
         run: |
           echo "COMMIT_MSG=${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}" >> "$GITHUB_ENV"
-      - uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
+      - uses: peter-evans/create-pull-request@67ccf781d68cd99b580ae25a5c18a1cc84ffff1f  # v7.0.6
         if: github.event_name == 'schedule' || inputs.id == 'all' || inputs.id == matrix.id
         # Creates a PR or update the Action's existing PR, or
         # no-op if the base branch is already up-to-date.
-        env:
-          GITHUB_TOKEN: ${{ secrets.GH_USER_TOKEN }}
         with:
-          author: Node.js GitHub Bot <github-bot@iojs.org>
-          body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.
+          token: ${{ secrets.GH_USER_TOKEN }}
           branch: actions/tools-update-${{ matrix.id }}  # Custom branch *just* for this Action.
+          delete-branch: true
           commit-message: ${{ env.COMMIT_MSG }}
           labels: ${{ matrix.label }}
           title: '${{ matrix.subsystem }}: update ${{ matrix.id }} to ${{ env.NEW_VERSION }}'
-          update-pull-request-title-and-body: true
+          body: This is an automated update of ${{ matrix.id }} to ${{ env.NEW_VERSION }}.

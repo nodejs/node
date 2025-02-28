@@ -4,6 +4,9 @@
 
 #include "src/compiler/common-operator.h"
 
+#include <optional>
+
+#include "src/base/functional.h"
 #include "src/base/lazy-instance.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/node.h"
@@ -41,6 +44,7 @@ std::ostream& operator<<(std::ostream& os, BranchSemantics semantics) {
   UNREACHABLE();
 }
 
+#if V8_ENABLE_WEBASSEMBLY
 std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
   switch (trap_id) {
 #define TRAP_CASE(Name) \
@@ -48,8 +52,6 @@ std::ostream& operator<<(std::ostream& os, TrapId trap_id) {
     return os << #Name;
     FOREACH_WASM_TRAPREASON(TRAP_CASE)
 #undef TRAP_CASE
-    case TrapId::kInvalid:
-      return os << "Invalid";
   }
   UNREACHABLE();
 }
@@ -59,6 +61,7 @@ TrapId TrapIdOf(const Operator* const op) {
          op->opcode() == IrOpcode::kTrapUnless);
   return OpParameter<TrapId>(op);
 }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 bool operator==(const BranchParameters& lhs, const BranchParameters& rhs) {
   return lhs.semantics() == rhs.semantics() && lhs.hint() == rhs.hint();
@@ -90,6 +93,31 @@ BranchHint BranchHintOf(const Operator* const op) {
     default:
       UNREACHABLE();
   }
+}
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs) {
+  return lhs.semantics() == rhs.semantics() &&
+         strcmp(lhs.condition_string(), rhs.condition_string()) == 0 &&
+         strcmp(lhs.file(), rhs.file()) == 0 && lhs.line() == rhs.line();
+}
+
+size_t hash_value(const AssertParameters& p) {
+  return base::hash_combine(
+      p.semantics(),
+      base::hash_range(
+          p.condition_string(),
+          p.condition_string() + std::strlen(p.condition_string())),
+      base::hash_range(p.file(), p.file() + std::strlen(p.file())), p.line());
+}
+
+std::ostream& operator<<(std::ostream& os, const AssertParameters& p) {
+  return os << p.semantics() << ", " << p.condition_string() << ", " << p.file()
+            << ", " << p.line();
+}
+
+const AssertParameters& AssertParametersOf(const Operator* const op) {
+  DCHECK_EQ(op->opcode(), IrOpcode::kAssert);
+  return OpParameter<AssertParameters>(op);
 }
 
 int ValueInputCountOfReturn(Operator const* const op) {
@@ -452,8 +480,8 @@ V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& out,
   } else {
     out << "nullptr";
   }
-  out << ", ";
   if (const auto& t = p.override_output_type()) {
+    out << ", ";
     t->PrintTo(out);
   } else {
     out << ", nullopt";
@@ -814,35 +842,51 @@ struct CommonOperatorGlobalCache final {
   CACHED_DEOPTIMIZE_UNLESS_LIST(CACHED_DEOPTIMIZE_UNLESS)
 #undef CACHED_DEOPTIMIZE_UNLESS
 
-  template <TrapId trap_id>
+#if V8_ENABLE_WEBASSEMBLY
+  template <TrapId trap_id, bool has_frame_state>
   struct TrapIfOperator final : public Operator1<TrapId> {
     TrapIfOperator()
         : Operator1<TrapId>(                             // --
               IrOpcode::kTrapIf,                         // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapIf",                                  // name
-              1, 1, 1, 0, 1, 1,                          // counts
+              1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
               trap_id) {}                                // parameter
   };
 #define CACHED_TRAP_IF(Trap) \
-  TrapIfOperator<TrapId::k##Trap> kTrapIf##Trap##Operator;
+  TrapIfOperator<TrapId::k##Trap, true> kTrapIf##Trap##OperatorWithFrameState;
   CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
 
-  template <TrapId trap_id>
+#define CACHED_TRAP_IF(Trap)             \
+  TrapIfOperator<TrapId::k##Trap, false> \
+      kTrapIf##Trap##OperatorWithoutFrameState;
+  CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
+#undef CACHED_TRAP_IF
+
+  template <TrapId trap_id, bool has_frame_state>
   struct TrapUnlessOperator final : public Operator1<TrapId> {
     TrapUnlessOperator()
         : Operator1<TrapId>(                             // --
               IrOpcode::kTrapUnless,                     // opcode
               Operator::kFoldable | Operator::kNoThrow,  // properties
               "TrapUnless",                              // name
-              1, 1, 1, 0, 1, 1,                          // counts
+              1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
               trap_id) {}                                // parameter
   };
-#define CACHED_TRAP_UNLESS(Trap) \
-  TrapUnlessOperator<TrapId::k##Trap> kTrapUnless##Trap##Operator;
+#define CACHED_TRAP_UNLESS(Trap)            \
+  TrapUnlessOperator<TrapId::k##Trap, true> \
+      kTrapUnless##Trap##OperatorWithFrameState;
   CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
+
+#define CACHED_TRAP_UNLESS(Trap)             \
+  TrapUnlessOperator<TrapId::k##Trap, false> \
+      kTrapUnless##Trap##OperatorWithoutFrameState;
+  CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
+#undef CACHED_TRAP_UNLESS
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   template <MachineRepresentation kRep, int kInputCount>
   struct PhiOperator final : public Operator1<MachineRepresentation> {
@@ -978,7 +1022,7 @@ const Operator* CommonOperatorBuilder::StaticAssert(const char* source) {
 
 const Operator* CommonOperatorBuilder::SLVerifierHint(
     const Operator* semantics,
-    const base::Optional<Type>& override_output_type) {
+    const std::optional<Type>& override_output_type) {
   return zone()->New<Operator1<SLVerifierHintParameters>>(
       IrOpcode::kSLVerifierHint, Operator::kNoProperties, "SLVerifierHint", 1,
       0, 0, 1, 0, 0, SLVerifierHintParameters(semantics, override_output_type));
@@ -1050,11 +1094,28 @@ const Operator* CommonOperatorBuilder::DeoptimizeUnless(
       parameter);                                       // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
+const Operator* CommonOperatorBuilder::Assert(BranchSemantics semantics,
+                                              const char* condition_string,
+                                              const char* file, int line) {
+  AssertParameters parameter(semantics, condition_string, file, line);
+  return zone()->New<Operator1<AssertParameters>>(  // --
+      IrOpcode::kAssert,                            // opcode
+      Operator::kFoldable | Operator::kNoThrow,     // properties
+      "Assert",                                     // name
+      1, 1, 1, 0, 1, 0,                             // counts
+      parameter);                                   // parameter
+}
+
+#if V8_ENABLE_WEBASSEMBLY
+const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id,
+                                              bool has_frame_state) {
   switch (trap_id) {
-#define CACHED_TRAP_IF(Trap) \
-  case TrapId::k##Trap:      \
-    return &cache_.kTrapIf##Trap##Operator;
+#define CACHED_TRAP_IF(Trap)                                        \
+  case TrapId::k##Trap:                                             \
+    return has_frame_state                                          \
+               ? static_cast<const Operator*>(                      \
+                     &cache_.kTrapIf##Trap##OperatorWithFrameState) \
+               : &cache_.kTrapIf##Trap##OperatorWithoutFrameState;
     CACHED_TRAP_IF_LIST(CACHED_TRAP_IF)
 #undef CACHED_TRAP_IF
     default:
@@ -1065,15 +1126,19 @@ const Operator* CommonOperatorBuilder::TrapIf(TrapId trap_id) {
       IrOpcode::kTrapIf,                         // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapIf",                                  // name
-      1, 1, 1, 0, 1, 1,                          // counts
+      1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
       trap_id);                                  // parameter
 }
 
-const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
+const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id,
+                                                  bool has_frame_state) {
   switch (trap_id) {
-#define CACHED_TRAP_UNLESS(Trap) \
-  case TrapId::k##Trap:          \
-    return &cache_.kTrapUnless##Trap##Operator;
+#define CACHED_TRAP_UNLESS(Trap)                                        \
+  case TrapId::k##Trap:                                                 \
+    return has_frame_state                                              \
+               ? static_cast<const Operator*>(                          \
+                     &cache_.kTrapUnless##Trap##OperatorWithFrameState) \
+               : &cache_.kTrapUnless##Trap##OperatorWithoutFrameState;
     CACHED_TRAP_UNLESS_LIST(CACHED_TRAP_UNLESS)
 #undef CACHED_TRAP_UNLESS
     default:
@@ -1084,9 +1149,11 @@ const Operator* CommonOperatorBuilder::TrapUnless(TrapId trap_id) {
       IrOpcode::kTrapUnless,                     // opcode
       Operator::kFoldable | Operator::kNoThrow,  // properties
       "TrapUnless",                              // name
-      1, 1, 1, 0, 1, 1,                          // counts
+      1 + has_frame_state, 1, 1, 0, 1, 1,        // counts
       trap_id);                                  // parameter
 }
+
+#endif  // V8_ENABLE_WEBASSEMBLY
 
 const Operator* CommonOperatorBuilder::Switch(size_t control_output_count) {
   return zone()->New<Operator>(               // --
@@ -1291,9 +1358,19 @@ const Operator* CommonOperatorBuilder::CompressedHeapConstant(
       value);                                              // parameter
 }
 
+const Operator* CommonOperatorBuilder::TrustedHeapConstant(
+    const Handle<HeapObject>& value) {
+  return zone()->New<Operator1<Handle<HeapObject>>>(    // --
+      IrOpcode::kTrustedHeapConstant, Operator::kPure,  // opcode
+      "TrustedHeapConstant",                            // name
+      0, 0, 0, 1, 0, 0,                                 // counts
+      value);                                           // parameter
+}
+
 Handle<HeapObject> HeapConstantOf(const Operator* op) {
   DCHECK(IrOpcode::kHeapConstant == op->opcode() ||
-         IrOpcode::kCompressedHeapConstant == op->opcode());
+         IrOpcode::kCompressedHeapConstant == op->opcode() ||
+         IrOpcode::kTrustedHeapConstant == op->opcode());
   return OpParameter<Handle<HeapObject>>(op);
 }
 
@@ -1362,13 +1439,6 @@ const Operator* CommonOperatorBuilder::TypeGuard(Type type) {
       "TypeGuard",                            // name
       1, 1, 1, 1, 1, 0,                       // counts
       type);                                  // parameter
-}
-
-const Operator* CommonOperatorBuilder::FoldConstant() {
-  return zone()->New<Operator>(                  // --
-      IrOpcode::kFoldConstant, Operator::kPure,  // opcode
-      "FoldConstant",                            // name
-      2, 0, 0, 1, 0, 0);                         // counts
 }
 
 const Operator* CommonOperatorBuilder::EnterMachineGraph(UseInfo use_info) {
@@ -1621,16 +1691,16 @@ const Operator* CommonOperatorBuilder::ResizeMergeOrPhi(const Operator* op,
 
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateFrameStateFunctionInfo(
-    FrameStateType type, int parameter_count, int local_count,
-    Handle<SharedFunctionInfo> shared_info) {
-  return zone()->New<FrameStateFunctionInfo>(type, parameter_count, local_count,
-                                             shared_info);
+    FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
+    int local_count, Handle<SharedFunctionInfo> shared_info) {
+  return zone()->New<FrameStateFunctionInfo>(
+      type, parameter_count, max_arguments, local_count, shared_info);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
 const FrameStateFunctionInfo*
 CommonOperatorBuilder::CreateJSToWasmFrameStateFunctionInfo(
-    FrameStateType type, int parameter_count, int local_count,
+    FrameStateType type, uint16_t parameter_count, int local_count,
     Handle<SharedFunctionInfo> shared_info,
     const wasm::FunctionSig* signature) {
   DCHECK_EQ(type, FrameStateType::kJSToWasmBuiltinContinuation);

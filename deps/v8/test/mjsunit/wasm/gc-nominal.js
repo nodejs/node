@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 (function TestNominalTypesBasic() {
@@ -39,7 +37,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   builder.addStruct([]);
-  for (let i = 0; i < 32; i++) builder.addStruct([], i);
+  for (let i = 0; i < 64; i++) builder.addStruct([], i);
   assertThrows(
       () => builder.instantiate(), WebAssembly.CompileError,
       /subtyping depth is greater than allowed/);

@@ -20,7 +20,7 @@
 #define UNIMPLEMENTED_PPC()
 #endif
 
-#if (V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) &&                    \
+#if V8_HOST_ARCH_PPC64 &&                                          \
     (V8_OS_AIX || (V8_TARGET_ARCH_PPC64 && V8_TARGET_BIG_ENDIAN && \
                    (!defined(_CALL_ELF) || _CALL_ELF == 1)))
 #define ABI_USES_FUNCTION_DESCRIPTORS 1
@@ -28,30 +28,28 @@
 #define ABI_USES_FUNCTION_DESCRIPTORS 0
 #endif
 
-#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || V8_OS_AIX || \
-    V8_TARGET_ARCH_PPC64
+#if !V8_HOST_ARCH_PPC64 || V8_OS_AIX || V8_TARGET_ARCH_PPC64
 #define ABI_PASSES_HANDLES_IN_REGS 1
 #else
 #define ABI_PASSES_HANDLES_IN_REGS 0
 #endif
 
-#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || !V8_TARGET_ARCH_PPC64 || \
-    V8_TARGET_LITTLE_ENDIAN || (defined(_CALL_ELF) && _CALL_ELF == 2)
+#if !V8_HOST_ARCH_PPC64 || !V8_TARGET_ARCH_PPC64 || V8_TARGET_LITTLE_ENDIAN || \
+    (defined(_CALL_ELF) && _CALL_ELF == 2)
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 1
 #else
 #define ABI_RETURNS_OBJECT_PAIRS_IN_REGS 0
 #endif
 
-#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || \
-    (V8_TARGET_ARCH_PPC64 &&                     \
+#if !V8_HOST_ARCH_PPC64 ||   \
+    (V8_TARGET_ARCH_PPC64 && \
      (V8_TARGET_LITTLE_ENDIAN || (defined(_CALL_ELF) && _CALL_ELF == 2)))
 #define ABI_CALL_VIA_IP 1
 #else
 #define ABI_CALL_VIA_IP 0
 #endif
 
-#if !(V8_HOST_ARCH_PPC || V8_HOST_ARCH_PPC64) || V8_OS_AIX || \
-    V8_TARGET_ARCH_PPC64
+#if !V8_HOST_ARCH_PPC64 || V8_OS_AIX || V8_TARGET_ARCH_PPC64
 #define ABI_TOC_REGISTER 2
 #else
 #define ABI_TOC_REGISTER 13
@@ -116,7 +114,7 @@ constexpr int kRootRegisterBias = 128;
 
 // Constants for specific fields are defined in their respective named enums.
 // General constants are in an anonymous enum in class Instr.
-enum Condition {
+enum Condition : int {
   kNoCondition = -1,
   eq = 0,         // Equal.
   ne = 1,         // Not equal.
@@ -273,17 +271,19 @@ using Instr = uint32_t;
   /* VSX Scalar Test for software Divide Double-Precision */          \
   V(xstdivdp, XSTDIVDP, 0xF00001E8)
 
-#define PPC_XX3_OPCODE_VECTOR_LIST(V)                                         \
+#define PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(V)         \
+  /* VSX Vector Compare Equal To Single-Precision */ \
+  V(xvcmpeqsp, XVCMPEQSP, 0xF0000218)                \
+  /* VSX Vector Compare Equal To Double-Precision */ \
+  V(xvcmpeqdp, XVCMPEQDP, 0xF0000318)
+
+#define PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(V)                                  \
   /* VSX Vector Add Double-Precision */                                       \
   V(xvadddp, XVADDDP, 0xF0000300)                                             \
   /* VSX Vector Add Single-Precision */                                       \
   V(xvaddsp, XVADDSP, 0xF0000200)                                             \
-  /* VSX Vector Compare Equal To Double-Precision */                          \
-  V(xvcmpeqdp, XVCMPEQDP, 0xF0000318)                                         \
   /* VSX Vector Compare Equal To Double-Precision & record CR6 */             \
   V(xvcmpeqdpx, XVCMPEQDPx, 0xF0000718)                                       \
-  /* VSX Vector Compare Equal To Single-Precision */                          \
-  V(xvcmpeqsp, XVCMPEQSP, 0xF0000218)                                         \
   /* VSX Vector Compare Equal To Single-Precision & record CR6 */             \
   V(xvcmpeqspx, XVCMPEQSPx, 0xF0000618)                                       \
   /* VSX Vector Compare Greater Than or Equal To Double-Precision */          \
@@ -392,6 +392,10 @@ using Instr = uint32_t;
   V(xxsldwi, XXSLDWI, 0xF0000010)                                             \
   /* VSX Splat Word */                                                        \
   V(xxspltw, XXSPLTW, 0xF0000290)
+
+#define PPC_XX3_OPCODE_VECTOR_LIST(V)  \
+  PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(V) \
+  PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(V)
 
 #define PPC_Z23_OPCODE_LIST(V)                                    \
   /* Decimal Quantize */                                          \
@@ -2979,7 +2983,7 @@ const Instr rtCallRedirInstr = TWI;
 // Example: Test whether the instruction at ptr does set the condition code
 // bits.
 //
-// bool InstructionSetsConditionCodes(byte* ptr) {
+// bool InstructionSetsConditionCodes(uint8_t* ptr) {
 //   Instruction* instr = Instruction::At(ptr);
 //   int type = instr->TypeValue();
 //   return ((type == 0) || (type == 1)) && instr->HasS();
@@ -3150,10 +3154,15 @@ class Instruction {
       PPC_XS_OPCODE_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
+    opcode = extcode | BitField(9, 3);
+    switch (opcode) {
+      PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(OPCODE_CASES)
+      return static_cast<Opcode>(opcode);
+    }
     opcode = extcode | BitField(10, 3);
     switch (opcode) {
       PPC_EVS_OPCODE_LIST(OPCODE_CASES)
-      PPC_XX3_OPCODE_VECTOR_LIST(OPCODE_CASES)
+      PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(OPCODE_CASES)
       PPC_XX3_OPCODE_SCALAR_LIST(OPCODE_CASES)
       return static_cast<Opcode>(opcode);
     }
@@ -3212,7 +3221,7 @@ class Instruction {
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(uint8_t* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 

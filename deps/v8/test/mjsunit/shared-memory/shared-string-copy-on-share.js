@@ -13,7 +13,7 @@ if (this.Worker) {
     let b1 = new Box();
     b1.payload = "started";
     postMessage(b1);
-    onmessage = function(box) {
+    onmessage = function({data:box}) {
       if (!%IsSharedString(box.payload)) {
         throw new Error("str isn't shared");
       }
@@ -34,7 +34,7 @@ if (this.Worker) {
   let box_to_send = new Box();
   // Create a string that is not internalized by the parser. Create dummy
   // strings before and after the string to make sure we have enough live
-  // objects on the page to get it promoted to old space (for minor MC).
+  // objects on the page to get it promoted to old space (for minor MS).
   let trash = [];
   for (let i = 0; i < 1024 * 32; i++) {
     trash.push('a'.repeat(8));
@@ -43,7 +43,8 @@ if (this.Worker) {
   for (let i = 0; i < 1024 * 32; i++) {
     trash.push('a'.repeat(8));
   }
-  // Trigger a gc to move the object to old space.
+  // Trigger two GCs to move the object to old space.
+  gc({type: 'minor'});
   gc({type: 'minor'});
   assertFalse(%InLargeObjectSpace(payload));
   assertFalse(%InYoungGeneration(payload));

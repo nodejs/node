@@ -25,7 +25,7 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -75,7 +75,7 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["a"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["a"],
 ]
 handlers: [
 ]
@@ -101,7 +101,7 @@ bytecodes: [
 ]
 constant pool: [
   FIXED_ARRAY_TYPE,
-  ONE_BYTE_INTERNALIZED_STRING_TYPE ["f"],
+  INTERNALIZED_ONE_BYTE_STRING_TYPE ["f"],
 ]
 handlers: [
 ]

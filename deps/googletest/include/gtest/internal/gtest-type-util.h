@@ -67,6 +67,22 @@ inline std::string CanonicalizeForStdLibVersioning(std::string s) {
       s.erase(strlen("std"), end - strlen("std"));
     }
   }
+
+  // Strip redundant spaces in typename to match MSVC
+  // For example, std::pair<int, bool> -> std::pair<int,bool>
+  static const char to_search[] = ", ";
+  const char replace_char = ',';
+  size_t pos = 0;
+  while (true) {
+    // Get the next occurrence from the current position
+    pos = s.find(to_search, pos);
+    if (pos == std::string::npos) {
+      break;
+    }
+    // Replace this occurrence of substring
+    s.replace(pos, strlen(to_search), 1, replace_char);
+    ++pos;
+  }
   return s;
 }
 
@@ -85,6 +101,20 @@ inline std::string GetTypeName(const std::type_info& type) {
   const std::string name_str(status == 0 ? readable_name : name);
   free(readable_name);
   return CanonicalizeForStdLibVersioning(name_str);
+#elif defined(_MSC_VER)
+  // Strip struct and class due to differences between
+  // MSVC and other compilers. std::pair<int,bool> is printed as
+  // "struct std::pair<int,bool>" when using MSVC vs "std::pair<int, bool>" with
+  // other compilers.
+  std::string s = name;
+  // Only strip the leading "struct " and "class ", so uses rfind == 0 to
+  // ensure that
+  if (s.rfind("struct ", 0) == 0) {
+    s = s.substr(strlen("struct "));
+  } else if (s.rfind("class ", 0) == 0) {
+    s = s.substr(strlen("class "));
+  }
+  return s;
 #else
   return name;
 #endif  // GTEST_HAS_CXXABI_H_ || __HP_aCC

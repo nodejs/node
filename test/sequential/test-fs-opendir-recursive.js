@@ -10,7 +10,7 @@ const tmpdir = require('../common/tmpdir');
 const testDir = tmpdir.path;
 
 const fileStructure = [
-  [ 'a', [ 'foo', 'bar' ] ],
+  [ 'a', [ 'a', 'foo', 'bar' ] ],
   [ 'b', [ 'foo', 'bar' ] ],
   [ 'c', [ 'foo', 'bar' ] ],
   [ 'd', [ 'foo', 'bar' ] ],
@@ -91,7 +91,7 @@ fs.symlinkSync(symlinkTargetFile, pathModule.join(symlinksRootPath, 'symlink-src
 fs.symlinkSync(symlinkTargetDir, pathModule.join(symlinksRootPath, 'symlink-src-dir'));
 
 const expected = [
-  'a', 'a/bar', 'a/foo', 'aa', 'aa/bar', 'aa/foo',
+  'a', 'a/a', 'a/bar', 'a/foo', 'aa', 'aa/bar', 'aa/foo',
   'abc', 'abc/def', 'abc/def/bar', 'abc/def/foo', 'abc/ghi', 'abc/ghi/bar', 'abc/ghi/foo',
   'b', 'b/bar', 'b/foo', 'bb', 'bb/bar', 'bb/foo',
   'c', 'c/bar', 'c/foo', 'cc', 'cc/bar', 'cc/foo',
@@ -128,15 +128,19 @@ for (let i = 0; i < expected.length; i++) {
 }
 
 function getDirentPath(dirent) {
-  return pathModule.relative(testDir, dirent.path);
+  return pathModule.relative(testDir, pathModule.join(dirent.parentPath, dirent.name));
 }
 
 function assertDirents(dirents) {
+  assert.strictEqual(dirents.length, expected.length);
   dirents.sort((a, b) => (getDirentPath(a) < getDirentPath(b) ? -1 : 1));
-  for (const [i, dirent] of dirents.entries()) {
-    assert(dirent instanceof fs.Dirent);
-    assert.strictEqual(getDirentPath(dirent), expected[i]);
-  }
+  assert.deepStrictEqual(
+    dirents.map((dirent) => {
+      assert(dirent instanceof fs.Dirent);
+      return getDirentPath(dirent);
+    }),
+    expected
+  );
 }
 
 function processDirSync(dir) {
@@ -217,4 +221,22 @@ function processDirCb(dir, cb) {
   }
 
   test().then(common.mustCall());
+}
+
+// Issue https://github.com/nodejs/node/issues/48820 highlights that
+// opendir recursive does not properly handle the buffer size option.
+// This test asserts that the buffer size option is respected.
+{
+  const dir = fs.opendirSync(testDir, { bufferSize: 1, recursive: true });
+  processDirSync(dir);
+  dir.closeSync();
+}
+
+{
+  fs.opendir(testDir, { recursive: true, bufferSize: 1 }, common.mustSucceed((dir) => {
+    processDirCb(dir, common.mustSucceed((dirents) => {
+      assertDirents(dirents);
+      dir.close(common.mustSucceed());
+    }));
+  }));
 }

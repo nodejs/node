@@ -1,12 +1,13 @@
-const { readFileSync, statSync } = require('fs')
-const { resolve } = require('path')
+const { readFileSync, statSync } = require('node:fs')
+const { resolve } = require('node:path')
 const t = require('tap')
 const _mockNpm = require('../../fixtures/mock-npm')
-const mockGlobals = require('../../fixtures/mock-globals.js')
+const mockGlobals = require('@npmcli/mock-globals')
 
 const mockNpm = async (t, opts = {}) => {
   const res = await _mockNpm(t, {
     ...opts,
+    command: 'version',
     mocks: {
       ...opts.mocks,
       '{ROOT}/package.json': { version: '1.0.0' },
@@ -14,7 +15,6 @@ const mockNpm = async (t, opts = {}) => {
   })
   return {
     ...res,
-    version: { exec: (args) => res.npm.exec('version', args) },
     result: () => res.outputs[0],
   }
 }
@@ -36,11 +36,7 @@ t.test('node@1', async t => {
 
     t.strictSame(
       result(),
-      [{
-        'test-version-no-args': '3.2.1',
-        node: '1.0.0',
-        npm: '1.0.0',
-      }],
+      "{ 'test-version-no-args': '3.2.1', npm: '1.0.0', node: '1.0.0' }",
       'should output expected values for various versions in npm'
     )
   })
@@ -55,8 +51,7 @@ t.test('node@1', async t => {
   })
 
   t.test('completion', async t => {
-    const { npm } = await mockNpm(t)
-    const version = await npm.cmd('version')
+    const { version } = await mockNpm(t)
     const testComp = async (argv, expect) => {
       const res = await version.completion({ conf: { argv: { remain: argv } } })
       t.strictSame(res, expect, argv.join(' '))
@@ -76,10 +71,7 @@ t.test('node@1', async t => {
 
     t.strictSame(
       result(),
-      [{
-        npm: '1.0.0',
-        node: '1.0.0',
-      }],
+      `{ npm: '1.0.0', node: '1.0.0' }`,
       'should not have package name on returning object'
     )
   })
@@ -94,7 +86,7 @@ t.test('empty versions', async t => {
     })
 
     await version.exec([])
-    t.same(result(), ['{\n  "npm": "1.0.0"\n}'], 'should return json stringified result')
+    t.same(result(), '{\n  "npm": "1.0.0"\n}', 'should return json stringified result')
   })
 
   t.test('with one arg', async t => {
@@ -105,7 +97,7 @@ t.test('empty versions', async t => {
     })
 
     await version.exec(['major'])
-    t.same(result(), ['v4.0.0'], 'outputs the new version prefixed by the tagVersionPrefix')
+    t.same(result(), 'v4.0.0', 'outputs the new version prefixed by the tagVersionPrefix')
   })
 
   t.test('workspaces', async t => {
@@ -140,14 +132,12 @@ t.test('empty versions', async t => {
       await version.exec([])
       t.same(
         result(),
-        [
-          {
-            'workspaces-test': '1.0.0',
-            'workspace-a': '1.0.0',
-            'workspace-b': '1.0.0',
-            npm: '1.0.0',
-          },
-        ],
+        `{
+  'workspace-a': '1.0.0',
+  'workspace-b': '1.0.0',
+  'workspaces-test': '1.0.0',
+  npm: '1.0.0'
+}`,
         'outputs includes main package and workspace versions'
       )
     })
@@ -185,13 +175,7 @@ t.test('empty versions', async t => {
       await version.exec([])
       t.same(
         result(),
-        [
-          {
-            'workspaces-test': '1.0.0',
-            'workspace-a': '1.0.0',
-            npm: '1.0.0',
-          },
-        ],
+        "{ 'workspace-a': '1.0.0', 'workspaces-test': '1.0.0', npm: '1.0.0' }",
         'outputs includes main package and requested workspace versions'
       )
     })
@@ -231,13 +215,7 @@ t.test('empty versions', async t => {
       await version.exec([])
       t.same(
         result(),
-        [
-          {
-            'workspaces-test': '1.0.0',
-            'workspace-a': '1.0.0',
-            npm: '1.0.0',
-          },
-        ],
+        "{ 'workspace-a': '1.0.0', 'workspaces-test': '1.0.0', npm: '1.0.0' }",
         'outputs includes main package and valid workspace versions'
       )
     })
@@ -272,7 +250,7 @@ t.test('empty versions', async t => {
 
       await version.exec(['major'])
       t.same(
-        outputs.map(o => o[0]).slice(0, 4),
+        outputs.slice(0, 4),
         ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
         'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
       )
@@ -317,7 +295,7 @@ t.test('empty versions', async t => {
 
       await version.exec(['major'])
       t.same(
-        outputs.map(o => o[0]).slice(0, 4),
+        outputs.slice(0, 4),
         ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
         'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
       )
@@ -361,7 +339,7 @@ t.test('empty versions', async t => {
           },
         },
         mocks: {
-          libnpmversion: (arg, opts) => {
+          libnpmversion: () => {
             return '2.0.0'
           },
         },
@@ -373,7 +351,7 @@ t.test('empty versions', async t => {
 
       await version.exec(['major'])
       t.same(
-        outputs.map(o => o[0]).slice(0, 4),
+        outputs.slice(0, 4),
         ['workspace-a', 'v2.0.0', 'workspace-b', 'v2.0.0'],
         'outputs the new version for only the workspaces prefixed by the tagVersionPrefix'
       )

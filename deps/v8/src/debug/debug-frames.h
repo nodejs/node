@@ -40,6 +40,9 @@ class V8_EXPORT_PRIVATE FrameInspector {
 
 #if V8_ENABLE_WEBASSEMBLY
   bool IsWasm();
+#if V8_ENABLE_DRUMBRAKE
+  bool IsWasmInterpreter();
+#endif  // V8_ENABLE_DRUMBRAKE
 #endif  // V8_ENABLE_WEBASSEMBLY
   bool IsJavaScript();
 
@@ -48,7 +51,7 @@ class V8_EXPORT_PRIVATE FrameInspector {
   int inlined_frame_index() const { return inlined_frame_index_; }
 
  private:
-  bool ParameterIsShadowedByContextLocal(Handle<ScopeInfo> info,
+  bool ParameterIsShadowedByContextLocal(DirectHandle<ScopeInfo> info,
                                          Handle<String> parameter_name);
 
   CommonFrame* frame_;
@@ -70,12 +73,13 @@ class RedirectActiveFunctions : public ThreadVisitor {
     kUseDebugBytecode,
   };
 
-  explicit RedirectActiveFunctions(SharedFunctionInfo shared, Mode mode);
+  RedirectActiveFunctions(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                          Mode mode);
 
   void VisitThread(Isolate* isolate, ThreadLocalTop* top) override;
 
  private:
-  SharedFunctionInfo shared_;
+  Tagged<SharedFunctionInfo> shared_;
   Mode mode_;
   DISALLOW_GARBAGE_COLLECTION(no_gc_)
 };

@@ -1,5 +1,6 @@
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 napi_deferred deferred = NULL;
 

@@ -102,7 +102,7 @@ VTuneDomainSupportExtension::GetNativeFunctionTemplate(
   return v8::FunctionTemplate::New(isolate, VTuneDomainSupportExtension::Mark);
 }
 
-// args should take three parameters
+// info should take three parameters
 // %0 : string, which is the domain name. Domain is used to tagging trace data
 // for different modules or libraryies in a program
 // %1 : string, which is the task name. Task is a logical unit of work performed
@@ -110,19 +110,19 @@ VTuneDomainSupportExtension::GetNativeFunctionTemplate(
 // %2 : string, "start" / "end". Action to be taken on a task in a particular
 // domain
 void VTuneDomainSupportExtension::Mark(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  if (args.Length() != 3 || !args[0]->IsString() || !args[1]->IsString() ||
-      !args[2]->IsString()) {
-    args.GetIsolate()->ThrowError(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  if (info.Length() != 3 || !info[0]->IsString() || !info[1]->IsString() ||
+      !info[2]->IsString()) {
+    info.GetIsolate()->ThrowError(
         "Parameter number should be exactly three, first domain name"
         "second task name, third start/end");
     return;
   }
 
-  v8::Isolate* isolate = args.GetIsolate();
-  v8::String::Utf8Value domainName(isolate, args[0]);
-  v8::String::Utf8Value taskName(isolate, args[1]);
-  v8::String::Utf8Value statName(isolate, args[2]);
+  v8::Isolate* isolate = info.GetIsolate();
+  v8::String::Utf8Value domainName(isolate, info[0]);
+  v8::String::Utf8Value taskName(isolate, info[1]);
+  v8::String::Utf8Value statName(isolate, info[2]);
 
   char* cdomainName = *domainName;
   char* ctaskName = *taskName;
@@ -133,8 +133,8 @@ void VTuneDomainSupportExtension::Mark(
 
   int r = 0;
   if ((r = libvtune::invoke(params.str().c_str())) != 0) {
-    args.GetIsolate()->ThrowError(
-        v8::String::NewFromUtf8(args.GetIsolate(), std::to_string(r).c_str())
+    info.GetIsolate()->ThrowError(
+        v8::String::NewFromUtf8(info.GetIsolate(), std::to_string(r).c_str())
             .ToLocalChecked());
   }
 }

@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-rab-gsab --allow-natives-syntax --harmony-array-find-last
+// Flags: --allow-natives-syntax --harmony-array-find-last --js-float16array
 
 "use strict";
 
@@ -3993,4 +3993,15 @@ SortCallbackGrows(ArraySortHelper);
     assertThrows(() => { targetCtor.from(lengthTrackingWithOffset); },
                  TypeError);
   });
+})();
+
+(function ArrayBufferSizeNotMultipleOfElementSize() {
+  // The buffer size is a prime, not multiple of anything.
+  const rab = CreateGrowableSharedArrayBuffer(11, 20);
+  for (let ctor of ctors) {
+    if (ctor.BYTES_PER_ELEMENT == 1) continue;
+
+    // This should not throw.
+    new ctor(rab);
+  }
 })();

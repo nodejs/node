@@ -49,28 +49,6 @@ import assert from 'assert';
 // Note all the tests that check AsyncIterator's prototype itself and things
 // that happen before stream conversion were not ported.
 {
-  // asIndexedPairs/is-function
-  assert.strictEqual(typeof Readable.prototype.asIndexedPairs, 'function');
-  // asIndexedPairs/indexed-pairs.js
-  const iterator = Readable.from([0, 1]);
-  const indexedPairs = iterator.asIndexedPairs();
-
-  for await (const [i, v] of indexedPairs) {
-    assert.strictEqual(i, v);
-  }
-  // asIndexedPairs/length.js
-  assert.strictEqual(Readable.prototype.asIndexedPairs.length, 0);
-  // asIndexedPairs/name.js
-  assert.strictEqual(Readable.prototype.asIndexedPairs.name, 'asIndexedPairs');
-  const descriptor = Object.getOwnPropertyDescriptor(
-    Readable.prototype,
-    'asIndexedPairs'
-  );
-  assert.strictEqual(descriptor.enumerable, false);
-  assert.strictEqual(descriptor.configurable, true);
-  assert.strictEqual(descriptor.writable, true);
-}
-{
   // drop/length
   assert.strictEqual(Readable.prototype.drop.length, 1);
   const descriptor = Object.getOwnPropertyDescriptor(

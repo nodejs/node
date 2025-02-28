@@ -8,9 +8,8 @@ namespace proxy {
 
 // ES #sec-proxy-object-internal-methods-and-internal-slots-preventextensions
 // https://tc39.es/ecma262/#sec-proxy-object-internal-methods-and-internal-slots-preventextensions
-transitioning builtin
-ProxyPreventExtensions(implicit context: Context)(
-    proxy: JSProxy, doThrow: Boolean): JSAny {
+transitioning builtin ProxyPreventExtensions(
+    implicit context: Context)(proxy: JSProxy, doThrow: Boolean): JSAny {
   PerformStackCheck();
   const kTrapName: constexpr string = 'preventExtensions';
   try {

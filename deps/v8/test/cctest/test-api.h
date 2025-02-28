@@ -5,32 +5,101 @@
 #ifndef V8_TEST_CCTEST_TEST_API_H_
 #define V8_TEST_CCTEST_TEST_API_H_
 
-#include "src/api/api.h"
+#include "src/api/api-inl.h"
 #include "src/execution/isolate.h"
 #include "src/execution/vm-state.h"
 #include "test/cctest/cctest.h"
 
 template <typename T>
-static void CheckReturnValue(const T& t, i::Address callback) {
-  v8::ReturnValue<v8::Value> rv = t.GetReturnValue();
-  i::FullObjectSlot o(*reinterpret_cast<i::Address*>(&rv));
-  CHECK_EQ(CcTest::isolate(), t.GetIsolate());
-  i::Isolate* isolate = reinterpret_cast<i::Isolate*>(t.GetIsolate());
-  CHECK_EQ(t.GetIsolate(), rv.GetIsolate());
-  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
-  // Verify reset
-  bool is_runtime = (*o).IsTheHole(isolate);
-  if (is_runtime) {
-    CHECK(rv.Get()->IsUndefined());
-  } else {
-    i::Handle<i::Object> v = v8::Utils::OpenHandle(*rv.Get());
-    CHECK_EQ(*v, *o);
+static i::Tagged<i::Object> Get(v8::ReturnValue<T> return_value) {
+  return *v8::Utils::OpenDirectHandle(*return_value.Get());
+}
+
+template <typename T>
+static void CheckReturnValueImpl(v8::Isolate* v8_isolate,
+                                 v8::ReturnValue<T> return_value,
+                                 i::Address callback) {
+  using namespace v8::internal;
+  constexpr bool is_int = std::is_same_v<T, v8::Integer>;
+  constexpr bool is_bool =
+      std::is_same_v<T, v8::Boolean> || std::is_same_v<T, void>;
+  constexpr bool is_array = std::is_same_v<T, v8::Array>;
+  constexpr bool is_value = std::is_same_v<T, v8::Value>;
+  static_assert(is_int || is_bool || is_array || is_value);
+
+  CHECK_EQ(CcTest::isolate(), v8_isolate);
+  CHECK_EQ(v8_isolate, return_value.GetIsolate());
+  Isolate* isolate = reinterpret_cast<Isolate*>(v8_isolate);
+
+  Tagged<Object> default_value;
+  if constexpr (is_int) {
+    default_value = Smi::zero();
+  } else if constexpr (is_bool) {
+    default_value = ReadOnlyRoots(isolate).true_value();
+  } else if constexpr (is_array) {
+    // TODO(ishell): enumerator callback's return value is initialized with
+    // undefined even though it's supposed to return v8::Array.
+    default_value = ReadOnlyRoots(isolate).undefined_value();
+  } else if constexpr (is_value) {
+    default_value = ReadOnlyRoots(isolate).undefined_value();
   }
-  rv.Set(true);
-  CHECK(!(*o).IsTheHole(isolate) && !(*o).IsUndefined(isolate));
-  rv.Set(v8::Local<v8::Object>());
-  CHECK((*o).IsTheHole(isolate) || (*o).IsUndefined(isolate));
-  CHECK_EQ(is_runtime, (*o).IsTheHole(isolate));
+
+  auto CheckValueMap = [=](v8::ReturnValue<T>& return_value) {
+    Tagged<Object> obj = Get(return_value);
+    if constexpr (is_int) {
+      return IsNumber(obj);
+    } else if constexpr (is_bool) {
+      return IsBoolean(obj);
+    } else if constexpr (is_array) {
+      // TODO(ishell): enumerator callback's return value is initialized with
+      // undefined even though it's supposed to return v8::Array.
+      return IsUndefined(obj) || IsJSObject(obj);
+    } else if constexpr (is_value) {
+      // TODO(ishell): just `return IsJSAny(obj);` when available.
+      // Similar to v8::Data::IsValue().
+      if (IsSmi(obj)) return true;
+      Tagged<HeapObject> heap_object = Cast<HeapObject>(obj);
+      if (i::IsSymbol(heap_object)) {
+        return !Cast<Symbol>(heap_object)->is_private();
+      }
+      return IsPrimitiveHeapObject(heap_object) || IsJSReceiver(heap_object);
+    }
+    UNREACHABLE();
+  };
+
+  // Default state.
+  CHECK_EQ(default_value, Get(return_value));
+  CHECK(CheckValueMap(return_value));
+
+  if constexpr (is_bool || is_value) {
+    return_value.Set(true);
+    CHECK_EQ(Get(return_value), i::ReadOnlyRoots(isolate).true_value());
+    CHECK(CheckValueMap(return_value));
+  }
+
+  if constexpr (is_int || is_value) {
+    return_value.Set(42);
+    CHECK_EQ(Get(return_value), i::Smi::FromInt(42));
+    CHECK(CheckValueMap(return_value));
+
+    return_value.Set(-153);
+    CHECK_EQ(Get(return_value), i::Smi::FromInt(-153));
+    CHECK(CheckValueMap(return_value));
+  }
+
+  if constexpr (is_value) {
+    return_value.SetNull();
+    CHECK_EQ(Get(return_value), i::ReadOnlyRoots(isolate).null_value());
+    CHECK(CheckValueMap(return_value));
+  }
+
+  if constexpr (is_value) {
+    // Reset to default state.
+    return_value.Set(v8::Local<v8::Object>());
+    CHECK_EQ(default_value, Get(return_value));
+    CHECK(CheckValueMap(return_value));
+  }
+
   // If CPU profiler is active check that when API callback is invoked
   // VMState is set to EXTERNAL.
   if (isolate->is_profiling()) {
@@ -40,13 +109,20 @@ static void CheckReturnValue(const T& t, i::Address callback) {
   }
 }
 
+template <typename TCallbackInfo>
+static void CheckReturnValue(const TCallbackInfo& info, i::Address callback) {
+  CheckReturnValueImpl(info.GetIsolate(), info.GetReturnValue(), callback);
+}
+
 template <typename T>
 static void CheckInternalFieldsAreZero(v8::Local<T> value) {
   CHECK_EQ(T::kInternalFieldCount, value->InternalFieldCount());
   for (int i = 0; i < value->InternalFieldCount(); i++) {
-    CHECK_EQ(0, value->GetInternalField(i)
-                    ->Int32Value(CcTest::isolate()->GetCurrentContext())
-                    .FromJust());
+    v8::Local<v8::Value> field =
+        value->GetInternalField(i).template As<v8::Value>();
+    CHECK_EQ(
+        0,
+        field->Int32Value(CcTest::isolate()->GetCurrentContext()).FromJust());
   }
 }
 

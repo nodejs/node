@@ -15,8 +15,6 @@ namespace v8 {
 class Isolate;
 template <class K, class V, class T>
 class PersistentValueMapBase;
-template <class V, class T>
-class PersistentValueVector;
 template <class T>
 class Global;
 template <class T>
@@ -26,7 +24,7 @@ class PersistentValueMap;
 class Value;
 
 namespace api_internal {
-V8_EXPORT Value* Eternalize(v8::Isolate* isolate, Value* handle);
+V8_EXPORT internal::Address* Eternalize(v8::Isolate* isolate, Value* handle);
 V8_EXPORT internal::Address* CopyGlobalReference(internal::Address* from);
 V8_EXPORT void DisposeGlobal(internal::Address* global_handle);
 V8_EXPORT void MakeWeak(internal::Address** location_addr);
@@ -34,7 +32,7 @@ V8_EXPORT void* ClearWeak(internal::Address* location);
 V8_EXPORT void AnnotateStrongRetainer(internal::Address* location,
                                       const char* label);
 V8_EXPORT internal::Address* GlobalizeReference(internal::Isolate* isolate,
-                                                internal::Address* handle);
+                                                internal::Address value);
 V8_EXPORT void MoveGlobalReference(internal::Address** from,
                                    internal::Address** to);
 }  // namespace api_internal
@@ -44,35 +42,28 @@ V8_EXPORT void MoveGlobalReference(internal::Address** from,
  * isolate.
  */
 template <class T>
-class Eternal {
+class Eternal : public api_internal::IndirectHandleBase {
  public:
-  V8_INLINE Eternal() : val_(nullptr) {}
+  V8_INLINE Eternal() = default;
+
   template <class S>
-  V8_INLINE Eternal(Isolate* isolate, Local<S> handle) : val_(nullptr) {
+  V8_INLINE Eternal(Isolate* isolate, Local<S> handle) {
     Set(isolate, handle);
   }
+
   // Can only be safely called if already set.
   V8_INLINE Local<T> Get(Isolate* isolate) const {
     // The eternal handle will never go away, so as with the roots, we don't
     // even need to open a handle.
-    return Local<T>(internal::ValueHelper::SlotAsValue<T>(val_));
+    return Local<T>::FromSlot(slot());
   }
-
-  V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
 
   template <class S>
   void Set(Isolate* isolate, Local<S> handle) {
     static_assert(std::is_base_of<T, S>::value, "type check");
-    val_ = reinterpret_cast<T*>(
-        api_internal::Eternalize(isolate, reinterpret_cast<Value*>(*handle)));
+    slot() =
+        api_internal::Eternalize(isolate, *handle.template UnsafeAs<Value>());
   }
-
- private:
-  V8_INLINE internal::Address address() const {
-    return *reinterpret_cast<internal::Address*>(val_);
-  }
-
-  T* val_;
 };
 
 namespace api_internal {
@@ -95,7 +86,7 @@ V8_EXPORT void MakeWeak(internal::Address* location, void* data,
  *
  */
 template <class T>
-class PersistentBase {
+class PersistentBase : public api_internal::IndirectHandleBase {
  public:
   /**
    * If non-empty, destroy the underlying storage cell
@@ -116,9 +107,6 @@ class PersistentBase {
    */
   template <class S>
   V8_INLINE void Reset(Isolate* isolate, const PersistentBase<S>& other);
-
-  V8_INLINE bool IsEmpty() const { return val_ == nullptr; }
-  V8_INLINE void Empty() { val_ = 0; }
 
   V8_INLINE Local<T> Get(Isolate* isolate) const {
     return Local<T>::New(isolate, *this);
@@ -214,21 +202,15 @@ class PersistentBase {
   friend class ReturnValue;
   template <class F1, class F2, class F3>
   friend class PersistentValueMapBase;
-  template <class F1, class F2>
-  friend class PersistentValueVector;
   friend class Object;
-  friend class internal::HandleHelper;
+  friend class internal::ValueHelper;
 
-  explicit V8_INLINE PersistentBase(T* val) : val_(val) {}
-  V8_INLINE T* operator*() const { return this->val_; }
-  V8_INLINE internal::Address address() const {
-    return *reinterpret_cast<internal::Address*>(val_);
-  }
+  V8_INLINE PersistentBase() = default;
 
-  V8_INLINE static T* New(Isolate* isolate, Local<T> that);
-  V8_INLINE static T* New(Isolate* isolate, T* that);
+  V8_INLINE explicit PersistentBase(internal::Address* location)
+      : IndirectHandleBase(location) {}
 
-  T* val_;
+  V8_INLINE static internal::Address* New(Isolate* isolate, T* that);
 };
 
 /**
@@ -251,27 +233,14 @@ class NonCopyablePersistentTraits {
 };
 
 /**
- * Helper class traits to allow copying and assignment of Persistent.
- * This will clone the contents of storage cell, but not any of the flags, etc.
- */
-template <class T>
-struct CopyablePersistentTraits {
-  using CopyablePersistent = Persistent<T, CopyablePersistentTraits<T>>;
-  static const bool kResetInDestructor = true;
-  template <class S, class M>
-  static V8_INLINE void Copy(const Persistent<S, M>& source,
-                             CopyablePersistent* dest) {
-    // do nothing, just allow copy
-  }
-};
-
-/**
  * A PersistentBase which allows copy and assignment.
  *
  * Copy, assignment and destructor behavior is controlled by the traits
  * class M.
  *
- * Note: Persistent class hierarchy is subject to future changes.
+ * CAVEAT: Persistent objects do not have proper destruction behavior by default
+ * and as such will leak the object without explicit clear. Consider using
+ * `v8::Global` instead which has proper destruction and move semantics.
  */
 template <class T, class M>
 class Persistent : public PersistentBase<T> {
@@ -279,16 +248,17 @@ class Persistent : public PersistentBase<T> {
   /**
    * A Persistent with no storage cell.
    */
-  V8_INLINE Persistent() : PersistentBase<T>(nullptr) {}
+  V8_INLINE Persistent() = default;
+
   /**
    * Construct a Persistent from a Local.
    * When the Local is non-empty, a new storage cell is created
    * pointing to the same object, and no flags are set.
    */
-
   template <class S>
   V8_INLINE Persistent(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -299,20 +269,22 @@ class Persistent : public PersistentBase<T> {
    */
   template <class S, class M2>
   V8_INLINE Persistent(Isolate* isolate, const Persistent<S, M2>& that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, *that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
+
   /**
    * The copy constructors and assignment operator create a Persistent
    * exactly as the Persistent constructor, but the Copy function from the
    * traits class is called, allowing the setting of flags based on the
    * copied Persistent.
    */
-  V8_INLINE Persistent(const Persistent& that) : PersistentBase<T>(nullptr) {
+  V8_INLINE Persistent(const Persistent& that) : PersistentBase<T>() {
     Copy(that);
   }
   template <class S, class M2>
-  V8_INLINE Persistent(const Persistent<S, M2>& that) : PersistentBase<T>(0) {
+  V8_INLINE Persistent(const Persistent<S, M2>& that) : PersistentBase<T>() {
     Copy(that);
   }
   V8_INLINE Persistent& operator=(const Persistent& that) {
@@ -324,6 +296,7 @@ class Persistent : public PersistentBase<T> {
     Copy(that);
     return *this;
   }
+
   /**
    * The destructor will dispose the Persistent based on the
    * kResetInDestructor flags in the traits class.  Since not calling dispose
@@ -334,20 +307,21 @@ class Persistent : public PersistentBase<T> {
   }
 
   // TODO(dcarney): this is pretty useless, fix or remove
-  template <class S>
-  V8_INLINE static Persistent<T>& Cast(const Persistent<S>& that) {
+  template <class S, class M2>
+  V8_INLINE static Persistent<T, M>& Cast(const Persistent<S, M2>& that) {
 #ifdef V8_ENABLE_CHECKS
     // If we're going to perform the type check then we have to check
     // that the handle isn't empty before doing the checked cast.
-    if (!that.IsEmpty()) T::Cast(*that);
+    if (!that.IsEmpty()) T::Cast(that.template value<S>());
 #endif
-    return reinterpret_cast<Persistent<T>&>(const_cast<Persistent<S>&>(that));
+    return reinterpret_cast<Persistent<T, M>&>(
+        const_cast<Persistent<S, M2>&>(that));
   }
 
   // TODO(dcarney): this is pretty useless, fix or remove
-  template <class S>
-  V8_INLINE Persistent<S>& As() const {
-    return Persistent<S>::Cast(*this);
+  template <class S, class M2>
+  V8_INLINE Persistent<S, M2>& As() const {
+    return Persistent<S, M2>::Cast(*this);
   }
 
  private:
@@ -360,7 +334,6 @@ class Persistent : public PersistentBase<T> {
   template <class F>
   friend class ReturnValue;
 
-  explicit V8_INLINE Persistent(T* that) : PersistentBase<T>(that) {}
   template <class S, class M2>
   V8_INLINE void Copy(const Persistent<S, M2>& that);
 };
@@ -376,7 +349,7 @@ class Global : public PersistentBase<T> {
   /**
    * A Global with no storage cell.
    */
-  V8_INLINE Global() : PersistentBase<T>(nullptr) {}
+  V8_INLINE Global() = default;
 
   /**
    * Construct a Global from a Local.
@@ -385,7 +358,8 @@ class Global : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Global(Isolate* isolate, Local<S> that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, that)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -396,7 +370,8 @@ class Global : public PersistentBase<T> {
    */
   template <class S>
   V8_INLINE Global(Isolate* isolate, const PersistentBase<S>& that)
-      : PersistentBase<T>(PersistentBase<T>::New(isolate, that.val_)) {
+      : PersistentBase<T>(
+            PersistentBase<T>::New(isolate, that.template value<S>())) {
     static_assert(std::is_base_of<T, S>::value, "type check");
   }
 
@@ -446,17 +421,11 @@ class V8_EXPORT PersistentHandleVisitor {
 };
 
 template <class T>
-T* PersistentBase<T>::New(Isolate* isolate, Local<T> that) {
-  return PersistentBase<T>::New(isolate,
-                                internal::ValueHelper::ValueAsSlot(*that));
-}
-
-template <class T>
-T* PersistentBase<T>::New(Isolate* isolate, T* that) {
-  if (that == nullptr) return nullptr;
-  internal::Address* p = reinterpret_cast<internal::Address*>(that);
-  return reinterpret_cast<T*>(api_internal::GlobalizeReference(
-      reinterpret_cast<internal::Isolate*>(isolate), p));
+internal::Address* PersistentBase<T>::New(Isolate* isolate, T* that) {
+  if (internal::ValueHelper::IsEmpty(that)) return nullptr;
+  return api_internal::GlobalizeReference(
+      reinterpret_cast<internal::Isolate*>(isolate),
+      internal::ValueHelper::ValueAsAddress(that));
 }
 
 template <class T, class M>
@@ -465,8 +434,7 @@ void Persistent<T, M>::Copy(const Persistent<S, M2>& that) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   this->Reset();
   if (that.IsEmpty()) return;
-  internal::Address* p = reinterpret_cast<internal::Address*>(that.val_);
-  this->val_ = reinterpret_cast<T*>(api_internal::CopyGlobalReference(p));
+  this->slot() = api_internal::CopyGlobalReference(that.slot());
   M::Copy(that, this);
 }
 
@@ -474,15 +442,14 @@ template <class T>
 bool PersistentBase<T>::IsWeak() const {
   using I = internal::Internals;
   if (this->IsEmpty()) return false;
-  return I::GetNodeState(reinterpret_cast<internal::Address*>(this->val_)) ==
-         I::kNodeStateIsWeakValue;
+  return I::GetNodeState(this->slot()) == I::kNodeStateIsWeakValue;
 }
 
 template <class T>
 void PersistentBase<T>::Reset() {
   if (this->IsEmpty()) return;
-  api_internal::DisposeGlobal(reinterpret_cast<internal::Address*>(this->val_));
-  val_ = nullptr;
+  api_internal::DisposeGlobal(this->slot());
+  this->Clear();
 }
 
 /**
@@ -495,7 +462,7 @@ void PersistentBase<T>::Reset(Isolate* isolate, const Local<S>& other) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   Reset();
   if (other.IsEmpty()) return;
-  this->val_ = New(isolate, internal::ValueHelper::ValueAsSlot(*other));
+  this->slot() = New(isolate, *other);
 }
 
 /**
@@ -509,7 +476,7 @@ void PersistentBase<T>::Reset(Isolate* isolate,
   static_assert(std::is_base_of<T, S>::value, "type check");
   Reset();
   if (other.IsEmpty()) return;
-  this->val_ = New(isolate, other.val_);
+  this->slot() = New(isolate, other.template value<S>());
 }
 
 template <class T>
@@ -522,8 +489,8 @@ V8_INLINE void PersistentBase<T>::SetWeak(
 #pragma GCC diagnostic push
 #pragma GCC diagnostic ignored "-Wcast-function-type"
 #endif
-  api_internal::MakeWeak(reinterpret_cast<internal::Address*>(this->val_),
-                         parameter, reinterpret_cast<Callback>(callback), type);
+  api_internal::MakeWeak(this->slot(), parameter,
+                         reinterpret_cast<Callback>(callback), type);
 #if (__GNUC__ >= 8) && !defined(__clang__)
 #pragma GCC diagnostic pop
 #endif
@@ -531,28 +498,25 @@ V8_INLINE void PersistentBase<T>::SetWeak(
 
 template <class T>
 void PersistentBase<T>::SetWeak() {
-  api_internal::MakeWeak(reinterpret_cast<internal::Address**>(&this->val_));
+  api_internal::MakeWeak(&this->slot());
 }
 
 template <class T>
 template <typename P>
 P* PersistentBase<T>::ClearWeak() {
-  return reinterpret_cast<P*>(api_internal::ClearWeak(
-      reinterpret_cast<internal::Address*>(this->val_)));
+  return reinterpret_cast<P*>(api_internal::ClearWeak(this->slot()));
 }
 
 template <class T>
 void PersistentBase<T>::AnnotateStrongRetainer(const char* label) {
-  api_internal::AnnotateStrongRetainer(
-      reinterpret_cast<internal::Address*>(this->val_), label);
+  api_internal::AnnotateStrongRetainer(this->slot(), label);
 }
 
 template <class T>
 void PersistentBase<T>::SetWrapperClassId(uint16_t class_id) {
   using I = internal::Internals;
   if (this->IsEmpty()) return;
-  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
-  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  uint8_t* addr = reinterpret_cast<uint8_t*>(slot()) + I::kNodeClassIdOffset;
   *reinterpret_cast<uint16_t*>(addr) = class_id;
 }
 
@@ -560,18 +524,15 @@ template <class T>
 uint16_t PersistentBase<T>::WrapperClassId() const {
   using I = internal::Internals;
   if (this->IsEmpty()) return 0;
-  internal::Address* obj = reinterpret_cast<internal::Address*>(this->val_);
-  uint8_t* addr = reinterpret_cast<uint8_t*>(obj) + I::kNodeClassIdOffset;
+  uint8_t* addr = reinterpret_cast<uint8_t*>(slot()) + I::kNodeClassIdOffset;
   return *reinterpret_cast<uint16_t*>(addr);
 }
 
 template <class T>
-Global<T>::Global(Global&& other) : PersistentBase<T>(other.val_) {
-  if (other.val_ != nullptr) {
-    api_internal::MoveGlobalReference(
-        reinterpret_cast<internal::Address**>(&other.val_),
-        reinterpret_cast<internal::Address**>(&this->val_));
-    other.val_ = nullptr;
+Global<T>::Global(Global&& other) : PersistentBase<T>(other.slot()) {
+  if (!other.IsEmpty()) {
+    api_internal::MoveGlobalReference(&other.slot(), &this->slot());
+    other.Clear();
   }
 }
 
@@ -581,12 +542,10 @@ Global<T>& Global<T>::operator=(Global<S>&& rhs) {
   static_assert(std::is_base_of<T, S>::value, "type check");
   if (this != &rhs) {
     this->Reset();
-    if (rhs.val_ != nullptr) {
-      this->val_ = rhs.val_;
-      api_internal::MoveGlobalReference(
-          reinterpret_cast<internal::Address**>(&rhs.val_),
-          reinterpret_cast<internal::Address**>(&this->val_));
-      rhs.val_ = nullptr;
+    if (!rhs.IsEmpty()) {
+      this->slot() = rhs.slot();
+      api_internal::MoveGlobalReference(&rhs.slot(), &this->slot());
+      rhs.Clear();
     }
   }
   return *this;

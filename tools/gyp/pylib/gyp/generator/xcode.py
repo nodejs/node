@@ -439,7 +439,7 @@ sys.exit(subprocess.call(sys.argv[1:]))" """
         # it opens the project file, which will result in unnecessary diffs.
         # TODO(mark): This is evil because it relies on internal knowledge of
         # PBXProject._other_pbxprojects.
-        for other_pbxproject in self.project._other_pbxprojects.keys():
+        for other_pbxproject in self.project._other_pbxprojects:
             self.project.AddOrGetProjectReference(other_pbxproject)
 
         self.project.SortRemoteProductReferences()
@@ -959,7 +959,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
         #         would-be additional inputs are newer than the output.  Modifying
         #         the source tree - even just modification times - feels dirty.
         # 6564240 Xcode "custom script" build rules always dump all environment
-        #         variables.  This is a low-prioroty problem and is not a
+        #         variables.  This is a low-priority problem and is not a
         #         show-stopper.
         rules_by_ext = {}
         for rule in spec_rules:
@@ -1118,10 +1118,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
                     for concrete_output_index, concrete_output in enumerate(
                         concrete_outputs
                     ):
-                        if concrete_output_index == 0:
-                            bol = ""
-                        else:
-                            bol = "    "
+                        bol = "" if concrete_output_index == 0 else "    "
                         makefile.write(f"{bol}{concrete_output} \\\n")
 
                         concrete_output_dir = posixpath.dirname(concrete_output)

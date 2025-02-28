@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -346,6 +346,46 @@ static int test_builtin_as_sm2(int n)
     return test_builtin(n, EVP_PKEY_SM2);
 }
 # endif
+
+static int test_ecdsa_sig_NULL(void)
+{
+    int ret;
+    unsigned int siglen0;
+    unsigned int siglen;
+    unsigned char dgst[128] = { 0 };
+    EC_KEY *eckey = NULL;
+    unsigned char *sig = NULL;
+    BIGNUM *kinv = NULL, *rp = NULL;
+
+    ret = TEST_ptr(eckey = EC_KEY_new_by_curve_name(NID_X9_62_prime256v1))
+          && TEST_int_eq(EC_KEY_generate_key(eckey), 1)
+          && TEST_int_eq(ECDSA_sign(0, dgst, sizeof(dgst), NULL, &siglen0,
+                                    eckey), 1)
+          && TEST_int_gt(siglen0, 0)
+          && TEST_ptr(sig = OPENSSL_malloc(siglen0))
+          && TEST_int_eq(ECDSA_sign(0, dgst, sizeof(dgst), sig, &siglen,
+                                    eckey), 1)
+          && TEST_int_gt(siglen, 0)
+          && TEST_int_le(siglen, siglen0)
+          && TEST_int_eq(ECDSA_verify(0, dgst, sizeof(dgst), sig, siglen,
+                                      eckey), 1)
+          && TEST_int_eq(ECDSA_sign_setup(eckey, NULL, &kinv, &rp), 1)
+          && TEST_int_eq(ECDSA_sign_ex(0, dgst, sizeof(dgst), NULL, &siglen,
+                                       kinv, rp, eckey), 1)
+          && TEST_int_gt(siglen, 0)
+          && TEST_int_le(siglen, siglen0)
+          && TEST_int_eq(ECDSA_sign_ex(0, dgst, sizeof(dgst), sig, &siglen0,
+                                       kinv, rp, eckey), 1)
+          && TEST_int_eq(siglen, siglen0)
+          && TEST_int_eq(ECDSA_verify(0, dgst, sizeof(dgst), sig, siglen,
+                                      eckey), 1);
+    EC_KEY_free(eckey);
+    OPENSSL_free(sig);
+    BN_free(kinv);
+    BN_free(rp);
+    return ret;
+}
+
 #endif /* OPENSSL_NO_EC */
 
 int setup_tests(void)
@@ -365,6 +405,7 @@ int setup_tests(void)
         return 0;
     }
     ADD_ALL_TESTS(test_builtin_as_ec, crv_len);
+    ADD_TEST(test_ecdsa_sig_NULL);
 # ifndef OPENSSL_NO_SM2
     ADD_ALL_TESTS(test_builtin_as_sm2, crv_len);
 # endif

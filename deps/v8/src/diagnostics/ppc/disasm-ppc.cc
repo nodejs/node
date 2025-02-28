@@ -10,9 +10,9 @@
 //
 //   NameConverter converter;
 //   Disassembler d(converter);
-//   for (byte* pc = begin; pc < end;) {
+//   for (uint8_t* pc = begin; pc < end;) {
 //     v8::base::EmbeddedVector<char, 256> buffer;
-//     byte* prev_pc = pc;
+//     uint8_t* prev_pc = pc;
 //     pc += d.InstructionDecode(buffer, pc);
 //     printf("%p    %08x      %s\n",
 //            prev_pc, *reinterpret_cast<int32_t*>(prev_pc), buffer);
@@ -27,7 +27,7 @@
 #include <stdio.h>
 #include <string.h>
 
-#if V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#if V8_TARGET_ARCH_PPC64
 
 #include "src/base/platform/platform.h"
 #include "src/base/strings.h"
@@ -59,7 +59,7 @@ class Decoder {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
+  int InstructionDecode(uint8_t* instruction);
 
   // Prefixed instructions.
   enum PrefixType { not_prefixed, is_prefixed };
@@ -356,13 +356,13 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         int off = ((instr->Bits(25, 2)) << 8) >> 6;
         out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
-            converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
+            converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + off));
         return 8;
       } else if ((format[6] == '1') && (format[7] == '6')) {
         int off = ((instr->Bits(15, 2)) << 18) >> 16;
         out_buffer_pos_ += base::SNPrintF(
             out_buffer_ + out_buffer_pos_, "%+d -> %s", off,
-            converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + off));
+            converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + off));
         return 8;
       }
       break;
@@ -409,14 +409,12 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
         return 2;
       }
     }
-#if V8_TARGET_ARCH_PPC64
     case 'd': {  // ds value for offset
       int32_t value = SIGN_EXT_IMM16(instr->Bits(15, 0) & ~3);
       out_buffer_pos_ +=
           base::SNPrintF(out_buffer_ + out_buffer_pos_, "%d", value);
       return 1;
     }
-#endif
     default: {
       UNREACHABLE();
     }
@@ -471,8 +469,8 @@ void Decoder::DecodeExtP(Instruction* instr) {
       // Read prefix.
       SetAsPrefixed(instr->Bits(17, 0));
       // Read suffix (next instruction).
-      Instruction* next_instr = base::bit_cast<Instruction*>(
-          base::bit_cast<intptr_t>(instr) + kInstrSize);
+      Instruction* next_instr = reinterpret_cast<Instruction*>(
+          reinterpret_cast<intptr_t>(instr) + kInstrSize);
       switch (next_instr->OpcodeBase()) {
           // Prefixed ADDI.
         case (ADDI): {
@@ -879,22 +877,18 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "srw'.    'ra, 'rs, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case SRDX: {
       Format(instr, "srd'.    'ra, 'rs, 'rb");
       return;
     }
-#endif
     case SRAW: {
       Format(instr, "sraw'.   'ra, 'rs, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case SRAD: {
       Format(instr, "srad'.   'ra, 'rs, 'rb");
       return;
     }
-#endif
     case SYNC: {
       Format(instr, "sync");
       return;
@@ -907,7 +901,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "moduw  'rt, 'ra, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case MODSD: {
       Format(instr, "modsd  'rt, 'ra, 'rb");
       return;
@@ -916,7 +909,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "modud  'rt, 'ra, 'rb");
       return;
     }
-#endif
     case SRAWIX: {
       Format(instr, "srawi'.  'ra,'rs,'sh");
       return;
@@ -925,12 +917,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "extsh'.  'ra, 'rs");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case EXTSW: {
       Format(instr, "extsw'.  'ra, 'rs");
       return;
     }
-#endif
     case EXTSB: {
       Format(instr, "extsb'.  'ra, 'rs");
       return;
@@ -971,12 +961,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "popcntw  'ra, 'rs");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case POPCNTD: {
       Format(instr, "popcntd  'ra, 'rs");
       return;
     }
-#endif
   }
 
   switch (EXT2 | (instr->BitField(10, 2))) {
@@ -1008,27 +996,21 @@ void Decoder::DecodeExt2(Instruction* instr) {
   // ?? are all of these xo_form?
   switch (EXT2 | (instr->BitField(10, 1))) {
     case CMP: {
-#if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
-#endif
         Format(instr, "cmp     'ra, 'rb");
-#if V8_TARGET_ARCH_PPC64
       } else {
         Format(instr, "cmpw    'ra, 'rb");
       }
-#endif
       return;
     }
     case SLWX: {
       Format(instr, "slw'.   'ra, 'rs, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case SLDX: {
       Format(instr, "sld'.   'ra, 'rs, 'rb");
       return;
     }
-#endif
     case SUBFCX: {
       Format(instr, "subfc'. 'rt, 'ra, 'rb");
       return;
@@ -1082,15 +1064,11 @@ void Decoder::DecodeExt2(Instruction* instr) {
       return;
     }
     case CMPL: {
-#if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
-#endif
         Format(instr, "cmpl    'ra, 'rb");
-#if V8_TARGET_ARCH_PPC64
       } else {
         Format(instr, "cmplw   'ra, 'rb");
       }
-#endif
       return;
     }
     case NEGX: {
@@ -1117,12 +1095,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "mullw'o'.  'rt, 'ra, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case MULLD: {
       Format(instr, "mulld'o'.  'rt, 'ra, 'rb");
       return;
     }
-#endif
     case DIVW: {
       Format(instr, "divw'o'.   'rt, 'ra, 'rb");
       return;
@@ -1131,12 +1107,10 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "divwu'o'.  'rt, 'ra, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case DIVD: {
       Format(instr, "divd'o'.   'rt, 'ra, 'rb");
       return;
     }
-#endif
     case ADDX: {
       Format(instr, "add'o     'rt, 'ra, 'rb");
       return;
@@ -1245,7 +1219,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "lwarx   'rt, 'ra, 'rb");
       return;
     }
-#if V8_TARGET_ARCH_PPC64
     case LDX: {
       Format(instr, "ldx     'rt, 'ra, 'rb");
       return;
@@ -1318,7 +1291,6 @@ void Decoder::DecodeExt2(Instruction* instr) {
       Format(instr, "mtcrf   'FXM, 'rs");
       return;
     }
-#endif
   }
 
   switch (EXT2 | (instr->BitField(5, 1))) {
@@ -1535,13 +1507,13 @@ void Decoder::DecodeExt6(Instruction* instr) {
     }
   }
   switch (EXT6 | (instr->BitField(10, 3))) {
-#define DECODE_XX3_VECTOR_INSTRUCTIONS(name, opcode_name, opcode_value) \
-  case opcode_name: {                                                   \
-    Format(instr, #name " 'Xt, 'Xa, 'Xb");                              \
-    return;                                                             \
+#define DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS(name, opcode_name, opcode_value) \
+  case opcode_name: {                                                          \
+    Format(instr, #name " 'Xt, 'Xa, 'Xb");                                     \
+    return;                                                                    \
   }
-    PPC_XX3_OPCODE_VECTOR_LIST(DECODE_XX3_VECTOR_INSTRUCTIONS)
-#undef DECODE_XX3_VECTOR_INSTRUCTIONS
+    PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS)
+#undef DECODE_XX3_VECTOR_B_FORM_INSTRUCTIONS
 #define DECODE_XX3_SCALAR_INSTRUCTIONS(name, opcode_name, opcode_value) \
   case opcode_name: {                                                   \
     Format(instr, #name " 'Dt, 'Da, 'Db");                              \
@@ -1582,7 +1554,7 @@ void Decoder::DecodeExt6(Instruction* instr) {
 #undef VERIFY
 
 // Disassemble the instruction at *instr_ptr into the output buffer.
-int Decoder::InstructionDecode(byte* instr_ptr) {
+int Decoder::InstructionDecode(uint8_t* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
 
   uint32_t opcode = instr->OpcodeValue() << 26;
@@ -1593,8 +1565,8 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
   } else {
     // Prefixed instructions have a 4-byte prefix and a 4-byte suffix. Print
     // both on the same line.
-    Instruction* next_instr = base::bit_cast<Instruction*>(
-        base::bit_cast<intptr_t>(instr) + kInstrSize);
+    Instruction* next_instr = reinterpret_cast<Instruction*>(
+        reinterpret_cast<intptr_t>(instr) + kInstrSize);
     out_buffer_pos_ +=
         base::SNPrintF(out_buffer_ + out_buffer_pos_, "%08x|%08x ",
                        instr->InstructionBits(), next_instr->InstructionBits());
@@ -1621,27 +1593,19 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       break;
     }
     case CMPLI: {
-#if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
-#endif
         Format(instr, "cmpli   'ra, 'uint16");
-#if V8_TARGET_ARCH_PPC64
       } else {
         Format(instr, "cmplwi  'ra, 'uint16");
       }
-#endif
       break;
     }
     case CMPI: {
-#if V8_TARGET_ARCH_PPC64
       if (instr->Bit(21)) {
-#endif
         Format(instr, "cmpi    'ra, 'int16");
-#if V8_TARGET_ARCH_PPC64
       } else {
         Format(instr, "cmpwi   'ra, 'int16");
       }
-#endif
       break;
     }
     case ADDIC: {
@@ -1890,7 +1854,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       DecodeExt6(instr);
       break;
     }
-#if V8_TARGET_ARCH_PPC64
     case LD: {
       switch (instr->Bits(1, 0)) {
         case 0:
@@ -1913,7 +1876,6 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
       }
       break;
     }
-#endif
     default: {
       Unknown(instr);
       break;
@@ -1936,12 +1898,12 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -1957,7 +1919,7 @@ const char* NameConverter::NameOfXMMRegister(int reg) const {
   UNREACHABLE();  // PPC does not have any XMM registers
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code. So we will not try
   // to access any memory.
   return "";
@@ -1966,22 +1928,22 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instruction) {
+                                    uint8_t* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
 // The PPC assembler does not currently use constant pools.
-int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
+int Disassembler::ConstantPoolSizeAt(uint8_t* instruction) { return -1; }
 
-void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
+void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
                                UnimplementedOpcodeAction unimplemented_action) {
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<int32_t*>(prev_pc), buffer.begin());
@@ -1992,4 +1954,4 @@ void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
 
 }  // namespace disasm
 
-#endif  // V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#endif  // V8_TARGET_ARCH_PPC64

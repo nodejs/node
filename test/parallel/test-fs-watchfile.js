@@ -30,7 +30,7 @@ assert.throws(() => {
   fs.watchFile(new Object(), common.mustNotCall());
 }, { code: 'ERR_INVALID_ARG_TYPE', name: 'TypeError' });
 
-const enoentFile = path.join(tmpdir.path, 'non-existent-file');
+const enoentFile = tmpdir.resolve('non-existent-file');
 const expectedStatObject = new fs.Stats(
   0,                                        // dev
   0,                                        // mode
@@ -84,12 +84,9 @@ watcher.on('stop', common.mustCall());
 
 // Watch events should callback with a filename on supported systems.
 // Omitting AIX. It works but not reliably.
-if (common.isLinux || common.isOSX || common.isWindows) {
-  const dir = path.join(tmpdir.path, 'watch');
-
-  fs.mkdir(dir, common.mustCall(function(err) {
-    if (err) assert.fail(err);
-
+if (common.isLinux || common.isMacOS || common.isWindows) {
+  const dir = tmpdir.resolve('watch');
+  function doWatch() {
     const handle = fs.watch(dir, common.mustCall(function(eventType, filename) {
       clearInterval(interval);
       handle.close();
@@ -101,5 +98,15 @@ if (common.isLinux || common.isOSX || common.isWindows) {
         if (err) assert.fail(err);
       }));
     }, 1);
+  }
+
+  fs.mkdir(dir, common.mustSucceed(() => {
+    if (common.isMacOS) {
+      // On macOS delay watcher start to avoid leaking previous events.
+      // Refs: https://github.com/libuv/libuv/pull/4503
+      setTimeout(doWatch, common.platformTimeout(100));
+    } else {
+      doWatch();
+    }
   }));
 }

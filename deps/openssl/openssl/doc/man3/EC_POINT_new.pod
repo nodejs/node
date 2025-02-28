@@ -124,9 +124,9 @@ public concept.
 A valid point on a curve is the special point at infinity. A point is set to
 be at infinity by calling EC_POINT_set_to_infinity().
 
-The affine co-ordinates for a point describe a point in terms of its x and y
+The affine coordinates for a point describe a point in terms of its x and y
 position. The function EC_POINT_set_affine_coordinates() sets the B<x> and B<y>
-co-ordinates for the point B<p> defined over the curve given in B<group>. The
+coordinates for the point B<p> defined over the curve given in B<group>. The
 function EC_POINT_get_affine_coordinates() sets B<x> and B<y>, either of which
 may be NULL, to the corresponding coordinates of B<p>.
 
@@ -140,27 +140,27 @@ EC_POINT_get_affine_coordinates_GF2m() are synonyms for
 EC_POINT_get_affine_coordinates(). They are defined for backwards compatibility
 only and should not be used.
 
-As well as the affine co-ordinates, a point can alternatively be described in
-terms of its Jacobian projective co-ordinates (for Fp curves only). Jacobian
-projective co-ordinates are expressed as three values x, y and z. Working in
-this co-ordinate system provides more efficient point multiplication
-operations.  A mapping exists between Jacobian projective co-ordinates and
-affine co-ordinates. A Jacobian projective co-ordinate (x, y, z) can be written
-as an affine co-ordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
-projective from affine co-ordinates is simple. The co-ordinate (x, y) is mapped
+As well as the affine coordinates, a point can alternatively be described in
+terms of its Jacobian projective coordinates (for Fp curves only). Jacobian
+projective coordinates are expressed as three values x, y and z. Working in
+this coordinate system provides more efficient point multiplication
+operations.  A mapping exists between Jacobian projective coordinates and
+affine coordinates. A Jacobian projective coordinate (x, y, z) can be written
+as an affine coordinate as (x/(z^2), y/(z^3)). Conversion to Jacobian
+projective from affine coordinates is simple. The coordinate (x, y) is mapped
 to (x, y, 1). Although deprecated in OpenSSL 3.0 and should no longer be used,
-to set or get the projective co-ordinates in older versions use
+to set or get the projective coordinates in older versions use
 EC_POINT_set_Jprojective_coordinates_GFp() and
 EC_POINT_get_Jprojective_coordinates_GFp() respectively.
 Modern versions should instead use EC_POINT_set_affine_coordinates() and
 EC_POINT_get_affine_coordinates(), performing the conversion manually using the
 above maps in such rare circumstances.
 
-Points can also be described in terms of their compressed co-ordinates. For a
+Points can also be described in terms of their compressed coordinates. For a
 point (x, y), for any given value for x such that the point is on the curve
 there will only ever be two possible values for y. Therefore, a point can be set
 using the EC_POINT_set_compressed_coordinates() function where B<x> is the x
-co-ordinate and B<y_bit> is a value 0 or 1 to identify which of the two
+coordinate and B<y_bit> is a value 0 or 1 to identify which of the two
 possible values for y should be used.
 
 The functions EC_POINT_set_compressed_coordinates_GFp() and
@@ -269,7 +269,7 @@ added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -21,7 +21,7 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   // Create a big function that ends up in CODE_LO_SPACE.
   const int instruction_size =
       i_isolate()->heap()->MaxRegularHeapObjectSize(AllocationType::kCode) + 1;
-  std::unique_ptr<byte[]> instructions(new byte[instruction_size]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[instruction_size]);
 
   CodeDesc desc;
   desc.buffer = instructions.get();
@@ -32,13 +32,13 @@ TEST_F(FactoryCodeBuilderTest, Factory_CodeBuilder) {
   desc.unwinding_info = nullptr;
   desc.unwinding_info_size = 0;
   desc.origin = nullptr;
-  Handle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION).Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(
       i_isolate()->heap()->InSpace(code->instruction_stream(), CODE_LO_SPACE));
 #if VERIFY_HEAP
-  code->ObjectVerify(i_isolate());
+  Object::ObjectVerify(*code, i_isolate());
 #endif
 }
 
@@ -59,6 +59,9 @@ class FactoryCodeBuilderOOMTest : public TestWithIsolate {
  public:
   static void SetUpTestSuite() {
     v8_flags.max_old_space_size = kInstructionSize / MB / 2;  // In MB.
+    // Keep semi-space size small so that the heuristics don't think we have
+    // enough combined space for the allocation.
+    v8_flags.max_semi_space_size = 8;
   }
 
   void SetUp() override {
@@ -73,27 +76,26 @@ class FactoryCodeBuilderOOMTest : public TestWithIsolate {
 };
 
 TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_BuildOOM) {
-  std::unique_ptr<byte[]> instructions(new byte[kInstructionSize]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[kInstructionSize]);
   CodeDesc desc;
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
   const Handle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION).Build();
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).Build();
 
   CHECK(!code.is_null());
   CHECK(oom_triggered());
 }
 
 TEST_F(FactoryCodeBuilderOOMTest, Factory_CodeBuilder_TryBuildOOM) {
-  std::unique_ptr<byte[]> instructions(new byte[kInstructionSize]);
+  std::unique_ptr<uint8_t[]> instructions(new uint8_t[kInstructionSize]);
   CodeDesc desc;
   desc.instr_size = kInstructionSize;
   desc.buffer = instructions.get();
 
   const MaybeHandle<Code> code =
-      Factory::CodeBuilder(i_isolate(), desc, CodeKind::WASM_FUNCTION)
-          .TryBuild();
+      Factory::CodeBuilder(i_isolate(), desc, CodeKind::FOR_TESTING).TryBuild();
 
   CHECK(code.is_null());
   CHECK(!oom_triggered());

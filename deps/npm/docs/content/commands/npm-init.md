@@ -7,7 +7,7 @@ description: Create a package.json file
 ### Synopsis
 
 ```bash
-npm init <package-spec> (same as `npx <package-spec>`)
+npm init <package-spec> (same as `npx create-<package-spec>`)
 npm init <@scope> (same as `npx <@scope>/create`)
 
 aliases: create, innit
@@ -156,6 +156,56 @@ dot to represent the current directory in that context, e.g: `react-app .`:
 
 ### Configuration
 
+#### `init-author-name`
+
+* Default: ""
+* Type: String
+
+The value `npm init` should use by default for the package author's name.
+
+
+
+#### `init-author-url`
+
+* Default: ""
+* Type: "" or URL
+
+The value `npm init` should use by default for the package author's
+homepage.
+
+
+
+#### `init-license`
+
+* Default: "ISC"
+* Type: String
+
+The value `npm init` should use by default for the package license.
+
+
+
+#### `init-module`
+
+* Default: "~/.npm-init.js"
+* Type: Path
+
+A module that will be loaded by the `npm init` command. See the
+documentation for the
+[init-package-json](https://github.com/npm/init-package-json) module for
+more information, or [npm init](/commands/npm-init).
+
+
+
+#### `init-version`
+
+* Default: "1.0.0"
+* Type: SemVer string
+
+The value that `npm init` should use by default for the package version
+number, if not already set in package.json.
+
+
+
 #### `yes`
 
 * Default: null
@@ -163,6 +213,8 @@ dot to represent the current directory in that context, e.g: `react-app .`:
 
 Automatically answer "yes" to any prompts that npm might print on the
 command line.
+
+
 
 #### `force`
 
@@ -189,6 +241,8 @@ mistakes, unnecessary performance degradation, and malicious input.
 
 If you don't have a clear idea of what you want to do, it is strongly
 recommended that you do not use this option!
+
+
 
 #### `scope`
 
@@ -218,6 +272,7 @@ This will also cause `npm init` to create a scoped package.
 # instead of just named "whatever"
 npm init --scope=@foo --yes
 ```
+
 
 
 #### `workspace`
@@ -267,6 +322,8 @@ This value is not exported to the environment for child processes.
 
 If set to true, the npm cli will run an update after operations that may
 possibly change the workspaces installed to the `node_modules` folder.
+
+
 
 #### `include-workspace-root`
 

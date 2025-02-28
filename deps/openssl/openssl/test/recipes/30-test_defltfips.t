@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -20,6 +20,9 @@ BEGIN {
 
 use lib srctop_dir('Configurations');
 use lib bldtop_dir('.');
+
+plan skip_all => "Configuration loading is turned off"
+    if disabled("autoload-config");
 
 my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
 

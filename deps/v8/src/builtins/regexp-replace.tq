@@ -6,25 +6,23 @@
 
 namespace regexp {
 
-extern builtin
-SubString(implicit context: Context)(String, Smi, Smi): String;
+extern builtin SubString(implicit context: Context)(String, Smi, Smi): String;
 
-extern runtime RegExpExecMultiple(implicit context: Context)(
-    JSRegExp, String, RegExpMatchInfo): Null|FixedArray;
-extern transitioning runtime
-RegExpReplaceRT(Context, JSReceiver, String, Object): String;
-extern transitioning runtime
-StringBuilderConcat(implicit context: Context)(FixedArray, Smi, String): String;
-extern transitioning runtime
-StringReplaceNonGlobalRegExpWithFunction(implicit context: Context)(
-    String, JSRegExp, Callable): String;
+extern runtime RegExpExecMultiple(
+    implicit context: Context)(JSRegExp, String, RegExpMatchInfo): Null
+    |FixedArray;
+extern transitioning runtime RegExpReplaceRT(
+    Context, JSReceiver, String, Object): String;
+extern transitioning runtime StringBuilderConcat(
+    implicit context: Context)(FixedArray, Smi, String): String;
+extern transitioning runtime StringReplaceNonGlobalRegExpWithFunction(
+    implicit context: Context)(String, JSRegExp, Callable): String;
 
 // matchesCapacity is the length of the matchesElements FixedArray, and
 // matchesElements is allowed to contain holes at the end.
 transitioning macro RegExpReplaceCallableNoExplicitCaptures(
-    implicit context: Context)(
-    matchesElements: FixedArray, matchesCapacity: intptr, string: String,
-    replaceFn: Callable): intptr {
+    implicit context: Context)(matchesElements: FixedArray,
+    matchesCapacity: intptr, string: String, replaceFn: Callable): intptr {
   let matchStart: Smi = 0;
   for (let i: intptr = 0; i < matchesCapacity; i++) {
     typeswitch (matchesElements.objects[i]) {
@@ -70,10 +68,9 @@ transitioning macro RegExpReplaceCallableNoExplicitCaptures(
 
 // matchesCapacity is the length of the matchesElements FixedArray, and
 // matchesElements is allowed to contain holes at the end.
-transitioning macro
-RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
-    matchesElements: FixedArray, matchesCapacity: intptr,
-    replaceFn: Callable): intptr {
+transitioning macro RegExpReplaceCallableWithExplicitCaptures(
+    implicit context: Context)(matchesElements: FixedArray,
+    matchesCapacity: intptr, replaceFn: Callable): intptr {
   for (let i: intptr = 0; i < matchesCapacity; i++) {
     if (matchesElements.objects[i] == TheHole) {
       // No more elements.
@@ -94,8 +91,9 @@ RegExpReplaceCallableWithExplicitCaptures(implicit context: Context)(
   return matchesCapacity;
 }
 
-transitioning macro RegExpReplaceFastGlobalCallable(implicit context: Context)(
-    regexp: FastJSRegExp, string: String, replaceFn: Callable): String {
+transitioning macro RegExpReplaceFastGlobalCallable(
+    implicit context: Context)(regexp: FastJSRegExp, string: String,
+    replaceFn: Callable): String {
   regexp.lastIndex = 0;
 
   const result: Null|FixedArray =
@@ -114,7 +112,7 @@ transitioning macro RegExpReplaceFastGlobalCallable(implicit context: Context)(
   const matchesCapacityInt: intptr = Convert<intptr>(matchesCapacity);
 
   // Reload last match info since it might have changed.
-  const nofCaptures: Smi = GetRegExpLastMatchInfo().NumberOfCaptures();
+  const nofCaptures: Smi = GetRegExpLastMatchInfo().number_of_capture_registers;
 
   // If the number of captures is two then there are no explicit captures in
   // the regexp, just the implicit capture that captures the whole match. In
@@ -131,8 +129,9 @@ transitioning macro RegExpReplaceFastGlobalCallable(implicit context: Context)(
   return StringBuilderConcat(matches, Convert<Smi>(matchesLength), string);
 }
 
-transitioning macro RegExpReplaceFastString(implicit context: Context)(
-    regexp: JSRegExp, string: String, replaceString: String): String {
+transitioning macro RegExpReplaceFastString(
+    implicit context: Context)(regexp: JSRegExp, string: String,
+    replaceString: String): String {
   // The fast path is reached only if {receiver} is an unmodified JSRegExp
   // instance, {replace_value} is non-callable, and ToString({replace_value})
   // does not contain '$', i.e. we're doing a simple string replacement.
@@ -186,8 +185,9 @@ transitioning macro RegExpReplaceFastString(implicit context: Context)(
   return result + SubString(string, lastMatchEnd, string.length_smi);
 }
 
-transitioning builtin RegExpReplace(implicit context: Context)(
-    regexp: FastJSRegExp, string: String, replaceValue: JSAny): String {
+transitioning builtin RegExpReplace(
+    implicit context: Context)(regexp: FastJSRegExp, string: String,
+    replaceValue: JSAny): String {
   // TODO(pwong): Remove dcheck when all callers (StringPrototypeReplace) are
   // from Torque.
   dcheck(Is<FastJSRegExp>(regexp));
@@ -253,7 +253,7 @@ transitioning javascript builtin RegExpPrototypeReplace(
   // If Type(rx) is not Object, throw a TypeError exception.
   const rx = Cast<JSReceiver>(receiver)
       otherwise ThrowTypeError(
-      MessageTemplate::kIncompatibleMethodReceiver, methodName);
+      MessageTemplate::kIncompatibleMethodReceiver, methodName, receiver);
 
   // Let S be ? ToString(string).
   const s = ToString_Inline(string);

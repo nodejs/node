@@ -22,7 +22,7 @@ namespace {
 // "enumerable", other properties are handled the same way.
 // Returns false if an exception was thrown.
 bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
-                          Handle<Object>* value) {
+                          Handle<JSAny>* value) {
   LookupIterator it(receiver->GetIsolate(), receiver, name, receiver);
   // 4. Let hasEnumerable be HasProperty(Obj, "enumerable").
   Maybe<bool> has_property = JSReceiver::HasProperty(&it);
@@ -32,7 +32,7 @@ bool GetPropertyIfPresent(Handle<JSReceiver> receiver, Handle<String> name,
   if (has_property.FromJust() == true) {
     // 6a. Let enum be ToBoolean(Get(Obj, "enumerable")).
     // 6b. ReturnIfAbrupt(enum).
-    if (!Object::GetProperty(&it).ToHandle(value)) return false;
+    if (!Cast<JSAny>(Object::GetProperty(&it)).ToHandle(value)) return false;
   }
   return true;
 }
@@ -45,35 +45,35 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
                                   PropertyDescriptor* desc) {
   {
     DisallowGarbageCollection no_gc;
-    auto raw_obj = *obj;
-    if (!raw_obj.IsJSObject()) return false;
-    Map raw_map = raw_obj.map(isolate);
-    if (raw_map.instance_type() != JS_OBJECT_TYPE) return false;
-    if (raw_map.is_access_check_needed()) return false;
-    if (raw_map.prototype() != *isolate->initial_object_prototype())
+    Tagged<JSReceiver> raw_obj = *obj;
+    if (!IsJSObject(*raw_obj)) return false;
+    Tagged<Map> raw_map = raw_obj->map(isolate);
+    if (raw_map->instance_type() != JS_OBJECT_TYPE) return false;
+    if (raw_map->is_access_check_needed()) return false;
+    if (raw_map->prototype() != *isolate->initial_object_prototype())
       return false;
     // During bootstrapping, the object_function_prototype_map hasn't been
     // set up yet.
     if (isolate->bootstrapper()->IsActive()) return false;
-    if (JSObject::cast(raw_map.prototype()).map() !=
-        isolate->raw_native_context().object_function_prototype_map()) {
+    if (Cast<JSObject>(raw_map->prototype())->map() !=
+        isolate->raw_native_context()->object_function_prototype_map()) {
       return false;
     }
     // TODO(jkummerow): support dictionary properties?
-    if (raw_map.is_dictionary_map()) return false;
+    if (raw_map->is_dictionary_map()) return false;
   }
 
-  Handle<Map> map(obj->map(isolate), isolate);
+  DirectHandle<Map> map(obj->map(isolate), isolate);
 
-  Handle<DescriptorArray> descs =
-      Handle<DescriptorArray>(map->instance_descriptors(isolate), isolate);
+  DirectHandle<DescriptorArray> descs(map->instance_descriptors(isolate),
+                                      isolate);
   ReadOnlyRoots roots(isolate);
   for (InternalIndex i : map->IterateOwnDescriptors()) {
     PropertyDetails details = descs->GetDetails(i);
     Handle<Object> value;
     if (details.location() == PropertyLocation::kField) {
       if (details.kind() == PropertyKind::kData) {
-        value = JSObject::FastPropertyAt(isolate, Handle<JSObject>::cast(obj),
+        value = JSObject::FastPropertyAt(isolate, Cast<JSObject>(obj),
                                          details.representation(),
                                          FieldIndex::ForDetails(*map, details));
       } else {
@@ -92,23 +92,23 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
         return false;
       }
     }
-    Name key = descs->GetKey(i);
+    Tagged<Name> key = descs->GetKey(i);
     if (key == roots.enumerable_string()) {
-      desc->set_enumerable(value->BooleanValue(isolate));
+      desc->set_enumerable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.configurable_string()) {
-      desc->set_configurable(value->BooleanValue(isolate));
+      desc->set_configurable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.value_string()) {
-      desc->set_value(value);
+      desc->set_value(Cast<JSAny>(value));
     } else if (key == roots.writable_string()) {
-      desc->set_writable(value->BooleanValue(isolate));
+      desc->set_writable(Object::BooleanValue(*value, isolate));
     } else if (key == roots.get_string()) {
       // Bail out to slow path to throw an exception if necessary.
-      if (!value->IsCallable()) return false;
-      desc->set_get(value);
+      if (!IsCallable(*value)) return false;
+      desc->set_get(Cast<JSAny>(value));
     } else if (key == roots.set_string()) {
       // Bail out to slow path to throw an exception if necessary.
-      if (!value->IsCallable()) return false;
-      desc->set_set(value);
+      if (!IsCallable(*value)) return false;
+      desc->set_set(Cast<JSAny>(value));
     }
   }
   if ((desc->has_get() || desc->has_set()) &&
@@ -121,16 +121,16 @@ bool ToPropertyDescriptorFastPath(Isolate* isolate, Handle<JSReceiver> obj,
 
 void CreateDataProperty(Handle<JSObject> object, Handle<String> name,
                         Handle<Object> value) {
-  LookupIterator it(object->GetIsolate(), object, name, object,
-                    LookupIterator::OWN_SKIP_INTERCEPTOR);
-  Maybe<bool> result = JSObject::CreateDataProperty(&it, value);
+  Isolate* isolate = object->GetIsolate();
+  Maybe<bool> result = JSObject::CreateDataProperty(
+      isolate, object, PropertyKey(isolate, Cast<Name>(name)), value);
   CHECK(result.IsJust() && result.FromJust());
 }
 
 }  // namespace
 
 // ES6 6.2.4.4 "FromPropertyDescriptor"
-Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
+Handle<JSObject> PropertyDescriptor::ToObject(Isolate* isolate) {
   DCHECK(!(PropertyDescriptor::IsAccessorDescriptor(this) &&
            PropertyDescriptor::IsDataDescriptor(this)));
   Factory* factory = isolate->factory();
@@ -193,11 +193,11 @@ Handle<Object> PropertyDescriptor::ToObject(Isolate* isolate) {
 // Returns false in case of exception.
 // static
 bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
-                                              Handle<Object> obj,
+                                              Handle<JSAny> obj,
                                               PropertyDescriptor* desc) {
   // 1. ReturnIfAbrupt(Obj).
   // 2. If Type(Obj) is not Object, throw a TypeError exception.
-  if (!obj->IsJSReceiver()) {
+  if (!IsJSReceiver(*obj)) {
     isolate->Throw(*isolate->factory()->NewTypeError(
         MessageTemplate::kPropertyDescObject, obj));
     return false;
@@ -205,13 +205,13 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   // 3. Let desc be a new Property Descriptor that initially has no fields.
   DCHECK(desc->is_empty());
 
-  Handle<JSReceiver> receiver = Handle<JSReceiver>::cast(obj);
+  Handle<JSReceiver> receiver = Cast<JSReceiver>(obj);
   if (ToPropertyDescriptorFastPath(isolate, receiver, desc)) {
     return true;
   }
 
   // enumerable?
-  Handle<Object> enumerable;
+  Handle<JSAny> enumerable;
   // 4 through 6b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->enumerable_string(),
                             &enumerable)) {
@@ -219,11 +219,11 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 6c. Set the [[Enumerable]] field of desc to enum.
   if (!enumerable.is_null()) {
-    desc->set_enumerable(enumerable->BooleanValue(isolate));
+    desc->set_enumerable(Object::BooleanValue(*enumerable, isolate));
   }
 
   // configurable?
-  Handle<Object> configurable;
+  Handle<JSAny> configurable;
   // 7 through 9b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->configurable_string(),
                             &configurable)) {
@@ -231,11 +231,11 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   }
   // 9c. Set the [[Configurable]] field of desc to conf.
   if (!configurable.is_null()) {
-    desc->set_configurable(configurable->BooleanValue(isolate));
+    desc->set_configurable(Object::BooleanValue(*configurable, isolate));
   }
 
   // value?
-  Handle<Object> value;
+  Handle<JSAny> value;
   // 10 through 12b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->value_string(),
                             &value)) {
@@ -245,17 +245,18 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!value.is_null()) desc->set_value(value);
 
   // writable?
-  Handle<Object> writable;
+  Handle<JSAny> writable;
   // 13 through 15b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->writable_string(),
                             &writable)) {
     return false;
   }
   // 15c. Set the [[Writable]] field of desc to writable.
-  if (!writable.is_null()) desc->set_writable(writable->BooleanValue(isolate));
+  if (!writable.is_null())
+    desc->set_writable(Object::BooleanValue(*writable, isolate));
 
   // getter?
-  Handle<Object> getter;
+  Handle<JSAny> getter;
   // 16 through 18b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->get_string(),
                             &getter)) {
@@ -264,7 +265,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!getter.is_null()) {
     // 18c. If IsCallable(getter) is false and getter is not undefined,
     // throw a TypeError exception.
-    if (!getter->IsCallable() && !getter->IsUndefined(isolate)) {
+    if (!IsCallable(*getter) && !IsUndefined(*getter, isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectGetterCallable, getter));
       return false;
@@ -273,7 +274,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
     desc->set_get(getter);
   }
   // setter?
-  Handle<Object> setter;
+  Handle<JSAny> setter;
   // 19 through 21b.
   if (!GetPropertyIfPresent(receiver, isolate->factory()->set_string(),
                             &setter)) {
@@ -282,7 +283,7 @@ bool PropertyDescriptor::ToPropertyDescriptor(Isolate* isolate,
   if (!setter.is_null()) {
     // 21c. If IsCallable(setter) is false and setter is not undefined,
     // throw a TypeError exception.
-    if (!setter->IsCallable() && !setter->IsUndefined(isolate)) {
+    if (!IsCallable(*setter) && !IsUndefined(*setter, isolate)) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kObjectSetterCallable, setter));
       return false;

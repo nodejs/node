@@ -533,7 +533,7 @@ enum Opcode : uint32_t {
 // ----- Emulated conditions.
 // On LOONG64 we use this enum to abstract from conditional branch instructions.
 // The 'U' prefix is used to specify unsigned comparisons.
-enum Condition {
+enum Condition : int {
   overflow = 0,
   no_overflow = 1,
   Uless = 2,
@@ -920,7 +920,7 @@ class Instruction : public InstructionGetters<InstructionBase> {
   // reference to an instruction is to convert a pointer. There is no way
   // to allocate or create instances of class Instruction.
   // Use the At(pc) function to create references to Instruction.
-  static Instruction* At(byte* pc) {
+  static Instruction* At(uint8_t* pc) {
     return reinterpret_cast<Instruction*>(pc);
   }
 

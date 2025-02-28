@@ -31,12 +31,11 @@ MaybeHandle<HeapObject> Enumerate(Isolate* isolate,
         isolate, keys,
         accumulator.GetKeys(accumulator.may_have_elements()
                                 ? GetKeysConversion::kConvertToString
-                                : GetKeysConversion::kNoNumbers),
-        HeapObject);
+                                : GetKeysConversion::kNoNumbers));
     // Test again, since cache may have been built by GetKeys() calls above.
     if (!accumulator.is_receiver_simple_enum()) return keys;
   }
-  DCHECK(!receiver->IsJSModuleNamespace());
+  DCHECK(!IsJSModuleNamespace(*receiver));
   return handle(receiver->map(), isolate);
 }
 
@@ -50,9 +49,8 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
   PropertyKey lookup_key(isolate, key, &success);
   if (!success) return isolate->factory()->undefined_value();
   LookupIterator it(isolate, receiver, lookup_key);
-  for (; it.IsFound(); it.Next()) {
+  for (;; it.Next()) {
     switch (it.state()) {
-      case LookupIterator::NOT_FOUND:
       case LookupIterator::TRANSITION:
         UNREACHABLE();
       case LookupIterator::JSPROXY: {
@@ -61,16 +59,16 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
         if (result.IsNothing()) return MaybeHandle<Object>();
         if (result.FromJust() == ABSENT) {
           // Continue lookup on the proxy's prototype.
-          Handle<JSProxy> proxy = it.GetHolder<JSProxy>();
+          DirectHandle<JSProxy> proxy = it.GetHolder<JSProxy>();
           Handle<Object> prototype;
           ASSIGN_RETURN_ON_EXCEPTION(isolate, prototype,
-                                     JSProxy::GetPrototype(proxy), Object);
-          if (prototype->IsNull(isolate)) {
+                                     JSProxy::GetPrototype(proxy));
+          if (IsNull(*prototype, isolate)) {
             return isolate->factory()->undefined_value();
           }
           // We already have a stack-check in JSProxy::GetPrototype.
-          return HasEnumerableProperty(
-              isolate, Handle<JSReceiver>::cast(prototype), key);
+          return HasEnumerableProperty(isolate, Cast<JSReceiver>(prototype),
+                                       key);
         } else if (result.FromJust() & DONT_ENUM) {
           return isolate->factory()->undefined_value();
         } else {
@@ -79,8 +77,7 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
       }
       case LookupIterator::WASM_OBJECT:
         THROW_NEW_ERROR(isolate,
-                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque),
-                        Object);
+                        NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
       case LookupIterator::INTERCEPTOR: {
         result = JSObject::GetPropertyAttributesWithInterceptor(&it);
         if (result.IsNothing()) return MaybeHandle<Object>();
@@ -94,11 +91,11 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
         if (result.FromJust() != ABSENT) return it.GetName();
         return isolate->factory()->undefined_value();
       }
-      case LookupIterator::INTEGER_INDEXED_EXOTIC:
+      case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
         // TypedArray out-of-bounds access.
         return isolate->factory()->undefined_value();
       case LookupIterator::ACCESSOR: {
-        if (it.GetHolder<Object>()->IsJSModuleNamespace()) {
+        if (IsJSModuleNamespace(*it.GetHolder<Object>())) {
           result = JSModuleNamespace::GetPropertyAttributes(&it);
           if (result.IsNothing()) return MaybeHandle<Object>();
           DCHECK_EQ(0, result.FromJust() & DONT_ENUM);
@@ -107,9 +104,11 @@ MaybeHandle<Object> HasEnumerableProperty(Isolate* isolate,
       }
       case LookupIterator::DATA:
         return it.GetName();
+      case LookupIterator::NOT_FOUND:
+        return isolate->factory()->undefined_value();
     }
+    UNREACHABLE();
   }
-  return isolate->factory()->undefined_value();
 }
 
 }  // namespace
@@ -131,7 +130,7 @@ RUNTIME_FUNCTION(Runtime_ForInHasProperty) {
   Handle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result, HasEnumerableProperty(isolate, receiver, key));
-  return isolate->heap()->ToBoolean(!result->IsUndefined(isolate));
+  return isolate->heap()->ToBoolean(!IsUndefined(*result, isolate));
 }
 
 }  // namespace internal

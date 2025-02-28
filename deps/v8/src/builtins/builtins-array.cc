@@ -18,6 +18,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-shared-array-inl.h"
 #include "src/objects/lookup.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/prototype.h"
@@ -29,27 +30,29 @@ namespace internal {
 namespace {
 
 inline bool IsJSArrayFastElementMovingAllowed(Isolate* isolate,
-                                              JSArray receiver) {
+                                              Tagged<JSArray> receiver) {
   return JSObject::PrototypeHasNoElements(isolate, receiver);
 }
 
-inline bool HasSimpleElements(JSObject current) {
-  return !current.map().IsCustomElementsReceiverMap() &&
-         !current.GetElementsAccessor()->HasAccessors(current);
+inline bool HasSimpleElements(Tagged<JSObject> current) {
+  return !IsCustomElementsReceiverMap(current->map()) &&
+         !current->GetElementsAccessor()->HasAccessors(current);
 }
 
-inline bool HasOnlySimpleReceiverElements(Isolate* isolate, JSObject receiver) {
+inline bool HasOnlySimpleReceiverElements(Isolate* isolate,
+                                          Tagged<JSObject> receiver) {
   // Check that we have no accessors on the receiver's elements.
   if (!HasSimpleElements(receiver)) return false;
   return JSObject::PrototypeHasNoElements(isolate, receiver);
 }
 
-inline bool HasOnlySimpleElements(Isolate* isolate, JSReceiver receiver) {
+inline bool HasOnlySimpleElements(Isolate* isolate,
+                                  Tagged<JSReceiver> receiver) {
   DisallowGarbageCollection no_gc;
   PrototypeIterator iter(isolate, receiver, kStartAtReceiver);
   for (; !iter.IsAtEnd(); iter.Advance()) {
-    if (iter.GetCurrent().IsJSProxy()) return false;
-    JSObject current = iter.GetCurrent<JSObject>();
+    if (!IsJSObject(iter.GetCurrent())) return false;
+    Tagged<JSObject> current = iter.GetCurrent<JSObject>();
     if (!HasSimpleElements(current)) return false;
   }
   return true;
@@ -74,9 +77,9 @@ void MatchArrayElementsKindToArguments(Isolate* isolate, Handle<JSArray> array,
     DisallowGarbageCollection no_gc;
     int last_arg_index = std::min(first_arg_index + num_arguments, args_length);
     for (int i = first_arg_index; i < last_arg_index; i++) {
-      Object arg = (*args)[i];
-      if (arg.IsHeapObject()) {
-        if (arg.IsHeapNumber()) {
+      Tagged<Object> arg = (*args)[i];
+      if (IsHeapObject(arg)) {
+        if (IsHeapNumber(arg)) {
           target_kind = PACKED_DOUBLE_ELEMENTS;
         } else {
           target_kind = PACKED_ELEMENTS;
@@ -102,11 +105,11 @@ inline bool EnsureJSArrayWithWritableFastElements(Isolate* isolate,
                                                   BuiltinArguments* args,
                                                   int first_arg_index,
                                                   int num_arguments) {
-  if (!receiver->IsJSArray()) return false;
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  if (!IsJSArray(*receiver)) return false;
+  Handle<JSArray> array = Cast<JSArray>(receiver);
   ElementsKind origin_kind = array->GetElementsKind();
   if (IsDictionaryElementsKind(origin_kind)) return false;
-  if (!array->map().is_extensible()) return false;
+  if (!array->map()->is_extensible()) return false;
   if (args == nullptr) return true;
 
   // If there may be elements accessors in the prototype chain, the fast path
@@ -133,12 +136,12 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
                                                      Handle<Object> index,
                                                      double init_if_undefined) {
   double relative_index = init_if_undefined;
-  if (!index->IsUndefined()) {
+  if (!IsUndefined(*index)) {
     Handle<Object> relative_index_obj;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, relative_index_obj,
                                      Object::ToInteger(isolate, index),
                                      Nothing<double>());
-    relative_index = relative_index_obj->Number();
+    relative_index = Object::NumberValue(*relative_index_obj);
   }
 
   if (relative_index < 0) {
@@ -151,9 +154,9 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetRelativeIndex(Isolate* isolate,
 // Returns "length", has "fast-path" for JSArrays.
 V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
     Isolate* isolate, Handle<JSReceiver> receiver) {
-  if (receiver->IsJSArray()) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    double length = array->length().Number();
+  if (IsJSArray(*receiver)) {
+    auto array = Cast<JSArray>(receiver);
+    double length = Object::NumberValue(array->length());
     DCHECK(0 <= length && length <= kMaxSafeInteger);
 
     return Just(length);
@@ -163,15 +166,15 @@ V8_WARN_UNUSED_RESULT Maybe<double> GetLengthProperty(
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver), Nothing<double>());
-  return Just(raw_length_number->Number());
+  return Just(Object::NumberValue(*raw_length_number));
 }
 
 // Set "length" property, has "fast-path" for JSArrays.
 // Returns Nothing if something went wrong.
 V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
     Isolate* isolate, Handle<JSReceiver> receiver, double length) {
-  if (receiver->IsJSArray()) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  if (IsJSArray(*receiver)) {
+    Handle<JSArray> array = Cast<JSArray>(receiver);
     if (!JSArray::HasReadOnlyLength(array)) {
       DCHECK_LE(length, kMaxUInt32);
       MAYBE_RETURN_NULL(
@@ -186,10 +189,9 @@ V8_WARN_UNUSED_RESULT MaybeHandle<Object> SetLengthProperty(
       Just(ShouldThrow::kThrowOnError));
 }
 
-V8_WARN_UNUSED_RESULT Object GenericArrayFill(Isolate* isolate,
-                                              Handle<JSReceiver> receiver,
-                                              Handle<Object> value,
-                                              double start, double end) {
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayFill(
+    Isolate* isolate, Handle<JSReceiver> receiver, Handle<Object> value,
+    double start, double end) {
   // 7. Repeat, while k < final.
   while (start < end) {
     // a. Let Pk be ! ToString(k).
@@ -215,13 +217,13 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   // If indices are too large, use generic path since they are stored as
   // properties, not in the element backing store.
   if (end_index > kMaxUInt32) return Just(false);
-  if (!receiver->IsJSObject()) return Just(false);
+  if (!IsJSObject(*receiver)) return Just(false);
 
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, args, 1, 1)) {
     return Just(false);
   }
 
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  Handle<JSArray> array = Cast<JSArray>(receiver);
 
   // If no argument was provided, we fill the array with 'undefined'.
   // EnsureJSArrayWith... does not handle that case so we do it here.
@@ -244,17 +246,25 @@ V8_WARN_UNUSED_RESULT Maybe<bool> TryFastArrayFill(
   ElementsAccessor* accessor = array->GetElementsAccessor();
   RETURN_ON_EXCEPTION_VALUE(isolate, accessor->Fill(array, value, start, end),
                             Nothing<bool>());
+
+  // It's possible the JSArray's 'length' property was assigned to after the
+  // length was loaded due to user code during argument coercion of the start
+  // and end parameters. The spec algorithm does a Set, meaning the length would
+  // grow as needed during the fill.
+  //
+  // ElementAccessor::Fill is able to grow the backing store as needed, but we
+  // need to ensure the JSArray's length is correctly set in case the user
+  // assigned a smaller value.
+  if (Object::NumberValue(array->length()) < end) {
+    CHECK(accessor->SetLength(array, end).FromJust());
+  }
+
   return Just(true);
 }
 }  // namespace
 
 BUILTIN(ArrayPrototypeFill) {
   HandleScope scope(isolate);
-  if (isolate->debug_execution_mode() == DebugInfo::kSideEffects) {
-    if (!isolate->debug()->PerformSideEffectCheckForObject(args.receiver())) {
-      return ReadOnlyRoots(isolate).exception();
-    }
-  }
 
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
@@ -304,8 +314,8 @@ BUILTIN(ArrayPrototypeFill) {
 }
 
 namespace {
-V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
-                                              BuiltinArguments* args) {
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPush(Isolate* isolate,
+                                                      BuiltinArguments* args) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -323,7 +333,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPush(Isolate* isolate,
   int arg_count = args->length() - 1;
 
   // 5. If len + arg_count > 2^53-1, throw a TypeError exception.
-  double length = raw_length_number->Number();
+  double length = Object::NumberValue(*raw_length_number);
   if (arg_count > kMaxSafeInteger - length) {
     THROW_NEW_ERROR_RETURN_FAILURE(
         isolate, NewTypeError(MessageTemplate::kPushPastSafeLength,
@@ -375,18 +385,20 @@ BUILTIN(ArrayPush) {
     return GenericArrayPush(isolate, &args);
   }
 
+  Handle<JSArray> array = Cast<JSArray>(receiver);
+  bool has_read_only_length = JSArray::HasReadOnlyLength(array);
+
+  if (has_read_only_length) {
+    return GenericArrayPush(isolate, &args);
+  }
+
   // Fast Elements Path
   int to_add = args.length() - 1;
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-  uint32_t len = static_cast<uint32_t>(array->length().Number());
+  uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
   if (to_add == 0) return *isolate->factory()->NewNumberFromUint(len);
 
   // Currently fixed arrays cannot grow too big, so we should never hit this.
   DCHECK_LE(to_add, Smi::kMaxValue - Smi::ToInt(array->length()));
-
-  if (JSArray::HasReadOnlyLength(array)) {
-    return GenericArrayPush(isolate, &args);
-  }
 
   ElementsAccessor* accessor = array->GetElementsAccessor();
   uint32_t new_length;
@@ -397,8 +409,8 @@ BUILTIN(ArrayPush) {
 
 namespace {
 
-V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
-                                             BuiltinArguments* args) {
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayPop(Isolate* isolate,
+                                                     BuiltinArguments* args) {
   // 1. Let O be ? ToObject(this value).
   Handle<JSReceiver> receiver;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
@@ -409,7 +421,7 @@ V8_WARN_UNUSED_RESULT Object GenericArrayPop(Isolate* isolate,
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, raw_length_number,
       Object::GetLengthFromArrayLike(isolate, receiver));
-  double length = raw_length_number->Number();
+  double length = Object::NumberValue(*raw_length_number);
 
   // 3. If len is zero, then.
   if (length == 0) {
@@ -462,9 +474,9 @@ BUILTIN(ArrayPop) {
                                              0)) {
     return GenericArrayPop(isolate, &args);
   }
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  Handle<JSArray> array = Cast<JSArray>(receiver);
 
-  uint32_t len = static_cast<uint32_t>(array->length().Number());
+  uint32_t len = static_cast<uint32_t>(Object::NumberValue(array->length()));
 
   if (JSArray::HasReadOnlyLength(array)) {
     return GenericArrayPop(isolate, &args);
@@ -472,7 +484,7 @@ BUILTIN(ArrayPop) {
   if (len == 0) return ReadOnlyRoots(isolate).undefined_value();
 
   Handle<Object> result;
-  if (IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
+  if (IsJSArrayFastElementMovingAllowed(isolate, Cast<JSArray>(*receiver))) {
     // Fast Elements Path
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, result, array->GetElementsAccessor()->Pop(array));
@@ -507,17 +519,16 @@ V8_WARN_UNUSED_RESULT bool CanUseFastArrayShift(Isolate* isolate,
 
   if (!EnsureJSArrayWithWritableFastElements(isolate, receiver, nullptr, 0,
                                              0) ||
-      !IsJSArrayFastElementMovingAllowed(isolate, JSArray::cast(*receiver))) {
+      !IsJSArrayFastElementMovingAllowed(isolate, Cast<JSArray>(*receiver))) {
     return false;
   }
 
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  Handle<JSArray> array = Cast<JSArray>(receiver);
   return !JSArray::HasReadOnlyLength(array);
 }
 
-V8_WARN_UNUSED_RESULT Object GenericArrayShift(Isolate* isolate,
-                                               Handle<JSReceiver> receiver,
-                                               double length) {
+V8_WARN_UNUSED_RESULT Tagged<Object> GenericArrayShift(
+    Isolate* isolate, Handle<JSReceiver> receiver, double length) {
   // 4. Let first be ? Get(O, "0").
   Handle<Object> first;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, first,
@@ -606,7 +617,7 @@ BUILTIN(ArrayShift) {
   }
 
   if (CanUseFastArrayShift(isolate, receiver)) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+    Handle<JSArray> array = Cast<JSArray>(receiver);
     RETURN_RESULT_OR_FAILURE(isolate,
                              array->GetElementsAccessor()->Shift(array));
   }
@@ -616,11 +627,11 @@ BUILTIN(ArrayShift) {
 
 BUILTIN(ArrayUnshift) {
   HandleScope scope(isolate);
-  DCHECK(args.receiver()->IsJSArray());
-  Handle<JSArray> array = Handle<JSArray>::cast(args.receiver());
+  DCHECK(IsJSArray(*args.receiver()));
+  Handle<JSArray> array = Cast<JSArray>(args.receiver());
 
   // These are checked in the Torque builtin.
-  DCHECK(array->map().is_extensible());
+  DCHECK(array->map()->is_extensible());
   DCHECK(!IsDictionaryElementsKind(array->GetElementsKind()));
   DCHECK(IsJSArrayFastElementMovingAllowed(isolate, *array));
   DCHECK(!isolate->IsAnyInitialArrayPrototype(*array));
@@ -659,20 +670,20 @@ namespace {
  */
 class ArrayConcatVisitor {
  public:
-  ArrayConcatVisitor(Isolate* isolate, Handle<HeapObject> storage,
+  ArrayConcatVisitor(Isolate* isolate, DirectHandle<HeapObject> storage,
                      bool fast_elements)
       : isolate_(isolate),
         storage_(isolate->global_handles()->Create(*storage)),
         index_offset_(0u),
         bit_field_(FastElementsField::encode(fast_elements) |
                    ExceedsLimitField::encode(false) |
-                   IsFixedArrayField::encode(storage->IsFixedArray(isolate)) |
+                   IsFixedArrayField::encode(IsFixedArray(*storage, isolate)) |
                    HasSimpleElementsField::encode(
-                       storage->IsFixedArray(isolate) ||
+                       IsFixedArray(*storage, isolate) ||
                        // Don't take fast path for storages that might have
                        // side effects when storing to them.
-                       (!storage->map(isolate).IsCustomElementsReceiverMap() &&
-                        !storage->IsJSTypedArray(isolate)))) {
+                       (!IsCustomElementsReceiverMap(storage->map(isolate)) &&
+                        !IsJSTypedArray(*storage, isolate)))) {
     DCHECK_IMPLIES(this->fast_elements(), is_fixed_array());
   }
 
@@ -688,14 +699,15 @@ class ArrayConcatVisitor {
       set_exceeds_array_limit(true);
       // Exception hasn't been thrown at this point. Return true to
       // break out, and caller will throw. !visit would imply that
-      // there is already a pending exception.
+      // there is already an exception.
       return true;
     }
 
     if (!is_fixed_array()) {
-      LookupIterator it(isolate_, storage_, index, LookupIterator::OWN);
-      MAYBE_RETURN(
-          JSReceiver::CreateDataProperty(&it, elm, Just(kThrowOnError)), false);
+      MAYBE_RETURN(JSReceiver::CreateDataProperty(isolate_, storage_,
+                                                  PropertyKey(isolate_, index),
+                                                  elm, Just(kThrowOnError)),
+                   false);
       return true;
     }
 
@@ -712,7 +724,7 @@ class ArrayConcatVisitor {
       // Fall-through to dictionary mode.
     }
     DCHECK(!fast_elements());
-    Handle<NumberDictionary> dict(NumberDictionary::cast(*storage_), isolate_);
+    Handle<NumberDictionary> dict(Cast<NumberDictionary>(*storage_), isolate_);
     // The object holding this backing store has just been allocated, so
     // it cannot yet be used as a prototype.
     Handle<JSObject> not_a_prototype_holder;
@@ -739,7 +751,7 @@ class ArrayConcatVisitor {
     // provided-for index range, go to dictionary mode now.
     if (fast_elements() &&
         index_offset_ >
-            static_cast<uint32_t>(FixedArrayBase::cast(*storage_).length())) {
+            static_cast<uint32_t>(Cast<FixedArrayBase>(*storage_)->length())) {
       SetDictionaryMode();
     }
   }
@@ -751,31 +763,30 @@ class ArrayConcatVisitor {
   Handle<JSArray> ToArray() {
     DCHECK(is_fixed_array());
     Handle<JSArray> array = isolate_->factory()->NewJSArray(0);
-    Handle<Object> length =
+    DirectHandle<Number> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
-    Handle<Map> map = JSObject::GetElementsTransitionMap(
+    DirectHandle<Map> map = JSObject::GetElementsTransitionMap(
         array, fast_elements() ? HOLEY_ELEMENTS : DICTIONARY_ELEMENTS);
     {
       DisallowGarbageCollection no_gc;
-      auto raw = *array;
-      raw.set_length(*length);
-      raw.set_elements(*storage_fixed_array());
-      raw.set_map(*map, kReleaseStore);
+      Tagged<JSArray> raw = *array;
+      raw->set_length(*length);
+      raw->set_elements(*storage_fixed_array());
+      raw->set_map(*map, kReleaseStore);
     }
     return array;
   }
 
   V8_WARN_UNUSED_RESULT MaybeHandle<JSReceiver> ToJSReceiver() {
     DCHECK(!is_fixed_array());
-    Handle<JSReceiver> result = Handle<JSReceiver>::cast(storage_);
+    Handle<JSReceiver> result = Cast<JSReceiver>(storage_);
     Handle<Object> length =
         isolate_->factory()->NewNumber(static_cast<double>(index_offset_));
     RETURN_ON_EXCEPTION(
-        isolate_,
-        Object::SetProperty(
-            isolate_, result, isolate_->factory()->length_string(), length,
-            StoreOrigin::kMaybeKeyed, Just(ShouldThrow::kThrowOnError)),
-        JSReceiver);
+        isolate_, Object::SetProperty(isolate_, result,
+                                      isolate_->factory()->length_string(),
+                                      length, StoreOrigin::kMaybeKeyed,
+                                      Just(ShouldThrow::kThrowOnError)));
     return result;
   }
   bool has_simple_elements() const {
@@ -786,14 +797,14 @@ class ArrayConcatVisitor {
   // Convert storage to dictionary mode.
   void SetDictionaryMode() {
     DCHECK(fast_elements() && is_fixed_array());
-    Handle<FixedArray> current_storage = storage_fixed_array();
+    DirectHandle<FixedArray> current_storage = storage_fixed_array();
     Handle<NumberDictionary> slow_storage(
         NumberDictionary::New(isolate_, current_storage->length()));
     uint32_t current_length = static_cast<uint32_t>(current_storage->length());
     FOR_WITH_HANDLE_SCOPE(
         isolate_, uint32_t, i = 0, i, i < current_length, i++, {
           Handle<Object> element(current_storage->get(i), isolate_);
-          if (!element->IsTheHole(isolate_)) {
+          if (!IsTheHole(*element, isolate_)) {
             // The object holding this backing store has just been allocated, so
             // it cannot yet be used as a prototype.
             Handle<JSObject> not_a_prototype_holder;
@@ -811,7 +822,7 @@ class ArrayConcatVisitor {
 
   inline void clear_storage() { GlobalHandles::Destroy(storage_.location()); }
 
-  inline void set_storage(FixedArray storage) {
+  inline void set_storage(Tagged<FixedArray> storage) {
     DCHECK(is_fixed_array());
     DCHECK(has_simple_elements());
     storage_ = isolate_->global_handles()->Create(storage);
@@ -833,7 +844,7 @@ class ArrayConcatVisitor {
   Handle<FixedArray> storage_fixed_array() {
     DCHECK(is_fixed_array());
     DCHECK(has_simple_elements());
-    return Handle<FixedArray>::cast(storage_);
+    return Cast<FixedArray>(storage_);
   }
 
   Isolate* isolate_;
@@ -844,9 +855,9 @@ class ArrayConcatVisitor {
   uint32_t bit_field_;
 };
 
-uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
+uint32_t EstimateElementCount(Isolate* isolate, DirectHandle<JSArray> array) {
   DisallowGarbageCollection no_gc;
-  uint32_t length = static_cast<uint32_t>(array->length().Number());
+  uint32_t length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   int element_count = 0;
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
@@ -863,9 +874,9 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       // a 32-bit signed integer.
       DCHECK_GE(static_cast<int32_t>(FixedArray::kMaxLength), 0);
       int fast_length = static_cast<int>(length);
-      FixedArray elements = FixedArray::cast(array->elements());
+      Tagged<FixedArray> elements = Cast<FixedArray>(array->elements());
       for (int i = 0; i < fast_length; i++) {
-        if (!elements.get(i).IsTheHole(isolate)) element_count++;
+        if (!IsTheHole(elements->get(i), isolate)) element_count++;
       }
       break;
     }
@@ -875,22 +886,24 @@ uint32_t EstimateElementCount(Isolate* isolate, Handle<JSArray> array) {
       // a 32-bit signed integer.
       DCHECK_GE(static_cast<int32_t>(FixedDoubleArray::kMaxLength), 0);
       int fast_length = static_cast<int>(length);
-      if (array->elements().IsFixedArray()) {
-        DCHECK_EQ(FixedArray::cast(array->elements()).length(), 0);
+      if (IsFixedArray(array->elements())) {
+        DCHECK_EQ(Cast<FixedArray>(array->elements())->length(), 0);
         break;
       }
-      FixedDoubleArray elements = FixedDoubleArray::cast(array->elements());
+      Tagged<FixedDoubleArray> elements =
+          Cast<FixedDoubleArray>(array->elements());
       for (int i = 0; i < fast_length; i++) {
-        if (!elements.is_the_hole(i)) element_count++;
+        if (!elements->is_the_hole(i)) element_count++;
       }
       break;
     }
     case DICTIONARY_ELEMENTS: {
-      NumberDictionary dictionary = NumberDictionary::cast(array->elements());
+      Tagged<NumberDictionary> dictionary =
+          Cast<NumberDictionary>(array->elements());
       ReadOnlyRoots roots(isolate);
-      for (InternalIndex i : dictionary.IterateEntries()) {
-        Object key = dictionary.KeyAt(i);
-        if (dictionary.IsKey(roots, key)) {
+      for (InternalIndex i : dictionary->IterateEntries()) {
+        Tagged<Object> key = dictionary->KeyAt(i);
+        if (dictionary->IsKey(roots, key)) {
           element_count++;
         }
       }
@@ -934,11 +947,11 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case HOLEY_NONEXTENSIBLE_ELEMENTS:
     case HOLEY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
-      FixedArray elements = FixedArray::cast(object->elements());
-      uint32_t length = static_cast<uint32_t>(elements.length());
+      Tagged<FixedArray> elements = Cast<FixedArray>(object->elements());
+      uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
-        if (!elements.get(i).IsTheHole(isolate)) {
+        if (!IsTheHole(elements->get(i), isolate)) {
           indices->push_back(i);
         }
       }
@@ -946,12 +959,12 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
     case HOLEY_DOUBLE_ELEMENTS:
     case PACKED_DOUBLE_ELEMENTS: {
-      if (object->elements().IsFixedArray()) {
-        DCHECK_EQ(object->elements().length(), 0);
+      if (IsFixedArray(object->elements())) {
+        DCHECK_EQ(object->elements()->length(), 0);
         break;
       }
-      Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(object->elements()), isolate);
+      DirectHandle<FixedDoubleArray> elements(
+          Cast<FixedDoubleArray>(object->elements()), isolate);
       uint32_t length = static_cast<uint32_t>(elements->length());
       if (range < length) length = range;
       for (uint32_t i = 0; i < length; i++) {
@@ -963,14 +976,15 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
     case DICTIONARY_ELEMENTS: {
       DisallowGarbageCollection no_gc;
-      NumberDictionary dict = NumberDictionary::cast(object->elements());
-      uint32_t capacity = dict.Capacity();
+      Tagged<NumberDictionary> dict =
+          Cast<NumberDictionary>(object->elements());
+      uint32_t capacity = dict->Capacity();
       ReadOnlyRoots roots(isolate);
       FOR_WITH_HANDLE_SCOPE(isolate, uint32_t, j = 0, j, j < capacity, j++, {
-        Object k = dict.KeyAt(InternalIndex(j));
-        if (!dict.IsKey(roots, k)) continue;
-        DCHECK(k.IsNumber());
-        uint32_t index = static_cast<uint32_t>(k.Number());
+        Tagged<Object> k = dict->KeyAt(InternalIndex(j));
+        if (!dict->IsKey(roots, k)) continue;
+        DCHECK(IsNumber(k));
+        uint32_t index = static_cast<uint32_t>(Object::NumberValue(k));
         if (index < range) {
           indices->push_back(index);
         }
@@ -980,7 +994,7 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
 #define TYPED_ARRAY_CASE(Type, type, TYPE, ctype) case TYPE##_ELEMENTS:
 
       TYPED_ARRAYS(TYPED_ARRAY_CASE) RAB_GSAB_TYPED_ARRAYS(TYPED_ARRAY_CASE) {
-        size_t length = Handle<JSTypedArray>::cast(object)->GetLength();
+        size_t length = Cast<JSTypedArray>(object)->GetLength();
         if (range <= length) {
           length = range;
           // We will add all indices, so we might as well clear it first
@@ -1001,8 +1015,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case SLOW_SLOPPY_ARGUMENTS_ELEMENTS: {
       DisallowGarbageCollection no_gc;
       DisableGCMole no_gc_mole;
-      FixedArrayBase elements = object->elements();
-      JSObject raw_object = *object;
+      Tagged<FixedArrayBase> elements = object->elements();
+      Tagged<JSObject> raw_object = *object;
       ElementsAccessor* accessor = object->GetElementsAccessor();
       for (uint32_t i = 0; i < range; i++) {
         if (accessor->HasElement(raw_object, i, elements)) {
@@ -1013,11 +1027,10 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     }
     case FAST_STRING_WRAPPER_ELEMENTS:
     case SLOW_STRING_WRAPPER_ELEMENTS: {
-      DCHECK(object->IsJSPrimitiveWrapper());
-      Handle<JSPrimitiveWrapper> js_value =
-          Handle<JSPrimitiveWrapper>::cast(object);
-      DCHECK(js_value->value().IsString());
-      Handle<String> string(String::cast(js_value->value()), isolate);
+      DCHECK(IsJSPrimitiveWrapper(*object));
+      auto js_value = Cast<JSPrimitiveWrapper>(object);
+      DCHECK(IsString(js_value->value()));
+      DirectHandle<String> string(Cast<String>(js_value->value()), isolate);
       uint32_t length = static_cast<uint32_t>(string->length());
       uint32_t i = 0;
       uint32_t limit = std::min(length, range);
@@ -1035,8 +1048,21 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
     case WASM_ARRAY_ELEMENTS:
       // TODO(ishell): implement
       UNIMPLEMENTED();
-    case SHARED_ARRAY_ELEMENTS:
-      UNREACHABLE();
+    case SHARED_ARRAY_ELEMENTS: {
+      uint32_t length = Cast<JSSharedArray>(object)->elements()->length();
+      if (range <= length) {
+        length = range;
+        indices->clear();
+      }
+      for (uint32_t i = 0; i < length; i++) {
+        // JSSharedArrays are created non-resizable and do not have holes.
+        SLOW_DCHECK(object->GetElementsAccessor()->HasElement(
+            *object, i, object->elements()));
+        indices->push_back(i);
+      }
+      if (length == range) return;
+      break;
+    }
     case NO_ELEMENTS:
       break;
   }
@@ -1045,6 +1071,8 @@ void CollectElementIndices(Isolate* isolate, Handle<JSObject> object,
   if (!iter.IsAtEnd()) {
     // The prototype will usually have no inherited element indices,
     // but we have to check.
+    // Casting to JSObject is safe because we ran {HasOnlySimpleElements} on
+    // the receiver before, which checks the prototype chain.
     CollectElementIndices(
         isolate, PrototypeIterator::GetCurrent<JSObject>(iter), range, indices);
   }
@@ -1080,20 +1108,20 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
                      ArrayConcatVisitor* visitor) {
   uint32_t length = 0;
 
-  if (receiver->IsJSArray()) {
-    Handle<JSArray> array = Handle<JSArray>::cast(receiver);
-    length = static_cast<uint32_t>(array->length().Number());
+  if (IsJSArray(*receiver)) {
+    auto array = Cast<JSArray>(receiver);
+    length = static_cast<uint32_t>(Object::NumberValue(array->length()));
   } else {
     Handle<Object> val;
     ASSIGN_RETURN_ON_EXCEPTION_VALUE(
         isolate, val, Object::GetLengthFromArrayLike(isolate, receiver), false);
-    if (visitor->index_offset() + val->Number() > kMaxSafeInteger) {
+    if (visitor->index_offset() + Object::NumberValue(*val) > kMaxSafeInteger) {
       isolate->Throw(*isolate->factory()->NewTypeError(
           MessageTemplate::kInvalidArrayLength));
       return false;
     }
     // TODO(caitp): Support larger element indexes (up to 2^53-1).
-    if (!val->ToUint32(&length)) {
+    if (!Object::ToUint32(*val, &length)) {
       length = 0;
     }
     // TODO(cbruni): handle other element kind as well
@@ -1104,7 +1132,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       !HasOnlySimpleElements(isolate, *receiver)) {
     return IterateElementsSlow(isolate, receiver, length, visitor);
   }
-  Handle<JSArray> array = Handle<JSArray>::cast(receiver);
+  Handle<JSArray> array = Cast<JSArray>(receiver);
 
   switch (array->GetElementsKind()) {
     case PACKED_SMI_ELEMENTS:
@@ -1122,12 +1150,13 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      Handle<FixedArray> elements(FixedArray::cast(array->elements()), isolate);
+      DirectHandle<FixedArray> elements(Cast<FixedArray>(array->elements()),
+                                        isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
         Handle<Object> element_value(elements->get(j), isolate);
-        if (!element_value->IsTheHole(isolate)) {
+        if (!IsTheHole(*element_value, isolate)) {
           if (!visitor->visit(j, element_value)) return false;
         } else {
           Maybe<bool> maybe = JSReceiver::HasElement(isolate, array, j);
@@ -1153,12 +1182,12 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       if (length == 0) break;
       // Run through the elements FixedArray and use HasElement and GetElement
       // to check the prototype for missing elements.
-      if (array->elements().IsFixedArray()) {
-        DCHECK_EQ(array->elements().length(), 0);
+      if (IsFixedArray(array->elements())) {
+        DCHECK_EQ(array->elements()->length(), 0);
         break;
       }
-      Handle<FixedDoubleArray> elements(
-          FixedDoubleArray::cast(array->elements()), isolate);
+      DirectHandle<FixedDoubleArray> elements(
+          Cast<FixedDoubleArray>(array->elements()), isolate);
       int fast_length = static_cast<int>(length);
       DCHECK(fast_length <= elements->length());
       FOR_WITH_HANDLE_SCOPE(isolate, int, j = 0, j, j < fast_length, j++, {
@@ -1188,7 +1217,7 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
       // Disallow execution so the cached dictionary won't change mid execution.
       DisallowJavascriptExecution no_js(isolate);
 
-      Handle<NumberDictionary> dict(array->element_dictionary(), isolate);
+      DirectHandle<NumberDictionary> dict(array->element_dictionary(), isolate);
       std::vector<uint32_t> indices;
       indices.reserve(dict->Capacity() / 2);
 
@@ -1244,25 +1273,26 @@ bool IterateElements(Isolate* isolate, Handle<JSReceiver> receiver,
 
 static Maybe<bool> IsConcatSpreadable(Isolate* isolate, Handle<Object> obj) {
   HandleScope handle_scope(isolate);
-  if (!obj->IsJSReceiver()) return Just(false);
+  if (!IsJSReceiver(*obj)) return Just(false);
   if (!Protectors::IsIsConcatSpreadableLookupChainIntact(isolate) ||
-      JSReceiver::cast(*obj).HasProxyInPrototype(isolate)) {
+      Cast<JSReceiver>(*obj)->HasProxyInPrototype(isolate)) {
     // Slow path if @@isConcatSpreadable has been used.
     Handle<Symbol> key(isolate->factory()->is_concat_spreadable_symbol());
     Handle<Object> value;
     MaybeHandle<Object> maybeValue =
         i::Runtime::GetObjectProperty(isolate, obj, key);
     if (!maybeValue.ToHandle(&value)) return Nothing<bool>();
-    if (!value->IsUndefined(isolate)) return Just(value->BooleanValue(isolate));
+    if (!IsUndefined(*value, isolate))
+      return Just(Object::BooleanValue(*value, isolate));
   }
   return Object::IsArray(obj);
 }
 
-Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
-                        Isolate* isolate) {
+Tagged<Object> Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
+                                Isolate* isolate) {
   int argument_count = args->length();
 
-  bool is_array_species = *species == isolate->context().array_function();
+  bool is_array_species = *species == isolate->context()->array_function();
 
   // Pass 1: estimate the length and number of elements of the result.
   // The actual length can be larger if any of the arguments have getters
@@ -1277,9 +1307,10 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     Handle<Object> obj = args->at(i);
     uint32_t length_estimate;
     uint32_t element_estimate;
-    if (obj->IsJSArray()) {
-      Handle<JSArray> array(Handle<JSArray>::cast(obj));
-      length_estimate = static_cast<uint32_t>(array->length().Number());
+    if (IsJSArray(*obj)) {
+      auto array = Cast<JSArray>(obj);
+      length_estimate =
+          static_cast<uint32_t>(Object::NumberValue(array->length()));
       if (length_estimate != 0) {
         ElementsKind array_kind =
             GetPackedElementsKind(array->GetElementsKind());
@@ -1290,9 +1321,9 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
       }
       element_estimate = EstimateElementCount(isolate, array);
     } else {
-      if (obj->IsHeapObject()) {
+      if (IsHeapObject(*obj)) {
         kind = GetMoreGeneralElementsKind(
-            kind, obj->IsNumber() ? PACKED_DOUBLE_ELEMENTS : PACKED_ELEMENTS);
+            kind, IsNumber(*obj) ? PACKED_DOUBLE_ELEMENTS : PACKED_ELEMENTS);
       }
       length_estimate = 1;
       element_estimate = 1;
@@ -1323,29 +1354,29 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     int j = 0;
     bool failure = false;
     if (estimate_result_length > 0) {
-      Handle<FixedDoubleArray> double_storage =
-          Handle<FixedDoubleArray>::cast(storage);
+      auto double_storage = Cast<FixedDoubleArray>(storage);
       for (int i = 0; i < argument_count; i++) {
-        Handle<Object> obj = args->at(i);
-        if (obj->IsSmi()) {
+        DirectHandle<Object> obj = args->at(i);
+        if (IsSmi(*obj)) {
           double_storage->set(j, Smi::ToInt(*obj));
           j++;
-        } else if (obj->IsNumber()) {
-          double_storage->set(j, obj->Number());
+        } else if (IsNumber(*obj)) {
+          double_storage->set(j, Object::NumberValue(*obj));
           j++;
         } else {
           DisallowGarbageCollection no_gc;
-          JSArray array = JSArray::cast(*obj);
-          uint32_t length = static_cast<uint32_t>(array.length().Number());
-          switch (array.GetElementsKind()) {
+          Tagged<JSArray> array = Cast<JSArray>(*obj);
+          uint32_t length =
+              static_cast<uint32_t>(Object::NumberValue(array->length()));
+          switch (array->GetElementsKind()) {
             case HOLEY_DOUBLE_ELEMENTS:
             case PACKED_DOUBLE_ELEMENTS: {
               // Empty array is FixedArray but not FixedDoubleArray.
               if (length == 0) break;
-              FixedDoubleArray elements =
-                  FixedDoubleArray::cast(array.elements());
+              Tagged<FixedDoubleArray> elements =
+                  Cast<FixedDoubleArray>(array->elements());
               for (uint32_t k = 0; k < length; k++) {
-                if (elements.is_the_hole(k)) {
+                if (elements->is_the_hole(k)) {
                   // TODO(jkummerow/verwaest): We could be a bit more clever
                   // here: Check if there are no elements/getters on the
                   // prototype chain, and if so, allow creation of a holey
@@ -1354,7 +1385,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
                   failure = true;
                   break;
                 }
-                double double_value = elements.get_scalar(k);
+                double double_value = elements->get_scalar(k);
                 double_storage->set(j, double_value);
                 j++;
               }
@@ -1362,10 +1393,10 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
             }
             case HOLEY_SMI_ELEMENTS:
             case PACKED_SMI_ELEMENTS: {
-              Object the_hole = ReadOnlyRoots(isolate).the_hole_value();
-              FixedArray elements(FixedArray::cast(array.elements()));
+              Tagged<Object> the_hole = ReadOnlyRoots(isolate).the_hole_value();
+              Tagged<FixedArray> elements(Cast<FixedArray>(array->elements()));
               for (uint32_t k = 0; k < length; k++) {
-                Object element = elements.get(k);
+                Tagged<Object> element = elements->get(k);
                 if (element == the_hole) {
                   failure = true;
                   break;
@@ -1412,7 +1443,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     // In case of failure, fall through.
   }
 
-  Handle<HeapObject> storage;
+  DirectHandle<HeapObject> storage;
   if (fast_case) {
     // The backing storage array must have non-existing elements to preserve
     // holes across concat operations.
@@ -1421,13 +1452,13 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   } else if (is_array_species) {
     storage = NumberDictionary::New(isolate, estimate_nof);
   } else {
-    DCHECK(species->IsConstructor());
+    DCHECK(IsConstructor(*species));
     Handle<Object> length(Smi::zero(), isolate);
     Handle<Object> storage_object;
     ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
         isolate, storage_object,
         Execution::New(isolate, species, species, 1, &length));
-    storage = Handle<HeapObject>::cast(storage_object);
+    storage = Cast<HeapObject>(storage_object);
   }
 
   ArrayConcatVisitor visitor(isolate, storage, fast_case);
@@ -1437,7 +1468,7 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
     Maybe<bool> spreadable = IsConcatSpreadable(isolate, obj);
     MAYBE_RETURN(spreadable, ReadOnlyRoots(isolate).exception());
     if (spreadable.FromJust()) {
-      Handle<JSReceiver> object = Handle<JSReceiver>::cast(obj);
+      Handle<JSReceiver> object = Cast<JSReceiver>(obj);
       if (!IterateElements(isolate, object, &visitor)) {
         return ReadOnlyRoots(isolate).exception();
       }
@@ -1459,12 +1490,13 @@ Object Slow_ArrayConcat(BuiltinArguments* args, Handle<Object> species,
   }
 }
 
-bool IsSimpleArray(Isolate* isolate, Handle<JSArray> obj) {
+bool IsSimpleArray(Isolate* isolate, DirectHandle<JSArray> obj) {
   DisallowGarbageCollection no_gc;
-  Map map = obj->map();
+  Tagged<Map> map = obj->map();
   // If there is only the 'length' property we are fine.
-  if (map.prototype() == isolate->native_context()->initial_array_prototype() &&
-      map.NumberOfOwnDescriptors() == 1) {
+  if (map->prototype() ==
+          isolate->native_context()->initial_array_prototype() &&
+      map->NumberOfOwnDescriptors() == 1) {
     return true;
   }
   // TODO(cbruni): slower lookup for array subclasses and support slow
@@ -1490,16 +1522,16 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
     // Iterate through all the arguments performing checks
     // and calculating total length.
     for (int i = 0; i < n_arguments; i++) {
-      Object arg = (*args)[i];
-      if (!arg.IsJSArray()) return MaybeHandle<JSArray>();
-      if (!HasOnlySimpleReceiverElements(isolate, JSObject::cast(arg))) {
+      Tagged<Object> arg = (*args)[i];
+      if (!IsJSArray(arg)) return MaybeHandle<JSArray>();
+      if (!HasOnlySimpleReceiverElements(isolate, Cast<JSObject>(arg))) {
         return MaybeHandle<JSArray>();
       }
       // TODO(cbruni): support fast concatenation of DICTIONARY_ELEMENTS.
-      if (!JSObject::cast(arg).HasFastElements()) {
+      if (!Cast<JSObject>(arg)->HasFastElements()) {
         return MaybeHandle<JSArray>();
       }
-      Handle<JSArray> array(JSArray::cast(arg), isolate);
+      DirectHandle<JSArray> array(Cast<JSArray>(arg), isolate);
       if (!IsSimpleArray(isolate, array)) {
         return MaybeHandle<JSArray>();
       }
@@ -1512,8 +1544,7 @@ MaybeHandle<JSArray> Fast_ArrayConcat(Isolate* isolate,
           FixedArray::kMaxLength < result_len) {
         AllowGarbageCollection gc;
         THROW_NEW_ERROR(isolate,
-                        NewRangeError(MessageTemplate::kInvalidArrayLength),
-                        JSArray);
+                        NewRangeError(MessageTemplate::kInvalidArrayLength));
       }
     }
   }
@@ -1536,14 +1567,13 @@ BUILTIN(ArrayConcat) {
   Handle<JSArray> result_array;
 
   // Avoid a real species read to avoid extra lookups to the array constructor
-  if (V8_LIKELY(receiver->IsJSArray() &&
-                Handle<JSArray>::cast(receiver)->HasArrayPrototype(isolate) &&
+  if (V8_LIKELY(IsJSArray(*receiver) &&
+                Cast<JSArray>(receiver)->HasArrayPrototype(isolate) &&
                 Protectors::IsArraySpeciesLookupChainIntact(isolate))) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
   }
   // Reading @@species happens before anything else with a side effect, so
   // we can do it here to determine whether to take the fast path.
@@ -1554,317 +1584,9 @@ BUILTIN(ArrayConcat) {
     if (Fast_ArrayConcat(isolate, &args).ToHandle(&result_array)) {
       return *result_array;
     }
-    if (isolate->has_pending_exception())
-      return ReadOnlyRoots(isolate).exception();
+    if (isolate->has_exception()) return ReadOnlyRoots(isolate).exception();
   }
   return Slow_ArrayConcat(&args, species, isolate);
-}
-
-namespace {
-
-// https://tc39.es/proposal-array-grouping/#sec-add-value-to-keyed-group
-// Each keyed group is an array list.
-inline Handle<OrderedHashMap> AddValueToKeyedGroup(
-    Isolate* isolate, Handle<OrderedHashMap> groups, Handle<Object> key,
-    Handle<Object> value) {
-  InternalIndex entry = groups->FindEntry(isolate, *key);
-  if (!entry.is_found()) {
-    Handle<ArrayList> array = ArrayList::New(isolate, 1);
-    array = ArrayList::Add(isolate, array, value);
-    return OrderedHashMap::Add(isolate, groups, key, array).ToHandleChecked();
-  }
-  Handle<ArrayList> array =
-      Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
-  array = ArrayList::Add(isolate, array, value);
-  groups->SetEntry(entry, *key, *array);
-  return groups;
-}
-
-inline bool IsFastArray(Handle<JSReceiver> object) {
-  Isolate* isolate = object->GetIsolate();
-  if (isolate->force_slow_path()) return false;
-  if (!object->IsJSArray()) return false;
-  Handle<JSArray> array = Handle<JSArray>::cast(object);
-  if (!array->HasFastElements(isolate)) return false;
-
-  Context context = isolate->context();
-  if (array->map().prototype() !=
-      context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX)) {
-    return false;
-  }
-
-  return Protectors::IsNoElementsIntact(isolate);
-}
-
-inline bool CheckArrayMapNotModified(Handle<JSArray> array,
-                                     Handle<Map> original_map) {
-  if (array->map() != *original_map) {
-    return false;
-  }
-  return Protectors::IsNoElementsIntact(array->GetIsolate());
-}
-
-enum class ArrayGroupMode { kToObject, kToMap };
-
-template <ArrayGroupMode mode>
-inline MaybeHandle<OrderedHashMap> GenericArrayGroup(
-    Isolate* isolate, Handle<JSReceiver> O, Handle<Object> callbackfn,
-    Handle<Object> thisArg, Handle<OrderedHashMap> groups, double initialK,
-    double len) {
-  // 6. Repeat, while k < len
-  for (double k = initialK; k < len; ++k) {
-    // 6a. Let Pk be ! ToString(𝔽(k)).
-    Handle<Name> Pk;
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, Pk, Object::ToName(isolate, isolate->factory()->NewNumber(k)),
-        OrderedHashMap);
-    // 6b. Let kValue be ? Get(O, Pk).
-    Handle<Object> kValue;
-    ASSIGN_RETURN_ON_EXCEPTION(isolate, kValue,
-                               Object::GetPropertyOrElement(isolate, O, Pk),
-                               OrderedHashMap);
-
-    // Common steps for ArrayPrototypeGroup and ArrayPrototypeGroupToMap
-    // 6c. Let key be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
-    Handle<Object> propertyKey;
-    Handle<Object> argv[] = {kValue, isolate->factory()->NewNumber(k), O};
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, propertyKey,
-        Execution::Call(isolate, callbackfn, thisArg, 3, argv), OrderedHashMap);
-
-    if (mode == ArrayGroupMode::kToMap) {
-      // 6d. If key is -0𝔽, set key to +0𝔽.
-      if (propertyKey->IsMinusZero()) {
-        propertyKey = Handle<Smi>(Smi::FromInt(0), isolate);
-      }
-    } else {
-      // 6c. Let propertyKey be ? ToPropertyKey(? Call(callbackfn, thisArg, «
-      // kValue, 𝔽(k), O »)).
-      Handle<Name> propertyKeyName;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, propertyKeyName,
-                                 Object::ToName(isolate, propertyKey),
-                                 OrderedHashMap);
-      propertyKey = isolate->factory()->InternalizeName(propertyKeyName);
-    }
-
-    // 6e. Perform ! AddValueToKeyedGroup(groups, propertyKey, kValue).
-    groups = AddValueToKeyedGroup(isolate, groups, propertyKey, kValue);
-
-    // 6f. Set k to k + 1.
-    // done by the loop.
-  }
-
-  return groups;
-}
-
-template <ArrayGroupMode mode>
-inline MaybeHandle<OrderedHashMap> FastArrayGroup(
-    Isolate* isolate, Handle<JSArray> array, Handle<Object> callbackfn,
-    Handle<Object> thisArg, Handle<OrderedHashMap> groups, double len,
-    ElementsKind* result_elements_kind) {
-  DCHECK_NOT_NULL(result_elements_kind);
-
-  Handle<Map> original_map = Handle<Map>(array->map(), isolate);
-  uint32_t uint_len = static_cast<uint32_t>(len);
-  ElementsAccessor* accessor = array->GetElementsAccessor();
-
-  // 4. Let k be 0.
-  // 6. Repeat, while k < len
-  for (InternalIndex k : InternalIndex::Range(uint_len)) {
-    if (!CheckArrayMapNotModified(array, original_map) ||
-        k.as_uint32() >= static_cast<uint32_t>(array->length().Number())) {
-      return GenericArrayGroup<mode>(isolate, array, callbackfn, thisArg,
-                                     groups, k.as_uint32(), len);
-    }
-    // 6a. Let Pk be ! ToString(𝔽(k)).
-    // 6b. Let kValue be ? Get(O, Pk).
-    Handle<Object> kValue = accessor->Get(isolate, array, k);
-    if (kValue->IsTheHole()) {
-      kValue = isolate->factory()->undefined_value();
-    }
-
-    // Common steps for ArrayPrototypeGroup and ArrayPrototypeGroupToMap
-    // 6c. Let key be ? Call(callbackfn, thisArg, « kValue, 𝔽(k), O »).
-    Handle<Object> propertyKey;
-    Handle<Object> argv[] = {
-        kValue, isolate->factory()->NewNumber(k.as_uint32()), array};
-    ASSIGN_RETURN_ON_EXCEPTION(
-        isolate, propertyKey,
-        Execution::Call(isolate, callbackfn, thisArg, 3, argv), OrderedHashMap);
-
-    if (mode == ArrayGroupMode::kToMap) {
-      // 6d. If key is -0𝔽, set key to +0𝔽.
-      if (propertyKey->IsMinusZero()) {
-        propertyKey = Handle<Smi>(Smi::FromInt(0), isolate);
-      }
-    } else {
-      // 6c. Let propertyKey be ? ToPropertyKey(? Call(callbackfn, thisArg, «
-      // kValue, 𝔽(k), O »)).
-      Handle<Name> propertyKeyName;
-      ASSIGN_RETURN_ON_EXCEPTION(isolate, propertyKeyName,
-                                 Object::ToName(isolate, propertyKey),
-                                 OrderedHashMap);
-      propertyKey = isolate->factory()->InternalizeName(propertyKeyName);
-    }
-
-    // 6e. Perform ! AddValueToKeyedGroup(groups, propertyKey, kValue).
-    groups = AddValueToKeyedGroup(isolate, groups, propertyKey, kValue);
-
-    // 6f. Set k to k + 1.
-    // done by the loop.
-  }
-
-  // When staying on the fast path, we can deduce a more specific results
-  // ElementsKind for the keyed groups based on the input ElementsKind.
-  //
-  // Double elements are stored as HeapNumbers in the keyed group elements
-  // so that we don't need to cast all the keyed groups when switching from
-  // fast path to the generic path.
-  // TODO(v8:12499) add unboxed double elements support
-  if (array->GetElementsKind() == ElementsKind::PACKED_SMI_ELEMENTS) {
-    *result_elements_kind = ElementsKind::PACKED_SMI_ELEMENTS;
-  }
-
-  return groups;
-}
-
-}  // namespace
-
-// https://tc39.es/proposal-array-grouping/#sec-array.prototype.group
-BUILTIN(ArrayPrototypeGroup) {
-  const char* const kMethodName = "Array.prototype.group";
-  HandleScope scope(isolate);
-
-  Handle<JSReceiver> O;
-  // 1. Let O be ? ToObject(this value).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, O, Object::ToObject(isolate, args.receiver(), kMethodName));
-
-  // 2. Let len be ? LengthOfArrayLike(O).
-  double len;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
-                                           GetLengthProperty(isolate, O));
-
-  // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
-  Handle<Object> callbackfn = args.atOrUndefined(isolate, 1);
-  if (!callbackfn->IsCallable()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callbackfn));
-  }
-
-  Handle<Object> thisArg = args.atOrUndefined(isolate, 2);
-
-  // 5. Let groups be a new empty List.
-  Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
-  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
-  if (IsFastArray(O)) {
-    Handle<JSArray> array = Handle<JSArray>::cast(O);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, groups,
-        FastArrayGroup<ArrayGroupMode::kToObject>(isolate, array, callbackfn,
-                                                  thisArg, groups, len,
-                                                  &result_elements_kind));
-  } else {
-    // 4. Let k be 0.
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, groups,
-        GenericArrayGroup<ArrayGroupMode::kToObject>(isolate, O, callbackfn,
-                                                     thisArg, groups, 0, len));
-  }
-
-  // 7. Let obj be ! OrdinaryObjectCreate(null).
-  Handle<JSObject> obj = isolate->factory()->NewJSObjectWithNullProto();
-
-  // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
-  for (InternalIndex entry : groups->IterateEntries()) {
-    Handle<Name> key = Handle<Name>(Name::cast(groups->KeyAt(entry)), isolate);
-    // 8a. Let elements be ! CreateArrayFromList(g.[[Elements]]).
-    Handle<ArrayList> array_list =
-        Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
-    Handle<FixedArray> elements = ArrayList::Elements(isolate, array_list);
-    Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
-        elements, result_elements_kind, array_list->Length());
-
-    // 8b. Perform ! CreateDataPropertyOrThrow(obj, g.[[Key]], elements).
-    JSReceiver::CreateDataProperty(isolate, obj, key, array,
-                                   Just(kThrowOnError))
-        .Check();
-  }
-
-  // 9. Return obj.
-  return *obj;
-}
-
-// https://tc39.es/proposal-array-grouping/#sec-array.prototype.grouptomap
-BUILTIN(ArrayPrototypeGroupToMap) {
-  const char* const kMethodName = "Array.prototype.groupToMap";
-  HandleScope scope(isolate);
-
-  Handle<JSReceiver> O;
-  // 1. Let O be ? ToObject(this value).
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, O, Object::ToObject(isolate, args.receiver(), kMethodName));
-
-  // 2. Let len be ? LengthOfArrayLike(O).
-  double len;
-  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, len,
-                                           GetLengthProperty(isolate, O));
-
-  // 3. If IsCallable(callbackfn) is false, throw a TypeError exception.
-  Handle<Object> callbackfn = args.atOrUndefined(isolate, 1);
-  if (!callbackfn->IsCallable()) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewTypeError(MessageTemplate::kCalledNonCallable, callbackfn));
-  }
-
-  Handle<Object> thisArg = args.atOrUndefined(isolate, 2);
-
-  // 5. Let groups be a new empty List.
-  Handle<OrderedHashMap> groups = isolate->factory()->NewOrderedHashMap();
-  ElementsKind result_elements_kind = ElementsKind::PACKED_ELEMENTS;
-  if (IsFastArray(O)) {
-    Handle<JSArray> array = Handle<JSArray>::cast(O);
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, groups,
-                                       FastArrayGroup<ArrayGroupMode::kToMap>(
-                                           isolate, array, callbackfn, thisArg,
-                                           groups, len, &result_elements_kind));
-  } else {
-    // 4. Let k be 0.
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, groups,
-        GenericArrayGroup<ArrayGroupMode::kToMap>(isolate, O, callbackfn,
-                                                  thisArg, groups, 0, len));
-  }
-
-  // 7. Let map be ! Construct(%Map%).
-  Handle<JSMap> map = isolate->factory()->NewJSMap();
-  Handle<OrderedHashMap> map_table = isolate->factory()->NewOrderedHashMap();
-  // 8. For each Record { [[Key]], [[Elements]] } g of groups, do
-  for (InternalIndex entry : groups->IterateEntries()) {
-    Handle<Object> key = Handle<Object>(groups->KeyAt(entry), isolate);
-    // 8a. Let elements be ! CreateArrayFromList(g.[[Elements]]).
-    Handle<ArrayList> array_list =
-        Handle<ArrayList>(ArrayList::cast(groups->ValueAt(entry)), isolate);
-    Handle<FixedArray> elements = ArrayList::Elements(isolate, array_list);
-    Handle<JSArray> array = isolate->factory()->NewJSArrayWithElements(
-        elements, result_elements_kind, array_list->Length());
-
-    // 8b. Let entry be the Record { [[Key]]: g.[[Key]], [[Value]]: elements }.
-    // 8c. Append entry as the last element of map.[[MapData]].
-    map_table =
-        OrderedHashMap::Add(isolate, map_table, key, array).ToHandleChecked();
-  }
-  map->set_table(*map_table);
-
-  // 9. Return map.
-  return *map;
-}
-
-BUILTIN(ArrayFromAsync) {
-  HandleScope scope(isolate);
-  DCHECK(v8_flags.harmony_array_from_async);
-
-  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 }  // namespace internal

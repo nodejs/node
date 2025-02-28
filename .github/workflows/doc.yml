@@ -24,18 +24,18 @@ jobs:
     if: github.event.pull_request.draft == false
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           persist-credentials: false
       - name: Use Node.js ${{ env.NODE_VERSION }}
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a  # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Environment Information
         run: npx envinfo
       - name: Build
         run: NODE=$(command -v node) make doc-only
-      - uses: actions/upload-artifact@0b7f8abb1508181956e8e162db84b466c27e18ce  # v3.1.2
+      - uses: actions/upload-artifact@65c4c4a1ddee5b72f698fdd19549f0f0fb45cf08  # v4.6.0
         with:
           name: docs
           path: out/doc

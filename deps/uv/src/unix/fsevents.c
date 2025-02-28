@@ -80,13 +80,13 @@ enum uv__cf_loop_signal_type_e {
 typedef enum uv__cf_loop_signal_type_e uv__cf_loop_signal_type_t;
 
 struct uv__cf_loop_signal_s {
-  QUEUE member;
+  struct uv__queue member;
   uv_fs_event_t* handle;
   uv__cf_loop_signal_type_t type;
 };
 
 struct uv__fsevents_event_s {
-  QUEUE member;
+  struct uv__queue member;
   int events;
   char path[1];
 };
@@ -98,7 +98,7 @@ struct uv__cf_loop_state_s {
   FSEventStreamRef fsevent_stream;
   uv_sem_t fsevent_sem;
   uv_mutex_t fsevent_mutex;
-  void* fsevent_handles[2];
+  struct uv__queue fsevent_handles;
   unsigned int fsevent_handle_count;
 };
 
@@ -132,7 +132,6 @@ static void (*pCFRunLoopWakeUp)(CFRunLoopRef);
 static CFStringRef (*pCFStringCreateWithFileSystemRepresentation)(
     CFAllocatorRef,
     const char*);
-static CFStringEncoding (*pCFStringGetSystemEncoding)(void);
 static CFStringRef (*pkCFRunLoopDefaultMode);
 static FSEventStreamRef (*pFSEventStreamCreate)(CFAllocatorRef,
                                                 FSEventStreamCallback,
@@ -141,7 +140,6 @@ static FSEventStreamRef (*pFSEventStreamCreate)(CFAllocatorRef,
                                                 FSEventStreamEventId,
                                                 CFTimeInterval,
                                                 FSEventStreamCreateFlags);
-static void (*pFSEventStreamFlushSync)(FSEventStreamRef);
 static void (*pFSEventStreamInvalidate)(FSEventStreamRef);
 static void (*pFSEventStreamRelease)(FSEventStreamRef);
 static void (*pFSEventStreamScheduleWithRunLoop)(FSEventStreamRef,
@@ -152,22 +150,22 @@ static void (*pFSEventStreamStop)(FSEventStreamRef);
 
 #define UV__FSEVENTS_PROCESS(handle, block)                                   \
     do {                                                                      \
-      QUEUE events;                                                           \
-      QUEUE* q;                                                               \
+      struct uv__queue events;                                                \
+      struct uv__queue* q;                                                    \
       uv__fsevents_event_t* event;                                            \
       int err;                                                                \
       uv_mutex_lock(&(handle)->cf_mutex);                                     \
       /* Split-off all events and empty original queue */                     \
-      QUEUE_MOVE(&(handle)->cf_events, &events);                              \
+      uv__queue_move(&(handle)->cf_events, &events);                          \
       /* Get error (if any) and zero original one */                          \
       err = (handle)->cf_error;                                               \
       (handle)->cf_error = 0;                                                 \
       uv_mutex_unlock(&(handle)->cf_mutex);                                   \
       /* Loop through events, deallocating each after processing */           \
-      while (!QUEUE_EMPTY(&events)) {                                         \
-        q = QUEUE_HEAD(&events);                                              \
-        event = QUEUE_DATA(q, uv__fsevents_event_t, member);                  \
-        QUEUE_REMOVE(q);                                                      \
+      while (!uv__queue_empty(&events)) {                                     \
+        q = uv__queue_head(&events);                                          \
+        event = uv__queue_data(q, uv__fsevents_event_t, member);              \
+        uv__queue_remove(q);                                                  \
         /* NOTE: Checking uv__is_active() is required here, because handle    \
          * callback may close handle and invoking it after it will lead to    \
          * incorrect behaviour */                                             \
@@ -195,14 +193,14 @@ static void uv__fsevents_cb(uv_async_t* cb) {
 
 /* Runs in CF thread, pushed event into handle's event list */
 static void uv__fsevents_push_event(uv_fs_event_t* handle,
-                                    QUEUE* events,
+                                    struct uv__queue* events,
                                     int err) {
   assert(events != NULL || err != 0);
   uv_mutex_lock(&handle->cf_mutex);
 
   /* Concatenate two queues */
   if (events != NULL)
-    QUEUE_ADD(&handle->cf_events, events);
+    uv__queue_add(&handle->cf_events, events);
 
   /* Propagate error */
   if (err != 0)
@@ -226,12 +224,12 @@ static void uv__fsevents_event_cb(const FSEventStreamRef streamRef,
   char* path;
   char* pos;
   uv_fs_event_t* handle;
-  QUEUE* q;
+  struct uv__queue* q;
   uv_loop_t* loop;
   uv__cf_loop_state_t* state;
   uv__fsevents_event_t* event;
   FSEventStreamEventFlags flags;
-  QUEUE head;
+  struct uv__queue head;
 
   loop = info;
   state = loop->cf_state;
@@ -240,9 +238,9 @@ static void uv__fsevents_event_cb(const FSEventStreamRef streamRef,
 
   /* For each handle */
   uv_mutex_lock(&state->fsevent_mutex);
-  QUEUE_FOREACH(q, &state->fsevent_handles) {
-    handle = QUEUE_DATA(q, uv_fs_event_t, cf_member);
-    QUEUE_INIT(&head);
+  uv__queue_foreach(q, &state->fsevent_handles) {
+    handle = uv__queue_data(q, uv_fs_event_t, cf_member);
+    uv__queue_init(&head);
 
     /* Process and filter out events */
     for (i = 0; i < numEvents; i++) {
@@ -277,10 +275,6 @@ static void uv__fsevents_event_cb(const FSEventStreamRef streamRef,
         /* Remove common prefix, unless the watched folder is "/" */
         path += handle->realpath_len;
         len -= handle->realpath_len;
-
-        /* Ignore events with path equal to directory itself */
-        if (len <= 1 && (flags & kFSEventStreamEventFlagItemIsDir))
-          continue;
 
         if (len == 0) {
           /* Since we're using fsevents to watch the file itself,
@@ -320,10 +314,10 @@ static void uv__fsevents_event_cb(const FSEventStreamRef streamRef,
           event->events = UV_CHANGE;
       }
 
-      QUEUE_INSERT_TAIL(&head, &event->member);
+      uv__queue_insert_tail(&head, &event->member);
     }
 
-    if (!QUEUE_EMPTY(&head))
+    if (!uv__queue_empty(&head))
       uv__fsevents_push_event(handle, &head, 0);
   }
   uv_mutex_unlock(&state->fsevent_mutex);
@@ -331,8 +325,9 @@ static void uv__fsevents_event_cb(const FSEventStreamRef streamRef,
 
 
 /* Runs in CF thread */
-static int uv__fsevents_create_stream(uv_loop_t* loop, CFArrayRef paths) {
-  uv__cf_loop_state_t* state;
+static int uv__fsevents_create_stream(uv__cf_loop_state_t* state,
+                                      uv_loop_t* loop,
+                                      CFArrayRef paths) {
   FSEventStreamContext ctx;
   FSEventStreamRef ref;
   CFAbsoluteTime latency;
@@ -373,10 +368,7 @@ static int uv__fsevents_create_stream(uv_loop_t* loop, CFArrayRef paths) {
                              flags);
   assert(ref != NULL);
 
-  state = loop->cf_state;
-  pFSEventStreamScheduleWithRunLoop(ref,
-                                    state->loop,
-                                    *pkCFRunLoopDefaultMode);
+  pFSEventStreamScheduleWithRunLoop(ref, state->loop, *pkCFRunLoopDefaultMode);
   if (!pFSEventStreamStart(ref)) {
     pFSEventStreamInvalidate(ref);
     pFSEventStreamRelease(ref);
@@ -389,11 +381,7 @@ static int uv__fsevents_create_stream(uv_loop_t* loop, CFArrayRef paths) {
 
 
 /* Runs in CF thread */
-static void uv__fsevents_destroy_stream(uv_loop_t* loop) {
-  uv__cf_loop_state_t* state;
-
-  state = loop->cf_state;
-
+static void uv__fsevents_destroy_stream(uv__cf_loop_state_t* state) {
   if (state->fsevent_stream == NULL)
     return;
 
@@ -408,10 +396,10 @@ static void uv__fsevents_destroy_stream(uv_loop_t* loop) {
 
 
 /* Runs in CF thread, when there're new fsevent handles to add to stream */
-static void uv__fsevents_reschedule(uv_fs_event_t* handle,
+static void uv__fsevents_reschedule(uv__cf_loop_state_t* state,
+                                    uv_loop_t* loop,
                                     uv__cf_loop_signal_type_t type) {
-  uv__cf_loop_state_t* state;
-  QUEUE* q;
+  struct uv__queue* q;
   uv_fs_event_t* curr;
   CFArrayRef cf_paths;
   CFStringRef* paths;
@@ -419,7 +407,6 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle,
   int err;
   unsigned int path_count;
 
-  state = handle->loop->cf_state;
   paths = NULL;
   cf_paths = NULL;
   err = 0;
@@ -438,7 +425,7 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle,
   uv_mutex_unlock(&state->fsevent_mutex);
 
   /* Destroy previous FSEventStream */
-  uv__fsevents_destroy_stream(handle->loop);
+  uv__fsevents_destroy_stream(state);
 
   /* Any failure below will be a memory failure */
   err = UV_ENOMEM;
@@ -455,9 +442,9 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle,
 
     q = &state->fsevent_handles;
     for (; i < path_count; i++) {
-      q = QUEUE_NEXT(q);
+      q = uv__queue_next(q);
       assert(q != &state->fsevent_handles);
-      curr = QUEUE_DATA(q, uv_fs_event_t, cf_member);
+      curr = uv__queue_data(q, uv_fs_event_t, cf_member);
 
       assert(curr->realpath != NULL);
       paths[i] =
@@ -478,7 +465,7 @@ static void uv__fsevents_reschedule(uv_fs_event_t* handle,
       err = UV_ENOMEM;
       goto final;
     }
-    err = uv__fsevents_create_stream(handle->loop, cf_paths);
+    err = uv__fsevents_create_stream(state, loop, cf_paths);
   }
 
 final:
@@ -495,8 +482,8 @@ final:
 
     /* Broadcast error to all handles */
     uv_mutex_lock(&state->fsevent_mutex);
-    QUEUE_FOREACH(q, &state->fsevent_handles) {
-      curr = QUEUE_DATA(q, uv_fs_event_t, cf_member);
+    uv__queue_foreach(q, &state->fsevent_handles) {
+      curr = uv__queue_data(q, uv_fs_event_t, cf_member);
       uv__fsevents_push_event(curr, NULL, err);
     }
     uv_mutex_unlock(&state->fsevent_mutex);
@@ -563,10 +550,8 @@ static int uv__fsevents_global_init(void) {
   V(core_foundation_handle, CFRunLoopStop);
   V(core_foundation_handle, CFRunLoopWakeUp);
   V(core_foundation_handle, CFStringCreateWithFileSystemRepresentation);
-  V(core_foundation_handle, CFStringGetSystemEncoding);
   V(core_foundation_handle, kCFRunLoopDefaultMode);
   V(core_services_handle, FSEventStreamCreate);
-  V(core_services_handle, FSEventStreamFlushSync);
   V(core_services_handle, FSEventStreamInvalidate);
   V(core_services_handle, FSEventStreamRelease);
   V(core_services_handle, FSEventStreamScheduleWithRunLoop);
@@ -617,7 +602,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
   if (err)
     goto fail_sem_init;
 
-  QUEUE_INIT(&loop->cf_signals);
+  uv__queue_init(&loop->cf_signals);
 
   err = uv_sem_init(&state->fsevent_sem, 0);
   if (err)
@@ -627,7 +612,7 @@ static int uv__fsevents_loop_init(uv_loop_t* loop) {
   if (err)
     goto fail_fsevent_mutex_init;
 
-  QUEUE_INIT(&state->fsevent_handles);
+  uv__queue_init(&state->fsevent_handles);
   state->fsevent_need_reschedule = 0;
   state->fsevent_handle_count = 0;
 
@@ -686,7 +671,7 @@ fail_mutex_init:
 void uv__fsevents_loop_delete(uv_loop_t* loop) {
   uv__cf_loop_signal_t* s;
   uv__cf_loop_state_t* state;
-  QUEUE* q;
+  struct uv__queue* q;
 
   if (loop->cf_state == NULL)
     return;
@@ -699,10 +684,10 @@ void uv__fsevents_loop_delete(uv_loop_t* loop) {
   uv_mutex_destroy(&loop->cf_mutex);
 
   /* Free any remaining data */
-  while (!QUEUE_EMPTY(&loop->cf_signals)) {
-    q = QUEUE_HEAD(&loop->cf_signals);
-    s = QUEUE_DATA(q, uv__cf_loop_signal_t, member);
-    QUEUE_REMOVE(q);
+  while (!uv__queue_empty(&loop->cf_signals)) {
+    q = uv__queue_head(&loop->cf_signals);
+    s = uv__queue_data(q, uv__cf_loop_signal_t, member);
+    uv__queue_remove(q);
     uv__free(s);
   }
 
@@ -746,28 +731,28 @@ static void* uv__cf_loop_runner(void* arg) {
 static void uv__cf_loop_cb(void* arg) {
   uv_loop_t* loop;
   uv__cf_loop_state_t* state;
-  QUEUE* item;
-  QUEUE split_head;
+  struct uv__queue* item;
+  struct uv__queue split_head;
   uv__cf_loop_signal_t* s;
 
   loop = arg;
   state = loop->cf_state;
 
   uv_mutex_lock(&loop->cf_mutex);
-  QUEUE_MOVE(&loop->cf_signals, &split_head);
+  uv__queue_move(&loop->cf_signals, &split_head);
   uv_mutex_unlock(&loop->cf_mutex);
 
-  while (!QUEUE_EMPTY(&split_head)) {
-    item = QUEUE_HEAD(&split_head);
-    QUEUE_REMOVE(item);
+  while (!uv__queue_empty(&split_head)) {
+    item = uv__queue_head(&split_head);
+    uv__queue_remove(item);
 
-    s = QUEUE_DATA(item, uv__cf_loop_signal_t, member);
+    s = uv__queue_data(item, uv__cf_loop_signal_t, member);
 
     /* This was a termination signal */
     if (s->handle == NULL)
       pCFRunLoopStop(state->loop);
     else
-      uv__fsevents_reschedule(s->handle, s->type);
+      uv__fsevents_reschedule(state, loop, s->type);
 
     uv__free(s);
   }
@@ -789,7 +774,7 @@ int uv__cf_loop_signal(uv_loop_t* loop,
   item->type = type;
 
   uv_mutex_lock(&loop->cf_mutex);
-  QUEUE_INSERT_TAIL(&loop->cf_signals, &item->member);
+  uv__queue_insert_tail(&loop->cf_signals, &item->member);
 
   state = loop->cf_state;
   assert(state != NULL);
@@ -804,6 +789,7 @@ int uv__cf_loop_signal(uv_loop_t* loop,
 
 /* Runs in UV loop to initialize handle */
 int uv__fsevents_init(uv_fs_event_t* handle) {
+  char* buf;
   int err;
   uv__cf_loop_state_t* state;
 
@@ -812,13 +798,17 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
     return err;
 
   /* Get absolute path to file */
-  handle->realpath = realpath(handle->path, NULL);
-  if (handle->realpath == NULL)
+  buf = realpath(handle->path, NULL);
+  if (buf == NULL)
     return UV__ERR(errno);
+  handle->realpath = uv__strdup(buf);
+  free(buf); /* _Not_ uv__free. */
+  if (handle->realpath == NULL)
+    return UV_ENOMEM;
   handle->realpath_len = strlen(handle->realpath);
 
   /* Initialize event queue */
-  QUEUE_INIT(&handle->cf_events);
+  uv__queue_init(&handle->cf_events);
   handle->cf_error = 0;
 
   /*
@@ -843,7 +833,7 @@ int uv__fsevents_init(uv_fs_event_t* handle) {
   /* Insert handle into the list */
   state = handle->loop->cf_state;
   uv_mutex_lock(&state->fsevent_mutex);
-  QUEUE_INSERT_TAIL(&state->fsevent_handles, &handle->cf_member);
+  uv__queue_insert_tail(&state->fsevent_handles, &handle->cf_member);
   state->fsevent_handle_count++;
   state->fsevent_need_reschedule = 1;
   uv_mutex_unlock(&state->fsevent_mutex);
@@ -883,7 +873,7 @@ int uv__fsevents_close(uv_fs_event_t* handle) {
   /* Remove handle from  the list */
   state = handle->loop->cf_state;
   uv_mutex_lock(&state->fsevent_mutex);
-  QUEUE_REMOVE(&handle->cf_member);
+  uv__queue_remove(&handle->cf_member);
   state->fsevent_handle_count--;
   state->fsevent_need_reschedule = 1;
   uv_mutex_unlock(&state->fsevent_mutex);

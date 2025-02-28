@@ -23,8 +23,7 @@ void BaselineCompiler::Prologue() {
   // Enter the frame here, since CallBuiltin will override lr.
   __ masm()->EnterFrame(StackFrame::BASELINE);
   DCHECK_EQ(kJSFunctionRegister, kJavaScriptCallTargetRegister);
-  int max_frame_size =
-      bytecode_->frame_size() + max_call_args_ * kSystemPointerSize;
+  int max_frame_size = bytecode_->max_frame_size();
   CallBuiltin<Builtin::kBaselineOutOfLinePrologue>(
       kContextRegister, kJSFunctionRegister, kJavaScriptCallArgCountRegister,
       max_frame_size, kJavaScriptCallNewTargetRegister, bytecode_);
@@ -44,7 +43,8 @@ void BaselineCompiler::PrologueFillFrame() {
   const bool has_new_target = new_target_index != kMaxInt;
   if (has_new_target) {
     DCHECK_LE(new_target_index, register_count);
-    __ masm()->AddWord(sp, sp, Operand(-(kPointerSize * new_target_index)));
+    __ masm()->AddWord(sp, sp,
+                       Operand(-(kSystemPointerSize * new_target_index)));
     for (int i = 0; i < new_target_index; i++) {
       __ masm()->StoreWord(kInterpreterAccumulatorRegister,
                            MemOperand(sp, i * kSystemPointerSize));
@@ -55,13 +55,13 @@ void BaselineCompiler::PrologueFillFrame() {
   }
   if (register_count < 2 * kLoopUnrollSize) {
     // If the frame is small enough, just unroll the frame fill completely.
-    __ masm()->AddWord(sp, sp, Operand(-(kPointerSize * register_count)));
+    __ masm()->AddWord(sp, sp, Operand(-(kSystemPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
       __ masm()->StoreWord(kInterpreterAccumulatorRegister,
                            MemOperand(sp, i * kSystemPointerSize));
     }
   } else {
-    __ masm()->AddWord(sp, sp, Operand(-(kPointerSize * register_count)));
+    __ masm()->AddWord(sp, sp, Operand(-(kSystemPointerSize * register_count)));
     for (int i = 0; i < register_count; ++i) {
       __ masm()->StoreWord(kInterpreterAccumulatorRegister,
                            MemOperand(sp, i * kSystemPointerSize));
@@ -71,11 +71,10 @@ void BaselineCompiler::PrologueFillFrame() {
 
 void BaselineCompiler::VerifyFrameSize() {
   ASM_CODE_COMMENT(&masm_);
-  __ masm()->AddWord(kScratchReg, sp,
+  __ masm()->AddWord(t0, sp,
                      Operand(InterpreterFrameConstants::kFixedFrameSizeFromFp +
                              bytecode_->frame_size()));
-  __ masm()->Assert(eq, AbortReason::kUnexpectedStackPointer, kScratchReg,
-                    Operand(fp));
+  __ masm()->Assert(eq, AbortReason::kUnexpectedStackPointer, t0, Operand(fp));
 }
 
 #undef __

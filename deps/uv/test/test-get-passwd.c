@@ -39,32 +39,32 @@ TEST_IMPL(get_passwd) {
 
   /* Test the normal case */
   r = uv_os_get_passwd(&pwd);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   len = strlen(pwd.username);
-  ASSERT(len > 0);
+  ASSERT_GT(len, 0);
 
 #ifdef _WIN32
   ASSERT_NULL(pwd.shell);
 #else
   len = strlen(pwd.shell);
 # ifndef __PASE__
-  ASSERT(len > 0);
+  ASSERT_GT(len, 0);
 # endif
 #endif
 
   len = strlen(pwd.homedir);
-  ASSERT(len > 0);
+  ASSERT_GT(len, 0);
 
 #ifdef _WIN32
   if (len == 3 && pwd.homedir[1] == ':')
-    ASSERT(pwd.homedir[2] == '\\');
+    ASSERT_EQ(pwd.homedir[2], '\\');
   else
-    ASSERT(pwd.homedir[len - 1] != '\\');
+    ASSERT_NE(pwd.homedir[len - 1], '\\');
 #else
   if (len == 1)
-    ASSERT(pwd.homedir[0] == '/');
+    ASSERT_EQ(pwd.homedir[0], '/');
   else
-    ASSERT(pwd.homedir[len - 1] != '/');
+    ASSERT_NE(pwd.homedir[len - 1], '/');
 #endif
 
 #ifdef _WIN32
@@ -95,7 +95,117 @@ TEST_IMPL(get_passwd) {
 
   /* Test invalid input */
   r = uv_os_get_passwd(NULL);
-  ASSERT(r == UV_EINVAL);
+  ASSERT_EQ(r, UV_EINVAL);
+
+  return 0;
+}
+
+
+TEST_IMPL(get_passwd2) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
+  uv_passwd_t pwd;
+  uv_passwd_t pwd2;
+  size_t len;
+  int r;
+
+  /* Test the normal case */
+  r = uv_os_get_passwd(&pwd);
+  ASSERT_OK(r);
+
+  r = uv_os_get_passwd2(&pwd2, pwd.uid);
+
+#ifdef _WIN32
+  ASSERT_EQ(r, UV_ENOTSUP);
+  (void) &len;
+
+#else
+  ASSERT_OK(r);
+  ASSERT_EQ(pwd.uid, pwd2.uid);
+  ASSERT_STR_EQ(pwd.username, pwd2.username);
+  ASSERT_STR_EQ(pwd.shell, pwd2.shell);
+  ASSERT_STR_EQ(pwd.homedir, pwd2.homedir);
+  uv_os_free_passwd(&pwd2);
+
+  r = uv_os_get_passwd2(&pwd2, 0);
+  ASSERT_OK(r);
+
+  len = strlen(pwd2.username);
+  ASSERT_GT(len, 0);
+#if defined(__PASE__)
+  // uid 0 is qsecofr on IBM i
+  ASSERT_STR_EQ(pwd2.username, "qsecofr");
+#else
+  ASSERT_STR_EQ(pwd2.username, "root");
+#endif
+  len = strlen(pwd2.homedir);
+# ifndef __PASE__
+  ASSERT_GT(len, 0);
+#endif
+  len = strlen(pwd2.shell);
+# ifndef __PASE__
+  ASSERT_GT(len, 0);
+# endif
+
+  uv_os_free_passwd(&pwd2);
+#endif
+
+  uv_os_free_passwd(&pwd);
+
+  /* Test invalid input */
+  r = uv_os_get_passwd2(NULL, pwd.uid);
+#ifdef _WIN32
+  ASSERT_EQ(r, UV_ENOTSUP);
+#else
+  ASSERT_EQ(r, UV_EINVAL);
+#endif
+
+  return 0;
+}
+
+
+TEST_IMPL(get_group) {
+/* TODO(gengjiawen): Fix test on QEMU. */
+#if defined(__QEMU__)
+  RETURN_SKIP("Test does not currently work in QEMU");
+#endif
+
+  uv_passwd_t pwd;
+  uv_group_t grp;
+  size_t len;
+  int r;
+
+  r = uv_os_get_passwd(&pwd);
+  ASSERT_OK(r);
+
+  r = uv_os_get_group(&grp, pwd.gid);
+
+#ifdef _WIN32
+  ASSERT_EQ(r, UV_ENOTSUP);
+  (void) &len;
+
+#else
+  ASSERT_OK(r);
+  ASSERT_EQ(pwd.gid, grp.gid);
+
+  len = strlen(grp.groupname);
+  ASSERT_GT(len, 0);
+
+  uv_os_free_group(&grp);
+#endif
+
+  uv_os_free_passwd(&pwd);
+
+  /* Test invalid input */
+  r = uv_os_get_group(NULL, pwd.gid);
+#ifdef _WIN32
+  ASSERT_EQ(r, UV_ENOTSUP);
+#else
+  ASSERT_EQ(r, UV_EINVAL);
+#endif
 
   return 0;
 }

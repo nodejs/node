@@ -28,6 +28,7 @@
 import os
 import re
 
+from testrunner.build_config import INITIALIZATION_ERROR
 from testrunner.local.variants import ALL_VARIANTS
 from testrunner.local.utils import Freeze
 
@@ -59,9 +60,9 @@ for key in [SKIP, FAIL, PASS, CRASH, HEAVY, SLOW, FAIL_OK, NO_VARIANTS,
 VARIABLES = {ALWAYS: True}
 for var in [
     "debug", "release", "big", "little", "android", "arm", "arm64", "ia32",
-    "mips64", "mips64el", "x64", "ppc", "ppc64", "s390", "s390x", "macos",
-    "windows", "linux", "aix", "r1", "r2", "r3", "r5", "r6", "riscv32",
-    "riscv64", "loong64"
+    "mips64", "mips64el", "x64", "ppc64", "s390", "s390x", "macos", "windows",
+    "linux", "aix", "r1", "r2", "r3", "r5", "r6", "riscv32", "riscv64",
+    "loong64", "zos"
 ]:
   assert var not in VARIABLES
   VARIABLES[var] = var
@@ -162,7 +163,8 @@ def _EvalExpression(exp, variables):
     return eval(exp, variables)
   except NameError as e:
     identifier = re.match("name '(.*)' is not defined", str(e)).group(1)
-    assert identifier == "variant", "Unknown identifier: %s" % identifier
+    # If it's not a variant expression, it points to a missing build flag.
+    assert identifier == "variant", INITIALIZATION_ERROR % identifier
     return VARIANT_EXPRESSION
 
 

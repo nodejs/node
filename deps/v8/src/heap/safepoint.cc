@@ -7,7 +7,6 @@
 #include <atomic>
 
 #include "src/base/logging.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
@@ -18,7 +17,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
-#include "src/heap/local-heap.h"
+#include "src/heap/local-heap-inl.h"
 #include "src/heap/parked-scope.h"
 #include "src/logging/counters-scopes.h"
 #include "src/objects/objects.h"
@@ -72,7 +71,6 @@ class PerClientSafepointData final {
 void IsolateSafepoint::InitiateGlobalSafepointScope(
     Isolate* initiator, PerClientSafepointData* client_data) {
   shared_space_isolate()->global_safepoint()->AssertActive();
-  IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
   LockMutex(initiator->main_thread_local_heap());
   InitiateGlobalSafepointScopeRaw(initiator, client_data);
 }
@@ -113,9 +111,8 @@ void IsolateSafepoint::InitiateGlobalSafepointScopeRaw(
   if (isolate() != initiator) {
     // An isolate might be waiting in the event loop. Post a task in order to
     // wake it up.
-    V8::GetCurrentPlatform()
-        ->GetForegroundTaskRunner(reinterpret_cast<v8::Isolate*>(isolate()))
-        ->PostTask(std::make_unique<GlobalSafepointInterruptTask>(heap_));
+    isolate()->heap()->GetForegroundTaskRunner()->PostTask(
+        std::make_unique<GlobalSafepointInterruptTask>(heap_));
 
     // Request an interrupt in case of long-running code.
     isolate()->stack_guard()->RequestGlobalSafepoint();
@@ -156,8 +153,10 @@ size_t IsolateSafepoint::SetSafepointRequestedFlags(
 
 void IsolateSafepoint::LockMutex(LocalHeap* local_heap) {
   if (!local_heaps_mutex_.TryLock()) {
-    ParkedScope parked_scope(local_heap);
-    local_heaps_mutex_.Lock();
+    // Safepoints are only used for GCs, so GC requests should be ignored by
+    // default when parking for a safepoint.
+    IgnoreLocalGCRequests ignore_gc_requests(local_heap->heap());
+    local_heap->ExecuteWhileParked([this]() { local_heaps_mutex_.Lock(); });
   }
 }
 
@@ -344,8 +343,8 @@ void GlobalSafepoint::EnterGlobalSafepointScope(Isolate* initiator) {
 
   if (!clients_mutex_.TryLock()) {
     IgnoreLocalGCRequests ignore_gc_requests(initiator->heap());
-    ParkedScope parked_scope(initiator->main_thread_local_heap());
-    clients_mutex_.Lock();
+    initiator->main_thread_local_heap()->ExecuteWhileParked(
+        [this]() { clients_mutex_.Lock(); });
   }
 
   if (++active_safepoint_scopes_ > 1) return;

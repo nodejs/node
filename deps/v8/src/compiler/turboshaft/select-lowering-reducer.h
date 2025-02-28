@@ -12,6 +12,8 @@
 
 namespace v8::internal::compiler::turboshaft {
 
+#include "src/compiler/turboshaft/define-assembler-macros.inc"
+
 // Lowers Select operations to diamonds.
 //
 // A Select is conceptually somewhat similar to a ternary if:
@@ -33,59 +35,29 @@ namespace v8::internal::compiler::turboshaft {
 template <class Next>
 class SelectLoweringReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
+  TURBOSHAFT_REDUCER_BOILERPLATE(SelectLowering)
 
-  template <class... Args>
-  explicit SelectLoweringReducer(const std::tuple<Args...>& args)
-      : Next(args) {}
-
-  OpIndex ReduceSelect(OpIndex cond, OpIndex vtrue, OpIndex vfalse,
-                       RegisterRepresentation rep, BranchHint hint,
-                       SelectOp::Implementation implem) {
+  V<Any> REDUCE(Select)(V<Word32> cond, V<Any> vtrue, V<Any> vfalse,
+                        RegisterRepresentation rep, BranchHint hint,
+                        SelectOp::Implementation implem) {
     if (implem == SelectOp::Implementation::kCMove) {
       // We do not lower Select operations that should be implemented with
       // CMove.
       return Next::ReduceSelect(cond, vtrue, vfalse, rep, hint, implem);
     }
 
-    Block* true_block = Asm().NewBlock();
-    Block* false_block = Asm().NewBlock();
-    Block* merge_block = Asm().NewBlock();
-
-    Asm().Branch(cond, true_block, false_block, hint);
-
-    // Note that it's possible that other reducers of the stack optimizes the
-    // Branch that we just introduced into a Goto (if its condition is already
-    // known). Thus, we check the return values of Bind, and only insert the
-    // Gotos if Bind was successful: if not, then it means that the block
-    // ({true_block} or {false_block}) isn't reachable because the Branch was
-    // optimized to a Goto.
-
-    bool has_true_block = false;
-    bool has_false_block = false;
-
-    if (Asm().Bind(true_block)) {
-      has_true_block = true;
-      Asm().Goto(merge_block);
+    Variable result = __ NewLoopInvariantVariable(rep);
+    IF (cond) {
+      __ SetVariable(result, vtrue);
+    } ELSE {
+      __ SetVariable(result, vfalse);
     }
 
-    if (Asm().Bind(false_block)) {
-      has_false_block = true;
-      Asm().Goto(merge_block);
-    }
-
-    Asm().BindReachable(merge_block);
-
-    if (has_true_block && has_false_block) {
-      return Asm().Phi(base::VectorOf({vtrue, vfalse}), rep);
-    } else if (has_true_block) {
-      return vtrue;
-    } else {
-      DCHECK(has_false_block);
-      return vfalse;
-    }
+    return __ GetVariable(result);
   }
 };
+
+#include "src/compiler/turboshaft/undef-assembler-macros.inc"
 
 }  // namespace v8::internal::compiler::turboshaft
 

@@ -24,10 +24,10 @@ TQ_OBJECT_CONSTRUCTORS_IMPL(JSRelativeTimeFormat)
 
 // Base relative time format accessors.
 ACCESSORS(JSRelativeTimeFormat, icu_formatter,
-          Managed<icu::RelativeDateTimeFormatter>, kIcuFormatterOffset)
+          Tagged<Managed<icu::RelativeDateTimeFormatter>>, kIcuFormatterOffset)
 
 inline void JSRelativeTimeFormat::set_numeric(Numeric numeric) {
-  DCHECK_GE(NumericBit::kMax, numeric);
+  DCHECK(NumericBit::is_valid(numeric));
   int hints = flags();
   hints = NumericBit::update(hints, numeric);
   set_flags(hints);

@@ -12,40 +12,6 @@ namespace v8 {
 namespace base {
 namespace bits {
 
-uint32_t RoundUpToPowerOfTwo32(uint32_t value) {
-  DCHECK_LE(value, uint32_t{1} << 31);
-  if (value) --value;
-// Use computation based on leading zeros if we have compiler support for that.
-#if V8_HAS_BUILTIN_CLZ || V8_CC_MSVC
-  return 1u << (32 - CountLeadingZeros(value));
-#else
-  value |= value >> 1;
-  value |= value >> 2;
-  value |= value >> 4;
-  value |= value >> 8;
-  value |= value >> 16;
-  return value + 1;
-#endif
-}
-
-uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
-  DCHECK_LE(value, uint64_t{1} << 63);
-  if (value) --value;
-// Use computation based on leading zeros if we have compiler support for that.
-#if V8_HAS_BUILTIN_CLZ
-  return uint64_t{1} << (64 - CountLeadingZeros(value));
-#else
-  value |= value >> 1;
-  value |= value >> 2;
-  value |= value >> 4;
-  value |= value >> 8;
-  value |= value >> 16;
-  value |= value >> 32;
-  return value + 1;
-#endif
-}
-
-
 int32_t SignedMulHigh32(int32_t lhs, int32_t rhs) {
   int64_t const value = static_cast<int64_t>(lhs) * static_cast<int64_t>(rhs);
   return base::bit_cast<int32_t, uint32_t>(base::bit_cast<uint64_t>(value) >>

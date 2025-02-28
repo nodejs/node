@@ -120,4 +120,4 @@ been created with the changes), do the following:
 3. Create a commit for the update and in the commit message include the
    important/relevant items from the changelog.
    
-[`maintaining-openssl.md`]: https://github.com/nodejs/node/blob/main/doc/contributing/maintaining-openssl.md
+[`maintaining-openssl.md`]: https://github.com/nodejs/node/blob/main/doc/contributing/maintaining/maintaining-openssl.md

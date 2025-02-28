@@ -58,23 +58,26 @@ v8::Local<v8::FunctionTemplate> ProfilerExtension::GetNativeFunctionTemplate(
 }
 
 void ProfilerExtension::StartProfiling(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   last_profile = nullptr;
-  profiler_->StartProfiling(args.Length() > 0
-                                ? args[0].As<v8::String>()
-                                : v8::String::Empty(args.GetIsolate()));
+  profiler_->StartProfiling(info.Length() > 0
+                                ? info[0].As<v8::String>()
+                                : v8::String::Empty(info.GetIsolate()));
 }
 
 void ProfilerExtension::StopProfiling(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
   last_profile = profiler_->StopProfiling(
-      args.Length() > 0 ? args[0].As<v8::String>()
-                        : v8::String::Empty(args.GetIsolate()));
+      info.Length() > 0 ? info[0].As<v8::String>()
+                        : v8::String::Empty(info.GetIsolate()));
 }
 
 void ProfilerExtension::CollectSample(
-    const v8::FunctionCallbackInfo<v8::Value>& args) {
-  v8::CpuProfiler::CollectSample(args.GetIsolate());
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::ValidateCallbackInfo(info));
+  v8::CpuProfiler::CollectSample(info.GetIsolate());
 }
 
 }  // namespace internal

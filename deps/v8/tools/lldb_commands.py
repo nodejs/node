@@ -16,59 +16,155 @@ import lldb
 #####################
 # Helper functions. #
 #####################
+
 def current_thread(debugger):
   return debugger.GetSelectedTarget().GetProcess().GetSelectedThread()
 
 def current_frame(debugger):
   return current_thread(debugger).GetSelectedFrame()
 
-def no_arg_cmd(debugger, cmd):
+
+def no_arg_cmd(debugger, cmd, print_error=True):
   cast_to_void_expr = '(void) {}'.format(cmd)
   evaluate_result = current_frame(debugger).EvaluateExpression(cast_to_void_expr)
   # When a void function is called the return value type is 0x1001 which
   # is specified in http://tiny.cc/bigskz. This does not indicate
   # an error so we check for that value below.
   kNoResult = 0x1001
-  error = evaluate_result.GetError()
-  if error.fail and error.value != kNoResult:
+  result = evaluate_result.GetError()
+  is_success = not result.fail or result.value == kNoResult
+  if not is_success:
+    if print_error:
       print("Failed to evaluate command {} :".format(cmd))
-      print(error.description)
+      print(result.description)
   else:
     print("")
+  return (is_success, result, cmd)
 
-def ptr_arg_cmd(debugger, name, param, cmd):
+
+def ptr_arg_cmd(debugger, name, param, cmd, print_error=True):
   if not param:
     print("'{}' requires an argument".format(name))
-    return
+    return (False, None, "")
   param = '(void*)({})'.format(param)
-  no_arg_cmd(debugger, cmd.format(param))
+  return no_arg_cmd(debugger, cmd.format(param), print_error)
+
+
+def print_handle(debugger, command_name, param, print_func):
+  value = current_frame(debugger).EvaluateExpression(param)
+  error = value.GetError()
+  if error.fail:
+    print("Error evaluating {}\n{}".format(param, error))
+    return (False, error, "")
+  # Attempt to print, ignoring visualizers if they are enabled
+  result = print_func(value.GetNonSyntheticValue())
+  if not result[0]:
+    print("{} cannot print a value of type {}".format(command_name,
+                                                      value.type.name))
+  return result
+
+
+def print_direct(debugger, command_name, value):
+  CMD = "_v8_internal_Print_Object((v8::internal::Address*)({}))"
+  return ptr_arg_cmd(debugger, command_name, value, CMD.format(value))
+
+
+def print_indirect(debugger, command_name, value):
+  CMD = "_v8_internal_Print_Object(*(v8::internal::Object**)({}))"
+  return ptr_arg_cmd(debugger, command_name, value, CMD.format(value))
+
+
+V8_LLDB_COMMANDS = []
+
+
+def lldbCommand(fn):
+  V8_LLDB_COMMANDS.append(fn.__name__)
+  return fn
+
 
 #####################
 # lldb commands.    #
 #####################
+
+@lldbCommand
 def job(debugger, param, *args):
   """Print a v8 heap object"""
   ptr_arg_cmd(debugger, 'job', param, "_v8_internal_Print_Object({})")
 
-def jlh(debugger, param, *args):
-  """Print v8::Local handle value"""
-  ptr_arg_cmd(debugger, 'jlh', param,
-              "_v8_internal_Print_Object(*(v8::internal::Object**)({}.val_))")
 
+@lldbCommand
+def jh(debugger, param, *args):
+  """Print v8::internal::(Maybe)?(Direct|Indirect)?Handle value"""
+
+  def print_func(value):
+    # Indirect handles contain a location_.
+    field = value.GetValueForExpressionPath(".location_")
+    if field.IsValid():
+      return print_indirect(debugger, 'jh', field.value)
+    # Direct handles contain a obj_.
+    field = value.GetValueForExpressionPath(".obj_")
+    if field.IsValid():
+      return print_indirect(debugger, 'jh', field.value)
+    # We don't know how to print this...
+    return (False, None, "")
+
+  return print_handle(debugger, 'jh', param, print_func)
+
+
+@lldbCommand
+def jlh(debugger, param, *args):
+  """Print v8::(Maybe)?Local value"""
+
+  def print_func(value):
+    # After https://crrev.com/c/4335544, v8::MaybeLocal contains a local_.
+    field = value.GetValueForExpressionPath(".local_")
+    if field.IsValid():
+      value = field
+    # After https://crrev.com/c/4335544, v8::Local contains a location_.
+    field = value.GetValueForExpressionPath(".location_")
+    if field.IsValid():
+      return print_indirect(debugger, 'jlh', field.value)
+    # Before https://crrev.com/c/4335544, v8::Local contained a val_.
+    field = value.GetValueForExpressionPath(".val_")
+    if field.IsValid():
+      return print_indirect(debugger, 'jlh', field.value)
+    # With v8_enable_direct_handle=true, v8::Local contains a ptr_.
+    field = value.GetValueForExpressionPath(".ptr_")
+    if field.IsValid():
+      return print_direct(debugger, 'jlh', field.value)
+    # We don't know how to print this...
+    return (False, None, "")
+
+  return print_handle(debugger, 'jlh', param, print_func)
+
+
+@lldbCommand
+def jl(debugger, param, *args):
+  """Print v8::Local handle value"""
+  return jlh(debugger, param, *args)
+
+
+@lldbCommand
 def jco(debugger, param, *args):
   """Print the code object at the given pc (default: current pc)"""
   if not param:
     param = str(current_frame(debugger).FindRegister("pc").value)
   ptr_arg_cmd(debugger, 'jco', param, "_v8_internal_Print_Code({})")
 
+
+@lldbCommand
 def jtt(debugger, param, *args):
   """Print the transition tree of a v8 Map"""
   ptr_arg_cmd(debugger, 'jtt', param, "_v8_internal_Print_TransitionTree({})")
 
+
+@lldbCommand
 def jst(debugger, *args):
   """Print the current JavaScript stack trace"""
   no_arg_cmd(debugger, "_v8_internal_Print_StackTrace()")
 
+
+@lldbCommand
 def jss(debugger, *args):
   """Skip the jitted stack on x64 to where we entered JS last"""
   frame = current_frame(debugger)
@@ -83,6 +179,8 @@ def jss(debugger, *args):
   rsp = js_entry_sp + 2 *sizeof_void
   pc.value = js_entry_sp + sizeof_void
 
+
+@lldbCommand
 def bta(debugger, *args):
   """Print stack trace with assertion scopes"""
   func_name_re = re.compile("([^(<]+)(?:\(.+\))?")
@@ -129,6 +227,6 @@ def setup_source_map_for_relative_paths(debugger):
 def __lldb_init_module(debugger, dict):
   setup_source_map_for_relative_paths(debugger)
   debugger.HandleCommand('settings set target.x86-disassembly-flavor intel')
-  for cmd in ('job', 'jlh', 'jco', 'jld', 'jtt', 'jst', 'jss', 'bta'):
+  for cmd in V8_LLDB_COMMANDS:
     debugger.HandleCommand(
       'command script add -f lldb_commands.{} {}'.format(cmd, cmd))

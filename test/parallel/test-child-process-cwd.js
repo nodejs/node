@@ -27,7 +27,6 @@ tmpdir.refresh();
 
 const assert = require('assert');
 const { spawn } = require('child_process');
-const { pathToFileURL, URL } = require('url');
 
 // Spawns 'pwd' with given options, then test
 // - whether the child pid is undefined or number,
@@ -53,7 +52,14 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
   });
 
   child.on('close', common.mustCall(function() {
-    expectData && assert.strictEqual(data.trim(), expectData);
+    if (expectData) {
+      // In Windows, compare without considering case
+      if (common.isWindows) {
+        assert.strictEqual(data.trim().toLowerCase(), expectData.toLowerCase());
+      } else {
+        assert.strictEqual(data.trim(), expectData);
+      }
+    }
   }));
 
   return child;
@@ -88,7 +94,7 @@ function testCwd(options, expectPidType, expectCode = 0, expectData) {
 testCwd({ cwd: tmpdir.path }, 'number', 0, tmpdir.path);
 const shouldExistDir = common.isWindows ? process.env.windir : '/dev';
 testCwd({ cwd: shouldExistDir }, 'number', 0, shouldExistDir);
-testCwd({ cwd: pathToFileURL(tmpdir.path) }, 'number', 0, tmpdir.path);
+testCwd({ cwd: tmpdir.fileURL() }, 'number', 0, tmpdir.path);
 
 // Spawn() shouldn't try to chdir() to invalid arg, so this should just work
 testCwd({ cwd: '' }, 'number');

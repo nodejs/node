@@ -15,10 +15,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSource) {
   DCHECK_EQ(1, args.length());
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
-    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
+  if (IsJSFunction(*function)) {
+    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
                           isolate);
-    if (script->IsScript()) return Handle<Script>::cast(script)->source();
+    if (IsScript(*script)) return Cast<Script>(script)->source();
   }
   return ReadOnlyRoots(isolate).undefined_value();
 }
@@ -28,11 +28,11 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
   DCHECK_EQ(1, args.length());
   Handle<JSReceiver> function = args.at<JSReceiver>(0);
 
-  if (function->IsJSFunction()) {
-    Handle<Object> script(Handle<JSFunction>::cast(function)->shared().script(),
+  if (IsJSFunction(*function)) {
+    Handle<Object> script(Cast<JSFunction>(function)->shared()->script(),
                           isolate);
-    if (script->IsScript()) {
-      return Smi::FromInt(Handle<Script>::cast(script)->id());
+    if (IsScript(*script)) {
+      return Smi::FromInt(Cast<Script>(script)->id());
     }
   }
   return Smi::FromInt(-1);
@@ -41,10 +41,10 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptId) {
 RUNTIME_FUNCTION(Runtime_FunctionGetSourceCode) {
   HandleScope scope(isolate);
   DCHECK_EQ(1, args.length());
-  Handle<JSReceiver> function = args.at<JSReceiver>(0);
-  if (function->IsJSFunction()) {
-    Handle<SharedFunctionInfo> shared(
-        Handle<JSFunction>::cast(function)->shared(), isolate);
+  DirectHandle<JSReceiver> function = args.at<JSReceiver>(0);
+  if (IsJSFunction(*function)) {
+    DirectHandle<SharedFunctionInfo> shared(
+        Cast<JSFunction>(function)->shared(), isolate);
     return *SharedFunctionInfo::GetSourceCode(isolate, shared);
   }
   return ReadOnlyRoots(isolate).undefined_value();
@@ -55,8 +55,8 @@ RUNTIME_FUNCTION(Runtime_FunctionGetScriptSourcePosition) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  auto fun = JSFunction::cast(args[0]);
-  int pos = fun.shared().StartPosition();
+  auto fun = Cast<JSFunction>(args[0]);
+  int pos = fun->shared()->StartPosition();
   return Smi::FromInt(pos);
 }
 
@@ -65,8 +65,8 @@ RUNTIME_FUNCTION(Runtime_FunctionIsAPIFunction) {
   SealHandleScope shs(isolate);
   DCHECK_EQ(1, args.length());
 
-  auto f = JSFunction::cast(args[0]);
-  return isolate->heap()->ToBoolean(f.shared().IsApiFunction());
+  auto f = Cast<JSFunction>(args[0]);
+  return isolate->heap()->ToBoolean(f->shared()->IsApiFunction());
 }
 
 
@@ -82,14 +82,6 @@ RUNTIME_FUNCTION(Runtime_Call) {
   }
   RETURN_RESULT_OR_FAILURE(
       isolate, Execution::Call(isolate, target, receiver, argc, argv.begin()));
-}
-
-
-RUNTIME_FUNCTION(Runtime_IsFunction) {
-  SealHandleScope shs(isolate);
-  DCHECK_EQ(1, args.length());
-  Object object = args[0];
-  return isolate->heap()->ToBoolean(object.IsFunction());
 }
 
 

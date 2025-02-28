@@ -10,10 +10,11 @@
 #include <vector>
 
 #include "src/base/macros.h"
-#include "src/base/optional.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/objects.h"
 #include "src/roots/roots.h"
+#include "src/sandbox/code-pointer-table.h"
+#include "src/sandbox/js-dispatch-table.h"
 
 namespace v8 {
 
@@ -21,11 +22,11 @@ class SharedMemoryStatistics;
 
 namespace internal {
 
-class BasicMemoryChunk;
+class MemoryChunkMetadata;
 class Isolate;
-class Page;
+class PageMetadata;
 class ReadOnlyArtifacts;
-class ReadOnlyPage;
+class ReadOnlyPageMetadata;
 class ReadOnlySpace;
 class SharedReadOnlySpace;
 class SnapshotData;
@@ -37,7 +38,7 @@ class ReadOnlyHeap {
   static constexpr size_t kEntriesCount =
       static_cast<size_t>(RootIndex::kReadOnlyRootsCount);
 
-  virtual ~ReadOnlyHeap() = default;
+  virtual ~ReadOnlyHeap();
 
   ReadOnlyHeap(const ReadOnlyHeap&) = delete;
   ReadOnlyHeap& operator=(const ReadOnlyHeap&) = delete;
@@ -56,7 +57,7 @@ class ReadOnlyHeap {
   // have been created and will not be written to. This should only be called if
   // a deserializer was not previously provided to Setup. When V8_SHARED_RO_HEAP
   // is enabled, this releases the ReadOnlyHeap creation lock.
-  void OnCreateHeapObjectsComplete(Isolate* isolate);
+  V8_EXPORT_PRIVATE void OnCreateHeapObjectsComplete(Isolate* isolate);
   // Indicates that all objects reachable by the read only roots table have been
   // set up.
   void OnCreateRootsComplete(Isolate* isolate);
@@ -71,25 +72,25 @@ class ReadOnlyHeap {
   // Returns whether the address is within the read-only space.
   V8_EXPORT_PRIVATE static bool Contains(Address address);
   // Returns whether the object resides in the read-only space.
-  V8_EXPORT_PRIVATE static bool Contains(HeapObject object);
+  V8_EXPORT_PRIVATE static bool Contains(Tagged<HeapObject> object);
+  V8_EXPORT_PRIVATE static bool SandboxSafeContains(Tagged<HeapObject> object);
   // Gets read-only roots from an appropriate root list. Shared read only root
   // must be initialized
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots GetReadOnlyRoots(
-      HeapObject object);
+      Tagged<HeapObject> object);
   // Returns the current isolates roots table during initialization as opposed
   // to the shared one in case the latter is not initialized yet.
   V8_EXPORT_PRIVATE inline static ReadOnlyRoots EarlyGetReadOnlyRoots(
-      HeapObject object);
-
-  // Extends the read-only object cache with new zero smi and returns a
-  // reference to it.
-  Object* ExtendReadOnlyObjectCache();
-  // Returns a read-only cache entry at a particular index.
-  Object cached_read_only_object(size_t i) const;
-  bool read_only_object_cache_is_initialized() const;
-  size_t read_only_object_cache_size() const;
+      Tagged<HeapObject> object);
 
   ReadOnlySpace* read_only_space() const { return read_only_space_; }
+
+#ifdef V8_ENABLE_SANDBOX
+  CodePointerTable::Space* code_pointer_space() { return &code_pointer_space_; }
+  JSDispatchTable::Space* js_dispatch_table_space() {
+    return &js_dispatch_table_space_;
+  }
+#endif
 
   // Returns whether the ReadOnlySpace will actually be shared taking into
   // account whether shared memory is available with pointer compression.
@@ -110,7 +111,7 @@ class ReadOnlyHeap {
 
   // Creates a new read-only heap and attaches it to the provided isolate. Only
   // used the first time when creating a ReadOnlyHeap for sharing.
-  static ReadOnlyHeap* CreateInitalHeapForBootstrapping(
+  static ReadOnlyHeap* CreateInitialHeapForBootstrapping(
       Isolate* isolate, std::shared_ptr<ReadOnlyArtifacts> artifacts);
   // Runs the read-only deserializer and calls InitFromIsolate to complete
   // read-only heap initialization.
@@ -125,13 +126,19 @@ class ReadOnlyHeap {
 
   bool roots_init_complete_ = false;
   ReadOnlySpace* read_only_space_ = nullptr;
-  std::vector<Object> read_only_object_cache_;
+
+#ifdef V8_ENABLE_SANDBOX
+  // The read-only heap has its own code pointer space. Entries in this space
+  // are never deallocated.
+  CodePointerTable::Space code_pointer_space_;
+  JSDispatchTable::Space js_dispatch_table_space_;
+#endif  // V8_ENABLE_SANDBOX
 
   // Returns whether shared memory can be allocated and then remapped to
   // additional addresses.
   static bool IsSharedMemoryAvailable();
 
-  explicit ReadOnlyHeap(ReadOnlySpace* ro_space) : read_only_space_(ro_space) {}
+  explicit ReadOnlyHeap(ReadOnlySpace* ro_space);
   ReadOnlyHeap(ReadOnlyHeap* ro_heap, ReadOnlySpace* ro_space);
 };
 
@@ -152,18 +159,49 @@ class SoleReadOnlyHeap : public ReadOnlyHeap {
   V8_EXPORT_PRIVATE static SoleReadOnlyHeap* shared_ro_heap_;
 };
 
-// This class enables iterating over all read-only heap objects.
-class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator {
+enum class SkipFreeSpaceOrFiller {
+  kYes,
+  kNo,
+};
+
+// This class enables iterating over all read-only heap objects on a
+// ReadOnlyPage.
+class V8_EXPORT_PRIVATE ReadOnlyPageObjectIterator final {
+ public:
+  explicit ReadOnlyPageObjectIterator(
+      const ReadOnlyPageMetadata* page,
+      SkipFreeSpaceOrFiller skip_free_space_or_filler =
+          SkipFreeSpaceOrFiller::kYes);
+  ReadOnlyPageObjectIterator(const ReadOnlyPageMetadata* page,
+                             Address current_addr,
+                             SkipFreeSpaceOrFiller skip_free_space_or_filler =
+                                 SkipFreeSpaceOrFiller::kYes);
+
+  Tagged<HeapObject> Next();
+
+ private:
+  void Reset(const ReadOnlyPageMetadata* page);
+
+  const ReadOnlyPageMetadata* page_;
+  Address current_addr_;
+  const SkipFreeSpaceOrFiller skip_free_space_or_filler_;
+
+  friend class ReadOnlyHeapObjectIterator;
+};
+
+// This class enables iterating over all read-only heap objects in the
+// ReadOnlyHeap/ReadOnlySpace.
+class V8_EXPORT_PRIVATE ReadOnlyHeapObjectIterator final {
  public:
   explicit ReadOnlyHeapObjectIterator(const ReadOnlyHeap* ro_heap);
   explicit ReadOnlyHeapObjectIterator(const ReadOnlySpace* ro_space);
 
-  HeapObject Next();
+  Tagged<HeapObject> Next();
 
  private:
   const ReadOnlySpace* const ro_space_;
-  std::vector<ReadOnlyPage*>::const_iterator current_page_;
-  Address current_addr_;
+  std::vector<ReadOnlyPageMetadata*>::const_iterator current_page_;
+  ReadOnlyPageObjectIterator page_iterator_;
 };
 
 }  // namespace internal

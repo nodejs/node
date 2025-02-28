@@ -23,6 +23,7 @@ namespace internal {
   V(kExpectedOptimizationSentinel,                                             \
     "Expected optimized code cell or optimization sentinel")                   \
   V(kExpectedUndefinedOrCell, "Expected undefined or cell in register")        \
+  V(kExpectedFeedbackCell, "Expected feedback cell")                           \
   V(kExpectedFeedbackVector, "Expected feedback vector")                       \
   V(kExpectedBaselineData, "Expected baseline data")                           \
   V(kFloat64IsNotAInt32,                                                       \
@@ -66,6 +67,7 @@ namespace internal {
   V(kShouldNotDirectlyEnterOsrFunction,                                        \
     "Should not directly enter OSR-compiled function")                         \
   V(kStackAccessBelowStackPointer, "Stack access below stack pointer")         \
+  V(kOsrUnexpectedStackSize, "Unexpected stack size on OSR entry")             \
   V(kStackFrameTypesMustMatch, "Stack frame types must match")                 \
   V(kUint32IsNotAInt32,                                                        \
     "Uint32 cannot be converted to Int32 without loss of precision")           \
@@ -98,7 +100,13 @@ namespace internal {
   V(kWrongFunctionContext, "Wrong context passed to function")                 \
   V(kUnexpectedThreadInWasmSet, "thread_in_wasm flag was already set")         \
   V(kUnexpectedThreadInWasmUnset, "thread_in_wasm flag was not set")           \
-  V(kInvalidReceiver, "Expected JS object or primitive object")
+  V(kInvalidReceiver, "Expected JS object or primitive object")                \
+  V(kUnexpectedInstanceType, "Unexpected instance type encountered")           \
+  V(kTurboshaftTypeAssertionFailed,                                            \
+    "A type assertion failed in Turboshaft-generated code")                    \
+  V(kMetadataAreaStartDoesNotMatch,                                            \
+    "The metadata doesn't belong to the "                                      \
+    "chunk")
 
 #define BAILOUT_MESSAGES_LIST(V)                                             \
   V(kNoReason, "no reason")                                                  \
@@ -114,6 +122,7 @@ namespace internal {
   V(kNativeFunctionLiteral, "Native function literal")                       \
   V(kOptimizationDisabled, "Optimization disabled")                          \
   V(kHigherTierAvailable, "A higher tier is already available")              \
+  V(kDetachedNativeContext, "The native context is detached")                \
   V(kNeverOptimize, "Optimization is always disabled")
 
 #define ERROR_MESSAGES_CONSTANTS(C, T) C,

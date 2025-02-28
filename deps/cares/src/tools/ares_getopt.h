@@ -28,26 +28,23 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE)
  * ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  * POSSIBILITY OF SUCH DAMAGE.
+ *
+ * SPDX-License-Identifier: BSD-3-Clause
  */
 
 
-int ares_getopt(int nargc, char * const nargv[], const char *ostr);
+typedef struct {
+  const char         *optarg; /* argument associated with option */
+  int                 optind; /* index into parent argv vector */
+  int                 opterr; /* if error message should be printed */
+  int                 optopt; /* character checked for validity */
+  const char         *place;
+  int                 argc;
+  const char * const *argv;
+} ares_getopt_state_t;
 
-#undef optarg
-#undef optind
-#undef opterr
-#undef optopt
-#undef optreset
-
-#define optarg   ares_optarg
-#define optind   ares_optind
-#define opterr   ares_opterr
-#define optopt   ares_optopt
-#define optreset ares_optreset
-
-extern char *optarg;
-extern int optind;
-extern int opterr;
-extern int optopt;
+void ares_getopt_init(ares_getopt_state_t *state, int argc,
+                      const char * const *argv);
+int  ares_getopt(ares_getopt_state_t *state, const char *ostr);
 
 #endif /* ARES_GETOPT_H */

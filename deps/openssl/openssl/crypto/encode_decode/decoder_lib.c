@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -743,10 +743,11 @@ static int decoder_process(const OSSL_PARAM params[], void *arg)
                            (void *)new_data.ctx, LEVEL, rv);
             } OSSL_TRACE_END(DECODER);
 
-            data->flag_construct_called = 1;
             ok = (rv > 0);
-            if (ok)
+            if (ok) {
+                data->flag_construct_called = 1;
                 goto end;
+            }
         }
 
         /* The constructor didn't return success */

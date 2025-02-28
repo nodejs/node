@@ -22,7 +22,10 @@
 // Flags: --expose-internals
 'use strict';
 const common = require('../common');
-common.skipIfDumbTerminal();
+
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const assert = require('assert');
 const readline = require('readline');
@@ -44,7 +47,7 @@ class FakeInput extends EventEmitter {
 function isWarned(emitter) {
   for (const name in emitter) {
     const listeners = emitter[name];
-    if (listeners.warned) return true;
+    if (listeners?.warned) return true;
   }
   return false;
 }
@@ -1061,14 +1064,23 @@ for (let i = 0; i < 12; i++) {
     rli.close();
   }
 
+  // Calling only the first question callback
+  {
+    const [rli] = getInterface({ terminal });
+    rli.question('foo?', common.mustCall((answer) => {
+      assert.strictEqual(answer, 'bar');
+    }));
+    rli.question('hello?', common.mustNotCall());
+    rli.write('bar\n');
+  }
+
   // Calling the question multiple times
   {
     const [rli] = getInterface({ terminal });
     rli.question('foo?', common.mustCall((answer) => {
       assert.strictEqual(answer, 'baz');
     }));
-    rli.question('bar?', common.mustNotCall(() => {
-    }));
+    rli.question('bar?', common.mustNotCall());
     rli.write('baz\n');
     rli.close();
   }
@@ -1329,6 +1341,26 @@ for (let i = 0; i < 12; i++) {
       assert.strictEqual(callCount, 1);
       rli.close();
     }), delay);
+  }
+
+  // Write correctly if paused
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustCall((line) => {
+      assert.strictEqual(line, 'bar');
+    }));
+    rli.pause();
+    rli.write('bar\n');
+    assert.strictEqual(rli.paused, false);
+    rli.close();
+  }
+
+  // Write undefined
+  {
+    const [rli] = getInterface({ terminal });
+    rli.on('line', common.mustNotCall());
+    rli.write();
+    rli.close();
   }
 });
 

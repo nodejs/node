@@ -14,5 +14,9 @@ extern int arm_cpu_enable_pmull;
 extern int x86_cpu_enable_sse2;
 extern int x86_cpu_enable_ssse3;
 extern int x86_cpu_enable_simd;
+extern int x86_cpu_enable_avx512;
+
+extern int riscv_cpu_enable_rvv;
+extern int riscv_cpu_enable_vclmul;
 
 void cpu_check_features(void);

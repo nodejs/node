@@ -231,13 +231,16 @@ int PKCS5_v2_PBKDF2_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass,
         goto err;
     }
 
+    (void)ERR_set_mark();
     prfmd = prfmd_fetch = EVP_MD_fetch(libctx, OBJ_nid2sn(hmac_md_nid), propq);
     if (prfmd == NULL)
         prfmd = EVP_get_digestbynid(hmac_md_nid);
     if (prfmd == NULL) {
+        (void)ERR_clear_last_mark();
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_PRF);
         goto err;
     }
+    (void)ERR_pop_to_mark();
 
     if (kdf->salt->type != V_ASN1_OCTET_STRING) {
         ERR_raise(ERR_LIB_EVP, EVP_R_UNSUPPORTED_SALT_TYPE);

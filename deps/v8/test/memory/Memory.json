@@ -10,6 +10,10 @@
             "--serialization-statistics"],
   "tests": [
     {
+      "name": "ReservedMemoryProcess",
+      "results_regexp": "(\\d+) bytes per process$"
+    },
+    {
       "name": "ReservedMemoryIsolate",
       "results_regexp": "(\\d+) bytes per isolate$"
     },
@@ -22,12 +26,20 @@
       "results_regexp": "(\\d+) bytes for startup$"
     },
     {
+      "name": "SnapshotSizeSharedHeap",
+      "results_regexp": "(\\d+) bytes for shared heap$"
+    },
+    {
       "name": "SnapshotSizeReadOnly",
       "results_regexp": "(\\d+) bytes for read-only$"
     },
     {
       "name": "SnapshotSizeContext",
       "results_regexp": "(\\d+) bytes for context #0$"
+    },
+    {
+      "name": "DeserializationTimeReadOnly",
+      "results_regexp": "\\[Deserializing read-only space \\(\\d+ bytes\\) took ([\\d.]+) ms\\]"
     },
     {
       "name": "DeserializationTimeIsolate",

@@ -1,4 +1,4 @@
-// Flags: --no-warnings --test-name-pattern=enabled --test-name-pattern=/pattern/i
+// Flags: --test-name-pattern=enabled --test-name-pattern=yes --test-name-pattern=/pattern/i --test-name-pattern=/^DescribeForMatchWithAncestors\sNestedDescribeForMatchWithAncestors\sNestedTest$/
 'use strict';
 const common = require('../../../common');
 const {
@@ -18,7 +18,7 @@ it('top level it enabled', common.mustCall());
 it('top level it disabled', common.mustNotCall());
 it.skip('top level skipped it disabled', common.mustNotCall());
 it.skip('top level skipped it enabled', common.mustNotCall());
-describe('top level describe disabled', common.mustNotCall());
+describe('top level describe never disabled', common.mustCall());
 describe.skip('top level skipped describe disabled', common.mustNotCall());
 describe.skip('top level skipped describe enabled', common.mustNotCall());
 test('top level runs because name includes PaTtErN', common.mustCall());
@@ -38,10 +38,52 @@ describe('top level describe enabled', () => {
   afterEach(common.mustCall(3));
   after(common.mustCall());
 
-  it('nested it disabled', common.mustNotCall());
+  it('nested it not disabled', common.mustCall());
   it('nested it enabled', common.mustCall());
-  describe('nested describe disabled', common.mustNotCall());
+  describe('nested describe not disabled', common.mustCall());
   describe('nested describe enabled', common.mustCall(() => {
     it('is enabled', common.mustCall());
   }));
 });
+
+describe('yes', function() {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
+
+describe('no', function() {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
+
+describe('no with todo', { todo: true }, () => {
+  it('no', () => {});
+  it('yes', () => {});
+
+  describe('maybe', function() {
+    it('no', () => {});
+    it('yes', () => {});
+  });
+});
+
+describe('DescribeForMatchWithAncestors', () => {
+  it('NestedTest', () => common.mustNotCall());
+
+  describe('NestedDescribeForMatchWithAncestors', () => {
+    it('NestedTest', common.mustCall());
+  });
+})
+
+describe('DescribeForMatchWithAncestors', () => {
+  it('NestedTest', () => common.mustNotCall());
+})

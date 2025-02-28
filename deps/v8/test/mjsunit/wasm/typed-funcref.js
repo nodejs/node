@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-typed-funcref
-
 d8.file.execute('test/mjsunit/wasm/wasm-module-builder.js');
 
 // Export an arbitrary function from a Wasm module (identity).
@@ -24,7 +22,7 @@ let foo = (() => {
   table.grow(10);
   table.grow(10, foo);
   table.grow(10, null);
-  table.grow(10, undefined);
+  assertThrows(() => table.grow(10, undefined), TypeError);
 
   for (let i = 0; i < 10; i++) {
     assertNull(table.get(i));
@@ -32,7 +30,7 @@ let foo = (() => {
   for (let i = 10; i < 20; i++) {
     assertEquals(foo, table.get(i));
   }
-  for (let i = 20; i < 40; i++) {
+  for (let i = 20; i < 30; i++) {
     assertNull(table.get(i));
   }
 })();

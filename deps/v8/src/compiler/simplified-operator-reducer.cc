@@ -4,6 +4,8 @@
 
 #include "src/compiler/simplified-operator-reducer.h"
 
+#include <optional>
+
 #include "src/compiler/common-operator.h"
 #include "src/compiler/js-graph.h"
 #include "src/compiler/js-heap-broker.h"
@@ -64,7 +66,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
     case IrOpcode::kChangeTaggedToBit: {
       HeapObjectMatcher m(node->InputAt(0));
       if (m.HasResolvedValue()) {
-        base::Optional<bool> maybe_result =
+        std::optional<bool> maybe_result =
             m.Ref(broker()).TryGetBooleanValue(broker());
         if (maybe_result.has_value()) return ReplaceInt32(*maybe_result);
       }
@@ -257,6 +259,7 @@ Reduction SimplifiedOperatorReducer::Reduce(Node* node) {
                 node->ReplaceInput(0, n.left().node());
                 node->ReplaceInput(1, jsgraph()->Int32Constant(val));
                 RelaxEffectsAndControls(checked_int32_add);
+                checked_int32_add->Kill();
                 return Changed(node);
               }
             }
@@ -299,12 +302,12 @@ Reduction SimplifiedOperatorReducer::ReplaceInt32(int32_t value) {
 
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(double value) {
-  return Replace(jsgraph()->Constant(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 
 Reduction SimplifiedOperatorReducer::ReplaceNumber(int32_t value) {
-  return Replace(jsgraph()->Constant(value));
+  return Replace(jsgraph()->ConstantNoHole(value));
 }
 
 Factory* SimplifiedOperatorReducer::factory() const {

@@ -4,10 +4,9 @@
 
 require('../common');
 const assert = require('assert');
-const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
+const { spawnSyncAndAssert, spawnSyncAndExitWithoutError } = require('../common/child_process');
 const fs = require('fs');
 
 const v8 = require('v8');
@@ -17,7 +16,7 @@ const v8 = require('v8');
 assert(!v8.startupSnapshot.isBuildingSnapshot());
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
 {
   for (const book of [
@@ -26,10 +25,10 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
     'book2.zh_CN.txt',
   ]) {
     const content = `This is ${book}`;
-    fs.writeFileSync(path.join(tmpdir.path, book), content, 'utf8');
+    fs.writeFileSync(tmpdir.resolve(book), content, 'utf8');
   }
-  fs.copyFileSync(entry, path.join(tmpdir.path, 'entry.js'));
-  const child = spawnSync(process.execPath, [
+  fs.copyFileSync(entry, tmpdir.resolve('entry.js'));
+  spawnSyncAndExitWithoutError(process.execPath, [
     '--snapshot-blob',
     blobPath,
     '--build-snapshot',
@@ -37,17 +36,12 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
   ], {
     cwd: tmpdir.path
   });
-  if (child.status !== 0) {
-    console.log(child.stderr.toString());
-    console.log(child.stdout.toString());
-    assert.strictEqual(child.status, 0);
-  }
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
 
 {
-  const child = spawnSync(process.execPath, [
+  spawnSyncAndAssert(process.execPath, [
     '--snapshot-blob',
     blobPath,
     'book1',
@@ -57,11 +51,9 @@ const entry = fixtures.path('snapshot', 'v8-startup-snapshot-api.js');
       ...process.env,
       BOOK_LANG: 'en_US',
     }
+  }, {
+    stderr: 'Reading book1.en_US.txt',
+    stdout: 'This is book1.en_US.txt',
+    trim: true
   });
-
-  const stdout = child.stdout.toString().trim();
-  const stderr = child.stderr.toString().trim();
-  assert.strictEqual(stderr, 'Reading book1.en_US.txt');
-  assert.strictEqual(stdout, 'This is book1.en_US.txt');
-  assert.strictEqual(child.status, 0);
 }

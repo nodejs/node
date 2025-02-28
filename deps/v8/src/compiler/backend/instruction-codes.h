@@ -19,7 +19,7 @@
 #include "src/compiler/backend/loong64/instruction-codes-loong64.h"
 #elif V8_TARGET_ARCH_X64
 #include "src/compiler/backend/x64/instruction-codes-x64.h"
-#elif V8_TARGET_ARCH_PPC || V8_TARGET_ARCH_PPC64
+#elif V8_TARGET_ARCH_PPC64
 #include "src/compiler/backend/ppc/instruction-codes-ppc.h"
 #elif V8_TARGET_ARCH_S390
 #include "src/compiler/backend/s390/instruction-codes-s390.h"
@@ -41,6 +41,7 @@ namespace compiler {
 enum class RecordWriteMode {
   kValueIsMap,
   kValueIsPointer,
+  kValueIsIndirectPointer,
   kValueIsEphemeronKey,
   kValueIsAny,
 };
@@ -52,6 +53,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
       return RecordWriteMode::kValueIsMap;
     case kPointerWriteBarrier:
       return RecordWriteMode::kValueIsPointer;
+    case kIndirectPointerWriteBarrier:
+      return RecordWriteMode::kValueIsIndirectPointer;
     case kEphemeronKeyWriteBarrier:
       return RecordWriteMode::kValueIsEphemeronKey;
     case kFullWriteBarrier:
@@ -102,6 +105,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(AtomicXorWord32)                                       \
   V(ArchStoreWithWriteBarrier)                             \
   V(ArchAtomicStoreWithWriteBarrier)                       \
+  V(ArchStoreIndirectWithWriteBarrier)                     \
   V(AtomicLoadInt8)                                        \
   V(AtomicLoadUint8)                                       \
   V(AtomicLoadInt16)                                       \
@@ -132,6 +136,7 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchSaveCallerRegisters)                                               \
   V(ArchRestoreCallerRegisters)                                            \
   V(ArchCallCFunction)                                                     \
+  V(ArchCallCFunctionWithFrameState)                                       \
   V(ArchPrepareTailCall)                                                   \
   V(ArchJmp)                                                               \
   V(ArchBinarySearchSwitch)                                                \
@@ -144,6 +149,8 @@ inline RecordWriteMode WriteBarrierKindToRecordWriteMode(
   V(ArchDeoptimize)                                                        \
   V(ArchRet)                                                               \
   V(ArchFramePointer)                                                      \
+  IF_WASM(V, ArchStackPointer)                                             \
+  IF_WASM(V, ArchSetStackPointer)                                          \
   V(ArchParentFramePointer)                                                \
   V(ArchTruncateDoubleToI)                                                 \
   V(ArchStackSlot)                                                         \
@@ -216,13 +223,15 @@ enum FlagsMode {
   kFlags_set = 3,
   kFlags_trap = 4,
   kFlags_select = 5,
+  kFlags_conditional_set = 6,
+  kFlags_conditional_branch = 7,
 };
 
 V8_EXPORT_PRIVATE std::ostream& operator<<(std::ostream& os,
                                            const FlagsMode& fm);
 
 // The condition of flags continuation (see below).
-enum FlagsCondition {
+enum FlagsCondition : uint8_t {
   kEqual,
   kNotEqual,
   kSignedLessThan,
@@ -246,7 +255,9 @@ enum FlagsCondition {
   kOverflow,
   kNotOverflow,
   kPositiveOrZero,
-  kNegative
+  kNegative,
+  kIsNaN,
+  kIsNotNaN,
 };
 
 static constexpr FlagsCondition kStackPointerGreaterThanCondition =
@@ -279,6 +290,8 @@ inline size_t AtomicWidthSize(AtomicWidth width) {
   UNREACHABLE();
 }
 
+static constexpr int kLazyDeoptOnThrowSentinel = -1;
+
 // The InstructionCode is an opaque, target-specific integer that encodes what
 // code to emit for an instruction in the code generator. It is not interesting
 // to the register allocator, as the inputs and flags on the instructions
@@ -305,8 +318,8 @@ using InstructionCode = uint32_t;
 //                              AddressingModeField
 //                              FlagsModeField
 //                              FlagsConditionField
-// DeoptImmedArgsCountField    | ParamField   | MiscField
-// DeoptFrameStateOffsetField  | FPParamField |
+// DeoptImmedArgsCountField    | ParamField      | MiscField
+// DeoptFrameStateOffsetField  | FPParamField    |
 //
 // Notably, AccessModeField can follow any of several sequences of fields.
 
@@ -332,7 +345,7 @@ using AtomicStoreRecordWriteModeField =
     AtomicMemoryOrderField::Next<RecordWriteMode, 4>;
 
 // Write modes for writes with barrier.
-using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 2>;
+using RecordWriteModeField = FlagsConditionField::Next<RecordWriteMode, 3>;
 
 // LaneSizeField and AccessModeField are helper types to encode/decode a lane
 // size, an access mode, or both inside the overlapping MiscField.

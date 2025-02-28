@@ -5,10 +5,12 @@
 // Flags: --allow-natives-syntax --expose-externalize-string
 
 // Calculate string so that it isn't internalized.
-var string = ((a,b) => { return a + b; })('foo', 'bar');
+var string = createExternalizableString(((a, b) => {
+  return a + b;
+})('foo', 'bar'));
 
 // Now externalize it.
-externalizeString(string, false);
+externalizeString(string);
 
 // Then internalize it by using it as a keyed property name
 // to turn it a thin string.

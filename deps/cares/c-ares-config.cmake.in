@@ -1,3 +1,6 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
+
 @PACKAGE_INIT@
 
 set_and_check(c-ares_INCLUDE_DIR "@PACKAGE_CMAKE_INSTALL_INCLUDEDIR@")

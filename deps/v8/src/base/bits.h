@@ -219,11 +219,40 @@ inline constexpr int WhichPowerOfTwo(T value) {
 // 0x80000000u. Uses computation based on leading zeros if we have compiler
 // support for that. Falls back to the implementation from "Hacker's Delight" by
 // Henry S. Warren, Jr., figure 3-3, page 48, where the function is called clp2.
-V8_BASE_EXPORT uint32_t RoundUpToPowerOfTwo32(uint32_t value);
+V8_BASE_EXPORT constexpr uint32_t RoundUpToPowerOfTwo32(uint32_t value) {
+  DCHECK_LE(value, uint32_t{1} << 31);
+  if (value) --value;
+// Use computation based on leading zeros if we have compiler support for that.
+#if V8_HAS_BUILTIN_CLZ || V8_CC_MSVC
+  return 1u << (32 - CountLeadingZeros(value));
+#else
+  value |= value >> 1;
+  value |= value >> 2;
+  value |= value >> 4;
+  value |= value >> 8;
+  value |= value >> 16;
+  return value + 1;
+#endif
+}
 // Same for 64 bit integers. |value| must be <= 2^63
-V8_BASE_EXPORT uint64_t RoundUpToPowerOfTwo64(uint64_t value);
+V8_BASE_EXPORT constexpr uint64_t RoundUpToPowerOfTwo64(uint64_t value) {
+  DCHECK_LE(value, uint64_t{1} << 63);
+  if (value) --value;
+// Use computation based on leading zeros if we have compiler support for that.
+#if V8_HAS_BUILTIN_CLZ
+  return uint64_t{1} << (64 - CountLeadingZeros(value));
+#else
+  value |= value >> 1;
+  value |= value >> 2;
+  value |= value >> 4;
+  value |= value >> 8;
+  value |= value >> 16;
+  value |= value >> 32;
+  return value + 1;
+#endif
+}
 // Same for size_t integers.
-inline size_t RoundUpToPowerOfTwo(size_t value) {
+inline constexpr size_t RoundUpToPowerOfTwo(size_t value) {
   if (sizeof(size_t) == sizeof(uint64_t)) {
     return RoundUpToPowerOfTwo64(value);
   } else {
@@ -455,6 +484,11 @@ V8_BASE_EXPORT int64_t SignedSaturatedAdd64(int64_t lhs, int64_t rhs);
 // SignedSaturatedSub64(lhs, rhs) subtracts |lhs| by |rhs|,
 // checks and returns the result.
 V8_BASE_EXPORT int64_t SignedSaturatedSub64(int64_t lhs, int64_t rhs);
+
+template <class T>
+V8_BASE_EXPORT constexpr int BitWidth(T x) {
+  return std::numeric_limits<T>::digits - CountLeadingZeros(x);
+}
 
 }  // namespace bits
 }  // namespace base

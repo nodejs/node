@@ -6,13 +6,12 @@ const tmpdir = require('../common/tmpdir');
 const { writeFileSync, existsSync } = require('fs');
 const { spawnSync } = require('child_process');
 const assert = require('assert');
-const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'absolute.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output.blob');
+  const config = tmpdir.resolve('absolute.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output.blob');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main,
@@ -30,9 +29,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'relative.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output.blob');
+  const config = tmpdir.resolve('relative.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output.blob');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main: 'bundle.js',
@@ -51,9 +50,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'no-disableExperimentalSEAWarning.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output.blob');
+  const config = tmpdir.resolve('no-disableExperimentalSEAWarning.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output.blob');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main: 'bundle.js',
@@ -72,9 +71,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'true-disableExperimentalSEAWarning.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output.blob');
+  const config = tmpdir.resolve('true-disableExperimentalSEAWarning.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output.blob');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main: 'bundle.js',
@@ -94,9 +93,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'false-disableExperimentalSEAWarning.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output.blob');
+  const config = tmpdir.resolve('false-disableExperimentalSEAWarning.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output.blob');
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
     main: 'bundle.js',

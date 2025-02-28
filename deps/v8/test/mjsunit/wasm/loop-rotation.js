@@ -52,7 +52,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 (function TestNonRotatedLoopWithStore() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, undefined, false);
+  builder.addMemory(1, undefined);
   builder.addFunction("main", kSig_v_i)
     .addBody([
       kExprLoop, kWasmVoid,
@@ -60,7 +60,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
         kExprI32Const, 1,
         kExprI32Sub,
         kExprLocalTee, 0,
-      kExprBrIf, 1,
+        kExprBrIf, 1,
         kExprI32Const, 0,
         kExprI32Const, 0,
         kExprI32StoreMem, 0, 0,

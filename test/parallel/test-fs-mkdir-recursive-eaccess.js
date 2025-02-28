@@ -41,7 +41,7 @@ function makeDirectoryWritable(dir) {
 
 // Synchronous API should return an EACCESS error with path populated.
 {
-  const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
+  const dir = tmpdir.resolve(`mkdirp_${n++}`);
   fs.mkdirSync(dir);
   const codeExpected = makeDirectoryReadOnly(dir);
   let err = null;
@@ -58,7 +58,7 @@ function makeDirectoryWritable(dir) {
 
 // Asynchronous API should return an EACCESS error with path populated.
 {
-  const dir = path.join(tmpdir.path, `mkdirp_${n++}`);
+  const dir = tmpdir.resolve(`mkdirp_${n++}`);
   fs.mkdirSync(dir);
   const codeExpected = makeDirectoryReadOnly(dir);
   fs.mkdir(path.join(dir, '/bar'), { recursive: true }, (err) => {

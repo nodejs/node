@@ -14,8 +14,8 @@ namespace internal {
 Address CheckObjectType(Address raw_value, Address raw_type,
                         Address raw_location) {
 #ifdef DEBUG
-  ObjectType type = static_cast<ObjectType>(Smi(raw_type).value());
-  String location = String::cast(Object(raw_location));
+  ObjectType type = static_cast<ObjectType>(Tagged<Smi>(raw_type).value());
+  Tagged<String> location = Cast<String>(Tagged<Object>(raw_location));
   const char* expected;
 
   if (HAS_WEAK_HEAP_OBJECT_TAG(raw_value)) {
@@ -44,41 +44,42 @@ Address CheckObjectType(Address raw_value, Address raw_type,
 #undef TYPE_STRUCT_CASE
     }
   } else {
-    Object value(raw_value);
+    Tagged<Object> value(raw_value);
     switch (type) {
       case ObjectType::kHeapObjectReference:
-        if (!value.IsSmi()) return Smi::FromInt(0).ptr();
+        if (!IsSmi(value)) return Smi::FromInt(0).ptr();
         expected = "HeapObjectReference";
         break;
-#define TYPE_CASE(Name)                                 \
-  case ObjectType::k##Name:                             \
-    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                   \
+      case ObjectType::kObject:
+        return Smi::FromInt(0).ptr();
+#define TYPE_CASE(Name)                                \
+  case ObjectType::k##Name:                            \
+    if (Is##Name(value)) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                  \
     break;
-#define TYPE_STRUCT_CASE(NAME, Name, name)              \
-  case ObjectType::k##Name:                             \
-    if (value.Is##Name()) return Smi::FromInt(0).ptr(); \
-    expected = #Name;                                   \
+#define TYPE_STRUCT_CASE(NAME, Name, name)             \
+  case ObjectType::k##Name:                            \
+    if (Is##Name(value)) return Smi::FromInt(0).ptr(); \
+    expected = #Name;                                  \
     break;
 
-    TYPE_CASE(Object)
-    TYPE_CASE(Smi)
-    TYPE_CASE(TaggedIndex)
-    TYPE_CASE(HeapObject)
-    OBJECT_TYPE_LIST(TYPE_CASE)
-    HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
-    STRUCT_LIST(TYPE_STRUCT_CASE)
+        TYPE_CASE(Smi)
+        TYPE_CASE(TaggedIndex)
+        TYPE_CASE(HeapObject)
+        OBJECT_TYPE_LIST(TYPE_CASE)
+        HEAP_OBJECT_TYPE_LIST(TYPE_CASE)
+        STRUCT_LIST(TYPE_STRUCT_CASE)
 #undef TYPE_CASE
 #undef TYPE_STRUCT_CASE
     }
   }
-  MaybeObject maybe_value(raw_value);
+  Tagged<MaybeObject> maybe_value(raw_value);
   std::stringstream value_description;
-  maybe_value.Print(value_description);
+  Print(maybe_value, value_description);
   FATAL(
       "Type cast failed in %s\n"
       "  Expected %s but found %s",
-      location.ToAsciiArray(), expected, value_description.str().c_str());
+      location->ToAsciiArray(), expected, value_description.str().c_str());
 #else
   UNREACHABLE();
 #endif

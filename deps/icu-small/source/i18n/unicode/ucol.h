@@ -251,42 +251,52 @@ typedef enum {
       */
      UCOL_FRENCH_COLLATION, 
      /** Attribute for handling variable elements.
-      * Acceptable values are UCOL_NON_IGNORABLE (default)
-      * which treats all the codepoints with non-ignorable 
+      * Acceptable values are UCOL_NON_IGNORABLE
+      * which treats all the codepoints with non-ignorable
       * primary weights in the same way,
-      * and UCOL_SHIFTED which causes codepoints with primary 
+      * and UCOL_SHIFTED which causes codepoints with primary
       * weights that are equal or below the variable top value
-      * to be ignored on primary level and moved to the quaternary 
-      * level.
+      * to be ignored on primary level and moved to the quaternary
+      * level. The default setting in a Collator object depends on the
+      * locale data loaded from the resources. For most locales, the
+      * default is UCOL_NON_IGNORABLE, but for others, such as "th",
+      * the default could be UCOL_SHIFTED.
       * @stable ICU 2.0
       */
-     UCOL_ALTERNATE_HANDLING, 
+     UCOL_ALTERNATE_HANDLING,
      /** Controls the ordering of upper and lower case letters.
-      * Acceptable values are UCOL_OFF (default), which orders
+      * Acceptable values are UCOL_OFF, which orders
       * upper and lower case letters in accordance to their tertiary
-      * weights, UCOL_UPPER_FIRST which forces upper case letters to 
-      * sort before lower case letters, and UCOL_LOWER_FIRST which does 
-      * the opposite.
+      * weights, UCOL_UPPER_FIRST which forces upper case letters to
+      * sort before lower case letters, and UCOL_LOWER_FIRST which does
+      * the opposite. The default setting in a Collator object depends on the
+      * locale data loaded from the resources. For most locales, the
+      * default is UCOL_OFF, but for others, such as "da" or "mt",
+      * the default could be UCOL_UPPER.
       * @stable ICU 2.0
       */
-     UCOL_CASE_FIRST, 
+     UCOL_CASE_FIRST,
      /** Controls whether an extra case level (positioned before the third
-      * level) is generated or not. Acceptable values are UCOL_OFF (default), 
+      * level) is generated or not. Acceptable values are UCOL_OFF,
       * when case level is not generated, and UCOL_ON which causes the case
       * level to be generated. Contents of the case level are affected by
-      * the value of UCOL_CASE_FIRST attribute. A simple way to ignore 
+      * the value of UCOL_CASE_FIRST attribute. A simple way to ignore
       * accent differences in a string is to set the strength to UCOL_PRIMARY
-      * and enable case level.
+      * and enable case level. The default setting in a Collator object depends
+      * on the locale data loaded from the resources.
       * @stable ICU 2.0
       */
      UCOL_CASE_LEVEL,
      /** Controls whether the normalization check and necessary normalizations
-      * are performed. When set to UCOL_OFF (default) no normalization check
-      * is performed. The correctness of the result is guaranteed only if the 
+      * are performed. When set to UCOL_OFF no normalization check
+      * is performed. The correctness of the result is guaranteed only if the
       * input data is in so-called FCD form (see users manual for more info).
       * When set to UCOL_ON, an incremental check is performed to see whether
       * the input data is in the FCD form. If the data is not in the FCD form,
-      * incremental NFD normalization is performed.
+      * incremental NFD normalization is performed. The default setting in a
+      * Collator object depends on the locale data loaded from the resources.
+      * For many locales, the default is UCOL_OFF, but for others, such as "hi"
+      * "vi', or "bn", * the default could be UCOL_ON.
       * @stable ICU 2.0
       */
      UCOL_NORMALIZATION_MODE, 
@@ -408,7 +418,7 @@ ucol_open(const char *loc, UErrorCode *status);
  * Produce a UCollator instance according to the rules supplied.
  * The rules are used to change the default ordering, defined in the
  * UCA in a process called tailoring. The resulting UCollator pointer
- * can be used in the same way as the one obtained by {@link #ucol_strcoll }.
+ * can be used in the same way as the one obtained by {@link #ucol_open }.
  * @param rules A string describing the collation rules. For the syntax
  *              of the rules please see users guide.
  * @param rulesLength The length of rules, or -1 if null-terminated.
@@ -1509,6 +1519,130 @@ ucol_openBinary(const uint8_t *bin, int32_t length,
                 const UCollator *base, 
                 UErrorCode *status);
 
+#if U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
+
+#include <functional>
+#include <string_view>
+#include <type_traits>
+
+#include "unicode/char16ptr.h"
+#include "unicode/stringpiece.h"
+#include "unicode/unistr.h"
+
+namespace U_HEADER_ONLY_NAMESPACE {
+
+#ifndef U_HIDE_DRAFT_API
+
+namespace collator {
+
+namespace internal {
+
+/**
+ * Function object for performing comparisons using a UCollator.
+ * @internal
+ */
+template <template <typename...> typename Compare, UCollationResult result>
+class Predicate {
+  public:
+    /** @internal */
+    explicit Predicate(const UCollator* ucol) : collator(ucol) {}
+
+    /** @internal */
+    template <
+        typename T, typename U,
+        typename = std::enable_if_t<ConvertibleToU16StringView<T> && ConvertibleToU16StringView<U>>>
+    bool operator()(const T& lhs, const U& rhs) const {
+        return match(UnicodeString::readOnlyAlias(lhs), UnicodeString::readOnlyAlias(rhs));
+    }
+
+    /** @internal */
+    bool operator()(std::string_view lhs, std::string_view rhs) const {
+        return match(lhs, rhs);
+    }
+
+#if defined(__cpp_char8_t)
+    /** @internal */
+    bool operator()(std::u8string_view lhs, std::u8string_view rhs) const {
+        return match(lhs, rhs);
+    }
+#endif
+
+  private:
+    bool match(UnicodeString lhs, UnicodeString rhs) const {
+        return compare(
+            ucol_strcoll(
+                collator,
+                toUCharPtr(lhs.getBuffer()), lhs.length(),
+                toUCharPtr(rhs.getBuffer()), rhs.length()),
+            result);
+    }
+
+    bool match(StringPiece lhs, StringPiece rhs) const {
+        UErrorCode status = U_ZERO_ERROR;
+        return compare(
+            ucol_strcollUTF8(
+                collator,
+                lhs.data(), lhs.length(),
+                rhs.data(), rhs.length(),
+                &status),
+            result);
+    }
+
+    const UCollator* const collator;
+    static constexpr Compare<UCollationResult> compare{};
+};
+
+}  // namespace internal
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::equal_to</code> but uses the collator instead of <code>operator==</code>.
+ * @draft ICU 76
+ */
+using equal_to = internal::Predicate<std::equal_to, UCOL_EQUAL>;
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::greater</code> but uses the collator instead of <code>operator&gt;</code>.
+ * @draft ICU 76
+ */
+using greater = internal::Predicate<std::equal_to, UCOL_GREATER>;
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::less</code> but uses the collator instead of <code>operator&lt;</code>.
+ * @draft ICU 76
+ */
+using less = internal::Predicate<std::equal_to, UCOL_LESS>;
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::not_equal_to</code> but uses the collator instead of <code>operator!=</code>.
+ * @draft ICU 76
+ */
+using not_equal_to = internal::Predicate<std::not_equal_to, UCOL_EQUAL>;
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::greater_equal</code> but uses the collator instead of <code>operator&gt;=</code>.
+ * @draft ICU 76
+ */
+using greater_equal = internal::Predicate<std::not_equal_to, UCOL_LESS>;
+
+/**
+ * Function object for performing comparisons using this collator.
+ * Like <code>std::less_equal</code> but uses the collator instead of <code>operator&lt;=</code>.
+ * @draft ICU 76
+ */
+using less_equal = internal::Predicate<std::not_equal_to, UCOL_GREATER>;
+
+}  // namespace collator
+
+#endif  // U_HIDE_DRAFT_API
+
+}  // namespace U_HEADER_ONLY_NAMESPACE
+
+#endif  // U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
 
 #endif /* #if !UCONFIG_NO_COLLATION */
 

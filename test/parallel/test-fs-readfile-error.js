@@ -36,9 +36,7 @@ const fixtures = require('../common/fixtures');
 
 function test(env, cb) {
   const filename = fixtures.path('test-fs-readfile-error.js');
-  const execPath = `"${process.execPath}" "${filename}"`;
-  const options = { env: { ...process.env, ...env } };
-  exec(execPath, options, (err, stdout, stderr) => {
+  exec(...common.escapePOSIXShell`"${process.execPath}" "${filename}"`, (err, stdout, stderr) => {
     assert(err);
     assert.strictEqual(stdout, '');
     assert.notStrictEqual(stderr, '');
@@ -61,7 +59,7 @@ assert.throws(
   {
     code: 'ERR_INVALID_ARG_TYPE',
     message: 'The "path" argument must be of type string or an instance of ' +
-             'Buffer or URL. Received type function ([Function (anonymous)])',
+             'Buffer or URL. Received function ',
     name: 'TypeError'
   }
 );

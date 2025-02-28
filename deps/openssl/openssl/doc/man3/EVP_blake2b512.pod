@@ -31,6 +31,17 @@ The BLAKE2b algorithm that produces a 512-bit output from a given input.
 
 =back
 
+=head1 NOTES
+
+Developers should be aware of the negative performance implications of
+calling these functions multiple times and should consider using
+L<EVP_MD_fetch(3)> with L<EVP_MD-BLAKE2(7)> instead.
+See L<crypto(7)/Performance> for further information.
+
+While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,
+this implementation outputs a digest of a fixed length (the maximum length
+supported), which is 512-bits for BLAKE2b and 256-bits for BLAKE2s.
+
 =head1 RETURN VALUES
 
 These functions return a B<EVP_MD> structure that contains the
@@ -41,12 +52,6 @@ details of the B<EVP_MD> structure.
 
 RFC 7693.
 
-=head1 NOTES
-
-While the BLAKE2b and BLAKE2s algorithms supports a variable length digest,
-this implementation outputs a digest of a fixed length (the maximum length
-supported), which is 512-bits for BLAKE2b and 256-bits for BLAKE2s.
-
 =head1 SEE ALSO
 
 L<evp(7)>,
@@ -54,7 +59,7 @@ L<EVP_DigestInit(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

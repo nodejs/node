@@ -1,15 +1,12 @@
-/* eslint-disable camelcase */
-const fs = require('fs')
-const util = require('util')
-const readdir = util.promisify(fs.readdir)
-const reifyFinish = require('../utils/reify-finish.js')
-const log = require('../utils/log-shim.js')
-const { resolve, join } = require('path')
+const { readdir } = require('node:fs/promises')
+const { resolve, join } = require('node:path')
+const { log } = require('proc-log')
 const runScript = require('@npmcli/run-script')
 const pacote = require('pacote')
 const checks = require('npm-install-checks')
-
+const reifyFinish = require('../utils/reify-finish.js')
 const ArboristWorkspaceCmd = require('../arborist-cmd.js')
+
 class Install extends ArboristWorkspaceCmd {
   static description = 'Install a package'
   static name = 'install'
@@ -24,20 +21,26 @@ class Install extends ArboristWorkspaceCmd {
     'legacy-bundling',
     'global-style',
     'omit',
+    'include',
     'strict-peer-deps',
+    'prefer-dedupe',
     'package-lock',
+    'package-lock-only',
     'foreground-scripts',
     'ignore-scripts',
     'audit',
     'bin-links',
     'fund',
     'dry-run',
+    'cpu',
+    'os',
+    'libc',
     ...super.params,
   ]
 
   static usage = ['[<package-spec> ...]']
 
-  async completion (opts) {
+  static async completion (opts) {
     const { partialWord } = opts
     // install can complete to a folder with a package.json, or any package.
     // if it has a slash, then it's gotta be a folder
@@ -65,7 +68,7 @@ class Install extends ArboristWorkspaceCmd {
           const contents = await readdir(join(partialPath, sibling))
           const result = (contents.indexOf('package.json') !== -1)
           return result
-        } catch (er) {
+        } catch {
           return false
         }
       }
@@ -83,7 +86,7 @@ class Install extends ArboristWorkspaceCmd {
         }
         // no matches
         return []
-      } catch (er) {
+      } catch {
         return [] // invalid dir: no matching
       }
     }
@@ -112,7 +115,6 @@ class Install extends ArboristWorkspaceCmd {
         if (forced) {
           log.warn(
             'install',
-            /* eslint-disable-next-line max-len */
             `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`
           )
         } else {
@@ -162,7 +164,6 @@ class Install extends ArboristWorkspaceCmd {
           args: [],
           scriptShell,
           stdio: 'inherit',
-          banner: !this.npm.silent,
           event,
         })
       }
@@ -170,4 +171,5 @@ class Install extends ArboristWorkspaceCmd {
     await reifyFinish(this.npm, arb)
   }
 }
+
 module.exports = Install

@@ -21,21 +21,22 @@ class RegisterFrameArray {
   explicit RegisterFrameArray(const MaglevCompilationUnit& info) {
     // The first local is at index zero, parameters are behind it with
     // negative indices, and the unoptimized frame header is between the two,
-    // so the entire frame state including parameters is the distance from the
-    // last parameter to the last local frame register, plus one to include both
-    // ends.
-    interpreter::Register last_local =
-        interpreter::Register(info.register_count() - 1);
-    interpreter::Register last_param =
-        interpreter::Register::FromParameterIndex(info.parameter_count() - 1);
-    DCHECK_LT(last_param.index(), 0);
-    T* frame =
-        info.zone()->NewArray<T>(last_local.index() - last_param.index() + 1);
+    // so the entire frame state including parameters is the number of locals
+    // and parameters, plus the number of slots between them.
+    constexpr interpreter::Register first_param =
+        interpreter::Register::FromParameterIndex(0);
+    static_assert(first_param.index() < 0);
+    static_assert(interpreter::Register(0).index() == 0);
+    constexpr int frame_size_between_params_and_locals = -first_param.index();
+
+    T* frame = info.zone()->AllocateArray<T>(
+        info.parameter_count() + frame_size_between_params_and_locals +
+        info.register_count());
 
     // Set frame_start_ to a "butterfly" pointer into the middle of the above
-    // Zone-allocated array. Parameters are at a negative index, so we have to
-    // subtract it from the above frame pointer.
-    frame_start_ = frame - last_param.index();
+    // Zone-allocated array, so that locals start at zero.
+    frame_start_ =
+        frame + info.parameter_count() + frame_size_between_params_and_locals;
   }
 
   // Disallow copy (use CopyFrom instead).

@@ -68,6 +68,9 @@ void BaselineAssembler::RegisterFrameAddress(
 MemOperand BaselineAssembler::FeedbackVectorOperand() {
   return MemOperand(ebp, BaselineFrameConstants::kFeedbackVectorFromFp);
 }
+MemOperand BaselineAssembler::FeedbackCellOperand() {
+  return MemOperand(ebp, BaselineFrameConstants::kFeedbackCellFromFp);
+}
 
 void BaselineAssembler::Bind(Label* label) { __ bind(label); }
 
@@ -158,7 +161,7 @@ void BaselineAssembler::JumpIfPointer(Condition cc, Register value,
                                       Label::Distance distance) {
   JumpIf(cc, value, operand, target, distance);
 }
-void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Smi smi,
+void BaselineAssembler::JumpIfSmi(Condition cc, Register value, Tagged<Smi> smi,
                                   Label* target, Label::Distance distance) {
   if (smi.value() == 0) {
     __ test(value, value);
@@ -194,7 +197,7 @@ void BaselineAssembler::JumpIfByte(Condition cc, Register value, int32_t byte,
 void BaselineAssembler::Move(interpreter::Register output, Register source) {
   return __ mov(RegisterFrameOperand(output), source);
 }
-void BaselineAssembler::Move(Register output, TaggedIndex value) {
+void BaselineAssembler::Move(Register output, Tagged<TaggedIndex> value) {
   __ Move(output, Immediate(value.ptr()));
 }
 void BaselineAssembler::Move(MemOperand output, Register source) {
@@ -221,10 +224,12 @@ inline void PushSingle(MacroAssembler* masm, RootIndex source) {
   masm->PushRoot(source);
 }
 inline void PushSingle(MacroAssembler* masm, Register reg) { masm->Push(reg); }
-inline void PushSingle(MacroAssembler* masm, TaggedIndex value) {
+inline void PushSingle(MacroAssembler* masm, Tagged<TaggedIndex> value) {
   masm->Push(Immediate(value.ptr()));
 }
-inline void PushSingle(MacroAssembler* masm, Smi value) { masm->Push(value); }
+inline void PushSingle(MacroAssembler* masm, Tagged<Smi> value) {
+  masm->Push(value);
+}
 inline void PushSingle(MacroAssembler* masm, Handle<HeapObject> object) {
   masm->Push(object);
 }
@@ -331,7 +336,7 @@ void BaselineAssembler::LoadWord8Field(Register output, Register source,
 }
 
 void BaselineAssembler::StoreTaggedSignedField(Register target, int offset,
-                                               Smi value) {
+                                               Tagged<Smi> value) {
   __ mov(FieldOperand(target, offset), Immediate(value));
 }
 
@@ -366,6 +371,11 @@ void BaselineAssembler::TryLoadOptimizedOsrCode(Register scratch_and_result,
   // Is it marked_for_deoptimization? If yes, clear the slot.
   {
     ScratchRegisterScope temps(this);
+
+    // The entry references a CodeWrapper object. Unwrap it now.
+    __ mov(scratch_and_result,
+           FieldOperand(scratch_and_result, CodeWrapper::kCodeOffset));
+
     __ TestCodeIsMarkedForDeoptimization(scratch_and_result);
     __ j(equal, on_result, distance);
     __ mov(FieldOperand(feedback_vector,
@@ -382,9 +392,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ASM_CODE_COMMENT(masm_);
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
-  LoadFunction(feedback_cell);
-  LoadTaggedField(feedback_cell, feedback_cell,
-                  JSFunction::kFeedbackCellOffset);
+  LoadFeedbackCell(feedback_cell);
   __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
          Immediate(weight));
   if (skip_interrupt_label) {
@@ -399,9 +407,7 @@ void BaselineAssembler::AddToInterruptBudgetAndJumpIfNotExceeded(
   ScratchRegisterScope scratch_scope(this);
   Register feedback_cell = scratch_scope.AcquireScratch();
   DCHECK(!AreAliased(feedback_cell, weight));
-  LoadFunction(feedback_cell);
-  LoadTaggedField(feedback_cell, feedback_cell,
-                  JSFunction::kFeedbackCellOffset);
+  LoadFeedbackCell(feedback_cell);
   __ add(FieldOperand(feedback_cell, FeedbackCell::kInterruptBudgetOffset),
          weight);
   if (skip_interrupt_label) __ j(greater_equal, skip_interrupt_label);
@@ -458,9 +464,8 @@ void BaselineAssembler::StaModuleVariable(Register context, Register value,
   StoreTaggedFieldWithWriteBarrier(context, Cell::kValueOffset, value);
 }
 
-void BaselineAssembler::AddSmi(Register lhs, Smi rhs) {
-  if (rhs.value() == 0) return;
-  __ add(lhs, Immediate(rhs));
+void BaselineAssembler::IncrementSmi(MemOperand lhs) {
+  __ add(lhs, Immediate(Smi::FromInt(1)));
 }
 
 void BaselineAssembler::Word32And(Register output, Register lhs, int rhs) {
@@ -523,25 +528,20 @@ void BaselineAssembler::EmitReturn(MacroAssembler* masm) {
   DCHECK(!AreAliased(weight, params_size, scratch));
 
   Register actual_params_size = scratch;
-  // Compute the size of the actual parameters + receiver (in bytes).
+  // Compute the size of the actual parameters + receiver.
   __ masm()->mov(actual_params_size,
                  MemOperand(ebp, StandardFrameConstants::kArgCOffset));
 
   // If actual is bigger than formal, then we should use it to free up the stack
   // arguments.
-  Label corrected_args_count;
   __ masm()->cmp(params_size, actual_params_size);
-  __ masm()->j(greater_equal, &corrected_args_count);
-  __ masm()->mov(params_size, actual_params_size);
-  __ Bind(&corrected_args_count);
+  __ masm()->cmov(kLessThan, params_size, actual_params_size);
 
   // Leave the frame (also dropping the register file).
   __ masm()->LeaveFrame(StackFrame::BASELINE);
 
   // Drop receiver + arguments.
-  __ masm()->DropArguments(params_size, scratch,
-                           MacroAssembler::kCountIsInteger,
-                           MacroAssembler::kCountIncludesReceiver);
+  __ masm()->DropArguments(params_size, scratch);
   __ masm()->Ret();
 }
 

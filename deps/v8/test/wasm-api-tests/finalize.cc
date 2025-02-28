@@ -40,7 +40,7 @@ void RunInStore(Store* store, base::Vector<const uint8_t> wire_bytes,
                 int iterations) {
   vec<byte_t> binary = vec<byte_t>::make(
       wire_bytes.size(),
-      reinterpret_cast<byte_t*>(const_cast<byte*>(wire_bytes.begin())));
+      reinterpret_cast<byte_t*>(const_cast<uint8_t*>(wire_bytes.begin())));
   own<Module> module = Module::make(store, binary);
   module->set_host_info(reinterpret_cast<void*>(kModuleMagic), &FinalizeModule);
   for (int iteration = 0; iteration < iterations; iteration++) {
@@ -66,7 +66,7 @@ void RunInStore(Store* store, base::Vector<const uint8_t> wire_bytes,
 
 TEST_F(WasmCapiTest, InstanceFinalization) {
   // Add a dummy function: f(x) { return x; }
-  byte code[] = {WASM_RETURN(WASM_LOCAL_GET(0))};
+  uint8_t code[] = {WASM_RETURN(WASM_LOCAL_GET(0))};
   AddExportedFunction(base::CStrVector("f"), code, sizeof(code),
                       wasm_i_i_sig());
   Compile();

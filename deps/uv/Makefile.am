@@ -38,6 +38,7 @@ libuv_la_SOURCES = src/fs-poll.c \
                    src/random.c \
                    src/strscpy.c \
                    src/strscpy.h \
+                   src/thread-common.c \
                    src/threadpool.c \
                    src/timer.c \
                    src/uv-data-getter-setters.c \
@@ -58,7 +59,7 @@ if WINNT
 uvinclude_HEADERS += include/uv/win.h include/uv/tree.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/win \
                -DWIN32_LEAN_AND_MEAN \
-               -D_WIN32_WINNT=0x0602
+               -D_WIN32_WINNT=0x0A00
 libuv_la_SOURCES += src/win/async.c \
                     src/win/atomicops-inl.h \
                     src/win/core.c \
@@ -96,7 +97,6 @@ else  # WINNT
 uvinclude_HEADERS += include/uv/unix.h
 AM_CPPFLAGS += -I$(top_srcdir)/src/unix
 libuv_la_SOURCES += src/unix/async.c \
-                   src/unix/atomic-ops.h \
                    src/unix/core.c \
                    src/unix/dl.c \
                    src/unix/fs.c \
@@ -110,7 +110,6 @@ libuv_la_SOURCES += src/unix/async.c \
                    src/unix/process.c \
                    src/unix/random-devurandom.c \
                    src/unix/signal.c \
-                   src/unix/spinlock.h \
                    src/unix/stream.c \
                    src/unix/tcp.c \
                    src/unix/thread.c \
@@ -122,11 +121,13 @@ endif  # WINNT
 EXTRA_DIST = test/fixtures/empty_file \
              test/fixtures/load_error.node \
              test/fixtures/lorem_ipsum.txt \
+             test/fixtures/one_file/one_file \
              include \
              docs \
              img \
              CONTRIBUTING.md \
              LICENSE \
+             LICENSE-extra \
              README.md
 
 
@@ -134,6 +135,12 @@ EXTRA_DIST = test/fixtures/empty_file \
 TESTS = test/run-tests
 check_PROGRAMS = test/run-tests
 test_run_tests_CFLAGS = $(AM_CFLAGS)
+
+if WINNT
+check-am: test/run-tests_no_ext
+test/run-tests_no_ext: test/run-tests$(EXEEXT)
+	cp test/run-tests$(EXEEXT) test/run-tests_no_ext
+endif
 
 if SUNOS
 # Can't be turned into a CC_CHECK_CFLAGS in configure.ac, it makes compilers
@@ -191,6 +198,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-hrtime.c \
                          test/test-idle.c \
                          test/test-idna.c \
+                         test/test-iouring-pollhup.c \
                          test/test-ip4-addr.c \
                          test/test-ip6-addr.c \
                          test/test-ip-name.c \
@@ -268,6 +276,7 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-flags.c \
                          test/test-tcp-open.c \
                          test/test-tcp-read-stop.c \
+                         test/test-tcp-reuseport.c \
                          test/test-tcp-read-stop-start.c \
                          test/test-tcp-rst.c \
                          test/test-tcp-shutdown-after-write.c \
@@ -278,11 +287,15 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-tcp-writealot.c \
                          test/test-tcp-write-fail.c \
                          test/test-tcp-try-write.c \
+                         test/test-tcp-write-in-a-row.c \
                          test/test-tcp-try-write-error.c \
                          test/test-tcp-write-queue-order.c \
                          test/test-test-macros.c \
                          test/test-thread-equal.c \
                          test/test-thread.c \
+                         test/test-thread-affinity.c \
+                         test/test-thread-name.c \
+                         test/test-thread-priority.c \
                          test/test-threadpool-cancel.c \
                          test/test-threadpool.c \
                          test/test-timer-again.c \
@@ -313,6 +326,8 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-udp-sendmmsg-error.c \
                          test/test-udp-send-unreachable.c \
                          test/test-udp-try-send.c \
+                         test/test-udp-recv-in-a-row.c \
+                         test/test-udp-reuseport.c \
                          test/test-uname.c \
                          test/test-walk-handles.c \
                          test/test-watcher-cross-stop.c
@@ -393,7 +408,6 @@ endif
 
 if ANDROID
 libuv_la_CFLAGS += -D_GNU_SOURCE
-libuv_la_SOURCES += src/unix/pthread-fixes.c
 endif
 
 if CYGWIN
@@ -417,6 +431,7 @@ libuv_la_CFLAGS += -D_DARWIN_UNLIMITED_SELECT=1
 libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
                     src/unix/darwin-proctitle.c \
                     src/unix/darwin-stub.h \
+                    src/unix/darwin-syscalls.h \
                     src/unix/darwin.c \
                     src/unix/fsevents.c \
                     src/unix/kqueue.c \
@@ -467,22 +482,14 @@ libuv_la_SOURCES += src/unix/bsd-ifaddrs.c \
                     src/unix/hurd.c
 endif
 
-if KFREEBSD
-libuv_la_CFLAGS += -D_GNU_SOURCE
-endif
-
 if LINUX
 uvinclude_HEADERS += include/uv/linux.h
 libuv_la_CFLAGS += -D_GNU_SOURCE
-libuv_la_SOURCES += src/unix/linux-core.c \
-                    src/unix/linux-inotify.c \
-                    src/unix/linux-syscalls.c \
-                    src/unix/linux-syscalls.h \
+libuv_la_SOURCES += src/unix/linux.c \
                     src/unix/procfs-exepath.c \
                     src/unix/proctitle.c \
                     src/unix/random-getrandom.c \
-                    src/unix/random-sysctl-linux.c \
-                    src/unix/epoll.c
+                    src/unix/random-sysctl-linux.c
 test_run_tests_LDFLAGS += -lutil
 endif
 
@@ -546,8 +553,7 @@ libuv_la_CFLAGS += -D_UNIX03_THREADS \
                    -qXPLINK \
                    -qFLOAT=IEEE
 libuv_la_LDFLAGS += -qXPLINK
-libuv_la_SOURCES += src/unix/pthread-fixes.c \
-                    src/unix/os390.c \
+libuv_la_SOURCES += src/unix/os390.c \
                     src/unix/os390-syscalls.c \
                     src/unix/proctitle.c
 endif

@@ -7,10 +7,11 @@ const stream = require('stream');
 const REPL = require('internal/repl');
 const assert = require('assert');
 const fs = require('fs');
-const path = require('path');
 const { inspect } = require('util');
 
-common.skipIfDumbTerminal();
+if (process.env.TERM === 'dumb') {
+  common.skip('skipping - dumb terminal');
+}
 
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
@@ -18,7 +19,7 @@ tmpdir.refresh();
 process.throwDeprecation = true;
 process.on('warning', common.mustNotCall());
 
-const defaultHistoryPath = path.join(tmpdir.path, '.node_repl_history');
+const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 // Create an input stream specialized for testing an array of actions
 class ActionStream extends stream.Stream {
@@ -586,7 +587,7 @@ const tests = [
       prompt, ...'const util = {}',
       'undefined\n',
       prompt, ...'ut', ...(prev ? [' // il', '\n// {}',
-                                   'il', '\n// {}'] : [' // il', 'il']),
+                                   'il', '\n// {}'] : ['il']),
       '{}\n',
       prompt,
     ],
@@ -606,7 +607,7 @@ const tests = [
       'undefined\n',
       prompt, ...'globalThis.util = {}',
       '{}\n',
-      prompt, ...'ut', ' // il', 'il',
+      prompt, ...'ut', ...(prev ? [' // il', 'il' ] : ['il']),
       '{}\n',
       prompt, ...'Reflect.defineProperty(globalThis, "util", utilDesc)',
       'true\n',

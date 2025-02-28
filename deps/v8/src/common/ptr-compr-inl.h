@@ -20,19 +20,21 @@ PtrComprCageBase::PtrComprCageBase(const LocalIsolate* isolate)
     : address_(isolate->cage_base()) {}
 
 //
-// V8HeapCompressionScheme
+// V8HeapCompressionSchemeImpl
 //
 
 constexpr Address kPtrComprCageBaseMask = ~(kPtrComprCageBaseAlignment - 1);
 
 // static
-Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+template <typename Cage>
+constexpr Address V8HeapCompressionSchemeImpl<Cage>::GetPtrComprCageBaseAddress(
     Address on_heap_addr) {
   return RoundDown<kPtrComprCageBaseAlignment>(on_heap_addr);
 }
 
 // static
-Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+template <typename Cage>
+Address V8HeapCompressionSchemeImpl<Cage>::GetPtrComprCageBaseAddress(
     PtrComprCageBase cage_base) {
   Address base = cage_base.address();
   V8_ASSUME((base & kPtrComprCageBaseMask) == base);
@@ -41,74 +43,98 @@ Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
   return base;
 }
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-
 // static
-void V8HeapCompressionScheme::InitBase(Address base) {
+template <typename Cage>
+void V8HeapCompressionSchemeImpl<Cage>::InitBase(Address base) {
   CHECK_EQ(base, GetPtrComprCageBaseAddress(base));
-  base_ = base;
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+  Cage::set_base_non_inlined(base);
+#else
+  Cage::base_ = base;
+#endif
 }
 
 // static
-V8_CONST Address V8HeapCompressionScheme::base() {
+template <typename Cage>
+Address V8HeapCompressionSchemeImpl<Cage>::base() {
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+  Address base = Cage::base_non_inlined();
+#else
+  Address base = Cage::base_;
+#endif
   // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
   // casting to an Address). To increase our chances we additionally encode the
   // same information in this V8_ASSUME.
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+      reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
 }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
+template <typename Cage>
+Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) {
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+template <typename Cage>
+constexpr Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressAny(
+    Address tagged) {
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
-Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
+template <typename Cage>
+Address V8HeapCompressionSchemeImpl<Cage>::DecompressTaggedSigned(
+    Tagged_t raw_value) {
   // For runtime code the upper 32-bits of the Smi value do not matter.
   return static_cast<Address>(raw_value);
 }
 
 // static
+template <typename Cage>
 template <typename TOnHeapAddress>
-Address V8HeapCompressionScheme::DecompressTagged(TOnHeapAddress on_heap_addr,
-                                                  Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
+#ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  DCHECK_WITH_MSG(cage_base != kNullAddress,
+                  "V8HeapCompressionSchemeImpl::base is not initialized for "
+                  "current thread");
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
+#endif  // V8_COMPRESS_POINTERS
   Address result = cage_base + static_cast<Address>(raw_value);
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
   return result;
 }
 
 // static
+template <typename Cage>
 template <typename ProcessPointerCallback>
-void V8HeapCompressionScheme::ProcessIntermediatePointers(
+void V8HeapCompressionSchemeImpl<Cage>::ProcessIntermediatePointers(
     PtrComprCageBase cage_base, Address raw_value,
     ProcessPointerCallback callback) {
   // If pointer compression is enabled, we may have random compressed pointers
   // on the stack that may be used for subsequent operations.
   // Extract, decompress and trace both halfwords.
-  Address decompressed_low = V8HeapCompressionScheme::DecompressTagged(
-      cage_base, static_cast<Tagged_t>(raw_value));
+  Address decompressed_low =
+      V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
+          cage_base, static_cast<Tagged_t>(raw_value));
   callback(decompressed_low);
-  Address decompressed_high = V8HeapCompressionScheme::DecompressTagged(
-      cage_base,
-      static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
+  Address decompressed_high =
+      V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
+          cage_base,
+          static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
   callback(decompressed_high);
 }
 
@@ -134,38 +160,50 @@ Address ExternalCodeCompressionScheme::GetPtrComprCageBaseAddress(
   return base;
 }
 
-#ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-
 // static
 void ExternalCodeCompressionScheme::InitBase(Address base) {
   CHECK_EQ(base, PrepareCageBaseAddress(base));
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+  set_base_non_inlined(base);
+#else
   base_ = base;
+#endif
 }
 
 // static
 V8_CONST Address ExternalCodeCompressionScheme::base() {
+#if defined(USING_V8_SHARED_PRIVATE) && \
+    defined(V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES)
+  Address base = base_non_inlined();
+#else
+  Address base = base_;
+#endif
   // V8_ASSUME_ALIGNED is often not preserved across ptr-to-int casts (i.e. when
   // casting to an Address). To increase our chances we additionally encode the
   // same information in this V8_ASSUME.
-  V8_ASSUME((base_ & kPtrComprCageBaseMask) == base_);
+  V8_ASSUME((base & kPtrComprCageBaseMask) == base);
   return reinterpret_cast<Address>(V8_ASSUME_ALIGNED(
-      reinterpret_cast<void*>(base_), kPtrComprCageBaseAlignment));
+      reinterpret_cast<void*>(base), kPtrComprCageBaseAlignment));
 }
-#endif  // V8_COMPRESS_POINTERS_IN_SHARED_CAGE
 
 // static
 Tagged_t ExternalCodeCompressionScheme::CompressObject(Address tagged) {
   // This is used to help clang produce better code. Values which could be
   // invalid pointers need to be compressed with CompressAny.
+  // The DCHECK generated by this V8_ASSUME is also very helpful during
+  // development when moving objects between pointer compression cages as it
+  // quickly identifies any places where we still store a compressed pointer
+  // slot with the wrong base.
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
-  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base_ || HAS_SMI_TAG(tagged));
+  V8_ASSUME((tagged & kPtrComprCageBaseMask) == base() || HAS_SMI_TAG(tagged));
 #endif
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
-Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
-  return static_cast<Tagged_t>(static_cast<uint32_t>(tagged));
+constexpr Tagged_t ExternalCodeCompressionScheme::CompressAny(Address tagged) {
+  return static_cast<Tagged_t>(tagged);
 }
 
 // static
@@ -179,14 +217,36 @@ Address ExternalCodeCompressionScheme::DecompressTaggedSigned(
 template <typename TOnHeapAddress>
 Address ExternalCodeCompressionScheme::DecompressTagged(
     TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
-#if defined(V8_COMPRESS_POINTERS_IN_SHARED_CAGE)
+#ifdef V8_COMPRESS_POINTERS
   Address cage_base = base();
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+  DCHECK_WITH_MSG(cage_base != kNullAddress,
+                  "ExternalCodeCompressionScheme::base is not initialized for "
+                  "current thread");
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 #else
   Address cage_base = GetPtrComprCageBaseAddress(on_heap_addr);
-#endif
+#endif  // V8_COMPRESS_POINTERS
   Address result = cage_base + static_cast<Address>(raw_value);
   V8_ASSUME(static_cast<uint32_t>(result) == raw_value);
   return result;
+}
+
+// static
+template <typename ProcessPointerCallback>
+void ExternalCodeCompressionScheme::ProcessIntermediatePointers(
+    PtrComprCageBase cage_base, Address raw_value,
+    ProcessPointerCallback callback) {
+  // If pointer compression is enabled, we may have random compressed pointers
+  // on the stack that may be used for subsequent operations.
+  // Extract, decompress and trace both halfwords.
+  Address decompressed_low = ExternalCodeCompressionScheme::DecompressTagged(
+      cage_base, static_cast<Tagged_t>(raw_value));
+  callback(decompressed_low);
+  Address decompressed_high = ExternalCodeCompressionScheme::DecompressTagged(
+      cage_base,
+      static_cast<Tagged_t>(raw_value >> (sizeof(Tagged_t) * CHAR_BIT)));
+  callback(decompressed_high);
 }
 
 #endif  // V8_EXTERNAL_CODE_SPACE
@@ -201,41 +261,58 @@ GetPtrComprCageBaseFromOnHeapAddress(Address address) {
       V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address));
 }
 
+// Load the main pointer compression cage base.
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() {
+  return PtrComprCageBase(V8HeapCompressionScheme::base());
+}
+
 #else
 
 //
-// V8HeapCompressionScheme
+// V8HeapCompressionSchemeImpl
 //
 
 // static
-Address V8HeapCompressionScheme::GetPtrComprCageBaseAddress(
+template <typename Cage>
+constexpr Address V8HeapCompressionSchemeImpl<Cage>::GetPtrComprCageBaseAddress(
     Address on_heap_addr) {
   UNREACHABLE();
+  return {};
 }
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressObject(Address tagged) {
+template <typename Cage>
+Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressObject(Address tagged) {
   UNREACHABLE();
 }
 
 // static
-Tagged_t V8HeapCompressionScheme::CompressAny(Address tagged) { UNREACHABLE(); }
+template <typename Cage>
+constexpr Tagged_t V8HeapCompressionSchemeImpl<Cage>::CompressAny(
+    Address tagged) {
+  UNREACHABLE();
+  return {};
+}
 
 // static
-Address V8HeapCompressionScheme::DecompressTaggedSigned(Tagged_t raw_value) {
+template <typename Cage>
+Address V8HeapCompressionSchemeImpl<Cage>::DecompressTaggedSigned(
+    Tagged_t raw_value) {
   UNREACHABLE();
 }
 
 // static
+template <typename Cage>
 template <typename TOnHeapAddress>
-Address V8HeapCompressionScheme::DecompressTagged(TOnHeapAddress on_heap_addr,
-                                                  Tagged_t raw_value) {
+Address V8HeapCompressionSchemeImpl<Cage>::DecompressTagged(
+    TOnHeapAddress on_heap_addr, Tagged_t raw_value) {
   UNREACHABLE();
 }
 
 // static
+template <typename Cage>
 template <typename ProcessPointerCallback>
-void V8HeapCompressionScheme::ProcessIntermediatePointers(
+void V8HeapCompressionSchemeImpl<Cage>::ProcessIntermediatePointers(
     PtrComprCageBase cage_base, Address raw_value,
     ProcessPointerCallback callback) {
   UNREACHABLE();
@@ -250,11 +327,38 @@ V8_INLINE constexpr PtrComprCageBase GetPtrComprCageBaseFromOnHeapAddress(
   return PtrComprCageBase();
 }
 
+V8_INLINE PtrComprCageBase GetPtrComprCageBase() { return PtrComprCageBase(); }
+
 #endif  // V8_COMPRESS_POINTERS
 
-V8_INLINE PtrComprCageBase GetPtrComprCageBase(HeapObject object) {
+V8_INLINE PtrComprCageBase GetPtrComprCageBase(Tagged<HeapObject> object) {
   return GetPtrComprCageBaseFromOnHeapAddress(object.ptr());
 }
+
+#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+PtrComprCageAccessScope::PtrComprCageAccessScope(Isolate* isolate)
+    : cage_base_(V8HeapCompressionScheme::base()),
+#ifdef V8_EXTERNAL_CODE_SPACE
+      code_cage_base_(ExternalCodeCompressionScheme::base()),
+#endif  // V8_EXTERNAL_CODE_SPACE
+      saved_current_isolate_group_(IsolateGroup::current()) {
+  V8HeapCompressionScheme::InitBase(isolate->cage_base());
+#ifdef V8_EXTERNAL_CODE_SPACE
+  ExternalCodeCompressionScheme::InitBase(isolate->code_cage_base());
+#endif  // V8_EXTERNAL_CODE_SPACE
+  IsolateGroup::set_current(isolate->isolate_group());
+}
+
+PtrComprCageAccessScope::~PtrComprCageAccessScope() {
+  V8HeapCompressionScheme::InitBase(cage_base_);
+#ifdef V8_EXTERNAL_CODE_SPACE
+  ExternalCodeCompressionScheme::InitBase(code_cage_base_);
+#endif  // V8_EXTERNAL_CODE_SPACE
+  IsolateGroup::set_current(saved_current_isolate_group_);
+}
+
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 
 }  // namespace internal
 }  // namespace v8

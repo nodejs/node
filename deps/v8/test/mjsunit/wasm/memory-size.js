@@ -12,7 +12,7 @@ var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
 (function testMemorySizeZero() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(0, 0, false);
+  builder.addMemory(0, 0);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
@@ -24,7 +24,7 @@ var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   var size = 11;
-  builder.addMemory(size, size, false);
+  builder.addMemory(size, size);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
@@ -35,7 +35,7 @@ var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
 (function testMemorySizeSpecMaxOk() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, kSpecMaxWasmMemoryPages, true);
+  builder.addMemory(1, kSpecMaxWasmMemoryPages);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
@@ -47,7 +47,7 @@ var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
   builder.addMemory(kV8MaxWasmMemoryPages + 1,
-                    kV8MaxWasmMemoryPages + 1, false);
+                    kV8MaxWasmMemoryPages + 1);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
          .exportFunc();
@@ -57,7 +57,7 @@ var kSpecMaxWasmMemoryPages = 65536;  // 4 GiB
 (function testMemorySpecMaxOk() {
   print(arguments.callee.name);
   var builder = new WasmModuleBuilder();
-  builder.addMemory(1, kSpecMaxWasmMemoryPages, false);
+  builder.addMemory(1, kSpecMaxWasmMemoryPages);
   builder.addFunction("memory_size", kSig_i_v)
          .addBody([kExprMemorySize, kMemoryZero])
     .exportFunc();

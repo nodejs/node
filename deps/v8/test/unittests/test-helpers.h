@@ -8,47 +8,39 @@
 #include <memory>
 
 #include "include/v8-primitive.h"
+#include "src/common/globals.h"
 
 namespace v8 {
-
-class Isolate;
-
 namespace internal {
 
-class Object;
-template <typename T>
-class Handle;
-class Isolate;
 class SharedFunctionInfo;
-class String;
 class Utf16CharacterStream;
 
 namespace test {
 
 class ScriptResource : public v8::String::ExternalOneByteStringResource {
  public:
-  ScriptResource(const char* data, size_t length)
-      : data_(data), length_(length) {}
+  ScriptResource(const char* data, size_t length, uint16_t parameter_count)
+      : data_(data), length_(length), parameter_count_(parameter_count) {}
   ~ScriptResource() override = default;
   ScriptResource(const ScriptResource&) = delete;
   ScriptResource& operator=(const ScriptResource&) = delete;
 
   const char* data() const override { return data_; }
   size_t length() const override { return length_; }
+  uint16_t parameter_count() const { return parameter_count_; }
 
  private:
   const char* data_;
   size_t length_;
+  uint16_t parameter_count_;
 };
 
-Handle<String> CreateSource(
-    Isolate* isolate,
-    v8::String::ExternalOneByteStringResource* maybe_resource);
+test::ScriptResource* CreateSource(test::ScriptResource* maybe_resource);
 Handle<SharedFunctionInfo> CreateSharedFunctionInfo(
-    Isolate* isolate,
-    v8::String::ExternalOneByteStringResource* maybe_resource);
+    Isolate* isolate, ScriptResource* maybe_resource);
 std::unique_ptr<Utf16CharacterStream> SourceCharacterStreamForShared(
-    Isolate* isolate, Handle<SharedFunctionInfo> shared);
+    Isolate* isolate, DirectHandle<SharedFunctionInfo> shared);
 
 }  // namespace test
 }  // namespace internal

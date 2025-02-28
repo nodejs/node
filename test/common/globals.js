@@ -63,6 +63,7 @@ const intrinsics = new Set([
   'SharedArrayBuffer',
   'Atomics',
   'WebAssembly',
+  'Iterator',
 ]);
 
 if (global.gc) {
@@ -78,6 +79,7 @@ const webIdlExposedWildcard = new Set([
   'TextDecoder',
   'AbortController',
   'AbortSignal',
+  'CustomEvent',
   'EventTarget',
   'Event',
   'URL',
@@ -123,6 +125,9 @@ const webIdlExposedWindow = new Set([
   'Headers',
   'Request',
   'Response',
+  'WebSocket',
+  'EventSource',
+  'CloseEvent',
 ]);
 
 const nodeGlobals = new Set([

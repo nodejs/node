@@ -61,7 +61,7 @@ int64_t Operand::immediate() const {
 // -----------------------------------------------------------------------------
 // RelocInfo.
 
-void RelocInfo::apply(intptr_t delta) {
+void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
     Assembler::RelocateInternalReference(rmode_, pc_, delta);
@@ -97,9 +97,9 @@ Address RelocInfo::constant_pool_entry_address() { UNREACHABLE(); }
 int RelocInfo::target_address_size() { return Assembler::kSpecialTargetSize; }
 
 void Assembler::deserialization_set_special_target_at(
-    Address instruction_payload, Code code, Address target) {
+    Address instruction_payload, Tagged<Code> code, Address target) {
   set_target_address_at(instruction_payload,
-                        !code.is_null() ? code.constant_pool() : kNullAddress,
+                        !code.is_null() ? code->constant_pool() : kNullAddress,
                         target);
 }
 
@@ -135,10 +135,10 @@ void Assembler::deserialization_set_target_internal_reference_at(
   }
 }
 
-HeapObject RelocInfo::target_object(PtrComprCageBase cage_base) {
+Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
-  return HeapObject::cast(
-      Object(Assembler::target_address_at(pc_, constant_pool_)));
+  return Cast<HeapObject>(
+      Tagged<Object>(Assembler::target_address_at(pc_, constant_pool_)));
 }
 
 Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
@@ -147,15 +147,11 @@ Handle<HeapObject> RelocInfo::target_object_handle(Assembler* origin) {
       Assembler::target_address_at(pc_, constant_pool_)));
 }
 
-void RelocInfo::set_target_object(Heap* heap, HeapObject target,
-                                  WriteBarrierMode write_barrier_mode,
-                                  ICacheFlushMode icache_flush_mode) {
+void WritableRelocInfo::set_target_object(Tagged<HeapObject> target,
+                                          ICacheFlushMode icache_flush_mode) {
   DCHECK(IsCodeTarget(rmode_) || IsFullEmbeddedObject(rmode_));
   Assembler::set_target_address_at(pc_, constant_pool_, target.ptr(),
                                    icache_flush_mode);
-  if (!instruction_stream().is_null() && !v8_flags.disable_write_barriers) {
-    WriteBarrierForCode(instruction_stream(), this, target, write_barrier_mode);
-  }
 }
 
 Address RelocInfo::target_external_reference() {
@@ -163,7 +159,7 @@ Address RelocInfo::target_external_reference() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::set_target_external_reference(
+void WritableRelocInfo::set_target_external_reference(
     Address target, ICacheFlushMode icache_flush_mode) {
   DCHECK(rmode_ == RelocInfo::EXTERNAL_REFERENCE);
   Assembler::set_target_address_at(pc_, constant_pool_, target,
@@ -196,16 +192,43 @@ Address RelocInfo::target_off_heap_target() {
   return Assembler::target_address_at(pc_, constant_pool_);
 }
 
-void RelocInfo::WipeOut() {
-  DCHECK(IsFullEmbeddedObject(rmode_) || IsCodeTarget(rmode_) ||
-         IsExternalReference(rmode_) || IsInternalReference(rmode_) ||
-         IsInternalReferenceEncoded(rmode_) || IsOffHeapTarget(rmode_));
-  if (IsInternalReference(rmode_)) {
-    Memory<Address>(pc_) = kNullAddress;
-  } else if (IsInternalReferenceEncoded(rmode_)) {
-    Assembler::set_target_internal_reference_encoded_at(pc_, kNullAddress);
-  } else {
-    Assembler::set_target_address_at(pc_, constant_pool_, kNullAddress);
+uint32_t Assembler::uint32_constant_at(Address pc, Address constant_pool) {
+  Instr instr0 = instr_at(pc);
+  Instr instr1 = instr_at(pc + 1 * kInstrSize);
+
+  DCHECK((GetOpcodeField(instr0) == LUI) && (GetOpcodeField(instr1) == ORI));
+
+  // Assemble the 32 bit value.
+  uint32_t upper16 = GetImmediate16(instr0) << 16;
+  uint32_t lower16 = GetImmediate16(instr1);
+  uint32_t addr = upper16 | lower16;
+
+  return addr;
+}
+
+void Assembler::set_uint32_constant_at(Address pc, Address constant_pool,
+                                       uint32_t new_constant,
+                                       ICacheFlushMode icache_flush_mode) {
+  Instr instr1 = instr_at(pc + kInstrSize);
+  uint32_t rt_code = GetRt(instr1);
+  uint32_t* p = reinterpret_cast<uint32_t*>(pc);
+
+#ifdef DEBUG
+  // Check we have the result from a li macro-instruction.
+  Instr instr0 = instr_at(pc);
+  DCHECK((GetOpcodeField(instr0) == LUI) && (GetOpcodeField(instr1) == ORI) &&
+         (GetRt(instr0) == rt_code));
+#endif
+
+  // Must use 2 instructions to insure patchable 32-bit value.
+  // lui rt, upper-16.
+  // ori rt, rt, lower-16.
+  *p = LUI | (rt_code << kRtShift) | ((new_constant >> 16) & kImm16Mask);
+  *(p + 1) = ORI | (rt_code << kRtShift) | (rt_code << kRsShift) |
+             (new_constant & kImm16Mask);
+
+  if (icache_flush_mode != SKIP_ICACHE_FLUSH) {
+    FlushInstructionCache(pc, 2 * kInstrSize);
   }
 }
 

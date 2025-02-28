@@ -54,6 +54,7 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
   CHECK_WITH_MSG(!V8_STATIC_ROOTS_BOOL,
                  "Re-generating the table of roots is only supported in builds "
                  "with v8_enable_static_roots disabled");
+  CHECK(V8_STATIC_ROOTS_GENERATION_BOOL);
   CHECK(file);
   static_assert(static_cast<int>(RootIndex::kFirstReadOnlyRoot) == 0);
 
@@ -74,7 +75,6 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       << "\n"
       << "#if V8_STATIC_ROOTS_BOOL\n"
       << "\n"
-      << "#include \"src/objects/instance-type.h\"\n"
       << "#include \"src/roots/roots.h\"\n"
       << "\n"
       << "// Disabling Wasm or Intl invalidates the contents of "
@@ -98,6 +98,7 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
 
   for (auto& entry : gen.sorted_roots()) {
     Tagged_t ptr = entry.first;
+    CHECK_LT(ptr, kRegularPageSize);
     const std::list<RootIndex>& roots = entry.second;
 
     for (RootIndex root : roots) {
@@ -111,6 +112,12 @@ void StaticRootsTableGen::write(Isolate* isolate, const char* file) {
       out << " 0x" << std::hex << ptr << std::dec << ";\n";
     }
   }
+
+  out << "\n";
+  out << "  static constexpr Tagged_t kFirstAllocatedRoot = 0x" << std::hex
+      << gen.sorted_roots().cbegin()->first << std::dec << ";\n";
+  out << "  static constexpr Tagged_t kLastAllocatedRoot = 0x" << std::hex
+      << gen.sorted_roots().crbegin()->first << std::dec << ";\n";
   out << "};\n";
 
   // Output in order of roots table

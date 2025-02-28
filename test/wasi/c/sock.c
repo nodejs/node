@@ -9,9 +9,9 @@ int main(void) {
   int fd = 0 ;
   socklen_t addrlen = 0;
   int flags = 0;
-  int ret = accept(0, NULL, &addrlen);
+  int ret = accept(10, NULL, &addrlen);
   assert(ret == -1);
-  assert(errno == ENOTSUP);
+  assert(errno == EBADF);
 
   return 0;
 }

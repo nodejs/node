@@ -20,13 +20,13 @@ static_assert(kMaxJSStructFields <= kMaxNumberOfDescriptors);
 namespace {
 
 struct NameHandleHasher {
-  size_t operator()(Handle<Name> name) const { return name->hash(); }
+  size_t operator()(DirectHandle<Name> name) const { return name->hash(); }
 };
 
 struct UniqueNameHandleEqual {
-  bool operator()(Handle<Name> x, Handle<Name> y) const {
-    DCHECK(x->IsUniqueName());
-    DCHECK(y->IsUniqueName());
+  bool operator()(DirectHandle<Name> x, DirectHandle<Name> y) const {
+    DCHECK(IsUniqueName(*x));
+    DCHECK(IsUniqueName(*y));
     return *x == *y;
   }
 };
@@ -36,72 +36,135 @@ using UniqueNameHandleSet =
 
 }  // namespace
 
+BUILTIN(SharedSpaceJSObjectHasInstance) {
+  HandleScope scope(isolate);
+  Handle<Object> constructor = args.receiver();
+  if (!IsJSFunction(*constructor)) {
+    return *isolate->factory()->false_value();
+  }
+
+  bool result;
+  MAYBE_ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+      isolate, result,
+      AlwaysSharedSpaceJSObject::HasInstance(isolate,
+                                             Cast<JSFunction>(constructor),
+                                             args.atOrUndefined(isolate, 1)));
+  return *isolate->factory()->ToBoolean(result);
+}
+
+namespace {
+Maybe<bool> CollectFieldsAndElements(Isolate* isolate,
+                                     Handle<JSReceiver> property_names,
+                                     int num_properties,
+                                     std::vector<Handle<Name>>& field_names,
+                                     std::set<uint32_t>& element_names) {
+  Handle<Object> raw_property_name;
+  Handle<Name> property_name;
+  UniqueNameHandleSet field_names_set;
+  for (int i = 0; i < num_properties; i++) {
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+        isolate, raw_property_name,
+        JSReceiver::GetElement(isolate, property_names, i), Nothing<bool>());
+    ASSIGN_RETURN_ON_EXCEPTION_VALUE(isolate, property_name,
+                                     Object::ToName(isolate, raw_property_name),
+                                     Nothing<bool>());
+
+    bool is_duplicate;
+    size_t index;
+    if (!property_name->AsIntegerIndex(&index) ||
+        index > JSObject::kMaxElementIndex) {
+      property_name = isolate->factory()->InternalizeName(property_name);
+
+      // TODO(v8:12547): Support Symbols?
+      if (IsSymbol(*property_name)) {
+        THROW_NEW_ERROR_RETURN_VALUE(
+            isolate, NewTypeError(MessageTemplate::kSymbolToString),
+            Nothing<bool>());
+      }
+
+      is_duplicate = !field_names_set.insert(property_name).second;
+      // Keep the field names in the original order.
+      if (!is_duplicate) field_names.push_back(property_name);
+    } else {
+      is_duplicate = !element_names.insert(static_cast<uint32_t>(index)).second;
+    }
+
+    if (is_duplicate) {
+      THROW_NEW_ERROR_RETURN_VALUE(
+          isolate,
+          NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
+                       property_name),
+          Nothing<bool>());
+    }
+  }
+
+  return Just(true);
+}
+}  // namespace
+
 BUILTIN(SharedStructTypeConstructor) {
   DCHECK(v8_flags.shared_string_table);
 
   HandleScope scope(isolate);
-  static const char method_name[] = "SharedStructType";
   auto* factory = isolate->factory();
 
-  Handle<JSReceiver> field_names_arg;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, field_names_arg,
-      Object::ToObject(isolate, args.atOrUndefined(isolate, 1), method_name));
+  Handle<Map> instance_map;
 
-  // Treat field_names_arg as arraylike.
-  Handle<Object> raw_length_number;
-  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, raw_length_number,
-      Object::GetLengthFromArrayLike(isolate, field_names_arg));
-  double num_properties_double = raw_length_number->Number();
-  if (num_properties_double < 0 || num_properties_double > kMaxJSStructFields) {
-    THROW_NEW_ERROR_RETURN_FAILURE(
-        isolate, NewRangeError(MessageTemplate::kStructFieldCountOutOfRange));
-  }
-  int num_properties = static_cast<int>(num_properties_double);
+  {
+    // Step 1: Collect the struct's property names and create the instance map.
 
-  Handle<DescriptorArray> maybe_descriptors;
-  if (num_properties != 0) {
-    maybe_descriptors = factory->NewDescriptorArray(num_properties, 0,
-                                                    AllocationType::kSharedOld);
-
-    // Build up the descriptor array.
-    UniqueNameHandleSet all_field_names;
-    for (int i = 0; i < num_properties; ++i) {
-      Handle<Object> raw_field_name;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, raw_field_name,
-          JSReceiver::GetElement(isolate, field_names_arg, i));
-      Handle<Name> field_name;
-      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-          isolate, field_name, Object::ToName(isolate, raw_field_name));
-      field_name = factory->InternalizeName(field_name);
-
-      // TOOD(v8:12547): Support Symbols?
-      if (field_name->IsSymbol()) {
-        THROW_NEW_ERROR_RETURN_FAILURE(
-            isolate, NewTypeError(MessageTemplate::kSymbolToString));
-      }
-
-      // Check that there are no duplicates.
-      const bool is_duplicate = !all_field_names.insert(field_name).second;
-      if (is_duplicate) {
-        THROW_NEW_ERROR_RETURN_FAILURE(
-            isolate, NewTypeError(MessageTemplate::kDuplicateTemplateProperty,
-                                  field_name));
-      }
-
-      // Shared structs' fields need to be aligned, so make it all tagged.
-      PropertyDetails details(
-          PropertyKind::kData, SEALED, PropertyLocation::kField,
-          PropertyConstness::kMutable, Representation::Tagged(), i);
-      maybe_descriptors->Set(InternalIndex(i), *field_name,
-                             MaybeObject::FromObject(FieldType::Any()),
-                             details);
+    Handle<JSReceiver> property_names_arg;
+    if (!IsJSReceiver(*args.atOrUndefined(isolate, 1))) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate,
+          NewTypeError(MessageTemplate::kArgumentIsNonObject,
+                       factory->NewStringFromAsciiChecked("property names")));
     }
-    maybe_descriptors->Sort();
+    property_names_arg = args.at<JSReceiver>(1);
+
+    // Treat property_names_arg as arraylike.
+    Handle<Object> raw_length_number;
+    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+        isolate, raw_length_number,
+        Object::GetLengthFromArrayLike(isolate, property_names_arg));
+    double num_properties_double = Object::NumberValue(*raw_length_number);
+    if (num_properties_double < 0 ||
+        num_properties_double > kMaxJSStructFields) {
+      THROW_NEW_ERROR_RETURN_FAILURE(
+          isolate, NewRangeError(MessageTemplate::kStructFieldCountOutOfRange));
+    }
+    int num_properties = static_cast<int>(num_properties_double);
+
+    std::vector<Handle<Name>> field_names;
+    std::set<uint32_t> element_names;
+    if (num_properties != 0) {
+      MAYBE_RETURN(
+          CollectFieldsAndElements(isolate, property_names_arg, num_properties,
+                                   field_names, element_names),
+          ReadOnlyRoots(isolate).exception());
+    }
+
+    if (IsUndefined(*args.atOrUndefined(isolate, 2), isolate)) {
+      // Create a new instance map if this type isn't registered.
+      instance_map = JSSharedStruct::CreateInstanceMap(
+          isolate, field_names, element_names, MaybeHandle<String>());
+    } else {
+      // Otherwise, get the canonical map.
+      if (!IsString(*args.atOrUndefined(isolate, 2))) {
+        THROW_NEW_ERROR_RETURN_FAILURE(
+            isolate, NewTypeError(MessageTemplate::kArgumentIsNonString,
+                                  factory->NewStringFromAsciiChecked(
+                                      "type registry key")));
+      }
+      ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
+          isolate, instance_map,
+          isolate->shared_struct_type_registry()->Register(
+              isolate, args.at<String>(2), field_names, element_names));
+    }
   }
 
+  // Step 2: Creat the JSFunction constructor. This is always created anew,
+  // regardless of whether the type is registered.
   Handle<SharedFunctionInfo> info =
       isolate->factory()->NewSharedFunctionInfoForBuiltin(
           isolate->factory()->empty_string(), Builtin::kSharedStructConstructor,
@@ -113,46 +176,42 @@ BUILTIN(SharedStructTypeConstructor) {
       Factory::JSFunctionBuilder{isolate, info, isolate->native_context()}
           .set_map(isolate->strict_function_with_readonly_prototype_map())
           .Build();
+  constructor->set_prototype_or_initial_map(*instance_map, kReleaseStore);
 
-  int instance_size;
-  int in_object_properties;
-  JSFunction::CalculateInstanceSizeHelper(JS_SHARED_STRUCT_TYPE, false, 0,
-                                          num_properties, &instance_size,
-                                          &in_object_properties);
-  Handle<Map> instance_map = factory->NewMap(
-      JS_SHARED_STRUCT_TYPE, instance_size, TERMINAL_FAST_ELEMENTS_KIND,
-      in_object_properties, AllocationType::kSharedMap);
-
-  // Structs have fixed layout ahead of time, so there's no slack.
-  int out_of_object_properties = num_properties - in_object_properties;
-  if (out_of_object_properties == 0) {
-    instance_map->SetInObjectUnusedPropertyFields(0);
-  } else {
-    instance_map->SetOutOfObjectUnusedPropertyFields(0);
-  }
-  instance_map->set_is_extensible(false);
-  JSFunction::SetInitialMap(isolate, constructor, instance_map,
-                            factory->null_value(), factory->null_value());
-  constructor->map().SetConstructor(ReadOnlyRoots(isolate).null_value());
-  constructor->map().set_has_non_instance_prototype(true);
-
-  // Pre-create the enum cache in the shared space, as otherwise for-in
-  // enumeration will incorrectly create an enum cache in the per-thread heap.
-  if (num_properties == 0) {
-    instance_map->SetEnumLength(0);
-  } else {
-    instance_map->InitializeDescriptors(isolate, *maybe_descriptors);
-    FastKeyAccumulator::InitializeFastPropertyEnumCache(
-        isolate, instance_map, num_properties, AllocationType::kSharedOld);
-    DCHECK_EQ(num_properties, instance_map->EnumLength());
-  }
+  JSObject::AddProperty(
+      isolate, constructor, factory->has_instance_symbol(),
+      handle(isolate->native_context()->shared_space_js_object_has_instance(),
+             isolate),
+      ALL_ATTRIBUTES_MASK);
 
   return *constructor;
 }
 
 BUILTIN(SharedStructConstructor) {
   HandleScope scope(isolate);
-  return *isolate->factory()->NewJSSharedStruct(args.target());
+  DirectHandle<JSFunction> constructor(args.target());
+  DirectHandle<Map> instance_map(constructor->initial_map(), isolate);
+  return *isolate->factory()->NewJSSharedStruct(
+      args.target(),
+      JSSharedStruct::GetElementsTemplate(isolate, *instance_map));
+}
+
+BUILTIN(SharedStructTypeIsSharedStruct) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      IsJSSharedStruct(*args.atOrUndefined(isolate, 1)));
+}
+
+BUILTIN(AtomicsMutexIsMutex) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      IsJSAtomicsMutex(*args.atOrUndefined(isolate, 1)));
+}
+
+BUILTIN(AtomicsConditionIsCondition) {
+  HandleScope scope(isolate);
+  return isolate->heap()->ToBoolean(
+      IsJSAtomicsCondition(*args.atOrUndefined(isolate, 1)));
 }
 
 }  // namespace internal

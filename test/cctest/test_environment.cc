@@ -30,13 +30,46 @@ static std::string cb_1_arg;  // NOLINT(runtime/string)
 class EnvironmentTest : public EnvironmentTestFixture {
  private:
   void TearDown() override {
-    NodeTestFixture::TearDown();
+    EnvironmentTestFixture::TearDown();
     called_cb_1 = false;
     called_cb_2 = false;
     called_cb_ordered_1 = false;
     called_cb_ordered_2 = false;
   }
 };
+
+TEST_F(EnvironmentTest, EnvironmentWithoutBrowserGlobals) {
+  const v8::HandleScope handle_scope(isolate_);
+  Argv argv;
+  Env env{handle_scope, argv, node::EnvironmentFlags::kNoBrowserGlobals};
+
+  SetProcessExitHandler(*env, [&](node::Environment* env_, int exit_code) {
+    EXPECT_EQ(*env, env_);
+    EXPECT_EQ(exit_code, 0);
+    node::Stop(*env);
+  });
+
+  node::LoadEnvironment(
+      *env,
+      "const assert = require('assert');"
+      "const path = require('path');"
+      "const relativeRequire = "
+      "  require('module').createRequire(path.join(process.cwd(), 'stub.js'));"
+      "const { intrinsics, nodeGlobals } = "
+      "  relativeRequire('./test/common/globals');"
+      "const items = Object.getOwnPropertyNames(globalThis);"
+      "const leaks = [];"
+      "for (const item of items) {"
+      "  if (intrinsics.has(item)) {"
+      "    continue;"
+      "  }"
+      "  if (nodeGlobals.has(item)) {"
+      "    continue;"
+      "  }"
+      "  leaks.push(item);"
+      "}"
+      "assert.deepStrictEqual(leaks, []);");
+}
 
 TEST_F(EnvironmentTest, EnvironmentWithESMLoader) {
   const v8::HandleScope handle_scope(isolate_);
@@ -405,6 +438,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
   // This test sets a global variable in the child Environment, and reads it
   // back both through the inspector and inside the child Environment, and
   // makes sure that those correspond to the value that was originally set.
+  v8::Locker locker(isolate_);
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
   Env env {handle_scope, argv};
@@ -474,6 +508,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
     CHECK_NOT_NULL(isolate);
 
     {
+      v8::Locker locker(isolate);
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
 
@@ -587,12 +622,9 @@ TEST_F(EnvironmentTest, SetImmediateMicrotasks) {
 
 #ifndef _WIN32  // No SIGINT on Windows.
 TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
-  // We need to go through the whole setup dance here because we want to
-  // set only_terminate_in_safe_scope.
   // Allocate and initialize Isolate.
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
-  create_params.only_terminate_in_safe_scope = true;
   v8::Isolate* isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
   platform->RegisterIsolate(isolate, &current_loop);
@@ -600,6 +632,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
 
   // Try creating Context + IsolateData + Environment.
   {
+    v8::Locker locker(isolate);
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
@@ -653,8 +686,13 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
 
   std::unique_ptr<v8::MicrotaskQueue> queue = v8::MicrotaskQueue::New(
       isolate_, v8::MicrotasksPolicy::kExplicit);
-  v8::Local<v8::Context> context = v8::Context::New(
-      isolate_, nullptr, {}, {}, {}, queue.get());
+  v8::Local<v8::Context> context =
+      v8::Context::New(isolate_,
+                       nullptr,
+                       {},
+                       {},
+                       v8::DeserializeInternalFieldsCallback(),
+                       queue.get());
   node::InitializeContext(context);
   v8::Context::Scope context_scope(context);
 
@@ -674,12 +712,8 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
       v8::String::NewFromUtf8Literal(isolate_, "mustCall"),
       must_call).Check();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
-
-  node::Environment* env = node::CreateEnvironment(
-      isolate_data, context, {}, {});
+  node::Environment* env =
+      node::CreateEnvironment(isolate_data_, context, {}, {});
   CHECK_NE(nullptr, env);
 
   v8::Local<v8::Function> eval_in_env = node::LoadEnvironment(
@@ -718,7 +752,6 @@ TEST_F(EnvironmentTest, NestedMicrotaskQueue) {
   EXPECT_EQ(callback_calls, (IntVec { 1, 3, 6, 2, 4, 7, 5 }));
 
   node::FreeEnvironment(env);
-  node::FreeIsolateData(isolate_data);
 }
 
 static bool interrupted = false;
@@ -733,19 +766,43 @@ TEST_F(EnvironmentTest, RequestInterruptAtExit) {
   CHECK(!context.IsEmpty());
   context->Enter();
 
-  node::IsolateData* isolate_data = node::CreateIsolateData(
-      isolate_, &NodeTestFixture::current_loop, platform.get());
-  CHECK_NE(nullptr, isolate_data);
   std::vector<std::string> args(*argv, *argv + 1);
   std::vector<std::string> exec_args(*argv, *argv + 1);
   node::Environment* environment =
-      node::CreateEnvironment(isolate_data, context, args, exec_args);
+      node::CreateEnvironment(isolate_data_, context, args, exec_args);
   CHECK_NE(nullptr, environment);
 
   node::RequestInterrupt(environment, OnInterrupt, nullptr);
   node::FreeEnvironment(environment);
   EXPECT_TRUE(interrupted);
 
-  node::FreeIsolateData(isolate_data);
   context->Exit();
+}
+
+TEST_F(EnvironmentTest, EmbedderPreload) {
+  v8::HandleScope handle_scope(isolate_);
+  v8::Local<v8::Context> context = node::NewContext(isolate_);
+  v8::Context::Scope context_scope(context);
+
+  node::EmbedderPreloadCallback preload = [](node::Environment* env,
+                                             v8::Local<v8::Value> process,
+                                             v8::Local<v8::Value> require) {
+    CHECK(process->IsObject());
+    CHECK(require->IsFunction());
+    process.As<v8::Object>()
+        ->Set(env->context(),
+              v8::String::NewFromUtf8Literal(env->isolate(), "prop"),
+              v8::String::NewFromUtf8Literal(env->isolate(), "preload"))
+        .Check();
+  };
+
+  std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)> env(
+      node::CreateEnvironment(isolate_data_, context, {}, {}),
+      node::FreeEnvironment);
+
+  v8::Local<v8::Value> main_ret =
+      node::LoadEnvironment(env.get(), "return process.prop;", preload)
+          .ToLocalChecked();
+  node::Utf8Value main_ret_str(isolate_, main_ret);
+  EXPECT_EQ(std::string(*main_ret_str), "preload");
 }

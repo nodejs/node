@@ -25,7 +25,7 @@
             },
             {
                 "domain": "HeapProfiler",
-                "async": ["collectGarbage"]
+                "async": ["collectGarbage", "takeHeapSnapshot"]
             }
         ]
     },

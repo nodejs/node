@@ -96,7 +96,7 @@ not be NULL.
 
 PKCS7_sign() is like PKCS7_sign_ex() except that it uses default values of
 NULL for the library context I<libctx> and the property query I<propq>.
-This is retained for API backward compatibiliy.
+This is retained for API backward compatibility.
 
 =head1 BUGS
 
@@ -122,7 +122,7 @@ The B<PKCS7_STREAM> flag was added in OpenSSL 1.0.0.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

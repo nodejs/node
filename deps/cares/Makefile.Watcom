@@ -1,6 +1,9 @@
+# Copyright (C) The c-ares project and its contributors
+# SPDX-License-Identifier: MIT
 #
 #  Watcom / OpenWatcom / Win32 makefile for cares.
 #  Quick hack by Guenter; comments to: /dev/nul
+#  Updated by Douglas R. Reno, comments to: renodr2002@gmail.com. 2023
 #
 
 !ifndef %watcom
@@ -16,7 +19,7 @@ LIBNAME = $(%libname)
 LIBNAME	= cares
 !endif
 TARGETS = $(LIBNAME).dll $(LIBNAME)_imp.lib $(LIBNAME).lib
-DEMOS   = adig.exe ahost.exe acountry.exe
+DEMOS   = adig.exe ahost.exe
 
 CC = wcc386
 LD = wlink
@@ -38,9 +41,10 @@ MD = mkdir
 RD = rmdir /q /s 2>NUL
 CP = copy
 
-CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm &
-         -wcd=201 -bt=nt -d+ -dWIN32 -dCARES_BUILDING_LIBRARY           &
-         -dNTDDI_VERSION=0x05010000 -I. $(SYS_INCL)
+CFLAGS = -3r -mf -hc -zff -zgf -zq -zm -zc -s -fr=con -w2 -fpi -oilrtfm -aa   &
+         -wcd=201 -bt=nt -d+ -dCARES_BUILDING_LIBRARY &
+         -dNTDDI_VERSION=0x06020000 -I. -I.\include -I.\src\lib -I.\src\lib\include &
+         $(SYS_INCL)
 
 LFLAGS = option quiet, map, caseexact, eliminate
 
@@ -52,7 +56,7 @@ LFLAGS += debug all
 CFLAGS += -d0
 !endif
 
-CFLAGS += -d_WIN32_WINNT=0x0600
+CFLAGS += -d_WIN32_WINNT=0x0602
 
 #
 # Change to suite.
@@ -69,7 +73,7 @@ LIB_ARG  = $(OBJ_BASE)\stat\wlib.arg
 !ifneq __MAKEOPTS__ -u
 !error You MUST call wmake with the -u switch!
 !else
-!include Makefile.inc
+!include src\lib\Makefile.inc
 !endif
 
 OBJS = $(CSOURCES:.c=.obj)
@@ -82,10 +86,11 @@ OBJ_DIR    = $(OBJ_BASE)\stat
 OBJS_STAT  = $+ $(OBJS) $-
 
 OBJ_DIR    = $(OBJ_BASE)\dyn
-OBJS_DYN   = $+ $(OBJS) $-
+OBJS_DYN   += $(OBJS) $-
 
 ARESBUILDH = ares_build.h
 RESOURCE   = $(OBJ_BASE)\dyn\cares.res
+ARESBUILDH = include\ares_build.h
 
 all: $(ARESBUILDH) $(OBJ_BASE) $(TARGETS) $(DEMOS) .SYMBOLIC
 	@echo Welcome to cares
@@ -93,11 +98,23 @@ all: $(ARESBUILDH) $(OBJ_BASE) $(TARGETS) $(DEMOS) .SYMBOLIC
 $(OBJ_BASE):
 	-$(MD) $^@
 	-$(MD) $^@\stat
+	-$(MD) $^@\stat\dsa
+	-$(MD) $^@\stat\event
+	-$(MD) $^@\stat\legacy
+	-$(MD) $^@\stat\record
+	-$(MD) $^@\stat\str
+	-$(MD) $^@\stat\util
 	-$(MD) $^@\dyn
-	-$(MD) $^@\demos
+	-$(MD) $^@\dyn\dsa
+	-$(MD) $^@\dyn\event
+	-$(MD) $^@\dyn\legacy
+	-$(MD) $^@\dyn\record
+	-$(MD) $^@\dyn\str
+	-$(MD) $^@\dyn\util
+	-$(MD) $^@\tools
 
 $(ARESBUILDH): .EXISTSONLY
-	$(CP) $^@.dist $^@
+	@echo Make sure to run buildconf.bat!
 
 $(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
 	$(LD) name $^@ @$]@
@@ -105,14 +122,16 @@ $(LIBNAME).dll: $(OBJS_DYN) $(RESOURCE) $(LINK_ARG)
 $(LIBNAME).lib: $(OBJS_STAT) $(LIB_ARG)
 	$(AR) -q -b -c $^@ @$]@
 
-adig.exe: $(OBJ_BASE)\demos\adig.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+$(OBJ_BASE)\tools\ares_getopt.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\tools\ares_getopt.c -fo=$^@
 
-ahost.exe: $(OBJ_BASE)\demos\ahost.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+adig.exe: $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\adig.c -fo=$(OBJ_BASE)\tools\adig.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\adig.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
 
-acountry.exe: $(OBJ_BASE)\demos\acountry.obj $(OBJ_BASE)\demos\ares_getopt.obj $(LIBNAME).lib
-	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\demos\ares_getopt.obj $[@ } library $]@, ws2_32.lib
+ahost.exe: $(OBJ_BASE)\tools\ares_getopt.obj $(LIBNAME).lib
+	$(CC) $(CFLAGS) src\tools\ahost.c -fo=$(OBJ_BASE)\tools\ahost.obj
+	$(LD) name $^@ system nt $(LFLAGS) file { $(OBJ_BASE)\tools\ahost.obj $[@ } library $]@, ws2_32.lib, iphlpapi.lib
 
 clean: .SYMBOLIC
 	-$(RM) $(OBJS_STAT)
@@ -123,25 +142,84 @@ vclean realclean: clean .SYMBOLIC
 	-$(RM) $(TARGETS) $(LIBNAME).map
 	-$(RM) $(DEMOS) $(DEMOS:.exe=.map)
 	-$(RD) $(OBJ_BASE)\stat
+	-$(RD) $(OBJ_BASE)\stat\dsa
+	-$(RD) $(OBJ_BASE)\stat\event
+	-$(RD) $(OBJ_BASE)\stat\legacy
+	-$(RD) $(OBJ_BASE)\stat\record
+	-$(RD) $(OBJ_BASE)\stat\str
+	-$(RD) $(OBJ_BASE)\stat\util
 	-$(RD) $(OBJ_BASE)\dyn
-	-$(RD) $(OBJ_BASE)\demos
+	-$(RD) $(OBJ_BASE)\dyn\dsa
+	-$(RD) $(OBJ_BASE)\dyn\event
+	-$(RD) $(OBJ_BASE)\dyn\legacy
+	-$(RD) $(OBJ_BASE)\dyn\record
+	-$(RD) $(OBJ_BASE)\dyn\str
+	-$(RD) $(OBJ_BASE)\dyn\util
+	-$(RD) $(OBJ_BASE)\tools
 	-$(RD) $(OBJ_BASE)
 
 .ERASE
-$(RESOURCE): cares.rc .AUTODEPEND
+.c: .\src\lib
+
+.ERASE
+$(RESOURCE): src\lib\cares.rc .AUTODEPEND
 	$(RC) $(DEBUG) -q -r -zm -I..\include $(SYS_INCL) $[@ -fo=$^@
 
 .ERASE
 .c{$(OBJ_BASE)\dyn}.obj:
-	$(CC) $(CFLAGS) -bd $[@ -fo=$^@
+	$(CC) $(CFLAGS) -bd .\src\lib\$^& -fo=$^@
+
+.ERASE
+{dsa}.c{$(OBJ_BASE)\dyn\dsa}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\dsa\$^& -fo=$^@
+
+.ERASE
+{event}.c{$(OBJ_BASE)\dyn\event}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\event\$^& -fo=$^@
+
+.ERASE
+{legacy}.c{$(OBJ_BASE)\dyn\legacy}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\legacy\$^& -fo=$^@
+
+.ERASE
+{record}.c{$(OBJ_BASE)\dyn\record}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\record\$^& -fo=$^@
+
+.ERASE
+{str}.c{$(OBJ_BASE)\dyn\str}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\str\$^& -fo=$^@
+
+.ERASE
+{util}.c{$(OBJ_BASE)\dyn\util}.obj:
+	$(CC) $(CFLAGS) -bd .\src\lib\util\$^& -fo=$^@
 
 .ERASE
 .c{$(OBJ_BASE)\stat}.obj:
-	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\$^& -fo=$^@
 
 .ERASE
-.c{$(OBJ_BASE)\demos}.obj:
-	$(CC) $(CFLAGS) -DCARES_STATICLIB $[@ -fo=$^@
+{dsa}.c{$(OBJ_BASE)\stat\dsa}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\dsa\$^& -fo=$^@
+
+.ERASE
+{event}.c{$(OBJ_BASE)\stat\event}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\event\$^& -fo=$^@
+
+.ERASE
+{legacy}.c{$(OBJ_BASE)\stat\legacy}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\legacy\$^& -fo=$^@
+
+.ERASE
+{record}.c{$(OBJ_BASE)\stat\record}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\record\$^& -fo=$^@
+
+.ERASE
+{str}.c{$(OBJ_BASE)\stat\str}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\str\$^& -fo=$^@
+
+.ERASE
+{util}.c{$(OBJ_BASE)\stat\util}.obj:
+	$(CC) $(CFLAGS) -DCARES_STATICLIB .\src\lib\util\$^& -fo=$^@
 
 $(LINK_ARG): $(__MAKEFILES__)
 	%create $^@
@@ -155,6 +233,7 @@ $(LINK_ARG): $(__MAKEFILES__)
 	@%append $^@ library $(%watt_root)\lib\wattcpw_imp.lib
 !else
 	@%append $^@ library ws2_32.lib
+	@%append $^@ library iphlpapi.lib
 !endif
 
 $(LIB_ARG): $(__MAKEFILES__)

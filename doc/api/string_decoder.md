@@ -10,21 +10,37 @@ The `node:string_decoder` module provides an API for decoding `Buffer` objects
 into strings in a manner that preserves encoded multi-byte UTF-8 and UTF-16
 characters. It can be accessed using:
 
-```js
+```mjs
+import { StringDecoder } from 'node:string_decoder';
+```
+
+```cjs
 const { StringDecoder } = require('node:string_decoder');
 ```
 
 The following example shows the basic use of the `StringDecoder` class.
 
-```js
+```mjs
+import { StringDecoder } from 'node:string_decoder';
+import { Buffer } from 'node:buffer';
+const decoder = new StringDecoder('utf8');
+
+const cent = Buffer.from([0xC2, 0xA2]);
+console.log(decoder.write(cent)); // Prints: ¢
+
+const euro = Buffer.from([0xE2, 0x82, 0xAC]);
+console.log(decoder.write(euro)); // Prints: €
+```
+
+```cjs
 const { StringDecoder } = require('node:string_decoder');
 const decoder = new StringDecoder('utf8');
 
 const cent = Buffer.from([0xC2, 0xA2]);
-console.log(decoder.write(cent));
+console.log(decoder.write(cent)); // Prints: ¢
 
 const euro = Buffer.from([0xE2, 0x82, 0xAC]);
-console.log(decoder.write(euro));
+console.log(decoder.write(euro)); // Prints: €
 ```
 
 When a `Buffer` instance is written to the `StringDecoder` instance, an
@@ -35,13 +51,23 @@ next call to `stringDecoder.write()` or until `stringDecoder.end()` is called.
 In the following example, the three UTF-8 encoded bytes of the European Euro
 symbol (`€`) are written over three separate operations:
 
-```js
+```mjs
+import { StringDecoder } from 'node:string_decoder';
+import { Buffer } from 'node:buffer';
+const decoder = new StringDecoder('utf8');
+
+decoder.write(Buffer.from([0xE2]));
+decoder.write(Buffer.from([0x82]));
+console.log(decoder.end(Buffer.from([0xAC]))); // Prints: €
+```
+
+```cjs
 const { StringDecoder } = require('node:string_decoder');
 const decoder = new StringDecoder('utf8');
 
 decoder.write(Buffer.from([0xE2]));
 decoder.write(Buffer.from([0x82]));
-console.log(decoder.end(Buffer.from([0xAC])));
+console.log(decoder.end(Buffer.from([0xAC]))); // Prints: €
 ```
 
 ## Class: `StringDecoder`
@@ -63,8 +89,7 @@ Creates a new `StringDecoder` instance.
 added: v0.9.3
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
-  `DataView` containing the bytes to decode.
+* `buffer` {string|Buffer|TypedArray|DataView} The bytes to decode.
 * Returns: {string}
 
 Returns any remaining input stored in the internal buffer as a string. Bytes
@@ -86,8 +111,7 @@ changes:
                  character instead of one for each individual byte.
 -->
 
-* `buffer` {Buffer|TypedArray|DataView} A `Buffer`, or `TypedArray`, or
-  `DataView` containing the bytes to decode.
+* `buffer` {string|Buffer|TypedArray|DataView} The bytes to decode.
 * Returns: {string}
 
 Returns a decoded string, ensuring that any incomplete multibyte characters at

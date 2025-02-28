@@ -9,8 +9,8 @@ extern macro ReplaceSymbolConstant(): Symbol;
 extern macro StringBuiltinsAssembler::GetSubstitution(
     implicit context: Context)(String, Smi, Smi, String): String;
 
-transitioning macro
-ThrowIfNotGlobal(implicit context: Context)(searchValue: JSAny): void {
+transitioning macro ThrowIfNotGlobal(
+    implicit context: Context)(searchValue: JSAny): void {
   let shouldThrow: bool;
   typeswitch (searchValue) {
     case (fastRegExp: FastJSRegExp): {
@@ -32,8 +32,8 @@ ThrowIfNotGlobal(implicit context: Context)(searchValue: JSAny): void {
 
 // https://tc39.es/ecma262/#sec-string.prototype.replaceall
 transitioning javascript builtin StringPrototypeReplaceAll(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    searchValue: JSAny, replaceValue: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(searchValue: JSAny,
+    replaceValue: JSAny): JSAny {
   // 1. Let O be ? RequireObjectCoercible(this value).
   RequireObjectCoercible(receiver, 'String.prototype.replaceAll');
 

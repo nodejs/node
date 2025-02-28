@@ -3,11 +3,10 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning javascript builtin
-ArrayFilterLoopEagerDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
-    length: JSAny, initialTo: JSAny): JSAny {
+transitioning javascript builtin ArrayFilterLoopEagerDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, array: JSAny, initialK: JSAny, length: JSAny,
+    initialTo: JSAny): JSAny {
   // All continuation points in the optimized filter implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -27,11 +26,10 @@ ArrayFilterLoopEagerDeoptContinuation(
       numberLength, numberTo);
 }
 
-transitioning javascript builtin
-ArrayFilterLoopLazyDeoptContinuation(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    callback: JSAny, thisArg: JSAny, array: JSAny, initialK: JSAny,
-    length: JSAny, valueK: JSAny, initialTo: JSAny, result: JSAny): JSAny {
+transitioning javascript builtin ArrayFilterLoopLazyDeoptContinuation(
+    js-implicit context: NativeContext, receiver: JSAny)(callback: JSAny,
+    thisArg: JSAny, array: JSAny, initialK: JSAny, length: JSAny, valueK: JSAny,
+    initialTo: JSAny, result: JSAny): JSAny {
   // All continuation points in the optimized filter implementation are
   // after the ToObject(O) call that ensures we are dealing with a
   // JSReceiver.
@@ -58,10 +56,10 @@ ArrayFilterLoopLazyDeoptContinuation(
       numberLength, numberTo);
 }
 
-transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
-    _receiver: JSReceiver, callbackfn: Callable, thisArg: JSAny,
-    array: JSReceiver, o: JSReceiver, initialK: Number, length: Number,
-    initialTo: Number): JSAny {
+transitioning builtin ArrayFilterLoopContinuation(
+    implicit context: Context)(_receiver: JSReceiver, callbackfn: Callable,
+    thisArg: JSAny, array: JSReceiver, o: JSReceiver, initialK: Number,
+    length: Number, initialTo: Number): JSAny {
   let to: Number = initialTo;
   // 5. Let k be 0.
   // 6. Repeat, while k < len
@@ -95,9 +93,9 @@ transitioning builtin ArrayFilterLoopContinuation(implicit context: Context)(
   return array;
 }
 
-transitioning macro FastArrayFilter(implicit context: Context)(
-    fastO: FastJSArray, len: Smi, callbackfn: Callable, thisArg: JSAny,
-    output: FastJSArray): void labels
+transitioning macro FastArrayFilter(
+    implicit context: Context)(fastO: FastJSArray, len: Smi,
+    callbackfn: Callable, thisArg: JSAny, output: FastJSArray): void labels
 Bailout(Number, Number) {
   let k: Smi = 0;
   let to: Smi = 0;
@@ -134,8 +132,8 @@ Bailout(Number, Number) {
 // This method creates a 0-length array with the ElementsKind of the
 // receiver if possible, otherwise, bails out. It makes sense for the
 // caller to know that the slow case needs to be invoked.
-macro FastFilterSpeciesCreate(implicit context: Context)(receiver: JSReceiver):
-    JSReceiver labels Slow {
+macro FastFilterSpeciesCreate(
+    implicit context: Context)(receiver: JSReceiver): JSReceiver labels Slow {
   const len: Smi = 0;
   if (IsArraySpeciesProtectorCellInvalid()) goto Slow;
   const o = Cast<FastJSArray>(receiver) otherwise Slow;
@@ -145,8 +143,7 @@ macro FastFilterSpeciesCreate(implicit context: Context)(receiver: JSReceiver):
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.filter
-transitioning javascript builtin
-ArrayFilter(
+transitioning javascript builtin ArrayFilter(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   try {
     RequireObjectCoercible(receiver, 'Array.prototype.filter');
@@ -193,7 +190,7 @@ ArrayFilter(
     return ArrayFilterLoopContinuation(
         o, callbackfn, thisArg, output, o, k, len, to);
   } label TypeError deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   }
 }
 }

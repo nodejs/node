@@ -2,13 +2,14 @@
 const common = require('../common');
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
 const fs = require('fs');
 const util = require('util');
+const { isMainThread } = require('worker_threads');
 
-if (!common.isMainThread)
+if (!isMainThread) {
   common.skip('process.chdir is not available in Workers');
+}
 
 const traceFile = 'node_trace.1.log';
 
@@ -33,6 +34,7 @@ const tests = {
   'resolveCname': 'dns.resolveCname("example.com", (err, res) => {});',
   'resolveMx': 'dns.resolveMx("example.com", (err, res) => {});',
   'resolveNs': 'dns.resolveNs("example.com", (err, res) => {});',
+  'resolveTlsa': 'dns.resolveTlsa("example.com", (err, res) => {});',
   'resolveTxt': 'dns.resolveTxt("example.com", (err, res) => {});',
   'resolveSrv': 'dns.resolveSrv("example.com", (err, res) => {});',
   'resolvePtr': 'dns.resolvePtr("example.com", (err, res) => {});',
@@ -57,7 +59,7 @@ for (const tr in tests) {
     throw new Error(`${tr}:\n${util.inspect(proc)}`);
   }
 
-  const file = path.join(tmpdir.path, traceFile);
+  const file = tmpdir.resolve(traceFile);
 
   const data = fs.readFileSync(file);
   const traces = JSON.parse(data.toString()).traceEvents

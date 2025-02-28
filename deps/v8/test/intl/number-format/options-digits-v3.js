@@ -2,9 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Test v3 condiction
-// Flags: --harmony-intl-number-format-v3
-
 function assertPresentOfDigits(
     options, expectSignificant, expectFractional, user_message) {
   if (expectSignificant) {

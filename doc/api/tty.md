@@ -51,7 +51,11 @@ added: v0.7.7
 -->
 
 A `boolean` that is `true` if the TTY is currently configured to operate as a
-raw device. Defaults to `false`.
+raw device.
+
+This flag is always `false` when a process starts, even if the terminal is
+operating in raw mode. Its value will change with subsequent calls to
+`setRawMode`.
 
 ### `readStream.isTTY`
 
@@ -93,6 +97,33 @@ Represents the writable side of a TTY. In normal circumstances,
 [`process.stdout`][] and [`process.stderr`][] will be the only
 `tty.WriteStream` instances created for a Node.js process and there
 should be no reason to create additional instances.
+
+### `new tty.ReadStream(fd[, options])`
+
+<!-- YAML
+added: v0.5.8
+changes:
+  - version: v0.9.4
+    description: The `options` argument is supported.
+-->
+
+* `fd` {number} A file descriptor associated with a TTY.
+* `options` {Object} Options passed to parent `net.Socket`,
+  see `options` of [`net.Socket` constructor][].
+* Returns {tty.ReadStream}
+
+Creates a `ReadStream` for `fd` associated with a TTY.
+
+### `new tty.WriteStream(fd)`
+
+<!-- YAML
+added: v0.5.8
+-->
+
+* `fd` {number} A file descriptor associated with a TTY.
+* Returns {tty.WriteStream}
+
+Creates a `WriteStream` for `fd` associated with a TTY.
 
 ### Event: `'resize'`
 
@@ -310,6 +341,7 @@ The `tty.isatty()` method returns `true` if the given `fd` is associated with
 a TTY and `false` if it is not, including whenever `fd` is not a non-negative
 integer.
 
+[`net.Socket` constructor]: net.md#new-netsocketoptions
 [`process.stderr`]: process.md#processstderr
 [`process.stdin`]: process.md#processstdin
 [`process.stdout`]: process.md#processstdout

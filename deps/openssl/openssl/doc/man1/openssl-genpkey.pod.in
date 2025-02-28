@@ -278,7 +278,7 @@ RFC5114 names "dh_1024_160", "dh_2048_224", "dh_2048_256".
 
 If this option is set, then the appropriate RFC5114 parameters are used
 instead of generating new parameters. The value I<num> can be one of
-1, 2 or 3 that are equivalant to using the option B<group> with one of
+1, 2 or 3 that are equivalent to using the option B<group> with one of
 "dh_1024_160", "dh_2048_224" or "dh_2048_256".
 All other options will be ignored if this value is set.
 
@@ -333,7 +333,7 @@ The B<algorithm> option must be B<"DH">.
 =item "default"
 
 Selects a default type based on the B<algorithm>. This is used by the
-OpenSSL default provider to set the type for backwards compatability.
+OpenSSL default provider to set the type for backwards compatibility.
 If B<algorithm> is B<"DH"> then B<"generator"> is used.
 If B<algorithm> is B<"DHX"> then B<"fips186_2"> is used.
 
@@ -494,7 +494,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -8,11 +8,10 @@
 #include <vector>
 
 #include "src/base/logging.h"
-#include "src/base/v8-fallthrough.h"
 
 namespace v8_inspector {
 namespace {
-using UChar = uint16_t;
+using UChar = char16_t;
 using UChar32 = uint32_t;
 
 bool isASCII(UChar c) { return !(c & ~0x7F); }
@@ -112,15 +111,15 @@ ConversionResult convertUTF16ToUTF8(const UChar** sourceStart,
       case 4:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 3:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 2:
         *--target = static_cast<char>((ch | byteMark) & byteMask);
         ch >>= 6;
-        V8_FALLTHROUGH;
+        [[fallthrough]];
       case 1:
         *--target = static_cast<char>(ch | firstByteMark[bytesToWrite]);
     }
@@ -185,10 +184,10 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
     // Everything else falls through when "true"...
     case 4:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 3:
       if ((a = (*--srcptr)) < 0x80 || a > 0xBF) return false;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 2:
       if ((a = (*--srcptr)) > 0xBF) return false;
 
@@ -209,7 +208,7 @@ static bool isLegalUTF8(const unsigned char* source, int length) {
         default:
           if (a < 0x80) return false;
       }
-      V8_FALLTHROUGH;
+      [[fallthrough]];
 
     case 1:
       if (*source >= 0x80 && *source < 0xC2) return false;
@@ -236,23 +235,23 @@ static inline UChar32 readUTF8Sequence(const char*& sequence, size_t length) {
     case 6:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 5:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 4:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 3:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 2:
       character += static_cast<unsigned char>(*sequence++);
       character <<= 6;
-      V8_FALLTHROUGH;
+      [[fallthrough]];
     case 1:
       character += static_cast<unsigned char>(*sequence++);
   }
@@ -386,7 +385,7 @@ std::string UTF16ToUTF8(const UChar* stringStart, size_t length) {
 
 std::basic_string<UChar> UTF8ToUTF16(const char* stringStart, size_t length) {
   if (!stringStart || !length) return std::basic_string<UChar>();
-  std::vector<uint16_t> buffer(length);
+  std::vector<UChar> buffer(length);
   UChar* bufferStart = buffer.data();
 
   UChar* bufferCurrent = bufferStart;
@@ -395,7 +394,7 @@ std::basic_string<UChar> UTF8ToUTF16(const char* stringStart, size_t length) {
                          reinterpret_cast<const char*>(stringStart + length),
                          &bufferCurrent, bufferCurrent + buffer.size(), nullptr,
                          true) != conversionOK)
-    return std::basic_string<uint16_t>();
+    return std::basic_string<UChar>();
   size_t utf16Length = bufferCurrent - bufferStart;
   return std::basic_string<UChar>(bufferStart, bufferStart + utf16Length);
 }

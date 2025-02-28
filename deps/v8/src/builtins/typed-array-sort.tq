@@ -24,8 +24,7 @@ transitioning macro CallCompare(
 
 // Merges two sorted runs [from, middle) and [middle, to)
 // from "source" into "target".
-transitioning macro
-TypedArrayMerge(
+transitioning macro TypedArrayMerge(
     implicit context: Context, array: JSTypedArray, comparefn: Callable)(
     source: FixedArray, from: uintptr, middle: uintptr, to: uintptr,
     target: FixedArray): void {
@@ -57,10 +56,9 @@ TypedArrayMerge(
   }
 }
 
-transitioning builtin
-TypedArrayMergeSort(implicit context: Context)(
-    source: FixedArray, from: uintptr, to: uintptr, target: FixedArray,
-    array: JSTypedArray, comparefn: Callable): JSAny {
+transitioning builtin TypedArrayMergeSort(
+    implicit context: Context)(source: FixedArray, from: uintptr, to: uintptr,
+    target: FixedArray, array: JSTypedArray, comparefn: Callable): JSAny {
   dcheck(to - from > 1);
   const middle: uintptr = from + ((to - from) >>> 1);
 
@@ -80,9 +78,9 @@ TypedArrayMergeSort(implicit context: Context)(
 }
 
 // Shared between TypedArray.prototype.sort and TypedArray.prototype.toSorted.
-transitioning macro TypedArraySortCommon(implicit context: Context)(
-    array: JSTypedArray, len: uintptr, comparefnArg: Undefined|Callable,
-    isSort: constexpr bool): JSTypedArray {
+transitioning macro TypedArraySortCommon(
+    implicit context: Context)(array: JSTypedArray, len: uintptr,
+    comparefnArg: Undefined|Callable, isSort: constexpr bool): JSTypedArray {
   // Arrays of length 1 or less are considered sorted.
   if (len < 2) return array;
 
@@ -153,8 +151,8 @@ transitioning macro TypedArraySortCommon(implicit context: Context)(
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.sort
 transitioning javascript builtin TypedArrayPrototypeSort(
-    js-implicit context: NativeContext,
-    receiver: JSAny)(...arguments): JSTypedArray {
+    js-implicit context: NativeContext, receiver: JSAny)(
+    ...arguments): JSTypedArray {
   // 1. If comparefn is not undefined and IsCallable(comparefn) is false,
   //    throw a TypeError exception.
   const comparefnObj: JSAny = arguments[0];

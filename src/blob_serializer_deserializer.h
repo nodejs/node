@@ -6,8 +6,8 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
-// This is related to the blob that is used in snapshots and has nothing to do
-// with `node_blob.h`.
+// This is related to the blob that is used in snapshots and single executable
+// applications and has nothing to do with `node_blob.h`.
 
 namespace node {
 
@@ -27,6 +27,11 @@ class BlobSerializerDeserializer {
   bool is_debug = false;
 };
 
+enum class StringLogMode {
+  kAddressOnly,  // Can be used when the string contains binary content.
+  kAddressAndContent,
+};
+
 // Child classes are expected to implement T Read<T>() where
 // !std::is_arithmetic_v<T> && !std::is_same_v<T, std::string>
 template <typename Impl>
@@ -34,7 +39,7 @@ class BlobDeserializer : public BlobSerializerDeserializer {
  public:
   explicit BlobDeserializer(bool is_debug_v, std::string_view s)
       : BlobSerializerDeserializer(is_debug_v), sink(s) {}
-  ~BlobDeserializer() {}
+  ~BlobDeserializer() = default;
 
   size_t read_total = 0;
   std::string_view sink;
@@ -52,7 +57,9 @@ class BlobDeserializer : public BlobSerializerDeserializer {
   template <typename T>
   std::vector<T> ReadVector();
 
+  // ReadString() creates a copy of the data. ReadStringView() doesn't.
   std::string ReadString();
+  std::string_view ReadStringView(StringLogMode mode);
 
   // Helper for reading an array of numeric types.
   template <typename T>
@@ -77,12 +84,8 @@ template <typename Impl>
 class BlobSerializer : public BlobSerializerDeserializer {
  public:
   explicit BlobSerializer(bool is_debug_v)
-      : BlobSerializerDeserializer(is_debug_v) {
-    // Currently the snapshot blob built with an empty script is around 4MB.
-    // So use that as the default sink size.
-    sink.reserve(4 * 1024 * 1024);
-  }
-  ~BlobSerializer() {}
+      : BlobSerializerDeserializer(is_debug_v) {}
+  ~BlobSerializer() = default;
 
   Impl* impl() { return static_cast<Impl*>(this); }
   const Impl* impl() const { return static_cast<const Impl*>(this); }
@@ -102,6 +105,7 @@ class BlobSerializer : public BlobSerializerDeserializer {
   // The layout of a written string:
   // [  4/8 bytes     ] length
   // [ |length| bytes ] contents
+  size_t WriteStringView(std::string_view data, StringLogMode mode);
   size_t WriteString(const std::string& data);
 
   // Helper for writing an array of numeric types.

@@ -44,10 +44,10 @@ assertThrows(
     () => (new Intl.DateTimeFormat(
         "en", {timeStyle: "short", fractionalSecondDigits: 3})),
     TypeError,
-    "Can't set option fractionalSecondDigits when timeStyle is used");
+    "Invalid option : option");
 
 assertThrows(
     () => (new Intl.DateTimeFormat(
         "en", {dateStyle: "short", fractionalSecondDigits: 3})),
     TypeError,
-    "Can't set option fractionalSecondDigits when dateStyle is used");
+    "Invalid option : option");

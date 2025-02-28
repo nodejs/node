@@ -5,6 +5,8 @@
 #ifndef V8_COMPILER_COMMON_OPERATOR_H_
 #define V8_COMPILER_COMMON_OPERATOR_H_
 
+#include <optional>
+
 #include "src/base/compiler-specific.h"
 #include "src/codegen/machine-type.h"
 #include "src/codegen/reloc-info.h"
@@ -54,18 +56,23 @@ inline BranchHint NegateBranchHint(BranchHint hint) {
   UNREACHABLE();
 }
 
-enum class TrapId : uint32_t {
-#define DEF_ENUM(Name, ...) k##Name,
+#if V8_ENABLE_WEBASSEMBLY
+enum class TrapId : int32_t {
+#define DEF_ENUM(Name, ...) \
+  k##Name = static_cast<uint32_t>(Builtin::kThrowWasm##Name),
   FOREACH_WASM_TRAPREASON(DEF_ENUM)
 #undef DEF_ENUM
-      kInvalid
 };
+
+static_assert(std::is_same_v<std::underlying_type_t<Builtin>,
+                             std::underlying_type_t<TrapId>>);
 
 inline size_t hash_value(TrapId id) { return static_cast<uint32_t>(id); }
 
 std::ostream& operator<<(std::ostream&, TrapId trap_id);
 
 TrapId TrapIdOf(const Operator* const op);
+#endif
 
 class BranchParameters final {
  public:
@@ -95,6 +102,34 @@ V8_EXPORT_PRIVATE const BranchParameters& BranchParametersOf(
 
 V8_EXPORT_PRIVATE BranchHint BranchHintOf(const Operator* const)
     V8_WARN_UNUSED_RESULT;
+
+class AssertParameters final {
+ public:
+  AssertParameters(BranchSemantics semantics, const char* condition_string,
+                   const char* file, int line)
+      : semantics_(semantics),
+        condition_string_(condition_string),
+        file_(file),
+        line_(line) {}
+
+  BranchSemantics semantics() const { return semantics_; }
+  const char* condition_string() const { return condition_string_; }
+  const char* file() const { return file_; }
+  int line() const { return line_; }
+
+ private:
+  const BranchSemantics semantics_;
+  const char* condition_string_;
+  const char* file_;
+  const int line_;
+};
+
+bool operator==(const AssertParameters& lhs, const AssertParameters& rhs);
+size_t hash_value(const AssertParameters& p);
+std::ostream& operator<<(std::ostream&, const AssertParameters& p);
+
+V8_EXPORT_PRIVATE const AssertParameters& AssertParametersOf(
+    const Operator* const) V8_WARN_UNUSED_RESULT;
 
 // Helper function for return nodes, because returns have a hidden value input.
 int ValueInputCountOfReturn(Operator const* const op);
@@ -446,17 +481,17 @@ const char* StaticAssertSourceOf(const Operator* op);
 class SLVerifierHintParameters final {
  public:
   explicit SLVerifierHintParameters(const Operator* semantics,
-                                    base::Optional<Type> override_output_type)
+                                    std::optional<Type> override_output_type)
       : semantics_(semantics), override_output_type_(override_output_type) {}
 
   const Operator* semantics() const { return semantics_; }
-  const base::Optional<Type>& override_output_type() const {
+  const std::optional<Type>& override_output_type() const {
     return override_output_type_;
   }
 
  private:
   const Operator* semantics_;
-  base::Optional<Type> override_output_type_;
+  std::optional<Type> override_output_type_;
 };
 
 V8_EXPORT_PRIVATE bool operator==(const SLVerifierHintParameters& p1,
@@ -529,7 +564,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   // are removed at the end of SimplifiedLowering after verification.
   const Operator* SLVerifierHint(
       const Operator* semantics,
-      const base::Optional<Type>& override_output_type);
+      const std::optional<Type>& override_output_type);
   const Operator* End(size_t control_input_count);
   // TODO(nicohartmann@): Remove the default argument for {semantics} once all
   // uses are updated.
@@ -551,8 +586,14 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
                                FeedbackSource const& feedback);
   const Operator* DeoptimizeUnless(DeoptimizeReason reason,
                                    FeedbackSource const& feedback);
-  const Operator* TrapIf(TrapId trap_id);
-  const Operator* TrapUnless(TrapId trap_id);
+  const Operator* Assert(BranchSemantics semantics,
+                         const char* condition_string, const char* file,
+                         int line);
+
+#if V8_ENABLE_WEBASSEMBLY
+  const Operator* TrapIf(TrapId trap_id, bool has_frame_state);
+  const Operator* TrapUnless(TrapId trap_id, bool has_frame_state);
+#endif
   const Operator* Return(int value_input_count = 1);
   const Operator* Terminate();
 
@@ -573,6 +614,7 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* PointerConstant(intptr_t);
   const Operator* HeapConstant(const Handle<HeapObject>&);
   const Operator* CompressedHeapConstant(const Handle<HeapObject>&);
+  const Operator* TrustedHeapConstant(const Handle<HeapObject>&);
   const Operator* ObjectId(uint32_t);
 
   const Operator* RelocatableInt32Constant(int32_t value,
@@ -607,7 +649,6 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
   const Operator* Projection(size_t index);
   const Operator* Retain();
   const Operator* TypeGuard(Type type);
-  const Operator* FoldConstant();
   const Operator* EnterMachineGraph(UseInfo use_info);
   const Operator* ExitMachineGraph(MachineRepresentation output_representation,
                                    Type output_type);
@@ -618,11 +659,11 @@ class V8_EXPORT_PRIVATE CommonOperatorBuilder final
 
   // Constructs function info for frame state construction.
   const FrameStateFunctionInfo* CreateFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
-      Handle<SharedFunctionInfo> shared_info);
+      FrameStateType type, uint16_t parameter_count, uint16_t max_arguments,
+      int local_count, Handle<SharedFunctionInfo> shared_info);
 #if V8_ENABLE_WEBASSEMBLY
   const FrameStateFunctionInfo* CreateJSToWasmFrameStateFunctionInfo(
-      FrameStateType type, int parameter_count, int local_count,
+      FrameStateType type, uint16_t parameter_count, int local_count,
       Handle<SharedFunctionInfo> shared_info,
       const wasm::FunctionSig* signature);
 #endif  // V8_ENABLE_WEBASSEMBLY
@@ -686,7 +727,8 @@ class FrameState : public CommonNodeWrapperBase {
   Node* parameters() const {
     Node* n = node()->InputAt(kFrameStateParametersInput);
     DCHECK(n->opcode() == IrOpcode::kStateValues ||
-           n->opcode() == IrOpcode::kTypedStateValues);
+           n->opcode() == IrOpcode::kTypedStateValues ||
+           n->opcode() == IrOpcode::kDeadValue);
     return n;
   }
   Node* locals() const {

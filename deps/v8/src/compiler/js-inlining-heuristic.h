@@ -13,28 +13,39 @@ namespace compiler {
 
 class JSInliningHeuristic final : public AdvancedReducer {
  public:
-  enum Mode { kJSOnly, kWasmOnly };
+  enum Mode {
+    kJSOnly,            // Inline JS calls only.
+    kWasmWrappersOnly,  // Inline wasm wrappers only.
+    kWasmFullInlining,  // Inline wasm wrappers and (if supported) whole wasm
+                        // functions.
+  };
 
   JSInliningHeuristic(Editor* editor, Zone* local_zone,
                       OptimizedCompilationInfo* info, JSGraph* jsgraph,
                       JSHeapBroker* broker,
                       SourcePositionTable* source_positions,
                       NodeOriginTable* node_origins, Mode mode,
-                      const wasm::WasmModule* wasm_module = nullptr)
+                      // The two following arguments should be `nullptr` iff
+                      // inlining with `mode == kJSOnly`.
+                      const wasm::WasmModule* wasm_module,
+                      JsWasmCallsSidetable* js_wasm_calls_sidetable)
       : AdvancedReducer(editor),
         inliner_(editor, local_zone, info, jsgraph, broker, source_positions,
-                 node_origins, wasm_module),
+                 node_origins, wasm_module, js_wasm_calls_sidetable,
+                 mode == kWasmFullInlining),
         candidates_(local_zone),
         seen_(local_zone),
         source_positions_(source_positions),
         jsgraph_(jsgraph),
         broker_(broker),
+        info_(info),
         mode_(mode),
         max_inlined_bytecode_size_cumulative_(
             v8_flags.max_inlined_bytecode_size_cumulative),
         max_inlined_bytecode_size_absolute_(
             v8_flags.max_inlined_bytecode_size_absolute) {
-    DCHECK_EQ(mode == kWasmOnly, wasm_module != nullptr);
+    DCHECK_EQ(mode == kWasmWrappersOnly || mode == kWasmFullInlining,
+              wasm_module != nullptr && js_wasm_calls_sidetable != nullptr);
   }
 
   const char* reducer_name() const override { return "JSInliningHeuristic"; }
@@ -86,9 +97,11 @@ class JSInliningHeuristic final : public AdvancedReducer {
   Reduction InlineCandidate(Candidate const& candidate, bool small_function);
   void CreateOrReuseDispatch(Node* node, Node* callee,
                              Candidate const& candidate, Node** if_successes,
-                             Node** calls, Node** inputs, int input_count);
+                             Node** calls, Node** inputs, int input_count,
+                             int* num_calls);
   bool TryReuseDispatch(Node* node, Node* callee, Node** if_successes,
-                        Node** calls, Node** inputs, int input_count);
+                        Node** calls, Node** inputs, int input_count,
+                        int* num_calls);
   enum StateCloneMode { kCloneState, kChangeInPlace };
   FrameState DuplicateFrameStateAndRename(FrameState frame_state, Node* from,
                                           Node* to, StateCloneMode mode);
@@ -112,6 +125,7 @@ class JSInliningHeuristic final : public AdvancedReducer {
   SourcePositionTable* source_positions_;
   JSGraph* const jsgraph_;
   JSHeapBroker* const broker_;
+  OptimizedCompilationInfo* info_;
   int total_inlined_bytecode_size_ = 0;
   const Mode mode_;
   const int max_inlined_bytecode_size_cumulative_;

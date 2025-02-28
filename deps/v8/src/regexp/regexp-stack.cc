@@ -74,7 +74,7 @@ Address RegExpStack::EnsureCapacity(size_t size) {
   if (size > kMaximumStackSize) return kNullAddress;
   if (thread_local_.memory_size_ < size) {
     if (size < kMinimumDynamicStackSize) size = kMinimumDynamicStackSize;
-    byte* new_memory = NewArray<byte>(size);
+    uint8_t* new_memory = NewArray<uint8_t>(size);
     if (thread_local_.memory_size_ > 0) {
       // Copy original memory into top of new memory.
       MemCopy(new_memory + size - thread_local_.memory_size_,

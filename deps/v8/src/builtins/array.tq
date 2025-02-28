@@ -16,8 +16,8 @@ type FastSmiOrObjectElements extends ElementsKind;
 type FastDoubleElements extends ElementsKind;
 type DictionaryElements extends ElementsKind;
 
-macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray):
-    void {
+macro EnsureWriteableFastElements(
+    implicit context: Context)(array: JSArray): void {
   dcheck(IsFastElementsKind(array.map.elements_kind));
 
   const elements: FixedArrayBase = array.elements;
@@ -28,18 +28,19 @@ macro EnsureWriteableFastElements(implicit context: Context)(array: JSArray):
   dcheck(IsFastSmiOrTaggedElementsKind(array.map.elements_kind));
 
   const length = Convert<intptr>(Cast<Smi>(array.length) otherwise unreachable);
-  array.elements =
-      ExtractFixedArray(UnsafeCast<FixedArray>(elements), 0, length, length);
+  array.elements = ExtractFixedArray(
+      UnsafeCast<FixedArray>(elements), 0, length, length, TheHole);
   dcheck(array.elements.map != kCOWMap);
 }
 
-macro LoadElementOrUndefined(implicit context: Context)(
-    a: FixedArray, i: Smi): JSAny {
+macro LoadElementOrUndefined(
+    implicit context: Context)(a: FixedArray, i: Smi): JSAny {
   const e = UnsafeCast<(JSAny | TheHole)>(a.objects[i]);
   return ReplaceTheHoleWithUndefined(e);
 }
 
-macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi): NumberOrUndefined {
+macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi):
+    NumberOrUndefined {
   const f: float64 = a.floats[i].Value() otherwise return Undefined;
   return AllocateHeapNumberWithValue(f);
 }
@@ -52,7 +53,8 @@ macro StoreArrayHole(elements: FixedArray, k: Smi): void {
   elements.objects[k] = TheHole;
 }
 
-extern macro SetPropertyLength(implicit context: Context)(JSAny, Number): void;
+extern macro SetPropertyLength(implicit context: Context)(JSAny, Number):
+    void;
 
 const kLengthDescriptorIndex:
     constexpr int31 generates 'JSArray::kLengthDescriptorIndex';
@@ -80,8 +82,8 @@ macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
   }
 }
 
-macro CreateJSArrayWithElements(implicit context: Context)(array: FixedArray):
-    JSArray {
+macro CreateJSArrayWithElements(
+    implicit context: Context)(array: FixedArray): JSArray {
   const nativeContext: NativeContext = LoadNativeContext(context);
   const map: Map =
       LoadJSArrayElementsMap(ElementsKind::PACKED_ELEMENTS, nativeContext);

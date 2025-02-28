@@ -1,5 +1,5 @@
 /*
- * Copyright 2004-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2004-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2004, EdelKey Project. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -283,6 +283,7 @@ SRP_VBASE *SRP_VBASE_new(char *seed_key)
         return NULL;
     if ((vb->users_pwd = sk_SRP_user_pwd_new_null()) == NULL
         || (vb->gN_cache = sk_SRP_gN_cache_new_null()) == NULL) {
+        sk_SRP_user_pwd_free(vb->users_pwd);
         OPENSSL_free(vb);
         return NULL;
     }

@@ -16,6 +16,7 @@ class Comparator {
       }
     }
 
+    comp = comp.trim().split(/\s+/).join(' ')
     debug('comparator', comp, options)
     this.options = options
     this.loose = !!options.loose
@@ -133,7 +134,7 @@ class Comparator {
 module.exports = Comparator
 
 const parseOptions = require('../internal/parse-options')
-const { re, t } = require('../internal/re')
+const { safeRe: re, t } = require('../internal/re')
 const cmp = require('../functions/cmp')
 const debug = require('../internal/debug')
 const SemVer = require('./semver')

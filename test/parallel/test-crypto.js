@@ -25,16 +25,11 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
-common.expectWarning({
-  DeprecationWarning: [
-    ['crypto.createCipher is deprecated.', 'DEP0106'],
-  ]
-});
-
 const assert = require('assert');
 const crypto = require('crypto');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { hasOpenSSL3 } = require('../common/crypto');
 
 // Test Certificates
 const certPfx = fixtures.readKey('rsa_cert.pfx');
@@ -184,24 +179,6 @@ const encodingError = {
            " Received 'hex'",
 };
 
-// Regression tests for https://github.com/nodejs/node-v0.x-archive/pull/5725:
-// hex input that's not a power of two should throw, not assert in C++ land.
-['createCipher', 'createDecipher'].forEach((funcName) => {
-  assert.throws(
-    () => crypto[funcName]('aes192', 'test').update('0', 'hex'),
-    (error) => {
-      assert.ok(!('opensslErrorStack' in error));
-      if (common.hasFipsCrypto) {
-        return error instanceof Error &&
-               error.name === 'Error' &&
-               /^Error: not supported in FIPS mode$/.test(error);
-      }
-      assert.throws(() => { throw error; }, encodingError);
-      return true;
-    }
-  );
-});
-
 assert.throws(
   () => crypto.createHash('sha1').update('0', 'hex'),
   (error) => {
@@ -232,9 +209,9 @@ assert.throws(() => {
   ].join('\n');
   crypto.createSign('SHA256').update('test').sign(priv);
 }, (err) => {
-  if (!common.hasOpenSSL3)
+  if (!hasOpenSSL3)
     assert.ok(!('opensslErrorStack' in err));
-  assert.throws(() => { throw err; }, common.hasOpenSSL3 ? {
+  assert.throws(() => { throw err; }, hasOpenSSL3 ? {
     name: 'Error',
     message: 'error:02000070:rsa routines::digest too big for rsa key',
     library: 'rsa routines',
@@ -249,7 +226,7 @@ assert.throws(() => {
   return true;
 });
 
-if (!common.hasOpenSSL3) {
+if (!hasOpenSSL3) {
   assert.throws(() => {
     // The correct header inside `rsa_private_pkcs8_bad.pem` should have been
     // -----BEGIN PRIVATE KEY----- and -----END PRIVATE KEY-----
@@ -298,6 +275,9 @@ function testEncoding(options, assertionHash) {
   let hashValue = '';
 
   hash.on('data', (data) => {
+    // The defaultEncoding has no effect on the hash value. It only affects data
+    // consumed by the Hash transform stream.
+    assert(Buffer.isBuffer(data));
     hashValue += data.toString('hex');
   });
 
@@ -307,6 +287,8 @@ function testEncoding(options, assertionHash) {
 
   hash.write('öäü');
   hash.end();
+
+  assert.strictEqual(hash._writableState.defaultEncoding, options?.defaultEncoding ?? 'utf8');
 }
 
 // Hash of "öäü" in utf8 format

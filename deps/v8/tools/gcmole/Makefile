@@ -46,7 +46,7 @@ libgcmole.so: gcmole.cc
 	-D__STDC_LIMIT_MACROS -fomit-frame-pointer -fno-exceptions        \
 	-fno-rtti -fPIC -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing \
 	-pedantic -Wno-long-long -Wall -W -Wno-unused-parameter               \
-	-Wwrite-strings -static-libstdc++ -std=c++0x -shared -o libgcmole.so  \
+	-Wwrite-strings -static-libstdc++ -std=c++17 -shared -o libgcmole.so  \
 	gcmole.cc
 
 clean:

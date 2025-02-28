@@ -5,8 +5,6 @@
 // Flags: --experimental-wasm-stringref --allow-natives-syntax
 // We just want speculative inlining, but the "stress" variant doesn't like
 // that flag for some reason, so use the GC flag which implies it.
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 let kSig_w_v = makeSig([], [kWasmStringRef]);
@@ -15,7 +13,7 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
 
 (function () {
   let huge_builder = new WasmModuleBuilder();
-  huge_builder.addMemory(65001, undefined, false, false);
+  huge_builder.addMemory(65001, undefined);
 
   huge_builder.addFunction("huge", kSig_w_v).exportFunc().addBody([
     kExprI32Const, 0,                  // address
@@ -69,30 +67,77 @@ let kSig_v_w = makeSig([kWasmStringRef], []);
   f1(10);
 })();
 
-let builder = new WasmModuleBuilder();
+(function () {
+  let builder = new WasmModuleBuilder();
 
-let concat_body = [];
-// This doubles the string 26 times, i.e. multiplies its length with a factor
-// of ~65 million.
-for (let i = 0; i < 26; i++) {
-  concat_body.push(...[
-    kExprLocalGet, 0, kExprLocalGet, 0,
-    ...GCInstr(kExprStringConcat),
-    kExprLocalSet, 0
+  let concat_body = [];
+  // This doubles the string 26 times, i.e. multiplies its length with a factor
+  // of ~65 million.
+  for (let i = 0; i < 26; i++) {
+    concat_body.push(...[
+      kExprLocalGet, 0, kExprLocalGet, 0,
+      ...GCInstr(kExprStringConcat),
+      kExprLocalSet, 0
+    ]);
+  }
+
+  builder.addFunction('concat', kSig_v_w).exportFunc().addBody(concat_body);
+
+  let instance = builder.instantiate();
+
+  // Bug 4: Throwing in StringAdd must clear the "thread in wasm" bit.
+  let f2 = instance.exports.concat;
+  assertThrows(() => f2("1234567890"));  // 650M characters is too much.
+
+  // Bug 5: Operations that can trap must not be marked as kEliminatable,
+  // otherwise the trap may be eliminated.
+  for (let i = 0; i < 3; i++) f2("a");   // 65M characters is okay.
+  %WasmTierUpFunction(f2);
+  assertThrows(() => f2("1234567890"));  // Optimized code still traps.
+})();
+
+(function TestThatOneCharacterStringsAreInternalized() {
+  let builder = new WasmModuleBuilder();
+
+  builder.addMemory(1, undefined);
+  const kMemIndex = 0;
+  builder.addActiveDataSegment(0, [kExprI32Const, 0], [65, 0]);
+
+  let a8 = builder.addArray(kWasmI8, true);
+  let a16 = builder.addArray(kWasmI16, true);
+
+  builder.addFunction('makeString8A', kSig_w_v).exportFunc().addBody([
+    ...wasmI32Const(65),
+    kGCPrefix, kExprArrayNewFixed, a8, 1,
+    kExprI32Const, 0,
+    kExprI32Const, 1,
+    ...GCInstr(kExprStringNewWtf8Array),
   ]);
-}
 
-let concat =
-    builder.addFunction('concat', kSig_v_w).exportFunc().addBody(concat_body);
+  builder.addFunction('makeString16A', kSig_w_v).exportFunc().addBody([
+    ...wasmI32Const(65),
+    kGCPrefix, kExprArrayNewFixed, a16, 1,
+    kExprI32Const, 0,
+    kExprI32Const, 1,
+    ...GCInstr(kExprStringNewWtf16Array),
+  ]);
 
-let instance = builder.instantiate();
+  builder.addFunction('makeString8M', kSig_w_v).exportFunc().addBody([
+    kExprI32Const, 0,
+    kExprI32Const, 1,
+    ...GCInstr(kExprStringNewWtf8), kMemIndex,
+  ]);
 
-// Bug 4: Throwing in StringAdd must clear the "thread in wasm" bit.
-let f2 = instance.exports.concat;
-assertThrows(() => f2("1234567890"));  // 650M characters is too much.
+  builder.addFunction('makeString16M', kSig_w_v).exportFunc().addBody([
+    kExprI32Const, 0,
+    kExprI32Const, 1,
+    ...GCInstr(kExprStringNewWtf16), kMemIndex,
+  ]);
 
-// Bug 5: Operations that can trap must not be marked as kEliminatable,
-// otherwise the trap may be eliminated.
-for (let i = 0; i < 3; i++) f2("a");   // 65M characters is okay.
-%WasmTierUpFunction(f2);
-assertThrows(() => f2("1234567890"));  // Optimized code still traps.
+  let wasm = builder.instantiate().exports;
+
+  assertTrue(%IsSameHeapObject("A", wasm.makeString8A()));
+  assertTrue(%IsSameHeapObject("A", wasm.makeString16A()));
+  assertTrue(%IsSameHeapObject("A", wasm.makeString8M()));
+  assertTrue(%IsSameHeapObject("A", wasm.makeString16M()));
+})();

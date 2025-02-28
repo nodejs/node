@@ -63,6 +63,13 @@ class BindingData : public SnapshotableObject {
     AliasedBufferIndex statfs_field_array;
     AliasedBufferIndex statfs_field_bigint_array;
   };
+
+  enum class FilePathIsFileReturnType {
+    kIsFile = 0,
+    kIsNotFile,
+    kThrowInsufficientPermissions
+  };
+
   explicit BindingData(Realm* realm,
                        v8::Local<v8::Object> wrap,
                        InternalFieldInfo* info = nullptr);
@@ -79,12 +86,22 @@ class BindingData : public SnapshotableObject {
   SERIALIZABLE_OBJECT_METHODS()
   SET_BINDING_ID(fs_binding_data)
 
+  static void LegacyMainResolve(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  static void CreatePerIsolateProperties(IsolateData* isolate_data,
+                                         v8::Local<v8::ObjectTemplate> ctor);
+  static void RegisterExternalReferences(ExternalReferenceRegistry* registry);
+
   void MemoryInfo(MemoryTracker* tracker) const override;
   SET_SELF_SIZE(BindingData)
   SET_MEMORY_INFO_NAME(BindingData)
 
  private:
   InternalFieldInfo* internal_field_info_ = nullptr;
+
+  static FilePathIsFileReturnType FilePathIsFile(Environment* env,
+                                                 const std::string& file_path);
 };
 
 // structure used to store state during a complex operation, e.g., mkdirp.
@@ -356,7 +373,7 @@ class FileHandle final : public AsyncWrap, public StreamBase {
   FileHandle(const FileHandle&&) = delete;
   FileHandle& operator=(const FileHandle&&) = delete;
 
-  TransferMode GetTransferMode() const override;
+  BaseObject::TransferMode GetTransferMode() const override;
   std::unique_ptr<worker::TransferData> TransferForMessaging() override;
 
  private:
@@ -440,19 +457,28 @@ int MKDirpSync(uv_loop_t* loop,
 
 class FSReqWrapSync {
  public:
-  FSReqWrapSync() = default;
+  FSReqWrapSync(const char* syscall = nullptr,
+                const char* path = nullptr,
+                const char* dest = nullptr)
+      : syscall_p(syscall), path_p(path), dest_p(dest) {}
   ~FSReqWrapSync() { uv_fs_req_cleanup(&req); }
-  uv_fs_t req;
 
+  uv_fs_t req;
+  const char* syscall_p;
+  const char* path_p;
+  const char* dest_p;
+
+  FSReqWrapSync(const FSReqWrapSync&) = delete;
+  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
+
+  // TODO(joyeecheung): move these out of FSReqWrapSync and into a special
+  // class for mkdirp
   FSContinuationData* continuation_data() const {
     return continuation_data_.get();
   }
   void set_continuation_data(std::unique_ptr<FSContinuationData> data) {
     continuation_data_ = std::move(data);
   }
-
-  FSReqWrapSync(const FSReqWrapSync&) = delete;
-  FSReqWrapSync& operator=(const FSReqWrapSync&) = delete;
 
  private:
   std::unique_ptr<FSContinuationData> continuation_data_;
@@ -490,6 +516,18 @@ inline int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
                     FSReqWrapSync* req_wrap, const char* syscall,
                     Func fn, Args... args);
 
+// Similar to SyncCall but throws immediately if there is an error.
+template <typename Predicate, typename Func, typename... Args>
+int SyncCallAndThrowIf(Predicate should_throw,
+                       Environment* env,
+                       FSReqWrapSync* req_wrap,
+                       Func fn,
+                       Args... args);
+template <typename Func, typename... Args>
+int SyncCallAndThrowOnError(Environment* env,
+                            FSReqWrapSync* req_wrap,
+                            Func fn,
+                            Args... args);
 }  // namespace fs
 
 }  // namespace node

@@ -125,6 +125,35 @@ static int test_empty_payload(void)
     return ret;
 }
 
+static int test_protected_params(void)
+{
+    BIO *b;
+    static char *protectedpay =
+        "-----BEGIN RSA PRIVATE KEY-----\n"
+        "Proc-Type: 4,ENCRYPTED\n"
+        "DEK-Info: AES-256-CBC,4A44448ED28992710556549B35100CEA\n"
+        "\n"
+        "Xw3INxKeH+rUUF57mjATpvj6zknVhedwrlRmRvnwlLv5wqIy5Ae4UVLPh7SUswfC\n"
+        "-----END RSA PRIVATE KEY-----\n";
+    EVP_PKEY *pkey = NULL;
+    int ret = 0;
+
+    b = BIO_new_mem_buf(protectedpay, strlen(protectedpay));
+    if (!TEST_ptr(b))
+        return 0;
+
+    /* Expected to fail because we cannot decrypt protected PEM files */
+    pkey = PEM_read_bio_Parameters(b, NULL);
+    if (!TEST_ptr_null(pkey))
+        goto err;
+
+    ret = 1;
+ err:
+    EVP_PKEY_free(pkey);
+    BIO_free(b);
+    return ret;
+}
+
 int setup_tests(void)
 {
     if (!TEST_ptr(pemfile = test_get_argument(0)))
@@ -133,5 +162,6 @@ int setup_tests(void)
     ADD_TEST(test_invalid);
     ADD_TEST(test_cert_key_cert);
     ADD_TEST(test_empty_payload);
+    ADD_TEST(test_protected_params);
     return 1;
 }

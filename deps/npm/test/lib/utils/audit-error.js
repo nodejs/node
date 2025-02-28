@@ -1,15 +1,15 @@
 const t = require('tap')
-const mockLogs = require('../../fixtures/mock-logs')
 const mockNpm = require('../../fixtures/mock-npm')
 const tmock = require('../../fixtures/tmock')
 
 const auditError = async (t, { command, error, ...config } = {}) => {
-  const { logs, logMocks } = mockLogs()
-  const mockAuditError = tmock(t, '{LIB}/utils/audit-error', logMocks)
+  const mockAuditError = tmock(t, '{LIB}/utils/audit-error')
 
   const mock = await mockNpm(t, {
     command,
     config,
+    exec: true,
+    prefixDir: { 'package.json': '{}', 'package-lock.json': '{}' },
   })
 
   const res = {}
@@ -19,9 +19,11 @@ const auditError = async (t, { command, error, ...config } = {}) => {
     res.error = err
   }
 
+  mock.npm.finish()
+
   return {
     ...res,
-    logs: logs.warn.filter((l) => l[0] === 'audit'),
+    logs: mock.logs.warn.byTitle('audit'),
     output: mock.joinedOutput(),
   }
 }
@@ -32,7 +34,8 @@ t.test('no error, not audit command', async t => {
   t.equal(result, false, 'no error')
   t.notOk(error, 'no error')
 
-  t.strictSame(output, '', 'no output')
+  t.match(output.trim(), /up to date/, 'install output')
+  t.match(output.trim(), /found 0 vulnerabilities/, 'install output')
   t.strictSame(logs, [], 'no warnings')
 })
 
@@ -53,7 +56,8 @@ t.test('error, not audit command', async t => {
 
   t.equal(result, true, 'had error')
   t.notOk(error, 'no error')
-  t.strictSame(output, '', 'no output')
+  t.match(output.trim(), /up to date/, 'install output')
+  t.match(output.trim(), /found 0 vulnerabilities/, 'install output')
   t.strictSame(logs, [], 'no warnings')
 })
 
@@ -62,7 +66,7 @@ t.test('error, audit command, not json', async t => {
     command: 'audit',
     error: {
       message: 'message',
-      body: Buffer.from('body'),
+      body: Buffer.from('body error text'),
       method: 'POST',
       uri: 'https://example.com/not/a/registry',
       headers: {
@@ -75,8 +79,8 @@ t.test('error, audit command, not json', async t => {
   t.equal(result, undefined)
 
   t.ok(error, 'throws error')
-  t.strictSame(output, 'body', 'some output')
-  t.strictSame(logs, [['audit', 'message']], 'some warnings')
+  t.match(output, 'body error text', 'some output')
+  t.strictSame(logs, ['audit message'], 'some warnings')
 })
 
 t.test('error, audit command, json', async t => {
@@ -97,7 +101,7 @@ t.test('error, audit command, json', async t => {
 
   t.equal(result, undefined)
   t.ok(error, 'throws error')
-  t.strictSame(output,
+  t.match(output,
     '{\n' +
       '  "message": "message",\n' +
       '  "method": "POST",\n' +
@@ -113,5 +117,5 @@ t.test('error, audit command, json', async t => {
       '  }\n' +
       '}'
     , 'some output')
-  t.strictSame(logs, [['audit', 'message']], 'some warnings')
+  t.strictSame(logs, ['audit message'], 'some warnings')
 })

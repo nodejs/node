@@ -2,9 +2,8 @@
 const common = require('../common');
 const fs = require('fs');
 const assert = require('assert');
-const path = require('path');
 const tmpdir = require('../common/tmpdir');
-const file = path.join(tmpdir.path, 'read_stream_filehandle_test.txt');
+const file = tmpdir.resolve('read_stream_filehandle_test.txt');
 const input = 'hello world';
 
 tmpdir.refresh();
@@ -80,4 +79,76 @@ fs.promises.open(file, 'r').then((handle) => {
   stream.on('end', common.mustCall(() => {
     assert.strictEqual(output, input);
   }));
+}).then(common.mustCall());
+
+// AbortSignal option test
+fs.promises.open(file, 'r').then((handle) => {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const stream = handle.createReadStream({ signal });
+
+  stream.on('data', common.mustNotCall());
+  stream.on('end', common.mustNotCall());
+
+  stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  stream.on('close', common.mustCall(() => {
+    handle.close();
+  }));
+
+  controller.abort();
+}).then(common.mustCall());
+
+// Already-aborted signal test
+fs.promises.open(file, 'r').then((handle) => {
+  const signal = AbortSignal.abort();
+  const stream = handle.createReadStream({ signal });
+
+  stream.on('data', common.mustNotCall());
+  stream.on('end', common.mustNotCall());
+
+  stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+  }));
+
+  stream.on('close', common.mustCall(() => {
+    handle.close();
+  }));
+}).then(common.mustCall());
+
+// Invalid signal type test
+fs.promises.open(file, 'r').then((handle) => {
+  for (const signal of [1, {}, [], '', null, NaN, 1n, () => {}, Symbol(), false, true]) {
+    assert.throws(() => {
+      handle.createReadStream({ signal });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      name: 'TypeError',
+    });
+  }
+  return handle.close();
+}).then(common.mustCall());
+
+// Custom abort reason test
+fs.promises.open(file, 'r').then((handle) => {
+  const controller = new AbortController();
+  const { signal } = controller;
+  const reason = new Error('some silly abort reason');
+  const stream = handle.createReadStream({ signal });
+
+  stream.on('data', common.mustNotCall());
+  stream.on('end', common.mustNotCall());
+
+  stream.on('error', common.mustCall((err) => {
+    assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(err.cause, reason);
+  }));
+
+  stream.on('close', common.mustCall(() => {
+    handle.close();
+  }));
+
+  controller.abort(reason);
 }).then(common.mustCall());

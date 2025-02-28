@@ -56,16 +56,16 @@ function checkFailingInstantiation(
       'Argument 1 must be an object');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {}, TypeError,
-      'Import #0 module="mod" error: module is not an object or function');
+      'Import #0 "mod": module is not an object or function');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {}}, WebAssembly.LinkError,
-      'Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 "mod" "fun": function import requires a callable');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: {}}}, WebAssembly.LinkError,
-      'Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 "mod" "fun": function import requires a callable');
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: 0}}, WebAssembly.LinkError,
-      'Import #0 module="mod" function="fun" error: function import requires a callable');
+      'Import #0 "mod" "fun": function import requires a callable');
 })();
 
 (function testImportWithInvalidSignature() {
@@ -84,7 +84,8 @@ function checkFailingInstantiation(
   let exported = builder.instantiate().exports.exp;
   checkFailingInstantiation(
       CreateDefaultBuilder(), {mod: {fun: exported}}, WebAssembly.LinkError,
-      'Import #0 module="mod" function="fun" error: imported function does not match the expected type');
+      'Import #0 "mod" "fun": imported function does not match ' +
+          'the expected type');
 })();
 
 (function regression870646() {
@@ -123,7 +124,7 @@ function checkFailingInstantiation(
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction('function_with_invalid_signature', kSig_l_ll)
     .addBody([           // --
       kExprLocalGet, 0,  // --
@@ -141,7 +142,7 @@ function checkFailingInstantiation(
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
 
-  builder.addMemory(1, 1, true);
+  builder.addMemory(1, 1);
   builder.addFunction('function_with_invalid_signature', kSig_i_l)
       .addBody([kExprLocalGet, 0, kExprI32ConvertI64])
       .exportFunc();

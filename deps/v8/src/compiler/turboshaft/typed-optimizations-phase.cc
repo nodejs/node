@@ -5,6 +5,8 @@
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
 
 #include "src/compiler/js-heap-broker.h"
+#include "src/compiler/turboshaft/copying-phase.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/type-inference-reducer.h"
 #include "src/compiler/turboshaft/typed-optimizations-reducer.h"
 
@@ -15,16 +17,13 @@ void TypedOptimizationsPhase::Run(PipelineData* data, Zone* temp_zone) {
   UnparkedScopeIfNeeded scope(data->broker(), v8_flags.turboshaft_trace_typing);
 #endif
 
-  turboshaft::TypeInferenceReducerArgs typing_args{
-      data->isolate(),
+  turboshaft::TypeInferenceReducerArgs::Scope typing_args{
       turboshaft::TypeInferenceReducerArgs::InputGraphTyping::kPrecise,
       turboshaft::TypeInferenceReducerArgs::OutputGraphTyping::kNone};
 
-  turboshaft::OptimizationPhase<
-      turboshaft::TypedOptimizationsReducer,
-      turboshaft::TypeInferenceReducer>::Run(data->isolate(), &data->graph(),
-                                             temp_zone, data->node_origins(),
-                                             {typing_args});
+  turboshaft::CopyingPhase<turboshaft::TypedOptimizationsReducer,
+                           turboshaft::TypeInferenceReducer>::Run(data,
+                                                                  temp_zone);
 }
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -1176,14 +1176,14 @@ WASM_EXEC_TEST(Call_Int64Sub) {
 }
 
 WASM_EXEC_TEST(LoadStoreI64_sx) {
-  byte loads[] = {kExprI64LoadMem8S, kExprI64LoadMem16S, kExprI64LoadMem32S,
-                  kExprI64LoadMem};
+  uint8_t loads[] = {kExprI64LoadMem8S, kExprI64LoadMem16S, kExprI64LoadMem32S,
+                     kExprI64LoadMem};
 
   for (size_t m = 0; m < arraysize(loads); m++) {
     WasmRunner<int64_t> r(execution_tier);
-    byte* memory = r.builder().AddMemoryElems<byte>(kWasmPageSize);
+    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(kWasmPageSize);
 
-    byte code[] = {
+    uint8_t code[] = {
         kExprI32Const,    8,  // --
         kExprI32Const,    0,  // --
         loads[m],             // --
@@ -1204,13 +1204,13 @@ WASM_EXEC_TEST(LoadStoreI64_sx) {
     for (int i = -1; i >= -128; i -= 11) {
       int size = 1 << m;
       r.builder().BlankMemory();
-      memory[size - 1] = static_cast<byte>(i);  // set the high order byte.
+      memory[size - 1] = static_cast<uint8_t>(i);  // set the high order byte.
 
       int64_t expected = static_cast<uint64_t>(static_cast<int64_t>(i))
                          << ((size - 1) * 8);
 
       CHECK_EQ(expected, r.Call());
-      CHECK_EQ(static_cast<byte>(i), memory[8 + size - 1]);
+      CHECK_EQ(static_cast<uint8_t>(i), memory[8 + size - 1]);
       for (int j = size; j < 8; j++) {
         CHECK_EQ(255, memory[8 + j]);
       }
@@ -1279,7 +1279,7 @@ WASM_EXEC_TEST(LoadMemI64) {
 }
 
 WASM_EXEC_TEST(LoadMemI64_alignment) {
-  for (byte alignment = 0; alignment <= 3; alignment++) {
+  for (uint8_t alignment = 0; alignment <= 3; alignment++) {
     WasmRunner<int64_t> r(execution_tier);
     int64_t* memory =
         r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
@@ -1304,7 +1304,7 @@ WASM_EXEC_TEST(MemI64_Sum) {
   WasmRunner<uint64_t, int32_t> r(execution_tier);
   uint64_t* memory =
       r.builder().AddMemoryElems<uint64_t>(kWasmPageSize / sizeof(uint64_t));
-  const byte kSum = r.AllocateLocal(kWasmI64);
+  const uint8_t kSum = r.AllocateLocal(kWasmI64);
 
   r.Build(
       {WASM_WHILE(
@@ -1332,7 +1332,7 @@ WASM_EXEC_TEST(MemI64_Sum) {
 WASM_EXEC_TEST(StoreMemI64_alignment) {
   const int64_t kWritten = 0x12345678ABCD0011ll;
 
-  for (byte i = 0; i <= 3; i++) {
+  for (uint8_t i = 0; i <= 3; i++) {
     WasmRunner<int64_t, int64_t> r(execution_tier);
     int64_t* memory =
         r.builder().AddMemoryElems<int64_t>(kWasmPageSize / sizeof(int64_t));
@@ -1409,14 +1409,14 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
 
   for (size_t m = 0; m < arraysize(machineTypes); m++) {
     WasmRunner<int32_t, uint32_t> r(execution_tier);
-    byte* memory = r.builder().AddMemoryElems<byte>(num_bytes);
+    uint8_t* memory = r.builder().AddMemoryElems<uint8_t>(num_bytes);
     r.builder().RandomizeMemory(1119 + static_cast<int>(m));
 
     r.Build({WASM_STORE_MEM_OFFSET(machineTypes[m], 8, WASM_LOCAL_GET(0),
                                    WASM_LOAD_MEM(machineTypes[m], WASM_ZERO)),
              WASM_ZERO});
 
-    byte memsize = machineTypes[m].MemSize();
+    uint8_t memsize = machineTypes[m].MemSize();
     uint32_t boundary = num_bytes - 8 - memsize;
     CHECK_EQ(0, r.Call(boundary));  // in bounds.
     CHECK_EQ(0, memcmp(&memory[0], &memory[8 + boundary], memsize));
@@ -1428,8 +1428,8 @@ WASM_EXEC_TEST(StoreMem_offset_oob_i64) {
 }
 
 WASM_EXEC_TEST(Store_i64_narrowed) {
-  constexpr byte kOpcodes[] = {kExprI64StoreMem8, kExprI64StoreMem16,
-                               kExprI64StoreMem32, kExprI64StoreMem};
+  constexpr uint8_t kOpcodes[] = {kExprI64StoreMem8, kExprI64StoreMem16,
+                                  kExprI64StoreMem32, kExprI64StoreMem};
   int stored_size_in_bytes = 0;
   for (auto opcode : kOpcodes) {
     stored_size_in_bytes = std::max(1, stored_size_in_bytes * 2);
@@ -1477,7 +1477,7 @@ static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
   // Make sure we don't run out of registers when compiling indirect calls
   // with many many parameters.
   TestSignatures sigs;
-  for (byte num_params = 0; num_params < 40; num_params++) {
+  for (uint8_t num_params = 0; num_params < 40; num_params++) {
     WasmRunner<void> r(tier);
     FunctionSig* sig = sigs.many(r.zone(), kWasmVoid, param, num_params);
 
@@ -1487,8 +1487,8 @@ static void CompileCallIndirectMany(TestExecutionTier tier, ValueType param) {
 
     WasmFunctionCompiler& t = r.NewFunction(sig);
 
-    std::vector<byte> code;
-    for (byte p = 0; p < num_params; p++) {
+    std::vector<uint8_t> code;
+    for (uint8_t p = 0; p < num_params; p++) {
       ADD_CODE(code, kExprLocalGet, p);
     }
     ADD_CODE(code, kExprI32Const, 0);
@@ -1537,7 +1537,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     // =========================================================================
     // Build the calling function.
     // =========================================================================
-    std::vector<byte> code;
+    std::vector<uint8_t> code;
 
     // Load the arguments.
     for (int i = 0; i < num_params; i++) {
@@ -1549,7 +1549,7 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
     ADD_CODE(code, WASM_CALL_FUNCTION0(f.function_index()));
 
     // Store the result in a local.
-    byte local_index = r.AllocateLocal(ValueType::For(result));
+    uint8_t local_index = r.AllocateLocal(ValueType::For(result));
     ADD_CODE(code, kExprLocalSet, local_index);
 
     // Store the result in memory.
@@ -1569,8 +1569,8 @@ static void Run_WasmMixedCall_N(TestExecutionTier execution_tier, int start) {
       int size = result.MemSize();
       for (int i = 0; i < size; i++) {
         int base = (which + 1) * kElemSize;
-        byte expected = r.builder().raw_mem_at<byte>(base + i);
-        byte actual = r.builder().raw_mem_at<byte>(i);
+        uint8_t expected = r.builder().raw_mem_at<uint8_t>(base + i);
+        uint8_t actual = r.builder().raw_mem_at<uint8_t>(i);
         CHECK_EQ(expected, actual);
       }
     }

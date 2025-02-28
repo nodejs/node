@@ -5,42 +5,39 @@
 #include 'src/builtins/builtins-object-gen.h'
 
 namespace runtime {
-extern transitioning runtime
-ObjectIsExtensible(implicit context: Context)(JSAny): JSAny;
+extern transitioning runtime ObjectIsExtensible(
+    implicit context: Context)(JSAny): JSAny;
 
-extern transitioning runtime
-JSReceiverPreventExtensionsThrow(implicit context: Context)(JSReceiver): JSAny;
+extern transitioning runtime JSReceiverPreventExtensionsThrow(
+    implicit context: Context)(JSReceiver): JSAny;
 
-extern transitioning runtime
-JSReceiverPreventExtensionsDontThrow(implicit context: Context)(JSReceiver):
-    JSAny;
+extern transitioning runtime JSReceiverPreventExtensionsDontThrow(
+    implicit context: Context)(JSReceiver): JSAny;
 
-extern transitioning runtime
-JSReceiverGetPrototypeOf(implicit context: Context)(JSReceiver): JSAny;
+extern transitioning runtime JSReceiverGetPrototypeOf(
+    implicit context: Context)(JSReceiver): JSAny;
 
-extern transitioning runtime
-JSReceiverSetPrototypeOfThrow(implicit context: Context)(
-    JSReceiver, JSAny): JSAny;
+extern transitioning runtime JSReceiverSetPrototypeOfThrow(
+    implicit context: Context)(JSReceiver, JSAny): JSAny;
 
-extern transitioning runtime
-JSReceiverSetPrototypeOfDontThrow(implicit context: Context)(
-    JSReceiver, JSAny): JSAny;
+extern transitioning runtime JSReceiverSetPrototypeOfDontThrow(
+    implicit context: Context)(JSReceiver, JSAny): JSAny;
 
-extern transitioning runtime ObjectCreate(implicit context: Context)(
-    JSAny, JSAny): JSAny;
+extern transitioning runtime ObjectCreate(
+    implicit context: Context)(JSAny, JSAny): JSAny;
 }  // namespace runtime
 
 namespace object {
-transitioning macro
-ObjectIsExtensibleImpl(implicit context: Context)(object: JSAny): JSAny {
+transitioning macro ObjectIsExtensibleImpl(
+    implicit context: Context)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
   const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
       otherwise return runtime::ObjectIsExtensible(objectJSReceiver);
   return proxy::ProxyIsExtensible(objectJSProxy);
 }
 
-transitioning macro
-ObjectPreventExtensionsThrow(implicit context: Context)(object: JSAny): JSAny {
+transitioning macro ObjectPreventExtensionsThrow(
+    implicit context: Context)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
   const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
       otherwise return runtime::JSReceiverPreventExtensionsThrow(objectJSReceiver);
@@ -48,9 +45,8 @@ ObjectPreventExtensionsThrow(implicit context: Context)(object: JSAny): JSAny {
   return objectJSReceiver;
 }
 
-transitioning macro
-ObjectPreventExtensionsDontThrow(implicit context: Context)(object: JSAny):
-    JSAny {
+transitioning macro ObjectPreventExtensionsDontThrow(
+    implicit context: Context)(object: JSAny): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
   const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
       otherwise return runtime::JSReceiverPreventExtensionsDontThrow(
@@ -58,22 +54,21 @@ ObjectPreventExtensionsDontThrow(implicit context: Context)(object: JSAny):
   return proxy::ProxyPreventExtensions(objectJSProxy, False);
 }
 
-transitioning macro
-ObjectGetPrototypeOfImpl(implicit context: Context)(object: JSAny): JSAny {
+transitioning macro ObjectGetPrototypeOfImpl(
+    implicit context: Context)(object: JSAny): JSAny {
   const objectJSReceiver: JSReceiver = ToObject_Inline(context, object);
   return object::JSReceiverGetPrototypeOf(objectJSReceiver);
 }
 
-transitioning macro
-JSReceiverGetPrototypeOf(implicit context: Context)(object: JSReceiver): JSAny {
+transitioning macro JSReceiverGetPrototypeOf(
+    implicit context: Context)(object: JSReceiver): JSAny {
   const objectJSProxy = Cast<JSProxy>(object)
       otherwise return runtime::JSReceiverGetPrototypeOf(object);
   return proxy::ProxyGetPrototypeOf(objectJSProxy);
 }
 
-transitioning macro
-ObjectSetPrototypeOfThrow(implicit context: Context)(
-    object: JSAny, proto: JSReceiver|Null): JSAny {
+transitioning macro ObjectSetPrototypeOfThrow(
+    implicit context: Context)(object: JSAny, proto: JSReceiver|Null): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object) otherwise return object;
   const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
       otherwise return runtime::JSReceiverSetPrototypeOfThrow(
@@ -82,9 +77,8 @@ ObjectSetPrototypeOfThrow(implicit context: Context)(
   return objectJSReceiver;
 }
 
-transitioning macro
-ObjectSetPrototypeOfDontThrow(implicit context: Context)(
-    object: JSAny, proto: JSReceiver|Null): JSAny {
+transitioning macro ObjectSetPrototypeOfDontThrow(
+    implicit context: Context)(object: JSAny, proto: JSReceiver|Null): JSAny {
   const objectJSReceiver = Cast<JSReceiver>(object) otherwise return False;
   const objectJSProxy = Cast<JSProxy>(objectJSReceiver)
       otherwise return runtime::JSReceiverSetPrototypeOfDontThrow(
@@ -92,8 +86,8 @@ ObjectSetPrototypeOfDontThrow(implicit context: Context)(
   return proxy::ProxySetPrototypeOf(objectJSProxy, proto, False);
 }
 
-transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
-    prototype: JSAny): JSAny {
+transitioning builtin CreateObjectWithoutProperties(
+    implicit context: Context)(prototype: JSAny): JSAny {
   try {
     let map: Map;
     let properties: NameDictionary|SwissNameDictionary|EmptyFixedArray;
@@ -116,12 +110,14 @@ transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
         map = UnsafeCast<Map>(objectFunction.prototype_or_initial_map);
         if (prototype != map.prototype) {
           const prototypeInfo = prototype.map.PrototypeInfo() otherwise Runtime;
-          typeswitch (prototypeInfo.object_create_map) {
+          typeswitch (prototypeInfo.derived_maps) {
             case (Undefined): {
               goto Runtime;
             }
-            case (weak_map: Weak<Map>): {
-              map = WeakToStrong(weak_map) otherwise Runtime;
+            case (derived_maps: WeakArrayList): {
+              const theMap = MaybeObjectToStrong(derived_maps.objects[0])
+                  otherwise Runtime;
+              map = UnsafeCast<Map>(theMap);
             }
           }
         }
@@ -137,21 +133,20 @@ transitioning builtin CreateObjectWithoutProperties(implicit context: Context)(
 }
 
 // ES6 section 19.1.2.11 Object.isExtensible ( O )
-transitioning javascript builtin
-ObjectIsExtensible(js-implicit context: NativeContext)(object: JSAny): JSAny {
+transitioning javascript builtin ObjectIsExtensible(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   return object::ObjectIsExtensibleImpl(object);
 }
 
 // ES6 section 19.1.2.18 Object.preventExtensions ( O )
-transitioning javascript builtin
-ObjectPreventExtensions(js-implicit context: NativeContext)(object: JSAny):
-    JSAny {
+transitioning javascript builtin ObjectPreventExtensions(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   return object::ObjectPreventExtensionsThrow(object);
 }
 
 // ES6 section 19.1.2.9 Object.getPrototypeOf ( O )
-transitioning javascript builtin
-ObjectGetPrototypeOf(js-implicit context: NativeContext)(object: JSAny): JSAny {
+transitioning javascript builtin ObjectGetPrototypeOf(
+    js-implicit context: NativeContext)(object: JSAny): JSAny {
   return object::ObjectGetPrototypeOfImpl(object);
 }
 
@@ -225,8 +220,8 @@ const kJSAccessorPropertyDescriptorSetOffset: constexpr int31
     generates 'JSAccessorPropertyDescriptor::kSetOffset';
 
 // ToPropertyDescriptor (https://tc39.es/ecma262/#sec-topropertydescriptor)
-transitioning macro ToPropertyDescriptor(implicit context: Context)(
-    object: JSReceiver): PropertyDescriptorObject {
+transitioning macro ToPropertyDescriptor(
+    implicit context: Context)(object: JSReceiver): PropertyDescriptorObject {
   const result: PropertyDescriptorObject = AllocatePropertyDescriptorObject();
 
   if (object.map == *NativeContextSlot<Map>(
@@ -324,8 +319,9 @@ transitioning macro ToPropertyDescriptor(implicit context: Context)(
 }
 
 @export
-transitioning macro ToPropertyDescriptor(implicit context: Context)(
-    object: JSAny): PropertyDescriptorObject|Undefined {
+transitioning macro ToPropertyDescriptor(
+    implicit context: Context)(object: JSAny): PropertyDescriptorObject
+    |Undefined {
   typeswitch (object) {
     case (Undefined): {
       return Undefined;
@@ -343,8 +339,8 @@ extern transitioning macro ObjectBuiltinsAssembler::FromPropertyDescriptor(
     Context, JSAny): JSAny;
 
 @export
-transitioning macro FromPropertyDescriptor(implicit context: Context)(
-    object: JSAny): JSAny {
+transitioning macro FromPropertyDescriptor(
+    implicit context: Context)(object: JSAny): JSAny {
   return FromPropertyDescriptor(context, object);
 }
 

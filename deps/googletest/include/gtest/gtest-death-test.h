@@ -51,7 +51,7 @@ GTEST_DECLARE_string_(death_test_style);
 
 namespace testing {
 
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
 
 namespace internal {
 
@@ -203,7 +203,7 @@ class GTEST_API_ ExitedWithCode {
   const int exit_code_;
 };
 
-#if !GTEST_OS_WINDOWS && !GTEST_OS_FUCHSIA
+#if !defined(GTEST_OS_WINDOWS) && !defined(GTEST_OS_FUCHSIA)
 // Tests that an exit code describes an exit due to termination by a
 // given signal.
 class GTEST_API_ KilledBySignal {
@@ -293,8 +293,8 @@ class GTEST_API_ KilledBySignal {
 //                statement is compiled but not executed, to ensure that
 //                EXPECT_DEATH_IF_SUPPORTED compiles with a certain
 //                parameter if and only if EXPECT_DEATH compiles with it.
-//   regex     -  A regex that a macro such as EXPECT_DEATH would use to test
-//                the output of statement.  This parameter has to be
+//   regex_or_matcher -  A regex that a macro such as EXPECT_DEATH would use
+//                to test the output of statement.  This parameter has to be
 //                compiled but not evaluated by this macro, to ensure that
 //                this macro only accepts expressions that a macro such as
 //                EXPECT_DEATH would accept.
@@ -311,13 +311,13 @@ class GTEST_API_ KilledBySignal {
 //  statement unconditionally returns or throws. The Message constructor at
 //  the end allows the syntax of streaming additional messages into the
 //  macro, for compilational compatibility with EXPECT_DEATH/ASSERT_DEATH.
-#define GTEST_UNSUPPORTED_DEATH_TEST(statement, regex, terminator)             \
+#define GTEST_UNSUPPORTED_DEATH_TEST(statement, regex_or_matcher, terminator)  \
   GTEST_AMBIGUOUS_ELSE_BLOCKER_                                                \
   if (::testing::internal::AlwaysTrue()) {                                     \
     GTEST_LOG_(WARNING) << "Death tests are not supported on this platform.\n" \
                         << "Statement '" #statement "' cannot be verified.";   \
   } else if (::testing::internal::AlwaysFalse()) {                             \
-    ::testing::internal::RE::PartialMatch(".*", (regex));                      \
+    ::testing::internal::MakeDeathTestMatcher(regex_or_matcher);               \
     GTEST_SUPPRESS_UNREACHABLE_CODE_WARNING_BELOW_(statement);                 \
     terminator;                                                                \
   } else                                                                       \
@@ -328,7 +328,7 @@ class GTEST_API_ KilledBySignal {
 // death tests are supported; otherwise they just issue a warning.  This is
 // useful when you are combining death test assertions with normal test
 // assertions in one test.
-#if GTEST_HAS_DEATH_TEST
+#ifdef GTEST_HAS_DEATH_TEST
 #define EXPECT_DEATH_IF_SUPPORTED(statement, regex) \
   EXPECT_DEATH(statement, regex)
 #define ASSERT_DEATH_IF_SUPPORTED(statement, regex) \

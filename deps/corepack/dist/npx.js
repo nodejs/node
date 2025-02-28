@@ -1,2 +1,4 @@
 #!/usr/bin/env node
-require('./corepack').runMain(['npx', ...process.argv.slice(2)]);
+process.env.COREPACK_ENABLE_DOWNLOAD_PROMPT??='1'
+require('module').enableCompileCache?.();
+require('./lib/corepack.cjs').runMain(['npx', ...process.argv.slice(2)]);

@@ -2,25 +2,14 @@
 #include "../../js-native-api/common.h"
 #include "stdlib.h"
 
-#define NODE_API_ASSERT_STATUS(env, assertion, message)                        \
-  NODE_API_ASSERT_BASE(env, assertion, message, napi_generic_failure)
-
-#define NODE_API_CHECK_STATUS(env, the_call)                                   \
-  do {                                                                         \
-    napi_status status = (the_call);                                           \
-    if (status != napi_ok) {                                                   \
-      return status;                                                           \
-    }                                                                          \
-  } while (0)
-
 static uint32_t finalizeCount = 0;
 
-static void FreeData(napi_env env, void* data, void* hint) {
-  NODE_API_ASSERT_RETURN_VOID(env, data != NULL, "Expects non-NULL data.");
+static void FreeData(node_api_basic_env env, void* data, void* hint) {
+  NODE_API_BASIC_ASSERT_RETURN_VOID(data != NULL, "Expects non-NULL data.");
   free(data);
 }
 
-static void Finalize(napi_env env, void* data, void* hint) {
+static void Finalize(node_api_basic_env env, void* data, void* hint) {
   ++finalizeCount;
 }
 
@@ -29,7 +18,7 @@ static napi_status GetArgValue(napi_env env,
                                napi_value* argValue) {
   size_t argc = 1;
   NODE_API_CHECK_STATUS(
-      env, napi_get_cb_info(env, info, &argc, argValue, NULL, NULL));
+      napi_get_cb_info(env, info, &argc, argValue, NULL, NULL));
 
   NODE_API_ASSERT_STATUS(env, argc == 1, "Expects one arg.");
   return napi_ok;
@@ -39,10 +28,10 @@ static napi_status GetArgValueAsIndex(napi_env env,
                                       napi_callback_info info,
                                       uint32_t* index) {
   napi_value argValue;
-  NODE_API_CHECK_STATUS(env, GetArgValue(env, info, &argValue));
+  NODE_API_CHECK_STATUS(GetArgValue(env, info, &argValue));
 
   napi_valuetype valueType;
-  NODE_API_CHECK_STATUS(env, napi_typeof(env, argValue, &valueType));
+  NODE_API_CHECK_STATUS(napi_typeof(env, argValue, &valueType));
   NODE_API_ASSERT_STATUS(
       env, valueType == napi_number, "Argument must be a number.");
 
@@ -53,10 +42,10 @@ static napi_status GetRef(napi_env env,
                           napi_callback_info info,
                           napi_ref* ref) {
   uint32_t index;
-  NODE_API_CHECK_STATUS(env, GetArgValueAsIndex(env, info, &index));
+  NODE_API_CHECK_STATUS(GetArgValueAsIndex(env, info, &index));
 
   napi_ref* refValues;
-  NODE_API_CHECK_STATUS(env, napi_get_instance_data(env, (void**)&refValues));
+  NODE_API_CHECK_STATUS(napi_get_instance_data(env, (void**)&refValues));
   NODE_API_ASSERT_STATUS(env, refValues != NULL, "Cannot get instance data.");
 
   *ref = refValues[index];
@@ -72,7 +61,7 @@ static napi_value ToUInt32Value(napi_env env, uint32_t value) {
 static napi_status InitRefArray(napi_env env) {
   // valueRefs array has one entry per napi_valuetype
   napi_ref* valueRefs = malloc(sizeof(napi_ref) * ((int)napi_bigint + 1));
-  return napi_set_instance_data(env, valueRefs, &FreeData, NULL);
+  return napi_set_instance_data(env, valueRefs, (napi_finalize)&FreeData, NULL);
 }
 
 static napi_value CreateExternal(napi_env env, napi_callback_info info) {

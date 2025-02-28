@@ -7,6 +7,8 @@
 
 #include "src/common/globals.h"
 #include "src/objects/heap-object.h"
+#include "src/objects/objects.h"
+#include "src/objects/tagged.h"
 #include "torque-generated/bit-fields.h"
 
 // Has to be the last include (doesn't have include guards):

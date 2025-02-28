@@ -11,8 +11,7 @@ const kMinIntPtr: constexpr IntegerLiteral
 
 @export
 @abstract
-class TurbofanType extends HeapObject {
-}
+class TurbofanType extends HeapObject {}
 
 // TurbofanBitsetType is 64 bit.
 // We use two separate 32 bit bitsets in Torque, due to limitted support
@@ -41,7 +40,6 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   callable_function: bool: 1 bit;
   class_constructor: bool: 1 bit;
   bound_function: bool: 1 bit;
-  hole: bool: 1 bit;
   other_internal: bool: 1 bit;
   external_pointer: bool: 1 bit;
   array: bool: 1 bit;
@@ -50,11 +48,13 @@ bitfield struct TurbofanTypeLowBits extends uint32 {
   negative_big_int_63: bool: 1 bit;
   other_big_int: bool: 1 bit;
   wasm_object: bool: 1 bit;
+  sandboxed_pointer: bool: 1 bit;
 }
 
 bitfield struct TurbofanTypeHighBits extends uint32 {
-  sandboxed_pointer: bool: 1 bit;
   machine: bool: 1 bit;
+  hole: bool: 1 bit;
+  string_wrapper: bool: 1 bit;
 }
 
 @export
@@ -154,8 +154,8 @@ macro TestTurbofanBitsetType(
     case (JSBoundFunction): {
       return bitsetLow.bound_function;
     }
-    case (TheHole): {
-      return bitsetLow.hole;
+    case (Hole): {
+      return bitsetHigh.hole;
     }
     case (JSArray): {
       return bitsetLow.array;
@@ -192,6 +192,13 @@ macro TestTurbofanBitsetType(
              bitsetLow.negative_big_int_63);
       }
     }
+    case (wrapper: JSPrimitiveWrapper): {
+      if (Is<String>(wrapper.value)) {
+        return bitsetHigh.string_wrapper;
+      } else {
+        return bitsetLow.other_object;
+      }
+    }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {
         return bitsetLow.other_undetectable;
@@ -202,17 +209,18 @@ macro TestTurbofanBitsetType(
       }
     }
     @if(V8_ENABLE_WEBASSEMBLY)
-    case (WasmObject): {
-      return bitsetLow.wasm_object;
-    }
+      case (WasmObject): {
+        return bitsetLow.wasm_object;
+      }
     case (Object): {
       return false;
     }
   }
 }
 
-builtin TestTurbofanType(implicit context: Context)(
-    value: Object, expectedType: TurbofanType): Boolean {
+builtin TestTurbofanType(
+    implicit context: Context)(value: Object,
+    expectedType: TurbofanType): Boolean {
   typeswitch (expectedType) {
     case (t: TurbofanBitsetType): {
       return Convert<Boolean>(
@@ -244,8 +252,9 @@ builtin TestTurbofanType(implicit context: Context)(
   }
 }
 
-builtin CheckTurbofanType(implicit context: Context)(
-    value: Object, expectedType: TurbofanType, nodeId: Smi): Undefined {
+builtin CheckTurbofanType(
+    implicit context: Context)(value: Object, expectedType: TurbofanType,
+    nodeId: Smi): Undefined {
   if (TestTurbofanType(value, expectedType) == True) {
     return Undefined;
   }

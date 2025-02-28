@@ -23,13 +23,13 @@ namespace internal {
 
 class V8_NODISCARD ScopedExternalStringLock {
  public:
-  explicit ScopedExternalStringLock(ExternalString string) {
+  explicit ScopedExternalStringLock(Tagged<ExternalString> string) {
     DCHECK(!string.is_null());
-    if (string.IsExternalOneByteString()) {
-      resource_ = ExternalOneByteString::cast(string).resource();
+    if (IsExternalOneByteString(string)) {
+      resource_ = Cast<ExternalOneByteString>(string)->resource();
     } else {
-      DCHECK(string.IsExternalTwoByteString());
-      resource_ = ExternalTwoByteString::cast(string).resource();
+      DCHECK(IsExternalTwoByteString(string));
+      resource_ = Cast<ExternalTwoByteString>(string)->resource();
     }
     DCHECK(resource_);
     resource_->Lock();
@@ -100,10 +100,10 @@ class ExternalStringStream {
   using ExternalString = typename CharTraits<Char>::ExternalString;
 
  public:
-  ExternalStringStream(ExternalString string, size_t start_offset,
+  ExternalStringStream(Tagged<ExternalString> string, size_t start_offset,
                        size_t length)
       : lock_(string),
-        data_(string.GetChars(GetPtrComprCageBase(string)) + start_offset),
+        data_(string->GetChars() + start_offset),
         length_(length) {}
 
   ExternalStringStream(const ExternalStringStream& other) V8_NOEXCEPT
@@ -283,7 +283,7 @@ class BufferedCharacterStream : public Utf16CharacterStream {
   ByteStream<uint8_t> byte_stream_;
 };
 
-// Provides a unbuffered utf-16 view on the bytes from the underlying
+// Provides an unbuffered utf-16 view on the bytes from the underlying
 // ByteStream.
 template <template <typename T> class ByteStream>
 class UnbufferedCharacterStream : public Utf16CharacterStream {
@@ -328,7 +328,7 @@ class UnbufferedCharacterStream : public Utf16CharacterStream {
   ByteStream<uint16_t> byte_stream_;
 };
 
-// Provides a unbuffered utf-16 view on the bytes from the underlying
+// Provides an unbuffered utf-16 view on the bytes from the underlying
 // ByteStream.
 class RelocatingCharacterStream final
     : public UnbufferedCharacterStream<OnHeapStream> {
@@ -347,8 +347,7 @@ class RelocatingCharacterStream final
         UpdateBufferPointersCallback, this);
   }
 
-  static void UpdateBufferPointersCallback(LocalIsolate*, GCType,
-                                           GCCallbackFlags, void* stream) {
+  static void UpdateBufferPointersCallback(void* stream) {
     reinterpret_cast<RelocatingCharacterStream*>(stream)
         ->UpdateBufferPointers();
   }
@@ -862,36 +861,35 @@ Utf16CharacterStream* ScannerStream::For(Isolate* isolate,
 
 Utf16CharacterStream* ScannerStream::For(Isolate* isolate, Handle<String> data,
                                          int start_pos, int end_pos) {
-  DCHECK_GE(start_pos, 0);
-  DCHECK_LE(start_pos, end_pos);
-  DCHECK_LE(end_pos, data->length());
+  CHECK_GE(start_pos, 0);
+  CHECK_LE(start_pos, end_pos);
+  CHECK_LE(end_pos, data->length());
   size_t start_offset = 0;
-  if (data->IsSlicedString()) {
-    SlicedString string = SlicedString::cast(*data);
-    start_offset = string.offset();
-    String parent = string.parent();
-    if (parent.IsThinString()) parent = ThinString::cast(parent).actual();
+  if (IsSlicedString(*data)) {
+    Tagged<SlicedString> string = Cast<SlicedString>(*data);
+    start_offset = string->offset();
+    Tagged<String> parent = string->parent();
+    if (IsThinString(parent)) parent = Cast<ThinString>(parent)->actual();
     data = handle(parent, isolate);
   } else {
     data = String::Flatten(isolate, data);
   }
-  if (data->IsExternalOneByteString()) {
+  if (IsExternalOneByteString(*data)) {
     return new BufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos), ExternalOneByteString::cast(*data),
+        static_cast<size_t>(start_pos), Cast<ExternalOneByteString>(*data),
         start_offset, static_cast<size_t>(end_pos));
-  } else if (data->IsExternalTwoByteString()) {
+  } else if (IsExternalTwoByteString(*data)) {
     return new UnbufferedCharacterStream<ExternalStringStream>(
-        static_cast<size_t>(start_pos), ExternalTwoByteString::cast(*data),
+        static_cast<size_t>(start_pos), Cast<ExternalTwoByteString>(*data),
         start_offset, static_cast<size_t>(end_pos));
-  } else if (data->IsSeqOneByteString()) {
+  } else if (IsSeqOneByteString(*data)) {
     return new BufferedCharacterStream<OnHeapStream>(
-        static_cast<size_t>(start_pos), Handle<SeqOneByteString>::cast(data),
+        static_cast<size_t>(start_pos), Cast<SeqOneByteString>(data),
         start_offset, static_cast<size_t>(end_pos));
-  } else if (data->IsSeqTwoByteString()) {
+  } else if (IsSeqTwoByteString(*data)) {
     return new RelocatingCharacterStream(
-        isolate, static_cast<size_t>(start_pos),
-        Handle<SeqTwoByteString>::cast(data), start_offset,
-        static_cast<size_t>(end_pos));
+        isolate, static_cast<size_t>(start_pos), Cast<SeqTwoByteString>(data),
+        start_offset, static_cast<size_t>(end_pos));
   } else {
     UNREACHABLE();
   }

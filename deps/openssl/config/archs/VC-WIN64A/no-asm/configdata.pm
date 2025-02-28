@@ -22,7 +22,7 @@ our %config = (
     "ASFLAGS" => [
         "-g"
     ],
-    "CC" => "gcc",
+    "CC" => "cl",
     "CFLAGS" => [
         "/W3 /wd4090 /nologo /O2"
     ],
@@ -166,7 +166,7 @@ our %config = (
     ],
     "dynamic_engines" => "0",
     "ex_libs" => [],
-    "full_version" => "3.0.8+quic",
+    "full_version" => "3.0.15+quic",
     "includes" => [],
     "lflags" => [],
     "lib_defines" => [
@@ -218,7 +218,7 @@ our %config = (
     ],
     "openssldir" => "",
     "options" => "enable-ssl-trace enable-fips no-afalgeng no-asan no-asm no-buildtest-c++ no-comp no-crypto-mdebug no-crypto-mdebug-backtrace no-devcryptoeng no-dynamic-engine no-ec_nistp_64_gcc_128 no-egd no-external-tests no-fuzz-afl no-fuzz-libfuzzer no-ktls no-loadereng no-md2 no-msan no-rc5 no-sctp no-shared no-ssl3 no-ssl3-method no-trace no-ubsan no-unit-test no-uplink no-weak-ssl-ciphers no-zlib no-zlib-dynamic",
-    "patch" => "8",
+    "patch" => "15",
     "perl_archname" => "x86_64-linux-gnu-thread-multi",
     "perl_cmd" => "/usr/bin/perl",
     "perl_version" => "5.34.0",
@@ -237,7 +237,7 @@ our %config = (
         "AS" => undef,
         "ASFLAGS" => undef,
         "BUILDFILE" => undef,
-        "CC" => "gcc",
+        "CC" => undef,
         "CFLAGS" => undef,
         "CPP" => undef,
         "CPPDEFINES" => undef,
@@ -271,11 +271,11 @@ our %config = (
     "prerelease" => "",
     "processor" => "",
     "rc4_int" => "unsigned int",
-    "release_date" => "7 Feb 2023",
+    "release_date" => "3 Sep 2024",
     "shlib_version" => "81.3",
     "sourcedir" => ".",
     "target" => "VC-WIN64A",
-    "version" => "3.0.8"
+    "version" => "3.0.15"
 );
 our %target = (
     "AR" => "lib",
@@ -290,7 +290,7 @@ our %target = (
     "LDFLAGS" => "/nologo /debug",
     "MT" => "mt",
     "MTFLAGS" => "-nologo",
-    "RANLIB" => "CODE(0x561728431c98)",
+    "RANLIB" => "CODE(0x55f18ff2a220)",
     "RC" => "rc",
     "_conf_fname_int" => [
         "Configurations/00-base-templates.conf",
@@ -356,7 +356,7 @@ our %target = (
     "mtoutflag" => "-outputresource:",
     "multilib" => "-x64",
     "perl_platform" => "Windows::MSVC",
-    "perlasm_scheme" => "auto",
+    "perlasm_scheme" => "nasm",
     "rcoutflag" => "/fo",
     "shared_cflag" => "",
     "shared_defflag" => "",
@@ -378,6 +378,7 @@ our @disablables = (
     "asan",
     "asm",
     "async",
+    "atexit",
     "autoalginit",
     "autoerrinit",
     "autoload-config",
@@ -837,6 +838,9 @@ our %unified_info = (
             "providers/fips" => {
                 "fips" => "1"
             },
+            "test/p_minimal" => {
+                "noinst" => "1"
+            },
             "test/p_test" => {
                 "noinst" => "1"
             }
@@ -903,6 +907,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/asn1_internal_test" => {
+                "noinst" => "1"
+            },
+            "test/asn1_stable_parse_test" => {
                 "noinst" => "1"
             },
             "test/asn1_string_table_test" => {
@@ -1289,6 +1296,9 @@ our %unified_info = (
             "test/errtest" => {
                 "noinst" => "1"
             },
+            "test/evp_byname_test" => {
+                "noinst" => "1"
+            },
             "test/evp_extra_test" => {
                 "noinst" => "1"
             },
@@ -1374,6 +1384,9 @@ our %unified_info = (
                 "noinst" => "1"
             },
             "test/namemap_internal_test" => {
+                "noinst" => "1"
+            },
+            "test/nodefltctxtest" => {
                 "noinst" => "1"
             },
             "test/ocspapitest" => {
@@ -1637,6 +1650,9 @@ our %unified_info = (
         ],
         "providers/libfips.a" => [
             "FIPS_MODULE"
+        ],
+        "test/evp_extra_test" => [
+            "STATIC_LEGACY"
         ],
         "test/provider_internal_test" => [
             "PROVIDER_INIT_FUNCTION_NAME=p_test_init"
@@ -2391,6 +2407,9 @@ our %unified_info = (
         "doc/html/man3/CMS_sign_receipt.html" => [
             "doc/man3/CMS_sign_receipt.pod"
         ],
+        "doc/html/man3/CMS_signed_get_attr.html" => [
+            "doc/man3/CMS_signed_get_attr.pod"
+        ],
         "doc/html/man3/CMS_uncompress.html" => [
             "doc/man3/CMS_uncompress.pod"
         ],
@@ -2687,6 +2706,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_PKEY_fromdata.html" => [
             "doc/man3/EVP_PKEY_fromdata.pod"
+        ],
+        "doc/html/man3/EVP_PKEY_get_attr.html" => [
+            "doc/man3/EVP_PKEY_get_attr.pod"
         ],
         "doc/html/man3/EVP_PKEY_get_default_digest_nid.html" => [
             "doc/man3/EVP_PKEY_get_default_digest_nid.pod"
@@ -3753,6 +3775,9 @@ our %unified_info = (
         "doc/html/man3/X509_ALGOR_dup.html" => [
             "doc/man3/X509_ALGOR_dup.pod"
         ],
+        "doc/html/man3/X509_ATTRIBUTE.html" => [
+            "doc/man3/X509_ATTRIBUTE.pod"
+        ],
         "doc/html/man3/X509_CRL_get0_by_serial.html" => [
             "doc/man3/X509_CRL_get0_by_serial.pod"
         ],
@@ -3785,6 +3810,12 @@ our %unified_info = (
         ],
         "doc/html/man3/X509_PUBKEY_new.html" => [
             "doc/man3/X509_PUBKEY_new.pod"
+        ],
+        "doc/html/man3/X509_REQ_get_attr.html" => [
+            "doc/man3/X509_REQ_get_attr.pod"
+        ],
+        "doc/html/man3/X509_REQ_get_extensions.html" => [
+            "doc/man3/X509_REQ_get_extensions.pod"
         ],
         "doc/html/man3/X509_SIG_get0.html" => [
             "doc/man3/X509_SIG_get0.pod"
@@ -3960,6 +3991,9 @@ our %unified_info = (
         "doc/html/man7/EVP_CIPHER-IDEA.html" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/html/man7/EVP_CIPHER-NULL.html" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/html/man7/EVP_CIPHER-RC2.html" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -4067,6 +4101,9 @@ our %unified_info = (
         ],
         "doc/html/man7/EVP_MD-MDC2.html" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/html/man7/EVP_MD-NULL.html" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/html/man7/EVP_MD-RIPEMD160.html" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -4764,6 +4801,9 @@ our %unified_info = (
         "doc/man/man3/CMS_sign_receipt.3" => [
             "doc/man3/CMS_sign_receipt.pod"
         ],
+        "doc/man/man3/CMS_signed_get_attr.3" => [
+            "doc/man3/CMS_signed_get_attr.pod"
+        ],
         "doc/man/man3/CMS_uncompress.3" => [
             "doc/man3/CMS_uncompress.pod"
         ],
@@ -5060,6 +5100,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_PKEY_fromdata.3" => [
             "doc/man3/EVP_PKEY_fromdata.pod"
+        ],
+        "doc/man/man3/EVP_PKEY_get_attr.3" => [
+            "doc/man3/EVP_PKEY_get_attr.pod"
         ],
         "doc/man/man3/EVP_PKEY_get_default_digest_nid.3" => [
             "doc/man3/EVP_PKEY_get_default_digest_nid.pod"
@@ -6126,6 +6169,9 @@ our %unified_info = (
         "doc/man/man3/X509_ALGOR_dup.3" => [
             "doc/man3/X509_ALGOR_dup.pod"
         ],
+        "doc/man/man3/X509_ATTRIBUTE.3" => [
+            "doc/man3/X509_ATTRIBUTE.pod"
+        ],
         "doc/man/man3/X509_CRL_get0_by_serial.3" => [
             "doc/man3/X509_CRL_get0_by_serial.pod"
         ],
@@ -6158,6 +6204,12 @@ our %unified_info = (
         ],
         "doc/man/man3/X509_PUBKEY_new.3" => [
             "doc/man3/X509_PUBKEY_new.pod"
+        ],
+        "doc/man/man3/X509_REQ_get_attr.3" => [
+            "doc/man3/X509_REQ_get_attr.pod"
+        ],
+        "doc/man/man3/X509_REQ_get_extensions.3" => [
+            "doc/man3/X509_REQ_get_extensions.pod"
         ],
         "doc/man/man3/X509_SIG_get0.3" => [
             "doc/man3/X509_SIG_get0.pod"
@@ -6333,6 +6385,9 @@ our %unified_info = (
         "doc/man/man7/EVP_CIPHER-IDEA.7" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/man/man7/EVP_CIPHER-NULL.7" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/man/man7/EVP_CIPHER-RC2.7" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -6440,6 +6495,9 @@ our %unified_info = (
         ],
         "doc/man/man7/EVP_MD-MDC2.7" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/man/man7/EVP_MD-NULL.7" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/man/man7/EVP_MD-RIPEMD160.7" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -7156,6 +7214,10 @@ our %unified_info = (
             "libcrypto.a",
             "test/libtestutil.a"
         ],
+        "test/asn1_stable_parse_test" => [
+            "libcrypto",
+            "test/libtestutil.a"
+        ],
         "test/asn1_string_table_test" => [
             "libcrypto",
             "test/libtestutil.a"
@@ -7676,8 +7738,14 @@ our %unified_info = (
             "libcrypto",
             "test/libtestutil.a"
         ],
+        "test/evp_byname_test" => [
+            "libcrypto",
+            "test/libtestutil.a"
+        ],
         "test/evp_extra_test" => [
             "libcrypto.a",
+            "providers/libcommon.a",
+            "providers/liblegacy.a",
             "test/libtestutil.a"
         ],
         "test/evp_extra_test2" => [
@@ -7793,6 +7861,10 @@ our %unified_info = (
             "test/libtestutil.a"
         ],
         "test/namemap_internal_test" => [
+            "libcrypto.a",
+            "test/libtestutil.a"
+        ],
+        "test/nodefltctxtest" => [
             "libcrypto.a",
             "test/libtestutil.a"
         ],
@@ -8462,7 +8534,6 @@ our %unified_info = (
                 "crypto/bn/libcrypto-lib-bn_srp.o",
                 "crypto/bn/libcrypto-lib-bn_word.o",
                 "crypto/bn/libcrypto-lib-bn_x931p.o",
-                "crypto/bn/libcrypto-lib-rsa_sup_mul.o",
                 "crypto/bn/libfips-lib-bn_add.o",
                 "crypto/bn/libfips-lib-bn_asm.o",
                 "crypto/bn/libfips-lib-bn_blind.o",
@@ -8490,8 +8561,7 @@ our %unified_info = (
                 "crypto/bn/libfips-lib-bn_shift.o",
                 "crypto/bn/libfips-lib-bn_sqr.o",
                 "crypto/bn/libfips-lib-bn_sqrt.o",
-                "crypto/bn/libfips-lib-bn_word.o",
-                "crypto/bn/libfips-lib-rsa_sup_mul.o"
+                "crypto/bn/libfips-lib-bn_word.o"
             ],
             "products" => {
                 "lib" => [
@@ -9741,6 +9811,7 @@ our %unified_info = (
         },
         "providers" => {
             "deps" => [
+                "providers/evp_extra_test-bin-legacyprov.o",
                 "providers/libcrypto-lib-baseprov.o",
                 "providers/libcrypto-lib-defltprov.o",
                 "providers/libcrypto-lib-nullprov.o",
@@ -9748,6 +9819,9 @@ our %unified_info = (
                 "providers/libdefault.a"
             ],
             "products" => {
+                "bin" => [
+                    "test/evp_extra_test"
+                ],
                 "dso" => [
                     "providers/fips",
                     "providers/legacy"
@@ -11370,6 +11444,9 @@ our %unified_info = (
         "doc/html/man3/CMS_sign_receipt.html" => [
             "doc/man3/CMS_sign_receipt.pod"
         ],
+        "doc/html/man3/CMS_signed_get_attr.html" => [
+            "doc/man3/CMS_signed_get_attr.pod"
+        ],
         "doc/html/man3/CMS_uncompress.html" => [
             "doc/man3/CMS_uncompress.pod"
         ],
@@ -11666,6 +11743,9 @@ our %unified_info = (
         ],
         "doc/html/man3/EVP_PKEY_fromdata.html" => [
             "doc/man3/EVP_PKEY_fromdata.pod"
+        ],
+        "doc/html/man3/EVP_PKEY_get_attr.html" => [
+            "doc/man3/EVP_PKEY_get_attr.pod"
         ],
         "doc/html/man3/EVP_PKEY_get_default_digest_nid.html" => [
             "doc/man3/EVP_PKEY_get_default_digest_nid.pod"
@@ -12732,6 +12812,9 @@ our %unified_info = (
         "doc/html/man3/X509_ALGOR_dup.html" => [
             "doc/man3/X509_ALGOR_dup.pod"
         ],
+        "doc/html/man3/X509_ATTRIBUTE.html" => [
+            "doc/man3/X509_ATTRIBUTE.pod"
+        ],
         "doc/html/man3/X509_CRL_get0_by_serial.html" => [
             "doc/man3/X509_CRL_get0_by_serial.pod"
         ],
@@ -12764,6 +12847,12 @@ our %unified_info = (
         ],
         "doc/html/man3/X509_PUBKEY_new.html" => [
             "doc/man3/X509_PUBKEY_new.pod"
+        ],
+        "doc/html/man3/X509_REQ_get_attr.html" => [
+            "doc/man3/X509_REQ_get_attr.pod"
+        ],
+        "doc/html/man3/X509_REQ_get_extensions.html" => [
+            "doc/man3/X509_REQ_get_extensions.pod"
         ],
         "doc/html/man3/X509_SIG_get0.html" => [
             "doc/man3/X509_SIG_get0.pod"
@@ -12939,6 +13028,9 @@ our %unified_info = (
         "doc/html/man7/EVP_CIPHER-IDEA.html" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/html/man7/EVP_CIPHER-NULL.html" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/html/man7/EVP_CIPHER-RC2.html" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -13046,6 +13138,9 @@ our %unified_info = (
         ],
         "doc/html/man7/EVP_MD-MDC2.html" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/html/man7/EVP_MD-NULL.html" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/html/man7/EVP_MD-RIPEMD160.html" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -13743,6 +13838,9 @@ our %unified_info = (
         "doc/man/man3/CMS_sign_receipt.3" => [
             "doc/man3/CMS_sign_receipt.pod"
         ],
+        "doc/man/man3/CMS_signed_get_attr.3" => [
+            "doc/man3/CMS_signed_get_attr.pod"
+        ],
         "doc/man/man3/CMS_uncompress.3" => [
             "doc/man3/CMS_uncompress.pod"
         ],
@@ -14039,6 +14137,9 @@ our %unified_info = (
         ],
         "doc/man/man3/EVP_PKEY_fromdata.3" => [
             "doc/man3/EVP_PKEY_fromdata.pod"
+        ],
+        "doc/man/man3/EVP_PKEY_get_attr.3" => [
+            "doc/man3/EVP_PKEY_get_attr.pod"
         ],
         "doc/man/man3/EVP_PKEY_get_default_digest_nid.3" => [
             "doc/man3/EVP_PKEY_get_default_digest_nid.pod"
@@ -15105,6 +15206,9 @@ our %unified_info = (
         "doc/man/man3/X509_ALGOR_dup.3" => [
             "doc/man3/X509_ALGOR_dup.pod"
         ],
+        "doc/man/man3/X509_ATTRIBUTE.3" => [
+            "doc/man3/X509_ATTRIBUTE.pod"
+        ],
         "doc/man/man3/X509_CRL_get0_by_serial.3" => [
             "doc/man3/X509_CRL_get0_by_serial.pod"
         ],
@@ -15137,6 +15241,12 @@ our %unified_info = (
         ],
         "doc/man/man3/X509_PUBKEY_new.3" => [
             "doc/man3/X509_PUBKEY_new.pod"
+        ],
+        "doc/man/man3/X509_REQ_get_attr.3" => [
+            "doc/man3/X509_REQ_get_attr.pod"
+        ],
+        "doc/man/man3/X509_REQ_get_extensions.3" => [
+            "doc/man3/X509_REQ_get_extensions.pod"
         ],
         "doc/man/man3/X509_SIG_get0.3" => [
             "doc/man3/X509_SIG_get0.pod"
@@ -15312,6 +15422,9 @@ our %unified_info = (
         "doc/man/man7/EVP_CIPHER-IDEA.7" => [
             "doc/man7/EVP_CIPHER-IDEA.pod"
         ],
+        "doc/man/man7/EVP_CIPHER-NULL.7" => [
+            "doc/man7/EVP_CIPHER-NULL.pod"
+        ],
         "doc/man/man7/EVP_CIPHER-RC2.7" => [
             "doc/man7/EVP_CIPHER-RC2.pod"
         ],
@@ -15419,6 +15532,9 @@ our %unified_info = (
         ],
         "doc/man/man7/EVP_MD-MDC2.7" => [
             "doc/man7/EVP_MD-MDC2.pod"
+        ],
+        "doc/man/man7/EVP_MD-NULL.7" => [
+            "doc/man7/EVP_MD-NULL.pod"
         ],
         "doc/man/man7/EVP_MD-RIPEMD160.7" => [
             "doc/man7/EVP_MD-RIPEMD160.pod"
@@ -16256,6 +16372,9 @@ our %unified_info = (
             "test/generate_buildtest.pl",
             "whrlpool"
         ],
+        "test/p_minimal.ld" => [
+            "util/providers.num"
+        ],
         "test/p_test.ld" => [
             "util/providers.num"
         ],
@@ -16421,6 +16540,7 @@ our %unified_info = (
             "doc/html/man3/CMS_get1_ReceiptRequest.html",
             "doc/html/man3/CMS_sign.html",
             "doc/html/man3/CMS_sign_receipt.html",
+            "doc/html/man3/CMS_signed_get_attr.html",
             "doc/html/man3/CMS_uncompress.html",
             "doc/html/man3/CMS_verify.html",
             "doc/html/man3/CMS_verify_receipt.html",
@@ -16520,6 +16640,7 @@ our %unified_info = (
             "doc/html/man3/EVP_PKEY_encapsulate.html",
             "doc/html/man3/EVP_PKEY_encrypt.html",
             "doc/html/man3/EVP_PKEY_fromdata.html",
+            "doc/html/man3/EVP_PKEY_get_attr.html",
             "doc/html/man3/EVP_PKEY_get_default_digest_nid.html",
             "doc/html/man3/EVP_PKEY_get_field_type.html",
             "doc/html/man3/EVP_PKEY_get_group_name.html",
@@ -16875,6 +16996,7 @@ our %unified_info = (
             "doc/html/man3/X509V3_get_d2i.html",
             "doc/html/man3/X509V3_set_ctx.html",
             "doc/html/man3/X509_ALGOR_dup.html",
+            "doc/html/man3/X509_ATTRIBUTE.html",
             "doc/html/man3/X509_CRL_get0_by_serial.html",
             "doc/html/man3/X509_EXTENSION_set_object.html",
             "doc/html/man3/X509_LOOKUP.html",
@@ -16886,6 +17008,8 @@ our %unified_info = (
             "doc/html/man3/X509_NAME_get_index_by_NID.html",
             "doc/html/man3/X509_NAME_print_ex.html",
             "doc/html/man3/X509_PUBKEY_new.html",
+            "doc/html/man3/X509_REQ_get_attr.html",
+            "doc/html/man3/X509_REQ_get_extensions.html",
             "doc/html/man3/X509_SIG_get0.html",
             "doc/html/man3/X509_STORE_CTX_get_error.html",
             "doc/html/man3/X509_STORE_CTX_new.html",
@@ -16948,6 +17072,7 @@ our %unified_info = (
             "doc/html/man7/EVP_CIPHER-CHACHA.html",
             "doc/html/man7/EVP_CIPHER-DES.html",
             "doc/html/man7/EVP_CIPHER-IDEA.html",
+            "doc/html/man7/EVP_CIPHER-NULL.html",
             "doc/html/man7/EVP_CIPHER-RC2.html",
             "doc/html/man7/EVP_CIPHER-RC4.html",
             "doc/html/man7/EVP_CIPHER-RC5.html",
@@ -16984,6 +17109,7 @@ our %unified_info = (
             "doc/html/man7/EVP_MD-MD5-SHA1.html",
             "doc/html/man7/EVP_MD-MD5.html",
             "doc/html/man7/EVP_MD-MDC2.html",
+            "doc/html/man7/EVP_MD-NULL.html",
             "doc/html/man7/EVP_MD-RIPEMD160.html",
             "doc/html/man7/EVP_MD-SHA1.html",
             "doc/html/man7/EVP_MD-SHA2.html",
@@ -18187,6 +18313,10 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/asn1_stable_parse_test" => [
+            "include",
+            "apps/include"
+        ],
         "test/asn1_string_table_test" => [
             "include",
             "apps/include"
@@ -18654,9 +18784,15 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
-        "test/evp_extra_test" => [
+        "test/evp_byname_test" => [
             "include",
             "apps/include"
+        ],
+        "test/evp_extra_test" => [
+            "include",
+            "apps/include",
+            "providers/common/include",
+            "providers/implementations/include"
         ],
         "test/evp_extra_test2" => [
             "include",
@@ -18901,6 +19037,10 @@ our %unified_info = (
             "include",
             "apps/include"
         ],
+        "test/nodefltctxtest" => [
+            "include",
+            "apps/include"
+        ],
         "test/ocspapitest" => [
             "include",
             "apps/include"
@@ -18908,6 +19048,10 @@ our %unified_info = (
         "test/ossl_store_test" => [
             "include",
             "apps/include"
+        ],
+        "test/p_minimal" => [
+            "include",
+            "."
         ],
         "test/p_test" => [
             "include",
@@ -19398,6 +19542,7 @@ our %unified_info = (
             "doc/man/man3/CMS_get1_ReceiptRequest.3",
             "doc/man/man3/CMS_sign.3",
             "doc/man/man3/CMS_sign_receipt.3",
+            "doc/man/man3/CMS_signed_get_attr.3",
             "doc/man/man3/CMS_uncompress.3",
             "doc/man/man3/CMS_verify.3",
             "doc/man/man3/CMS_verify_receipt.3",
@@ -19497,6 +19642,7 @@ our %unified_info = (
             "doc/man/man3/EVP_PKEY_encapsulate.3",
             "doc/man/man3/EVP_PKEY_encrypt.3",
             "doc/man/man3/EVP_PKEY_fromdata.3",
+            "doc/man/man3/EVP_PKEY_get_attr.3",
             "doc/man/man3/EVP_PKEY_get_default_digest_nid.3",
             "doc/man/man3/EVP_PKEY_get_field_type.3",
             "doc/man/man3/EVP_PKEY_get_group_name.3",
@@ -19852,6 +19998,7 @@ our %unified_info = (
             "doc/man/man3/X509V3_get_d2i.3",
             "doc/man/man3/X509V3_set_ctx.3",
             "doc/man/man3/X509_ALGOR_dup.3",
+            "doc/man/man3/X509_ATTRIBUTE.3",
             "doc/man/man3/X509_CRL_get0_by_serial.3",
             "doc/man/man3/X509_EXTENSION_set_object.3",
             "doc/man/man3/X509_LOOKUP.3",
@@ -19863,6 +20010,8 @@ our %unified_info = (
             "doc/man/man3/X509_NAME_get_index_by_NID.3",
             "doc/man/man3/X509_NAME_print_ex.3",
             "doc/man/man3/X509_PUBKEY_new.3",
+            "doc/man/man3/X509_REQ_get_attr.3",
+            "doc/man/man3/X509_REQ_get_extensions.3",
             "doc/man/man3/X509_SIG_get0.3",
             "doc/man/man3/X509_STORE_CTX_get_error.3",
             "doc/man/man3/X509_STORE_CTX_new.3",
@@ -19925,6 +20074,7 @@ our %unified_info = (
             "doc/man/man7/EVP_CIPHER-CHACHA.7",
             "doc/man/man7/EVP_CIPHER-DES.7",
             "doc/man/man7/EVP_CIPHER-IDEA.7",
+            "doc/man/man7/EVP_CIPHER-NULL.7",
             "doc/man/man7/EVP_CIPHER-RC2.7",
             "doc/man/man7/EVP_CIPHER-RC4.7",
             "doc/man/man7/EVP_CIPHER-RC5.7",
@@ -19961,6 +20111,7 @@ our %unified_info = (
             "doc/man/man7/EVP_MD-MD5-SHA1.7",
             "doc/man/man7/EVP_MD-MD5.7",
             "doc/man/man7/EVP_MD-MDC2.7",
+            "doc/man/man7/EVP_MD-NULL.7",
             "doc/man/man7/EVP_MD-RIPEMD160.7",
             "doc/man/man7/EVP_MD-SHA1.7",
             "doc/man/man7/EVP_MD-SHA2.7",
@@ -20044,6 +20195,7 @@ our %unified_info = (
     "modules" => [
         "providers/fips",
         "providers/legacy",
+        "test/p_minimal",
         "test/p_test"
     ],
     "programs" => [
@@ -20069,6 +20221,7 @@ our %unified_info = (
         "test/asn1_dsa_internal_test",
         "test/asn1_encode_test",
         "test/asn1_internal_test",
+        "test/asn1_stable_parse_test",
         "test/asn1_string_table_test",
         "test/asn1_time_test",
         "test/asynciotest",
@@ -20197,6 +20350,7 @@ our %unified_info = (
         "test/endecoder_legacy_test",
         "test/enginetest",
         "test/errtest",
+        "test/evp_byname_test",
         "test/evp_extra_test",
         "test/evp_extra_test2",
         "test/evp_fetch_prov_test",
@@ -20226,6 +20380,7 @@ our %unified_info = (
         "test/memleaktest",
         "test/modes_internal_test",
         "test/namemap_internal_test",
+        "test/nodefltctxtest",
         "test/ocspapitest",
         "test/ossl_store_test",
         "test/packettest",
@@ -21073,9 +21228,6 @@ our %unified_info = (
         "crypto/bn/libcrypto-lib-bn_x931p.o" => [
             "crypto/bn/bn_x931p.c"
         ],
-        "crypto/bn/libcrypto-lib-rsa_sup_mul.o" => [
-            "crypto/bn/rsa_sup_mul.c"
-        ],
         "crypto/bn/libfips-lib-bn_add.o" => [
             "crypto/bn/bn_add.c"
         ],
@@ -21159,9 +21311,6 @@ our %unified_info = (
         ],
         "crypto/bn/libfips-lib-bn_word.o" => [
             "crypto/bn/bn_word.c"
-        ],
-        "crypto/bn/libfips-lib-rsa_sup_mul.o" => [
-            "crypto/bn/rsa_sup_mul.c"
         ],
         "crypto/buffer/libcrypto-lib-buf_err.o" => [
             "crypto/buffer/buf_err.c"
@@ -23659,7 +23808,6 @@ our %unified_info = (
             "crypto/bn/libcrypto-lib-bn_srp.o",
             "crypto/bn/libcrypto-lib-bn_word.o",
             "crypto/bn/libcrypto-lib-bn_x931p.o",
-            "crypto/bn/libcrypto-lib-rsa_sup_mul.o",
             "crypto/buffer/libcrypto-lib-buf_err.o",
             "crypto/buffer/libcrypto-lib-buffer.o",
             "crypto/camellia/libcrypto-lib-camellia.o",
@@ -24401,6 +24549,9 @@ our %unified_info = (
         ],
         "providers/common/libfips-lib-securitycheck_fips.o" => [
             "providers/common/securitycheck_fips.c"
+        ],
+        "providers/evp_extra_test-bin-legacyprov.o" => [
+            "providers/legacyprov.c"
         ],
         "providers/fips" => [
             "providers/fips-dso-fips.res",
@@ -25236,7 +25387,6 @@ our %unified_info = (
             "crypto/bn/libfips-lib-bn_sqr.o",
             "crypto/bn/libfips-lib-bn_sqrt.o",
             "crypto/bn/libfips-lib-bn_word.o",
-            "crypto/bn/libfips-lib-rsa_sup_mul.o",
             "crypto/buffer/libfips-lib-buffer.o",
             "crypto/cmac/libfips-lib-cmac.o",
             "crypto/des/libfips-lib-des_enc.o",
@@ -25690,6 +25840,12 @@ our %unified_info = (
         ],
         "test/asn1_internal_test-bin-asn1_internal_test.o" => [
             "test/asn1_internal_test.c"
+        ],
+        "test/asn1_stable_parse_test" => [
+            "test/asn1_stable_parse_test-bin-asn1_stable_parse_test.o"
+        ],
+        "test/asn1_stable_parse_test-bin-asn1_stable_parse_test.o" => [
+            "test/asn1_stable_parse_test.c"
         ],
         "test/asn1_string_table_test" => [
             "test/asn1_string_table_test-bin-asn1_string_table_test.o"
@@ -26473,7 +26629,14 @@ our %unified_info = (
         "test/errtest-bin-errtest.o" => [
             "test/errtest.c"
         ],
+        "test/evp_byname_test" => [
+            "test/evp_byname_test-bin-evp_byname_test.o"
+        ],
+        "test/evp_byname_test-bin-evp_byname_test.o" => [
+            "test/evp_byname_test.c"
+        ],
         "test/evp_extra_test" => [
+            "providers/evp_extra_test-bin-legacyprov.o",
             "test/evp_extra_test-bin-evp_extra_test.o"
         ],
         "test/evp_extra_test-bin-evp_extra_test.o" => [
@@ -26747,6 +26910,12 @@ our %unified_info = (
         "test/namemap_internal_test-bin-namemap_internal_test.o" => [
             "test/namemap_internal_test.c"
         ],
+        "test/nodefltctxtest" => [
+            "test/nodefltctxtest-bin-nodefltctxtest.o"
+        ],
+        "test/nodefltctxtest-bin-nodefltctxtest.o" => [
+            "test/nodefltctxtest.c"
+        ],
         "test/ocspapitest" => [
             "test/ocspapitest-bin-ocspapitest.o"
         ],
@@ -26758,6 +26927,13 @@ our %unified_info = (
         ],
         "test/ossl_store_test-bin-ossl_store_test.o" => [
             "test/ossl_store_test.c"
+        ],
+        "test/p_minimal" => [
+            "test/p_minimal-dso-p_minimal.o",
+            "test/p_minimal.ld"
+        ],
+        "test/p_minimal-dso-p_minimal.o" => [
+            "test/p_minimal.c"
         ],
         "test/p_test" => [
             "test/p_test-dso-p_test.o",
@@ -27445,8 +27621,8 @@ unless (caller) {
     use File::Copy;
     use Pod::Usage;
 
-    use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-    use OpenSSL::fallback '/home/rafaelgss/repos/os/node/deps/openssl/openssl/external/perl/MODULES.txt';
+    use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+    use OpenSSL::fallback '/home/runner/work/node/node/deps/openssl/openssl/external/perl/MODULES.txt';
 
     my $here = dirname($0);
 
@@ -27473,7 +27649,7 @@ unless (caller) {
             );
 
         use lib '.';
-        use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+        use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
         use gentemplate;
 
         open my $buildfile_template_fh, ">$buildfile_template"
@@ -27490,8 +27666,8 @@ unless (caller) {
 
         my $prepend = <<'_____';
 use File::Spec::Functions;
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/util/perl';
-use lib '/home/rafaelgss/repos/os/node/deps/openssl/openssl/Configurations';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/util/perl';
+use lib '/home/runner/work/node/node/deps/openssl/openssl/Configurations';
 use lib '.';
 use platform;
 _____

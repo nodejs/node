@@ -136,6 +136,13 @@ ASSERT_TRIVIALLY_COPYABLE(Register);
 static_assert(sizeof(Register) <= sizeof(int),
               "Register can efficiently be passed by value");
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 #define DEFINE_REGISTER(R) \
   constexpr Register R = Register::from_code(kRegCode_##R);
 GENERAL_REGISTERS(DEFINE_REGISTER)
@@ -151,6 +158,10 @@ constexpr Register kPtrComprCageBaseRegister = r27;  // callee save
 #else
 constexpr Register kPtrComprCageBaseRegister = no_reg;
 #endif
+
+// PPC64 calling convention
+constexpr Register kCArgRegs[] = {r3, r4, r5, r6, r7, r8, r9, r10};
+static const int kRegisterPassedArguments = arraysize(kCArgRegs);
 
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
@@ -311,7 +322,7 @@ constexpr Register kJavaScriptCallExtraArg1Register = r5;
 constexpr Register kRuntimeCallFunctionRegister = r4;
 constexpr Register kRuntimeCallArgCountRegister = r3;
 constexpr Register kRuntimeCallArgvRegister = r5;
-constexpr Register kWasmInstanceRegister = r10;
+constexpr Register kWasmImplicitArgRegister = r10;
 constexpr Register kWasmCompileLazyFuncIndexRegister = r15;
 
 constexpr DoubleRegister kFPReturnRegister0 = d1;

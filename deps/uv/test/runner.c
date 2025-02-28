@@ -27,6 +27,11 @@
 #include "task.h"
 #include "uv.h"
 
+/* Refs: https://github.com/libuv/libuv/issues/4369 */
+#if defined(__ANDROID__)
+#include <android/fdsan.h>
+#endif
+
 char executable_path[sizeof(executable_path)];
 
 
@@ -37,28 +42,14 @@ static int compare_task(const void* va, const void* vb) {
 }
 
 
-const char* fmt(double d) {
-  static char buf[1024];
-  static char* p;
+char* fmt(char (*buf)[32], double d) {
   uint64_t v;
+  char* p;
 
-  if (p == NULL)
-    p = buf;
-
-  p += 31;
-
-  if (p >= buf + sizeof(buf))
-    return "<buffer too small>";
-
+  p = &(*buf)[32];
   v = (uint64_t) d;
 
-#if 0 /* works but we don't care about fractional precision */
-  if (d - v >= 0.01) {
-    *--p = '0' + (uint64_t) (d * 100) % 10;
-    *--p = '0' + (uint64_t) (d * 10) % 10;
-    *--p = '.';
-  }
-#endif
+  *--p = '\0';
 
   if (v == 0)
     *--p = '0';
@@ -77,9 +68,7 @@ const char* fmt(double d) {
 int run_tests(int benchmark_output) {
   int actual;
   int total;
-  int passed;
   int failed;
-  int skipped;
   int current;
   int test_result;
   int skip;
@@ -102,9 +91,7 @@ int run_tests(int benchmark_output) {
   fflush(stdout);
 
   /* Run all tests. */
-  passed = 0;
   failed = 0;
-  skipped = 0;
   current = 1;
   for (task = TASKS; task->main; task++) {
     if (task->is_helper) {
@@ -113,8 +100,8 @@ int run_tests(int benchmark_output) {
 
     test_result = run_test(task->task_name, benchmark_output, current);
     switch (test_result) {
-    case TEST_OK: passed++; break;
-    case TEST_SKIP: skipped++; break;
+    case TEST_OK: break;
+    case TEST_SKIP: break;
     default: failed++;
     }
     current++;
@@ -160,6 +147,13 @@ void log_tap_result(int test_count,
   fflush(stdout);
 }
 
+void enable_fdsan(void) {
+/* Refs: https://github.com/libuv/libuv/issues/4369 */
+#if defined(__ANDROID__)
+  android_fdsan_set_error_level(ANDROID_FDSAN_ERROR_LEVEL_WARN_ALWAYS);
+#endif
+}
+
 
 int run_test(const char* test,
              int benchmark_output,
@@ -177,6 +171,8 @@ int run_test(const char* test,
   status = 255;
   main_proc = NULL;
   process_count = 0;
+
+  enable_fdsan();
 
 #ifndef _WIN32
   /* Clean up stale socket from previous run. */

@@ -20,6 +20,11 @@ parser.add_argument(
     help='target cpu for V8 binary (for simulator builds), by default it\'s equal to `v8_target_cpu`'
 )
 parser.add_argument(
+    '--clang',
+    default=True,
+    help='Use clang for building V8 binaries. Using other compiler helps to get profiles for Windows/gcc. See crbug.com/v8/13647.',
+    action=argparse.BooleanOptionalAction)
+parser.add_argument(
     '--use-qemu',
     default=False,
     help='Use qemu for running cross-compiled V8 binary.',
@@ -36,22 +41,13 @@ parser.add_argument(
 
 args = parser.parse_args()
 
-if args.target_cpu == None:
+if args.target_cpu is None:
   args.target_cpu = args.v8_target_cpu
 
 
 def run(cmd, **kwargs):
   print(f"# CMD: {cmd} {kwargs}")
   return subprocess.run(cmd, **kwargs, check=True)
-
-
-def try_start_goma():
-  res = run(["goma_ctl", "ensure_start"])
-  print(res.returncode)
-  has_goma = res.returncode == 0
-  print("Detected Goma:", has_goma)
-  return has_goma
-
 
 
 def build_d8(path, gn_args):
@@ -71,7 +67,6 @@ if not args.benchmark_path.is_file() or args.benchmark_path.suffix != ".js":
   print(f"Invalid benchmark argument: {args.benchmark_path}")
   exit(1)
 
-has_goma_str = "true" if try_start_goma() else "false"
 cmd_prefix = []
 if args.use_qemu:
   if args.v8_target_cpu == "arm":
@@ -82,17 +77,29 @@ if args.use_qemu:
     print(f"{args.v8_target_cpu} binaries can't be run with qemu")
     exit(1)
 
-GN_ARGS_TEMPLATE = f"""\
+GN_ARGS_TEMPLATE_CLANG = f"""\
 is_debug = false
 is_clang = true
 target_cpu = "{args.target_cpu}"
 v8_target_cpu = "{args.v8_target_cpu}"
-use_goma = {has_goma_str}
 v8_enable_builtins_profiling = true
 """
 
+GN_ARGS_TEMPLATE_NO_CLANG = f"""\
+is_debug = false
+is_clang = false
+use_custom_libcxx = false
+target_cpu = "{args.target_cpu}"
+v8_target_cpu = "{args.v8_target_cpu}"
+v8_enable_builtins_profiling = true
+"""
+
+GN_ARGS_TEMPLATE = GN_ARGS_TEMPLATE_CLANG if args.clang else GN_ARGS_TEMPLATE_NO_CLANG
+
 for arch, gn_args in [(args.v8_target_cpu, GN_ARGS_TEMPLATE)]:
-  build_dir = args.out_path / f"{arch}.release.generate_builtin_pgo_profile"
+  # TODO(crbug.com/v8/13647): remove profile suffixes once CSA is fixed.
+  suffix = "" if args.clang else "-rl"
+  build_dir = args.out_path / f"{arch}{suffix}.release.generate_builtin_pgo_profile"
   d8_path = build_d8(build_dir, gn_args)
   benchmark_dir = args.benchmark_path.parent
   benchmark_file = args.benchmark_path.name
@@ -102,5 +109,5 @@ for arch, gn_args in [(args.v8_target_cpu, GN_ARGS_TEMPLATE)]:
   ]
   run(cmd, cwd=benchmark_dir)
   get_hints_path = tools_pgo_dir / "get_hints.py"
-  profile_path = tools_pgo_dir / "profiles" / f"{arch}.profile"
+  profile_path = tools_pgo_dir / "profiles" / f"{arch}{suffix}.profile"
   run([get_hints_path, log_path, profile_path])

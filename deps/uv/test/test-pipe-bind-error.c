@@ -33,6 +33,7 @@
 
 
 static int close_cb_called = 0;
+static int connect_cb_called = 0;
 
 
 static void close_cb(uv_handle_t* handle) {
@@ -46,28 +47,28 @@ TEST_IMPL(pipe_bind_error_addrinuse) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &server1, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_pipe_bind(&server1, TEST_PIPENAME);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   r = uv_pipe_init(uv_default_loop(), &server2, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_pipe_bind(&server2, TEST_PIPENAME);
-  ASSERT(r == UV_EADDRINUSE);
+  ASSERT_EQ(r, UV_EADDRINUSE);
 
   r = uv_listen((uv_stream_t*)&server1, SOMAXCONN, NULL);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_listen((uv_stream_t*)&server2, SOMAXCONN, NULL);
-  ASSERT(r == UV_EINVAL);
+  ASSERT_EQ(r, UV_EINVAL);
 
   uv_close((uv_handle_t*)&server1, close_cb);
   uv_close((uv_handle_t*)&server2, close_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 2);
+  ASSERT_EQ(2, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -77,18 +78,18 @@ TEST_IMPL(pipe_bind_error_addrnotavail) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &server, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   r = uv_pipe_bind(&server, BAD_PIPENAME);
-  ASSERT(r == UV_EACCES);
+  ASSERT_EQ(r, UV_EACCES);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
+  ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -98,19 +99,19 @@ TEST_IMPL(pipe_bind_error_inval) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &server, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_pipe_bind(&server, TEST_PIPENAME);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
   r = uv_pipe_bind(&server, TEST_PIPENAME_2);
-  ASSERT(r == UV_EINVAL);
+  ASSERT_EQ(r, UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
+  ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
@@ -123,33 +124,92 @@ TEST_IMPL(pipe_listen_without_bind) {
   int r;
 
   r = uv_pipe_init(uv_default_loop(), &server, 0);
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 
   r = uv_listen((uv_stream_t*)&server, SOMAXCONN, NULL);
-  ASSERT(r == UV_EINVAL);
+  ASSERT_EQ(r, UV_EINVAL);
 
   uv_close((uv_handle_t*)&server, close_cb);
 
   uv_run(uv_default_loop(), UV_RUN_DEFAULT);
 
-  ASSERT(close_cb_called == 1);
+  ASSERT_EQ(1, close_cb_called);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }
 
 TEST_IMPL(pipe_bind_or_listen_error_after_close) {
   uv_pipe_t server;
 
-  ASSERT_EQ(uv_pipe_init(uv_default_loop(), &server, 0), 0);
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &server, 0));
   uv_close((uv_handle_t*) &server, NULL);
 
   ASSERT_EQ(uv_pipe_bind(&server, TEST_PIPENAME), UV_EINVAL);
 
   ASSERT_EQ(uv_listen((uv_stream_t*) &server, SOMAXCONN, NULL), UV_EINVAL);
 
-  ASSERT_EQ(uv_run(uv_default_loop(), UV_RUN_DEFAULT), 0);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
+  return 0;
+}
+
+
+static void connect_overlong_cb(uv_connect_t* connect_req, int status) {
+  ASSERT_EQ(status, UV_EINVAL);
+  connect_cb_called++;
+  uv_close((uv_handle_t*) connect_req->handle, close_cb);
+}
+
+
+TEST_IMPL(pipe_overlong_path) {
+  uv_pipe_t pipe;
+  uv_connect_t req;
+
+  ASSERT_OK(uv_pipe_init(uv_default_loop(), &pipe, 0));
+
+#ifndef _WIN32
+  char path[512];
+  memset(path, '@', sizeof(path));
+
+  /* On most platforms sun_path is smaller than the NAME_MAX
+   * Though there is nothing in the POSIX spec that says it needs to be.
+   * POSIX allows PATH_MAX length paths in saddr.sun_path BUT individual
+   * components of the path can only be NAME_MAX long.
+   * So in this case we end up with UV_ENAMETOOLONG error rather than
+   * UV_EINVAL.
+   * ref: https://github.com/libuv/libuv/issues/4231#issuecomment-2194612711
+   * On AIX the sun_path is larger than the NAME_MAX
+   */
+#if defined(_AIX) && !defined(__PASE__)
+  ASSERT_EQ(UV_ENAMETOOLONG,
+          uv_pipe_bind2(&pipe, path, sizeof(path), UV_PIPE_NO_TRUNCATE));
+  /* UV_ENAMETOOLONG is delayed in uv_pipe_connect2 and won't propagate until
+   * uv_run is called and causes timeouts, therefore in this case we skip calling
+   * uv_pipe_connect2
+   */
+#else
+  ASSERT_EQ(UV_EINVAL,
+          uv_pipe_bind2(&pipe, path, sizeof(path), UV_PIPE_NO_TRUNCATE));
+  ASSERT_EQ(UV_EINVAL,
+          uv_pipe_connect2(&req,
+                           &pipe,
+                           path,
+                           sizeof(path),
+                           UV_PIPE_NO_TRUNCATE,
+                           (uv_connect_cb) abort));
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+#endif /*if defined(_AIX) && !defined(__PASE__)*/
+#endif /* ifndef _WIN32 */
+  uv_pipe_connect(&req,
+                  &pipe,
+                  "",
+                  (uv_connect_cb) connect_overlong_cb);
+  ASSERT_OK(uv_run(uv_default_loop(), UV_RUN_DEFAULT));
+  ASSERT_EQ(1, connect_cb_called);
+  ASSERT_EQ(1, close_cb_called);
+
+  MAKE_VALGRIND_HAPPY(uv_default_loop());
   return 0;
 }

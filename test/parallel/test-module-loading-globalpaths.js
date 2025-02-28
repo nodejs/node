@@ -18,7 +18,7 @@ if (process.argv[2] === 'child') {
   tmpdir.refresh();
 
   // Copy node binary into a test $PREFIX directory.
-  const prefixPath = path.join(tmpdir.path, 'install');
+  const prefixPath = tmpdir.resolve('install');
   fs.mkdirSync(prefixPath);
   let testExecPath;
   if (common.isWindows) {
@@ -46,7 +46,7 @@ if (process.argv[2] === 'child') {
   delete env.NODE_PATH;
 
   // Test empty global path.
-  const noPkgHomeDir = path.join(tmpdir.path, 'home-no-pkg');
+  const noPkgHomeDir = tmpdir.resolve('home-no-pkg');
   fs.mkdirSync(noPkgHomeDir);
   env.HOME = env.USERPROFILE = noPkgHomeDir;
   assert.throws(

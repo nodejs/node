@@ -1,6 +1,7 @@
-#define NAPI_EXPERIMENTAL
+#define NAPI_VERSION 9
 #include <js_native_api.h>
 #include "../common.h"
+#include "../entry_point.h"
 
 static napi_value checkError(napi_env env, napi_callback_info info) {
   size_t argc = 1;

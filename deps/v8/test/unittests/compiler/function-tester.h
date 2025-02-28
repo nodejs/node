@@ -31,7 +31,6 @@ class FunctionTester {
   explicit FunctionTester(Isolate* i_isolate, Handle<InstructionStream> code);
 
   Isolate* isolate;
-  CanonicalHandleScope canonical;
   Handle<JSFunction> function;
 
   MaybeHandle<Object> Call() {
@@ -48,30 +47,33 @@ class FunctionTester {
   template <typename T, typename... Args>
   Handle<T> CallChecked(Args... args) {
     Handle<Object> result = Call(args...).ToHandleChecked();
-    return Handle<T>::cast(result);
+    return Cast<T>(result);
   }
 
   void CheckThrows(Handle<Object> a);
   void CheckThrows(Handle<Object> a, Handle<Object> b);
   v8::Local<v8::Message> CheckThrowsReturnMessage(Handle<Object> a,
                                                   Handle<Object> b);
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c, Handle<Object> d);
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b, Handle<Object> c, Handle<Object> d);
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b,
-                 Handle<Object> c) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b, Handle<Object> c) {
     return CheckCall(expected, a, b, c, undefined());
   }
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a, Handle<Object> b) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a,
+                 Handle<Object> b) {
     return CheckCall(expected, a, b, undefined());
   }
 
-  void CheckCall(Handle<Object> expected, Handle<Object> a) {
+  void CheckCall(DirectHandle<Object> expected, Handle<Object> a) {
     CheckCall(expected, a, undefined());
   }
 
-  void CheckCall(Handle<Object> expected) { CheckCall(expected, undefined()); }
+  void CheckCall(DirectHandle<Object> expected) {
+    CheckCall(expected, undefined());
+  }
 
   void CheckCall(double expected, double a, double b) {
     CheckCall(NewNumber(expected), NewNumber(a), NewNumber(b));
@@ -142,12 +144,9 @@ class FunctionTester {
 
   // Takes a JSFunction and runs it through the test version of the optimizing
   // pipeline, allocating the temporary compilation artifacts in a given Zone.
-  // For possible {flags} values, look at OptimizedCompilationInfo::Flag.  If
-  // {out_broker} is not nullptr, returns the JSHeapBroker via that
-  // (transferring ownership to the caller).
-  Handle<JSFunction> Optimize(
-      Handle<JSFunction> function, Zone* zone, uint32_t flags,
-      std::unique_ptr<compiler::JSHeapBroker>* out_broker = nullptr);
+  // For possible {flags} values, look at OptimizedCompilationInfo::Flag.
+  Handle<JSFunction> Optimize(Handle<JSFunction> function, Zone* zone,
+                              uint32_t flags);
 };
 
 }  // namespace compiler

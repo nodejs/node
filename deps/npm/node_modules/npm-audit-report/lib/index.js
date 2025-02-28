@@ -12,7 +12,7 @@ const exitCode = require('./exit-code.js')
 module.exports = Object.assign((data, options = {}) => {
   const {
     reporter = 'install',
-    color = true,
+    chalk,
     unicode = true,
     indent = 2,
   } = options
@@ -35,7 +35,7 @@ module.exports = Object.assign((data, options = {}) => {
   }
 
   return {
-    report: reporters[reporter](data, { color, unicode, indent }),
+    report: reporters[reporter](data, { chalk, unicode, indent }),
     exitCode: exitCode(data, auditLevel),
   }
 }, { reporters })

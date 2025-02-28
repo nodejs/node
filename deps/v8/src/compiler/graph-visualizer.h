@@ -10,12 +10,12 @@
 #include <fstream>
 #include <iosfwd>
 #include <memory>
+#include <optional>
 #include <vector>
 
-#include "src/objects/code.h"
-#include "src/base/optional.h"
 #include "src/common/globals.h"
 #include "src/handles/handles.h"
+#include "src/objects/code.h"
 
 namespace v8 {
 namespace internal {
@@ -23,6 +23,13 @@ namespace internal {
 class OptimizedCompilationInfo;
 class SharedFunctionInfo;
 class SourcePosition;
+struct WasmInliningPosition;
+
+namespace wasm {
+struct WasmModule;
+class WireBytesStorage;
+}  // namespace wasm
+
 namespace compiler {
 
 class Graph;
@@ -39,6 +46,37 @@ class RegisterAllocationData;
 class Schedule;
 class SourcePositionTable;
 class Type;
+
+class JSONEscaped {
+ public:
+  template <typename T>
+  explicit JSONEscaped(const T& value) {
+    std::ostringstream s;
+    s << value;
+    str_ = s.str();
+  }
+  explicit JSONEscaped(std::string str) : str_(std::move(str)) {}
+  explicit JSONEscaped(const std::ostringstream& os) : str_(os.str()) {}
+
+  friend std::ostream& operator<<(std::ostream& os, const JSONEscaped& e) {
+    for (char c : e.str_) PipeCharacter(os, c);
+    return os;
+  }
+
+ private:
+  static std::ostream& PipeCharacter(std::ostream& os, char c) {
+    if (c == '"') return os << "\\\"";
+    if (c == '\\') return os << "\\\\";
+    if (c == '\b') return os << "\\b";
+    if (c == '\f') return os << "\\f";
+    if (c == '\n') return os << "\\n";
+    if (c == '\r') return os << "\\r";
+    if (c == '\t') return os << "\\t";
+    return os << c;
+  }
+
+  std::string str_;
+};
 
 struct TurboJsonFile : public std::ofstream {
   TurboJsonFile(OptimizedCompilationInfo* info, std::ios_base::openmode mode);
@@ -87,16 +125,28 @@ class V8_EXPORT_PRIVATE SourceIdAssigner {
   std::vector<int> source_ids_;
 };
 
+void JsonPrintFunctionSource(std::ostream& os, int source_id,
+                             std::unique_ptr<char[]> function_name,
+                             Handle<Script> script, Isolate* isolate,
+                             Handle<SharedFunctionInfo> shared, bool with_key);
+
 void JsonPrintAllBytecodeSources(std::ostream& os,
                                  OptimizedCompilationInfo* info);
 
 void JsonPrintBytecodeSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
-                             Handle<BytecodeArray> bytecode_array);
+                             DirectHandle<BytecodeArray> bytecode_array);
 
 void JsonPrintAllSourceWithPositions(std::ostream& os,
                                      OptimizedCompilationInfo* info,
                                      Isolate* isolate);
+
+#if V8_ENABLE_WEBASSEMBLY
+void JsonPrintAllSourceWithPositionsWasm(
+    std::ostream& os, const wasm::WasmModule* module,
+    const wasm::WireBytesStorage* wire_bytes,
+    base::Vector<WasmInliningPosition> positions);
+#endif
 
 void JsonPrintFunctionSource(std::ostream& os, int source_id,
                              std::unique_ptr<char[]> function_name,
@@ -124,7 +174,7 @@ class JSONGraphWriter {
   void PrintNode(Node* node, bool is_live);
   void PrintEdges(Node* node);
   void PrintEdge(Node* from, int index, Node* to);
-  virtual base::Optional<Type> GetType(Node* node);
+  virtual std::optional<Type> GetType(Node* node);
 
  protected:
   std::ostream& os_;

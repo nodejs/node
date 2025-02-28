@@ -43,9 +43,13 @@ server.listen(0, () => {
   const clientStream = clientSession.request();
 
   clientStream.on('close', common.mustCall());
-  // These events mustn't be called once the frame size error is from the server
+  clientStream.on('error', common.expectsError({
+    code: 'ERR_HTTP2_STREAM_ERROR',
+    name: 'Error',
+    message: 'Stream closed with error code NGHTTP2_FRAME_SIZE_ERROR'
+  }));
+  // This event mustn't be called once the frame size error is from the server
   clientStream.on('frameError', common.mustNotCall());
-  clientStream.on('error', common.mustNotCall());
 
   clientStream.end();
 });

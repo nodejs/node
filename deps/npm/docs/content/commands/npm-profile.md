@@ -24,28 +24,17 @@ support this interface.
 * `npm profile get [<property>]`: Display all of the properties of your
   profile, or one or more specific properties.  It looks like:
 
-```bash
-+-----------------+---------------------------+
-| name            | example                   |
-+-----------------+---------------------------+
-| email           | me@example.com (verified) |
-+-----------------+---------------------------+
-| two factor auth | auth-and-writes           |
-+-----------------+---------------------------+
-| fullname        | Example User              |
-+-----------------+---------------------------+
-| homepage        |                           |
-+-----------------+---------------------------+
-| freenode        |                           |
-+-----------------+---------------------------+
-| twitter         |                           |
-+-----------------+---------------------------+
-| github          |                           |
-+-----------------+---------------------------+
-| created         | 2015-02-26T01:38:35.892Z  |
-+-----------------+---------------------------+
-| updated         | 2017-10-02T21:29:45.922Z  |
-+-----------------+---------------------------+
+```
+name: example
+email: e@example.com (verified)
+two-factor auth: auth-and-writes
+fullname: Example User
+homepage:
+freenode:
+twitter:
+github:
+created: 2015-02-26T01:38:35.892Z
+updated: 2017-10-02T21:29:45.922Z
 ```
 
 * `npm profile set <property> <value>`: Set the value of a profile
@@ -81,6 +70,8 @@ Some of these commands may not be available on non npmjs.com registries.
 
 The base URL of the npm registry.
 
+
+
 #### `json`
 
 * Default: false
@@ -93,6 +84,8 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `parseable`
 
 * Default: false
@@ -100,6 +93,8 @@ Not supported by all npm commands.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `otp`
 
@@ -111,6 +106,8 @@ when publishing or changing package permissions with `npm access`.
 
 If not set, and a registry response fails with a challenge for a one-time
 password, npm will prompt on the command line for one.
+
+
 
 ### See Also
 

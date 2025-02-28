@@ -9,10 +9,8 @@
 
 #include "include/v8-persistent-handle.h"
 #include "src/base/atomicops.h"
-#include "src/base/lazy-instance.h"
 #include "src/base/macros.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 #include "src/tasks/cancelable-task.h"
 #include "src/utils/allocation.h"
@@ -38,8 +36,6 @@ namespace internal {
 class BackingStore;
 class FutexWaitList;
 
-template <typename T>
-class Handle;
 class Isolate;
 class JSArrayBuffer;
 
@@ -61,79 +57,93 @@ class FutexWaitListNode {
   FutexWaitListNode() = default;
 
   // Create an async FutexWaitListNode.
-  FutexWaitListNode(const std::shared_ptr<BackingStore>& backing_store,
-                    size_t wait_addr, Handle<JSObject> promise_capability,
+  FutexWaitListNode(std::weak_ptr<BackingStore> backing_store,
+                    void* wait_location, Handle<JSObject> promise_capability,
                     Isolate* isolate);
-  ~FutexWaitListNode();
+
+  // Disallow copying nodes.
   FutexWaitListNode(const FutexWaitListNode&) = delete;
   FutexWaitListNode& operator=(const FutexWaitListNode&) = delete;
 
   void NotifyWake();
 
-  bool IsAsync() const { return isolate_for_async_waiters_ != nullptr; }
+  bool IsAsync() const { return async_state_ != nullptr; }
 
   // Returns false if the cancelling failed, true otherwise.
   bool CancelTimeoutTask();
-
-  class V8_NODISCARD ResetWaitingOnScopeExit {
-   public:
-    explicit ResetWaitingOnScopeExit(FutexWaitListNode* node) : node_(node) {}
-    ~ResetWaitingOnScopeExit() { node_->waiting_ = false; }
-    ResetWaitingOnScopeExit(const ResetWaitingOnScopeExit&) = delete;
-    ResetWaitingOnScopeExit& operator=(const ResetWaitingOnScopeExit&) = delete;
-
-   private:
-    FutexWaitListNode* node_;
-  };
 
  private:
   friend class FutexEmulation;
   friend class FutexWaitList;
 
-  // Set only for async FutexWaitListNodes.
-  Isolate* isolate_for_async_waiters_ = nullptr;
-  std::shared_ptr<TaskRunner> task_runner_;
-  CancelableTaskManager* cancelable_task_manager_ = nullptr;
+  // Async wait requires substantially more information than synchronous wait.
+  // Hence store that additional information in a heap-allocated struct to make
+  // it more obvious that this will only be needed for the async case.
+  struct AsyncState {
+    AsyncState(Isolate* isolate, std::shared_ptr<TaskRunner> task_runner,
+               std::weak_ptr<BackingStore> backing_store,
+               v8::Global<v8::Promise> promise,
+               v8::Global<v8::Context> native_context)
+        : isolate_for_async_waiters(isolate),
+          task_runner(std::move(task_runner)),
+          backing_store(std::move(backing_store)),
+          promise(std::move(promise)),
+          native_context(std::move(native_context)) {
+      DCHECK(this->promise.IsWeak());
+      DCHECK(this->native_context.IsWeak());
+    }
+
+    ~AsyncState() {
+      // Assert that the timeout task was cancelled.
+      DCHECK_EQ(CancelableTaskManager::kInvalidTaskId, timeout_task_id);
+    }
+
+    Isolate* const isolate_for_async_waiters;
+    std::shared_ptr<TaskRunner> const task_runner;
+
+    // The backing store on which we are waiting might die in an async wait.
+    // We keep a weak_ptr to verify during a wake operation that the original
+    // backing store is still mapped to that address.
+    std::weak_ptr<BackingStore> const backing_store;
+
+    // Weak Global handle. Must not be synchronously resolved by a non-owner
+    // Isolate.
+    v8::Global<v8::Promise> const promise;
+
+    // Weak Global handle.
+    v8::Global<v8::Context> const native_context;
+
+    // If timeout_time_ is base::TimeTicks(), this async waiter doesn't have a
+    // timeout or has already been notified. Values other than base::TimeTicks()
+    // are used for async waiters with an active timeout.
+    base::TimeTicks timeout_time;
+
+    // The task ID of the timeout task.
+    CancelableTaskManager::Id timeout_task_id =
+        CancelableTaskManager::kInvalidTaskId;
+  };
 
   base::ConditionVariable cond_;
-  // prev_ and next_ are protected by FutexEmulation::mutex_.
+  // prev_ and next_ are protected by FutexEmulationGlobalState::mutex.
   FutexWaitListNode* prev_ = nullptr;
   FutexWaitListNode* next_ = nullptr;
 
-  std::weak_ptr<BackingStore> backing_store_;
-  size_t wait_addr_ = 0;
-
   // The memory location the FutexWaitListNode is waiting on. Equals
-  // backing_store_->buffer_start() + wait_addr_ at FutexWaitListNode creation
-  // time. Storing the wait_location_ separately is needed, since we can't
-  // necessarily reconstruct it, because the BackingStore might get deleted
-  // while the FutexWaitListNode is still alive. FutexWaitListNode must know its
-  // wait location, since they are stored in per-location lists, and to remove
-  // the node, we need to be able to find the list it's on (to be able to
-  // update the head and tail of the list).
-  int8_t* wait_location_ = nullptr;
+  // backing_store_->buffer_start() + wait_addr at FutexWaitListNode creation
+  // time. This address is used find the node in the per-location list, or to
+  // remove it.
+  // Note that during an async wait the BackingStore might get deleted while
+  // this node is alive.
+  void* wait_location_ = nullptr;
 
-  // waiting_ and interrupted_ are protected by FutexEmulation::mutex_
-  // if this node is currently contained in FutexEmulation::wait_list_
+  // waiting_ and interrupted_ are protected by FutexEmulationGlobalState::mutex
+  // if this node is currently contained in FutexEmulationGlobalState::wait_list
   // or an AtomicsWaitWakeHandle has access to it.
   bool waiting_ = false;
   bool interrupted_ = false;
 
-  // Only for async FutexWaitListNodes. Weak Global handle. Must not be
-  // synchronously resolved by a non-owner Isolate.
-  v8::Global<v8::Promise> promise_;
-
-  // Only for async FutexWaitListNodes. Weak Global handle.
-  v8::Global<v8::Context> native_context_;
-
-  // Only for async FutexWaitListNodes. If async_timeout_time_ is
-  // base::TimeTicks(), this async waiter doesn't have a timeout or has already
-  // been notified. Values other than base::TimeTicks() are used for async
-  // waiters with an active timeout.
-  base::TimeTicks async_timeout_time_;
-
-  CancelableTaskManager::Id timeout_task_id_ =
-      CancelableTaskManager::kInvalidTaskId;
+  // State used for an async wait; nullptr on sync waits.
+  const std::unique_ptr<AsyncState> async_state_;
 };
 
 class FutexEmulation : public AllStatic {
@@ -150,54 +160,52 @@ class FutexEmulation : public AllStatic {
   // |rel_timeout_ms| can be Infinity.
   // If woken, return "ok", otherwise return "timed-out". The initial check and
   // the decision to wait happen atomically.
-  static Object WaitJs32(Isolate* isolate, WaitMode mode,
-                         Handle<JSArrayBuffer> array_buffer, size_t addr,
-                         int32_t value, double rel_timeout_ms);
+  static Tagged<Object> WaitJs32(Isolate* isolate, WaitMode mode,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, int32_t value,
+                                 double rel_timeout_ms);
 
   // An version of WaitJs32 for int64_t values.
-  static Object WaitJs64(Isolate* isolate, WaitMode mode,
-                         Handle<JSArrayBuffer> array_buffer, size_t addr,
-                         int64_t value, double rel_timeout_ms);
+  static Tagged<Object> WaitJs64(Isolate* isolate, WaitMode mode,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, int64_t value,
+                                 double rel_timeout_ms);
 
   // Same as WaitJs above except it returns 0 (ok), 1 (not equal) and 2 (timed
   // out) as expected by Wasm.
-  V8_EXPORT_PRIVATE static Object WaitWasm32(Isolate* isolate,
-                                             Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr, int32_t value,
-                                             int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm32(
+      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
+      int32_t value, int64_t rel_timeout_ns);
 
   // Same as Wait32 above except it checks for an int64_t value in the
   // array_buffer.
-  V8_EXPORT_PRIVATE static Object WaitWasm64(Isolate* isolate,
-                                             Handle<JSArrayBuffer> array_buffer,
-                                             size_t addr, int64_t value,
-                                             int64_t rel_timeout_ns);
+  V8_EXPORT_PRIVATE static Tagged<Object> WaitWasm64(
+      Isolate* isolate, Handle<JSArrayBuffer> array_buffer, size_t addr,
+      int64_t value, int64_t rel_timeout_ns);
 
   // Wake |num_waiters_to_wake| threads that are waiting on the given |addr|.
   // |num_waiters_to_wake| can be kWakeAll, in which case all waiters are
   // woken. The rest of the waiters will continue to wait. The return value is
   // the number of woken waiters.
-  V8_EXPORT_PRIVATE static Object Wake(Handle<JSArrayBuffer> array_buffer,
-                                       size_t addr,
-                                       uint32_t num_waiters_to_wake);
+  // Variant 1: Compute the wait address from the |array_buffer| and |addr|.
+  V8_EXPORT_PRIVATE static int Wake(Tagged<JSArrayBuffer> array_buffer,
+                                    size_t addr, uint32_t num_waiters_to_wake);
+  // Variant 2: Pass raw |addr| (used for WebAssembly atomic.notify).
+  static int Wake(void* addr, uint32_t num_waiters_to_wake);
 
   // Called before |isolate| dies. Removes async waiters owned by |isolate|.
   static void IsolateDeinit(Isolate* isolate);
 
   // Return the number of threads or async waiters waiting on |addr|. Should
   // only be used for testing.
-  static Object NumWaitersForTesting(Handle<JSArrayBuffer> array_buffer,
-                                     size_t addr);
-
-  // Return the number of async waiters (which belong to |isolate|) waiting.
-  // Should only be used for testing.
-  static Object NumAsyncWaitersForTesting(Isolate* isolate);
+  static int NumWaitersForTesting(Tagged<JSArrayBuffer> array_buffer,
+                                  size_t addr);
 
   // Return the number of async waiters which were waiting for |addr| and are
   // now waiting for the Promises to be resolved. Should only be used for
   // testing.
-  static Object NumUnresolvedAsyncPromisesForTesting(
-      Handle<JSArrayBuffer> array_buffer, size_t addr);
+  static int NumUnresolvedAsyncPromisesForTesting(
+      Tagged<JSArrayBuffer> array_buffer, size_t addr);
 
  private:
   friend class FutexWaitListNode;
@@ -206,25 +214,27 @@ class FutexEmulation : public AllStatic {
   friend class AsyncWaiterTimeoutTask;
 
   template <typename T>
-  static Object Wait(Isolate* isolate, WaitMode mode,
-                     Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     double rel_timeout_ms);
+  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
+                             Handle<JSArrayBuffer> array_buffer, size_t addr,
+                             T value, double rel_timeout_ms);
 
   template <typename T>
-  static Object Wait(Isolate* isolate, WaitMode mode,
-                     Handle<JSArrayBuffer> array_buffer, size_t addr, T value,
-                     bool use_timeout, int64_t rel_timeout_ns,
-                     CallType call_type = CallType::kIsNotWasm);
+  static Tagged<Object> Wait(Isolate* isolate, WaitMode mode,
+                             Handle<JSArrayBuffer> array_buffer, size_t addr,
+                             T value, bool use_timeout, int64_t rel_timeout_ns,
+                             CallType call_type = CallType::kIsNotWasm);
 
   template <typename T>
-  static Object WaitSync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                         size_t addr, T value, bool use_timeout,
-                         int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitSync(Isolate* isolate,
+                                 Handle<JSArrayBuffer> array_buffer,
+                                 size_t addr, T value, bool use_timeout,
+                                 int64_t rel_timeout_ns, CallType call_type);
 
   template <typename T>
-  static Object WaitAsync(Isolate* isolate, Handle<JSArrayBuffer> array_buffer,
-                          size_t addr, T value, bool use_timeout,
-                          int64_t rel_timeout_ns, CallType call_type);
+  static Tagged<Object> WaitAsync(Isolate* isolate,
+                                  DirectHandle<JSArrayBuffer> array_buffer,
+                                  size_t addr, T value, bool use_timeout,
+                                  int64_t rel_timeout_ns, CallType call_type);
 
   // Resolve the Promises of the async waiters which belong to |isolate|.
   static void ResolveAsyncWaiterPromises(Isolate* isolate);

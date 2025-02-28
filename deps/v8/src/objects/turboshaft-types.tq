@@ -4,6 +4,10 @@
 
 #include "src/objects/turboshaft-types.h"
 
+extern enum AbortReason { kTurboshaftTypeAssertionFailed, ...}
+
+extern macro Abort(constexpr AbortReason): never;
+
 bitfield struct TurboshaftFloatSpecialValues extends uint32 {
   nan: bool: 1 bit;
   minus_zero: bool: 1 bit;
@@ -11,14 +15,12 @@ bitfield struct TurboshaftFloatSpecialValues extends uint32 {
 }
 
 @abstract
-extern class TurboshaftType extends HeapObject {
-}
+extern class TurboshaftType extends HeapObject {}
 
 @generateBodyDescriptor
 @generateUniqueMap
 @generateFactoryFunction
-extern class TurboshaftWord32Type extends TurboshaftType {
-}
+extern class TurboshaftWord32Type extends TurboshaftType {}
 
 @generateBodyDescriptor
 @generateUniqueMap
@@ -39,8 +41,7 @@ extern class TurboshaftWord32SetType extends TurboshaftWord32Type {
 @generateBodyDescriptor
 @generateUniqueMap
 @generateFactoryFunction
-extern class TurboshaftWord64Type extends TurboshaftType {
-}
+extern class TurboshaftWord64Type extends TurboshaftType {}
 
 @generateBodyDescriptor
 @generateUniqueMap
@@ -128,7 +129,7 @@ macro TestTurboshaftWord64Type(
               valueHigh, valueLow, range.to_high, range.to_low) <= 0;
       const isWrapping =
           CompareUint64HighLow(
-              range.from_high, range.from_low, range.to_high, range.to_low) < 0;
+              range.from_high, range.from_low, range.to_high, range.to_low) > 0;
 
       return (isWrapping && (greaterThanOrEqualFrom || lessThanOrEqualTo)) ||
           (greaterThanOrEqualFrom && lessThanOrEqualTo);
@@ -153,16 +154,19 @@ macro TestTurboshaftFloat64Type(
     value: float64, expected: TurboshaftFloat64Type): bool {
   if (Float64IsNaN(value)) return expected.special_values.nan;
   if (IsMinusZero(value)) return expected.special_values.minus_zero;
+  const kMaxRelativeError = 0.0000001;
   typeswitch (expected) {
     case (range: TurboshaftFloat64RangeType): {
-      return range.min <= value && value <= range.max;
+      return (range.min < value ||
+              Float64AlmostEqual(range.min, value, kMaxRelativeError)) &&
+          (value < range.max ||
+           Float64AlmostEqual(value, range.max, kMaxRelativeError));
     }
     case (set: TurboshaftFloat64SetType): {
-      const delta = 0.000001;
       for (let i: uint32 = 0; i < set.set_size; ++i) {
-        if (set.elements[i] - delta <= value &&
-            value <= set.elements[i] + delta)
+        if (Float64AlmostEqual(set.elements[i], value, kMaxRelativeError)) {
           return true;
+        }
       }
       return false;
     }
@@ -172,8 +176,9 @@ macro TestTurboshaftFloat64Type(
   }
 }
 
-builtin CheckTurboshaftWord32Type(implicit context: Context)(
-    value: uint32, expectedType: TurboshaftWord32Type, nodeId: Smi): Undefined {
+builtin CheckTurboshaftWord32Type(
+    implicit context: Context)(value: uint32,
+    expectedType: TurboshaftWord32Type, nodeId: Smi): Undefined {
   if (TestTurboshaftWord32Type(value, expectedType)) {
     return Undefined;
   }
@@ -182,12 +187,12 @@ builtin CheckTurboshaftWord32Type(implicit context: Context)(
   Print('Node id', nodeId);
   Print('Actual value', Convert<Number>(value));
   Print('Expected type', expectedType);
-  unreachable;
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
 }
 
-builtin CheckTurboshaftWord64Type(implicit context: Context)(
-    valueHigh: uint32, valueLow: uint32, expectedType: TurboshaftWord64Type,
-    nodeId: Smi): Undefined {
+builtin CheckTurboshaftWord64Type(
+    implicit context: Context)(valueHigh: uint32, valueLow: uint32,
+    expectedType: TurboshaftWord64Type, nodeId: Smi): Undefined {
   if (TestTurboshaftWord64Type(valueHigh, valueLow, expectedType)) {
     return Undefined;
   }
@@ -197,14 +202,14 @@ builtin CheckTurboshaftWord64Type(implicit context: Context)(
   Print('Actual value (high)', Convert<Number>(valueHigh));
   Print('Actual vlaue (low)', Convert<Number>(valueLow));
   Print('Expected type', expectedType);
-  unreachable;
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
 }
 
 // Builtin needs custom interface descriptor to allow float32 argument type.
 @customInterfaceDescriptor
-builtin CheckTurboshaftFloat32Type(implicit context: Context)(
-    value: float32, expectedType: TurboshaftFloat64Type, nodeId: Smi):
-    Undefined {
+builtin CheckTurboshaftFloat32Type(
+    implicit context: Context)(value: float32,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
   const v = Convert<float64>(value);
   if (TestTurboshaftFloat64Type(v, expectedType)) {
     return Undefined;
@@ -212,23 +217,37 @@ builtin CheckTurboshaftFloat32Type(implicit context: Context)(
 
   Print('Type assertion failed!');
   Print('Node id', nodeId);
-  Print('Actual value', Convert<Number>(v));
+  Print('Actual value', v);
   Print('Expected type', expectedType);
-  unreachable;
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
 }
 
 // Builtin needs custom interface descriptor to allow float64 argument type.
 @customInterfaceDescriptor
-builtin CheckTurboshaftFloat64Type(implicit context: Context)(
-    value: float64, expectedType: TurboshaftFloat64Type, nodeId: Smi):
-    Undefined {
+builtin CheckTurboshaftFloat64Type(
+    implicit context: Context)(value: float64,
+    expectedType: TurboshaftFloat64Type, nodeId: Smi): Undefined {
   if (TestTurboshaftFloat64Type(value, expectedType)) {
     return Undefined;
   }
 
   Print('Type assertion failed!');
   Print('Node id', nodeId);
-  Print('Actual value', Convert<Number>(value));
+  Print('Actual value', value);
   Print('Expected type', expectedType);
-  unreachable;
+  Abort(AbortReason::kTurboshaftTypeAssertionFailed);
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintWordPtr(
+    implicit context: Context)(value: uintptr): Undefined {
+  Print('DebugPrint (word): ', value);
+  return Undefined;
+}
+
+@customInterfaceDescriptor
+builtin DebugPrintFloat64(
+    implicit context: Context)(value: float64): Undefined {
+  Print('DebugPrint (float64): ', value);
+  return Undefined;
 }

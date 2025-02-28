@@ -32,6 +32,7 @@
   'modules-skip*': [SKIP],
   'harmony/modules-skip*': [SKIP],
   'harmony/shadowrealm-skip*': [SKIP],
+  'harmony/async-module-ordinal-reset/skip*': [SKIP],
   'regress/modules-skip*': [SKIP],
   'wasm/exceptions-utils': [SKIP],
   'wasm/gc-js-interop-helpers': [SKIP],
@@ -77,6 +78,9 @@
   'regress/regress-crbug-595657': [SKIP],
   'regress/regress-475705': [SKIP],
 
+  # BUG(chromium:1497251): Probably some data race in the interpreter.
+  'regress/regress-1497251': [SKIP],
+
   ##############################################################################
   # Tests where variants make no sense.
   'd8/enable-tracing': [PASS, NO_VARIANTS],
@@ -106,7 +110,10 @@
 
   ##############################################################################
   # Tests verifying CHECK and ASSERT.
-  'verify-check-false': [FAIL, NO_VARIANTS],
+  #
+  # With the official_build flag CHECK failures can't be distinguished from
+  # CRASH. See cctest.status for details (v8:13945).
+  'verify-check-false': [FAIL, NO_VARIANTS, ['official_build', CRASH]],
   'verify-assert-false': [NO_VARIANTS, ['mode == release and dcheck_always_on == False', PASS], ['mode == debug', FAIL]],
 
   ##############################################################################
@@ -125,19 +132,21 @@
   'array-functions-prototype-misc': [PASS, SLOW],
   'asm/embenchen/*': [PASS, SLOW, NO_VARIANTS],
   'asm/poppler/*': [PASS, SLOW, NO_VARIANTS],
-  'asm/sqlite3/*': [PASS, SLOW, NO_VARIANTS],
   'compiler/regress-9017': [PASS, SLOW],
+  'compiler/regress-crbug-11564': [PASS, SLOW],
   'copy-on-write-assert': [PASS, SLOW],
   'es6/promise-all-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'es6/typedarray-construct-offset-not-smi': [PASS, SLOW],
   'harmony/promise-any-overflow-2': [PASS, SLOW, ['arch != x64', SKIP]],
   'harmony/futex': [PASS, SLOW],
   'harmony/regexp-property-script-extensions': [PASS, SLOW],
+  'harmony/sharedarraybuffer-stress': [PASS, SLOW],
+  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, SLOW],
   'large-object-literal-slow-elements': [PASS, SLOW],
   'math-floor-of-div': [PASS, SLOW],
   'md5': [PASS, SLOW],
   'readonly': [PASS, SLOW],
-  'regress-1417125': [PASS, SLOW],
+  'regress-1417125': [PASS, SLOW, ['mode != release or arch != x64', SKIP]],
   'regress/regress-1122': [PASS, SLOW],
   'regress/regress-605470': [PASS, SLOW],
   'regress/regress-655573': [PASS, SLOW],
@@ -153,10 +162,11 @@
   'wasm/unreachable-validation': [PASS, SLOW],
   'wasm/atomics-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/atomics64-stress': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
+  'wasm/atomics-memory64': [PASS, SLOW, NO_VARIANTS, ['mode != release or dcheck_always_on', SKIP], ['tsan', SKIP]],
   'wasm/compare-exchange-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/compare-exchange64-stress': [PASS, SLOW, NO_VARIANTS],
   'wasm/code-space-overflow': [PASS, SLOW, NO_VARIANTS, ['gc_stress == True or (simulator_run and mode == debug)', SKIP]],
-  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or predictable', SKIP], ['tsan', SKIP]],
+  'wasm/max-wasm-functions': [PASS, SLOW, ['mode != release or dcheck_always_on or simulator_run or verify_predictable', SKIP], ['tsan', SKIP]],
 
   # Very slow on ARM, MIPS, RISCV and LOONG, contains no architecture dependent code.
   'unicode-case-overoptimization0': [PASS, NO_VARIANTS, ['arch in (arm, arm64, mips64el, mips64, riscv64, riscv32, loong64)', SKIP]],
@@ -175,35 +185,33 @@
 
   # OOM with too many isolates/memory objects (https://crbug.com/1010272)
   # Predictable tests fail due to race between postMessage and GrowMemory
-  'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['predictable', SKIP]],
+  'regress/wasm/regress-1010272': [PASS, HEAVY, NO_VARIANTS, ['system == android', SKIP], ['verify_predictable', SKIP]],
 
-  # Only makes sense in the no_i18n variant.
+  # Only makes sense without i18n.
   'es6/unicode-regexp-ignore-case-noi18n':
-      [['no_i18n == True', PASS], ['no_i18n == False', FAIL]],
+      [['not i18n', PASS], ['i18n', FAIL]],
 
   # Needs to be adapted after changes to Function constructor. chromium:1065094
   'cross-realm-filtering': [SKIP],
 
   # Tests that need to run sequentially (e.g. due to memory consumption).
-  'compiler/array-subclass': [PASS, HEAVY],
-  'compiler/regress-crbug-11564': [PASS, HEAVY],
   'd8/d8-worker-shutdown*': [PASS, HEAVY],
-  'es6/large-classes-*': [PASS, HEAVY],
-  'harmony/sharedarraybuffer-stress': [PASS, HEAVY],
-  'harmony/sharedarraybuffer-worker-gc-stress': [PASS, HEAVY],
-  'ignition/regress-672027': [PASS, HEAVY],
+  'huge-typedarrays': [PASS, HEAVY],
   'json2': [PASS, HEAVY],
-  'regress/regress-500980': [PASS, HEAVY],
-  'regress/regress-599414-array-concat-fast-path': [PASS, HEAVY],
   'regress/regress-678917': [PASS, HEAVY],
   'regress/regress-779407': [PASS, HEAVY],
   'regress/regress-852258': [PASS, HEAVY],
-  'regress/regress-862433': [PASS, HEAVY],
   'regress/regress-1034322': [PASS, HEAVY, NO_VARIANTS, ['mode != release', SKIP]],
-  'regress/regress-crbug-119926': [PASS, HEAVY],
-  'regress/regress-crbug-941743': [PASS, HEAVY],
-  'regress/regress-crbug-1191886': [PASS, HEAVY],
-  'wasm/externref-globals': [PASS, HEAVY],
+  'regress/regress-1320641': [PASS, HEAVY],
+  'regress/regress-1447343': [PASS, HEAVY],
+  'wasm/grow-huge-memory': [PASS, HEAVY],
+  'wasm/huge-memory': [PASS, HEAVY],
+  'wasm/many-modules': [PASS, HEAVY],
+  'wasm/memory64': [PASS, HEAVY],
+  'wasm/simd-lane-memory64': [PASS, HEAVY],
+  'wasm/stringrefs-regressions': [PASS, HEAVY],
+  'wasm/table': [PASS, HEAVY],
+  'wasm/table-grow': [PASS, HEAVY],
 
   # TODO(v8:10915): Fails with --future.
   'harmony/weakrefs/stress-finalizationregistry-dirty-enqueue': [SKIP],
@@ -217,6 +225,9 @@
   'regress/wasm/regress-1032753': [PASS, ['system != linux', SKIP]],
   'regress/regress-913844': [PASS,
     ['system != linux or arch not in (arm, arm64, x64, s390x, ppc64)', SKIP]],
+
+  # TODO(v8:12783): Turboshaft instruction selection not ported to these platforms yet.
+  'wasm/turboshaft/instruction-selection': [PASS, ['arch in [riscv32]', SKIP]],
 }],  # ALWAYS
 
 ################################################################################
@@ -273,9 +284,15 @@
   'asm/embenchen/lua_binarytrees': [SKIP],
 }],  # novfp3
 
+################################################################################
+['not memory_corruption_api', {
+  # Sandbox tests require the memory corruption API.
+  'sandbox/*': [SKIP],
+}],
+
 ##############################################################################
-# TODO(ahaas): Port multiple return values to MIPS, S390 and PPC
-['arch in (mips64, mips64el, s390, s390x, ppc, ppc64)', {
+# TODO(ahaas): Port multiple return values to MIPS.
+['arch in (mips64, mips64el)', {
   'wasm/multi-value': [SKIP],
 }],
 
@@ -288,6 +305,10 @@
   'regress/wasm/regress-1010272': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+  'wasm/atomics-memory64': [SKIP],
+  # Profiler test is flaky on simulators.
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 }],  # simulator_run
 
 ##############################################################################
@@ -305,6 +326,7 @@
   'getters-on-elements': [SKIP],
   'es6/block-let-crankshaft': [SKIP],
   'maglev/osr-to-tf': [SKIP],
+  'maglev/unstable-map-transition': [SKIP],
   'opt-elements-kind': [SKIP],
   'osr-elements-kind': [SKIP],
   'compiler/number-divide': [SKIP],
@@ -355,10 +377,10 @@
 
   # Slow tests.
   'array-constructor': [PASS, SLOW],
+  'array-splice': [PASS, SLOW],
   'json': [PASS, SLOW],
-
-  # BUG(v8:4779): Crashes flakily with stress mode on arm64.
-  'array-splice': [PASS, SLOW, ['arch == arm64', NO_VARIANTS]],
+  'regress/asm/regress-775710': [PASS, SLOW],
+  'regress/regress-crbug-820312': [PASS, SLOW],
 
   # BUG(v8:7880): Slow tests.
   'regress/regress-707066': [SKIP],
@@ -384,6 +406,15 @@
 
   # https://crbug.com/v8/13461
   'maglev/inner-function': [SKIP],
+
+  # https://crbug.com/v8/13916
+  'readonly': [SKIP],
+
+  # Bug(362522337)
+  'wasm/growable-stacks': [SKIP],
+
+  # Bug(364804226)
+  'wasm/wrapper-compilation': [SKIP],
 }],  # 'gc_stress'
 
 ##############################################################################
@@ -425,7 +456,7 @@
 
 ##############################################################################
 # TODO(v8:7777): Change this once wasm is supported in jitless mode.
-['not has_webassembly or variant == jitless', {
+['not has_webassembly or (variant == jitless and not has_wasm_interpreter)', {
   # Skip tests that require webassembly.
   'regress/asm/*': [SKIP],
   'regress/wasm/*': [SKIP],
@@ -433,17 +464,271 @@
   'asm/*': [SKIP],
   'wasm/*': [SKIP],
 
+  'maglev/regress-355256380': [SKIP],
+
+  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
+
+  'sandbox/regress/regress-334120897': [SKIP],
+  'sandbox/regress/regress-349502157': [SKIP],
+  'sandbox/wasm-inlining-sigcheck': [SKIP],
+  'sandbox/wasm-signature-verification': [SKIP],
+  'sandbox/wasm-table-import': [SKIP],
+  'sandbox/wasm-table-sigcheck': [SKIP],
+
   # Tests tracing when generating wasm in TurboFan.
   'tools/compiler-trace-flags-wasm': [SKIP],
 
   'compiler/fast-api-calls-wasm': [SKIP],
-}],  # not has_webassembly or variant == jitless
+}],  # not has_webassembly or (variant == jitless and not has_wasm_interpreter)
+
 
 ##############################################################################
-['jitless_build_mode', {
+['not has_wasm_interpreter or variant != jitless', {
+  # Tests to run only with the Wasm interpreter.
+  'wasm/wasm-interpreter-memory-grow' : [SKIP],
+}],  # not has_wasm_interpreter or variant != jitless
+
+##############################################################################
+['not has_wasm_interpreter and variant == jitless', {
+  'wasm/*': [SKIP],
+  'regress/wasm/*': [SKIP],
+}],  # not has_wasm_interpreter and variant == jitless
+
+['has_wasm_interpreter and variant == jitless', {
+  # Skip tests that require Wasm experimental features not supported by the
+  # Wasm interpreter, or that explicitly require compilation.
+
+  # --experimental-wasm-inlining
+  'regress/wasm/regress-crbug-1510626': [SKIP],
+
+  # --experimental-wasm-typed-funcref
+  'regress/wasm/regress-1364036': [SKIP],
+  'regress/wasm/regress-1446221': [SKIP],
+  'regress/wasm/regress-1449208': [SKIP],
+  'regress/wasm/regress-crbug-1047368': [SKIP],
+  'regress/wasm/regress-crbug-1463219': [SKIP],
+  'wasm/imported-function-types': [SKIP],
+  'wasm/loop-unrolling': [SKIP],
+  'wasm/reference-tables': [SKIP],
+  'wasm/test-wasm-module-builder': [SKIP],
+
+  # --experimental-wasm-type-reflection
+  'regress/wasm/regress-crbug-1002388': [SKIP],
+  'regress/wasm/regress-crbug-1006631': [SKIP],
+  'regress/wasm/regress-14695': [SKIP],
+  'regress/wasm/regress-329130358': [SKIP],
+  'regress/wasm/regress-336358915*': [SKIP],
+  'wasm/call-ref': [SKIP],
+  'wasm/exceptions-type-reflection': [SKIP],
+  'wasm/externref-table': [SKIP],
+  'wasm/js-to-js': [SKIP],
+  'wasm/gc-casts-subtypes': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/ref-cast-js-function': [SKIP],
+  'wasm/type-reflection*': [SKIP],
+  'wasm/wasm-to-js-tierup': [SKIP],
+
+  # --experimental-wasm-exnref
+  'regress/wasm/regress-14689': [SKIP],
+  'regress/wasm/regress-1502837': [SKIP],
+  'regress/wasm/regress-1507743': [SKIP],
+  'regress/wasm/regress-336214779': [SKIP],
+  'wasm/exnref*': [SKIP],
+  'wasm/gc-casts-exnref': [SKIP],
+  'wasm/gc-casts-invalid': [SKIP],
+  'wasm/js-wrapper-typechecks': [SKIP],
+  'wasm/wasm-inlining-catch-unreachable': [SKIP],
+
+  #--experimental-wasm-ref-cast-nop
+  'wasm/gc-experiments': [SKIP],
+
+  # --experimental-wasm-compilation-hints
+  'wasm/compilation-hints*': [SKIP],
+
+  # --experimental-wasm-extended-const
+  'wasm/extended-constants': [SKIP],
+
+  # --experimental-wasm-memory64
+  'regress/wasm/regress-329706236': [SKIP],
+  'regress/wasm/regress-332939161': [SKIP],
+  'wasm/memory64': [SKIP],
+  'wasm/multi-memory64': [SKIP],
+  'wasm/simd-lane-memory64': [SKIP],
+  'wasm/table64*': [SKIP],
+
+  # --experimental-wasm-multi-memory
+  'regress/wasm/regress-1518257': [SKIP],
+  'regress/wasm/regress-1523740': [SKIP],
+  'regress/wasm/regress-343035068': [SKIP],
+  'wasm/atomic-wait-multi-memory': [SKIP],
+  'wasm/generate-random-module': [SKIP],
+  'wasm/js-api': [SKIP],
+  'wasm/multi-memory*': [SKIP],
+
+  # --experimental-wasm-stack-switching
+  'regress/wasm/regress-v8-14471': [SKIP],
+  'wasm/stack-switching*': [SKIP],
+  'wasm/growable-stacks': [SKIP],
+
+  # --experimental-wasm-stringref
+  'regress/wasm/regress-324475066': [SKIP],
+  'regress/wasm/regress-324690505': [SKIP],
+  'regress/wasm/regress-330580823': [SKIP],
+  'regress/wasm/regress-336007398': [SKIP],
+  'regress/wasm/regress-crbug-1463232': [SKIP],
+  'regress/wasm/regress-crbug-1466312': [SKIP],
+  'regress/wasm/regress-v8-14710': [SKIP],
+  'wasm/gc-casts-from-any': [SKIP],
+  'wasm/origin-trial-flags': [SKIP],
+  'wasm/reference-globals-import': [SKIP],
+  'wasm/reference-table-js-interop': [SKIP],
+  'wasm/stringref*': [SKIP],
+  'wasm/stringview-valuestack': [SKIP],
+  'wasm/turboshaft/instruction-selection': [SKIP],
+
+  # --liftoff
+  'regress/wasm/regress-1045737': [SKIP],
+  'regress/wasm/regress-1046472': [SKIP],
+  'regress/wasm/regress-1125951': [SKIP],
+  'regress/wasm/regress-1185464': [SKIP],
+  'regress/wasm/regress-1220855': [SKIP],
+  'regress/wasm/regress-14113': [SKIP],
+  'regress/wasm/regress-14116': [SKIP],
+  'regress/wasm/regress-14118': [SKIP],
+  'regress/wasm/regress-14171': [SKIP],
+  'regress/wasm/regress-864509': [SKIP],
+  'regress/wasm/regress-9017': [SKIP],
+  'regress/wasm/regress-350779988': [SKIP],
+  'wasm/deopt/*': [SKIP],
+  'wasm/enter-debug-state': [SKIP],
+  'wasm/liftoff-trap-handler': [SKIP],
+  'wasm/serialization-with-compilation-hints': [SKIP],
+  'wasm/streaming-trap-location': [SKIP],
+
+  # --wasm_lazy_compilation
+  'regress/wasm/regress-1016515': [SKIP],
+  'regress/wasm/regress-1161555': [SKIP],
+  'regress/wasm/regress-1180690': [SKIP],
+  'regress/wasm/regress-1184964': [SKIP],
+  'regress/wasm/regress-724851': [SKIP],
+  'regress/wasm/regress-7353': [SKIP],
+  'regress/wasm/regress-736584': [SKIP],
+  'regress/wasm/regress-739768': [SKIP],
+  'regress/wasm/regress-803427': [SKIP],
+  'regress/wasm/regress-803788': [SKIP],
+  'regress/wasm/regress-808012': [SKIP],
+  'regress/wasm/regress-817380': [SKIP],
+  'regress/wasm/regress-834619': [SKIP],
+  'regress/wasm/regress-956771*': [SKIP],
+  'regress/wasm/regress-1430858': [SKIP],
+  'wasm/code-flushing*': [SKIP],
+  'wasm/lazy-compilation': [SKIP],
+  'wasm/lazy-feedback-vector-allocation': [SKIP],
+  'wasm/serialize-lazy-module': [SKIP],
+  'wasm/test-serialization-with-lazy-compilation': [SKIP],
+
+  # --wasm-lazy-validation
+  'regress/wasm/regress-334687959': [SKIP],
+
+  # --experimental-wasm-imported-strings
+  'wasm/imported-strings*': [SKIP],
+  'regress/wasm/regress-324747822': [SKIP],
+  'regress/wasm/regress-326091470': [SKIP],
+  'regress/wasm/regress-326260438': [SKIP],
+  'regress/wasm/regress-326156493': [SKIP],
+  'regress/wasm/regress-326273468': [SKIP],
+  'regress/wasm/regress-326894018': [SKIP],
+  'regress/wasm/regress-327517308': [SKIP],
+  'regress/wasm/regress-327643791': [SKIP],
+  'regress/wasm/regress-329464129': [SKIP],
+  'regress/wasm/regress-40258436': [SKIP],
+
+  # --experimental-wasm-shared
+  'wasm/shared-everything/basic': [SKIP],
+
+  # --experimental-wasm-jspi
+  'regress/wasm/regress-336852356': [SKIP],
+
+  # Module serialization tests expect compilation
+  'regress/wasm/regress-11024': [SKIP],
+  'regress/wasm/regress-7785': [SKIP],
+  'regress/wasm/regress-808848': [SKIP],
+  'regress/wasm/regress-808980': [SKIP],
+  'regress/wasm/regress-8896': [SKIP],
+  'wasm/compiled-module-serialization': [SKIP],
+  'wasm/print-code': [SKIP],
+
+  # Other tests that require compilation.
+  'compiler/fast-api-calls-wasm': [SKIP],
+  'wasm/async-compile': [SKIP],
+  'wasm/log-code-after-post-message': [SKIP],
+  'wasm/multiple-code-spaces': [SKIP],
+  'wasm/wrapper-compilation': [SKIP],
+
+  # Tests that expect different profiling samples.
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
+
+  # Interpreter stack trace not fully implemented yet.
+  'wasm/function-names': [SKIP],
+  'wasm/stack': [SKIP],
+
+  # d8.exe --no-wasm-trap-handler.
+  'regress/wasm/regress-842501': [SKIP],
+
+  # TODO(paolosev): Support Wasm to JS calls to JSApiObjects.
+  'wasm/ffi': [SKIP],
+
+  # TODO(paolosev): Implement StackCheck in Wasm loops.
+  'wasm/grow-shared-memory': [SKIP],
+  'wasm/interrupt-worker-with-perf': [SKIP],
+  'wasm/worker-running-empty-loop-interruptible': [SKIP],
+
+  # Tests using %WasmTierUpFunction()
+  'regress/wasm/regress-1179065': [SKIP],
+  'regress/wasm/regress-13230': [SKIP],
+  'regress/wasm/regress-13290': [SKIP],
+  'regress/wasm/regress-13826': [SKIP],
+  'regress/wasm/regress-1403398': [SKIP],
+  'regress/wasm/regress-1511849': [SKIP],
+  'regress/wasm/regress-325372946': [SKIP],
+  'regress/wasm/regress-326904344': [SKIP],
+  'regress/wasm/regress-353582136': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
+  'regress/wasm/regress-354324155*': [SKIP],
+  'regress/wasm/regress-crbug-1507751': [SKIP],
+  'wasm/bit-shift-right': [SKIP],
+  'wasm/bounds-check-turbofan': [SKIP],
+  'wasm/enter-and-leave-debug-state': [SKIP],
+  'wasm/recognize-imports': [SKIP],
+  'wasm/simd-relaxed-lane-select': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+  'wasm/stringrefs-regressions': [SKIP],
+
+  # --wasm_tier_up
+  'wasm/graceful_shutdown_during_tierup': [SKIP],
+
+  # asm.js tests
+  'asm/*': [SKIP],
+  'regress/asm/*': [SKIP],
+
+  # NaN representation
+  'wasm/nan-constant': [SKIP],
+
+ }],  # has_wasm_interpreter and variant == jitless
+
+['has_wasm_interpreter and variant == jitless and arch == arm64', {
+
+  # Trap handling not used for bounds checking on arm64, disable tests that use
+  # %GetWasmRecoveredTrapCount()
+  'wasm/module-memory': [SKIP],
+
+ }],  # has_wasm_interpreter and variant == jitless and arch == arm64
+
+##############################################################################
+['has_jitless', {
   # invocation_count maintenance is disabled.
   'code-coverage*': [SKIP],
-}],  # jitless_build_mode
+}],  # has_jitless
 
 ##############################################################################
 ['lite_mode or variant == jitless', {
@@ -463,6 +748,10 @@
   'compiler/regress-crbug-1201011': [SKIP],
   'compiler/regress-crbug-1201057': [SKIP],
   'compiler/regress-crbug-1201082': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
+
+  'maglev/extras-cped': [SKIP],
+  'turboshaft/extras-cped': [SKIP],
 
   # These tests check that we can trace the compiler.
   'tools/compiler-trace-flags': [SKIP],
@@ -485,7 +774,7 @@
 }],  # 'lite_mode or variant == jitless'
 
 ##############################################################################
-['no_i18n', {
+['not i18n', {
   # Case-insensitive unicode regexp relies on case mapping provided by ICU.
   'es6/unicode-regexp-ignore-case': [FAIL],
   'es7/regexp-ui-word': [FAIL],
@@ -496,6 +785,7 @@
   'harmony/regexp-property-*': [PASS,FAIL],
   'regress/regress-1262423': [PASS,FAIL],
   'regress/regress-793588': [PASS,FAIL],
+  'regress/regress-crbug-1437346': [PASS,FAIL],
 
   # RegExp unicode tests relies on ICU for property classes and
   # case-insensitive unicode patterns.
@@ -515,38 +805,43 @@
   'tzoffset-transition-new-york': [PASS,FAIL],
   'tzoffset-seoul': [PASS,FAIL],
 
-  # noi18n is required for Intl
+  # i18n is required for Intl
   'regress/regress-crbug-1052647': [PASS,FAIL],
   'regress/regress-1409058': [SKIP],
+  'regress/regress-1447383': [SKIP],
+  'regress/regress-crbug-335592010': [SKIP],
+  'regress/regress-352402863': [SKIP],
 
-  # Temporal intl tests won't work in no_i18n
+  # Temporal intl tests won't work without i18n
   'temporal/function-exist': [FAIL],
   'temporal/plain-date-get-era': [FAIL],
   'temporal/plain-date-get-eraYear': [FAIL],
   'temporal/plain-date-time-get-era': [FAIL],
   'temporal/plain-date-time-get-eraYear': [FAIL],
 
-  # Non-BMP characters currently aren't considered identifiers in no_i18n
+  # Non-BMP characters currently aren't considered identifiers without i18n
   'harmony/private-name-surrogate-pair': [PASS,FAIL],
 
   # Tests ICU-specific behavior.
   'regress/regress-crbug-1414292': [SKIP],
-}],  # 'no_i18n'
+}],  # 'not i18n'
 
 ##############################################################################
-['is_full_debug', {
+['full_debug', {
   # Tests too slow in non-optimized debug mode.
+  'es6/super-ic': [SKIP],
+  'regress/regress-1122': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
-}],  # 'is_full_debug'
+  'wasm/shared-memory-worker-gc': [SKIP],
+}],  # 'full_debug'
 
 ##############################################################################
 ['byteorder == big', {
   # Emscripten requires little-endian, skip all tests on big endian platforms.
   'asm/embenchen/*': [SKIP],
   'asm/poppler/*': [SKIP],
-  'asm/sqlite3/*': [SKIP],
   # TODO(mips-team): Fix Wasm for big-endian.
   'wasm/*': [SKIP],
 }],  # 'byteorder == big'
@@ -561,6 +856,19 @@
   'wasm/bigint-opt': [SKIP],
   'wasm/simd-lane-memory64': [SKIP],
   'regress/regress-1320641': [SKIP],
+  'regress/regress-354626177': [SKIP],
+
+  # Float parameters are not supported in the fast api on these platforms
+  'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
+
+  # Needs a huge Uint8Array.
+  'regress/regress-1432470': [SKIP],
+  'wasm/imported-dataview-bytelength': [SKIP],
+
+  # Needs 64-bit number register support
+  'compiler/fast-api-calls-64-bit-integer-values': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports-i64': [SKIP],
+  'wasm/fast-api-calls-with-wellknown-imports-conflict': [SKIP],
 }],  # 'arch in (ia32, arm, riscv32)'
 
 ##############################################################################
@@ -591,9 +899,6 @@
 
   # BUG(v8:3457).
   'deserialize-reference': [PASS, FAIL],
-
-  # BUG(v8:4016)
-  'regress/regress-crbug-467047': [SKIP],
 
   # OOMing tests
   'regress/regress-500980': [SKIP],
@@ -630,6 +935,10 @@
 
   # BUG(v8:7247).
   'regress/regress-779407': [PASS, SLOW, NO_VARIANTS],
+
+  # BUG(v8:14215).
+  'tzoffset-seoul-noi18n': [PASS, FAIL],
+  'tzoffset-transition-new-york-noi18n': [PASS, FAIL],
 }],  # 'arch == arm64'
 
 ##############################################################################
@@ -704,6 +1013,8 @@
 
 ##############################################################################
 ['tsan == True', {
+  # TODO(354103254): There are still data races on background compilation.
+  'regress/regress-350779648': [SKIP],
 
   # https://bugs.chromium.org/p/v8/issues/detail?id=7102
   # Flaky due to huge string allocation.
@@ -820,7 +1131,7 @@
 }],  # 'arch in (mips64el, mips64)'
 
 ##############################################################################
-['arch in (mips64el, mips64, ppc, ppc64)', {
+['arch in (mips64el, mips64, ppc64)', {
   # These tests fail because qNaN and sNaN values are encoded differently on
   # MIPS and ARM/x86 architectures
   'wasm/float-constant-folding': [SKIP],
@@ -875,6 +1186,9 @@
 
   # Requires too much memory on MIPS.
   'regress/regress-779407': [SKIP],
+
+  # MIPS64 port doesn't support maglev yet.
+  'turboshaft/maglev-frontend/*': [SKIP],
 }],  # 'arch == mips64el or arch == mips64'
 
 ##############################################################################
@@ -884,6 +1198,8 @@
   # qNaN encoding with x86 architectures
   'wasm/float-constant-folding': [SKIP],
 
+  # Loong64 port doesn't support maglev yet.
+  'turboshaft/maglev-frontend/*': [SKIP],
 }],  # 'arch == loong64'
 
 ##############################################################################
@@ -907,6 +1223,9 @@
   'regress/regress-create-exception': [SKIP],
   'regress/regress-3247124': [SKIP],
 
+  # RISCV don't preserve signalling NaNs.
+  'regress/wasm/regress-347914831': [SKIP],
+
   # Requires bigger stack size in the Genesis and if stack size is increased,
   # the test requires too much time to run.  However, the problem test covers
   # should be platform-independent.
@@ -928,36 +1247,24 @@
   # This often fails in debug mode because it is too slow
   'd8/d8-performance-now': [PASS, ['mode == debug', SKIP]],
 
-  # SIMD not be implemented
-  'regress/wasm/regress-1054466': [SKIP],
-  'regress/wasm/regress-1065599': [SKIP],
-  'regress/wasm/regress-1070078': [SKIP],
-  'regress/wasm/regress-1081030': [SKIP],
-  'regress/wasm/regress-10831': [SKIP],
-  'regress/wasm/regress-10309': [SKIP],
-  'regress/wasm/regress-1111522': [SKIP],
-  'regress/wasm/regress-1116019': [SKIP],
-  'regress/wasm/regress-1124885': [SKIP],
-  'regress/wasm/regress-1165966': [SKIP],
-  'regress/wasm/regress-1112124': [SKIP],
-  'regress/wasm/regress-1132461': [SKIP],
-  'regress/wasm/regress-1161555': [SKIP],
-  'regress/wasm/regress-1161954': [SKIP],
-  'regress/wasm/regress-1187831': [SKIP],
-  'regress/wasm/regress-1199662': [SKIP],
-  'regress/wasm/regress-1231950': [SKIP],
-  'regress/wasm/regress-1264462': [SKIP],
-  'regress/wasm/regress-1179025': [SKIP],
-  'regress/wasm/regress-13732': [SKIP],
-  'wasm/multi-value-simd': [SKIP],
-  'wasm/liftoff-simd-params': [SKIP],
-  'wasm/exceptions-simd': [SKIP],
-  'wasm/simd-*': [SKIP],
+  # Disabling Turboshaft's from-Maglev graph building until support maglev
+  'turboshaft/maglev-frontend/*': [SKIP],
 
+  # Needs sandbox enabled.
+  'shared-memory/condition-async-wait-timeout' :['pointer_compression', SKIP],
+  'shared-memory/condition-async-wait-realm-disposed' :['pointer_compression', SKIP],
+  'shared-memory/mutex-async-lock-workers-timeout' :['pointer_compression', SKIP],
+  'shared-memory/mutex-async-lock-realm-disposed' :['pointer_compression', SKIP],
 }],  # 'arch == riscv64 or arch == riscv32'
+
+['variant == stress and (arch == riscv64 or arch == riscv32)', {
+'wasm/multi-value-simd': [SKIP]
+}], # 'arch == riscv64 or arch == riscv32' and 'variant == stress'
 
 [ 'arch == riscv32' , {
 'wasm/compare-exchange64-stress':[SKIP],
+'regress/regress-crbug-781583':[SKIP],
+'regress/wasm/regress-14171':[SKIP],
 }], # 'arch == riscv32'
 
 ##############################################################################
@@ -994,6 +1301,9 @@
   'tzoffset-transition-new-york-noi18n': [SKIP],
   'tzoffset-seoul': [SKIP],
   'tzoffset-seoul-noi18n': [SKIP],
+
+  # Suspect to stress other tests when run in background.
+  'huge-typedarrays': [PASS, HEAVY, NO_VARIANTS],
 }],  # 'system == windows'
 
 ##############################################################################
@@ -1039,11 +1349,12 @@
   'wasm/lazy-compilation': [SKIP],
 
   # Tier down/up Wasm functions is non-deterministic with
-  # multiple isolates, as dynamic tiering relies on a array shared
+  # multiple isolates, as dynamic tiering relies on an array shared
   # in the module, that can be modified by all instances.
-  'wasm/code-flushing': [SKIP],
+  'wasm/code-flushing-single-isolate': [SKIP],
   'wasm/enter-and-leave-debug-state': [SKIP],
   'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/wasm-to-js-tierup': [SKIP],
 
   # The test relies on precise switching of code kinds of wasm functions. With
   # multiple isolates that share the wasm functions, the precise switching is
@@ -1053,6 +1364,11 @@
   # The test enables the global profiler, and there can only exist one profiler
   # at a time.
   'wasm/log-code-after-post-message': [SKIP],
+
+  # These test cases assert on the exact amount of deopts happening between two
+  # points in the code which cannot be guaranteed with multiple isolates.
+  'wasm/deopt/deopt-dynamic-tierup': [SKIP],
+  'wasm/deopt/deopt-metrics': [SKIP],
 
   # The test explicitly deserializes a wasm module and expects the resulting
   # wasm module to match the serialized one. With multiple isolate the resulting
@@ -1144,6 +1460,9 @@
 
   # BUG(v8:11826) Skipped until we remove flakes on NumFuzz.
   'regress/wasm/regress-1231950': [SKIP],
+
+  # BUG(v8:13433)
+  'compiler/array-slice-clone': [SKIP],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -1189,6 +1508,10 @@
   'compiler/js-create-arguments': [SKIP],
   'compiler/js-create': [SKIP],
   'compiler/construct-bound-function': [SKIP],
+
+  # BUG(v8:13882) Skipped until we have a solution.
+  'compiler/osr-literals': [SKIP],
+  'compiler/osr-literals-adapted': [SKIP],
 }], # gc_fuzzer or deopt_fuzzer or interrupt_fuzzer
 
 ##############################################################################
@@ -1210,13 +1533,14 @@
 }],  # 'endurance_fuzzer'
 
 ##############################################################################
-['predictable == True', {
+['verify_predictable', {
 
   # Skip tests that are known to be non-deterministic.
   'd8/d8-worker-sharedarraybuffer': [SKIP],
   'd8/d8-os': [SKIP],
   'd8/d8-worker-shutdown': [SKIP],
   'd8/d8-worker-shutdown-gc': [SKIP],
+  'd8/d8-worker-onmessage-ping-pong': [SKIP],
   'harmony/futex': [SKIP],
   'typedarray-growablesharedarraybuffer-atomics': [SKIP],
 
@@ -1227,9 +1551,13 @@
   'd8/enable-tracing': [SKIP],
 
   # Intentionally non-deterministic using shared arraybuffers between workers.
+  'huge-typedarrays': [SKIP],
+  'wasm/atomic-wait-multi-memory': [SKIP],
   'wasm/atomics-stress': [SKIP],
   'wasm/atomics64-stress': [SKIP],
+  'wasm/atomics-memory64': [SKIP],
   'wasm/futex': [SKIP],
+  'wasm/grow-shared-memory': [SKIP],
   'regress/regress-1205290': [SKIP],
   'regress/regress-1212404': [SKIP],
   'regress/regress-1221035': [SKIP],
@@ -1241,30 +1569,82 @@
   # BUG(v8:9975).
   'es6/typedarray-copywithin': [SKIP],
 
-  # BUG(v8:11858): Deadlocks in predictable mode when waiting for the native
-  # module cache entry to be completed.
+  # BUG(v8:11858): Deadlocks in verify_predictable mode when waiting for the
+  # native module cache entry to be completed.
   'regress/wasm/regress-709684': [SKIP],
 
-  # BUG(v8:12605): flaky test.
-  'wasm/grow-shared-memory': [SKIP],
+  # These tests trigger profiling, which can trigger non-deterministic
+  # allocations.
+  'asm/log-lazy-code': [SKIP],
+  'regress/regress-1394663': [SKIP],
+  'regress/wasm/regress-crbug-1502180': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-callref': [SKIP],
+  'wasm/log-wasm-to-js-wrapper-indirect': [SKIP],
 
   # BUG(v8:13234)
   'wasm/shared-memory-worker-gc-stress': [SKIP],
   'object-literal': [SKIP],
-}],  # 'predictable == True'
+
+  # Slow tests.
+  'wasm/serialization-with-compilation-hints': [SKIP],
+
+  # https://crbug.com/v8/14228
+  'asm/poppler/poppler': [SKIP],
+
+  # https://crbug.com/v8/14421
+  'wasm/multiple-code-spaces': [SKIP],
+
+  # Tests calling quit are not supported: https://crbug.com/341021498
+  'harmony/weakrefs/clearkeptobjects-on-quit': [SKIP],
+  'd8/d8-finalization-registry-quit': [SKIP],
+}],  # 'verify_predictable'
+
+##############################################################################
+['arch in [ppc64, s390x]', {
+
+  # Float parameters are not supported in the fast api
+  'wasm/fast-api-calls-with-wellknown-imports-floats': [SKIP],
+
+}],  # arch in [ppc64, s390x]'
+
+##############################################################################
+['arch in [ppc64, s390x] and pointer_compression', {
+
+  # Needs sandbox enabled.
+  'shared-memory/condition-async-wait-timeout' :[SKIP],
+  'shared-memory/condition-async-wait-realm-disposed' :[SKIP],
+  'shared-memory/mutex-async-lock-workers-timeout' :[SKIP],
+  'shared-memory/mutex-async-lock-realm-disposed' :[SKIP],
+
+}],  # arch in [ppc64, s390x] and pointer_compression'
+
+##############################################################################
+['pointer_compression and not pointer_compression_shared_cage', {
+
+  # The test requires shared heap but it is not shared in the multi cage mode.
+  'turboshaft/maglev-frontend/*': [SKIP],
+
+}],  # pointer_compression and not pointer_compression_shared_cage'
 
 ##############################################################################
 ['simulator_run and (arch in [ppc64, s390x])', {
 
-  # take too long with the simulator.
+  # Slow tests
+  'frozen-array-reduce': [PASS, SLOW],
+  'generated-transition-stub': [PASS, SLOW],
+  'harmony/regexp-property-lu-ui': [PASS, SLOW],
+  'non-extensible-array-reduce': [PASS, SLOW],
+  'regress/regress-91008': [PASS, SLOW],
+  'regress/regress-779407': [PASS, SLOW],
+  'regress/regress-1449567': [PASS, SLOW],
+  'tools/processor': [PASS, SLOW],
+  'tools/processor-bigint': [PASS, SLOW],
+  'whitespaces': [PASS, SLOW],
+
+  # Too slow tests.
   'regress/regress-1132': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-crbug-482998': [SKIP],
-  'regress/regress-91008': [PASS, SLOW],
-  'regress/regress-779407': [PASS, SLOW],
-  'harmony/regexp-property-lu-ui': [PASS, SLOW],
-  'whitespaces': [PASS, SLOW],
-  'generated-transition-stub': [PASS, SLOW],
 }],  # 'simulator_run and (arch in [ppc64, s390x])'
 
 ##############################################################################
@@ -1276,6 +1656,10 @@
 
   # Limited wasm code space
   'wasm/max-wasm-functions': [SKIP],
+
+  # kInitialMaxFastElementArray is different on ppc which
+  # leads to not deopting where we should.
+  'turboshaft/maglev-frontend/new-array': [SKIP]
 }],  # 'arch == ppc64'
 
 ##############################################################################
@@ -1290,6 +1674,13 @@
   # computation errors due to unsafe integers (v8:13440)
   'tools/processor': [PASS, ['component_build', SKIP]],
 }],  # 'system == aix'
+
+##############################################################################
+['system == zos', {
+  # Currently no tz database on z/OS:
+  'tzoffset-seoul-noi18n': [SKIP],
+  'tzoffset-transition-new-york-noi18n': [SKIP],
+}],  # 'system == zos'
 
 ##############################################################################
 ['arch == s390x', {
@@ -1312,7 +1703,7 @@
 
   # Goes OOM on ODROID devices: https://crbug.com/v8/9026
   # Too slow on PPC: https://crbug.com/v8/9246
-  'es6/large-classes-properties': [PASS, SLOW, ['(arch == arm and not simulator_run) or arch in [ppc, ppc64]', SKIP]],
+  'es6/large-classes-properties': [PASS, SLOW, ['(arch == arm and not simulator_run) or arch == ppc64', SKIP]],
   'regress/regress-1122': [PASS, ['tsan', SKIP]],
 
   # Too slow with gc_stress on arm64.
@@ -1334,13 +1725,25 @@
   # Baseline tests don't make sense with optimization stressing.
   'baseline/*': [SKIP],
 
-  # This test uses --wasm-speculative-inlining which is incompatible with
-  # stressing.
-  'regress/wasm/regress-1364036': [SKIP],
-
   # Makes assumptions about tiering, which don't hold when we TF everything.
   'wasm/enter-and-leave-debug-state': [SKIP],
+
+  # Slow TF compilation.
+  'wasm/large-struct': [SKIP],
+
+  # Requires tier-up.
+  'regress/wasm/regress-334687959': [SKIP],
 }],  # variant == stress
+
+##############################################################################
+['variant == turboshaft', {
+  # TODO(v8:14108): These tests require Liftoff. Enable again when we remove
+  # --no-liftoff from this variant.
+  'wasm/code-flushing-single-isolate': [FAIL],
+  'wasm/enter-and-leave-debug-state': [FAIL],
+  # Slow TF compilation.
+  'wasm/large-struct': [SKIP],
+}],  # variant == turboshaft
 
 ##############################################################################
 ['variant == stress and (arch == arm or arch == arm64) and simulator_run', {
@@ -1354,16 +1757,39 @@
 ['variant in (nooptimization, jitless) and arch in (arm, arm64) and simulator_run', {
   # Slow tests: https://crbug.com/v8/7783
   'regress/regress-crbug-319860': [SKIP],
-}],  # variant == nooptimization and (arch == arm or arch == arm64) and simulator_run
+
+  # Other slow tests:
+  'compiler/regress-crbug-1520697': [SKIP],
+  'regress/regress-1449567': [SKIP],
+}],  # variant in (nooptimization, jitless) and (arch == arm or arch == arm64) and simulator_run
 
 ##############################################################################
 ['variant == nooptimization', {
+  # nooptimization disables asm.js -> wasm translation, so disable these tests.
+  'regress/asm/*': [SKIP],
+  'asm/*': [SKIP],
+
   # Tests that depend on optimization (beyond doing assertOptimized).
   'regress/regress-1049982-1': [SKIP],
   'regress/regress-1049982-2': [SKIP],
+
+  'maglev/extras-cped': [SKIP],
+  'turboshaft/extras-cped': [SKIP],
+
   # Wasm serialization relies on TurboFan to be available, hence does not work
   # in the 'nooptimization' variant.
+  'wasm/serialization-with-compilation-hints': [SKIP],
   'regress/wasm/regress-7785': [SKIP],
+
+  # Tests that require wasm tier up.
+  'wasm/wasm-dynamic-tiering': [SKIP],
+  'wasm/speculative-inlining': [SKIP],
+  'regress/wasm/regress-1179065': [SKIP],
+  'regress/wasm/regress-334687959': [SKIP],
+
+  # Only implemented in turboshaft for now.
+  # TODO(14616): Enable again when implemented in liftoff.
+  'wasm/shared-everything/basic': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -1417,9 +1843,8 @@
 }], # arch not in (x64, ia32, arm64, arm, s390x, ppc64, mips64el, loong64)
 
 ##############################################################################
-['system != linux or sandbox == True', {
-  # Multi-mapped mock allocator is only available on Linux, and only if the
-  # sandbox is not enabled.
+['system != linux', {
+  # Multi-mapped mock allocator is only available on Linux.
   'regress/regress-crbug-1041232': [SKIP],
   'regress/regress-crbug-1104608': [SKIP],
 }],
@@ -1489,9 +1914,11 @@
   'regress/regress-441099': [SKIP],
   'regress/regress-677685': [SKIP],
   'regress/regress-799690': [SKIP],
+  'regress/regress-1469634': [SKIP],
   'regress/regress-crbug-935800': [SKIP],
   'regress/wasm/*': [SKIP],
   'wasm/*': [SKIP],
+  'turboshaft/maglev-frontend/has-in-prototype-chain-wasm': [SKIP],
   # Investigate (IsScript).
   'harmony/import-from-compilation-errored': [SKIP],
   'harmony/private-fields-special-object': [SKIP],
@@ -1535,13 +1962,13 @@
   'harmony/array-to-spliced-big': [SKIP],
 }],  # variant == slow_path
 
-['((arch == mips64el or arch == mips64) and not simd_mips) or (arch in [ppc64])', {
+['(arch == mips64el or arch == mips64) and not simd_mips', {
   # Requires scalar lowering for 64x2 SIMD instructions, which are not
   # implemented yet.
   # Also skip tests on archs that don't support SIMD and lowering doesn't yet work correctly.
   # Condition copied from cctest.status.
   'regress/wasm/regress-10831': [SKIP],
-}],  # ((arch == mips64el or arch == mips64) and not simd_mips) or (arch in [ppc64])
+}],  # (arch == mips64el or arch == mips64) and not simd_mips
 
 ##############################################################################
 ['variant == stress_sampling', {
@@ -1556,6 +1983,8 @@
 ##############################################################################
 ['variant == stress_incremental_marking', {
   'wasm/shared-memory-worker-stress': [PASS, SLOW, ['tsan', SKIP]],
+  'regress/regress-740784': [PASS, ['tsan', SKIP]],
+  'regress/regress-crbug-820312': [PASS, SLOW],
 }],  # variant == stress_incremental_marking
 
 ##############################################################################
@@ -1580,13 +2009,25 @@
 
 ##############################################################################
 ['no_simd_hardware == True', {
+  'wasm/deopt/deopt-many-params-many-locals-s128': [SKIP],
+  'wasm/deopt/deopt-non-inlined-target': [SKIP],
+  'wasm/deopt/deopt-untagged-parameters-s128': [SKIP],
+  'wasm/deopt/deopt-value-types': [SKIP],
   'wasm/exceptions-simd': [SKIP],
+  'wasm/generate-random-module': [SKIP],
+  'wasm/js-to-js': [SKIP],
+  'wasm/large-struct': [SKIP],
   'wasm/liftoff-simd-params': [SKIP],
   'wasm/multi-value-simd': [SKIP],
+  'wasm/js-to-wasm-invalid-sig': [SKIP],
   'wasm/simd-*': [SKIP],
+  'wasm/turboshaft/array-new-unreachable': [SKIP],
+  'wasm/turboshaft/reduction-shuffle': [SKIP],
   'regress/wasm/regress-9447': [SKIP],
   'regress/wasm/regress-10309': [SKIP],
   'regress/wasm/regress-10831': [SKIP],
+  'regress/wasm/regress-13732': [SKIP],
+  'regress/wasm/regress-14356': [SKIP],
   'regress/wasm/regress-1054466': [SKIP],
   'regress/wasm/regress-1065599': [SKIP],
   'regress/wasm/regress-1070078': [SKIP],
@@ -1607,22 +2048,34 @@
   'regress/wasm/regress-1242300': [SKIP],
   'regress/wasm/regress-1242689': [SKIP],
   'regress/wasm/regress-1264462': [SKIP],
-  'regress/wasm/regress-1271244': [SKIP],
-  'regress/wasm/regress-1271538': [SKIP],
-  'regress/wasm/regress-1282224': [SKIP],
-  'regress/wasm/regress-1283042': [SKIP],
-  'regress/wasm/regress-1284980': [SKIP],
-  'regress/wasm/regress-1286253': [SKIP],
-  'regress/wasm/regress-1283395': [SKIP],
   'regress/wasm/regress-1289678': [SKIP],
-  'regress/wasm/regress-1290079': [SKIP],
   'regress/wasm/regress-1299183': [SKIP],
-  'regress/wasm/regress-1417516': [SKIP],
-  'regress/wasm/regress-13732': [SKIP],
   'regress/wasm/regress-1408337': [SKIP],
+  'regress/wasm/regress-1417516': [SKIP],
+  'regress/wasm/regress-1443218': [SKIP],
+  'regress/wasm/regress-1479926': [SKIP],
+  'regress/wasm/regress-1480117': [SKIP],
+  'regress/wasm/regress-1484978': [SKIP],
+  'regress/wasm/regress-1487077': [SKIP],
+  'regress/wasm/regress-1500812': [SKIP],
+  'regress/wasm/regress-323694592': [SKIP],
+  'regress/wasm/regress-325756545': [SKIP],
+  'regress/wasm/regress-326156493': [SKIP],
+  'regress/wasm/regress-326894018': [SKIP],
+  'regress/wasm/regress-329032153': [SKIP],
+  'regress/wasm/regress-337870524': [SKIP],
+  'regress/wasm/regress-341875188': [SKIP],
+  'regress/wasm/regress-344484969': [SKIP],
+  'regress/wasm/regress-341947685': [SKIP],
+  'regress/wasm/regress-343748812': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
+  'regress/wasm/regress-360052650': [SKIP],
   'regress/wasm/regress-crbug-1338980': [SKIP],
   'regress/wasm/regress-crbug-1355070': [SKIP],
   'regress/wasm/regress-crbug-1356718': [SKIP],
+  'regress/wasm/regress-crbug-1465386': [SKIP],
+  'regress/wasm/regress-crbug-1491815': [SKIP],
+  'regress/wasm/regress-crbug-1520130': [SKIP],
 }],  # no_simd_hardware == True
 
 ##############################################################################
@@ -1632,7 +2085,7 @@
 
 ##############################################################################
 # TODO(v8:11421): Port baseline compiler to other architectures.
-['arch not in (x64, arm64, ia32, arm, mips64el, riscv64, riscv32, loong64, s390x) or (arch == s390x and pointer_compression)', {
+['arch not in (x64, arm64, ia32, arm, mips64el, loong64, s390x, riscv64, riscv32) or (arch == s390x and pointer_compression)', {
   'baseline/*': [SKIP],
   'regress/regress-1242306': [SKIP],
 }],
@@ -1648,6 +2101,10 @@
 ['variant == stress_concurrent_inlining', {
   # Flaky under this variant, skipping per https://crbug.com/v8/12267#c4
   'compiler/inlined-call-polymorphic': [SKIP],
+  # Flaky under this variant, skipping per https://crbug.com/v8/14560#c2
+  'turboshaft/turboshaft-frontend-test': [SKIP],
+  # Flaky under this variant, skipping per https://crbug.com/v8/14630#c3
+  'turboshaft/maglev-frontend/*': [SKIP]
 }],  # variant == stress_concurrent_inlining
 
 ##############################################################################
@@ -1660,7 +2117,6 @@
   # These tests rely on allocation site tracking which only works in the young generation.
   'array-constructor-feedback': [SKIP],
   'wasm/generic-wrapper': [SKIP],
-  'wasm/stack-switching-export': [SKIP],
   'regress/regress-trap-allocation-memento': [SKIP],
   'regress/regress-crbug-1151890': [SKIP],
   'regress/regress-crbug-1163184': [SKIP],
@@ -1678,162 +2134,77 @@
   'default-nospec': [SKIP],
   'es6/collections-constructor-*': [SKIP],
   'es6/map-constructor-entry-side-effect*': [SKIP],
+  # These tests use %SimulateNewspaceFull, which only works in the young generation
+  'regress/regress-1424415': [SKIP],
+  'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-conditional': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
+  'wasm/stack-switching-generic-wrapper': [SKIP],
+  'regress/wasm/regress-v8-14471': [SKIP],
+  'regress/wasm/regress-346597059': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP],
+  'compiler/regress-347724915': [SKIP],
+
+  # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
+  # supported by the Maglev->Turboshaft graph builder.
+  'turboshaft/maglev-frontend/*': [SKIP],
 }], # single_generation
 
 ################################################################################
 ['conservative_stack_scanning', {
-  # TODO(v8:13493): Conservative stack scanning is not currently compatible
-  # with stack switching.
-  'wasm/stack-switching': [SKIP],
-  'wasm/stack-switching-export': [SKIP],
+  # These tests are known to timeout with CSS, especially with variants that
+  # stress the GC.
+  'regress/regress-crbug-820312': [SKIP],
 }], # conservative_stack_scanning
 
-################################################################################
-['third_party_heap', {
-  # Requires --concurrent_inlining / --finalize_streaming_on_background:
-  'regress/regress-1220974': [SKIP],
-  'regress-1146106': [SKIP],
-  'compiler/bound-functions-serialize': [SKIP],
-  'regress/regress-1003730': [SKIP],
-  'regress/regress-1168435': [SKIP],
-  # Asserts %InLargeObjectSpace
-  'regress/regress-542823': [SKIP],
-  # Requires --allocation_site_pretenuring
-  'compiler/deopt-pretenure': [SKIP],
-  # Requires --concurrent_recompilation
-  'compiler/concurrent-invalidate-transition-map': [SKIP],
-  'compiler/concurrent-proto-change': [SKIP],
-  'compiler/manual-concurrent-recompile': [SKIP],
-  'compiler/regress-905555': [SKIP],
-  'compiler/regress-905555-2': [SKIP],
-  'compiler/regress-9945-1': [SKIP],
-  'concurrent-initial-prototype-change-1': [SKIP],
-  'concurrent-initial-prototype-change-2': [SKIP],
-  'regress/regress-embedded-cons-string': [SKIP],
-  # Requires a second isolate
-  'regress/regress-1212404': [SKIP],
-  'resizablearraybuffer-growablesharedarraybuffer': [SKIP],
-  'regress/regress-1205290': [SKIP],
-  'compiler/regress-725743': [SKIP],
-  'd8/d8-fuzzable-worker': [SKIP],
-  'd8/d8-worker': [SKIP],
-  'd8/d8-worker-script': [SKIP],
-  'd8/d8-worker-sharedarraybuffer': [SKIP],
-  'd8/d8-worker-shutdown': [SKIP],
-  'd8/d8-worker-shutdown-empty': [SKIP],
-  'd8/d8-worker-shutdown-gc': [SKIP],
-  'd8/d8-worker-shutdown-spawn': [SKIP],
-  'd8/d8-worker-spawn-worker': [SKIP],
-  'deserialize-optimize-inner': [SKIP],
-  'deserialize-reference': [SKIP],
-  'harmony/atomics-value-check': [SKIP],
-  'harmony/atomics-waitasync-1thread-2timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-buffer-out-of-scope-timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-timeout': [SKIP],
-  'harmony/atomics-waitasync-1thread-timeouts-and-no-timeouts': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-2-waits': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-2-workers': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-no-timeout': [SKIP],
-  'harmony/atomics-waitasync-worker-shutdown-before-wait-finished-timeout': [SKIP],
-  'harmony/error-cause': [SKIP],
-  'harmony/futex': [SKIP],
-  'harmony/sharedarraybuffer-worker-gc-stress': [SKIP],
-  'regress/regress-1006629': [SKIP],
-  'regress/regress-4271': [SKIP],
-  'regress/regress-821368': [SKIP],
-  'regress/regress-9383': [SKIP],
-  'regress/regress-chromium-1194026': [SKIP],
-  'regress/regress-crbug-1162473': [SKIP],
-  'regress/regress-crbug-465564': [SKIP],
-  'regress/regress-crbug-503578': [SKIP],
-  'regress/regress-crbug-503698': [SKIP],
-  'regress/regress-crbug-503968': [SKIP],
-  'regress/regress-crbug-503991': [SKIP],
-  'regress/regress-crbug-504136': [SKIP],
-  'regress/regress-crbug-504727': [SKIP],
-  'regress/regress-crbug-505778': [SKIP],
-  'regress/regress-crbug-506549': [SKIP],
-  'regress/regress-crbug-511880': [SKIP],
-  'regress/regress-crbug-514081': [SKIP],
-  'regress/regress-crbug-518747': [SKIP],
-  'regress/regress-crbug-522496': [SKIP],
-  'regress/regress-crbug-523919': [SKIP],
-  'regress/regress-crbug-722871': [SKIP],
-  'regress/wasm/regress-1010272': [SKIP],
-  'regress/wasm/regress-1067621': [SKIP],
-  'regress/wasm/regress-643595': [SKIP],
-  'regress/wasm/regress-674447': [SKIP],
-  'regress/wasm/regress-801850': [SKIP],
-  'regress/wasm/regress-803427': [SKIP],
-  'regress/wasm/regress-8059': [SKIP],
-  'regress/wasm/regress-808012': [SKIP],
-  'regress/wasm/regress-808848': [SKIP],
-  'regress/wasm/regress-8533': [SKIP],
-  'serialize-after-execute': [SKIP],
-  'serialize-ic': [SKIP],
-  'wasm/compare-exchange-stress': [SKIP],
-  'wasm/compare-exchange64-stress': [SKIP],
-  'wasm/futex': [SKIP],
-  'wasm/grow-shared-memory': [SKIP],
-  'wasm/shared-arraybuffer-worker-simple-gc': [SKIP],
-  'wasm/shared-memory-worker-simple-gc': [SKIP],
-  'wasm/shared-memory-worker-stress': [SKIP],
-  'wasm/worker-memory': [SKIP],
-  'wasm/worker-module': [SKIP],
-  # Timeout (too many GCs)
-  'wasm/many-memories-no-trap-handler': [SKIP],
-  'wasm/memory_2gb_oob': [SKIP],
-  'wasm/memory_1gb_oob': [SKIP],
-  'wasm/memory_4gb_oob': [SKIP],
-  'regress/regress-708247': [SKIP],
-  # Performs GC
-  'code-coverage-precise': [SKIP],
-  'compiler/monomorphic-named-load-with-no-map': [SKIP],
-  'harmony/weakrefs/cleanup': [SKIP],
-  'harmony/weakrefs/cleanup-from-different-realm': [SKIP],
-  'harmony/weakrefs/cleanup-is-not-a-microtask': [SKIP],
-  'harmony/weakrefs/cleanup-on-detached-realm': [SKIP],
-  'harmony/weakrefs/cleanup-proxy-from-different-realm': [SKIP],
-  'harmony/weakrefs/cleanupsome': [SKIP],
-  'harmony/weakrefs/cleanupsome-2': [SKIP],
-  'harmony/weakrefs/finalizationregistry-and-weakref': [SKIP],
-  'harmony/weakrefs/finalizationregistry-keeps-holdings-alive': [SKIP],
-  'harmony/weakrefs/finalizationregistry-scheduled-for-cleanup-multiple-times': [SKIP],
-  'harmony/weakrefs/multiple-dirty-finalization-groups': [SKIP],
-  'harmony/weakrefs/reentrant-gc-from-cleanup': [SKIP],
-  'harmony/weakrefs/two-weakrefs': [SKIP],
-  'harmony/weakrefs/undefined-holdings': [SKIP],
-  'harmony/weakrefs/unregister-after-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup2': [SKIP],
-  'harmony/weakrefs/unregister-inside-cleanup3': [SKIP],
-  'harmony/weakrefs/unregister-many': [SKIP],
-  'harmony/weakrefs/weak-cell-basics': [SKIP],
-  'harmony/weakrefs/weak-unregistertoken': [SKIP],
-  'harmony/weakrefs/weakref-creation-keeps-alive': [SKIP],
-  'harmony/weakrefs/weakref-deref-keeps-alive': [SKIP],
-  'measure-memory': [SKIP],
-  'measure-memory-multiple-realms': [SKIP],
-  'regress/regress-936077': [SKIP],
-  'regress/wasm/regress-827806': [SKIP],
-  'wasm/compiled-module-management': [SKIP],
-  'wasm/shared-memory-gc-stress': [SKIP],
-}], # third_party_heap
+##############################################################################
+['(arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64) or (simulator_run and conservative_stack_scanning)', {
+  # Stack switching is only supported on x64/arm64/ia32/arm/riscv64/loong64.
+  'wasm/stack-switching': [SKIP],
+  'wasm/stack-switching-conditional': [SKIP],
+  'wasm/stack-switching-export': [SKIP],
+  'wasm/stack-switching-generic-wrapper': [SKIP],
+  'regress/wasm/regress-v8-14471': [SKIP],
+  'regress/wasm/regress-336852356': [SKIP],
+  'regress/wasm/regress-336358915': [SKIP],
+  'regress/wasm/regress-342522151': [SKIP],
+  'regress/wasm/regress-349640002': [SKIP],
+  'regress/wasm/regress-364667545': [SKIP]
+}],  # (arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != riscv64 and arch != loong64)
 
 ##############################################################################
-['(arch != x64 and arch != arm64) or simulator_run', {
-  # Stack switching is only supported on x64/arm64.
-  'wasm/stack-switching': [SKIP],
-  'wasm/stack-switching-export': [SKIP],
-}],  # (arch != x64 and arch != arm64) or simulator_run
+['(arch != arm64 and arch != x64) or conservative_stack_scanning', {
+  # Growable stacks are only supported on arm64 and x64.
+  'wasm/growable-stacks': [SKIP]
+}],  # (arch != arm64 and arch != x64)
 
 ##############################################################################
 ['arch != x64 and arch != arm64 and arch != loong64 and arch != mips64', {
   # Tests that include types only supported on x64/arm64.
   'compiler/fast-api-sequences-x64': [SKIP],
   'compiler/fast-api-annotations': [SKIP],
+}],  # arch != x64 and arch != arm64 and arch != loong64 and arch != mips64'
 
-}],  # arch != x64 and arch != arm64
+##############################################################################
+# TODO(14716): memory64 trap handling doesn't work on arm64 without pointer
+# compression.
+['(arch != x64 and arch != arm64) or (arch == arm64 and not pointer_compression)', {
+  # --wasm-memory64-trap-handling only supported on x64 and arm64.
+  'regress/wasm/regress-332939161': [SKIP],
+}],
+
+##############################################################################
+# TODO(mliedtke): Support deopts on all platforms.
+['arch != x64 and arch != arm64 and arch != ia32 and arch != arm', {
+  # --wasm-deopt implementation experimental and not ported to most
+  # architectures, yet.
+  'wasm/deopt/*': [SKIP],
+  'regress/wasm/regress-350779988': [SKIP],
+  'regress/wasm/regress-353582136': [SKIP],
+  'regress/wasm/regress-353913485': [SKIP],
+  'regress/wasm/regress-363826217': [SKIP],
+  'regress/wasm/regress-364360260': [SKIP],
+}],
 
 ##############################################################################
 # Skip failing tests in google3
@@ -1845,6 +2216,9 @@
   'math-floor-part1': [SKIP],
   'compiler/regress-1125145': [SKIP],
   'compiler/regress-crbug-1399627': [SKIP],
+  'json2': [SKIP],
+  'es6/typedarray-of': [SKIP],
+  'compiler/osr-block-scope': [SKIP],
 
   # TODO(victorgomes):
   'es6/unicode-regexp-ignore-case-noi18n': [SKIP],
@@ -1858,6 +2232,9 @@
   'compiler/test-literal-map-migration': [FAIL],
   'regress/regress-4121': [FAIL],
   'regress/regress-trap-allocation-memento': [FAIL],
+
+  # TODO(v8:14581): Re-enable this once turboshaft frontend is done.
+  'turboshaft/maglev-frontend/*': [SKIP],
 }], # variant == google3_nociu or variant == google3_icu
 
 # Specific failures for no_icu builds
@@ -1894,25 +2271,28 @@
 }], # variant == google3_nociu
 
 # Tests that cannot run without JS shared memory
-['no_js_shared_memory', {
+['not js_shared_memory', {
   'shared-memory/*': [SKIP],
-  'regress/regress-crbug-1394741': [SKIP],
-  'regress/regress-crbug-1395117': [SKIP],
-}],  # 'no_js_shared_memory'
+}],  # 'not js_shared_memory'
 
 ##############################################################################
-['variant == always_sparkplug', {
+['variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit', {
   # Tests that rely on turbofan
   'wasm/bigint-opt': [SKIP],
-}], # variant == always_sparkplug
+}], # variant == always_sparkplug or variant == always_sparkplug_and_stress_regexp_jit
+
+##############################################################################
+['variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit', {
+  # Tests that rely on specific tier-up behaviour
+  'regexp-fallback': [SKIP],
+  'regexp-tier-up': [SKIP],
+  'regexp-tier-up-multiple': [SKIP],
+}], # variant == stress_regexp_jit or variant == always_sparkplug_and_stress_regexp_jit
 
 ##############################################################################
 # Behavioural differences between Maglev and Turbofan when the former is used
 # for OptimizeFunctionOnNextCall.
-['variant == stress_maglev', {
-  # Maglev doesn't inline Array constructors, so it won't bake in allocation
-  # site feedback.
-  'array-constructor-feedback': [FAIL],
+['variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)', {
   # Maglev deopts on non-int division, even if the result is truncated after.
   'shift-for-integer-div': [FAIL],
   # Maglev deopts on negative zero for int32, even if truncated afterward.
@@ -1928,12 +2308,7 @@
   'compiler/number-comparison-truncations': [FAIL],
   'regress/regress-2132': [FAIL],
   'compiler/regress-1199345': [FAIL],
-  # Maglev doesn't suppress BigInt size errors on truncation.
-  'compiler/bigint-shift-left': [FAIL],
-  'compiler/bigint-multiply-truncate': [FAIL],
   'wasm/bigint-opt': [FAIL],
-  # Maglev doesn't promote Number to NumberOrOddball ops based on uses.
-  'getters-on-elements': [FAIL],
   # Maglev doesn't inline the call being tested here.
   'compiler/call-with-arraylike-or-spread': [FAIL],
   'compiler/call-with-arraylike-or-spread-3': [FAIL],
@@ -1956,29 +2331,48 @@
   'compiler/fast-api-calls-8args': [FAIL],
   'compiler/fast-api-calls-string': [FAIL],
   'compiler/fast-api-calls-pointer': [FAIL],
+  'compiler/fast-api-calls-64-bit-integer-values': [FAIL],
+  'compiler/fast-api-calls-throw': [FAIL],
   'compiler/fast-api-interface-types': [FAIL],
   'compiler/fast-api-sequences*': [FAIL],
+  'wasm/fast-api-calls-with-wellknown-imports*': [SKIP],
   # Maglev doesn't specialise the IsBeingInterpreted runtime func.
   'compiler/is-being-interpreted-1': [FAIL],
   # Maglev doesn't support elements transitions (yet!).
   'compiler/regress-9945-1': [FAIL],
-  'compiler/regress-9945-2': [FAIL],
-  # Maglev doesn't support growing elements stores.
-  'array-store-and-grow': [FAIL],
-  # This test requires inlining, currently disabled in Maglev
-  'regress/regress-4578': [FAIL],
   # This test appears to be relying on no adding a map stability check, but
   # instead using a field representation dependency and allowing a read from
   # the deprecated map. Wiring this through in Maglev would be too messy to be
   # worth it.
   'regress/regress-map-invalidation-2': [FAIL],
-}], # variant == stress_maglev
+  'turboshaft/extras-cped': [SKIP],
+}], # variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)
+
+['(variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan)) and (arch != arm)', {
+  # Maglev doesn't suppress BigInt size errors on truncation.
+  # On Arm that works, since we always _and_ the shift amount first.
+  'compiler/bigint-shift-left': [FAIL],
+  'compiler/bigint-multiply-truncate': [FAIL],
+}], # (variant in (stress_maglev, stress_maglev_future, stress_maglev_no_turbofan, maglev_no_turbofan))' and (arch != arm)
 
 ##############################################################################
-['is_clang_coverage and mode == debug', {
+['clang_coverage and mode == debug', {
   # Too slow tests.
   'asm/poppler/poppler': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
-}],  # 'is_clang_coverage and mode == debug'
+}],  # 'clang_coverage and mode == debug'
+
+##############################################################################
+['official_build', {
+  # Random Wasm module generation is not available on official builds.
+  'wasm/generate-random-module': [FAIL],
+}],  # 'official_build'
+
+##############################################################################
+['leaptiering', {
+  # Skip tests that test the old tiering behavior.
+  'baseline/test-baseline': [SKIP],
+  'baseline/cross-realm': [SKIP],
+}],  # 'leaptiering'
 
 ]

@@ -75,7 +75,7 @@
 
 #define uv__handle_close(handle)                                        \
   do {                                                                  \
-    QUEUE_REMOVE(&(handle)->handle_queue);                              \
+    uv__queue_remove(&(handle)->handle_queue);                          \
     uv__active_handle_rm((uv_handle_t*) (handle));                      \
                                                                         \
     (handle)->flags |= UV_HANDLE_CLOSED;                                \

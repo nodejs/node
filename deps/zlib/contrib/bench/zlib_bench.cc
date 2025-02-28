@@ -18,17 +18,18 @@
  *   g++|clang++ -O3 -Wall -std=c++11 zlib_bench.cc -lstdc++ -lz
  */
 
-#include <algorithm>
-#include <chrono>
-#include <fstream>
-#include <memory>
-#include <string>
-#include <vector>
-
 #include <memory.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
+
+#include <algorithm>
+#include <chrono>
+#include <fstream>
+#include <memory>
+#include <new>
+#include <string>
+#include <vector>
 
 #include "zlib.h"
 
@@ -69,10 +70,6 @@ Data read_file_data_or_exit(const char* name) {
 
   data.name = std::string(name);
   return data;
-}
-
-size_t zlib_estimate_compressed_size(size_t input_size) {
-  return compressBound(input_size);
 }
 
 enum zlib_wrapper {
@@ -128,10 +125,6 @@ void zlib_compress(
     std::string* output,
     bool resize_output = false)
 {
-  if (resize_output)
-    output->resize(zlib_estimate_compressed_size(input_size));
-  size_t output_size = output->size();
-
   z_stream stream;
   memset(&stream, 0, sizeof(stream));
 
@@ -139,6 +132,11 @@ void zlib_compress(
       zlib_stream_wrapper_type(type), MAX_MEM_LEVEL, zlib_strategy);
   if (result != Z_OK)
     error_exit("deflateInit2 failed", result);
+
+  if (resize_output) {
+    output->resize(deflateBound(&stream, input_size));
+  }
+  size_t output_size = output->size();
 
   stream.next_out = (Bytef*)string_data(output);
   stream.avail_out = (uInt)output_size;
@@ -236,7 +234,11 @@ void check_file(const Data& file, zlib_wrapper type, int mode) {
     error_exit("check file: error writing output", 3);
 }
 
-void zlib_file(const char* name, zlib_wrapper type, int width, int check) {
+void zlib_file(const char* name,
+               zlib_wrapper type,
+               int width,
+               int check,
+               bool output_csv_format) {
   /*
    * Read the file data.
    */
@@ -257,7 +259,9 @@ void zlib_file(const char* name, zlib_wrapper type, int width, int check) {
    * Report compression strategy and file name.
    */
   const char* strategy = zlib_level_strategy_name(zlib_compression_level);
-  printf("%s%-40s :\n", strategy, name);
+  if (!output_csv_format) {
+    printf("%s%-40s :\n", strategy, name);
+  }
 
   /*
    * Chop the data into blocks.
@@ -293,18 +297,13 @@ void zlib_file(const char* name, zlib_wrapper type, int width, int check) {
 
     // Pre-grow the output buffer so we don't measure string resize time.
     for (int b = 0; b < blocks; ++b)
-      compressed[b].resize(zlib_estimate_compressed_size(block_size));
+      zlib_compress(type, input[b], input_length[b], &compressed[b], true);
 
     auto start = now();
     for (int b = 0; b < blocks; ++b)
       for (int r = 0; r < repeats; ++r)
         zlib_compress(type, input[b], input_length[b], &compressed[b]);
     ctime[run] = std::chrono::duration<double>(now() - start).count();
-
-    // Compress again, resizing compressed, so we don't leave junk at the
-    // end of the compressed string that could confuse zlib_uncompress().
-    for (int b = 0; b < blocks; ++b)
-      zlib_compress(type, input[b], input_length[b], &compressed[b], true);
 
     for (int b = 0; b < blocks; ++b)
       output[b].resize(input_length[b]);
@@ -329,19 +328,28 @@ void zlib_file(const char* name, zlib_wrapper type, int width, int check) {
   std::sort(ctime, ctime + runs);
   std::sort(utime, utime + runs);
 
-  double deflate_rate_med = length * repeats / mega_byte / ctime[runs / 2];
-  double inflate_rate_med = length * repeats / mega_byte / utime[runs / 2];
-  double deflate_rate_max = length * repeats / mega_byte / ctime[0];
-  double inflate_rate_max = length * repeats / mega_byte / utime[0];
+  double deflate_rate_med, inflate_rate_med, deflate_rate_max, inflate_rate_max;
+  deflate_rate_med = length * repeats / mega_byte / ctime[runs / 2];
+  inflate_rate_med = length * repeats / mega_byte / utime[runs / 2];
+  deflate_rate_max = length * repeats / mega_byte / ctime[0];
+  inflate_rate_max = length * repeats / mega_byte / utime[0];
+  double compress_ratio = output_length * 100.0 / length;
 
-  // type, block size, compression ratio, etc
-  printf("%s: [b %dM] bytes %*d -> %*u %4.2f%%",
-    zlib_wrapper_name(type), block_size / (1 << 20), width, length, width,
-    unsigned(output_length), output_length * 100.0 / length);
+  if (!output_csv_format) {
+    // type, block size, compression ratio, etc
+    printf("%s: [b %dM] bytes %*d -> %*u %4.2f%%", zlib_wrapper_name(type),
+           block_size / (1 << 20), width, length, width,
+           unsigned(output_length), compress_ratio);
 
-  // compress / uncompress median (max) rates
-  printf(" comp %5.1f (%5.1f) MB/s uncomp %5.1f (%5.1f) MB/s\n",
-    deflate_rate_med, deflate_rate_max, inflate_rate_med, inflate_rate_max);
+    // compress / uncompress median (max) rates
+    printf(" comp %5.1f (%5.1f) MB/s uncomp %5.1f (%5.1f) MB/s\n",
+           deflate_rate_med, deflate_rate_max, inflate_rate_med,
+           inflate_rate_max);
+  } else {
+    printf("%s\t%.5lf\t%.5lf\t%.5lf\t%.5lf\t%.5lf\n", name, deflate_rate_med,
+           inflate_rate_med, deflate_rate_max, inflate_rate_max,
+           compress_ratio);
+  }
 }
 
 static int argn = 1;
@@ -363,8 +371,10 @@ void get_field_width(int argc, char* argv[], int& value) {
 }
 
 void usage_exit(const char* program) {
-  static auto* options = "gzip|zlib|raw"
-    " [--compression 0:9] [--huffman|--rle] [--field width] [--check]";
+  static auto* options =
+      "gzip|zlib|raw"
+      " [--compression 0:9] [--huffman|--rle] [--field width] [--check]"
+      " [--csv]";
   printf("usage: %s %s files ...\n", program, options);
   printf("zlib version: %s\n", ZLIB_VERSION);
   exit(1);
@@ -383,7 +393,7 @@ int main(int argc, char* argv[]) {
 
   int size_field_width = 0;
   int file_check = 0;
-
+  bool output_csv = false;
   while (argn < argc && argv[argn][0] == '-') {
     if (get_option(argc, argv, "--compression")) {
       if (!get_compression(argc, argv, zlib_compression_level))
@@ -398,6 +408,11 @@ int main(int argc, char* argv[]) {
       file_check = 2;
     } else if (get_option(argc, argv, "--field")) {
       get_field_width(argc, argv, size_field_width);
+    } else if (get_option(argc, argv, "--csv")) {
+      output_csv = true;
+      printf(
+          "filename\tcompression\tdecompression\tcomp_max\t"
+          "decomp_max\tcompress_ratio\n");
     } else {
       usage_exit(argv[0]);
     }
@@ -408,8 +423,9 @@ int main(int argc, char* argv[]) {
 
   if (size_field_width < 6)
     size_field_width = 6;
-  while (argn < argc)
-    zlib_file(argv[argn++], type, size_field_width, file_check);
+  while (argn < argc) {
+    zlib_file(argv[argn++], type, size_field_width, file_check, output_csv);
+  }
 
   return 0;
 }

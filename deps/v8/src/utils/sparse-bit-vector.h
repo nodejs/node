@@ -29,6 +29,11 @@ class SparseBitVector : public ZoneObject {
     uintptr_t words[kNumWordsPerSegment] = {0};
     // The next segment (with strict larger offset), or {nullptr}.
     Segment* next = nullptr;
+
+    bool empty() const {
+      return std::all_of(std::begin(words), std::end(words),
+                         [](auto segment) { return segment == 0; });
+    }
   };
 
   // Check that {Segment}s are nicely aligned, for (hopefully) better cache line
@@ -179,7 +184,7 @@ class SparseBitVector : public ZoneObject {
         std::transform(std::begin(segment->words), std::end(segment->words),
                        std::begin(other_segment->words),
                        std::begin(segment->words), std::bit_or<uintptr_t>{});
-      } else {
+      } else if (!other_segment->empty()) {
         DCHECK_LT(last->offset, other_segment->offset);
         Segment* new_segment = zone_->New<Segment>();
         new_segment->offset = other_segment->offset;

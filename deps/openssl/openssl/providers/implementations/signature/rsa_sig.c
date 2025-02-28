@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -823,14 +823,17 @@ static int rsa_verify(void *vprsactx, const unsigned char *sig, size_t siglen,
             return 0;
         }
     } else {
+        int ret;
+
         if (!setup_tbuf(prsactx))
             return 0;
-        rslen = RSA_public_decrypt(siglen, sig, prsactx->tbuf, prsactx->rsa,
-                                   prsactx->pad_mode);
-        if (rslen == 0) {
+        ret = RSA_public_decrypt(siglen, sig, prsactx->tbuf, prsactx->rsa,
+                                 prsactx->pad_mode);
+        if (ret <= 0) {
             ERR_raise(ERR_LIB_PROV, ERR_R_RSA_LIB);
             return 0;
         }
+        rslen = (size_t)ret;
     }
 
     if ((rslen != tbslen) || memcmp(tbs, prsactx->tbuf, rslen))
@@ -994,6 +997,7 @@ static void *rsa_dupctx(void *vprsactx)
     *dstctx = *srcctx;
     dstctx->rsa = NULL;
     dstctx->md = NULL;
+    dstctx->mgf1_md = NULL;
     dstctx->mdctx = NULL;
     dstctx->tbuf = NULL;
     dstctx->propq = NULL;

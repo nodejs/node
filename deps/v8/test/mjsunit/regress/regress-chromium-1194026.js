@@ -2,10 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer
-
 function workerCode1() {
-  onmessage = function(e) {
+  onmessage = function({data:e}) {
     const a = new Int32Array(e.sab);
     while(true) {
       // This worker tries to switch the value from 1 to 2; if it succeeds, it
@@ -24,7 +22,7 @@ function workerCode1() {
 
 function workerCode2() {
   const MAX_ROUNDS = 40;
-  onmessage = function(e) {
+  onmessage = function({data:e}) {
     const a = new Int32Array(e.sab);
     let round = 0;
     function nextRound() {

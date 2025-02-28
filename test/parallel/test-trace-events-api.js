@@ -2,7 +2,12 @@
 'use strict';
 
 const common = require('../common');
-common.skipIfWorker(); // https://github.com/nodejs/node/issues/22767
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
+  // https://github.com/nodejs/node/issues/22767
+  common.skip('This test only works on a main thread');
+}
 
 try {
   require('trace_events');
@@ -12,7 +17,6 @@ try {
 
 const assert = require('assert');
 const cp = require('child_process');
-const path = require('path');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
 const {
@@ -32,7 +36,7 @@ const isChild = process.argv[2] === 'child';
 const enabledCategories = getEnabledCategoriesFromCommandLine();
 
 assert.strictEqual(getEnabledCategories(), enabledCategories);
-[1, 'foo', true, false, null, undefined].forEach((i) => {
+for (const i of [1, 'foo', true, false, null, undefined]) {
   assert.throws(() => createTracing(i), {
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
@@ -41,7 +45,7 @@ assert.strictEqual(getEnabledCategories(), enabledCategories);
     code: 'ERR_INVALID_ARG_TYPE',
     name: 'TypeError'
   });
-});
+}
 
 assert.throws(
   () => createTracing({ categories: [] }),
@@ -105,7 +109,7 @@ if (isChild) {
       assert.strictEqual(getEnabledCategories(), 'abc');
       tracing3 = undefined;
     }
-    global.gc();
+    globalThis.gc();
     assert.strictEqual(getEnabledCategories(), 'abc');
     // Not able to disable the thing after this point, however.
   }
@@ -147,7 +151,7 @@ function testApiInChildProcess(execArgs, cb) {
                        });
 
   proc.once('exit', common.mustCall(() => {
-    const file = path.join(tmpdir.path, 'node_trace.1.log');
+    const file = tmpdir.resolve('node_trace.1.log');
 
     assert(fs.existsSync(file));
     fs.readFile(file, common.mustSucceed((data) => {
@@ -157,8 +161,7 @@ function testApiInChildProcess(execArgs, cb) {
       assert.strictEqual(
         traces.length,
         expectedBegins.length + expectedEnds.length);
-
-      traces.forEach((trace) => {
+      for (const trace of traces) {
         assert.strictEqual(trace.pid, proc.pid);
         switch (trace.ph) {
           case 'b': {
@@ -176,7 +179,7 @@ function testApiInChildProcess(execArgs, cb) {
           default:
             assert.fail('Unexpected trace event phase');
         }
-      });
+      }
       process.chdir(parentDir);
       cb && process.nextTick(cb);
     }));

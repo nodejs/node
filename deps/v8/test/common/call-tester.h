@@ -42,28 +42,29 @@ class CallHelper {
 
 template <>
 template <typename... Params>
-Object CallHelper<Object>::Call(Params... args) {
+Tagged<Object> CallHelper<Tagged<Object>>::Call(Params... args) {
   CSignature::VerifyParams<Params...>(csig_);
   Address entry = Generate();
   auto fn = GeneratedCode<Address, Params...>::FromAddress(isolate_, entry);
-  return Object(fn.Call(args...));
+  return Tagged<Object>(fn.Call(args...));
 }
 
 // A call helper that calls the given code object assuming C calling convention.
 template <typename T>
 class CodeRunner : public CallHelper<T> {
  public:
-  CodeRunner(Isolate* isolate, Handle<InstructionStream> code,
+  CodeRunner(Isolate* isolate, Handle<InstructionStream> istream,
              MachineSignature* csig)
-      : CallHelper<T>(isolate, csig), code_(code) {}
-  CodeRunner(Isolate* isolate, Handle<Code> code, MachineSignature* csig)
-      : CallHelper<T>(isolate, csig), code_(FromCode(*code), isolate) {}
+      : CallHelper<T>(isolate, csig), istream_(istream) {}
+  CodeRunner(Isolate* isolate, DirectHandle<Code> code, MachineSignature* csig)
+      : CallHelper<T>(isolate, csig),
+        istream_(code->instruction_stream(), isolate) {}
   ~CodeRunner() override = default;
 
-  Address Generate() override { return code_->entry(); }
+  Address Generate() override { return istream_->instruction_start(); }
 
  private:
-  Handle<InstructionStream> code_;
+  Handle<InstructionStream> istream_;
 };
 
 }  // namespace compiler

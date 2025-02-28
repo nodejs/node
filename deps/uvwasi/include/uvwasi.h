@@ -5,12 +5,13 @@
 extern "C" {
 #endif
 
+#include "uv.h"
 #include "wasi_serdes.h"
 #include "wasi_types.h"
 
 #define UVWASI_VERSION_MAJOR 0
 #define UVWASI_VERSION_MINOR 0
-#define UVWASI_VERSION_PATCH 18
+#define UVWASI_VERSION_PATCH 21
 #define UVWASI_VERSION_HEX ((UVWASI_VERSION_MAJOR << 16) | \
                             (UVWASI_VERSION_MINOR <<  8) | \
                             (UVWASI_VERSION_PATCH))
@@ -47,6 +48,7 @@ typedef struct uvwasi_s {
   char* env_buf;
   uvwasi_size_t env_buf_size;
   const uvwasi_mem_t* allocator;
+  uv_loop_t* loop;
 } uvwasi_t;
 
 typedef struct uvwasi_preopen_s {
@@ -54,10 +56,17 @@ typedef struct uvwasi_preopen_s {
   const char* real_path;
 } uvwasi_preopen_t;
 
+typedef struct uvwasi_preopen_socket_s {
+  const char* address;
+  int port;
+} uvwasi_preopen_socket_t;
+
 typedef struct uvwasi_options_s {
   uvwasi_size_t fd_table_size;
   uvwasi_size_t preopenc;
   uvwasi_preopen_t* preopens;
+  uvwasi_size_t preopen_socketc;
+  uvwasi_preopen_socket_t* preopen_sockets;
   uvwasi_size_t argc;
   const char** argv;
   const char** envp;

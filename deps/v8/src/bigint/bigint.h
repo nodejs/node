@@ -57,18 +57,28 @@ static_assert(kDigitBits == 8 * sizeof(digit_t), "inconsistent type sizes");
 class Digits {
  public:
   // This is the constructor intended for public consumption.
+  Digits(const digit_t* mem, int len)
+      // The const_cast here is ugly, but we need the digits field to be mutable
+      // for the RWDigits subclass. We pinky swear to not mutate the memory with
+      // this class.
+      : Digits(const_cast<digit_t*>(mem), len) {}
+
   Digits(digit_t* mem, int len) : digits_(mem), len_(len) {
     // Require 4-byte alignment (even on 64-bit platforms).
     // TODO(jkummerow): See if we can tighten BigInt alignment in V8 to
     // system pointer size, and raise this requirement to that.
     BIGINT_H_DCHECK((reinterpret_cast<uintptr_t>(mem) & 3) == 0);
   }
+
   // Provides a "slice" view into another Digits object.
   Digits(Digits src, int offset, int len)
       : digits_(src.digits_ + offset),
         len_(std::max(0, std::min(src.len_ - offset, len))) {
     BIGINT_H_DCHECK(offset >= 0);
   }
+
+  Digits() : Digits(static_cast<digit_t*>(nullptr), 0) {}
+
   // Alternative way to get a "slice" view into another Digits object.
   Digits operator+(int i) {
     BIGINT_H_DCHECK(i >= 0 && i <= len_);
@@ -117,7 +127,7 @@ class Digits {
       return digits_[i];
     } else {
       digit_t result;
-      memcpy(&result, digits_ + i, sizeof(result));
+      memcpy(&result, static_cast<const void*>(digits_ + i), sizeof(result));
       return result;
     }
   }
@@ -343,36 +353,6 @@ int ToStringResultLength(Digits X, int radix, bool sign);
 // In DEBUG builds, the result of {ToString} will be initialized to this value.
 constexpr char kStringZapValue = '?';
 
-inline int BitwiseAnd_PosPos_ResultLength(int x_length, int y_length) {
-  return std::min(x_length, y_length);
-}
-inline int BitwiseAnd_NegNeg_ResultLength(int x_length, int y_length) {
-  // Result length growth example: -2 & -3 = -4 (2-bit inputs, 3-bit result).
-  return std::max(x_length, y_length) + 1;
-}
-inline int BitwiseAnd_PosNeg_ResultLength(int x_length) { return x_length; }
-inline int BitwiseOrResultLength(int x_length, int y_length) {
-  return std::max(x_length, y_length);
-}
-inline int BitwiseXor_PosPos_ResultLength(int x_length, int y_length) {
-  return std::max(x_length, y_length);
-}
-inline int BitwiseXor_NegNeg_ResultLength(int x_length, int y_length) {
-  return std::max(x_length, y_length);
-}
-inline int BitwiseXor_PosNeg_ResultLength(int x_length, int y_length) {
-  // Result length growth example: 3 ^ -1 == -4 (2-bit inputs, 3-bit result).
-  return std::max(x_length, y_length) + 1;
-}
-inline int LeftShift_ResultLength(int x_length,
-                                  digit_t x_most_significant_digit,
-                                  digit_t shift) {
-  int digit_shift = static_cast<int>(shift / kDigitBits);
-  int bits_shift = static_cast<int>(shift % kDigitBits);
-  bool grow = bits_shift != 0 &&
-              (x_most_significant_digit >> (kDigitBits - bits_shift)) != 0;
-  return x_length + digit_shift + grow;
-}
 int RightShift_ResultLength(Digits X, bool x_sign, digit_t shift,
                             RightShiftState* state);
 

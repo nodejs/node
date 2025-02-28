@@ -3,8 +3,7 @@
 // found in the LICENSE file.
 
 @abstract
-extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {
-}
+extern class JSFunctionOrBoundFunctionOrWrappedFunction extends JSObject {}
 
 extern class JSBoundFunction extends
     JSFunctionOrBoundFunctionOrWrappedFunction {
@@ -30,10 +29,12 @@ extern class JSWrappedFunction extends
 // here, please also update JSFunctionVerify in objects-debug.cc.
 @highestInstanceTypeWithinParentClassRange
 extern class JSFunction extends JSFunctionOrBoundFunctionOrWrappedFunction {
+  // TODO(saelo): drop this field once we call through the dispatch_handle.
+  @ifnot(V8_ENABLE_LEAPTIERING) code: TrustedPointer<Code>;
+  @if(V8_ENABLE_LEAPTIERING) dispatch_handle: int32;
   shared_function_info: SharedFunctionInfo;
   context: Context;
   feedback_cell: FeedbackCell;
-  code: Code;
   // Space for the following field may or may not be allocated.
   prototype_or_initial_map: JSReceiver|Map;
 }

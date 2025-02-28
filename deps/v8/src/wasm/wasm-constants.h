@@ -26,44 +26,43 @@ constexpr uint32_t kWasmVersion = 0x01;
 enum ValueTypeCode : uint8_t {
   // Current value types
   kVoidCode = 0x40,
-  kI32Code = 0x7f,
-  kI64Code = 0x7e,
-  kF32Code = 0x7d,
-  kF64Code = 0x7c,
-  // Simd proposal
-  kS128Code = 0x7b,
-  // GC proposal packed types
-  kI8Code = 0x7a,
-  kI16Code = 0x79,
-  // Current reference types
-  kFuncRefCode = 0x70,
-  // TODO(7784): Switch to official opcodes once they are aligned with the
-  // stringref proposal for nofunc and noextern.
-  kNoExternCode = 0x69,
-  kNoFuncCode = 0x68,
-  kExternRefCode = 0x6f,
-  // typed-funcref and GC proposal types
-  kAnyRefCode = 0x6e,
-  kEqRefCode = 0x6d,
-  kRefNullCode = 0x6c,
-  kRefCode = 0x6b,
-  kI31RefCode = 0x6a,
-  kStructRefCode = 0x67,
-  kArrayRefCode = 0x66,
-  kNoneCode = 0x65,
-  kStringRefCode = 0x64,
-  kStringViewWtf8Code = 0x63,
-  kStringViewWtf16Code = 0x62,
-  kStringViewIterCode = 0x61,
+  kI32Code = 0x7f,              // -0x01
+  kI64Code = 0x7e,              // -0x02
+  kF32Code = 0x7d,              // -0x03
+  kF64Code = 0x7c,              // -0x04
+  kS128Code = 0x7b,             // -0x05
+  kI8Code = 0x78,               // -0x08, packed type
+  kI16Code = 0x77,              // -0x09, packed type
+  kF16Code = 0x76,              // -0x0a, packed type
+  kNoExnCode = 0x74,            // -0x0c
+  kNoFuncCode = 0x73,           // -0x0d
+  kNoExternCode = 0x72,         // -0x0e
+  kNoneCode = 0x71,             // -0x0f
+  kFuncRefCode = 0x70,          // -0x10
+  kExternRefCode = 0x6f,        // -0x11
+  kAnyRefCode = 0x6e,           // -0x12
+  kEqRefCode = 0x6d,            // -0x13
+  kI31RefCode = 0x6c,           // -0x14
+  kStructRefCode = 0x6b,        // -0x15
+  kArrayRefCode = 0x6a,         // -0x16
+  kRefCode = 0x64,              // -0x1c
+  kRefNullCode = 0x63,          // -0x1d
+                                // Non-finalized proposals below.
+  kExnRefCode = 0x69,           // -0x17
+  kStringRefCode = 0x67,        // -0x19
+  kStringViewWtf8Code = 0x66,   // -0x1a
+  kStringViewWtf16Code = 0x62,  // -0x1e
+  kStringViewIterCode = 0x61,   // -0x1f
 };
 
 // Binary encoding of type definitions.
+constexpr uint8_t kSharedFlagCode = 0x65;
 constexpr uint8_t kWasmFunctionTypeCode = 0x60;
 constexpr uint8_t kWasmStructTypeCode = 0x5f;
 constexpr uint8_t kWasmArrayTypeCode = 0x5e;
 constexpr uint8_t kWasmSubtypeCode = 0x50;
-constexpr uint8_t kWasmSubtypeFinalCode = 0x4e;
-constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4f;
+constexpr uint8_t kWasmSubtypeFinalCode = 0x4f;
+constexpr uint8_t kWasmRecursiveTypeGroupCode = 0x4e;
 
 // Binary encoding of import/export kinds.
 enum ImportExportKindCode : uint8_t {
@@ -74,15 +73,16 @@ enum ImportExportKindCode : uint8_t {
   kExternalTag = 4
 };
 
+// The limits structure: valid for both memory and table limits.
 enum LimitsFlags : uint8_t {
-  kNoMaximum = 0x00,                 // Also valid for table limits.
-  kWithMaximum = 0x01,               // Also valid for table limits.
-  kSharedNoMaximum = 0x02,           // Only valid for memory limits.
-  kSharedWithMaximum = 0x03,         // Only valid for memory limits.
-  kMemory64NoMaximum = 0x04,         // Only valid for memory limits.
-  kMemory64WithMaximum = 0x05,       // Only valid for memory limits.
-  kMemory64SharedNoMaximum = 0x06,   // Only valid for memory limits.
-  kMemory64SharedWithMaximum = 0x07  // Only valid for memory limits.
+  kNoMaximum = 0x00,
+  kWithMaximum = 0x01,
+  kSharedNoMaximum = 0x02,
+  kSharedWithMaximum = 0x03,
+  kMemory64NoMaximum = 0x04,
+  kMemory64WithMaximum = 0x05,
+  kMemory64SharedNoMaximum = 0x06,
+  kMemory64SharedWithMaximum = 0x07
 };
 
 // Flags for data and element segments.
@@ -150,6 +150,14 @@ enum NameSectionKindCode : uint8_t {
   kTagCode = 11,
 };
 
+enum CatchKind : uint8_t {
+  kCatch = 0x0,
+  kCatchRef = 0x1,
+  kCatchAll = 0x2,
+  kCatchAllRef = 0x3,
+  kLastCatchKind = kCatchAllRef,
+};
+
 constexpr size_t kWasmPageSize = 0x10000;
 constexpr uint32_t kWasmPageSizeLog2 = 16;
 static_assert(kWasmPageSize == size_t{1} << kWasmPageSizeLog2, "consistency");
@@ -161,6 +169,13 @@ constexpr WasmCodePosition kNoCodePosition = -1;
 constexpr uint32_t kExceptionAttribute = 0;
 
 constexpr int kAnonymousFuncIndex = -1;
+
+// This needs to survive round-tripping through a Smi without changing
+// its value.
+constexpr uint32_t kInvalidCanonicalIndex = static_cast<uint32_t>(-1);
+static_assert(static_cast<uint32_t>(Internals::SmiValue(Internals::IntToSmi(
+                  static_cast<int>(kInvalidCanonicalIndex)))) ==
+              kInvalidCanonicalIndex);
 
 // The number of calls to an exported Wasm function that will be handled
 // by the generic wrapper. Once the budget is exhausted, a specific wrapper
@@ -183,6 +198,10 @@ constexpr uint32_t kMinimumSupertypeArraySize = 3;
 
 // Maximum number of call targets tracked per call.
 constexpr int kMaxPolymorphism = 4;
+
+// A struct field beyond this limit needs an explicit null check (trapping null
+// access not guaranteed to behave properly).
+constexpr int kMaxStructFieldIndexForImplicitNullCheck = 4000;
 
 #if V8_TARGET_ARCH_X64
 constexpr int32_t kOSRTargetOffset = 4 * kSystemPointerSize;

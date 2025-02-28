@@ -6,9 +6,13 @@
 #define HEAP_HEAP_UTILS_H_
 
 #include "src/api/api-inl.h"
+#include "src/flags/flags.h"
 #include "src/heap/heap.h"
+#include "test/cctest/cctest.h"
 
-namespace v8::internal::heap {
+namespace v8::internal {
+
+namespace heap {
 
 void SealCurrentObjects(Heap* heap);
 
@@ -28,7 +32,7 @@ void FillCurrentPage(v8::internal::NewSpace* space,
                      std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
 void FillCurrentPageButNBytes(
-    v8::internal::NewSpace* space, int extra_bytes,
+    v8::internal::SemiSpaceNewSpace* space, int extra_bytes,
     std::vector<Handle<FixedArray>>* out_handles = nullptr);
 
 // Helper function that simulates many incremental marking steps until
@@ -40,13 +44,17 @@ void SimulateFullSpace(v8::internal::PagedSpace* space);
 
 void AbandonCurrentlyFreeMemory(PagedSpace* space);
 
-void GcAndSweep(Heap* heap, AllocationSpace space);
+void InvokeMajorGC(Heap* heap);
+void InvokeMajorGC(Heap* heap, GCFlag gc_flag);
+void InvokeMinorGC(Heap* heap);
+void InvokeAtomicMajorGC(Heap* heap);
+void InvokeAtomicMinorGC(Heap* heap);
+void InvokeMemoryReducingMajorGCs(Heap* heap);
+void CollectSharedGarbage(Heap* heap);
 
-void ForceEvacuationCandidate(Page* page);
+void EmptyNewSpaceUsingGC(Heap* heap);
 
-void InvokeScavenge(Isolate* isolate = nullptr);
-
-void InvokeMarkSweep(Isolate* isolate = nullptr);
+void ForceEvacuationCandidate(PageMetadata* page);
 
 void GrowNewSpace(Heap* heap);
 
@@ -56,19 +64,61 @@ template <typename GlobalOrPersistent>
 bool InYoungGeneration(v8::Isolate* isolate, const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return i::Heap::InYoungGeneration(*v8::Utils::OpenHandle(*tmp));
+  return i::Heap::InYoungGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
-bool InCorrectGeneration(HeapObject object);
+bool InCorrectGeneration(Tagged<HeapObject> object);
 
 template <typename GlobalOrPersistent>
 bool InCorrectGeneration(v8::Isolate* isolate,
                          const GlobalOrPersistent& global) {
   v8::HandleScope scope(isolate);
   auto tmp = global.Get(isolate);
-  return InCorrectGeneration(*v8::Utils::OpenHandle(*tmp));
+  return InCorrectGeneration(*v8::Utils::OpenDirectHandle(*tmp));
 }
 
-}  // namespace v8::internal::heap
+class ManualEvacuationCandidatesSelectionScope {
+ public:
+  // Marking a page as an evacuation candidate update the page flags which may
+  // race with reading the page flag during concurrent marking.
+  explicit ManualEvacuationCandidatesSelectionScope(ManualGCScope&) {
+    DCHECK(!v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = true;
+  }
+  ~ManualEvacuationCandidatesSelectionScope() {
+    DCHECK(v8_flags.manual_evacuation_candidates_selection);
+    v8_flags.manual_evacuation_candidates_selection = false;
+  }
+
+ private:
+};
+
+}  // namespace heap
+
+// ManualGCScope allows for disabling GC heuristics. This is useful for tests
+// that want to check specific corner cases around GC.
+//
+// The scope will finalize any ongoing GC on the provided Isolate. If no Isolate
+// is manually provided, it is assumed that a CcTest setup (e.g.
+// CcTest::InitializeVM()) is used.
+class V8_NODISCARD ManualGCScope final {
+ public:
+  explicit ManualGCScope(
+      Isolate* isolate = reinterpret_cast<Isolate*>(CcTest::isolate_));
+  ~ManualGCScope();
+
+ private:
+  Isolate* const isolate_;
+  const bool flag_concurrent_marking_;
+  const bool flag_concurrent_sweeping_;
+  const bool flag_concurrent_minor_ms_marking_;
+  const bool flag_stress_concurrent_allocation_;
+  const bool flag_stress_incremental_marking_;
+  const bool flag_parallel_marking_;
+  const bool flag_detect_ineffective_gcs_near_heap_limit_;
+  const bool flag_cppheap_concurrent_marking_;
+};
+
+}  // namespace v8::internal
 
 #endif  // HEAP_HEAP_UTILS_H_

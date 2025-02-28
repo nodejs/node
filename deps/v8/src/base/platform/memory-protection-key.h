@@ -5,10 +5,9 @@
 #ifndef V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 #define V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_
 
+#include "src/base/build_config.h"
+
 #if V8_HAS_PKU_JIT_WRITE_PROTECT
-#include <sys/mman.h>  // For static_assert of permission values.
-#undef MAP_TYPE  // Conflicts with MAP_TYPE in Torque-generated instance-types.h
-#endif
 
 #include "include/v8-platform.h"
 #include "src/base/address-region.h"
@@ -22,7 +21,7 @@ namespace base {
 // This class has static methods for the different platform specific
 // functions related to memory protection key support.
 
-// TODO(dlehmann): Consider adding this to {base::PageAllocator} (higher-level,
+// TODO(sroettger): Consider adding this to {base::PageAllocator} (higher-level,
 // exported API) once the API is more stable and we have converged on a better
 // design (e.g., typed class wrapper around int memory protection key).
 class V8_BASE_EXPORT MemoryProtectionKey {
@@ -32,6 +31,9 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // benefit that calling pkey_mprotect() with -1 behaves the same as regular
   // mprotect().
   static constexpr int kNoMemoryProtectionKey = -1;
+
+  // The default ProtectionKey can be used to remove pkey assignments.
+  static constexpr int kDefaultProtectionKey = 0;
 
   // Permissions for memory protection keys on top of the page's permissions.
   // NOTE: Since there is no executable bit, the executable permission cannot be
@@ -51,20 +53,10 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 
   // Call exactly once per process to determine if PKU is supported on this
   // platform and initialize global data structures.
-  static void InitializeMemoryProtectionKeySupport();
+  static bool HasMemoryProtectionKeySupport();
 
-  // Allocates a memory protection key on platforms with PKU support, returns
-  // {kNoMemoryProtectionKey} on platforms without support or when allocation
-  // failed at runtime.
+  // Allocates a new key. Returns -1 on error.
   static int AllocateKey();
-
-  // Frees the given memory protection key, to make it available again for the
-  // next call to {AllocateKey()}. Note that this does NOT
-  // invalidate access rights to pages that are still tied to that key. That is,
-  // if the key is reused and pages with that key are still accessable, this
-  // might be a security issue. See
-  // https://www.gnu.org/software/libc/manual/html_mono/libc.html#Memory-Protection-Keys
-  static void FreeKey(int key);
 
   // Associates a memory protection {key} with the given {region}.
   // If {key} is {kNoMemoryProtectionKey} this behaves like "plain"
@@ -78,7 +70,7 @@ class V8_BASE_EXPORT MemoryProtectionKey {
   // permissions of the page, not the key. For changing the permissions of the
   // key, use {SetPermissionsForKey()} instead.
   static bool SetPermissionsAndKey(
-      v8::PageAllocator* page_allocator, base::AddressRegion region,
+      base::AddressRegion region,
       v8::PageAllocator::Permission page_permissions, int key);
 
   // Set the key's permissions. {key} must be valid, i.e. not
@@ -91,5 +83,7 @@ class V8_BASE_EXPORT MemoryProtectionKey {
 
 }  // namespace base
 }  // namespace v8
+
+#endif  // V8_HAS_PKU_JIT_WRITE_PROTECT
 
 #endif  // V8_BASE_PLATFORM_MEMORY_PROTECTION_KEY_H_

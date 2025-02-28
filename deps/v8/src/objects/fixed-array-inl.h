@@ -5,6 +5,9 @@
 #ifndef V8_OBJECTS_FIXED_ARRAY_INL_H_
 #define V8_OBJECTS_FIXED_ARRAY_INL_H_
 
+#include <optional>
+
+#include "src/common/globals.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/numbers/conversions.h"
@@ -15,205 +18,436 @@
 #include "src/objects/maybe-object-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/oddball.h"
+#include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
 #include "src/roots/roots-inl.h"
+#include "src/torque/runtime-macro-shims.h"
+#include "src/torque/runtime-support.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 #include "torque-generated/src/objects/fixed-array-tq-inl.inc"
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase)
-FixedArrayBase::FixedArrayBase(Address ptr,
-                               HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedFixedArrayBase(ptr, allow_smi) {}
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ArrayList)
-TQ_OBJECT_CONSTRUCTORS_IMPL(ByteArray)
-ByteArray::ByteArray(Address ptr, HeapObject::AllowInlineSmiStorage allow_smi)
-    : TorqueGeneratedByteArray(ptr, allow_smi) {}
-TQ_OBJECT_CONSTRUCTORS_IMPL(TemplateList)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
-
-NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
-
-RELEASE_ACQUIRE_SMI_ACCESSORS(FixedArrayBase, length, kLengthOffset)
-
-RELEASE_ACQUIRE_SMI_ACCESSORS(WeakFixedArray, length, kLengthOffset)
-
-Object FixedArrayBase::unchecked_length(AcquireLoadTag) const {
-  return ACQUIRE_READ_FIELD(*this, kLengthOffset);
+template <class D, class S, class P>
+int TaggedArrayBase<D, S, P>::capacity() const {
+  return Smi::ToInt(TaggedField<Smi, D::kCapacityOffset>::load(*this));
 }
 
-ObjectSlot FixedArray::GetFirstElementAddress() {
-  return RawField(OffsetOfElementAt(0));
+template <class D, class S, class P>
+int TaggedArrayBase<D, S, P>::capacity(AcquireLoadTag tag) const {
+  return Smi::ToInt(TaggedField<Smi, D::kCapacityOffset>::Acquire_Load(*this));
 }
 
-bool FixedArray::ContainsOnlySmisOrHoles() {
-  Object the_hole = GetReadOnlyRoots().the_hole_value();
-  ObjectSlot current = GetFirstElementAddress();
-  for (int i = 0; i < length(); ++i, ++current) {
-    Object candidate = *current;
-    if (!candidate.IsSmi() && candidate != the_hole) return false;
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set_capacity(int value) {
+  TaggedField<Smi, D::kCapacityOffset>::store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, D::kCapacityOffset>::Release_Store(*this,
+                                                      Smi::FromInt(value));
+}
+
+template <class D, class S, class P>
+template <typename, typename>
+int TaggedArrayBase<D, S, P>::length() const {
+  return capacity();
+}
+
+template <class D, class S, class P>
+template <typename, typename>
+int TaggedArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
+  return capacity(tag);
+}
+
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set_length(int value) {
+  set_capacity(value);
+}
+
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
+  set_capacity(value, tag);
+}
+
+template <class D, class S, class P>
+bool TaggedArrayBase<D, S, P>::IsInBounds(int index) const {
+  return static_cast<unsigned>(index) < static_cast<unsigned>(capacity());
+}
+
+template <class D, class S, class P>
+bool TaggedArrayBase<D, S, P>::IsCowArray() const {
+  return this->map() ==
+         this->EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map();
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index) const {
+  DCHECK(IsInBounds(index));
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, RelaxedLoadTag) const {
+  DCHECK(IsInBounds(index));
+  return ElementFieldT::Relaxed_Load(*this, OffsetOfElementAt(index));
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, AcquireLoadTag) const {
+  DCHECK(IsInBounds(index));
+  return ElementFieldT::Acquire_Load(*this, OffsetOfElementAt(index));
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::get(int index, SeqCstAccessTag) const {
+  DCHECK(IsInBounds(index));
+  return ElementFieldT::SeqCst_Load(*this, OffsetOfElementAt(index));
+}
+
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::ConditionalWriteBarrier(
+    Tagged<HeapObject> object, int offset, Tagged<ElementT> value,
+    WriteBarrierMode mode) {
+  if constexpr (kElementsAreMaybeObject) {
+    CONDITIONAL_WEAK_WRITE_BARRIER(object, offset, value, mode);
+  } else {
+    CONDITIONAL_WRITE_BARRIER(object, offset, value, mode);
   }
-  return true;
 }
 
-Object FixedArray::get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+                                   WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  // TODO(jgruber): This tag-less overload shouldn't be relaxed.
+  const int offset = OffsetOfElementAt(index);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
+  ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
-Object FixedArray::get(PtrComprCageBase cage_base, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return TaggedField<Object>::Relaxed_Load(cage_base, *this,
-                                           OffsetOfElementAt(index));
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value) {
+  set(index, value, SKIP_WRITE_BARRIER);
 }
 
-Handle<Object> FixedArray::get(FixedArray array, int index, Isolate* isolate) {
-  return handle(array.get(isolate, index), isolate);
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+                                   RelaxedStoreTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  ElementFieldT::Relaxed_Store(*this, offset, value);
+  ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
-bool FixedArray::is_the_hole(Isolate* isolate, int index) {
-  return get(isolate, index).IsTheHole(isolate);
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+                                   RelaxedStoreTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-void FixedArray::set(int index, Smi value) {
-  DCHECK_NE(map(), EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  DCHECK(Object(value).IsSmi());
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+                                   ReleaseStoreTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  ElementFieldT::Release_Store(*this, offset, value);
+  ConditionalWriteBarrier(*this, offset, value, mode);
 }
 
-void FixedArray::set(int index, Object value) {
-  DCHECK_NE(EarlyGetReadOnlyRoots().unchecked_fixed_cow_array_map(), map());
-  DCHECK(IsFixedArray());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  WRITE_BARRIER(*this, offset, value);
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+                                   ReleaseStoreTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
 }
 
-void FixedArray::set(int index, Object value, WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(*this, offset, value);
-  CONDITIONAL_WRITE_BARRIER(*this, offset, value, mode);
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<ElementT> value,
+                                   SeqCstAccessTag tag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  const int offset = OffsetOfElementAt(index);
+  ElementFieldT::SeqCst_Store(*this, offset, value);
+  ConditionalWriteBarrier(*this, offset, value, mode);
+}
+
+template <class D, class S, class P>
+template <typename, typename>
+void TaggedArrayBase<D, S, P>::set(int index, Tagged<Smi> value,
+                                   SeqCstAccessTag tag) {
+  set(index, value, tag, SKIP_WRITE_BARRIER);
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::swap(int index, Tagged<ElementT> value,
+                               SeqCstAccessTag, WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  Tagged<ElementT> previous_value =
+      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
+  ConditionalWriteBarrier(*this, OffsetOfElementAt(index), value, mode);
+  return previous_value;
+}
+
+template <class D, class S, class P>
+Tagged<typename TaggedArrayBase<D, S, P>::ElementT>
+TaggedArrayBase<D, S, P>::compare_and_swap(int index, Tagged<ElementT> expected,
+                                           Tagged<ElementT> value,
+                                           SeqCstAccessTag,
+                                           WriteBarrierMode mode) {
+  DCHECK(!IsCowArray());
+  DCHECK(IsInBounds(index));
+  Tagged<ElementT> previous_value = SEQ_CST_COMPARE_AND_SWAP_FIELD(
+      *this, OffsetOfElementAt(index), expected, value);
+  if (previous_value == expected) {
+    ConditionalWriteBarrier(*this, OffsetOfElementAt(index), value, mode);
+  }
+  return previous_value;
+}
+
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::MoveElements(Isolate* isolate, Tagged<D> dst,
+                                            int dst_index, Tagged<D> src,
+                                            int src_index, int len,
+                                            WriteBarrierMode mode) {
+  if (len == 0) return;
+
+  DCHECK_GE(len, 0);
+  DCHECK(dst->IsInBounds(dst_index));
+  DCHECK_LE(dst_index + len, dst->length());
+  DCHECK(src->IsInBounds(src_index));
+  DCHECK_LE(src_index + len, src->length());
+
+  DisallowGarbageCollection no_gc;
+  SlotType dst_slot(dst->RawFieldOfElementAt(dst_index));
+  SlotType src_slot(src->RawFieldOfElementAt(src_index));
+  isolate->heap()->MoveRange(dst, dst_slot, src_slot, len, mode);
+}
+
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::CopyElements(Isolate* isolate, Tagged<D> dst,
+                                            int dst_index, Tagged<D> src,
+                                            int src_index, int len,
+                                            WriteBarrierMode mode) {
+  if (len == 0) return;
+
+  DCHECK_GE(len, 0);
+  DCHECK(dst->IsInBounds(dst_index));
+  DCHECK_LE(dst_index + len, dst->capacity());
+  DCHECK(src->IsInBounds(src_index));
+  DCHECK_LE(src_index + len, src->capacity());
+
+  DisallowGarbageCollection no_gc;
+  SlotType dst_slot(dst->RawFieldOfElementAt(dst_index));
+  SlotType src_slot(src->RawFieldOfElementAt(src_index));
+  isolate->heap()->CopyRange(dst, dst_slot, src_slot, len, mode);
+}
+
+template <class D, class S, class P>
+void TaggedArrayBase<D, S, P>::RightTrim(Isolate* isolate, int new_capacity) {
+  int old_capacity = capacity();
+  CHECK_GT(new_capacity, 0);  // Due to possible canonicalization.
+  CHECK_LE(new_capacity, old_capacity);
+  if (new_capacity == old_capacity) return;
+  isolate->heap()->RightTrimArray(Cast<D>(*this), new_capacity, old_capacity);
+}
+
+// Due to right-trimming (which creates a filler object before publishing the
+// length through a release-store, see Heap::RightTrimArray), concurrent
+// visitors need to read the length with acquire semantics.
+template <class D, class S, class P>
+int TaggedArrayBase<D, S, P>::AllocatedSize() const {
+  return SizeFor(capacity(kAcquireLoad));
+}
+
+template <class D, class S, class P>
+typename TaggedArrayBase<D, S, P>::SlotType
+TaggedArrayBase<D, S, P>::RawFieldOfFirstElement() const {
+  return RawFieldOfElementAt(0);
+}
+
+template <class D, class S, class P>
+typename TaggedArrayBase<D, S, P>::SlotType
+TaggedArrayBase<D, S, P>::RawFieldOfElementAt(int index) const {
+  if constexpr (kElementsAreMaybeObject) {
+    return this->RawMaybeWeakField(OffsetOfElementAt(index));
+  } else {
+    return this->RawField(OffsetOfElementAt(index));
+  }
 }
 
 // static
-void FixedArray::NoWriteBarrierSet(FixedArray array, int index, Object value) {
-  DCHECK_NE(array.map(), array.GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index),
-            static_cast<unsigned>(array.length()));
-  DCHECK(!ObjectInYoungGeneration(value));
-  int offset = OffsetOfElementAt(index);
-  RELAXED_WRITE_FIELD(array, offset, value);
+template <class IsolateT>
+Handle<FixedArray> FixedArray::New(IsolateT* isolate, int capacity,
+                                   AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  FixedArrayBase::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  } else if (V8_UNLIKELY(capacity == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<FixedArray> result =
+      Cast<FixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged((*result)->RawFieldOfFirstElement(), roots.undefined_value(),
+               capacity);
+  return result;
 }
 
-Object FixedArray::get(int index, RelaxedLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
+// static
+template <class IsolateT>
+Handle<TrustedFixedArray> TrustedFixedArray::New(IsolateT* isolate,
+                                                 int capacity,
+                                                 AllocationType allocation) {
+  DCHECK(allocation == AllocationType::kTrusted ||
+         allocation == AllocationType::kSharedTrusted);
+
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  TrustedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+  // TODO(saelo): once we have trusted read-only roots, we can return the
+  // empty_trusted_fixed_array here. Currently this isn't possible because the
+  // (mutable) empty_trusted_fixed_array will be created via this function.
+  // The same is true for the other trusted-space arrays below.
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedFixedArray> result =
+      Cast<TrustedFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
+  return result;
 }
 
-Object FixedArray::get(PtrComprCageBase cage_base, int index,
-                       RelaxedLoadTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return RELAXED_READ_FIELD(*this, OffsetOfElementAt(index));
+// static
+template <class IsolateT>
+Handle<ProtectedFixedArray> ProtectedFixedArray::New(IsolateT* isolate,
+                                                     int capacity) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  ProtectedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<ProtectedFixedArray> result = Cast<ProtectedFixedArray>(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
+  return result;
 }
 
-void FixedArray::set(int index, Object value, RelaxedStoreTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  RELAXED_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+// static
+template <class D, class S, class P>
+template <class IsolateT>
+Handle<D> TaggedArrayBase<D, S, P>::Allocate(
+    IsolateT* isolate, int capacity,
+    std::optional<DisallowGarbageCollection>* no_gc_out,
+    AllocationType allocation) {
+  // Note 0-capacity is explicitly allowed since not all subtypes can be
+  // assumed to have canonical 0-capacity instances.
+  DCHECK_GE(capacity, 0);
+  DCHECK_LE(capacity, kMaxCapacity);
+  DCHECK(!no_gc_out->has_value());
+
+  Tagged<D> xs = UncheckedCast<D>(
+      isolate->factory()->AllocateRawArray(SizeFor(capacity), allocation));
+
+  ReadOnlyRoots roots{isolate};
+  if (DEBUG_BOOL) no_gc_out->emplace();
+  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
+  DCHECK(ReadOnlyHeap::Contains(map));
+
+  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_capacity(capacity);
+
+  return handle(xs, isolate);
 }
 
-void FixedArray::set(int index, Smi value, RelaxedStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
-  set(index, value, tag, SKIP_WRITE_BARRIER);
+// static
+template <class D, class S, class P>
+constexpr int TaggedArrayBase<D, S, P>::NewCapacityForIndex(int index,
+                                                            int old_capacity) {
+  DCHECK_GE(index, old_capacity);
+  // Note this is currently based on JSObject::NewElementsCapacity.
+  int capacity = old_capacity;
+  do {
+    capacity = capacity + (capacity >> 1) + 16;
+  } while (capacity <= index);
+  return capacity;
 }
 
-Object FixedArray::get(int index, SeqCstAccessTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
+int FixedArrayBase::length() const {
+  return Smi::ToInt(
+      TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::load(*this));
 }
 
-Object FixedArray::get(PtrComprCageBase cage_base, int index,
-                       SeqCstAccessTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return SEQ_CST_READ_FIELD(*this, OffsetOfElementAt(index));
+int FixedArrayBase::length(AcquireLoadTag tag) const {
+  return Smi::ToInt(
+      TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::Acquire_Load(*this));
 }
 
-void FixedArray::set(int index, Object value, SeqCstAccessTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  SEQ_CST_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
+void FixedArrayBase::set_length(int value) {
+  TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::store(
+      *this, Smi::FromInt(value));
 }
 
-void FixedArray::set(int index, Smi value, SeqCstAccessTag tag) {
-  DCHECK(Object(value).IsSmi());
-  set(index, value, tag, SKIP_WRITE_BARRIER);
+void FixedArrayBase::set_length(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, TaggedArrayShape::kCapacityOffset>::Release_Store(
+      *this, Smi::FromInt(value));
 }
 
-Object FixedArray::get(int index, AcquireLoadTag) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return get(cage_base, index);
-}
+OBJECT_CONSTRUCTORS_IMPL(WeakFixedArray, WeakFixedArray::Super)
 
-Object FixedArray::get(PtrComprCageBase cage_base, int index,
-                       AcquireLoadTag) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return ACQUIRE_READ_FIELD(*this, OffsetOfElementAt(index));
-}
+OBJECT_CONSTRUCTORS_IMPL(TrustedWeakFixedArray, TrustedWeakFixedArray::Super)
 
-void FixedArray::set(int index, Object value, ReleaseStoreTag,
-                     WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  RELEASE_WRITE_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-}
+TQ_OBJECT_CONSTRUCTORS_IMPL(WeakArrayList)
 
-void FixedArray::set(int index, Smi value, ReleaseStoreTag tag) {
-  DCHECK(Object(value).IsSmi());
-  set(index, value, tag, SKIP_WRITE_BARRIER);
-}
+template <class D, class S, class P>
+TaggedArrayBase<D, S, P>::TaggedArrayBase(Address ptr) : P(ptr) {}
+template <class D, class S, class P>
+PrimitiveArrayBase<D, S, P>::PrimitiveArrayBase(Address ptr) : P(ptr) {}
 
-void FixedArray::set_undefined(int index) {
-  set_undefined(GetReadOnlyRoots(), index);
-}
+OBJECT_CONSTRUCTORS_IMPL(FixedArrayBase, HeapObject)
 
-void FixedArray::set_undefined(Isolate* isolate, int index) {
-  set_undefined(ReadOnlyRoots(isolate), index);
-}
+OBJECT_CONSTRUCTORS_IMPL(FixedArray, FixedArray::Super)
 
-void FixedArray::set_undefined(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.undefined_value());
-}
+OBJECT_CONSTRUCTORS_IMPL(TrustedFixedArray, TrustedFixedArray::Super)
 
-void FixedArray::set_null(int index) { set_null(GetReadOnlyRoots(), index); }
+OBJECT_CONSTRUCTORS_IMPL(ProtectedFixedArray, ProtectedFixedArray::Super)
 
-void FixedArray::set_null(Isolate* isolate, int index) {
-  set_null(ReadOnlyRoots(isolate), index);
-}
+OBJECT_CONSTRUCTORS_IMPL(FixedDoubleArray, FixedDoubleArray::Super)
 
-void FixedArray::set_null(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.null_value());
-}
+OBJECT_CONSTRUCTORS_IMPL(ByteArray, ByteArray::Super)
 
-void FixedArray::set_the_hole(int index) {
-  set_the_hole(GetReadOnlyRoots(), index);
+OBJECT_CONSTRUCTORS_IMPL(TrustedByteArray, TrustedByteArray::Super)
+
+OBJECT_CONSTRUCTORS_IMPL(ArrayList, ArrayList::Super)
+
+NEVER_READ_ONLY_SPACE_IMPL(WeakArrayList)
+
+bool FixedArray::is_the_hole(Isolate* isolate, int index) {
+  return IsTheHole(get(index), isolate);
 }
 
 void FixedArray::set_the_hole(Isolate* isolate, int index) {
@@ -221,71 +455,44 @@ void FixedArray::set_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedArray::set_the_hole(ReadOnlyRoots ro_roots, int index) {
-  FixedArray::NoWriteBarrierSet(*this, index, ro_roots.the_hole_value());
-}
-
-Object FixedArray::swap(int index, Object value, SeqCstAccessTag,
-                        WriteBarrierMode mode) {
-  DCHECK_NE(map(), GetReadOnlyRoots().fixed_cow_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  Object previous_value =
-      SEQ_CST_SWAP_FIELD(*this, OffsetOfElementAt(index), value);
-  CONDITIONAL_WRITE_BARRIER(*this, OffsetOfElementAt(index), value, mode);
-  return previous_value;
-}
-
-Object FixedArray::swap(int index, Smi value, SeqCstAccessTag tag) {
-  DCHECK(Object(value).IsSmi());
-  return swap(index, value, tag, SKIP_WRITE_BARRIER);
+  set(index, ro_roots.the_hole_value(), SKIP_WRITE_BARRIER);
 }
 
 void FixedArray::FillWithHoles(int from, int to) {
+  ReadOnlyRoots roots = GetReadOnlyRoots();
   for (int i = from; i < to; i++) {
-    set_the_hole(i);
+    set(i, roots.the_hole_value(), SKIP_WRITE_BARRIER);
   }
-}
-
-ObjectSlot FixedArray::data_start() { return RawField(OffsetOfElementAt(0)); }
-
-ObjectSlot FixedArray::RawFieldOfElementAt(int index) {
-  return RawField(OffsetOfElementAt(index));
 }
 
 void FixedArray::MoveElements(Isolate* isolate, int dst_index, int src_index,
                               int len, WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, length());
-  DisallowGarbageCollection no_gc;
-  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(RawFieldOfElementAt(src_index));
-  isolate->heap()->MoveRange(*this, dst_slot, src_slot, len, mode);
+  MoveElements(isolate, *this, dst_index, *this, src_index, len, mode);
 }
 
-void FixedArray::CopyElements(Isolate* isolate, int dst_index, FixedArray src,
-                              int src_index, int len, WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
-  DisallowGarbageCollection no_gc;
-
-  ObjectSlot dst_slot(RawFieldOfElementAt(dst_index));
-  ObjectSlot src_slot(src.RawFieldOfElementAt(src_index));
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
+void FixedArray::CopyElements(Isolate* isolate, int dst_index,
+                              Tagged<FixedArray> src, int src_index, int len,
+                              WriteBarrierMode mode) {
+  CopyElements(isolate, *this, dst_index, src, src_index, len, mode);
 }
 
-// Due to left- and right-trimming, concurrent visitors need to read the length
-// with acquire semantics.
-// TODO(ulan): Acquire should not be needed anymore.
-inline int FixedArray::AllocatedSize() { return SizeFor(length(kAcquireLoad)); }
-inline int WeakFixedArray::AllocatedSize() {
-  return SizeFor(length(kAcquireLoad));
+// static
+Handle<FixedArray> FixedArray::Resize(Isolate* isolate,
+                                      DirectHandle<FixedArray> xs,
+                                      int new_capacity,
+                                      AllocationType allocation,
+                                      WriteBarrierMode mode) {
+  Handle<FixedArray> ys = New(isolate, new_capacity, allocation);
+  int elements_to_copy = std::min(new_capacity, xs->capacity());
+  FixedArray::CopyElements(isolate, *ys, 0, *xs, 0, elements_to_copy, mode);
+  return ys;
 }
-inline int WeakArrayList::AllocatedSize() { return SizeFor(capacity()); }
+
+inline int WeakArrayList::AllocatedSize() const { return SizeFor(capacity()); }
 
 // Perform a binary search in a fixed array.
 template <SearchMode search_mode, typename T>
-int BinarySearch(T* array, Name name, int valid_entries,
+int BinarySearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   DCHECK_IMPLIES(search_mode == VALID_ENTRIES, out_insertion_index == nullptr);
   int low = 0;
@@ -295,15 +502,15 @@ int BinarySearch(T* array, Name name, int valid_entries,
   // index). After doing the binary search and getting the correct internal
   // index we check to have the index lower than valid_entries, if needed.
   int high = array->number_of_entries() - 1;
-  uint32_t hash = name.hash();
+  uint32_t hash = name->hash();
   int limit = high;
 
   DCHECK(low <= high);
 
   while (low != high) {
     int mid = low + (high - low) / 2;
-    Name mid_name = array->GetSortedKey(mid);
-    uint32_t mid_hash = mid_name.hash();
+    Tagged<Name> mid_name = array->GetSortedKey(mid);
+    uint32_t mid_hash = mid_name->hash();
 
     if (mid_hash >= hash) {
       high = mid;
@@ -314,8 +521,8 @@ int BinarySearch(T* array, Name name, int valid_entries,
 
   for (; low <= limit; ++low) {
     int sort_index = array->GetSortedKeyIndex(low);
-    Name entry = array->GetKey(InternalIndex(sort_index));
-    uint32_t current_hash = entry.hash();
+    Tagged<Name> entry = array->GetKey(InternalIndex(sort_index));
+    uint32_t current_hash = entry->hash();
     if (current_hash != hash) {
       // 'search_mode == ALL_ENTRIES' here and below is not needed since
       // 'out_insertion_index != nullptr' implies 'search_mode == ALL_ENTRIES'.
@@ -344,15 +551,15 @@ int BinarySearch(T* array, Name name, int valid_entries,
 // Perform a linear search in this fixed array. len is the number of entry
 // indices that are valid.
 template <SearchMode search_mode, typename T>
-int LinearSearch(T* array, Name name, int valid_entries,
+int LinearSearch(T* array, Tagged<Name> name, int valid_entries,
                  int* out_insertion_index) {
   if (search_mode == ALL_ENTRIES && out_insertion_index != nullptr) {
-    uint32_t hash = name.hash();
+    uint32_t hash = name->hash();
     int len = array->number_of_entries();
     for (int number = 0; number < len; number++) {
       int sorted_index = array->GetSortedKeyIndex(number);
-      Name entry = array->GetKey(InternalIndex(sorted_index));
-      uint32_t current_hash = entry.hash();
+      Tagged<Name> entry = array->GetKey(InternalIndex(sorted_index));
+      uint32_t current_hash = entry->hash();
       if (current_hash > hash) {
         *out_insertion_index = sorted_index;
         return T::kNotFound;
@@ -372,8 +579,8 @@ int LinearSearch(T* array, Name name, int valid_entries,
 }
 
 template <SearchMode search_mode, typename T>
-int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
-           bool concurrent_search) {
+int Search(T* array, Tagged<Name> name, int valid_entries,
+           int* out_insertion_index, bool concurrent_search) {
   SLOW_DCHECK_IMPLIES(!concurrent_search, array->IsSortedNoDuplicates());
 
   if (valid_entries == 0) {
@@ -395,42 +602,170 @@ int Search(T* array, Name name, int valid_entries, int* out_insertion_index,
                                    out_insertion_index);
 }
 
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::length() const {
+  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::load(*this));
+}
+
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::length(AcquireLoadTag tag) const {
+  return Smi::ToInt(TaggedField<Smi, D::kLengthOffset>::Acquire_Load(*this));
+}
+
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_length(int value) {
+  TaggedField<Smi, D::kLengthOffset>::store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_length(int value, ReleaseStoreTag tag) {
+  TaggedField<Smi, D::kLengthOffset>::Release_Store(*this, Smi::FromInt(value));
+}
+
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::capacity() const {
+  return length();
+}
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::capacity(AcquireLoadTag tag) const {
+  return length(tag);
+}
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_capacity(int value) {
+  set_length(value);
+}
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set_capacity(int value, ReleaseStoreTag tag) {
+  set_length(value, tag);
+}
+
+template <class D, class S, class P>
+bool PrimitiveArrayBase<D, S, P>::IsInBounds(int index) const {
+  return static_cast<unsigned>(index) < static_cast<unsigned>(length());
+}
+
+template <class D, class S, class P>
+typename S::ElementT PrimitiveArrayBase<D, S, P>::get(int index) const {
+  DCHECK(IsInBounds(index));
+  return this->template ReadField<typename S::ElementT>(
+      OffsetOfElementAt(index));
+}
+
+template <class D, class S, class P>
+void PrimitiveArrayBase<D, S, P>::set(int index, typename S::ElementT value) {
+  DCHECK(IsInBounds(index));
+  this->template WriteField<typename S::ElementT>(OffsetOfElementAt(index),
+                                                  value);
+}
+
+// Due to right-trimming (which creates a filler object before publishing the
+// length through a release-store, see Heap::RightTrimArray), concurrent
+// visitors need to read the length with acquire semantics.
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::AllocatedSize() const {
+  return SizeFor(length(kAcquireLoad));
+}
+
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::AddressOfElementAt(
+    int index) const {
+  return reinterpret_cast<ElementT*>(
+      this->field_address(OffsetOfElementAt(index)));
+}
+
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::begin() const {
+  return AddressOfElementAt(0);
+}
+
+template <class D, class S, class P>
+typename S::ElementT* PrimitiveArrayBase<D, S, P>::end() const {
+  return AddressOfElementAt(length());
+}
+
+template <class D, class S, class P>
+int PrimitiveArrayBase<D, S, P>::DataSize() const {
+  int data_size = SizeFor(length()) - S::kHeaderSize;
+  DCHECK_EQ(data_size, OBJECT_POINTER_ALIGN(length() * S::kElementSize));
+  return data_size;
+}
+
+// static
+template <class D, class S, class P>
+inline Tagged<D> PrimitiveArrayBase<D, S, P>::FromAddressOfFirstElement(
+    Address address) {
+  DCHECK_TAG_ALIGNED(address);
+  return Cast<D>(Tagged<Object>(address - S::kHeaderSize + kHeapObjectTag));
+}
+
+// static
+template <class IsolateT>
+Handle<FixedArrayBase> FixedDoubleArray::New(IsolateT* isolate, int length,
+                                             AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_fixed_array();
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  return Cast<FixedDoubleArray>(Allocate(isolate, length, &no_gc, allocation));
+}
+
+// static
+template <class D, class S, class P>
+template <class IsolateT>
+Handle<D> PrimitiveArrayBase<D, S, P>::Allocate(
+    IsolateT* isolate, int length,
+    std::optional<DisallowGarbageCollection>* no_gc_out,
+    AllocationType allocation) {
+  // Note 0-length is explicitly allowed since not all subtypes can be
+  // assumed to have canonical 0-length instances.
+  DCHECK_GE(length, 0);
+  DCHECK_LE(length, kMaxLength);
+  DCHECK(!no_gc_out->has_value());
+
+  Tagged<D> xs = UncheckedCast<D>(
+      isolate->factory()->AllocateRawArray(SizeFor(length), allocation));
+
+  ReadOnlyRoots roots{isolate};
+  if (DEBUG_BOOL) no_gc_out->emplace();
+  Tagged<Map> map = Cast<Map>(roots.object_at(S::kMapRootIndex));
+  DCHECK(ReadOnlyHeap::Contains(map));
+
+  xs->set_map_after_allocation(map, SKIP_WRITE_BARRIER);
+  xs->set_length(length);
+
+  return handle(xs, isolate);
+}
+
 double FixedDoubleArray::get_scalar(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
   DCHECK(!is_the_hole(index));
-  return ReadField<double>(kHeaderSize + index * kDoubleSize);
+  return Super::get(index);
 }
 
 uint64_t FixedDoubleArray::get_representation(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
+  DCHECK(IsInBounds(index));
   // Bug(v8:8875): Doubles may be unaligned.
-  return base::ReadUnalignedValue<uint64_t>(field_address(offset));
+  return base::ReadUnalignedValue<uint64_t>(
+      field_address(OffsetOfElementAt(index)));
 }
 
-Handle<Object> FixedDoubleArray::get(FixedDoubleArray array, int index,
+Handle<Object> FixedDoubleArray::get(Tagged<FixedDoubleArray> array, int index,
                                      Isolate* isolate) {
-  if (array.is_the_hole(index)) {
+  if (array->is_the_hole(index)) {
     return ReadOnlyRoots(isolate).the_hole_value_handle();
   } else {
-    return isolate->factory()->NewNumber(array.get_scalar(index));
+    return isolate->factory()->NewNumber(array->get_scalar(index));
   }
 }
 
 void FixedDoubleArray::set(int index, double value) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
   if (std::isnan(value)) {
-    WriteField<double>(offset, std::numeric_limits<double>::quiet_NaN());
-  } else {
-    WriteField<double>(offset, value);
+    value = std::numeric_limits<double>::quiet_NaN();
   }
+  Super::set(index, value);
   DCHECK(!is_the_hole(index));
 }
 
@@ -439,11 +774,9 @@ void FixedDoubleArray::set_the_hole(Isolate* isolate, int index) {
 }
 
 void FixedDoubleArray::set_the_hole(int index) {
-  DCHECK(map() != GetReadOnlyRoots().fixed_cow_array_map() &&
-         map() != GetReadOnlyRoots().fixed_array_map());
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  int offset = kHeaderSize + index * kDoubleSize;
-  base::WriteUnalignedValue<uint64_t>(field_address(offset), kHoleNanInt64);
+  DCHECK(IsInBounds(index));
+  base::WriteUnalignedValue<uint64_t>(field_address(OffsetOfElementAt(index)),
+                                      kHoleNanInt64);
 }
 
 bool FixedDoubleArray::is_the_hole(Isolate* isolate, int index) {
@@ -458,8 +791,8 @@ void FixedDoubleArray::MoveElements(Isolate* isolate, int dst_index,
                                     int src_index, int len,
                                     WriteBarrierMode mode) {
   DCHECK_EQ(SKIP_WRITE_BARRIER, mode);
-  double* data_start = reinterpret_cast<double*>(field_address(kHeaderSize));
-  MemMove(data_start + dst_index, data_start + src_index, len * kDoubleSize);
+  MemMove(AddressOfElementAt(dst_index), AddressOfElementAt(src_index),
+          len * Shape::kElementSize);
 }
 
 void FixedDoubleArray::FillWithHoles(int from, int to) {
@@ -468,67 +801,63 @@ void FixedDoubleArray::FillWithHoles(int from, int to) {
   }
 }
 
-MaybeObject WeakFixedArray::Get(int index) const {
-  PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
-  return Get(cage_base, index);
-}
+// static
+template <class IsolateT>
+Handle<WeakFixedArray> WeakFixedArray::New(IsolateT* isolate, int capacity,
+                                           AllocationType allocation,
+                                           MaybeHandle<Object> initial_value) {
+  CHECK_LE(static_cast<unsigned>(capacity), kMaxCapacity);
 
-MaybeObject WeakFixedArray::Get(PtrComprCageBase cage_base, int index) const {
-  DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(length()));
-  return objects(cage_base, index, kRelaxedLoad);
-}
-
-void WeakFixedArray::Set(int index, MaybeObject value, WriteBarrierMode mode) {
-  set_objects(index, value, mode);
-}
-
-Handle<WeakFixedArray> WeakFixedArray::EnsureSpace(Isolate* isolate,
-                                                   Handle<WeakFixedArray> array,
-                                                   int length) {
-  if (array->length() < length) {
-    int grow_by = length - array->length();
-    array = isolate->factory()->CopyWeakFixedArrayAndGrow(array, grow_by);
+  if (V8_UNLIKELY(capacity == 0)) {
+    return isolate->factory()->empty_weak_fixed_array();
   }
-  return array;
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<WeakFixedArray> result =
+      Cast<WeakFixedArray>(Allocate(isolate, capacity, &no_gc, allocation));
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged((*result)->RawFieldOfFirstElement(),
+               initial_value.is_null() ? roots.undefined_value()
+                                       : *initial_value.ToHandleChecked(),
+               capacity);
+  return result;
 }
 
-MaybeObjectSlot WeakFixedArray::data_start() {
-  return RawMaybeWeakField(kObjectsOffset);
+template <class IsolateT>
+Handle<TrustedWeakFixedArray> TrustedWeakFixedArray::New(IsolateT* isolate,
+                                                         int capacity) {
+  if (V8_UNLIKELY(static_cast<unsigned>(capacity) >
+                  TrustedFixedArray::kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d (see crbug.com/1201626)",
+          capacity);
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedWeakFixedArray> result = Cast<TrustedWeakFixedArray>(
+      Allocate(isolate, capacity, &no_gc, AllocationType::kTrusted));
+  MemsetTagged((*result)->RawFieldOfFirstElement(), Smi::zero(), capacity);
+  return result;
 }
 
-MaybeObjectSlot WeakFixedArray::RawFieldOfElementAt(int index) {
-  return RawMaybeWeakField(OffsetOfElementAt(index));
-}
-
-void WeakFixedArray::CopyElements(Isolate* isolate, int dst_index,
-                                  WeakFixedArray src, int src_index, int len,
-                                  WriteBarrierMode mode) {
-  if (len == 0) return;
-  DCHECK_LE(dst_index + len, length());
-  DCHECK_LE(src_index + len, src.length());
-  DisallowGarbageCollection no_gc;
-
-  MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
-  isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
-}
-
-MaybeObject WeakArrayList::Get(int index) const {
+Tagged<MaybeObject> WeakArrayList::Get(int index) const {
   PtrComprCageBase cage_base = GetPtrComprCageBase(*this);
   return Get(cage_base, index);
 }
+Tagged<MaybeObject> WeakArrayList::get(int index) const { return Get(index); }
 
-MaybeObject WeakArrayList::Get(PtrComprCageBase cage_base, int index) const {
+Tagged<MaybeObject> WeakArrayList::Get(PtrComprCageBase cage_base,
+                                       int index) const {
   DCHECK_LT(static_cast<unsigned>(index), static_cast<unsigned>(capacity()));
   return objects(cage_base, index, kRelaxedLoad);
 }
 
-void WeakArrayList::Set(int index, MaybeObject value, WriteBarrierMode mode) {
+void WeakArrayList::Set(int index, Tagged<MaybeObject> value,
+                        WriteBarrierMode mode) {
   set_objects(index, value, mode);
 }
 
-void WeakArrayList::Set(int index, Smi value) {
-  Set(index, MaybeObject::FromSmi(value), SKIP_WRITE_BARRIER);
+void WeakArrayList::Set(int index, Tagged<Smi> value) {
+  Set(index, value, SKIP_WRITE_BARRIER);
 }
 
 MaybeObjectSlot WeakArrayList::data_start() {
@@ -536,192 +865,180 @@ MaybeObjectSlot WeakArrayList::data_start() {
 }
 
 void WeakArrayList::CopyElements(Isolate* isolate, int dst_index,
-                                 WeakArrayList src, int src_index, int len,
-                                 WriteBarrierMode mode) {
+                                 Tagged<WeakArrayList> src, int src_index,
+                                 int len, WriteBarrierMode mode) {
   if (len == 0) return;
   DCHECK_LE(dst_index + len, capacity());
-  DCHECK_LE(src_index + len, src.capacity());
+  DCHECK_LE(src_index + len, src->capacity());
   DisallowGarbageCollection no_gc;
 
   MaybeObjectSlot dst_slot(data_start() + dst_index);
-  MaybeObjectSlot src_slot(src.data_start() + src_index);
+  MaybeObjectSlot src_slot(src->data_start() + src_index);
   isolate->heap()->CopyRange(*this, dst_slot, src_slot, len, mode);
 }
 
-HeapObject WeakArrayList::Iterator::Next() {
+Tagged<HeapObject> WeakArrayList::Iterator::Next() {
   if (!array_.is_null()) {
-    while (index_ < array_.length()) {
-      MaybeObject item = array_.Get(index_++);
-      DCHECK(item->IsWeakOrCleared());
-      if (!item->IsCleared()) return item->GetHeapObjectAssumeWeak();
+    while (index_ < array_->length()) {
+      Tagged<MaybeObject> item = array_->Get(index_++);
+      DCHECK(item.IsWeakOrCleared());
+      if (!item.IsCleared()) return item.GetHeapObjectAssumeWeak();
     }
     array_ = WeakArrayList();
   }
-  return HeapObject();
+  return Tagged<HeapObject>();
 }
 
-int ArrayList::Length() const {
-  if (FixedArray::cast(*this).length() == 0) return 0;
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
-}
+SMI_ACCESSORS(ArrayList, length, ArrayList::Shape::kLengthOffset)
 
-void ArrayList::SetLength(int length) {
-  return FixedArray::cast(*this).set(kLengthIndex, Smi::FromInt(length));
-}
+// static
+template <class IsolateT>
+Handle<ArrayList> ArrayList::New(IsolateT* isolate, int capacity,
+                                 AllocationType allocation) {
+  if (capacity == 0) return isolate->factory()->empty_array_list();
 
-Object ArrayList::Get(int index) const {
-  return FixedArray::cast(*this).get(kFirstIndex + index);
-}
+  DCHECK_GT(capacity, 0);
+  DCHECK_LE(capacity, kMaxCapacity);
 
-Object ArrayList::Get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this).get(cage_base, kFirstIndex + index);
-}
-
-ObjectSlot ArrayList::Slot(int index) {
-  return RawField(OffsetOfElementAt(kFirstIndex + index));
-}
-
-void ArrayList::Set(int index, Object obj, WriteBarrierMode mode) {
-  FixedArray::cast(*this).set(kFirstIndex + index, obj, mode);
-}
-
-void ArrayList::Set(int index, Smi value) {
-  DCHECK(Object(value).IsSmi());
-  Set(index, value, SKIP_WRITE_BARRIER);
-}
-void ArrayList::Clear(int index, Object undefined) {
-  DCHECK(undefined.IsUndefined());
-  FixedArray::cast(*this).set(kFirstIndex + index, undefined,
-                              SKIP_WRITE_BARRIER);
-}
-
-int ByteArray::Size() { return RoundUp(length() + kHeaderSize, kTaggedSize); }
-
-byte ByteArray::get(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_LT(offset, length());
-  return ReadField<byte>(kHeaderSize + offset);
-}
-
-void ByteArray::set(int offset, byte value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LT(offset, length());
-  WriteField<byte>(kHeaderSize + offset, value);
-}
-
-int ByteArray::get_int(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(int), length());
-  return ReadField<int>(kHeaderSize + offset);
-}
-
-void ByteArray::set_int(int offset, int value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(int), length());
-  WriteField<int>(kHeaderSize + offset, value);
-}
-
-Address ByteArray::get_sandboxed_pointer(int offset) const {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
-  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  return ReadSandboxedPointerField(kHeaderSize + offset, sandbox_base);
-}
-
-void ByteArray::set_sandboxed_pointer(int offset, Address value) {
-  DCHECK_GE(offset, 0);
-  DCHECK_LE(offset + sizeof(Address), length());
-  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
-  WriteSandboxedPointerField(kHeaderSize + offset, sandbox_base, value);
-}
-
-void ByteArray::copy_in(int offset, const byte* buffer, int slice_length) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - offset);
-  DCHECK_LE(offset + slice_length, length());
-  Address dst_addr = field_address(kHeaderSize + offset);
-  memcpy(reinterpret_cast<void*>(dst_addr), buffer, slice_length);
-}
-
-void ByteArray::copy_out(int offset, byte* buffer, int slice_length) {
-  DCHECK_GE(offset, 0);
-  DCHECK_GE(slice_length, 0);
-  DCHECK_LE(slice_length, kMaxInt - offset);
-  DCHECK_LE(offset + slice_length, length());
-  Address src_addr = field_address(kHeaderSize + offset);
-  memcpy(buffer, reinterpret_cast<void*>(src_addr), slice_length);
-}
-
-void ByteArray::clear_padding() {
-  int data_size = length() + kHeaderSize;
-  memset(reinterpret_cast<void*>(address() + data_size), 0, Size() - data_size);
-}
-
-ByteArray ByteArray::FromDataStartAddress(Address address) {
-  DCHECK_TAG_ALIGNED(address);
-  return ByteArray::cast(Object(address - kHeaderSize + kHeapObjectTag));
-}
-
-int ByteArray::DataSize() const { return RoundUp(length(), kTaggedSize); }
-
-byte* ByteArray::GetDataStartAddress() {
-  return reinterpret_cast<byte*>(address() + kHeaderSize);
-}
-
-byte* ByteArray::GetDataEndAddress() {
-  return GetDataStartAddress() + length();
-}
-
-template <typename T>
-FixedIntegerArray<T>::FixedIntegerArray(Address ptr) : ByteArray(ptr) {
-  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
-}
-
-template <typename T>
-FixedIntegerArray<T> FixedIntegerArray<T>::cast(Object object) {
-  return FixedIntegerArray<T>(object.ptr());
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<ArrayList> result =
+      Cast<ArrayList>(Allocate(isolate, capacity, &no_gc, allocation));
+  result->set_length(0);
+  ReadOnlyRoots roots{isolate};
+  MemsetTagged(result->RawFieldOfFirstElement(), roots.undefined_value(),
+               capacity);
+  return result;
 }
 
 // static
-template <typename T>
-Handle<FixedIntegerArray<T>> FixedIntegerArray<T>::New(
-    Isolate* isolate, int length, AllocationType allocation) {
+template <class IsolateT>
+Handle<ByteArray> ByteArray::New(IsolateT* isolate, int length,
+                                 AllocationType allocation) {
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+  } else if (V8_UNLIKELY(length == 0)) {
+    return isolate->factory()->empty_byte_array();
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<ByteArray> result =
+      Cast<ByteArray>(Allocate(isolate, length, &no_gc, allocation));
+
+  int padding_size = SizeFor(length) - OffsetOfElementAt(length);
+  memset(result->AddressOfElementAt(length), 0, padding_size);
+
+  return result;
+}
+
+uint32_t ByteArray::get_int(int offset) const {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  return ReadField<uint32_t>(OffsetOfElementAt(offset));
+}
+
+void ByteArray::set_int(int offset, uint32_t value) {
+  DCHECK(IsInBounds(offset));
+  DCHECK_LE(offset + sizeof(uint32_t), length());
+  WriteField<uint32_t>(OffsetOfElementAt(offset), value);
+}
+
+// static
+template <class IsolateT>
+Handle<TrustedByteArray> TrustedByteArray::New(IsolateT* isolate, int length,
+                                               AllocationType allocation_type) {
+  DCHECK(allocation_type == AllocationType::kTrusted ||
+         allocation_type == AllocationType::kSharedTrusted);
+  if (V8_UNLIKELY(static_cast<unsigned>(length) > kMaxLength)) {
+    FATAL("Fatal JavaScript invalid size error %d", length);
+  }
+
+  std::optional<DisallowGarbageCollection> no_gc;
+  Handle<TrustedByteArray> result = Cast<TrustedByteArray>(
+      Allocate(isolate, length, &no_gc, allocation_type));
+
+  int padding_size = SizeFor(length) - OffsetOfElementAt(length);
+  memset(result->AddressOfElementAt(length), 0, padding_size);
+
+  return result;
+}
+
+template <typename Base>
+Address FixedAddressArrayBase<Base>::get_sandboxed_pointer(int offset) const {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(this->length(), offset);
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  return this->ReadSandboxedPointerField(
+      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base);
+}
+
+template <typename Base>
+void FixedAddressArrayBase<Base>::set_sandboxed_pointer(int offset,
+                                                        Address value) {
+  DCHECK_GE(offset, 0);
+  DCHECK_GT(this->length(), offset);
+  PtrComprCageBase sandbox_base = GetPtrComprCageBase(*this);
+  this->WriteSandboxedPointerField(
+      FixedAddressArrayBase::OffsetOfElementAt(offset), sandbox_base, value);
+}
+
+template <typename Base>
+template <typename... MoreArgs>
+// static
+Handle<FixedAddressArrayBase<Base>> FixedAddressArrayBase<Base>::New(
+    Isolate* isolate, int length, MoreArgs&&... more_args) {
+  return Cast<FixedAddressArrayBase>(
+      Underlying::New(isolate, length, std::forward<MoreArgs>(more_args)...));
+}
+
+template <typename Base>
+FixedAddressArrayBase<Base>::FixedAddressArrayBase(Address ptr)
+    : Underlying(ptr) {}
+
+template <typename T, typename Base>
+FixedIntegerArrayBase<T, Base>::FixedIntegerArrayBase(Address ptr) : Base(ptr) {
+  DCHECK_EQ(Base::length() % sizeof(T), 0);
+}
+
+template <typename T, typename Base>
+template <typename... MoreArgs>
+// static
+Handle<FixedIntegerArrayBase<T, Base>> FixedIntegerArrayBase<T, Base>::New(
+    Isolate* isolate, int length, MoreArgs&&... more_args) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<FixedIntegerArray<T>>::cast(
-      isolate->factory()->NewByteArray(byte_length, allocation));
+  return Cast<FixedIntegerArrayBase<T, Base>>(
+      Base::New(isolate, byte_length, std::forward<MoreArgs>(more_args)...));
 }
 
-template <typename T>
-T FixedIntegerArray<T>::get(int index) const {
+template <typename T, typename Base>
+T FixedIntegerArrayBase<T, Base>::get(int index) const {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
-  return ReadField<T>(kHeaderSize + index * sizeof(T));
+  return this->template ReadField<T>(Base::kHeaderSize + index * sizeof(T));
 }
 
-template <typename T>
-void FixedIntegerArray<T>::set(int index, T value) {
+template <typename T, typename Base>
+void FixedIntegerArrayBase<T, Base>::set(int index, T value) {
   static_assert(std::is_integral<T>::value);
   DCHECK_GE(index, 0);
   DCHECK_LT(index, length());
-  WriteField<T>(kHeaderSize + index * sizeof(T), value);
+  this->template WriteField<T>(Base::kHeaderSize + index * sizeof(T), value);
 }
 
-template <typename T>
-int FixedIntegerArray<T>::length() const {
-  DCHECK_EQ(ByteArray::length() % sizeof(T), 0);
-  return ByteArray::length() / sizeof(T);
+template <typename T, typename Base>
+int FixedIntegerArrayBase<T, Base>::length() const {
+  DCHECK_EQ(Base::length() % sizeof(T), 0);
+  return Base::length() / sizeof(T);
 }
 
-template <class T>
-PodArray<T>::PodArray(Address ptr) : ByteArray(ptr) {}
-
-template <class T>
-PodArray<T> PodArray<T>::cast(Object object) {
-  return PodArray<T>(object.ptr());
+template <class T, class Super>
+int PodArrayBase<T, Super>::length() const {
+  return Super::length() / sizeof(T);
 }
+
+template <class T, class Super>
+PodArrayBase<T, Super>::PodArrayBase(Address ptr) : Super(ptr) {}
 
 // static
 template <class T>
@@ -729,33 +1046,48 @@ Handle<PodArray<T>> PodArray<T>::New(Isolate* isolate, int length,
                                      AllocationType allocation) {
   int byte_length;
   CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
-  return Handle<PodArray<T>>::cast(
+  return Cast<PodArray<T>>(
+      isolate->factory()->NewByteArray(byte_length, allocation));
+}
+
+// static
+template <class T>
+Handle<PodArray<T>> PodArray<T>::New(LocalIsolate* isolate, int length,
+                                     AllocationType allocation) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Cast<PodArray<T>>(
       isolate->factory()->NewByteArray(byte_length, allocation));
 }
 
 template <class T>
-int PodArray<T>::length() const {
-  return ByteArray::length() / sizeof(T);
+PodArray<T>::PodArray(Address ptr) : PodArrayBase<T, ByteArray>(ptr) {}
+
+// static
+template <class T>
+Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(Isolate* isolate,
+                                                   int length) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Cast<TrustedPodArray<T>>(
+      isolate->factory()->NewTrustedByteArray(byte_length));
 }
 
-int TemplateList::length() const {
-  return Smi::ToInt(FixedArray::cast(*this).get(kLengthIndex));
+// static
+template <class T>
+Handle<TrustedPodArray<T>> TrustedPodArray<T>::New(LocalIsolate* isolate,
+                                                   int length) {
+  int byte_length;
+  CHECK(!base::bits::SignedMulOverflow32(length, sizeof(T), &byte_length));
+  return Cast<TrustedPodArray<T>>(
+      isolate->factory()->NewTrustedByteArray(byte_length));
 }
 
-Object TemplateList::get(int index) const {
-  return FixedArray::cast(*this).get(kFirstElementIndex + index);
-}
+template <class T>
+TrustedPodArray<T>::TrustedPodArray(Address ptr)
+    : PodArrayBase<T, TrustedByteArray>(ptr) {}
 
-Object TemplateList::get(PtrComprCageBase cage_base, int index) const {
-  return FixedArray::cast(*this).get(cage_base, kFirstElementIndex + index);
-}
-
-void TemplateList::set(int index, Object value) {
-  FixedArray::cast(*this).set(kFirstElementIndex + index, value);
-}
-
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

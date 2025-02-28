@@ -8,16 +8,15 @@ const assert = require('assert');
 const { spawnSync } = require('child_process');
 const tmpdir = require('../common/tmpdir');
 const fixtures = require('../common/fixtures');
-const path = require('path');
 const fs = require('fs');
 
 tmpdir.refresh();
-const blobPath = path.join(tmpdir.path, 'snapshot.blob');
+const blobPath = tmpdir.resolve('snapshot.blob');
 
 // Concat test/fixtures/snapshot/typescript.js with
 // test/fixtures/snapshot/typescript.js into
 // tmpdir/snapshot.js.
-const file = path.join(tmpdir.path, 'snapshot.js');
+const file = tmpdir.resolve('snapshot.js');
 fs.copyFileSync(fixtures.path('snapshot', 'typescript.js'), file);
 fs.appendFileSync(file,
                   fs.readFileSync(fixtures.path('snapshot', 'typescript-main.js')));
@@ -37,12 +36,12 @@ fs.appendFileSync(file,
   console.log(stdout);
   assert.strictEqual(child.status, 0);
 
-  const stats = fs.statSync(path.join(tmpdir.path, 'snapshot.blob'));
+  const stats = fs.statSync(tmpdir.resolve('snapshot.blob'));
   assert(stats.isFile());
 }
 
 {
-  const outPath = path.join(tmpdir.path, 'ts-example.js');
+  const outPath = tmpdir.resolve('ts-example.js');
   const child = spawnSync(process.execPath, [
     '--snapshot-blob',
     blobPath,

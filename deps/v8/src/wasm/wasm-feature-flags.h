@@ -9,6 +9,16 @@
 #ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
 #define V8_WASM_WASM_FEATURE_FLAGS_H_
 
+// Each entry in this file generates a V8 command-line flag with the prefix
+// "--experimental-wasm-".
+//
+// For example, to enable "my_feature", pass
+// --experimental-wasm-my-feature to d8, or
+// --js-flags=--experimental-wasm-my-feature to Chrome.
+//
+// To disable "my_feature", add the "--no-" prefix:
+// --no-experimental-wasm-my-feature.
+//
 // See https://github.com/WebAssembly/proposals for an overview of current
 // WebAssembly proposals.
 
@@ -23,16 +33,6 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* GC proposal (early prototype, might change dramatically) */               \
-  /* Official proposal: https://github.com/WebAssembly/gc */                   \
-  /* Prototype engineering spec: https://bit.ly/3cWcm6Q */                     \
-  /* V8 side owner: jkummerow */                                               \
-  V(gc, "garbage collection", false)                                           \
-                                                                               \
-  /* Inlining of small wasm GC functions into JavaScript */                    \
-  /* V8 side owner: mliedtke */                                                \
-  V(js_inlining, "inline small wasm functions into JS", false)                 \
-                                                                               \
   /* Non-specified, V8-only experimental additions to the GC proposal */       \
   /* V8 side owner: jkummerow */                                               \
   V(assume_ref_cast_succeeds,                                                  \
@@ -45,11 +45,6 @@
     false)                                                                     \
   V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
                                                                                \
-  /* Typed function references proposal. */                                    \
-  /* Official proposal: https://github.com/WebAssembly/function-references */  \
-  /* V8 side owner: manoskouk */                                               \
-  V(typed_funcref, "typed function references", false)                         \
-                                                                               \
   /* Branch Hinting proposal. */                                               \
   /* https://github.com/WebAssembly/branch-hinting */                          \
   /* V8 side owner: jkummerow */                                               \
@@ -60,10 +55,18 @@
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
                                                                                \
-  /* Reference-Typed Strings Proposal. */                                      \
-  /* https://github.com/WebAssembly/stringref */                               \
-  /* V8 side owner: jkummerow */                                               \
-  V(stringref, "reference-typed strings", false)
+  /* Shared-Everything Threads proposal. */                                    \
+  /* https://github.com/WebAssembly/shared-everything-threads */               \
+  /* V8 side owner: manoskouk */                                               \
+  V(shared, "shared-everything threads", false)                                \
+                                                                               \
+  /* FP16 proposal. */                                                         \
+  /* https://github.com/WebAssembly/half-precision */                          \
+  /* V8 side owner: irezvov */                                                 \
+  V(fp16, "fp16", false)                                                       \
+                                                                               \
+  /* V8 side owner: irezvov */                                                 \
+  V(growable_stacks, "growable stacks for jspi", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -73,6 +76,8 @@
 // the wild. Staged features are not necessarily fully stabilized. They should
 // be shipped with enough lead time to the next branch to allow for
 // stabilization.
+// Consider adding a chromium-side use counter if you want to track usage in the
+// wild (also see {V8::UseCounterFeature}).
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
   /* Type reflection proposal. */                                              \
   /* https://github.com/webassembly/js-types */                                \
@@ -85,35 +90,50 @@
   /* V8 side owner: clemensb */                                                \
   V(memory64, "memory64", false)                                               \
                                                                                \
-  /* Relaxed SIMD proposal. */                                                 \
-  /* https://github.com/WebAssembly/relaxed-simd */                            \
-  /* V8 side owner: gdeepti */                                                 \
-  V(relaxed_simd, "relaxed simd", false)                                       \
+  /* Reference-Typed Strings Proposal. */                                      \
+  /* https://github.com/WebAssembly/stringref */                               \
+  /* V8 side owner: jkummerow */                                               \
+  V(stringref, "reference-typed strings", false)                               \
                                                                                \
-  /* Extended Constant Expressions Proposal. */                                \
-  /* https://github.com/WebAssembly/extended-const */                          \
-  /* V8 side owner: manoskouk */                                               \
-  /* Staged in v11.3. */                                                       \
-  V(extended_const, "extended constant expressions", false)                    \
+  /* Imported Strings TextEncoder/TextDecoder post-MVP extension. */           \
+  /* No upstream repo yet. */                                                  \
+  /* V8 side owner: jkummerow */                                               \
+  V(imported_strings_utf8, "imported strings (utf8 features)", false)          \
                                                                                \
-  /* Not user-visible, defined here so an Origin Trial can control it. */      \
-  /* V8 side owner: manoskouk, clemensb */                                     \
-  /* Staged in v11.3 */                                                        \
-  /* Launch bug: https://crbug.com/1424350 */                                  \
-  V(inlining, "wasm-into-wasm inlining", false)
+  /* Exnref */                                                                 \
+  /* This flag enables the new exception handling proposal */                  \
+  /* V8 side owner: thibaudm */                                                \
+  V(exnref, "exnref", false)                                                   \
+                                                                               \
+  /* JavaScript Promise Integration proposal. */                               \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
+  /* V8 side owner: thibaudm, fgm */                                           \
+  V(jspi, "javascript promise integration", false)
 
 // #############################################################################
 // Shipped features (enabled by default). Remove the feature flag once they hit
 // stable and are expected to stay enabled.
 #define FOREACH_WASM_SHIPPED_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Tail call / return call proposal. */                                      \
-  /* https://github.com/webassembly/tail-call */                               \
+  /* Legacy exception handling proposal. */                                    \
+  /* https://github.com/WebAssembly/exception-handling */                      \
   /* V8 side owner: thibaudm */                                                \
-  /* Staged in v8.7 * */                                                       \
-  /* Shipped in v11.2 * */                                                     \
-  /* ITS: https://groups.google.com/a/chromium.org/g/blink-dev/c/6VEOK4WZ7Wk   \
-   */                                                                          \
-  V(return_call, "return call opcodes", true)
+  /* Staged in v8.9 */                                                         \
+  /* Shipped in v9.5 */                                                        \
+  V(legacy_eh, "legacy exception handling opcodes", true)                      \
+                                                                               \
+  /* Not user-visible, defined here so an Origin Trial can control it. */      \
+  /* V8 side owner: manoskouk, clemensb */                                     \
+  /* Staged in v11.3 */                                                        \
+  /* Shipped in V12.7 */                                                       \
+  /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
+  /* Launch bug: https://crbug.com/40898108 */                                 \
+  V(inlining, "wasm-into-wasm inlining", true)                                 \
+                                                                               \
+  /* Imported Strings Proposal. */                                             \
+  /* https://github.com/WebAssembly/js-string-builtins */                      \
+  /* V8 side owner: jkummerow */                                               \
+  /* Shipped in v13.0 */                                                       \
+  V(imported_strings, "imported strings", true)
 
 // Combination of all available wasm feature flags.
 #define FOREACH_WASM_FEATURE_FLAG(V)        \

@@ -108,6 +108,11 @@ class RegExpMacroAssembler {
   // array, and if the found byte is non-zero, we jump to the on_bit_set label.
   virtual void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) = 0;
 
+  virtual void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                                   Handle<ByteArray> nibble_table,
+                                   int advance_by) = 0;
+  virtual bool SkipUntilBitInTableUseSimd(int advance_by) { return false; }
+
   // Checks whether the given offset from the current position is before
   // the end of the string.  May overwrite the current character.
   virtual void CheckPosition(int cp_offset, Label* on_outside_input);
@@ -216,8 +221,7 @@ class RegExpMacroAssembler {
   //
   // Called from generated code.
   static uint32_t IsCharacterInRangeArray(uint32_t current_char,
-                                          Address raw_byte_array,
-                                          Isolate* isolate);
+                                          Address raw_byte_array);
 
   // Controls the generation of large inlined constants in the code.
   void set_slow_safe(bool ssc) { slow_safe_compiler_ = ssc; }
@@ -299,16 +303,15 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   ~NativeRegExpMacroAssembler() override = default;
 
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Match(Handle<JSRegExp> regexp, Handle<String> subject,
-                   int* offsets_vector, int offsets_vector_length,
-                   int previous_index, Isolate* isolate);
+  static int Match(DirectHandle<IrRegExpData> regexp_data,
+                   DirectHandle<String> subject, int* offsets_vector,
+                   int offsets_vector_length, int previous_index,
+                   Isolate* isolate);
 
-  V8_EXPORT_PRIVATE static int ExecuteForTesting(String input, int start_offset,
-                                                 const byte* input_start,
-                                                 const byte* input_end,
-                                                 int* output, int output_size,
-                                                 Isolate* isolate,
-                                                 JSRegExp regexp);
+  V8_EXPORT_PRIVATE static int ExecuteForTesting(
+      Tagged<String> input, int start_offset, const uint8_t* input_start,
+      const uint8_t* input_end, int* output, int output_size, Isolate* isolate,
+      Tagged<JSRegExp> regexp);
 
   bool CanReadUnaligned() const override;
 
@@ -332,9 +335,9 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   static int CheckStackGuardState(Isolate* isolate, int start_index,
                                   RegExp::CallOrigin call_origin,
                                   Address* return_address,
-                                  InstructionStream re_code, Address* subject,
-                                  const byte** input_start,
-                                  const byte** input_end);
+                                  Tagged<InstructionStream> re_code,
+                                  Address* subject, const uint8_t** input_start,
+                                  const uint8_t** input_end, uintptr_t gap);
 
   static Address word_character_map_address() {
     return reinterpret_cast<Address>(&word_character_map[0]);
@@ -344,15 +347,16 @@ class NativeRegExpMacroAssembler: public RegExpMacroAssembler {
   // Byte map of one byte characters with a 0xff if the character is a word
   // character (digit, letter or underscore) and 0x00 otherwise.
   // Used by generated RegExp code.
-  static const byte word_character_map[256];
+  static const uint8_t word_character_map[256];
 
   Handle<ByteArray> GetOrAddRangeArray(const ZoneList<CharacterRange>* ranges);
 
  private:
   // Returns a {Result} sentinel, or the number of successful matches.
-  static int Execute(String input, int start_offset, const byte* input_start,
-                     const byte* input_end, int* output, int output_size,
-                     Isolate* isolate, JSRegExp regexp);
+  static int Execute(Tagged<String> input, int start_offset,
+                     const uint8_t* input_start, const uint8_t* input_end,
+                     int* output, int output_size, Isolate* isolate,
+                     Tagged<IrRegExpData> regexp_data);
 
   ZoneUnorderedMap<uint32_t, Handle<FixedUInt16Array>> range_array_cache_;
 };

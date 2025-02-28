@@ -1,18 +1,18 @@
 const t = require('tap')
-const fs = require('fs/promises')
-const { resolve, basename } = require('path')
+const fs = require('node:fs/promises')
+const nodePath = require('node:path')
+const { resolve, basename } = require('node:path')
 const _mockNpm = require('../../fixtures/mock-npm')
 const { cleanTime } = require('../../fixtures/clean-snapshot')
 
 t.cleanSnapshot = cleanTime
 
-const mockNpm = async (t, { noLog, libnpmexec, initPackageJson, packageJson, ...opts } = {}) => {
+const mockNpm = async (t, { noLog, libnpmexec, initPackageJson, ...opts } = {}) => {
   const res = await _mockNpm(t, {
     ...opts,
     mocks: {
       ...(libnpmexec ? { libnpmexec } : {}),
       ...(initPackageJson ? { 'init-package-json': initPackageJson } : {}),
-      ...(packageJson ? { '@npmcli/package-json': packageJson } : {}),
     },
     globals: {
       // init-package-json prints directly to console.log
@@ -239,8 +239,7 @@ t.test('npm init cancel', async t => {
 
   await npm.exec('init', [])
 
-  t.equal(logs.warn[0][0], 'init', 'should have init title')
-  t.equal(logs.warn[0][1], 'canceled', 'should log canceled')
+  t.equal(logs.warn[0], 'init canceled', 'should have init title and canceled')
 })
 
 t.test('npm init error', async t => {
@@ -313,14 +312,7 @@ t.test('workspaces', async t => {
   await t.test('fail parsing top-level package.json to set workspace', async t => {
     const { npm } = await mockNpm(t, {
       prefixDir: {
-        'package.json': JSON.stringify({
-          name: 'top-level',
-        }),
-      },
-      packageJson: {
-        async load () {
-          throw new Error('ERR')
-        },
+        'package.json': 'not json[',
       },
       config: { workspace: 'a', yes: true },
       noLog: true,
@@ -328,8 +320,7 @@ t.test('workspaces', async t => {
 
     await t.rejects(
       npm.exec('init', []),
-      /ERR/,
-      'should exit with error'
+      { code: 'EJSONPARSE' }
     )
   })
 
@@ -344,7 +335,7 @@ t.test('workspaces', async t => {
       'should exit with missing package.json file error'
     )
 
-    t.equal(logs.warn[0][0], 'Missing package.json. Try with `--include-workspace-root`.')
+    t.equal(logs.warn[0], 'init Missing package.json. Try with `--include-workspace-root`.')
   })
 
   await t.test('bad package.json when settting workspace', async t => {
@@ -437,5 +428,34 @@ t.test('workspaces', async t => {
     const ws = require(resolve(npm.localPrefix, 'packages/a/package.json'))
     t.equal(ws.version, '1.0.0')
     t.equal(ws.license, 'ISC')
+  })
+  t.test('init pkg - installed workspace package', async t => {
+    const { npm } = await mockNpm(t, {
+      prefixDir: {
+        'package.json': JSON.stringify({
+          name: 'init-ws-test',
+          dependencies: {
+            '@npmcli/create': '1.0.0',
+          },
+          workspaces: ['test/workspace-init-a'],
+        }),
+        'test/workspace-init-a': {
+          'package.json': JSON.stringify({
+            version: '1.0.0',
+            name: '@npmcli/create',
+            bin: { 'init-create': 'index.js' },
+          }),
+          'index.js': `#!/usr/bin/env node
+    require('fs').writeFileSync('npm-init-test-success', '')
+    console.log('init-create ran')`,
+        },
+      },
+    })
+    await npm.exec('install', []) // reify
+    npm.config.set('workspace', ['test/workspace-init-b'])
+    await npm.exec('init', ['@npmcli'])
+    const exists = await fs.stat(nodePath.join(
+      npm.prefix, 'test/workspace-init-b', 'npm-init-test-success'))
+    t.ok(exists.isFile(), 'bin ran, creating file inside workspace')
   })
 })

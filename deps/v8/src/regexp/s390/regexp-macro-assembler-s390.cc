@@ -87,7 +87,7 @@ namespace internal {
  *              Address end,
  *              int* capture_output_array,
  *              int num_capture_registers,
- *              byte* stack_area_base,
+ *              uint8_t* stack_area_base,
  *              bool direct_call = false,
  *              Isolate* isolate,
  *              Address regexp);
@@ -495,12 +495,11 @@ void RegExpMacroAssemblerS390::CheckCharacterNotInRange(
 
 void RegExpMacroAssemblerS390::CallIsCharacterInRangeArray(
     const ZoneList<CharacterRange>* ranges) {
-  static const int kNumArguments = 3;
+  static const int kNumArguments = 2;
   __ PrepareCallCFunction(kNumArguments, r0);
 
   __ mov(r2, current_character());
   __ mov(r3, Operand(GetOrAddRangeArray(ranges)));
-  __ mov(r4, Operand(ExternalReference::isolate_address(isolate())));
 
   {
     // We have a frame (set up in GetCode), but the assembler doesn't know.
@@ -540,6 +539,19 @@ void RegExpMacroAssemblerS390::CheckBitInTable(Handle<ByteArray> table,
             MemOperand(r2, index, (ByteArray::kHeaderSize - kHeapObjectTag)));
   __ CmpS64(r2, Operand::Zero());
   BranchOrBacktrack(ne, on_bit_set);
+}
+
+void RegExpMacroAssemblerS390::SkipUntilBitInTable(
+    int cp_offset, Handle<ByteArray> table, Handle<ByteArray> nibble_table,
+    int advance_by) {
+  // TODO(pthier): Optimize. Table can be loaded outside of the loop.
+  Label cont, again;
+  Bind(&again);
+  LoadCurrentCharacter(cp_offset, &cont, true);
+  CheckBitInTable(table, &cont);
+  AdvanceCurrentPosition(advance_by);
+  GoTo(&again);
+  Bind(&cont);
 }
 
 bool RegExpMacroAssemblerS390::CheckSpecialClassRanges(
@@ -734,11 +746,32 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   //    Requires us to save the callee-preserved registers r6-r13
   //    General convention is to also save r14 (return addr) and
   //    sp/r15 as well in a single STM/STMG
+#if V8_OS_ZOS
+  // Move stack down by (12*8) to save r4..r15
+  __ lay(r4, MemOperand(r4, -12 * kSystemPointerSize));
+
+  // Store r4..r15 (sp) to stack
+  __ StoreMultipleP(r4, sp, MemOperand(r4));
+  __ mov(sp, r4);
+
+  // Load C args from stack to registers
+  __ LoadMultipleP(
+      r5, r10,
+      MemOperand(r4,
+                 (12 * kSystemPointerSize) + kStackPointerBias +
+                     (kXPLINKStackFrameExtraParamSlot * kSystemPointerSize)));
+
+  // Shuffle XPLINK input arguments to LoZ ABI registers
+  __ mov(r4, r3);
+  __ mov(r3, r2);
+  __ mov(r2, r1);
+#else
   __ StoreMultipleP(r6, sp, MemOperand(sp, 6 * kSystemPointerSize));
 
   // Load stack parameters from caller stack frame
   __ LoadMultipleP(
       r7, r9, MemOperand(sp, kStackFrameExtraParamSlot * kSystemPointerSize));
+#endif
   // r7 = capture array size
   // r8 = stack area base
   // r9 = direct call
@@ -747,6 +780,10 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   // Also push the frame marker.
   __ mov(r0, Operand(StackFrame::TypeToMarker(StackFrame::IRREGEXP)));
   __ push(r0);
+#if V8_OS_ZOS
+  // Store isolate address from r10 to expected stack address
+  __ StoreU64(r10, MemOperand(frame_pointer(), kIsolateOffset));
+#endif
   __ lay(sp, MemOperand(sp, -10 * kSystemPointerSize));
 
   static_assert(kSuccessfulCapturesOffset ==
@@ -781,11 +818,13 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ mov(r2, Operand(stack_limit));
     __ LoadU64(r2, MemOperand(r2));
     __ SubS64(r2, sp, r2);
+    Operand extra_space_for_variables(num_registers_ * kSystemPointerSize);
+
     // Handle it if the stack pointer is already below the stack limit.
     __ ble(&stack_limit_hit);
     // Check if there is room for the variable number of registers above
     // the stack limit.
-    __ CmpU64(r2, Operand(num_registers_ * kSystemPointerSize));
+    __ CmpU64(r2, extra_space_for_variables);
     __ bge(&stack_ok);
     // Exit with OutOfMemory exception. There is not enough space on the stack
     // for our working registers.
@@ -793,7 +832,7 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
     __ b(&return_r2);
 
     __ bind(&stack_limit_hit);
-    CallCheckStackGuardState(r2);
+    CallCheckStackGuardState(r2, extra_space_for_variables);
     __ CmpS64(r2, Operand::Zero());
     // If returned value is non-zero, we exit with the returned value as result.
     __ bne(&return_r2);
@@ -953,19 +992,18 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
       __ AddS64(r4, Operand(num_saved_registers_ * kIntSize));
       __ StoreU64(r4, MemOperand(frame_pointer(), kRegisterOutputOffset));
 
-      // Prepare r2 to initialize registers with its value in the next run.
-      __ LoadU64(r2, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
-
       // Restore the original regexp stack pointer value (effectively, pop the
       // stored base pointer).
       PopRegExpBasePointer(backtrack_stackpointer(), r4);
+
+      Label reload_string_start_minus_one;
 
       if (global_with_zero_length_check()) {
         // Special case for zero-length matches.
         // r6: capture start index
         __ CmpS64(current_input_offset(), r6);
         // Not a zero-length match, restart.
-        __ bne(&load_char_start_regexp);
+        __ bne(&reload_string_start_minus_one);
         // Offset from the end is zero if we already reached the end.
         __ CmpS64(current_input_offset(), Operand::Zero());
         __ beq(&exit_label_);
@@ -975,6 +1013,11 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
         __ AddS64(current_input_offset(), Operand((mode_ == UC16) ? 2 : 1));
         if (global_unicode()) CheckNotInSurrogatePair(0, &advance);
       }
+
+      __ bind(&reload_string_start_minus_one);
+      // Prepare r1 to initialize registers with its value in the next run.
+      // Must be immediately before the jump to avoid clobbering.
+      __ LoadU64(r1, MemOperand(frame_pointer(), kStringStartMinusOneOffset));
 
       __ b(&load_char_start_regexp);
     } else {
@@ -995,10 +1038,20 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
 
   // Skip sp past regexp registers and local variables..
   __ mov(sp, frame_pointer());
+#if V8_OS_ZOS
+  // XPLINK uses r3 as the return register
+  __ mov(r3, r2);
+  // Restore registers r4..r15
+  __ LoadMultipleP(r4, sp, MemOperand(sp));
+  // Shrink stack
+  __ lay(r4, MemOperand(r4, 12 * kSystemPointerSize));
+  __ b(r7);
+#else
   // Restore registers r6..r15.
   __ LoadMultipleP(r6, sp, MemOperand(sp, 6 * kSystemPointerSize));
 
   __ b(r14);
+#endif
 
   // Backtrack code (branch target for conditional backtracks).
   if (backtrack_label_.is_linked()) {
@@ -1071,10 +1124,11 @@ Handle<HeapObject> RegExpMacroAssemblerS390::GetCode(Handle<String> source) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate(), code_desc, CodeKind::REGEXP)
           .set_self_reference(masm_->CodeObject())
+          .set_empty_source_position_table()
           .Build();
   PROFILE(masm_->isolate(),
-          RegExpCodeCreateEvent(Handle<AbstractCode>::cast(code), source));
-  return Handle<HeapObject>::cast(code);
+          RegExpCodeCreateEvent(Cast<AbstractCode>(code), source));
+  return Cast<HeapObject>(code);
 }
 
 void RegExpMacroAssemblerS390::GoTo(Label* to) { BranchOrBacktrack(al, to); }
@@ -1201,23 +1255,63 @@ void RegExpMacroAssemblerS390::ClearRegisters(int reg_from, int reg_to) {
 
 // Private methods:
 
-void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch) {
+void RegExpMacroAssemblerS390::CallCheckStackGuardState(Register scratch,
+                                                        Operand extra_space) {
   DCHECK(!isolate()->IsGeneratingEmbeddedBuiltins());
   DCHECK(!masm_->options().isolate_independent_code);
 
-  static constexpr int num_arguments = 3;
+  static constexpr int num_arguments = 4;
   __ PrepareCallCFunction(num_arguments, scratch);
+  // Extra space for variables to consider in stack check.
+  __ mov(kCArgRegs[3], extra_space);
   // RegExp code frame pointer.
-  __ mov(r4, frame_pointer());
+  __ mov(kCArgRegs[2], frame_pointer());
   // InstructionStream of self.
-  __ mov(r3, Operand(masm_->CodeObject()));
+  __ mov(kCArgRegs[1], Operand(masm_->CodeObject()));
   // r2 becomes return address pointer.
   __ lay(r2, MemOperand(sp, kStackFrameRASlot * kSystemPointerSize));
   ExternalReference stack_guard_check =
       ExternalReference::re_check_stack_guard_state();
 
   __ mov(ip, Operand(stack_guard_check));
+
+#if V8_OS_ZOS
+  // Shuffle input arguments
+  __ mov(r1, r2);
+  __ mov(r2, r3);
+  __ mov(r3, r4);
+
+  // XPLINK treats r7 as voliatile return register, but r14 as preserved
+  // Since Linux is the other way around, perserve r7 value in r14 across
+  // the call.
+  __ mov(r14, r7);
+  const int stack_slots = kXPLINKStackFrameExtraParamSlot + num_arguments;
+  __ lay(r4, MemOperand(sp, -((stack_slots * kSystemPointerSize) +
+                              kStackPointerBias)));
+  __ StoreMultipleP(
+      r5, r6,
+      MemOperand(r4, kStackPointerBias +
+                         kXPLINKStackFrameExtraParamSlot * kSystemPointerSize));
+
+  // Obtain code entry based on function pointer
+  __ LoadMultipleP(r5, r6, MemOperand(ip));
+
+  // Call function
+  __ StoreReturnAddressAndCall(r6);
+
+  __ LoadMultipleP(
+      r5, r6,
+      MemOperand(r4, kStackPointerBias +
+                         kXPLINKStackFrameExtraParamSlot * kSystemPointerSize));
+
+  // Restore original r7
+  __ mov(r7, r14);
+
+  // Shuffle the result
+  __ mov(r2, r3);
+#else
   __ StoreReturnAddressAndCall(ip);
+#endif
 
   if (base::OS::ActivationFrameAlignment() > kSystemPointerSize) {
     __ LoadU64(
@@ -1248,8 +1342,10 @@ static T* frame_entry_address(Address re_frame, int frame_offset) {
 
 int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
                                                    Address raw_code,
-                                                   Address re_frame) {
-  InstructionStream re_code = InstructionStream::cast(Object(raw_code));
+                                                   Address re_frame,
+                                                   uintptr_t extra_space) {
+  Tagged<InstructionStream> re_code =
+      Cast<InstructionStream>(Tagged<Object>(raw_code));
   return NativeRegExpMacroAssembler::CheckStackGuardState(
       frame_entry<Isolate*>(re_frame, kIsolateOffset),
       frame_entry<intptr_t>(re_frame, kStartIndexOffset),
@@ -1257,8 +1353,9 @@ int RegExpMacroAssemblerS390::CheckStackGuardState(Address* return_address,
           frame_entry<intptr_t>(re_frame, kDirectCallOffset)),
       return_address, re_code,
       frame_entry_address<Address>(re_frame, kInputStringOffset),
-      frame_entry_address<const byte*>(re_frame, kInputStartOffset),
-      frame_entry_address<const byte*>(re_frame, kInputEndOffset));
+      frame_entry_address<const uint8_t*>(re_frame, kInputStartOffset),
+      frame_entry_address<const uint8_t*>(re_frame, kInputEndOffset),
+      extra_space);
 }
 
 MemOperand RegExpMacroAssemblerS390::register_location(int register_index) {
@@ -1350,8 +1447,8 @@ void RegExpMacroAssemblerS390::CallCFunctionFromIrregexpCode(
   //    fail.
   //
   // See also: crbug.com/v8/12670#c17.
-  __ CallCFunction(function, num_arguments,
-                   MacroAssembler::SetIsolateDataSlots::kNo);
+  __ CallCFunction(function, num_arguments, ABI_USES_FUNCTION_DESCRIPTORS,
+                   SetIsolateDataSlots::kNo);
 }
 
 void RegExpMacroAssemblerS390::CheckPreemption() {

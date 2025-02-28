@@ -13,18 +13,20 @@
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
+#include "src/common/ptr-compr.h"
 #include "src/execution/isolate.h"
 #include "src/handles/global-handles.h"
 #include "src/handles/persistent-handles.h"
-#include "src/heap/concurrent-allocator.h"
+#include "src/heap/base/stack.h"
 #include "src/heap/gc-callbacks.h"
+
 namespace v8 {
 namespace internal {
 
 class Heap;
 class LocalHandles;
 class MarkingBarrier;
-class MemoryChunk;
+class MutablePageMetadata;
 class Safepoint;
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
@@ -38,8 +40,7 @@ class Safepoint;
 //            some time or for blocking operations like locking a mutex.
 class V8_EXPORT_PRIVATE LocalHeap {
  public:
-  using GCEpilogueCallback = void(LocalIsolate*, GCType, GCCallbackFlags,
-                                  void*);
+  using GCEpilogueCallback = void(void*);
 
   explicit LocalHeap(
       Heap* heap, ThreadKind kind,
@@ -60,7 +61,7 @@ class V8_EXPORT_PRIVATE LocalHeap {
   LocalHandles* handles() { return handles_.get(); }
 
   template <typename T>
-  Handle<T> NewPersistentHandle(T object) {
+  Handle<T> NewPersistentHandle(Tagged<T> object) {
     if (!persistent_handles_) {
       EnsurePersistentHandles();
     }
@@ -70,6 +71,12 @@ class V8_EXPORT_PRIVATE LocalHeap {
   template <typename T>
   Handle<T> NewPersistentHandle(Handle<T> object) {
     return NewPersistentHandle(*object);
+  }
+
+  template <typename T>
+  Handle<T> NewPersistentHandle(T object) {
+    static_assert(kTaggedCanConvertToRawObjects);
+    return NewPersistentHandle(Tagged<T>(object));
   }
 
   template <typename T>
@@ -91,48 +98,42 @@ class V8_EXPORT_PRIVATE LocalHeap {
   bool IsHandleDereferenceAllowed();
 #endif
 
-  bool IsParked();
-  bool IsRunning();
+  bool IsParked() const;
+  bool IsRunning() const;
 
-  Heap* heap() { return heap_; }
-  Heap* AsHeap() { return heap(); }
+  bool IsRetryOfFailedAllocation() const { return allocation_failed_; }
+
+  void SetRetryOfFailedAllocation(bool value) { allocation_failed_ = value; }
+
+  Heap* heap() const { return heap_; }
+  Heap* AsHeap() const { return heap(); }
+
+  // Heap root getters.
+#define ROOT_ACCESSOR(type, name, CamelName) inline Tagged<type> name();
+  MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
+#undef ROOT_ACCESSOR
 
   MarkingBarrier* marking_barrier() { return marking_barrier_.get(); }
-  ConcurrentAllocator* old_space_allocator() {
-    return old_space_allocator_.get();
-  }
-  ConcurrentAllocator* code_space_allocator() {
-    return code_space_allocator_.get();
-  }
-  ConcurrentAllocator* shared_old_space_allocator() {
-    return shared_old_space_allocator_.get();
-  }
 
-  void RegisterCodeObject(Handle<Code> code) {
-    heap()->RegisterCodeObject(code);
-  }
+  // Give up all LABs. Used for e.g. full GCs.
+  void FreeLinearAllocationAreas();
 
-  // Mark/Unmark linear allocation areas black. Used for black allocation.
-  void MarkLinearAllocationAreaBlack();
-  void UnmarkLinearAllocationArea();
+#if DEBUG
+  void VerifyLinearAllocationAreas() const;
+#endif  // DEBUG
+
+  // Make all LABs iterable.
+  void MakeLinearAllocationAreasIterable();
+
+  // Mark/Unmark all LABs except for new and shared space. Use for black
+  // allocation.
+  void MarkLinearAllocationAreasBlack();
+  void UnmarkLinearAllocationsArea();
 
   // Mark/Unmark linear allocation areas in shared heap black. Used for black
   // allocation.
-  void MarkSharedLinearAllocationAreaBlack();
-  void UnmarkSharedLinearAllocationArea();
-
-  // Give up linear allocation areas. Used for mark-compact GC.
-  void FreeLinearAllocationArea();
-
-  // Free all shared LABs. Used by the shared mark-compact GC.
-  void FreeSharedLinearAllocationArea();
-
-  // Create filler object in linear allocation areas. Verifying requires
-  // iterable heap.
-  void MakeLinearAllocationAreaIterable();
-
-  // Makes the shared LAB iterable.
-  void MakeSharedLinearAllocationAreaIterable();
+  void MarkSharedLinearAllocationAreasBlack();
+  void UnmarkSharedLinearAllocationsArea();
 
   // Fetches a pointer to the local heap from the thread local storage.
   // It is intended to be used in handle and write barrier code where it is
@@ -142,11 +143,18 @@ class V8_EXPORT_PRIVATE LocalHeap {
   static LocalHeap* Current();
 
 #ifdef DEBUG
-  void VerifyCurrent();
+  void VerifyCurrent() const;
 #endif
 
   // Allocate an uninitialized object.
   V8_WARN_UNUSED_RESULT inline AllocationResult AllocateRaw(
+      int size_in_bytes, AllocationType allocation,
+      AllocationOrigin origin = AllocationOrigin::kRuntime,
+      AllocationAlignment alignment = kTaggedAligned);
+
+  // Allocate an uninitialized object.
+  template <HeapAllocator::AllocationRetryMode mode>
+  Tagged<HeapObject> AllocateRawWith(
       int size_in_bytes, AllocationType allocation,
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
@@ -158,13 +166,16 @@ class V8_EXPORT_PRIVATE LocalHeap {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
-  void NotifyObjectSizeChange(
-      HeapObject object, int old_size, int new_size,
-      ClearRecordedSlots clear_recorded_slots,
-      UpdateInvalidatedObjectSize update_invalidated_object_size =
-          UpdateInvalidatedObjectSize::kYes);
+  void NotifyObjectSizeChange(Tagged<HeapObject> object, int old_size,
+                              int new_size,
+                              ClearRecordedSlots clear_recorded_slots);
 
   bool is_main_thread() const { return is_main_thread_; }
+  bool is_main_thread_for(Heap* heap) const {
+    return is_main_thread() && heap_ == heap;
+  }
+  V8_INLINE bool is_in_trampoline() const;
+
   bool deserialization_complete() const {
     return heap_->deserialization_complete();
   }
@@ -175,10 +186,8 @@ class V8_EXPORT_PRIVATE LocalHeap {
   // resumes. The callback must not allocate or make any other calls that
   // can trigger GC.
   void AddGCEpilogueCallback(GCEpilogueCallback* callback, void* data,
-                             GCType gc_type = static_cast<v8::GCType>(
-                                 GCType::kGCTypeMarkSweepCompact |
-                                 GCType::kGCTypeScavenge |
-                                 GCType::kGCTypeMinorMarkCompact));
+                             GCCallbacksInSafepoint::GCType gc_type =
+                                 GCCallbacksInSafepoint::GCType::kAll);
   void RemoveGCEpilogueCallback(GCEpilogueCallback* callback, void* data);
 
   // Weakens StrongDescriptorArray objects into regular DescriptorArray objects.
@@ -187,6 +196,19 @@ class V8_EXPORT_PRIVATE LocalHeap {
 
   // Used to make SetupMainThread() available to unit tests.
   void SetUpMainThreadForTesting();
+
+  // Execute the callback while the local heap is parked. All threads must
+  // always park via these methods, not directly with `ParkedScope`.
+  // The callback must be a callable object, expecting either no parameters or a
+  // const ParkedScope&, which serves as a witness for parking. The first
+  // variant checks if we are on the main thread or not. Use the other two
+  // variants if this already known.
+  template <typename Callback>
+  V8_INLINE void ExecuteWhileParked(Callback callback);
+  template <typename Callback>
+  V8_INLINE void ExecuteMainThreadWhileParked(Callback callback);
+  template <typename Callback>
+  V8_INLINE void ExecuteBackgroundThreadWhileParked(Callback callback);
 
  private:
   using ParkedBit = base::BitField8<bool, 0, 1>;
@@ -278,15 +300,16 @@ class V8_EXPORT_PRIVATE LocalHeap {
     std::atomic<uint8_t> raw_state_;
   };
 
-  // Slow path of allocation that performs GC and then retries allocation in
-  // loop.
-  Address PerformCollectionAndAllocateAgain(int object_size,
-                                            AllocationType type,
-                                            AllocationOrigin origin,
-                                            AllocationAlignment alignment);
+#ifdef DEBUG
+  bool IsSafeForConservativeStackScanning() const;
+#endif
+
+  template <typename Callback>
+  V8_INLINE void ExecuteWithStackMarker(Callback callback);
 
   void Park() {
     DCHECK(AllowSafepoints::IsAllowed());
+    DCHECK(IsSafeForConservativeStackScanning());
     ThreadState expected = ThreadState::Running();
     if (!state_.CompareExchangeWeak(expected, ThreadState::Parked())) {
       ParkSlowPath();
@@ -308,43 +331,47 @@ class V8_EXPORT_PRIVATE LocalHeap {
   void SleepInSafepoint();
   void SleepInUnpark();
 
+  template <typename Callback>
+  V8_INLINE void ParkAndExecuteCallback(Callback callback);
+
   void EnsurePersistentHandles();
 
-  void InvokeGCEpilogueCallbacksInSafepoint(GCType gc_type,
-                                            GCCallbackFlags flags);
+  void InvokeGCEpilogueCallbacksInSafepoint(
+      GCCallbacksInSafepoint::GCType gc_type);
 
-  void SetUpMainThread();
-  void SetUp();
+  // Set up this LocalHeap as main thread.
+  void SetUpMainThread(LinearAllocationArea& new_allocation_info,
+                       LinearAllocationArea& old_allocation_info);
+
+  void SetUpMarkingBarrier();
   void SetUpSharedMarking();
 
   Heap* heap_;
+  V8_NO_UNIQUE_ADDRESS PtrComprCageAccessScope ptr_compr_cage_access_scope_;
   bool is_main_thread_;
 
   AtomicThreadState state_;
 
   bool allocation_failed_;
-  bool main_thread_parked_;
+  int nested_parked_scopes_;
 
   LocalHeap* prev_;
   LocalHeap* next_;
-
-  std::unordered_set<MemoryChunk*> unprotected_memory_chunks_;
-  uintptr_t code_page_collection_memory_modification_scope_depth_{0};
 
   std::unique_ptr<LocalHandles> handles_;
   std::unique_ptr<PersistentHandles> persistent_handles_;
   std::unique_ptr<MarkingBarrier> marking_barrier_;
 
-  GCCallbacks<LocalIsolate, DisallowGarbageCollection> gc_epilogue_callbacks_;
+  GCCallbacksInSafepoint gc_epilogue_callbacks_;
 
-  std::unique_ptr<ConcurrentAllocator> old_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> code_space_allocator_;
-  std::unique_ptr<ConcurrentAllocator> shared_old_space_allocator_;
+  HeapAllocator heap_allocator_;
 
   MarkingBarrier* saved_marking_barrier_ = nullptr;
 
+  // Stack information for the thread using this local heap.
+  ::heap::base::Stack stack_;
+
   friend class CollectionBarrier;
-  friend class ConcurrentAllocator;
   friend class GlobalSafepoint;
   friend class Heap;
   friend class Isolate;

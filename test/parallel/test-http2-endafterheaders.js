@@ -9,7 +9,7 @@ const Countdown = require('../common/countdown');
 
 const server = http2.createServer();
 server.on('stream', common.mustCall((stream, headers) => {
-  const check = headers[':method'] === 'GET' ? true : false;
+  const check = headers[':method'] === 'GET';
   assert.strictEqual(stream.endAfterHeaders, check);
   stream.on('data', common.mustNotCall());
   stream.on('end', common.mustCall());

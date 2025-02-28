@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --harmony-sharedarraybuffer --harmony-atomics-waitasync
-
 const N = 10;
 
 function workerCode(N) {
@@ -34,7 +32,7 @@ function workerCode(N) {
     postMessage("notify return value " + notify_return_value);
   }
 
-  onmessage = function(param) {
+  onmessage = function({data:param}) {
     if (param == "start") {
       start();
     } else if (param == "wakeUpRemainingWaiters") {

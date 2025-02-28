@@ -28,11 +28,355 @@ breaking changes, and mappings for the large list of deprecated functions.
 
 [Migration guide]: https://github.com/openssl/openssl/tree/master/doc/man7/migration_guide.pod
 
-### Changes between 3.0.8 and 3.0.8+quic [7 Feb 2023]
+### Changes between 3.0.15 and 3.0.15+quic [3 Sep 2024]
 
- * Add QUIC API support from BoringSSL.
+* Add QUIC API support from BoringSSL
 
    *Todd Short*
+
+### Changes between 3.0.14 and 3.0.15 [3 Sep 2024]
+
+ * Fixed possible denial of service in X.509 name checks.
+
+   Applications performing certificate name checks (e.g., TLS clients checking
+   server certificates) may attempt to read an invalid memory address when
+   comparing the expected name with an `otherName` subject alternative name of
+   an X.509 certificate. This may result in an exception that terminates the
+   application program.
+
+   ([CVE-2024-6119])
+
+   *Viktor Dukhovni*
+
+ * Fixed possible buffer overread in SSL_select_next_proto().
+
+   Calling the OpenSSL API function SSL_select_next_proto with an empty
+   supported client protocols buffer may cause a crash or memory contents
+   to be sent to the peer.
+
+   ([CVE-2024-5535])
+
+   *Matt Caswell*
+
+### Changes between 3.0.13 and 3.0.14 [4 Jun 2024]
+
+ * Fixed potential use after free after SSL_free_buffers() is called.
+
+   The SSL_free_buffers function is used to free the internal OpenSSL
+   buffer used when processing an incoming record from the network.
+   The call is only expected to succeed if the buffer is not currently
+   in use. However, two scenarios have been identified where the buffer
+   is freed even when still in use.
+
+   The first scenario occurs where a record header has been received
+   from the network and processed by OpenSSL, but the full record body
+   has not yet arrived. In this case calling SSL_free_buffers will succeed
+   even though a record has only been partially processed and the buffer
+   is still in use.
+
+   The second scenario occurs where a full record containing application
+   data has been received and processed by OpenSSL but the application has
+   only read part of this data. Again a call to SSL_free_buffers will
+   succeed even though the buffer is still in use.
+
+   ([CVE-2024-4741])
+
+   *Matt Caswell*
+
+ * Fixed an issue where checking excessively long DSA keys or parameters may
+   be very slow.
+
+   Applications that use the functions EVP_PKEY_param_check() or
+   EVP_PKEY_public_check() to check a DSA public key or DSA parameters may
+   experience long delays. Where the key or parameters that are being checked
+   have been obtained from an untrusted source this may lead to a Denial of
+   Service.
+
+   To resolve this issue DSA keys larger than OPENSSL_DSA_MAX_MODULUS_BITS
+   will now fail the check immediately with a DSA_R_MODULUS_TOO_LARGE error
+   reason.
+
+   ([CVE-2024-4603])
+
+   *Tomáš Mráz*
+
+ * Improved EC/DSA nonce generation routines to avoid bias and timing
+   side channel leaks.
+
+   Thanks to Florian Sieck from Universität zu Lübeck and George Pantelakis
+   and Hubert Kario from Red Hat for reporting the issues.
+
+   *Tomáš Mráz and Paul Dale*
+
+ * Fixed an issue where some non-default TLS server configurations can cause
+   unbounded memory growth when processing TLSv1.3 sessions. An attacker may
+   exploit certain server configurations to trigger unbounded memory growth that
+   would lead to a Denial of Service
+
+   This problem can occur in TLSv1.3 if the non-default SSL_OP_NO_TICKET option
+   is being used (but not if early_data is also configured and the default
+   anti-replay protection is in use). In this case, under certain conditions,
+   the session cache can get into an incorrect state and it will fail to flush
+   properly as it fills. The session cache will continue to grow in an unbounded
+   manner. A malicious client could deliberately create the scenario for this
+   failure to force a Denial of Service. It may also happen by accident in
+   normal operation.
+
+   ([CVE-2024-2511])
+
+   *Matt Caswell*
+
+ * New atexit configuration switch, which controls whether the OPENSSL_cleanup
+   is registered when libcrypto is unloaded. This can be used on platforms
+   where using atexit() from shared libraries causes crashes on exit.
+
+   *Randall S. Becker*
+
+### Changes between 3.0.12 and 3.0.13 [30 Jan 2024]
+
+ * A file in PKCS12 format can contain certificates and keys and may come from
+   an untrusted source. The PKCS12 specification allows certain fields to be
+   NULL, but OpenSSL did not correctly check for this case. A fix has been
+   applied to prevent a NULL pointer dereference that results in OpenSSL
+   crashing. If an application processes PKCS12 files from an untrusted source
+   using the OpenSSL APIs then that application will be vulnerable to this
+   issue prior to this fix.
+
+   OpenSSL APIs that were vulnerable to this are: PKCS12_parse(),
+   PKCS12_unpack_p7data(), PKCS12_unpack_p7encdata(), PKCS12_unpack_authsafes()
+   and PKCS12_newpass().
+
+   We have also fixed a similar issue in SMIME_write_PKCS7(). However since this
+   function is related to writing data we do not consider it security
+   significant.
+
+   ([CVE-2024-0727])
+
+   *Matt Caswell*
+
+ * When function EVP_PKEY_public_check() is called on RSA public keys,
+   a computation is done to confirm that the RSA modulus, n, is composite.
+   For valid RSA keys, n is a product of two or more large primes and this
+   computation completes quickly. However, if n is an overly large prime,
+   then this computation would take a long time.
+
+   An application that calls EVP_PKEY_public_check() and supplies an RSA key
+   obtained from an untrusted source could be vulnerable to a Denial of Service
+   attack.
+
+   The function EVP_PKEY_public_check() is not called from other OpenSSL
+   functions however it is called from the OpenSSL pkey command line
+   application. For that reason that application is also vulnerable if used
+   with the "-pubin" and "-check" options on untrusted data.
+
+   To resolve this issue RSA keys larger than OPENSSL_RSA_MAX_MODULUS_BITS will
+   now fail the check immediately with an RSA_R_MODULUS_TOO_LARGE error reason.
+
+   ([CVE-2023-6237])
+
+   *Tomáš Mráz*
+
+ * Restore the encoding of SM2 PrivateKeyInfo and SubjectPublicKeyInfo to
+   have the contained AlgorithmIdentifier.algorithm set to id-ecPublicKey
+   rather than SM2.
+
+   *Richard Levitte*
+
+ * The POLY1305 MAC (message authentication code) implementation in OpenSSL
+   for PowerPC CPUs saves the contents of vector registers in different
+   order than they are restored. Thus the contents of some of these vector
+   registers is corrupted when returning to the caller. The vulnerable code is
+   used only on newer PowerPC processors supporting the PowerISA 2.07
+   instructions.
+
+   The consequences of this kind of internal application state corruption can
+   be various - from no consequences, if the calling application does not
+   depend on the contents of non-volatile XMM registers at all, to the worst
+   consequences, where the attacker could get complete control of the
+   application process. However unless the compiler uses the vector registers
+   for storing pointers, the most likely consequence, if any, would be an
+   incorrect result of some application dependent calculations or a crash
+   leading to a denial of service.
+
+   ([CVE-2023-6129])
+
+   *Rohan McLure*
+
+ * Fix excessive time spent in DH check / generation with large Q parameter
+   value.
+
+   Applications that use the functions DH_generate_key() to generate an
+   X9.42 DH key may experience long delays. Likewise, applications that use
+   DH_check_pub_key(), DH_check_pub_key_ex() or EVP_PKEY_public_check()
+   to check an X9.42 DH key or X9.42 DH parameters may experience long delays.
+   Where the key or parameters that are being checked have been obtained from
+   an untrusted source this may lead to a Denial of Service.
+
+   ([CVE-2023-5678])
+
+   *Richard Levitte*
+
+### Changes between 3.0.11 and 3.0.12 [24 Oct 2023]
+
+ * Fix incorrect key and IV resizing issues when calling EVP_EncryptInit_ex2(),
+   EVP_DecryptInit_ex2() or EVP_CipherInit_ex2() with OSSL_PARAM parameters
+   that alter the key or IV length ([CVE-2023-5363]).
+
+   *Paul Dale*
+
+### Changes between 3.0.10 and 3.0.11 [19 Sep 2023]
+
+ * Fix POLY1305 MAC implementation corrupting XMM registers on Windows.
+
+   The POLY1305 MAC (message authentication code) implementation in OpenSSL
+   does not save the contents of non-volatile XMM registers on Windows 64
+   platform when calculating the MAC of data larger than 64 bytes. Before
+   returning to the caller all the XMM registers are set to zero rather than
+   restoring their previous content. The vulnerable code is used only on newer
+   x86_64 processors supporting the AVX512-IFMA instructions.
+
+   The consequences of this kind of internal application state corruption can
+   be various - from no consequences, if the calling application does not
+   depend on the contents of non-volatile XMM registers at all, to the worst
+   consequences, where the attacker could get complete control of the
+   application process. However given the contents of the registers are just
+   zeroized so the attacker cannot put arbitrary values inside, the most likely
+   consequence, if any, would be an incorrect result of some application
+   dependent calculations or a crash leading to a denial of service.
+
+   ([CVE-2023-4807])
+
+   *Bernd Edlinger*
+
+### Changes between 3.0.9 and 3.0.10 [1 Aug 2023]
+
+ * Fix excessive time spent checking DH q parameter value.
+
+   The function DH_check() performs various checks on DH parameters. After
+   fixing CVE-2023-3446 it was discovered that a large q parameter value can
+   also trigger an overly long computation during some of these checks.
+   A correct q value, if present, cannot be larger than the modulus p
+   parameter, thus it is unnecessary to perform these checks if q is larger
+   than p.
+
+   If DH_check() is called with such q parameter value,
+   DH_CHECK_INVALID_Q_VALUE return flag is set and the computationally
+   intensive checks are skipped.
+
+   ([CVE-2023-3817])
+
+   *Tomáš Mráz*
+
+ * Fix DH_check() excessive time with over sized modulus.
+
+   The function DH_check() performs various checks on DH parameters. One of
+   those checks confirms that the modulus ("p" parameter) is not too large.
+   Trying to use a very large modulus is slow and OpenSSL will not normally use
+   a modulus which is over 10,000 bits in length.
+
+   However the DH_check() function checks numerous aspects of the key or
+   parameters that have been supplied. Some of those checks use the supplied
+   modulus value even if it has already been found to be too large.
+
+   A new limit has been added to DH_check of 32,768 bits. Supplying a
+   key/parameters with a modulus over this size will simply cause DH_check() to
+   fail.
+
+   ([CVE-2023-3446])
+
+   *Matt Caswell*
+
+ * Do not ignore empty associated data entries with AES-SIV.
+
+   The AES-SIV algorithm allows for authentication of multiple associated
+   data entries along with the encryption. To authenticate empty data the
+   application has to call `EVP_EncryptUpdate()` (or `EVP_CipherUpdate()`)
+   with NULL pointer as the output buffer and 0 as the input buffer length.
+   The AES-SIV implementation in OpenSSL just returns success for such call
+   instead of performing the associated data authentication operation.
+   The empty data thus will not be authenticated. ([CVE-2023-2975])
+
+   Thanks to Juerg Wullschleger (Google) for discovering the issue.
+
+   The fix changes the authentication tag value and the ciphertext for
+   applications that use empty associated data entries with AES-SIV.
+   To decrypt data encrypted with previous versions of OpenSSL the application
+   has to skip calls to `EVP_DecryptUpdate()` for empty associated data
+   entries.
+
+   *Tomáš Mráz*
+
+### Changes between 3.0.8 and 3.0.9 [30 May 2023]
+
+ * Mitigate for the time it takes for `OBJ_obj2txt` to translate gigantic
+   OBJECT IDENTIFIER sub-identifiers to canonical numeric text form.
+
+   OBJ_obj2txt() would translate any size OBJECT IDENTIFIER to canonical
+   numeric text form.  For gigantic sub-identifiers, this would take a very
+   long time, the time complexity being O(n^2) where n is the size of that
+   sub-identifier.  ([CVE-2023-2650])
+
+   To mitigitate this, `OBJ_obj2txt()` will only translate an OBJECT
+   IDENTIFIER to canonical numeric text form if the size of that OBJECT
+   IDENTIFIER is 586 bytes or less, and fail otherwise.
+
+   The basis for this restriction is [RFC 2578 (STD 58), section 3.5]. OBJECT
+   IDENTIFIER values, which stipulates that OBJECT IDENTIFIERS may have at
+   most 128 sub-identifiers, and that the maximum value that each sub-
+   identifier may have is 2^32-1 (4294967295 decimal).
+
+   For each byte of every sub-identifier, only the 7 lower bits are part of
+   the value, so the maximum amount of bytes that an OBJECT IDENTIFIER with
+   these restrictions may occupy is 32 * 128 / 7, which is approximately 586
+   bytes.
+
+   *Richard Levitte*
+
+ * Fixed buffer overread in AES-XTS decryption on ARM 64 bit platforms which
+   happens if the buffer size is 4 mod 5 in 16 byte AES blocks. This can
+   trigger a crash of an application using AES-XTS decryption if the memory
+   just after the buffer being decrypted is not mapped.
+   Thanks to Anton Romanov (Amazon) for discovering the issue.
+   ([CVE-2023-1255])
+
+   *Nevine Ebeid*
+
+ * Reworked the Fix for the Timing Oracle in RSA Decryption ([CVE-2022-4304]).
+   The previous fix for this timing side channel turned out to cause
+   a severe 2-3x performance regression in the typical use case
+   compared to 3.0.7. The new fix uses existing constant time
+   code paths, and restores the previous performance level while
+   fully eliminating all existing timing side channels.
+   The fix was developed by Bernd Edlinger with testing support
+   by Hubert Kario.
+
+   *Bernd Edlinger*
+
+ * Corrected documentation of X509_VERIFY_PARAM_add0_policy() to mention
+   that it does not enable policy checking. Thanks to David Benjamin for
+   discovering this issue.
+   ([CVE-2023-0466])
+
+   *Tomáš Mráz*
+
+ * Fixed an issue where invalid certificate policies in leaf certificates are
+   silently ignored by OpenSSL and other certificate policy checks are skipped
+   for that certificate. A malicious CA could use this to deliberately assert
+   invalid certificate policies in order to circumvent policy checking on the
+   certificate altogether.
+   ([CVE-2023-0465])
+
+   *Matt Caswell*
+
+ * Limited the number of nodes created in a policy tree to mitigate
+   against CVE-2023-0464.  The default limit is set to 1000 nodes, which
+   should be sufficient for most installations.  If required, the limit
+   can be adjusted by setting the OPENSSL_POLICY_TREE_NODES_MAX build
+   time define to a desired maximum number of nodes or zero to allow
+   unlimited growth.
+   ([CVE-2023-0464])
+
+   *Paul Dale*
 
 ### Changes between 3.0.7 and 3.0.8 [7 Feb 2023]
 
@@ -19584,6 +19928,26 @@ ndif
 
 <!-- Links -->
 
+[CVE-2024-6119]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-6119
+[CVE-2024-5535]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-5535
+[CVE-2024-4741]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-4741
+[CVE-2024-4603]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-4603
+[CVE-2024-2511]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-2511
+[CVE-2024-0727]: https://www.openssl.org/news/vulnerabilities.html#CVE-2024-0727
+[CVE-2023-6237]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-6237
+[CVE-2023-6129]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-6129
+[CVE-2023-5678]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-5678
+[CVE-2023-5363]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-5363
+[CVE-2023-4807]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-4807
+[CVE-2023-3817]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3817
+[CVE-2023-3446]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-3446
+[CVE-2023-2975]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-2975
+[RFC 2578 (STD 58), section 3.5]: https://datatracker.ietf.org/doc/html/rfc2578#section-3.5
+[CVE-2023-2650]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-2650
+[CVE-2023-1255]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-1255
+[CVE-2023-0466]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0466
+[CVE-2023-0465]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0465
+[CVE-2023-0464]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0464
 [CVE-2023-0401]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0401
 [CVE-2023-0286]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0286
 [CVE-2023-0217]: https://www.openssl.org/news/vulnerabilities.html#CVE-2023-0217
@@ -19594,7 +19958,7 @@ ndif
 [CVE-2022-4203]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-4203
 [CVE-2022-3996]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-3996
 [CVE-2022-2274]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
-[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2274
+[CVE-2022-2097]: https://www.openssl.org/news/vulnerabilities.html#CVE-2022-2097
 [CVE-2020-1971]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1971
 [CVE-2020-1967]: https://www.openssl.org/news/vulnerabilities.html#CVE-2020-1967
 [CVE-2019-1563]: https://www.openssl.org/news/vulnerabilities.html#CVE-2019-1563

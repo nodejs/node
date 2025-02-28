@@ -58,17 +58,17 @@ icu::UMutex cpMutex;
 // Does not use uset.h to reduce code dependencies
 void U_CALLCONV
 _set_add(USet *set, UChar32 c) {
-    ((UnicodeSet *)set)->add(c);
+    reinterpret_cast<UnicodeSet*>(set)->add(c);
 }
 
 void U_CALLCONV
 _set_addRange(USet *set, UChar32 start, UChar32 end) {
-    ((UnicodeSet *)set)->add(start, end);
+    reinterpret_cast<UnicodeSet*>(set)->add(start, end);
 }
 
 void U_CALLCONV
 _set_addString(USet *set, const char16_t *str, int32_t length) {
-    ((UnicodeSet *)set)->add(icu::UnicodeString((UBool)(length<0), str, length));
+    reinterpret_cast<UnicodeSet*>(set)->add(icu::UnicodeString(static_cast<UBool>(length < 0), str, length));
 }
 
 UBool U_CALLCONV characterproperties_cleanup() {
@@ -103,7 +103,7 @@ void U_CALLCONV initInclusion(UPropertySource src, UErrorCode &errorCode) {
         return;
     }
     USetAdder sa = {
-        (USet *)incl.getAlias(),
+        reinterpret_cast<USet*>(incl.getAlias()),
         _set_add,
         _set_addRange,
         _set_addString,
@@ -169,7 +169,7 @@ void U_CALLCONV initInclusion(UPropertySource src, UErrorCode &errorCode) {
     case UPROPS_SRC_INPC:
     case UPROPS_SRC_INSC:
     case UPROPS_SRC_VO:
-        uprops_addPropertyStarts((UPropertySource)src, &sa, &errorCode);
+        uprops_addPropertyStarts(src, &sa, &errorCode);
         break;
     case UPROPS_SRC_EMOJI: {
         const icu::EmojiProps *ep = icu::EmojiProps::getSingleton(errorCode);
@@ -178,6 +178,18 @@ void U_CALLCONV initInclusion(UPropertySource src, UErrorCode &errorCode) {
         }
         break;
     }
+    case UPROPS_SRC_IDSU:
+        // New in Unicode 15.1 for just two characters.
+        sa.add(sa.set, 0x2FFE);
+        sa.add(sa.set, 0x2FFF + 1);
+        break;
+    case UPROPS_SRC_ID_COMPAT_MATH:
+    case UPROPS_SRC_MCM:
+        uprops_addPropertyStarts(src, &sa, &errorCode);
+        break;
+    case UPROPS_SRC_BLOCK:
+        ublock_addPropertyStarts(&sa, errorCode);
+        break;
     default:
         errorCode = U_INTERNAL_PROGRAM_ERROR;
         break;
@@ -281,7 +293,7 @@ UnicodeSet *makeSet(UProperty property, UErrorCode &errorCode) {
         const icu::EmojiProps *ep = icu::EmojiProps::getSingleton(errorCode);
         if (U_FAILURE(errorCode)) { return nullptr; }
         USetAdder sa = {
-            (USet *)set.getAlias(),
+            reinterpret_cast<USet*>(set.getAlias()),
             _set_add,
             _set_addRange,
             _set_addString,

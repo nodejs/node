@@ -11,19 +11,16 @@ namespace v8 {
 namespace base {
 
 using Address = uintptr_t;
-using byte = uint8_t;
 
 // Memory provides an interface to 'raw' memory. It encapsulates the casts
 // that typically are needed when incompatible pointer types are used.
-// Note that this class currently relies on undefined behaviour. There is a
-// proposal (http://wg21.link/p0593r2) to make it defined behaviour though.
 template <class T>
 inline T& Memory(Address addr) {
   DCHECK(IsAligned(addr, alignof(T)));
   return *reinterpret_cast<T*>(addr);
 }
 template <class T>
-inline T& Memory(byte* addr) {
+inline T& Memory(uint8_t* addr) {
   return Memory<T>(reinterpret_cast<Address>(addr));
 }
 
@@ -36,9 +33,19 @@ static inline V ReadUnalignedValue(Address p) {
 }
 
 template <typename V>
+static inline V ReadUnalignedValue(const char p[sizeof(V)]) {
+  return ReadUnalignedValue<V>(reinterpret_cast<Address>(p));
+}
+
+template <typename V>
 static inline void WriteUnalignedValue(Address p, V value) {
   ASSERT_TRIVIALLY_COPYABLE(V);
   memcpy(reinterpret_cast<void*>(p), &value, sizeof(V));
+}
+
+template <typename V>
+static inline void WriteUnalignedValue(char p[sizeof(V)], V value) {
+  return WriteUnalignedValue<V>(reinterpret_cast<Address>(p), value);
 }
 
 template <typename V>
@@ -47,8 +54,8 @@ static inline V ReadLittleEndianValue(Address p) {
   return ReadUnalignedValue<V>(p);
 #elif defined(V8_TARGET_BIG_ENDIAN)
   V ret{};
-  const byte* src = reinterpret_cast<const byte*>(p);
-  byte* dst = reinterpret_cast<byte*>(&ret);
+  const uint8_t* src = reinterpret_cast<const uint8_t*>(p);
+  uint8_t* dst = reinterpret_cast<uint8_t*>(&ret);
   for (size_t i = 0; i < sizeof(V); i++) {
     dst[i] = src[sizeof(V) - i - 1];
   }
@@ -61,8 +68,8 @@ static inline void WriteLittleEndianValue(Address p, V value) {
 #if defined(V8_TARGET_LITTLE_ENDIAN)
   WriteUnalignedValue<V>(p, value);
 #elif defined(V8_TARGET_BIG_ENDIAN)
-  byte* src = reinterpret_cast<byte*>(&value);
-  byte* dst = reinterpret_cast<byte*>(p);
+  uint8_t* src = reinterpret_cast<uint8_t*>(&value);
+  uint8_t* dst = reinterpret_cast<uint8_t*>(p);
   for (size_t i = 0; i < sizeof(V); i++) {
     dst[i] = src[sizeof(V) - i - 1];
   }

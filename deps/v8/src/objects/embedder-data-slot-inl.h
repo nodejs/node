@@ -20,33 +20,32 @@
 namespace v8 {
 namespace internal {
 
-EmbedderDataSlot::EmbedderDataSlot(EmbedderDataArray array, int entry_index)
+EmbedderDataSlot::EmbedderDataSlot(Tagged<EmbedderDataArray> array,
+                                   int entry_index)
     : SlotBase(FIELD_ADDR(array,
                           EmbedderDataArray::OffsetOfElementAt(entry_index))) {}
 
-EmbedderDataSlot::EmbedderDataSlot(JSObject object, int embedder_field_index)
+EmbedderDataSlot::EmbedderDataSlot(Tagged<JSObject> object,
+                                   int embedder_field_index)
     : SlotBase(FIELD_ADDR(
-          object, object.GetEmbedderFieldOffset(embedder_field_index))) {}
+          object, object->GetEmbedderFieldOffset(embedder_field_index))) {}
 
-EmbedderDataSlot::EmbedderDataSlot(const EmbedderDataSlotSnapshot& snapshot)
-    : SlotBase(reinterpret_cast<Address>(&snapshot)) {}
-
-void EmbedderDataSlot::Initialize(Object initial_value) {
+void EmbedderDataSlot::Initialize(Tagged<Object> initial_value) {
   // TODO(v8) initialize the slot with Smi::zero() instead. This'll also
   // guarantee that we don't need a write barrier.
-  DCHECK(initial_value.IsSmi() ||
-         ReadOnlyHeap::Contains(HeapObject::cast(initial_value)));
+  DCHECK(IsSmi(initial_value) ||
+         ReadOnlyHeap::Contains(Cast<HeapObject>(initial_value)));
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(initial_value);
 #ifdef V8_COMPRESS_POINTERS
   ObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(Smi::zero());
 #endif
 }
 
-Object EmbedderDataSlot::load_tagged() const {
+Tagged<Object> EmbedderDataSlot::load_tagged() const {
   return ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Load();
 }
 
-void EmbedderDataSlot::store_smi(Smi value) {
+void EmbedderDataSlot::store_smi(Tagged<Smi> value) {
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(value);
 #ifdef V8_COMPRESS_POINTERS
   // See gc_safe_store() for the reasons behind two stores.
@@ -55,10 +54,10 @@ void EmbedderDataSlot::store_smi(Smi value) {
 }
 
 // static
-void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
-                                    Object value) {
+void EmbedderDataSlot::store_tagged(Tagged<EmbedderDataArray> array,
+                                    int entry_index, Tagged<Object> value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() ||
+  CHECK(IsSmi(value) ||
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(array.ptr()));
 #endif
@@ -74,14 +73,15 @@ void EmbedderDataSlot::store_tagged(EmbedderDataArray array, int entry_index,
 }
 
 // static
-void EmbedderDataSlot::store_tagged(JSObject object, int embedder_field_index,
-                                    Object value) {
+void EmbedderDataSlot::store_tagged(Tagged<JSObject> object,
+                                    int embedder_field_index,
+                                    Tagged<Object> value) {
 #ifdef V8_COMPRESS_POINTERS
-  CHECK(value.IsSmi() ||
+  CHECK(IsSmi(value) ||
         V8HeapCompressionScheme::GetPtrComprCageBaseAddress(value.ptr()) ==
             V8HeapCompressionScheme::GetPtrComprCageBaseAddress(object.ptr()));
 #endif
-  int slot_offset = object.GetEmbedderFieldOffset(embedder_field_index);
+  int slot_offset = object->GetEmbedderFieldOffset(embedder_field_index);
   ObjectSlot(FIELD_ADDR(object, slot_offset + kTaggedPayloadOffset))
       .Relaxed_Store(value);
   WRITE_BARRIER(object, slot_offset + kTaggedPayloadOffset, value);
@@ -120,7 +120,9 @@ bool EmbedderDataSlot::ToAlignedPointer(Isolate* isolate,
 #endif  // V8_ENABLE_SANDBOX
 }
 
-bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
+bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate,
+                                             Tagged<HeapObject> host,
+                                             void* ptr) {
   Address value = reinterpret_cast<Address>(ptr);
   if (!HAS_SMI_TAG(value)) return false;
 #ifdef V8_ENABLE_SANDBOX
@@ -130,7 +132,7 @@ bool EmbedderDataSlot::store_aligned_pointer(Isolate* isolate, void* ptr) {
   // external pointer handle (see EmbedderDataSlot::Initialize), and only once
   // an external pointer is stored in them are they properly initialized.
   WriteLazilyInitializedExternalPointerField<kEmbedderDataSlotPayloadTag>(
-      address() + kExternalPointerOffset, isolate, value);
+      host.address(), address() + kExternalPointerOffset, isolate, value);
   ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi::zero());
   return true;
 #else
@@ -177,44 +179,32 @@ void EmbedderDataSlot::gc_safe_store(Isolate* isolate, Address value) {
   // TODO(ishell, v8:8875): revisit this once the allocation alignment
   // inconsistency is fixed.
   Address lo = static_cast<intptr_t>(static_cast<int32_t>(value));
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(lo));
-  Address hi = value >> 32;
-  // Here we use MaybeObjectSlot because ObjectSlot expects a valid `Object`.
-  // This allows us to store a non-smi, that is not a valid `HeapObject`.
-  MaybeObjectSlot(address() + kRawPayloadOffset).Relaxed_Store(MaybeObject(hi));
+  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Tagged<Smi>(lo));
+  Tagged_t hi = static_cast<Tagged_t>(value >> 32);
+  // The raw part of the payload does not contain a valid tagged value, so we
+  // need to use a raw store operation for it here.
+  AsAtomicTagged::Relaxed_Store(
+      reinterpret_cast<AtomicTagged_t*>(address() + kRawPayloadOffset), hi);
 #else
-  ObjectSlot(address() + kTaggedPayloadOffset).Relaxed_Store(Smi(value));
+  ObjectSlot(address() + kTaggedPayloadOffset)
+      .Relaxed_Store(Tagged<Smi>(value));
 #endif
 }
 
-// static
-void EmbedderDataSlot::PopulateEmbedderDataSnapshot(
-    Map map, JSObject js_object, int entry_index,
-    EmbedderDataSlotSnapshot& snapshot) {
-#ifdef V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t) * 2);
-#else   // !V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == sizeof(AtomicTagged_t));
-#endif  // !V8_COMPRESS_POINTERS
-  static_assert(sizeof(EmbedderDataSlotSnapshot) == kEmbedderDataSlotSize);
-
-  const Address field_base =
-      FIELD_ADDR(js_object, js_object.GetEmbedderFieldOffset(entry_index));
-
-#if defined(V8_TARGET_BIG_ENDIAN) && defined(V8_COMPRESS_POINTERS)
-  const int index = 1;
-#else
-  const int index = 0;
-#endif
-
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[index] =
-      AsAtomicTagged::Relaxed_Load(
-          reinterpret_cast<AtomicTagged_t*>(field_base + kTaggedPayloadOffset));
-#ifdef V8_COMPRESS_POINTERS
-  reinterpret_cast<AtomicTagged_t*>(&snapshot)[1 - index] =
-      AsAtomicTagged::Relaxed_Load(
-          reinterpret_cast<AtomicTagged_t*>(field_base + kRawPayloadOffset));
-#endif  // V8_COMPRESS_POINTERS
+bool EmbedderDataSlot::MustClearDuringSerialization(
+    const DisallowGarbageCollection& no_gc) {
+  // Serialization must avoid writing external pointer handles.  If we were to
+  // accidentally write an external pointer handle, that ends up deserializing
+  // as a dangling pointer.  For consistency it would be nice to avoid writing
+  // external pointers also in the wide-pointer case, but as we can't
+  // distinguish between Smi values and pointers we just leave them be.
+#ifdef V8_ENABLE_SANDBOX
+  auto* location = reinterpret_cast<ExternalPointerHandle*>(
+      address() + kExternalPointerOffset);
+  return base::AsAtomic32::Relaxed_Load(location) != kNullExternalPointerHandle;
+#else   // !V8_ENABLE_SANDBOX
+  return false;
+#endif  // !V8_ENABLE_SANDBOX
 }
 
 }  // namespace internal

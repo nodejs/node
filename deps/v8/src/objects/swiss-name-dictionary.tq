@@ -39,25 +39,23 @@ extern macro SwissNameDictionarySetCtrl(
 extern macro StoreSwissNameDictionaryPropertyDetails(
     SwissNameDictionary, intptr, intptr, uint8): void;
 
-extern macro
-SwissNameDictionaryIncreaseElementCountOrBailout(
+extern macro SwissNameDictionaryIncreaseElementCountOrBailout(
     ByteArray, intptr, uint32): uint32 labels Bailout;
 
-extern macro
-StoreSwissNameDictionaryEnumToEntryMapping(
+extern macro StoreSwissNameDictionaryEnumToEntryMapping(
     SwissNameDictionary, intptr, intptr, int32): void;
 
-extern macro
-SwissNameDictionaryUpdateCountsForDeletion(ByteArray, intptr): uint32;
+extern macro SwissNameDictionaryUpdateCountsForDeletion(ByteArray, intptr):
+    uint32;
 
 namespace runtime {
 extern runtime SwissTableFindEntry(NoContext, SwissNameDictionary, Name): Smi;
 
-extern runtime SwissTableAdd(
-    NoContext, SwissNameDictionary, Name, Object, Smi): SwissNameDictionary;
+extern runtime SwissTableAdd(NoContext, SwissNameDictionary, Name, Object, Smi):
+    SwissNameDictionary;
 
-extern runtime ShrinkSwissNameDictionary(
-    NoContext, SwissNameDictionary): SwissNameDictionary;
+extern runtime ShrinkSwissNameDictionary(NoContext, SwissNameDictionary):
+    SwissNameDictionary;
 }
 
 // Counterpart for SwissNameDictionary::CapacityFor in C++.
@@ -151,8 +149,8 @@ macro Probe(hash: uint32, mask: uint32): ProbeSequence {
   return ProbeSequence{mask: mask, offset: H1(hash) & mask, index: 0};
 }
 
-macro FindEntry<GroupLoader: type>(
-    table: SwissNameDictionary, key: Name): never labels
+macro FindEntry<GroupLoader: type>(table: SwissNameDictionary, key: Name):
+    never labels
 Found(intptr), NotFound {
   const hash: uint32 = LoadNameHash(key);
   const capacity: int32 = table.capacity;
@@ -277,8 +275,9 @@ macro SwissNameDictionaryDelete(table: SwissNameDictionary, entry: intptr):
 // not generated, even if the branch can be resolved at compile time. This means
 // that we end up trying to generate unused code using unsupported instructions.
 @export
-macro SwissNameDictionaryFindEntrySIMD(table: SwissNameDictionary, key: Name):
-    never labels Found(intptr), NotFound {
+macro SwissNameDictionaryFindEntrySIMD(
+    table: SwissNameDictionary, key: Name): never labels Found(intptr),
+    NotFound {
   FindEntry<GroupSse2Loader>(table, key)
       otherwise Found, NotFound;
 }

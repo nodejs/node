@@ -50,6 +50,11 @@ struct TracedReferenceWrapper {
 
 class NonRootingEmbedderRootsHandler final : public v8::EmbedderRootsHandler {
  public:
+  START_ALLOW_USE_DEPRECATED()
+  NonRootingEmbedderRootsHandler()
+      : v8::EmbedderRootsHandler(v8::EmbedderRootsHandler::RootHandling::
+                                     kQueryEmbedderForNonDroppableReferences) {}
+  END_ALLOW_USE_DEPRECATED()
   bool IsRoot(const v8::TracedReference<v8::Value>& handle) final {
     return false;
   }
@@ -135,6 +140,7 @@ template <typename ConstructFunction, typename ModifierFunction,
 void WeakHandleTest(v8::Isolate* isolate, ConstructFunction construct_function,
                     ModifierFunction modifier_function, GCFunction gc_function,
                     SurvivalMode survives) {
+  ManualGCScope manual_gc_scope(reinterpret_cast<internal::Isolate*>(isolate));
   v8::HandleScope scope(isolate);
   v8::Local<v8::Context> context = v8::Context::New(isolate);
   v8::Context::Scope context_scope(context);
@@ -174,7 +180,7 @@ class GlobalHandlesTest : public TestWithContext {
     construct_function(isolate, context, fp.get());
     CHECK(IsNewObjectInCorrectGeneration(isolate, fp->handle));
     modifier_function(fp.get());
-    CollectGarbage(i::NEW_SPACE);
+    InvokeMinorGC();
     // Scavenge clear properly resets the original handle, so we can check the
     // handle directly here.
     CHECK_IMPLIES(survives == SurvivalMode::kSurvives, !fp->handle.IsEmpty());
@@ -208,7 +214,7 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
               v8::Integer::New(v8_isolate, i))
         .FromJust();
     // Create with internal api
-    eternal_handles->Create(isolate, *v8::Utils::OpenHandle(*object),
+    eternal_handles->Create(isolate, *v8::Utils::OpenDirectHandle(*object),
                             &indices[i]);
     // Create with external api
     CHECK(eternals[i].IsEmpty());
@@ -216,7 +222,7 @@ TEST_F(GlobalHandlesTest, EternalHandles) {
     CHECK(!eternals[i].IsEmpty());
   }
 
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs(isolate);
 
   for (int i = 0; i < kArrayLength; i++) {
     for (int j = 0; j < 2; j++) {
@@ -294,7 +300,7 @@ TEST_F(GlobalHandlesTest, PhantomHandlesWithoutCallbacks) {
   }
   CHECK(!g1.IsEmpty());
   CHECK(!g2.IsEmpty());
-  CollectAllAvailableGarbage();
+  InvokeMemoryReducingMajorGCs(i_isolate());
   CHECK(g1.IsEmpty());
   CHECK(g2.IsEmpty());
 }
@@ -308,7 +314,7 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSObjectDiesOnScavenge) {
 
   WeakHandleTest(
       v8_isolate(), &ConstructJSObject<FlagAndHandles>,
-      [](FlagAndHandles* fp) {}, [this]() { CollectGarbage(i::NEW_SPACE); },
+      [](FlagAndHandles* fp) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);
 }
 
@@ -328,7 +334,7 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSObjectDiesOnMarkCompact) {
 
   WeakHandleTest(
       v8_isolate(), &ConstructJSObject<FlagAndHandles>,
-      [](FlagAndHandles* fp) {}, [this]() { CollectAllGarbage(); },
+      [](FlagAndHandles* fp) {}, [this]() { InvokeMajorGC(); },
       SurvivalMode::kDies);
 }
 
@@ -339,7 +345,7 @@ TEST_F(GlobalHandlesTest,
       [this](FlagAndHandles* fp) {
         fp->local = v8::Local<v8::Object>::New(v8_isolate(), fp->handle);
       },
-      [this]() { CollectAllGarbage(); }, SurvivalMode::kSurvives);
+      [this]() { InvokeMajorGC(); }, SurvivalMode::kSurvives);
 }
 
 TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
@@ -351,13 +357,14 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnScavenge) {
 
   WeakHandleTest(
       v8_isolate(), &ConstructJSApiObject<FlagAndHandles>,
-      [](FlagAndHandles* fp) {}, [this]() { CollectGarbage(i::NEW_SPACE); },
+      [](FlagAndHandles* fp) {}, [this]() { InvokeMinorGC(); },
       SurvivalMode::kDies);
 }
 
 TEST_F(GlobalHandlesTest,
        TracedReferenceToUnmodifiedJSApiObjectDiesOnScavenge) {
   if (v8_flags.single_generation) return;
+  if (!v8_flags.reclaim_unmodified_wrappers) return;
 
   ManualGCScope manual_gc(i_isolate());
   TracedReferenceTestWithScavenge(
@@ -380,8 +387,8 @@ TEST_F(GlobalHandlesTest,
         v8::HandleScope scope(v8_isolate());
         Handle<JSReceiver> key =
             Utils::OpenHandle(*fp->handle.Get(v8_isolate()));
-        Handle<Smi> smi(Smi::FromInt(23), isolate);
-        int32_t hash = key->GetOrCreateHash(isolate).value();
+        DirectHandle<Smi> smi(Smi::FromInt(23), isolate);
+        int32_t hash = Object::GetOrCreateHash(*key, isolate).value();
         JSWeakCollection::Set(weakmap, key, smi, hash);
       },
       SurvivalMode::kSurvives);
@@ -396,7 +403,7 @@ TEST_F(GlobalHandlesTest,
       [this](FlagAndHandles* fp) {
         fp->local = v8::Local<v8::Object>::New(v8_isolate(), fp->handle);
       },
-      [this]() { CollectGarbage(i::NEW_SPACE); }, SurvivalMode::kSurvives);
+      [this]() { InvokeMinorGC(); }, SurvivalMode::kSurvives);
 }
 
 TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact) {
@@ -406,7 +413,7 @@ TEST_F(GlobalHandlesTest, WeakHandleToUnmodifiedJSApiObjectDiesOnMarkCompact) {
 
   WeakHandleTest(
       v8_isolate(), &ConstructJSApiObject<FlagAndHandles>,
-      [](FlagAndHandles* fp) {}, [this]() { CollectAllGarbage(); },
+      [](FlagAndHandles* fp) {}, [this]() { InvokeMajorGC(); },
       SurvivalMode::kDies);
 }
 
@@ -417,7 +424,7 @@ TEST_F(GlobalHandlesTest,
       [this](FlagAndHandles* fp) {
         fp->local = v8::Local<v8::Object>::New(v8_isolate(), fp->handle);
       },
-      [this]() { CollectAllGarbage(); }, SurvivalMode::kSurvives);
+      [this]() { InvokeMajorGC(); }, SurvivalMode::kSurvives);
 }
 
 TEST_F(GlobalHandlesTest,
@@ -438,7 +445,7 @@ TEST_F(GlobalHandlesTest,
     auto i = function->NewInstance(v8_context()).ToLocalChecked();
     handle.Reset(isolate, i);
   }
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
   CHECK(!handle.IsEmpty());
 }
 
@@ -462,36 +469,37 @@ TEST_F(GlobalHandlesTest,
     auto i = function->NewInstance(v8_context()).ToLocalChecked();
     handle.Reset(isolate, i);
   }
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
   CHECK(!handle.IsEmpty());
 }
 
 namespace {
 
-void ForceScavenge2(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
+void ForceMinorGC2(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
   data.GetParameter()->flag = true;
-  YoungGC(data.GetIsolate());
+  InvokeMinorGC(reinterpret_cast<Isolate*>(data.GetIsolate()));
 }
 
-void ForceScavenge1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
+void ForceMinorGC1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
   data.GetParameter()->handle.Reset();
-  data.SetSecondPassCallback(ForceScavenge2);
+  data.SetSecondPassCallback(ForceMinorGC2);
 }
 
-void ForceMarkSweep2(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
+void ForceMajorGC2(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
   data.GetParameter()->flag = true;
-  FullGC(data.GetIsolate());
+  InvokeMajorGC(reinterpret_cast<Isolate*>(data.GetIsolate()));
 }
 
-void ForceMarkSweep1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
+void ForceMajorGC1(const v8::WeakCallbackInfo<FlagAndHandles>& data) {
   data.GetParameter()->handle.Reset();
-  data.SetSecondPassCallback(ForceMarkSweep2);
+  data.SetSecondPassCallback(ForceMajorGC2);
 }
 
 }  // namespace
 
 TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
   v8::Isolate* isolate = v8_isolate();
+  ManualGCScope manual_gc_scope(i_isolate());
   DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate()->heap());
   v8::HandleScope scope(isolate);
@@ -504,8 +512,8 @@ TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
     CHECK_IMPLIES(!v8_flags.single_generation,
                   !InYoungGeneration(isolate, fp.handle));
     fp.flag = false;
-    fp.handle.SetWeak(&fp, &ForceMarkSweep1, v8::WeakCallbackType::kParameter);
-    CollectAllGarbage();
+    fp.handle.SetWeak(&fp, &ForceMajorGC1, v8::WeakCallbackType::kParameter);
+    InvokeMajorGC();
     EmptyMessageQueues();
     CHECK(fp.flag);
     return;
@@ -513,13 +521,12 @@ TEST_F(GlobalHandlesTest, GCFromWeakCallbacks) {
 
   static const int kNumberOfGCTypes = 2;
   using Callback = v8::WeakCallbackInfo<FlagAndHandles>::Callback;
-  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceScavenge1,
-                                                    &ForceMarkSweep1};
+  Callback gc_forcing_callback[kNumberOfGCTypes] = {&ForceMinorGC1,
+                                                    &ForceMajorGC1};
 
   using GCInvoker = std::function<void(void)>;
-  GCInvoker invoke_gc[kNumberOfGCTypes] = {
-      [this]() { CollectGarbage(i::NEW_SPACE); },
-      [this]() { CollectAllGarbage(); }};
+  GCInvoker invoke_gc[kNumberOfGCTypes] = {[this]() { InvokeMinorGC(); },
+                                           [this]() { InvokeMajorGC(); }};
 
   for (int outer_gc = 0; outer_gc < kNumberOfGCTypes; outer_gc++) {
     for (int inner_gc = 0; inner_gc < kNumberOfGCTypes; inner_gc++) {
@@ -561,8 +568,8 @@ TEST_F(GlobalHandlesTest, SecondPassPhantomCallbacks) {
   fp.flag = false;
   fp.handle.SetWeak(&fp, FirstPassCallback, v8::WeakCallbackType::kParameter);
   CHECK(!fp.flag);
-  CollectAllGarbage();
-  CollectAllGarbage();
+  InvokeMajorGC();
+  InvokeMajorGC();
   CHECK(fp.flag);
 }
 
@@ -572,10 +579,10 @@ TEST_F(GlobalHandlesTest, MoveStrongGlobal) {
 
   v8::Global<v8::Object>* global = new Global<v8::Object>();
   ConstructJSObject(isolate, global);
-  CollectAllGarbage();
+  InvokeMajorGC();
   v8::Global<v8::Object> global2(std::move(*global));
   delete global;
-  CollectAllGarbage();
+  InvokeMajorGC();
 }
 
 TEST_F(GlobalHandlesTest, MoveWeakGlobal) {
@@ -584,26 +591,31 @@ TEST_F(GlobalHandlesTest, MoveWeakGlobal) {
 
   v8::Global<v8::Object>* global = new Global<v8::Object>();
   ConstructJSObject(isolate, global);
-  CollectAllGarbage();
+  InvokeMajorGC();
   global->SetWeak();
   v8::Global<v8::Object> global2(std::move(*global));
   delete global;
-  CollectAllGarbage();
+  InvokeMajorGC();
 }
 
 TEST_F(GlobalHandlesTest, TotalSizeRegularNode) {
   v8::Isolate* isolate = v8_isolate();
   v8::HandleScope scope(isolate);
 
+  // This is not necessarily zero, if the implementation of tests uses global
+  // handles.
+  size_t initial_total = i_isolate()->global_handles()->TotalSize();
+  size_t initial_used = i_isolate()->global_handles()->UsedSize();
+
   v8::Global<v8::Object>* global = new Global<v8::Object>();
-  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_EQ(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), initial_used);
   ConstructJSObject(isolate, global);
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_GT(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GE(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_GT(i_isolate()->global_handles()->UsedSize(), initial_used);
   delete global;
-  CHECK_GT(i_isolate()->global_handles()->TotalSize(), 0);
-  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), 0);
+  CHECK_GE(i_isolate()->global_handles()->TotalSize(), initial_total);
+  CHECK_EQ(i_isolate()->global_handles()->UsedSize(), initial_used);
 }
 
 TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
@@ -618,7 +630,7 @@ TEST_F(GlobalHandlesTest, TotalSizeTracedNode) {
   CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
   CHECK_GT(i_isolate()->traced_handles()->used_size_bytes(), 0);
   delete handle;
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_GT(i_isolate()->traced_handles()->total_size_bytes(), 0);
   CHECK_EQ(i_isolate()->traced_handles()->used_size_bytes(), 0);
 }

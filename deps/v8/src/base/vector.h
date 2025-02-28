@@ -81,20 +81,27 @@ class Vector {
   const T& at(size_t index) const { return operator[](index); }
 
   T& first() { return start_[0]; }
+  const T& first() const { return start_[0]; }
 
   T& last() {
+    DCHECK_LT(0, length_);
+    return start_[length_ - 1];
+  }
+  const T& last() const {
     DCHECK_LT(0, length_);
     return start_[length_ - 1];
   }
 
   // Returns a pointer to the start of the data in the vector.
   constexpr T* begin() const { return start_; }
+  constexpr const T* cbegin() const { return start_; }
 
   // For consistency with other containers, do also provide a {data} accessor.
   constexpr T* data() const { return start_; }
 
   // Returns a pointer past the end of the data in the vector.
   constexpr T* end() const { return start_ + length_; }
+  constexpr const T* cend() const { return start_ + length_; }
 
   constexpr std::reverse_iterator<T*> rbegin() const {
     return std::make_reverse_iterator(end());
@@ -246,6 +253,13 @@ class OwnedVector {
   // compatibility with other sequential containers.
   constexpr T* data() const { return begin(); }
 
+  constexpr std::reverse_iterator<T*> rbegin() const {
+    return std::make_reverse_iterator(end());
+  }
+  constexpr std::reverse_iterator<T*> rend() const {
+    return std::make_reverse_iterator(begin());
+  }
+
   // Access individual vector elements - checks bounds in debug mode.
   T& operator[](size_t index) const {
     DCHECK_LT(index, length_);
@@ -348,11 +362,12 @@ inline constexpr Vector<T> VectorOf(T* start, size_t size) {
   return {start, size};
 }
 
-// Construct a Vector from anything providing a {data()} and {size()} accessor.
+// Construct a Vector from anything compatible with std::data and std::size (ie,
+// an array, or a container providing a {data()} and {size()} accessor).
 template <typename Container>
 inline constexpr auto VectorOf(Container&& c)
-    -> decltype(VectorOf(c.data(), c.size())) {
-  return VectorOf(c.data(), c.size());
+    -> decltype(VectorOf(std::data(c), std::size(c))) {
+  return VectorOf(std::data(c), std::size(c));
 }
 
 // Construct a Vector from an initializer list. The vector can obviously only be

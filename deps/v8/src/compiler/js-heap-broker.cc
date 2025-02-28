@@ -4,11 +4,14 @@
 
 #include "src/compiler/js-heap-broker.h"
 
+#include <optional>
+
 #ifdef ENABLE_SLOW_DCHECKS
 #include <algorithm>
 #endif
 
 #include "src/codegen/optimized-compilation-info.h"
+#include "src/compiler/js-heap-broker-inl.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
 #include "src/objects/allocation-site-inl.h"
@@ -54,27 +57,6 @@ JSHeapBroker::JSHeapBroker(Isolate* isolate, Zone* broker_zone,
 
 JSHeapBroker::~JSHeapBroker() { DCHECK_NULL(local_isolate_); }
 
-void JSHeapBroker::SetPersistentAndCopyCanonicalHandlesForTesting(
-    std::unique_ptr<PersistentHandles> persistent_handles,
-    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-  set_persistent_handles(std::move(persistent_handles));
-  CopyCanonicalHandlesForTesting(std::move(canonical_handles));
-}
-
-void JSHeapBroker::CopyCanonicalHandlesForTesting(
-    std::unique_ptr<CanonicalHandlesMap> canonical_handles) {
-  DCHECK_NULL(canonical_handles_);
-  canonical_handles_ = std::make_unique<CanonicalHandlesMap>(
-      isolate_->heap(), ZoneAllocationPolicy(zone()));
-
-  CanonicalHandlesMap::IteratableScope it_scope(canonical_handles.get());
-  for (auto it = it_scope.begin(); it != it_scope.end(); ++it) {
-    Address* entry = *it.entry();
-    Object key = it.key();
-    canonical_handles_->Insert(key, entry);
-  }
-}
-
 std::string JSHeapBroker::Trace() const {
   std::ostringstream oss;
   oss << "[" << this << "] ";
@@ -102,7 +84,6 @@ JSHeapBroker* JSHeapBroker::Current() {
 
 void JSHeapBroker::AttachLocalIsolate(OptimizedCompilationInfo* info,
                                       LocalIsolate* local_isolate) {
-  set_canonical_handles(info->DetachCanonicalHandles());
   DCHECK_NULL(local_isolate_);
   local_isolate_ = local_isolate;
   DCHECK_NOT_NULL(local_isolate_);
@@ -116,7 +97,6 @@ void JSHeapBroker::DetachLocalIsolate(OptimizedCompilationInfo* info) {
   std::unique_ptr<PersistentHandles> ph =
       local_isolate_->heap()->DetachPersistentHandles();
   local_isolate_ = nullptr;
-  info->set_canonical_handles(DetachCanonicalHandles());
   info->set_persistent_handles(std::move(ph));
 }
 
@@ -133,10 +113,8 @@ void JSHeapBroker::Retire() {
 }
 
 void JSHeapBroker::SetTargetNativeContextRef(
-    Handle<NativeContext> native_context) {
-  DCHECK((mode() == kDisabled && !target_native_context_.has_value()) ||
-         (mode() == kSerializing &&
-          target_native_context_->object().is_identical_to(native_context)));
+    DirectHandle<NativeContext> native_context) {
+  DCHECK(!target_native_context_.has_value());
   target_native_context_ = MakeRef(this, *native_context);
 }
 
@@ -145,15 +123,18 @@ void JSHeapBroker::CollectArrayAndObjectPrototypes() {
   CHECK_EQ(mode(), kSerializing);
   CHECK(array_and_object_prototypes_.empty());
 
-  Object maybe_context = isolate()->heap()->native_contexts_list();
-  while (!maybe_context.IsUndefined(isolate())) {
-    Context context = Context::cast(maybe_context);
-    Object array_prot = context.get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
-    Object object_prot = context.get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
-    array_and_object_prototypes_.emplace(JSObject::cast(array_prot), isolate());
-    array_and_object_prototypes_.emplace(JSObject::cast(object_prot),
-                                         isolate());
-    maybe_context = context.next_context_link();
+  Tagged<Object> maybe_context = isolate()->heap()->native_contexts_list();
+  while (!IsUndefined(maybe_context, isolate())) {
+    Tagged<Context> context = Cast<Context>(maybe_context);
+    Tagged<Object> array_prot =
+        context->get(Context::INITIAL_ARRAY_PROTOTYPE_INDEX);
+    Tagged<Object> object_prot =
+        context->get(Context::INITIAL_OBJECT_PROTOTYPE_INDEX);
+    array_and_object_prototypes_.emplace(
+        CanonicalPersistentHandle(Cast<JSObject>(array_prot)));
+    array_and_object_prototypes_.emplace(
+        CanonicalPersistentHandle(Cast<JSObject>(object_prot)));
+    maybe_context = context->next_context_link();
   }
 
   CHECK(!array_and_object_prototypes_.empty());
@@ -173,7 +154,7 @@ StringRef JSHeapBroker::GetTypedArrayStringTag(ElementsKind kind) {
   }
 }
 
-bool JSHeapBroker::IsArrayOrObjectPrototype(const JSObjectRef& object) const {
+bool JSHeapBroker::IsArrayOrObjectPrototype(JSObjectRef object) const {
   return IsArrayOrObjectPrototype(object.object());
 }
 
@@ -189,7 +170,7 @@ bool JSHeapBroker::IsArrayOrObjectPrototype(Handle<JSObject> object) const {
          array_and_object_prototypes_.end();
 }
 
-ObjectData* JSHeapBroker::TryGetOrCreateData(Object object,
+ObjectData* JSHeapBroker::TryGetOrCreateData(Tagged<Object> object,
                                              GetOrCreateDataFlags flags) {
   return TryGetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
@@ -201,7 +182,7 @@ ObjectData* JSHeapBroker::GetOrCreateData(Handle<Object> object,
   return return_value;
 }
 
-ObjectData* JSHeapBroker::GetOrCreateData(Object object,
+ObjectData* JSHeapBroker::GetOrCreateData(Tagged<Object> object,
                                           GetOrCreateDataFlags flags) {
   return GetOrCreateData(CanonicalPersistentHandle(object), flags);
 }
@@ -214,16 +195,16 @@ bool JSHeapBroker::StackHasOverflowed() const {
              : StackLimitCheck(isolate_).HasOverflowed();
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(Handle<Object> object) const {
+bool JSHeapBroker::ObjectMayBeUninitialized(DirectHandle<Object> object) const {
   return ObjectMayBeUninitialized(*object);
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(Object object) const {
-  if (!object.IsHeapObject()) return false;
-  return ObjectMayBeUninitialized(HeapObject::cast(object));
+bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<Object> object) const {
+  if (!IsHeapObject(object)) return false;
+  return ObjectMayBeUninitialized(Cast<HeapObject>(object));
 }
 
-bool JSHeapBroker::ObjectMayBeUninitialized(HeapObject object) const {
+bool JSHeapBroker::ObjectMayBeUninitialized(Tagged<HeapObject> object) const {
   return !IsMainThread() && isolate()->heap()->IsPendingAllocation(object);
 }
 
@@ -249,27 +230,38 @@ ElementAccessFeedback::transition_groups() const {
 
 ElementAccessFeedback const& ElementAccessFeedback::Refine(
     JSHeapBroker* broker, ZoneVector<MapRef> const& inferred_maps) const {
+  if (inferred_maps.empty()) {
+    return *broker->zone()->New<ElementAccessFeedback>(
+        broker->zone(), keyed_mode(), slot_kind());
+  }
+
+  ZoneRefSet<Map> inferred(inferred_maps.begin(), inferred_maps.end(),
+                           broker->zone());
+  return Refine(broker, inferred, false);
+}
+
+ElementAccessFeedback const& ElementAccessFeedback::Refine(
+    JSHeapBroker* broker, ZoneRefSet<Map> const& inferred_maps,
+    bool always_keep_group_target) const {
   ElementAccessFeedback& refined_feedback =
       *broker->zone()->New<ElementAccessFeedback>(broker->zone(), keyed_mode(),
                                                   slot_kind());
-  if (inferred_maps.empty()) return refined_feedback;
-
-  ZoneRefUnorderedSet<MapRef> inferred(broker->zone());
-  inferred.insert(inferred_maps.begin(), inferred_maps.end());
+  if (inferred_maps.size() == 0) return refined_feedback;
 
   for (auto const& group : transition_groups()) {
     DCHECK(!group.empty());
     TransitionGroup new_group(broker->zone());
     for (size_t i = 1; i < group.size(); ++i) {
       MapRef source = group[i];
-      if (inferred.find(source) != inferred.end()) {
+      if (inferred_maps.contains(source)) {
         new_group.push_back(source);
       }
     }
 
     MapRef target = group.front();
-    bool const keep_target =
-        inferred.find(target) != inferred.end() || new_group.size() > 1;
+    bool const keep_target = always_keep_group_target ||
+                             inferred_maps.contains(target) ||
+                             new_group.size() > 1;
     if (keep_target) {
       new_group.push_back(target);
       // The target must be at the front, the order of sources doesn't matter.
@@ -348,7 +340,7 @@ OptionalObjectRef GlobalAccessFeedback::GetConstantHint(
   } else if (IsScriptContextSlot() && immutable()) {
     return script_context().get(broker, slot_index());
   } else {
-    return base::nullopt;
+    return std::nullopt;
   }
 }
 
@@ -442,7 +434,7 @@ MegaDOMPropertyAccessFeedback::MegaDOMPropertyAccessFeedback(
   DCHECK(IsLoadICKind(slot_kind));
 }
 
-NamedAccessFeedback::NamedAccessFeedback(NameRef const& name,
+NamedAccessFeedback::NamedAccessFeedback(NameRef name,
                                          ZoneVector<MapRef> const& maps,
                                          FeedbackSlotKind slot_kind)
     : ProcessedFeedback(kNamedAccess, slot_kind), name_(name), maps_(maps) {
@@ -511,7 +503,7 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
       if (map.is_deprecated()) {
         // TODO(ishell): support fast map updating if we enable it.
         CHECK(!v8_flags.fast_map_update);
-        base::Optional<Map> maybe_map = MapUpdater::TryUpdateNoLock(
+        std::optional<Tagged<Map>> maybe_map = MapUpdater::TryUpdateNoLock(
             isolate(), *map.object(), ConcurrencyMode::kConcurrent);
         if (maybe_map.has_value()) {
           map = MakeRefAssumeMemoryFence(this, maybe_map.value());
@@ -531,11 +523,11 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForPropertyAccess(
     DCHECK(maps.empty());
     MaybeObjectHandle maybe_handler = nexus.ExtractMegaDOMHandler();
     if (!maybe_handler.is_null()) {
-      Handle<MegaDomHandler> handler =
-          Handle<MegaDomHandler>::cast(maybe_handler.object());
-      if (!handler->accessor(kAcquireLoad)->IsCleared()) {
+      DirectHandle<MegaDomHandler> handler =
+          Cast<MegaDomHandler>(maybe_handler.object());
+      if (!handler->accessor(kAcquireLoad).IsCleared()) {
         FunctionTemplateInfoRef info = MakeRefAssumeMemoryFence(
-            this, FunctionTemplateInfo::cast(
+            this, Cast<FunctionTemplateInfo>(
                       handler->accessor(kAcquireLoad).GetHeapObject()));
         return *zone()->New<MegaDOMPropertyAccessFeedback>(info, kind);
       }
@@ -575,40 +567,38 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForGlobalAccess(
          nexus.kind() == FeedbackSlotKind::kStoreGlobalStrict);
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
   if (nexus.ic_state() != InlineCacheState::MONOMORPHIC ||
-      nexus.GetFeedback()->IsCleared()) {
+      nexus.GetFeedback().IsCleared()) {
     return *zone()->New<GlobalAccessFeedback>(nexus.kind());
   }
 
   Handle<Object> feedback_value =
-      CanonicalPersistentHandle(nexus.GetFeedback()->GetHeapObjectOrSmi());
+      CanonicalPersistentHandle(nexus.GetFeedback().GetHeapObjectOrSmi());
 
-  if (feedback_value->IsSmi()) {
+  if (IsSmi(*feedback_value)) {
     // The wanted name belongs to a script-scope variable and the feedback
     // tells us where to find its value.
-    int const number = feedback_value->Number();
+    int const number = Object::NumberValue(*feedback_value);
     int const script_context_index =
         FeedbackNexus::ContextIndexBits::decode(number);
     int const context_slot_index = FeedbackNexus::SlotIndexBits::decode(number);
     ContextRef context = MakeRefAssumeMemoryFence(
-        this, target_native_context()
-                  .script_context_table(broker)
-                  .object()
-                  ->get_context(script_context_index, kAcquireLoad));
+        this,
+        target_native_context().script_context_table(broker).object()->get(
+            script_context_index, kAcquireLoad));
 
     OptionalObjectRef contents = context.get(broker, context_slot_index);
-    if (contents.has_value()) CHECK(!contents->IsTheHole(broker));
+    if (contents.has_value()) CHECK(!contents->IsTheHole());
 
     return *zone()->New<GlobalAccessFeedback>(
         context, context_slot_index,
         FeedbackNexus::ImmutabilityBit::decode(number), nexus.kind());
   }
 
-  CHECK(feedback_value->IsPropertyCell());
+  CHECK(IsPropertyCell(*feedback_value));
   // The wanted name belongs (or did belong) to a property on the global
   // object and the feedback is the cell holding its value.
   return *zone()->New<GlobalAccessFeedback>(
-      MakeRefAssumeMemoryFence(this,
-                               Handle<PropertyCell>::cast(feedback_value)),
+      MakeRefAssumeMemoryFence(this, Cast<PropertyCell>(feedback_value)),
       nexus.kind());
 }
 
@@ -619,6 +609,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForBinaryOperation(
   BinaryOperationHint hint = nexus.GetBinaryOperationFeedback();
   DCHECK_NE(hint, BinaryOperationHint::kNone);  // Not uninitialized.
   return *zone()->New<BinaryOperationFeedback>(hint, nexus.kind());
+}
+
+ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTypeOf(
+    FeedbackSource const& source) const {
+  FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
+  if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
+  return *zone()->New<TypeOfOpFeedback>(nexus.GetTypeOfFeedback(),
+                                        nexus.kind());
 }
 
 ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCompareOperation(
@@ -660,13 +658,13 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForArrayOrObjectLiteral(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  Tagged<HeapObject> object;
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
   AllocationSiteRef site =
-      MakeRefAssumeMemoryFence(this, AllocationSite::cast(object));
+      MakeRefAssumeMemoryFence(this, Cast<AllocationSite>(object));
   return *zone()->New<LiteralFeedback>(site, nexus.kind());
 }
 
@@ -675,13 +673,13 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForRegExpLiteral(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  Tagged<HeapObject> object;
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
   RegExpBoilerplateDescriptionRef boilerplate = MakeRefAssumeMemoryFence(
-      this, RegExpBoilerplateDescription::cast(object));
+      this, Cast<RegExpBoilerplateDescription>(object));
   return *zone()->New<RegExpLiteralFeedback>(boilerplate, nexus.kind());
 }
 
@@ -690,12 +688,12 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForTemplateObject(
   FeedbackNexus nexus(source.vector, source.slot, feedback_nexus_config());
   if (nexus.IsUninitialized()) return NewInsufficientFeedback(nexus.kind());
 
-  HeapObject object;
-  if (!nexus.GetFeedback()->GetHeapObject(&object)) {
+  Tagged<HeapObject> object;
+  if (!nexus.GetFeedback().GetHeapObject(&object)) {
     return NewInsufficientFeedback(nexus.kind());
   }
 
-  JSArrayRef array = MakeRefAssumeMemoryFence(this, JSArray::cast(object));
+  JSArrayRef array = MakeRefAssumeMemoryFence(this, Cast<JSArray>(object));
   return *zone()->New<TemplateObjectFeedback>(array, nexus.kind());
 }
 
@@ -706,9 +704,9 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
 
   OptionalHeapObjectRef target_ref;
   {
-    MaybeObject maybe_target = nexus.GetFeedback();
-    HeapObject target_object;
-    if (maybe_target->GetHeapObject(&target_object)) {
+    Tagged<MaybeObject> maybe_target = nexus.GetFeedback();
+    Tagged<HeapObject> target_object;
+    if (maybe_target.GetHeapObject(&target_object)) {
       target_ref = TryMakeRef(this, target_object);
     }
   }
@@ -725,6 +723,13 @@ BinaryOperationHint JSHeapBroker::GetFeedbackForBinaryOperation(
   ProcessedFeedback const& feedback = ProcessFeedbackForBinaryOperation(source);
   return feedback.IsInsufficient() ? BinaryOperationHint::kNone
                                    : feedback.AsBinaryOperation().value();
+}
+
+TypeOfFeedback::Result JSHeapBroker::GetFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  ProcessedFeedback const& feedback = ProcessFeedbackForTypeOf(source);
+  return feedback.IsInsufficient() ? TypeOfFeedback::kNone
+                                   : feedback.AsTypeOf().value();
 }
 
 CompareOperationHint JSHeapBroker::GetFeedbackForCompareOperation(
@@ -762,6 +767,14 @@ ProcessedFeedback const& JSHeapBroker::GetFeedbackForTemplateObject(
     FeedbackSource const& source) {
   if (HasFeedback(source)) return GetFeedback(source);
   ProcessedFeedback const& feedback = ReadFeedbackForTemplateObject(source);
+  SetFeedback(source, &feedback);
+  return feedback;
+}
+
+ProcessedFeedback const& JSHeapBroker::ProcessFeedbackForTypeOf(
+    FeedbackSource const& source) {
+  if (HasFeedback(source)) return GetFeedback(source);
+  ProcessedFeedback const& feedback = ReadFeedbackForTypeOf(source);
   SetFeedback(source, &feedback);
   return feedback;
 }
@@ -844,17 +857,20 @@ ElementAccessFeedback const& JSHeapBroker::ProcessFeedbackMapsForElementAccess(
   ZoneRefMap<MapRef, TransitionGroup> transition_groups(zone());
 
   // Separate the actual receiver maps and the possible transition sources.
-  for (const MapRef& map : maps) {
-    Map transition_target;
+  for (MapRef map : maps) {
+    Tagged<Map> transition_target;
 
     // Don't generate elements kind transitions from stable maps.
-    if (!map.is_stable()) {
+    if (!map.is_stable() && possible_transition_targets.begin() != possible_transition_targets.end()) {
       // The lock is needed for UnusedPropertyFields (called deep inside
       // FindElementsKindTransitionedMap).
       MapUpdaterGuardIfNeeded mumd_scope(this);
 
       transition_target = map.object()->FindElementsKindTransitionedMap(
-          isolate(), possible_transition_targets, ConcurrencyMode::kConcurrent);
+          isolate(),
+          MapHandlesSpan(possible_transition_targets.begin(),
+                         possible_transition_targets.end()),
+          ConcurrencyMode::kConcurrent);
     }
 
     if (transition_target.is_null()) {
@@ -899,8 +915,8 @@ void ElementAccessFeedback::AddGroup(TransitionGroup&& group) {
 }
 
 OptionalNameRef JSHeapBroker::GetNameFeedback(FeedbackNexus const& nexus) {
-  Name raw_name = nexus.GetName();
-  if (raw_name.is_null()) return base::nullopt;
+  Tagged<Name> raw_name = nexus.GetName();
+  if (raw_name.is_null()) return std::nullopt;
   return MakeRefAssumeMemoryFence(this, raw_name);
 }
 
@@ -920,6 +936,11 @@ PropertyAccessInfo JSHeapBroker::GetPropertyAccessInfo(MapRef map, NameRef name,
                   << map);
   property_access_infos_.insert({target, access_info});
   return access_info;
+}
+
+TypeOfOpFeedback const& ProcessedFeedback::AsTypeOf() const {
+  CHECK_EQ(kTypeOf, kind());
+  return *static_cast<TypeOfOpFeedback const*>(this);
 }
 
 BinaryOperationFeedback const& ProcessedFeedback::AsBinaryOperation() const {

@@ -14,7 +14,9 @@ const { once } = require('events');
   assert.throws(() => {
     port1.postMessage(fh);
   }, {
-    code: 'ERR_MISSING_TRANSFERABLE_IN_TRANSFER_LIST'
+    constructor: DOMException,
+    name: 'DataCloneError',
+    code: 25,
   });
 
   // Check that transferring FileHandle instances works.
@@ -28,7 +30,7 @@ const { once } = require('events');
   assert.deepStrictEqual(await fh2.readFile(), await fs.readFile(__filename));
   await fh2.close();
 
-  assert.rejects(() => fh.readFile(), { code: 'EBADF' });
+  await assert.rejects(() => fh.readFile(), { code: 'EBADF' });
 })().then(common.mustCall());
 
 (async function() {

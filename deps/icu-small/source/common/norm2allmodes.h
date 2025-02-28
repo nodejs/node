@@ -174,7 +174,7 @@ public:
             errorCode=U_ILLEGAL_ARGUMENT_ERROR;
             return 0;
         }
-        return (int32_t)(spanQuickCheckYes(sArray, sArray+s.length(), errorCode)-sArray);
+        return static_cast<int32_t>(spanQuickCheckYes(sArray, sArray + s.length(), errorCode) - sArray);
     }
     virtual const char16_t *
     spanQuickCheckYes(const char16_t *src, const char16_t *limit, UErrorCode &errorCode) const = 0;
@@ -391,6 +391,7 @@ struct Norm2AllModes : public UMemory {
     static const Norm2AllModes *getNFCInstance(UErrorCode &errorCode);
     static const Norm2AllModes *getNFKCInstance(UErrorCode &errorCode);
     static const Norm2AllModes *getNFKC_CFInstance(UErrorCode &errorCode);
+    static const Norm2AllModes *getNFKC_SCFInstance(UErrorCode &errorCode);
 
     Normalizer2Impl *impl;
     ComposeNormalizer2 comp;

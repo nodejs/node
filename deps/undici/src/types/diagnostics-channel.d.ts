@@ -1,7 +1,7 @@
-import { Socket } from "net";
-import { URL } from "url";
-import Connector from "./connector";
-import Dispatcher from "./dispatcher";
+import { Socket } from 'net'
+import { URL } from 'url'
+import buildConnector from './connector'
+import Dispatcher from './dispatcher'
 
 declare namespace DiagnosticsChannel {
   interface Request {
@@ -9,23 +9,22 @@ declare namespace DiagnosticsChannel {
     completed: boolean;
     method?: Dispatcher.HttpMethod;
     path: string;
-    headers: string;
-    addHeader(key: string, value: string): Request;
+    headers: any;
   }
   interface Response {
     statusCode: number;
     statusText: string;
     headers: Array<Buffer>;
   }
-  type Error = unknown;
+  type Error = unknown
   interface ConnectParams {
-    host: URL["host"];
-    hostname: URL["hostname"];
-    protocol: URL["protocol"];
-    port: URL["port"];
+    host: URL['host'];
+    hostname: URL['hostname'];
+    protocol: URL['protocol'];
+    port: URL['port'];
     servername: string | null;
   }
-  type Connector = Connector.connector;
+  type Connector = buildConnector.connector
   export interface RequestCreateMessage {
     request: Request;
   }

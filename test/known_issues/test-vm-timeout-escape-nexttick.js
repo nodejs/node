@@ -13,7 +13,7 @@ const NS_PER_MS = 1000000n;
 const hrtime = process.hrtime.bigint;
 const nextTick = process.nextTick;
 
-const waitDuration = common.platformTimeout(100n);
+const waitDuration = common.platformTimeout(200n);
 
 function loop() {
   const start = hrtime();
@@ -38,7 +38,7 @@ for (let i = 0; i < 4; i++) {
         nextTick,
         loop,
       },
-      { timeout: common.platformTimeout(10) },
+      { timeout: common.platformTimeout(100) },
     );
   }, {
     code: 'ERR_SCRIPT_EXECUTION_TIMEOUT',

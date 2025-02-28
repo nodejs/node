@@ -36,7 +36,7 @@ class V8_EXPORT_PRIVATE StubCache {
     // string.
     StrongTaggedValue key;
     // {value} is a tagged heap object reference (weak or strong), equivalent
-    // to a MaybeObject's payload.
+    // to a Tagged<MaybeObject>'s payload.
     TaggedValue value;
     // {map} is a tagged Map pointer, may be cleared by setting to Smi::zero().
     StrongTaggedValue map;
@@ -44,8 +44,8 @@ class V8_EXPORT_PRIVATE StubCache {
 
   void Initialize();
   // Access cache for entry hash(name, map).
-  void Set(Name name, Map map, MaybeObject handler);
-  MaybeObject Get(Name name, Map map);
+  void Set(Tagged<Name> name, Tagged<Map> map, Tagged<MaybeObject> handler);
+  Tagged<MaybeObject> Get(Tagged<Name> name, Tagged<Map> map);
   // Clear the lookup table (@ mark compact collection).
   void Clear();
 
@@ -90,8 +90,8 @@ class V8_EXPORT_PRIVATE StubCache {
   static const int kSecondaryTableBits = 9;
   static const int kSecondaryTableSize = (1 << kSecondaryTableBits);
 
-  static int PrimaryOffsetForTesting(Name name, Map map);
-  static int SecondaryOffsetForTesting(Name name, Map map);
+  static int PrimaryOffsetForTesting(Tagged<Name> name, Tagged<Map> map);
+  static int SecondaryOffsetForTesting(Tagged<Name> name, Tagged<Map> map);
 
   // The constructor is made public only for the purposes of testing.
   explicit StubCache(Isolate* isolate);
@@ -109,12 +109,12 @@ class V8_EXPORT_PRIVATE StubCache {
   // Hash algorithm for the primary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int PrimaryOffset(Name name, Map map);
+  static int PrimaryOffset(Tagged<Name> name, Tagged<Map> map);
 
   // Hash algorithm for the secondary table.  This algorithm is replicated in
   // assembler for every architecture.  Returns an index into the table that
   // is scaled by 1 << kCacheIndexShift.
-  static int SecondaryOffset(Name name, Map map);
+  static int SecondaryOffset(Tagged<Name> name, Tagged<Map> map);
 
   // Compute the entry for a given offset in exactly the same way as
   // we do in generated code.  We generate an hash code that already

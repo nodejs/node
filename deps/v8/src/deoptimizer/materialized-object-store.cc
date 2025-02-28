@@ -17,20 +17,20 @@ Handle<FixedArray> MaterializedObjectStore::Get(Address fp) {
   if (index == -1) {
     return Handle<FixedArray>::null();
   }
-  Handle<FixedArray> array = GetStackEntries();
+  DirectHandle<FixedArray> array = GetStackEntries();
   CHECK_GT(array->length(), index);
-  return Handle<FixedArray>::cast(Handle<Object>(array->get(index), isolate()));
+  return Cast<FixedArray>(Handle<Object>(array->get(index), isolate()));
 }
 
-void MaterializedObjectStore::Set(Address fp,
-                                  Handle<FixedArray> materialized_objects) {
+void MaterializedObjectStore::Set(
+    Address fp, DirectHandle<FixedArray> materialized_objects) {
   int index = StackIdToIndex(fp);
   if (index == -1) {
     index = static_cast<int>(frame_fps_.size());
     frame_fps_.push_back(fp);
   }
 
-  Handle<FixedArray> array = EnsureStackEntries(index + 1);
+  DirectHandle<FixedArray> array = EnsureStackEntries(index + 1);
   array->set(index, *materialized_objects);
 }
 
@@ -40,14 +40,14 @@ bool MaterializedObjectStore::Remove(Address fp) {
   int index = static_cast<int>(std::distance(frame_fps_.begin(), it));
 
   frame_fps_.erase(it);
-  FixedArray array = isolate()->heap()->materialized_objects();
+  Tagged<FixedArray> array = isolate()->heap()->materialized_objects();
 
-  CHECK_LT(index, array.length());
+  CHECK_LT(index, array->length());
   int fps_size = static_cast<int>(frame_fps_.size());
   for (int i = index; i < fps_size; i++) {
-    array.set(i, array.get(i + 1));
+    array->set(i, array->get(i + 1));
   }
-  array.set(fps_size, ReadOnlyRoots(isolate()).undefined_value());
+  array->set(fps_size, ReadOnlyRoots(isolate()).undefined_value());
   return true;
 }
 
@@ -79,7 +79,8 @@ Handle<FixedArray> MaterializedObjectStore::EnsureStackEntries(int length) {
   for (int i = 0; i < array->length(); i++) {
     new_array->set(i, array->get(i));
   }
-  HeapObject undefined_value = ReadOnlyRoots(isolate()).undefined_value();
+  Tagged<HeapObject> undefined_value =
+      ReadOnlyRoots(isolate()).undefined_value();
   for (int i = array->length(); i < length; i++) {
     new_array->set(i, undefined_value);
   }

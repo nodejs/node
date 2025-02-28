@@ -22,7 +22,7 @@ This state represents the PKEY after it has been allocated.
 =item decapsulate
 
 This state represents the PKEY when it is ready to perform a private key decapsulation
-opeartion.
+operation.
 
 =item decrypt
 
@@ -40,7 +40,7 @@ operation.
 =item encapsulate
 
 This state represents the PKEY when it is ready to perform a public key encapsulation
-opeartion.
+operation.
 
 =item encrypt
 
@@ -703,7 +703,7 @@ The provider PKEY interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

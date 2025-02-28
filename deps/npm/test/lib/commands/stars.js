@@ -6,6 +6,8 @@ const noop = () => {}
 
 const mockStars = async (t, { npmFetch = noop, exec = true, ...opts }) => {
   const mock = await mockNpm(t, {
+    command: 'stars',
+    exec,
     mocks: {
       'npm-registry-fetch': Object.assign(noop, realFetch, { json: npmFetch }),
       '{LIB}/utils/get-identity.js': async () => 'foo',
@@ -13,17 +15,10 @@ const mockStars = async (t, { npmFetch = noop, exec = true, ...opts }) => {
     ...opts,
   })
 
-  const stars = { exec: (args) => mock.npm.exec('stars', args) }
-
-  if (exec) {
-    await stars.exec(Array.isArray(exec) ? exec : [])
-    mock.result = mock.joinedOutput()
-  }
-
   return {
     ...mock,
-    stars,
-    logs: () => mock.logs.filter(l => l[1] === 'stars').map(l => l[2]),
+    result: mock.stars.output,
+    logs: () => mock.logs.byTitle('stars'),
   }
 }
 
@@ -45,7 +40,7 @@ t.test('no args', async t => {
     }
   }
 
-  const { result } = await mockStars(t, { npmFetch, exec: true })
+  const { result } = await mockStars(t, { npmFetch })
 
   t.matchSnapshot(
     result,
@@ -92,7 +87,7 @@ t.test('unauthorized request', async t => {
 
   t.strictSame(
     logs(),
-    ['auth is required to look up your username'],
+    ['stars auth is required to look up your username'],
     'should warn auth required msg'
   )
 
@@ -122,11 +117,11 @@ t.test('unexpected error', async t => {
 t.test('no pkg starred', async t => {
   const npmFetch = async () => ({ rows: [] })
 
-  const { logs } = await mockStars(t, { npmFetch, exec: true })
+  const { logs } = await mockStars(t, { npmFetch })
 
   t.strictSame(
     logs(),
-    ['user has not starred any packages'],
+    ['stars user has not starred any packages'],
     'should warn no starred packages msg'
   )
 })

@@ -39,7 +39,7 @@ class Decoder {
 
   // Writes one disassembled instruction into 'buffer' (0-terminated).
   // Returns the length of the disassembled machine instruction in bytes.
-  int InstructionDecode(byte* instruction);
+  int InstructionDecode(uint8_t* instruction);
 
  private:
   // Bottleneck functions to print into the out_buffer.
@@ -297,7 +297,7 @@ void Decoder::PrintPCOffs16(Instruction* instr) {
                (32 - kOffsLowBits - n_bits);
   out_buffer_pos_ += base::SNPrintF(
       out_buffer_ + out_buffer_pos_, "%s",
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + target));
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + target));
 }
 
 void Decoder::PrintPCOffs21(Instruction* instr) {
@@ -308,7 +308,7 @@ void Decoder::PrintPCOffs21(Instruction* instr) {
       (32 - kOffsLowBits - kOffs21HighBits - n_bits);
   out_buffer_pos_ += base::SNPrintF(
       out_buffer_ + out_buffer_pos_, "%s",
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + target));
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + target));
 }
 
 void Decoder::PrintPCOffs26(Instruction* instr) {
@@ -319,7 +319,7 @@ void Decoder::PrintPCOffs26(Instruction* instr) {
       (32 - kOffsLowBits - kOffs26HighBits - n_bits);
   out_buffer_pos_ += base::SNPrintF(
       out_buffer_ + out_buffer_pos_, "%s",
-      converter_.NameOfAddress(reinterpret_cast<byte*>(instr) + target));
+      converter_.NameOfAddress(reinterpret_cast<uint8_t*>(instr) + target));
 }
 
 void Decoder::PrintOffs16(Instruction* instr) {
@@ -1598,7 +1598,7 @@ void Decoder::DecodeTypekOp22(Instruction* instr) {
   }
 }
 
-int Decoder::InstructionDecode(byte* instr_ptr) {
+int Decoder::InstructionDecode(uint8_t* instr_ptr) {
   Instruction* instr = Instruction::At(instr_ptr);
   out_buffer_pos_ += base::SNPrintF(out_buffer_ + out_buffer_pos_,
                                     "%08x       ", instr->InstructionBits());
@@ -1653,12 +1653,12 @@ int Decoder::InstructionDecode(byte* instr_ptr) {
 
 namespace disasm {
 
-const char* NameConverter::NameOfAddress(byte* addr) const {
+const char* NameConverter::NameOfAddress(uint8_t* addr) const {
   v8::base::SNPrintF(tmp_buffer_, "%p", static_cast<void*>(addr));
   return tmp_buffer_.begin();
 }
 
-const char* NameConverter::NameOfConstant(byte* addr) const {
+const char* NameConverter::NameOfConstant(uint8_t* addr) const {
   return NameOfAddress(addr);
 }
 
@@ -1674,7 +1674,7 @@ const char* NameConverter::NameOfByteCPURegister(int reg) const {
   UNREACHABLE();
 }
 
-const char* NameConverter::NameInCode(byte* addr) const {
+const char* NameConverter::NameInCode(uint8_t* addr) const {
   // The default name converter is called for unknown code. So we will not try
   // to access any memory.
   return "";
@@ -1683,21 +1683,21 @@ const char* NameConverter::NameInCode(byte* addr) const {
 //------------------------------------------------------------------------------
 
 int Disassembler::InstructionDecode(v8::base::Vector<char> buffer,
-                                    byte* instruction) {
+                                    uint8_t* instruction) {
   v8::internal::Decoder d(converter_, buffer);
   return d.InstructionDecode(instruction);
 }
 
-int Disassembler::ConstantPoolSizeAt(byte* instruction) { return -1; }
+int Disassembler::ConstantPoolSizeAt(uint8_t* instruction) { return -1; }
 
-void Disassembler::Disassemble(FILE* f, byte* begin, byte* end,
+void Disassembler::Disassemble(FILE* f, uint8_t* begin, uint8_t* end,
                                UnimplementedOpcodeAction unimplemented_action) {
   NameConverter converter;
   Disassembler d(converter, unimplemented_action);
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     v8::base::EmbeddedVector<char, 128> buffer;
     buffer[0] = '\0';
-    byte* prev_pc = pc;
+    uint8_t* prev_pc = pc;
     pc += d.InstructionDecode(buffer, pc);
     v8::internal::PrintF(f, "%p    %08x      %s\n", static_cast<void*>(prev_pc),
                          *reinterpret_cast<int32_t*>(prev_pc), buffer.begin());

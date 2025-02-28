@@ -38,12 +38,14 @@ TEST_IMPL(dlerror) {
   ASSERT_NOT_NULL(strstr(msg, dlerror_no_error));
 
   r = uv_dlopen(path, &lib);
-  ASSERT(r == -1);
+  ASSERT_EQ(r, -1);
 
   msg = uv_dlerror(&lib);
   ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  ASSERT_NOT_NULL(strstr(msg, path));
+  /* musl's libc.a does not support dlopen(), only libc.so does. */
+  if (NULL == strstr(msg, "Dynamic loading not supported"))
+    ASSERT_NOT_NULL(strstr(msg, path));
 #endif
   ASSERT_NULL(strstr(msg, dlerror_no_error));
 
@@ -51,7 +53,9 @@ TEST_IMPL(dlerror) {
   msg = uv_dlerror(&lib);
   ASSERT_NOT_NULL(msg);
 #if !defined(__OpenBSD__) && !defined(__QNX__)
-  ASSERT_NOT_NULL(strstr(msg, path));
+  /* musl's libc.a does not support dlopen(), only libc.so does. */
+  if (NULL == strstr(msg, "Dynamic loading not supported"))
+    ASSERT_NOT_NULL(strstr(msg, path));
 #endif
   ASSERT_NULL(strstr(msg, dlerror_no_error));
 

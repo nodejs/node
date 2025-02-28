@@ -34,6 +34,8 @@ namespace internal {
   T(ArgumentsDisallowedInInitializerAndStaticBlock,                            \
     "'arguments' is not allowed in class field initializer or static "         \
     "initialization block")                                                    \
+  T(ArgumentIsNonObject, "% argument must be an object")                       \
+  T(ArgumentIsNonString, "% argument must be a string")                        \
   T(ArrayBufferDetachKeyDoesntMatch,                                           \
     "Provided key doesn't match [[ArrayBufferDetachKey]]")                     \
   T(ArrayBufferTooShort,                                                       \
@@ -51,7 +53,7 @@ namespace internal {
   T(AtomicsOperationNotAllowed, "% cannot be called in this context")          \
   T(BadRoundingType, "RoundingType is not fractionDigits")                     \
   T(BadSortComparisonFunction,                                                 \
-    "The comparison function must be either a function or undefined")          \
+    "The comparison function must be either a function or undefined: %")       \
   T(BigIntFromNumber,                                                          \
     "The number % cannot be converted to a BigInt because it is not an "       \
     "integer")                                                                 \
@@ -100,7 +102,7 @@ namespace internal {
   T(DeclarationMissingInitializer, "Missing initializer in % declaration")     \
   T(DefineDisallowed, "Cannot define property %, object is not extensible")    \
   T(DefineDisallowedFixedLayout,                                               \
-    "Cannot define property %, object is fixed layout")                        \
+    "Cannot define property %, object has fixed layout")                       \
   T(DetachedOperation, "Cannot perform % on a detached ArrayBuffer")           \
   T(DoNotUse, "Do not use %; %")                                               \
   T(DuplicateTemplateProperty, "Object template has duplicate property '%'")   \
@@ -113,6 +115,9 @@ namespace internal {
   T(IllegalInvocation, "Illegal invocation")                                   \
   T(ImmutablePrototypeSet,                                                     \
     "Immutable prototype object '%' cannot have their prototype set")          \
+  T(ImportAssertDeprecated,                                                    \
+    "'assert' is deprecated in import statements and support will be removed " \
+    "in %; use 'with' instead")                                                \
   T(ImportAssertionDuplicateKey, "Import assertion has duplicate key '%'")     \
   T(ImportCallNotNewExpression, "Cannot use new with import")                  \
   T(ImportOutsideModule, "Cannot use import statement outside a module")       \
@@ -129,14 +134,21 @@ namespace internal {
   T(InvalidRegExpExecResult,                                                   \
     "RegExp exec method returned something other than an Object or null")      \
   T(InvalidUnit, "Invalid unit argument for %() '%'")                          \
+  T(IsNotNumber, "Type of '%' must be 'number', found '%'")                    \
   T(IterableYieldedNonString, "Iterable yielded % which is not a string")      \
+  T(IteratorReduceNoInitial,                                                   \
+    "Reduce of a done iterator with no initial value")                         \
   T(IteratorResultNotAnObject, "Iterator result % is not an object")           \
   T(SpreadIteratorSymbolNonCallable,                                           \
     "Spread syntax requires ...iterable[Symbol.iterator] to be a function")    \
   T(FirstArgumentIteratorSymbolNonCallable,                                    \
     "% requires that the property of the first argument, "                     \
     "items[Symbol.iterator], when exists, be a function")                      \
+  T(FirstArgumentAsyncIteratorSymbolNonCallable,                               \
+    "% requires that the property of the first argument, "                     \
+    "items[Symbol.asyncIterator], when exists, be a function")                 \
   T(IteratorValueNotAnObject, "Iterator value % is not an entry object")       \
+  T(KeysMethodInvalid, "Result of the keys method is not an object")           \
   T(LanguageID, "Language ID should be string or object.")                     \
   T(LocaleNotEmpty,                                                            \
     "First argument to Intl.Locale constructor can't be empty or missing")     \
@@ -189,6 +201,7 @@ namespace internal {
   T(NotInt32OrBigInt64TypedArray,                                              \
     "% is not an int32 or BigInt64 typed array.")                              \
   T(NotSharedTypedArray, "% is not a shared typed array.")                     \
+  T(ObjectFixedLayout, "Cannot add property %, object has fixed layout")       \
   T(ObjectGetterExpectingFunction,                                             \
     "Object.prototype.__defineGetter__: Expecting function")                   \
   T(ObjectGetterCallable, "Getter must be a function: %")                      \
@@ -252,7 +265,7 @@ namespace internal {
     "proxy target")                                                            \
   T(ProxyGetOwnPropertyDescriptorNonConfigurableWritable,                      \
     "'getOwnPropertyDescriptor' on proxy: trap reported non-configurable "     \
-    "and writable for property '%' which is non-configurable, non-writable "   \
+    "and non-writable for property '%' which is non-configurable, writable "   \
     "in the proxy target")                                                     \
   T(ProxyGetOwnPropertyDescriptorNonExtensible,                                \
     "'getOwnPropertyDescriptor' on proxy: trap returned undefined for "        \
@@ -316,11 +329,18 @@ namespace internal {
     "Incorrect RelativeDateTimeFormatter provided")                            \
   T(ResolverNotAFunction, "Promise resolver % is not a function")              \
   T(ReturnMethodNotCallable, "The iterator's 'return' method is not callable") \
+  T(SizeIsNaN, "The .size property is NaN")                                    \
+  T(ShadowRealmErrorStackNonString,                                            \
+    "Error stack is not a string in ShadowRealm (%)")                          \
+  T(ShadowRealmErrorStackThrows,                                               \
+    "Error stack getter threw in ShadowRealm (%)")                             \
   T(SharedArrayBufferTooShort,                                                 \
     "Derived SharedArrayBuffer constructor created a buffer which was too "    \
     "small")                                                                   \
   T(SharedArrayBufferSpeciesThis,                                              \
     "SharedArrayBuffer subclass returned this from species constructor")       \
+  T(SharedStructTypeRegistryMismatch,                                          \
+    "SharedStructType registered as '%' does not match")                       \
   T(StaticPrototype,                                                           \
     "Classes may not have a static property named 'prototype'")                \
   T(StrictDeleteProperty, "Cannot delete property '%' of %")                   \
@@ -343,6 +363,7 @@ namespace internal {
   T(ThrowMethodMissing, "The iterator does not provide a 'throw' method.")     \
   T(TopLevelAwaitStalled, "Top-level await promise never resolved")            \
   T(UndefinedOrNullToObject, "Cannot convert undefined or null to object")     \
+  T(UsingAssign, "Assignment to using variable.")                              \
   T(ValueAndAccessor,                                                          \
     "Invalid property descriptor. Cannot both specify accessors and a value "  \
     "or writable attribute, %")                                                \
@@ -357,6 +378,9 @@ namespace internal {
   T(AccessedUninitializedVariable, "Cannot access '%' before initialization")  \
   T(UnsupportedSuper, "Unsupported reference to 'super'")                      \
   T(AccessedUnavailableVariable, "Cannot access '%' from debugger")            \
+  T(DisposableStackIsDisposed,                                                 \
+    "Cannot call % on an already-disposed DisposableStack")                    \
+  T(NotAnAsyncDisposableStack, "Receiver is not an AsyncDisposableStack")      \
   /* RangeError */                                                             \
   T(BigIntDivZero, "Division by zero")                                         \
   T(BigIntTooBig, "Maximum BigInt size exceeded")                              \
@@ -398,8 +422,6 @@ namespace internal {
     "maximumFractionDigits not equal to minimumFractionDigits")                \
   T(NormalizationForm, "The normalization form should be one of %.")           \
   T(OutOfMemory, "%: Out of memory")                                           \
-  T(ParameterOfFunctionOutOfRange,                                             \
-    "Paramenter % of function %() is % and out of range")                      \
   T(ZeroDigitNumericSeparator,                                                 \
     "Numeric separator can not be used after leading 0.")                      \
   T(NumberFormatRange, "% argument must be between 0 and 100")                 \
@@ -412,8 +434,7 @@ namespace internal {
   T(ToPrecisionFormatRange,                                                    \
     "toPrecision() argument must be between 1 and 100")                        \
   T(ToRadixFormatRange, "toString() radix argument must be between 2 and 36")  \
-  T(SharedArraySizeOutOfRange,                                                 \
-    "SharedArray length out of range (maximum of 2**14-2 allowed)")            \
+  T(SharedArraySizeOutOfRange, "SharedArray length out of range")              \
   T(StructFieldCountOutOfRange,                                                \
     "Struct field count out of range (maximum of 999 allowed)")                \
   T(TypedArraySetOffsetOutOfBounds, "offset is out of bounds")                 \
@@ -423,6 +444,8 @@ namespace internal {
   T(ValueOutOfRange, "Value % out of range for % options property %")          \
   T(CollectionGrowFailed, "% maximum size exceeded")                           \
   T(MustBePositive, "% must be positive")                                      \
+  T(ArgumentIsNotUndefinedOrNonNegativeInteger,                                \
+    "% argument must be undefined or a non-negative integer")                  \
   /* SyntaxError */                                                            \
   T(AmbiguousExport,                                                           \
     "The requested module '%' contains conflicting star exports for name '%'") \
@@ -498,37 +521,48 @@ namespace internal {
   T(InvalidPrivateMethodWrite, "Private method '%' is not writable")           \
   T(InvalidPrivateGetterAccess, "'%' was defined without a getter")            \
   T(InvalidPrivateSetterAccess, "'%' was defined without a setter")            \
+  T(InvalidSizeValue, "'%' is an invalid size")                                \
   T(InvalidUnusedPrivateStaticMethodAccessedByDebugger,                        \
     "Unused static private method '%' cannot be accessed at debug time")       \
+  T(InvalidUsingInForInLoop, "Invalid 'using' in for-in loop")                 \
   T(JsonParseUnexpectedEOS, "Unexpected end of JSON input")                    \
-  T(JsonParseUnexpectedTokenNumber, "Unexpected number in JSON at position %") \
-  T(JsonParseUnexpectedTokenString, "Unexpected string in JSON at position %") \
-  T(JsonParseUnterminatedString, "Unterminated string in JSON at position %")  \
+  T(JsonParseUnexpectedTokenNumber,                                            \
+    "Unexpected number in JSON at position % (line % column %)")               \
+  T(JsonParseUnexpectedTokenString,                                            \
+    "Unexpected string in JSON at position % (line % column %)")               \
+  T(JsonParseUnterminatedString,                                               \
+    "Unterminated string in JSON at position % (line % column %)")             \
   T(JsonParseExpectedPropNameOrRBrace,                                         \
-    "Expected property name or '}' in JSON at position %")                     \
+    "Expected property name or '}' in JSON at position % (line % column %)")   \
   T(JsonParseExpectedCommaOrRBrack,                                            \
-    "Expected ',' or ']' after array element in JSON at position %")           \
+    "Expected ',' or ']' after array element in JSON at position % (line % "   \
+    "column %)")                                                               \
   T(JsonParseExpectedCommaOrRBrace,                                            \
     "Expected ',' or '}' after property value in JSON at position "            \
-    "%")                                                                       \
+    "% (line % column %)")                                                     \
   T(JsonParseExpectedDoubleQuotedPropertyName,                                 \
-    "Expected double-quoted property name in JSON at position %")              \
+    "Expected double-quoted property name in JSON at position % (line % "      \
+    "column %)")                                                               \
   T(JsonParseExponentPartMissingNumber,                                        \
-    "Exponent part is missing a number in JSON at position %")                 \
+    "Exponent part is missing a number in JSON at position % (line % column "  \
+    "%)")                                                                      \
   T(JsonParseExpectedColonAfterPropertyName,                                   \
-    "Expected ':' after property name in JSON at position %")                  \
+    "Expected ':' after property name in JSON at position % (line % column "   \
+    "%)")                                                                      \
   T(JsonParseUnterminatedFractionalNumber,                                     \
-    "Unterminated fractional number in JSON at position %")                    \
+    "Unterminated fractional number in JSON at position % (line % column %)")  \
   T(JsonParseUnexpectedNonWhiteSpaceCharacter,                                 \
     "Unexpected non-whitespace character after JSON at position "              \
-    "%")                                                                       \
+    "% (line % column %)")                                                     \
   T(JsonParseBadEscapedCharacter,                                              \
-    "Bad escaped character in JSON at position %")                             \
+    "Bad escaped character in JSON at position % (line % column %)")           \
   T(JsonParseBadControlCharacter,                                              \
-    "Bad control character in string literal in JSON at position %")           \
-  T(JsonParseBadUnicodeEscape, "Bad Unicode escape in JSON at position %")     \
+    "Bad control character in string literal in JSON at position % (line % "   \
+    "column %)")                                                               \
+  T(JsonParseBadUnicodeEscape,                                                 \
+    "Bad Unicode escape in JSON at position % (line % column %)")              \
   T(JsonParseNoNumberAfterMinusSign,                                           \
-    "No number after minus sign in JSON at position %")                        \
+    "No number after minus sign in JSON at position % (line % column %)")      \
   T(JsonParseShortString, "\"%\" is not valid JSON")                           \
   T(JsonParseUnexpectedTokenShortString,                                       \
     "Unexpected token '%', \"%\" is not valid JSON")                           \
@@ -666,9 +700,11 @@ namespace internal {
   T(WasmTrapStringInvalidUtf8, "invalid UTF-8 string")                         \
   T(WasmTrapStringInvalidWtf8, "invalid WTF-8 string")                         \
   T(WasmTrapStringOffsetOutOfBounds, "string offset out of bounds")            \
-  T(WasmTrapBadSuspender, "invalid suspender object for suspend")              \
+  T(WasmTrapBadSuspender,                                                      \
+    "attempting to suspend without a WebAssembly.promising export")            \
   T(WasmTrapStringIsolatedSurrogate,                                           \
     "Failed to encode string as UTF-8: contains unpaired surrogate")           \
+  T(WasmTrapSuspendJSFrames, "trying to suspend JS frames")                    \
   T(WasmExceptionError, "wasm exception")                                      \
   T(WasmObjectsAreOpaque, "WebAssembly objects are opaque")                    \
   /* Asm.js validation related */                                              \
@@ -713,7 +749,12 @@ namespace internal {
   /* AggregateError */                                                         \
   T(AllPromisesRejected, "All promises were rejected")                         \
   T(CannotDeepFreezeObject, "Cannot DeepFreeze object of type %")              \
-  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")
+  T(CannotDeepFreezeValue, "Cannot DeepFreeze non-const value %")              \
+  /* SuppressedError */                                                        \
+  T(SuppressedErrorDuringDisposal, "An error was suppressed during disposal")  \
+  T(ExpectAnObjectWithUsing,                                                   \
+    "An object is expected with `using` "                                      \
+    "declarations")
 
 enum class MessageTemplate {
 #define TEMPLATE(NAME, STRING) k##NAME,

@@ -164,7 +164,7 @@ A human readable text that describes extra details on the object.
 
 =back
 
-When a provider-native object abtraction is used, it I<must> contain object
+When a provider-native object abstraction is used, it I<must> contain object
 data in at least one form (object data I<passed by value>, i.e. the "data"
 item, or object data I<passed by reference>, i.e. the "reference" item).
 Both may be present at once, in which case the OpenSSL library code that
@@ -184,7 +184,7 @@ introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

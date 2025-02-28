@@ -31,7 +31,7 @@ The value B<X509_ADD_FLAG_DEFAULT>, which equals 0, means no special semantics.
 If B<X509_ADD_FLAG_UP_REF> is set then
 the reference counts of those certificates added successfully are increased.
 
-If B<X509_ADD_FLAG_PREPEND> is set then the certifcates are prepended to I<sk>.
+If B<X509_ADD_FLAG_PREPEND> is set then the certificates are prepended to I<sk>.
 By default they are appended to I<sk>.
 In both cases the original order of the added certificates is preserved.
 
@@ -66,7 +66,7 @@ were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

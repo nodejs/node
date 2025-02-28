@@ -27,7 +27,7 @@
 
 #ifdef HAVE_CONFIG_H
 #  include <config.h>
-#endif /* HAVE_CONFIG_H */
+#endif /* defined(HAVE_CONFIG_H) */
 
 #include <ngtcp2/ngtcp2.h>
 
@@ -35,6 +35,7 @@
 #include "ngtcp2_ksl.h"
 #include "ngtcp2_pq.h"
 #include "ngtcp2_objalloc.h"
+#include "ngtcp2_pktns_id.h"
 
 typedef struct ngtcp2_conn ngtcp2_conn;
 typedef struct ngtcp2_pktns ngtcp2_pktns;
@@ -43,155 +44,8 @@ typedef struct ngtcp2_qlog ngtcp2_qlog;
 typedef struct ngtcp2_strm ngtcp2_strm;
 typedef struct ngtcp2_rst ngtcp2_rst;
 typedef struct ngtcp2_cc ngtcp2_cc;
-
-/* NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE indicates that no flag is
-   set. */
-#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_NONE 0x00u
-/* NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK indicates that an information
-   which a frame carries has been acknowledged. */
-#define NGTCP2_FRAME_CHAIN_BINDER_FLAG_ACK 0x01u
-
-/*
- * ngtcp2_frame_chain_binder binds 2 or more of ngtcp2_frame_chain to
- * share the acknowledgement state.  In general, all
- * ngtcp2_frame_chains bound to the same binder must have the same
- * information.
- */
-typedef struct ngtcp2_frame_chain_binder {
-  size_t refcount;
-  /* flags is bitwise OR of zero or more of
-     NGTCP2_FRAME_CHAIN_BINDER_FLAG_*. */
-  uint32_t flags;
-} ngtcp2_frame_chain_binder;
-
-int ngtcp2_frame_chain_binder_new(ngtcp2_frame_chain_binder **pbinder,
-                                  const ngtcp2_mem *mem);
-
+typedef struct ngtcp2_conn_stat ngtcp2_conn_stat;
 typedef struct ngtcp2_frame_chain ngtcp2_frame_chain;
-
-/*
- * ngtcp2_frame_chain chains frames in a single packet.
- */
-struct ngtcp2_frame_chain {
-  union {
-    struct {
-      ngtcp2_frame_chain *next;
-      ngtcp2_frame_chain_binder *binder;
-      ngtcp2_frame fr;
-    };
-
-    ngtcp2_opl_entry oplent;
-  };
-};
-
-ngtcp2_objalloc_def(frame_chain, ngtcp2_frame_chain, oplent);
-
-/*
- * ngtcp2_bind_frame_chains binds two frame chains |a| and |b| using
- * new or existing ngtcp2_frame_chain_binder.  |a| might have non-NULL
- * a->binder.  |b| must not have non-NULL b->binder.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory
- */
-int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
-                             const ngtcp2_mem *mem);
-
-/* NGTCP2_MAX_STREAM_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_stream can include. */
-#define NGTCP2_MAX_STREAM_DATACNT 256
-
-/* NGTCP2_MAX_CRYPTO_DATACNT is the maximum number of ngtcp2_vec that
-   a ngtcp2_crypto can include. */
-#define NGTCP2_MAX_CRYPTO_DATACNT 8
-
-/*
- * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
- * assigns its pointer to |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_objalloc_new behaves like
- * ngtcp2_frame_chain_new, but it uses |objalloc| to allocate the object.
- */
-int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                    ngtcp2_objalloc *objalloc);
-
-/*
- * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
- * but it allocates extra memory |extralen| in order to extend
- * ngtcp2_frame.
- */
-int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
-                                    const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_stream_datacnt_objalloc_new works like
- * ngtcp2_frame_chain_new, but it allocates enough data to store
- * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_stream
- * object.  If no additional space is required,
- * ngtcp2_frame_chain_objalloc_new is called internally.
- */
-int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                                   size_t datacnt,
-                                                   ngtcp2_objalloc *objalloc,
-                                                   const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_crypto_datacnt_objalloc_new works like
- * ngtcp2_frame_chain_new, but it allocates enough data to store
- * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_crypto
- * object.  If no additional space is required,
- * ngtcp2_frame_chain_objalloc_new is called internally.
- */
-int ngtcp2_frame_chain_crypto_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                                   size_t datacnt,
-                                                   ngtcp2_objalloc *objalloc,
-                                                   const ngtcp2_mem *mem);
-
-int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
-                                              const ngtcp2_vec *token,
-                                              ngtcp2_objalloc *objalloc,
-                                              const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_del deallocates |frc|.  It also deallocates the
- * memory pointed by |frc|.
- */
-void ngtcp2_frame_chain_del(ngtcp2_frame_chain *frc, const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_objalloc_del adds |frc| to |objalloc| for reuse.
- * It might just delete |frc| depending on the frame type and the size
- * of |frc|.
- */
-void ngtcp2_frame_chain_objalloc_del(ngtcp2_frame_chain *frc,
-                                     ngtcp2_objalloc *objalloc,
-                                     const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_init initializes |frc|.
- */
-void ngtcp2_frame_chain_init(ngtcp2_frame_chain *frc);
-
-/*
- * ngtcp2_frame_chain_list_objalloc_del adds all ngtcp2_frame_chain
- * linked from |frc| to |objalloc| for reuse.  Depending on the frame type
- * and its size, ngtcp2_frame_chain might be deleted instead.
- */
-void ngtcp2_frame_chain_list_objalloc_del(ngtcp2_frame_chain *frc,
-                                          ngtcp2_objalloc *objalloc,
-                                          const ngtcp2_mem *mem);
 
 /* NGTCP2_RTB_ENTRY_FLAG_NONE indicates that no flag is set. */
 #define NGTCP2_RTB_ENTRY_FLAG_NONE 0x00u
@@ -231,7 +85,7 @@ typedef struct ngtcp2_rtb_entry ngtcp2_rtb_entry;
 
 /*
  * ngtcp2_rtb_entry is an object stored in ngtcp2_rtb.  It corresponds
- * to the one packet which is waiting for its ACK.
+ * to the one packet which is waiting for its acknowledgement.
  */
 struct ngtcp2_rtb_entry {
   union {
@@ -244,10 +98,11 @@ struct ngtcp2_rtb_entry {
         uint8_t flags;
       } hd;
       ngtcp2_frame_chain *frc;
-      /* ts is the time point when a packet included in this entry is sent
-         to a peer. */
+      /* ts is the time point when a packet included in this entry is
+         sent to a remote endpoint. */
       ngtcp2_tstamp ts;
-      /* lost_ts is the time when this entry is marked lost. */
+      /* lost_ts is the time when this entry is declared to be
+         lost. */
       ngtcp2_tstamp lost_ts;
       /* pktlen is the length of QUIC packet */
       size_t pktlen;
@@ -257,6 +112,7 @@ struct ngtcp2_rtb_entry {
         ngtcp2_tstamp first_sent_ts;
         uint64_t tx_in_flight;
         uint64_t lost;
+        int64_t end_seq;
         int is_app_limited;
       } rst;
       /* flags is bitwise-OR of zero or more of
@@ -268,11 +124,11 @@ struct ngtcp2_rtb_entry {
   };
 };
 
-ngtcp2_objalloc_def(rtb_entry, ngtcp2_rtb_entry, oplent);
+ngtcp2_objalloc_decl(rtb_entry, ngtcp2_rtb_entry, oplent)
 
 /*
- * ngtcp2_rtb_entry_new allocates ngtcp2_rtb_entry object, and assigns
- * its pointer to |*pent|.
+ * ngtcp2_rtb_entry_objalloc_new allocates ngtcp2_rtb_entry object via
+ * |objalloc|, and assigns its pointer to |*pent|.
  */
 int ngtcp2_rtb_entry_objalloc_new(ngtcp2_rtb_entry **pent,
                                   const ngtcp2_pkt_hd *hd,
@@ -291,7 +147,7 @@ void ngtcp2_rtb_entry_objalloc_del(ngtcp2_rtb_entry *ent,
                                    const ngtcp2_mem *mem);
 
 /*
- * ngtcp2_rtb tracks sent packets, and its ACK timeout for
+ * ngtcp2_rtb tracks sent packets, and its acknowledgement timeout for
  * retransmission.
  */
 typedef struct ngtcp2_rtb {
@@ -300,39 +156,34 @@ typedef struct ngtcp2_rtb {
   /* ents includes ngtcp2_rtb_entry sorted by decreasing order of
      packet number. */
   ngtcp2_ksl ents;
-  /* crypto is CRYPTO stream. */
-  ngtcp2_strm *crypto;
   ngtcp2_rst *rst;
   ngtcp2_cc *cc;
   ngtcp2_log *log;
   ngtcp2_qlog *qlog;
   const ngtcp2_mem *mem;
   /* largest_acked_tx_pkt_num is the largest packet number
-     acknowledged by the peer. */
+     acknowledged by a remote endpoint. */
   int64_t largest_acked_tx_pkt_num;
-  /* num_ack_eliciting is the number of ACK eliciting entries. */
+  /* num_ack_eliciting is the number of ACK eliciting entries in
+     ents. */
   size_t num_ack_eliciting;
   /* num_retransmittable is the number of packets which contain frames
-     that must be retransmitted on loss. */
+     that must be retransmitted on loss in ents. */
   size_t num_retransmittable;
   /* num_pto_eliciting is the number of packets that elicit PTO probe
-     packets. */
+     packets in ents. */
   size_t num_pto_eliciting;
   /* probe_pkt_left is the number of probe packet to send */
   size_t probe_pkt_left;
-  /* pktns_id is the identifier of packet number space. */
-  ngtcp2_pktns_id pktns_id;
   /* cc_pkt_num is the smallest packet number that is contributed to
      ngtcp2_conn_stat.bytes_in_flight. */
   int64_t cc_pkt_num;
   /* cc_bytes_in_flight is the number of in-flight bytes that is
      contributed to ngtcp2_conn_stat.bytes_in_flight.  It only
-     includes the bytes after congestion state is reset. */
+     includes the bytes after congestion state is reset, that is only
+     count a packet whose packet number is greater than or equals to
+     cc_pkt_num. */
   uint64_t cc_bytes_in_flight;
-  /* persistent_congestion_start_ts is the time when persistent
-     congestion evaluation is started.  It happens roughly after
-     handshake is confirmed. */
-  ngtcp2_tstamp persistent_congestion_start_ts;
   /* num_lost_pkts is the number entries in ents which has
      NGTCP2_RTB_ENTRY_FLAG_LOST_RETRANSMITTED flag set. */
   size_t num_lost_pkts;
@@ -345,9 +196,8 @@ typedef struct ngtcp2_rtb {
 /*
  * ngtcp2_rtb_init initializes |rtb|.
  */
-void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_pktns_id pktns_id,
-                     ngtcp2_strm *crypto, ngtcp2_rst *rst, ngtcp2_cc *cc,
-                     ngtcp2_log *log, ngtcp2_qlog *qlog,
+void ngtcp2_rtb_init(ngtcp2_rtb *rtb, ngtcp2_rst *rst, ngtcp2_cc *cc,
+                     int64_t cc_pkt_num, ngtcp2_log *log, ngtcp2_qlog *qlog,
                      ngtcp2_objalloc *rtb_entry_objalloc,
                      ngtcp2_objalloc *frc_objalloc, const ngtcp2_mem *mem);
 
@@ -373,13 +223,13 @@ int ngtcp2_rtb_add(ngtcp2_rtb *rtb, ngtcp2_rtb_entry *ent,
  * which has the largest packet number.  If there is no entry,
  * returned value satisfies ngtcp2_ksl_it_end(&it) != 0.
  */
-ngtcp2_ksl_it ngtcp2_rtb_head(ngtcp2_rtb *rtb);
+ngtcp2_ksl_it ngtcp2_rtb_head(const ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_recv_ack removes acked ngtcp2_rtb_entry from |rtb|.
- * |pkt_num| is a packet number which includes |fr|.  |pkt_ts| is the
- * timestamp when packet is received.  |ts| should be the current
- * time.  Usually they are the same, but for buffered packets,
+ * ngtcp2_rtb_recv_ack removes an acknowledged ngtcp2_rtb_entry from
+ * |rtb|.  |pkt_num| is a packet number which includes |fr|.  |pkt_ts|
+ * is the timestamp when packet is received.  |ts| should be the
+ * current time.  Usually they are the same, but for buffered packets,
  * |pkt_ts| would be earlier than |ts|.
  *
  * This function returns the number of newly acknowledged packets if
@@ -398,7 +248,7 @@ ngtcp2_ssize ngtcp2_rtb_recv_ack(ngtcp2_rtb *rtb, const ngtcp2_ack *fr,
 /*
  * ngtcp2_rtb_detect_lost_pkt detects lost packets and prepends the
  * frames contained them to |*pfrc|.  Even when this function fails,
- * some frames might be prepended to |*pfrc| and the caller should
+ * some frames might be prepended to |*pfrc|, and the caller should
  * handle them.
  */
 int ngtcp2_rtb_detect_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
@@ -412,16 +262,16 @@ void ngtcp2_rtb_remove_expired_lost_pkt(ngtcp2_rtb *rtb, ngtcp2_duration pto,
                                         ngtcp2_tstamp ts);
 
 /*
- * ngtcp2_rtb_lost_pkt_ts returns the earliest time when the still
- * retained packet was lost.  It returns UINT64_MAX if no such packet
- * exists.
+ * ngtcp2_rtb_lost_pkt_ts returns the timestamp when an oldest lost
+ * packet tracked by |rtb| was declared lost.  It returns UINT64_MAX
+ * if no such packet exists.
  */
-ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(ngtcp2_rtb *rtb);
+ngtcp2_tstamp ngtcp2_rtb_lost_pkt_ts(const ngtcp2_rtb *rtb);
 
 /*
- * ngtcp2_rtb_remove_all removes all packets from |rtb| and prepends
+ * ngtcp2_rtb_remove_all removes all packets from |rtb|, and prepends
  * all frames to |*pfrc|.  Even when this function fails, some frames
- * might be prepended to |*pfrc| and the caller should handle them.
+ * might be prepended to |*pfrc|, and the caller should handle them.
  */
 int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                           ngtcp2_pktns *pktns, ngtcp2_conn_stat *cstat);
@@ -432,9 +282,9 @@ int ngtcp2_rtb_remove_all(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
 void ngtcp2_rtb_remove_early_data(ngtcp2_rtb *rtb, ngtcp2_conn_stat *cstat);
 
 /*
- * ngtcp2_rtb_empty returns nonzero if |rtb| have no entry.
+ * ngtcp2_rtb_empty returns nonzero if |rtb| has no entry.
  */
-int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
+int ngtcp2_rtb_empty(const ngtcp2_rtb *rtb);
 
 /*
  * ngtcp2_rtb_reset_cc_state resets congestion state in |rtb|.
@@ -444,15 +294,15 @@ int ngtcp2_rtb_empty(ngtcp2_rtb *rtb);
 void ngtcp2_rtb_reset_cc_state(ngtcp2_rtb *rtb, int64_t cc_pkt_num);
 
 /*
- * ngtcp2_rtb_remove_expired_lost_pkt ensures that the number of lost
- * packets at most |n|.
+ * ngtcp2_rtb_remove_excessive_lost_pkt ensures that the number of
+ * lost packets is at most |n|.
  */
 void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
 
 /*
  * ngtcp2_rtb_reclaim_on_pto reclaims up to |num_pkts| packets which
- * are in-flight and not marked lost to send them in PTO probe.  The
- * reclaimed frames are chained to |*pfrc|.
+ * are in-flight and not marked lost.  The reclaimed frames may be
+ * sent in a PTO probe packet.
  *
  * This function returns the number of packets reclaimed if it
  * succeeds, or one of the following negative error codes:
@@ -463,4 +313,4 @@ void ngtcp2_rtb_remove_excessive_lost_pkt(ngtcp2_rtb *rtb, size_t n);
 ngtcp2_ssize ngtcp2_rtb_reclaim_on_pto(ngtcp2_rtb *rtb, ngtcp2_conn *conn,
                                        ngtcp2_pktns *pktns, size_t num_pkts);
 
-#endif /* NGTCP2_RTB_H */
+#endif /* !defined(NGTCP2_RTB_H) */

@@ -3,19 +3,19 @@
 // found in the LICENSE file.
 //
 // Flags: --no-liftoff
-load("test/mjsunit/wasm/wasm-module-builder.js");
+d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 var builder = new WasmModuleBuilder();
 
-builder.addMemory(1, 1, /* exported = */ false);
+builder.addMemory(1, 1);
 
 builder.addFunction("main", kSig_i_i).addBody([
     kExprLocalGet, 0,
     kExprIf, kWasmI32,
       kExprLocalGet, 0,
     kExprElse,
-      kExprI32Const, 42, // value
-      kExprI32Const, 0,  // index
+      kExprI32Const, 42, // index
+      kExprI32Const, 0,  // value
       kExprI32StoreMem, 0, 0,
       kExprI32Const, 11,
       kExprLocalGet, 0,

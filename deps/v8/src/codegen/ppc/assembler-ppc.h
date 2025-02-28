@@ -76,7 +76,7 @@ class V8_EXPORT_PRIVATE Operand {
     value_.immediate = static_cast<intptr_t>(f.address());
   }
   explicit Operand(Handle<HeapObject> handle);
-  V8_INLINE explicit Operand(Smi value) : rmode_(RelocInfo::NO_INFO) {
+  V8_INLINE explicit Operand(Tagged<Smi> value) : rmode_(RelocInfo::NO_INFO) {
     value_.immediate = static_cast<intptr_t>(value.ptr());
   }
   // rm
@@ -184,13 +184,15 @@ class Assembler : public AssemblerBase {
 
   // GetCode emits any pending (non-emitted) code and fills the descriptor desc.
   static constexpr int kNoHandlerTable = 0;
-  static constexpr SafepointTableBuilder* kNoSafepointTable = nullptr;
-  void GetCode(Isolate* isolate, CodeDesc* desc,
-               SafepointTableBuilder* safepoint_table_builder,
+  static constexpr SafepointTableBuilderBase* kNoSafepointTable = nullptr;
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc,
+               SafepointTableBuilderBase* safepoint_table_builder,
                int handler_table_offset);
 
+  // Convenience wrapper for allocating with an Isolate.
+  void GetCode(Isolate* isolate, CodeDesc* desc);
   // Convenience wrapper for code without safepoint or handler tables.
-  void GetCode(Isolate* isolate, CodeDesc* desc) {
+  void GetCode(LocalIsolate* isolate, CodeDesc* desc) {
     GetCode(isolate, desc, kNoSafepointTable, kNoHandlerTable);
   }
 
@@ -276,7 +278,7 @@ class Assembler : public AssemblerBase {
   // This sets the branch destination.
   // This is for calls and branches within generated code.
   inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Code code, Address target);
+      Address instruction_payload, Tagged<Code>, Address target);
 
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
@@ -287,6 +289,12 @@ class Assembler : public AssemblerBase {
       Address pc, Address target,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
+  // Read/modify the uint32 constant used at pc.
+  static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
+  static inline void set_uint32_constant_at(
+      Address pc, Address constant_pool, uint32_t new_constant,
+      ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
+
   // Here we are patching the address in the LUI/ORI instruction pair.
   // These values are used in the serialization process and must be zero for
   // PPC platform, as Code, Embedded Object or External-reference pointers
@@ -296,18 +304,12 @@ class Assembler : public AssemblerBase {
   static constexpr int kSpecialTargetSize = 0;
 
 // Number of instructions to load an address via a mov sequence.
-#if V8_TARGET_ARCH_PPC64
   static constexpr int kMovInstructionsConstantPool = 1;
   static constexpr int kMovInstructionsNoConstantPool = 5;
 #if defined(V8_PPC_TAGGING_OPT)
   static constexpr int kTaggedLoadInstructions = 1;
 #else
   static constexpr int kTaggedLoadInstructions = 2;
-#endif
-#else
-  static constexpr int kMovInstructionsConstantPool = 1;
-  static constexpr int kMovInstructionsNoConstantPool = 2;
-  static constexpr int kTaggedLoadInstructions = 1;
 #endif
   static constexpr int kMovInstructions = V8_EMBEDDED_CONSTANT_POOL_BOOL
                                               ? kMovInstructionsConstantPool
@@ -373,7 +375,6 @@ class Assembler : public AssemblerBase {
   }
 #define DECLARE_PPC_X_INSTRUCTIONS_EH_L_FORM(name, instr_name, instr_value) \
   inline void name(const Register dst, const MemOperand& src) {             \
-    DCHECK(src.ra_ != r0);                                                  \
     x_form(instr_name, src.ra(), dst, src.rb(), SetEH);                     \
   }
 
@@ -390,11 +391,7 @@ class Assembler : public AssemblerBase {
   }
   inline void x_form(Instr instr, CRegister cr, Register s1, Register s2,
                      RCBit rc) {
-#if V8_TARGET_ARCH_PPC64
     int L = 1;
-#else
-    int L = 0;
-#endif
     emit(instr | cr.code() * B23 | L * B21 | s1.code() * B16 | s2.code() * B11 |
          rc);
   }
@@ -413,22 +410,13 @@ class Assembler : public AssemblerBase {
     nor(dst, src, src, rc);
   }
   inline void lwax(Register rt, const MemOperand& src) {
-#if V8_TARGET_ARCH_PPC64
     Register ra = src.ra();
     Register rb = src.rb();
     DCHECK(ra != r0);
     x_form(LWAX, rt, ra, rb, LeaveRC);
-#else
-    lwzx(rt, src);
-#endif
   }
   inline void extsw(Register rs, Register ra, RCBit rc = LeaveRC) {
-#if V8_TARGET_ARCH_PPC64
     emit(EXT2 | EXTSW | ra.code() * B21 | rs.code() * B16 | rc);
-#else
-    // nop on 32-bit
-    DCHECK(rs == ra && rc == LeaveRC);
-#endif
   }
 
 #undef DECLARE_PPC_X_INSTRUCTIONS_A_FORM
@@ -472,15 +460,31 @@ class Assembler : public AssemblerBase {
 #undef DECLARE_PPC_XX2_VECTOR_INSTRUCTIONS
 #undef DECLARE_PPC_XX2_SCALAR_INSTRUCTIONS
 
-#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS(name, instr_name, instr_value) \
-  inline void name(const Simd128Register rt, const Simd128Register ra,     \
-                   const Simd128Register rb) {                             \
-    xx3_form(instr_name, rt, ra, rb);                                      \
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM(name, instr_name,     \
+                                                   instr_value)          \
+  inline void name(const Simd128Register rt, const Simd128Register ra,   \
+                   const Simd128Register rb, const RCBit rc = LeaveRC) { \
+    xx3_form(instr_name, rt, ra, rb, rc);                                \
+  }
+#define DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM(name, instr_name,   \
+                                                   instr_value)        \
+  inline void name(const Simd128Register rt, const Simd128Register ra, \
+                   const Simd128Register rb) {                         \
+    xx3_form(instr_name, rt, ra, rb);                                  \
   }
 #define DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS(name, instr_name, instr_value) \
   inline void name(const DoubleRegister rt, const DoubleRegister ra,       \
                    const DoubleRegister rb) {                              \
     xx3_form(instr_name, rt, ra, rb);                                      \
+  }
+
+  inline void xx3_form(Instr instr, Simd128Register t, Simd128Register a,
+                       Simd128Register b, int rc) {
+    // Using VR (high VSR) registers.
+    int AX = 1, BX = 1, TX = 1;
+
+    emit(instr | (t.code() & 0x1F) * B21 | (a.code() & 0x1F) * B16 |
+         (b.code() & 0x1F) * B11 | rc * B10 | AX * B2 | BX * B1 | TX);
   }
 
   template <typename T>
@@ -499,9 +503,11 @@ class Assembler : public AssemblerBase {
          (b.code() & 0x1F) * B11 | AX * B2 | BX * B1 | TX);
   }
 
-  PPC_XX3_OPCODE_VECTOR_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS)
+  PPC_XX3_OPCODE_VECTOR_A_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM)
+  PPC_XX3_OPCODE_VECTOR_B_FORM_LIST(DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM)
   PPC_XX3_OPCODE_SCALAR_LIST(DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS)
-#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_A_FORM
+#undef DECLARE_PPC_XX3_VECTOR_INSTRUCTIONS_B_FORM
 #undef DECLARE_PPC_XX3_SCALAR_INSTRUCTIONS
 
 #define DECLARE_PPC_VX_INSTRUCTIONS_A_FORM(name, instr_name, instr_value) \
@@ -933,7 +939,6 @@ class Assembler : public AssemblerBase {
   void stwu(Register dst, const MemOperand& src);
   void neg(Register rt, Register ra, OEBit o = LeaveOE, RCBit c = LeaveRC);
 
-#if V8_TARGET_ARCH_PPC64
   void ld(Register rd, const MemOperand& src);
   void ldu(Register rd, const MemOperand& src);
   void std(Register rs, const MemOperand& src);
@@ -959,7 +964,6 @@ class Assembler : public AssemblerBase {
             RCBit r = LeaveRC);
   void divdu(Register dst, Register src1, Register src2, OEBit o = LeaveOE,
              RCBit r = LeaveRC);
-#endif
 
   void rlwinm(Register ra, Register rs, int sh, int mb, int me,
               RCBit rc = LeaveRC);
@@ -984,9 +988,8 @@ class Assembler : public AssemblerBase {
   void bitwise_mov32(Register dst, int32_t value);
   void bitwise_add32(Register dst, Register src, int32_t value);
 
-  // Patch the offset to the return address after CallCFunction.
-  void patch_wasm_cpi_return_address(Register dst, int pc_offset,
-                                     int return_address_offset);
+  // Patch the offset to the return address after Call.
+  void patch_pc_address(Register dst, int pc_offset, int return_address_offset);
 
   // Load the position of the label relative to the generated code object
   // pointer in a register.
@@ -1022,13 +1025,11 @@ class Assembler : public AssemblerBase {
   void mcrfs(CRegister cr, FPSCRBit bit);
   void mfcr(Register dst);
   void mtcrf(Register src, uint8_t FXM);
-#if V8_TARGET_ARCH_PPC64
   void mffprd(Register dst, DoubleRegister src);
   void mffprwz(Register dst, DoubleRegister src);
   void mtfprd(DoubleRegister dst, Register src);
   void mtfprwz(DoubleRegister dst, Register src);
   void mtfprwa(DoubleRegister dst, Register src);
-#endif
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
@@ -1175,19 +1176,11 @@ class Assembler : public AssemblerBase {
   void nop(int type = 0);  // 0 is the default non-marking type.
 
   void push(Register src) {
-#if V8_TARGET_ARCH_PPC64
     stdu(src, MemOperand(sp, -kSystemPointerSize));
-#else
-    stwu(src, MemOperand(sp, -kSystemPointerSize));
-#endif
   }
 
   void pop(Register dst) {
-#if V8_TARGET_ARCH_PPC64
     ld(dst, MemOperand(sp));
-#else
-    lwz(dst, MemOperand(sp));
-#endif
     addi(sp, sp, Operand(kSystemPointerSize));
   }
 
@@ -1245,9 +1238,9 @@ class Assembler : public AssemblerBase {
   // Writes a single byte or word of data in the code stream.  Used
   // for inline tables, e.g., jump-tables.
   void db(uint8_t data);
-  void dd(uint32_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dq(uint64_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
-  void dp(uintptr_t data, RelocInfo::Mode rmode = RelocInfo::NO_INFO);
+  void dd(uint32_t data);
+  void dq(uint64_t data);
+  void dp(uintptr_t data);
 
   // Read/patch instructions
   Instr instr_at(int pos) {
@@ -1270,20 +1263,14 @@ class Assembler : public AssemblerBase {
   static bool IsBranch(Instr instr);
   static Register GetRA(Instr instr);
   static Register GetRB(Instr instr);
-#if V8_TARGET_ARCH_PPC64
   static bool Is64BitLoadIntoR12(Instr instr1, Instr instr2, Instr instr3,
                                  Instr instr4, Instr instr5);
-#else
-  static bool Is32BitLoadIntoR12(Instr instr1, Instr instr2);
-#endif
 
   static bool IsCmpRegister(Instr instr);
   static bool IsCmpImmediate(Instr instr);
   static bool IsRlwinm(Instr instr);
   static bool IsAndi(Instr instr);
-#if V8_TARGET_ARCH_PPC64
   static bool IsRldicl(Instr instr);
-#endif
   static bool IsCrSet(Instr instr);
   static Register GetCmpImmediateRegister(Instr instr);
   static int GetCmpImmediateRawImmediate(Instr instr);
@@ -1533,7 +1520,7 @@ class Assembler : public AssemblerBase {
   Trampoline trampoline_;
   bool internal_trampoline_exception_;
 
-  void AllocateAndInstallRequestedHeapNumbers(Isolate* isolate);
+  void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
 
@@ -1551,17 +1538,24 @@ class EnsureSpace {
 
 class PatchingAssembler : public Assembler {
  public:
-  PatchingAssembler(const AssemblerOptions& options, byte* address,
+  PatchingAssembler(const AssemblerOptions& options, uint8_t* address,
                     int instructions);
   ~PatchingAssembler();
 };
 
 class V8_EXPORT_PRIVATE V8_NODISCARD UseScratchRegisterScope {
  public:
-  explicit UseScratchRegisterScope(Assembler* assembler);
-  ~UseScratchRegisterScope();
+  explicit UseScratchRegisterScope(Assembler* assembler)
+      : assembler_(assembler),
+        old_available_(*assembler->GetScratchRegisterList()) {}
 
-  Register Acquire();
+  ~UseScratchRegisterScope() {
+    *assembler_->GetScratchRegisterList() = old_available_;
+  }
+
+  Register Acquire() {
+    return assembler_->GetScratchRegisterList()->PopFirst();
+  }
 
   // Check if we have registers available to acquire.
   bool CanAcquire() const {

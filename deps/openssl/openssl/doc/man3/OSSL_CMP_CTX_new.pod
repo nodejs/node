@@ -111,8 +111,8 @@ OSSL_CMP_CTX_set1_senderNonce
  int OSSL_CMP_CTX_set1_pkey(OSSL_CMP_CTX *ctx, EVP_PKEY *pkey);
  int OSSL_CMP_CTX_set1_referenceValue(OSSL_CMP_CTX *ctx,
                                       const unsigned char *ref, int len);
- int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx, const unsigned char *sec,
-                                   const int len);
+ int OSSL_CMP_CTX_set1_secretValue(OSSL_CMP_CTX *ctx,
+                                   const unsigned char *sec, int len);
 
  /* CMP message header and extra certificates: */
  int OSSL_CMP_CTX_set1_recipient(OSSL_CMP_CTX *ctx, const X509_NAME *name);
@@ -176,13 +176,14 @@ the message timeout is set to 120 seconds,
 and the proof-of-possession method is set to OSSL_CRMF_POPO_SIGNATURE.
 
 OSSL_CMP_CTX_free() deallocates an OSSL_CMP_CTX structure.
+If the argument is NULL, nothing is done.
 
 OSSL_CMP_CTX_reinit() prepares the given I<ctx> for a further transaction by
 clearing the internal CMP transaction (aka session) status, PKIStatusInfo,
 and any previous results (newCert, newChain, caPubs, and extraCertsIn)
 from the last executed transaction.
 It also clears any ITAVs that were added by OSSL_CMP_CTX_push0_genm_ITAV().
-All other field values (i.e., CMP options) are retained for potential re-use.
+All other field values (i.e., CMP options) are retained for potential reuse.
 
 OSSL_CMP_CTX_set_option() sets the given value for the given option
 (e.g., OSSL_CMP_OPT_IMPLICIT_CONFIRM) in the given OSSL_CMP_CTX structure.
@@ -260,12 +261,12 @@ The following options can be set:
 
 =item B<OSSL_CMP_OPT_OWF_ALGNID>
         The NID of the digest algorithm to be used as one-way function (OWF)
-        in RFC 4210's MSG_MAC_ALG for PBM-based message protection.
+        for MAC-based message protection with password-based MAC (PBM).
+        See RFC 4210 section 5.1.3.1 for details.
         Default is SHA256.
 
 =item B<OSSL_CMP_OPT_MAC_ALGNID>
-        The NID of the MAC algorithm to be used in RFC 4210's MSG_MAC_ALG
-        for PBM-based message protection.
+        The NID of the MAC algorithm to be used for message protection with PBM.
         Default is HMAC-SHA1 as per RFC 4210.
 
 =item B<OSSL_CMP_OPT_REVOCATION_REASON>
@@ -290,7 +291,7 @@ RFC 4210.
 
 =item B<OSSL_CMP_OPT_UNPROTECTED_SEND>
 
-        Send messages without CMP-level protection.
+        Send request or response messages without CMP-level protection.
 
 =item B<OSSL_CMP_OPT_UNPROTECTED_ERRORS>
 
@@ -312,6 +313,11 @@ RFC 4210.
 
         Allow retrieving a trust anchor from extraCerts and using that
         to validate the certificate chain of an IP message.
+        This is a quirk option added to support 3GPP TS 33.310.
+
+        Note that using this option is dangerous as the certificate obtained
+        this way has not been authenticated (at least not at CMP level).
+        Taking it over as a trust anchor implements trust-on-first-use (TOFU).
 
 =back
 
@@ -410,8 +416,8 @@ OSSL_CMP_CTX_set_transfer_cb_arg() or NULL if unset.
 
 OSSL_CMP_CTX_set1_srvCert() sets the expected server cert in I<ctx> and trusts
 it directly (even if it is expired) when verifying signed response messages.
-May be used alternatively to OSSL_CMP_CTX_set0_trustedStore()
-to pin the accepted server.
+This pins the accepted CMP server and
+results in ignoring whatever may be set using OSSL_CMP_CTX_set0_trustedStore().
 Any previously set value is freed.
 The I<cert> argument may be NULL to clear the entry.
 If set, the subject of the certificate is also used
@@ -419,7 +425,7 @@ as default value for the recipient of CMP requests
 and as default value for the expected sender of CMP responses.
 
 OSSL_CMP_CTX_set1_expected_sender() sets the Distinguished Name (DN)
-expected in the sender field of CMP response messages.
+expected in the sender field of incoming CMP messages.
 Defaults to the subject of the pinned server certificate, if any.
 This can be used to make sure that only a particular entity is accepted as
 CMP message signer, and attackers are not able to use arbitrary certificates
@@ -428,27 +434,30 @@ Note that this gives slightly more freedom than OSSL_CMP_CTX_set1_srvCert(),
 which pins the server to the holder of a particular certificate, while the
 expected sender name will continue to match after updates of the server cert.
 
-OSSL_CMP_CTX_set0_trustedStore() sets the certificate store of type X509_STORE
-containing trusted (root) CA certificates.
-The store may also hold CRLs and
-a certificate verification callback function used for CMP server authentication.
+OSSL_CMP_CTX_set0_trustedStore()
+sets in the CMP context I<ctx> the certificate store of type X509_STORE
+containing trusted certificates, typically of root CAs.
+This is ignored when a certificate is pinned using OSSL_CMP_CTX_set1_srvCert().
+The store may also hold CRLs and a certificate verification callback function
+used for signature-based peer authentication.
 Any store entry already set before is freed.
 When given a NULL parameter the entry is cleared.
 
-OSSL_CMP_CTX_get0_trustedStore() returns a pointer to the currently set
-certificate store containing trusted cert etc., or an empty store if unset.
+OSSL_CMP_CTX_get0_trustedStore()
+extracts from the CMP context I<ctx> the pointer to the currently set
+certificate store containing trust anchors etc., or an empty store if unset.
 
 OSSL_CMP_CTX_set1_untrusted() sets up a list of non-trusted certificates
-of intermediate CAs that may be useful for path construction for the CMP client
-certificate, for the TLS client certificate (if any), when verifying
-the CMP server certificate, and when verifying newly enrolled certificates.
+of intermediate CAs that may be useful for path construction for the own CMP
+signer certificate, for the own TLS certificate (if any), when verifying peer
+CMP protection certificates, and when verifying newly enrolled certificates.
 The reference counts of those certificates handled successfully are increased.
 
 OSSL_CMP_CTX_get0_untrusted(OSSL_CMP_CTX *ctx) returns a pointer to the
 list of untrusted certs, which may be empty if unset.
 
-OSSL_CMP_CTX_set1_cert() sets the certificate related to the client's private key
-used for CMP message protection.
+OSSL_CMP_CTX_set1_cert() sets the CMP signer certificate, also called protection
+certificate, related to the private key for signature-based message protection.
 Therefore the public key of this I<cert> must correspond to
 the private key set before or thereafter via OSSL_CMP_CTX_set1_pkey().
 When using signature-based protection of CMP request messages
@@ -464,7 +473,7 @@ OSSL_CMP_CTX_build_cert_chain() builds a certificate chain for the CMP signer
 certificate previously set in the I<ctx>. It adds the optional I<candidates>,
 a list of intermediate CA certs that may already constitute the targeted chain,
 to the untrusted certs that may already exist in the I<ctx>.
-Then the function uses this augumented set of certs for chain construction.
+Then the function uses this augmented set of certs for chain construction.
 If I<own_trusted> is NULL it builds the chain as far down as possible and
 ignores any verification errors. Else the CMP signer certificate must be
 verifiable where the chain reaches a trust anchor contained in I<own_trusted>.
@@ -478,15 +487,15 @@ OSSL_CMP_CTX_set1_pkey() sets the client's private key corresponding to the
 CMP signer certificate set via OSSL_CMP_CTX_set1_cert().
 This key is used create signature-based protection (protectionAlg = MSG_SIG_ALG)
 of outgoing messages
-unless a PBM secret has been set via OSSL_CMP_CTX_set1_secretValue().
+unless a symmetric secret has been set via OSSL_CMP_CTX_set1_secretValue().
 The I<pkey> argument may be NULL to clear the entry.
 
-OSSL_CMP_CTX_set1_secretValue() sets the byte string I<sec> with length I<len>
-as PBM secret in the given I<ctx> or clears it if the I<sec> argument is NULL.
-If present, this secret is used to create PBM-based protection of outgoing
-messages and to verify any PBM-based protection of incoming messages
-(protectionAlg = MSG_MAC_ALG). PBM stands for Password-Based MAC.
-PBM-based protection takes precedence over signature-based protection.
+OSSL_CMP_CTX_set1_secretValue() sets in I<ctx> the byte string I<sec> of length
+I<len> to use as pre-shared secret, or clears it if the I<sec> argument is NULL.
+If present, this secret is used to create MAC-based authentication and integrity
+protection (rather than applying signature-based protection)
+of outgoing messages and to verify authenticity and integrity of incoming
+messages that have MAC-based protection (protectionAlg = C<MSG_MAC_ALG>).
 
 OSSL_CMP_CTX_set1_referenceValue() sets the given referenceValue I<ref> with
 length I<len> in the given I<ctx> or clears it if the I<ref> argument is NULL.
@@ -497,7 +506,7 @@ then the sender field will contain the NULL-DN
 and the senderKID field of the CMP message header must be set.
 When signature-based protection is used the senderKID will be set to
 the subjectKeyIdentifier of the CMP signer certificate as far as present.
-If not present or when PBM-based protection is used
+If not present or when MAC-based protection is used
 the I<ref> value is taken as the fallback value for the senderKID.
 
 OSSL_CMP_CTX_set1_recipient() sets the recipient name that will be used in the
@@ -587,6 +596,7 @@ If the callback argument is not NULL it must point to a trust store.
 In this case the function checks that the newly enrolled certificate can be
 verified using this trust store and untrusted certificates from the I<ctx>,
 which have been augmented by the list of extraCerts received.
+During this verification, any certificate status checking is disabled.
 If the callback argument is NULL the function tries building an approximate
 chain as far as possible using the same untrusted certificates from the I<ctx>,
 and if this fails it takes the received extraCerts as fallback.
@@ -623,7 +633,7 @@ OSSL_CMP_CTX_set_certConf_cb_arg(), or NULL if unset.
 
 OSSL_CMP_CTX_get_status() returns for client contexts the PKIstatus from
 the last received CertRepMessage or Revocation Response or error message:
-=item B<OSSL_CMP_PKISTATUS_accepted> on sucessful receipt of a GENP message:
+=item B<OSSL_CMP_PKISTATUS_accepted> on successful receipt of a GENP message:
 
 =over 4
 
@@ -727,7 +737,7 @@ Set up a CMP client context for sending requests and verifying responses:
     OSSL_CMP_CTX_set1_serverPath(cmp_ctx, path_or_alias);
     OSSL_CMP_CTX_set0_trustedStore(cmp_ctx, ts);
 
-Set up client credentials for password-based protection (PBM):
+Set up symmetric credentials for MAC-based message protection such as PBM:
 
     OSSL_CMP_CTX_set1_referenceValue(cmp_ctx, ref, ref_len);
     OSSL_CMP_CTX_set1_secretValue(cmp_ctx, sec, sec_len);
@@ -792,7 +802,7 @@ OSSL_CMP_CTX_reset_geninfo_ITAVs() was added in OpenSSL 3.0.8.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

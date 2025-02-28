@@ -3,9 +3,9 @@
 // found in the LICENSE file.
 
 namespace array {
-transitioning macro TryFastPackedArrayWith(implicit context: Context)(
-    receiver: JSReceiver, len: Number, actualIndex: Number,
-    value: JSAny): JSArray labels Slow {
+transitioning macro TryFastPackedArrayWith(
+    implicit context: Context)(receiver: JSReceiver, len: Number,
+    actualIndex: Number, value: JSAny): JSArray labels Slow {
   // Array#with does not preserve holes and always creates packed Arrays. Holes
   // in the source array-like are treated like any other element and the value
   // is computed with Get. So, there are only fast paths for packed elements.
@@ -55,8 +55,8 @@ transitioning builtin GenericArrayWith(
 
 // https://tc39.es/proposal-change-array-by-copy/#sec-array.prototype.with
 transitioning javascript builtin ArrayPrototypeWith(
-    js-implicit context: NativeContext, receiver: JSAny)(
-    index: JSAny, value: JSAny): JSAny {
+    js-implicit context: NativeContext, receiver: JSAny)(index: JSAny,
+    value: JSAny): JSAny {
   // 1. Let O be ? ToObject(this value).
   const object: JSReceiver = ToObject_Inline(context, receiver);
 

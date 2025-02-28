@@ -100,6 +100,20 @@ TEST(OS, ParseProcMaps) {
   EXPECT_EQ(region->pathname,
             std::string("/lib/x86_64-linux-gnu/libc-2.33.so"));
 
+  // Large device numbers. (The major device number 0x103 is from a real
+  // system, the minor device number 0x104 is synthetic.)
+  line =
+      "556bea200000-556beaa1c000 r--p 00000000 103:104 22                      "
+      " /usr/local/bin/node";
+  region = MemoryRegion::FromMapsLine(line.c_str());
+  EXPECT_EQ(region->start, 0x556bea200000u);
+  EXPECT_EQ(region->end, 0x556beaa1c000u);
+  EXPECT_EQ(std::string(region->permissions), std::string("r--p"));
+  EXPECT_EQ(region->offset, 0x00000000);
+  EXPECT_EQ(region->dev, makedev(0x103, 0x104));
+  EXPECT_EQ(region->inode, 22u);
+  EXPECT_EQ(region->pathname, std::string("/usr/local/bin/node"));
+
   // Anonymous, but named.
   line =
       "5611cc7eb000-5611cc80c000 rw-p 00000000 00:00 0                         "
@@ -203,9 +217,7 @@ class ThreadLocalStorageTest : public Thread, public ::testing::Test {
   }
 
  private:
-  static void* GetValue(size_t x) {
-    return base::bit_cast<void*>(static_cast<uintptr_t>(x + 1));
-  }
+  static void* GetValue(size_t x) { return reinterpret_cast<void*>(x + 1); }
 
   // Older versions of Android have fewer TLS slots (nominally 64, but the
   // system uses "about 5 of them" itself).
@@ -267,10 +279,11 @@ namespace {
 
 static uintptr_t sp_addr = 0;
 
-void GetStackPointerCallback(const v8::FunctionCallbackInfo<v8::Value>& args) {
+void GetStackPointerCallback(const v8::FunctionCallbackInfo<v8::Value>& info) {
   GET_STACK_POINTER_TO(sp_addr);
-  args.GetReturnValue().Set(v8::Integer::NewFromUnsigned(
-      args.GetIsolate(), static_cast<uint32_t>(sp_addr)));
+  CHECK(i::ValidateCallbackInfo(info));
+  info.GetReturnValue().Set(v8::Integer::NewFromUnsigned(
+      info.GetIsolate(), static_cast<uint32_t>(sp_addr)));
 }
 
 using PlatformTest = v8::TestWithIsolate;

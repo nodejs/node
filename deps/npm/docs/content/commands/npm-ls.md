@@ -27,7 +27,7 @@ packages will *also* show the paths to the specified packages.  For
 example, running `npm ls promzard` in npm's source tree will show:
 
 ```bash
-npm@9.6.7 /path/to/npm
+npm@11.1.0 /path/to/npm
 └─┬ init-package-json@0.0.4
   └── promzard@0.1.5
 ```
@@ -43,34 +43,6 @@ dependencies, not the physical layout of your `node_modules` folder.
 
 When run as `ll` or `la`, it shows extended information by default.
 
-### Note: Design Changes Pending
-
-The `npm ls` command's output and behavior made a _ton_ of sense when npm
-created a `node_modules` folder that naively nested every dependency.  In
-such a case, the logical dependency graph and physical tree of packages on
-disk would be roughly identical.
-
-With the advent of automatic install-time deduplication of dependencies in
-npm v3, the `ls` output was modified to display the logical dependency
-graph as a tree structure, since this was more useful to most users.
-However, without using `npm ls -l`, it became impossible to show _where_ a
-package was actually installed much of the time!
-
-With the advent of automatic installation of `peerDependencies` in npm v7,
-this gets even more curious, as `peerDependencies` are logically
-"underneath" their dependents in the dependency graph, but are always
-physically at or above their location on disk.
-
-Also, in the years since npm got an `ls` command (in version 0.0.2!),
-dependency graphs have gotten much larger as a general rule.  Therefore, in
-order to avoid dumping an excessive amount of content to the terminal, `npm
-ls` now only shows the _top_ level dependencies, unless `--all` is
-provided.
-
-A thorough re-examination of the use cases, intention, behavior, and output
-of this command, is currently underway.  Expect significant changes to at
-least the default human-readable `npm ls` output in npm v8.
-
 ### Configuration
 
 #### `all`
@@ -81,6 +53,8 @@ least the default human-readable `npm ls` output in npm v8.
 When running `npm outdated` and `npm ls`, setting `--all` will show all
 outdated or installed packages, rather than only those directly depended
 upon by the current project.
+
+
 
 #### `json`
 
@@ -94,12 +68,16 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `long`
 
 * Default: false
 * Type: Boolean
 
 Show extended information in `ls`, `search`, and `help-search`.
+
+
 
 #### `parseable`
 
@@ -108,6 +86,8 @@ Show extended information in `ls`, `search`, and `help-search`.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `global`
 
@@ -123,15 +103,19 @@ folder instead of the current working directory. See
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
 
+
+
 #### `depth`
 
-* Default: `Infinity` if `--all` is set, otherwise `1`
+* Default: `Infinity` if `--all` is set, otherwise `0`
 * Type: null or Number
 
 The depth to go when recursing packages for `npm ls`.
 
 If not set, `npm ls` will show only the immediate dependencies of the root
 project. If `--all` is set, then npm will show all dependencies by default.
+
+
 
 #### `omit`
 
@@ -151,12 +135,30 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
+
+
+
 #### `link`
 
 * Default: false
 * Type: Boolean
 
 Used with `npm ls`, limiting output to only those packages that are linked.
+
+
 
 #### `package-lock-only`
 
@@ -172,6 +174,8 @@ instead of checking `node_modules` and downloading dependencies.
 For `list` this means the output will be based on the tree described by the
 `package-lock.json`, rather than the contents of `node_modules`.
 
+
+
 #### `unicode`
 
 * Default: false on windows, true on mac/unix systems with a unicode locale,
@@ -180,6 +184,8 @@ For `list` this means the output will be based on the tree described by the
 
 When set to true, npm uses unicode characters in the tree output. When
 false, it uses ascii characters instead of unicode glyphs.
+
+
 
 #### `workspace`
 
@@ -242,6 +248,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

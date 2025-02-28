@@ -95,6 +95,8 @@ When running `npm outdated` and `npm ls`, setting `--all` will show all
 outdated or installed packages, rather than only those directly depended
 upon by the current project.
 
+
+
 #### `json`
 
 * Default: false
@@ -107,12 +109,16 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `long`
 
 * Default: false
 * Type: Boolean
 
 Show extended information in `ls`, `search`, and `help-search`.
+
+
 
 #### `parseable`
 
@@ -121,6 +127,8 @@ Show extended information in `ls`, `search`, and `help-search`.
 
 Output parseable results from commands that write to standard output. For
 `npm search`, this will be tab-separated table format.
+
+
 
 #### `global`
 
@@ -135,6 +143,8 @@ folder instead of the current working directory. See
   of the current working directory.
 * bin files are linked to `{prefix}/bin`
 * man pages are linked to `{prefix}/share/man`
+
+
 
 #### `workspace`
 

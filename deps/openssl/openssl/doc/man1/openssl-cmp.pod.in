@@ -248,11 +248,15 @@ e.g., C<1.2.3.4:int:56789>.
 
 =item B<-newkey> I<filename>|I<uri>
 
-The source of the private or public key for the certificate requested
-in Initialization Request (IR), Certification Request(CR), or
-Key Update Request (KUR).
+The source of the private or public key for the certificate being requested.
 Defaults to the public key in the PKCS#10 CSR given with the B<-csr> option,
 the public key of the reference certificate, or the current client key.
+
+The public portion of the key is placed in the certification request.
+
+Unless B<-cmd> I<p10cr>, B<-popo> I<-1>, or B<-popo> I<0> is given, the
+private key will be needed as well to provide the proof of possession (POPO),
+where the B<-key> option may provide a fallback.
 
 =item B<-newkeypass> I<arg>
 
@@ -344,7 +348,7 @@ Flag the policies given with B<-policy_oids> as critical.
 
 =item B<-popo> I<number>
 
-Proof-of-Possession (POPO) method to use for IR/CR/KUR; values: C<-1>..<2> where
+Proof-of-possession (POPO) method to use for IR/CR/KUR; values: C<-1>..<2> where
 C<-1> = NONE, C<0> = RAVERIFIED, C<1> = SIGNATURE (default), C<2> = KEYENC.
 
 Note that a signature-based POPO can only be produced if a private key
@@ -354,15 +358,22 @@ is provided via the B<-newkey> or B<-key> options.
 
 PKCS#10 CSR in PEM or DER format containing a certificate request.
 With B<-cmd> I<p10cr> it is used directly in a legacy P10CR message.
+
 When used with B<-cmd> I<ir>, I<cr>, or I<kur>,
-it is transformed into the respective regular CMP request,
-while its public key is ignored if I<-newkey> is given.
-It may also be used with B<-cmd> I<rr> to specify the certificate to be revoked
+it is transformed into the respective regular CMP request.
+In this case, a private key must be provided (with B<-newkey> or B<-key>)
+for the proof of possession (unless B<-popo> I<-1> or B<-popo> I<0> is used)
+and the respective public key is placed in the certification request
+(rather than taking over the public key contained in the PKCS#10 CSR).
+
+PKCS#10 CSR input may also be used with B<-cmd> I<rr>
+to specify the certificate to be revoked
 via the included subject name and public key.
 
 =item B<-out_trusted> I<filenames>|I<uris>
 
 Trusted certificate(s) to use for validating the newly enrolled certificate.
+During this verification, any certificate status checking is disabled.
 
 Multiple sources may be given, separated by commas and/or whitespace
 (where in the latter case the whole argument must be enclosed in "...").
@@ -408,6 +419,7 @@ For RR the certificate to be revoked can also be specified using B<-csr>.
 The reference certificate, if any, is also used for
 deriving default subject DN and Subject Alternative Names and the
 default issuer entry in the requested certificate template of an IR/CR/KUR.
+Its public key is used as a fallback in the template of certification requests.
 Its subject is used as sender of outgoing messages if B<-cert> is not given.
 Its issuer is used as default recipient in CMP message headers
 if neither B<-recipient>, B<-srvcert>, nor B<-issuer> is given.
@@ -443,7 +455,8 @@ Reason numbers defined in RFC 5280 are:
 
 The DNS hostname or IP address and optionally port
 of the CMP server to connect to using HTTP(S).
-This excludes I<-port> and I<-use_mock_srv> and is ignored with I<-rspin>.
+This option excludes I<-port> and I<-use_mock_srv>.
+It is ignored if I<-rspin> is given with enough filename arguments.
 
 The scheme C<https> may be given only if the B<-tls_used> option is used.
 In this case the default port is 443, else 80.
@@ -523,15 +536,15 @@ Default is 0.
 
 =item B<-trusted> I<filenames>|I<uris>
 
-When validating signature-based protection of CMP response messages,
-these are the CA certificate(s) to trust while checking certificate chains
-during CMP server authentication.
-This option gives more flexibility than the B<-srvcert> option because the
-server-side CMP signer certificate is not pinned but may be any certificate
-for which a chain to one of the given trusted certificates can be constructed.
+The certificate(s), typically of root CAs, the client shall use as trust anchors
+when validating signature-based protection of CMP response messages.
+This option is ignored if the B<-srvcert> option is given as well.
+It provides more flexibility than B<-srvcert> because the CMP protection
+certificate of the server is not pinned but may be any certificate
+from which a chain to one of the given trust anchors can be constructed.
 
-If no B<-trusted>, B<-srvcert>, and B<-secret> option is given
-then protected response messages from the server are not authenticated.
+If none of B<-trusted>, B<-srvcert>, and B<-secret> is given, message validation
+errors will be thrown unless B<-unprotected_errors> permits an exception.
 
 Multiple sources may be given, separated by commas and/or whitespace
 (where in the latter case the whole argument must be enclosed in "...").
@@ -546,24 +559,24 @@ have no effect on the certificate verification enabled via this option.
 Non-trusted intermediate CA certificate(s).
 Any extra certificates given with the B<-cert> option are appended to it.
 All these certificates may be useful for cert path construction
-for the CMP client certificate (to include in the extraCerts field of outgoing
-messages) and for the TLS client certificate (if TLS is enabled)
+for the own CMP signer certificate (to include in the extraCerts field of
+request messages) and for the TLS client certificate (if TLS is enabled)
 as well as for chain building
-when validating the CMP server certificate (checking signature-based
+when validating server certificates (checking signature-based
 CMP message protection) and when validating newly enrolled certificates.
 
-Multiple sources may be given, separated by commas and/or whitespace.
-Each file may contain multiple certificates.
+Multiple filenames or URLs may be given, separated by commas and/or whitespace.
+Each source may contain multiple certificates.
 
 =item B<-srvcert> I<filename>|I<uri>
 
 The specific CMP server certificate to expect and directly trust (even if it is
-expired) when validating signature-based protection of CMP response messages.
-May be set alternatively to the B<-trusted> option to pin the accepted server.
+expired) when verifying signature-based protection of CMP response messages.
+This pins the accepted server and results in ignoring the B<-trusted> option.
 
 If set, the subject of the certificate is also used
 as default value for the recipient of CMP requests
-and as default value for the expected sender of incoming CMP messages.
+and as default value for the expected sender of CMP responses.
 
 =item B<-expect_sender> I<name>
 
@@ -583,8 +596,8 @@ For details see the description of the B<-subject> option.
 =item B<-ignore_keyusage>
 
 Ignore key usage restrictions in CMP signer certificates when validating
-signature-based protection of incoming CMP messages,
-else C<digitalSignature> must be allowed for signer certificate.
+signature-based protection of incoming CMP messages.
+By default, C<digitalSignature> must be allowed by CMP signer certificates.
 
 =item B<-unprotected_errors>
 
@@ -646,11 +659,12 @@ is typically used when authenticating with pre-shared key (password-based MAC).
 
 =item B<-secret> I<arg>
 
-Prefer PBM-based message protection with given source of a secret value.
-The secret is used for creating PBM-based protection of outgoing messages
-and (as far as needed) for validating PBM-based protection of incoming messages.
-PBM stands for Password-Based Message Authentication Code.
+Provides the source of a secret value to use with MAC-based message protection.
 This takes precedence over the B<-cert> and B<-key> options.
+The secret is used for creating MAC-based protection of outgoing messages
+and for validating incoming messages that have MAC-based protection.
+The algorithm used by default is Password-Based Message Authentication Code (PBM)
+as defined in RFC 4210 section 5.1.3.1.
 
 For more information about the format of I<arg> see
 L<openssl-passphrase-options(1)>.
@@ -659,17 +673,26 @@ L<openssl-passphrase-options(1)>.
 
 The client's current CMP signer certificate.
 Requires the corresponding key to be given with B<-key>.
+
+The subject and the public key contained in this certificate
+serve as fallback values in the certificate template of IR/CR/KUR messages.
+
 The subject of this certificate will be used as sender of outgoing CMP messages,
 while the subject of B<-oldcert> or B<-subjectName> may provide fallback values.
+
 The issuer of this certificate is used as one of the recipient fallback values
-and as fallback issuer entry in the certificate template of IR/CR/KUR.
-When using signature-based message protection, this "protection certificate"
+and as fallback issuer entry in the certificate template of IR/CR/KUR messages.
+
+When performing signature-based message protection,
+this "protection certificate", also called "signer certificate",
 will be included first in the extraCerts field of outgoing messages
 and the signature is done with the corresponding key.
 In Initialization Request (IR) messages this can be used for authenticating
 using an external entity certificate as defined in appendix E.7 of RFC 4210.
+
 For Key Update Request (KUR) messages this is also used as
 the certificate to be updated if the B<-oldcert> option is not given.
+
 If the file includes further certs, they are appended to the untrusted certs
 because they typically constitute the chain of the client certificate, which
 is included in the extraCerts field in signature-protected request messages.
@@ -692,8 +715,10 @@ have no effect on the certificate verification enabled via this option.
 
 The corresponding private key file for the client's current certificate given in
 the B<-cert> option.
-This will be used for signature-based message protection unless
-the B<-secret> option indicating PBM or B<-unprotected_requests> is given.
+This will be used for signature-based message protection unless the B<-secret>
+option indicating MAC-based protection or B<-unprotected_requests> is given.
+
+It is also used as a fallback for the B<-newkey> option with IR/CR/KUR messages.
 
 =item B<-keypass> I<arg>
 
@@ -707,15 +732,15 @@ L<openssl-passphrase-options(1)>.
 =item B<-digest> I<name>
 
 Specifies name of supported digest to use in RFC 4210's MSG_SIG_ALG
-and as the one-way function (OWF) in MSG_MAC_ALG.
+and as the one-way function (OWF) in C<MSG_MAC_ALG>.
 If applicable, this is used for message protection and
-Proof-of-Possession (POPO) signatures.
+proof-of-possession (POPO) signatures.
 To see the list of supported digests, use C<openssl list -digest-commands>.
 Defaults to C<sha256>.
 
 =item B<-mac> I<name>
 
-Specifies the name of the MAC algorithm in MSG_MAC_ALG.
+Specifies the name of the MAC algorithm in C<MSG_MAC_ALG>.
 To get the names of supported MAC algorithms use C<openssl list -mac-algorithms>
 and possibly combine such a name with the name of a supported digest algorithm,
 e.g., hmacWithSHA256.
@@ -732,7 +757,7 @@ Each source may contain multiple certificates.
 
 =item B<-unprotected_requests>
 
-Send messages without CMP-level protection.
+Send request messages without CMP-level protection.
 
 =back
 
@@ -801,11 +826,14 @@ B<-tls_key>.
 
 =item B<-tls_used>
 
-Enable using TLS (even when other TLS_related options are not set)
-when connecting to CMP server via HTTP.
-This option is not supported with the I<-port> option
-and is ignored with the I<-use_mock_srv> and I<-rspin> options
-or if the I<-server> option is not given.
+Enable using TLS (even when other TLS-related options are not set)
+for message exchange with CMP server via HTTP.
+This option is not supported with the I<-port> option.
+It is ignored if the I<-server> option is not given or I<-use_mock_srv> is given
+or I<-rspin> is given with enough filename arguments.
+
+The following TLS-related options are ignored
+if B<-tls_used> is not given or does not take effect.
 
 =item B<-tls_cert> I<filename>|I<uri>
 
@@ -867,46 +895,71 @@ Default is one invocation.
 
 =item B<-reqin> I<filenames>
 
-Take sequence of CMP requests from file(s).
+Take the sequence of CMP requests to send to the server from the given file(s)
+rather than from the sequence of requests produced internally.
+
+This option is ignored if the B<-rspin> option is given
+because in the latter case no requests are actually sent.
 
 Multiple filenames may be given, separated by commas and/or whitespace
 (where in the latter case the whole argument must be enclosed in "...").
-As many files are read as needed for a complete transaction.
+
+The files are read as far as needed to complete the transaction
+and filenames have been provided.  If more requests are needed,
+the remaining ones are taken from the items at the respective position
+in the sequence of requests produced internally.
+
+The client needs to update the recipNonce field in the given requests (except
+for the first one) in order to satisfy the checks to be performed by the server.
+This causes re-protection (if protecting requests is required).
 
 =item B<-reqin_new_tid>
 
 Use a fresh transactionID for CMP request messages read using B<-reqin>,
-which requires re-protecting them as far as they were protected before.
+which causes their reprotection (if protecting requests is required).
 This may be needed in case the sequence of requests is reused
 and the CMP server complains that the transaction ID has already been used.
 
 =item B<-reqout> I<filenames>
 
-Save sequence of CMP requests to file(s).
+Save the sequence of CMP requests created by the client to the given file(s).
+These requests are not sent to the server if the B<-reqin> option is used, too.
 
 Multiple filenames may be given, separated by commas and/or whitespace.
-As many files are written as needed to store the complete transaction.
+
+Files are written as far as needed to save the transaction
+and filenames have been provided.
+If the transaction contains more requests, the remaining ones are not saved.
 
 =item B<-rspin> I<filenames>
 
-Process sequence of CMP responses provided in file(s), skipping server.
-This excludes I<-server>, I<-port>, and I<-use_mock_srv>.
+Process the sequence of CMP responses provided in the given file(s),
+not contacting any given server,
+as long as enough filenames are provided to complete the transaction.
 
 Multiple filenames may be given, separated by commas and/or whitespace.
-As many files are read as needed for the complete transaction.
+
+Any server specified via the I<-server> or I<-use_mock_srv> options is contacted
+only if more responses are needed to complete the transaction.
+In this case the transaction will fail
+unless the server has been prepared to continue the already started transaction.
 
 =item B<-rspout> I<filenames>
 
-Save sequence of CMP responses to file(s).
+Save the sequence of actually used CMP responses to the given file(s).
+These have been received from the server unless B<-rspin> takes effect.
 
 Multiple filenames may be given, separated by commas and/or whitespace.
-As many files are written as needed to store the complete transaction.
+
+Files are written as far as needed to save the responses
+contained in the transaction and filenames have been provided.
+If the transaction contains more responses, the remaining ones are not saved.
 
 =item B<-use_mock_srv>
 
 Test the client using the internal CMP server mock-up at API level,
 bypassing socket-based transfer via HTTP.
-This excludes I<-server>, I<-port>, and I<-rspin>.
+This excludes the B<-server> and B<-port> options.
 
 =back
 
@@ -917,7 +970,9 @@ This excludes I<-server>, I<-port>, and I<-rspin>.
 =item B<-port> I<number>
 
 Act as HTTP-based CMP server mock-up listening on the given port.
-This excludes I<-server>, I<-rspin>, and I<-use_mock_srv>.
+This excludes the B<-server> and B<-use_mock_srv> options.
+The B<-rspin>, B<-rspout>, B<-reqin>, and B<-reqout> options
+so far are not supported in this mode.
 
 =item B<-max_msgs> I<number>
 
@@ -1022,10 +1077,11 @@ Accept missing or invalid protection of requests.
 =item B<-accept_unprot_err>
 
 Accept unprotected error messages from client.
+So far this has no effect because the server does not accept any error messages.
 
 =item B<-accept_raverified>
 
-Accept RAVERIFED as proof-of-possession (POPO).
+Accept RAVERIFED as proof of possession (POPO).
 
 =back
 
@@ -1042,6 +1098,13 @@ only affect the certificate verification enabled via the B<-out_trusted> option.
 =back
 
 =head1 NOTES
+
+When a client obtains from a CMP server CA certificates that it is going to
+trust, for instance via the C<caPubs> field of a certificate response,
+authentication of the CMP server is particularly critical.
+So special care must be taken setting up server authentication
+using B<-trusted> and related options for certificate-based authentication
+or B<-secret> for MAC-based protection.
 
 When setting up CMP configurations and experimenting with enrollment options
 typically various errors occur until the configuration is correct and complete.
@@ -1112,7 +1175,7 @@ In order to update the enrolled certificate one may call
 
   openssl cmp -section insta,kur
 
-using with PBM-based protection or
+using MAC-based protection with PBM or
 
   openssl cmp -section insta,kur,signature
 
@@ -1171,7 +1234,7 @@ Then it can start using the new cert and key.
     -newkey cl_key_new.pem -certout cl_cert.pem
   cp cl_key_new.pem cl_key.pem
 
-This command sequence can be repated as often as needed.
+This command sequence can be repeated as often as needed.
 
 =head2 Requesting information from CMP server
 

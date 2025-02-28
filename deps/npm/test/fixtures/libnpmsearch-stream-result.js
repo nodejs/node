@@ -141,28 +141,6 @@ module.exports = [
     ],
   },
   {
-    name: 'libnpmhook',
-    scope: 'unscoped',
-    version: '6.0.1',
-    description: 'programmatic API for managing npm registry hooks',
-    keywords: ['npm', 'hooks', 'registry', 'npm api'],
-    date: '2020-11-03T19:20:45.818Z',
-    links: {
-      npm: 'https://www.npmjs.com/package/libnpmhook',
-      homepage: 'https://github.com/npm/libnpmhook#readme',
-      repository: 'https://github.com/npm/libnpmhook',
-      bugs: 'https://github.com/npm/libnpmhook/issues',
-    },
-    author: { name: 'Kat Marchán', email: 'kzm@sykosomatic.org' },
-    publisher: { username: 'nlf', email: 'quitlahok@gmail.com' },
-    maintainers: [
-      { username: 'nlf', email: 'quitlahok@gmail.com' },
-      { username: 'ruyadorno', email: 'ruyadorno@hotmail.com' },
-      { username: 'darcyclarke', email: 'darcy@darcyclarke.me' },
-      { username: 'isaacs', email: 'i@izs.me' },
-    ],
-  },
-  {
     name: 'libnpmpublish',
     scope: 'unscoped',
     version: '4.0.0',
@@ -216,7 +194,10 @@ module.exports = [
     version: '1.0.1',
     description: 'Retrieves a name:pathname Map for a given workspaces config',
     keywords: [
-      'npm',
+      '\x1B[33mnpm\x1B[39m',
+      // eslint-disable-next-line no-octal-escape
+      '\x1b]4;0;?\007',
+      '\u001b[Hbad map',
       'npmcli',
       'libnpm',
       'cli',
@@ -240,10 +221,10 @@ module.exports = [
     ],
   },
   {
-    name: 'libnpmversion',
+    name: '\x1B[31mlibnpmversion\x1B[39m',
     scope: 'unscoped',
     version: '1.0.7',
-    description: "library to do the things that 'npm version' does",
+    description: "library to do the things that '\x1B[32mnpm version\x1B[39m' does",
     date: '2020-11-04T00:21:41.069Z',
     links: {
       npm: 'https://www.npmjs.com/package/libnpmversion',
@@ -259,7 +240,7 @@ module.exports = [
     },
     publisher: { username: 'isaacs', email: 'i@izs.me' },
     maintainers: [
-      { username: 'nlf', email: 'quitlahok@gmail.com' },
+      { username: '\x1B[34mnlf\x1B[39m', email: 'quitlahok@gmail.com' },
       { username: 'ruyadorno', email: 'ruyadorno@hotmail.com' },
       { username: 'darcyclarke', email: 'darcy@darcyclarke.me' },
       { username: 'isaacs', email: 'i@izs.me' },
@@ -274,5 +255,13 @@ module.exports = [
     links: { npm: 'https://www.npmjs.com/package/%40types%2Flibnpmsearch' },
     publisher: { username: 'types', email: 'ts-npm-types@microsoft.com' },
     maintainers: [{ username: 'types', email: 'ts-npm-types@microsoft.com' }],
+  },
+  {
+    name: 'pkg-no-desc',
+    scope: 'unscoped',
+    version: '1.0.0',
+    date: '2019-09-26T22:24:28.713Z',
+    publisher: { username: 'lukekarrys', email: 'lukekarrys' },
+    maintainers: [{ username: 'lukekarrys', email: 'lukekarrys' }],
   },
 ]

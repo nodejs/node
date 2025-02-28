@@ -134,9 +134,11 @@ class StructType : public ZoneObject {
         : zone_(zone),
           field_count_(field_count),
           cursor_(0),
-          field_offsets_(zone_->NewArray<uint32_t>(field_count_)),
-          buffer_(zone->NewArray<ValueType>(static_cast<int>(field_count))),
-          mutabilities_(zone->NewArray<bool>(static_cast<int>(field_count))) {}
+          field_offsets_(zone_->AllocateArray<uint32_t>(field_count_)),
+          buffer_(
+              zone->AllocateArray<ValueType>(static_cast<int>(field_count))),
+          mutabilities_(
+              zone->AllocateArray<bool>(static_cast<int>(field_count))) {}
 
     void AddField(ValueType type, bool mutability, uint32_t offset = 0) {
       DCHECK_LT(cursor_, field_count_);
@@ -209,6 +211,15 @@ inline std::ostream& operator<<(std::ostream& out, StructType type) {
   return out;
 }
 
+// Support base::hash<StructType>.
+inline size_t hash_value(const StructType& type) {
+  return base::Hasher{}
+      .Add(type.field_count())
+      .AddRange(type.fields())
+      .AddRange(type.mutabilities())
+      .hash();
+}
+
 class ArrayType : public ZoneObject {
  public:
   constexpr explicit ArrayType(ValueType rep, bool mutability)
@@ -232,6 +243,11 @@ class ArrayType : public ZoneObject {
 };
 
 inline constexpr intptr_t ArrayType::kRepOffset = offsetof(ArrayType, rep_);
+
+// Support base::hash<ArrayType>.
+inline size_t hash_value(const ArrayType& type) {
+  return base::Hasher::Combine(type.element_type(), type.mutability());
+}
 
 }  // namespace wasm
 }  // namespace internal

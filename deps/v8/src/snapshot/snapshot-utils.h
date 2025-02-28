@@ -11,7 +11,7 @@
 namespace v8 {
 namespace internal {
 
-V8_EXPORT_PRIVATE uint32_t Checksum(base::Vector<const byte> payload);
+V8_EXPORT_PRIVATE uint32_t Checksum(base::Vector<const uint8_t> payload);
 
 }  // namespace internal
 }  // namespace v8

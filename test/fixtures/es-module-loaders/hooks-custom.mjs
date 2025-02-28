@@ -6,7 +6,7 @@ import count from '../es-modules/stateful.mjs';
 // used to assert node-land and user-land have different contexts
 count();
 
-export function resolve(specifier, { importAssertions }, next) {
+export function resolve(specifier, { importAttributes }, next) {
   let format = '';
 
   if (specifier === 'esmHook/format.false') {
@@ -24,7 +24,7 @@ export function resolve(specifier, { importAssertions }, next) {
       format,
       shortCircuit: true,
       url: pathToFileURL(specifier).href,
-      importAssertions,
+      importAttributes,
     };
   }
 
@@ -95,6 +95,21 @@ export function load(url, context, next) {
       shortCircuit: true,
       source: `export const message = 'Woohoo!'.toUpperCase();`,
     };
+  }
+
+  if (url.endsWith('esmHook/commonJsNullSource.mjs')) {
+    return {
+      format: 'commonjs',
+      shortCircuit: true,
+      source: 1n,
+    };
+  }
+
+  if (url.endsWith('esmHook/maximumCallStack.mjs')) {
+    function recurse() {
+      recurse();
+    }
+    recurse();
   }
 
   return next(url);

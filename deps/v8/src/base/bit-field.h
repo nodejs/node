@@ -7,6 +7,8 @@
 
 #include <stdint.h>
 
+#include <algorithm>
+
 #include "src/base/macros.h"
 
 namespace v8 {
@@ -29,6 +31,7 @@ class BitField final {
   static_assert(size > 0);
 
   using FieldType = T;
+  using BaseType = U;
 
   // A type U mask of bit field.  To use all bits of a type U of x bits
   // in a bitfield without compiler warnings we have to compute 2^x
@@ -38,21 +41,14 @@ class BitField final {
   static constexpr U kMask = ((U{1} << kShift) << kSize) - (U{1} << kShift);
   static constexpr int kLastUsedBit = kShift + kSize - 1;
   static constexpr U kNumValues = U{1} << kSize;
-
-  // Value for the field with all bits set.
-  // If clang complains
-  // "constexpr variable 'kMax' must be initialized by a constant expression"
-  // on this line, then you're creating a BitField for an enum with more bits
-  // than needed for the enum values. Either reduce the BitField size,
-  // or give the enum an explicit underlying type.
-  static constexpr T kMax = static_cast<T>(kNumValues - 1);
+  static constexpr U kMax = kNumValues - 1;
 
   template <class T2, int size2>
   using Next = BitField<T2, kShift + kSize, size2, U>;
 
   // Tells whether the provided value fits into the bit field.
   static constexpr bool is_valid(T value) {
-    return (static_cast<U>(value) & ~static_cast<U>(kMax)) == 0;
+    return (static_cast<U>(value) & ~kMax) == 0;
   }
 
   // Returns a type U with the bit field value encoded.
@@ -70,6 +66,24 @@ class BitField final {
   static constexpr T decode(U value) {
     return static_cast<T>((value & kMask) >> kShift);
   }
+};
+
+// ----------------------------------------------------------------------------
+// BitFieldUnion can be used to combine two linear BitFields.
+// So far only the static mask is computed. Encoding and decoding tbd.
+// Can be used for example as a quick combined check:
+//   `if (BitFieldUnion<BFA, BFB>::kMask & bitfield) ...`
+
+template <typename A, typename B>
+class BitFieldUnion final {
+ public:
+  static_assert(
+      std::is_same<typename A::BaseType, typename B::BaseType>::value);
+  static_assert((A::kMask & B::kMask) == 0);
+  static constexpr int kShift = std::min(A::kShift, B::kShift);
+  static constexpr int kMask = A::kMask | B::kMask;
+  static constexpr int kSize =
+      A::kSize + B::kSize + (std::max(A::kShift, B::kShift) - kShift);
 };
 
 template <class T, int shift, int size>

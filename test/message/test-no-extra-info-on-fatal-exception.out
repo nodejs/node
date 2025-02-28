@@ -1,6 +1,0 @@
-*:7
-throw new Error('foo');
-^
-
-Error: foo
-    at Object.<anonymous> (*:7:7)

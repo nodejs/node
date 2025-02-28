@@ -5,6 +5,9 @@
 #include "src/heap/conservative-stack-visitor.h"
 
 #include "src/execution/isolate-inl.h"
+#include "src/heap/marking-inl.h"
+#include "src/heap/memory-chunk-metadata.h"
+#include "src/heap/memory-chunk.h"
 #include "src/objects/visitors.h"
 
 #ifdef V8_COMPRESS_POINTERS
@@ -16,140 +19,88 @@ namespace internal {
 
 ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
                                                    RootVisitor* delegate)
+    : ConservativeStackVisitor(isolate, delegate, delegate->collector()) {}
+
+ConservativeStackVisitor::ConservativeStackVisitor(Isolate* isolate,
+                                                   RootVisitor* delegate,
+                                                   GarbageCollector collector)
     : cage_base_(isolate),
+#ifdef V8_EXTERNAL_CODE_SPACE
+      code_cage_base_(isolate->code_cage_base()),
+      code_address_region_(isolate->heap()->code_region()),
+#endif
+#ifdef V8_ENABLE_SANDBOX
+      trusted_cage_base_(isolate->isolate_data()->trusted_cage_base_address()),
+#endif
       delegate_(delegate),
       allocator_(isolate->heap()->memory_allocator()),
-      collector_(delegate->collector()) {}
-
-namespace {
-
-// This utility function returns the highest address in the page that is lower
-// than maybe_inner_ptr, has its markbit set, and whose previous address (if it
-// exists) does not have its markbit set. This address is guaranteed to be the
-// start of a valid object in the page. In case the markbit corresponding to
-// maybe_inner_ptr is set, the function bails out and returns kNullAddress.
-Address FindPreviousObjectForConservativeMarking(const Page* page,
-                                                 Address maybe_inner_ptr) {
-  auto* bitmap = page->marking_bitmap<AccessMode::NON_ATOMIC>();
-  const MarkBit::CellType* cells = bitmap->cells();
-
-  // The first actual bit of the bitmap, corresponding to page->area_start(),
-  // is at start_index which is somewhere in (not necessarily at the start of)
-  // start_cell_index.
-  const uint32_t start_index = page->AddressToMarkbitIndex(page->area_start());
-  const uint32_t start_cell_index = Bitmap::IndexToCell(start_index);
-  // We assume that all markbits before start_index are clear:
-  // SLOW_DCHECK(bitmap->AllBitsClearInRange(0, start_index));
-  // This has already been checked for the entire bitmap before starting marking
-  // by MarkCompactCollector::VerifyMarkbitsAreClean.
-
-  const uint32_t index = page->AddressToMarkbitIndex(maybe_inner_ptr);
-  uint32_t cell_index = Bitmap::IndexToCell(index);
-  const MarkBit::CellType mask = 1u << Bitmap::IndexInCell(index);
-  MarkBit::CellType cell = cells[cell_index];
-
-  // If the markbit is already set, bail out.
-  if ((cell & mask) != 0) return kNullAddress;
-
-  // Clear the bits corresponding to higher addresses in the cell.
-  cell &= ((~static_cast<MarkBit::CellType>(0)) >>
-           (Bitmap::kBitsPerCell - Bitmap::IndexInCell(index) - 1));
-
-  // Traverse the bitmap backwards, until we find a markbit that is set and
-  // whose previous markbit (if it exists) is unset.
-  // First, iterate backwards to find a cell with any set markbit.
-  while (cell == 0 && cell_index > start_cell_index) cell = cells[--cell_index];
-  if (cell == 0) {
-    DCHECK_EQ(start_cell_index, cell_index);
-    // We have reached the start of the page.
-    return page->area_start();
-  }
-
-  // We have found such a cell.
-  const uint32_t leading_zeros = base::bits::CountLeadingZeros(cell);
-  const uint32_t leftmost_ones =
-      base::bits::CountLeadingZeros(~(cell << leading_zeros));
-  const uint32_t index_of_last_leftmost_one =
-      Bitmap::kBitsPerCell - leading_zeros - leftmost_ones;
-
-  // If the leftmost sequence of set bits does not reach the start of the cell,
-  // we found it.
-  if (index_of_last_leftmost_one > 0) {
-    return page->MarkbitIndexToAddress(cell_index * Bitmap::kBitsPerCell +
-                                       index_of_last_leftmost_one);
-  }
-
-  // The leftmost sequence of set bits reaches the start of the cell. We must
-  // keep traversing backwards until we find the first unset markbit.
-  if (cell_index == start_cell_index) {
-    // We have reached the start of the page.
-    return page->area_start();
-  }
-
-  // Iterate backwards to find a cell with any unset markbit.
-  do {
-    cell = cells[--cell_index];
-  } while (~cell == 0 && cell_index > start_cell_index);
-  if (~cell == 0) {
-    DCHECK_EQ(start_cell_index, cell_index);
-    // We have reached the start of the page.
-    return page->area_start();
-  }
-
-  // We have found such a cell.
-  const uint32_t leading_ones = base::bits::CountLeadingZeros(~cell);
-  const uint32_t index_of_last_leading_one =
-      Bitmap::kBitsPerCell - leading_ones;
-  DCHECK_LT(0, index_of_last_leading_one);
-  return page->MarkbitIndexToAddress(cell_index * Bitmap::kBitsPerCell +
-                                     index_of_last_leading_one);
+      collector_(collector) {
 }
 
-}  // namespace
+#ifdef V8_COMPRESS_POINTERS
+bool ConservativeStackVisitor::IsInterestingCage(
+    PtrComprCageBase cage_base) const {
+  if (cage_base == cage_base_) return true;
+#ifdef V8_EXTERNAL_CODE_SPACE
+  if (cage_base == code_cage_base_) return true;
+#endif
+#ifdef V8_ENABLE_SANDBOX
+  if (cage_base == trusted_cage_base_) return true;
+#endif
+  return false;
+}
+#endif  // V8_COMPRESS_POINTERS
 
-// static
-Address ConservativeStackVisitor::FindBasePtrForMarking(
-    Address maybe_inner_ptr, MemoryAllocator* allocator,
-    GarbageCollector collector) {
+Address ConservativeStackVisitor::FindBasePtr(
+    Address maybe_inner_ptr, PtrComprCageBase cage_base) const {
+#ifdef V8_COMPRESS_POINTERS
+  DCHECK(IsInterestingCage(cage_base));
+#endif  // V8_COMPRESS_POINTERS
   // Check if the pointer is contained by a normal or large page owned by this
   // heap. Bail out if it is not.
   const MemoryChunk* chunk =
-      allocator->LookupChunkContainingAddress(maybe_inner_ptr);
+      allocator_->LookupChunkContainingAddress(maybe_inner_ptr);
   if (chunk == nullptr) return kNullAddress;
-  DCHECK(chunk->Contains(maybe_inner_ptr));
+  const MemoryChunkMetadata* chunk_metadata = chunk->Metadata();
+  DCHECK(chunk_metadata->Contains(maybe_inner_ptr));
   // If it is contained in a large page, we want to mark the only object on it.
   if (chunk->IsLargePage()) {
     // This could be simplified if we could guarantee that there are no free
     // space or filler objects in large pages. A few cctests violate this now.
-    HeapObject obj(static_cast<const LargePage*>(chunk)->GetObject());
-    PtrComprCageBase cage_base{chunk->heap()->isolate()};
-    return obj.IsFreeSpaceOrFiller(cage_base) ? kNullAddress : obj.address();
+    Tagged<HeapObject> obj(
+        static_cast<const LargePageMetadata*>(chunk_metadata)->GetObject());
+    return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : obj.address();
   }
   // Otherwise, we have a pointer inside a normal page.
-  const Page* page = static_cast<const Page*>(chunk);
+  const PageMetadata* page = static_cast<const PageMetadata*>(chunk_metadata);
   // If it is not in the young generation and we're only interested in young
   // generation pointers, we must ignore it.
-  if (Heap::IsYoungGenerationCollector(collector) && !page->InYoungGeneration())
-    return kNullAddress;
-  // If it is in the young generation "from" semispace, it is not used and we
-  // must ignore it, as its markbits may not be clean.
-  if (page->IsFromPage()) return kNullAddress;
+  if (v8_flags.sticky_mark_bits) {
+    if (Heap::IsYoungGenerationCollector(collector_) &&
+        chunk->IsFlagSet(MemoryChunk::CONTAINS_ONLY_OLD))
+      return kNullAddress;
+  } else {
+    if (Heap::IsYoungGenerationCollector(collector_) &&
+        !chunk->InYoungGeneration())
+      return kNullAddress;
+
+    // If it is in the young generation "from" semispace, it is not used and we
+    // must ignore it, as its markbits may not be clean.
+    if (chunk->IsFromPage()) return kNullAddress;
+  }
+
   // Try to find the address of a previous valid object on this page.
   Address base_ptr =
-      FindPreviousObjectForConservativeMarking(page, maybe_inner_ptr);
-  // If the markbit is set, then we have an object that does not need to be
-  // marked.
-  if (base_ptr == kNullAddress) return kNullAddress;
+      MarkingBitmap::FindPreviousValidObject(page, maybe_inner_ptr);
   // Iterate through the objects in the page forwards, until we find the object
   // containing maybe_inner_ptr.
   DCHECK_LE(base_ptr, maybe_inner_ptr);
-  PtrComprCageBase cage_base{page->heap()->isolate()};
   while (true) {
-    HeapObject obj(HeapObject::FromAddress(base_ptr));
-    const int size = obj.Size(cage_base);
+    Tagged<HeapObject> obj(HeapObject::FromAddress(base_ptr));
+    const int size = obj->Size(cage_base);
     DCHECK_LT(0, size);
     if (maybe_inner_ptr < base_ptr + size)
-      return obj.IsFreeSpaceOrFiller(cage_base) ? kNullAddress : base_ptr;
+      return IsFreeSpaceOrFiller(obj, cage_base) ? kNullAddress : base_ptr;
     base_ptr += size;
     DCHECK_LT(base_ptr, page->area_end());
   }
@@ -161,16 +112,55 @@ void ConservativeStackVisitor::VisitPointer(const void* pointer) {
 #ifdef V8_COMPRESS_POINTERS
   V8HeapCompressionScheme::ProcessIntermediatePointers(
       cage_base_, address,
-      [this](Address ptr) { VisitConservativelyIfPointer(ptr); });
+      [this](Address ptr) { VisitConservativelyIfPointer(ptr, cage_base_); });
+#ifdef V8_EXTERNAL_CODE_SPACE
+  ExternalCodeCompressionScheme::ProcessIntermediatePointers(
+      code_cage_base_, address, [this](Address ptr) {
+        VisitConservativelyIfPointer(ptr, code_cage_base_);
+      });
+#endif  // V8_EXTERNAL_CODE_SPACE
+#ifdef V8_ENABLE_SANDBOX
+  TrustedSpaceCompressionScheme::ProcessIntermediatePointers(
+      trusted_cage_base_, address, [this](Address ptr) {
+        VisitConservativelyIfPointer(ptr, trusted_cage_base_);
+      });
+#endif  // V8_ENABLE_SANDBOX
 #endif  // V8_COMPRESS_POINTERS
 }
 
 void ConservativeStackVisitor::VisitConservativelyIfPointer(Address address) {
-  Address base_ptr = FindBasePtrForMarking(address, allocator_, collector_);
+#ifdef V8_COMPRESS_POINTERS
+  // Only proceed if the address falls in one of the interesting cages,
+  // otherwise bail out.
+  if (V8HeapCompressionScheme::GetPtrComprCageBaseAddress(address) ==
+      cage_base_.address()) {
+    VisitConservativelyIfPointer(address, cage_base_);
+  }
+#ifdef V8_EXTERNAL_CODE_SPACE
+  else if (code_address_region_.contains(address)) {
+    VisitConservativelyIfPointer(address, code_cage_base_);
+  }
+#endif  // V8_EXTERNAL_CODE_SPACE
+#else   // !V8_COMPRESS_POINTERS
+  VisitConservativelyIfPointer(address, cage_base_);
+#endif  // V8_COMPRESS_POINTERS
+}
+
+void ConservativeStackVisitor::VisitConservativelyIfPointer(
+    Address address, PtrComprCageBase cage_base) {
+  // Bail out immediately if the pointer is not in the space managed by the
+  // allocator.
+  if (allocator_->IsOutsideAllocatedSpace(address)) {
+    DCHECK_EQ(nullptr, allocator_->LookupChunkContainingAddress(address));
+    return;
+  }
+  // Proceed with inner-pointer resolution.
+  Address base_ptr = FindBasePtr(address, cage_base);
   if (base_ptr == kNullAddress) return;
-  HeapObject obj = HeapObject::FromAddress(base_ptr);
-  Object root = obj;
-  delegate_->VisitRootPointer(Root::kHandleScope, nullptr,
+  Tagged<HeapObject> obj = HeapObject::FromAddress(base_ptr);
+  Tagged<Object> root = obj;
+  DCHECK_NOT_NULL(delegate_);
+  delegate_->VisitRootPointer(Root::kStackRoots, nullptr,
                               FullObjectSlot(&root));
   // Check that the delegate visitor did not modify the root slot.
   DCHECK_EQ(root, obj);

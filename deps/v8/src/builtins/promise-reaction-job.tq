@@ -6,8 +6,7 @@
 
 namespace promise {
 
-transitioning
-macro RejectPromiseReactionJob(
+transitioning macro RejectPromiseReactionJob(
     context: Context,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined, reason: JSAny,
     reactionType: constexpr PromiseReactionType): JSAny {
@@ -39,8 +38,7 @@ macro RejectPromiseReactionJob(
   }
 }
 
-transitioning
-macro FuflfillPromiseReactionJob(
+transitioning macro FuflfillPromiseReactionJob(
     context: Context,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined, result: JSAny,
     reactionType: constexpr PromiseReactionType): JSAny {
@@ -69,8 +67,7 @@ macro FuflfillPromiseReactionJob(
 }
 
 // https://tc39.es/ecma262/#sec-promisereactionjob
-transitioning
-macro PromiseReactionJob(
+transitioning macro PromiseReactionJob(
     context: Context, argument: JSAny, handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined,
     reactionType: constexpr PromiseReactionType): JSAny {
@@ -105,17 +102,15 @@ macro PromiseReactionJob(
   }
 }
 
-transitioning builtin
-PromiseFulfillReactionJob(implicit context: Context)(
-    value: JSAny, handler: Callable|Undefined,
+transitioning builtin PromiseFulfillReactionJob(
+    implicit context: Context)(value: JSAny, handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
   return PromiseReactionJob(
       context, value, handler, promiseOrCapability, kPromiseReactionFulfill);
 }
 
-transitioning builtin
-PromiseRejectReactionJob(implicit context: Context)(
-    reason: JSAny, handler: Callable|Undefined,
+transitioning builtin PromiseRejectReactionJob(
+    implicit context: Context)(reason: JSAny, handler: Callable|Undefined,
     promiseOrCapability: JSPromise|PromiseCapability|Undefined): JSAny {
   return PromiseReactionJob(
       context, reason, handler, promiseOrCapability, kPromiseReactionReject);

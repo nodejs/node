@@ -65,14 +65,14 @@ Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
       value_(value),
       details_(kind, attributes, location, constness, representation,
                field_index) {
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 
 Descriptor::Descriptor(Handle<Name> key, const MaybeObjectHandle& value,
                        PropertyDetails details)
     : key_(key), value_(value), details_(details) {
-  DCHECK(key->IsUniqueName());
+  DCHECK(IsUniqueName(*key));
   DCHECK_IMPLIES(key->IsPrivate(), !details_.IsEnumerable());
 }
 
@@ -88,7 +88,7 @@ Descriptor Descriptor::DataField(Handle<Name> key, int field_index,
                                  PropertyConstness constness,
                                  Representation representation,
                                  const MaybeObjectHandle& wrapped_field_type) {
-  DCHECK(wrapped_field_type->IsSmi() || wrapped_field_type->IsWeak());
+  DCHECK(IsSmi(*wrapped_field_type) || IsWeak(*wrapped_field_type));
   PropertyDetails details(PropertyKind::kData, attributes,
                           PropertyLocation::kField, constness, representation,
                           field_index);
@@ -101,11 +101,11 @@ Descriptor Descriptor::DataConstant(Handle<Name> key, Handle<Object> value,
   return Descriptor(key, MaybeObjectHandle(value), PropertyKind::kData,
                     attributes, PropertyLocation::kDescriptor,
                     PropertyConstness::kConst,
-                    value->OptimalRepresentation(cage_base), 0);
+                    Object::OptimalRepresentation(*value, cage_base), 0);
 }
 
 Descriptor Descriptor::DataConstant(Isolate* isolate, Handle<Name> key,
-                                    int field_index, Handle<Object> value,
+                                    int field_index, DirectHandle<Object> value,
                                     PropertyAttributes attributes) {
   MaybeObjectHandle any_type(FieldType::Any(), isolate);
   return DataField(key, field_index, attributes, PropertyConstness::kConst,

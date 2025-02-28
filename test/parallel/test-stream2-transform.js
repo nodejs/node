@@ -213,9 +213,7 @@ const { PassThrough, Transform } = require('stream');
   pt.state = '';
 
   pt._transform = function(chunk, encoding, cb) {
-    if (!chunk)
-      chunk = '';
-    const s = chunk.toString();
+    const s = (chunk ||= '').toString();
     setTimeout(() => {
       this.state += s.charAt(0);
       if (this.state.length === 3) {
@@ -413,11 +411,11 @@ const { PassThrough, Transform } = require('stream');
     ended = true;
   });
 
-  objects.forEach(function(obj) {
+  for (const obj of objects) {
     jp.write(JSON.stringify(obj));
     const res = jp.read();
     assert.deepStrictEqual(res, obj);
-  });
+  }
 
   jp.end();
   // Read one more time to get the 'end' event
@@ -454,11 +452,11 @@ const { PassThrough, Transform } = require('stream');
     ended = true;
   });
 
-  objects.forEach(function(obj) {
+  for (const obj of objects) {
     js.write(obj);
     const res = js.read();
     assert.strictEqual(res, JSON.stringify(obj));
-  });
+  }
 
   js.end();
   // Read one more time to get the 'end' event

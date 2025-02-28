@@ -29,6 +29,8 @@ class BytecodeGeneratorTest : public TestWithContext {
     TestWithContext::SetUpTestSuite();
   }
 
+  void SetUp() override { TestWithContext::SetUp(); }
+
   BytecodeExpectationsPrinter& printer() { return printer_; }
 
  private:
@@ -1118,6 +1120,40 @@ TEST_F(BytecodeGeneratorTest, CompareTypeOf) {
 
   CHECK(CompareTexts(BuildActual(printer(), snippets),
                      LoadGolden("CompareTypeOf.golden")));
+}
+
+TEST_F(BytecodeGeneratorTest, VariableWithHint) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("test");
+
+  std::string snippets[] = {
+      "var test;\n"
+      "(function () {\n"
+      "    function foo() {\n"
+      "        let a = typeof('str'); if (a === 'string') {}\n"
+      "        let b = typeof('str'); if (b === 1) {}\n"
+      "        let c = typeof('str'); c = 1; if (c === 'string') {}\n"
+      "        let d = typeof('str');\n"
+      "        if (d === 'string' || d === 'number') {}\n"
+      "        let e = 'hello world';\n"
+      "        if (e == 'string' || e == 'number') {}\n"
+      "        let f = 'hi';\n"
+      "        for (let i = 0; i < 2; ++i) {\n"
+      "            if (f === 'hi') {}\n"
+      "        }\n"
+      "        let g = true;\n"
+      "        if (g === 's') {}\n"
+      "        let j = true;\n"
+      "        let k = j || 's';\n"
+      "        if (k === 's') {}\n"
+      "    }\n"
+      "    foo();\n"
+      "    test = foo;\n"
+      "})();\n",
+  };
+
+  CHECK(CompareTexts(BuildActual(printer(), snippets),
+                     LoadGolden("VariableWithHint.golden")));
 }
 
 TEST_F(BytecodeGeneratorTest, CompareBoolean) {
@@ -3202,6 +3238,136 @@ TEST_F(BytecodeGeneratorTest, ElideRedundantLoadOperationOfImmutableContext) {
   CHECK(CompareTexts(
       BuildActual(printer(), snippets),
       LoadGolden("ElideRedundantLoadOperationOfImmutableContext.golden")));
+}
+
+TEST_F(BytecodeGeneratorTest, ElideRedundantHoleChecks) {
+  printer().set_wrap(false);
+  printer().set_test_function_name("f");
+
+  // clang-format off
+  std::string snippets[] = {
+    // No control flow
+    "x; x;\n",
+
+    // 1-armed if
+    "if (x) { y; }\n"
+    "x + y;\n",
+
+    // 2-armed if
+    "if (a) { x; y; } else { x; z; }\n"
+    "x; y; z;\n",
+
+    // while
+    "while (x) { y; }\n"
+    "x; y;\n",
+
+    // do-while
+    "do { x; } while (y);\n"
+    "x; y;\n",
+
+    // do-while with break
+    "do { x; break; } while (y);\n"
+    "x; y;\n",
+
+    // C-style for
+    "for (x; y; z) { w; }\n"
+    "x; y; z; w;\n",
+
+    // for-in
+    "for (x in [y]) { z; }\n"
+    "x; y; z;\n",
+
+    // for-of
+    "for (x of [y]) { z; }\n"
+    "x; y; z;\n",
+
+    // try-catch
+    "try { x; } catch (y) { y; z; } finally { w; }\n"
+    "x; y; z; w;\n",
+
+    // destructuring init
+    "let { p = x } = { p: 42 }\n"
+    "x;\n",
+
+    // binary and
+    "let res = x && y && z\n"
+    "x; y; z;\n",
+
+    // binary or
+    "let res = x || y || z\n"
+    "x; y; z;\n",
+
+    // binary nullish
+    "let res = x ?? y ?? z\n"
+    "x; y; z;\n",
+
+    // optional chaining
+    "({p:42})?.[x]?.[x]?.[y];\n"
+    "x; y;\n",
+
+    // conditional and assignment
+    "x &&= y;\n"
+    "x; y;\n",
+
+    // conditional or assignment
+    "x ||= y;\n"
+    "x; y;\n",
+
+    // conditional nullish assignment
+    "x ??= y;\n"
+    "x; y;\n",
+
+    // switch
+    "switch (a) {\n"
+    "  case x: y; break;\n"
+    "  case 42: y; z;\n"
+    "  default: y; w;\n"
+    "}\n"
+    "x; y; z; w;\n",
+
+    // loathsome labeled breakable blocks
+    "lbl: {\n"
+    "  x;\n"
+    "  if (a) break lbl;\n"
+    "  y;\n"
+    "}\n"
+    "x; y;\n",
+
+    // unoffensive unlabeled blocks
+    "{\n"
+    "  x;\n"
+    "  y;\n"
+    "}\n"
+    "x; y;\n",
+
+    // try-catch
+    "try {\n"
+    "  x;\n"
+    "} catch (e) {}\n"
+    "x;\n",
+
+    // try-catch merge
+    "try {\n"
+    "  x;\n"
+    "} catch (e) { x; }\n"
+    "x;\n",
+
+    // try-finally
+    "try {\n"
+    "  x;\n"
+    "} finally { y; }\n"
+    "x; y;\n"
+  };
+  // clang-format on
+
+  CHECK(CompareTexts(BuildActual(printer(), snippets,
+                                 "{\n"
+                                 "  f = function f(a) {\n",
+                                 "  }\n"
+                                 "  let w, x, y, z;\n"
+                                 "  f();\n"
+                                 "}\n"),
+                     LoadGolden("ElideRedundantHoleChecks.golden")));
 }
 
 }  // namespace interpreter

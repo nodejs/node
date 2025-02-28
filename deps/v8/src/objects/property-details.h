@@ -50,8 +50,7 @@ enum PropertyFilter {
   ONLY_CONFIGURABLE = 4,
   SKIP_STRINGS = 8,
   SKIP_SYMBOLS = 16,
-  ONLY_ALL_CAN_READ = 32,
-  PRIVATE_NAMES_ONLY = 64,
+  PRIVATE_NAMES_ONLY = 32,
   ENUMERABLE_STRINGS = ONLY_ENUMERABLE | SKIP_SYMBOLS,
 };
 // Enable fast comparisons of PropertyAttributes against PropertyFilters.
@@ -59,8 +58,7 @@ static_assert(ALL_PROPERTIES == static_cast<PropertyFilter>(NONE));
 static_assert(ONLY_WRITABLE == static_cast<PropertyFilter>(READ_ONLY));
 static_assert(ONLY_ENUMERABLE == static_cast<PropertyFilter>(DONT_ENUM));
 static_assert(ONLY_CONFIGURABLE == static_cast<PropertyFilter>(DONT_DELETE));
-static_assert(((SKIP_STRINGS | SKIP_SYMBOLS | ONLY_ALL_CAN_READ) &
-               ALL_ATTRIBUTES_MASK) == 0);
+static_assert(((SKIP_STRINGS | SKIP_SYMBOLS) & ALL_ATTRIBUTES_MASK) == 0);
 static_assert(ALL_PROPERTIES ==
               static_cast<PropertyFilter>(v8::PropertyFilter::ALL_PROPERTIES));
 static_assert(ONLY_WRITABLE ==
@@ -228,6 +226,10 @@ class Representation {
     UNREACHABLE();
   }
 
+  bool operator==(const Representation& other) const {
+    return kind_ == other.kind_;
+  }
+
  private:
   explicit constexpr Representation(Kind k) : kind_(k) {}
 
@@ -345,8 +347,8 @@ class PropertyDetails {
   }
 
   // Conversion for storing details as Object.
-  explicit inline PropertyDetails(Smi smi);
-  inline Smi AsSmi() const;
+  explicit inline PropertyDetails(Tagged<Smi> smi);
+  inline Tagged<Smi> AsSmi() const;
 
   static constexpr uint8_t EncodeRepresentation(Representation representation) {
     return representation.kind();
@@ -448,7 +450,7 @@ class PropertyDetails {
     kPrintRepresentation = 1 << 2,
     kPrintPointer = 1 << 3,
 
-    kForProperties = kPrintFieldIndex,
+    kForProperties = kPrintFieldIndex | kPrintAttributes,
     kForTransitions = kPrintAttributes,
     kPrintFull = -1,
   };

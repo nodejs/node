@@ -25,12 +25,10 @@
 // (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 
-// Flags: --harmony-sharedarraybuffer
-
 if (this.Worker) {
   (function TestClone() {
     var workerScript =
-      `onmessage = function(m) {
+      `onmessage = function({data:m}) {
         var sab = m;
         var ta = new Uint32Array(sab);
         if (sab.byteLength !== 16) {
@@ -70,7 +68,7 @@ if (this.Worker) {
 
   (function TestCloneMulti() {
     var workerScript =
-      `onmessage = function(msg) {
+      `onmessage = function({data:msg}) {
        var sab = msg.sab;
        var id = msg.id;
        var ta = new Uint32Array(sab);

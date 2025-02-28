@@ -66,9 +66,8 @@ v8::MaybeLocal<v8::Object> AddressToJS(
 template <typename T, int (*F)(const typename T::HandleType*, sockaddr*, int*)>
 void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   T* wrap;
-  ASSIGN_OR_RETURN_UNWRAP(&wrap,
-                          args.Holder(),
-                          args.GetReturnValue().Set(UV_EBADF));
+  ASSIGN_OR_RETURN_UNWRAP(
+      &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsObject());
   sockaddr_storage storage;
   int addrlen = sizeof(storage);
@@ -79,14 +78,30 @@ void GetSockOrPeerName(const v8::FunctionCallbackInfo<v8::Value>& args) {
   args.GetReturnValue().Set(err);
 }
 
-void PrintStackTrace(v8::Isolate* isolate, v8::Local<v8::StackTrace> stack);
+constexpr int kMaxFrameCountForLogging = 10;
+v8::MaybeLocal<v8::StackTrace> GetCurrentStackTrace(
+    v8::Isolate* isolate, int frame_count = kMaxFrameCountForLogging);
+
+enum class StackTracePrefix {
+  kAt,  // "    at "
+  kNumber
+};
+void PrintCurrentStackTrace(v8::Isolate* isolate,
+                            StackTracePrefix prefix = StackTracePrefix::kAt);
+void PrintStackTrace(v8::Isolate* isolate,
+                     v8::Local<v8::StackTrace> stack,
+                     StackTracePrefix prefix = StackTracePrefix::kAt);
 void PrintCaughtException(v8::Isolate* isolate,
                           v8::Local<v8::Context> context,
                           const v8::TryCatch& try_catch);
 std::string FormatCaughtException(v8::Isolate* isolate,
                                   v8::Local<v8::Context> context,
                                   const v8::TryCatch& try_catch);
-
+std::string FormatErrorMessage(v8::Isolate* isolate,
+                               v8::Local<v8::Context> context,
+                               const std::string& reason,
+                               v8::Local<v8::Message> message,
+                               bool add_source_line = true);
 void ResetStdio();  // Safe to call more than once and from signal handlers.
 #ifdef __POSIX__
 void SignalExit(int signal, siginfo_t* info, void* ucontext);
@@ -95,10 +110,10 @@ void SignalExit(int signal, siginfo_t* info, void* ucontext);
 std::string GetProcessTitle(const char* default_title);
 std::string GetHumanReadableProcessName();
 
-v8::Maybe<bool> InitializeBaseContextForSnapshot(
+v8::Maybe<void> InitializeBaseContextForSnapshot(
     v8::Local<v8::Context> context);
-v8::Maybe<bool> InitializeContextRuntime(v8::Local<v8::Context> context);
-v8::Maybe<bool> InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -107,7 +122,6 @@ class NodeArrayBufferAllocator : public ArrayBufferAllocator {
   void* Allocate(size_t size) override;  // Defined in src/node.cc
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   virtual void RegisterPointer(void* data, size_t size) {
     total_mem_usage_.fetch_add(size, std::memory_order_relaxed);
   }
@@ -135,7 +149,6 @@ class DebuggingArrayBufferAllocator final : public NodeArrayBufferAllocator {
   void* Allocate(size_t size) override;
   void* AllocateUninitialized(size_t size) override;
   void Free(void* data, size_t size) override;
-  void* Reallocate(void* data, size_t old_size, size_t size) override;
   void RegisterPointer(void* data, size_t size) override;
   void UnregisterPointer(void* data, size_t size) override;
 
@@ -180,16 +193,13 @@ static v8::MaybeLocal<v8::Object> New(Environment* env,
   char* src = reinterpret_cast<char*>(buf->out());
   const size_t len_in_bytes = buf->length() * sizeof(buf->out()[0]);
 
-  if (buf->IsAllocated())
+  if (buf->IsAllocated()) {
     ret = New(env, src, len_in_bytes);
-  else if (!buf->IsInvalidated())
-    ret = Copy(env, src, len_in_bytes);
-
-  if (ret.IsEmpty())
-    return ret;
-
-  if (buf->IsAllocated())
+    // new always takes ownership of src
     buf->Release();
+  } else if (!buf->IsInvalidated()) {
+    ret = Copy(env, src, len_in_bytes);
+  }
 
   return ret;
 }
@@ -202,7 +212,17 @@ v8::MaybeLocal<v8::Value> InternalMakeCallback(
     const v8::Local<v8::Function> callback,
     int argc,
     v8::Local<v8::Value> argv[],
-    async_context asyncContext);
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
+
+v8::MaybeLocal<v8::Value> InternalMakeCallback(
+    v8::Isolate* isolate,
+    v8::Local<v8::Object> recv,
+    const v8::Local<v8::Function> callback,
+    int argc,
+    v8::Local<v8::Value> argv[],
+    async_context asyncContext,
+    v8::Local<v8::Value> context_frame);
 
 v8::MaybeLocal<v8::Value> MakeSyncCallback(v8::Isolate* isolate,
                                            v8::Local<v8::Object> recv,
@@ -222,10 +242,13 @@ class InternalCallbackScope {
     // compatibility issues, but it shouldn't.)
     kSkipTaskQueues = 2
   };
-  InternalCallbackScope(Environment* env,
-                        v8::Local<v8::Object> object,
-                        const async_context& asyncContext,
-                        int flags = kNoFlags);
+  InternalCallbackScope(
+      Environment* env,
+      v8::Local<v8::Object> object,
+      const async_context& asyncContext,
+      int flags = kNoFlags,
+      v8::Local<v8::Value> context_frame = v8::Local<v8::Value>());
+
   // Utility that can be used by AsyncWrap classes.
   explicit InternalCallbackScope(AsyncWrap* async_wrap, int flags = 0);
   ~InternalCallbackScope();
@@ -243,6 +266,7 @@ class InternalCallbackScope {
   bool failed_ = false;
   bool pushed_ids_ = false;
   bool closed_ = false;
+  v8::Global<v8::Value> prior_context_frame_;
 };
 
 class DebugSealHandleScope {
@@ -297,11 +321,14 @@ class ThreadPoolWork {
 #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr,
-                v8::Isolate* isolate = nullptr);
+bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
 }  // namespace credentials
+
+void TraceEnvVar(Environment* env, const char* message);
+void TraceEnvVar(Environment* env, const char* message, const char* key);
+void TraceEnvVar(Environment* env,
+                 const char* message,
+                 v8::Local<v8::String> key);
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
@@ -318,7 +345,7 @@ void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {
  public:
-  ~InitializationResultImpl();
+  ~InitializationResultImpl() = default;
   int exit_code() const { return static_cast<int>(exit_code_enum()); }
   ExitCode exit_code_enum() const { return exit_code_; }
   bool early_return() const { return early_return_; }
@@ -353,11 +380,12 @@ bool HasSignalJSHandler(int signum);
 
 #ifdef _WIN32
 typedef SYSTEMTIME TIME_TYPE;
-#else  // UNIX, OSX
+#else  // UNIX, macOS
 typedef struct tm TIME_TYPE;
 #endif
 
 double GetCurrentTimeInMicroseconds();
+int WriteFileSync(const char* path, uv_buf_t* bufs, size_t buf_count);
 int WriteFileSync(const char* path, uv_buf_t buf);
 int WriteFileSync(v8::Isolate* isolate,
                   const char* path,
@@ -402,12 +430,9 @@ BaseObjectPtr<AsyncWrap> CreateHeapSnapshotStream(
     Environment* env, HeapSnapshotPointer&& snapshot);
 }  // namespace heap
 
-namespace fs {
-std::string Basename(const std::string& str, const std::string& extension);
-}  // namespace fs
-
 node_module napi_module_to_node_module(const napi_module* mod);
 
+std::ostream& operator<<(std::ostream& output, const SnapshotFlags& flags);
 std::ostream& operator<<(std::ostream& output,
                          const std::vector<SnapshotIndex>& v);
 std::ostream& operator<<(std::ostream& output,
@@ -436,6 +461,10 @@ v8::HeapProfiler::HeapSnapshotOptions GetHeapSnapshotOptions(
     v8::Local<v8::Value> options);
 }  // namespace heap
 
+enum encoding ParseEncoding(v8::Isolate* isolate,
+                            v8::Local<v8::Value> encoding_v,
+                            v8::Local<v8::Value> encoding_id,
+                            enum encoding default_encoding);
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS

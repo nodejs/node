@@ -9,7 +9,8 @@ const kBuiltinNameReduceRight: constexpr string =
     '%TypedArray%.prototype.reduceRight';
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
-transitioning macro ReduceRightAllElements(implicit context: Context)(
+transitioning macro ReduceRightAllElements(
+    implicit context: Context)(
     attachedArrayAndLength: typed_array::AttachedJSTypedArrayAndLength,
     callbackfn: Callable, initialValue: JSAny|TheHole): JSAny {
   let witness =
@@ -49,8 +50,7 @@ transitioning macro ReduceRightAllElements(implicit context: Context)(
 }
 
 // https://tc39.github.io/ecma262/#sec-%typedarray%.prototype.reduceright
-transitioning javascript builtin
-TypedArrayPrototypeReduceRight(
+transitioning javascript builtin TypedArrayPrototypeReduceRight(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // arguments[0] = callback
   // arguments[1] = initialValue.
@@ -69,7 +69,7 @@ TypedArrayPrototypeReduceRight(
     return ReduceRightAllElements(
         attachedArrayAndLength, callbackfn, initialValue);
   } label NotCallable deferred {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, arguments[0]);
+    ThrowCalledNonCallable(arguments[0]);
   } label NotTypedArray deferred {
     ThrowTypeError(MessageTemplate::kNotTypedArray, kBuiltinNameReduceRight);
   } label IsDetachedOrOutOfBounds deferred {

@@ -17,11 +17,14 @@ namespace {
 
 class PagePromotionTest : public TestWithHeapInternalsAndContext {};
 
-Page* FindLastPageInNewSpace(const std::vector<Handle<FixedArray>>& handles) {
+PageMetadata* FindPageInNewSpace(
+    const std::vector<Handle<FixedArray>>& handles) {
   for (auto rit = handles.rbegin(); rit != handles.rend(); ++rit) {
     // One deref gets the Handle, the second deref gets the FixedArray.
-    Page* candidate = Page::FromHeapObject(**rit);
-    if (candidate->InNewSpace()) return candidate;
+    PageMetadata* candidate = PageMetadata::FromHeapObject(**rit);
+    if (candidate->Chunk()->InNewSpace() &&
+        candidate->heap()->new_space()->IsPromotionCandidate(candidate))
+      return candidate;
   }
   return nullptr;
 }
@@ -51,12 +54,13 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
 
     // Ensure that the new space is empty so that the page to be promoted
     // does not contain the age mark.
-    CollectGarbage(OLD_SPACE);
+    EmptyNewSpaceUsingGC();
 
     std::vector<Handle<FixedArray>> handles;
     SimulateFullSpace(heap->new_space(), &handles);
+    if (v8_flags.minor_ms) InvokeMinorGC();
     CHECK_GT(handles.size(), 0u);
-    Page* const to_be_promoted_page = FindLastPageInNewSpace(handles);
+    PageMetadata* const to_be_promoted_page = FindPageInNewSpace(handles);
     CHECK_NOT_NULL(to_be_promoted_page);
     CHECK(heap->new_space()->IsPromotionCandidate(to_be_promoted_page));
     // To perform a sanity check on live bytes we need to mark the heap.
@@ -65,16 +69,17 @@ TEST_F(PagePromotionTest, PagePromotion_NewToOld) {
     const int threshold_bytes = static_cast<int>(
         v8_flags.page_promotion_threshold *
         MemoryChunkLayout::AllocatableMemoryInDataPage() / 100);
-    CHECK_GE(heap->marking_state()->live_bytes(to_be_promoted_page),
-             threshold_bytes);
+    CHECK_GE(to_be_promoted_page->live_bytes(), threshold_bytes);
 
     // Actual checks: The page is in new space first, but is moved to old space
     // during a full GC.
-    CHECK(heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
-    CHECK(!heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
-    CollectGarbage(OLD_SPACE);
-    CHECK(!heap->new_space()->ContainsSlow(to_be_promoted_page->address()));
-    CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->address()));
+    CHECK(heap->new_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
+    CHECK(
+        !heap->old_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
+    EmptyNewSpaceUsingGC();
+    CHECK(
+        !heap->new_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
+    CHECK(heap->old_space()->ContainsSlow(to_be_promoted_page->ChunkAddress()));
   }
 }
 

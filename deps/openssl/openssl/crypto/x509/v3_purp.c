@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -438,7 +438,7 @@ int ossl_x509v3_cache_extensions(X509 *x)
              * in case ctx->param->flags & X509_V_FLAG_X509_STRICT
              */
             if (bs->pathlen->type == V_ASN1_NEG_INTEGER) {
-                ERR_raise(ERR_LIB_X509, X509V3_R_NEGATIVE_PATHLEN);
+                ERR_raise(ERR_LIB_X509V3, X509V3_R_NEGATIVE_PATHLEN);
                 x->ex_flags |= EXFLAG_INVALID;
             } else {
                 x->ex_pathlen = ASN1_INTEGER_get(bs->pathlen);
@@ -479,7 +479,7 @@ int ossl_x509v3_cache_extensions(X509 *x)
         ASN1_BIT_STRING_free(usage);
         /* Check for empty key usage according to RFC 5280 section 4.2.1.3 */
         if (x->ex_kusage == 0) {
-            ERR_raise(ERR_LIB_X509, X509V3_R_EMPTY_KEY_USAGE);
+            ERR_raise(ERR_LIB_X509V3, X509V3_R_EMPTY_KEY_USAGE);
             x->ex_flags |= EXFLAG_INVALID;
         }
     } else if (i != -1) {
@@ -632,7 +632,7 @@ int ossl_x509v3_cache_extensions(X509 *x)
         return 1;
     }
     if ((x->ex_flags & EXFLAG_INVALID) != 0)
-        ERR_raise(ERR_LIB_X509, X509V3_R_INVALID_CERTIFICATE);
+        ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_CERTIFICATE);
     /* If computing sha1_hash failed the error queue already reflects this. */
 
  err:

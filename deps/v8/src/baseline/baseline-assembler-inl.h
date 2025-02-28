@@ -7,10 +7,6 @@
 
 #include "src/baseline/baseline-assembler.h"
 
-// TODO(v8:11421): Remove #if once baseline compiler is ported to other
-// architectures.
-#if ENABLE_SPARKPLUG
-
 #include <type_traits>
 #include <unordered_map>
 
@@ -48,7 +44,7 @@ namespace baseline {
 
 #define __ masm_->
 
-void BaselineAssembler::GetCode(Isolate* isolate, CodeDesc* desc) {
+void BaselineAssembler::GetCode(LocalIsolate* isolate, CodeDesc* desc) {
   __ GetCode(isolate, desc);
 }
 int BaselineAssembler::pc_offset() const { return __ pc_offset(); }
@@ -103,7 +99,7 @@ void BaselineAssembler::Move(Register output, Register source) {
 void BaselineAssembler::Move(Register output, MemOperand operand) {
   __ Move(output, operand);
 }
-void BaselineAssembler::Move(Register output, Smi value) {
+void BaselineAssembler::Move(Register output, Tagged<Smi> value) {
   __ Move(output, value);
 }
 
@@ -139,18 +135,16 @@ void BaselineAssembler::StoreRegister(interpreter::Register output,
   Move(output, value);
 }
 
+void BaselineAssembler::LoadFeedbackCell(Register output) {
+  Move(output, FeedbackCellOperand());
+  ScratchRegisterScope scratch_scope(this);
+  Register scratch = scratch_scope.AcquireScratch();
+  __ AssertFeedbackCell(output, scratch);
+}
+
 template <typename Field>
 void BaselineAssembler::DecodeField(Register reg) {
   __ DecodeField<Field>(reg);
-}
-
-SaveAccumulatorScope::SaveAccumulatorScope(BaselineAssembler* assembler)
-    : assembler_(assembler) {
-  assembler_->Push(kInterpreterAccumulatorRegister);
-}
-
-SaveAccumulatorScope::~SaveAccumulatorScope() {
-  assembler_->Pop(kInterpreterAccumulatorRegister);
 }
 
 EnsureAccumulatorPreservedScope::EnsureAccumulatorPreservedScope(
@@ -176,7 +170,5 @@ EnsureAccumulatorPreservedScope::~EnsureAccumulatorPreservedScope() {
 }  // namespace baseline
 }  // namespace internal
 }  // namespace v8
-
-#endif  // ENABLE_SPARKPLUG
 
 #endif  // V8_BASELINE_BASELINE_ASSEMBLER_INL_H_

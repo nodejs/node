@@ -14,6 +14,7 @@
 namespace v8 {
 namespace internal {
 
+class Undefined;
 class StructBodyDescriptor;
 
 #include "torque-generated/src/objects/api-callbacks-tq.inc"
@@ -33,18 +34,15 @@ class AccessorInfo
   // This is a wrapper around |maybe_redirected_getter| accessor which
   // returns/accepts C function and converts the value from and to redirected
   // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS(getter, Address)
-  inline void init_getter_redirection(i::Isolate* isolate);
-  inline void remove_getter_redirection(i::Isolate* isolate);
-  inline bool has_getter();
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(getter, Address)
+  inline void init_getter_redirection(IsolateForSandbox isolate);
+  inline void remove_getter_redirection(IsolateForSandbox isolate);
+  inline bool has_getter(Isolate* isolate);
 
   // The field contains the address of the C function.
-  DECL_EXTERNAL_POINTER_ACCESSORS(setter, Address)
-  inline bool has_setter();
+  DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(setter, Address)
+  inline bool has_setter(Isolate* isolate);
 
-  DECL_BOOLEAN_ACCESSORS(all_can_read)
-  DECL_BOOLEAN_ACCESSORS(all_can_write)
-  DECL_BOOLEAN_ACCESSORS(is_special_data_property)
   DECL_BOOLEAN_ACCESSORS(replace_on_access)
   DECL_BOOLEAN_ACCESSORS(is_sloppy)
 
@@ -63,7 +61,7 @@ class AccessorInfo
   // Checks whether the given receiver is compatible with this accessor.
   static bool IsCompatibleReceiverMap(Handle<AccessorInfo> info,
                                       Handle<Map> map);
-  inline bool IsCompatibleReceiver(Object receiver);
+  inline bool IsCompatibleReceiver(Tagged<Object> receiver);
 
   // Append all descriptors to the array that are not already there.
   // Return number added.
@@ -95,7 +93,8 @@ class AccessorInfo
 class AccessCheckInfo
     : public TorqueGeneratedAccessCheckInfo<AccessCheckInfo, Struct> {
  public:
-  static AccessCheckInfo Get(Isolate* isolate, Handle<JSObject> receiver);
+  static Tagged<AccessCheckInfo> Get(Isolate* isolate,
+                                     DirectHandle<JSObject> receiver);
 
   using BodyDescriptor = StructBodyDescriptor;
 
@@ -106,52 +105,18 @@ class InterceptorInfo
     : public TorqueGeneratedInterceptorInfo<InterceptorInfo, Struct> {
  public:
   DECL_BOOLEAN_ACCESSORS(can_intercept_symbols)
-  DECL_BOOLEAN_ACCESSORS(all_can_read)
   DECL_BOOLEAN_ACCESSORS(non_masking)
   DECL_BOOLEAN_ACCESSORS(is_named)
   DECL_BOOLEAN_ACCESSORS(has_no_side_effect)
+  // TODO(ishell): remove support for old signatures once they go through
+  // Api deprecation process.
+  DECL_BOOLEAN_ACCESSORS(has_new_callbacks_signature)
 
   DEFINE_TORQUE_GENERATED_INTERCEPTOR_INFO_FLAGS()
 
   using BodyDescriptor = StructBodyDescriptor;
 
   TQ_OBJECT_CONSTRUCTORS(InterceptorInfo)
-};
-
-class CallHandlerInfo
-    : public TorqueGeneratedCallHandlerInfo<CallHandlerInfo, HeapObject> {
- public:
-  inline bool IsSideEffectFreeCallHandlerInfo() const;
-  inline bool IsSideEffectCallHandlerInfo() const;
-  inline void SetNextCallHasNoSideEffect();
-  // Returns whether or not the next call can be side effect free.
-  // Calling this will change the state back to having a side effect.
-  inline bool NextCallHasNoSideEffect();
-
-  // Dispatched behavior.
-  DECL_PRINTER(CallHandlerInfo)
-  DECL_VERIFIER(CallHandlerInfo)
-
-  // This is a wrapper around |maybe_redirected_callback| accessor which
-  // returns/accepts C function and converts the value from and to redirected
-  // pointer.
-  DECL_EXTERNAL_POINTER_ACCESSORS(callback, Address)
-  inline void init_callback_redirection(i::Isolate* isolate);
-  inline void remove_callback_redirection(i::Isolate* isolate);
-
-  class BodyDescriptor;
-
- private:
-  // When simulator is enabled the field stores the "redirected" address of the
-  // C function (the one that's callabled from simulated compiled code), in
-  // this case the original address of the C function has to be taken from the
-  // redirection.
-  // For native builds the field contains the address of the C function.
-  // This field is initialized implicitly via respective |callback|-related
-  // methods.
-  DECL_EXTERNAL_POINTER_ACCESSORS(maybe_redirected_callback, Address)
-
-  TQ_OBJECT_CONSTRUCTORS(CallHandlerInfo)
 };
 
 }  // namespace internal

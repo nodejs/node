@@ -32,6 +32,7 @@
 #include "src/base/utils/random-number-generator.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/compiler/access-builder.h"
 #include "src/deoptimizer/deoptimizer.h"
 #include "src/execution/simulator.h"
 #include "src/objects/objects-inl.h"
@@ -267,7 +268,7 @@ TEST(jump_tables4) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -337,7 +338,7 @@ TEST(jump_tables5) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kNumCases; ++i) {
@@ -426,7 +427,7 @@ TEST(jump_tables6) {
   Handle<Code> code =
       Factory::CodeBuilder(isolate, desc, CodeKind::FOR_TESTING).Build();
 #ifdef OBJECT_PRINT
-  code->Print(std::cout);
+  Print(*code);
 #endif
   auto f = GeneratedCode<F1>::FromCode(isolate, *code);
   for (int i = 0; i < kSwitchTableCases; ++i) {
@@ -740,7 +741,7 @@ TEST(cvt_d_l_Trunc_l_ud) {
   CcTest::InitializeVM();
   FOR_INT64_INPUTS(i, cvt_trunc_int64_test_values) {
     int64_t input = *i;
-    uint64_t abs_input = (input < 0) ? -input : input;
+    uint64_t abs_input = (input >= 0 || input == INT64_MIN) ? input : -input;
     auto fn = [](MacroAssembler* masm) {
       __ dmtc1(a0, f4);
       __ cvt_d_l(f0, f4);
@@ -934,7 +935,8 @@ TEST(min_max_nan) {
   auto handle_dnan = [masm](FPURegister dst, Label* nan, Label* back) {
     __ bind(nan);
     __ LoadRoot(t8, RootIndex::kNanValue);
-    __ Ldc1(dst, FieldMemOperand(t8, HeapNumber::kValueOffset));
+    __ Ldc1(dst, FieldMemOperand(
+                     t8, compiler::AccessBuilder::ForHeapNumberValue().offset));
     __ Branch(back);
   };
 
@@ -1473,8 +1475,7 @@ static GeneratedCode<F4> GenerateMacroFloat32MinMax(MacroAssembler* masm) {
       Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
           .Build();
 #ifdef DEBUG
-  StdoutStream os;
-  code->Print(os);
+  Print(*code);
 #endif
   return GeneratedCode<F4>::FromCode(masm->isolate(), *code);
 }
@@ -1621,8 +1622,7 @@ static GeneratedCode<F4> GenerateMacroFloat64MinMax(MacroAssembler* masm) {
       Factory::CodeBuilder(masm->isolate(), desc, CodeKind::FOR_TESTING)
           .Build();
 #ifdef DEBUG
-  StdoutStream os;
-  code->Print(os);
+  Print(*code);
 #endif
   return GeneratedCode<F4>::FromCode(masm->isolate(), *code);
 }

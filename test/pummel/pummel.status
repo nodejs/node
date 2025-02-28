@@ -7,12 +7,6 @@ prefix pummel
 [true] # This section applies to all platforms
 
 [$system==win32]
-# https://github.com/nodejs/node/issues/40728
-test-fs-watch-non-recursive: PASS,FLAKY
-
-[$system==linux]
-# https://github.com/nodejs/node/issues/38226
-test-crypto-timing-safe-equal-benchmarks: PASS,FLAKY
 
 [$system==macos]
 

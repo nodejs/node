@@ -9,7 +9,9 @@
 #include <string.h>
 
 #include <iterator>
+#include <optional>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "base/check.h"
@@ -19,9 +21,9 @@
 #include "base/files/scoped_temp_dir.h"
 #include "base/functional/bind.h"
 #include "base/hash/md5.h"
+#include "base/i18n/time_formatting.h"
 #include "base/path_service.h"
 #include "base/run_loop.h"
-#include "base/strings/string_piece.h"
 #include "base/strings/stringprintf.h"
 #include "base/strings/utf_string_conversions.h"
 #include "base/test/bind.h"
@@ -31,6 +33,7 @@
 #include "testing/gmock/include/gmock/gmock.h"
 #include "testing/gtest/include/gtest/gtest.h"
 #include "testing/platform_test.h"
+#include "third_party/icu/source/i18n/unicode/timezone.h"
 #include "third_party/zlib/google/zip_internal.h"
 
 using ::testing::_;
@@ -70,7 +73,7 @@ class FileWrapper {
 // A mock that provides methods that can be used as callbacks in asynchronous
 // unzip functions.  Tracks the number of calls and number of bytes reported.
 // Assumes that progress callbacks will be executed in-order.
-class MockUnzipListener : public base::SupportsWeakPtr<MockUnzipListener> {
+class MockUnzipListener final {
  public:
   MockUnzipListener()
       : success_calls_(0),
@@ -96,12 +99,18 @@ class MockUnzipListener : public base::SupportsWeakPtr<MockUnzipListener> {
   int progress_calls() { return progress_calls_; }
   int current_progress() { return current_progress_; }
 
+  base::WeakPtr<MockUnzipListener> AsWeakPtr() {
+    return weak_ptr_factory_.GetWeakPtr();
+  }
+
  private:
   int success_calls_;
   int failure_calls_;
   int progress_calls_;
 
   int64_t current_progress_;
+
+  base::WeakPtrFactory<MockUnzipListener> weak_ptr_factory_{this};
 };
 
 class MockWriterDelegate : public zip::WriterDelegate {
@@ -155,7 +164,7 @@ class ZipReaderTest : public PlatformTest {
 
   static base::FilePath GetTestDataDirectory() {
     base::FilePath path;
-    CHECK(base::PathService::Get(base::DIR_SOURCE_ROOT, &path));
+    CHECK(base::PathService::Get(base::DIR_SRC_TEST_DATA_ROOT, &path));
     return path.AppendASCII("third_party")
         .AppendASCII("zlib")
         .AppendASCII("google")
@@ -164,7 +173,7 @@ class ZipReaderTest : public PlatformTest {
   }
 
   static Paths GetPaths(const base::FilePath& zip_path,
-                        base::StringPiece encoding = {}) {
+                        std::string_view encoding = {}) {
     Paths paths;
 
     if (ZipReader reader; reader.Open(zip_path)) {
@@ -232,8 +241,10 @@ TEST_F(ZipReaderTest, Open_ExistentButNonZipFile) {
 TEST_F(ZipReaderTest, Open_EmptyFile) {
   ZipReader reader;
   EXPECT_FALSE(reader.ok());
-  EXPECT_FALSE(reader.Open(data_dir_.AppendASCII("empty.zip")));
-  EXPECT_FALSE(reader.ok());
+  EXPECT_TRUE(reader.Open(data_dir_.AppendASCII("empty.zip")));
+  EXPECT_TRUE(reader.ok());
+  EXPECT_EQ(0, reader.num_entries());
+  EXPECT_EQ(nullptr, reader.Next());
 }
 
 // Iterate through the contents in the test ZIP archive, and compare that the
@@ -288,18 +299,10 @@ TEST_F(ZipReaderTest, RegularFile) {
 
   EXPECT_EQ(target_path, entry->path);
   EXPECT_EQ(13527, entry->original_size);
-
-  // The expected time stamp: 2009-05-29 06:22:20
-  base::Time::Exploded exploded = {};  // Zero-clear.
-  entry->last_modified.UTCExplode(&exploded);
-  EXPECT_EQ(2009, exploded.year);
-  EXPECT_EQ(5, exploded.month);
-  EXPECT_EQ(29, exploded.day_of_month);
-  EXPECT_EQ(6, exploded.hour);
-  EXPECT_EQ(22, exploded.minute);
-  EXPECT_EQ(20, exploded.second);
-  EXPECT_EQ(0, exploded.millisecond);
-
+  EXPECT_EQ("2009-05-29 06:22:20.000",
+            base::UnlocalizedTimeFormatWithPattern(entry->last_modified,
+                                                   "y-MM-dd HH:mm:ss.SSS",
+                                                   icu::TimeZone::getGMT()));
   EXPECT_FALSE(entry->is_unsafe);
   EXPECT_FALSE(entry->is_directory);
 }
@@ -396,18 +399,10 @@ TEST_F(ZipReaderTest, Directory) {
   EXPECT_EQ(target_path, entry->path);
   // The directory size should be zero.
   EXPECT_EQ(0, entry->original_size);
-
-  // The expected time stamp: 2009-05-31 15:49:52
-  base::Time::Exploded exploded = {};  // Zero-clear.
-  entry->last_modified.UTCExplode(&exploded);
-  EXPECT_EQ(2009, exploded.year);
-  EXPECT_EQ(5, exploded.month);
-  EXPECT_EQ(31, exploded.day_of_month);
-  EXPECT_EQ(15, exploded.hour);
-  EXPECT_EQ(49, exploded.minute);
-  EXPECT_EQ(52, exploded.second);
-  EXPECT_EQ(0, exploded.millisecond);
-
+  EXPECT_EQ("2009-05-31 15:49:52.000",
+            base::UnlocalizedTimeFormatWithPattern(entry->last_modified,
+                                                   "y-MM-dd HH:mm:ss.SSS",
+                                                   icu::TimeZone::getGMT()));
   EXPECT_FALSE(entry->is_unsafe);
   EXPECT_TRUE(entry->is_directory);
 }
@@ -428,7 +423,7 @@ TEST_F(ZipReaderTest, EncryptedFile_WrongPassword) {
     EXPECT_EQ("This is not encrypted.\n", contents);
   }
 
-  for (const base::StringPiece path : {
+  for (const std::string_view path : {
            "Encrypted AES-128.txt",
            "Encrypted AES-192.txt",
            "Encrypted AES-256.txt",
@@ -464,7 +459,7 @@ TEST_F(ZipReaderTest, EncryptedFile_RightPassword) {
   }
 
   // TODO(crbug.com/1296838) Support AES encryption.
-  for (const base::StringPiece path : {
+  for (const std::string_view path : {
            "Encrypted AES-128.txt",
            "Encrypted AES-192.txt",
            "Encrypted AES-256.txt",
@@ -561,10 +556,10 @@ TEST_F(ZipReaderTest, ExtractToFileAsync_RegularFile) {
   const std::string md5 = base::MD5String(output);
   EXPECT_EQ(kQuuxExpectedMD5, md5);
 
-  int64_t file_size = 0;
-  ASSERT_TRUE(base::GetFileSize(target_file, &file_size));
+  std::optional<int64_t> file_size = base::GetFileSize(target_file);
+  ASSERT_TRUE(file_size.has_value());
 
-  EXPECT_EQ(file_size, listener.current_progress());
+  EXPECT_EQ(file_size.value(), listener.current_progress());
 }
 
 TEST_F(ZipReaderTest, ExtractToFileAsync_Encrypted_NoPassword) {
@@ -719,12 +714,12 @@ TEST_F(ZipReaderTest, ExtractCurrentEntryToString) {
     if (i > 0) {
       // Exact byte read limit: must pass.
       EXPECT_TRUE(reader.ExtractCurrentEntryToString(i, &contents));
-      EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
+      EXPECT_EQ(std::string(std::string_view("0123456", i)), contents);
     }
 
     // More than necessary byte read limit: must pass.
     EXPECT_TRUE(reader.ExtractCurrentEntryToString(&contents));
-    EXPECT_EQ(std::string(base::StringPiece("0123456", i)), contents);
+    EXPECT_EQ(std::string(std::string_view("0123456", i)), contents);
   }
   reader.Close();
 }

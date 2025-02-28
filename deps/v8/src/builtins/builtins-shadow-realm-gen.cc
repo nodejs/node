@@ -4,13 +4,15 @@
 
 #include "src/builtins/builtins-utils-gen.h"
 #include "src/builtins/builtins.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/js-shadow-realm.h"
 #include "src/objects/module.h"
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 class ShadowRealmBuiltinsAssembler : public CodeStubAssembler {
  public:
@@ -81,13 +83,9 @@ ShadowRealmBuiltinsAssembler::AllocateImportValueFulfilledFunction(
   const TNode<Context> function_context =
       CreateImportValueFulfilledFunctionContext(caller_context, eval_context,
                                                 specifier, export_name);
-  const TNode<Map> function_map = CAST(LoadContextElement(
-      caller_context, Context::STRICT_FUNCTION_WITHOUT_PROTOTYPE_MAP_INDEX));
-  const TNode<SharedFunctionInfo> info =
-      ShadowRealmImportValueFulfilledSFIConstant();
-
-  return AllocateFunctionWithMapAndContext(function_map, info,
-                                           function_context);
+  return AllocateRootFunctionWithContext(
+      RootIndex::kShadowRealmImportValueFulfilledSharedFun, function_context,
+      {});
 }
 
 void ShadowRealmBuiltinsAssembler::CheckAccessor(TNode<DescriptorArray> array,
@@ -278,12 +276,11 @@ TF_BUILTIN(CallWrappedFunction, ShadowRealmBuiltinsAssembler) {
     compiler::ScopedExceptionHandler handler(this, &call_exception,
                                              &var_exception);
     TNode<Int32T> args_count = Int32Constant(0);  // args already on the stack
-    Callable callable = CodeFactory::CallVarargs(isolate());
 
     // 9. Let result be the Completion Record of Call(target,
     // wrappedThisArgument, wrappedArgs).
-    result = CallStub(callable, target_context, target, args_count, argc,
-                      wrapped_args);
+    result = CallBuiltin(Builtin::kCallVarargs, target_context, target,
+                         args_count, argc, wrapped_args);
   }
 
   // 10. If result.[[Type]] is normal or result.[[Type]] is return, then
@@ -428,6 +425,8 @@ TF_BUILTIN(ShadowRealmImportValueRejected, ShadowRealmBuiltinsAssembler) {
   ShadowRealmThrow(context, MessageTemplate::kImportShadowRealmRejected,
                    exception);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

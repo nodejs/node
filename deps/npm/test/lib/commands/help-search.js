@@ -1,8 +1,6 @@
 const t = require('tap')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm.js')
-const chalk = require('chalk')
 
-/* eslint-disable max-len */
 const docsFixtures = {
   dir1: {
     'npm-exec.md': 'the exec command\nhelp has multiple lines of exec help\none of them references exec',
@@ -20,7 +18,6 @@ const docsFixtures = {
     'npm-extra-useless.md': 'exec\nexec\nexec',
   },
 }
-/* eslint-enable max-len */
 
 const execHelpSearch = async (t, exec = [], opts) => {
   const { npm, ...rest } = await loadMockNpm(t, {
@@ -70,7 +67,9 @@ t.test('npm help-search long output with color', async t => {
     },
   })
 
-  const highlightedText = chalk.bgBlack.red('help-search')
+  const chalk = await import('chalk').then(v => v.default)
+
+  const highlightedText = chalk.blue('help-search')
   t.equal(
     output.split('\n').some(line => line.includes(highlightedText)),
     true,

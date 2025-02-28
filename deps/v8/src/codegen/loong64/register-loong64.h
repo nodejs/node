@@ -112,6 +112,13 @@ int ToNumber(Register reg);
 
 Register ToRegister(int num);
 
+// Assign |source| value to |no_reg| and return the |source|'s previous value.
+inline Register ReassignRegister(Register& source) {
+  Register result = source;
+  source = Register::no_reg();
+  return result;
+}
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -195,7 +202,11 @@ constexpr FPUControlRegister FCSR3 = {kFCSRRegister + 3};
 DEFINE_REGISTER_NAMES(Register, GENERAL_REGISTERS)
 DEFINE_REGISTER_NAMES(FPURegister, DOUBLE_REGISTERS)
 
-// Give alias names to registers for calling conventions.
+// LoongArch64 calling convention.
+constexpr Register kCArgRegs[] = {a0, a1, a2, a3, a4, a5, a6, a7};
+constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
+constexpr int kFPRegisterPassedArguments = 8;
+
 constexpr Register kReturnRegister0 = a0;
 constexpr Register kReturnRegister1 = a1;
 constexpr Register kReturnRegister2 = a2;
@@ -216,8 +227,9 @@ constexpr Register kJavaScriptCallExtraArg1Register = a2;
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
 constexpr Register kRuntimeCallArgvRegister = a2;
-constexpr Register kWasmInstanceRegister = a0;
+constexpr Register kWasmImplicitArgRegister = a7;
 constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
+constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 #ifdef V8_COMPRESS_POINTERS
 constexpr Register kPtrComprCageBaseRegister = s8;

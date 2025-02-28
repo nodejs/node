@@ -179,7 +179,7 @@ const char *X509_verify_cert_error_string(long n)
     case X509_V_ERR_SIGNATURE_ALGORITHM_MISMATCH:
         return "subject signature algorithm and issuer public key algorithm mismatch";
     case X509_V_ERR_SIGNATURE_ALGORITHM_INCONSISTENCY:
-        return "cert info siganature and signature algorithm mismatch";
+        return "cert info signature and signature algorithm mismatch";
     case X509_V_ERR_INVALID_CA:
         return "invalid CA certificate";
     case X509_V_ERR_PATHLEN_INVALID_FOR_NON_CA:
@@ -212,6 +212,11 @@ const char *X509_verify_cert_error_string(long n)
         return "Using cert extension requires at least X509v3";
     case X509_V_ERR_EC_KEY_EXPLICIT_PARAMS:
         return "Certificate public key has explicit ECC parameters";
+
+        /*
+         * Entries must be kept consistent with include/openssl/x509_vfy.h.in
+         * and with doc/man3/X509_STORE_CTX_get_error.pod
+         */
 
     default:
         /* Printing an error number into a static buffer is not thread-safe */

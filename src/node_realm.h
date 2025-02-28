@@ -21,9 +21,9 @@ struct RealmSerializeInfo {
   friend std::ostream& operator<<(std::ostream& o, const RealmSerializeInfo& i);
 };
 
-using BindingDataStore = std::array<BaseObjectPtr<BaseObject>,
-                     static_cast<size_t>(
-                         BindingDataType::kBindingDataTypeCount)>;
+using BindingDataStore =
+    std::array<BaseObjectWeakPtr<BaseObject>,
+               static_cast<size_t>(BindingDataType::kBindingDataTypeCount)>;
 
 /**
  * node::Realm is a container for a set of JavaScript objects and functions
@@ -71,9 +71,9 @@ class Realm : public MemoryRetainer {
   v8::MaybeLocal<v8::Value> ExecuteBootstrapper(const char* id);
   v8::MaybeLocal<v8::Value> RunBootstrapping();
 
-  inline void AddCleanupHook(CleanupQueue::Callback cb, void* arg);
-  inline void RemoveCleanupHook(CleanupQueue::Callback cb, void* arg);
-  inline bool HasCleanupHooks() const;
+  inline void TrackBaseObject(BaseObject* bo);
+  inline void UntrackBaseObject(BaseObject* bo);
+  inline bool PendingCleanup() const;
   void RunCleanup();
 
   template <typename T>
@@ -93,9 +93,7 @@ class Realm : public MemoryRetainer {
   // this scope can access the created T* object using
   // GetBindingData<T>(args) later.
   template <typename T, typename... Args>
-  T* AddBindingData(v8::Local<v8::Context> context,
-                    v8::Local<v8::Object> target,
-                    Args&&... args);
+  T* AddBindingData(v8::Local<v8::Object> target, Args&&... args);
   template <typename T, typename U>
   static inline T* GetBindingData(const v8::PropertyCallbackInfo<U>& info);
   template <typename T>
@@ -103,12 +101,13 @@ class Realm : public MemoryRetainer {
       const v8::FunctionCallbackInfo<v8::Value>& info);
   template <typename T>
   static inline T* GetBindingData(v8::Local<v8::Context> context);
+  template <typename T>
+  inline T* GetBindingData();
   inline BindingDataStore* binding_data_store();
 
   // The BaseObject count is a debugging helper that makes sure that there are
   // no memory leaks caused by BaseObjects staying alive longer than expected
   // (in particular, no circular BaseObjectPtr references).
-  inline void modify_base_object_count(int64_t delta);
   inline int64_t base_object_count() const;
 
   // Base object count created after the bootstrap of the realm.
@@ -154,7 +153,7 @@ class Realm : public MemoryRetainer {
 
   BindingDataStore binding_data_store_;
 
-  CleanupQueue cleanup_queue_;
+  BaseObjectList base_object_list_;
 };
 
 class PrincipalRealm : public Realm {
@@ -162,7 +161,7 @@ class PrincipalRealm : public Realm {
   PrincipalRealm(Environment* env,
                  v8::Local<v8::Context> context,
                  const RealmSerializeInfo* realm_info);
-  ~PrincipalRealm() = default;
+  ~PrincipalRealm();
 
   SET_MEMORY_INFO_NAME(PrincipalRealm)
   SET_SELF_SIZE(PrincipalRealm)

@@ -54,7 +54,7 @@ using DisasmArmTest = TestWithIsolate;
 enum UseRegex { kRawString, kRegexString };
 
 template <typename... S>
-bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
+bool DisassembleAndCompare(uint8_t* begin, UseRegex use_regex,
                            S... expected_strings) {
   disasm::NameConverter converter;
   disasm::Disassembler disasm(converter);
@@ -62,10 +62,10 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 
   std::vector<std::string> expected_disassembly = {expected_strings...};
   size_t n_expected = expected_disassembly.size();
-  byte* end = begin + (n_expected * kInstrSize);
+  uint8_t* end = begin + (n_expected * kInstrSize);
 
   std::vector<std::string> disassembly;
-  for (byte* pc = begin; pc < end;) {
+  for (uint8_t* pc = begin; pc < end;) {
     pc += disasm.InstructionDecode(buffer, pc);
     disassembly.emplace_back(buffer.begin());
   }
@@ -110,11 +110,11 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 // Set up V8 to a state where we can at least run the assembler and
 // disassembler. Declare the variables and allocate the data structures used
 // in the rest of the macros.
-#define SET_UP()                                             \
-  HandleScope scope(isolate());                              \
-  byte* buffer = reinterpret_cast<byte*>(malloc(4 * 1024));  \
-  Assembler assm(AssemblerOptions{},                         \
-                 ExternalAssemblerBuffer(buffer, 4 * 1024)); \
+#define SET_UP()                                                  \
+  HandleScope scope(isolate());                                   \
+  uint8_t* buffer = reinterpret_cast<uint8_t*>(malloc(4 * 1024)); \
+  Assembler assm(AssemblerOptions{},                              \
+                 ExternalAssemblerBuffer(buffer, 4 * 1024));      \
   bool failure = false;
 
 // This macro assembles one instruction using the preallocated assembler and
@@ -124,7 +124,7 @@ bool DisassembleAndCompare(byte* begin, UseRegex use_regex,
 #define BASE_COMPARE(asm_, use_regex, ...)                             \
   {                                                                    \
     int pc_offset = assm.pc_offset();                                  \
-    byte* progcounter = &buffer[pc_offset];                            \
+    uint8_t* progcounter = &buffer[pc_offset];                         \
     assm.asm_;                                                         \
     if (!DisassembleAndCompare(progcounter, use_regex, __VA_ARGS__)) { \
       failure = true;                                                  \
@@ -1620,10 +1620,10 @@ TEST_F(DisasmArmTest, LoadStore) {
 }
 
 
-static void TestLoadLiteral(byte* buffer, Assembler* assm, bool* failure,
+static void TestLoadLiteral(uint8_t* buffer, Assembler* assm, bool* failure,
                             int offset) {
   int pc_offset = assm->pc_offset();
-  byte *progcounter = &buffer[pc_offset];
+  uint8_t *progcounter = &buffer[pc_offset];
   assm->ldr_pcrel(r0, offset);
 
   const char *expected_string_template =

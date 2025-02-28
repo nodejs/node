@@ -74,7 +74,7 @@ layer of indirection between an XCBuildPhase and a PBXFileReference via a
 PBXBuildFile appears extraneous, but there's actually one reason for this:
 file-specific compiler flags are added to the PBXBuildFile object so as to
 allow a single file to be a member of multiple targets while having distinct
-compiler flags for each.  These flags can be modified in the Xcode applciation
+compiler flags for each.  These flags can be modified in the Xcode application
 in the "Build" tab of a File Info window.
 
 When a project is open in the Xcode application, Xcode will rewrite it.  As
@@ -662,7 +662,7 @@ class XCObject:
 
     tabs is an int identifying the indentation level.  If the class'
     _should_print_single_line variable is True, tabs is ignored and the
-    key-value pair will be followed by a space insead of a newline.
+    key-value pair will be followed by a space instead of a newline.
     """
 
         if self._should_print_single_line:
@@ -781,7 +781,7 @@ class XCObject:
             # Make sure the property conforms to the schema.
             (is_list, property_type, is_strong) = self._schema[property][0:3]
             if is_list:
-                if value.__class__ != list:
+                if not isinstance(value, list):
                     raise TypeError(
                         property
                         + " of "
@@ -791,7 +791,7 @@ class XCObject:
                     )
                 for item in value:
                     if not isinstance(item, property_type) and not (
-                        isinstance(item, str) and property_type == str
+                        isinstance(item, str) and isinstance(property_type, str)
                     ):
                         # Accept unicode where str is specified.  str is treated as
                         # UTF-8-encoded.
@@ -806,7 +806,7 @@ class XCObject:
                             + item.__class__.__name__
                         )
             elif not isinstance(value, property_type) and not (
-                isinstance(value, str) and property_type == str
+                isinstance(value, str) and isinstance(property_type, str)
             ):
                 # Accept unicode where str is specified.  str is treated as
                 # UTF-8-encoded.
@@ -971,7 +971,7 @@ class XCHierarchicalElement(XCObject):
         if "path" in self._properties and "name" not in self._properties:
             path = self._properties["path"]
             name = posixpath.basename(path)
-            if name != "" and path != name:
+            if name not in ("", path):
                 self.SetProperty("name", name)
 
         if "path" in self._properties and (
@@ -2355,9 +2355,8 @@ class XCTarget(XCRemoteObject):
         # property was supplied, set "productName" if it is not present.  Also set
         # the "PRODUCT_NAME" build setting in each configuration, but only if
         # the setting is not present in any build configuration.
-        if "name" in self._properties:
-            if "productName" not in self._properties:
-                self.SetProperty("productName", self._properties["name"])
+        if "name" in self._properties and "productName" not in self._properties:
+            self.SetProperty("productName", self._properties["name"])
 
         if "productName" in self._properties:
             if "buildConfigurationList" in self._properties:
@@ -2547,13 +2546,12 @@ class PBXNativeTarget(XCTarget):
                         force_extension = suffix[1:]
 
                 if (
-                    self._properties["productType"]
-                    == "com.apple.product-type-bundle.unit.test"
-                    or self._properties["productType"]
-                    == "com.apple.product-type-bundle.ui-testing"
-                ):
-                    if force_extension is None:
-                        force_extension = suffix[1:]
+                    self._properties["productType"] in {
+                        "com.apple.product-type-bundle.unit.test",
+                        "com.apple.product-type-bundle.ui-testing"
+                    }
+                ) and force_extension is None:
+                    force_extension = suffix[1:]
 
                 if force_extension is not None:
                     # If it's a wrapper (bundle), set WRAPPER_EXTENSION.
@@ -2636,10 +2634,13 @@ class PBXNativeTarget(XCTarget):
             # frameworks phases, if any.
             insert_at = len(self._properties["buildPhases"])
             for index, phase in enumerate(self._properties["buildPhases"]):
-                if (
-                    isinstance(phase, PBXResourcesBuildPhase)
-                    or isinstance(phase, PBXSourcesBuildPhase)
-                    or isinstance(phase, PBXFrameworksBuildPhase)
+                if isinstance(
+                    phase,
+                    (
+                        PBXResourcesBuildPhase,
+                        PBXSourcesBuildPhase,
+                        PBXFrameworksBuildPhase,
+                    ),
                 ):
                     insert_at = index
                     break
@@ -2658,9 +2659,7 @@ class PBXNativeTarget(XCTarget):
             # phases, if any.
             insert_at = len(self._properties["buildPhases"])
             for index, phase in enumerate(self._properties["buildPhases"]):
-                if isinstance(phase, PBXSourcesBuildPhase) or isinstance(
-                    phase, PBXFrameworksBuildPhase
-                ):
+                if isinstance(phase, (PBXSourcesBuildPhase, PBXFrameworksBuildPhase)):
                     insert_at = index
                     break
 
@@ -2701,8 +2700,10 @@ class PBXNativeTarget(XCTarget):
                 other._properties["productType"] == static_library_type
                 or (
                     (
-                        other._properties["productType"] == shared_library_type
-                        or other._properties["productType"] == framework_type
+                        other._properties["productType"] in {
+                            shared_library_type,
+                            framework_type
+                        }
                     )
                     and (
                         (not other.HasBuildSetting("MACH_O_TYPE"))
@@ -2770,7 +2771,7 @@ class PBXProject(XCContainerPortal):
         self.path = path
         self._other_pbxprojects = {}
         # super
-        return XCContainerPortal.__init__(self, properties, id, parent)
+        XCContainerPortal.__init__(self, properties, id, parent)
 
     def Name(self):
         name = self.path
@@ -2990,10 +2991,10 @@ class PBXProject(XCContainerPortal):
             # Xcode seems to sort this list case-insensitively
             self._properties["projectReferences"] = sorted(
                 self._properties["projectReferences"],
-                key=lambda x: x["ProjectRef"].Name().lower
+                key=lambda x: x["ProjectRef"].Name().lower()
             )
         else:
-            # The link already exists.  Pull out the relevnt data.
+            # The link already exists.  Pull out the relevant data.
             project_ref_dict = self._other_pbxprojects[other_pbxproject]
             product_group = project_ref_dict["ProductGroup"]
             project_ref = project_ref_dict["ProjectRef"]
@@ -3016,10 +3017,10 @@ class PBXProject(XCContainerPortal):
         symroots = self._DefinedSymroots(target)
         for s in self._DefinedSymroots(target):
             if (
-                s is not None
-                and not self._IsUniqueSymrootForTarget(s)
-                or s is None
-                and not inherit_unique_symroot
+                (s is not None
+                and not self._IsUniqueSymrootForTarget(s))
+                or (s is None
+                and not inherit_unique_symroot)
             ):
                 return False
         return True if symroots else inherit_unique_symroot

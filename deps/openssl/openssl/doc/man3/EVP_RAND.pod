@@ -284,7 +284,7 @@ associated RAND ctx.
 Reads or set the number of elapsed seconds before reseeding the
 associated RAND ctx.
 
-=item "max_request" (B<OSSL_DRBG_PARAM_RESEED_REQUESTS>) <unsigned integer>
+=item "max_request" (B<OSSL_RAND_PARAM_MAX_REQUEST>) <unsigned integer>
 
 Specifies the maximum number of bytes that can be generated in a single
 call to OSSL_FUNC_rand_generate.
@@ -331,6 +331,18 @@ or the properties in the case of B<OSSL_RAND_PARAM_PROPERTIES>.
 =back
 
 =head1 NOTES
+
+The use of a nonzero value for the I<prediction_resistance> argument to
+EVP_RAND_instantiate(), EVP_RAND_generate() or EVP_RAND_reseed() should
+be used sparingly.  In the default setup, this will cause all public and
+private DRBGs to be reseeded on next use.  Since, by default, public and
+private DRBGs are allocated on a per thread basis, this can result in
+significant overhead for highly multi-threaded applications.  For normal
+use-cases, the default "reseed_requests" and "reseed_time_interval"
+thresholds ensure sufficient prediction resistance over time and you
+can reduce those values if you think they are too high.  Explicitly
+requesting prediction resistance is intended for more special use-cases
+like generating long-term secrets.
 
 An B<EVP_RAND_CTX> needs to have locking enabled if it acts as the parent of
 more than one child and the children can be accessed concurrently.  This must
@@ -394,7 +406,7 @@ This functionality was added to OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

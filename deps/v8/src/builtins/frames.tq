@@ -35,6 +35,7 @@ type Frame = FrameWithArguments|StubFrame;
 
 extern macro LoadFramePointer(): Frame;
 extern macro LoadParentFramePointer(): Frame;
+extern macro StackSlotPtr(constexpr int32, constexpr int32): RawPtr;
 
 // Load values from a specified frame by given offset in bytes.
 macro LoadObjectFromFrame(f: Frame, o: constexpr int32): Object {
@@ -75,8 +76,8 @@ operator '.argument_count' macro LoadArgCFromFrame(f: Frame): intptr {
 }
 
 type ContextOrFrameType = Context|FrameType;
-Cast<ContextOrFrameType>(implicit context: Context)(o: Object):
-    ContextOrFrameType
+Cast<ContextOrFrameType>(
+    implicit context: Context)(o: Object): ContextOrFrameType
     labels CastError {
   typeswitch (o) {
     case (c: Context): {
@@ -93,9 +94,8 @@ Cast<ContextOrFrameType>(implicit context: Context)(o: Object):
 
 const kStandardFrameContextOrFrameTypeOffset: constexpr int31
     generates 'StandardFrameConstants::kContextOrFrameTypeOffset';
-operator '.context_or_frame_type'
-macro LoadContextOrFrameTypeFromFrame(implicit context: Context)(f: Frame):
-    ContextOrFrameType {
+operator '.context_or_frame_type' macro LoadContextOrFrameTypeFromFrame(
+    implicit context: Context)(f: Frame): ContextOrFrameType {
   return UnsafeCast<ContextOrFrameType>(
       LoadObjectFromFrame(f, kStandardFrameContextOrFrameTypeOffset));
 }
@@ -104,10 +104,10 @@ operator '==' macro FrameTypeEquals(f1: FrameType, f2: FrameType): bool {
   return TaggedEqual(f1, f2);
 }
 
-macro Cast<A : type extends Frame>(implicit context: Context)(o: Frame):
-    A labels CastError;
-Cast<StandardFrame>(implicit context: Context)(f: Frame):
-    StandardFrame labels CastError {
+macro Cast<A : type extends Frame>(
+    implicit context: Context)(o: Frame): A labels CastError;
+Cast<StandardFrame>(
+    implicit context: Context)(f: Frame): StandardFrame labels CastError {
   const o: HeapObject =
       Cast<HeapObject>(f.context_or_frame_type) otherwise CastError;
   // StandardFrames (which include interpreted and JIT-compiled frames),

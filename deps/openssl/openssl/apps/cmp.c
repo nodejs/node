@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -158,6 +158,7 @@ static char *opt_reqin = NULL;
 static int opt_reqin_new_tid = 0;
 static char *opt_reqout = NULL;
 static char *opt_rspin = NULL;
+static int rspin_in_use = 0;
 static char *opt_rspout = NULL;
 static int opt_use_mock_srv = 0;
 
@@ -371,7 +372,7 @@ const OPTIONS cmp_options[] = {
 
     OPT_SECTION("Server authentication"),
     {"trusted", OPT_TRUSTED, 's',
-     "Certificates to trust as chain roots when verifying signed CMP responses"},
+     "Certificates to use as trust anchors when verifying signed CMP responses"},
     {OPT_MORE_STR, 0, 0, "unless -srvcert is given"},
     {"untrusted", OPT_UNTRUSTED, 's',
      "Intermediate CA certs for chain construction for CMP/TLS/enrolled certs"},
@@ -417,7 +418,7 @@ const OPTIONS cmp_options[] = {
     {OPT_MORE_STR, 0, 0,
      "This can be used as the default CMP signer cert chain to include"},
     {"unprotected_requests", OPT_UNPROTECTED_REQUESTS, '-',
-     "Send messages without CMP-level protection"},
+     "Send request messages without CMP-level protection"},
 
     OPT_SECTION("Credentials format"),
     {"certform", OPT_CERTFORM, 's',
@@ -462,13 +463,16 @@ const OPTIONS cmp_options[] = {
      "Do not interactively prompt for input when a password is required etc."},
     {"repeat", OPT_REPEAT, 'p',
      "Invoke the transaction the given positive number of times. Default 1"},
-    {"reqin", OPT_REQIN, 's', "Take sequence of CMP requests from file(s)"},
+    {"reqin", OPT_REQIN, 's',
+     "Take sequence of CMP requests to send to server from file(s)"},
     {"reqin_new_tid", OPT_REQIN_NEW_TID, '-',
      "Use fresh transactionID for CMP requests read from -reqin"},
-    {"reqout", OPT_REQOUT, 's', "Save sequence of CMP requests to file(s)"},
+    {"reqout", OPT_REQOUT, 's',
+     "Save sequence of CMP requests created by the client to file(s)"},
     {"rspin", OPT_RSPIN, 's',
      "Process sequence of CMP responses provided in file(s), skipping server"},
-    {"rspout", OPT_RSPOUT, 's', "Save sequence of CMP responses to file(s)"},
+    {"rspout", OPT_RSPOUT, 's',
+     "Save sequence of actually used CMP responses to file(s)"},
 
     {"use_mock_srv", OPT_USE_MOCK_SRV, '-',
      "Use internal mock server at API level, bypassing socket-based HTTP"},
@@ -754,12 +758,12 @@ static int write_PKIMESSAGE(const OSSL_CMP_MSG *msg, char **filenames)
 }
 
 /* read DER-encoded OSSL_CMP_MSG from the specified file name item */
-static OSSL_CMP_MSG *read_PKIMESSAGE(char **filenames)
+static OSSL_CMP_MSG *read_PKIMESSAGE(const char *desc, char **filenames)
 {
     char *file;
     OSSL_CMP_MSG *ret;
 
-    if (filenames == NULL) {
+    if (filenames == NULL || desc == NULL) {
         CMP_err("NULL arg to read_PKIMESSAGE");
         return NULL;
     }
@@ -774,6 +778,8 @@ static OSSL_CMP_MSG *read_PKIMESSAGE(char **filenames)
     ret = OSSL_CMP_MSG_read(file, app_get0_libctx(), app_get0_propq());
     if (ret == NULL)
         CMP_err1("cannot read PKIMessage from file '%s'", file);
+    else
+        CMP_info2("%s %s", desc, file);
     return ret;
 }
 
@@ -795,7 +801,7 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
             && !write_PKIMESSAGE(req, &opt_reqout))
         goto err;
     if (opt_reqin != NULL && opt_rspin == NULL) {
-        if ((req_new = read_PKIMESSAGE(&opt_reqin)) == NULL)
+        if ((req_new = read_PKIMESSAGE("actually sending", &opt_reqin)) == NULL)
             goto err;
         /*-
          * The transaction ID in req_new read from opt_reqin may not be fresh.
@@ -805,22 +811,44 @@ static OSSL_CMP_MSG *read_write_req_resp(OSSL_CMP_CTX *ctx,
         if (opt_reqin_new_tid
                 && !OSSL_CMP_MSG_update_transactionID(ctx, req_new))
             goto err;
+
+        /*
+         * Except for first request, need to satisfy recipNonce check by server.
+         * Unfortunately requires re-protection if protection is required.
+         */
+        if (!OSSL_CMP_MSG_update_recipNonce(ctx, req_new))
+            goto err;
     }
 
     if (opt_rspin != NULL) {
-        res = read_PKIMESSAGE(&opt_rspin);
+        res = read_PKIMESSAGE("actually using", &opt_rspin);
     } else {
-        const OSSL_CMP_MSG *actual_req = opt_reqin != NULL ? req_new : req;
+        const OSSL_CMP_MSG *actual_req = req_new != NULL ? req_new : req;
 
-        res = opt_use_mock_srv
-            ? OSSL_CMP_CTX_server_perform(ctx, actual_req)
-            : OSSL_CMP_MSG_http_perform(ctx, actual_req);
+        if (opt_use_mock_srv) {
+            if (rspin_in_use)
+                CMP_warn("too few -rspin filename arguments; resorting to using mock server");
+            res = OSSL_CMP_CTX_server_perform(ctx, actual_req);
+        } else {
+#ifndef OPENSSL_NO_SOCK
+            if (opt_server == NULL) {
+                CMP_err("missing -server or -use_mock_srv option, or too few -rspin filename arguments");
+                goto err;
+            }
+            if (rspin_in_use)
+                CMP_warn("too few -rspin filename arguments; resorting to contacting server");
+            res = OSSL_CMP_MSG_http_perform(ctx, actual_req);
+#else
+            CMP_err("-server not supported on no-sock build; missing -use_mock_srv option or too few -rspin filename arguments");
+#endif
+        }
+        rspin_in_use = 0;
     }
     if (res == NULL)
         goto err;
 
-    if (opt_reqin != NULL || prev_opt_rspin != NULL) {
-        /* need to satisfy nonce and transactionID checks */
+    if (req_new != NULL || prev_opt_rspin != NULL) {
+        /* need to satisfy nonce and transactionID checks by client */
         ASN1_OCTET_STRING *nonce;
         ASN1_OCTET_STRING *tid;
 
@@ -1024,10 +1052,10 @@ static OSSL_CMP_SRV_CTX *setup_srv_ctx(ENGINE *engine)
                 goto err;
         }
     } else if (opt_srv_cert == NULL) {
-        CMP_err("mock server credentials must be given if -use_mock_srv or -port is used");
+        CMP_err("server credentials (-srv_secret or -srv_cert) must be given if -use_mock_srv or -port is used");
         goto err;
     } else {
-        CMP_warn("mock server will not be able to handle PBM-protected requests since -srv_secret is not given");
+        CMP_warn("server will not be able to handle PBM-protected requests since -srv_secret is not given");
     }
 
     if (opt_srv_secret == NULL
@@ -1121,7 +1149,7 @@ static OSSL_CMP_SRV_CTX *setup_srv_ctx(ENGINE *engine)
         goto err;
 
     if (opt_send_error)
-        (void)ossl_cmp_mock_srv_set_send_error(srv_ctx, 1);
+        (void)ossl_cmp_mock_srv_set_sendError(srv_ctx, 1);
 
     if (opt_send_unprotected)
         (void)OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_UNPROTECTED_SEND, 1);
@@ -1283,7 +1311,9 @@ static SSL_CTX *setup_ssl_ctx(OSSL_CMP_CTX *ctx, const char *host,
                 /* disable any cert status/revocation checking etc. */
                 X509_VERIFY_PARAM_clear_flags(tls_vpm,
                                               ~(X509_V_FLAG_USE_CHECK_TIME
-                                                | X509_V_FLAG_NO_CHECK_TIME));
+                                                | X509_V_FLAG_NO_CHECK_TIME
+                                                | X509_V_FLAG_PARTIAL_CHAIN
+                                                | X509_V_FLAG_POLICY_CHECK));
             }
             CMP_debug("trying to build cert chain for own TLS cert");
             if (SSL_CTX_build_cert_chain(ssl_ctx,
@@ -1498,9 +1528,24 @@ static int setup_request_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
         CMP_warn("no -subject given; no -csr or -oldcert or -cert available for fallback");
 
     if (opt_cmd == CMP_IR || opt_cmd == CMP_CR || opt_cmd == CMP_KUR) {
-        if (opt_newkey == NULL && opt_key == NULL && opt_csr == NULL) {
-            CMP_err("missing -newkey (or -key) to be certified and no -csr given");
+        if (opt_newkey == NULL
+            && opt_key == NULL && opt_csr == NULL && opt_oldcert == NULL) {
+            CMP_err("missing -newkey (or -key) to be certified and no -csr, -oldcert, or -cert given for fallback public key");
             return 0;
+        }
+        if (opt_newkey == NULL
+            && opt_popo != OSSL_CRMF_POPO_NONE
+            && opt_popo != OSSL_CRMF_POPO_RAVERIFIED) {
+            if (opt_csr != NULL) {
+                CMP_err1("no -newkey option given with private key for POPO, -csr option only provides public key%s",
+                        opt_key == NULL ? "" :
+                        ", and -key option superseded by by -csr");
+                return 0;
+            }
+            if (opt_key == NULL) {
+                CMP_err("missing -newkey (or -key) option for POPO");
+                return 0;
+            }
         }
         if (opt_certout == NULL) {
             CMP_err("-certout not given, nowhere to save newly enrolled certificate");
@@ -1897,8 +1942,11 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
         (void)OSSL_CMP_CTX_set_option(ctx, OSSL_CMP_OPT_TOTAL_TIMEOUT,
                                       opt_total_timeout);
 
-    if (opt_reqin != NULL && opt_rspin != NULL)
-        CMP_warn("-reqin is ignored since -rspin is present");
+    if (opt_rspin != NULL) {
+        rspin_in_use = 1;
+        if (opt_reqin != NULL)
+            CMP_warn("-reqin is ignored since -rspin is present");
+    }
     if (opt_reqin_new_tid && opt_reqin == NULL)
         CMP_warn("-reqin_new_tid is ignored since -reqin is not present");
     if (opt_reqin != NULL || opt_reqout != NULL
@@ -1923,12 +1971,14 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
         if ((info = OPENSSL_zalloc(sizeof(*info))) == NULL)
             goto err;
         (void)OSSL_CMP_CTX_set_http_cb_arg(ctx, info);
-        info->server = opt_server;
-        info->port = server_port;
+        info->ssl_ctx = setup_ssl_ctx(ctx, host, engine);
+        info->server = host;
+        host = NULL; /* prevent deallocation */
+        if ((info->port = OPENSSL_strdup(server_port)) == NULL)
+            goto err;
         /* workaround for callback design flaw, see #17088: */
         info->use_proxy = proxy_host != NULL;
         info->timeout = OSSL_CMP_CTX_get_option(ctx, OSSL_CMP_OPT_MSG_TIMEOUT);
-        info->ssl_ctx = setup_ssl_ctx(ctx, host, engine);
 
         if (info->ssl_ctx == NULL)
             goto err;
@@ -1952,7 +2002,9 @@ static int setup_client_ctx(OSSL_CMP_CTX *ctx, ENGINE *engine)
 
     /* not printing earlier, to minimize confusion in case setup fails before */
     if (opt_rspin != NULL)
-        CMP_info("will not contact any server since -rspin is given");
+        CMP_info2("will contact %s%s "
+                  "only if -rspin argument gives too few filenames",
+                  server_buf, proxy_buf);
     else
         CMP_info2("will contact %s%s", server_buf, proxy_buf);
 
@@ -2063,7 +2115,7 @@ static const char *prev_item(const char *opt, const char *end)
     beg = end;
     while (beg > opt) {
         --beg;
-        if (beg[0] == ',' || isspace(beg[0])) {
+        if (beg[0] == ',' || isspace(_UC(beg[0]))) {
             ++beg;
             break;
         }
@@ -2078,7 +2130,7 @@ static const char *prev_item(const char *opt, const char *end)
     opt_item[len] = '\0';
     while (beg > opt) {
         --beg;
-        if (beg[0] != ',' && !isspace(beg[0])) {
+        if (beg[0] != ',' && !isspace(_UC(beg[0]))) {
             ++beg;
             break;
         }
@@ -2096,6 +2148,7 @@ static char *conf_get_string(const CONF *src_conf, const char *groups,
     while ((end = prev_item(groups, end)) != NULL) {
         if ((res = NCONF_get_string(src_conf, opt_item, name)) != NULL)
             return res;
+        ERR_clear_error();
     }
     return res;
 }
@@ -2459,7 +2512,7 @@ static int get_opts(int argc, char **argv)
             }
             break;
         case OPT_CSR:
-            opt_csr = opt_arg();
+            opt_csr = opt_str();
             break;
         case OPT_OUT_TRUSTED:
             opt_out_trusted = opt_str();
@@ -2847,8 +2900,16 @@ int cmp_main(int argc, char **argv)
             CMP_err("-tls_used option not supported with -port option");
             goto err;
         }
-        if (opt_use_mock_srv || opt_server != NULL || opt_rspin != NULL) {
-            CMP_err("cannot use -port with -use_mock_srv, -server, or -rspin options");
+        if (opt_server != NULL || opt_use_mock_srv) {
+            CMP_err("The -port option excludes -server and -use_mock_srv");
+            goto err;
+        }
+        if (opt_reqin != NULL || opt_reqout != NULL) {
+            CMP_err("The -port option does not support -reqin and -reqout");
+            goto err;
+        }
+        if (opt_rspin != NULL || opt_rspout != NULL) {
+            CMP_err("The -port option does not support -rspin and -rspout");
             goto err;
         }
     }
@@ -2857,10 +2918,6 @@ int cmp_main(int argc, char **argv)
         goto err;
     }
 #endif
-    if (opt_rspin != NULL && opt_use_mock_srv) {
-        CMP_err("cannot use both -rspin and -use_mock_srv options");
-        goto err;
-    }
 
     if (opt_use_mock_srv
 #ifndef OPENSSL_NO_SOCK
@@ -2881,8 +2938,8 @@ int cmp_main(int argc, char **argv)
     }
 
 #ifndef OPENSSL_NO_SOCK
-    if (opt_tls_used && (opt_use_mock_srv || opt_rspin != NULL)) {
-        CMP_warn("ignoring -tls_used option since -use_mock_srv or -rspin is given");
+    if (opt_tls_used && (opt_use_mock_srv || opt_server == NULL)) {
+        CMP_warn("ignoring -tls_used option since -use_mock_srv is given or -server is not given");
         opt_tls_used = 0;
     }
 
@@ -2893,11 +2950,11 @@ int cmp_main(int argc, char **argv)
 
     /* act as CMP client, possibly using internal mock server */
 
-    if (opt_server != NULL) {
-        if (opt_rspin != NULL) {
-            CMP_warn("ignoring -server option since -rspin is given");
-            opt_server = NULL;
-        }
+    if (opt_rspin != NULL) {
+        if (opt_server != NULL)
+            CMP_warn("-server option is not used if enough filenames given for -rspin");
+        if (opt_use_mock_srv)
+            CMP_warn("-use_mock_srv option is not used if enough filenames given for -rspin");
     }
 #endif
 
@@ -3010,7 +3067,11 @@ int cmp_main(int argc, char **argv)
         /* cannot free info already here, as it may be used indirectly by: */
         OSSL_CMP_CTX_free(cmp_ctx);
 #ifndef OPENSSL_NO_SOCK
-        APP_HTTP_TLS_INFO_free(info);
+        if (info != NULL) {
+            OPENSSL_free((char *)info->server);
+            OPENSSL_free((char *)info->port);
+            APP_HTTP_TLS_INFO_free(info);
+        }
 #endif
     }
     X509_VERIFY_PARAM_free(vpm);

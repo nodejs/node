@@ -77,7 +77,7 @@ appendResult(char16_t *dest, int32_t destIndex, int32_t destCapacity,
         }
         c=~result;
         if(destIndex<destCapacity && c<=0xffff) {  // BMP slightly-fastpath
-            dest[destIndex++]=(char16_t)c;
+            dest[destIndex++] = static_cast<char16_t>(c);
             return destIndex;
         }
         length=cpLength;
@@ -86,7 +86,7 @@ appendResult(char16_t *dest, int32_t destIndex, int32_t destCapacity,
             c=U_SENTINEL;
             length=result;
         } else if(destIndex<destCapacity && result<=0xffff) {  // BMP slightly-fastpath
-            dest[destIndex++]=(char16_t)result;
+            dest[destIndex++] = static_cast<char16_t>(result);
             if(edits!=nullptr) {
                 edits->addReplace(cpLength, 1);
             }
@@ -171,7 +171,7 @@ appendUnchanged(char16_t *dest, int32_t destIndex, int32_t destCapacity,
 
 UChar32 U_CALLCONV
 utf16_caseContextIterator(void *context, int8_t dir) {
-    UCaseContext *csc=(UCaseContext *)context;
+    UCaseContext* csc = static_cast<UCaseContext*>(context);
     UChar32 c;
 
     if(dir<0) {
@@ -272,7 +272,7 @@ int32_t toLower(int32_t caseLocale, uint32_t options,
         } else {
             c = lead;
         }
-        const char16_t *s;
+        const char16_t *s = nullptr;
         if (caseLocale >= 0) {
             csc->cpStart = cpStart;
             csc->cpLimit = srcIndex;
@@ -369,7 +369,7 @@ int32_t toUpper(int32_t caseLocale, uint32_t options,
             c = lead;
         }
         csc->cpLimit = srcIndex;
-        const char16_t *s;
+        const char16_t *s = nullptr;
         c = ucase_toFullUpper(c, utf16_caseContextIterator, csc, &s, caseLocale);
         if (c >= 0) {
             destIndex = appendUnchanged(dest, destIndex, destCapacity,
@@ -579,8 +579,8 @@ ustrcase_internalToTitle(int32_t caseLocale, uint32_t options, BreakIterator *it
                     }
 
                     if (c == u'I' || c == u'Í') {
-                        titleLimit = maybeTitleDutchIJ(src, c, titleStart + 1, index, 
-                                                       dest, destIndex, destCapacity, options, 
+                        titleLimit = maybeTitleDutchIJ(src, c, titleStart + 1, index,
+                                                       dest, destIndex, destCapacity, options,
                                                        edits);
                     }
                 }
@@ -1130,14 +1130,18 @@ int32_t toUpper(uint32_t options,
             // Adding one only to the final vowel in a longer sequence
             // (which does not occur in normal writing) would require lookahead.
             // Set the same flag as for preserving an existing dialytika.
-            if ((data & HAS_VOWEL) != 0 && (state & AFTER_VOWEL_WITH_ACCENT) != 0 &&
-                    (upper == 0x399 || upper == 0x3A5)) {
-                data |= HAS_DIALYTIKA;
+            if ((data & HAS_VOWEL) != 0 &&
+                (state & (AFTER_VOWEL_WITH_PRECOMPOSED_ACCENT | AFTER_VOWEL_WITH_COMBINING_ACCENT)) !=
+                    0 &&
+                (upper == 0x399 || upper == 0x3A5)) {
+                data |= (state & AFTER_VOWEL_WITH_PRECOMPOSED_ACCENT) ? HAS_DIALYTIKA
+                                                                      : HAS_COMBINING_DIALYTIKA;
             }
             int32_t numYpogegrammeni = 0;  // Map each one to a trailing, spacing, capital iota.
             if ((data & HAS_YPOGEGRAMMENI) != 0) {
                 numYpogegrammeni = 1;
             }
+            const UBool hasPrecomposedAccent = (data & HAS_ACCENT) != 0;
             // Skip combining diacritics after this Greek letter.
             while (nextIndex < srcLength) {
                 uint32_t diacriticData = getDiacriticData(src[nextIndex]);
@@ -1152,7 +1156,8 @@ int32_t toUpper(uint32_t options,
                 }
             }
             if ((data & HAS_VOWEL_AND_ACCENT_AND_DIALYTIKA) == HAS_VOWEL_AND_ACCENT) {
-                nextState |= AFTER_VOWEL_WITH_ACCENT;
+                nextState |= hasPrecomposedAccent ? AFTER_VOWEL_WITH_PRECOMPOSED_ACCENT
+                                                  : AFTER_VOWEL_WITH_COMBINING_ACCENT;
             }
             // Map according to Greek rules.
             UBool addTonos = false;
@@ -1163,7 +1168,7 @@ int32_t toUpper(uint32_t options,
                     !isFollowedByCasedLetter(src, nextIndex, srcLength)) {
                 // Keep disjunctive "or" with (only) a tonos.
                 // We use the same "word boundary" conditions as for the Final_Sigma test.
-                if (i == nextIndex) {
+                if (hasPrecomposedAccent) {
                     upper = 0x389;  // Preserve the precomposed form.
                 } else {
                     addTonos = true;
@@ -1211,7 +1216,7 @@ int32_t toUpper(uint32_t options,
             }
 
             if (change) {
-                destIndex=appendUChar(dest, destIndex, destCapacity, (char16_t)upper);
+                destIndex = appendUChar(dest, destIndex, destCapacity, static_cast<char16_t>(upper));
                 if (destIndex >= 0 && (data & HAS_EITHER_DIALYTIKA) != 0) {
                     destIndex=appendUChar(dest, destIndex, destCapacity, 0x308);  // restore or add a dialytika
                 }
@@ -1693,7 +1698,7 @@ static int32_t _cmpFold(
          */
 
         if( level1==0 &&
-            (length=ucase_toFullFolding((UChar32)cp1, &p, options))>=0
+            (length = ucase_toFullFolding(cp1, &p, options)) >= 0
         ) {
             /* cp1 case-folds to the code point "length" or to p[length] */
             if(U_IS_SURROGATE(c1)) {
@@ -1739,7 +1744,7 @@ static int32_t _cmpFold(
         }
 
         if( level2==0 &&
-            (length=ucase_toFullFolding((UChar32)cp2, &p, options))>=0
+            (length = ucase_toFullFolding(cp2, &p, options)) >= 0
         ) {
             /* cp2 case-folds to the code point "length" or to p[length] */
             if(U_IS_SURROGATE(c2)) {
@@ -1852,7 +1857,7 @@ u_strCaseCompare(const char16_t *s1, int32_t length1,
                  uint32_t options,
                  UErrorCode *pErrorCode) {
     /* argument checking */
-    if(pErrorCode==0 || U_FAILURE(*pErrorCode)) {
+    if (pErrorCode == nullptr || U_FAILURE(*pErrorCode)) {
         return 0;
     }
     if(s1==nullptr || length1<-1 || s2==nullptr || length2<-1) {

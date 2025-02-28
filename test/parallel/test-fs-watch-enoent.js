@@ -11,8 +11,7 @@ if (common.isIBMi)
 const assert = require('assert');
 const fs = require('fs');
 const tmpdir = require('../common/tmpdir');
-const path = require('path');
-const nonexistentFile = path.join(tmpdir.path, 'non-existent');
+const nonexistentFile = tmpdir.resolve('non-existent');
 const { internalBinding } = require('internal/test/binding');
 const {
   UV_ENODEV,
@@ -47,8 +46,8 @@ tmpdir.refresh();
 }
 
 {
-  if (common.isOSX || common.isWindows) {
-    const file = path.join(tmpdir.path, 'file-to-watch');
+  if (common.isMacOS || common.isWindows) {
+    const file = tmpdir.resolve('file-to-watch');
     fs.writeFileSync(file, 'test');
     const watcher = fs.watch(file, common.mustNotCall());
 

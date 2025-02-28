@@ -1,4 +1,4 @@
-// Flags: --no-warnings
+// Flags: --no-warnings --expose-internals
 'use strict';
 
 const common = require('../common');
@@ -6,6 +6,7 @@ const assert = require('assert');
 const { Blob } = require('buffer');
 const { inspect } = require('util');
 const { EOL } = require('os');
+const { kState } = require('internal/webstreams/util');
 
 {
   const b = new Blob();
@@ -196,6 +197,7 @@ assert.throws(() => new Blob({}), {
     'stream',
     'text',
     'arrayBuffer',
+    'bytes',
   ];
 
   for (const prop of enumerable) {
@@ -237,6 +239,150 @@ assert.throws(() => new Blob({}), {
   assert(res.done);
 })().then(common.mustCall());
 
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const reader = b.stream().getReader();
+  const chunks = [];
+  while (true) {
+    const res = await reader.read();
+    if (res.done) break;
+    assert.strictEqual(res.value.byteLength, 5);
+    chunks.push(res.value);
+  }
+  assert.strictEqual(chunks.length, 10);
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const reader = b.stream().getReader();
+  const chunks = [];
+  while (true) {
+    const res = await reader.read();
+    if (chunks.length === 5) {
+      reader.cancel('boom');
+      break;
+    }
+    if (res.done) break;
+    assert.strictEqual(res.value.byteLength, 5);
+    chunks.push(res.value);
+  }
+  assert.strictEqual(chunks.length, 5);
+  reader.closed.then(common.mustCall());
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(['A', 'B', 'C']);
+  const stream = b.stream();
+  const chunks = [];
+  const decoder = new TextDecoder();
+  await stream.pipeTo(new WritableStream({
+    write(chunk) {
+      chunks.push(decoder.decode(chunk, { stream: true }));
+    }
+  }));
+  assert.strictEqual(chunks.join(''), 'ABC');
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(['A', 'B', 'C']);
+  const stream = b.stream();
+  const chunks = [];
+  const decoder = new TextDecoder();
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(decoder.decode(chunk, { stream: true }));
+      },
+    })
+  );
+  assert.strictEqual(chunks.join(''), 'ABC');
+})().then(common.mustCall());
+
+(async () => {
+  // Ref: https://github.com/nodejs/node/issues/48668
+  const chunks = [];
+  const stream = new Blob(['Hello world']).stream();
+  const decoder = new TextDecoder();
+  await Promise.resolve();
+  await stream.pipeTo(
+    new WritableStream({
+      write(chunk) {
+        chunks.push(decoder.decode(chunk, { stream: true }));
+      },
+    })
+  );
+  assert.strictEqual(chunks.join(''), 'Hello world');
+})().then(common.mustCall());
+
+(async () => {
+  // Ref: https://github.com/nodejs/node/issues/48668
+  if (common.hasCrypto) {
+    // Can only do this test if we have node built with crypto
+    const file = new Blob(['<svg></svg>'], { type: 'image/svg+xml' });
+    const url = URL.createObjectURL(file);
+    const res = await fetch(url);
+    const blob = await res.blob();
+    assert.strictEqual(blob.size, 11);
+    assert.strictEqual(blob.type, 'image/svg+xml');
+    assert.strictEqual(await blob.text(), '<svg></svg>');
+  }
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader();
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  const { value, done } = await reader.read();
+  assert.strictEqual(value.byteLength, 5);
+  assert(!done);
+  setTimeout(() => {
+    // The blob stream is now a byte stream hence after the first read,
+    // it should pull in the next 'hello' which is 5 bytes hence -5.
+    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  }, 0);
+})().then(common.mustCall());
+
+(async () => {
+  const blob = new Blob(['hello', 'world']);
+  const stream = blob.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  const decoder = new TextDecoder();
+  const chunks = [];
+  while (true) {
+    const { value, done } = await reader.read(new Uint8Array(100));
+    if (done) break;
+    chunks.push(decoder.decode(value, { stream: true }));
+  }
+  assert.strictEqual(chunks.join(''), 'helloworld');
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  const { value, done } = await reader.read(new Uint8Array(100));
+  assert.strictEqual(value.byteLength, 5);
+  assert(!done);
+  setTimeout(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  }, 0);
+})().then(common.mustCall());
+
+(async () => {
+  const b = new Blob(Array(10).fill('hello'));
+  const stream = b.stream();
+  const reader = stream.getReader({ mode: 'byob' });
+  assert.strictEqual(stream[kState].controller.desiredSize, 0);
+  const { value, done } = await reader.read(new Uint8Array(2));
+  assert.strictEqual(value.byteLength, 2);
+  assert(!done);
+  setTimeout(() => {
+    assert.strictEqual(stream[kState].controller.desiredSize, -3);
+  }, 0);
+})().then(common.mustCall());
+
 {
   const b = new Blob(['hello\n'], { endings: 'native' });
   assert.strictEqual(b.size, EOL.length + 5);
@@ -264,10 +410,13 @@ assert.throws(() => new Blob({}), {
 }
 
 (async () => {
-  assert.rejects(async () => Blob.prototype.arrayBuffer.call(), {
+  await assert.rejects(() => Blob.prototype.arrayBuffer.call(), {
     code: 'ERR_INVALID_THIS',
   });
-  assert.rejects(async () => Blob.prototype.text.call(), {
+  await assert.rejects(() => Blob.prototype.text.call(), {
+    code: 'ERR_INVALID_THIS',
+  });
+  await assert.rejects(() => Blob.prototype.bytes.call(), {
     code: 'ERR_INVALID_THIS',
   });
 })().then(common.mustCall());
@@ -327,4 +476,35 @@ assert.throws(() => new Blob({}), {
   }
 
   await new Blob(chunks).arrayBuffer();
+})().then(common.mustCall());
+
+{
+  const blob = new Blob(['hello']);
+
+  assert.ok(blob.slice(0, 1).constructor === Blob);
+  assert.ok(blob.slice(0, 1) instanceof Blob);
+  assert.ok(blob.slice(0, 1.5) instanceof Blob);
+}
+
+(async () => {
+  const blob = new Blob(['hello']);
+
+  assert.ok(structuredClone(blob).constructor === Blob);
+  assert.ok(structuredClone(blob) instanceof Blob);
+  assert.ok(structuredClone(blob).size === blob.size);
+  assert.ok(structuredClone(blob).size === blob.size);
+  assert.ok((await structuredClone(blob).text()) === (await blob.text()));
+})().then(common.mustCall());
+
+(async () => {
+  const blob = new Blob(['hello']);
+  const { arrayBuffer } = Blob.prototype;
+
+  Blob.prototype.arrayBuffer = common.mustNotCall();
+
+  try {
+    assert.strictEqual(await blob.text(), 'hello');
+  } finally {
+    Blob.prototype.arrayBuffer = arrayBuffer;
+  }
 })().then(common.mustCall());

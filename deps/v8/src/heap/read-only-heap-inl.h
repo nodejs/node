@@ -13,7 +13,7 @@ namespace v8 {
 namespace internal {
 
 // static
-ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(HeapObject object) {
+ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
   auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   if (shared_ro_heap && shared_ro_heap->roots_init_complete()) {
@@ -26,7 +26,7 @@ ReadOnlyRoots ReadOnlyHeap::EarlyGetReadOnlyRoots(HeapObject object) {
 }
 
 // static
-ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(HeapObject object) {
+ReadOnlyRoots ReadOnlyHeap::GetReadOnlyRoots(Tagged<HeapObject> object) {
 #ifdef V8_SHARED_RO_HEAP
   auto* shared_ro_heap = SoleReadOnlyHeap::shared_ro_heap_;
   // If this check fails in code that runs during initialization use

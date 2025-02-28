@@ -48,6 +48,7 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
   void set_abort_hard(bool v) { hard_abort_ = v; }
 
   void set_builtin(Builtin builtin) { maybe_builtin_ = builtin; }
+  Builtin builtin() const { return maybe_builtin_; }
 
   void set_has_frame(bool v) { has_frame_ = v; }
   bool has_frame() const { return has_frame_; }
@@ -69,6 +70,7 @@ class V8_EXPORT_PRIVATE MacroAssemblerBase : public Assembler {
 
   // Corresponds to: destination = [kRootRegister + offset].
   virtual void LoadRootRelative(Register destination, int32_t offset) = 0;
+  virtual void StoreRootRelative(int32_t offset, Register value) = 0;
 
   static constexpr bool CanBeImmediate(RootIndex index) {
     return V8_STATIC_ROOTS_BOOL && RootsTable::IsReadOnly(index);

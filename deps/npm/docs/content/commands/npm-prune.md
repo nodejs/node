@@ -18,10 +18,9 @@ then only packages matching one of the supplied names are removed.
 Extraneous packages are those present in the `node_modules` folder that are
 not listed as any package's dependency list.
 
-If the `--production` flag is specified or the `NODE_ENV` environment
+If the `--omit=dev` flag is specified or the `NODE_ENV` environment
 variable is set to `production`, this command will remove the packages
-specified in your `devDependencies`. Setting `--no-production` will negate
-`NODE_ENV` being set to `production`.
+specified in your `devDependencies`.
 
 If the `--dry-run` flag is used then no changes will actually be made.
 
@@ -53,6 +52,22 @@ it will be included.
 If the resulting omit list includes `'dev'`, then the `NODE_ENV` environment
 variable will be set to `'production'` for all lifecycle scripts.
 
+
+
+#### `include`
+
+* Default:
+* Type: "prod", "dev", "optional", or "peer" (can be set multiple times)
+
+Option that allows for defining which types of dependencies to install.
+
+This is the inverse of `--omit=<type>`.
+
+Dependency types specified in `--include` will not be omitted, regardless of
+the order in which omit/include are specified on the command-line.
+
+
+
 #### `dry-run`
 
 * Default: false
@@ -66,6 +81,8 @@ commands that modify your local installation, eg, `install`, `update`,
 Note: This is NOT honored by other network related commands, eg `dist-tags`,
 `owner`, etc.
 
+
+
 #### `json`
 
 * Default: false
@@ -78,9 +95,12 @@ Whether or not to output JSON data, rather than the normal output.
 
 Not supported by all npm commands.
 
+
+
 #### `foreground-scripts`
 
-* Default: false
+* Default: `false` unless when using `npm pack` or `npm publish` where it
+  defaults to `true`
 * Type: Boolean
 
 Run all build scripts (ie, `preinstall`, `install`, and `postinstall`)
@@ -89,6 +109,8 @@ input, output, and error with the main npm process.
 
 Note that this will generally make installs run slower, and be much noisier,
 but can be useful for debugging.
+
+
 
 #### `ignore-scripts`
 
@@ -101,6 +123,8 @@ Note that commands explicitly intended to run a particular script, such as
 `npm start`, `npm stop`, `npm restart`, `npm test`, and `npm run-script`
 will still run their intended script if `ignore-scripts` is set, but they
 will *not* run any pre- or post-scripts.
+
+
 
 #### `workspace`
 
@@ -163,6 +187,8 @@ This value is not exported to the environment for child processes.
 When set file: protocol dependencies will be packed and installed as regular
 dependencies instead of creating a symlink. This option has no effect on
 workspaces.
+
+
 
 ### See Also
 

@@ -22,12 +22,14 @@ class AllocationSiteContext {
   Handle<AllocationSite> top() { return top_; }
   Handle<AllocationSite> current() { return current_; }
 
-  bool ShouldCreateMemento(Handle<JSObject> object) { return false; }
+  bool ShouldCreateMemento(DirectHandle<JSObject> object) { return false; }
 
   Isolate* isolate() { return isolate_; }
 
  protected:
-  void update_current_site(AllocationSite site) { current_.PatchValue(site); }
+  void update_current_site(Tagged<AllocationSite> site) {
+    current_.PatchValue(site);
+  }
 
   inline void InitializeTraversal(Handle<AllocationSite> site);
 
@@ -49,10 +51,10 @@ class AllocationSiteUsageContext : public AllocationSiteContext {
 
   inline Handle<AllocationSite> EnterNewScope();
 
-  inline void ExitScope(Handle<AllocationSite> scope_site,
+  inline void ExitScope(DirectHandle<AllocationSite> scope_site,
                         Handle<JSObject> object);
 
-  inline bool ShouldCreateMemento(Handle<JSObject> object);
+  inline bool ShouldCreateMemento(DirectHandle<JSObject> object);
 
   static const bool kCopying = true;
 

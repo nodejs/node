@@ -38,7 +38,7 @@ const GHI = new Uint8Array([0x47, 0x48, 0x49]);
       assert(!(chunk instanceof Buffer));
       assert(chunk instanceof Uint8Array);
       assert.strictEqual(chunk, ABC);
-      assert.strictEqual(encoding, 'utf8');
+      assert.strictEqual(encoding, undefined);
       cb();
     })
   });

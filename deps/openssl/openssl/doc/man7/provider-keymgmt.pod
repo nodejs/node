@@ -360,7 +360,7 @@ length is specific to the key cryptosystem.
 
 The value should be the maximum size that a caller should allocate to
 safely store a signature (called I<sig> in L<provider-signature(7)>),
-the result of asymmmetric encryption / decryption (I<out> in
+the result of asymmetric encryption / decryption (I<out> in
 L<provider-asym_cipher(7)>, a derived secret (I<secret> in
 L<provider-keyexch(7)>, and similar data).
 
@@ -373,6 +373,36 @@ dimensions handled in the rest of the same provider.
 
 The value should be the number of security bits of the given key.
 Bits of security is defined in SP800-57.
+
+=item "mandatory-digest" (B<OSSL_PKEY_PARAM_MANDATORY_DIGEST>) <UTF8 string>
+
+If there is a mandatory digest for performing a signature operation with
+keys from this keymgmt, this parameter should get its name as value.
+
+When EVP_PKEY_get_default_digest_name() queries this parameter and it's
+filled in by the implementation, its return value will be 2.
+
+If the keymgmt implementation fills in the value C<""> or C<"UNDEF">,
+L<EVP_PKEY_get_default_digest_name(3)> will place the string C<"UNDEF"> into
+its argument I<mdname>.  This signifies that no digest should be specified
+with the corresponding signature operation.
+
+=item "default-digest" (B<OSSL_PKEY_PARAM_DEFAULT_DIGEST>) <UTF8 string>
+
+If there is a default digest for performing a signature operation with
+keys from this keymgmt, this parameter should get its name as value.
+
+When L<EVP_PKEY_get_default_digest_name(3)> queries this parameter and it's
+filled in by the implementation, its return value will be 1.  Note that if
+B<OSSL_PKEY_PARAM_MANDATORY_DIGEST> is responded to as well,
+L<EVP_PKEY_get_default_digest_name(3)> ignores the response to this
+parameter.
+
+If the keymgmt implementation fills in the value C<""> or C<"UNDEF">,
+L<EVP_PKEY_get_default_digest_name(3)> will place the string C<"UNDEF"> into
+its argument I<mdname>.  This signifies that no digest has to be specified
+with the corresponding signature operation, but may be specified as an
+option.
 
 =back
 
@@ -412,7 +442,7 @@ The KEYMGMT interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,17 +1,6 @@
 .\"
 .\" Copyright 1998 by the Massachusetts Institute of Technology.
-.\"
-.\" Permission to use, copy, modify, and distribute this
-.\" software and its documentation for any purpose and without
-.\" fee is hereby granted, provided that the above copyright
-.\" notice appear in all copies and that both that copyright
-.\" notice and this permission notice appear in supporting
-.\" documentation, and that the name of M.I.T. not be used in
-.\" advertising or publicity pertaining to distribution of the
-.\" software without specific, written prior permission.
-.\" M.I.T. makes no representations about the suitability of
-.\" this software for any purpose.  It is provided "as is"
-.\" without express or implied warranty.
+.\" SPDX-License-Identifier: MIT
 .\"
 .TH ARES_CREATE_QUERY 3 "17 Aug 2012"
 .SH NAME
@@ -30,6 +19,9 @@ int ares_create_query(const char *\fIname\fP,
                       int \fImax_udp_size\fP)
 .fi
 .SH DESCRIPTION
+This function is deprecated as of c-ares 1.22, please use
+\fIares_dns_record_create(3)\fP instead.
+
 The \fIares_create_query(3)\fP function composes a DNS query with a single
 question.  The parameter \fIname\fP gives the query name as a NUL-terminated C
 string of period-separated labels optionally ending with a period; periods and
@@ -77,7 +69,7 @@ Memory was exhausted.
 .SH AVAILABILITY
 Added in c-ares 1.10.0
 .SH SEE ALSO
+.BR ares_dns_record (3),
 .BR ares_expand_name (3),
 .BR ares_free_string (3),
 .BR ares_mkquery (3)
-.SH AUTHOR

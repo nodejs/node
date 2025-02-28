@@ -16,23 +16,23 @@
 namespace v8 {
 namespace internal {
 
-void IC::update_lookup_start_object_map(Handle<Object> object) {
-  if (object->IsSmi()) {
+void IC::update_lookup_start_object_map(DirectHandle<Object> object) {
+  if (IsSmi(*object)) {
     lookup_start_object_map_ = isolate_->factory()->heap_number_map();
   } else {
     lookup_start_object_map_ =
-        handle(HeapObject::cast(*object).map(), isolate_);
+        handle(Cast<HeapObject>(*object)->map(), isolate_);
   }
 }
 
-bool IC::IsHandler(MaybeObject object) {
-  HeapObject heap_object;
-  return (object->IsSmi() && (object.ptr() != kNullAddress)) ||
-         (object->GetHeapObjectIfWeak(&heap_object) &&
-          (heap_object.IsMap() || heap_object.IsPropertyCell() ||
-           heap_object.IsAccessorPair())) ||
-         (object->GetHeapObjectIfStrong(&heap_object) &&
-          (heap_object.IsDataHandler() || heap_object.IsCode()));
+bool IC::IsHandler(Tagged<MaybeObject> object) {
+  Tagged<HeapObject> heap_object;
+  return (IsSmi(object) && (object.ptr() != kNullAddress)) ||
+         (object.GetHeapObjectIfWeak(&heap_object) &&
+          (IsMap(heap_object) || IsPropertyCell(heap_object) ||
+           IsAccessorPair(heap_object))) ||
+         (object.GetHeapObjectIfStrong(&heap_object) &&
+          (IsDataHandler(heap_object) || IsCode(heap_object)));
 }
 
 bool IC::vector_needs_update() {

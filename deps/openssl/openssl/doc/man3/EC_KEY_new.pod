@@ -128,7 +128,7 @@ EC_KEY_check_key() performs various sanity checks on the EC_KEY object to
 confirm that it is valid.
 
 EC_KEY_set_public_key_affine_coordinates() sets the public key for I<key> based
-on its affine co-ordinates; i.e., it constructs an EC_POINT object based on
+on its affine coordinates; i.e., it constructs an EC_POINT object based on
 the supplied I<x> and I<y> values and sets the public key to be this
 EC_POINT. It also performs certain sanity checks on the key to confirm
 that it is valid.
@@ -235,7 +235,7 @@ For replacement see L<EVP_PKEY-EC(7)>.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

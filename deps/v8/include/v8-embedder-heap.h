@@ -9,6 +9,9 @@
 #include "v8config.h"          // NOLINT(build/include_directory)
 
 namespace v8 {
+namespace internal {
+class TracedHandles;
+}  // namespace internal
 
 class Isolate;
 class Value;
@@ -18,7 +21,18 @@ class Value;
  */
 class V8_EXPORT EmbedderRootsHandler {
  public:
+  enum class RootHandling {
+    kQueryEmbedderForNonDroppableReferences,
+    kDontQueryEmbedderForAnyReference,
+  };
+
   virtual ~EmbedderRootsHandler() = default;
+
+  EmbedderRootsHandler() = default;
+
+  V8_DEPRECATED("Use the default constructor instead.")
+  explicit EmbedderRootsHandler(RootHandling default_traced_reference_handling)
+      : default_traced_reference_handling_(default_traced_reference_handling) {}
 
   /**
    * Returns true if the |TracedReference| handle should be considered as root
@@ -31,10 +45,11 @@ class V8_EXPORT EmbedderRootsHandler {
    * |TracedReference|.
    *
    * Note that the `handle` is different from the handle that the embedder holds
-   * for retaining the object. The embedder may use |WrapperClassId()| to
-   * distinguish cases where it wants handles to be treated as roots from not
-   * being treated as roots.
+   * for retaining the object.
+   *
+   * The concrete implementations must be thread-safe.
    */
+  V8_DEPRECATED("Use TracedReferenceHandling::kDroppable instead.")
   virtual bool IsRoot(const v8::TracedReference<v8::Value>& handle) = 0;
 
   /**
@@ -47,6 +62,22 @@ class V8_EXPORT EmbedderRootsHandler {
    * handle via the object or class id.
    */
   virtual void ResetRoot(const v8::TracedReference<v8::Value>& handle) = 0;
+
+  /**
+   * Similar to |ResetRoot()|, but opportunistic. The function is called in
+   * parallel for different handles and as such must be thread-safe. In case,
+   * |false| is returned, |ResetRoot()| will be recalled for the same handle.
+   */
+  virtual bool TryResetRoot(const v8::TracedReference<v8::Value>& handle) {
+    ResetRoot(handle);
+    return true;
+  }
+
+ private:
+  const RootHandling default_traced_reference_handling_ =
+      RootHandling::kDontQueryEmbedderForAnyReference;
+
+  friend class internal::TracedHandles;
 };
 
 }  // namespace v8

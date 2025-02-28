@@ -38,7 +38,7 @@
 static UBool U_CALLCONV
 _enumPropertyStartsRange(const void *context, UChar32 start, UChar32 /*end*/, uint32_t /*value*/) {
     /* add the start code point to the USet */
-    const USetAdder *sa=(const USetAdder *)context;
+    const USetAdder* sa = static_cast<const USetAdder*>(context);
     sa->add(sa->set, start);
     return true;
 }
@@ -317,43 +317,6 @@ ucase_addCaseClosure(UChar32 c, const USetAdder *sa) {
     }
 }
 
-namespace {
-
-/**
- * Add the simple case closure mapping,
- * except if there is not actually an scf relationship between the two characters.
- * TODO: Unicode should probably add the corresponding scf mappings.
- * See https://crbug.com/v8/13377 and Unicode-internal PAG issue #23.
- * If & when those scf mappings are added, we should be able to remove all of these exceptions.
- */
-void addOneSimpleCaseClosure(UChar32 c, UChar32 t, const USetAdder *sa) {
-    switch (c) {
-    case 0x0390:
-        if (t == 0x1FD3) { return; }
-        break;
-    case 0x03B0:
-        if (t == 0x1FE3) { return; }
-        break;
-    case 0x1FD3:
-        if (t == 0x0390) { return; }
-        break;
-    case 0x1FE3:
-        if (t == 0x03B0) { return; }
-        break;
-    case 0xFB05:
-        if (t == 0xFB06) { return; }
-        break;
-    case 0xFB06:
-        if (t == 0xFB05) { return; }
-        break;
-    default:
-        break;
-    }
-    sa->add(sa->set, t);
-}
-
-}  // namespace
-
 U_CFUNC void U_EXPORT2
 ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa) {
     uint16_t props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
@@ -397,7 +360,7 @@ ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa) {
                 pe=pe0;
                 UChar32 mapping;
                 GET_SLOT_VALUE(excWord, idx, pe, mapping);
-                addOneSimpleCaseClosure(c, mapping, sa);
+                sa->add(sa->set, mapping);
             }
         }
         if(HAS_SLOT(excWord, UCASE_EXC_DELTA)) {
@@ -405,7 +368,7 @@ ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa) {
             int32_t delta;
             GET_SLOT_VALUE(excWord, UCASE_EXC_DELTA, pe, delta);
             UChar32 mapping = (excWord&UCASE_EXC_DELTA_IS_NEGATIVE)==0 ? c+delta : c-delta;
-            addOneSimpleCaseClosure(c, mapping, sa);
+            sa->add(sa->set, mapping);
         }
 
         /* get the closure string pointer & length */
@@ -448,7 +411,7 @@ ucase_addSimpleCaseClosure(UChar32 c, const USetAdder *sa) {
         for(int32_t idx=0; idx<closureLength;) {
             UChar32 mapping;
             U16_NEXT_UNSAFE(closure, idx, mapping);
-            addOneSimpleCaseClosure(c, mapping, sa);
+            sa->add(sa->set, mapping);
         }
     }
 }
@@ -733,17 +696,17 @@ getDotType(UChar32 c) {
 
 U_CAPI UBool U_EXPORT2
 ucase_isSoftDotted(UChar32 c) {
-    return (UBool)(getDotType(c)==UCASE_SOFT_DOTTED);
+    return getDotType(c)==UCASE_SOFT_DOTTED;
 }
 
 U_CAPI UBool U_EXPORT2
 ucase_isCaseSensitive(UChar32 c) {
     uint16_t props=UTRIE2_GET16(&ucase_props_singleton.trie, c);
     if(!UCASE_HAS_EXCEPTION(props)) {
-        return (UBool)((props&UCASE_SENSITIVE)!=0);
+        return (props&UCASE_SENSITIVE)!=0;
     } else {
         const uint16_t *pe=GET_EXCEPTIONS(&ucase_props_singleton, props);
-        return (UBool)((*pe&UCASE_EXC_SENSITIVE)!=0);
+        return (*pe&UCASE_EXC_SENSITIVE)!=0;
     }
 }
 
@@ -1660,12 +1623,12 @@ ucase_toFullFolding(UChar32 c,
 
 U_CAPI UBool U_EXPORT2
 u_isULowercase(UChar32 c) {
-    return (UBool)(UCASE_LOWER==ucase_getType(c));
+    return UCASE_LOWER==ucase_getType(c);
 }
 
 U_CAPI UBool U_EXPORT2
 u_isUUppercase(UChar32 c) {
-    return (UBool)(UCASE_UPPER==ucase_getType(c));
+    return UCASE_UPPER==ucase_getType(c);
 }
 
 /* Transforms the Unicode character to its lower case equivalent.*/

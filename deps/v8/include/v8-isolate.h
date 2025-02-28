@@ -9,6 +9,7 @@
 #include <stdint.h>
 
 #include <memory>
+#include <string>
 #include <utility>
 
 #include "cppgc/common.h"
@@ -17,6 +18,7 @@
 #include "v8-data.h"               // NOLINT(build/include_directory)
 #include "v8-debug.h"              // NOLINT(build/include_directory)
 #include "v8-embedder-heap.h"      // NOLINT(build/include_directory)
+#include "v8-exception.h"          // NOLINT(build/include_directory)
 #include "v8-function-callback.h"  // NOLINT(build/include_directory)
 #include "v8-internal.h"           // NOLINT(build/include_directory)
 #include "v8-local-handle.h"       // NOLINT(build/include_directory)
@@ -277,11 +279,6 @@ class V8_EXPORT Isolate {
     bool allow_atomics_wait = true;
 
     /**
-     * Termination is postponed when there is no active SafeForTerminationScope.
-     */
-    bool only_terminate_in_safe_scope = false;
-
-    /**
      * The following parameters describe the offsets for addressing type info
      * for wrapped API objects and are used by the fast C API
      * (for details see v8-fast-api-calls.h).
@@ -294,6 +291,12 @@ class V8_EXPORT Isolate {
      */
     FatalErrorCallback fatal_error_callback = nullptr;
     OOMErrorCallback oom_error_callback = nullptr;
+
+    /**
+     * A CppHeap used to construct the Isolate. V8 takes ownership of the
+     * CppHeap passed this way.
+     */
+    CppHeap* cpp_heap = nullptr;
   };
 
   /**
@@ -384,24 +387,6 @@ class V8_EXPORT Isolate {
   };
 
   /**
-   * This scope allows terminations inside direct V8 API calls and forbid them
-   * inside any recursive API calls without explicit SafeForTerminationScope.
-   */
-  class V8_EXPORT V8_NODISCARD SafeForTerminationScope {
-   public:
-    explicit SafeForTerminationScope(v8::Isolate* v8_isolate);
-    ~SafeForTerminationScope();
-
-    // Prevent copying of Scope objects.
-    SafeForTerminationScope(const SafeForTerminationScope&) = delete;
-    SafeForTerminationScope& operator=(const SafeForTerminationScope&) = delete;
-
-   private:
-    internal::Isolate* i_isolate_;
-    bool prev_value_;
-  };
-
-  /**
    * Types of garbage collections that can be requested via
    * RequestGarbageCollectionForTesting.
    */
@@ -414,40 +399,43 @@ class V8_EXPORT Isolate {
    * Features reported via the SetUseCounterCallback callback. Do not change
    * assigned numbers of existing items; add new features to the end of this
    * list.
+   * Dead features can be marked `V8_DEPRECATE_SOON`, then `V8_DEPRECATED`, and
+   * then finally be renamed to `kOBSOLETE_...` to stop embedders from using
+   * them.
    */
   enum UseCounterFeature {
     kUseAsm = 0,
     kBreakIterator = 1,
-    kLegacyConst = 2,
-    kMarkDequeOverflow = 3,
-    kStoreBufferOverflow = 4,
-    kSlotsBufferOverflow = 5,
-    kObjectObserve = 6,
+    kOBSOLETE_LegacyConst = 2,
+    kOBSOLETE_MarkDequeOverflow = 3,
+    kOBSOLETE_StoreBufferOverflow = 4,
+    kOBSOLETE_SlotsBufferOverflow = 5,
+    kOBSOLETE_ObjectObserve = 6,
     kForcedGC = 7,
     kSloppyMode = 8,
     kStrictMode = 9,
-    kStrongMode = 10,
+    kOBSOLETE_StrongMode = 10,
     kRegExpPrototypeStickyGetter = 11,
     kRegExpPrototypeToString = 12,
     kRegExpPrototypeUnicodeGetter = 13,
-    kIntlV8Parse = 14,
-    kIntlPattern = 15,
-    kIntlResolved = 16,
-    kPromiseChain = 17,
-    kPromiseAccept = 18,
-    kPromiseDefer = 19,
+    kOBSOLETE_IntlV8Parse = 14,
+    kOBSOLETE_IntlPattern = 15,
+    kOBSOLETE_IntlResolved = 16,
+    kOBSOLETE_PromiseChain = 17,
+    kOBSOLETE_PromiseAccept = 18,
+    kOBSOLETE_PromiseDefer = 19,
     kHtmlCommentInExternalScript = 20,
     kHtmlComment = 21,
     kSloppyModeBlockScopedFunctionRedefinition = 22,
     kForInInitializer = 23,
-    kArrayProtectorDirtied = 24,
+    kOBSOLETE_ArrayProtectorDirtied = 24,
     kArraySpeciesModified = 25,
     kArrayPrototypeConstructorModified = 26,
-    kArrayInstanceProtoModified = 27,
+    kOBSOLETE_ArrayInstanceProtoModified = 27,
     kArrayInstanceConstructorModified = 28,
-    kLegacyFunctionDeclaration = 29,
-    kRegExpPrototypeSourceGetter = 30,   // Unused.
-    kRegExpPrototypeOldFlagGetter = 31,  // Unused.
+    kOBSOLETE_LegacyFunctionDeclaration = 29,
+    kOBSOLETE_RegExpPrototypeSourceGetter = 30,
+    kOBSOLETE_RegExpPrototypeOldFlagGetter = 31,
     kDecimalWithLeadingZeroInStrictMode = 32,
     kLegacyDateParser = 33,
     kDefineGetterOrSetterWouldThrow = 34,
@@ -455,21 +443,21 @@ class V8_EXPORT Isolate {
     kAssigmentExpressionLHSIsCallInSloppy = 36,
     kAssigmentExpressionLHSIsCallInStrict = 37,
     kPromiseConstructorReturnedUndefined = 38,
-    kConstructorNonUndefinedPrimitiveReturn = 39,
-    kLabeledExpressionStatement = 40,
-    kLineOrParagraphSeparatorAsLineTerminator = 41,
+    kOBSOLETE_ConstructorNonUndefinedPrimitiveReturn = 39,
+    kOBSOLETE_LabeledExpressionStatement = 40,
+    kOBSOLETE_LineOrParagraphSeparatorAsLineTerminator = 41,
     kIndexAccessor = 42,
     kErrorCaptureStackTrace = 43,
     kErrorPrepareStackTrace = 44,
     kErrorStackTraceLimit = 45,
     kWebAssemblyInstantiation = 46,
     kDeoptimizerDisableSpeculation = 47,
-    kArrayPrototypeSortJSArrayModifiedPrototype = 48,
+    kOBSOLETE_ArrayPrototypeSortJSArrayModifiedPrototype = 48,
     kFunctionTokenOffsetTooLongForToString = 49,
     kWasmSharedMemory = 50,
     kWasmThreadOpcodes = 51,
-    kAtomicsNotify = 52,  // Unused.
-    kAtomicsWake = 53,    // Unused.
+    kOBSOLETE_AtomicsNotify = 52,
+    kOBSOLETE_AtomicsWake = 53,
     kCollator = 54,
     kNumberFormat = 55,
     kDateTimeFormat = 56,
@@ -479,7 +467,7 @@ class V8_EXPORT Isolate {
     kListFormat = 60,
     kSegmenter = 61,
     kStringLocaleCompare = 62,
-    kStringToLocaleUpperCase = 63,
+    kOBSOLETE_StringToLocaleUpperCase = 63,
     kStringToLocaleLowerCase = 64,
     kNumberToLocaleString = 65,
     kDateToLocaleString = 66,
@@ -487,14 +475,14 @@ class V8_EXPORT Isolate {
     kDateToLocaleTimeString = 68,
     kAttemptOverrideReadOnlyOnPrototypeSloppy = 69,
     kAttemptOverrideReadOnlyOnPrototypeStrict = 70,
-    kOptimizedFunctionWithOneShotBytecode = 71,  // Unused.
+    kOBSOLETE_OptimizedFunctionWithOneShotBytecode = 71,
     kRegExpMatchIsTrueishOnNonJSRegExp = 72,
     kRegExpMatchIsFalseishOnJSRegExp = 73,
-    kDateGetTimezoneOffset = 74,  // Unused.
+    kOBSOLETE_DateGetTimezoneOffset = 74,
     kStringNormalize = 75,
     kCallSiteAPIGetFunctionSloppyCall = 76,
     kCallSiteAPIGetThisSloppyCall = 77,
-    kRegExpMatchAllWithNonGlobalRegExp = 78,
+    kOBSOLETE_RegExpMatchAllWithNonGlobalRegExp = 78,
     kRegExpExecCalledOnSlowRegExp = 79,
     kRegExpReplaceCalledOnSlowRegExp = 80,
     kDisplayNames = 81,
@@ -525,8 +513,8 @@ class V8_EXPORT Isolate {
     kWasmSimdOpcodes = 106,
     kVarRedeclaredCatchBinding = 107,
     kWasmRefTypes = 108,
-    kWasmBulkMemory = 109,  // Unused.
-    kWasmMultiValue = 110,
+    kOBSOLETE_WasmBulkMemory = 109,
+    kOBSOLETE_WasmMultiValue = 110,
     kWasmExceptionHandling = 111,
     kInvalidatedMegaDOMProtector = 112,
     kFunctionPrototypeArguments = 113,
@@ -534,8 +522,33 @@ class V8_EXPORT Isolate {
     kTurboFanOsrCompileStarted = 115,
     kAsyncStackTaggingCreateTaskCall = 116,
     kDurationFormat = 117,
-    kInvalidatedNumberStringPrototypeNoReplaceProtector = 118,
-    kRegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,  // Unused.
+    kInvalidatedNumberStringNotRegexpLikeProtector = 118,
+    kOBSOLETE_RegExpUnicodeSetIncompatibilitiesWithUnicodeMode = 119,
+    kImportAssertionDeprecatedSyntax = 120,
+    kLocaleInfoObsoletedGetters = 121,
+    kLocaleInfoFunctions = 122,
+    kCompileHintsMagicAll = 123,
+    kInvalidatedNoProfilingProtector = 124,
+    kWasmMemory64 = 125,
+    kWasmMultiMemory = 126,
+    kWasmGC = 127,
+    kWasmImportedStrings = 128,
+    kSourceMappingUrlMagicCommentAtSign = 129,
+    kTemporalObject = 130,
+    kWasmModuleCompilation = 131,
+    kInvalidatedNoUndetectableObjectsProtector = 132,
+    kWasmJavaScriptPromiseIntegration = 133,
+    kWasmReturnCall = 134,
+    kWasmExtendedConst = 135,
+    kWasmRelaxedSimd = 136,
+    kWasmTypeReflection = 137,
+    kWasmExnRef = 138,
+    kWasmTypedFuncRef = 139,
+    kInvalidatedStringWrapperToPrimitiveProtector = 140,
+    kDocumentAllLegacyCall = 141,
+    kDocumentAllLegacyConstruct = 142,
+    kConsoleContext = 143,
+    kWasmImportedStringsUtf8 = 144,
 
     // If you add new values here, you'll also need to update Chromium's:
     // web_feature.mojom, use_counter_callback.cc, and enums.xml. V8 changes to
@@ -553,6 +566,21 @@ class V8_EXPORT Isolate {
                   kMessageWarning,
   };
 
+  // The different priorities that an isolate can have.
+  enum class Priority {
+    // The isolate does not relate to content that is currently important
+    // to the user. Lowest priority.
+    kBestEffort,
+
+    // The isolate contributes to content that is visible to the user, like a
+    // visible iframe that's not interacted directly with. High priority.
+    kUserVisible,
+
+    // The isolate contributes to content that is of the utmost importance to
+    // the user, like visible content in the focused window. Highest priority.
+    kUserBlocking,
+  };
+
   using UseCounterCallback = void (*)(Isolate* isolate,
                                       UseCounterFeature feature);
 
@@ -563,7 +591,7 @@ class V8_EXPORT Isolate {
    * Only Isolate::GetData() and Isolate::SetData(), which access the
    * embedder-controlled parts of the isolate, are allowed to be called on the
    * uninitialized isolate. To initialize the isolate, call
-   * Isolate::Initialize().
+   * `Isolate::Initialize()` or initialize a `SnapshotCreator`.
    *
    * When an isolate is no longer used its resources should be freed
    * by calling Dispose().  Using the delete operator is not allowed.
@@ -665,12 +693,32 @@ class V8_EXPORT Isolate {
   void SetPrepareStackTraceCallback(PrepareStackTraceCallback callback);
 
   /**
+   * Get the stackTraceLimit property of Error.
+   */
+  int GetStackTraceLimit();
+
+#if defined(V8_OS_WIN)
+  /**
+   * This specifies the callback called when an ETW tracing session starts.
+   */
+  void SetFilterETWSessionByURLCallback(FilterETWSessionByURLCallback callback);
+#endif  // V8_OS_WIN
+
+  /**
    * Optional notification that the system is running low on memory.
    * V8 uses these notifications to guide heuristics.
    * It is allowed to call this function from another thread while
    * the isolate is executing long running JavaScript code.
    */
   void MemoryPressureNotification(MemoryPressureLevel level);
+
+  /**
+   * Optional request from the embedder to tune v8 towards energy efficiency
+   * rather than speed if `battery_saver_mode_enabled` is true, because the
+   * embedder is in battery saver mode. If false, the correct tuning is left
+   * to v8 to decide.
+   */
+  void SetBatterySaverMode(bool battery_saver_mode_enabled);
 
   /**
    * Drop non-essential caches. Should only be called from testing code.
@@ -746,6 +794,18 @@ class V8_EXPORT Isolate {
    */
   template <class T>
   V8_INLINE MaybeLocal<T> GetDataFromSnapshotOnce(size_t index);
+
+  /**
+   * Returns the value that was set or restored by
+   * SetContinuationPreservedEmbedderData(), if any.
+   */
+  Local<Value> GetContinuationPreservedEmbedderData();
+
+  /**
+   * Sets a value that will be stored on continuations and reset while the
+   * continuation runs.
+   */
+  void SetContinuationPreservedEmbedderData(Local<Value> data);
 
   /**
    * Get statistics about the heap memory usage.
@@ -879,6 +939,12 @@ class V8_EXPORT Isolate {
   Local<Context> GetIncumbentContext();
 
   /**
+   * Returns the host defined options set for currently running script or
+   * module, if available.
+   */
+  MaybeLocal<Data> GetCurrentHostDefinedOptions();
+
+  /**
    * Schedules a v8::Exception::Error with the given message.
    * See ThrowException for more details. Templatized to provide compile-time
    * errors in case of too long strings (see v8::String::NewFromUtf8Literal).
@@ -904,24 +970,72 @@ class V8_EXPORT Isolate {
 
   /**
    * Enables the host application to receive a notification before a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
+   * garbage collection.
+   *
+   * \param callback The callback to be invoked. The callback is allowed to
+   *     allocate but invocation is not re-entrant: a callback triggering
+   *     garbage collection will not be called again. JS execution is prohibited
+   *     from these callbacks. A single callback may only be registered once.
+   * \param gc_type_filter A filter in case it should be applied.
    */
-  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
   void AddGCPrologueCallback(GCCallback callback,
                              GCType gc_type_filter = kGCTypeAll);
 
   /**
-   * This function removes callback which was installed by
-   * AddGCPrologueCallback function.
+   * \copydoc AddGCPrologueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCPrologueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCPrologueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * \copydoc AddGCPrologueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
    */
   void RemoveGCPrologueCallback(GCCallbackWithData, void* data = nullptr);
-  void RemoveGCPrologueCallback(GCCallback callback);
+
+  /**
+   * Enables the host application to receive a notification after a
+   * garbage collection.
+   *
+   * \copydetails AddGCPrologueCallback(GCCallback, GCType)
+   */
+  void AddGCEpilogueCallback(GCCallback callback,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * \copydoc AddGCEpilogueCallback(GCCallback, GCType)
+   *
+   * \param data Additional data that should be passed to the callback.
+   */
+  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
+                             GCType gc_type_filter = kGCTypeAll);
+
+  /**
+   * This function removes a callback which was added by
+   * `AddGCEpilogueCallback`.
+   *
+   * \param callback the callback to remove.
+   */
+  void RemoveGCEpilogueCallback(GCCallback callback);
+
+  /**
+   * \copydoc RemoveGCEpilogueCallback(GCCallback)
+   *
+   * \param data Additional data that was used to install the callback.
+   */
+  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
+                                void* data = nullptr);
 
   /**
    * Sets an embedder roots handle that V8 should consider when performing
@@ -939,12 +1053,20 @@ class V8_EXPORT Isolate {
    *
    * Multi-threaded use requires the use of v8::Locker/v8::Unlocker, see
    * CppHeap.
+   *
+   * If a CppHeap is set via CreateParams, then this call is a noop.
    */
+  V8_DEPRECATE_SOON(
+      "Set the heap on Isolate creation using CreateParams instead.")
   void AttachCppHeap(CppHeap*);
 
   /**
    * Detaches a managed C++ heap if one was attached using `AttachCppHeap()`.
+   *
+   * If a CppHeap is set via CreateParams, then this call is a noop.
    */
+  V8_DEPRECATE_SOON(
+      "Set the heap on Isolate creation using CreateParams instead.")
   void DetachCppHeap();
 
   /**
@@ -1031,28 +1153,6 @@ class V8_EXPORT Isolate {
    * as its last parameter.
    */
   void SetAtomicsWaitCallback(AtomicsWaitCallback callback, void* data);
-
-  /**
-   * Enables the host application to receive a notification after a
-   * garbage collection. Allocations are allowed in the callback function,
-   * but the callback is not re-entrant: if the allocation inside it will
-   * trigger the garbage collection, the callback won't be called again.
-   * It is possible to specify the GCType filter for your callback. But it is
-   * not possible to register the same callback function two times with
-   * different GCType filters.
-   */
-  void AddGCEpilogueCallback(GCCallbackWithData callback, void* data = nullptr,
-                             GCType gc_type_filter = kGCTypeAll);
-  void AddGCEpilogueCallback(GCCallback callback,
-                             GCType gc_type_filter = kGCTypeAll);
-
-  /**
-   * This function removes callback which was installed by
-   * AddGCEpilogueCallback function.
-   */
-  void RemoveGCEpilogueCallback(GCCallbackWithData callback,
-                                void* data = nullptr);
-  void RemoveGCEpilogueCallback(GCCallback callback);
 
   using GetExternallyAllocatedMemoryInBytesCallback = size_t (*)();
 
@@ -1186,6 +1286,15 @@ class V8_EXPORT Isolate {
   void SetPromiseRejectCallback(PromiseRejectCallback callback);
 
   /**
+   * This is a part of experimental Api and might be changed without further
+   * notice.
+   * Do not use it.
+   *
+   * Set callback to notify about a new exception being thrown.
+   */
+  void SetExceptionPropagationCallback(ExceptionPropagationCallback callback);
+
+  /**
    * Runs the default MicrotaskQueue until it gets empty and perform other
    * microtask checkpoint steps, such as calling ClearKeptObjects. Asserts that
    * the MicrotasksPolicy is not kScoped. Any exceptions thrown by microtask
@@ -1275,24 +1384,6 @@ class V8_EXPORT Isolate {
   void SetAddCrashKeyCallback(AddCrashKeyCallback);
 
   /**
-   * Optional notification that the embedder is idle.
-   * V8 uses the notification to perform garbage collection.
-   * This call can be used repeatedly if the embedder remains idle.
-   * Returns true if the embedder should stop calling IdleNotificationDeadline
-   * until real work has been done.  This indicates that V8 has done
-   * as much cleanup as it will be able to do.
-   *
-   * The deadline_in_seconds argument specifies the deadline V8 has to finish
-   * garbage collection work. deadline_in_seconds is compared with
-   * MonotonicallyIncreasingTime() and should be based on the same timebase as
-   * that function. There is no guarantee that the actual work will be done
-   * within the time limit.
-   */
-  V8_DEPRECATE_SOON(
-      "Use MemoryPressureNotification() to influence the GC schedule.")
-  bool IdleNotificationDeadline(double deadline_in_seconds);
-
-  /**
    * Optional notification that the system is running low on memory.
    * V8 uses these notifications to attempt to free memory.
    */
@@ -1313,27 +1404,21 @@ class V8_EXPORT Isolate {
    * Optional notification that the isolate switched to the foreground.
    * V8 uses these notifications to guide heuristics.
    */
+  V8_DEPRECATE_SOON("Use SetPriority(Priority::kUserBlocking) instead")
   void IsolateInForegroundNotification();
 
   /**
    * Optional notification that the isolate switched to the background.
    * V8 uses these notifications to guide heuristics.
    */
+  V8_DEPRECATE_SOON("Use SetPriority(Priority::kBestEffort) instead")
   void IsolateInBackgroundNotification();
 
   /**
-   * Optional notification which will enable the memory savings mode.
-   * V8 uses this notification to guide heuristics which may result in a
-   * smaller memory footprint at the cost of reduced runtime performance.
+   * Optional notification that the isolate changed `priority`.
+   * V8 uses the priority value to guide heuristics.
    */
-  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
-  void EnableMemorySavingsMode();
-
-  /**
-   * Optional notification which will disable the memory savings mode.
-   */
-  V8_DEPRECATED("Use IsolateInBackgroundNotification() instead")
-  void DisableMemorySavingsMode();
+  void SetPriority(Priority priority);
 
   /**
    * Optional notification to tell V8 the current performance requirements
@@ -1506,21 +1591,23 @@ class V8_EXPORT Isolate {
 
   void SetWasmLoadSourceMapCallback(WasmLoadSourceMapCallback callback);
 
-  V8_DEPRECATED("Wasm SIMD is always enabled")
-  void SetWasmSimdEnabledCallback(WasmSimdEnabledCallback callback);
-
-  V8_DEPRECATED("Wasm exceptions are always enabled")
-  void SetWasmExceptionsEnabledCallback(WasmExceptionsEnabledCallback callback);
-
-  /**
-   * Register callback to control whehter Wasm GC is enabled.
-   * The callback overwrites the value of the flag.
-   * If the callback returns true, it will also enable Wasm stringrefs.
-   */
-  void SetWasmGCEnabledCallback(WasmGCEnabledCallback callback);
+  void SetWasmImportedStringsEnabledCallback(
+      WasmImportedStringsEnabledCallback callback);
 
   void SetSharedArrayBufferConstructorEnabledCallback(
       SharedArrayBufferConstructorEnabledCallback callback);
+
+  void SetWasmJSPIEnabledCallback(WasmJSPIEnabledCallback callback);
+
+  /**
+   * Register callback to control whether compile hints magic comments are
+   * enabled.
+   */
+  V8_DEPRECATED(
+      "Will be removed, use ScriptCompiler::CompileOptions for enabling the "
+      "compile hints magic comments")
+  void SetJavaScriptCompileHintsMagicEnabledCallback(
+      JavaScriptCompileHintsMagicEnabledCallback callback);
 
   /**
    * This function can be called by the embedder to signal V8 that the dynamic
@@ -1583,6 +1670,7 @@ class V8_EXPORT Isolate {
    * heap.  GC is not invoked prior to iterating, therefore there is no
    * guarantee that visited objects are still alive.
    */
+  V8_DEPRECATED("Will be removed without replacement. crbug.com/v8/14172")
   void VisitExternalResources(ExternalResourceVisitor* visitor);
 
   /**
@@ -1637,6 +1725,12 @@ class V8_EXPORT Isolate {
    */
   void LocaleConfigurationChangeNotification();
 
+  /**
+   * Returns the default locale in a string if Intl support is enabled.
+   * Otherwise returns an empty string.
+   */
+  std::string GetDefaultLocale();
+
   Isolate() = delete;
   ~Isolate() = delete;
   Isolate(const Isolate&) = delete;
@@ -1653,7 +1747,7 @@ class V8_EXPORT Isolate {
   friend class PersistentValueMapBase;
 
   internal::Address* GetDataFromSnapshotOnce(size_t index);
-  void ReportExternalAllocationLimitReached();
+  void HandleExternalMemoryInterrupt();
 };
 
 void Isolate::SetData(uint32_t slot, void* data) {
@@ -1673,10 +1767,12 @@ uint32_t Isolate::GetNumberOfDataSlots() {
 
 template <class T>
 MaybeLocal<T> Isolate::GetDataFromSnapshotOnce(size_t index) {
-  T* data =
-      internal::ValueHelper::SlotAsValue<T>(GetDataFromSnapshotOnce(index));
-  if (data) internal::PerformCastCheck(data);
-  return Local<T>(data);
+  if (auto slot = GetDataFromSnapshotOnce(index); slot) {
+    internal::PerformCastCheck(
+        internal::ValueHelper::SlotAsValue<T, false>(slot));
+    return Local<T>::FromSlot(slot);
+  }
+  return {};
 }
 
 }  // namespace v8

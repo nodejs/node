@@ -39,10 +39,11 @@ class IC {
 
   // Compute the current IC state based on the target stub, lookup_start_object
   // and name.
-  void UpdateState(Handle<Object> lookup_start_object, Handle<Object> name);
+  void UpdateState(DirectHandle<Object> lookup_start_object,
+                   Handle<Object> name);
 
-  bool RecomputeHandlerForName(Handle<Object> name);
-  void MarkRecomputeHandler(Handle<Object> name) {
+  bool RecomputeHandlerForName(DirectHandle<Object> name);
+  void MarkRecomputeHandler(DirectHandle<Object> name) {
     DCHECK(RecomputeHandlerForName(name));
     old_state_ = state_;
     state_ = InlineCacheState::RECOMPUTE_HANDLER;
@@ -61,10 +62,10 @@ class IC {
     return IsDefineNamedOwnIC() || IsDefineKeyedOwnIC();
   }
 
-  static inline bool IsHandler(MaybeObject object);
+  static inline bool IsHandler(Tagged<MaybeObject> object);
 
   // Nofity the IC system that a feedback has changed.
-  static void OnFeedbackChanged(Isolate* isolate, FeedbackVector vector,
+  static void OnFeedbackChanged(Isolate* isolate, Tagged<FeedbackVector> vector,
                                 FeedbackSlot slot, const char* reason);
 
   void OnFeedbackChanged(const char* reason);
@@ -80,21 +81,21 @@ class IC {
   inline bool vector_needs_update();
 
   // Configure for most states.
-  bool ConfigureVectorState(IC::State new_state, Handle<Object> key);
+  bool ConfigureVectorState(IC::State new_state, DirectHandle<Object> key);
   // Configure the vector for MONOMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
+  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
                             Handle<Object> handler);
-  void ConfigureVectorState(Handle<Name> name, Handle<Map> map,
+  void ConfigureVectorState(Handle<Name> name, DirectHandle<Map> map,
                             const MaybeObjectHandle& handler);
   // Configure the vector for POLYMORPHIC.
-  void ConfigureVectorState(Handle<Name> name, MapHandles const& maps,
+  void ConfigureVectorState(Handle<Name> name, MapHandlesSpan maps,
                             MaybeObjectHandles* handlers);
   void ConfigureVectorState(
       Handle<Name> name, std::vector<MapAndHandler> const& maps_and_handlers);
 
   char TransitionMarkFromState(IC::State state);
-  void TraceIC(const char* type, Handle<Object> name);
-  void TraceIC(const char* type, Handle<Object> name, State old_state,
+  void TraceIC(const char* type, DirectHandle<Object> name);
+  void TraceIC(const char* type, DirectHandle<Object> name, State old_state,
                State new_state);
 
   MaybeHandle<Object> TypeError(MessageTemplate, Handle<Object> object,
@@ -102,15 +103,17 @@ class IC {
   MaybeHandle<Object> ReferenceError(Handle<Name> name);
 
   void UpdateMonomorphicIC(const MaybeObjectHandle& handler, Handle<Name> name);
-  bool UpdateMegaDOMIC(const MaybeObjectHandle& handler, Handle<Name> name);
+  bool UpdateMegaDOMIC(const MaybeObjectHandle& handler,
+                       DirectHandle<Name> name);
   bool UpdatePolymorphicIC(Handle<Name> name, const MaybeObjectHandle& handler);
-  void UpdateMegamorphicCache(Handle<Map> map, Handle<Name> name,
+  void UpdateMegamorphicCache(DirectHandle<Map> map, DirectHandle<Name> name,
                               const MaybeObjectHandle& handler);
 
   StubCache* stub_cache();
 
-  void CopyICToMegamorphicCache(Handle<Name> name);
-  bool IsTransitionOfMonomorphicTarget(Map source_map, Map target_map);
+  void CopyICToMegamorphicCache(DirectHandle<Name> name);
+  bool IsTransitionOfMonomorphicTarget(Tagged<Map> source_map,
+                                       Tagged<Map> target_map);
   void SetCache(Handle<Name> name, Handle<Object> handler);
   void SetCache(Handle<Name> name, const MaybeObjectHandle& handler);
   FeedbackSlotKind kind() const { return kind_; }
@@ -131,10 +134,10 @@ class IC {
     return IsKeyedLoadIC() || IsKeyedStoreIC() || IsStoreInArrayLiteralIC() ||
            IsKeyedHasIC() || IsDefineKeyedOwnIC();
   }
-  bool ShouldRecomputeHandler(Handle<String> name);
+  bool ShouldRecomputeHandler(DirectHandle<String> name);
 
   Handle<Map> lookup_start_object_map() { return lookup_start_object_map_; }
-  inline void update_lookup_start_object_map(Handle<Object> object);
+  inline void update_lookup_start_object_map(DirectHandle<Object> object);
 
   void TargetMaps(MapHandles* list) {
     FindTargetMaps();
@@ -143,9 +146,9 @@ class IC {
     }
   }
 
-  Map FirstTargetMap() {
+  Tagged<Map> FirstTargetMap() {
     FindTargetMaps();
-    return !target_maps_.empty() ? *target_maps_[0] : Map();
+    return !target_maps_.empty() ? *target_maps_[0] : Tagged<Map>();
   }
 
   const FeedbackNexus* nexus() const { return &nexus_; }
@@ -229,27 +232,29 @@ class KeyedLoadIC : public LoadIC {
                                                  Handle<Object> key);
 
  protected:
-  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(Handle<Object> object,
-                                                        Handle<Object> key);
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> RuntimeLoad(
+      Handle<Object> object, Handle<Object> key, bool* is_found = nullptr);
+
+  V8_WARN_UNUSED_RESULT MaybeHandle<Object> LoadName(Handle<Object> object,
+                                                     DirectHandle<Object> key,
+                                                     Handle<Name> name);
 
   // receiver is HeapObject because it could be a String or a JSObject
   void UpdateLoadElement(Handle<HeapObject> receiver,
-                         KeyedAccessLoadMode load_mode);
+                         KeyedAccessLoadMode new_load_mode);
 
  private:
   friend class IC;
 
-  Handle<Object> LoadElementHandler(Handle<Map> receiver_map,
-                                    KeyedAccessLoadMode load_mode);
+  Handle<Object> LoadElementHandler(DirectHandle<Map> receiver_map,
+                                    KeyedAccessLoadMode new_load_mode);
 
   void LoadElementPolymorphicHandlers(MapHandles* receiver_maps,
                                       MaybeObjectHandles* handlers,
-                                      KeyedAccessLoadMode load_mode);
+                                      KeyedAccessLoadMode new_load_mode);
 
-  // Returns true if the receiver_map has a kElement or kIndexedString
-  // handler in the nexus currently but didn't yet allow out of bounds
-  // accesses.
-  bool CanChangeToAllowOutOfBounds(Handle<Map> receiver_map);
+  KeyedAccessLoadMode GetKeyedAccessLoadModeFor(
+      DirectHandle<Map> receiver_map) const;
 };
 
 class StoreIC : public IC {
@@ -264,14 +269,14 @@ class StoreIC : public IC {
       Handle<Object> object, Handle<Name> name, Handle<Object> value,
       StoreOrigin store_origin = StoreOrigin::kNamed);
 
-  bool LookupForWrite(LookupIterator* it, Handle<Object> value,
+  bool LookupForWrite(LookupIterator* it, DirectHandle<Object> value,
                       StoreOrigin store_origin);
 
  protected:
   // Stub accessors.
   // Update the inline cache and the global stub cache based on the
   // lookup result.
-  void UpdateCaches(LookupIterator* lookup, Handle<Object> value,
+  void UpdateCaches(LookupIterator* lookup, DirectHandle<Object> value,
                     StoreOrigin store_origin);
 
  private:
@@ -324,8 +329,8 @@ class KeyedStoreIC : public StoreIC {
                                      TransitionMode transition_mode);
 
   Handle<Object> StoreElementHandler(
-      Handle<Map> receiver_map, KeyedAccessStoreMode store_mode,
-      MaybeHandle<Object> prev_validity_cell = MaybeHandle<Object>());
+      DirectHandle<Map> receiver_map, KeyedAccessStoreMode store_mode,
+      MaybeHandle<UnionOf<Smi, Cell>> prev_validity_cell = kNullMaybeHandle);
 
   void StoreElementPolymorphicHandlers(
       std::vector<MapAndHandler>* receiver_maps_and_handlers,

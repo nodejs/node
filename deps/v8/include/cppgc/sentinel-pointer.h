@@ -7,13 +7,20 @@
 
 #include <cstdint>
 
+#include "cppgc/internal/api-constants.h"
+
 namespace cppgc {
 namespace internal {
 
 // Special tag type used to denote some sentinel member. The semantics of the
 // sentinel is defined by the embedder.
 struct SentinelPointer {
+#if defined(CPPGC_POINTER_COMPRESSION)
+  static constexpr intptr_t kSentinelValue =
+      1 << api_constants::kPointerCompressionShift;
+#else   // !defined(CPPGC_POINTER_COMPRESSION)
   static constexpr intptr_t kSentinelValue = 0b10;
+#endif  // !defined(CPPGC_POINTER_COMPRESSION)
   template <typename T>
   operator T*() const {
     return reinterpret_cast<T*>(kSentinelValue);

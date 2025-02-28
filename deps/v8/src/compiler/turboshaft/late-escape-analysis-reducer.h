@@ -36,7 +36,7 @@ class LateEscapeAnalysisAnalyzer {
   Zone* phase_zone_;
 
   // {alloc_uses_} records all the uses of each AllocateOp.
-  ZoneUnorderedMap<OpIndex, ZoneVector<OpIndex>> alloc_uses_;
+  ZoneAbslFlatHashMap<OpIndex, ZoneVector<OpIndex>> alloc_uses_;
   // {allocs_} is filled with all of the AllocateOp of the graph, and then
   // iterated upon to determine which allocations can be removed and which
   // cannot.
@@ -46,12 +46,7 @@ class LateEscapeAnalysisAnalyzer {
 template <class Next>
 class LateEscapeAnalysisReducer : public Next {
  public:
-  TURBOSHAFT_REDUCER_BOILERPLATE()
-
-  template <class... Args>
-  explicit LateEscapeAnalysisReducer(const std::tuple<Args...>& args)
-      : Next(args),
-        analyzer_(Asm().modifiable_input_graph(), Asm().phase_zone()) {}
+  TURBOSHAFT_REDUCER_BOILERPLATE(LateEscapeAnalysis)
 
   void Analyze() {
     analyzer_.Run();
@@ -59,7 +54,8 @@ class LateEscapeAnalysisReducer : public Next {
   }
 
  private:
-  LateEscapeAnalysisAnalyzer analyzer_;
+  LateEscapeAnalysisAnalyzer analyzer_{Asm().modifiable_input_graph(),
+                                       Asm().phase_zone()};
 };
 
 }  // namespace v8::internal::compiler::turboshaft

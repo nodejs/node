@@ -34,12 +34,16 @@ terminal.
 
 Set to `true` to use default system URL opener.
 
+
+
 #### `registry`
 
 * Default: "https://registry.npmjs.org/"
 * Type: URL
 
 The base URL of the npm registry.
+
+
 
 #### `workspace`
 

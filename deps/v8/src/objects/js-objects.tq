@@ -44,25 +44,35 @@ extern class JSExternalObject extends JSObject {
   value: ExternalPointer;
 }
 
-// A JSObject that may contain EmbedderDataSlots.
+// A JSObject that may contain EmbedderDataSlots for purposes other than being
+// an API wrapper object. E.g., Promise objects can be set up to have embedder
+// fields.
+extern class JSObjectWithEmbedderSlots extends JSObject {}
+
+// A JSObject that may contain EmbedderDataSlots and are considered API wrapper
+// objects.
 @abstract
-extern class JSObjectWithEmbedderSlots extends JSObject {
+extern class JSAPIObjectWithEmbedderSlots extends JSObject {
+  cpp_heap_wrappable: CppHeapPointer;
 }
 
 @abstract
 @lowestInstanceTypeWithinParentClassRange
-extern class JSCustomElementsObject extends JSObject {
-}
+extern class JSCustomElementsObject extends JSObject {}
 
 // These may also contain EmbedderDataSlots but can't be a child class of
-// JSObjectWithEmbedderSlots due to type id constraints.
+// JSAPIObjectWithEmbedderSlots due to type id constraints. These objects are
+// also considered API wrapper objects.
 @abstract
 @lowestInstanceTypeWithinParentClassRange
 extern class JSSpecialObject extends JSCustomElementsObject {
+  // Mirror the same class hierarchy as with JSAPIObjectWithEmbedderSlots.
+  cpp_heap_wrappable: CppHeapPointer;
 }
 
-macro GetDerivedMap(implicit context: Context)(
-    target: JSFunction, newTarget: JSReceiver): Map {
+macro GetDerivedMap(
+    implicit context: Context)(target: JSFunction,
+    newTarget: JSReceiver): Map {
   try {
     const constructor =
         Cast<JSFunctionWithPrototypeSlot>(newTarget) otherwise SlowPath;
@@ -79,13 +89,14 @@ macro GetDerivedMap(implicit context: Context)(
   }
 }
 
-macro GetDerivedRabGsabTypedArrayMap(implicit context: Context)(
-    target: JSFunction, newTarget: JSReceiver): Map {
+macro GetDerivedRabGsabTypedArrayMap(
+    implicit context: Context)(target: JSFunction,
+    newTarget: JSReceiver): Map {
   return runtime::GetDerivedMap(context, target, newTarget, TrueConstant());
 }
 
-macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
-    JSObject {
+macro AllocateFastOrSlowJSObjectFromMap(
+    implicit context: Context)(map: Map): JSObject {
   let properties: EmptyFixedArray|NameDictionary|SwissNameDictionary =
       kEmptyFixedArray;
   if (IsDictionaryMap(map)) {
@@ -102,16 +113,9 @@ macro AllocateFastOrSlowJSObjectFromMap(implicit context: Context)(map: Map):
       SlackTrackingMode::kWithSlackTracking);
 }
 
-extern class JSGlobalProxy extends JSSpecialObject {
-  // [native_context]: the owner native context of this global proxy object.
-  // It is null value if this object is not used by any context.
-  native_context: Object;
-}
+extern class JSGlobalProxy extends JSSpecialObject {}
 
 extern class JSGlobalObject extends JSSpecialObject {
-  // [native context]: the natives corresponding to this global object.
-  native_context: NativeContext;
-
   // [global proxy]: the global proxy object of the context
   global_proxy: JSGlobalProxy;
 }
@@ -129,7 +133,7 @@ extern class JSMessageObject extends JSObject {
   script: Script;
   // [stack_frames]: an array of stack frames for this error object.
   stack_frames: Object;
-  shared_info: SharedFunctionInfo|Undefined;
+  shared_info: SharedFunctionInfo|Smi;
 
   // Raw data fields.
   // TODO(ishell): store as int32 instead of Smi.
@@ -143,7 +147,7 @@ extern class JSDate extends JSObject {
   // If one component is NaN, all of them are, indicating a NaN time value.
 
   // The time value.
-  value: NumberOrUndefined;
+  value: float64;
 
   // Cached values:
   year: Undefined|Smi|NaN;
@@ -183,9 +187,8 @@ extern class JSValidIteratorWrapper extends JSObject {
 extern macro AllocateJSObjectFromMap(Map): JSObject;
 extern macro AllocateJSObjectFromMap(
     Map,
-    NameDictionary | SwissNameDictionary | EmptyFixedArray |
-        PropertyArray): JSObject;
+    NameDictionary|SwissNameDictionary|EmptyFixedArray|PropertyArray): JSObject;
 extern macro AllocateJSObjectFromMap(
-    Map, NameDictionary | SwissNameDictionary | EmptyFixedArray | PropertyArray,
+    Map, NameDictionary|SwissNameDictionary|EmptyFixedArray|PropertyArray,
     FixedArray, constexpr AllocationFlag,
     constexpr SlackTrackingMode): JSObject;

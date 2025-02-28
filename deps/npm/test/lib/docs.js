@@ -1,14 +1,14 @@
 const t = require('tap')
-const { join, resolve, basename, extname, dirname } = require('path')
-const fs = require('fs/promises')
+const { join, resolve, basename, extname } = require('node:path')
+const fs = require('node:fs/promises')
 const localeCompare = require('@isaacs/string-locale-compare')('en')
 const docs = require('@npmcli/docs')
 
 const { load: loadMockNpm } = require('../fixtures/mock-npm.js')
-const mockGlobals = require('../fixtures/mock-globals.js')
-const { definitions } = require('../../lib/utils/config/index.js')
+const { definitions } = require('@npmcli/config/lib/definitions')
 const cmdList = require('../../lib/utils/cmd-list.js')
 const pkg = require('../../package.json')
+const { cleanCwd } = require('../fixtures/clean-snapshot.js')
 
 t.test('command list', async t => {
   for (const [key, value] of Object.entries(cmdList)) {
@@ -22,7 +22,7 @@ t.test('shorthands', async t => {
 
 t.test('config', async t => {
   const keys = Object.keys(definitions)
-  const flat = Object.entries(definitions).filter(([_, d]) => d.flatten).map(([k]) => k)
+  const flat = Object.entries(definitions).filter(([, d]) => d.flatten).map(([k]) => k)
   const notFlat = keys.filter(k => !flat.includes(k))
   t.matchSnapshot(keys, 'all keys')
   t.matchSnapshot(flat, 'keys that are flattened')
@@ -30,23 +30,62 @@ t.test('config', async t => {
   t.matchSnapshot(docs.config(docs.TAGS.CONFIG, {}), 'all definitions')
 })
 
+t.test('flat options', async t => {
+  t.cleanSnapshot = (s) => cleanCwd(s)
+    .split(cleanCwd(process.execPath)).join('{NODE}')
+
+  const { npm } = await loadMockNpm(t, {
+    command: 'version',
+    exec: true,
+    npm: ({ other }) => ({
+      npmRoot: other,
+    }),
+    otherDirs: {
+      'package.json': JSON.stringify({ version: '1.1.1' }),
+    },
+    globals: {
+      'process.stdout.isTTY': false,
+      'process.stderr.isTTY': false,
+      'process.env': {
+        EDITOR: '{EDITOR}',
+        SHELL: '{SHELL}',
+      },
+      'process.version': '2.2.2',
+      'process.platform': '{PLATFORM}',
+      'process.arch': '{ARCH}',
+    },
+    mocks: {
+      'ci-info': { isCI: true, name: '{CI}' },
+      // currently the config version is read from npmRoot and the Npm
+      // constructor version is read from the root package.json file. This
+      // snapshot is meant to explicitly show that they are read from different
+      // places. In the future we should probably only read it from npmRoot,
+      // which would require more changes to ensure nothing depends on it being
+      // a static prop on the constructor
+      '{ROOT}/package.json': { version: '3.3.3' },
+    },
+  })
+
+  t.matchSnapshot(npm.flatOptions, 'full flat options object')
+})
+
 t.test('basic usage', async t => {
-  mockGlobals(t, { process: { platform: 'posix' } })
-
-  t.cleanSnapshot = str => str
-    .split(dirname(dirname(__dirname))).join('{BASEDIR}')
-    .split(pkg.version).join('{VERSION}')
-
   // snapshot basic usage without commands since all the command snapshots
   // are generated in the following test
   const { npm } = await loadMockNpm(t, {
     mocks: {
-      '{LIB}/utils/cmd-list.js': { commands: [] },
+      '{LIB}/utils/cmd-list.js': { ...cmdList, commands: [] },
     },
+    config: { userconfig: '/some/config/file/.npmrc' },
+    globals: { process: { platform: 'posix' } },
   })
 
-  npm.config.set('userconfig', '/some/config/file/.npmrc')
-  t.matchSnapshot(await npm.usage)
+  t.cleanSnapshot = str => str
+    .replace(npm.npmRoot, '{BASEDIR}')
+    .replace(npm.config.get('userconfig'), '{USERCONFIG}')
+    .split(pkg.version).join('{VERSION}')
+
+  t.matchSnapshot(npm.usage)
 })
 
 t.test('usage', async t => {
@@ -81,9 +120,8 @@ t.test('usage', async t => {
     t.test(cmd, async t => {
       let output = null
       if (!bareCommands.includes(cmd)) {
-        const { npm } = await loadMockNpm(t)
-        const impl = await npm.cmd(cmd)
-        output = impl.usage
+        const mock = await loadMockNpm(t, { command: cmd })
+        output = mock[cmd].usage
       }
 
       const usage = docs.usage(docs.TAGS.USAGE, { path: cmd })

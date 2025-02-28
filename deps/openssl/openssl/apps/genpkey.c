@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -183,6 +183,8 @@ int genpkey_main(int argc, char **argv)
 
     pkey = do_param ? app_paramgen(ctx, algname)
                     : app_keygen(ctx, algname, 0, 0 /* not verbose */);
+    if (pkey == NULL)
+        goto end;
 
     if (do_param) {
         rv = PEM_write_bio_Parameters(out, pkey);

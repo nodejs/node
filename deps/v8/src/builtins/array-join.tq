@@ -12,8 +12,8 @@ const kMaxArrayLength:
 // Fast C call to write a fixed array (see Buffer.fixedArray) to a single
 // string.
 extern macro
-ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
-    FixedArray, intptr, String, String): String;
+    ArrayBuiltinsAssembler::CallJSArrayArrayJoinConcatToSequentialString(
+        FixedArray, intptr, String, String): String;
 
 transitioning builtin LoadJoinElement<T : type extends ElementsKind>(
     context: Context, receiver: JSReceiver, k: uintptr): JSAny {
@@ -88,19 +88,19 @@ transitioning builtin ConvertToLocaleString(
 
     return ToString_Inline(result);
   } label TypeError {
-    ThrowTypeError(MessageTemplate::kCalledNonCallable, prop);
+    ThrowCalledNonCallable(prop);
   }
 }
 
 // Verifies the current element JSArray accessor can still be safely used
 // (see LoadJoinElement<ElementsAccessor>).
-macro CannotUseSameArrayAccessor<T: type>(implicit context: Context)(
-    loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-    originalLen: Number): bool;
+macro CannotUseSameArrayAccessor<T: type>(
+    implicit context: Context)(loadFn: LoadJoinElementFn, receiver: JSReceiver,
+    originalMap: Map, originalLen: Number): bool;
 
-CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
-    loadFn: LoadJoinElementFn, receiver: JSReceiver, originalMap: Map,
-    originalLen: Number): bool {
+CannotUseSameArrayAccessor<JSArray>(
+    implicit context: Context)(loadFn: LoadJoinElementFn, receiver: JSReceiver,
+    originalMap: Map, originalLen: Number): bool {
   if (loadFn == LoadJoinElement<array::GenericElementsAccessor>) return false;
 
   const array: JSArray = UnsafeCast<JSArray>(receiver);
@@ -110,9 +110,9 @@ CannotUseSameArrayAccessor<JSArray>(implicit context: Context)(
   return false;
 }
 
-CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
-    _loadFn: LoadJoinElementFn, receiver: JSReceiver, _initialMap: Map,
-    _initialLen: Number): bool {
+CannotUseSameArrayAccessor<JSTypedArray>(
+    implicit context: Context)(_loadFn: LoadJoinElementFn,
+    receiver: JSReceiver, _initialMap: Map, _initialLen: Number): bool {
   const typedArray: JSTypedArray = UnsafeCast<JSTypedArray>(receiver);
   // When this is called from toLocaleString(), the underlying buffer might get
   // detached / resized (in the case of RAB / GSAB) during iterating the
@@ -132,8 +132,8 @@ CannotUseSameArrayAccessor<JSTypedArray>(implicit context: Context)(
 // Calculates the running total length of the resulting string.  If the
 // calculated length exceeds the maximum string length (see
 // String::kMaxLength), throws a range error.
-macro AddStringLength(implicit context: Context)(
-    lenA: intptr, lenB: intptr): intptr {
+macro AddStringLength(
+    implicit context: Context)(lenA: intptr, lenB: intptr): intptr {
   try {
     const length: intptr = TryIntPtrAdd(lenA, lenB) otherwise IfOverflow;
     if (length > kStringMaxLength) goto IfOverflow;
@@ -158,7 +158,7 @@ macro StoreAndGrowFixedArray<T: type>(
       const newLength: intptr = CalculateNewElementsCapacity(length);
       dcheck(index < newLength);
       const newfixedArray: FixedArray =
-          ExtractFixedArray(fixedArray, 0, length, newLength);
+          ExtractFixedArray(fixedArray, 0, length, newLength, TheHole);
       newfixedArray.objects[index] = element;
       return newfixedArray;
     }
@@ -169,8 +169,9 @@ macro StoreAndGrowFixedArray<T: type>(
 // The buffer is maintained and updated by Buffer.constructor, Buffer.Add(),
 // Buffer.AddSeparators().
 struct Buffer {
-  macro Add(implicit context: Context)(
-      str: String, nofSeparators: intptr, separatorLength: intptr): void {
+  macro Add(
+      implicit context: Context)(str: String, nofSeparators: intptr,
+      separatorLength: intptr): void {
     // Add separators if necessary (at the beginning or more than one)
     const writeSeparators: bool = this.index == 0 | nofSeparators > 1;
     this.AddSeparators(nofSeparators, separatorLength, writeSeparators);
@@ -190,8 +191,9 @@ struct Buffer {
         IsOneByteStringInstanceType(str.instanceType) & this.isOneByte;
   }
 
-  macro AddSeparators(implicit context: Context)(
-      nofSeparators: intptr, separatorLength: intptr, write: bool): void {
+  macro AddSeparators(
+      implicit context: Context)(nofSeparators: intptr,
+      separatorLength: intptr, write: bool): void {
     if (nofSeparators == 0 || separatorLength == 0) return;
 
     const nofSeparatorsInt: intptr = nofSeparators;
@@ -278,8 +280,8 @@ macro NewBuffer(len: uintptr, sep: String): Buffer {
   };
 }
 
-macro BufferJoin(implicit context: Context)(
-    buffer: Buffer, sep: String): String {
+macro BufferJoin(implicit context: Context)(buffer: Buffer, sep: String):
+    String {
   dcheck(IsValidPositiveSmi(buffer.totalStringLength));
   if (buffer.totalStringLength == 0) return kEmptyString;
 
@@ -312,10 +314,10 @@ macro BufferJoin(implicit context: Context)(
       buffer.fixedArray, buffer.index, sep, r);
 }
 
-transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
-    receiver: JSReceiver, sep: String, lengthNumber: Number,
-    useToLocaleString: constexpr bool, locales: JSAny, options: JSAny,
-    initialLoadFn: LoadJoinElementFn): String {
+transitioning macro ArrayJoinImpl<T: type>(
+    implicit context: Context)(receiver: JSReceiver, sep: String,
+    lengthNumber: Number, useToLocaleString: constexpr bool, locales: JSAny,
+    options: JSAny, initialLoadFn: LoadJoinElementFn): String {
   const initialMap: Map = receiver.map;
   const len: uintptr = Convert<uintptr>(lengthNumber);
   const separatorLength: intptr = sep.length_intptr;
@@ -378,13 +380,15 @@ transitioning macro ArrayJoinImpl<T: type>(implicit context: Context)(
   return BufferJoin(buffer, sep);
 }
 
-transitioning macro ArrayJoin<T: type>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny;
+transitioning macro ArrayJoin<T: type>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny;
 
-transitioning ArrayJoin<JSArray>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
+transitioning ArrayJoin<JSArray>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny {
   const map: Map = receiver.map;
   const kind: ElementsKind = map.elements_kind;
   let loadFn: LoadJoinElementFn;
@@ -428,9 +432,10 @@ transitioning ArrayJoin<JSArray>(implicit context: Context)(
       receiver, sep, lenNumber, useToLocaleString, locales, options, loadFn);
 }
 
-transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
-    useToLocaleString: constexpr bool, receiver: JSReceiver, sep: String,
-    lenNumber: Number, locales: JSAny, options: JSAny): JSAny {
+transitioning ArrayJoin<JSTypedArray>(
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    receiver: JSReceiver, sep: String, lenNumber: Number, locales: JSAny,
+    options: JSAny): JSAny {
   const map: Map = receiver.map;
   const kind: ElementsKind = map.elements_kind;
   let loadFn: LoadJoinElementFn;
@@ -438,6 +443,8 @@ transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
   if (IsElementsKindGreaterThan(kind, ElementsKind::UINT32_ELEMENTS)) {
     if (kind == ElementsKind::INT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::FLOAT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float16Elements>;
     } else if (kind == ElementsKind::FLOAT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
     } else if (kind == ElementsKind::FLOAT64_ELEMENTS) {
@@ -460,6 +467,8 @@ transitioning ArrayJoin<JSTypedArray>(implicit context: Context)(
       loadFn = LoadJoinTypedElement<typed_array::Uint32Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_INT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Int32Elements>;
+    } else if (kind == ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
+      loadFn = LoadJoinTypedElement<typed_array::Float16Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_FLOAT32_ELEMENTS) {
       loadFn = LoadJoinTypedElement<typed_array::Float32Elements>;
     } else if (kind == ElementsKind::RAB_GSAB_FLOAT64_ELEMENTS) {
@@ -518,8 +527,9 @@ macro SetJoinStack(implicit context: Context)(stack: FixedArray): void {
 // Adds a receiver to the stack. The FixedArray will automatically grow to
 // accommodate the receiver. If the receiver already exists on the stack,
 // this indicates a cyclical call and False is returned.
-builtin JoinStackPush(implicit context: Context)(
-    stack: FixedArray, receiver: JSReceiver): Boolean {
+builtin JoinStackPush(
+    implicit context: Context)(stack: FixedArray,
+    receiver: JSReceiver): Boolean {
   const capacity: intptr = stack.length_intptr;
   for (let i: intptr = 0; i < capacity; i++) {
     const previouslyVisited: Object = stack.objects[i];
@@ -565,8 +575,9 @@ macro JoinStackPushInline(implicit context: Context)(receiver: JSReceiver):
 
 // Removes a receiver from the stack. The FixedArray will automatically shrink
 // to Heap::kMinJoinStackSize once the stack becomes empty.
-builtin JoinStackPop(implicit context: Context)(
-    stack: FixedArray, receiver: JSReceiver): JSAny {
+builtin JoinStackPop(
+    implicit context: Context)(stack: FixedArray,
+    receiver: JSReceiver): JSAny {
   const len: intptr = stack.length_intptr;
   for (let i: intptr = 0; i < len; i++) {
     if (stack.objects[i] == receiver) {
@@ -605,9 +616,9 @@ macro JoinStackPopInline(implicit context: Context)(receiver: JSReceiver):
 
 // Main entry point for all builtins using Array Join functionality.
 transitioning macro CycleProtectedArrayJoin<T: type>(
-    implicit context: Context)(
-    useToLocaleString: constexpr bool, o: JSReceiver, len: Number,
-    sepObj: JSAny, locales: JSAny, options: JSAny): JSAny {
+    implicit context: Context)(useToLocaleString: constexpr bool,
+    o: JSReceiver, len: Number, sepObj: JSAny, locales: JSAny,
+    options: JSAny): JSAny {
   // 3. If separator is undefined, let sep be the single-element String ",".
   // 4. Else, let sep be ? ToString(separator).
   const sep: String = sepObj == Undefined ? ',' : ToString_Inline(sepObj);
@@ -630,8 +641,7 @@ transitioning macro CycleProtectedArrayJoin<T: type>(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.join
-transitioning javascript builtin
-ArrayPrototypeJoin(
+transitioning javascript builtin ArrayPrototypeJoin(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const separator: JSAny = arguments[0];
 

@@ -9,6 +9,7 @@
 #include "src/common/globals.h"
 #include "src/interpreter/bytecode-register.h"
 #include "src/interpreter/bytecodes.h"
+#include "src/objects/bytecode-array.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
@@ -104,11 +105,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // - Resume copies only the registers from the generator, the arguments
   //   are copied by the ResumeGenerator trampoline.
   TNode<FixedArray> ExportParametersAndRegisterFile(
-      TNode<FixedArray> array, const RegListNodePair& registers,
-      TNode<Int32T> formal_parameter_count);
+      TNode<FixedArray> array, const RegListNodePair& registers);
   TNode<FixedArray> ImportRegisterFile(TNode<FixedArray> array,
-                                       const RegListNodePair& registers,
-                                       TNode<Int32T> formal_parameter_count);
+                                       const RegListNodePair& registers);
 
   // Loads from and stores to the interpreter register file.
   TNode<Object> LoadRegister(Register reg);
@@ -206,6 +205,13 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
                                     const RegListNodePair& args,
                                     TNode<UintPtrT> slot_id);
 
+  // Call constructor |target|, forwarding all arguments in the current JS
+  // frame.
+  TNode<Object> ConstructForwardAllArgs(TNode<Object> target,
+                                        TNode<Context> context,
+                                        TNode<Object> new_target,
+                                        TNode<TaggedIndex> slot_id);
+
   // Call runtime function with |args| arguments.
   template <class T = Object>
   TNode<T> CallRuntimeN(TNode<Uint32T> function_id, TNode<Context> context,
@@ -252,6 +258,18 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates the profiler interrupt budget for a return.
   void UpdateInterruptBudgetOnReturn();
 
+  // Adjusts the interrupt budget by the provided weight. Returns the new
+  // budget.
+  TNode<Int32T> UpdateInterruptBudget(TNode<Int32T> weight);
+  // Decrements the bytecode array's interrupt budget by a 32-bit unsigned
+  // |weight| and calls Runtime::kInterrupt if counter reaches zero.
+  enum StackCheckBehavior {
+    kEnableStackCheck,
+    kDisableStackCheck,
+  };
+  void DecreaseInterruptBudget(TNode<Int32T> weight,
+                               StackCheckBehavior stack_check_behavior);
+
   TNode<Int8T> LoadOsrState(TNode<FeedbackVector> feedback_vector);
 
   // Dispatch to the bytecode.
@@ -276,9 +294,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   void AbortIfWordNotEqual(TNode<WordT> lhs, TNode<WordT> rhs,
                            AbortReason abort_reason);
   // Abort if |register_count| is invalid for given register file array.
-  void AbortIfRegisterCountInvalid(
-      TNode<FixedArrayBase> parameters_and_registers,
-      TNode<IntPtrT> formal_parameter_count, TNode<UintPtrT> register_count);
+  void AbortIfRegisterCountInvalid(TNode<FixedArray> parameters_and_registers,
+                                   TNode<IntPtrT> parameter_count,
+                                   TNode<UintPtrT> register_count);
 
   // Attempts to OSR.
   enum OnStackReplacementParams {
@@ -311,6 +329,9 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Load the bytecode at |bytecode_offset|.
   TNode<WordT> LoadBytecode(TNode<IntPtrT> bytecode_offset);
+
+  // Load the parameter count of the current function from its BytecodeArray.
+  TNode<IntPtrT> LoadParameterCountWithoutReceiver();
 
  private:
   // Returns a pointer to the current function's BytecodeArray object.
@@ -345,11 +366,6 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
 
   // Traces the current bytecode by calling |function_id|.
   void TraceBytecode(Runtime::FunctionId function_id);
-
-  // Updates the bytecode array's interrupt budget by a 32-bit unsigned |weight|
-  // and calls Runtime::kInterrupt if counter reaches zero. If |backward|, then
-  // the interrupt budget is decremented, otherwise it is incremented.
-  void UpdateInterruptBudget(TNode<Int32T> weight, bool backward);
 
   // Returns the offset of register |index| relative to RegisterFilePointer().
   TNode<IntPtrT> RegisterFrameOffset(TNode<IntPtrT> index);
@@ -389,10 +405,8 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // pool element.
   TNode<UintPtrT> BytecodeOperandConstantPoolIdx(int operand_index);
 
-  // Jump relative to the current bytecode by the |jump_offset|. If |backward|,
-  // then jump backward (subtract the offset), otherwise jump forward (add the
-  // offset). Helper function for Jump and JumpBackward.
-  void Jump(TNode<IntPtrT> jump_offset, bool backward);
+  // Jump to a specific bytecode offset.
+  void JumpToOffset(TNode<IntPtrT> new_bytecode_offset);
 
   // Jump forward relative to the current bytecode by |jump_offset| if the
   // |condition| is true. Helper function for JumpIfTaggedEqual and
@@ -424,7 +438,7 @@ class V8_EXPORT_PRIVATE InterpreterAssembler : public CodeStubAssembler {
   // Updates and returns BytecodeOffset() advanced by delta bytecodes.
   // Traces the exit of the current bytecode.
   TNode<IntPtrT> Advance(int delta);
-  TNode<IntPtrT> Advance(TNode<IntPtrT> delta, bool backward = false);
+  TNode<IntPtrT> Advance(TNode<IntPtrT> delta);
 
   // Look ahead for short Star and inline it in a branch, including subsequent
   // dispatch. Anything after this point can assume that the following

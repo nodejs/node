@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -1420,7 +1420,11 @@ static int final_key_share(SSL *s, unsigned int context, int sent)
                     group_id = pgroups[i];
 
                     if (check_in_list(s, group_id, clntgroups, clnt_num_groups,
-                                      1))
+                                      1)
+                            && tls_group_allowed(s, group_id,
+                                                 SSL_SECOP_CURVE_SUPPORTED)
+                            && tls_valid_group(s, group_id, TLS1_3_VERSION,
+                                               TLS1_3_VERSION, 0, NULL))
                         break;
                 }
 
@@ -1708,15 +1712,9 @@ static int final_early_data(SSL *s, unsigned int context, int sent)
 
 static int final_maxfragmentlen(SSL *s, unsigned int context, int sent)
 {
-    /*
-     * Session resumption on server-side with MFL extension active
-     *  BUT MFL extension packet was not resent (i.e. sent == 0)
-     */
-    if (s->server && s->hit && USE_MAX_FRAGMENT_LENGTH_EXT(s->session)
-            && !sent ) {
-        SSLfatal(s, SSL_AD_MISSING_EXTENSION, SSL_R_BAD_EXTENSION);
-        return 0;
-    }
+    /* MaxFragmentLength defaults to disabled */
+    if (s->session->ext.max_fragment_len_mode == TLSEXT_max_fragment_length_UNSPECIFIED)
+        s->session->ext.max_fragment_len_mode = TLSEXT_max_fragment_length_DISABLED;
 
     /* Current SSL buffer is lower than requested MFL */
     if (s->session && USE_MAX_FRAGMENT_LENGTH_EXT(s->session)

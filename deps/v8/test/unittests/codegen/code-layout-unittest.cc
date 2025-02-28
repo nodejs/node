@@ -18,10 +18,10 @@ TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
   HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.
-  byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
-                           0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
+  uint8_t buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
+                              0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
 
-  byte* buffer = &buffer_array[0];
+  uint8_t* buffer = &buffer_array[0];
   int buffer_size = sizeof(buffer_array);
 
   CodeDesc code_desc;
@@ -34,6 +34,8 @@ TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
   code_desc.handler_table_size = 0;
   code_desc.constant_pool_offset = buffer_size;
   code_desc.constant_pool_size = 0;
+  code_desc.builtin_jump_table_info_offset = buffer_size;
+  code_desc.builtin_jump_table_info_size = 0;
   code_desc.code_comments_offset = buffer_size;
   code_desc.code_comments_size = 0;
   code_desc.reloc_offset = buffer_size;
@@ -42,32 +44,33 @@ TEST_F(CodeLayoutTest, CodeLayoutWithoutUnwindingInfo) {
   code_desc.unwinding_info_size = 0;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), code_desc, CodeKind::FOR_TESTING)
           .Build();
 
   CHECK(!code->has_unwinding_info());
-  CHECK_EQ(code->InstructionSize(), buffer_size);
-  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->InstructionStart()), buffer,
+  CHECK_EQ(code->instruction_size(), buffer_size);
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->instruction_start()), buffer,
                      buffer_size));
-  CHECK_EQ(static_cast<int>(code->InstructionEnd() - code->InstructionStart()),
-           buffer_size);
+  CHECK_EQ(
+      static_cast<int>(code->instruction_end() - code->instruction_start()),
+      buffer_size);
 }
 
 TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
   HandleScope handle_scope(i_isolate());
 
   // "Hello, World!" in ASCII, padded to kCodeAlignment.
-  byte buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
-                           0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
+  uint8_t buffer_array[16] = {0x48, 0x65, 0x6C, 0x6C, 0x6F, 0x2C, 0x20, 0x57,
+                              0x6F, 0x72, 0x6C, 0x64, 0x21, 0xcc, 0xcc, 0xcc};
 
   // "JavaScript" in ASCII.
-  byte unwinding_info_array[10] = {0x4A, 0x61, 0x76, 0x61, 0x53,
-                                   0x63, 0x72, 0x69, 0x70, 0x74};
+  uint8_t unwinding_info_array[10] = {0x4A, 0x61, 0x76, 0x61, 0x53,
+                                      0x63, 0x72, 0x69, 0x70, 0x74};
 
-  byte* buffer = &buffer_array[0];
+  uint8_t* buffer = &buffer_array[0];
   int buffer_size = sizeof(buffer_array);
-  byte* unwinding_info = &unwinding_info_array[0];
+  uint8_t* unwinding_info = &unwinding_info_array[0];
   int unwinding_info_size = sizeof(unwinding_info_array);
 
   CodeDesc code_desc;
@@ -80,6 +83,8 @@ TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
   code_desc.handler_table_size = 0;
   code_desc.constant_pool_offset = buffer_size;
   code_desc.constant_pool_size = 0;
+  code_desc.builtin_jump_table_info_offset = buffer_size;
+  code_desc.builtin_jump_table_info_size = 0;
   code_desc.code_comments_offset = buffer_size;
   code_desc.code_comments_size = 0;
   code_desc.reloc_offset = buffer_size;
@@ -88,20 +93,20 @@ TEST_F(CodeLayoutTest, CodeLayoutWithUnwindingInfo) {
   code_desc.unwinding_info_size = unwinding_info_size;
   code_desc.origin = nullptr;
 
-  Handle<Code> code =
+  DirectHandle<Code> code =
       Factory::CodeBuilder(i_isolate(), code_desc, CodeKind::FOR_TESTING)
           .Build();
 
   CHECK(code->has_unwinding_info());
   CHECK_EQ(code->body_size(), buffer_size + unwinding_info_size);
-  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->InstructionStart()), buffer,
+  CHECK_EQ(0, memcmp(reinterpret_cast<void*>(code->instruction_start()), buffer,
                      buffer_size));
   CHECK_EQ(code->unwinding_info_size(), unwinding_info_size);
   CHECK_EQ(memcmp(reinterpret_cast<void*>(code->unwinding_info_start()),
                   unwinding_info, unwinding_info_size),
            0);
   CHECK_EQ(
-      static_cast<int>(code->unwinding_info_end() - code->InstructionStart()),
+      static_cast<int>(code->unwinding_info_end() - code->instruction_start()),
       buffer_size + unwinding_info_size);
 }
 

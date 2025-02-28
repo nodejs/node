@@ -15,7 +15,7 @@ const commonArgs = [
   commonInput,
 ];
 
-describe('ESM: loader chaining', { concurrency: true }, () => {
+describe('ESM: loader chaining', { concurrency: !process.env.TEST_PARALLEL }, () => {
   it('should load unadulterated source when there are no loaders', async () => {
     const { code, stderr, stdout } = await spawnPromisified(
       execPath,
@@ -469,5 +469,39 @@ describe('ESM: loader chaining', { concurrency: true }, () => {
     assert.match(stderr, /loader-load-bad-next-context\.mjs/);
     assert.match(stderr, /'load' hook's nextLoad\(\) context/);
     assert.strictEqual(code, 1);
+  });
+
+  it('should allow loaders to influence subsequent loader `import()` calls in `resolve`', async () => {
+    const { code, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-resolve-strip-xxx.mjs'),
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-resolve-dynamic-import.mjs'),
+        ...commonArgs,
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /resolve dynamic import/); // It did go thru resolve-dynamic
+    assert.strictEqual(code, 0);
+  });
+
+  it('should allow loaders to influence subsequent loader `import()` calls in `load`', async () => {
+    const { code, stderr, stdout } = await spawnPromisified(
+      execPath,
+      [
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-resolve-strip-xxx.mjs'),
+        '--loader',
+        fixtures.fileURL('es-module-loaders', 'loader-load-dynamic-import.mjs'),
+        ...commonArgs,
+      ],
+      { encoding: 'utf8' },
+    );
+    assert.strictEqual(stderr, '');
+    assert.match(stdout, /load dynamic import/); // It did go thru load-dynamic
+    assert.strictEqual(code, 0);
   });
 });

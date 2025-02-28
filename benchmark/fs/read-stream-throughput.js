@@ -1,15 +1,13 @@
 // Test the throughput of the fs.WriteStream class.
 'use strict';
 
-const path = require('path');
 const common = require('../common.js');
 const fs = require('fs');
 const assert = require('assert');
 
 const tmpdir = require('../../test/common/tmpdir');
 tmpdir.refresh();
-const filename = path.resolve(tmpdir.path,
-                              `.removeme-benchmark-garbage-${process.pid}`);
+const filename = tmpdir.resolve(`.removeme-benchmark-garbage-${process.pid}`);
 
 const bench = common.createBenchmark(main, {
   encodingType: ['buf', 'asc', 'utf'],
@@ -69,7 +67,7 @@ function main(conf) {
 }
 
 function runTest(filesize, highWaterMark, encoding, n) {
-  assert(fs.statSync(filename).size === filesize * n);
+  assert.strictEqual(fs.statSync(filename).size, filesize * n);
   const rs = fs.createReadStream(filename, {
     highWaterMark,
     encoding,

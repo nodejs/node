@@ -78,14 +78,6 @@ struct PropertyBase {
   // - v8::X::Y
   // - X::Y
   const char* type;
-
-  // In some cases, |type| may be a simple type representing a compressed
-  // pointer such as v8::internal::TaggedValue. In those cases,
-  // |decompressed_type| will contain the type of the object when decompressed.
-  // Otherwise, |decompressed_type| will match |type|. In any case, it is safe
-  // to pass the |decompressed_type| value as the type_hint on a subsequent call
-  // to GetObjectProperties.
-  const char* decompressed_type;
 };
 
 struct StructProperty : public PropertyBase {
@@ -174,15 +166,12 @@ struct HeapAddresses {
 
   // Any valid heap pointer address. On platforms where pointer compression is
   // enabled, this can allow us to get data from compressed pointers even if the
-  // other data above is not provided. The Isolate pointer is valid for this
-  // purpose if you have it.
+  // other data above is not provided.
   uintptr_t any_heap_pointer;
-};
 
-// Result type for ListObjectClasses.
-struct ClassList {
-  size_t num_class_names;
-  const char* const* class_names;  // Fully qualified class names.
+  // A pointer to the static array
+  // v8::internal::MemoryChunk::metadata_pointer_table_.
+  uintptr_t metadata_pointer_table;
 };
 
 }  // namespace debug_helper
@@ -203,8 +192,6 @@ _v8_debug_helper_GetStackFrame(
     uintptr_t frame_pointer, v8::debug_helper::MemoryAccessor memory_accessor);
 V8_DEBUG_HELPER_EXPORT void _v8_debug_helper_Free_StackFrameResult(
     v8::debug_helper::StackFrameResult* result);
-V8_DEBUG_HELPER_EXPORT const v8::debug_helper::ClassList*
-_v8_debug_helper_ListObjectClasses();
 V8_DEBUG_HELPER_EXPORT const char* _v8_debug_helper_BitsetName(
     uint64_t payload);
 }
@@ -234,11 +221,6 @@ inline ObjectPropertiesResultPtr GetObjectProperties(
     const HeapAddresses& heap_addresses, const char* type_hint = nullptr) {
   return ObjectPropertiesResultPtr(_v8_debug_helper_GetObjectProperties(
       object, memory_accessor, heap_addresses, type_hint));
-}
-
-// Get a list of all class names deriving from v8::internal::Object.
-inline const ClassList* ListObjectClasses() {
-  return _v8_debug_helper_ListObjectClasses();
 }
 
 // Return a bitset name for a v8::internal::compiler::Type with payload or null

@@ -93,7 +93,9 @@ export class ScheduleView extends TextView {
     instrMarker.onclick = this.mkBlockLinkHandler(block.rpo);
     scheduleBlock.appendChild(instrMarker);
 
-    const blocksRpoId = this.createElement("div", "block-id com clickable", String(block.rpo) + " Id:" + String(block.id));
+    let displayStr = String(block.rpo) + " Id:" + String(block.id);
+    if(block.count != -1) displayStr += " Count:" + String(block.count);
+    const blocksRpoId = this.createElement("div", "block-id com clickable", displayStr);
     blocksRpoId.onclick = this.mkBlockLinkHandler(block.rpo);
     scheduleBlock.appendChild(blocksRpoId);
     const blockPred = this.createElement("div", "predecessor-list block-list comma-sep-list");

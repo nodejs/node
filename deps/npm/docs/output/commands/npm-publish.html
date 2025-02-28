@@ -113,6 +113,11 @@ header.title > .description {
     line-height: 1;
 }
 
+header.title .version {
+    font-size: 0.8em;
+    color: #666666;
+}
+
 footer#edit {
     border-top: solid 1px #e1e4e8;
     margin: 3em 0 4em 0;
@@ -136,13 +141,16 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="npm-publish">npm-publish</h1>
+<h1 id="----npm-publish----1110">
+    <span>npm-publish</span>
+    <span class="version">@11.1.0</span>
+</h1>
 <span class="description">Publish a package</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#files-included-in-package">Files included in package</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#tag"><code>tag</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#provenance"><code>provenance</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#synopsis">Synopsis</a></li><li><a href="#description">Description</a></li><li><a href="#files-included-in-package">Files included in package</a></li><li><a href="#configuration">Configuration</a></li><ul><li><a href="#tag"><code>tag</code></a></li><li><a href="#access"><code>access</code></a></li><li><a href="#dry-run"><code>dry-run</code></a></li><li><a href="#otp"><code>otp</code></a></li><li><a href="#workspace"><code>workspace</code></a></li><li><a href="#workspaces"><code>workspaces</code></a></li><li><a href="#include-workspace-root"><code>include-workspace-root</code></a></li><li><a href="#provenance"><code>provenance</code></a></li><li><a href="#provenance-file"><code>provenance-file</code></a></li></ul><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="synopsis">Synopsis</h3>
@@ -156,7 +164,7 @@ overridden by specifying a different default registry or using a
 scope-configured registry (see
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a>).</p>
 <p>A <code>package</code> is interpreted the same way as other commands (like
-<code>npm install</code> and can be:</p>
+<code>npm install</code>) and can be:</p>
 <ul>
 <li>a) a folder containing a program described by a
 <a href="../configuring-npm/package-json.html"><code>package.json</code></a> file</li>
@@ -217,6 +225,8 @@ un-ignored with a <code>!</code> rule in a <code>.npmignore</code> or <code>.git
 <p>See <a href="../using-npm/developers.html"><code>developers</code></a> for full details on what's
 included in the published package, as well as details on how the package is
 built.</p>
+<p>See <a href="../configuring-npm/package-json.html"><code>package.json</code></a> for more info on
+what can and can't be ignored.</p>
 <h3 id="configuration">Configuration</h3>
 <h4 id="tag"><code>tag</code></h4>
 <ul>
@@ -225,10 +235,11 @@ built.</p>
 </ul>
 <p>If you ask npm to install a package and don't tell it a specific version,
 then it will install the specified tag.</p>
-<p>Also the tag that is added to the package@version specified by the <code>npm tag</code>
-command, if no explicit tag is given.</p>
+<p>It is the tag added to the package@version specified in the <code>npm dist-tag add</code> command, if no explicit tag is given.</p>
 <p>When used by the <code>npm diff</code> command, this is the tag used to fetch the
 tarball that will be compared with the local files by default.</p>
+<p>If used in the <code>npm publish</code> command, this is the tag that will be added to
+the package submitted to the registry.</p>
 <h4 id="access"><code>access</code></h4>
 <ul>
 <li>Default: 'public' for new packages, existing packages it will not change the
@@ -313,6 +324,14 @@ the specified workspaces, and not on the root project.</p>
 </ul>
 <p>When publishing from a supported cloud CI/CD system, the package will be
 publicly linked to where it was built and published from.</p>
+<p>This config can not be used with: <code>provenance-file</code></p>
+<h4 id="provenance-file"><code>provenance-file</code></h4>
+<ul>
+<li>Default: null</li>
+<li>Type: Path</li>
+</ul>
+<p>When publishing, the provenance bundle at the given path will be used.</p>
+<p>This config can not be used with: <code>provenance</code></p>
 <h3 id="see-also">See Also</h3>
 <ul>
 <li><a href="../using-npm/package-spec.html">package spec</a></li>

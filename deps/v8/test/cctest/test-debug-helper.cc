@@ -50,7 +50,6 @@ void CheckPropBase(const d::PropertyBase& property, const char* expected_type,
                    const char* expected_name) {
   CHECK(property.type == std::string("v8::internal::TaggedValue") ||
         property.type == std::string(expected_type));
-  CHECK(property.decompressed_type == std::string(expected_type));
   CHECK(property.name == std::string(expected_name));
 }
 
@@ -122,19 +121,31 @@ class StringResource : public v8::String::ExternalStringResource {
 
 }  // namespace
 
+class TestDebugHelper {
+ public:
+  static Address MetadataTableAddress() {
+#ifdef V8_ENABLE_SANDBOX
+    return MemoryChunk::MetadataTableAddress();
+#else
+    return 0;
+#endif
+  }
+};
+
 TEST(GetObjectProperties) {
   CcTest::InitializeVM();
   v8::Isolate* isolate = CcTest::isolate();
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
   LocalContext context;
   // Claim we don't know anything about the heap layout.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0};
 
   v8::Local<v8::Value> v = CompileRun("42");
   Handle<Object> o = v8::Utils::OpenHandle(*v);
   d::ObjectPropertiesResultPtr props =
-      d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+      d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kSmi);
   CHECK(props->brief == std::string("42 (0x2a)"));
   CHECK(props->type == std::string("v8::internal::Smi"));
@@ -142,20 +153,25 @@ TEST(GetObjectProperties) {
 
   v = CompileRun("[\"a\", \"bc\"]");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::JSArray"));
   CHECK_EQ(props->num_properties, 4);
-  CheckProp(*props->properties[0], "v8::internal::Map", "map");
-  CheckProp(*props->properties[1], "v8::internal::Object",
+  CheckProp(*props->properties[0],
+            "v8::internal::TaggedMember<v8::internal::Map>", "map");
+  CheckProp(*props->properties[1],
+            "v8::internal::TaggedMember<v8::internal::Object>",
             "properties_or_hash");
-  CheckProp(*props->properties[2], "v8::internal::FixedArrayBase", "elements");
-  CheckProp(*props->properties[3], "v8::internal::Object", "length",
+  CheckProp(*props->properties[2],
+            "v8::internal::TaggedMember<v8::internal::FixedArrayBase>",
+            "elements");
+  CheckProp(*props->properties[3],
+            "v8::internal::TaggedMember<v8::internal::Object>", "length",
             static_cast<i::Tagged_t>(IntToSmi(2)));
 
   // We need to supply some valid address for decompression before reading the
   // elements from the JSArray.
-  heap_addresses.any_heap_pointer = o->ptr();
+  heap_addresses.any_heap_pointer = (*o).ptr();
 
   i::Tagged_t properties_or_hash =
       *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address);
@@ -173,7 +189,8 @@ TEST(GetObjectProperties) {
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
     CHECK(props->type == std::string("v8::internal::HeapObject"));
     CHECK_EQ(props->num_properties, 1);
-    CheckProp(*props->properties[0], "v8::internal::Map", "map");
+    CheckProp(*props->properties[0],
+              "v8::internal::TaggedMember<v8::internal::Map>", "map");
     // "maybe" prefix indicates that GetObjectProperties recognized the offset
     // within the page as matching a known object, but didn't know whether the
     // object is on the right page. This response can only happen in builds
@@ -192,7 +209,8 @@ TEST(GetObjectProperties) {
           d::TypeCheckResult::kObjectPointerValidButInaccessible);
     CHECK(props->type == std::string("v8::internal::HeapObject"));
     CHECK_EQ(props->num_properties, 1);
-    CheckProp(*props->properties[0], "v8::internal::Map", "map");
+    CheckProp(*props->properties[0],
+              "v8::internal::TaggedMember<v8::internal::Map>", "map");
     CHECK(StartsWith(props->brief, "EmptyFixedArray"));
   }
 
@@ -200,10 +218,13 @@ TEST(GetObjectProperties) {
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::FixedArray"));
   CHECK_EQ(props->num_properties, 3);
-  CheckProp(*props->properties[0], "v8::internal::Map", "map");
-  CheckProp(*props->properties[1], "v8::internal::Object", "length",
+  CheckProp(*props->properties[0],
+            "v8::internal::TaggedMember<v8::internal::Map>", "map");
+  CheckProp(*props->properties[1],
+            "v8::internal::TaggedMember<v8::internal::Object>", "length",
             static_cast<i::Tagged_t>(IntToSmi(2)));
-  CheckProp(*props->properties[2], "v8::internal::Object", "objects",
+  CheckProp(*props->properties[2],
+            "v8::internal::TaggedMember<v8::internal::Object>", "objects",
             d::PropertyKind::kArrayOfKnownSize, 2);
 
   // Get the second string value from the FixedArray.
@@ -214,7 +235,8 @@ TEST(GetObjectProperties) {
   CHECK(props->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props->type == std::string("v8::internal::SeqOneByteString"));
   CHECK_EQ(props->num_properties, 4);
-  CheckProp(*props->properties[0], "v8::internal::Map", "map");
+  CheckProp(*props->properties[0],
+            "v8::internal::TaggedMember<v8::internal::Map>", "map");
   CheckProp(*props->properties[1], "uint32_t", "raw_hash_field");
   CheckProp(*props->properties[2], "int32_t", "length", 2);
   CheckProp(*props->properties[3], "char", "chars",
@@ -266,7 +288,8 @@ TEST(GetObjectProperties) {
       CHECK(std::string(props2->guessed_types[0]) ==
             std::string("v8::internal::SeqOneByteString"));
     }
-    CheckProp(*props2->properties[0], "v8::internal::Map", "map",
+    CheckProp(*props2->properties[0],
+              "v8::internal::TaggedMember<v8::internal::Map>", "map",
               *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
     CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
               *reinterpret_cast<int32_t*>(props->properties[1]->address));
@@ -281,7 +304,8 @@ TEST(GetObjectProperties) {
   CHECK(props2->type_check_result == d::TypeCheckResult::kUsedMap);
   CHECK(props2->type == std::string("v8::internal::SeqOneByteString"));
   CHECK_EQ(props2->num_properties, 4);
-  CheckProp(*props2->properties[0], "v8::internal::Map", "map",
+  CheckProp(*props2->properties[0],
+            "v8::internal::TaggedMember<v8::internal::Map>", "map",
             *reinterpret_cast<i::Tagged_t*>(props->properties[0]->address));
   CheckProp(*props2->properties[1], "uint32_t", "raw_hash_field",
             *reinterpret_cast<i::Tagged_t*>(props->properties[1]->address));
@@ -293,48 +317,57 @@ TEST(GetObjectProperties) {
     const alphabet = "abcdefghijklmnopqrstuvwxyz";
     alphabet.substr(3,20) + alphabet.toUpperCase().substr(5,15) + "7")");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST7\""));
 
   // Cause a failure when reading the "second" pointer within the top-level
   // ConsString.
   {
-    CheckProp(*props->properties[4], "v8::internal::String", "second");
+    CheckProp(*props->properties[4],
+              "v8::internal::TaggedMember<v8::internal::String>", "second");
     uintptr_t second_address = props->properties[4]->address;
     MemoryFailureRegion failure(second_address, second_address + 4);
-    props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+    props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
     CHECK(Contains(props->brief, "\"defghijklmnopqrstuvwFGHIJKLMNOPQRST...\""));
   }
 
   // Build a very long string.
   v = CompileRun("'a'.repeat(1000)");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"" + std::string(80, 'a') + "...\""));
 
   // GetObjectProperties can read cacheable external strings.
-  auto external_string =
-      v8::String::NewExternalTwoByte(isolate, new StringResource(true));
-  o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  heap_addresses.metadata_pointer_table =
+      TestDebugHelper::MetadataTableAddress();
+  StringResource* string_resource = new StringResource(true);
+  auto cachable_external_string =
+      v8::String::NewExternalTwoByte(isolate, string_resource);
+  o = v8::Utils::OpenHandle(*cachable_external_string.ToLocalChecked());
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK(Contains(props->brief, "\"abcde\""));
+  CheckProp(*props->properties[5], "char16_t", "raw_characters",
+            d::PropertyKind::kArrayOfKnownSize, string_resource->length());
+  CHECK_EQ(props->properties[5]->address,
+           reinterpret_cast<uintptr_t>(string_resource->data()));
+
   // GetObjectProperties cannot read uncacheable external strings.
-  external_string =
+  auto external_string =
       v8::String::NewExternalTwoByte(isolate, new StringResource(false));
   o = v8::Utils::OpenHandle(*external_string.ToLocalChecked());
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(std::string(props->brief).find("\""), std::string::npos);
 
   // Build a basic JS object and get its properties.
   v = CompileRun("({a: 1, b: 2})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
 
   // Objects constructed from literals get their properties placed inline, so
   // the GetObjectProperties response should include an array.
   const d::ObjectProperty& prop = FindProp(*props, "in-object properties");
-  CheckProp(prop, "v8::internal::Object", "in-object properties",
-            d::PropertyKind::kArrayOfKnownSize, 2);
+  CheckProp(prop, "v8::internal::TaggedMember<v8::internal::Object>",
+            "in-object properties", d::PropertyKind::kArrayOfKnownSize, 2);
   // The second item in that array is the SMI value 2 from the object literal.
   props2 =
       d::GetObjectProperties(reinterpret_cast<i::Tagged_t*>(prop.address)[1],
@@ -367,19 +400,22 @@ TEST(GetObjectProperties) {
             d::PropertyKind::kArrayOfKnownSize, number_of_all_descriptors);
   CHECK_EQ(descriptors.size, 3 * i::kTaggedSize);
   CHECK_EQ(descriptors.num_struct_fields, 3);
-  CheckStructProp(*descriptors.struct_fields[0],
-                  "v8::internal::PrimitiveHeapObject", "key",
-                  0 * i::kTaggedSize);
-  CheckStructProp(*descriptors.struct_fields[1], "v8::internal::Object",
-                  "details", 1 * i::kTaggedSize);
-  CheckStructProp(*descriptors.struct_fields[2], "v8::internal::Object",
-                  "value", 2 * i::kTaggedSize);
+  CheckStructProp(
+      *descriptors.struct_fields[0],
+      "v8::internal::TaggedMember<v8::internal::PrimitiveHeapObject>", "key",
+      0 * i::kTaggedSize);
+  CheckStructProp(*descriptors.struct_fields[1],
+                  "v8::internal::TaggedMember<v8::internal::Object>", "details",
+                  1 * i::kTaggedSize);
+  CheckStructProp(*descriptors.struct_fields[2],
+                  "v8::internal::TaggedMember<v8::internal::Object>", "value",
+                  2 * i::kTaggedSize);
 
   // Build a basic JS function and get its properties. This will allow us to
   // exercise bitfield functionality.
   v = CompileRun("(function () {})");
   o = v8::Utils::OpenHandle(*v);
-  props = d::GetObjectProperties(o->ptr(), &ReadMemory, heap_addresses);
+  props = d::GetObjectProperties((*o).ptr(), &ReadMemory, heap_addresses);
   props = d::GetObjectProperties(
       ReadProp<i::Tagged_t>(*props, "shared_function_info"), &ReadMemory,
       heap_addresses);
@@ -391,9 +427,9 @@ TEST(GetObjectProperties) {
   CheckStructProp(*flags.struct_fields[2], "bool", "is_strict", 0, 1, 6);
 
   // Get data about a different bitfield struct which is contained within a smi.
-  Handle<i::JSFunction> function = Handle<i::JSFunction>::cast(o);
-  Handle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
-  Handle<i::DebugInfo> debug_info =
+  DirectHandle<i::JSFunction> function = Cast<i::JSFunction>(o);
+  DirectHandle<i::SharedFunctionInfo> shared(function->shared(), i_isolate);
+  DirectHandle<i::DebugInfo> debug_info =
       i_isolate->debug()->GetOrCreateDebugInfo(shared);
   props =
       d::GetObjectProperties(debug_info->ptr(), &ReadMemory, heap_addresses);
@@ -405,26 +441,8 @@ TEST(GetObjectProperties) {
                   0, 1, i::kSmiTagSize + i::kSmiShiftSize + 4);
 }
 
-TEST(ListObjectClasses) {
-  CcTest::InitializeVM();
-
-  // The ListObjectClasses result will change as classes are added, removed, or
-  // renamed. Just check that a few expected classes are included in the list,
-  // and that there are no duplicates.
-  const d::ClassList* class_list = d::ListObjectClasses();
-  std::unordered_set<std::string> class_set;
-  for (size_t i = 0; i < class_list->num_class_names; ++i) {
-    CHECK_WITH_MSG(class_set.insert(class_list->class_names[i]).second,
-                   "there should be no duplicate entries");
-  }
-  CHECK_NE(class_set.find("v8::internal::HeapObject"), class_set.end());
-  CHECK_NE(class_set.find("v8::internal::String"), class_set.end());
-  CHECK_NE(class_set.find("v8::internal::JSRegExp"), class_set.end());
-}
-
 static void FrameIterationCheck(
-    v8::Local<v8::String> name,
-    const v8::PropertyCallbackInfo<v8::Value>& info) {
+    v8::Local<v8::Name> name, const v8::PropertyCallbackInfo<v8::Value>& info) {
   i::StackFrameIterator iter(reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   for (int i = 0; !iter.done(); i++) {
     i::StackFrame* frame = iter.frame();
@@ -434,27 +452,36 @@ static void FrameIterationCheck(
       JavaScriptFrame* js_frame = JavaScriptFrame::cast(frame);
       CHECK_EQ(props->num_properties, 5);
       auto js_function = js_frame->function();
-      CheckProp(*props->properties[0], "v8::internal::JSFunction",
+      // This one is Tagged, not TaggedMember, because it's from the stack.
+      CheckProp(*props->properties[0],
+                "v8::internal::Tagged<v8::internal::JSFunction>",
                 "currently_executing_jsfunction", js_function.ptr());
-      auto shared_function_info = js_function.shared();
-      auto script = i::Script::cast(shared_function_info.script());
-      CheckProp(*props->properties[1], "v8::internal::Object", "script_name",
-                static_cast<i::Tagged_t>(script.name().ptr()));
-      CheckProp(*props->properties[2], "v8::internal::Object", "script_source",
-                static_cast<i::Tagged_t>(script.source().ptr()));
+      auto shared_function_info = js_function->shared();
+      auto script = i::Cast<i::Script>(shared_function_info->script());
+      CheckProp(*props->properties[1],
+                "v8::internal::TaggedMember<v8::internal::Object>",
+                "script_name", static_cast<i::Tagged_t>(script->name().ptr()));
+      CheckProp(*props->properties[2],
+                "v8::internal::TaggedMember<v8::internal::Object>",
+                "script_source",
+                static_cast<i::Tagged_t>(script->source().ptr()));
 
-      auto scope_info = shared_function_info.scope_info();
-      CheckProp(*props->properties[3], "v8::internal::Object", "function_name",
-                static_cast<i::Tagged_t>(scope_info.FunctionName().ptr()));
+      auto scope_info = shared_function_info->scope_info();
+      CheckProp(*props->properties[3],
+                "v8::internal::TaggedMember<v8::internal::Object>",
+                "function_name",
+                static_cast<i::Tagged_t>(scope_info->FunctionName().ptr()));
 
       CheckProp(*props->properties[4], "", "function_character_offset");
       const d::ObjectProperty& function_character_offset =
           *props->properties[4];
       CHECK_EQ(function_character_offset.num_struct_fields, 2);
       CheckStructProp(*function_character_offset.struct_fields[0],
-                      "v8::internal::Object", "start", 0);
+                      "v8::internal::TaggedMember<v8::internal::Object>",
+                      "start", 0);
       CheckStructProp(*function_character_offset.struct_fields[1],
-                      "v8::internal::Object", "end", 4);
+                      "v8::internal::TaggedMember<v8::internal::Object>", "end",
+                      4);
     } else {
       CHECK_EQ(props->num_properties, 0);
     }
@@ -465,9 +492,11 @@ static void FrameIterationCheck(
 THREADED_TEST(GetFrameStack) {
   LocalContext env;
   v8::Isolate* isolate = env->GetIsolate();
+  i::Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(i_isolate);
   v8::HandleScope scope(isolate);
   v8::Local<v8::ObjectTemplate> obj = v8::ObjectTemplate::New(isolate);
-  obj->SetAccessor(v8_str("xxx"), FrameIterationCheck);
+  obj->SetNativeDataProperty(v8_str("xxx"), FrameIterationCheck);
   CHECK(env->Global()
             ->Set(env.local(), v8_str("obj"),
                   obj->NewInstance(env.local()).ToLocalChecked())
@@ -485,23 +514,25 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   LocalContext context;
   Isolate* isolate = reinterpret_cast<Isolate*>((*context)->GetIsolate());
   Factory* factory = isolate->factory();
+  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate);
   HandleScope scope(isolate);
 
-  Handle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
+  DirectHandle<SmallOrderedHashSet> set = factory->NewSmallOrderedHashSet();
   const size_t number_of_buckets = 2;
   CHECK_EQ(number_of_buckets, set->NumberOfBuckets());
   CHECK_EQ(0, set->NumberOfElements());
 
   // Verify with the definition of SmallOrderedHashSet in
   // src\objects\ordered-hash-table.tq.
-  d::HeapAddresses heap_addresses{0, 0, 0, 0};
+  d::HeapAddresses heap_addresses{0, 0, 0, 0, 0};
   d::ObjectPropertiesResultPtr props =
       d::GetObjectProperties(set->ptr(), &ReadMemory, heap_addresses);
   CHECK_EQ(props->type_check_result, d::TypeCheckResult::kUsedMap);
   CHECK_EQ(props->type, std::string("v8::internal::SmallOrderedHashSet"));
   CHECK_EQ(props->num_properties, 8);
 
-  CheckProp(*props->properties[0], "v8::internal::Map", "map");
+  CheckProp(*props->properties[0],
+            "v8::internal::TaggedMember<v8::internal::Map>", "map");
   CheckProp(*props->properties[1], "uint8_t", "number_of_elements");
   CheckProp(*props->properties[2], "uint8_t", "number_of_deleted_elements");
   CheckProp(*props->properties[3], "uint8_t", "number_of_buckets");
@@ -512,7 +543,8 @@ TEST(SmallOrderedHashSetGetObjectProperties) {
   CheckProp(*props->properties[4], "uint8_t", "padding",
             d::PropertyKind::kArrayOfKnownSize, 1);
 #endif
-  CheckProp(*props->properties[5], "v8::internal::Object", "data_table",
+  CheckProp(*props->properties[5],
+            "v8::internal::TaggedMember<v8::internal::Object>", "data_table",
             d::PropertyKind::kArrayOfKnownSize,
             number_of_buckets * OrderedHashMap::kLoadFactor);
   CheckProp(*props->properties[6], "uint8_t", "hash_table",

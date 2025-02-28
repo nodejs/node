@@ -20,13 +20,14 @@
 namespace v8 {
 namespace internal {
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc, Code code)
-    : SafepointTable(code.InstructionStart(isolate, pc),
-                     code.SafepointTableAddress()) {}
+SafepointTable::SafepointTable(Isolate* isolate, Address pc, Tagged<Code> code)
+    : SafepointTable(code->InstructionStart(isolate, pc),
+                     code->safepoint_table_address()) {}
 
-SafepointTable::SafepointTable(Isolate* isolate, Address pc, GcSafeCode code)
-    : SafepointTable(code.InstructionStart(isolate, pc),
-                     code.SafepointTableAddress()) {}
+SafepointTable::SafepointTable(Isolate* isolate, Address pc,
+                               Tagged<GcSafeCode> code)
+    : SafepointTable(code->InstructionStart(isolate, pc),
+                     code->safepoint_table_address()) {}
 
 #if V8_ENABLE_WEBASSEMBLY
 SafepointTable::SafepointTable(const wasm::WasmCode* code)
@@ -53,7 +54,7 @@ int SafepointTable::find_return_pc(int pc_offset) {
   UNREACHABLE();
 }
 
-SafepointEntry SafepointTable::FindEntry(Address pc) const {
+SafepointEntry SafepointTable::TryFindEntry(Address pc) const {
   int pc_offset = static_cast<int>(pc - instruction_start_);
 
   // Check if the PC is pointing at a trampoline.
@@ -70,16 +71,22 @@ SafepointEntry SafepointTable::FindEntry(Address pc) const {
   for (int i = 0; i < length_; ++i) {
     SafepointEntry entry = GetEntry(i);
     if (i == length_ - 1 || GetEntry(i + 1).pc() > pc_offset) {
-      DCHECK_LE(entry.pc(), pc_offset);
+      if (entry.pc() > pc_offset) return {};
       return entry;
     }
   }
-  UNREACHABLE();
+  return {};
+}
+
+SafepointEntry SafepointTable::FindEntry(Address pc) const {
+  SafepointEntry result = TryFindEntry(pc);
+  CHECK(result.is_initialized());
+  return result;
 }
 
 // static
-SafepointEntry SafepointTable::FindEntry(Isolate* isolate, GcSafeCode code,
-                                         Address pc) {
+SafepointEntry SafepointTable::FindEntry(Isolate* isolate,
+                                         Tagged<GcSafeCode> code, Address pc) {
   SafepointTable table(isolate, pc, code);
   return table.FindEntry(pc);
 }
@@ -121,8 +128,9 @@ void SafepointTable::Print(std::ostream& os) const {
 }
 
 SafepointTableBuilder::Safepoint SafepointTableBuilder::DefineSafepoint(
-    Assembler* assembler) {
-  entries_.emplace_back(zone_, assembler->pc_offset_for_safepoint());
+    Assembler* assembler, int pc_offset) {
+  pc_offset = pc_offset ? pc_offset : assembler->pc_offset_for_safepoint();
+  entries_.emplace_back(zone_, pc_offset);
   return SafepointTableBuilder::Safepoint(&entries_.back(), this);
 }
 

@@ -28,7 +28,7 @@ _poly1305_init:
 	ldp	x7,x8,[x1]		// load key
 	mov	x9,#0xfffffffc0fffffff
 	movk	x9,#0x0fff,lsl#48
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x7,x7			// flip bytes
 	rev	x8,x8
 #endif
@@ -75,7 +75,7 @@ Lpoly1305_blocks:
 Loop:
 	ldp	x10,x11,[x1],#16	// load input
 	sub	x2,x2,#16
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x10,x10
 	rev	x11,x11
 #endif
@@ -140,13 +140,13 @@ Lpoly1305_emit:
 	csel	x4,x4,x12,eq
 	csel	x5,x5,x13,eq
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x10,x10,#32		// flip nonce words
 	ror	x11,x11,#32
 #endif
 	adds	x4,x4,x10		// accumulate nonce
 	adc	x5,x5,x11
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x4,x4			// flip output bytes
 	rev	x5,x5
 #endif
@@ -266,7 +266,7 @@ Lblocks_neon:
 	adcs	x5,x5,xzr
 	adc	x6,x6,xzr
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x12,x12
 	rev	x13,x13
 #endif
@@ -312,7 +312,7 @@ Lbase2_64_neon:
 	ldp	x12,x13,[x1],#16	// load input
 	sub	x2,x2,#16
 	add	x9,x8,x8,lsr#2	// s1 = r1 + (r1 >> 2)
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x12,x12
 	rev	x13,x13
 #endif
@@ -397,7 +397,7 @@ Ldo_neon:
 	lsl	x3,x3,#24
 	add	x15,x0,#48
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x8,x8
 	rev	x12,x12
 	rev	x9,x9
@@ -433,7 +433,7 @@ Ldo_neon:
 	ld1	{v4.4s,v5.4s,v6.4s,v7.4s},[x15],#64
 	ld1	{v8.4s},[x15]
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x8,x8
 	rev	x12,x12
 	rev	x9,x9
@@ -494,7 +494,7 @@ Loop_neon:
 	umull	v20.2d,v14.2s,v1.s[2]
 	ldp	x9,x13,[x16],#48
 	umull	v19.2d,v14.2s,v0.s[2]
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x8,x8
 	rev	x12,x12
 	rev	x9,x9
@@ -559,7 +559,7 @@ Loop_neon:
 	umlal	v23.2d,v11.2s,v3.s[0]
 	umlal	v20.2d,v11.2s,v8.s[0]
 	umlal	v21.2d,v11.2s,v0.s[0]
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x8,x8
 	rev	x12,x12
 	rev	x9,x9
@@ -840,13 +840,13 @@ Lpoly1305_emit_neon:
 	csel	x4,x4,x12,eq
 	csel	x5,x5,x13,eq
 
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	ror	x10,x10,#32		// flip nonce words
 	ror	x11,x11,#32
 #endif
 	adds	x4,x4,x10		// accumulate nonce
 	adc	x5,x5,x11
-#ifdef	__ARMEB__
+#ifdef	__AARCH64EB__
 	rev	x4,x4			// flip output bytes
 	rev	x5,x5
 #endif

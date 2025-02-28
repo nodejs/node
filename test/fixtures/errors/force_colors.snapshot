@@ -4,11 +4,13 @@ throw new Error('Should include grayed stack trace')
 
 Error: Should include grayed stack trace
     at Object.<anonymous> [90m(/[39mtest*force_colors.js:1:7[90m)[39m
-[90m    at Module._compile (node:internal*modules*cjs*loader:1255:14)[39m
-[90m    at Module._extensions..js (node:internal*modules*cjs*loader:1309:10)[39m
-[90m    at Module.load (node:internal*modules*cjs*loader:1113:32)[39m
-[90m    at Module._load (node:internal*modules*cjs*loader:960:12)[39m
-[90m    at Function.executeUserEntryPoint [as runMain] (node:internal*modules*run_main:83:12)[39m
-[90m    at node:internal*main*run_main_module:23:47[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
+[90m    at *[39m
 
 Node.js *

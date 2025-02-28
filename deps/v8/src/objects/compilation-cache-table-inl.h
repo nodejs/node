@@ -5,6 +5,8 @@
 #ifndef V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 #define V8_OBJECTS_COMPILATION_CACHE_TABLE_INL_H_
 
+#include <optional>
+
 #include "src/objects/compilation-cache-table.h"
 #include "src/objects/name-inl.h"
 #include "src/objects/script-inl.h"
@@ -15,33 +17,32 @@
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 CompilationCacheTable::CompilationCacheTable(Address ptr)
     : HashTable<CompilationCacheTable, CompilationCacheShape>(ptr) {
-  SLOW_DCHECK(IsCompilationCacheTable());
+  SLOW_DCHECK(IsCompilationCacheTable(*this));
 }
 
 NEVER_READ_ONLY_SPACE_IMPL(CompilationCacheTable)
-CAST_ACCESSOR(CompilationCacheTable)
 
-Object CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
+Tagged<Object> CompilationCacheTable::PrimaryValueAt(InternalIndex entry) {
   return get(EntryToIndex(entry) + 1);
 }
 
-void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry, Object value,
+void CompilationCacheTable::SetPrimaryValueAt(InternalIndex entry,
+                                              Tagged<Object> value,
                                               WriteBarrierMode mode) {
   set(EntryToIndex(entry) + 1, value, mode);
 }
 
-Object CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
+Tagged<Object> CompilationCacheTable::EvalFeedbackValueAt(InternalIndex entry) {
   static_assert(CompilationCacheShape::kEntrySize == 3);
   return get(EntryToIndex(entry) + 2);
 }
 
 void CompilationCacheTable::SetEvalFeedbackValueAt(InternalIndex entry,
-                                                   Object value,
+                                                   Tagged<Object> value,
                                                    WriteBarrierMode mode) {
   set(EntryToIndex(entry) + 2, value, mode);
 }
@@ -67,24 +68,28 @@ class ScriptCacheKey : public HashTableKey {
   ScriptCacheKey(Handle<String> source, MaybeHandle<Object> name,
                  int line_offset, int column_offset,
                  v8::ScriptOriginOptions origin_options,
-                 MaybeHandle<Object> host_defined_options, Isolate* isolate);
+                 MaybeHandle<Object> host_defined_options,
+                 MaybeHandle<FixedArray> maybe_wrapped_arguments,
+                 Isolate* isolate);
 
-  bool IsMatch(Object other) override;
-  bool MatchesOrigin(Script script);
+  bool IsMatch(Tagged<Object> other) override;
+  bool MatchesScript(Tagged<Script> script);
 
-  Handle<Object> AsHandle(Isolate* isolate, Handle<SharedFunctionInfo> shared);
+  Handle<Object> AsHandle(Isolate* isolate,
+                          DirectHandle<SharedFunctionInfo> shared);
 
-  static base::Optional<String> SourceFromObject(Object obj) {
+  static std::optional<Tagged<String>> SourceFromObject(Tagged<Object> obj) {
     DisallowGarbageCollection no_gc;
-    DCHECK(obj.IsWeakFixedArray());
-    WeakFixedArray array = WeakFixedArray::cast(obj);
-    DCHECK_EQ(array.length(), kEnd);
+    DCHECK(IsWeakFixedArray(obj));
+    Tagged<WeakFixedArray> array = Cast<WeakFixedArray>(obj);
+    DCHECK_EQ(array->length(), kEnd);
 
-    MaybeObject maybe_script = array.Get(kWeakScript);
-    if (HeapObject script; maybe_script.GetHeapObjectIfWeak(&script)) {
-      PrimitiveHeapObject source_or_undefined = Script::cast(script).source();
+    Tagged<MaybeObject> maybe_script = array->get(kWeakScript);
+    if (Tagged<HeapObject> script; maybe_script.GetHeapObjectIfWeak(&script)) {
+      Tagged<PrimitiveHeapObject> source_or_undefined =
+          Cast<Script>(script)->source();
       // Scripts stored in the script cache should always have a source string.
-      return String::cast(source_or_undefined);
+      return Cast<String>(source_or_undefined);
     }
 
     DCHECK(maybe_script.IsCleared());
@@ -98,26 +103,28 @@ class ScriptCacheKey : public HashTableKey {
   int column_offset_;
   v8::ScriptOriginOptions origin_options_;
   MaybeHandle<Object> host_defined_options_;
+  MaybeHandle<FixedArray> wrapped_arguments_;
   Isolate* isolate_;
 };
 
-uint32_t CompilationCacheShape::RegExpHash(String string, Smi flags) {
-  return string.EnsureHash() + flags.value();
+uint32_t CompilationCacheShape::RegExpHash(Tagged<String> string,
+                                           Tagged<Smi> flags) {
+  return string->EnsureHash() + flags.value();
 }
 
-uint32_t CompilationCacheShape::EvalHash(String source,
-                                         SharedFunctionInfo shared,
+uint32_t CompilationCacheShape::EvalHash(Tagged<String> source,
+                                         Tagged<SharedFunctionInfo> shared,
                                          LanguageMode language_mode,
                                          int position) {
-  uint32_t hash = source.EnsureHash();
-  if (shared.HasSourceCode()) {
+  uint32_t hash = source->EnsureHash();
+  if (shared->HasSourceCode()) {
     // Instead of using the SharedFunctionInfo pointer in the hash
     // code computation, we use a combination of the hash of the
     // script source code and the start position of the calling scope.
     // We do this to ensure that the cache entries can survive garbage
     // collection.
-    Script script(Script::cast(shared.script()));
-    hash ^= String::cast(script.source()).EnsureHash();
+    Tagged<Script> script(Cast<Script>(shared->script()));
+    hash ^= Cast<String>(script->source())->EnsureHash();
   }
   static_assert(LanguageModeSize == 2);
   if (is_strict(language_mode)) hash ^= 0x8000;
@@ -126,52 +133,53 @@ uint32_t CompilationCacheShape::EvalHash(String source,
 }
 
 uint32_t CompilationCacheShape::HashForObject(ReadOnlyRoots roots,
-                                              Object object) {
+                                              Tagged<Object> object) {
   // Eval: The key field contains the hash as a Number.
-  if (object.IsNumber()) return static_cast<uint32_t>(object.Number());
+  if (IsNumber(object))
+    return static_cast<uint32_t>(Object::NumberValue(object));
 
   // Code: The key field contains the SFI key.
-  if (object.IsSharedFunctionInfo()) {
-    return SharedFunctionInfo::cast(object).Hash();
+  if (IsSharedFunctionInfo(object)) {
+    return Cast<SharedFunctionInfo>(object)->Hash();
   }
 
   // Script.
-  if (object.IsWeakFixedArray()) {
-    uint32_t result = static_cast<uint32_t>(Smi::ToInt(
-        WeakFixedArray::cast(object).Get(ScriptCacheKey::kHash).ToSmi()));
-    return result;
+  if (IsWeakFixedArray(object)) {
+    return static_cast<uint32_t>(Smi::ToInt(
+        Cast<WeakFixedArray>(object)->get(ScriptCacheKey::kHash).ToSmi()));
+  }
+
+  // RegExpData: The key field (and the value field) contains the RegExpData
+  // object.
+  if (IsRegExpDataWrapper(object)) {
+    Tagged<RegExpDataWrapper> re_wrapper = Cast<RegExpDataWrapper>(object);
+    Isolate* isolate = GetIsolateFromWritableObject(re_wrapper);
+    Tagged<RegExpData> data = re_wrapper->data(isolate);
+    return RegExpHash(data->source(), Smi::FromInt(data->flags()));
   }
 
   // Eval: See EvalCacheKey::ToHandle for the encoding.
-  FixedArray val = FixedArray::cast(object);
-  if (val.map() == roots.fixed_cow_array_map()) {
-    DCHECK_EQ(4, val.length());
-    String source = String::cast(val.get(1));
-    int language_unchecked = Smi::ToInt(val.get(2));
-    DCHECK(is_valid_language_mode(language_unchecked));
-    LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
-    int position = Smi::ToInt(val.get(3));
-    Object shared = val.get(0);
-    return EvalHash(source, SharedFunctionInfo::cast(shared), language_mode,
-                    position);
-  }
-
-  // RegExp: The key field (and the value field) contains the
-  // JSRegExp::data fixed array.
-  DCHECK_GE(val.length(), JSRegExp::kMinDataArrayLength);
-  return RegExpHash(String::cast(val.get(JSRegExp::kSourceIndex)),
-                    Smi::cast(val.get(JSRegExp::kFlagsIndex)));
+  Tagged<FixedArray> val = Cast<FixedArray>(object);
+  DCHECK_EQ(val->map(), roots.fixed_cow_array_map());
+  DCHECK_EQ(4, val->length());
+  Tagged<String> source = Cast<String>(val->get(1));
+  int language_unchecked = Smi::ToInt(val->get(2));
+  DCHECK(is_valid_language_mode(language_unchecked));
+  LanguageMode language_mode = static_cast<LanguageMode>(language_unchecked);
+  int position = Smi::ToInt(val->get(3));
+  Tagged<Object> shared = val->get(0);
+  return EvalHash(source, Cast<SharedFunctionInfo>(shared), language_mode,
+                  position);
 }
 
-InfoCellPair::InfoCellPair(Isolate* isolate, SharedFunctionInfo shared,
-                           FeedbackCell feedback_cell)
-    : is_compiled_scope_(!shared.is_null() ? shared.is_compiled_scope(isolate)
+InfoCellPair::InfoCellPair(Isolate* isolate, Tagged<SharedFunctionInfo> shared,
+                           Tagged<FeedbackCell> feedback_cell)
+    : is_compiled_scope_(!shared.is_null() ? shared->is_compiled_scope(isolate)
                                            : IsCompiledScope()),
       shared_(shared),
       feedback_cell_(feedback_cell) {}
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #include "src/objects/object-macros-undef.h"
 

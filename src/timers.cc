@@ -12,7 +12,6 @@ namespace timers {
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
-using v8::FunctionTemplate;
 using v8::Isolate;
 using v8::Local;
 using v8::Number;
@@ -34,7 +33,8 @@ void BindingData::SlowGetLibuvNow(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(Number::New(args.GetIsolate(), now));
 }
 
-double BindingData::FastGetLibuvNow(Local<Object> receiver) {
+double BindingData::FastGetLibuvNow(Local<Object> unused,
+                                    Local<Object> receiver) {
   return GetLibuvNowImpl(FromJSObject<BindingData>(receiver));
 }
 
@@ -48,7 +48,9 @@ void BindingData::SlowScheduleTimer(const FunctionCallbackInfo<Value>& args) {
   ScheduleTimerImpl(Realm::GetBindingData<BindingData>(args), duration);
 }
 
-void BindingData::FastScheduleTimer(Local<Object> receiver, int64_t duration) {
+void BindingData::FastScheduleTimer(Local<Object> unused,
+                                    Local<Object> receiver,
+                                    int64_t duration) {
   ScheduleTimerImpl(FromJSObject<BindingData>(receiver), duration);
 }
 
@@ -62,7 +64,9 @@ void BindingData::SlowToggleTimerRef(
                      args[0]->IsTrue());
 }
 
-void BindingData::FastToggleTimerRef(Local<Object> receiver, bool ref) {
+void BindingData::FastToggleTimerRef(Local<Object> unused,
+                                     Local<Object> receiver,
+                                     bool ref) {
   ToggleTimerRefImpl(FromJSObject<BindingData>(receiver), ref);
 }
 
@@ -76,7 +80,9 @@ void BindingData::SlowToggleImmediateRef(
                          args[0]->IsTrue());
 }
 
-void BindingData::FastToggleImmediateRef(Local<Object> receiver, bool ref) {
+void BindingData::FastToggleImmediateRef(Local<Object> unused,
+                                         Local<Object> receiver,
+                                         bool ref) {
   ToggleImmediateRefImpl(FromJSObject<BindingData>(receiver), ref);
 }
 
@@ -95,7 +101,7 @@ bool BindingData::PrepareForSerialization(Local<Context> context,
 }
 
 InternalFieldInfoBase* BindingData::Serialize(int index) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   InternalFieldInfo* info =
       InternalFieldInfoBase::New<InternalFieldInfo>(type());
   return info;
@@ -105,11 +111,11 @@ void BindingData::Deserialize(Local<Context> context,
                               Local<Object> holder,
                               int index,
                               InternalFieldInfoBase* info) {
-  DCHECK_EQ(index, BaseObject::kEmbedderType);
+  DCHECK_IS_SNAPSHOT_SLOT(index);
   v8::HandleScope scope(context->GetIsolate());
   Realm* realm = Realm::GetCurrent(context);
   // Recreate the buffer in the constructor.
-  BindingData* binding = realm->AddBindingData<BindingData>(context, holder);
+  BindingData* binding = realm->AddBindingData<BindingData>(holder);
   CHECK_NOT_NULL(binding);
 }
 
@@ -123,9 +129,8 @@ v8::CFunction BindingData::fast_toggle_immediate_ref_(
     v8::CFunction::Make(FastToggleImmediateRef));
 
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
-                                             Local<FunctionTemplate> ctor) {
+                                             Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  Local<ObjectTemplate> target = ctor->InstanceTemplate();
 
   SetMethod(isolate, target, "setupTimers", SetupTimers);
   SetFastMethod(
@@ -153,8 +158,7 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
                                              void* priv) {
   Realm* realm = Realm::GetCurrent(context);
   Environment* env = realm->env();
-  BindingData* const binding_data =
-      realm->AddBindingData<BindingData>(context, target);
+  BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
   // TODO(joyeecheung): move these into BindingData.

@@ -21,8 +21,8 @@
 
 #include "uv.h"
 #include "internal.h"
-#include "spinlock.h"
 
+#include <stdatomic.h>
 #include <stdlib.h>
 #include <assert.h>
 #include <unistd.h>
@@ -64,7 +64,7 @@ static int isreallyatty(int file) {
 
 static int orig_termios_fd = -1;
 static struct termios orig_termios;
-static uv_spinlock_t termios_spinlock = UV_SPINLOCK_INITIALIZER;
+static _Atomic int termios_spinlock;
 
 int uv__tcsetattr(int fd, int how, const struct termios *term) {
   int rc;
@@ -81,7 +81,7 @@ int uv__tcsetattr(int fd, int how, const struct termios *term) {
 
 static int uv__tty_is_slave(const int fd) {
   int result;
-#if defined(__linux__) || defined(__FreeBSD__) || defined(__FreeBSD_kernel__)
+#if defined(__linux__) || defined(__FreeBSD__)
   int dummy;
 
   result = ioctl(fd, TIOCGPTN, &dummy) != 0;
@@ -113,7 +113,7 @@ static int uv__tty_is_slave(const int fd) {
   }
 
   /* Lookup stat structure behind the file descriptor. */
-  if (fstat(fd, &sb) != 0)
+  if (uv__fstat(fd, &sb) != 0)
     abort();
 
   /* Assert character device. */
@@ -222,7 +222,7 @@ skip:
     int rc = r;
     if (newfd != -1)
       uv__close(newfd);
-    QUEUE_REMOVE(&tty->handle_queue);
+    uv__queue_remove(&tty->handle_queue);
     do
       r = fcntl(fd, F_SETFL, saved_flags);
     while (r == -1 && errno == EINTR);
@@ -280,6 +280,7 @@ static void uv__tty_make_raw(struct termios* tio) {
 
 int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
   struct termios tmp;
+  int expected;
   int fd;
   int rc;
 
@@ -296,12 +297,16 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
       return UV__ERR(errno);
 
     /* This is used for uv_tty_reset_mode() */
-    uv_spinlock_lock(&termios_spinlock);
+    do
+      expected = 0;
+    while (!atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
+
     if (orig_termios_fd == -1) {
       orig_termios = tty->orig_termios;
       orig_termios_fd = fd;
     }
-    uv_spinlock_unlock(&termios_spinlock);
+
+    atomic_store(&termios_spinlock, 0);
   }
 
   tmp = tty->orig_termios;
@@ -327,6 +332,37 @@ int uv_tty_set_mode(uv_tty_t* tty, uv_tty_mode_t mode) {
     tty->mode = mode;
 
   return rc;
+}
+
+
+void uv__tty_close(uv_tty_t* handle) {
+  int expected;
+  int fd;
+
+  fd = handle->io_watcher.fd;
+  if (fd == -1)
+    goto done;
+
+  /* This is used for uv_tty_reset_mode() */
+  do
+    expected = 0;
+  while (!atomic_compare_exchange_strong(&termios_spinlock, &expected, 1));
+
+  if (fd == orig_termios_fd) {
+    /* XXX(bnoordhuis) the tcsetattr is probably wrong when there are still
+     * other uv_tty_t handles active that refer to the same tty/pty but it's
+     * hard to recognize that particular situation without maintaining some
+     * kind of process-global data structure, and that still won't work in a
+     * multi-process setup.
+     */
+    uv__tcsetattr(fd, TCSANOW, &orig_termios);
+    orig_termios_fd = -1;
+  }
+
+  atomic_store(&termios_spinlock, 0);
+
+done:
+  uv__stream_close((uv_stream_t*) handle);
 }
 
 
@@ -360,7 +396,7 @@ uv_handle_type uv_guess_handle(uv_file file) {
   if (isatty(file))
     return UV_TTY;
 
-  if (fstat(file, &s)) {
+  if (uv__fstat(file, &s)) {
 #if defined(__PASE__)
     /* On ibmi receiving RST from TCP instead of FIN immediately puts fd into
      * an error state. fstat will return EINVAL, getsockname will also return
@@ -445,14 +481,15 @@ int uv_tty_reset_mode(void) {
   int err;
 
   saved_errno = errno;
-  if (!uv_spinlock_trylock(&termios_spinlock))
-    return UV_EBUSY;  /* In uv_tty_set_mode(). */
+
+  if (atomic_exchange(&termios_spinlock, 1))
+    return UV_EBUSY;  /* In uv_tty_set_mode() or uv__tty_close(). */
 
   err = 0;
   if (orig_termios_fd != -1)
     err = uv__tcsetattr(orig_termios_fd, TCSANOW, &orig_termios);
 
-  uv_spinlock_unlock(&termios_spinlock);
+  atomic_store(&termios_spinlock, 0);
   errno = saved_errno;
 
   return err;

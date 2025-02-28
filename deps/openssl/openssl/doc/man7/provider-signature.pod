@@ -155,7 +155,7 @@ set of "signature" functions, i.e. at least one of:
 
 =item OSSL_FUNC_signature_verify_init and OSSL_FUNC_signature_verify
 
-=item OSSL_FUNC_signature_verify_recover_init and OSSL_FUNC_signature_verify_init
+=item OSSL_FUNC_signature_verify_recover_init and OSSL_FUNC_signature_verify_recover
 
 =item OSSL_FUNC_signature_digest_sign_init, OSSL_FUNC_signature_digest_sign_update and OSSL_FUNC_signature_digest_sign_final
 
@@ -411,7 +411,7 @@ respectively.
 =head1 RETURN VALUES
 
 OSSL_FUNC_signature_newctx() and OSSL_FUNC_signature_dupctx() should return the newly created
-provider side signature, or NULL on failure.
+provider side signature context, or NULL on failure.
 
 OSSL_FUNC_signature_gettable_ctx_params(), OSSL_FUNC_signature_settable_ctx_params(),
 OSSL_FUNC_signature_gettable_md_ctx_params() and OSSL_FUNC_signature_settable_md_ctx_params(),
@@ -429,7 +429,7 @@ The provider SIGNATURE interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

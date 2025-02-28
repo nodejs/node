@@ -18,9 +18,11 @@ class Isolate;
 // Scavenge garbage collection. The job posts a foreground task.
 class MinorGCJob {
  public:
-  MinorGCJob() V8_NOEXCEPT = default;
+  explicit MinorGCJob(Heap* heap) V8_NOEXCEPT : heap_(heap) {}
 
-  void ScheduleTaskIfNeeded(Heap* heap);
+  void ScheduleTask();
+
+  void CancelTaskIfScheduled();
 
   static size_t YoungGenerationTaskTriggerSize(Heap* heap);
 
@@ -29,7 +31,9 @@ class MinorGCJob {
 
   static bool YoungGenerationSizeTaskTriggerReached(Heap* heap);
 
-  bool task_pending_ = false;
+  Heap* const heap_;
+  CancelableTaskManager::Id current_task_id_ =
+      CancelableTaskManager::kInvalidTaskId;
 };
 }  // namespace internal
 }  // namespace v8

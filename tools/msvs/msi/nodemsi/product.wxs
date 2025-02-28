@@ -69,7 +69,6 @@
       <ComponentRef Id="NodeRegistryEntries"/>
       <ComponentRef Id="NodeVarsScript"/>
       <ComponentRef Id="NodeStartMenu"/>
-      <ComponentRef Id="AppData" />
       <ComponentRef Id="InstallToolsBat" />
       <ComponentRef Id="SetInstallDirPermission" />
     </Feature>
@@ -89,10 +88,11 @@
              Description="!(loc.npm_Description)">
       <ComponentRef Id="NpmCmdScript"/>
       <ComponentRef Id="NpmBashScript"/>
+      <ComponentRef Id="NpmPowerShellScript"/>
       <ComponentRef Id="NpxCmdScript"/>
       <ComponentRef Id="NpxBashScript"/>
+      <ComponentRef Id="NpxPowerShellScript"/>
       <ComponentRef Id="NpmConfigurationFile"/>
-      <ComponentRef Id="AppData" />
       <ComponentRef Id="SetInstallDirPermission" />
       <ComponentGroupRef Id="NpmSourceFiles"/>
     </Feature>
@@ -226,12 +226,20 @@
         <File Id="npm.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm"/>
       </Component>
 
+      <Component Id="NpmPowerShellScript">
+        <File Id="npm.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npm.ps1"/>
+      </Component>
+
       <Component Id="NpxCmdScript">
         <File Id="npx.cmd" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.cmd"/>
       </Component>
 
       <Component Id="NpxBashScript">
         <File Id="npx.sh" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx"/>
+      </Component>
+
+      <Component Id="NpxPowerShellScript">
+        <File Id="npx.ps1" KeyPath="yes" Source="$(var.NpmSourceDir)\bin\npx.ps1"/>
       </Component>
 
       <Directory Id="NodeModulesFolder" Name="node_modules">
@@ -242,16 +250,6 @@
         </Directory>
       </Directory>
     </DirectoryRef>
-
-    <StandardDirectory Id="AppDataFolder">
-      <Directory Id="AppDataDir" Name="npm">
-        <Component Id="AppData" Guid="D3B35D0E-D0F9-4D11-A773-D4608E90E1D1">
-          <CreateFolder />
-          <RemoveFolder Id="AppDataDir" On="uninstall" />
-          <RegistryValue Root="HKCU" Key="$(var.RegistryKeyPath)\Components" Type="string" Value="" />
-        </Component>
-      </Directory>
-    </StandardDirectory>
 
     <DirectoryRef Id="ApplicationProgramsFolder">
       <Component Id="DocumentationShortcuts">

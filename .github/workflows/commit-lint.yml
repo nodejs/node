@@ -17,13 +17,13 @@ jobs:
         run: |
           echo "plusOne=$((${{ github.event.pull_request.commits }} + 1))" >> $GITHUB_OUTPUT
           echo "minusOne=$((${{ github.event.pull_request.commits }} - 1))" >> $GITHUB_OUTPUT
-      - uses: actions/checkout@8e5e7e5ab8b370d6c329ec480221332ada57f0ab  # v3.5.2
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
         with:
           fetch-depth: ${{ steps.nb-of-commits.outputs.plusOne }}
           persist-credentials: false
       - run: git reset HEAD^2
       - name: Install Node.js
-        uses: actions/setup-node@64ed1c7eab4cce3362f8c340dee64e5eaeef8f7c  # v3.6.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a  # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
       - name: Validate commit message

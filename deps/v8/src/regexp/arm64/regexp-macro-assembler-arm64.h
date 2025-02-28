@@ -57,6 +57,10 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   bool CheckCharacterNotInRangeArray(const ZoneList<CharacterRange>* ranges,
                                      Label* on_not_in_range) override;
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                           Handle<ByteArray> nibble_table,
+                           int advance_by) override;
+  bool SkipUntilBitInTableUseSimd(int advance_by) override;
 
   // Checks whether the given offset from the current position is before
   // the end of the string.
@@ -94,8 +98,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // {raw_code} is an Address because this is called via ExternalReference.
   static int CheckStackGuardState(Address* return_address, Address raw_code,
                                   Address re_frame, int start_offset,
-                                  const byte** input_start,
-                                  const byte** input_end);
+                                  const uint8_t** input_start,
+                                  const uint8_t** input_end,
+                                  uintptr_t extra_space);
 
  private:
   static constexpr int kFramePointerOffset = 0;
@@ -174,7 +179,8 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // Check whether we are exceeding the stack limit on the backtrack stack.
   void CheckStackLimit();
 
-  void CallCheckStackGuardState(Register scratch);
+  void CallCheckStackGuardState(Register scratch,
+                                Operand extra_space = Operand(0));
   void CallIsCharacterInRangeArray(const ZoneList<CharacterRange>* ranges);
 
   // Location of a 32 bit position register.
@@ -227,7 +233,7 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   // is nullptr, in which case it is a conditional Backtrack.
   void BranchOrBacktrack(Condition condition, Label* to);
 
-  // Compares reg against immmediate before calling BranchOrBacktrack.
+  // Compares reg against immediate before calling BranchOrBacktrack.
   // It makes use of the Cbz and Cbnz instructions.
   void CompareAndBranchOrBacktrack(Register reg,
                                    int immediate,

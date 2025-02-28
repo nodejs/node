@@ -28,7 +28,7 @@ class GCCallbacksTest : public internal::TestWithHeapInternalsAndContext {
     Local<Object> obj = Object::New(isolate);
     CHECK(!obj.IsEmpty());
 
-    current_test_->PreciseCollectAllGarbage();
+    current_test_->InvokeAtomicMajorGC();
   }
 
   static void EpilogueCallbackAlloc(v8::Isolate* isolate, v8::GCType,
@@ -47,7 +47,7 @@ class GCCallbacksTest : public internal::TestWithHeapInternalsAndContext {
     Local<Object> obj = Object::New(isolate);
     CHECK(!obj.IsEmpty());
 
-    current_test_->PreciseCollectAllGarbage();
+    current_test_->InvokeAtomicMajorGC();
   }
 
   static void PrologueCallback(v8::Isolate* isolate, v8::GCType,
@@ -127,26 +127,26 @@ TEST_F(GCCallbacksTest, GCCallbacks) {
   isolate->AddGCEpilogueCallback(EpilogueCallback);
   CHECK_EQ(0, prologue_call_count_);
   CHECK_EQ(0, epilogue_call_count_);
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(1, prologue_call_count_);
   CHECK_EQ(1, epilogue_call_count_);
   isolate->AddGCPrologueCallback(PrologueCallbackSecond);
   isolate->AddGCEpilogueCallback(EpilogueCallbackSecond);
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(2, prologue_call_count_);
   CHECK_EQ(2, epilogue_call_count_);
   CHECK_EQ(1, prologue_call_count_second_);
   CHECK_EQ(1, epilogue_call_count_second_);
   isolate->RemoveGCPrologueCallback(PrologueCallback);
   isolate->RemoveGCEpilogueCallback(EpilogueCallback);
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(2, prologue_call_count_);
   CHECK_EQ(2, epilogue_call_count_);
   CHECK_EQ(2, prologue_call_count_second_);
   CHECK_EQ(2, epilogue_call_count_second_);
   isolate->RemoveGCPrologueCallback(PrologueCallbackSecond);
   isolate->RemoveGCEpilogueCallback(EpilogueCallbackSecond);
-  CollectAllGarbage();
+  InvokeMajorGC();
   CHECK_EQ(2, prologue_call_count_);
   CHECK_EQ(2, epilogue_call_count_);
   CHECK_EQ(2, prologue_call_count_second_);
@@ -156,7 +156,7 @@ TEST_F(GCCallbacksTest, GCCallbacks) {
   CHECK_EQ(0, epilogue_call_count_alloc_);
   isolate->AddGCPrologueCallback(PrologueCallbackAlloc);
   isolate->AddGCEpilogueCallback(EpilogueCallbackAlloc);
-  PreciseCollectAllGarbage();
+  InvokeAtomicMajorGC();
   CHECK_EQ(1, prologue_call_count_alloc_);
   CHECK_EQ(1, epilogue_call_count_alloc_);
   isolate->RemoveGCPrologueCallback(PrologueCallbackAlloc);

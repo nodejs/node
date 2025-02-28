@@ -20,7 +20,7 @@ namespace internal {
 
 CallPrinter::CallPrinter(Isolate* isolate, bool is_user_js,
                          SpreadErrorInArgsHint error_in_spread_args)
-    : builder_(new IncrementalStringBuilder(isolate)) {
+    : builder_(isolate) {
   isolate_ = isolate;
   position_ = 0;
   num_prints_ = 0;
@@ -55,7 +55,7 @@ Handle<String> CallPrinter::Print(FunctionLiteral* program, int position) {
   num_prints_ = 0;
   position_ = position;
   Find(program);
-  return builder_->Finish().ToHandleChecked();
+  return indirect_handle(builder_.Finish().ToHandleChecked(), isolate_);
 }
 
 
@@ -75,19 +75,19 @@ void CallPrinter::Find(AstNode* node, bool print) {
 void CallPrinter::Print(char c) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendCharacter(c);
+  builder_.AppendCharacter(c);
 }
 
 void CallPrinter::Print(const char* str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendCString(str);
+  builder_.AppendCString(str);
 }
 
-void CallPrinter::Print(Handle<String> str) {
+void CallPrinter::Print(DirectHandle<String> str) {
   if (!found_ || done_) return;
   num_prints_++;
-  builder_->AppendString(str);
+  builder_.AppendString(str);
 }
 
 void CallPrinter::VisitBlock(Block* node) {
@@ -254,8 +254,19 @@ void CallPrinter::VisitInitializeClassStaticElementsStatement(
   }
 }
 
+void CallPrinter::VisitAutoAccessorGetterBody(AutoAccessorGetterBody* node) {}
+
+void CallPrinter::VisitAutoAccessorSetterBody(AutoAccessorSetterBody* node) {}
+
 void CallPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {}
 
+void CallPrinter::VisitConditionalChain(ConditionalChain* node) {
+  for (size_t i = 0; i < node->conditional_chain_length(); ++i) {
+    Find(node->condition_at(i));
+    Find(node->then_expression_at(i));
+  }
+  Find(node->else_expression());
+}
 
 void CallPrinter::VisitConditional(Conditional* node) {
   Find(node->condition());
@@ -398,7 +409,7 @@ void CallPrinter::VisitProperty(Property* node) {
   Expression* key = node->key();
   Literal* literal = key->AsLiteral();
   if (literal != nullptr &&
-      literal->BuildValue(isolate_)->IsInternalizedString()) {
+      IsInternalizedString(*literal->BuildValue(isolate_))) {
     Find(node->obj(), true);
     if (node->is_optional_chain_link()) {
       Print("?");
@@ -492,11 +503,15 @@ void CallPrinter::VisitCallRuntime(CallRuntime* node) {
   FindArguments(node->arguments());
 }
 
+void CallPrinter::VisitSuperCallForwardArgs(SuperCallForwardArgs* node) {
+  Find(node->expression(), true);
+  Print("(...forwarded args...)");
+}
 
 void CallPrinter::VisitUnaryOperation(UnaryOperation* node) {
   Token::Value op = node->op();
   bool needsSpace =
-      op == Token::DELETE || op == Token::TYPEOF || op == Token::VOID;
+      op == Token::kDelete || op == Token::kTypeOf || op == Token::kVoid;
   Print("(");
   Print(Token::String(op));
   if (needsSpace) Print(" ");
@@ -566,10 +581,15 @@ void CallPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 }
 
 void CallPrinter::VisitImportCallExpression(ImportCallExpression* node) {
-  Print("ImportCall(");
+  Print("import");
+  if (node->phase() == ModuleImportPhase::kSource) {
+    Print(".source");
+  }
+  Print("(");
   Find(node->specifier(), true);
-  if (node->import_assertions()) {
-    Find(node->import_assertions(), true);
+  if (node->import_options()) {
+    Print(", ");
+    Find(node->import_options(), true);
   }
   Print(")");
 }
@@ -599,24 +619,23 @@ void CallPrinter::FindArguments(const ZonePtrList<Expression>* arguments) {
 }
 
 void CallPrinter::PrintLiteral(Handle<Object> value, bool quote) {
-  if (value->IsString()) {
+  if (IsString(*value)) {
     if (quote) Print("\"");
-    Print(Handle<String>::cast(value));
+    Print(Cast<String>(value));
     if (quote) Print("\"");
-  } else if (value->IsNull(isolate_)) {
+  } else if (IsNull(*value, isolate_)) {
     Print("null");
-  } else if (value->IsTrue(isolate_)) {
+  } else if (IsTrue(*value, isolate_)) {
     Print("true");
-  } else if (value->IsFalse(isolate_)) {
+  } else if (IsFalse(*value, isolate_)) {
     Print("false");
-  } else if (value->IsUndefined(isolate_)) {
+  } else if (IsUndefined(*value, isolate_)) {
     Print("undefined");
-  } else if (value->IsNumber()) {
+  } else if (IsNumber(*value)) {
     Print(isolate_->factory()->NumberToString(value));
-  } else if (value->IsSymbol()) {
+  } else if (IsSymbol(*value)) {
     // Symbols can only occur as literals if they were inserted by the parser.
-    PrintLiteral(handle(Handle<Symbol>::cast(value)->description(), isolate_),
-                 false);
+    PrintLiteral(handle(Cast<Symbol>(value)->description(), isolate_), false);
   }
 }
 
@@ -853,7 +872,7 @@ const char* AstPrinter::PrintProgram(FunctionLiteral* program) {
 
 
 void AstPrinter::PrintOut(Isolate* isolate, AstNode* node) {
-  AstPrinter printer(isolate->stack_guard()->real_climit());
+  AstPrinter printer(isolate ? isolate->stack_guard()->real_climit() : 0);
   printer.Init();
   printer.Visit(node);
   PrintF("%s", printer.output_);
@@ -1121,6 +1140,16 @@ void AstPrinter::VisitInitializeClassStaticElementsStatement(
   PrintClassStaticElements(node->elements());
 }
 
+void AstPrinter::VisitAutoAccessorGetterBody(AutoAccessorGetterBody* node) {
+  IndentedScope indent(this, "AUTO ACCESSOR GETTER BODY", node->position());
+  PrintIndentedVisit("AUTO ACCESSOR STORAGE PRIVATE NAME", node->name_proxy());
+}
+
+void AstPrinter::VisitAutoAccessorSetterBody(AutoAccessorSetterBody* node) {
+  IndentedScope indent(this, "AUTO ACCESSOR SETTER BODY", node->position());
+  PrintIndentedVisit("AUTO ACCESSOR STORAGE PRIVATE NAME", node->name_proxy());
+}
+
 void AstPrinter::PrintClassProperty(ClassLiteral::Property* property) {
   const char* prop_kind = nullptr;
   switch (property->kind()) {
@@ -1135,6 +1164,9 @@ void AstPrinter::PrintClassProperty(ClassLiteral::Property* property) {
       break;
     case ClassLiteral::Property::FIELD:
       prop_kind = "FIELD";
+      break;
+    case ClassLiteral::Property::AUTO_ACCESSOR:
+      prop_kind = "AUTO ACCESSOR";
       break;
   }
   base::EmbeddedVector<char, 128> buf;
@@ -1172,6 +1204,17 @@ void AstPrinter::VisitNativeFunctionLiteral(NativeFunctionLiteral* node) {
   PrintLiteralIndented("NAME", node->raw_name(), false);
 }
 
+void AstPrinter::VisitConditionalChain(ConditionalChain* node) {
+  IndentedScope indent(this, "CONDITIONAL_CHAIN", node->position());
+  PrintIndentedVisit("CONDITION", node->condition_at(0));
+  PrintIndentedVisit("THEN", node->then_expression_at(0));
+  for (size_t i = 1; i < node->conditional_chain_length(); ++i) {
+    IndentedScope indent(this, "ELSE IF", node->condition_position_at(i));
+    PrintIndentedVisit("CONDITION", node->condition_at(i));
+    PrintIndentedVisit("THEN", node->then_expression_at(i));
+  }
+  PrintIndentedVisit("ELSE", node->else_expression());
+}
 
 void AstPrinter::VisitConditional(Conditional* node) {
   IndentedScope indent(this, "CONDITIONAL", node->position());
@@ -1395,8 +1438,7 @@ void AstPrinter::VisitCallNew(CallNew* node) {
 
 void AstPrinter::VisitCallRuntime(CallRuntime* node) {
   base::EmbeddedVector<char, 128> buf;
-  SNPrintF(buf, "CALL RUNTIME %s%s", node->debug_name(),
-           node->is_jsruntime() ? " (JS function)" : "");
+  SNPrintF(buf, "CALL RUNTIME %s", node->function()->name);
   IndentedScope indent(this, buf.begin(), node->position());
   PrintArguments(node->arguments());
 }
@@ -1466,9 +1508,11 @@ void AstPrinter::VisitTemplateLiteral(TemplateLiteral* node) {
 
 void AstPrinter::VisitImportCallExpression(ImportCallExpression* node) {
   IndentedScope indent(this, "IMPORT-CALL", node->position());
+  PrintIndented("PHASE");
+  Print(" %d\n", static_cast<uint32_t>(node->phase()));
   Visit(node->specifier());
-  if (node->import_assertions()) {
-    Visit(node->import_assertions());
+  if (node->import_options()) {
+    Visit(node->import_options());
   }
 }
 
@@ -1480,11 +1524,14 @@ void AstPrinter::VisitSuperPropertyReference(SuperPropertyReference* node) {
   IndentedScope indent(this, "SUPER-PROPERTY-REFERENCE", node->position());
 }
 
-
 void AstPrinter::VisitSuperCallReference(SuperCallReference* node) {
   IndentedScope indent(this, "SUPER-CALL-REFERENCE", node->position());
 }
 
+void AstPrinter::VisitSuperCallForwardArgs(SuperCallForwardArgs* node) {
+  IndentedScope indent(this, "SUPER FORWARD-VARARGS", node->position());
+  Visit(node->expression());
+}
 
 #endif  // DEBUG
 

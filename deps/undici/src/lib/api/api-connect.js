@@ -1,7 +1,8 @@
 'use strict'
 
-const { InvalidArgumentError, RequestAbortedError, SocketError } = require('../core/errors')
-const { AsyncResource } = require('async_hooks')
+const assert = require('node:assert')
+const { AsyncResource } = require('node:async_hooks')
+const { InvalidArgumentError, SocketError } = require('../core/errors')
 const util = require('../core/util')
 const { addSignal, removeSignal } = require('./abort-signal')
 
@@ -32,9 +33,12 @@ class ConnectHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    if (!this.callback) {
-      throw new RequestAbortedError()
+    if (this.reason) {
+      abort(this.reason)
+      return
     }
+
+    assert(this.callback)
 
     this.abort = abort
     this.context = context
@@ -50,7 +54,13 @@ class ConnectHandler extends AsyncResource {
     removeSignal(this)
 
     this.callback = null
-    const headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+
+    let headers = rawHeaders
+    // Indicates is an HTTP2Session
+    if (headers != null) {
+      headers = this.responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
+    }
+
     this.runInAsyncScope(callback, null, null, {
       statusCode,
       headers,
@@ -85,12 +95,14 @@ function connect (opts, callback) {
 
   try {
     const connectHandler = new ConnectHandler(opts, callback)
-    this.dispatch({ ...opts, method: 'CONNECT' }, connectHandler)
+    const connectOptions = { ...opts, method: 'CONNECT' }
+
+    this.dispatch(connectOptions, connectHandler)
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err
     }
-    const opaque = opts && opts.opaque
+    const opaque = opts?.opaque
     queueMicrotask(() => callback(err, { opaque }))
   }
 }

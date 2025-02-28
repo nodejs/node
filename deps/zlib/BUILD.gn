@@ -3,6 +3,7 @@
 # found in the LICENSE file.
 
 import("//build/config/compiler/compiler.gni")
+import("//build/config/dcheck_always_on.gni")
 
 declare_args() {
   # Expose zlib's symbols, used by Node.js to provide zlib APIs for its native
@@ -33,7 +34,7 @@ config("zlib_internal_config") {
     # Build code using -O3, see: crbug.com/1084371.
     configs = [ "//build/config/compiler:optimize_speed" ]
   }
-  if (is_debug || use_fuzzing_engine) {
+  if (is_debug || dcheck_always_on || use_fuzzing_engine) {
     # Enable zlib's asserts in debug and fuzzer builds.
     defines += [ "ZLIB_DEBUG" ]
   }
@@ -124,44 +125,45 @@ source_set("zlib_adler32_simd") {
 
 if (use_arm_neon_optimizations) {
   config("zlib_arm_crc32_config") {
-    # Disabled for iPhone, as described in DDI0487C_a_armv8_arm:
-    #  "All implementations of the ARMv8.1 architecture are required to
-    #   implement the CRC32* instructions. These are optional in ARMv8.0."
-    if (!is_ios) {
-      defines = [ "CRC32_ARMV8_CRC32" ]
-      if (is_android) {
-        defines += [ "ARMV8_OS_ANDROID" ]
-      } else if (is_linux || is_chromeos) {
-        defines += [ "ARMV8_OS_LINUX" ]
-      } else if (is_mac) {
-        defines += [ "ARMV8_OS_MACOS" ]
-      } else if (is_fuchsia) {
-        defines += [ "ARMV8_OS_FUCHSIA" ]
-      } else if (is_win) {
-        defines += [ "ARMV8_OS_WINDOWS" ]
-      } else {
-        assert(false, "Unsupported ARM OS")
-      }
+    defines = [ "CRC32_ARMV8_CRC32" ]
+    if (is_android) {
+      defines += [ "ARMV8_OS_ANDROID" ]
+    } else if (is_linux || is_chromeos) {
+      defines += [ "ARMV8_OS_LINUX" ]
+    } else if (is_mac) {
+      defines += [ "ARMV8_OS_MACOS" ]
+    } else if (is_ios) {
+      defines += [ "ARMV8_OS_IOS" ]
+    } else if (is_fuchsia) {
+      defines += [ "ARMV8_OS_FUCHSIA" ]
+    } else if (is_win) {
+      defines += [ "ARMV8_OS_WINDOWS" ]
+    } else {
+      assert(false, "Unsupported ARM OS")
     }
   }
 
   source_set("zlib_arm_crc32") {
     visibility = [ ":*" ]
 
-    if (!is_ios) {
-      include_dirs = [ "." ]
+    include_dirs = [ "." ]
 
-      if (!is_win && !is_clang) {
-        assert(!use_thin_lto,
-               "ThinLTO fails mixing different module-level targets")
+    if (!is_win && !is_clang) {
+      assert(!use_thin_lto,
+             "ThinLTO fails mixing different module-level targets")
+      if (current_cpu == "arm64") {
         cflags_c = [ "-march=armv8-a+aes+crc" ]
+      } else if (current_cpu == "arm") {
+        cflags_c = [ "-march=armv8-a+crc" ]
+      } else {
+        assert(false, "Unexpected cpu: $current_cpu")
       }
-
-      sources = [
-        "crc32_simd.c",
-        "crc32_simd.h",
-      ]
     }
+
+    sources = [
+      "crc32_simd.c",
+      "crc32_simd.h",
+    ]
 
     configs += [ ":zlib_internal_config" ]
 
@@ -278,7 +280,6 @@ source_set("zlib_slide_hash_simd") {
 config("zlib_warnings") {
   if (is_clang) {
     cflags = [
-      "-Wno-deprecated-non-prototype",
       "-Wno-incompatible-pointer-types",
       "-Wunused-variable",
     ]
@@ -332,14 +333,6 @@ component("zlib") {
     defines += [ "CPU_NO_SIMD" ]
   }
 
-  if (is_ios) {
-    # iOS@ARM is a special case where we always have NEON but don't check
-    # for crypto extensions.
-    # TODO(cavalcantii): verify what is the current state of CPU features
-    # shipped on latest iOS devices.
-    defines += [ "ARM_OS_IOS" ]
-  }
-
   if (use_x86_x64_optimizations || use_arm_neon_optimizations) {
     deps += [
       ":zlib_adler32_simd",
@@ -359,7 +352,7 @@ component("zlib") {
   if (is_android) {
     import("//build/config/android/config.gni")
     if (defined(android_ndk_root) && android_ndk_root != "") {
-      deps += [ "//third_party/android_ndk:cpu_features" ]
+      deps += [ "//third_party/cpu_features:ndk_compat" ]
     } else {
       assert(false, "CPU detection requires the Android NDK")
     }
@@ -392,12 +385,16 @@ config("minizip_warnings") {
     cflags = [
       # zlib uses `if ((a == b))` for some reason.
       "-Wno-parentheses-equality",
-      "-Wno-deprecated-non-prototype",
     ]
   }
 }
 
 static_library("minizip") {
+  include_dirs = [
+    ".",
+    "//third_party/zlib",
+  ]
+
   sources = [
     "contrib/minizip/ioapi.c",
     "contrib/minizip/ioapi.h",
@@ -450,6 +447,36 @@ executable("zlib_bench") {
   configs += [ "//build/config/compiler:no_chromium_code" ]
 }
 
+executable("minigzip") {
+  include_dirs = [ "." ]
+
+  sources = [ "test/minigzip.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
+executable("zpipe") {
+  include_dirs = [ "." ]
+
+  sources = [ "examples/zpipe.c" ]
+  if (!is_debug) {
+    configs -= [ "//build/config/compiler:default_optimization" ]
+    configs += [ "//build/config/compiler:optimize_speed" ]
+  }
+
+  deps = [ ":zlib" ]
+
+  configs -= [ "//build/config/compiler:chromium_code" ]
+  configs += [ "//build/config/compiler:no_chromium_code" ]
+}
+
 if (!is_win || target_os != "winuwp") {
   executable("minizip_bin") {
     include_dirs = [ "." ]
@@ -457,11 +484,7 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/minizip.c" ]
 
     if (is_clang) {
-      cflags = [
-        "-Wno-incompatible-pointer-types-discards-qualifiers",
-
-        "-Wno-deprecated-non-prototype",
-      ]
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
     }
 
     if (!is_debug) {
@@ -481,10 +504,7 @@ if (!is_win || target_os != "winuwp") {
     sources = [ "contrib/minizip/miniunz.c" ]
 
     if (is_clang) {
-      cflags = [
-        "-Wno-incompatible-pointer-types-discards-qualifiers",
-        "-Wno-deprecated-non-prototype",
-      ]
+      cflags = [ "-Wno-incompatible-pointer-types-discards-qualifiers" ]
     }
 
     if (!is_debug) {
@@ -515,7 +535,12 @@ if (build_with_chromium) {
 
     data = [ "google/test/data/" ]
 
+    if (is_ios) {
+      bundle_deps = [ "google:zlib_pak_bundle_data" ]
+    }
+
     deps = [
+      ":minizip",
       ":zlib",
       "google:compression_utils",
       "google:zip",

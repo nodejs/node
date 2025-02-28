@@ -2,13 +2,20 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/builtins/builtins.h"
+#include <fstream>
+
+#include "src/builtins/builtins-inl.h"
 #include "src/builtins/profile-data-reader.h"
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
 #include "src/codegen/macro-assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
+#include "src/codegen/reloc-info-inl.h"
+#include "src/common/globals.h"
 #include "src/compiler/code-assembler.h"
+#include "src/compiler/pipeline.h"
+#include "src/compiler/turboshaft/builtin-compiler.h"
+#include "src/compiler/turboshaft/phase.h"
 #include "src/execution/isolate.h"
 #include "src/handles/handles-inl.h"
 #include "src/heap/heap-inl.h"
@@ -19,6 +26,10 @@
 #include "src/objects/objects-inl.h"
 #include "src/objects/shared-function-info.h"
 #include "src/objects/smi.h"
+
+#if V8_ENABLE_WEBASSEMBLY
+#include "src/wasm/wasm-builtin-list.h"
+#endif
 
 namespace v8 {
 namespace internal {
@@ -38,6 +49,14 @@ AssemblerOptions BuiltinAssemblerOptions(Isolate* isolate, Builtin builtin) {
   CHECK(!options.isolate_independent_code);
   CHECK(!options.collect_win64_unwind_info);
 
+#if V8_ENABLE_WEBASSEMBLY
+  if (wasm::BuiltinLookup::IsWasmBuiltinId(builtin) ||
+      builtin == Builtin::kJSToWasmWrapper ||
+      builtin == Builtin::kJSToWasmHandleReturns ||
+      builtin == Builtin::kWasmToJsWrapperCSA) {
+    options.is_wasm = true;
+  }
+#endif
   if (!isolate->IsGeneratingEmbeddedBuiltins()) {
     return options;
   }
@@ -78,7 +97,7 @@ using CodeAssemblerGenerator = void (*)(compiler::CodeAssemblerState*);
 
 Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   HandleScope scope(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
   MacroAssembler masm(isolate, CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
   DCHECK(!masm.has_frame());
@@ -98,14 +117,11 @@ Handle<Code> BuildPlaceholder(Isolate* isolate, Builtin builtin) {
   return scope.CloseAndEscape(code);
 }
 
-Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
-                             MacroAssemblerGenerator generator,
-                             const char* s_name) {
+V8_NOINLINE Tagged<Code> BuildWithMacroAssembler(
+    Isolate* isolate, Builtin builtin, MacroAssemblerGenerator generator,
+    const char* s_name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
 
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
@@ -125,29 +141,43 @@ Code BuildWithMacroAssembler(Isolate* isolate, Builtin builtin,
     handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
     HandlerTable::EmitReturnEntry(
         &masm, 0, isolate->builtins()->js_entry_handler_offset());
+#if V8_ENABLE_DRUMBRAKE
+  } else if (builtin == Builtin::kWasmInterpreterCWasmEntry) {
+    handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
+    HandlerTable::EmitReturnEntry(
+        &masm, 0,
+        isolate->builtins()->cwasm_interpreter_entry_handler_offset());
+#endif  // V8_ENABLE_DRUMBRAKE
   }
+#if V8_ENABLE_WEBASSEMBLY &&                                              \
+    (V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_IA32 || \
+     V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_LOONG64)
+  if (builtin == Builtin::kWasmReturnPromiseOnSuspendAsm) {
+    handler_table_offset = HandlerTable::EmitReturnTableStart(&masm);
+    HandlerTable::EmitReturnEntry(
+        &masm, 0, isolate->builtins()->jspi_prompt_handler_offset());
+  }
+#endif
 
   CodeDesc desc;
-  masm.GetCode(isolate, &desc, MacroAssembler::kNoSafepointTable,
-               handler_table_offset);
+  masm.GetCode(isolate->main_thread_local_isolate(), &desc,
+               MacroAssembler::kNoSafepointTable, handler_table_offset);
 
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
 #if defined(V8_OS_WIN64)
   isolate->SetBuiltinUnwindData(builtin, masm.GetUnwindInfo());
 #endif  // V8_OS_WIN64
   return *code;
 }
 
-Code BuildAdaptor(Isolate* isolate, Builtin builtin, Address builtin_address,
-                  const char* name) {
+Tagged<Code> BuildAdaptor(Isolate* isolate, Builtin builtin,
+                          Address builtin_address, const char* name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
-  byte buffer[kBufferSize];
+  uint8_t buffer[kBufferSize];
   MacroAssembler masm(isolate, BuiltinAssemblerOptions(isolate, builtin),
                       CodeObjectRequired::kYes,
                       ExternalAssemblerBuffer(buffer, kBufferSize));
@@ -156,41 +186,77 @@ Code BuildAdaptor(Isolate* isolate, Builtin builtin, Address builtin_address,
   Builtins::Generate_Adaptor(&masm, builtin_address);
   CodeDesc desc;
   masm.GetCode(isolate, &desc);
-  Handle<Code> code = Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
-                          .set_self_reference(masm.CodeObject())
-                          .set_builtin(builtin)
-                          .Build();
+  DirectHandle<Code> code =
+      Factory::CodeBuilder(isolate, desc, CodeKind::BUILTIN)
+          .set_self_reference(masm.CodeObject())
+          .set_builtin(builtin)
+          .Build();
+  return *code;
+}
+
+// Builder for builtins implemented in Turboshaft with JS linkage.
+V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerJS(
+    Isolate* isolate, Builtin builtin,
+    compiler::turboshaft::TurboshaftAssemblerGenerator generator, int argc,
+    const char* name) {
+  HandleScope scope(isolate);
+  Handle<Code> code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
+      isolate, builtin, generator,
+      [argc](Zone* zone) {
+        return compiler::Linkage::GetJSCallDescriptor(
+            zone, false, argc, compiler::CallDescriptor::kCanUseRoots);
+      },
+      name, BuiltinAssemblerOptions(isolate, builtin));
   return *code;
 }
 
 // Builder for builtins implemented in TurboFan with JS linkage.
-Code BuildWithCodeStubAssemblerJS(Isolate* isolate, Builtin builtin,
-                                  CodeAssemblerGenerator generator, int argc,
-                                  const char* name) {
+V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerJS(
+    Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+    int argc, const char* name) {
+  // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerCS` has
+  // an actual use.
+  USE(&BuildWithTurboshaftAssemblerJS);
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
 
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   compiler::CodeAssemblerState state(isolate, &zone, argc, CodeKind::BUILTIN,
                                      name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
 }
 
-// Builder for builtins implemented in TurboFan with CallStub linkage.
-Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
-                                  CodeAssemblerGenerator generator,
-                                  CallDescriptors::Key interface_descriptor,
-                                  const char* name) {
+// Builder for builtins implemented in Turboshaft with CallStub linkage.
+V8_NOINLINE Tagged<Code> BuildWithTurboshaftAssemblerCS(
+    Isolate* isolate, Builtin builtin,
+    compiler::turboshaft::TurboshaftAssemblerGenerator generator,
+    CallDescriptors::Key interface_descriptor, const char* name) {
   HandleScope scope(isolate);
-  // Canonicalize handles, so that we can share constant pool entries pointing
-  // to code targets without dereferencing their handles.
-  CanonicalHandleScope canonical(isolate);
+  Handle<Code> code = compiler::turboshaft::BuildWithTurboshaftAssemblerImpl(
+      isolate, builtin, generator,
+      [interface_descriptor](Zone* zone) {
+        CallInterfaceDescriptor descriptor(interface_descriptor);
+        DCHECK_LE(0, descriptor.GetRegisterParameterCount());
+        return compiler::Linkage::GetStubCallDescriptor(
+            zone, descriptor, descriptor.GetStackParameterCount(),
+            compiler::CallDescriptor::kNoFlags,
+            compiler::Operator::kNoProperties);
+      },
+      name, BuiltinAssemblerOptions(isolate, builtin));
+  return *code;
+}
+
+// Builder for builtins implemented in TurboFan with CallStub linkage.
+V8_NOINLINE Tagged<Code> BuildWithCodeStubAssemblerCS(
+    Isolate* isolate, Builtin builtin, CodeAssemblerGenerator generator,
+    CallDescriptors::Key interface_descriptor, const char* name) {
+  // TODO(nicohartmann): Remove this once `BuildWithTurboshaftAssemblerCS` has
+  // an actual use.
+  USE(&BuildWithTurboshaftAssemblerCS);
+  HandleScope scope(isolate);
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   // The interface descriptor with given key must be initialized at this point
   // and this construction just queries the details from the descriptors table.
@@ -200,7 +266,7 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
   compiler::CodeAssemblerState state(isolate, &zone, descriptor,
                                      CodeKind::BUILTIN, name, builtin);
   generator(&state);
-  Handle<Code> code = compiler::CodeAssembler::GenerateCode(
+  DirectHandle<Code> code = compiler::CodeAssembler::GenerateCode(
       &state, BuiltinAssemblerOptions(isolate, builtin),
       ProfileDataFromFile::TryRead(name));
   return *code;
@@ -210,8 +276,8 @@ Code BuildWithCodeStubAssemblerCS(Isolate* isolate, Builtin builtin,
 
 // static
 void SetupIsolateDelegate::AddBuiltin(Builtins* builtins, Builtin builtin,
-                                      Code code) {
-  DCHECK_EQ(builtin, code.builtin_id());
+                                      Tagged<Code> code) {
+  DCHECK_EQ(builtin, code->builtin_id());
   builtins->set_code(builtin, code);
 }
 
@@ -224,7 +290,7 @@ void SetupIsolateDelegate::PopulateWithPlaceholders(Isolate* isolate) {
   HandleScope scope(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Handle<Code> placeholder = BuildPlaceholder(isolate, builtin);
+    DirectHandle<Code> placeholder = BuildPlaceholder(isolate, builtin);
     AddBuiltin(builtins, builtin, *placeholder);
   }
 }
@@ -234,7 +300,6 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   // Replace references from all builtin code objects to placeholders.
   Builtins* builtins = isolate->builtins();
   DisallowGarbageCollection no_gc;
-  CodePageCollectionMemoryModificationScope modification_scope(isolate->heap());
   static const int kRelocMask =
       RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
       RelocInfo::ModeMask(RelocInfo::FULL_EMBEDDED_OBJECT) |
@@ -243,46 +308,52 @@ void SetupIsolateDelegate::ReplacePlaceholders(Isolate* isolate) {
   PtrComprCageBase cage_base(isolate);
   for (Builtin builtin = Builtins::kFirst; builtin <= Builtins::kLast;
        ++builtin) {
-    Code code = builtins->code(builtin);
-    isolate->heap()->UnprotectAndRegisterMemoryChunk(
-        code, UnprotectMemoryOrigin::kMainThread);
+    Tagged<Code> code = builtins->code(builtin);
+    Tagged<InstructionStream> istream = code->instruction_stream();
+    WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
+        istream.address(), istream->Size(),
+        ThreadIsolation::JitAllocationType::kInstructionStream);
     bool flush_icache = false;
-    for (RelocIterator it(code, kRelocMask); !it.done(); it.next()) {
-      RelocInfo* rinfo = it.rinfo();
+    for (WritableRelocIterator it(jit_allocation, istream,
+                                  code->constant_pool(), kRelocMask);
+         !it.done(); it.next()) {
+      WritableRelocInfo* rinfo = it.rinfo();
       if (RelocInfo::IsCodeTargetMode(rinfo->rmode())) {
-        Code target_code = Code::FromTargetAddress(rinfo->target_address());
+        Tagged<Code> target_code =
+            Code::FromTargetAddress(rinfo->target_address());
         DCHECK_IMPLIES(
             RelocInfo::IsRelativeCodeTarget(rinfo->rmode()),
-            Builtins::IsIsolateIndependent(target_code.builtin_id()));
-        if (!target_code.is_builtin()) continue;
-        Code new_target = builtins->code(target_code.builtin_id());
-        rinfo->set_target_address(new_target.InstructionStart(),
+            Builtins::IsIsolateIndependent(target_code->builtin_id()));
+        if (!target_code->is_builtin()) continue;
+        Tagged<Code> new_target = builtins->code(target_code->builtin_id());
+        rinfo->set_target_address(istream, new_target->instruction_start(),
                                   UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
       } else {
         DCHECK(RelocInfo::IsEmbeddedObjectMode(rinfo->rmode()));
-        Object object = rinfo->target_object(cage_base);
-        if (!object.IsCode(cage_base)) continue;
-        Code target = Code::cast(object);
-        if (!target.is_builtin()) continue;
-        Code new_target = builtins->code(target.builtin_id());
-        rinfo->set_target_object(isolate->heap(), new_target,
-                                 UPDATE_WRITE_BARRIER, SKIP_ICACHE_FLUSH);
+        Tagged<Object> object = rinfo->target_object(cage_base);
+        if (!IsCode(object, cage_base)) continue;
+        Tagged<Code> target = Cast<Code>(object);
+        if (!target->is_builtin()) continue;
+        Tagged<Code> new_target = builtins->code(target->builtin_id());
+        rinfo->set_target_object(istream, new_target, UPDATE_WRITE_BARRIER,
+                                 SKIP_ICACHE_FLUSH);
       }
       flush_icache = true;
     }
     if (flush_icache) {
-      FlushInstructionCache(code.InstructionStart(), code.instruction_size());
+      FlushInstructionCache(code->instruction_start(),
+                            code->instruction_size());
     }
   }
 }
 
 namespace {
 
-Code GenerateBytecodeHandler(Isolate* isolate, Builtin builtin,
-                             interpreter::OperandScale operand_scale,
-                             interpreter::Bytecode bytecode) {
+V8_NOINLINE Tagged<Code> GenerateBytecodeHandler(
+    Isolate* isolate, Builtin builtin, interpreter::OperandScale operand_scale,
+    interpreter::Bytecode bytecode) {
   DCHECK(interpreter::Bytecodes::BytecodeHasHandler(bytecode, operand_scale));
-  Handle<Code> code = interpreter::GenerateBytecodeHandler(
+  DirectHandle<Code> code = interpreter::GenerateBytecodeHandler(
       isolate, Builtins::name(builtin), bytecode, operand_scale, builtin,
       BuiltinAssemblerOptions(isolate, builtin));
   return *code;
@@ -295,23 +366,42 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   Builtins* builtins = isolate->builtins();
   DCHECK(!builtins->initialized_);
 
+  if (v8_flags.dump_builtins_hashes_to_file) {
+    // Create an empty file.
+    std::ofstream(v8_flags.dump_builtins_hashes_to_file, std::ios_base::trunc);
+  }
+
   PopulateWithPlaceholders(isolate);
 
   // Create a scope for the handles in the builtins.
   HandleScope scope(isolate);
 
   int index = 0;
-  Code code;
+  Tagged<Code> code;
 #define BUILD_CPP(Name)                                      \
   code = BuildAdaptor(isolate, Builtin::k##Name,             \
                       FUNCTION_ADDR(Builtin_##Name), #Name); \
   AddBuiltin(builtins, Builtin::k##Name, code);              \
   index++;
 
+#define BUILD_TSJ(Name, Argc, ...)                                         \
+  code = BuildWithTurboshaftAssemblerJS(                                   \
+      isolate, Builtin::k##Name, &Builtins::Generate_##Name, Argc, #Name); \
+  AddBuiltin(builtins, Builtin::k##Name, code);                            \
+  index++;
+
 #define BUILD_TFJ(Name, Argc, ...)                                         \
   code = BuildWithCodeStubAssemblerJS(                                     \
       isolate, Builtin::k##Name, &Builtins::Generate_##Name, Argc, #Name); \
   AddBuiltin(builtins, Builtin::k##Name, code);                            \
+  index++;
+
+#define BUILD_TSC(Name, InterfaceDescriptor)                      \
+  /* Return size is from the provided CallInterfaceDescriptor. */ \
+  code = BuildWithTurboshaftAssemblerCS(                          \
+      isolate, Builtin::k##Name, &Builtins::Generate_##Name,      \
+      CallDescriptors::InterfaceDescriptor, #Name);               \
+  AddBuiltin(builtins, Builtin::k##Name, code);                   \
   index++;
 
 #define BUILD_TFC(Name, InterfaceDescriptor)                      \
@@ -350,11 +440,13 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   AddBuiltin(builtins, Builtin::k##Name, code);                     \
   index++;
 
-  BUILTIN_LIST(BUILD_CPP, BUILD_TFJ, BUILD_TFC, BUILD_TFS, BUILD_TFH, BUILD_BCH,
-               BUILD_ASM);
+  BUILTIN_LIST(BUILD_CPP, BUILD_TSJ, BUILD_TFJ, BUILD_TSC, BUILD_TFC, BUILD_TFS,
+               BUILD_TFH, BUILD_BCH, BUILD_ASM);
 
 #undef BUILD_CPP
+#undef BUILD_TSJ
 #undef BUILD_TFJ
+#undef BUILD_TSC
 #undef BUILD_TFC
 #undef BUILD_TFS
 #undef BUILD_TFH
@@ -363,12 +455,6 @@ void SetupIsolateDelegate::SetupBuiltinsInternal(Isolate* isolate) {
   CHECK_EQ(Builtins::kBuiltinCount, index);
 
   ReplacePlaceholders(isolate);
-
-#define SET_PROMISE_REJECTION_PREDICTION(Name) \
-  builtins->code(Builtin::k##Name).set_is_promise_rejection(true);
-
-  BUILTIN_PROMISE_REJECTION_PREDICTION_LIST(SET_PROMISE_REJECTION_PREDICTION)
-#undef SET_PROMISE_REJECTION_PREDICTION
 
   builtins->MarkInitialized();
 }

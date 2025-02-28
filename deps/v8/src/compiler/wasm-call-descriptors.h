@@ -25,38 +25,31 @@ class WasmCallDescriptors {
  public:
   explicit WasmCallDescriptors(AccountingAllocator* allocator);
 
-  compiler::CallDescriptor* GetI64ToBigIntDescriptor(StubCallMode mode) {
-    return i64_to_bigint_descriptors_[static_cast<size_t>(mode)];
-  }
-  compiler::CallDescriptor* GetBigIntToI64Descriptor(StubCallMode mode,
-                                                     bool needs_frame_state) {
+  compiler::CallDescriptor* GetBigIntToI64Descriptor(bool needs_frame_state) {
     if (needs_frame_state) {
-      DCHECK_EQ(mode, StubCallMode::kCallBuiltinPointer);
       return bigint_to_i64_descriptor_with_framestate_;
     }
-    return bigint_to_i64_descriptors_[static_cast<size_t>(mode)];
+    return bigint_to_i64_descriptor_;
   }
 
 #if V8_TARGET_ARCH_32_BIT
   V8_EXPORT_PRIVATE compiler::CallDescriptor* GetLoweredCallDescriptor(
       const compiler::CallDescriptor* original);
+#else
+  V8_EXPORT_PRIVATE compiler::CallDescriptor* GetLoweredCallDescriptor(
+      const compiler::CallDescriptor* original) {
+    UNREACHABLE();
+  }
 #endif  // V8_TARGET_ARCH_32_BIT
 
  private:
-  static_assert(static_cast<int>(StubCallMode::kCallCodeObject) == 0);
-  static_assert(static_cast<int>(StubCallMode::kCallWasmRuntimeStub) == 1);
-  static_assert(static_cast<int>(StubCallMode::kCallBuiltinPointer) == 2);
-  static constexpr int kNumCallModes = 3;
-
   std::unique_ptr<Zone> zone_;
 
-  compiler::CallDescriptor* i64_to_bigint_descriptors_[kNumCallModes];
-  compiler::CallDescriptor* bigint_to_i64_descriptors_[kNumCallModes];
+  compiler::CallDescriptor* bigint_to_i64_descriptor_;
   compiler::CallDescriptor* bigint_to_i64_descriptor_with_framestate_;
 
 #if V8_TARGET_ARCH_32_BIT
-  compiler::CallDescriptor* i32pair_to_bigint_descriptors_[kNumCallModes];
-  compiler::CallDescriptor* bigint_to_i32pair_descriptors_[kNumCallModes];
+  compiler::CallDescriptor* bigint_to_i32pair_descriptor_;
   compiler::CallDescriptor* bigint_to_i32pair_descriptor_with_framestate_;
 #endif  // V8_TARGET_ARCH_32_BIT
 };

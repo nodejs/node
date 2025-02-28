@@ -85,6 +85,9 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
     return false;
   }
   void CheckBitInTable(Handle<ByteArray> table, Label* on_bit_set) override;
+  void SkipUntilBitInTable(int cp_offset, Handle<ByteArray> table,
+                           Handle<ByteArray> nibble_table,
+                           int advance_by) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;
   void CheckNotBackReferenceIgnoreCase(int start_reg, bool read_backward,
@@ -107,13 +110,14 @@ class V8_EXPORT_PRIVATE RegExpBytecodeGenerator : public RegExpMacroAssembler {
   inline void Emit8(uint32_t x);
   inline void Emit(uint32_t bc, uint32_t arg);
   inline void Emit(uint32_t bc, int32_t arg);
+  void EmitSkipTable(Handle<ByteArray> table);
   // Bytecode buffer.
   int length();
-  void Copy(byte* a);
+  void Copy(uint8_t* a);
 
   // The buffer into which code and relocation info are generated.
   static constexpr int kInitialBufferSize = 1024;
-  ZoneVector<byte> buffer_;
+  ZoneVector<uint8_t> buffer_;
 
   // The program counter.
   int pc_;

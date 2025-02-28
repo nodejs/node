@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td valign="top">
+<a href="#16.20.2">16.20.2</a><br/>
+<a href="#16.20.1">16.20.1</a><br/>
 <a href="#16.20.0">16.20.0</a><br/>
 <a href="#16.19.1">16.19.1</a><br/>
 <a href="#16.19.0">16.19.0</a><br/>
@@ -51,6 +53,9 @@
 </table>
 
 * Other Versions
+  * [23.x](CHANGELOG_V23.md)
+  * [22.x](CHANGELOG_V22.md)
+  * [21.x](CHANGELOG_V21.md)
   * [20.x](CHANGELOG_V20.md)
   * [19.x](CHANGELOG_V19.md)
   * [18.x](CHANGELOG_V18.md)
@@ -71,6 +76,74 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="16.20.2"></a>
+
+## 2023-08-09, Version 16.20.2 'Gallium' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-32002](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32002):  Policies can be bypassed via Module.\_load (High)
+* [CVE-2023-32006](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32006): Policies can be bypassed by module.constructor.createRequire (Medium)
+* [CVE-2023-32559](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-32559): Policies can be bypassed via process.binding (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 14th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000264.html).
+  * [OpenSSL security advisory 19th July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000265.html).
+  * [OpenSSL security advisory 31st July](https://mta.openssl.org/pipermail/openssl-announce/2023-July/000267.html)
+
+More detailed information on each of the vulnerabilities can be found in [August 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/august-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`40c3958a5a`](https://github.com/nodejs/node/commit/40c3958a5a)] - **deps**: update archs files for OpenSSL-1.1.1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`a9ac9da89a`](https://github.com/nodejs/node/commit/a9ac9da89a)] - **deps**: fix openssl crypto clean (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`362d4c7494`](https://github.com/nodejs/node/commit/362d4c7494)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1v (RafaelGSS) [#49043](https://github.com/nodejs/node/pull/49043)
+* \[[`d8ccfe9ad4`](https://github.com/nodejs/node/commit/d8ccfe9ad4)] - **policy**: handle Module.constructor and main.extensions bypass (RafaelGSS) [nodejs-private/node-private#445](https://github.com/nodejs-private/node-private/pull/445)
+* \[[`242aaa0caa`](https://github.com/nodejs/node/commit/242aaa0caa)] - **policy**: disable process.binding() when enabled (Tobias Nießen) [nodejs-private/node-private#459](https://github.com/nodejs-private/node-private/pull/459)
+
+<a id="16.20.1"></a>
+
+## 2023-06-20, Version 16.20.1 'Gallium' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+The following CVEs are fixed in this release:
+
+* [CVE-2023-30581](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30581): `mainModule.__proto__` Bypass Experimental Policy Mechanism (High)
+* [CVE-2023-30585](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30585): Privilege escalation via Malicious Registry Key manipulation during Node.js installer repair process (Medium)
+* [CVE-2023-30588](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30588): Process interuption due to invalid Public Key information in x509 certificates (Medium)
+* [CVE-2023-30589](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30589): HTTP Request Smuggling via Empty headers separated by CR (Medium)
+* [CVE-2023-30590](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-30590): DiffieHellman does not generate keys after setting a private key (Medium)
+* OpenSSL Security Releases
+  * [OpenSSL security advisory 28th March](https://www.openssl.org/news/secadv/20230328.txt).
+  * [OpenSSL security advisory 20th April](https://www.openssl.org/news/secadv/20230420.txt).
+  * [OpenSSL security advisory 30th May](https://www.openssl.org/news/secadv/20230530.txt)
+* c-ares vulnerabilities:
+  * [GHSA-9g78-jv2r-p7vc](https://github.com/c-ares/c-ares/security/advisories/GHSA-9g78-jv2r-p7vc)
+  * [GHSA-8r8p-23f3-64c2](https://github.com/c-ares/c-ares/security/advisories/GHSA-8r8p-23f3-64c2)
+  * [GHSA-54xr-f67r-4pc4](https://github.com/c-ares/c-ares/security/advisories/GHSA-54xr-f67r-4pc4)
+  * [GHSA-x6mf-cxr9-8q6v](https://github.com/c-ares/c-ares/security/advisories/GHSA-x6mf-cxr9-8q6v)
+
+More detailed information on each of the vulnerabilities can be found in [June 2023 Security Releases](https://nodejs.org/en/blog/vulnerability/june-2023-security-releases/) blog post.
+
+### Commits
+
+* \[[`5a92ea7a3b`](https://github.com/nodejs/node/commit/5a92ea7a3b)] - **crypto**: handle cert with invalid SPKI gracefully (Tobias Nießen)
+* \[[`5df04e893a`](https://github.com/nodejs/node/commit/5df04e893a)] - **deps**: set `CARES_RANDOM_FILE` for c-ares (Richard Lau) [#48156](https://github.com/nodejs/node/pull/48156)
+* \[[`c171cbd124`](https://github.com/nodejs/node/commit/c171cbd124)] - **deps**: update c-ares to 1.19.1 (RafaelGSS) [#48115](https://github.com/nodejs/node/pull/48115)
+* \[[`155d3aac02`](https://github.com/nodejs/node/commit/155d3aac02)] - **deps**: update archs files for OpenSSL-1.1.1u+quic (RafaelGSS) [#48369](https://github.com/nodejs/node/pull/48369)
+* \[[`8d4c8f8ebe`](https://github.com/nodejs/node/commit/8d4c8f8ebe)] - **deps**: upgrade openssl sources to OpenSSL\_1\_1\_1u (RafaelGSS) [#48369](https://github.com/nodejs/node/pull/48369)
+* \[[`1a5c9284eb`](https://github.com/nodejs/node/commit/1a5c9284eb)] - **doc,test**: clarify behavior of DH generateKeys (Tobias Nießen) [nodejs-private/node-private#426](https://github.com/nodejs-private/node-private/pull/426)
+* \[[`e42ff4b018`](https://github.com/nodejs/node/commit/e42ff4b018)] - **http**: disable request smuggling via empty headers (Paolo Insogna) [nodejs-private/node-private#429](https://github.com/nodejs-private/node-private/pull/429)
+* \[[`10042683c8`](https://github.com/nodejs/node/commit/10042683c8)] - **msi**: do not create AppData\Roaming\npm (Tobias Nießen) [nodejs-private/node-private#408](https://github.com/nodejs-private/node-private/pull/408)
+* \[[`a6f4e87bc9`](https://github.com/nodejs/node/commit/a6f4e87bc9)] - **policy**: handle mainModule.\_\_proto\_\_ bypass (RafaelGSS) [nodejs-private/node-private#416](https://github.com/nodejs-private/node-private/pull/416)
+* \[[`b77000f4d7`](https://github.com/nodejs/node/commit/b77000f4d7)] - **test**: allow SIGBUS in signal-handler abort test (Michaël Zasso) [#47851](https://github.com/nodejs/node/pull/47851)
 
 <a id="16.20.0"></a>
 

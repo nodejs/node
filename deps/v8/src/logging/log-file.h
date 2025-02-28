@@ -10,9 +10,9 @@
 #include <atomic>
 #include <cstdarg>
 #include <memory>
+#include <optional>
 
 #include "src/base/compiler-specific.h"
-#include "src/base/optional.h"
 #include "src/base/platform/mutex.h"
 #include "src/common/assert-scope.h"
 #include "src/flags/flags.h"
@@ -61,15 +61,15 @@ class LogFile {
    public:
     ~MessageBuilder() = default;
 
-    void AppendString(String str,
-                      base::Optional<int> length_limit = base::nullopt);
+    void AppendString(Tagged<String> str,
+                      std::optional<int> length_limit = std::nullopt);
     void AppendString(base::Vector<const char> str);
     void AppendString(const char* str);
     void AppendString(const char* str, size_t length, bool is_one_byte = true);
     void PRINTF_FORMAT(2, 3) AppendFormatString(const char* format, ...);
     void AppendCharacter(char c);
     void AppendTwoByteCharacter(char c1, char c2);
-    void AppendSymbolName(Symbol symbol);
+    void AppendSymbolName(Tagged<Symbol> symbol);
 
     // Delegate insertion to the underlying {log_}.
     // All appended strings are escaped to maintain one-line log entries.
@@ -92,7 +92,7 @@ class LogFile {
     int PRINTF_FORMAT(2, 0)
         FormatStringIntoBuffer(const char* format, va_list args);
 
-    void AppendSymbolNameDetails(String str, bool show_impl_info);
+    void AppendSymbolNameDetails(Tagged<String> str, bool show_impl_info);
 
     void PRINTF_FORMAT(2, 3) AppendRawFormatString(const char* format, ...);
     void AppendRawString(const char* format);
@@ -147,13 +147,14 @@ LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<const char*>(
 template <>
 LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<char>(char c);
 template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<String>(
-    String string);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<String>>(
+    Tagged<String> string);
 template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Symbol>(
-    Symbol symbol);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Symbol>>(
+    Tagged<Symbol> symbol);
 template <>
-LogFile::MessageBuilder& LogFile::MessageBuilder::operator<<<Name>(Name name);
+LogFile::MessageBuilder& LogFile::MessageBuilder::operator<< <Tagged<Name>>(
+    Tagged<Name> name);
 
 }  // namespace internal
 }  // namespace v8

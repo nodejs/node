@@ -36,7 +36,7 @@ const prompt_tcp = 'node via TCP socket> ';
 const moduleFilename = fixtures.path('a');
 
 // Function for REPL to run
-global.invoke_me = function(arg) {
+globalThis.invoke_me = function(arg) {
   return `invoked ${arg}`;
 };
 
@@ -51,6 +51,7 @@ async function runReplTests(socket, prompt, tests) {
     // Expect can be a single line or multiple lines
     const expectedLines = Array.isArray(expect) ? expect : [ expect ];
 
+    console.error('\n------------');
     console.error('out:', JSON.stringify(send));
     socket.write(`${send}\n`);
 
@@ -64,7 +65,7 @@ async function runReplTests(socket, prompt, tests) {
 
         // Cut away the initial prompt
         while (lineBuffer.startsWith(prompt))
-          lineBuffer = lineBuffer.substr(prompt.length);
+          lineBuffer = lineBuffer.slice(prompt.length);
 
         // Allow to match partial text if no newline was received, because
         // sending newlines from the REPL itself would be redundant
@@ -76,13 +77,13 @@ async function runReplTests(socket, prompt, tests) {
 
       // Split off the current line.
       const newlineOffset = lineBuffer.indexOf('\n');
-      let actualLine = lineBuffer.substr(0, newlineOffset);
-      lineBuffer = lineBuffer.substr(newlineOffset + 1);
+      let actualLine = lineBuffer.slice(0, newlineOffset);
+      lineBuffer = lineBuffer.slice(newlineOffset + 1);
 
       // This might have been skipped in the loop above because the buffer
       // already contained a \n to begin with and the entire loop was skipped.
       while (actualLine.startsWith(prompt))
-        actualLine = actualLine.substr(prompt.length);
+        actualLine = actualLine.slice(prompt.length);
 
       console.error('in:', JSON.stringify(actualLine));
 
@@ -127,6 +128,17 @@ const strictModeTests = [
     send: 'ref = 1',
     expect: [/^Uncaught ReferenceError:\s/]
   },
+];
+
+const possibleTokensAfterIdentifierWithLineBreak = [
+  '(\n)',
+  '[\n0]',
+  '+\n1', '- \n1', '* \n1', '/ \n1', '% \n1', '** \n1',
+  '== \n1', '=== \n1', '!= \n1', '!== \n1', '< \n1', '> \n1', '<= \n1', '>= \n1',
+  '&& \n1', '|| \n1', '?? \n1',
+  '= \n1', '+= \n1', '-= \n1', '*= \n1', '/= \n1', '%= \n1',
+  ': \n',
+  '? \n1: 1',
 ];
 
 const errorTests = [
@@ -209,7 +221,10 @@ const errorTests = [
   // should throw
   {
     send: 'JSON.parse(\'{invalid: \\\'json\\\'}\');',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: [
+      'Uncaught:',
+      /^SyntaxError: /,
+    ],
   },
   // End of input to JSON.parse error is special case of syntax error,
   // should throw
@@ -220,7 +235,10 @@ const errorTests = [
   // should throw
   {
     send: 'JSON.parse(\'{\');',
-    expect: [/^Uncaught SyntaxError: /]
+    expect: [
+      'Uncaught:',
+      /^SyntaxError: /,
+    ],
   },
   // invalid RegExps are a special case of syntax error,
   // should throw
@@ -380,6 +398,16 @@ const errorTests = [
       '(Press Ctrl+D to exit.)',
     ]
   },
+  {
+    send: 'let npm = () => {};',
+    expect: 'undefined'
+  },
+  ...possibleTokensAfterIdentifierWithLineBreak.map((token) => (
+    {
+      send: `npm ${token}; undefined`,
+      expect: '... undefined'
+    }
+  )),
   {
     send: '(function() {\n\nreturn 1;\n})()',
     expect: '... ... ... 1'
@@ -566,15 +594,18 @@ const errorTests = [
   // REPL should get a normal require() function, not one that allows
   // access to internal modules without the --expose-internals flag.
   {
-    send: 'require("internal/repl")',
+    // Shrink the stack trace to avoid having to update this test whenever the
+    // implementation of require() changes. It's set to 4 because somehow setting it
+    // to a lower value breaks the error formatting and the message becomes
+    // "Uncaught [Error...", which is probably a bug(?).
+    send: 'Error.stackTraceLimit = 4; require("internal/repl")',
     expect: [
       /^Uncaught Error: Cannot find module 'internal\/repl'/,
       /^Require stack:/,
-      /^- <repl>/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
-      /^ {4}at .*/,
+      /^- <repl>/,  // This just tests MODULE_NOT_FOUND so let's skip the stack trace
+      /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
+      /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
+      /^ {4}at .*/, // Some stack frame that we have to capture otherwise error message is buggy.
       "  code: 'MODULE_NOT_FOUND',",
       "  requireStack: [ '<repl>' ]",
       '}',
@@ -763,7 +794,10 @@ const errorTests = [
     expect: [
       'Object [console] {',
       '  log: [Function: log],',
+      '  info: [Function: info],',
+      '  debug: [Function: debug],',
       '  warn: [Function: warn],',
+      '  error: [Function: error],',
       '  dir: [Function: dir],',
       '  time: [Function: time],',
       '  timeEnd: [Function: timeEnd],',
@@ -776,10 +810,7 @@ const errorTests = [
       '  group: [Function: group],',
       '  groupEnd: [Function: groupEnd],',
       '  table: [Function: table],',
-      / {2}debug: \[Function: (debug|log)],/,
-      / {2}info: \[Function: (info|log)],/,
       / {2}dirxml: \[Function: (dirxml|log)],/,
-      / {2}error: \[Function: (error|warn)],/,
       / {2}groupCollapsed: \[Function: (groupCollapsed|group)],/,
       / {2}Console: \[Function: Console],?/,
       ...process.features.inspector ? [
@@ -818,7 +849,74 @@ const tcpTests = [
       kArrow,
       '',
       'Uncaught:',
-      /^SyntaxError: .* dynamic import/,
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: comeOn } = await import("fhqwhgads");',
+    ]
+  },
+  {
+    send: 'import { export1, export2 } from "module-name"',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { export1, export2 } = await import("module-name");',
+    ]
+  },
+  {
+    send: 'import * as name from "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const name = await import("module-name");',
+    ]
+  },
+  {
+    send: 'import "module-name";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: await import("module-name");',
+    ]
+  },
+  {
+    send: 'import { export1 as localName1, export2 } from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { export1: localName1, export2 } = await import("bar");',
+    ]
+  },
+  {
+    send: 'import alias from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: alias } = await import("bar");',
+    ]
+  },
+  {
+    send: 'import alias, {namedExport} from "bar";',
+    expect: [
+      kSource,
+      kArrow,
+      '',
+      'Uncaught:',
+      'SyntaxError: Cannot use import statement inside the Node.js REPL, \
+alternatively use dynamic import: const { default: alias, namedExport } = await import("bar");',
     ]
   },
 ];
@@ -841,8 +939,8 @@ const tcpTests = [
 
     socket.end();
   }
-  common.allowGlobals(global.invoke_me, global.message, global.a, global.blah,
-                      global.I, global.f, global.path, global.x, global.name, global.foo);
+  common.allowGlobals(globalThis.invoke_me, globalThis.message, globalThis.a, globalThis.blah,
+                      globalThis.I, globalThis.f, globalThis.path, globalThis.x, globalThis.name, globalThis.foo);
 })().then(common.mustCall());
 
 function startTCPRepl() {
@@ -938,4 +1036,18 @@ function event(ee, expected) {
       resolve(...args);
     }));
   });
+}
+
+{
+  const server = repl.REPLServer();
+  common.expectWarning({
+    DeprecationWarning: {
+      DEP0185: 'Instantiating REPLServer without the \'new\' keyword has been deprecated.',
+      // For the 'url.format' test-case.
+      DEP0169:
+        '`url.parse()` behavior is not standardized and prone to errors that have security implications. ' +
+        'Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.',
+    }
+  });
+  server.emit('line', '.exit');
 }

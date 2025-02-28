@@ -41,7 +41,7 @@ OBJECTS = nghttp2_pq.c nghttp2_map.c nghttp2_queue.c \
 	nghttp2_stream.c nghttp2_outbound_item.c \
 	nghttp2_session.c nghttp2_submit.c \
 	nghttp2_helper.c \
-	nghttp2_npn.c \
+	nghttp2_alpn.c \
 	nghttp2_hd.c nghttp2_hd_huffman.c nghttp2_hd_huffman_data.c \
 	nghttp2_version.c \
 	nghttp2_priority_spec.c \
@@ -51,6 +51,8 @@ OBJECTS = nghttp2_pq.c nghttp2_map.c nghttp2_queue.c \
 	nghttp2_http.c \
 	nghttp2_rcbuf.c \
 	nghttp2_extpri.c \
+	nghttp2_ratelim.c \
+	nghttp2_time.c \
 	nghttp2_debug.c \
 	sfparse.c
 
@@ -58,7 +60,7 @@ HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_frame.h \
 	nghttp2_buf.h \
 	nghttp2_session.h nghttp2_helper.h nghttp2_stream.h nghttp2_int.h \
-	nghttp2_npn.h \
+	nghttp2_alpn.h \
 	nghttp2_submit.h nghttp2_outbound_item.h \
 	nghttp2_net.h \
 	nghttp2_hd.h nghttp2_hd_huffman.h \
@@ -69,6 +71,8 @@ HFILES = nghttp2_pq.h nghttp2_int.h nghttp2_map.h nghttp2_queue.h \
 	nghttp2_http.h \
 	nghttp2_rcbuf.h \
 	nghttp2_extpri.h \
+	nghttp2_ratelim.h \
+	nghttp2_time.h \
 	nghttp2_debug.h \
 	sfparse.h
 

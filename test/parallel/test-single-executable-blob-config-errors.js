@@ -7,7 +7,6 @@ const tmpdir = require('../common/tmpdir');
 const { writeFileSync, mkdirSync } = require('fs');
 const { spawnSync } = require('child_process');
 const assert = require('assert');
-const { join } = require('path');
 
 {
   tmpdir.refresh();
@@ -27,7 +26,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'non-existent-absolute.json');
+  const config = tmpdir.resolve('non-existent-absolute.json');
   const child = spawnSync(
     process.execPath,
     ['--experimental-sea-config', config], {
@@ -44,7 +43,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'invalid.json');
+  const config = tmpdir.resolve('invalid.json');
   writeFileSync(config, '\n{\n"main"', 'utf8');
   const child = spawnSync(
     process.execPath,
@@ -63,7 +62,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'empty.json');
+  const config = tmpdir.resolve('empty.json');
   writeFileSync(config, '{}', 'utf8');
   const child = spawnSync(
     process.execPath,
@@ -81,7 +80,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'no-main.json');
+  const config = tmpdir.resolve('no-main.json');
   writeFileSync(config, '{"output": "test.blob"}', 'utf8');
   const child = spawnSync(
     process.execPath,
@@ -99,7 +98,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'no-output.json');
+  const config = tmpdir.resolve('no-output.json');
   writeFileSync(config, '{"main": "bundle.js"}', 'utf8');
   const child = spawnSync(
     process.execPath,
@@ -117,7 +116,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'invalid-disableExperimentalSEAWarning.json');
+  const config = tmpdir.resolve('invalid-disableExperimentalSEAWarning.json');
   writeFileSync(config, `
 {
   "main": "bundle.js",
@@ -141,7 +140,7 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'nonexistent-main-relative.json');
+  const config = tmpdir.resolve('nonexistent-main-relative.json');
   writeFileSync(config, '{"main": "bundle.js", "output": "sea.blob"}', 'utf8');
   const child = spawnSync(
     process.execPath,
@@ -155,8 +154,8 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'nonexistent-main-absolute.json');
-  const main = join(tmpdir.path, 'bundle.js');
+  const config = tmpdir.resolve('nonexistent-main-absolute.json');
+  const main = tmpdir.resolve('bundle.js');
   const configJson = JSON.stringify({
     main,
     output: 'sea.blob'
@@ -179,9 +178,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'output-is-dir-absolute.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output-dir');
+  const config = tmpdir.resolve('output-is-dir-absolute.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output-dir');
   mkdirSync(output);
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({
@@ -206,9 +205,9 @@ const { join } = require('path');
 
 {
   tmpdir.refresh();
-  const config = join(tmpdir.path, 'output-is-dir-relative.json');
-  const main = join(tmpdir.path, 'bundle.js');
-  const output = join(tmpdir.path, 'output-dir');
+  const config = tmpdir.resolve('output-is-dir-relative.json');
+  const main = tmpdir.resolve('bundle.js');
+  const output = tmpdir.resolve('output-dir');
   mkdirSync(output);
   writeFileSync(main, 'console.log("hello")', 'utf-8');
   const configJson = JSON.stringify({

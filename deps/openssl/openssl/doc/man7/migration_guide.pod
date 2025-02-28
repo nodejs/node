@@ -130,11 +130,19 @@ New algorithms provided via engines will still work.
 
 Engine-backed keys can be loaded via custom B<OSSL_STORE> implementation.
 In this case the B<EVP_PKEY> objects created via L<ENGINE_load_private_key(3)>
-will be concidered legacy and will continue to work.
+will be considered legacy and will continue to work.
 
 To ensure the future compatibility, the engines should be turned to providers.
 To prefer the provider-based hardware offload, you can specify the default
 properties to prefer your provider.
+
+Setting engine-based or application-based default low-level crypto method such
+as B<RSA_METHOD> or B<EC_KEY_METHOD> is still possible and keys inside the
+default provider will use the engine-based implementation for the crypto
+operations. However B<EVP_PKEY>s created by decoding by using B<OSSL_DECODER>,
+B<PEM_> or B<d2i_> APIs will be provider-based. To create a fully legacy
+B<EVP_PKEY>s L<EVP_PKEY_set1_RSA(3)>, L<EVP_PKEY_set1_EC_KEY(3)> or similar
+functions must be used.
 
 =head3 Versioning Scheme
 
@@ -188,6 +196,15 @@ L<EVP_DigestSign(3)> and L<EVP_DigestVerify(3)>.
 All new applications should use the new L<EVP_MAC(3)> interface.
 See also L<OSSL_PROVIDER-default(7)/Message Authentication Code (MAC)>
 and L<OSSL_PROVIDER-FIPS(7)/Message Authentication Code (MAC)>.
+
+=head4 Algorithm Fetching
+
+Using calls to convenience functions such as EVP_sha256() and EVP_aes_256_gcm() may
+incur a performance penalty when using providers.
+Retrieving algorithms from providers involves searching for an algorithm by name.
+This is much slower than directly accessing a method table.
+It is recommended to prefetch algorithms if an algorithm is used many times.
+See L<crypto(7)/Performance>, L<crypto(7)/Explicit fetching> and L<crypto(7)/Implicit fetching>.
 
 =head4 Support for Linux Kernel TLS
 
@@ -296,6 +313,15 @@ As part of this change the EVP_PBE_xxx APIs can also accept a library
 context and property query and will call an extended version of the key/IV
 derivation function which supports these parameters. This includes
 L<EVP_PBE_CipherInit_ex(3)>, L<EVP_PBE_find_ex(3)> and L<EVP_PBE_scrypt_ex(3)>.
+
+=head4 PKCS#12 KDF versus FIPS
+
+Unlike in 1.x.y, the PKCS12KDF algorithm used when a PKCS#12 structure
+is created with a MAC that does not work with the FIPS provider as the PKCS12KDF
+is not a FIPS approvable mechanism.
+
+See L<EVP_KDF-PKCS12KDF(7)>, L<PKCS12_create(3)>, L<openssl-pkcs12(1)>,
+L<OSSL_PROVIDER-FIPS(7)>.
 
 =head4 Windows thread synchronization changes
 
@@ -632,7 +658,7 @@ set up with the default library context. Use L<X509_new_ex(3)>,
 L<X509_CRL_new_ex(3)>, L<X509_REQ_new_ex(3)> and L<X509_PUBKEY_new_ex(3)> if a
 library context is required.
 
-All functions listed below with a I<NAME> have a replacment function I<NAME_ex>
+All functions listed below with a I<NAME> have a replacement function I<NAME_ex>
 that takes B<OSSL_LIB_CTX> as an additional argument. Functions that have other
 mappings are listed along with the respective name.
 
@@ -990,7 +1016,7 @@ that refer to these categories.
 Any accessor that uses an ENGINE is deprecated (such as EVP_PKEY_set1_engine()).
 Applications using engines should instead use providers.
 
-Before providers were added algorithms were overriden by changing the methods
+Before providers were added algorithms were overridden by changing the methods
 used by algorithms. All these methods such as RSA_new_method() and RSA_meth_new()
 are now deprecated and can be replaced by using providers instead.
 
@@ -1280,12 +1306,19 @@ d2i_DSAPrivateKey_bio(), d2i_DSAPrivateKey_fp(), d2i_DSA_PUBKEY(),
 d2i_DSA_PUBKEY_bio(), d2i_DSA_PUBKEY_fp(), d2i_DSAPublicKey(),
 d2i_ECParameters(), d2i_ECPrivateKey(), d2i_ECPrivateKey_bio(),
 d2i_ECPrivateKey_fp(), d2i_EC_PUBKEY(), d2i_EC_PUBKEY_bio(),
-d2i_EC_PUBKEY_fp(), o2i_ECPublicKey(), d2i_RSAPrivateKey(),
+d2i_EC_PUBKEY_fp(), d2i_RSAPrivateKey(),
 d2i_RSAPrivateKey_bio(), d2i_RSAPrivateKey_fp(), d2i_RSA_PUBKEY(),
 d2i_RSA_PUBKEY_bio(), d2i_RSA_PUBKEY_fp(), d2i_RSAPublicKey(),
 d2i_RSAPublicKey_bio(), d2i_RSAPublicKey_fp()
 
 See L</Deprecated i2d and d2i functions for low-level key types>
+
+=item *
+
+o2i_ECPublicKey()
+
+Use L<EVP_PKEY_set1_encoded_public_key(3)>.
+See L</Deprecated low-level key parameter setters>
 
 =item *
 
@@ -1539,7 +1572,7 @@ See L</Deprecated low-level validation functions>
 
 EC_KEY_set_flags(), EC_KEY_get_flags(), EC_KEY_clear_flags()
 
-See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as seperate
+See L<EVP_PKEY-EC(7)/Common EC parameters> which handles flags as separate
 parameters for B<OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT>,
 B<OSSL_PKEY_PARAM_EC_GROUP_CHECK_TYPE>, B<OSSL_PKEY_PARAM_EC_ENCODING>,
 B<OSSL_PKEY_PARAM_USE_COFACTOR_ECDH> and
@@ -1839,10 +1872,17 @@ and L<d2i_RSAPrivateKey(3)/Migration>
 
 i2d_ECParameters(), i2d_ECPrivateKey(), i2d_ECPrivateKey_bio(),
 i2d_ECPrivateKey_fp(), i2d_EC_PUBKEY(), i2d_EC_PUBKEY_bio(),
-i2d_EC_PUBKEY_fp(), i2o_ECPublicKey()
+i2d_EC_PUBKEY_fp()
 
 See L</Deprecated low-level key reading and writing functions>
 and L<d2i_RSAPrivateKey(3)/Migration>
+
+=item *
+
+i2o_ECPublicKey()
+
+Use L<EVP_PKEY_get1_encoded_public_key(3)>.
+See L</Deprecated low-level key parameter getters>
 
 =item *
 
@@ -2213,6 +2253,28 @@ Use L<X509_load_http(3)> and L<X509_CRL_load_http(3)> instead.
 
 =back
 
+=head3 NID handling for provided keys and algorithms
+
+The following functions for NID (numeric id) handling have changed semantics.
+
+=over 4
+
+=item *
+
+EVP_PKEY_id(), EVP_PKEY_get_id()
+
+This function was previously used to reliably return the NID of
+an EVP_PKEY object, e.g., to look up the name of the algorithm of
+such EVP_PKEY by calling L<OBJ_nid2sn(3)>. With the introduction
+of L<provider(7)>s EVP_PKEY_id() or its new equivalent
+L<EVP_PKEY_get_id(3)> might now also return the value -1
+(B<EVP_PKEY_KEYMGMT>) indicating the use of a provider to
+implement the EVP_PKEY object. Therefore, the use of
+L<EVP_PKEY_get0_type_name(3)> is recommended for retrieving
+the name of the EVP_PKEY algorithm.
+
+=back
+
 =head2 Using the FIPS Module in applications
 
 See L<fips_module(7)> and L<OSSL_PROVIDER-FIPS(7)> for details.
@@ -2422,7 +2484,7 @@ The migration guide was created for OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

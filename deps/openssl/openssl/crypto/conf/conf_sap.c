@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -38,6 +38,8 @@ void OPENSSL_config(const char *appname)
         settings.appname = strdup(appname);
     settings.flags = DEFAULT_CONF_MFLAGS;
     OPENSSL_init_crypto(OPENSSL_INIT_LOAD_CONFIG, &settings);
+
+    free(settings.appname);
 }
 #endif
 
@@ -65,7 +67,10 @@ int ossl_config_int(const OPENSSL_INIT_SETTINGS *settings)
 #endif
 
 #ifndef OPENSSL_SYS_UEFI
-    ret = CONF_modules_load_file(filename, appname, flags);
+    ret = CONF_modules_load_file_ex(OSSL_LIB_CTX_get0_global_default(),
+                                    filename, appname, flags);
+#else
+    ret = 1;
 #endif
     openssl_configured = 1;
     return ret;

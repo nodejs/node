@@ -30,7 +30,7 @@ const assert = require('assert');
 const { builtinModules } = require('module');
 
 // Load all modules to actually cover most code parts.
-builtinModules.forEach((moduleName) => {
+for (const moduleName of builtinModules) {
   if (!moduleName.includes('/')) {
     try {
       // This could throw for e.g., crypto if the binary is not compiled
@@ -40,7 +40,7 @@ builtinModules.forEach((moduleName) => {
       // Continue regardless of error.
     }
   }
-});
+}
 
 {
   const expected = [
@@ -58,22 +58,31 @@ builtinModules.forEach((moduleName) => {
     'structuredClone',
     'fetch',
     'crypto',
+    'navigator',
   ];
-  assert.deepStrictEqual(new Set(Object.keys(global)), new Set(expected));
+  assert.deepStrictEqual(new Set(Object.keys(globalThis)), new Set(expected));
+  expected.forEach((value) => {
+    const desc = Object.getOwnPropertyDescriptor(globalThis, value);
+    if (typeof desc.value === 'function') {
+      assert.strictEqual(desc.value.name, value);
+    } else if (typeof desc.get === 'function') {
+      assert.strictEqual(desc.get.name, `get ${value}`);
+    }
+  });
 }
 
 common.allowGlobals('bar', 'foo');
 
 baseFoo = 'foo'; // eslint-disable-line no-undef
-global.baseBar = 'bar';
+globalThis.baseBar = 'bar';
 
-assert.strictEqual(global.baseFoo, 'foo',
-                   `x -> global.x failed: global.baseFoo = ${global.baseFoo}`);
+assert.strictEqual(globalThis.baseFoo, 'foo',
+                   `x -> globalThis.x failed: globalThis.baseFoo = ${globalThis.baseFoo}`);
 
 assert.strictEqual(baseBar, // eslint-disable-line no-undef
                    'bar',
                    // eslint-disable-next-line no-undef
-                   `global.x -> x failed: baseBar = ${baseBar}`);
+                   `globalThis.x -> x failed: baseBar = ${baseBar}`);
 
 const mod = require(fixtures.path('global', 'plain'));
 const fooBar = mod.fooBar;
@@ -82,4 +91,4 @@ assert.strictEqual(fooBar.foo, 'foo');
 
 assert.strictEqual(fooBar.bar, 'bar');
 
-assert.strictEqual(Object.prototype.toString.call(global), '[object global]');
+assert.strictEqual(Object.prototype.toString.call(globalThis), '[object global]');

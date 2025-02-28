@@ -11,6 +11,7 @@
 #include "src/objects/heap-number-inl.h"
 #include "src/objects/objects.h"
 #include "src/zone/zone.h"
+#include "test/unittests/heap/heap-utils.h"
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
@@ -26,8 +27,8 @@ class IdentityMapTester {
   IdentityMapTester(Heap* heap, Zone* zone)
       : map(heap, ZoneAllocationPolicy(zone)) {}
 
-  void TestInsertFind(Handle<Object> key1, void* val1, Handle<Object> key2,
-                      void* val2) {
+  void TestInsertFind(DirectHandle<Object> key1, void* val1,
+                      DirectHandle<Object> key2, void* val2) {
     CHECK_NULL(map.Find(key1));
     CHECK_NULL(map.Find(key2));
 
@@ -77,8 +78,8 @@ class IdentityMapTester {
     }
   }
 
-  void TestFindDelete(Handle<Object> key1, void* val1, Handle<Object> key2,
-                      void* val2) {
+  void TestFindDelete(DirectHandle<Object> key1, void* val1,
+                      DirectHandle<Object> key2, void* val2) {
     CHECK_NULL(map.Find(key1));
     CHECK_NULL(map.Find(key2));
 
@@ -142,26 +143,27 @@ class IdentityMapTester {
     for (int i = 0; i < map.capacity_; i++) {
       Address key = map.keys_[i];
       if (!Internals::HasHeapObjectTag(key)) {
-        map.keys_[i] = Internals::IntToSmi(Internals::SmiValue(key) + shift);
+        map.keys_[i] =
+            Internals::IntegralToSmi(Internals::SmiValue(key) + shift);
       }
     }
     map.gc_counter_ = -1;
   }
 
-  void CheckFind(Handle<Object> key, void* value) {
+  void CheckFind(DirectHandle<Object> key, void* value) {
     void** entry = map.Find(key);
     CHECK_NOT_NULL(entry);
     CHECK_EQ(value, *entry);
   }
 
-  void CheckFindOrInsert(Handle<Object> key, void* value) {
+  void CheckFindOrInsert(DirectHandle<Object> key, void* value) {
     auto find_result = map.FindOrInsert(key);
     CHECK(find_result.already_exists);
     CHECK_NOT_NULL(find_result.entry);
     CHECK_EQ(value, *find_result.entry);
   }
 
-  void CheckDelete(Handle<Object> key, void* value) {
+  void CheckDelete(DirectHandle<Object> key, void* value) {
     void* entry;
     CHECK(map.Delete(key, &entry));
     CHECK_NOT_NULL(entry);
@@ -695,92 +697,12 @@ TEST_F(IdentityMapTest, ExplicitGC) {
   }
 
   // Do an explicit, real GC.
-  CollectGarbage(i::NEW_SPACE);
+  InvokeMinorGC();
 
   // Check that searching for the numbers finds the same values.
   for (size_t i = 0; i < arraysize(num_keys); i++) {
     t.CheckFind(num_keys[i], &num_keys[i]);
     t.CheckFindOrInsert(num_keys[i], &num_keys[i]);
-  }
-}
-
-TEST_F(IdentityMapTest, CanonicalHandleScope) {
-  HandleScope outer(isolate());
-  CanonicalHandleScope outer_canonical(isolate());
-
-  // Deduplicate smi handles.
-  std::vector<Handle<Object>> smi_handles;
-  for (int i = 0; i < 100; i++) {
-    smi_handles.push_back(Handle<Object>(Smi::FromInt(i), isolate()));
-  }
-  Address* next_handle = isolate()->handle_scope_data()->next;
-  for (int i = 0; i < 100; i++) {
-    Handle<Object> new_smi = Handle<Object>(Smi::FromInt(i), isolate());
-    Handle<Object> old_smi = smi_handles[i];
-    CHECK_EQ(new_smi.location(), old_smi.location());
-  }
-  // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
-
-  // Deduplicate root list items.
-  Handle<String> empty_string(ReadOnlyRoots(isolate()->heap()).empty_string(),
-                              isolate());
-  Handle<Map> free_space_map(ReadOnlyRoots(isolate()->heap()).free_space_map(),
-                             isolate());
-  Handle<Symbol> uninitialized_symbol(
-      ReadOnlyRoots(isolate()->heap()).uninitialized_symbol(), isolate());
-  CHECK_EQ(isolate()->factory()->empty_string().location(),
-           empty_string.location());
-  CHECK_EQ(isolate()->factory()->free_space_map().location(),
-           free_space_map.location());
-  CHECK_EQ(isolate()->factory()->uninitialized_symbol().location(),
-           uninitialized_symbol.location());
-  // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
-
-  // Test ordinary heap objects.
-  Handle<HeapNumber> number1 = isolate()->factory()->NewHeapNumber(3.3);
-  Handle<String> string1 =
-      isolate()->factory()->NewStringFromAsciiChecked("test");
-  next_handle = isolate()->handle_scope_data()->next;
-  Handle<HeapNumber> number2(*number1, isolate());
-  Handle<String> string2(*string1, isolate());
-  CHECK_EQ(number1.location(), number2.location());
-  CHECK_EQ(string1.location(), string2.location());
-  CollectAllGarbage();
-  Handle<HeapNumber> number3(*number2, isolate());
-  Handle<String> string3(*string2, isolate());
-  CHECK_EQ(number1.location(), number3.location());
-  CHECK_EQ(string1.location(), string3.location());
-  // Check that no new handles have been allocated.
-  CHECK_EQ(next_handle, isolate()->handle_scope_data()->next);
-
-  // Inner handle scope do not create canonical handles.
-  {
-    HandleScope inner(isolate());
-    Handle<HeapNumber> number4(*number1, isolate());
-    Handle<String> string4(*string1, isolate());
-    CHECK_NE(number1.location(), number4.location());
-    CHECK_NE(string1.location(), string4.location());
-
-    // Nested canonical scope does not conflict with outer canonical scope,
-    // but does not canonicalize across scopes.
-    CanonicalHandleScope inner_canonical(isolate());
-    Handle<HeapNumber> number5(*number4, isolate());
-    Handle<String> string5(*string4, isolate());
-    CHECK_NE(number4.location(), number5.location());
-    CHECK_NE(string4.location(), string5.location());
-    CHECK_NE(number1.location(), number5.location());
-    CHECK_NE(string1.location(), string5.location());
-
-    Handle<HeapNumber> number6(*number1, isolate());
-    Handle<String> string6(*string1, isolate());
-    CHECK_NE(number4.location(), number6.location());
-    CHECK_NE(string4.location(), string6.location());
-    CHECK_NE(number1.location(), number6.location());
-    CHECK_NE(string1.location(), string6.location());
-    CHECK_EQ(number5.location(), number6.location());
-    CHECK_EQ(string5.location(), string6.location());
   }
 }
 
@@ -807,7 +729,7 @@ TEST_F(IdentityMapTest, GCShortCutting) {
         factory->NewStringFromAsciiChecked("thin_string");
     Handle<String> internalized_string =
         factory->InternalizeString(thin_string);
-    DCHECK(thin_string->IsThinString());
+    DCHECK(IsThinString(*thin_string));
     DCHECK_NE(*thin_string, *internalized_string);
 
     // Insert both keys into the map.
@@ -815,9 +737,9 @@ TEST_F(IdentityMapTest, GCShortCutting) {
     t.map.Insert(internalized_string, &internalized_string);
 
     // Do an explicit, real GC, this should short-cut the thin string to point
-    // to the internalized string (this is not implemented for MinorMC).
-    CollectGarbage(i::NEW_SPACE);
-    DCHECK_IMPLIES(!v8_flags.minor_mc && !v8_flags.optimize_for_size,
+    // to the internalized string (this is not implemented for MinorMS).
+    InvokeMinorGC();
+    DCHECK_IMPLIES(!v8_flags.minor_ms && !v8_flags.optimize_for_size,
                    *thin_string == *internalized_string);
 
     // Check that getting the object points to one of the handles.

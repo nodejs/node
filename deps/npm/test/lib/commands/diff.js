@@ -1,5 +1,5 @@
 const t = require('tap')
-const { join, extname } = require('path')
+const { join, extname } = require('node:path')
 const MockRegistry = require('@npmcli/mock-registry')
 const { load: loadMockNpm } = require('../../fixtures/mock-npm')
 
@@ -25,7 +25,9 @@ const mockDiff = async (t, {
   ...opts
 } = {}) => {
   const tarballFixtures = Object.entries(tarballs).reduce((acc, [spec, fixture]) => {
-    const [name, version] = spec.split('@')
+    const lastAt = spec.lastIndexOf('@')
+    const name = spec.slice(0, lastAt)
+    const version = spec.slice(lastAt + 1)
     acc[name] = acc[name] || {}
     acc[name][version] = fixture
     if (!acc[name][version]['package.json']) {
@@ -39,6 +41,7 @@ const mockDiff = async (t, {
 
   const { prefixDir, globalPrefixDir, otherDirs, config, ...rest } = opts
   const { npm, ...res } = await loadMockNpm(t, {
+    command: 'diff',
     prefixDir: jsonifyTestdir(prefixDir),
     otherDirs: jsonifyTestdir({ tarballs: tarballFixtures, ...otherDirs }),
     globalPrefixDir: jsonifyTestdir(globalPrefixDir),
@@ -75,7 +78,7 @@ const mockDiff = async (t, {
   }
 
   if (exec) {
-    await npm.exec('diff', exec)
+    await res.diff.exec(exec)
     res.output = res.joinedOutput()
   }
 
@@ -98,13 +101,13 @@ const assertFoo = async (t, arg) => {
   const { output } = await mockDiff(t, {
     diff,
     prefixDir: {
-      'package.json': { name: 'foo', version: '1.0.0' },
+      'package.json': { name: '@npmcli/foo', version: '1.0.0' },
       'index.js': 'const version = "1.0.0"',
       'a.js': 'const a = "a@1.0.0"',
       'b.js': 'const b = "b@1.0.0"',
     },
     tarballs: {
-      'foo@0.1.0': {
+      '@npmcli/foo@0.1.0': {
         'index.js': 'const version = "0.1.0"',
         'a.js': 'const a = "a@0.1.0"',
         'b.js': 'const b = "b@0.1.0"',
@@ -162,17 +165,17 @@ t.test('no args', async t => {
 
 t.test('single arg', async t => {
   t.test('spec using cwd package name', async t => {
-    await assertFoo(t, 'foo@0.1.0')
+    await assertFoo(t, '@npmcli/foo@0.1.0')
   })
 
   t.test('unknown spec, no package.json', async t => {
     await rejectDiff(t, /Needs multiple arguments to compare or run from a project dir./, {
-      diff: ['foo@1.0.0'],
+      diff: ['@npmcli/foo@1.0.0'],
     })
   })
 
   t.test('spec using semver range', async t => {
-    await assertFoo(t, 'foo@~0.1.0')
+    await assertFoo(t, '@npmcli/foo@~0.1.0')
   })
 
   t.test('version', async t => {
@@ -429,17 +432,17 @@ t.test('single arg', async t => {
 
   t.test('use project name in project dir', async t => {
     const { output } = await mockDiff(t, {
-      diff: 'foo',
+      diff: '@npmcli/foo',
       prefixDir: {
-        'package.json': { name: 'foo', version: '1.0.0' },
+        'package.json': { name: '@npmcli/foo', version: '1.0.0' },
       },
       tarballs: {
-        'foo@2.2.2': {},
+        '@npmcli/foo@2.2.2': {},
       },
       exec: [],
     })
 
-    t.match(output, 'foo')
+    t.match(output, '@npmcli/foo')
     t.match(output, /-\s*"version": "2\.2\.2"/)
     t.match(output, /\+\s*"version": "1\.0\.0"/)
   })
@@ -448,17 +451,17 @@ t.test('single arg', async t => {
     const { output } = await mockDiff(t, {
       diff: '../other/other-pkg',
       prefixDir: {
-        'package.json': { name: 'foo', version: '1.0.0' },
+        'package.json': { name: '@npmcli/foo', version: '1.0.0' },
       },
       otherDirs: {
         'other-pkg': {
-          'package.json': { name: 'foo', version: '2.0.0' },
+          'package.json': { name: '@npmcli/foo', version: '2.0.0' },
         },
       },
       exec: [],
     })
 
-    t.match(output, 'foo')
+    t.match(output, '@npmcli/foo')
     t.match(output, /-\s*"version": "2\.0\.0"/)
     t.match(output, /\+\s*"version": "1\.0\.0"/)
   })

@@ -1,4 +1,7 @@
-promise_test(() => fetch("resources/urltestdata.json").then(res => res.json()).then(runURLTests), "Loading data…");
+promise_test(() => Promise.all([
+  fetch("resources/urltestdata.json").then(res => res.json()),
+  fetch("resources/urltestdata-javascript-only.json").then(res => res.json()),
+]).then((tests) => tests.flat()).then(runURLTests), "Loading data…");
 
 function setBase(base) {
   document.getElementById("base").href = base;
@@ -19,6 +22,10 @@ function runURLTests(urlTests) {
 
     // Fragments are relative against "about:blank"
     if (expected.relativeTo === "any-base")
+      continue;
+
+    // HTML special cases data: and javascript: URLs in <base>
+    if (expected.base !== null && (expected.base.startsWith("data:") || expected.base.startsWith("javascript:")))
       continue;
 
     // We cannot use a null base for HTML tests

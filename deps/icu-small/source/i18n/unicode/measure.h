@@ -90,6 +90,14 @@ class U_I18N_API Measure: public UObject {
     bool operator==(const UObject& other) const;
 
     /**
+     * Inequality operator.  Returns true if this object is not equal to the other object.
+     * @param other the object to compare with
+     * @return true if the objects are not equal
+     * @stable ICU 74
+     */
+    inline bool operator!=(const UObject& other) const { return !operator==(other); }
+
+    /**
      * Return a reference to the numeric value of this object.  The
      * numeric value may be of any numeric type supported by
      * Formattable.
@@ -114,7 +122,7 @@ class U_I18N_API Measure: public UObject {
      * @return          The class ID for all objects of this class.
      * @stable ICU 53
      */
-    static UClassID U_EXPORT2 getStaticClassID(void);
+    static UClassID U_EXPORT2 getStaticClassID();
 
     /**
      * Returns a unique class ID POLYMORPHICALLY. Pure virtual override. This
@@ -127,7 +135,7 @@ class U_I18N_API Measure: public UObject {
      *                  other classes have different class IDs.
      * @stable ICU 53
      */
-    virtual UClassID getDynamicClassID(void) const override;
+    virtual UClassID getDynamicClassID() const override;
 
  protected:
     /**

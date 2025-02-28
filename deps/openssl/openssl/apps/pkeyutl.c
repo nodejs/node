@@ -1,5 +1,5 @@
 /*
- * Copyright 2006-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -421,7 +421,7 @@ int pkeyutl_main(int argc, char **argv)
     /* Raw input data is handled elsewhere */
     if (in != NULL && !rawin) {
         /* Read the input data */
-        buf_inlen = bio_to_mem(&buf_in, keysize * 10, in);
+        buf_inlen = bio_to_mem(&buf_in, -1, in);
         if (buf_inlen < 0) {
             BIO_printf(bio_err, "Error reading input Data\n");
             goto end;

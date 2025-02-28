@@ -9,24 +9,23 @@ namespace array {
 // created result array. Most of this behavior is outsourced to
 // ExtractFixedArray(). We handle the case where the {source} is
 // EmptyFixedArray but result is expected to be a FixedDoubleArray.
-macro Extract(implicit context: Context)(
-    source: FixedArray, startIndex: Smi, count: Smi,
+macro Extract(
+    implicit context: Context)(source: FixedArray, startIndex: Smi, count: Smi,
     resultCapacity: Smi): FixedArray {
   return ExtractFixedArray(
       source, Convert<intptr>(startIndex), Convert<intptr>(count),
-      Convert<intptr>(resultCapacity));
+      Convert<intptr>(resultCapacity), TheHole);
 }
 
-macro Extract(implicit context: Context)(
-    source: FixedDoubleArray|EmptyFixedArray, startIndex: Smi, count: Smi,
-    resultCapacity: Smi): FixedDoubleArray|EmptyFixedArray {
+macro Extract(
+    implicit context: Context)(source: FixedDoubleArray|EmptyFixedArray,
+    startIndex: Smi, count: Smi, resultCapacity: Smi): FixedDoubleArray
+    |EmptyFixedArray {
   typeswitch (source) {
     case (EmptyFixedArray): {
       // ExtractFixedDoubleArray expects {source} to be a FixedDoubleArray.
       // Handle the case where {source} is empty here.
-      return AllocateFixedDoubleArrayWithHoles(
-          Convert<intptr>(resultCapacity),
-          AllocationFlag::kAllowLargeObjectAllocation);
+      return AllocateFixedDoubleArrayWithHoles(Convert<intptr>(resultCapacity));
     }
     case (source: FixedDoubleArray): {
       return ExtractFixedDoubleArray(
@@ -80,9 +79,9 @@ macro InsertArgumentsIntoFastPackedArray<
 
 macro
 FastSplice<FixedArrayType : type extends FixedArrayBase, ElementType: type>(
-    implicit context: Context)(
-    args: Arguments, a: JSArray, length: Smi, newLength: Smi, actualStart: Smi,
-    insertCount: Smi, actualDeleteCount: Smi): void {
+    implicit context: Context)(args: Arguments, a: JSArray, length: Smi,
+    newLength: Smi, actualStart: Smi, insertCount: Smi,
+    actualDeleteCount: Smi): void {
   // Make sure elements are writable.
   array::EnsureWriteableFastElements(a);
 
@@ -380,8 +379,7 @@ transitioning macro SlowSplice(
 }
 
 // https://tc39.github.io/ecma262/#sec-array.prototype.splice
-transitioning javascript builtin
-ArrayPrototypeSplice(
+transitioning javascript builtin ArrayPrototypeSplice(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   // 1. Let O be ? ToObject(this value).
   const o: JSReceiver = ToObject(context, receiver);

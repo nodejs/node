@@ -13,6 +13,7 @@
 #include "include/v8-internal.h"  // For Address.
 #include "src/base/atomicops.h"
 #include "src/base/lazy-instance.h"
+#include "src/sandbox/isolate.h"
 
 namespace v8 {
 
@@ -24,6 +25,8 @@ namespace internal {
 
 class JSFunction;
 class Script;
+template <typename T>
+class Tagged;
 
 struct ICInfo {
   ICInfo();
@@ -60,8 +63,9 @@ class ICStats {
     DCHECK(pos_ >= 0 && pos_ < MAX_IC_INFO);
     return ic_infos_[pos_];
   }
-  const char* GetOrCacheScriptName(Script script);
-  const char* GetOrCacheFunctionName(JSFunction function);
+  const char* GetOrCacheScriptName(Tagged<Script> script);
+  const char* GetOrCacheFunctionName(IsolateForSandbox isolate,
+                                     Tagged<JSFunction> function);
   V8_INLINE static ICStats* instance() { return instance_.Pointer(); }
 
  private:

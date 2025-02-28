@@ -8,6 +8,29 @@
 #include "src/compiler/globals.h"
 
 namespace v8 {
+
+// Local handles should be trivially copyable so that the contained value can be
+// efficiently passed by value in a register. This is important for two
+// reasons: better performance and a simpler ABI for generated code and fast
+// API calls.
+ASSERT_TRIVIALLY_COPYABLE(api_internal::IndirectHandleBase);
+#ifdef V8_ENABLE_DIRECT_HANDLE
+ASSERT_TRIVIALLY_COPYABLE(api_internal::DirectHandleBase);
+#endif
+ASSERT_TRIVIALLY_COPYABLE(LocalBase<Object>);
+
+#if !(defined(V8_ENABLE_LOCAL_OFF_STACK_CHECK) && V8_HAS_ATTRIBUTE_TRIVIAL_ABI)
+// Direct local handles should be trivially copyable, for the same reasons as
+// above. In debug builds, however, where we want to check that such handles are
+// stack-allocated, we define a non-default copy constructor and destructor.
+// This makes them non-trivially copyable. We only do it in builds where we can
+// declare them as "trivial ABI", which guarantees that they can be efficiently
+// passed by value in a register.
+ASSERT_TRIVIALLY_COPYABLE(Local<Object>);
+ASSERT_TRIVIALLY_COPYABLE(internal::LocalUnchecked<Object>);
+ASSERT_TRIVIALLY_COPYABLE(MaybeLocal<Object>);
+#endif
+
 namespace internal {
 namespace compiler {
 namespace fast_api_call {
@@ -40,8 +63,7 @@ ElementsKind GetTypedArrayElementsKind(CTypeInfo::Type type) {
 }
 
 OverloadsResolutionResult ResolveOverloads(
-    Zone* zone, const FastApiCallFunctionVector& candidates,
-    unsigned int arg_count) {
+    const FastApiCallFunctionVector& candidates, unsigned int arg_count) {
   DCHECK_GT(arg_count, 0);
 
   static constexpr int kReceiver = 1;
@@ -101,6 +123,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
   }
 #endif
 
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+  if (!v8_flags.fast_api_allow_float_in_sim &&
+      (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat32 ||
+       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kFloat64)) {
+    return false;
+  }
+#endif
+
 #ifndef V8_TARGET_ARCH_64_BIT
   if (c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kInt64 ||
       c_signature->ReturnInfo().GetType() == CTypeInfo::Type::kUint64) {
@@ -109,8 +139,16 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #endif
 
   for (unsigned int i = 0; i < c_signature->ArgumentCount(); ++i) {
-    USE(i);
-
+    // So far we do not support string parameters for API functions with return
+    // values. The reason is that with string parameters it is possible that the
+    // backup regular API call is used but does not throw an exception. However,
+    // return values of regular API calls cannot be handled correctly at the
+    // moment.
+    if (c_signature->ArgumentInfo(i).GetType() ==
+            CTypeInfo::Type::kSeqOneByteString &&
+        c_signature->ReturnInfo().GetType() != CTypeInfo::Type::kVoid) {
+      return false;
+    }
 #ifdef V8_TARGET_ARCH_X64
     // Clamp lowering in EffectControlLinearizer uses rounding.
     uint8_t flags = uint8_t(c_signature->ArgumentInfo(i).GetFlags());
@@ -122,6 +160,14 @@ bool CanOptimizeFastSignature(const CFunctionInfo* c_signature) {
 #ifndef V8_ENABLE_FP_PARAMS_IN_C_LINKAGE
     if (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64) {
+      return false;
+    }
+#endif
+
+#ifdef V8_USE_SIMULATOR_WITH_GENERIC_C_CALLS
+    if (!v8_flags.fast_api_allow_float_in_sim &&
+        (c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat32 ||
+         c_signature->ArgumentInfo(i).GetType() == CTypeInfo::Type::kFloat64)) {
       return false;
     }
 #endif
@@ -163,6 +209,7 @@ class FastApiCallBuilder {
                      Node** inputs, Node* target,
                      const CFunctionInfo* c_signature, int c_arg_count,
                      Node* stack_slot);
+  void PropagateException();
 
   Isolate* isolate() const { return isolate_; }
   Graph* graph() const { return graph_; }
@@ -182,29 +229,10 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
                                        const CFunctionInfo* c_signature,
                                        int c_arg_count, Node* stack_slot) {
   // CPU profiler support
-  Node* target_address = __ ExternalConstant(
-      ExternalReference::fast_api_call_target_address(isolate()));
+  Node* target_address = __ IsolateField(IsolateFieldId::kFastApiCallTarget);
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, __ BitcastTaggedToWord(target));
-
-  // Disable JS execution
-  Node* javascript_execution_assert = __ ExternalConstant(
-      ExternalReference::javascript_execution_assert(isolate()));
-  static_assert(sizeof(bool) == 1, "Wrong assumption about boolean size.");
-
-  if (v8_flags.debug_code) {
-    auto do_store = __ MakeLabel();
-    Node* old_scope_value =
-        __ Load(MachineType::Int8(), javascript_execution_assert, 0);
-    __ GotoIf(__ Word32Equal(old_scope_value, __ Int32Constant(1)), &do_store);
-
-    // We expect that JS execution is enabled, otherwise assert.
-    __ Unreachable();
-    __ Bind(&do_store);
-  }
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(0));
 
   // Update effect and control
   if (stack_slot != nullptr) {
@@ -219,16 +247,40 @@ Node* FastApiCallBuilder::WrapFastCall(const CallDescriptor* call_descriptor,
   // Create the fast call
   Node* call = __ Call(call_descriptor, inputs_size, inputs);
 
-  // Reenable JS execution
-  __ Store(StoreRepresentation(MachineRepresentation::kWord8, kNoWriteBarrier),
-           javascript_execution_assert, 0, __ Int32Constant(1));
-
   // Reset the CPU profiler target address.
   __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                kNoWriteBarrier),
            target_address, 0, __ IntPtrConstant(0));
 
   return call;
+}
+
+void FastApiCallBuilder::PropagateException() {
+  Runtime::FunctionId fun_id = Runtime::FunctionId::kPropagateException;
+  const Runtime::Function* fun = Runtime::FunctionForId(fun_id);
+  auto call_descriptor = Linkage::GetRuntimeCallDescriptor(
+      graph()->zone(), fun_id, fun->nargs, Operator::kNoProperties,
+      CallDescriptor::kNoFlags);
+  // The CEntryStub is loaded from the IsolateRoot so that generated code is
+  // Isolate independent. At the moment this is only done for CEntryStub(1).
+  Node* isolate_root = __ LoadRootRegister();
+  DCHECK_EQ(1, fun->result_size);
+  auto centry_id = Builtin::kWasmCEntry;
+  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(centry_id);
+  Node* centry_stub =
+      __ Load(MachineType::Pointer(), isolate_root, builtin_slot_offset);
+  const int kInputCount = 6;
+  Node* inputs[kInputCount];
+  int count = 0;
+  inputs[count++] = centry_stub;
+  inputs[count++] = __ ExternalConstant(ExternalReference::Create(fun_id));
+  inputs[count++] = __ Int32Constant(fun->nargs);
+  inputs[count++] = __ IntPtrConstant(0);
+  inputs[count++] = __ effect();
+  inputs[count++] = __ control();
+  DCHECK_EQ(kInputCount, count);
+
+  __ Call(call_descriptor, count, inputs);
 }
 
 Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
@@ -249,8 +301,7 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     generate_fast_call = true;
   } else {
     DCHECK_EQ(c_functions.size(), 2);
-    overloads_resolution_result =
-        ResolveOverloads(graph()->zone(), c_functions, c_arg_count);
+    overloads_resolution_result = ResolveOverloads(c_functions, c_arg_count);
     if (overloads_resolution_result.is_valid()) {
       generate_fast_call = true;
     }
@@ -266,10 +317,12 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
   const int kFastTargetAddressInputIndex = 0;
   const int kFastTargetAddressInputCount = 1;
 
-  int extra_input_count = FastApiCallNode::kEffectAndControlInputCount +
-                          (c_signature->HasOptions() ? 1 : 0);
+  const int kEffectAndControlInputCount = 2;
 
-  Node** const inputs = graph()->zone()->NewArray<Node*>(
+  int extra_input_count =
+      kEffectAndControlInputCount + (c_signature->HasOptions() ? 1 : 0);
+
+  Node** const inputs = graph()->zone()->AllocateArray<Node*>(
       kFastTargetAddressInputCount + c_arg_count + extra_input_count);
 
   ExternalReference::Type ref_type = ExternalReference::FAST_C_CALL;
@@ -319,25 +372,22 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
     // If this check fails, you've probably added new fields to
     // v8::FastApiCallbackOptions, which means you'll need to write code
     // that initializes and reads from them too.
-    static_assert(kSize == sizeof(uintptr_t) * 3);
+    static_assert(kSize == sizeof(uintptr_t) * 2);
     stack_slot = __ StackSlot(kSize, kAlign);
 
-    __ Store(
-        StoreRepresentation(MachineRepresentation::kWord32, kNoWriteBarrier),
-        stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)),
-        __ Int32Constant(0));
-
-    Node* data_stack_slot = __ StackSlot(sizeof(uintptr_t), alignof(uintptr_t));
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
-             data_stack_slot, 0, __ BitcastTaggedToWord(data_argument));
+             stack_slot,
+             static_cast<int>(offsetof(v8::FastApiCallbackOptions, isolate)),
+             __ ExternalConstant(ExternalReference::isolate_address()));
+
+    Node* data_argument_to_pass = __ AdaptLocalArgument(data_argument);
 
     __ Store(StoreRepresentation(MachineType::PointerRepresentation(),
                                  kNoWriteBarrier),
              stack_slot,
              static_cast<int>(offsetof(v8::FastApiCallbackOptions, data)),
-             data_stack_slot);
+             data_argument_to_pass);
 
     initialize_options_(stack_slot);
 
@@ -351,28 +401,33 @@ Node* FastApiCallBuilder::Build(const FastApiCallFunctionVector& c_functions,
       WrapFastCall(call_descriptor, c_arg_count + extra_input_count + 1, inputs,
                    inputs[0], c_signature, c_arg_count, stack_slot);
 
+  Node* exception = __ Load(MachineType::IntPtr(),
+                            __ ExternalConstant(ExternalReference::Create(
+                                IsolateAddressId::kExceptionAddress, isolate_)),
+                            0);
+
+  Node* the_hole =
+      __ Load(MachineType::IntPtr(), __ LoadRootRegister(),
+              IsolateData::root_slot_offset(RootIndex::kTheHoleValue));
+
+  auto throw_label = __ MakeDeferredLabel();
+  auto done = __ MakeLabel();
+  __ GotoIfNot(__ IntPtrEqual(exception, the_hole), &throw_label);
+  __ Goto(&done);
+
+  __ Bind(&throw_label);
+  PropagateException();
+  __ Unreachable();
+
+  __ Bind(&done);
   Node* fast_call_result = convert_return_value_(c_signature, c_call_result);
 
   auto merge = __ MakeLabel(MachineRepresentation::kTagged);
-  if (c_signature->HasOptions()) {
-    DCHECK_NOT_NULL(stack_slot);
-    Node* load = __ Load(
-        MachineType::Int32(), stack_slot,
-        static_cast<int>(offsetof(v8::FastApiCallbackOptions, fallback)));
+  __ Goto(&if_success);
 
-    Node* is_zero = __ Word32Equal(load, __ Int32Constant(0));
-    __ Branch(is_zero, &if_success, &if_error);
-  } else {
-    __ Goto(&if_success);
-  }
-
-  // We need to generate a fallback (both fast and slow call) in case:
-  // 1) the generated code might fail, in case e.g. a Smi was passed where
-  // a JSObject was expected and an error must be thrown or
-  // 2) the embedder requested fallback possibility via providing options arg.
-  // None of the above usually holds true for Wasm functions with primitive
-  // types only, so we avoid generating an extra branch here.
-  DCHECK_IMPLIES(c_signature->HasOptions(), if_error.IsUsed());
+  // We need to generate a fallback (both fast and slow call) in case
+  // the generated code might fail, in case e.g. a Smi was passed where
+  // a JSObject was expected and an error must be thrown
   if (if_error.IsUsed()) {
     // Generate direct slow call.
     __ Bind(&if_error);

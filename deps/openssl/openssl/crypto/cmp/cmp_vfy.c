@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2020
  * Copyright Siemens AG 2015-2020
  *
@@ -323,11 +323,11 @@ static int check_cert_path_3gpp(const OSSL_CMP_CTX *ctx,
          * verify that the newly enrolled certificate (which assumed rid ==
          * OSSL_CMP_CERTREQID) can also be validated with the same trusted store
          */
-        EVP_PKEY *pkey = OSSL_CMP_CTX_get0_newPkey(ctx, 1);
         OSSL_CMP_CERTRESPONSE *crep =
             ossl_cmp_certrepmessage_get0_certresponse(msg->body->value.ip,
                                                       OSSL_CMP_CERTREQID);
-        X509 *newcrt = ossl_cmp_certresponse_get1_cert(crep, ctx, pkey);
+        X509 *newcrt = ossl_cmp_certresponse_get1_cert(ctx, crep);
+
         /*
          * maybe better use get_cert_status() from cmp_client.c, which catches
          * errors
@@ -619,7 +619,7 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
     default:
         scrt = ctx->srvCert;
         if (scrt == NULL) {
-            if (ctx->trusted == NULL) {
+            if (ctx->trusted == NULL && ctx->secretValue != NULL) {
                 ossl_cmp_info(ctx, "no trust store nor pinned server cert available for verifying signature-based CMP message protection");
                 ERR_raise(ERR_LIB_CMP, CMP_R_MISSING_TRUST_ANCHOR);
                 return 0;
@@ -641,7 +641,6 @@ int OSSL_CMP_validate_msg(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg)
     }
     return 0;
 }
-
 
 /*-
  * Check received message (i.e., response by server or request from client)
@@ -765,6 +764,11 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
 #endif
     }
 
+    /* if not yet present, learn transactionID */
+    if (ctx->transactionID == NULL
+        && !OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID))
+        return 0;
+
     /*
      * RFC 4210 section 5.1.1 states: the recipNonce is copied from
      * the senderNonce of the previous message in the transaction.
@@ -772,11 +776,6 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
      */
     if (!ossl_cmp_ctx_set1_recipNonce(ctx, hdr->senderNonce))
         return 0;
-
-    /* if not yet present, learn transactionID */
-    if (ctx->transactionID == NULL
-        && !OSSL_CMP_CTX_set1_transactionID(ctx, hdr->transactionID))
-        return -1;
 
     /*
      * Store any provided extraCerts in ctx for future use,
@@ -788,7 +787,7 @@ int ossl_cmp_msg_check_update(OSSL_CMP_CTX *ctx, const OSSL_CMP_MSG *msg,
                         /* this allows self-signed certs */
                         X509_ADD_FLAG_UP_REF | X509_ADD_FLAG_NO_DUP
                         | X509_ADD_FLAG_PREPEND))
-        return -1;
+        return 0;
 
     if (ossl_cmp_hdr_get_protection_nid(hdr) == NID_id_PasswordBasedMAC) {
         /*

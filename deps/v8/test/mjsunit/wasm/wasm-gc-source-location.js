@@ -2,8 +2,6 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-gc
-
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function TestStackTrace(testFct, trap, expected) {
@@ -28,14 +26,14 @@ function TestStackTrace(testFct, trap, expected) {
     .addBody([
       kExprLocalGet, 0,
       kGCPrefix, kExprStructNew, otherStruct,
-      kGCPrefix, kExprExternExternalize,
+      kGCPrefix, kExprExternConvertAny,
     ])
     .exportFunc();
 
   builder.addFunction('main', makeSig([kWasmExternRef], []))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, kStructRefCode,  // abstract cast
       kGCPrefix, kExprRefCastNull, struct,          // type cast
       kGCPrefix, kExprRefCast, struct,              // null check
@@ -58,7 +56,7 @@ function TestStackTrace(testFct, trap, expected) {
   builder.addFunction('arrayLen', makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, kArrayRefCode,
       kGCPrefix, kExprArrayLen,
     ])
@@ -78,7 +76,7 @@ function TestStackTrace(testFct, trap, expected) {
   builder.addFunction('structGet', makeSig([kWasmExternRef], [kWasmI32]))
     .addBody([
       kExprLocalGet, 0,
-      kGCPrefix, kExprExternInternalize,
+      kGCPrefix, kExprAnyConvertExtern,
       kGCPrefix, kExprRefCastNull, struct,
       kGCPrefix, kExprStructGet, struct, 0,
     ])
@@ -88,4 +86,78 @@ function TestStackTrace(testFct, trap, expected) {
   let wasm = instance.exports;
 
   TestStackTrace(() => wasm.structGet(null), kTrapNullDereference, '0x35');
+})();
+
+(function CodeLocationRefCastUnrelated() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let structA = builder.addStruct([makeField(kWasmI64, true)]);
+  let structB = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('createStructA', makeSig([kWasmI64], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, structA,
+      kGCPrefix, kExprExternConvertAny,
+    ])
+    .exportFunc();
+
+  builder.addFunction('structGet', makeSig([kWasmExternRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprAnyConvertExtern,
+      kGCPrefix, kExprRefCastNull, structA,
+      // Convert static type to anyref.
+      kExprLocalSet, 1, kExprLocalGet, 1,
+      // The following cast can be optimized into "trap if not null".
+      kGCPrefix, kExprRefCastNull, structB,
+      // The struct.get is only reachable for null; it will always trap with
+      // kNullDereference if reached.
+      kGCPrefix, kExprStructGet, structB, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  TestStackTrace(() => wasm.structGet(null), kTrapNullDereference, '0x64');
+  let a = wasm.createStructA(123n);
+  TestStackTrace(() => wasm.structGet(a), kTrapIllegalCast, '0x61');
+  assertTraps(kTrapIllegalCast, () => wasm.structGet(a));
+})();
+
+(function CodeLocationRefCastSucceedsIfNotNull() {
+  print(arguments.callee.name);
+  let builder = new WasmModuleBuilder();
+  let struct = builder.addStruct([makeField(kWasmI32, true)]);
+
+  builder.addFunction('createStruct', makeSig([kWasmI32], [kWasmExternRef]))
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprStructNew, struct,
+      kGCPrefix, kExprExternConvertAny,
+    ])
+    .exportFunc();
+
+  builder.addFunction('structGet', makeSig([kWasmExternRef], [kWasmI32]))
+    .addLocals(kWasmAnyRef, 1)
+    .addBody([
+      kExprLocalGet, 0,
+      kGCPrefix, kExprAnyConvertExtern,
+      kGCPrefix, kExprRefCastNull, struct,
+      // Convert static type to anyref.
+      kExprLocalSet, 1, kExprLocalGet, 1,
+      // The following cast can be optimized into "trap if null".
+      kGCPrefix, kExprRefCast, struct,
+      kGCPrefix, kExprStructGet, struct, 0,
+    ])
+    .exportFunc();
+
+  let instance = builder.instantiate({});
+  let wasm = instance.exports;
+
+  let wasmStruct = wasm.createStruct(123);
+  assertEquals(123, wasm.structGet(wasmStruct));
+  TestStackTrace(() => wasm.structGet(null), kTrapIllegalCast, '0x5a');
 })();

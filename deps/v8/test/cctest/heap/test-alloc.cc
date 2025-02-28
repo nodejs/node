@@ -45,12 +45,12 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
   // Similar to what the factory's retrying logic does in the last-resort case,
   // we wrap the allocator function in an AlwaysAllocateScope.  Test that
   // all allocations succeed immediately without any retry.
-  CcTest::CollectAllAvailableGarbage();
   Heap* heap = CcTest::heap();
+  heap::InvokeMemoryReducingMajorGCs(heap);
   AlwaysAllocateScopeForTesting scope(heap);
   int size = FixedArray::SizeFor(100);
   // Young generation.
-  HeapObject obj =
+  Tagged<HeapObject> obj =
       heap->AllocateRaw(size, AllocationType::kYoung).ToObjectChecked();
   // In order to pass heap verification on Isolate teardown, mark the
   // allocated area as a filler.
@@ -63,7 +63,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Large object space.
   static const size_t kLargeObjectSpaceFillerLength =
-      3 * (Page::kPageSize / 10);
+      3 * (PageMetadata::kPageSize / 10);
   static const size_t kLargeObjectSpaceFillerSize =
       FixedArray::SizeFor(kLargeObjectSpaceFillerLength);
   CHECK_GT(kLargeObjectSpaceFillerSize,
@@ -84,8 +84,7 @@ Handle<Object> HeapTester::TestAllocateAfterFailures() {
 
   // Code space.
   heap::SimulateFullSpace(heap->code_space());
-  CodePageCollectionMemoryModificationScopeForTesting code_scope(heap);
-  size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal).Size();
+  size = CcTest::i_isolate()->builtins()->code(Builtin::kIllegal)->Size();
   obj =
       heap->AllocateRaw(size, AllocationType::kCode, AllocationOrigin::kRuntime)
           .ToObjectChecked();
@@ -100,8 +99,8 @@ HEAP_TEST(StressHandles) {
   v8::HandleScope scope(CcTest::isolate());
   v8::Local<v8::Context> env = v8::Context::New(CcTest::isolate());
   env->Enter();
-  Handle<Object> o = TestAllocateAfterFailures();
-  CHECK(o->IsTrue(CcTest::i_isolate()));
+  DirectHandle<Object> o = TestAllocateAfterFailures();
+  CHECK(IsTrue(*o, CcTest::i_isolate()));
   env->Exit();
 }
 
@@ -143,14 +142,14 @@ TEST(StressJS) {
   info->set_language_mode(LanguageMode::kStrict);
   Handle<JSFunction> function =
       Factory::JSFunctionBuilder{isolate, info, context}.Build();
-  CHECK(!function->shared().construct_as_builtin());
+  CHECK(!function->shared()->construct_as_builtin());
 
   // Force the creation of an initial map.
   factory->NewJSObject(function);
 
   // Patch the map to have an accessor for "get".
-  Handle<Map> map(function->initial_map(), isolate);
-  Handle<DescriptorArray> instance_descriptors(
+  DirectHandle<Map> map(function->initial_map(), isolate);
+  DirectHandle<DescriptorArray> instance_descriptors(
       map->instance_descriptors(isolate), isolate);
   CHECK_EQ(0, instance_descriptors->number_of_descriptors());
 
@@ -159,7 +158,7 @@ TEST(StressJS) {
   Map::EnsureDescriptorSlack(isolate, map, 1);
 
   Descriptor d = Descriptor::AccessorConstant(
-      Handle<Name>(Name::cast(foreign->name()), isolate), foreign, attrs);
+      Handle<Name>(Cast<Name>(foreign->name()), isolate), foreign, attrs);
   map->AppendDescriptor(isolate, &d);
 
   // Add the Foo constructor the global object.

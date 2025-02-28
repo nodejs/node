@@ -104,6 +104,8 @@ Object.defineProperty(
   const origArrayFrom = Array.from;
   const origArrayIsArray = Array.isArray;
   const origFunctionPrototype = Function.prototype;
+  const origArrayMap = Array.prototype.map;
+  const applyOrigArrayMap = origFunctionPrototype.apply.bind(origArrayMap);
   const origIsNaN = isNaN;
   const origIterator = Symbol.iterator;
   const deNaNify = function(value) { return origIsNaN(value) ? 1 : value; };
@@ -112,8 +114,8 @@ Object.defineProperty(
     // Remove NaN values from parameters to "set" function.
     const set = type.prototype.set;
     type.prototype.set = function(array, offset) {
-      if (Array.isArray(array)) {
-        array = array.map(deNaNify);
+      if (origArrayIsArray(array)) {
+        array = applyOrigArrayMap(array, [deNaNify]);
       }
       set.apply(this, [array, offset]);
     };
@@ -128,7 +130,7 @@ Object.defineProperty(
             args[i] = origArrayFrom(args[i]);
           }
           if (origArrayIsArray(args[i])) {
-            args[i] = args[i].map(deNaNify);
+            args[i] = applyOrigArrayMap(args[i], [deNaNify]);
           }
         }
 
@@ -193,8 +195,9 @@ Object.defineProperty(
           args[1] = min(args[1], buffer.byteLength || 0);
           if (args.length > 2) {
             // If also length is given, limit it to the maximum that's possible
-            // given buffer and offset.
-            const maxBytesLeft = buffer.byteLength - args[1];
+            // given buffer and offset. Avoid NaN offset turning the length
+            // NaN, too.
+            const maxBytesLeft = buffer.byteLength - (args[1] || 0);
             const maxLengthLeft = maxBytesLeft / type.BYTES_PER_ELEMENT;
             args[2] = min(Number(args[2]), maxLengthLeft);
           }
@@ -290,3 +293,6 @@ Atomics.waitAsync = function() {
   // immediately.
   return {'value': {'then': function (f) { f(); }}};
 }
+
+// Mock serializer API with no-ops.
+d8.serializer = {'serialize': (x) => x, 'deserialize': (x) => x}

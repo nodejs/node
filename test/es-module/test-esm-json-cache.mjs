@@ -6,7 +6,7 @@ import { createRequire } from 'module';
 
 import mod from '../fixtures/es-modules/json-cache/mod.cjs';
 import another from '../fixtures/es-modules/json-cache/another.cjs';
-import test from '../fixtures/es-modules/json-cache/test.json' assert
+import test from '../fixtures/es-modules/json-cache/test.json' with
   { type: 'json' };
 
 const require = createRequire(import.meta.url);

@@ -198,7 +198,7 @@ int WriteChars(const char* filename, const char* str, int size, bool verbose) {
   return written;
 }
 
-int WriteBytes(const char* filename, const byte* bytes, int size,
+int WriteBytes(const char* filename, const uint8_t* bytes, int size,
                bool verbose) {
   const char* str = reinterpret_cast<const char*>(bytes);
   return WriteChars(filename, str, size, verbose);
@@ -237,14 +237,14 @@ uintptr_t GetCurrentStackPosition() {
 //   "~"      none; the tilde is not an identifier
 bool PassesFilter(base::Vector<const char> name,
                   base::Vector<const char> filter) {
-  if (filter.size() == 0) return name.size() == 0;
+  if (filter.empty()) return name.empty();
   auto filter_it = filter.begin();
   bool positive_filter = true;
   if (*filter_it == '-') {
     ++filter_it;
     positive_filter = false;
   }
-  if (filter_it == filter.end()) return name.size() != 0;
+  if (filter_it == filter.end()) return !name.empty();
   if (*filter_it == '*') return positive_filter;
   if (*filter_it == '~') return !positive_filter;
 

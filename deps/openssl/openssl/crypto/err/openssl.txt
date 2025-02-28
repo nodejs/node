@@ -1,4 +1,4 @@
-# Copyright 1999-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -233,7 +233,9 @@ CMP_R_MISSING_KEY_USAGE_DIGITALSIGNATURE:142:missing key usage digitalsignature
 CMP_R_MISSING_P10CSR:121:missing p10csr
 CMP_R_MISSING_PBM_SECRET:166:missing pbm secret
 CMP_R_MISSING_PRIVATE_KEY:131:missing private key
+CMP_R_MISSING_PRIVATE_KEY_FOR_POPO:190:missing private key for popo
 CMP_R_MISSING_PROTECTION:143:missing protection
+CMP_R_MISSING_PUBLIC_KEY:183:missing public key
 CMP_R_MISSING_REFERENCE_CERT:168:missing reference cert
 CMP_R_MISSING_SECRET:178:missing secret
 CMP_R_MISSING_SENDER_IDENTIFICATION:111:missing sender identification
@@ -373,6 +375,7 @@ CMS_R_UNSUPPORTED_KEY_ENCRYPTION_ALGORITHM:179:\
 CMS_R_UNSUPPORTED_LABEL_SOURCE:193:unsupported label source
 CMS_R_UNSUPPORTED_RECIPIENTINFO_TYPE:155:unsupported recipientinfo type
 CMS_R_UNSUPPORTED_RECIPIENT_TYPE:154:unsupported recipient type
+CMS_R_UNSUPPORTED_SIGNATURE_ALGORITHM:195:unsupported signature algorithm
 CMS_R_UNSUPPORTED_TYPE:156:unsupported type
 CMS_R_UNWRAP_ERROR:157:unwrap error
 CMS_R_UNWRAP_FAILURE:180:unwrap failure
@@ -400,6 +403,7 @@ CONF_R_NUMBER_TOO_LARGE:121:number too large
 CONF_R_OPENSSL_CONF_REFERENCES_MISSING_SECTION:124:\
 	openssl conf references missing section
 CONF_R_RECURSIVE_DIRECTORY_INCLUDE:111:recursive directory include
+CONF_R_RECURSIVE_SECTION_REFERENCE:126:recursive section reference
 CONF_R_RELATIVE_PATH:125:relative path
 CONF_R_SSL_COMMAND_SECTION_EMPTY:117:ssl command section empty
 CONF_R_SSL_COMMAND_SECTION_NOT_FOUND:118:ssl command section not found
@@ -497,6 +501,7 @@ DH_R_NO_PARAMETERS_SET:107:no parameters set
 DH_R_NO_PRIVATE_VALUE:100:no private value
 DH_R_PARAMETER_ENCODING_ERROR:105:parameter encoding error
 DH_R_PEER_KEY_ERROR:111:peer key error
+DH_R_Q_TOO_LARGE:130:q too large
 DH_R_SHARED_INFO_ERROR:113:shared info error
 DH_R_UNABLE_TO_CHECK_GENERATOR:121:unable to check generator
 DSA_R_BAD_FFC_PARAMETERS:114:bad ffc parameters
@@ -514,6 +519,7 @@ DSA_R_PARAMETER_ENCODING_ERROR:105:parameter encoding error
 DSA_R_P_NOT_PRIME:115:p not prime
 DSA_R_Q_NOT_PRIME:113:q not prime
 DSA_R_SEED_LEN_SMALL:110:seed_len is less than the length of q
+DSA_R_TOO_MANY_RETRIES:116:too many retries
 DSO_R_CTRL_FAILED:100:control command failed
 DSO_R_DSO_ALREADY_LOADED:110:dso already loaded
 DSO_R_EMPTY_FILE_STRUCTURE:113:empty file structure
@@ -597,6 +603,7 @@ EC_R_POINT_IS_NOT_ON_CURVE:107:point is not on curve
 EC_R_RANDOM_NUMBER_GENERATION_FAILED:158:random number generation failed
 EC_R_SHARED_INFO_ERROR:150:shared info error
 EC_R_SLOT_FULL:108:slot full
+EC_R_TOO_MANY_RETRIES:176:too many retries
 EC_R_UNDEFINED_GENERATOR:113:undefined generator
 EC_R_UNDEFINED_ORDER:128:undefined order
 EC_R_UNKNOWN_COFACTOR:164:unknown cofactor
@@ -1674,6 +1681,7 @@ X509_R_CERTIFICATE_VERIFICATION_FAILED:139:certificate verification failed
 X509_R_CERT_ALREADY_IN_HASH_TABLE:101:cert already in hash table
 X509_R_CRL_ALREADY_DELTA:127:crl already delta
 X509_R_CRL_VERIFY_FAILURE:131:crl verify failure
+X509_R_DUPLICATE_ATTRIBUTE:140:duplicate attribute
 X509_R_ERROR_GETTING_MD_BY_NID:141:error getting md by nid
 X509_R_ERROR_USING_SIGINF_SET:142:error using siginf set
 X509_R_IDP_MISMATCH:128:idp mismatch

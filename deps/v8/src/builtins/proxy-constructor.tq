@@ -8,8 +8,7 @@ namespace proxy {
 
 // ES #sec-proxy-constructor
 // https://tc39.github.io/ecma262/#sec-proxy-constructor
-transitioning javascript builtin
-ProxyConstructor(
+transitioning javascript builtin ProxyConstructor(
     js-implicit context: NativeContext, receiver: JSAny, newTarget: JSAny)(
     target: JSAny, handler: JSAny): JSProxy {
   try {

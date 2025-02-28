@@ -20,7 +20,7 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [5. Create release commit](#5-create-release-commit)
   * [6. Propose release on GitHub](#6-propose-release-on-github)
   * [7. Ensure that the release branch is stable](#7-ensure-that-the-release-branch-is-stable)
-    * [7.1 Updating the release _(optional)_](#7-1-updating-the-release-optional)
+    * [7.1 Updating the release _(optional)_](#71-updating-the-release-optional)
   * [8. Produce a nightly build _(optional)_](#8-produce-a-nightly-build-optional)
   * [9. Produce release builds](#9-produce-release-builds)
   * [10. Test the build](#10-test-the-build)
@@ -32,9 +32,8 @@ official release builds for Node.js, hosted on <https://nodejs.org/>.
   * [16. Check the release](#16-check-the-release)
   * [17. Create a blog post](#17-create-a-blog-post)
   * [18. Create the release on GitHub](#18-create-the-release-on-github)
-  * [19. Cleanup](#19-cleanup)
-  * [20. Announce](#20-announce)
-  * [21. Celebrate](#21-celebrate)
+  * [19. Announce](#19-announce)
+  * [20. Celebrate](#20-celebrate)
 * [LTS releases](#lts-releases)
 * [Major releases](#major-releases)
 
@@ -91,10 +90,11 @@ responsible for that release. In order to be able to verify downloaded binaries,
 the public should be able to check that the `SHASUMS256.txt` file has been
 signed by someone who has been authorized to create a release.
 
-The GPG keys should be fetchable from a known third-party keyserver. The SKS
-Keyservers at <https://sks-keyservers.net> are recommended. Use the
-[submission](https://pgp.mit.edu/) form to submit a new GPG key. You'll need to
-do an ASCII-armored export of your key first:
+The public keys should be fetchable from a known third-party keyserver.
+The OpenPGP keyserver at <https://keys.openpgp.org/> is recommended.
+Use the [submission](https://keys.openpgp.org/upload) form to submit
+a new public key, and make sure to verify the associated email.
+You'll need to do an ASCII-armored export of your key first:
 
 ```bash
 gpg --armor --export email@server.com > ~/nodekey.asc
@@ -103,7 +103,7 @@ gpg --armor --export email@server.com > ~/nodekey.asc
 Keys should be fetchable via:
 
 ```bash
-gpg --keyserver pool.sks-keyservers.net --recv-keys <FINGERPRINT>
+gpg --keyserver hkps://keys.openpgp.org --recv-keys <FINGERPRINT>
 ```
 
 The key you use may be a child/subkey of an existing key.
@@ -153,7 +153,9 @@ git reset --hard upstream/v1.x-staging
 If the staging branch is not up to date relative to `main`, bring the
 appropriate PRs and commits into it.
 
-Go through PRs with the label `vN.x`. e.g. [PRs with the `v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x).
+Go through PRs with the label `vN.x`. e.g. [PRs with the
+`v8.x` label](https://github.com/nodejs/node/pulls?q=is%3Apr+is%3Aopen+sort%3Aupdated-desc+label%3Av8.x)
+and `baking-for-lts` label if preparing a release for an LTS line.
 
 For each PR:
 
@@ -162,6 +164,8 @@ For each PR:
 * Check that the commit metadata was not changed from the `main` commit.
 * If there are merge conflicts, ask the PR author to rebase.
   Simple conflicts can be resolved when landing.
+* If `baking-for-lts` is present, check if the PR is ready to be landed.
+  If it is, remove the `baking-for-lts` label.
 
 When landing the PR add the `Backport-PR-URL:` line to each commit. Close the
 backport PR with `Landed in ...`. Update the label on the original PR from
@@ -182,10 +186,16 @@ metadata, as well as the GitHub labels such as `semver-minor` and
 omitted from a commit, the commit will show up because it's unsure if it's a
 duplicate or not.
 
-For a list of commits that could be landed in a patch release on v1.x:
+For a list of commits that could be landed in a minor release on v1.x:
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=simple
+N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x --filter-release --format=simple'
+```
+
+If the target branch is an LTS line, you should also exclude the `baking-for-lts`:
+
+```bash
+N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x,baking-for-lts --filter-release --format=simple'
 ```
 
 Previously released commits and version bumps do not need to be
@@ -201,12 +211,20 @@ Carefully review the list of commits:
   `baking-for-lts` tag.
 
 When you are ready to cherry-pick commits, you can automate with the following
-command. (For semver-minor releases, make sure to remove the `semver-minor` tag
-from `exclude-label`.)
+command.
 
 ```bash
-branch-diff v1.x-staging main --exclude-label=semver-major,semver-minor,dont-land-on-v1.x,backport-requested-v1.x,backport-blocked-v1.x,backport-open-v1.x,backported-to-v1.x --filter-release --format=sha --reverse | xargs git cherry-pick
+N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x --filter-release --format=sha --reverse' | xargs git cherry-pick -S
 ```
+
+If the target branch is an LTS line, you should also exclude the `baking-for-lts`:
+
+```bash
+N=1 sh -c 'branch-diff v$N.x-staging upstream/main --exclude-label=semver-major,dont-land-on-v$N.x,backport-requested-v$N.x,backport-blocked-v$N.x,backport-open-v$N.x,backported-to-v$N.x,baking-for-lts --filter-release --format=sha --reverse' | xargs git cherry-pick -S
+```
+
+<sup>For patch releases, make sure to add the `semver-minor` tag
+to `exclude-label`<sup>
 
 When cherry-picking commits, if there are simple conflicts you can resolve
 them. Otherwise, add the `backport-requested-vN.x` label to the original PR
@@ -264,12 +282,47 @@ You can integrate the PRs into the proposal without running full CI.
 
 ### 2. Create a new branch for the release
 
+> \[!TIP] Once the staging branch is up-to-date you can use the
+> [`create-release-proposal`][] action to generate the proposal.
+
+```bash
+gh workflow run "Create Release Proposal" -f release-line=N -f release-date=YYYY-MM-DD
+```
+
+If you prefer to run it locally you can either run
+`git node release --prepare`:
+
+```bash
+git node release -S --prepare x.y.z
+```
+
+to automate the remaining steps until step 6 or you can perform it manually
+following the below steps.
+
+***
+
 Create a new branch named `vx.y.z-proposal`, off the corresponding staging
 branch.
 
 ```bash
 git checkout -b v1.2.3-proposal upstream/v1.x-staging
 ```
+
+You can also run:
+
+```bash
+git node release -S --prepare --security --filterLabel vX.x
+```
+
+Example:
+
+```bash
+git checkout v20.x
+git node release -S --prepare --security --filterLabel v20.x
+```
+
+to automate the remaining steps until step 6 or you can perform it manually
+following the below steps.
 
 <details>
 <summary>Security release</summary>
@@ -281,6 +334,9 @@ branched off of `vN.x`.
 $ git checkout -b v1.2.3-proposal upstream/v1.x
 git cherry-pick  ...  # cherry-pick nodejs-private PR commits directly into the proposal
 ```
+
+Be sure to label the CVE fixes as `notable-change` in the nodejs-private repository.
+This will ensure they are included in the "Notable Changes" section of the CHANGELOG.
 
 </details>
 
@@ -550,7 +606,7 @@ ecosystem.
 Use `ncu-ci` to compare `vx.x` run (10) and proposal branch (11)
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ncu-ci citgm 10 11
 ```
 
@@ -675,12 +731,23 @@ the build before moving forward. Use the following list as a baseline:
 
 ### 11. Tag and sign the release commit
 
-Once you have produced builds that you're happy with, create a new tag. By
-waiting until this stage to create tags, you can discard a proposed release if
-something goes wrong or additional commits are required. Once you have created a
-tag and pushed it to GitHub, you _**must not**_ delete and re-tag. If you make
-a mistake after tagging then you'll have to version-bump and start again and
-count that tag/version as lost.
+Once you have produced builds that you're happy with you can either run
+`git node release --promote`
+
+```bash
+git node release -S --promote https://github.com/nodejs/node/pull/XXXX
+```
+
+to automate the remaining steps until step 16 or you can perform it manually
+following the below steps.
+
+***
+
+Create a new tag: By waiting until this stage to create tags, you can discard
+a proposed release if something goes wrong or additional commits are required.
+Once you have created a tag and pushed it to GitHub, you _**must not**_ delete
+and re-tag. If you make a mistake after tagging then you'll have to version-bump
+and start again and count that tag/version as lost.
 
 Tag summaries have a predictable format. Look at a recent tag to see:
 
@@ -697,7 +764,17 @@ Install `git-secure-tag` npm module:
 npm install -g git-secure-tag
 ```
 
-Create a tag using the following command:
+> Ensure to disable `--follow-tags` in your git settings using: `git config push.followTags false`
+
+If your private key is protected by a passphrase, you might need to run:
+
+```bash
+export GPG_TTY=$(tty)
+```
+
+before creating the tag.
+
+To create a tag use the following command:
 
 ```bash
 git secure-tag <vx.y.z> <commit-sha> -sm "YYYY-MM-DD Node.js vx.y.z (<release-type>) Release"
@@ -780,7 +857,7 @@ Git should stop to let you fix conflicts.
 Revert all changes that were made to `src/node_version.h`:
 
 ```bash
-git checkout --ours HEAD -- src/node_version.h
+git restore --source=upstream/main src/node_version.h
 ```
 
 <details>
@@ -802,7 +879,9 @@ git commit --amend
 </details>
 
 Even if there are no conflicts, ensure that you revert all the changes that were
-made to `src/node_version.h`.
+made to `src/node_version.h`. `NODE_VERSION_IS_RELEASE` must be `0`.
+
+<sup>Edit `src/node_version.h`, revert `NODE_VERSION_IS_RELEASE` back to `0`, and `git commit --amend`</sup>
 
 If there are conflicts in `doc` due to updated `REPLACEME`
 placeholders (that happens when a change previously landed on another release
@@ -869,6 +948,12 @@ same GPG key!**
 Use `tools/release.sh` to promote and sign the build. Before doing this, you'll
 need to ensure you've loaded the correct ssh key, or you'll see the following:
 
+If your GPG key is protected by a password, you might need to run:
+
+```console
+$ export GPG_TTY=$(tty)
+```
+
 ```console
 # Checking for releases ...
 Enter passphrase for key '/Users/<user>/.ssh/id_rsa':
@@ -896,6 +981,20 @@ a `NODEJS_RELEASE_HOST` environment variable:
 # Substitute proxy.xyz with whatever address you intend to use
 NODEJS_RELEASE_HOST=proxy.xyz ./tools/release.sh
 ```
+
+In case `gpg` is unable to autoselect a key, you can retry using the
+`-a` option to enable an interactive interface:
+
+```bash
+./tools/release.sh -a
+```
+
+> \[!TIP]
+> Sometimes, due to machines being overloaded or other external factors,
+> the files at <https://nodejs.org/dist/index.json>, <https://nodejs.org/dist/index.tab>
+> or `SHASUMS256.txt` may not be generated correctly.
+> In this case you can repeat the signing step in order
+> to fix it. e.g: `./tools/release.sh -s`.
 
 `tools/release.sh` will perform the following actions when run:
 
@@ -957,7 +1056,7 @@ release. However, the blog post is not yet fully automatic.
 Create a new blog post by running the [nodejs.org release-post.js script][]:
 
 ```bash
-node ./scripts/release-post/index.mjs x.y.z
+node ./apps/site/scripts/release-post/index.mjs x.y.z
 ```
 
 This script will use the promoted builds and changelog to generate the post. Run
@@ -986,9 +1085,13 @@ This script will use the promoted builds and changelog to generate the post. Run
   Refs: <full URL to your release proposal PR>
   ```
 
+* In order to trigger the CI Checks of the [nodejs.org repository][]; Please
+  attach the `github_actions:pull-request` label to the PR.
+
 * Changes to the base branch, `main`, on the [nodejs.org repository][] will
-  trigger a new build of nodejs.org so your changes should appear a few minutes
-  after pushing.
+  trigger a new build of nodejs.org, so your changes should appear a few minutes
+  after pushing. You can follow the [Deployments](https://github.com/nodejs/nodejs.org/deployments) page
+  to see when the build finishes and gets published.
 
 ### 18. Create the release on GitHub
 
@@ -1003,19 +1106,33 @@ This script will use the promoted builds and changelog to generate the post. Run
 ### 19. Announce
 
 The nodejs.org website will automatically rebuild and include the new version.
-To announce the build on Twitter through the official @nodejs account, email
-<pr@nodejs.org> with a message such as:
+To announce the build on social media, please ping the @nodejs-social-team
+on offical slack channel.
+
+Node.js is also available on Bluesky and a release announcement can be
+reposted using [nodejs/bluesky](https://github.com/nodejs/bluesky) repository.
+
+The post content can be as simple as:
 
 > v5.8.0 of @nodejs is out: <https://nodejs.org/en/blog/release/v5.8.0/>
 > …
 > something here about notable changes
 
-To ensure communication goes out with the timing of the blog post, please allow
-24 hour prior notice. If known, please include the date and time the release
-will be shared with the community in the email to coordinate these
-announcements.
+You can create the PR for the release post on nodejs/bluesky with the following:
 
-Ping the IRC ops and the other [Partner Communities][] liaisons.
+```bash
+# Create a PR for a post:
+gh workflow run create-pr.yml --repo "https://github.com/nodejs/bluesky" \
+  -F prTitle='vx.x.x release announcement' \
+  -F richText='Node.js vx.x.x is out. Check the blog post at https://nodejs.org/…. TL;DR is
+
+- New feature
+- …'
+
+# Create a PR for a retweet:
+gh workflow run create-pr.yml --repo "https://github.com/nodejs/bluesky" \
+  -F prTitle='Retweet vx.x.x release announcement' -F postURL=…
+```
 
 <details>
 <summary>Security release</summary>
@@ -1033,7 +1150,7 @@ _In whatever form you do this..._
 ### Marking a release line as LTS
 
 The process of marking a release line as LTS has been automated using
-[node-core-utils](https://github.com/nodejs/node-core-utils).
+[`@node-core/utils`](https://github.com/nodejs/node-core-utils).
 
 Start by checking out the staging branch for the release line that is going to
 be marked as LTS, e.g:
@@ -1042,10 +1159,10 @@ be marked as LTS, e.g:
 git checkout v1.x-staging
 ```
 
-Next, make sure you have **node-core-utils** installed:
+Next, make sure you have **`@node-core/utils`** installed:
 
 ```bash
-npm i -g node-core-utils
+npm i -g @node-core/utils
 ```
 
 Run the prepare LTS release command:
@@ -1091,7 +1208,7 @@ current LTS codename in its release line changelog file.
 
 The `test/parallel/test-process-release.js` file might also need to be updated.
 
-In case you can not run the automated `node-core-utils` command and you are
+In case you can not run the automated `@node-core/utils` command and you are
 currently running these steps manually it's a good idea to refer to previous
 LTS proposal PRs and make sure all required changes are covered.
 
@@ -1111,7 +1228,7 @@ In order to make sure a download URL
 (e.g: <https://nodejs.org/download/release/latest-codename/>) will be available
 for the new LTS release line you need to submit a PR to
 <https://github.com/nodejs/nodejs-latest-linker> and add a new entry for the
-new LTS codename in its `ltsNames` map located in the `./latest-linker.js`
+new LTS codename in its `ltsNames` map located in the `./common.js`
 file.
 
 Make sure to reach out to the Build WG in order to validate that the new URL is
@@ -1159,8 +1276,14 @@ the releaser, these must be kept in sync with `main`.
 The `vN.x` and `vN.x-staging` branches must be kept in sync with one another
 up until the date of the release.
 
-The TSC should be informed of any `SEMVER-MAJOR` commits that land within one
-month of the release.
+If a `SEMVER-MAJOR` pull request lands on the default branch within one month
+prior to the major release date, it must not be included on the new major
+staging branch, unless there is consensus from the Node.js releasers team to
+do so. This measure aims to ensure better stability for the release candidate
+(RC) phase, which begins approximately two weeks prior to the official release.
+By restricting `SEMVER-MAJOR` commits in this period, we provide more time for
+thorough testing and reduce the potential for major breakages, especially in
+LTS lines.
 
 ### Create release labels
 
@@ -1187,6 +1310,20 @@ changelog).
 Notify the `@nodejs/npm` team in the release proposal PR to inform them of the
 upcoming release. `npm` maintains a list of [supported versions](https://github.com/npm/cli/blob/latest/lib/utils/unsupported.js#L3)
 that will need updating to include the new major release.
+
+To keep the branch in sync until the release date, it can be as simple as
+doing the following:
+
+> Make sure to check that there are no PRs with the label `dont-land-on-vX.x`.
+
+```bash
+git checkout vN.x
+git reset --hard upstream/main
+git checkout vN.x-staging
+git reset --hard upstream/main
+git push upstream vN.x
+git push upstream vN.x-staging
+```
 
 ### Update `NODE_MODULE_VERSION`
 
@@ -1260,6 +1397,12 @@ The commits in the generated changelog must then be organized:
 * Remove all reverted commits and their reverts
 * Separate all SEMVER-MAJOR, SEMVER-MINOR, and SEMVER-PATCH commits into lists
 
+```console
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-major --group --filter-release  # get all majors
+$ branch-diff upstream/vN-1.x upstream/vN.x --require-label=semver-minor --group --filter-release  # get all minors
+$ branch-diff upstream/vN-1.x upstream/vN.x --exclude-label=semver-major,semver-minor --group --filter-release  # get all patches
+```
+
 #### Generate the notable changes
 
 For a major release, all SEMVER-MAJOR commits that are not strictly internal,
@@ -1285,12 +1428,48 @@ Infrastructure team is able to perform the switch of the default. An issue
 should be opened on the [Node.js Snap management repository][] requesting this
 take place once a new LTS line has been released.
 
+## FAQ
+
+Due to how `tools/release.sh` work, it isn't uncommon to face some errors
+during the promotion process as it depends on network communication and machine
+availability. This section aims to guide the releaser through potential
+failures.
+
+### Error on dist-indexer while promoting
+
+```bash
+node:events:491
+      throw er; // Unhandled 'error' event
+      ^
+
+Error: read ECONNRESET
+    at TLSWrap.onStreamRead (node:internal/stream_base_commons:217:20)
+Emitted 'error' event on DestroyableTransform instance at:
+    at ClientRequest.<anonymous> (/usr/lib/node_modules/nodejs-dist-indexer/node_modules/hyperquest/index.js:14:19)
+    at ClientRequest.emit (node:events:513:28)
+    at TLSSocket.socketErrorListener (node:_http_client:494:9)
+    at TLSSocket.emit (node:events:513:28)
+    at emitErrorNT (node:internal/streams/destroy:157:8)
+    at emitErrorCloseNT (node:internal/streams/destroy:122:3)
+    at processTicksAndRejections (node:internal/process/task_queues:83:21) {
+  errno: -104,
+  code: 'ECONNRESET',
+  syscall: 'read'
+}
+```
+
+Typical resolution: sign the release again.
+
+```bash
+./tools/release.sh -s vX.Y.Z
+```
+
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Node.js Snap management repository]: https://github.com/nodejs/snap
-[Partner Communities]: https://github.com/nodejs/community-committee/blob/HEAD/governance/PARTNER_COMMUNITIES.md
 [Snap]: https://snapcraft.io/node
+[`create-release-proposal`]: https://github.com/nodejs/node/actions/workflows/create-release-proposal.yml
 [build-infra team]: https://github.com/orgs/nodejs/teams/build-infra
 [expected assets]: https://github.com/nodejs/build/tree/HEAD/ansible/www-standalone/tools/promote/expected_assets
-[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/scripts/release-post/index.mjs
+[nodejs.org release-post.js script]: https://github.com/nodejs/nodejs.org/blob/HEAD/apps/site/scripts/release-post/index.mjs
 [nodejs.org repository]: https://github.com/nodejs/nodejs.org

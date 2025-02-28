@@ -146,7 +146,7 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
     uint32_t dictStart = fBI->fData->fForwardTable->fDictCategoriesStart;
 
     while(U_SUCCESS(status)) {
-        while((current = (int32_t)UTEXT_GETNATIVEINDEX(text)) < rangeEnd
+        while ((current = static_cast<int32_t>(UTEXT_GETNATIVEINDEX(text))) < rangeEnd
                 && (category < dictStart)) {
             utext_next32(text);           // TODO: cleaner loop structure.
             c = utext_current32(text);
@@ -158,12 +158,13 @@ void RuleBasedBreakIterator::DictionaryCache::populateDictionary(int32_t startPo
 
         // We now have a dictionary character. Get the appropriate language object
         // to deal with it.
-        const LanguageBreakEngine *lbe = fBI->getLanguageBreakEngine(c);
+        const LanguageBreakEngine *lbe = fBI->getLanguageBreakEngine(
+            c, fBI->getLocaleID(ULOC_REQUESTED_LOCALE, status));
 
         // Ask the language object if there are any breaks. It will add them to the cache and
         // leave the text pointer on the other side of its range, ready to search for the next one.
         if (lbe != nullptr) {
-            foundBreakCount += lbe->findBreaks(text, rangeStart, rangeEnd, fBreaks, fBI->fIsPhraseBreaking, status);
+            foundBreakCount += lbe->findBreaks(text, current, rangeEnd, fBreaks, fBI->fIsPhraseBreaking, status);
         }
 
         // Reload the loop variables for the next go-round
@@ -220,7 +221,7 @@ void RuleBasedBreakIterator::BreakCache::reset(int32_t pos, int32_t ruleStatus) 
     fTextIdx = pos;
     fBufIdx = 0;
     fBoundaries[0] = pos;
-    fStatuses[0] = (uint16_t)ruleStatus;
+    fStatuses[0] = static_cast<uint16_t>(ruleStatus);
 }
 
 
@@ -245,7 +246,6 @@ void RuleBasedBreakIterator::BreakCache::following(int32_t startPos, UErrorCode 
         fBI->fDone = false;
         next();
     }
-    return;
 }
 
 
@@ -264,7 +264,6 @@ void RuleBasedBreakIterator::BreakCache::preceding(int32_t startPos, UErrorCode 
             current();
         }
     }
-    return;
 }
 
 
@@ -276,7 +275,6 @@ void RuleBasedBreakIterator::BreakCache::nextOL() {
     fBI->fDone = !populateFollowing();
     fBI->fPosition = fTextIdx;
     fBI->fRuleStatusIndex = fStatuses[fBufIdx];
-    return;
 }
 
 
@@ -296,7 +294,6 @@ void RuleBasedBreakIterator::BreakCache::previous(UErrorCode &status) {
     fBI->fDone = (fBufIdx == initialBufIdx);
     fBI->fPosition = fTextIdx;
     fBI->fRuleStatusIndex = fStatuses[fBufIdx];
-    return;
 }
 
 

@@ -165,8 +165,8 @@ static void write_console(uv_tty_t* tty_out, char* src) {
   buf.len = strlen(buf.base);
 
   r = uv_try_write((uv_stream_t*) tty_out, &buf, 1);
-  ASSERT(r >= 0);
-  ASSERT((unsigned int) r == buf.len);
+  ASSERT_GE(r, 0);
+  ASSERT_EQ((unsigned int) r, buf.len);
 }
 
 static void setup_screen(uv_tty_t* tty_out) {
@@ -178,8 +178,8 @@ static void setup_screen(uv_tty_t* tty_out) {
   origin.X = 0;
   origin.Y = info.srWindow.Top;
   ASSERT(FillConsoleOutputCharacter(
-      tty_out->handle, '.', length, origin, &number_of_written));
-  ASSERT(length == number_of_written);
+         tty_out->handle, '.', length, origin, &number_of_written));
+  ASSERT_EQ(length, number_of_written);
 }
 
 static void clear_screen(uv_tty_t* tty_out, struct screen_info* si) {
@@ -192,10 +192,10 @@ static void clear_screen(uv_tty_t* tty_out, struct screen_info* si) {
   origin.Y = info.srWindow.Top;
   FillConsoleOutputCharacterA(
       tty_out->handle, ' ', length, origin, &number_of_written);
-  ASSERT(length == number_of_written);
+  ASSERT_EQ(length, number_of_written);
   FillConsoleOutputAttribute(
       tty_out->handle, si->default_attr, length, origin, &number_of_written);
-  ASSERT(length == number_of_written);
+  ASSERT_EQ(length, number_of_written);
 }
 
 static void free_screen(struct captured_screen* cs) {
@@ -216,11 +216,11 @@ static void capture_screen(uv_tty_t* tty_out, struct captured_screen* cs) {
   cs->attributes = (WORD*) malloc(cs->si.length * sizeof(*cs->attributes));
   ASSERT_NOT_NULL(cs->attributes);
   ASSERT(ReadConsoleOutputCharacter(
-      tty_out->handle, cs->text, cs->si.length, origin, &length));
-  ASSERT((unsigned int) cs->si.length == length);
+         tty_out->handle, cs->text, cs->si.length, origin, &length));
+  ASSERT_EQ((unsigned int) cs->si.length, length);
   ASSERT(ReadConsoleOutputAttribute(
-      tty_out->handle, cs->attributes, cs->si.length, origin, &length));
-  ASSERT((unsigned int) cs->si.length == length);
+         tty_out->handle, cs->attributes, cs->si.length, origin, &length));
+  ASSERT_EQ((unsigned int) cs->si.length, length);
 }
 
 static void make_expect_screen_erase(struct captured_screen* cs,
@@ -261,8 +261,8 @@ static void make_expect_screen_erase(struct captured_screen* cs,
   } else {
     ASSERT(FALSE);
   }
-  ASSERT(start < end);
-  ASSERT(end - cs->text <= cs->si.length);
+  ASSERT_PTR_LT(start, end);
+  ASSERT_LE(end - cs->text, cs->si.length);
   for (; start < end; start++) {
     *start = ' ';
   }
@@ -360,13 +360,13 @@ static void initialize_tty(uv_tty_t* tty_out) {
                                      NULL,
                                      CONSOLE_TEXTMODE_BUFFER,
                                      NULL);
-  ASSERT(handle != INVALID_HANDLE_VALUE);
+  ASSERT_PTR_NE(handle, INVALID_HANDLE_VALUE);
 
   ttyout_fd = _open_osfhandle((intptr_t) handle, 0);
-  ASSERT(ttyout_fd >= 0);
-  ASSERT(UV_TTY == uv_guess_handle(ttyout_fd));
+  ASSERT_GE(ttyout_fd, 0);
+  ASSERT_EQ(UV_TTY, uv_guess_handle(ttyout_fd));
   r = uv_tty_init(uv_default_loop(), tty_out, ttyout_fd, 0); /* Writable. */
-  ASSERT(r == 0);
+  ASSERT_OK(r);
 }
 
 static void terminate_tty(uv_tty_t* tty_out) {
@@ -394,16 +394,16 @@ TEST_IMPL(tty_cursor_up) {
   snprintf(buffer, sizeof(buffer), "%sA", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y - 1 == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y - 1, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor up nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dA", CSI, si.height / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y - si.height / 4 == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y - si.height / 4, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor up from Window top does nothing */
   cursor_pos_old.X = 1;
@@ -412,15 +412,15 @@ TEST_IMPL(tty_cursor_up) {
   snprintf(buffer, sizeof(buffer), "%sA", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -445,16 +445,16 @@ TEST_IMPL(tty_cursor_down) {
   snprintf(buffer, sizeof(buffer), "%sB", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y + 1 == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y + 1, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor down nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dB", CSI, si.height / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y + si.height / 4 == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y + si.height / 4, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor down from bottom line does nothing */
   cursor_pos_old.X = si.width / 2;
@@ -463,15 +463,15 @@ TEST_IMPL(tty_cursor_down) {
   snprintf(buffer, sizeof(buffer), "%sB", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -496,16 +496,16 @@ TEST_IMPL(tty_cursor_forward) {
   snprintf(buffer, sizeof(buffer), "%sC", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X + 1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X + 1, cursor_pos.X);
 
   /* cursor forward nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dC", CSI, si.width / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X + si.width / 4 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X + si.width / 4, cursor_pos.X);
 
   /* cursor forward from end of line does nothing*/
   cursor_pos_old.X = si.width;
@@ -514,8 +514,8 @@ TEST_IMPL(tty_cursor_forward) {
   snprintf(buffer, sizeof(buffer), "%sC", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor forward from end of screen does nothing */
   cursor_pos_old.X = si.width;
@@ -524,15 +524,15 @@ TEST_IMPL(tty_cursor_forward) {
   snprintf(buffer, sizeof(buffer), "%sC", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -557,16 +557,16 @@ TEST_IMPL(tty_cursor_back) {
   snprintf(buffer, sizeof(buffer), "%sD", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X - 1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X - 1, cursor_pos.X);
 
   /* cursor back nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dD", CSI, si.width / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X - si.width / 4 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X - si.width / 4, cursor_pos.X);
 
   /* cursor back from beginning of line does nothing */
   cursor_pos_old.X = 1;
@@ -575,8 +575,8 @@ TEST_IMPL(tty_cursor_back) {
   snprintf(buffer, sizeof(buffer), "%sD", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(cursor_pos_old.X == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(cursor_pos_old.X, cursor_pos.X);
 
   /* cursor back from top of screen does nothing */
   cursor_pos_old.X = 1;
@@ -585,15 +585,15 @@ TEST_IMPL(tty_cursor_back) {
   snprintf(buffer, sizeof(buffer), "%sD", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(1 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(1, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -618,16 +618,16 @@ TEST_IMPL(tty_cursor_next_line) {
   snprintf(buffer, sizeof(buffer), "%sE", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y + 1 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y + 1, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
 
   /* cursor next line nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dE", CSI, si.height / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y + si.height / 4 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y + si.height / 4, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
 
   /* cursor next line from buttom row moves beginning of line */
   cursor_pos_old.X = si.width / 2;
@@ -636,15 +636,15 @@ TEST_IMPL(tty_cursor_next_line) {
   snprintf(buffer, sizeof(buffer), "%sE", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -669,16 +669,16 @@ TEST_IMPL(tty_cursor_previous_line) {
   snprintf(buffer, sizeof(buffer), "%sF", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y - 1 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y - 1, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
 
   /* cursor previous line nth times */
   cursor_pos_old = cursor_pos;
   snprintf(buffer, sizeof(buffer), "%s%dF", CSI, si.height / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos_old.Y - si.height / 4 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y - si.height / 4, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
 
   /* cursor previous line from top of screen does nothing */
   cursor_pos_old.X = 1;
@@ -687,15 +687,15 @@ TEST_IMPL(tty_cursor_previous_line) {
   snprintf(buffer, sizeof(buffer), "%sD", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(1 == cursor_pos.Y);
-  ASSERT(1 == cursor_pos.X);
+  ASSERT_EQ(1, cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -720,28 +720,28 @@ TEST_IMPL(tty_cursor_horizontal_move_absolute) {
   snprintf(buffer, sizeof(buffer), "%sG", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(1 == cursor_pos.X);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
 
   /* Move cursor to nth character */
   snprintf(buffer, sizeof(buffer), "%s%dG", CSI, si.width / 4);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(si.width / 4 == cursor_pos.X);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
+  ASSERT_EQ(si.width / 4, cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
 
   /* Moving out of screen will fit within screen */
   snprintf(buffer, sizeof(buffer), "%s%dG", CSI, si.width + 1);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(si.width == cursor_pos.X);
-  ASSERT(cursor_pos_old.Y == cursor_pos.Y);
+  ASSERT_EQ(si.width, cursor_pos.X);
+  ASSERT_EQ(cursor_pos_old.Y, cursor_pos.Y);
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -766,38 +766,38 @@ TEST_IMPL(tty_cursor_move_absolute) {
   snprintf(buffer, sizeof(buffer), "%sH", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(1 == cursor_pos.X);
-  ASSERT(1 == cursor_pos.Y);
+  ASSERT_EQ(1, cursor_pos.X);
+  ASSERT_EQ(1, cursor_pos.Y);
 
   /* Move the cursor to the middle of the screen */
   snprintf(
       buffer, sizeof(buffer), "%s%d;%df", CSI, si.height / 2, si.width / 2);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(si.width / 2 == cursor_pos.X);
-  ASSERT(si.height / 2 == cursor_pos.Y);
+  ASSERT_EQ(si.width / 2, cursor_pos.X);
+  ASSERT_EQ(si.height / 2, cursor_pos.Y);
 
   /* Moving out of screen will fit within screen */
   snprintf(
       buffer, sizeof(buffer), "%s%d;%df", CSI, si.height / 2, si.width + 1);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(si.width == cursor_pos.X);
-  ASSERT(si.height / 2 == cursor_pos.Y);
+  ASSERT_EQ(si.width, cursor_pos.X);
+  ASSERT_EQ(si.height / 2, cursor_pos.Y);
 
   snprintf(
       buffer, sizeof(buffer), "%s%d;%df", CSI, si.height + 1, si.width / 2);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(si.width / 2 == cursor_pos.X);
-  ASSERT(si.height == cursor_pos.Y);
+  ASSERT_EQ(si.width / 2, cursor_pos.X);
+  ASSERT_EQ(si.height, cursor_pos.Y);
   ASSERT(!is_scrolling(&tty_out, si));
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -831,7 +831,7 @@ TEST_IMPL(tty_hide_show_cursor) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -905,7 +905,7 @@ TEST_IMPL(tty_erase) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -979,7 +979,7 @@ TEST_IMPL(tty_erase_line) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -1000,49 +1000,54 @@ TEST_IMPL(tty_set_cursor_shape) {
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_LARGE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_LARGE);
 
   /* cursor size large */
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s1 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_LARGE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_LARGE);
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s2 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_LARGE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_LARGE);
 
   /* cursor size small */
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s3 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_SMALL);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_SMALL);
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s6 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_SMALL);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_SMALL);
 
   /* Nothing occurs with arguments outside valid range */
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s7 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_MIDDLE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_MIDDLE);
 
   /* restore cursor size if arguments is zero */
   snprintf(buffer, sizeof(buffer), "%s0 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == saved_cursor_size);
+  ASSERT_EQ(get_cursor_size(&tty_out), saved_cursor_size);
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
 
 TEST_IMPL(tty_set_style) {
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#else
+
   uv_tty_t tty_out;
   uv_loop_t* loop;
   COORD cursor_pos;
@@ -1069,11 +1074,6 @@ TEST_IMPL(tty_set_style) {
                          {B_WHITE, BACKGROUND_WHITE}};
   WORD attr;
   int i, length;
-
-#if _MSC_VER >= 1920 && _MSC_VER <= 1929
-  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
-              "See: https://github.com/libuv/libuv/issues/3304");
-#endif
 
   loop = uv_default_loop();
 
@@ -1121,8 +1121,8 @@ TEST_IMPL(tty_set_style) {
     ASSERT(compare_screen(&tty_out, &actual, &expect));
   }
 
-  /* Set foregroud and background color */
-  ASSERT(ARRAY_SIZE(fg_attrs) == ARRAY_SIZE(bg_attrs));
+  /* Set foreground and background color */
+  ASSERT_EQ(ARRAY_SIZE(fg_attrs), ARRAY_SIZE(bg_attrs));
   length = ARRAY_SIZE(bg_attrs);
   for (i = 0; i < length; i++) {
     capture_screen(&tty_out, &expect);
@@ -1237,8 +1237,9 @@ TEST_IMPL(tty_set_style) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
+#endif
 }
 
 
@@ -1270,8 +1271,8 @@ TEST_IMPL(tty_save_restore_cursor_position) {
   snprintf(buffer, sizeof(buffer), "%su", CSI);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos.X == cursor_pos_old.X);
-  ASSERT(cursor_pos.Y == cursor_pos_old.Y);
+  ASSERT_EQ(cursor_pos.X, cursor_pos_old.X);
+  ASSERT_EQ(cursor_pos.Y, cursor_pos_old.Y);
 
   cursor_pos_old.X = si.width / 2;
   cursor_pos_old.Y = si.height / 2;
@@ -1289,14 +1290,14 @@ TEST_IMPL(tty_save_restore_cursor_position) {
   snprintf(buffer, sizeof(buffer), "%s8", ESC);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos.X == cursor_pos_old.X);
-  ASSERT(cursor_pos.Y == cursor_pos_old.Y);
+  ASSERT_EQ(cursor_pos.X, cursor_pos_old.X);
+  ASSERT_EQ(cursor_pos.Y, cursor_pos_old.Y);
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
@@ -1331,20 +1332,24 @@ TEST_IMPL(tty_full_reset) {
   write_console(&tty_out, buffer);
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
-  ASSERT(get_cursor_size(&tty_out) == saved_cursor_size);
-  ASSERT(get_cursor_visibility(&tty_out) == saved_cursor_visibility);
-  ASSERT(actual.si.csbi.srWindow.Top == 0);
+  ASSERT_EQ(get_cursor_size(&tty_out), saved_cursor_size);
+  ASSERT_EQ(get_cursor_visibility(&tty_out), saved_cursor_visibility);
+  ASSERT_OK(actual.si.csbi.srWindow.Top);
 
   terminate_tty(&tty_out);
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
 }
 
 
 TEST_IMPL(tty_escape_sequence_processing) {
+#if _MSC_VER >= 1920 && _MSC_VER <= 1929
+  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
+              "See: https://github.com/libuv/libuv/issues/3304");
+#else
   uv_tty_t tty_out;
   uv_loop_t* loop;
   COORD cursor_pos, cursor_pos_old;
@@ -1353,16 +1358,11 @@ TEST_IMPL(tty_escape_sequence_processing) {
   struct captured_screen actual = {0}, expect = {0};
   int dir;
 
-#if _MSC_VER >= 1920 && _MSC_VER <= 1929
-  RETURN_SKIP("Broken on Microsoft Visual Studio 2019, to be investigated. "
-              "See: https://github.com/libuv/libuv/issues/3304");
-#endif
-
   loop = uv_default_loop();
 
   initialize_tty(&tty_out);
 
-  /* CSI + finaly byte does not output anything */
+  /* CSI + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1375,7 +1375,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI(C1) + finaly byte does not output anything */
+  /* CSI(C1) + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1388,7 +1388,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI + intermediate byte + finaly byte does not output anything */
+  /* CSI + intermediate byte + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1401,7 +1401,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* CSI + parameter byte + finaly byte does not output anything */
+  /* CSI + parameter byte + finally byte does not output anything */
   cursor_pos.X = 1;
   cursor_pos.Y = 1;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1520,8 +1520,8 @@ TEST_IMPL(tty_escape_sequence_processing) {
   snprintf(buffer, sizeof(buffer), "%s1;%dH", CSI, UINT16_MAX + 1);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos.X == 1);
-  ASSERT(cursor_pos.Y == 1);
+  ASSERT_EQ(1, cursor_pos.X);
+  ASSERT_EQ(1, cursor_pos.Y);
 
   /* Too many argument are ignored */
   cursor_pos.X = 1;
@@ -1554,18 +1554,18 @@ TEST_IMPL(tty_escape_sequence_processing) {
            expect.si.width / 2);
   write_console(&tty_out, buffer);
   get_cursor_position(&tty_out, &cursor_pos);
-  ASSERT(cursor_pos.X == 1);
-  ASSERT(cursor_pos.Y == 1);
+  ASSERT_EQ(1, cursor_pos.X);
+  ASSERT_EQ(1, cursor_pos.Y);
 
   /* Invalid sequence are ignored */
   saved_cursor_size = get_cursor_size(&tty_out);
   set_cursor_size(&tty_out, CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s 1q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_MIDDLE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_MIDDLE);
   snprintf(buffer, sizeof(buffer), "%s 1 q", CSI);
   write_console(&tty_out, buffer);
-  ASSERT(get_cursor_size(&tty_out) == CURSOR_SIZE_MIDDLE);
+  ASSERT_EQ(get_cursor_size(&tty_out), CURSOR_SIZE_MIDDLE);
   set_cursor_size(&tty_out, saved_cursor_size);
 
   /* #1874 2. */
@@ -1605,7 +1605,7 @@ TEST_IMPL(tty_escape_sequence_processing) {
   capture_screen(&tty_out, &actual);
   ASSERT(compare_screen(&tty_out, &actual, &expect));
 
-  /* Finaly byte immedately after CSI [ are also output(#1874 1.) */
+  /* Finally byte immedately after CSI [ are also output(#1874 1.) */
   cursor_pos.X = expect.si.width / 2;
   cursor_pos.Y = expect.si.height / 2;
   set_cursor_position(&tty_out, cursor_pos);
@@ -1620,8 +1620,9 @@ TEST_IMPL(tty_escape_sequence_processing) {
 
   uv_run(loop, UV_RUN_DEFAULT);
 
-  MAKE_VALGRIND_HAPPY();
+  MAKE_VALGRIND_HAPPY(loop);
   return 0;
+#endif
 }
 
 #else

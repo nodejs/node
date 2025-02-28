@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,8 @@
 #include <openssl/x509.h>
 #include <openssl/rc4.h>
 #include <openssl/md5.h>
+#include <openssl/configuration.h>
+#include <openssl/provider.h>
 
 #if !defined OPENSSL_NO_RC4 && !defined OPENSSL_NO_MD5 \
     || !defined OPENSSL_NO_DES && !defined OPENSSL_NO_SHA1
@@ -123,8 +125,27 @@ static int test_pkcs5_pbe_des_sha1(void)
 }
 #endif
 
+#ifdef OPENSSL_NO_AUTOLOAD_CONFIG
+/*
+ * For configurations where we are not autoloading configuration, we need
+ * to access the legacy provider.  The easiest way is to load both the
+ * legacy and default providers directly and unload them on termination.
+ */
+static OSSL_PROVIDER *legacy, *dflt;
+#endif
+
 int setup_tests(void)
 {
+#ifdef OPENSSL_NO_AUTOLOAD_CONFIG
+    /* Load required providers if not done via configuration */
+    legacy = OSSL_PROVIDER_load(NULL, "legacy");
+    dflt = OSSL_PROVIDER_load(NULL, "default");
+    if (!TEST_ptr(legacy) || !TEST_ptr(dflt)) {
+        cleanup_tests();
+        return -1;
+    }
+#endif
+
 #if !defined OPENSSL_NO_RC4 && !defined OPENSSL_NO_MD5
     ADD_TEST(test_pkcs5_pbe_rc4_md5);
 #endif
@@ -134,3 +155,13 @@ int setup_tests(void)
 
     return 1;
 }
+
+#ifdef OPENSSL_NO_AUTOLOAD_CONFIG
+void cleanup_tests(void)
+{
+    /* Dispose of providers */
+    OSSL_PROVIDER_unload(legacy);
+    OSSL_PROVIDER_unload(dflt);
+    legacy = dflt = NULL;
+}
+#endif

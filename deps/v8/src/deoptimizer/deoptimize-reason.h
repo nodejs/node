@@ -13,9 +13,11 @@ namespace internal {
 #define DEOPTIMIZE_REASON_LIST(V)                                              \
   V(ArrayBufferWasDetached, "array buffer was detached")                       \
   V(BigIntTooBig, "BigInt too big")                                            \
+  V(ConstTrackingLet, "const tracking let constness invalidated")              \
   V(CowArrayElementsChanged, "copy-on-write array's elements changed")         \
   V(CouldNotGrowElements, "failed to grow elements store")                     \
   V(PrepareForOnStackReplacement, "prepare for on stack replacement (OSR)")    \
+  V(OSREarlyExit, "exit from OSR'd inner loop")                                \
   V(DeoptimizeNow, "%_DeoptimizeNow")                                          \
   V(DivisionByZero, "division by zero")                                        \
   V(Hole, "hole")                                                              \
@@ -30,10 +32,20 @@ namespace internal {
     "Insufficient type feedback for compare operation")                        \
   V(InsufficientTypeFeedbackForGenericNamedAccess,                             \
     "Insufficient type feedback for generic named access")                     \
+  V(InsufficientTypeFeedbackForGenericGlobalAccess,                            \
+    "Insufficient type feedback for generic global access")                    \
   V(InsufficientTypeFeedbackForGenericKeyedAccess,                             \
     "Insufficient type feedback for generic keyed access")                     \
   V(InsufficientTypeFeedbackForUnaryOperation,                                 \
     "Insufficient type feedback for unary operation")                          \
+  V(InsufficientTypeFeedbackForArrayLiteral,                                   \
+    "Insufficient type feedback for array literal")                            \
+  V(InsufficientTypeFeedbackForObjectLiteral,                                  \
+    "Insufficient type feedback for object literal")                           \
+  V(InsufficientTypeFeedbackForInstanceOf,                                     \
+    "Insufficient type feedback for instanceof")                               \
+  V(InsufficientTypeFeedbackForTypeOf,                                         \
+    "Insufficient type feedback for typeof")                                   \
   V(LostPrecision, "lost precision")                                           \
   V(LostPrecisionOrNaN, "lost precision or NaN")                               \
   V(MinusZero, "minus zero")                                                   \
@@ -51,7 +63,9 @@ namespace internal {
   V(NotAnArrayIndex, "not an array index")                                     \
   V(NotASmi, "not a Smi")                                                      \
   V(NotAString, "not a String")                                                \
+  V(NotAStringOrStringWrapper, "not a String or a string wrapper")             \
   V(NotASymbol, "not a Symbol")                                                \
+  V(NotDetectableReceiver, "not a detectable receiver")                        \
   V(NotInt32, "not int32")                                                     \
   V(NotUint32, "not unsigned int32")                                           \
   V(OutOfBounds, "out of bounds")                                              \
@@ -59,22 +73,22 @@ namespace internal {
   V(Smi, "Smi")                                                                \
   V(StoreToConstant, "Storing to a constant field")                            \
   V(SuspendGeneratorIsDead, "SuspendGenerator is in a dead branch")            \
-  V(TransitionedToMonomorphicIC, "IC transitioned to monomorphic")             \
-  V(TransitionedToMegamorphicIC, "IC transitioned to megamorphic")             \
   V(Unknown, "(unknown)")                                                      \
+  V(UnoptimizedCatch, "First use of catch block")                              \
   V(ValueMismatch, "value mismatch")                                           \
   V(WrongCallTarget, "wrong call target")                                      \
   V(WrongEnumIndices, "wrong enum indices")                                    \
   V(WrongFeedbackCell, "wrong feedback cell")                                  \
   V(WrongInstanceType, "wrong instance type")                                  \
   V(WrongMap, "wrong map")                                                     \
-  V(MissingMap, "missing map")                                                 \
   V(DeprecatedMap, "deprecated map")                                           \
-  V(WrongHandler, "wrong handler")                                             \
   V(WrongName, "wrong name")                                                   \
   V(WrongValue, "wrong value")                                                 \
   V(NoInitialElement, "no initial element")                                    \
-  V(ArrayLengthChanged, "the array length changed")
+  V(ArrayLengthChanged, "the array length changed")                            \
+  V(GreaterThanMaxFastElementArray,                                            \
+    "length is greater than the maximum for fast elements array")              \
+  V(Float16NotYetSupported, "float16 is not supported as machine operation")
 
 enum class DeoptimizeReason : uint8_t {
 #define DEOPTIMIZE_REASON(Name, message) k##Name,
@@ -102,7 +116,8 @@ constexpr bool IsDeoptimizationWithoutCodeInvalidation(
   // unoptimized frame layout. Since no actual assumptions in the Maglev code
   // object are violated, it (and any associated cached optimized code) should
   // not be invalidated s.t. we may reenter it in the future.
-  return reason == DeoptimizeReason::kPrepareForOnStackReplacement;
+  return reason == DeoptimizeReason::kPrepareForOnStackReplacement ||
+         reason == DeoptimizeReason::kOSREarlyExit;
 }
 
 }  // namespace internal

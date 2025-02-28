@@ -30,8 +30,8 @@ ossl_cmp_error_new
  OSSL_CMP_MSG *ossl_cmp_rp_new(OSSL_CMP_CTX *ctx, const OSSL_CMP_PKISI *si,
                                const OSSL_CRMF_CERTID *cid,
                                int unprotectedErrors);
- OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int fail_info,
-                                     const char *text);
+ OSSL_CMP_MSG *ossl_cmp_certConf_new(OSSL_CMP_CTX *ctx, int certReqId,
+                                     int fail_info, const char *text);
  OSSL_CMP_MSG *ossl_cmp_pkiconf_new(OSSL_CMP_CTX *ctx);
  OSSL_CMP_MSG *ossl_cmp_pollReq_new(OSSL_CMP_CTX *ctx, int crid);
  OSSL_CMP_MSG *ossl_cmp_pollRep_new(OSSL_CMP_CTX *ctx, int crid, int poll_after);
@@ -124,8 +124,9 @@ It does not protect the message if the B<status> value in I<si> is B<rejected>
 and I<unprotectedErrors> is nonzero.
 
 ossl_cmp_certConf_new() creates a Certificate Confirmation message for the last
-received certificate. PKIStatus defaults to B<accepted> if the I<fail_info> bit
-field is 0. Else it is taken as the failInfo of the PKIStatusInfo, PKIStatus is
+received certificate with the given I<certReqId>.
+The PKIStatus defaults to B<accepted> if the I<fail_info> bit field is 0.
+Otherwise it is taken as the failInfo of the PKIStatusInfo, PKIStatus is
 set to B<rejected>, and I<text> is copied to statusString unless it is NULL.
 
 ossl_cmp_pkiconf_new() creates a PKI Confirmation message.
@@ -167,7 +168,7 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

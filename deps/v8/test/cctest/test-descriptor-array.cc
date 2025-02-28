@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/base/logging.h"
-#include "src/codegen/code-stub-assembler.h"
+#include "src/codegen/code-stub-assembler-inl.h"
 #include "src/common/globals.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/property-details.h"
@@ -16,6 +16,8 @@
 
 namespace v8 {
 namespace internal {
+
+#include "src/codegen/define-code-stub-assembler-macros.inc"
 
 namespace {
 
@@ -32,7 +34,7 @@ Handle<Name> NewNameWithHash(Isolate* isolate, const char* str, uint32_t hash,
   Handle<Name> name = isolate->factory()->NewOneByteInternalizedString(
       base::OneByteVector(str), hash_field);
   name->set_raw_hash_field(hash_field);
-  CHECK(name->IsUniqueName());
+  CHECK(IsUniqueName(*name));
   return name;
 }
 
@@ -51,13 +53,13 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test C++ implementation.
   {
     DisallowGarbageCollection no_gc;
-    DescriptorArray descriptors = map->instance_descriptors(isolate);
-    DCHECK(descriptors.IsSortedNoDuplicates());
-    int nof_descriptors = descriptors.number_of_descriptors();
+    Tagged<DescriptorArray> descriptors = map->instance_descriptors(isolate);
+    DCHECK(descriptors->IsSortedNoDuplicates());
+    int nof_descriptors = descriptors->number_of_descriptors();
 
     for (size_t i = 0; i < names.size(); ++i) {
-      Name name = *names[i];
-      InternalIndex index = descriptors.Search(name, nof_descriptors, false);
+      Tagged<Name> name = *names[i];
+      InternalIndex index = descriptors->Search(name, nof_descriptors, false);
       CHECK(index.is_found());
       CHECK_EQ(i, index.as_uint32());
     }
@@ -66,9 +68,9 @@ void CheckDescriptorArrayLookups(Isolate* isolate, Handle<Map> map,
   // Test CSA implementation.
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < names.size(); ++i) {
-      Handle<Object> name_index =
+      DirectHandle<Object> name_index =
           Call(isolate, csa_lookup, map, names[i]).ToHandleChecked();
-      CHECK(name_index->IsSmi());
+      CHECK(IsSmi(*name_index));
       CHECK_EQ(DescriptorArray::ToKeyIndex(static_cast<int>(i)),
                Smi::ToInt(*name_index));
     }
@@ -85,12 +87,12 @@ void CheckTransitionArrayLookups(Isolate* isolate,
     DCHECK(transitions->IsSortedNoDuplicates());
 
     for (size_t i = 0; i < maps.size(); ++i) {
-      Map expected_map = *maps[i];
-      Name name = expected_map.instance_descriptors(isolate).GetKey(
-          expected_map.LastAdded());
+      Tagged<Map> expected_map = *maps[i];
+      Tagged<Name> name = expected_map->instance_descriptors(isolate)->GetKey(
+          expected_map->LastAdded());
 
-      Map map = transitions->SearchAndGetTargetForTesting(PropertyKind::kData,
-                                                          name, NONE);
+      Tagged<Map> map = transitions->SearchAndGetTargetForTesting(
+          PropertyKind::kData, name, NONE);
       CHECK(!map.is_null());
       CHECK_EQ(expected_map, map);
     }
@@ -99,14 +101,14 @@ void CheckTransitionArrayLookups(Isolate* isolate,
   // Test CSA implementation.
   if (!v8_flags.jitless) {
     for (size_t i = 0; i < maps.size(); ++i) {
-      Handle<Map> expected_map = maps[i];
-      Handle<Name> name(expected_map->instance_descriptors(isolate).GetKey(
+      DirectHandle<Map> expected_map = maps[i];
+      Handle<Name> name(expected_map->instance_descriptors(isolate)->GetKey(
                             expected_map->LastAdded()),
                         isolate);
 
-      Handle<Object> transition_map =
+      DirectHandle<Object> transition_map =
           Call(isolate, csa_lookup, transitions, name).ToHandleChecked();
-      CHECK(transition_map->IsMap());
+      CHECK(IsMap(*transition_map));
       CHECK_EQ(*expected_map, *transition_map);
     }
   }
@@ -255,7 +257,7 @@ TEST(DescriptorArrayHashCollisionMassive) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate).Sort();
+  map->instance_descriptors(isolate)->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
@@ -306,7 +308,7 @@ TEST(DescriptorArrayHashCollision) {
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 
   // Sort descriptor array and check it again.
-  map->instance_descriptors(isolate).Sort();
+  map->instance_descriptors(isolate)->Sort();
   CheckDescriptorArrayLookups(isolate, map, names, csa_lookup);
 }
 
@@ -420,6 +422,8 @@ TEST(TransitionArrayHashCollision) {
   transition_array->Sort();
   CheckTransitionArrayLookups(isolate, transition_array, maps, csa_lookup);
 }
+
+#include "src/codegen/undef-code-stub-assembler-macros.inc"
 
 }  // namespace internal
 }  // namespace v8

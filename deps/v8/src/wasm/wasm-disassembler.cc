@@ -4,6 +4,8 @@
 
 #include "src/wasm/wasm-disassembler.h"
 
+#include <iomanip>
+
 #include "src/debug/debug-interface.h"
 #include "src/numbers/conversions.h"
 #include "src/wasm/module-decoder-impl.h"
@@ -25,7 +27,31 @@ void Disassemble(const WasmModule* module, ModuleWireBytes wire_bytes,
   MultiLineStringBuilder out;
   AccountingAllocator allocator;
   ModuleDisassembler md(out, module, names, wire_bytes, &allocator,
-                        function_body_offsets);
+                        /* no offsets yet */ {}, function_body_offsets);
+  md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
+  out.ToDisassemblyCollector(collector);
+}
+
+void Disassemble(base::Vector<const uint8_t> wire_bytes,
+                 v8::debug::DisassemblyCollector* collector,
+                 std::vector<int>* function_body_offsets) {
+  std::unique_ptr<OffsetsProvider> offsets = AllocateOffsetsProvider();
+  ModuleResult result =
+      DecodeWasmModuleForDisassembler(wire_bytes, offsets.get());
+  MultiLineStringBuilder out;
+  AccountingAllocator allocator;
+  if (result.failed()) {
+    WasmError error = result.error();
+    out << "Decoding error: " << error.message() << " at offset "
+        << error.offset();
+    out.ToDisassemblyCollector(collector);
+    return;
+  }
+  const WasmModule* module = result.value().get();
+  NamesProvider names(module, wire_bytes);
+  ModuleWireBytes module_bytes(wire_bytes);
+  ModuleDisassembler md(out, module, &names, module_bytes, &allocator,
+                        std::move(offsets), function_body_offsets);
   md.PrintModule({0, 2}, v8_flags.wasm_disassembly_max_mb);
   out.ToDisassemblyCollector(collector);
 }
@@ -38,6 +64,51 @@ void MultiLineStringBuilder::ToDisassemblyCollector(
     // Don't include trailing '\n'.
     collector->AddLine(l.data, l.len - 1, l.bytecode_offset);
   }
+}
+
+void DisassembleFunctionImpl(const WasmModule* module, int func_index,
+                             base::Vector<const uint8_t> function_body,
+                             ModuleWireBytes module_bytes, NamesProvider* names,
+                             std::ostream& os, std::vector<uint32_t>* offsets) {
+  MultiLineStringBuilder sb;
+  const wasm::WasmFunction& func = module->functions[func_index];
+  AccountingAllocator allocator;
+  Zone zone(&allocator, "Wasm disassembler");
+  bool shared = module->types[func.sig_index].is_shared;
+  WasmDetectedFeatures detected;
+  FunctionBodyDisassembler d(&zone, module, func_index, shared, &detected,
+                             func.sig, function_body.begin(),
+                             function_body.end(), func.code.offset(),
+                             module_bytes, names);
+  d.DecodeAsWat(sb, {0, 2}, FunctionBodyDisassembler::kPrintHeader);
+  const bool print_offsets = false;
+  sb.WriteTo(os, print_offsets, offsets);
+}
+
+void DisassembleFunction(const WasmModule* module, int func_index,
+                         base::Vector<const uint8_t> wire_bytes,
+                         NamesProvider* names, std::ostream& os) {
+  DCHECK(func_index < static_cast<int>(module->functions.size()) &&
+         func_index >= static_cast<int>(module->num_imported_functions));
+  ModuleWireBytes module_bytes(wire_bytes);
+  base::Vector<const uint8_t> code =
+      module_bytes.GetFunctionBytes(&module->functions[func_index]);
+  std::vector<uint32_t>* collect_offsets = nullptr;
+  DisassembleFunctionImpl(module, func_index, code, module_bytes, names, os,
+                          collect_offsets);
+}
+
+void DisassembleFunction(const WasmModule* module, int func_index,
+                         base::Vector<const uint8_t> function_body,
+                         base::Vector<const uint8_t> maybe_wire_bytes,
+                         uint32_t function_body_offset, std::ostream& os,
+                         std::vector<uint32_t>* offsets) {
+  DCHECK(func_index < static_cast<int>(module->functions.size()) &&
+         func_index >= static_cast<int>(module->num_imported_functions));
+  NamesProvider fake_names(module, maybe_wire_bytes);
+  DisassembleFunctionImpl(module, func_index, function_body,
+                          ModuleWireBytes{nullptr, 0}, &fake_names, os,
+                          offsets);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -101,23 +172,6 @@ uint32_t GetDefaultAlignment(WasmOpcode opcode) {
   }
 }
 
-StringBuilder& operator<<(StringBuilder& sb, uint64_t n) {
-  if (n == 0) {
-    *sb.allocate(1) = '0';
-    return sb;
-  }
-  static constexpr size_t kBufferSize = 20;  // Just enough for a uint64.
-  char buffer[kBufferSize];
-  char* end = buffer + kBufferSize;
-  char* out = end;
-  while (n != 0) {
-    *(--out) = '0' + (n % 10);
-    n /= 10;
-  }
-  sb.write(out, static_cast<size_t>(end - out));
-  return sb;
-}
-
 void PrintSignatureOneLine(StringBuilder& out, const FunctionSig* sig,
                            uint32_t func_index, NamesProvider* names,
                            bool param_names,
@@ -142,6 +196,18 @@ void PrintSignatureOneLine(StringBuilder& out, const FunctionSig* sig,
     out << " (result ";
     names->PrintValueType(out, sig->GetReturn(i));
     out << ")";
+  }
+}
+
+void PrintStringRaw(StringBuilder& out, const uint8_t* start,
+                    const uint8_t* end) {
+  for (const uint8_t* ptr = start; ptr < end; ptr++) {
+    uint8_t b = *ptr;
+    if (b < 32 || b >= 127 || b == '"' || b == '\\') {
+      out << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
+    } else {
+      out << static_cast<char>(b);
+    }
   }
 }
 
@@ -187,7 +253,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
   if (first_instruction_offset) *first_instruction_offset = pc_offset();
 
   // Main loop.
-  while (pc_ < end_) {
+  while (pc_ < end_ && ok()) {
     WasmOpcode opcode = GetOpcode();
     current_opcode_ = opcode;  // Some immediates need to know this.
 
@@ -201,7 +267,7 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
     out << indentation;
     if (opcode == kExprElse || opcode == kExprCatch ||
         opcode == kExprCatchAll || opcode == kExprBlock || opcode == kExprIf ||
-        opcode == kExprLoop || opcode == kExprTry) {
+        opcode == kExprLoop || opcode == kExprTry || opcode == kExprTryTable) {
       indentation.increase();
     }
 
@@ -224,13 +290,18 @@ void FunctionBodyDisassembler::DecodeAsWat(MultiLineStringBuilder& out,
       out << WasmOpcodes::OpcodeName(opcode);
     }
     if (opcode == kExprBlock || opcode == kExprIf || opcode == kExprLoop ||
-        opcode == kExprTry) {
-      label_stack_.emplace_back(out.line_number(), out.length(),
-                                label_occurrence_index_++);
+        opcode == kExprTry || opcode == kExprTryTable) {
+      // Create the LabelInfo now to get the correct offset, but only push it
+      // after printing the immediates because the immediates don't see the new
+      // label yet.
+      LabelInfo label(out.line_number(), out.length(),
+                      label_occurrence_index_++);
+      pc_ += PrintImmediatesAndGetLength(out);
+      label_stack_.push_back(label);
+    } else {
+      pc_ += PrintImmediatesAndGetLength(out);
     }
-    uint32_t length = PrintImmediatesAndGetLength(out);
 
-    pc_ += length;
     out.NextLine(pc_offset());
   }
 
@@ -292,7 +363,7 @@ class ImmediatesPrinter {
     int depth = imm_depth;
     if (owner_->current_opcode_ == kExprDelegate) depth++;
     // Be robust: if the module is invalid, print what we got.
-    if (depth >= static_cast<int>(owner_->label_stack_.size())) {
+    if (depth < 0 || depth >= static_cast<int>(owner_->label_stack_.size())) {
       out_ << imm_depth;
       return;
     }
@@ -334,11 +405,57 @@ class ImmediatesPrinter {
     if (imm.type.is_index()) use_type(imm.type.ref_index());
   }
 
+  void ValueType(HeapTypeImmediate& imm, bool is_nullable) {
+    out_ << " ";
+    names()->PrintValueType(
+        out_, ValueType::RefMaybeNull(imm.type,
+                                      is_nullable ? kNullable : kNonNullable));
+    if (imm.type.is_index()) use_type(imm.type.ref_index());
+  }
+
+  void BrOnCastFlags(BrOnCastImmediate& flags) {
+    // Ignored here. For printing text format, we do all the work via the
+    // two calls to {ValueType()} that we get for a br_on_cast.
+  }
+
   void BranchDepth(BranchDepthImmediate& imm) { PrintDepthAsLabel(imm.depth); }
 
   void BranchTable(BranchTableImmediate& imm) {
-    const byte* pc = imm.table;
+    const uint8_t* pc = imm.table;
     for (uint32_t i = 0; i <= imm.table_count; i++) {
+      auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
+      PrintDepthAsLabel(target);
+      pc += length;
+    }
+  }
+
+  const char* CatchKindToString(CatchKind kind) {
+    switch (kind) {
+      case kCatch:
+        return "catch";
+      case kCatchRef:
+        return "catch_ref";
+      case kCatchAll:
+        return "catch_all";
+      case kCatchAllRef:
+        return "catch_all_ref";
+      default:
+        return "<invalid>";
+    }
+  }
+
+  void TryTable(TryTableImmediate& imm) {
+    const uint8_t* pc = imm.table;
+    for (uint32_t i = 0; i < imm.table_count; i++) {
+      uint8_t kind = owner_->read_u8<ValidationTag>(pc);
+      pc += 1;
+      out_ << " " << CatchKindToString(static_cast<CatchKind>(kind));
+      if (kind == kCatch || kind == kCatchRef) {
+        auto [tag, length] = owner_->read_u32v<ValidationTag>(pc);
+        out_ << " ";
+        names()->PrintTagName(out_, tag);
+        pc += length;
+      }
       auto [target, length] = owner_->read_u32v<ValidationTag>(pc);
       PrintDepthAsLabel(target);
       pc += length;
@@ -400,7 +517,7 @@ class ImmediatesPrinter {
     names()->PrintGlobalName(out_, imm.index);
   }
 
-  void TableIndex(IndexImmediate& imm) {
+  void TableIndex(TableIndexImmediate& imm) {
     out_ << " ";
     names()->PrintTableName(out_, imm.index);
   }
@@ -505,8 +622,30 @@ class ImmediatesPrinter {
   }
 
   void StringConst(StringConstImmediate& imm) {
-    // TODO(jkummerow): Print (a prefix of) the string?
-    out_ << " " << imm.index;
+    if (imm.index >= owner_->module_->stringref_literals.size()) {
+      out_ << " " << imm.index << " INVALID";
+      return;
+    }
+    if (owner_->wire_bytes_.start() == nullptr) {
+      out_ << " " << imm.index;
+      return;
+    }
+    out_ << " \"";
+    const WasmStringRefLiteral& lit =
+        owner_->module_->stringref_literals[imm.index];
+    const uint8_t* start = owner_->wire_bytes_.start() + lit.source.offset();
+    static constexpr uint32_t kMaxCharsPrinted = 40;
+    if (lit.source.length() <= kMaxCharsPrinted) {
+      const uint8_t* end =
+          owner_->wire_bytes_.start() + lit.source.end_offset();
+      PrintStringRaw(out_, start, end);
+    } else {
+      const uint8_t* end = start + kMaxCharsPrinted - 1;
+      PrintStringRaw(out_, start, end);
+      out_ << "…";
+    }
+    out_ << '"';
+    if (kIndicesAsComments) out_ << " (;" << imm.index << ";)";
   }
 
   void MemoryInit(MemoryInitImmediate& imm) {
@@ -563,137 +702,44 @@ uint32_t FunctionBodyDisassembler::PrintImmediatesAndGetLength(
 ////////////////////////////////////////////////////////////////////////////////
 // OffsetsProvider.
 
-class OffsetsProvider : public ITracer {
- public:
-  OffsetsProvider() = default;
+void OffsetsProvider::CollectOffsets(const WasmModule* module,
+                                     base::Vector<const uint8_t> wire_bytes) {
+  num_imported_tables_ = module->num_imported_tables;
+  num_imported_globals_ = module->num_imported_globals;
+  num_imported_tags_ = module->num_imported_tags;
+  type_offsets_.reserve(module->types.size());
+  import_offsets_.reserve(module->import_table.size());
+  table_offsets_.reserve(module->tables.size() - num_imported_tables_);
+  tag_offsets_.reserve(module->tags.size() - num_imported_tags_);
+  global_offsets_.reserve(module->globals.size() - num_imported_globals_);
+  element_offsets_.reserve(module->elem_segments.size());
+  data_offsets_.reserve(module->data_segments.size());
+  recgroups_.reserve(4);  // We can't know, so this is just a guess.
 
-  void CollectOffsets(const WasmModule* module,
-                      base::Vector<const uint8_t> wire_bytes) {
-    num_imported_tables_ = module->num_imported_tables;
-    num_imported_globals_ = module->num_imported_globals;
-    num_imported_tags_ = module->num_imported_tags;
-    type_offsets_.reserve(module->types.size());
-    import_offsets_.reserve(module->import_table.size());
-    table_offsets_.reserve(module->tables.size() - num_imported_tables_);
-    tag_offsets_.reserve(module->tags.size() - num_imported_tags_);
-    global_offsets_.reserve(module->globals.size() - num_imported_globals_);
-    element_offsets_.reserve(module->elem_segments.size());
-    data_offsets_.reserve(module->data_segments.size());
-
-    ModuleDecoderImpl decoder{WasmFeatures::All(), wire_bytes, kWasmOrigin,
-                              this};
-    constexpr bool kNoVerifyFunctions = false;
-    decoder.DecodeModule(kNoVerifyFunctions);
-
-    enabled_ = true;
-  }
-
-  void TypeOffset(uint32_t offset) override { type_offsets_.push_back(offset); }
-
-  void ImportOffset(uint32_t offset) override {
-    import_offsets_.push_back(offset);
-  }
-
-  void TableOffset(uint32_t offset) override {
-    table_offsets_.push_back(offset);
-  }
-
-  void MemoryOffset(uint32_t offset) override { memory_offset_ = offset; }
-
-  void TagOffset(uint32_t offset) override { tag_offsets_.push_back(offset); }
-
-  void GlobalOffset(uint32_t offset) override {
-    global_offsets_.push_back(offset);
-  }
-
-  void StartOffset(uint32_t offset) override { start_offset_ = offset; }
-
-  void ElementOffset(uint32_t offset) override {
-    element_offsets_.push_back(offset);
-  }
-
-  void DataOffset(uint32_t offset) override { data_offsets_.push_back(offset); }
-
-  // Unused by this tracer:
-  void ImportsDone() override {}
-  void Bytes(const byte* start, uint32_t count) override {}
-  void Description(const char* desc) override {}
-  void Description(const char* desc, size_t length) override {}
-  void Description(uint32_t number) override {}
-  void Description(ValueType type) override {}
-  void Description(HeapType type) override {}
-  void Description(const FunctionSig* sig) override {}
-  void NextLine() override {}
-  void NextLineIfFull() override {}
-  void NextLineIfNonEmpty() override {}
-  void InitializerExpression(const byte* start, const byte* end,
-                             ValueType expected_type) override {}
-  void FunctionBody(const WasmFunction* func, const byte* start) override {}
-  void FunctionName(uint32_t func_index) override {}
-  void NameSection(const byte* start, const byte* end,
-                   uint32_t offset) override {}
-
-#define GETTER(name)                       \
-  uint32_t name##_offset(uint32_t index) { \
-    if (!enabled_) return 0;               \
-    return name##_offsets_[index];         \
-  }
-  GETTER(type)
-  GETTER(import)
-  GETTER(element)
-  GETTER(data)
-#undef GETTER
-
-#define IMPORT_ADJUSTED_GETTER(name)                                  \
-  uint32_t name##_offset(uint32_t index) {                            \
-    if (!enabled_) return 0;                                          \
-    DCHECK(index >= num_imported_##name##s_ &&                        \
-           index - num_imported_##name##s_ < name##_offsets_.size()); \
-    return name##_offsets_[index - num_imported_##name##s_];          \
-  }
-  IMPORT_ADJUSTED_GETTER(table)
-  IMPORT_ADJUSTED_GETTER(tag)
-  IMPORT_ADJUSTED_GETTER(global)
-#undef IMPORT_ADJUSTED_GETTER
-
-  uint32_t memory_offset() { return memory_offset_; }
-
-  uint32_t start_offset() { return start_offset_; }
-
- private:
-  bool enabled_{false};
-  uint32_t num_imported_tables_{0};
-  uint32_t num_imported_globals_{0};
-  uint32_t num_imported_tags_{0};
-  std::vector<uint32_t> type_offsets_;
-  std::vector<uint32_t> import_offsets_;
-  std::vector<uint32_t> table_offsets_;
-  std::vector<uint32_t> tag_offsets_;
-  std::vector<uint32_t> global_offsets_;
-  std::vector<uint32_t> element_offsets_;
-  std::vector<uint32_t> data_offsets_;
-  uint32_t memory_offset_{0};
-  uint32_t start_offset_{0};
-};
+  ModuleDecoderImpl decoder{WasmEnabledFeatures::All(), wire_bytes, kWasmOrigin,
+                            this};
+  constexpr bool kNoVerifyFunctions = false;
+  decoder.DecodeModule(kNoVerifyFunctions);
+}
 
 ////////////////////////////////////////////////////////////////////////////////
 // ModuleDisassembler.
 
-ModuleDisassembler::ModuleDisassembler(MultiLineStringBuilder& out,
-                                       const WasmModule* module,
-                                       NamesProvider* names,
-                                       const ModuleWireBytes wire_bytes,
-                                       AccountingAllocator* allocator,
-                                       std::vector<int>* function_body_offsets)
+ModuleDisassembler::ModuleDisassembler(
+    MultiLineStringBuilder& out, const WasmModule* module, NamesProvider* names,
+    const ModuleWireBytes wire_bytes, AccountingAllocator* allocator,
+    std::unique_ptr<OffsetsProvider> offsets_provider,
+    std::vector<int>* function_body_offsets)
     : out_(out),
       module_(module),
       names_(names),
       wire_bytes_(wire_bytes),
       start_(wire_bytes_.start()),
       zone_(allocator, "disassembler zone"),
-      offsets_(new OffsetsProvider()),
+      offsets_(offsets_provider.release()),
       function_body_offsets_(function_body_offsets) {
-  if (function_body_offsets != nullptr) {
+  if (!offsets_) {
+    offsets_ = std::make_unique<OffsetsProvider>();
     offsets_->CollectOffsets(module, wire_bytes_.module_bytes());
   }
 }
@@ -707,37 +753,37 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
   out_.NextLine(offset);
   out_ << indentation << "(type ";
   names_->PrintTypeName(out_, type_index, index_as_comment);
-  bool has_super = module_->has_supertype(type_index);
-  if (module_->has_array(type_index)) {
-    const ArrayType* type = module_->array_type(type_index);
-    // TODO(jkummerow): "_subtype" is the naming convention used for nominal
-    // types; update this for isorecursive hybrid types.
-    out_ << (has_super ? " (array_subtype (field " : " (array (field ");
-    PrintMutableType(type->mutability(), type->element_type());
-    out_ << ")";  // Closes `(field ...`
-    if (has_super) {
-      out_ << " ";
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
-  } else if (module_->has_struct(type_index)) {
-    const StructType* type = module_->struct_type(type_index);
-    out_ << (has_super ? " (struct_subtype" : " (struct");
-    bool break_lines = type->field_count() > 2;
-    for (uint32_t i = 0; i < type->field_count(); i++) {
+  const TypeDefinition& type = module_->types[type_index];
+  bool has_super = type.supertype != kNoSuperType;
+  if (has_super) {
+    out_ << " (sub ";
+    if (type.is_final) out_ << "final ";
+    names_->PrintHeapType(out_, HeapType(type.supertype));
+  }
+  if (type.kind == TypeDefinition::kArray) {
+    const ArrayType* atype = type.array_type;
+    out_ << " (array";
+    if (type.is_shared) out_ << " shared";
+    out_ << " (field ";
+    PrintMutableType(atype->mutability(), atype->element_type());
+    out_ << ")";  // Closes "(field ...".
+  } else if (type.kind == TypeDefinition::kStruct) {
+    const StructType* stype = type.struct_type;
+    out_ << " (struct";
+    if (type.is_shared) out_ << " shared";
+    bool break_lines = stype->field_count() > 2;
+    for (uint32_t i = 0; i < stype->field_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
       out_ << "(field ";
       names_->PrintFieldName(out_, type_index, i);
       out_ << " ";
-      PrintMutableType(type->mutability(i), type->field(i));
+      PrintMutableType(stype->mutability(i), stype->field(i));
       out_ << ")";
     }
-    if (has_super) {
-      LineBreakOrSpace(break_lines, indentation, offset);
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
-  } else if (module_->has_signature(type_index)) {
-    const FunctionSig* sig = module_->signature(type_index);
-    out_ << (has_super ? " (func_subtype" : " (func");
+  } else if (type.kind == TypeDefinition::kFunction) {
+    const FunctionSig* sig = type.function_sig;
+    out_ << " (func";
+    if (type.is_shared) out_ << " shared";
     bool break_lines = sig->parameter_count() + sig->return_count() > 2;
     for (uint32_t i = 0; i < sig->parameter_count(); i++) {
       LineBreakOrSpace(break_lines, indentation, offset);
@@ -753,12 +799,9 @@ void ModuleDisassembler::PrintTypeDefinition(uint32_t type_index,
       names_->PrintValueType(out_, sig->GetReturn(i));
       out_ << ")";
     }
-    if (has_super) {
-      LineBreakOrSpace(break_lines, indentation, offset);
-      names_->PrintHeapType(out_, HeapType(module_->supertype(type_index)));
-    }
   }
-  out_ << "))";  // Closes "(type" and "(array" / "(struct" / "(func".
+  // Closes "(type", "(sub", and "(array" / "(struct" / "(func".
+  out_ << (has_super ? ")))" : "))");
 }
 
 void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
@@ -774,23 +817,59 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   out_ << indentation << "(module";
   if (module_->name.is_set()) {
     out_ << " $";
-    const byte* name_start = start_ + module_->name.offset();
+    const uint8_t* name_start = start_ + module_->name.offset();
     out_.write(name_start, module_->name.length());
   }
   indentation.increase();
 
   // II. Types
-  // TODO(jkummerow): If we want to support binary -> WAT -> binary round
-  // trips, then we need to print rec groups.
+  uint32_t recgroup_index = 0;
+  OffsetsProvider::RecGroup recgroup = offsets_->recgroup(recgroup_index++);
+  bool in_explicit_recgroup = false;
   for (uint32_t i = 0; i < module_->types.size(); i++) {
-    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i)) {
+    // No need to check {recgroup.valid()}, as the comparison will simply
+    // never be true otherwise.
+    while (i == recgroup.start_type_index) {
+      out_.NextLine(recgroup.offset);
+      out_ << indentation << "(rec";
+      if V8_UNLIKELY (recgroup.end_type_index == i) {
+        // Empty recgroup.
+        out_ << ")";
+        DCHECK(!in_explicit_recgroup);
+        recgroup = offsets_->recgroup(recgroup_index++);
+        continue;
+      } else {
+        in_explicit_recgroup = true;
+        indentation.increase();
+        break;
+      }
+    }
+    if (kSkipFunctionTypesInTypeSection && module_->has_signature(i) &&
+        !in_explicit_recgroup) {
       continue;
     }
     PrintTypeDefinition(i, indentation, kIndicesAsComments);
+    if (in_explicit_recgroup && i == recgroup.end_type_index - 1) {
+      in_explicit_recgroup = false;
+      indentation.decrease();
+      // The end of a recgroup is implicit in the wire bytes, so repeat the
+      // previous line's offset for it.
+      uint32_t offset = out_.current_line_bytecode_offset();
+      out_.NextLine(offset);
+      out_ << indentation << ")";
+      recgroup = offsets_->recgroup(recgroup_index++);
+    }
+  }
+  while (recgroup.valid()) {
+    // There could be empty recgroups at the end of the type section.
+    DCHECK_GE(recgroup.start_type_index, module_->types.size());
+    DCHECK_EQ(recgroup.start_type_index, recgroup.end_type_index);
+    out_.NextLine(recgroup.offset);
+    out_ << indentation << "(rec)";
+    recgroup = offsets_->recgroup(recgroup_index++);
   }
 
   // III. Imports
-  bool memory_imported = false;
   for (uint32_t i = 0; i < module_->import_table.size(); i++) {
     const WasmImport& import = module_->import_table[i];
     out_.NextLine(offsets_->import_offset(i));
@@ -825,12 +904,13 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
         break;
       }
       case kExternalMemory:
-        memory_imported = true;
         out_ << "(memory ";
         names_->PrintMemoryName(out_, import.index, kIndicesAsComments);
-        if (module_->mem_export) PrintExportName(kExternalMemory, 0);
+        if (module_->memories[import.index].exported) {
+          PrintExportName(kExternalMemory, 0);
+        }
         PrintImportName(import);
-        PrintMemory();
+        PrintMemory(module_->memories[import.index]);
         break;
       case kExternalTag:
         out_ << "(tag ";
@@ -859,16 +939,15 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   }
 
   // V. Memories
-  static_assert(kV8MaxWasmMemories == 1,
-                "Code below needs updating for multi-memory");
-  uint32_t num_memories = module_->has_memory ? 1 : 0;
-  for (uint32_t i = 0; i < num_memories; i++) {
-    if (memory_imported) continue;
+  uint32_t num_memories = static_cast<uint32_t>(module_->memories.size());
+  for (uint32_t memory_index = 0; memory_index < num_memories; ++memory_index) {
+    const WasmMemory& memory = module_->memories[memory_index];
+    if (memory.imported) continue;
     out_.NextLine(offsets_->memory_offset());
     out_ << indentation << "(memory ";
-    names_->PrintMemoryName(out_, 0, kIndicesAsComments);
-    if (module_->mem_export) PrintExportName(kExternalMemory, 0);
-    PrintMemory();
+    names_->PrintMemoryName(out_, memory_index, kIndicesAsComments);
+    if (memory.exported) PrintExportName(kExternalMemory, memory_index);
+    PrintMemory(memory);
     out_ << ")";
   }
 
@@ -884,7 +963,16 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
   }
 
   // VII. String literals
-  // TODO(jkummerow/12868): Implement.
+  size_t num_strings = module_->stringref_literals.size();
+  for (uint32_t i = 0; i < num_strings; i++) {
+    const WasmStringRefLiteral lit = module_->stringref_literals[i];
+    out_.NextLine(offsets_->string_offset(i));
+    out_ << indentation << "(string \"";
+    PrintString(lit.source);
+    out_ << '"';
+    if (kIndicesAsComments) out_ << " (;" << i << ";)";
+    out_ << ")";
+  }
 
   // VIII. Globals
   for (uint32_t i = module_->num_imported_globals; i < module_->globals.size();
@@ -926,9 +1014,11 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       PrintInitExpression(elem.offset, kWasmI32);
     }
     out_ << " ";
+    if (elem.shared) out_ << "shared ";
     names_->PrintValueType(out_, elem.type);
 
-    ModuleDecoderImpl decoder(WasmFeatures::All(), wire_bytes_.module_bytes(),
+    ModuleDecoderImpl decoder(WasmEnabledFeatures::All(),
+                              wire_bytes_.module_bytes(),
                               ModuleOrigin::kWasmOrigin);
     decoder.consume_bytes(elem.elements_wire_bytes_offset);
     for (size_t i = 0; i < elem.element_count; i++) {
@@ -959,11 +1049,12 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
     if (func->exported) PrintExportName(kExternalFunction, i);
     PrintSignatureOneLine(out_, func->sig, i, names_, true, kIndicesAsComments);
     out_.NextLine(func->code.offset());
-    WasmFeatures detected;
-    base::Vector<const byte> code = wire_bytes_.GetFunctionBytes(func);
-    FunctionBodyDisassembler d(&zone_, module_, i, &detected, func->sig,
+    bool shared = module_->types[func->sig_index].is_shared;
+    WasmDetectedFeatures detected;
+    base::Vector<const uint8_t> code = wire_bytes_.GetFunctionBytes(func);
+    FunctionBodyDisassembler d(&zone_, module_, i, shared, &detected, func->sig,
                                code.begin(), code.end(), func->code.offset(),
-                               names_);
+                               wire_bytes_, names_);
     uint32_t first_instruction_offset;
     d.DecodeAsWat(out_, indentation, FunctionBodyDisassembler::kSkipHeader,
                   &first_instruction_offset);
@@ -986,8 +1077,11 @@ void ModuleDisassembler::PrintModule(Indentation indentation, size_t max_mb) {
       out_ << " ";
       names_->PrintDataSegmentName(out_, i, kIndicesAsComments);
     }
+    if (data.shared) out_ << " shared";
     if (data.active) {
-      ValueType type = module_->is_memory64 ? kWasmI64 : kWasmI32;
+      ValueType type = module_->memories[data.memory_index].is_memory64
+                           ? kWasmI64
+                           : kWasmI32;
       PrintInitExpression(data.dest_addr, type);
     }
     out_ << " \"";
@@ -1033,19 +1127,21 @@ void ModuleDisassembler::PrintMutableType(bool mutability, ValueType type) {
 }
 
 void ModuleDisassembler::PrintTable(const WasmTable& table) {
+  if (table.shared) out_ << " shared";
   out_ << " " << table.initial_size << " ";
   if (table.has_maximum_size) out_ << table.maximum_size << " ";
   names_->PrintValueType(out_, table.type);
 }
 
-void ModuleDisassembler::PrintMemory() {
-  out_ << " " << module_->initial_pages;
-  if (module_->has_maximum_pages) out_ << " " << module_->maximum_pages;
-  if (module_->has_shared_memory) out_ << " shared";
+void ModuleDisassembler::PrintMemory(const WasmMemory& memory) {
+  out_ << " " << memory.initial_pages;
+  if (memory.has_maximum_pages) out_ << " " << memory.maximum_pages;
+  if (memory.is_shared) out_ << " shared";
 }
 
 void ModuleDisassembler::PrintGlobal(const WasmGlobal& global) {
   out_ << " ";
+  if (global.shared) out_ << "shared ";
   PrintMutableType(global.mutability, global.type);
 }
 
@@ -1069,13 +1165,13 @@ void ModuleDisassembler::PrintInitExpression(const ConstantExpression& init,
       break;
     case ConstantExpression::kWireBytesRef:
       WireBytesRef ref = init.wire_bytes_ref();
-      const byte* start = start_ + ref.offset();
-      const byte* end = start_ + ref.end_offset();
+      const uint8_t* start = start_ + ref.offset();
+      const uint8_t* end = start_ + ref.end_offset();
 
       auto sig = FixedSizeSignature<ValueType>::Returns(expected_type);
-      WasmFeatures detected;
-      FunctionBodyDisassembler d(&zone_, module_, 0, &detected, &sig, start,
-                                 end, ref.offset(), names_);
+      WasmDetectedFeatures detected;
+      FunctionBodyDisassembler d(&zone_, module_, 0, false, &detected, &sig,
+                                 start, end, ref.offset(), wire_bytes_, names_);
       d.DecodeGlobalInitializer(out_);
       break;
   }
@@ -1090,23 +1186,15 @@ void ModuleDisassembler::PrintTagSignature(const FunctionSig* sig) {
 }
 
 void ModuleDisassembler::PrintString(WireBytesRef ref) {
-  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
-       ptr++) {
-    byte b = *ptr;
-    if (b < 32 || b >= 127 || b == '"' || b == '\\') {
-      out_ << '\\' << kHexChars[b >> 4] << kHexChars[b & 0xF];
-    } else {
-      out_ << static_cast<char>(b);
-    }
-  }
+  PrintStringRaw(out_, start_ + ref.offset(), start_ + ref.end_offset());
 }
 
 // This mimics legacy wasmparser behavior. It might be a questionable choice,
 // but we'll follow suit for now.
 void ModuleDisassembler::PrintStringAsJSON(WireBytesRef ref) {
-  for (const byte* ptr = start_ + ref.offset(); ptr < start_ + ref.end_offset();
-       ptr++) {
-    byte b = *ptr;
+  for (const uint8_t* ptr = start_ + ref.offset();
+       ptr < start_ + ref.end_offset(); ptr++) {
+    uint8_t b = *ptr;
     if (b <= 34) {
       switch (b) {
         // clang-format off

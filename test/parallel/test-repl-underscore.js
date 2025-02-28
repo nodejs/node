@@ -150,8 +150,8 @@ function testResetContextGlobal() {
   ]);
 
   // Delete globals leaked by REPL when `useGlobal` is `true`
-  delete global.module;
-  delete global.require;
+  delete globalThis.module;
+  delete globalThis.require;
 }
 
 function testError() {
@@ -180,9 +180,9 @@ function testError() {
       /^Uncaught Error: ENOENT: no such file or directory, scandir '.*nonexistent\?'/,
       /Object\.readdirSync/,
       /^ {2}errno: -(2|4058),$/,
-      "  syscall: 'scandir',",
       "  code: 'ENOENT',",
-      "  path: '/nonexistent?'",
+      "  syscall: 'scandir',",
+      /^ {2}path: '*'/,
       '}',
       "'ENOENT'",
       "'scandir'",
