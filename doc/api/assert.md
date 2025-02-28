@@ -1092,6 +1092,7 @@ added: v10.0.0
 * `asyncFn` {Function|Promise}
 * `error` {RegExp|Function}
 * `message` {string}
+* Returns: {Promise}
 
 Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
 calls the function and awaits the returned promise to complete. It will then
@@ -2036,6 +2037,7 @@ added: v10.0.0
 * `asyncFn` {Function|Promise}
 * `error` {RegExp|Function|Object|Error}
 * `message` {string}
+* Returns: {Promise}
 
 Awaits the `asyncFn` promise or, if `asyncFn` is a function, immediately
 calls the function and awaits the returned promise to complete. It will then
