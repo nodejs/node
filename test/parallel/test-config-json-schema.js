@@ -21,6 +21,10 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
+if (process.config.variables.node_quic) {
+  common.skip('this test assumes default configuration options');
+}
+
 const {
   generateConfigJsonSchema,
 } = require('internal/options');
