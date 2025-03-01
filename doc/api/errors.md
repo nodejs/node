@@ -2746,6 +2746,17 @@ The source map could not be parsed because it does not exist, or is corrupt.
 
 A file imported from a source map was not found.
 
+<a id="ERR_SOURCE_PHASE_NOT_DEFINED"></a>
+
+### `ERR_SOURCE_PHASE_NOT_DEFINED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The provided module import does not provide a source phase imports representation for source phase
+import syntax `import source x from 'x'` or `import.source(x)`.
+
 <a id="ERR_SQLITE_ERROR"></a>
 
 ### `ERR_SQLITE_ERROR`

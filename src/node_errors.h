@@ -108,6 +108,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_REQUIRE_ASYNC_MODULE, Error)                                           \
   V(ERR_SCRIPT_EXECUTION_INTERRUPTED, Error)                                   \
   V(ERR_SCRIPT_EXECUTION_TIMEOUT, Error)                                       \
+  V(ERR_SOURCE_PHASE_NOT_DEFINED, SyntaxError)                                 \
   V(ERR_STRING_TOO_LONG, Error)                                                \
   V(ERR_TLS_INVALID_PROTOCOL_METHOD, TypeError)                                \
   V(ERR_TLS_PSK_SET_IDENTITY_HINT_FAILED, Error)                               \
@@ -281,6 +282,15 @@ inline v8::Local<v8::Object> ERR_BUFFER_TOO_LARGE(v8::Isolate* isolate) {
            "Cannot create a Buffer larger than 0x%zx bytes",
            Buffer::kMaxLength);
   return ERR_BUFFER_TOO_LARGE(isolate, message);
+}
+
+inline void THROW_ERR_SOURCE_PHASE_NOT_DEFINED(v8::Isolate* isolate,
+                                               v8::Local<v8::String> url) {
+  std::string message = std::string(*v8::String::Utf8Value(isolate, url));
+  return THROW_ERR_SOURCE_PHASE_NOT_DEFINED(
+      isolate,
+      "Source phase import object is not defined for module %s",
+      message.c_str());
 }
 
 inline v8::Local<v8::Object> ERR_STRING_TOO_LONG(v8::Isolate* isolate) {

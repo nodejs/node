@@ -808,7 +808,7 @@ be an array of objects with the following properties:
 ## `dns.resolveTlsa(hostname, callback)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.9.0
 -->
 
 <!--lint disable no-undefined-references list-item-bullet-indent-->
@@ -1502,7 +1502,7 @@ the following properties:
 ### `dnsPromises.resolveTlsa(hostname)`
 
 <!-- YAML
-added: REPLACEME
+added: v23.9.0
 -->
 
 * `hostname` {string}

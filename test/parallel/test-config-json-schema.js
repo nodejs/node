@@ -21,10 +21,14 @@ if (!common.hasIntl) {
   common.skip('missing Intl');
 }
 
+if (process.config.variables.node_quic) {
+  common.skip('this test assumes default configuration options');
+}
+
 const {
   generateConfigJsonSchema,
 } = require('internal/options');
-const schemaInDoc = require('../../doc/node_config_json_schema.json');
+const schemaInDoc = require('../../doc/node-config-schema.json');
 const assert = require('assert');
 
 const schema = generateConfigJsonSchema();
@@ -35,6 +39,6 @@ const schema = generateConfigJsonSchema();
 // current JSON schema.
 // To regenerate the JSON schema, run:
 // out/Release/node --expose-internals tools/doc/generate-json-schema.mjs
-// And then run make doc to update the out/doc/node_config_json_schema.json file.
+// And then run make doc to update the out/doc/node-config-schema.json file.
 assert.strictEqual(JSON.stringify(schema), JSON.stringify(schemaInDoc), 'JSON schema is outdated.' +
   'Run `out/Release/node --expose-internals tools/doc/generate-json-schema.mjs` to update it.');

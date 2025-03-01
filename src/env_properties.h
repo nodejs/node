@@ -194,6 +194,7 @@
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(hostname_string, "hostname")                                               \
+  V(href_string, "href")                                                       \
   V(http_1_1_string, "http/1.1")                                               \
   V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
@@ -294,6 +295,7 @@
   V(pathname_string, "pathname")                                               \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
+  V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
