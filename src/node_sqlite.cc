@@ -593,54 +593,38 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
 std::optional<std::string> ValidateDatabasePath(Environment* env,
                                                 Local<Value> path,
                                                 const std::string& field_name) {
-  auto has_null_bytes = [](const std::string& str) {
-    return str.find('\0') != std::string::npos;
+  constexpr auto has_null_bytes = [](std::string_view str) {
+    return str.find('\0') != std::string_view::npos;
   };
-  std::string location;
   if (path->IsString()) {
-    location = Utf8Value(env->isolate(), path.As<String>()).ToString();
-    if (!has_null_bytes(location)) {
-      return location;
+    Utf8Value location(env->isolate(), path.As<String>());
+    if (!has_null_bytes(location.ToStringView())) {
+      return location.ToString();
     }
-  }
-
-  if (path->IsUint8Array()) {
+  } else if (path->IsUint8Array()) {
     Local<Uint8Array> buffer = path.As<Uint8Array>();
     size_t byteOffset = buffer->ByteOffset();
     size_t byteLength = buffer->ByteLength();
     auto data =
         static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
-    if (!(std::find(data, data + byteLength, 0) != data + byteLength)) {
-      Local<Value> out;
-      if (String::NewFromUtf8(env->isolate(),
-                              reinterpret_cast<const char*>(data),
-                              NewStringType::kNormal,
-                              static_cast<int>(byteLength))
-              .ToLocal(&out)) {
-        return Utf8Value(env->isolate(), out.As<String>()).ToString();
-      }
+    if (std::find(data, data + byteLength, 0) == data + byteLength) {
+      return std::string(reinterpret_cast<const char*>(data), byteLength);
     }
-  }
-
-  // When is URL
-  if (path->IsObject()) {
-    Local<Object> url = path.As<Object>();
+  } else if (path->IsObject()) {  // When is URL
+    auto url = path.As<Object>();
     Local<Value> href;
-    Local<Value> protocol;
     if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
-        href->IsString() &&
-        url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) &&
-        protocol->IsString()) {
-      location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+        href->IsString()) {
+      Utf8Value location_value(env->isolate(), href.As<String>());
+      auto location = location_value.ToStringView();
       if (!has_null_bytes(location)) {
-        auto file_url = ada::parse(location);
-        CHECK(file_url);
-        if (file_url->type != ada::scheme::FILE) {
+        CHECK(ada::can_parse(location));
+        if (!location.starts_with("file:")) {
           THROW_ERR_INVALID_URL_SCHEME(env->isolate());
           return std::nullopt;
         }
 
-        return location;
+        return location_value.ToString();
       }
     }
   }
