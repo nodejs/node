@@ -3397,7 +3397,7 @@ changes:
 
 Type: Documentation-only
 
-Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
+Calling [`util.promisify`][] on a function that returns a `Promise` will ignore
 the result of said promise, which can lead to unhandled promise rejections.
 
 ### DEP0175: `util.toUSVString`
