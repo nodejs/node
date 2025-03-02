@@ -315,17 +315,19 @@ added: v0.11.2
 * `path` {string}
 * Returns: {boolean}
 
-The `path.isAbsolute()` method determines if `path` is an absolute path.
+The `path.isAbsolute()` method determines if the literal `path` is absolute.
+Therefore, it’s not safe for mitigating path traversals.
 
 If the given `path` is a zero-length string, `false` will be returned.
 
 For example, on POSIX:
 
 ```js
-path.isAbsolute('/foo/bar'); // true
-path.isAbsolute('/baz/..');  // true
-path.isAbsolute('qux/');     // false
-path.isAbsolute('.');        // false
+path.isAbsolute('/foo/bar');   // true
+path.isAbsolute('/baz/..');    // true
+path.isAbsolute('/baz/../..'); // true
+path.isAbsolute('qux/');       // false
+path.isAbsolute('.');          // false
 ```
 
 On Windows:
