@@ -3840,6 +3840,20 @@ Type: Documentation-only
 `process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
 deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
 
+### DEP0190: Instantiating `node:crypto` `Cipheriv` and `Decipheriv` classes without `new`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+Instantiating the [`Cipheriv`][] and [`Decipheriv`][] classes exported by the `node:crypto`
+module is deprecated.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
