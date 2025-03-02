@@ -137,6 +137,13 @@ const notSubtle = Reflect.construct(function() {}, [], SubtleCrypto);
   }).then(common.mustCall());
 }
 
+// Test SubtleCrypto.supports
+{
+  assert.throws(() => SubtleCrypto.supports.call(undefined), {
+    name: 'TypeError', code: 'ERR_INVALID_THIS',
+  });
+}
+
 {
   subtle.importKey(
     'raw',
