@@ -72,7 +72,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
   });
 
   it('should exit for an unsettled TLA promise with warning', async () => {
-    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       fixtures.path('es-modules/tla/unresolved.mjs'),
     ]);
 
@@ -83,7 +83,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
   });
 
   it('should exit for an unsettled TLA promise without warning', async () => {
-    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       fixtures.path('es-modules/tla/unresolved.mjs'),
     ]);
@@ -107,7 +107,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
   });
 
   it('should exit for an unsettled TLA promise and respect explicit exit code via stdin', async () => {
-    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       fixtures.path('es-modules/tla/unresolved-withexitcode.mjs'),
     ]);
@@ -118,7 +118,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
   });
 
   it('should exit for an unsettled TLA promise and respect explicit exit code in process exit event', async () => {
-    const { code, stdout, stderr } = await spawnPromisified(execPath, [
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       fixtures.path('es-modules/tla/unresolved-withexitcode.mjs'),
     ]);
@@ -176,7 +176,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
 
   describe('with exit listener', () => {
     it('the process exit event should provide the correct code', async () => {
-      const { code, stdout, stderr } = await spawnPromisified(execPath, [
+      const { code, stderr, stdout } = await spawnPromisified(execPath, [
         fixtures.path('es-modules/tla/unresolved-with-listener.mjs'),
       ]);
 
@@ -189,7 +189,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
     });
 
     it('should exit for an unsettled TLA promise and respect explicit exit code in process exit event', async () => {
-      const { code, stdout, stderr } = await spawnPromisified(execPath, [
+      const { code, stderr, stdout } = await spawnPromisified(execPath, [
         '--no-warnings',
         fixtures.path('es-modules/tla/unresolved-withexitcode-and-listener.mjs'),
       ]);
