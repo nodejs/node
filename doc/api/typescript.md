@@ -83,7 +83,6 @@ but we recommend version 5.8 or newer with the following `tsconfig.json` setting
   "compilerOptions": {
      "target": "esnext",
      "module": "nodenext",
-     "allowImportingTsExtensions": true,
      "rewriteRelativeImportExtensions": true,
      "erasableSyntaxOnly": true,
      "verbatimModuleSyntax": true
