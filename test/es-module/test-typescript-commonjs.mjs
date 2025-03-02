@@ -85,9 +85,13 @@ test('expect failure of an .mts file with CommonJS syntax', async () => {
       result.stderr.includes(expectedWarning),
       `Expected stderr to include: ${expectedWarning}`
     );
-  } catch (error) {
-    console.error('Detailed error: The stderr did not include the expected warning:', error);
-    throw error;
+  } catch (e) {
+    if (e?.code === 'ERR_ASSERTION') {
+      e.expected = expectedWarning;
+      e.actual = result.stderr;
+      e.operator = 'includes';
+    }
+    throw e;
   }
 
 
