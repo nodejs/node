@@ -102,6 +102,10 @@ Key Formats:
 * `'raw-secret'`
 * `'raw-seed'`
 
+Methods:
+
+* [`SubtleCrypto.supports()`][]
+
 ## Secure Curves in the Web Cryptography API
 
 > Stability: 1.1 - Active development
@@ -388,6 +392,76 @@ async function digest(data, algorithm = 'SHA-512') {
 }
 ```
 
+### Checking for runtime algorithm support
+
+[`SubtleCrypto.supports()`][] allows feature detection in Web Crypto API,
+which can be used to detect whether a given algorithm identifier
+(including its parameters) is supported for the given operation.
+
+This example derives a key from a password using Argon2, if available,
+or PBKDF2, otherwise; and then encrypts and decrypts some text with it
+using AES-OCB, if available, and AES-GCM, otherwise.
+
+```mjs
+const { SubtleCrypto, crypto } = globalThis;
+
+const password = 'correct horse battery staple';
+const derivationAlg =
+  SubtleCrypto.supports?.('importKey', 'Argon2id') ?
+    'Argon2id' :
+    'PBKDF2';
+const encryptionAlg =
+  SubtleCrypto.supports?.('importKey', 'AES-OCB') ?
+    'AES-OCB' :
+    'AES-GCM';
+const passwordKey = await crypto.subtle.importKey(
+  derivationAlg === 'Argon2id' ? 'raw-secret' : 'raw',
+  new TextEncoder().encode(password),
+  derivationAlg,
+  false,
+  ['deriveKey'],
+);
+const nonce = crypto.getRandomValues(new Uint8Array(16));
+const derivationParams =
+  derivationAlg === 'Argon2id' ?
+    {
+      nonce,
+      parallelism: 4,
+      memory: 2 ** 21,
+      passes: 1,
+    } :
+    {
+      salt: nonce,
+      iterations: 100_000,
+      hash: 'SHA-256',
+    };
+const key = await crypto.subtle.deriveKey(
+  {
+    name: derivationAlg,
+    ...derivationParams,
+  },
+  passwordKey,
+  {
+    name: encryptionAlg,
+    length: 256,
+  },
+  false,
+  ['encrypt', 'decrypt'],
+);
+const plaintext = 'Hello, world!';
+const iv = crypto.getRandomValues(new Uint8Array(16));
+const encrypted = await crypto.subtle.encrypt(
+  { name: encryptionAlg, iv },
+  key,
+  new TextEncoder().encode(plaintext),
+);
+const decrypted = new TextDecoder().decode(await crypto.subtle.decrypt(
+  { name: encryptionAlg, iv },
+  key,
+  encrypted,
+));
+```
+
 ## Algorithm matrix
 
 The table details the algorithms supported by the Node.js Web Crypto API
@@ -591,6 +665,27 @@ added: v15.0.0
 <!-- YAML
 added: v15.0.0
 -->
+
+### Static method: `SubtleCrypto.supports(operation, algorithm[, lengthOrAdditionalAlgorithm])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+<!--lint disable maximum-line-length remark-lint-->
+
+* `operation` {string} "encrypt", "decrypt", "sign", "verify", "digest", "generateKey", "deriveKey", "deriveBits", "importKey", "exportKey", "wrapKey", or "unwrapKey"
+* `algorithm` {string|Algorithm}
+* `lengthOrAdditionalAlgorithm` {null|number|string|Algorithm|undefined} Depending on the operation this is either ignored, the value of the length argument when operation is "deriveBits", the algorithm of key to be derived when operation is "deriveKey", the algorithm of key to be exported before wrapping when operation is "wrapKey", or the algorithm of key to be imported after unwrapping when operation is "unwrapKey". **Default:** `null` when operation is "deriveBits", `undefined` otherwise.
+* Returns: {boolean} Indicating whether the implementation supports the given operation
+
+<!--lint enable maximum-line-length remark-lint-->
+
+Allows feature detection in Web Crypto API,
+which can be used to detect whether a given algorithm identifier
+(including its parameters) is supported for the given operation.
 
 ### `subtle.decrypt(algorithm, key, data)`
 
@@ -1923,3 +2018,4 @@ The length (in bytes) of the random salt to use.
 [RFC 4122]: https://www.rfc-editor.org/rfc/rfc4122.txt
 [Secure Curves in the Web Cryptography API]: #secure-curves-in-the-web-cryptography-api
 [Web Crypto API]: https://www.w3.org/TR/WebCryptoAPI/
+[`SubtleCrypto.supports()`]: #static-method-subtlecryptosupportsoperation-algorithm-lengthoradditionalalgorithm
