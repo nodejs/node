@@ -77,7 +77,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
     ]);
 
     assert.strictEqual(stdout, 'the exit listener received code: 13\n');
-    assert.match(stderr, /Warning: Detected unsettled top-level await at.+unresolved\.mjs:5/);
+    assert.match(stderr, /Warning: Detected unsettled top-level await at.+unresolved\.mjs:5\b/);
     assert.match(stderr, /await new Promise/);
     assert.strictEqual(code, 13);
   });
