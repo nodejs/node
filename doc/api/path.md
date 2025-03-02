@@ -318,21 +318,11 @@ added: v0.11.2
 * Returns: {boolean}
 
 The `path.isAbsolute()` method determines if the literal `path` is absolute.
-Therefore, it’s not safe for mitigating path traversals without normalizing it.
-
-```js
-// Normalizing the subpath mitigates traversing above the mount directory
-const subpath = '/foo/../..'
-if (!path.isAbsolute(path.normalize(subpath))) {
-  throw 'FORBIDDEN'
-}
-const myPath = path.join(MOUNT_DIR, subpath)
-```
-
+Therefore, it’s not safe for mitigating path traversals.
 
 If the given `path` is a zero-length string, `false` will be returned.
 
-On POSIX:
+For example, on POSIX:
 
 ```js
 path.isAbsolute('/foo/bar');   // true
