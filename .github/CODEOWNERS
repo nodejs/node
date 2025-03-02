@@ -208,3 +208,11 @@
 /test/parallel/test-sqlite* @nodejs/sqlite
 /test/sqlite/ @nodejs/sqlite
 /tools/dep_updaters/update-sqlite.sh @nodejs/sqlite
+
+# Config
+/doc/node-config-schema.json @nodejs/config
+/src/node_config.* @nodejs/config
+/src/node_dotenv.* @nodejs/config
+/src/node_options.* @nodejs/config
+/test/parallel/test-config-* @nodejs/config
+/test/parallel/test-dotenv-* @nodejs/config
