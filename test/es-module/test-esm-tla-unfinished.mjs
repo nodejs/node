@@ -106,18 +106,7 @@ describe('ESM: unsettled and rejected promises', { concurrency: !process.env.TES
     assert.strictEqual(code, 1);
   });
 
-  it('should exit for an unsettled TLA promise and respect explicit exit code via stdin', async () => {
-    const { code, stderr, stdout } = await spawnPromisified(execPath, [
-      '--no-warnings',
-      fixtures.path('es-modules/tla/unresolved-withexitcode.mjs'),
-    ]);
-
-    assert.strictEqual(stdout, 'the exit listener received code: 42\n');
-    assert.strictEqual(stderr, '');
-    assert.strictEqual(code, 42);
-  });
-
-  it('should exit for an unsettled TLA promise and respect explicit exit code in process exit event', async () => {
+  it('should exit for an unsettled TLA promise and respect explicit exit code', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       fixtures.path('es-modules/tla/unresolved-withexitcode.mjs'),
