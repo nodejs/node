@@ -317,27 +317,27 @@ added: v0.11.2
 * `path` {string}
 * Returns: {boolean}
 
-The `path.isAbsolute()` method determines if the literal (non-resolved) `path` is an
-absolute path. Therefore, it’s likely that you want to run it through `path.normalize()`
-if your plan is to use it as a subpath in order to mitigate path traversals. For example:
+The `path.isAbsolute()` method determines if the literal `path` is absolute.
+Therefore, it’s not safe for mitigating path traversals without normalizing it.
 
 ```js
-// Normalizing the subpath mitigates traversing above the mount directory.
-const mySubpath = path.normalize('/foo/../..');
-if (path.isAbsolute(mySubpath)) {
-  const myPath = path.join(MOUNT_DIR, mySubpath)
+// Normalizing the subpath mitigates traversing above the mount directory
+const subpath = '/foo/../..'
+if (!path.isAbsolute(path.normalize(subpath))) {
+  throw 'FORBIDDEN'
 }
+const myPath = path.join(MOUNT_DIR, subpath)
 ```
 
 
 If the given `path` is a zero-length string, `false` will be returned.
 
-For example, on POSIX:
+On POSIX:
 
 ```js
 path.isAbsolute('/foo/bar');   // true
 path.isAbsolute('/baz/..');    // true
-path.isAbsolute('/baz/../..'); // true (doesn’t resolve)
+path.isAbsolute('/baz/../..'); // true
 path.isAbsolute('qux/');       // false
 path.isAbsolute('.');          // false
 ```
