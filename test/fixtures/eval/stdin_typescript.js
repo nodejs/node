@@ -5,7 +5,7 @@ require('../../common');
 const spawn = require('child_process').spawn;
 
 function run(cmd, strict, cb) {
-  const args = ['--disable-warning=ExperimentalWarning', '--experimental-strip-types'];
+  const args = ['--disable-warning=ExperimentalWarning'];
   if (strict) args.push('--use_strict');
   args.push('-p');
   const child = spawn(process.execPath, args);
