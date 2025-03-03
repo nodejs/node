@@ -247,11 +247,44 @@ struct Buffer {
   size_t len = 0;
 };
 
+class Digest final {
+ public:
+  Digest() = default;
+  Digest(const EVP_MD* md) : md_(md) {}
+  Digest(const Digest&) = default;
+  Digest& operator=(const Digest&) = default;
+  inline Digest& operator=(const EVP_MD* md) {
+    md_ = md;
+    return *this;
+  }
+  NCRYPTO_DISALLOW_MOVE(Digest)
+
+  size_t size() const;
+
+  inline const EVP_MD* get() const { return md_; }
+  inline operator const EVP_MD*() const { return md_; }
+  inline operator bool() const { return md_ != nullptr; }
+
+  static const Digest MD5;
+  static const Digest SHA1;
+  static const Digest SHA256;
+  static const Digest SHA384;
+  static const Digest SHA512;
+
+  static const Digest FromName(std::string_view name);
+
+ private:
+  const EVP_MD* md_ = nullptr;
+};
+
 DataPointer hashDigest(const Buffer<const unsigned char>& data,
                        const EVP_MD* md);
 
 class Cipher final {
  public:
+  static constexpr size_t MAX_KEY_LENGTH = EVP_MAX_KEY_LENGTH;
+  static constexpr size_t MAX_IV_LENGTH = EVP_MAX_IV_LENGTH;
+
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
   Cipher(const Cipher&) = default;
@@ -280,8 +313,14 @@ class Cipher final {
   bool isCcmMode() const;
   bool isOcbMode() const;
   bool isStreamMode() const;
+  bool isChaCha20Poly1305() const;
 
   bool isSupportedAuthenticatedMode() const;
+
+  int bytesToKey(const Digest& digest,
+                 const Buffer<const unsigned char>& input,
+                 unsigned char* key,
+                 unsigned char* iv) const;
 
   static const Cipher FromName(std::string_view name);
   static const Cipher FromNid(int nid);
@@ -643,6 +682,11 @@ class CipherCtxPointer final {
   int getBlockSize() const;
   int getMode() const;
   int getNid() const;
+
+  bool isGcmMode() const;
+  bool isCcmMode() const;
+  bool isWrapMode() const;
+  bool isChaCha20Poly1305() const;
 
   bool update(const Buffer<const unsigned char>& in,
               unsigned char* out,
@@ -1420,13 +1464,13 @@ const EVP_CIPHER* getCipherByName(const std::string_view name);
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
 // hash size for the given digest algorithm.
-bool checkHkdfLength(const EVP_MD* md, size_t length);
+bool checkHkdfLength(const Digest& digest, size_t length);
 
 bool extractP1363(const Buffer<const unsigned char>& buf,
                   unsigned char* dest,
                   size_t n);
 
-DataPointer hkdf(const EVP_MD* md,
+DataPointer hkdf(const Digest& md,
                  const Buffer<const unsigned char>& key,
                  const Buffer<const unsigned char>& info,
                  const Buffer<const unsigned char>& salt,
