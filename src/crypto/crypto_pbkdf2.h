@@ -30,7 +30,7 @@ struct PBKDF2Config final : public MemoryRetainer {
   ByteSource salt;
   int32_t iterations;
   int32_t length;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
 
   PBKDF2Config() = default;
 
