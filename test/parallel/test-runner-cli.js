@@ -46,6 +46,7 @@ for (const isolation of ['none', 'process']) {
   {
     // Should match files with "-test.(c|m)js" suffix.
     const args = ['--test', '--test-reporter=tap',
+                  `--no-experimental-strip-types`,
                   `--experimental-test-isolation=${isolation}`];
     const child = spawnSync(process.execPath, args, { cwd: join(testFixtures, 'matching-patterns') });
 
