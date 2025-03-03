@@ -2,6 +2,9 @@
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Type stripping is enabled by default.
   - version: v22.7.0
     pr-url: https://github.com/nodejs/node/pull/54283
     description: Added `--experimental-transform-types` flag.
@@ -52,7 +55,7 @@ To use TypeScript with full support for all TypeScript features, including
 added: v22.6.0
 -->
 
-The flag [`--experimental-strip-types`][] enables Node.js to run TypeScript
+The flag [`--no-experimental-strip-types`][] prevents Node.js from running TypeScript
 files. By default Node.js will execute only files that contain no
 TypeScript features that require transformation, such as enums.
 Node.js will replace inline type annotations with whitespace,
@@ -206,8 +209,8 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
 [`tsx`]: https://tsx.is/

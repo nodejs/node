@@ -14,7 +14,7 @@ const scriptURL = pathToFileURL(scriptPath);
 
 async function runTest() {
   const child = new NodeInstance(
-    ['--inspect-brk=0', '--experimental-strip-types'],
+    ['--inspect-brk=0'],
     undefined,
     scriptPath);
 

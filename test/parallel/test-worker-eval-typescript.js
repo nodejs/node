@@ -17,7 +17,7 @@ const cjsHelloWorld = `
     parentPort.postMessage(foo);
 `;
 
-const flags = ['--experimental-strip-types', '--disable-warning=ExperimentalWarning'];
+const flags = ['--disable-warning=ExperimentalWarning'];
 
 test('Worker eval module typescript without input-type', async () => {
   const w = new Worker(esmHelloWorld, { eval: true, execArgv: [...flags] });
