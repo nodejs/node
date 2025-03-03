@@ -274,11 +274,37 @@ class Cipher final {
   std::string_view getModeLabel() const;
   std::string_view getName() const;
 
+  bool isGcmMode() const;
+  bool isWrapMode() const;
+  bool isCtrMode() const;
+  bool isCcmMode() const;
+  bool isOcbMode() const;
+  bool isStreamMode() const;
+
   bool isSupportedAuthenticatedMode() const;
 
   static const Cipher FromName(std::string_view name);
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
+
+  // Utilities to get various ciphers by type. If the underlying
+  // implementation does not support the requested cipher, then
+  // the result will be an empty Cipher object whose bool operator
+  // will return false.
+
+  static const Cipher EMPTY;
+  static const Cipher AES_128_CBC;
+  static const Cipher AES_192_CBC;
+  static const Cipher AES_256_CBC;
+  static const Cipher AES_128_CTR;
+  static const Cipher AES_192_CTR;
+  static const Cipher AES_256_CTR;
+  static const Cipher AES_128_GCM;
+  static const Cipher AES_192_GCM;
+  static const Cipher AES_256_GCM;
+  static const Cipher AES_128_KW;
+  static const Cipher AES_192_KW;
+  static const Cipher AES_256_KW;
 
   struct CipherParams {
     int padding;
@@ -596,7 +622,8 @@ class CipherCtxPointer final {
   void reset(EVP_CIPHER_CTX* ctx = nullptr);
   EVP_CIPHER_CTX* release();
 
-  void setFlags(int flags);
+  void setAllowWrap();
+
   bool setKeyLength(size_t length);
   bool setIvLength(size_t length);
   bool setAeadTag(const Buffer<const char>& tag);
