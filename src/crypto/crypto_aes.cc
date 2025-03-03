@@ -484,7 +484,7 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     return Nothing<void>();
   }
 
-  if (params->cipher.isWrapMode()) {
+  if (!params->cipher.isWrapMode()) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
       return Nothing<void>();
     }

@@ -1669,17 +1669,17 @@ const EVP_CIPHER* getCipherByName(const std::string_view name) {
   return EVP_get_cipherbyname(name.data());
 }
 
-bool checkHkdfLength(const EVP_MD* md, size_t length) {
+bool checkHkdfLength(const Digest& md, size_t length) {
   // HKDF-Expand computes up to 255 HMAC blocks, each having as many bits as
   // the output of the hash function. 255 is a hard limit because HKDF appends
   // an 8-bit counter to each HMAC'd message, starting at 1.
   static constexpr size_t kMaxDigestMultiplier = 255;
-  size_t max_length = EVP_MD_size(md) * kMaxDigestMultiplier;
+  size_t max_length = md.size() * kMaxDigestMultiplier;
   if (length > max_length) return false;
   return true;
 }
 
-DataPointer hkdf(const EVP_MD* md,
+DataPointer hkdf(const Digest& md,
                  const Buffer<const unsigned char>& key,
                  const Buffer<const unsigned char>& info,
                  const Buffer<const unsigned char>& salt,
@@ -1703,7 +1703,7 @@ DataPointer hkdf(const EVP_MD* md,
   if (salt.len > 0) {
     actual_salt = {reinterpret_cast<const char*>(salt.data), salt.len};
   } else {
-    actual_salt = {default_salt, static_cast<unsigned>(EVP_MD_size(md))};
+    actual_salt = {default_salt, static_cast<unsigned>(md.size())};
   }
 
   // We do not use EVP_PKEY_HKDF_MODE_EXTRACT_AND_EXPAND because and instead
@@ -2786,6 +2786,11 @@ bool Cipher::isStreamMode() const {
   return getMode() == EVP_CIPH_STREAM_CIPHER;
 }
 
+bool Cipher::isChaCha20Poly1305() const {
+  if (!cipher_) return false;
+  return getNid() == NID_chacha20_poly1305;
+}
+
 int Cipher::getMode() const {
   if (!cipher_) return 0;
   return EVP_CIPHER_mode(cipher_);
@@ -2862,6 +2867,14 @@ bool Cipher::isSupportedAuthenticatedMode() const {
   }
 }
 
+int Cipher::bytesToKey(const Digest& digest,
+                       const Buffer<const unsigned char>& input,
+                       unsigned char* key,
+                       unsigned char* iv) const {
+  return EVP_BytesToKey(
+      *this, Digest::MD5, nullptr, input.data, input.len, 1, key, iv);
+}
+
 // ============================================================================
 
 CipherCtxPointer CipherCtxPointer::New() {
@@ -2936,6 +2949,26 @@ int CipherCtxPointer::getBlockSize() const {
 int CipherCtxPointer::getMode() const {
   if (!ctx_) return 0;
   return EVP_CIPHER_CTX_mode(ctx_.get());
+}
+
+bool CipherCtxPointer::isGcmMode() const {
+  if (!ctx_) return false;
+  return getMode() == EVP_CIPH_GCM_MODE;
+}
+
+bool CipherCtxPointer::isCcmMode() const {
+  if (!ctx_) return false;
+  return getMode() == EVP_CIPH_CCM_MODE;
+}
+
+bool CipherCtxPointer::isWrapMode() const {
+  if (!ctx_) return false;
+  return getMode() == EVP_CIPH_WRAP_MODE;
+}
+
+bool CipherCtxPointer::isChaCha20Poly1305() const {
+  if (!ctx_) return false;
+  return getNid() == NID_chacha20_poly1305;
 }
 
 int CipherCtxPointer::getNid() const {
@@ -3720,9 +3753,7 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
 namespace {
 struct CipherCallbackContext {
   Cipher::CipherNameCallback cb;
-  void operator()(std::string_view name) {
-    cb(name);
-  }
+  void operator()(std::string_view name) { cb(name); }
 };
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -3759,9 +3790,9 @@ void array_push_back(const TypeName* evp_ref,
 #else
 template <class TypeName>
 void array_push_back(const TypeName* evp_ref,
-                      const char* from,
-                      const char* to,
-                      void* arg) {
+                     const char* from,
+                     const char* to,
+                     void* arg) {
   if (!from) return;
   auto& cb = *(static_cast<CipherCallbackContext*>(arg));
   cb(from);
@@ -3776,15 +3807,15 @@ void Cipher::ForEach(Cipher::CipherNameCallback callback) {
 
   EVP_CIPHER_do_all_sorted(
 #if OPENSSL_VERSION_MAJOR >= 3
-    array_push_back<EVP_CIPHER,
-                    EVP_CIPHER_fetch,
-                    EVP_CIPHER_free,
-                    EVP_get_cipherbyname,
-                    EVP_CIPHER_get0_name>,
+      array_push_back<EVP_CIPHER,
+                      EVP_CIPHER_fetch,
+                      EVP_CIPHER_free,
+                      EVP_get_cipherbyname,
+                      EVP_CIPHER_get0_name>,
 #else
-    array_push_back<EVP_CIPHER>,
+      array_push_back<EVP_CIPHER>,
 #endif
-    &context);
+      &context);
 }
 
 // ============================================================================
@@ -4141,6 +4172,23 @@ size_t Dsa::getModulusLength() const {
 size_t Dsa::getDivisorLength() const {
   if (dsa_ == nullptr) return 0;
   return BignumPointer::GetBitCount(getQ());
+}
+
+// ============================================================================
+
+size_t Digest::size() const {
+  if (md_ == nullptr) return 0;
+  return EVP_MD_size(md_);
+}
+
+const Digest Digest::MD5 = Digest(EVP_md5());
+const Digest Digest::SHA1 = Digest(EVP_sha1());
+const Digest Digest::SHA256 = Digest(EVP_sha256());
+const Digest Digest::SHA384 = Digest(EVP_sha384());
+const Digest Digest::SHA512 = Digest(EVP_sha512());
+
+const Digest Digest::FromName(std::string_view name) {
+  return ncrypto::getDigestByName(name);
 }
 
 }  // namespace ncrypto
