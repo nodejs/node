@@ -15,6 +15,8 @@ and "extracts" from it a fixed-length pseudorandom key K. The second stage
 "expands" the key K into several additional pseudorandom keys (the output
 of the KDF).
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "HKDF" is the name for this implementation; it

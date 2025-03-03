@@ -369,12 +369,20 @@ static int aes_ocb_set_ctx_params(void *vctx, const OSSL_PARAM params[])
         }
         if (p->data == NULL) {
             /* Tag len must be 0 to 16 */
-            if (p->data_size > OCB_MAX_TAG_LEN)
+            if (p->data_size > OCB_MAX_TAG_LEN) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
                 return 0;
+            }
             ctx->taglen = p->data_size;
         } else {
-            if (p->data_size != ctx->taglen || ctx->base.enc)
+            if (ctx->base.enc) {
+                ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
                 return 0;
+            }
+            if (p->data_size != ctx->taglen) {
+                ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_TAG_LENGTH);
+                return 0;
+            }
             memcpy(ctx->tag, p->data, p->data_size);
         }
      }

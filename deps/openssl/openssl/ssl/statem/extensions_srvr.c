@@ -1083,7 +1083,7 @@ int tls_parse_ctos_psk(SSL *s, PACKET *pkt, unsigned int context, X509 *x,
 
             if (sesstmp == NULL) {
                 SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-                return 0;
+                goto err;
             }
             SSL_SESSION_free(sess);
             sess = sesstmp;
@@ -1236,40 +1236,6 @@ int tls_parse_ctos_post_handshake_auth(SSL *s, PACKET *pkt,
 
     return 1;
 }
-
-#ifndef OPENSSL_NO_QUIC
-int tls_parse_ctos_quic_transport_params_draft(SSL *s, PACKET *pkt, unsigned int context,
-                                               X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params_draft);
-    s->ext.peer_quic_transport_params_draft = NULL;
-    s->ext.peer_quic_transport_params_draft_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params_draft,
-                       &s->ext.peer_quic_transport_params_draft_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-
-int tls_parse_ctos_quic_transport_params(SSL *s, PACKET *pkt, unsigned int context,
-                                         X509 *x, size_t chainidx)
-{
-    OPENSSL_free(s->ext.peer_quic_transport_params);
-    s->ext.peer_quic_transport_params = NULL;
-    s->ext.peer_quic_transport_params_len = 0;
-
-    if (!PACKET_memdup(pkt,
-                       &s->ext.peer_quic_transport_params,
-                       &s->ext.peer_quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-    return 1;
-}
-#endif
 
 /*
  * Add the server's renegotiation binding
@@ -1911,20 +1877,12 @@ EXT_RETURN tls_construct_stoc_early_data(SSL *s, WPACKET *pkt,
                                          size_t chainidx)
 {
     if (context == SSL_EXT_TLS1_3_NEW_SESSION_TICKET) {
-        uint32_t max_early_data = s->max_early_data;
-
-        if (max_early_data == 0)
+        if (s->max_early_data == 0)
             return EXT_RETURN_NOT_SENT;
-
-#ifndef OPENSSL_NO_QUIC
-        /* QUIC server must always send 0xFFFFFFFF, per RFC9001 S4.6.1 */
-        if (SSL_IS_QUIC(s))
-            max_early_data = 0xFFFFFFFF;
-#endif
 
         if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_early_data)
                 || !WPACKET_start_sub_packet_u16(pkt)
-                || !WPACKET_put_bytes_u32(pkt, max_early_data)
+                || !WPACKET_put_bytes_u32(pkt, s->max_early_data)
                 || !WPACKET_close(pkt)) {
             SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
             return EXT_RETURN_FAIL;
@@ -1962,48 +1920,3 @@ EXT_RETURN tls_construct_stoc_psk(SSL *s, WPACKET *pkt, unsigned int context,
 
     return EXT_RETURN_SENT;
 }
-
-#ifndef OPENSSL_NO_QUIC
-EXT_RETURN tls_construct_stoc_quic_transport_params_draft(SSL *s, WPACKET *pkt,
-                                                          unsigned int context,
-                                                          X509 *x,
-                                                          size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters
-            || s->ext.peer_quic_transport_params_draft_len == 0
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters_draft)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-
-EXT_RETURN tls_construct_stoc_quic_transport_params(SSL *s, WPACKET *pkt,
-                                                    unsigned int context, X509 *x,
-                                                    size_t chainidx)
-{
-    if (s->quic_transport_version == TLSEXT_TYPE_quic_transport_parameters_draft
-            || s->ext.peer_quic_transport_params_len == 0
-            || s->ext.quic_transport_params == NULL
-            || s->ext.quic_transport_params_len == 0) {
-        return EXT_RETURN_NOT_SENT;
-    }
-
-    if (!WPACKET_put_bytes_u16(pkt, TLSEXT_TYPE_quic_transport_parameters)
-        || !WPACKET_sub_memcpy_u16(pkt, s->ext.quic_transport_params,
-                                   s->ext.quic_transport_params_len)) {
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return EXT_RETURN_FAIL;
-    }
-
-    return EXT_RETURN_SENT;
-}
-#endif
