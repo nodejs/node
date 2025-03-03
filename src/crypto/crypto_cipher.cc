@@ -89,22 +89,17 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
       // For GCM and OCB modes, we'll check by attempting to
       // set the value. For everything else, just check that
       // check_len == iv_length.
-      switch (cipher.getMode()) {
-        case EVP_CIPH_CCM_MODE:
-          if (check_len < 7 || check_len > 13)
-            return;
-          break;
-        case EVP_CIPH_GCM_MODE:
-          // Fall through
-        case EVP_CIPH_OCB_MODE:
-          if (!ctx.setIvLength(check_len)) {
-            return;
-          }
-          break;
-        default:
-          if (check_len != iv_length)
-            return;
+
+      if (cipher.isCcmMode()) {
+        if (check_len < 7 || check_len > 13) return;
+      } else if (cipher.isGcmMode()) {
+        // Nothing to do.
+      } else if (cipher.isOcbMode()) {
+        if (!ctx.setIvLength(check_len)) return;
+      } else {
+        if (check_len != iv_length) return;
       }
+
       iv_length = check_len;
     }
   }
@@ -133,7 +128,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Stream ciphers do not have a meaningful block size
-  if (cipher.getMode() != EVP_CIPH_STREAM_CIPHER &&
+  if (!cipher.isStreamMode() &&
       info->Set(env->context(),
                 FIXED_ONE_BYTE_STRING(env->isolate(), "blockSize"),
                 Int32::New(env->isolate(), block_length))
@@ -313,8 +308,8 @@ void CipherBase::CommonInit(const char* cipher_type,
   ctx_ = CipherCtxPointer::New();
   CHECK(ctx_);
 
-  if (cipher.getMode() == EVP_CIPH_WRAP_MODE) {
-    ctx_.setFlags(EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  if (cipher.isWrapMode()) {
+    ctx_.setAllowWrap();
   }
 
   const bool encrypt = (kind_ == kCipher);
@@ -366,10 +361,9 @@ void CipherBase::Init(const char* cipher_type,
                                iv);
   CHECK_NE(key_len, 0);
 
-  const int mode = cipher.getMode();
-  if (kind_ == kCipher && (mode == EVP_CIPH_CTR_MODE ||
-                           mode == EVP_CIPH_GCM_MODE ||
-                           mode == EVP_CIPH_CCM_MODE)) {
+  if (kind_ == kCipher && (cipher.isCtrMode() ||
+                           cipher.isGcmMode() ||
+                           cipher.isCcmMode())) {
     // Ignore the return value (i.e. possible exception) because we are
     // not calling back into JS anyway.
     ProcessEmitWarning(env(),
