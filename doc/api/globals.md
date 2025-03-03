@@ -559,10 +559,11 @@ globalThis[Symbol.for('undici.globalDispatcher.1')] = yourDispatcher;
 ## Related classes
 
 The following globals are available to use with `fetch`:
-- [`FormData`](https://nodejs.org/api/globals.html#class-formdata)
-- [`Headers`](https://nodejs.org/api/globals.html#class-headers)
-- [`Request`](https://nodejs.org/api/globals.html#request)
-- [`Response`](https://nodejs.org/api/globals.html#response).
+
+* [`FormData`](https://nodejs.org/api/globals.html#class-formdata)
+* [`Headers`](https://nodejs.org/api/globals.html#class-headers)
+* [`Request`](https://nodejs.org/api/globals.html#request)
+* [`Response`](https://nodejs.org/api/globals.html#response).
 
 ## Class: `File`
 
