@@ -182,20 +182,28 @@ void CipherBase::GetSSLCiphers(const FunctionCallbackInfo<Value>& args) {
 
 void CipherBase::GetCiphers(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-  CipherPushContext ctx(env);
-  EVP_CIPHER_do_all_sorted(
-#if OPENSSL_VERSION_MAJOR >= 3
-    array_push_back<EVP_CIPHER,
-                    EVP_CIPHER_fetch,
-                    EVP_CIPHER_free,
-                    EVP_get_cipherbyname,
-                    EVP_CIPHER_get0_name>,
-#else
-    array_push_back<EVP_CIPHER>,
-#endif
-    &ctx);
-  args.GetReturnValue().Set(ctx.ToJSArray());
+  LocalVector<Value> ciphers(env->isolate());
+  bool errored = false;
+  Cipher::ForEach([&](std::string_view name) {
+    // If a prior iteration errored, do nothing further. We apparently
+    // can't actually stop openssl from stopping its iteration here.
+    // But why does it matter? Good question.
+    if (errored) return;
+    Local<Value> val;
+    if (!ToV8Value(env->context(), name, env->isolate()).ToLocal(&val)) {
+      errored = true;
+      return;
+    }
+    ciphers.push_back(val);
+  });
+
+  // If errored is true here, then we encountered a JavaScript error
+  // while trying to create the V8 String from the std::string_view
+  // in the iteration callback. That means we need to throw.
+  if (!errored) {
+    args.GetReturnValue().Set(
+        Array::New(env->isolate(), ciphers.data(), ciphers.size()));
+  }
 }
 
 CipherBase::CipherBase(Environment* env,

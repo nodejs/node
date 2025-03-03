@@ -287,6 +287,12 @@ class Cipher final {
   static const Cipher FromNid(int nid);
   static const Cipher FromCtx(const CipherCtxPointer& ctx);
 
+  using CipherNameCallback = std::function<void(std::string_view name)>;
+
+  // Iterates the known ciphers if the underlying implementation
+  // is able to do so.
+  static void ForEach(CipherNameCallback callback);
+
   // Utilities to get various ciphers by type. If the underlying
   // implementation does not support the requested cipher, then
   // the result will be an empty Cipher object whose bool operator
