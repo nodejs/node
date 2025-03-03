@@ -3717,6 +3717,76 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
       key, params, in);
 }
 
+namespace {
+struct CipherCallbackContext {
+  Cipher::CipherNameCallback cb;
+  void operator()(std::string_view name) {
+    cb(name);
+  }
+};
+
+#if OPENSSL_VERSION_MAJOR >= 3
+template <class TypeName,
+          TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
+          void free_type(TypeName*),
+          const TypeName* getbyname(const char*),
+          const char* getname(const TypeName*)>
+void array_push_back(const TypeName* evp_ref,
+                     const char* from,
+                     const char* to,
+                     void* arg) {
+  if (from == nullptr) return;
+
+  const TypeName* real_instance = getbyname(from);
+  if (!real_instance) return;
+
+  const char* real_name = getname(real_instance);
+  if (!real_name) return;
+
+  // EVP_*_fetch() does not support alias names, so we need to pass it the
+  // real/original algorithm name.
+  // We use EVP_*_fetch() as a filter here because it will only return an
+  // instance if the algorithm is supported by the public OpenSSL APIs (some
+  // algorithms are used internally by OpenSSL and are also passed to this
+  // callback).
+  TypeName* fetched = fetch_type(nullptr, real_name, nullptr);
+  if (fetched == nullptr) return;
+
+  free_type(fetched);
+  auto& cb = *(static_cast<CipherCallbackContext*>(arg));
+  cb(from);
+}
+#else
+template <class TypeName>
+void array_push_back(const TypeName* evp_ref,
+                      const char* from,
+                      const char* to,
+                      void* arg) {
+  if (!from) return;
+  auto& cb = *(static_cast<CipherCallbackContext*>(arg));
+  cb(from);
+}
+#endif
+}  // namespace
+
+void Cipher::ForEach(Cipher::CipherNameCallback callback) {
+  ClearErrorOnReturn clearErrorOnReturn;
+  CipherCallbackContext context;
+  context.cb = std::move(callback);
+
+  EVP_CIPHER_do_all_sorted(
+#if OPENSSL_VERSION_MAJOR >= 3
+    array_push_back<EVP_CIPHER,
+                    EVP_CIPHER_fetch,
+                    EVP_CIPHER_free,
+                    EVP_get_cipherbyname,
+                    EVP_CIPHER_get0_name>,
+#else
+    array_push_back<EVP_CIPHER>,
+#endif
+    &context);
+}
+
 // ============================================================================
 
 Ec::Ec() : ec_(nullptr) {}
