@@ -5,6 +5,35 @@ import { join } from 'node:path';
 
 const testFixtures = fixtures.path('test-runner');
 
+describe('input validation', () => {
+  it('throws if options is not an object', (t) => {
+    t.assert.throws(() => {
+      t.plan(1, null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options" argument must be of type object/,
+    });
+  });
+
+  it('throws if options.wait is not a number or a boolean', (t) => {
+    t.assert.throws(() => {
+      t.plan(1, { wait: 'foo' });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.wait" property must be one of type boolean or number\. Received type string/,
+    });
+  });
+
+  it('throws if count is not a number', (t) => {
+    t.assert.throws(() => {
+      t.plan('foo');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "count" argument must be of type number/,
+    });
+  });
+});
+
 describe('test planning', () => {
   it('should pass when assertions match plan', async () => {
     const stream = run({
@@ -85,7 +114,7 @@ describe('test planning', () => {
 
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(3)); // Parent + 2 levels of nesting
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
