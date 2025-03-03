@@ -888,7 +888,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-strip-types",
             "Experimental type-stripping for TypeScript files.",
             &EnvironmentOptions::experimental_strip_types,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            true);
   Implies("--experimental-strip-types", "--experimental-detect-module");
 
   AddOption("--experimental-transform-types",
