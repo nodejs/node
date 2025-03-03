@@ -26,7 +26,7 @@ require('../../common');
 const spawn = require('child_process').spawn;
 
 function run(cmd, strict, cb) {
-  const args = ['--experimental-strip-types'];
+  const args = [];
   if (strict) args.push('--use_strict');
   args.push('-p');
   const child = spawn(process.execPath, args);

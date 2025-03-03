@@ -6,7 +6,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('eval TypeScript ESM syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
@@ -19,7 +18,6 @@ test('eval TypeScript ESM syntax', async () => {
 
 test('eval TypeScript ESM syntax with input-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=module-typescript',
     '--eval',
     `import util from 'node:util'
@@ -33,7 +31,6 @@ test('eval TypeScript ESM syntax with input-type module', async () => {
 
 test('eval TypeScript CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
@@ -45,7 +42,6 @@ test('eval TypeScript CommonJS syntax', async () => {
 
 test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=commonjs-typescript',
     '--eval',
     `const util = require('node:util');
@@ -59,7 +55,6 @@ test('eval TypeScript CommonJS syntax with input-type commonjs-typescript', asyn
 
 test('eval TypeScript CommonJS syntax by default', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
@@ -73,7 +68,6 @@ test('eval TypeScript CommonJS syntax by default', async () => {
 
 test('TypeScript ESM syntax not specified', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `import util from 'node:util'
     const text: string = 'Hello, TypeScript!'
@@ -85,7 +79,6 @@ test('TypeScript ESM syntax not specified', async () => {
 
 test('expect fail eval TypeScript CommonJS syntax with input-type module-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=module-typescript',
     '--eval',
     `const util = require('node:util');
@@ -99,7 +92,6 @@ test('expect fail eval TypeScript CommonJS syntax with input-type module-typescr
 
 test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=commonjs-typescript',
     '--eval',
     `import util from 'node:util'
@@ -112,7 +104,6 @@ test('expect fail eval TypeScript ESM syntax with input-type commonjs-typescript
 
 test('check syntax error is thrown when passing unsupported syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     'enum Foo { A, B, C }']);
   strictEqual(result.stdout, '');
@@ -123,7 +114,6 @@ test('check syntax error is thrown when passing unsupported syntax', async () =>
 
 test('check syntax error is thrown when passing unsupported syntax with --input-type=module-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=module-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
@@ -134,7 +124,6 @@ test('check syntax error is thrown when passing unsupported syntax with --input-
 
 test('check syntax error is thrown when passing unsupported syntax with --input-type=commonjs-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=commonjs-typescript',
     '--eval',
     'enum Foo { A, B, C }']);
@@ -145,7 +134,6 @@ test('check syntax error is thrown when passing unsupported syntax with --input-
 
 test('should not parse TypeScript with --type-module=commonjs', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=commonjs',
     '--eval',
     `enum Foo {}`]);
@@ -158,7 +146,6 @@ test('should not parse TypeScript with --type-module=commonjs', async () => {
 
 test('should not parse TypeScript with --type-module=module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=module',
     '--eval',
     `enum Foo {}`]);
@@ -171,7 +158,6 @@ test('should not parse TypeScript with --type-module=module', async () => {
 
 test('check warning is emitted when eval TypeScript CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `const util = require('node:util');
     const text: string = 'Hello, TypeScript!'
@@ -183,7 +169,6 @@ test('check warning is emitted when eval TypeScript CommonJS syntax', async () =
 
 test('code is throwing a non Error is rethrown', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `throw null;`]);
   doesNotMatch(result.stderr, /node:internal\/process\/execution/);
@@ -193,7 +178,6 @@ test('code is throwing a non Error is rethrown', async () => {
 
 test('code is throwing an error with customized accessors', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `throw Object.defineProperty(new Error, "stack", { set() {throw this} });`]);
 
@@ -205,7 +189,6 @@ test('code is throwing an error with customized accessors', async () => {
 
 test('typescript code is throwing an error', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     `const foo: string =  'Hello, TypeScript!'; throw new Error(foo);`]);
 
@@ -216,7 +199,6 @@ test('typescript code is throwing an error', async () => {
 
 test('typescript ESM code is throwing a syntax error at runtime', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     'import util from "node:util"; function foo(){}; throw new SyntaxError(foo<Number>(1));']);
   // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript
@@ -230,7 +212,6 @@ test('typescript ESM code is throwing a syntax error at runtime', async () => {
 
 test('typescript CJS code is throwing a syntax error at runtime', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--eval',
     'const util = require("node:util"); function foo(){}; throw new SyntaxError(foo<Number>(1));']);
   // Trick by passing ambiguous syntax to see if evaluated in TypeScript or JavaScript
@@ -244,7 +225,6 @@ test('typescript CJS code is throwing a syntax error at runtime', async () => {
 
 test('check syntax error is thrown when passing invalid syntax with --input-type=commonjs-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=commonjs-typescript',
     '--eval',
     'function foo(){ await Promise.resolve(1); }']);
@@ -255,7 +235,6 @@ test('check syntax error is thrown when passing invalid syntax with --input-type
 
 test('check syntax error is thrown when passing invalid syntax with --input-type=module-typescript', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--input-type=module-typescript',
     '--eval',
     'function foo(){ await Promise.resolve(1); }']);
