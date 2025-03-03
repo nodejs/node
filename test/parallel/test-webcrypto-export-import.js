@@ -69,7 +69,7 @@ const { subtle } = globalThis.crypto;
         length: 1
       }, false, ['sign', 'verify']), {
         name: 'NotSupportedError',
-        message: 'Unsupported algorith.length'
+        message: 'Unsupported algorithm.length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
