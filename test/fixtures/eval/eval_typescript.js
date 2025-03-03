@@ -16,7 +16,7 @@ const queue = [
 ];
 
 for (const cmd of queue) {
-  const args = ['--disable-warning=ExperimentalWarning', '--experimental-strip-types', '-p', cmd];
+  const args = ['--disable-warning=ExperimentalWarning', '-p', cmd];
   const result = spawnSync(process.execPath, args, {
     stdio: 'pipe',
   });
