@@ -43,21 +43,22 @@ class CipherBase : public BaseObject {
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
-  void CommonInit(const char* cipher_type,
+  void CommonInit(std::string_view cipher_type,
                   const ncrypto::Cipher& cipher,
                   const unsigned char* key,
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
                   unsigned int auth_tag_len);
-  void Init(const char* cipher_type,
+  void Init(std::string_view cipher_type,
             const ArrayBufferOrViewContents<unsigned char>& key_buf,
             unsigned int auth_tag_len);
-  void InitIv(const char* cipher_type,
+  void InitIv(std::string_view cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(const char* cipher_type, int iv_len,
+  bool InitAuthenticated(std::string_view cipher_type,
+                         int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
   UpdateResult Update(const char* data, size_t len,
@@ -110,7 +111,7 @@ class PublicKeyCipher {
   static bool Cipher(Environment* env,
                      const ncrypto::EVPKeyPointer& pkey,
                      int padding,
-                     const EVP_MD* digest,
+                     const ncrypto::Digest& digest,
                      const ArrayBufferOrViewContents<unsigned char>& oaep_label,
                      const ArrayBufferOrViewContents<unsigned char>& data,
                      std::unique_ptr<v8::BackingStore>* out);
@@ -148,10 +149,8 @@ class CipherJob final : public CryptoJob<CipherTraits> {
     CryptoJobMode mode = GetCryptoJobMode(args[0]);
 
     CHECK(args[1]->IsUint32());  // Cipher Mode
-
-    uint32_t cmode = args[1].As<v8::Uint32>()->Value();
-    CHECK_LE(cmode, WebCryptoCipherMode::kWebCryptoCipherDecrypt);
-    WebCryptoCipherMode cipher_mode = static_cast<WebCryptoCipherMode>(cmode);
+    auto cipher_mode =
+        static_cast<WebCryptoCipherMode>(args[1].As<v8::Uint32>()->Value());
 
     CHECK(args[2]->IsObject());  // KeyObject
     KeyObjectHandle* key;
