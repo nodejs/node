@@ -61,7 +61,7 @@ describe('use-system-ca', function() {
     beforeEach(async function() {
       server = await setupServer(
         'non-trusted-leaf-from-intermediate-key.pem',
-        'non-trusted-leaf-from-intermediate-cert.pem'
+        'non-trusted-leaf-from-intermediate-cert.pem',
       );
     });
 
