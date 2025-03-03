@@ -1,6 +1,6 @@
 import { skip, spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { match, strictEqual } from 'node:assert';
+import assert, { match, strictEqual } from 'node:assert';
 import { test } from 'node:test';
 
 if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
@@ -63,14 +63,35 @@ test('require a .ts file with implicit extension fails', async () => {
 });
 
 test('expect failure of an .mts file with CommonJS syntax', async () => {
-  const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
-    fixtures.path('typescript/cts/test-cts-but-module-syntax.cts'),
-  ]);
+  const testFilePath = fixtures.path(
+    'typescript/cts/test-cts-but-module-syntax.cts'
+  );
+  const result = await spawnPromisified(process.execPath, ['--experimental-strip-types', testFilePath]);
 
-  strictEqual(result.stdout, '');
-  match(result.stderr, /To load an ES module, set "type": "module" in the package\.json or use the \.mjs extension\./);
-  strictEqual(result.code, 1);
+  assert.strictEqual(result.stdout, '');
+
+  const expectedWarning = `Failed to load the ES module: ${testFilePath}. Make sure to set "type": "module" in the nearest package.json file or use the .mjs extension.`;
+
+  try {
+    assert.ok(
+      result.stderr.includes(expectedWarning),
+      `Expected stderr to include: ${expectedWarning}`
+    );
+  } catch (e) {
+    if (e?.code === 'ERR_ASSERTION') {
+      assert.match(
+        result.stderr,
+        /Failed to load the ES module:.*test-cts-but-module-syntax\.cts/
+      );
+      e.expected = expectedWarning;
+      e.actual = result.stderr;
+      e.operator = 'includes';
+    }
+    throw e;
+  }
+
+
+  assert.strictEqual(result.code, 1);
 });
 
 test('execute a .cts file importing a .cts file', async () => {
