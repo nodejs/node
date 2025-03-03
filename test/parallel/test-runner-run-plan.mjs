@@ -10,10 +10,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'match.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -22,10 +22,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'less.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -34,10 +34,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'more.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -46,10 +46,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'subtest.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(2)); // Parent + child test
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -58,10 +58,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'plan-via-options.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustCall(1));
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -70,10 +70,10 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'streaming.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(1));
-    
+
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
   });
@@ -82,11 +82,77 @@ describe('test planning', () => {
     const stream = run({
       files: [join(testFixtures, 'plan', 'nested-subtests.mjs')]
     });
-    
+
     stream.on('test:fail', common.mustNotCall());
     stream.on('test:pass', common.mustCall(3)); // Parent + 2 levels of nesting
     
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
+  });
+
+  describe('with timeout', () => {
+    it('should handle basic timeout scenarios', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'plan', 'timeout-basic.mjs')]
+      });
+
+      stream.on('test:fail', common.mustCall(1));
+      stream.on('test:pass', common.mustCall(1));
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should fail when timeout expires before plan is met', async (t) => {
+      const stream = run({
+        files: [join(testFixtures, 'plan', 'timeout-expired.mjs')],
+        forceExit: true
+      });
+
+      stream.on('test:fail', common.mustCall(1));
+      stream.on('test:pass', common.mustNotCall());
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should handle wait options in plan', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'plan', 'timeout-options.mjs')],
+        forceExit: true
+      });
+
+      stream.on('test:fail', common.mustCall(1));
+      stream.on('test:pass', common.mustCall(1));
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should handle wait:true option specifically', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'plan', 'timeout-wait-true.mjs')],
+        forceExit: true
+      });
+
+      stream.on('test:fail', common.mustCall(1));
+      stream.on('test:pass', common.mustCall(1));
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
+
+    it('should handle wait:false option (should not wait)', async () => {
+      const stream = run({
+        files: [join(testFixtures, 'plan', 'timeout-wait-false.mjs')],
+        forceExit: true
+      });
+
+      stream.on('test:fail', common.mustCall(1)); // Fails because plan is not met immediately
+      stream.on('test:pass', common.mustNotCall());
+
+      // eslint-disable-next-line no-unused-vars
+      for await (const _ of stream);
+    });
   });
 });
