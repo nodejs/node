@@ -249,6 +249,7 @@ struct Buffer {
 
 class Digest final {
  public:
+  static constexpr size_t MAX_SIZE = EVP_MAX_MD_SIZE;
   Digest() = default;
   Digest(const EVP_MD* md) : md_(md) {}
   Digest(const Digest&) = default;
@@ -353,7 +354,7 @@ class Cipher final {
 
   struct CipherParams {
     int padding;
-    const EVP_MD* digest;
+    Digest digest;
     const Buffer<const void> label;
   };
 
@@ -723,13 +724,13 @@ class EVPKeyCtxPointer final {
   bool setDsaParameters(uint32_t bits, std::optional<int> q_bits);
   bool setEcParameters(int curve, int encoding);
 
-  bool setRsaOaepMd(const EVP_MD* md);
-  bool setRsaMgf1Md(const EVP_MD* md);
+  bool setRsaOaepMd(const Digest& md);
+  bool setRsaMgf1Md(const Digest& md);
   bool setRsaPadding(int padding);
   bool setRsaKeygenPubExp(BignumPointer&& e);
   bool setRsaKeygenBits(int bits);
-  bool setRsaPssKeygenMd(const EVP_MD* md);
-  bool setRsaPssKeygenMgf1Md(const EVP_MD* md);
+  bool setRsaPssKeygenMd(const Digest& md);
+  bool setRsaPssKeygenMgf1Md(const Digest& md);
   bool setRsaPssSaltlen(int salt_len);
   bool setRsaImplicitRejection();
   bool setRsaOaepLabel(DataPointer&& data);
@@ -1003,6 +1004,8 @@ class SSLCtxPointer final {
     SSL_CTX_set_tlsext_status_arg(get(), nullptr);
   }
 
+  bool setCipherSuites(std::string_view ciphers);
+
   static SSLCtxPointer NewServer();
   static SSLCtxPointer NewClient();
   static SSLCtxPointer New(const SSL_METHOD* method = TLS_method());
@@ -1131,7 +1134,7 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
-  std::optional<std::string> getFingerprint(const EVP_MD* method) const;
+  std::optional<std::string> getFingerprint(const Digest& method) const;
 
   X509Pointer clone() const;
 
@@ -1327,16 +1330,16 @@ class EVPMDCtxPointer final {
   void reset(EVP_MD_CTX* ctx = nullptr);
   EVP_MD_CTX* release();
 
-  bool digestInit(const EVP_MD* digest);
+  bool digestInit(const Digest& digest);
   bool digestUpdate(const Buffer<const void>& in);
   DataPointer digestFinal(size_t length);
   bool digestFinalInto(Buffer<void>* buf);
   size_t getExpectedSize();
 
   std::optional<EVP_PKEY_CTX*> signInit(const EVPKeyPointer& key,
-                                        const EVP_MD* digest);
+                                        const Digest& digest);
   std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
-                                          const EVP_MD* digest);
+                                          const Digest& digest);
 
   DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
   DataPointer sign(const Buffer<const unsigned char>& buf) const;
@@ -1371,7 +1374,7 @@ class HMACCtxPointer final {
   void reset(HMAC_CTX* ctx = nullptr);
   HMAC_CTX* release();
 
-  bool init(const Buffer<const void>& buf, const EVP_MD* md);
+  bool init(const Buffer<const void>& buf, const Digest& md);
   bool update(const Buffer<const void>& buf);
   DataPointer digest();
   bool digestInto(Buffer<void>* buf);
@@ -1486,7 +1489,7 @@ DataPointer scrypt(const Buffer<const char>& pass,
                    uint64_t maxmem,
                    size_t length);
 
-DataPointer pbkdf2(const EVP_MD* md,
+DataPointer pbkdf2(const Digest& md,
                    const Buffer<const char>& pass,
                    const Buffer<const unsigned char>& salt,
                    uint32_t iterations,

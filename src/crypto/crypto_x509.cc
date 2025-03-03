@@ -19,6 +19,7 @@ using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
+using ncrypto::Digest;
 using ncrypto::ECKeyPointer;
 using ncrypto::SSLPointer;
 using ncrypto::X509Name;
@@ -70,7 +71,7 @@ void ManagedX509::MemoryInfo(MemoryTracker* tracker) const {
 
 namespace {
 MaybeLocal<Value> GetFingerprintDigest(Environment* env,
-                                       const EVP_MD* method,
+                                       const Digest& method,
                                        const X509View& cert) {
   auto fingerprint = cert.getFingerprint(method);
   // Returning an empty string indicates that the digest failed for
@@ -82,13 +83,13 @@ MaybeLocal<Value> GetFingerprintDigest(Environment* env,
   return OneByteString(env->isolate(), fp.data(), fp.length());
 }
 
-template <const EVP_MD* (*algo)()>
+template <const ncrypto::Digest& algo>
 void Fingerprint(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   X509Certificate* cert;
   ASSIGN_OR_RETURN_UNWRAP(&cert, args.This());
   Local<Value> ret;
-  if (GetFingerprintDigest(env, algo(), cert->view()).ToLocal(&ret)) {
+  if (GetFingerprintDigest(env, algo, cert->view()).ToLocal(&ret)) {
     args.GetReturnValue().Set(ret);
   }
 }
@@ -764,15 +765,15 @@ MaybeLocal<Object> X509ToObject(Environment* env, const X509View& cert) {
       !Set<Value>(env,
                   info,
                   env->fingerprint_string(),
-                  GetFingerprintDigest(env, EVP_sha1(), cert)) ||
+                  GetFingerprintDigest(env, Digest::SHA1, cert)) ||
       !Set<Value>(env,
                   info,
                   env->fingerprint256_string(),
-                  GetFingerprintDigest(env, EVP_sha256(), cert)) ||
+                  GetFingerprintDigest(env, Digest::SHA256, cert)) ||
       !Set<Value>(env,
                   info,
                   env->fingerprint512_string(),
-                  GetFingerprintDigest(env, EVP_sha512(), cert)) ||
+                  GetFingerprintDigest(env, Digest::SHA512, cert)) ||
       !Set<Value>(
           env, info, env->ext_key_usage_string(), GetKeyUsage(env, cert)) ||
       !Set<Value>(
@@ -805,11 +806,11 @@ Local<FunctionTemplate> X509Certificate::GetConstructorTemplate(
     SetProtoMethodNoSideEffect(isolate, tmpl, "validToDate", ValidToDate);
     SetProtoMethodNoSideEffect(isolate, tmpl, "validFromDate", ValidFromDate);
     SetProtoMethodNoSideEffect(
-        isolate, tmpl, "fingerprint", Fingerprint<EVP_sha1>);
+        isolate, tmpl, "fingerprint", Fingerprint<Digest::SHA1>);
     SetProtoMethodNoSideEffect(
-        isolate, tmpl, "fingerprint256", Fingerprint<EVP_sha256>);
+        isolate, tmpl, "fingerprint256", Fingerprint<Digest::SHA256>);
     SetProtoMethodNoSideEffect(
-        isolate, tmpl, "fingerprint512", Fingerprint<EVP_sha512>);
+        isolate, tmpl, "fingerprint512", Fingerprint<Digest::SHA512>);
     SetProtoMethodNoSideEffect(isolate, tmpl, "keyUsage", KeyUsage);
     SetProtoMethodNoSideEffect(isolate, tmpl, "serialNumber", SerialNumber);
     SetProtoMethodNoSideEffect(isolate, tmpl, "pem", Pem);
@@ -975,9 +976,9 @@ void X509Certificate::RegisterExternalReferences(
   registry->Register(ValidFrom);
   registry->Register(ValidToDate);
   registry->Register(ValidFromDate);
-  registry->Register(Fingerprint<EVP_sha1>);
-  registry->Register(Fingerprint<EVP_sha256>);
-  registry->Register(Fingerprint<EVP_sha512>);
+  registry->Register(Fingerprint<Digest::SHA1>);
+  registry->Register(Fingerprint<Digest::SHA256>);
+  registry->Register(Fingerprint<Digest::SHA512>);
   registry->Register(KeyUsage);
   registry->Register(SerialNumber);
   registry->Register(Pem);
