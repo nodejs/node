@@ -30,7 +30,7 @@ and post when doing a release, and TSC members may post
 an announcement of a release if a releaser is not able to
 do it themselves.
 
-Login credentials are availble to members of the Technical
+Login credentials are available to members of the Technical
 Steering Committee. Releasers may request access by
 opening an issue in the nodejs/admin repo asking for access.
 
