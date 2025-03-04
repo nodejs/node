@@ -81,6 +81,7 @@ but we recommend version 5.8 or newer with the following `tsconfig.json` setting
 ```json
 {
   "compilerOptions": {
+     "noEmit": true, // Optional - prevent tsc from emitting transpiled JS
      "target": "esnext",
      "module": "nodenext",
      "rewriteRelativeImportExtensions": true,
