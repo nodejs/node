@@ -16,7 +16,7 @@ Bluesky is managed directly by the project. Automation is used
 to request posts/reposts as outlined in
 [nodejs/bluesky](https://github.com/nodejs/bluesky).
 
-Login credentials are availble to members of the Technical
+Login credentials are available to members of the Technical
 Steering Committee, but are not to be used directly except
 in exceptional circumstances.
 
