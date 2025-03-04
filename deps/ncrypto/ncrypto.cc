@@ -111,20 +111,64 @@ DataPointer DataPointer::Alloc(size_t len) {
 #endif
 }
 
+DataPointer DataPointer::SecureAlloc(size_t len) {
+#ifndef OPENSSL_IS_BORINGSSL
+  auto ptr = OPENSSL_secure_zalloc(len);
+  if (ptr == nullptr) return {};
+  return DataPointer(ptr, len, true);
+#else
+  // BoringSSL does not implement the OPENSSL_secure_zalloc API.
+  auto ptr = OPENSSL_malloc(len);
+  if (ptr == nullptr) return {};
+  memset(ptr, 0, len);
+  return DataPointer(ptr, len);
+#endif
+}
+
+size_t DataPointer::GetSecureHeapUsed() {
+#ifndef OPENSSL_IS_BORINGSSL
+  return CRYPTO_secure_malloc_initialized() ? CRYPTO_secure_used() : 0;
+#else
+  // BoringSSL does not have the secure heap and therefore
+  // will always return 0.
+  return 0;
+#endif
+}
+
+DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
+                                                                 size_t min) {
+#ifndef OPENSSL_IS_BORINGSSL
+  switch (CRYPTO_secure_malloc_init(amount, min)) {
+    case 0:
+      return InitSecureHeapResult::FAILED;
+    case 2:
+      return InitSecureHeapResult::UNABLE_TO_MEMORY_MAP;
+    case 1:
+      return InitSecureHeapResult::OK;
+    default:
+      return InitSecureHeapResult::FAILED;
+  }
+#else
+  // BoringSSL does not actually support the secure heap
+  return InitSecureHeapResult::FAILED;
+#endif
+}
+
 DataPointer DataPointer::Copy(const Buffer<const void>& buffer) {
   return DataPointer(OPENSSL_memdup(buffer.data, buffer.len), buffer.len);
 }
 
-DataPointer::DataPointer(void* data, size_t length)
-    : data_(data), len_(length) {}
+DataPointer::DataPointer(void* data, size_t length, bool secure)
+    : data_(data), len_(length), secure_(secure) {}
 
-DataPointer::DataPointer(const Buffer<void>& buffer)
-    : data_(buffer.data), len_(buffer.len) {}
+DataPointer::DataPointer(const Buffer<void>& buffer, bool secure)
+    : data_(buffer.data), len_(buffer.len), secure_(secure) {}
 
 DataPointer::DataPointer(DataPointer&& other) noexcept
-    : data_(other.data_), len_(other.len_) {
+    : data_(other.data_), len_(other.len_), secure_(other.secure_) {
   other.data_ = nullptr;
   other.len_ = 0;
+  other.secure_ = false;
 }
 
 DataPointer& DataPointer::operator=(DataPointer&& other) noexcept {
@@ -144,7 +188,11 @@ void DataPointer::zero() {
 
 void DataPointer::reset(void* data, size_t length) {
   if (data_ != nullptr) {
-    OPENSSL_clear_free(data_, len_);
+    if (secure_) {
+      OPENSSL_secure_clear_free(data_, len_);
+    } else {
+      OPENSSL_clear_free(data_, len_);
+    }
   }
   data_ = data;
   len_ = length;
@@ -175,6 +223,7 @@ DataPointer DataPointer::resize(size_t len) {
 
 // ============================================================================
 bool isFipsEnabled() {
+  ClearErrorOnReturn clear_error_on_return;
 #if OPENSSL_VERSION_MAJOR >= 3
   return EVP_default_properties_is_fips_enabled(nullptr) == 1;
 #else
@@ -186,30 +235,31 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
   if (isFipsEnabled() == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
 #if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
+  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1 &&
+         EVP_default_properties_is_fips_enabled(nullptr);
 #else
   return FIPS_mode_set(enable ? 1 : 0) == 1;
 #endif
 }
 
 bool testFipsEnabled() {
+  ClearErrorOnReturn clear_error_on_return;
 #if OPENSSL_VERSION_MAJOR >= 3
   OSSL_PROVIDER* fips_provider = nullptr;
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
     fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
   }
-  const auto enabled = fips_provider == nullptr                 ? 0
-                       : OSSL_PROVIDER_self_test(fips_provider) ? 1
-                                                                : 0;
+  if (fips_provider == nullptr) return false;
+  int result = OSSL_PROVIDER_self_test(fips_provider);
+  OSSL_PROVIDER_unload(fips_provider);
+  return result;
 #else
 #ifdef OPENSSL_FIPS
-  const auto enabled = FIPS_selftest() ? 1 : 0;
+  return FIPS_selftest();
 #else  // OPENSSL_FIPS
-  const auto enabled = 0;
+  return false;
 #endif  // OPENSSL_FIPS
 #endif
-
-  return enabled;
 }
 
 // ============================================================================
@@ -2689,6 +2739,21 @@ std::optional<std::string_view> SSLPointer::getCipherVersion() const {
   return SSL_CIPHER_get_version(cipher);
 }
 
+std::optional<int> SSLPointer::getSecurityLevel() {
+#ifndef OPENSSL_IS_BORINGSSL
+  auto ctx = SSLCtxPointer::New();
+  if (!ctx) return std::nullopt;
+
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) return std::nullopt;
+
+  return SSL_get_security_level(ssl);
+#else
+  // for BoringSSL assume the same as the default
+  return OPENSSL_TLS_SECURITY_LEVEL;
+#endif  // OPENSSL_IS_BORINGSSL
+}
+
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}
 
 SSLCtxPointer::SSLCtxPointer(SSLCtxPointer&& other) noexcept
@@ -3290,6 +3355,10 @@ EVPKeyCtxPointer EVPKeyCtxPointer::New(const EVPKeyPointer& key) {
 }
 
 EVPKeyCtxPointer EVPKeyCtxPointer::NewFromID(int id) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // DSA keys are not supported with BoringSSL
+  if (id == EVP_PKEY_DSA) return {};
+#endif
   return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(id, nullptr));
 }
 
@@ -3850,6 +3919,26 @@ const EC_GROUP* Ec::getGroup() const {
 
 int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
+}
+
+int Ec::GetCurveIdFromName(std::string_view name) {
+  int nid = EC_curve_nist2nid(name.data());
+  if (nid == NID_undef) {
+    nid = OBJ_sn2nid(name.data());
+  }
+  return nid;
+}
+
+bool Ec::GetCurves(Ec::GetCurveCallback callback) {
+  const size_t count = EC_get_builtin_curves(nullptr, 0);
+  std::vector<EC_builtin_curve> curves(count);
+  if (EC_get_builtin_curves(curves.data(), count) != count) {
+    return false;
+  }
+  for (auto curve : curves) {
+    if (!callback(OBJ_nid2sn(curve.nid))) return false;
+  }
+  return true;
 }
 
 // ============================================================================

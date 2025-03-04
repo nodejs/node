@@ -651,7 +651,7 @@ MaybeLocal<Value> GetECPubKey(Environment* env,
   if (pubkey == nullptr) [[unlikely]]
     return Undefined(env->isolate());
 
-  return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec), nullptr)
+  return ECPointToBuffer(env, group, pubkey, EC_KEY_get_conv_form(ec))
       .FromMaybe(Local<Object>());
 }
 
