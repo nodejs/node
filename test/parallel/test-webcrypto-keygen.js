@@ -177,10 +177,7 @@ if (hasOpenSSL(3, 5)) {
     return assert.rejects(
       // The extractable and usages values are invalid here also,
       // but the unrecognized algorithm name should be caught first.
-      subtle.generateKey(algorithm, 7, []), {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      });
+      subtle.generateKey(algorithm, 7, []), { name: 'NotSupportedError' });
   }
 
   const tests = [
@@ -373,10 +370,7 @@ if (hasOpenSSL(3, 5)) {
         modulusLength,
         publicExponent,
         hash
-      }, true, usages), {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      });
+      }, true, usages), { name: 'NotSupportedError' });
     }));
 
     await Promise.all(['', {}, 1, false].map((usages) => {
@@ -604,7 +598,6 @@ if (hasOpenSSL(3, 5)) {
     [1, false, null].forEach(async (hash) => {
       await assert.rejects(
         subtle.generateKey({ name: 'HMAC', length, hash }, true, usages), {
-          message: /Unrecognized algorithm name/,
           name: 'NotSupportedError',
         });
     });

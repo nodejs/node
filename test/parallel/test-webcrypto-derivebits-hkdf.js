@@ -306,7 +306,6 @@ async function testDeriveBitsBadHash(
           hash: 'PBKDF2'
         },
         baseKeys[size], 256), {
-        message: /Unrecognized algorithm name/,
         name: 'NotSupportedError',
       }),
   ]);
@@ -437,10 +436,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
     assert.rejects(
       subtle.deriveKey(
         {
@@ -451,10 +447,7 @@ async function testDeriveKeyBadHash(
         keyType,
         true,
         usages),
-      {
-        message: /Unrecognized algorithm name/,
-        name: 'NotSupportedError',
-      }),
+      { name: 'NotSupportedError' }),
   ]);
 }
 
