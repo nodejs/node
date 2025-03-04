@@ -11,10 +11,12 @@ const { subtle } = globalThis.crypto;
 const { createHash } = require('crypto');
 
 const kTests = [
-  ['SHA-1', 'sha1', 160],
-  ['SHA-256', 'sha256', 256],
-  ['SHA-384', 'sha384', 384],
-  ['SHA-512', 'sha512', 512],
+  ['SHA-1', ['sha1'], 160],
+  ['SHA-256', ['sha256'], 256],
+  ['SHA-384', ['sha384'], 384],
+  ['SHA-512', ['sha512'], 512],
+  [{ name: 'cSHAKE128', length: 256 }, ['shake128', { outputLength: 256 >> 3 }], 256],
+  [{ name: 'cSHAKE256', length: 512 }, ['shake256', { outputLength: 512 >> 3 }], 512],
 ];
 
 // Empty hash just works, not checking result
@@ -38,12 +40,10 @@ const kData = (new TextEncoder()).encode('hello');
   await Promise.all(kTests.map(async (test) => {
     // Get the digest using the legacy crypto API
     const checkValue =
-      createHash(test[1]).update(kData).digest().toString('hex');
+      createHash.apply(createHash, test[1]).update(kData).digest().toString('hex');
 
     // Get the digest using the SubtleCrypto API
     const values = Promise.all([
-      subtle.digest({ name: test[0] }, kData),
-      subtle.digest({ name: test[0], length: test[2] }, kData),
       subtle.digest(test[0], kData),
       subtle.digest(test[0], kData.buffer),
       subtle.digest(test[0], new DataView(kData.buffer)),
@@ -137,17 +137,53 @@ const kDigestedData = {
     long: '4b02caf650276030ea5617e597c5d53fd9daa68b78bfe' +
           '60b22aab8d36a4c2a3affdb71234f49276737c575ddf7' +
           '4d14054cbd6fdb98fd0ddcbcb46f91ad76b6ee'
-  }
+  },
+  'cshake128': {
+    empty: '7f9c2ba4e88f827d616045507605853ed73b8093f6e' +
+           'fbc88eb1a6eacfa66ef26',
+    short: 'dea62d73e6b59cf725d0320d660089a4475cbbd3b85' +
+           '39e36691f150d47556794',
+    medium: 'b1acd53a03e76a221e52ea578e042f686a68c3d1c9' +
+            '832ab18285cf4f304ca32d',
+    long: '3a5bf5676955e5dec87d430e526925558971ca14c370' +
+          'ee5d7cf572b94c7c63d7'
+  },
+  'cshake256': {
+    empty: '46b9dd2b0ba88d13233b3feb743eeb243fcd52ea62b' +
+           '81b82b50c27646ed5762fd75dc4ddd8c0f200cb0501' +
+           '9d67b592f6fc821c49479ab48640292eacb3b7c4be',
+    short: '1738113f5abb3ee5320ee18aa266c3617a7475dbd8e' +
+           'd9a985994fddd6112ad999ec8e2ebdfeafb96e76f6b' +
+           'b3a3adba43da60f00cd12496df5af3e28ae6d3de42',
+    medium: '4146c13d86d9bc186b0b309ab6a124ee0c74ba26b8' +
+            'c60dcc7b3ed505969aa8d19028c6317999a085b1e6' +
+            'b6a785ce4ff632aeb27493227e44232fb7b3952141' +
+            '7b',
+    long: '0c42bfd1e282622fd8144aa29b072fd09fc2bae70885' +
+          'd5290933492f9d17411926a613dd0611668c2ac999e8' +
+          'c011aabaa9004323425fbad75b0f58ee6e777a94'
+  },
 };
 
-async function testDigest(size, name) {
+async function testDigest(size, alg) {
   const digest = await subtle.digest(
-    name,
+    alg,
     Buffer.from(kSourceData[size], 'hex'));
 
   assert.strictEqual(
     Buffer.from(digest).toString('hex'),
-    kDigestedData[name.toLowerCase()][size]);
+    kDigestedData[(alg.name || alg).toLowerCase()][size]);
+}
+
+function applyXOF(name) {
+  if (name.match(/cshake128/i)) {
+    return { name, length: 256 };
+  }
+  if (name.match(/cshake256/i)) {
+    return { name, length: 512 };
+  }
+  return name;
+
 }
 
 (async function() {
@@ -158,9 +194,9 @@ async function testDigest(size, name) {
       const downCase = alg.toLowerCase();
       const mixedCase = upCase.slice(0, 1) + downCase.slice(1);
 
-      variations.push(testDigest(size, upCase));
-      variations.push(testDigest(size, downCase));
-      variations.push(testDigest(size, mixedCase));
+      variations.push(testDigest(size, applyXOF(upCase)));
+      variations.push(testDigest(size, applyXOF(downCase)));
+      variations.push(testDigest(size, applyXOF(mixedCase)));
     });
   });
 
@@ -170,5 +206,18 @@ async function testDigest(size, name) {
 (async () => {
   await assert.rejects(subtle.digest('RSA-OAEP', Buffer.alloc(1)), {
     name: 'NotSupportedError',
+  });
+})().then(common.mustCall());
+
+// CShake edge cases
+(async () => {
+  assert.deepStrictEqual(
+    new Uint8Array(await subtle.digest({ name: 'cSHAKE128', length: 0 }, Buffer.alloc(1))),
+    new Uint8Array(0),
+  );
+
+  await assert.rejects(subtle.digest({ name: 'cSHAKE128', length: 7 }, Buffer.alloc(1)), {
+    name: 'NotSupportedError',
+    message: 'Unsupported CShakeParams length',
   });
 })().then(common.mustCall());
