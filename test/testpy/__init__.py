@@ -76,6 +76,9 @@ class SimpleTestCase(test.TestCase):
       elif (('--use-bundled-ca' in flags or
           '--use-openssl-ca' in flags or
           '--use-system-ca' in flags or
+          '--no-use-bundled-ca' in flags or
+          '--no-use-openssl-ca' in flags or
+          '--no-use-system-ca' in flags or
           '--tls-v1.0' in flags or
           '--tls-v1.1' in flags) and
           not self.context.node_has_crypto):
