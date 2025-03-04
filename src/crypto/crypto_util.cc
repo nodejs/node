@@ -33,8 +33,6 @@ using ncrypto::DataPointer;
 #ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
-using ncrypto::EVPKeyCtxPointer;
-using ncrypto::SSLCtxPointer;
 using ncrypto::SSLPointer;
 using v8::ArrayBuffer;
 using v8::BackingStore;
@@ -202,8 +200,8 @@ void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(sec_level.value());
   }
   Environment* env = Environment::GetCurrent(args);
-  ThrowCryptoError(env, clear_error_on_return.peekError(),
-                   "getOpenSSLSecLevel");
+  ThrowCryptoError(
+      env, clear_error_on_return.peekError(), "getOpenSSLSecLevel");
 }
 
 void CryptoErrorStore::Capture() {
@@ -604,19 +602,17 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 }
 #endif  // !OPENSSL_NO_ENGINE
 
-MaybeLocal<Value> EncodeBignum(
-    Environment* env,
-    const BIGNUM* bn,
-    int size) {
+MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
   auto buf = BignumPointer::EncodePadded(bn, size);
   CHECK_EQ(buf.size(), static_cast<size_t>(size));
   Local<Value> ret;
   Local<Value> error;
   if (!StringBytes::Encode(env->isolate(),
-                             reinterpret_cast<const char*>(buf.get()),
-                             buf.size(),
-                             BASE64URL,
-                             &error).ToLocal(&ret)) {
+                           reinterpret_cast<const char*>(buf.get()),
+                           buf.size(),
+                           BASE64URL,
+                           &error)
+           .ToLocal(&ret)) {
     CHECK(!error.IsEmpty());
     env->isolate()->ThrowException(error);
     return MaybeLocal<Value>();
@@ -663,18 +659,20 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   }
   auto released = data.release();
 
-  std::shared_ptr<BackingStore> store =
-      ArrayBuffer::NewBackingStore(
-          released.data,
-          released.len,
-          [](void* data, size_t len, void* deleter_data) {
-            // The DataPointer takes ownership and will appropriately
-            // free the data when it gets reset.
-            DataPointer free_me(ncrypto::Buffer<void> {
-              .data = data,
-              .len = len,
-            }, true);
-          }, nullptr);
+  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+      released.data,
+      released.len,
+      [](void* data, size_t len, void* deleter_data) {
+        // The DataPointer takes ownership and will appropriately
+        // free the data when it gets reset.
+        DataPointer free_me(
+            ncrypto::Buffer<void>{
+                .data = data,
+                .len = len,
+            },
+            true);
+      },
+      nullptr);
 
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
   args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));

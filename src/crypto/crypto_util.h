@@ -592,10 +592,9 @@ class ArrayBufferOrViewContents final {
   void operator delete[](void*);
 };
 
-v8::MaybeLocal<v8::Value> EncodeBignum(
-    Environment* env,
-    const BIGNUM* bn,
-    int size);
+v8::MaybeLocal<v8::Value> EncodeBignum(Environment* env,
+                                       const BIGNUM* bn,
+                                       int size);
 
 v8::Maybe<void> SetEncodedValue(Environment* env,
                                 v8::Local<v8::Object> target,
