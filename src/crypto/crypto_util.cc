@@ -286,11 +286,8 @@ MaybeLocal<Value> CryptoErrorStore::ToException(
     // into the .opensslErrorStack property on the exception object.
     const std::string& last_error_string = copy.errors_.back();
     Local<String> exception_string;
-    if (!String::NewFromUtf8(
-            env->isolate(),
-            last_error_string.data(),
-            NewStringType::kNormal,
-            last_error_string.size()).ToLocal(&exception_string)) {
+    if (!ToV8Value(env->context(), last_error_string)
+             .ToLocal(&exception_string)) {
       return MaybeLocal<Value>();
     }
     copy.errors_.pop_back();
