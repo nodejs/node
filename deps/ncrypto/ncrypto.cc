@@ -113,7 +113,7 @@ DataPointer DataPointer::Alloc(size_t len) {
 
 DataPointer DataPointer::SecureAlloc(size_t len) {
 #ifndef OPENSSL_IS_BORINGSSL
-printf("... %zu\n", len);
+  printf("... %zu\n", len);
   auto ptr = OPENSSL_secure_zalloc(len);
   if (ptr == nullptr) return {};
   return DataPointer(ptr, len, true);
@@ -136,14 +136,18 @@ size_t DataPointer::GetSecureHeapUsed() {
 #endif
 }
 
-DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(
-  size_t amount, size_t min) {
+DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(size_t amount,
+                                                                 size_t min) {
 #ifndef OPENSSL_IS_BORINGSSL
   switch (CRYPTO_secure_malloc_init(amount, min)) {
-    case 0: return InitSecureHeapResult::FAILED;
-    case 2: return InitSecureHeapResult::UNABLE_TO_MEMORY_MAP;
-    case 1: return InitSecureHeapResult::OK;
-    default: return InitSecureHeapResult::FAILED;
+    case 0:
+      return InitSecureHeapResult::FAILED;
+    case 2:
+      return InitSecureHeapResult::UNABLE_TO_MEMORY_MAP;
+    case 1:
+      return InitSecureHeapResult::OK;
+    default:
+      return InitSecureHeapResult::FAILED;
   }
 #else
   // BoringSSL does not actually support the secure heap
