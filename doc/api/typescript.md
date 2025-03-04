@@ -70,16 +70,16 @@ By intentionally not supporting syntaxes that require JavaScript code
 generation, and by replacing inline types with whitespace, Node.js can run
 TypeScript code without the need for source maps.
 
-Type stripping works with most versions of TypeScript
-but we recommend version 5.7 or newer with the following `tsconfig.json` settings:
+Type stripping is compatible with most versions of TypeScript
+but we recommend version 5.8 or newer with the following `tsconfig.json` settings:
 
 ```json
 {
   "compilerOptions": {
      "target": "esnext",
      "module": "nodenext",
-     "allowImportingTsExtensions": true,
      "rewriteRelativeImportExtensions": true,
+     "erasableSyntaxOnly": true,
      "verbatimModuleSyntax": true
   }
 }
