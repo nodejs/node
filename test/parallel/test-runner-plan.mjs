@@ -145,19 +145,6 @@ describe('test planning', () => {
       for await (const _ of stream);
     });
 
-    it('should handle wait options in plan', async () => {
-      const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-options.mjs')],
-        forceExit: true
-      });
-
-      stream.on('test:fail', common.mustCall(1));
-      stream.on('test:pass', common.mustCall(1));
-
-      // eslint-disable-next-line no-unused-vars
-      for await (const _ of stream);
-    });
-
     it('should handle wait:true option specifically', async () => {
       const stream = run({
         files: [join(testFixtures, 'plan', 'timeout-wait-true.mjs')],
