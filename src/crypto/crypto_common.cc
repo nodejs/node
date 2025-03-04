@@ -255,11 +255,10 @@ MaybeLocal<Object> GetEphemeralKey(Environment* env, const SSLPointer& ssl) {
 MaybeLocal<Object> ECPointToBuffer(Environment* env,
                                    const EC_GROUP* group,
                                    const EC_POINT* point,
-                                   point_conversion_form_t form,
-                                   const char** error) {
+                                   point_conversion_form_t form) {
   size_t len = EC_POINT_point2oct(group, point, form, nullptr, 0, nullptr);
   if (len == 0) {
-    if (error != nullptr) *error = "Failed to get public key length";
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get public key length");
     return MaybeLocal<Object>();
   }
 
@@ -273,7 +272,7 @@ MaybeLocal<Object> ECPointToBuffer(Environment* env,
                            bs->ByteLength(),
                            nullptr);
   if (len == 0) {
-    if (error != nullptr) *error = "Failed to get public key";
+    THROW_ERR_CRYPTO_OPERATION_FAILED(env, "Failed to get public key");
     return MaybeLocal<Object>();
   }
 
