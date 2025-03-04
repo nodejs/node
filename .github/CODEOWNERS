@@ -216,3 +216,6 @@
 /src/node_options.* @nodejs/config
 /test/parallel/test-config-* @nodejs/config
 /test/parallel/test-dotenv-* @nodejs/config
+
+# v24 release
+/.github/workflows/major-release.yml @nodejs/releasers

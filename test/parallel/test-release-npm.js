@@ -22,3 +22,8 @@ if (!releaseReg.test(process.version) || !common.hasCrypto) {
   assert.strictEqual(stderr.length, 0, 'npm is not ready for this release ' +
                      'and is going to print warnings to users:\n' + stderr);
 }
+
+// Add a check for the v24 release
+if (process.version.startsWith('v24')) {
+  console.log('Node.js v24 release detected');
+}

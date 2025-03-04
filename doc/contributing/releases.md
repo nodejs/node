@@ -1464,6 +1464,14 @@ Typical resolution: sign the release again.
 ./tools/release.sh -s vX.Y.Z
 ```
 
+### Upcoming Node.js Major Release (v24)
+
+A reminder that the next Node.js **SemVer Major release** is scheduled for **2025-04-22**.
+All commits that were landed until **2025-03-22** (one month prior to the release) will be included in the next semver major release. Please ensure that any necessary preparations are made in advance.
+For more details on the release process, consult the [Node.js Release Working Group repository](https://github.com/nodejs/release).
+
+cc: @nodejs/collaborators
+
 [Build issue tracker]: https://github.com/nodejs/build/issues/new
 [CI lockdown procedure]: https://github.com/nodejs/build/blob/HEAD/doc/jenkins-guide.md#restricting-access-for-security-releases
 [Node.js Snap management repository]: https://github.com/nodejs/snap
