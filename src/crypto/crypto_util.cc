@@ -87,18 +87,8 @@ bool ProcessFipsOptions() {
   /* Override FIPS settings in configuration file, if needed. */
   if (per_process::cli_options->enable_fips_crypto ||
       per_process::cli_options->force_fips_crypto) {
-#if OPENSSL_VERSION_MAJOR >= 3
-    OSSL_PROVIDER* fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
-    if (fips_provider == nullptr)
-      return false;
-    OSSL_PROVIDER_unload(fips_provider);
-
-    return EVP_default_properties_enable_fips(nullptr, 1) &&
-           EVP_default_properties_is_fips_enabled(nullptr);
-#else
-    if (FIPS_mode() == 0) return FIPS_mode_set(1);
-
-#endif
+    if (!ncrypto::testFipsEnabled()) return false;
+    return ncrypto::setFipsEnabled(true, nullptr) && ncrypto::isFipsEnabled();
   }
   return true;
 }
@@ -207,24 +197,12 @@ void TestFipsCrypto(const v8::FunctionCallbackInfo<v8::Value>& args) {
 }
 
 void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
-  // for BoringSSL assume the same as the default
-  int sec_level = OPENSSL_TLS_SECURITY_LEVEL;
-#ifndef OPENSSL_IS_BORINGSSL
+  ncrypto::ClearErrorOnReturn clear_error_on_return;
+  if (auto sec_level = SSLPointer::getSecurityLevel()) {
+    return args.GetReturnValue().Set(sec_level.value());
+  }
   Environment* env = Environment::GetCurrent(args);
-
-  auto ctx = SSLCtxPointer::New();
-  if (!ctx) {
-    return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
-  }
-
-  auto ssl = SSLPointer::New(ctx);
-  if (!ssl) {
-    return ThrowCryptoError(env, ERR_get_error(), "SSL_new");
-  }
-
-  sec_level = SSL_get_security_level(ssl);
-#endif  // OPENSSL_IS_BORINGSSL
-  args.GetReturnValue().Set(sec_level);
+  ThrowCryptoError(env, clear_error_on_return.peekError(), "getOpenSSLSecLevel");
 }
 
 void CryptoErrorStore::Capture() {
@@ -628,15 +606,21 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 MaybeLocal<Value> EncodeBignum(
     Environment* env,
     const BIGNUM* bn,
-    int size,
-    Local<Value>* error) {
+    int size) {
   auto buf = BignumPointer::EncodePadded(bn, size);
   CHECK_EQ(buf.size(), static_cast<size_t>(size));
-  return StringBytes::Encode(env->isolate(),
+  Local<Value> ret;
+  Local<Value> error;
+  if (!StringBytes::Encode(env->isolate(),
                              reinterpret_cast<const char*>(buf.get()),
                              buf.size(),
                              BASE64URL,
-                             error);
+                             &error).ToLocal(&ret)) {
+    CHECK(!error.IsEmpty());
+    env->isolate()->ThrowException(error);
+    return MaybeLocal<Value>();
+  }
+  return ret;
 }
 
 Maybe<void> SetEncodedValue(Environment* env,
@@ -645,26 +629,13 @@ Maybe<void> SetEncodedValue(Environment* env,
                             const BIGNUM* bn,
                             int size) {
   Local<Value> value;
-  Local<Value> error;
   CHECK_NOT_NULL(bn);
   if (size == 0) size = BignumPointer::GetByteCount(bn);
-  if (!EncodeBignum(env, bn, size, &error).ToLocal(&value)) {
-    if (!error.IsEmpty())
-      env->isolate()->ThrowException(error);
+  if (!EncodeBignum(env, bn, size).ToLocal(&value)) {
     return Nothing<void>();
   }
   return target->Set(env->context(), name, value).IsJust() ? JustVoid()
                                                            : Nothing<void>();
-}
-
-bool SetRsaOaepLabel(EVPKeyCtxPointer* ctx, const ByteSource& label) {
-  if (label.size() != 0) {
-    // OpenSSL takes ownership of the label, so we need to create a copy.
-    auto dup = ncrypto::DataPointer::Copy(label);
-    if (!dup) return false;
-    return ctx->setRsaOaepLabel(std::move(dup));
-  }
-  return true;
 }
 
 CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
