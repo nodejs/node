@@ -3,7 +3,7 @@ import * as fixtures from '../common/fixtures.mjs';
 import { describe, it, run } from 'node:test';
 import { join } from 'node:path';
 
-const testFixtures = fixtures.path('test-runner');
+const testFixtures = fixtures.path('test-runner', 'plan');
 
 describe('input validation', () => {
   it('throws if options is not an object', (t) => {
@@ -37,7 +37,7 @@ describe('input validation', () => {
 describe('test planning', () => {
   it('should pass when assertions match plan', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'match.mjs')]
+      files: [join(testFixtures, 'match.mjs')]
     });
 
     stream.on('test:fail', common.mustNotCall());
@@ -49,7 +49,7 @@ describe('test planning', () => {
 
   it('should fail when less assertions than planned', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'less.mjs')]
+      files: [join(testFixtures, 'less.mjs')]
     });
 
     stream.on('test:fail', common.mustCall(1));
@@ -61,7 +61,7 @@ describe('test planning', () => {
 
   it('should fail when more assertions than planned', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'more.mjs')]
+      files: [join(testFixtures, 'more.mjs')]
     });
 
     stream.on('test:fail', common.mustCall(1));
@@ -73,7 +73,7 @@ describe('test planning', () => {
 
   it('should handle plan with subtests correctly', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'subtest.mjs')]
+      files: [join(testFixtures, 'subtest.mjs')]
     });
 
     stream.on('test:fail', common.mustNotCall());
@@ -85,7 +85,7 @@ describe('test planning', () => {
 
   it('should handle plan via options', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'plan-via-options.mjs')]
+      files: [join(testFixtures, 'plan-via-options.mjs')]
     });
 
     stream.on('test:fail', common.mustCall(1));
@@ -97,7 +97,7 @@ describe('test planning', () => {
 
   it('should handle streaming with plan', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'streaming.mjs')]
+      files: [join(testFixtures, 'streaming.mjs')]
     });
 
     stream.on('test:fail', common.mustNotCall());
@@ -109,7 +109,7 @@ describe('test planning', () => {
 
   it('should handle nested subtests with plan', async () => {
     const stream = run({
-      files: [join(testFixtures, 'plan', 'nested-subtests.mjs')]
+      files: [join(testFixtures, 'nested-subtests.mjs')]
     });
 
     stream.on('test:fail', common.mustNotCall());
@@ -122,7 +122,7 @@ describe('test planning', () => {
   describe('with timeout', () => {
     it('should handle basic timeout scenarios', async () => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-basic.mjs')]
+        files: [join(testFixtures, 'timeout-basic.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1));
@@ -134,7 +134,7 @@ describe('test planning', () => {
 
     it('should fail when timeout expires before plan is met', async (t) => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-expired.mjs')]
+        files: [join(testFixtures, 'timeout-expired.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1));
@@ -146,7 +146,7 @@ describe('test planning', () => {
 
     it('should handle wait:true option specifically', async () => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-wait-true.mjs')]
+        files: [join(testFixtures, 'timeout-wait-true.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1));
@@ -158,7 +158,7 @@ describe('test planning', () => {
 
     it('should handle wait:false option (should not wait)', async () => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-wait-false.mjs')]
+        files: [join(testFixtures, 'timeout-wait-false.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1)); // Fails because plan is not met immediately
