@@ -58,7 +58,7 @@ The current security stewards are documented in the main Node.js
     * `git node security --remove-report=report_id`
   * Ensure to ping the Node.js TSC team for review of the PRs prior to the release date.
     * Adding individuals with expertise in the report topic is also a viable option if
-    communicated properly with nodejs/security and TSC.
+      communicated properly with nodejs/security and TSC.
 
 * [ ] 3\. **Assigning Severity and Writing Team Summary:**
   * [ ] Assign a severity and write a team summary on HackerOne for the reports
