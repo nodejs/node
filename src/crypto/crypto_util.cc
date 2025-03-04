@@ -138,17 +138,17 @@ void InitCryptoOnce() {
 
 #ifndef _WIN32
   if (per_process::cli_options->secure_heap != 0) {
-    switch (CRYPTO_secure_malloc_init(
-                per_process::cli_options->secure_heap,
-                static_cast<int>(per_process::cli_options->secure_heap_min))) {
-      case 0:
+    switch (DataPointer::TryInitSecureHeap(
+        per_process::cli_options->secure_heap,
+        per_process::cli_options->secure_heap_min)) {
+      case DataPointer::InitSecureHeapResult::FAILED:
         fprintf(stderr, "Unable to initialize openssl secure heap.\n");
         break;
-      case 2:
+      case DataPointer::InitSecureHeapResult::UNABLE_TO_MEMORY_MAP:
         // Not a fatal error but worthy of a warning.
         fprintf(stderr, "Unable to memory map openssl secure heap.\n");
         break;
-      case 1:
+      case DataPointer::InitSecureHeapResult::OK:
         // OK!
         break;
     }
@@ -202,7 +202,8 @@ void GetOpenSSLSecLevelCrypto(const FunctionCallbackInfo<Value>& args) {
     return args.GetReturnValue().Set(sec_level.value());
   }
   Environment* env = Environment::GetCurrent(args);
-  ThrowCryptoError(env, clear_error_on_return.peekError(), "getOpenSSLSecLevel");
+  ThrowCryptoError(env, clear_error_on_return.peekError(),
+                   "getOpenSSLSecLevel");
 }
 
 void CryptoErrorStore::Capture() {
@@ -646,8 +647,8 @@ CryptoJobMode GetCryptoJobMode(v8::Local<v8::Value> args) {
 }
 
 namespace {
-// SecureBuffer uses OPENSSL_secure_malloc to allocate a Uint8Array.
-// Without --secure-heap, OpenSSL's secure heap is disabled,
+// SecureBuffer uses OpenSSL's secure heap feature to allocate a
+// Uint8Array. Without --secure-heap, OpenSSL's secure heap is disabled,
 // in which case this has the same semantics as
 // using OPENSSL_malloc. However, if the secure heap is
 // initialized, SecureBuffer will automatically use it.
@@ -655,46 +656,34 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsUint32());
   Environment* env = Environment::GetCurrent(args);
   uint32_t len = args[0].As<Uint32>()->Value();
-#ifndef OPENSSL_IS_BORINGSSL
-  void* data = OPENSSL_secure_zalloc(len);
-#else
-  void* data = OPENSSL_malloc(len);
-#endif
-  if (data == nullptr) {
-    // There's no memory available for the allocation.
-    // Return nothing.
-    return;
+
+  auto data = DataPointer::SecureAlloc(len);
+  if (!data) {
+    return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
   }
-#ifdef OPENSSL_IS_BORINGSSL
-  memset(data, 0, len);
-#endif
+  auto released = data.release();
+
   std::shared_ptr<BackingStore> store =
       ArrayBuffer::NewBackingStore(
-          data,
-          len,
+          released.data,
+          released.len,
           [](void* data, size_t len, void* deleter_data) {
-#ifndef OPENSSL_IS_BORINGSSL
-            OPENSSL_secure_clear_free(data, len);
-#else
-        OPENSSL_clear_free(data, len);
-#endif
-          },
-          data);
+            // The DataPointer takes ownership and will appropriately
+            // free the data when it gets reset.
+            DataPointer free_me(ncrypto::Buffer<void> {
+              .data = data,
+              .len = len,
+            }, true);
+          }, nullptr);
+
   Local<ArrayBuffer> buffer = ArrayBuffer::New(env->isolate(), store);
   args.GetReturnValue().Set(Uint8Array::New(buffer, 0, len));
 }
 
 void SecureHeapUsed(const FunctionCallbackInfo<Value>& args) {
-#ifndef OPENSSL_IS_BORINGSSL
   Environment* env = Environment::GetCurrent(args);
-  if (CRYPTO_secure_malloc_initialized())
-    args.GetReturnValue().Set(
-        BigInt::New(env->isolate(), CRYPTO_secure_used()));
-#else
-  // BoringSSL does not have the secure heap and therefore
-  // will always return 0.
-  args.GetReturnValue().Set(BigInt::New(args.GetIsolate(), 0));
-#endif
+  args.GetReturnValue().Set(
+      BigInt::New(env->isolate(), DataPointer::GetSecureHeapUsed()));
 }
 }  // namespace
 
@@ -713,7 +702,7 @@ void Initialize(Environment* env, Local<Object> target) {
   NODE_DEFINE_CONSTANT(target, kCryptoJobSync);
 
   SetMethod(context, target, "secureBuffer", SecureBuffer);
-  SetMethod(context, target, "secureHeapUsed", SecureHeapUsed);
+  SetMethodNoSideEffect(context, target, "secureHeapUsed", SecureHeapUsed);
 
   SetMethodNoSideEffect(
       context, target, "getOpenSSLSecLevelCrypto", GetOpenSSLSecLevelCrypto);

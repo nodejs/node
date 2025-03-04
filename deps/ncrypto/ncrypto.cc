@@ -111,20 +111,61 @@ DataPointer DataPointer::Alloc(size_t len) {
 #endif
 }
 
+DataPointer DataPointer::SecureAlloc(size_t len) {
+#ifndef OPENSSL_IS_BORINGSSL
+printf("... %zu\n", len);
+  auto ptr = OPENSSL_secure_zalloc(len);
+  if (ptr == nullptr) return {};
+  return DataPointer(ptr, len, true);
+#else
+  // BoringSSL does not implement the OPENSSL_secure_zalloc API.
+  auto ptr = OPENSSL_malloc(len);
+  if (ptr == nullptr) return {};
+  memset(ptr, 0, len);
+  return DataPointer(ptr, len);
+#endif
+}
+
+size_t DataPointer::GetSecureHeapUsed() {
+#ifndef OPENSSL_IS_BORINGSSL
+  return CRYPTO_secure_malloc_initialized() ? CRYPTO_secure_used() : 0;
+#else
+  // BoringSSL does not have the secure heap and therefore
+  // will always return 0.
+  return 0;
+#endif
+}
+
+DataPointer::InitSecureHeapResult DataPointer::TryInitSecureHeap(
+  size_t amount, size_t min) {
+#ifndef OPENSSL_IS_BORINGSSL
+  switch (CRYPTO_secure_malloc_init(amount, min)) {
+    case 0: return InitSecureHeapResult::FAILED;
+    case 2: return InitSecureHeapResult::UNABLE_TO_MEMORY_MAP;
+    case 1: return InitSecureHeapResult::OK;
+    default: return InitSecureHeapResult::FAILED;
+  }
+#else
+  // BoringSSL does not actually support the secure heap
+  return InitSecureHeapResult::FAILED;
+#endif
+}
+
 DataPointer DataPointer::Copy(const Buffer<const void>& buffer) {
   return DataPointer(OPENSSL_memdup(buffer.data, buffer.len), buffer.len);
 }
 
-DataPointer::DataPointer(void* data, size_t length)
-    : data_(data), len_(length) {}
+DataPointer::DataPointer(void* data, size_t length, bool secure)
+    : data_(data), len_(length), secure_(secure) {}
 
-DataPointer::DataPointer(const Buffer<void>& buffer)
-    : data_(buffer.data), len_(buffer.len) {}
+DataPointer::DataPointer(const Buffer<void>& buffer, bool secure)
+    : data_(buffer.data), len_(buffer.len), secure_(secure) {}
 
 DataPointer::DataPointer(DataPointer&& other) noexcept
-    : data_(other.data_), len_(other.len_) {
+    : data_(other.data_), len_(other.len_), secure_(other.secure_) {
   other.data_ = nullptr;
   other.len_ = 0;
+  other.secure_ = false;
 }
 
 DataPointer& DataPointer::operator=(DataPointer&& other) noexcept {
@@ -144,7 +185,11 @@ void DataPointer::zero() {
 
 void DataPointer::reset(void* data, size_t length) {
   if (data_ != nullptr) {
-    OPENSSL_clear_free(data_, len_);
+    if (secure_) {
+      OPENSSL_secure_clear_free(data_, len_);
+    } else {
+      OPENSSL_clear_free(data_, len_);
+    }
   }
   data_ = data;
   len_ = length;
