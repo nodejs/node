@@ -683,6 +683,7 @@ bool SignTraits::DeriveBits(
           crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
+        DCHECK(!data.isSecure());
         *out = ByteSource::Allocated(data.release());
       } else {
         auto data = context.sign(params.data);
@@ -690,6 +691,7 @@ bool SignTraits::DeriveBits(
           crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
+        DCHECK(!data.isSecure());
         auto bs = ByteSource::Allocated(data.release());
 
         if (UseP1363Encoding(key, params.dsa_encoding)) {

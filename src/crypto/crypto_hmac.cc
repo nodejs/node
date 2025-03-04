@@ -259,6 +259,7 @@ bool HmacTraits::DeriveBits(
   if (!buf) [[unlikely]]
     return false;
 
+  DCHECK(!buf.isSecure());
   *out = ByteSource::Allocated(buf.release());
 
   return true;
