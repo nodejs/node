@@ -134,8 +134,7 @@ describe('test planning', () => {
 
     it('should fail when timeout expires before plan is met', async (t) => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-expired.mjs')],
-        forceExit: true
+        files: [join(testFixtures, 'plan', 'timeout-expired.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1));
@@ -147,8 +146,7 @@ describe('test planning', () => {
 
     it('should handle wait:true option specifically', async () => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-wait-true.mjs')],
-        forceExit: true
+        files: [join(testFixtures, 'plan', 'timeout-wait-true.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1));
@@ -160,8 +158,7 @@ describe('test planning', () => {
 
     it('should handle wait:false option (should not wait)', async () => {
       const stream = run({
-        files: [join(testFixtures, 'plan', 'timeout-wait-false.mjs')],
-        forceExit: true
+        files: [join(testFixtures, 'plan', 'timeout-wait-false.mjs')]
       });
 
       stream.on('test:fail', common.mustCall(1)); // Fails because plan is not met immediately

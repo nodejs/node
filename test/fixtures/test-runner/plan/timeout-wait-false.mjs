@@ -7,5 +7,5 @@ test('should not wait for assertions and fail immediately', async (t) => {
   // Since wait:false, the test should fail immediately without waiting
   setTimeout(() => {
     t.assert.ok(true);
-  }, 1000);
+  }, 1000).unref();
 });

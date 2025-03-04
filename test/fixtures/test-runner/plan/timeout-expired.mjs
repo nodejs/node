@@ -4,5 +4,5 @@ test('planning should FAIL when wait time expires before plan is met', (t) => {
   t.plan(2, { wait: 500 });
   setTimeout(() => {
     t.assert.ok(true);
-  }, 50_000_000);
+  }, 30_000).unref();
 });

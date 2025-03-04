@@ -13,5 +13,5 @@ test('should fail when assertions fail', async (t) => {
 
   setTimeout(() => {
     t.assert.ok(false);
-  }, 250);
+  }, 250).unref();
 });
