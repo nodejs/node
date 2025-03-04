@@ -34,6 +34,8 @@ onboarding session.
 * git:
   * Make sure you have whitespace=fix: `git config --global --add
     apply.whitespace fix`
+  * It's recommended to default sign commits under the Node.js repository.
+    Run: `git config commit.gpgsign true` inside nodejs folder.
   * Always create a branch in your own GitHub fork for pull requests
     * Branches in the `nodejs/node` repository are only for release lines
   * Add the canonical nodejs repository as `upstream` remote:
