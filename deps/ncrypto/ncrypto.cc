@@ -175,6 +175,7 @@ DataPointer DataPointer::resize(size_t len) {
 
 // ============================================================================
 bool isFipsEnabled() {
+  ClearErrorOnReturn clear_error_on_return;
 #if OPENSSL_VERSION_MAJOR >= 3
   return EVP_default_properties_is_fips_enabled(nullptr) == 1;
 #else
@@ -193,6 +194,7 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
 }
 
 bool testFipsEnabled() {
+  ClearErrorOnReturn clear_error_on_return;
 #if OPENSSL_VERSION_MAJOR >= 3
   OSSL_PROVIDER* fips_provider = nullptr;
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
@@ -2687,6 +2689,21 @@ std::optional<std::string_view> SSLPointer::getCipherVersion() const {
   auto cipher = getCipher();
   if (cipher == nullptr) return std::nullopt;
   return SSL_CIPHER_get_version(cipher);
+}
+
+std::optional<int> SSLPointer::getSecurityLevel() {
+#ifndef OPENSSL_IS_BORINGSSL
+  auto ctx = SSLCtxPointer::New();
+  if (!ctx) return std::nullopt;
+
+  auto ssl = SSLPointer::New(ctx);
+  if (!ssl) return std::nullopt;
+
+  return SSL_get_security_level(ssl);
+#else
+  // for BoringSSL assume the same as the default
+  return OPENSSL_TLS_SECURITY_LEVEL;
+#endif  // OPENSSL_IS_BORINGSSL
 }
 
 SSLCtxPointer::SSLCtxPointer(SSL_CTX* ctx) : ctx_(ctx) {}

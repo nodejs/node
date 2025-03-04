@@ -595,16 +595,13 @@ class ArrayBufferOrViewContents final {
 v8::MaybeLocal<v8::Value> EncodeBignum(
     Environment* env,
     const BIGNUM* bn,
-    int size,
-    v8::Local<v8::Value>* error);
+    int size);
 
 v8::Maybe<void> SetEncodedValue(Environment* env,
                                 v8::Local<v8::Object> target,
                                 v8::Local<v8::String> name,
                                 const BIGNUM* bn,
                                 int size = 0);
-
-bool SetRsaOaepLabel(ncrypto::EVPKeyCtxPointer* rsa, const ByteSource& label);
 
 namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);

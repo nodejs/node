@@ -1048,6 +1048,8 @@ class SSLPointer final {
 
   std::optional<uint32_t> verifyPeerCertificate() const;
 
+  static std::optional<int> getSecurityLevel();
+
   void getCiphers(std::function<void(const std::string_view)> cb) const;
 
   static SSLPointer New(const SSLCtxPointer& ctx);
