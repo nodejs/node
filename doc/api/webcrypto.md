@@ -4,6 +4,9 @@
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHAKE algorithms are now supported.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
     description: ML-DSA algorithms are now supported.
   - version:
     - v23.5.0
@@ -92,6 +95,8 @@ WICG proposal:
 
 Algorithms:
 
+* `'cSHAKE128'`
+* `'cSHAKE256'`
 * `'ML-DSA-44'`[^openssl35]
 * `'ML-DSA-65'`[^openssl35]
 * `'ML-DSA-87'`[^openssl35]
@@ -473,6 +478,8 @@ implementation and the APIs supported for each:
 | `'AES-CTR'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-GCM'`                  | ✔             | ✔           | ✔           | ✔         | ✔         | ✔         | ✔           |              |             |        |          |          |
 | `'AES-KW'`                   | ✔             | ✔           | ✔           |           |           | ✔         | ✔           |              |             |        |          |          |
+| `'cSHAKE128'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |
+| `'cSHAKE256'`[^modern-algos] |               |             |             |           |           |           |             |              |             |        |          | ✔        |
 | `'ECDH'`                     | ✔             | ✔           | ✔           |           |           |           |             | ✔            | ✔           |        |          |          |
 | `'ECDSA'`                    | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
 | `'Ed25519'`                  | ✔             | ✔           | ✔           |           |           |           |             |              |             | ✔      | ✔        |          |
@@ -801,9 +808,13 @@ The algorithms currently supported include:
 
 <!-- YAML
 added: v15.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/59365
+    description: SHAKE algorithms are now supported.
 -->
 
-* `algorithm` {string|Algorithm}
+* `algorithm` {string|Algorithm|CShakeParams}
 * `data` {ArrayBuffer|TypedArray|DataView|Buffer}
 * Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
@@ -813,6 +824,8 @@ with an {ArrayBuffer} containing the computed digest.
 
 If `algorithm` is provided as a {string}, it must be one of:
 
+* `'cSHAKE128'`[^modern-algos]
+* `'cSHAKE256'`[^modern-algos]
 * `'SHA-1'`
 * `'SHA-256'`
 * `'SHA-384'`
@@ -1423,6 +1436,53 @@ The `context` member represents the optional context data to associate with
 the message.
 The Node.js Web Crypto API implementation only supports zero-length context
 which is equivalent to not providing context at all.
+
+### Class: `CShakeParams`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+#### `cShakeParams.customization`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The `customization` member represents the customization string.
+The Node.js Web Crypto API implementation only supports zero-length customization
+which is equivalent to not providing customization at all.
+
+#### `cShakeParams.functionName`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {ArrayBuffer|TypedArray|DataView|Buffer|undefined}
+
+The `functionName` member represents represents the function name, used by NIST to define
+functions based on cSHAKE.
+The Node.js Web Crypto API implementation only supports zero-length functionName
+which is equivalent to not providing functionName at all.
+
+#### `cShakeParams.length`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {number} represents the requested output length in bits.
+
+#### `cShakeParams.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {string} Must be `'cSHAKE128'`[^modern-algos] or `'cSHAKE256'`[^modern-algos]
 
 ### Class: `EcdhKeyDeriveParams`
 
