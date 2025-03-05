@@ -20,6 +20,7 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::DataPointer;
+using ncrypto::Ec;
 using ncrypto::ECGroupPointer;
 using ncrypto::ECKeyPointer;
 using ncrypto::ECPointPointer;
@@ -46,13 +47,6 @@ using v8::Uint32;
 using v8::Value;
 
 namespace crypto {
-
-int GetCurveFromName(const char* name) {
-  int nid = EC_curve_nist2nid(name);
-  if (nid == NID_undef)
-    nid = OBJ_sn2nid(name);
-  return nid;
-}
 
 void ECDH::Initialize(Environment* env, Local<Object> target) {
   Isolate* isolate = env->isolate();
@@ -100,13 +94,10 @@ void ECDH::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
 void ECDH::GetCurves(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  const size_t num_curves = EC_get_builtin_curves(nullptr, 0);
-  std::vector<EC_builtin_curve> curves(num_curves);
-  CHECK_EQ(EC_get_builtin_curves(curves.data(), num_curves), num_curves);
-
-  LocalVector<Value> arr(env->isolate(), num_curves);
-  std::transform(curves.begin(), curves.end(), arr.begin(), [env](auto& curve) {
-    return OneByteString(env->isolate(), OBJ_nid2sn(curve.nid));
+  LocalVector<Value> arr(env->isolate());
+  Ec::GetCurves([&](std::string_view curve) -> bool {
+    arr.push_back(OneByteString(env->isolate(), curve));
+    return true;
   });
   args.GetReturnValue().Set(Array::New(env->isolate(), arr.data(), arr.size()));
 }
@@ -548,7 +539,7 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
   CHECK(args[*offset + 1]->IsInt32());  // param encoding
 
   Utf8Value curve_name(env->isolate(), args[*offset]);
-  params->params.curve_nid = GetCurveFromName(*curve_name);
+  params->params.curve_nid = Ec::GetCurveIdFromName(curve_name.ToStringView());
   if (params->params.curve_nid == NID_undef) {
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
     return Nothing<void>();
@@ -839,7 +830,7 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   CHECK(args[offset]->IsString());  // curve name
   Utf8Value curve(env->isolate(), args[offset].As<String>());
 
-  int nid = GetCurveFromName(*curve);
+  int nid = Ec::GetCurveIdFromName(curve.ToStringView());
   if (nid == NID_undef) {  // Unknown curve
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
     return {};
