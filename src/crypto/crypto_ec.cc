@@ -235,11 +235,10 @@ void ECDH::GetPublicKey(const FunctionCallbackInfo<Value>& args) {
   uint32_t val = args[0].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
-  const char* error;
   Local<Object> buf;
-  if (!ECPointToBuffer(env, group, pub, form, &error).ToLocal(&buf))
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, error);
-  args.GetReturnValue().Set(buf);
+  if (ECPointToBuffer(env, group, pub, form).ToLocal(&buf)) {
+    args.GetReturnValue().Set(buf);
+  }
 }
 
 void ECDH::GetPrivateKey(const FunctionCallbackInfo<Value>& args) {
@@ -397,11 +396,10 @@ void ECDH::ConvertKey(const FunctionCallbackInfo<Value>& args) {
   uint32_t val = args[2].As<Uint32>()->Value();
   point_conversion_form_t form = static_cast<point_conversion_form_t>(val);
 
-  const char* error;
   Local<Object> buf;
-  if (!ECPointToBuffer(env, group, pub, form, &error).ToLocal(&buf))
-    return THROW_ERR_CRYPTO_OPERATION_FAILED(env, error);
-  args.GetReturnValue().Set(buf);
+  if (ECPointToBuffer(env, group, pub, form).ToLocal(&buf)) {
+    args.GetReturnValue().Set(buf);
+  }
 }
 
 void ECDHBitsConfig::MemoryInfo(MemoryTracker* tracker) const {
