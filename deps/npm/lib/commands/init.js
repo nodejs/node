@@ -19,6 +19,7 @@ class Init extends BaseCommand {
     'init-author-url',
     'init-license',
     'init-module',
+    'init-type',
     'init-version',
     'yes',
     'force',
