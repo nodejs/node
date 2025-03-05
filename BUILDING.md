@@ -40,6 +40,7 @@ file a new issue.
       * [Option 2: Automated install with WinGet](#option-2-automated-install-with-winget)
       * [Option 3: Automated install with Boxstarter](#option-3-automated-install-with-boxstarter)
     * [Building Node.js](#building-nodejs-2)
+      * [Using ccache](#using-ccache)
   * [Android](#android)
 * [`Intl` (ECMA-402) support](#intl-ecma-402-support)
   * [Build with full ICU support (all locales supported by ICU)](#build-with-full-icu-support-all-locales-supported-by-icu)
@@ -577,42 +578,6 @@ export CC="ccache cc"          # add to ~/.zshrc or other shell config file
 export CXX="ccache c++"        # add to ~/.zshrc or other shell config file
 ```
 
-On Windows:
-
-Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
-should notice that obj file will be bigger than the normal one.
-
-First, install ccache. Assuming the installation of ccache is in `c:\ccache`
-(where you can find `ccache.exe`), copy `c:\ccache\ccache.exe` to `c:\ccache\cl.exe`
-with this command.
-
-```powershell
-cp c:\ccache\ccache.exe c:\ccache\cl.exe
-```
-
-With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
-instead. If the output of `vcbuild.bat` suggestion missing `clang-cl.exe`, copy
-it differently:
-
-```powershell
-cp c:\ccache\ccache.exe c:\ccache\clang-cl.exe
-```
-
-When building Node.js, provide a path to your ccache via the option:
-
-```powershell
-.\vcbuild.bat ccache c:\ccache\
-```
-
-This will allow for near-instantaneous rebuilds when switching branches back
-and forth that were built with cache.
-
-To use it with ClangCL, run this instead:
-
-```powershell
-.\vcbuild.bat clang-cl ccache c:\ccache\
-```
-
 ##### Loading JS files from disk instead of embedding
 
 When modifying only the JS layer in `lib`, it is possible to externally load it
@@ -808,6 +773,42 @@ To test if Node.js was built correctly:
 
 ```powershell
 Release\node -e "console.log('Hello from Node.js', process.version)"
+```
+
+##### Using ccache:
+
+Follow <https://github.com/ccache/ccache/wiki/MS-Visual-Studio>, and you
+should notice that obj file will be bigger than the normal one.
+
+First, install ccache. Assuming the installation of ccache is in `c:\ccache`
+(where you can find `ccache.exe`), copy `c:\ccache\ccache.exe` to `c:\ccache\cl.exe`
+with this command.
+
+```powershell
+cp c:\ccache\ccache.exe c:\ccache\cl.exe
+```
+
+With newer version of Visual Studio, it may need the copy to be `clang-cl.exe`
+instead. If the output of `vcbuild.bat` suggestion missing `clang-cl.exe`, copy
+it differently:
+
+```powershell
+cp c:\ccache\ccache.exe c:\ccache\clang-cl.exe
+```
+
+When building Node.js, provide a path to your ccache via the option:
+
+```powershell
+.\vcbuild.bat ccache c:\ccache\
+```
+
+This will allow for near-instantaneous rebuilds when switching branches back
+and forth that were built with cache.
+
+To use it with ClangCL, run this instead:
+
+```powershell
+.\vcbuild.bat clang-cl ccache c:\ccache\
 ```
 
 ### Android
