@@ -638,7 +638,7 @@ Sample configuration file prompting for field values:
  attributes             = req_attributes
  req_extensions         = v3_ca
 
- dirstring_type = nobmp
+ dirstring_type = nombstr
 
  [ req_distinguished_name ]
  countryName                    = Country Name (2 letter code)
@@ -778,7 +778,7 @@ The <-nodes> option was deprecated in OpenSSL 3.0, too; use B<-noenc> instead.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

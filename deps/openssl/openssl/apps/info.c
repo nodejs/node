@@ -10,15 +10,11 @@
 #include <openssl/crypto.h>
 #include "apps.h"
 #include "progs.h"
-#include <openssl/quic.h>
 
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_CONFIGDIR, OPT_ENGINESDIR, OPT_MODULESDIR, OPT_DSOEXT, OPT_DIRNAMESEP,
     OPT_LISTSEP, OPT_SEEDS, OPT_CPUSETTINGS
-#ifndef OPENSSL_NO_QUIC
-    , OPT_QUIC
-#endif
 } OPTION_CHOICE;
 
 const OPTIONS info_options[] = {
@@ -36,9 +32,6 @@ const OPTIONS info_options[] = {
     {"listsep", OPT_LISTSEP, '-', "List separator character"},
     {"seeds", OPT_SEEDS, '-', "Seed sources"},
     {"cpusettings", OPT_CPUSETTINGS, '-', "CPU settings info"},
-#ifndef OPENSSL_NO_QUIC
-    {"quic", OPT_QUIC, '-', "QUIC info"},
-#endif
     {NULL}
 };
 
@@ -91,12 +84,6 @@ opthelp:
             type = OPENSSL_INFO_CPU_SETTINGS;
             dirty++;
             break;
-#ifndef OPENSSL_NO_QUIC
-        case OPT_QUIC:
-            type = OPENSSL_INFO_QUIC;
-            dirty++;
-            break;
-#endif
         }
     }
     if (opt_num_rest() != 0)

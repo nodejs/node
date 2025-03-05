@@ -13,7 +13,6 @@ SSL_CIPHER_get_digest_nid,
 SSL_CIPHER_get_handshake_digest,
 SSL_CIPHER_get_kx_nid,
 SSL_CIPHER_get_auth_nid,
-SSL_CIPHER_get_prf_nid,
 SSL_CIPHER_is_aead,
 SSL_CIPHER_find,
 SSL_CIPHER_get_id,
@@ -35,7 +34,6 @@ SSL_CIPHER_get_protocol_id
  const EVP_MD *SSL_CIPHER_get_handshake_digest(const SSL_CIPHER *c);
  int SSL_CIPHER_get_kx_nid(const SSL_CIPHER *c);
  int SSL_CIPHER_get_auth_nid(const SSL_CIPHER *c);
- int SSL_CIPHER_get_prf_nid(const SSL_CIPHER *c);
  int SSL_CIPHER_is_aead(const SSL_CIPHER *c);
  const SSL_CIPHER *SSL_CIPHER_find(SSL *ssl, const unsigned char *ptr);
  uint32_t SSL_CIPHER_get_id(const SSL_CIPHER *c);
@@ -92,15 +90,6 @@ TLS 1.3 cipher suites) B<NID_auth_any> is returned. Examples (not comprehensive)
  NID_auth_rsa
  NID_auth_ecdsa
  NID_auth_psk
-
-SSL_CIPHER_get_prf_nid() retuns the pseudo-random function NID for B<c>. If B<c> is
-a pre-TLS-1.2 cipher, it returns B<NID_md5_sha1> but note these ciphers use
-SHA-256 in TLS 1.2. Other return values may be treated uniformly in all
-applicable versions. Examples (not comprehensive):
-
- NID_md5_sha1
- NID_sha256
- NID_sha384
 
 SSL_CIPHER_is_aead() returns 1 if the cipher B<c> is AEAD (e.g. GCM or
 ChaCha20/Poly1305), and 0 if it is not AEAD.
@@ -211,8 +200,6 @@ The SSL_CIPHER_standard_name() function was globally available in OpenSSL 1.1.1.
 required to enable this function.
 
 The OPENSSL_cipher_name() function was added in OpenSSL 1.1.1.
-
-The SSL_CIPHER_get_prf_nid() function was added in OpenSSL 3.0.0.
 
 =head1 COPYRIGHT
 
