@@ -3356,6 +3356,10 @@ EVPKeyCtxPointer EVPKeyCtxPointer::New(const EVPKeyPointer& key) {
 }
 
 EVPKeyCtxPointer EVPKeyCtxPointer::NewFromID(int id) {
+#ifdef OPENSSL_IS_BORINGSSL
+  // DSA keys are not supported with BoringSSL
+  if (id == EVP_PKEY_DSA) return {};
+#endif
   return EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(id, nullptr));
 }
 
