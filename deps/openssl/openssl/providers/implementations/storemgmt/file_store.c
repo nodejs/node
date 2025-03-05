@@ -238,7 +238,7 @@ static void *file_open(void *provctx, const char *uri)
 #ifdef _WIN32
         /* Windows file: URIs with a drive letter start with a / */
         if (p[0] == '/' && p[2] == ':' && p[3] == '/') {
-            char c = tolower(p[1]);
+            char c = tolower((unsigned char)p[1]);
 
             if (c >= 'a' && c <= 'z') {
                 p++;

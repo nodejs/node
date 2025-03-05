@@ -559,6 +559,11 @@ int rehash_main(int argc, char **argv)
     } else if ((env = getenv(X509_get_default_cert_dir_env())) != NULL) {
         char lsc[2] = { LIST_SEPARATOR_CHAR, '\0' };
         m = OPENSSL_strdup(env);
+        if (m == NULL) {
+            BIO_puts(bio_err, "out of memory\n");
+            errs = 1;
+            goto end;
+        }
         for (e = strtok(m, lsc); e != NULL; e = strtok(NULL, lsc))
             errs += do_dir(e, h);
         OPENSSL_free(m);
