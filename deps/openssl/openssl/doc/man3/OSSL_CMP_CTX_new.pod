@@ -355,8 +355,10 @@ If TLS is not used this defaults to the value of
 the environment variable C<http_proxy> if set, else C<HTTP_PROXY>.
 Otherwise defaults to the value of C<https_proxy> if set, else C<HTTPS_PROXY>.
 An empty proxy string specifies not to use a proxy.
-Else the format is C<[http[s]://]address[:port][/path]>,
-where any path given is ignored.
+Otherwise the format is
+C<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>,
+where any given userinfo, path, query, and fragment is ignored.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The default port number is 80, or 443 in case C<https:> is given.
 
 OSSL_CMP_CTX_set1_no_proxy() sets the list of server hostnames not to use

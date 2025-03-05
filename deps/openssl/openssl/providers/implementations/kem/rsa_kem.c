@@ -264,6 +264,17 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
             *secretlen = nlen;
         return 1;
     }
+
+    /*
+     * If outlen is specified, then it must report the length
+     * of the out buffer on input so that we can confirm
+     * its size is sufficent for encapsulation
+     */
+    if (outlen != NULL && *outlen < nlen) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
+        return 0;
+    }
+
     /*
      * Step (2): Generate a random byte string z of nlen bytes where
      *            1 < z < n - 1
@@ -285,15 +296,33 @@ static int rsasve_generate(PROV_RSA_CTX *prsactx,
     return ret;
 }
 
-/*
- * NIST.SP.800-56Br2
+/**
+ * rsasve_recover - Recovers a secret value from ciphertext using an RSA
+ * private key.  Once, recovered, the secret value is considered to be a
+ * shared secret.  Algorithm is preformed as per
+ * NIST SP 800-56B Rev 2
  * 7.2.1.3 RSASVE Recovery Operation (RSASVE.RECOVER).
+ *
+ * This function performs RSA decryption using the private key from the
+ * provided RSA context (`prsactx`). It takes the input ciphertext, decrypts
+ * it, and writes the decrypted message to the output buffer.
+ *
+ * @prsactx:      The RSA context containing the private key.
+ * @out:          The output buffer to store the decrypted message.
+ * @outlen:       On input, the size of the output buffer. On successful
+ *                completion, the actual length of the decrypted message.
+ * @in:           The input buffer containing the ciphertext to be decrypted.
+ * @inlen:        The length of the input ciphertext in bytes.
+ *
+ * Returns 1 on success, or 0 on error. In case of error, appropriate
+ * error messages are raised using the ERR_raise function.
  */
 static int rsasve_recover(PROV_RSA_CTX *prsactx,
                           unsigned char *out, size_t *outlen,
                           const unsigned char *in, size_t inlen)
 {
     size_t nlen;
+    int ret;
 
     /* Step (1): get the byte length of n */
     nlen = RSA_size(prsactx->rsa);
@@ -307,13 +336,30 @@ static int rsasve_recover(PROV_RSA_CTX *prsactx,
         return 1;
     }
 
-    /* Step (2): check the input ciphertext 'inlen' matches the nlen */
+    /*
+     * Step (2): check the input ciphertext 'inlen' matches the nlen
+     * and that outlen is at least nlen bytes
+     */
     if (inlen != nlen) {
         ERR_raise(ERR_LIB_PROV, PROV_R_BAD_LENGTH);
         return 0;
     }
+
+    /*
+     * If outlen is specified, then it must report the length
+     * of the out buffer, so that we can confirm that it is of
+     * sufficient size to hold the output of decapsulation
+     */
+    if (outlen != NULL && *outlen < nlen) {
+        ERR_raise(ERR_LIB_PROV, PROV_R_INVALID_OUTPUT_LENGTH);
+        return 0;
+    }
+
     /* Step (3): out = RSADP((n,d), in) */
-    return (RSA_private_decrypt(inlen, in, out, prsactx->rsa, RSA_NO_PADDING) > 0);
+    ret = RSA_private_decrypt(inlen, in, out, prsactx->rsa, RSA_NO_PADDING);
+    if (ret > 0 && outlen != NULL)
+        *outlen = ret;
+    return ret > 0;
 }
 
 static int rsakem_generate(void *vprsactx, unsigned char *out, size_t *outlen,

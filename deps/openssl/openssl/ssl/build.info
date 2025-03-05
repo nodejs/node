@@ -37,11 +37,8 @@ IF[{- !$disabled{'deprecated-3.0'} -}]
   SHARED_SOURCE[../libssl]=s3_cbc.c
   SOURCE[../libssl]=ssl_rsa_legacy.c
 ENDIF
-DEFINE[../libssl]=$AESDEF
 
-IF[{- !$disabled{quic} -}]
-  SOURCE[../libssl]=ssl_quic.c statem/statem_quic.c
-ENDIF
+DEFINE[../libssl]=$AESDEF
 
 SOURCE[../providers/libcommon.a]=record/tls_pad.c
 SOURCE[../providers/libdefault.a ../providers/libfips.a]=s3_cbc.c
