@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,6 +25,7 @@ use lib srctop_dir('Configurations');
 use lib bldtop_dir('.');
 
 my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+my $old_fips = 0;
 
 plan skip_all => "CMS is not supported by this OpenSSL build"
     if disabled("cms");
@@ -50,13 +51,17 @@ my ($no_des, $no_dh, $no_dsa, $no_ec, $no_ec2m, $no_rc2, $no_zlib)
 
 $no_rc2 = 1 if disabled("legacy");
 
-plan tests => 19;
+plan tests => 20;
 
 ok(run(test(["pkcs7_test"])), "test pkcs7");
 
 unless ($no_fips) {
-    @config = ( "-config", srctop_file("test", "fips-and-base.cnf") );
+    my $provconf = srctop_file("test", "fips-and-base.cnf");
+    @config = ( "-config", $provconf );
     $provname = 'fips';
+
+    run(test(["fips_version_test", "-config", $provconf, "<3.4.0"]),
+    capture => 1, statusvar => $old_fips);
 }
 
 $ENV{OPENSSL_TEST_LIBCTX} = "1";
@@ -394,6 +399,13 @@ my @smime_cms_tests = (
         "-out", "{output}.txt" ],
       \&final_compare
     ],
+
+    [ "encrypted content test streaming PEM format -noout, 128 bit AES key",
+      [ "{cmd1}", @prov, "-EncryptedData_encrypt", "-in", $smcont, "-outform", "PEM",
+	"-aes128", "-secretkey", "000102030405060708090A0B0C0D0E0F",
+	"-stream", "-noout" ],
+      [ "{cmd2}", @prov, "-help" ]
+    ],
 );
 
 my @smime_cms_cades_tests = (
@@ -604,6 +616,7 @@ my @smime_cms_param_tests = (
         "-stream", "-out", "{output}.cms",
         "-recip", catfile($smdir, "smec1.pem"), "-aes128",
         "-keyopt", "ecdh_kdf_md:sha256" ],
+      sub { my %opts = @_; smimeType_matches("$opts{output}.cms", "enveloped-data"); },
       [ "{cmd2}", @prov, "-decrypt", "-recip", catfile($smdir, "smec1.pem"),
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
@@ -613,6 +626,7 @@ my @smime_cms_param_tests = (
       [ "{cmd1}", @prov, "-encrypt", "-in", $smcont,
         "-stream", "-out", "{output}.cms",
         "-recip", catfile($smdir, "smec1.pem"), "-aes-128-gcm", "-keyopt", "ecdh_kdf_md:sha256" ],
+      sub { my %opts = @_; smimeType_matches("$opts{output}.cms", "authEnveloped-data"); },
       [ "{cmd2}", "-decrypt", "-recip", catfile($smdir, "smec1.pem"),
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
@@ -626,17 +640,22 @@ my @smime_cms_param_tests = (
       [ "{cmd2}", @prov, "-decrypt", "-recip", catfile($smdir, "smec2.pem"),
         "-in", "{output}.cms", "-out", "{output}.txt" ],
       \&final_compare
-    ],
-
-    [ "enveloped content test streaming S/MIME format, X9.42 DH",
-      [ "{cmd1}", @prov, "-encrypt", "-in", $smcont,
-        "-stream", "-out", "{output}.cms",
-        "-recip", catfile($smdir, "smdh.pem"), "-aes128" ],
-      [ "{cmd2}", @prov, "-decrypt", "-recip", catfile($smdir, "smdh.pem"),
-        "-in", "{output}.cms", "-out", "{output}.txt" ],
-      \&final_compare
     ]
 );
+
+if ($no_fips || $old_fips) {
+    # Only SHA1 supported in dh_cms_encrypt()
+    push(@smime_cms_param_tests,
+         [ "enveloped content test streaming S/MIME format, X9.42 DH",
+           [ "{cmd1}", @prov, "-encrypt", "-in", $smcont,
+             "-stream", "-out", "{output}.cms",
+             "-recip", catfile($smdir, "smdh.pem"), "-aes128" ],
+           [ "{cmd2}", @prov, "-decrypt", "-recip", catfile($smdir, "smdh.pem"),
+             "-in", "{output}.cms", "-out", "{output}.txt" ],
+           \&final_compare
+         ]
+    );
+}
 
 my @contenttype_cms_test = (
     [ "signed content test - check that content type is added to additional signerinfo, RSA keys",
@@ -763,6 +782,28 @@ sub contentType_matches {
 
   close(HEX_IN);
   return scalar(@c);
+}
+
+# Returns 1 if the smime-type matches the passed parameter, otherwise 0.
+sub smimeType_matches {
+  my ($in, $expected_smime_type) = @_;
+
+  # Read the text file
+  open(my $fh, '<', $in) or die("open failed for $in : $!");
+  local $/;
+  my $content = <$fh>;
+  close($fh);
+
+  # Extract the Content-Type line with the smime-type attribute
+  if ($content =~ /Content-Type:\s*application\/pkcs7-mime.*smime-type=([^\s;]+)/) {
+    my $smime_type = $1;
+
+    # Compare the extracted smime-type with the expected value
+    return ($smime_type eq $expected_smime_type) ? 1 : 0;
+  }
+
+  # If no smime-type is found, return 0
+  return 0;
 }
 
 sub rsapssSaltlen {
@@ -985,6 +1026,22 @@ ok(!run(app(['openssl', 'cms', '-verify',
                                 "SignedInvalidMappingFromanyPolicyTest7.eml")
             ])),
    "issue#19643");
+
+# Check that kari encryption with originator does not segfault
+with({ exit_checker => sub { return shift == 3; } },
+  sub {
+    SKIP: {
+      skip "EC is not supported in this build", 1 if $no_ec;
+
+      ok(run(app(['openssl', 'cms', '-encrypt',
+                  '-in', srctop_file("test", "smcont.txt"), '-aes128',
+                  '-recip', catfile($smdir, "smec1.pem"),
+                  '-originator', catfile($smdir, "smec3.pem"),
+                  '-inkey', catfile($smdir, "smec3.pem")
+                ])),
+          "Check failure for currently not supported kari encryption with static originator");
+    }
+  });
 
 # Check that we get the expected failure return code
 with({ exit_checker => sub { return shift == 6; } },

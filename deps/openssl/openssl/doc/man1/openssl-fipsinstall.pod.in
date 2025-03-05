@@ -239,6 +239,10 @@ L<fips_config(5)>,
 L<OSSL_PROVIDER-FIPS(7)>,
 L<EVP_MAC(3)>
 
+=head1 HISTORY
+
+The B<openssl-fipsinstall> application was added in OpenSSL 3.0.
+
 =head1 COPYRIGHT
 
 Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.

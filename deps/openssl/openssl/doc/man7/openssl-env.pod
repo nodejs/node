@@ -51,6 +51,99 @@ See L<OPENSSL_malloc(3)>.
 Specifies the directory from which cryptographic providers are loaded.
 Equivalently, the generic B<-provider-path> command-line option may be used.
 
+=item B<OPENSSL_TRACE>
+
+By default the OpenSSL trace feature is disabled statically.
+To enable it, OpenSSL must be built with tracing support,
+which may be configured like this: C<./config enable-trace>
+
+Unless OpenSSL tracing support is generally disabled,
+enable trace output of specific parts of OpenSSL libraries, by name.
+This output usually makes sense only if you know OpenSSL internals well.
+
+The value of this environment varialble is a comma-separated list of names,
+with the following available:
+
+=over 4
+
+=item B<TRACE>
+
+Traces the OpenSSL trace API itself.
+
+=item B<INIT>
+
+Traces OpenSSL library initialization and cleanup.
+
+=item B<TLS>
+
+Traces the TLS/SSL protocol.
+
+=item B<TLS_CIPHER>
+
+Traces the ciphers used by the TLS/SSL protocol.
+
+=item B<CONF>
+
+Show details about provider and engine configuration.
+
+=item B<ENGINE_TABLE>
+
+The function that is used by RSA, DSA (etc) code to select registered
+ENGINEs, cache defaults and functional references (etc), will generate
+debugging summaries.
+
+=item B<ENGINE_REF_COUNT>
+
+Reference counts in the ENGINE structure will be monitored with a line
+of generated for each change.
+
+=item B<PKCS5V2>
+
+Traces PKCS#5 v2 key generation.
+
+=item B<PKCS12_KEYGEN>
+
+Traces PKCS#12 key generation.
+
+=item B<PKCS12_DECRYPT>
+
+Traces PKCS#12 decryption.
+
+=item B<X509V3_POLICY>
+
+Generates the complete policy tree at various points during X.509 v3
+policy evaluation.
+
+=item B<BN_CTX>
+
+Traces BIGNUM context operations.
+
+=item B<CMP>
+
+Traces CMP client and server activity.
+
+=item B<STORE>
+
+Traces STORE operations.
+
+=item B<DECODER>
+
+Traces decoder operations.
+
+=item B<ENCODER>
+
+Traces encoder operations.
+
+=item B<REF_COUNT>
+
+Traces decrementing certain ASN.1 structure references.
+
+=item B<HTTP>
+
+Traces the HTTP client and server, such as messages being sent and received.
+
+=back
+
 =item B<OPENSSL_WIN32_UTF8>
 
 If set, then L<UI_OpenSSL(3)> returns UTF-8 encoded strings, rather than

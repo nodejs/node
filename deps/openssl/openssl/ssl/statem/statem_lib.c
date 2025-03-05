@@ -45,29 +45,8 @@ int ssl3_do_write(SSL *s, int type)
     int ret;
     size_t written = 0;
 
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        if (type == SSL3_RT_HANDSHAKE) {
-            ret = s->quic_method->add_handshake_data(s, s->quic_write_level,
-                                                     (const uint8_t*)&s->init_buf->data[s->init_off],
-                                                     s->init_num);
-            if (!ret) {
-                ret = -1;
-                /* QUIC can't sent anything out sice the above failed */
-                ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
-            } else {
-                written = s->init_num;
-            }
-        } else {
-            /* QUIC doesn't use ChangeCipherSpec */
-            ret = -1;
-            ERR_raise(ERR_LIB_SSL, ERR_R_SHOULD_NOT_HAVE_BEEN_CALLED);
-        }
-    } else
-#endif
-        ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
-                               s->init_num, &written);
-
+    ret = ssl3_write_bytes(s, type, &s->init_buf->data[s->init_off],
+                           s->init_num, &written);
     if (ret <= 0)
         return -1;
     if (type == SSL3_RT_HANDSHAKE)
@@ -666,13 +645,6 @@ int tls_construct_finished(SSL *s, WPACKET *pkt)
 
 int tls_construct_key_update(SSL *s, WPACKET *pkt)
 {
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_is_quic(s)) {
-        /* TLS KeyUpdate is not used for QUIC, so this is an error. */
-        SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
-        return 0;
-    }
-#endif
     if (!WPACKET_put_bytes_u8(pkt, s->key_update)) {
         SSLfatal(s, SSL_AD_INTERNAL_ERROR, ERR_R_INTERNAL_ERROR);
         return 0;
@@ -694,13 +666,6 @@ MSG_PROCESS_RETURN tls_process_key_update(SSL *s, PACKET *pkt)
         SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_R_NOT_ON_RECORD_BOUNDARY);
         return MSG_PROCESS_ERROR;
     }
-
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_is_quic(s)) {
-        SSLfatal(s, SSL_AD_UNEXPECTED_MESSAGE, SSL_R_UNEXPECTED_MESSAGE);
-        return MSG_PROCESS_ERROR;
-    }
-#endif
 
     if (!PACKET_get_1(pkt, &updatetype)
             || PACKET_remaining(pkt) != 0) {

@@ -147,9 +147,9 @@ static int test_engines(void)
 
     TEST_info("About to beef up the engine-type list");
     for (loop = 0; loop < NUMTOADD; loop++) {
-        sprintf(buf, "id%d", loop);
+        BIO_snprintf(buf, sizeof(buf), "id%d", loop);
         eid[loop] = OPENSSL_strdup(buf);
-        sprintf(buf, "Fake engine type %d", loop);
+        BIO_snprintf(buf, sizeof(buf), "Fake engine type %d", loop);
         ename[loop] = OPENSSL_strdup(buf);
         if (!TEST_ptr(block[loop] = ENGINE_new())
                 || !TEST_true(ENGINE_set_id(block[loop], eid[loop]))

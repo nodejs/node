@@ -17,7 +17,6 @@ B<openssl info>
 [B<-listsep>]
 [B<-seeds>]
 [B<-cpusettings>]
-[B<-quic>]
 
 =head1 DESCRIPTION
 
@@ -73,10 +72,6 @@ Outputs the randomness seed sources.
 =item B<-cpusettings>
 
 Outputs the OpenSSL CPU settings info.
-
-=item B<-quic>
-
-Outputs the OpenSSL QUIC info.
 
 =back
 

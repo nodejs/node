@@ -30,8 +30,8 @@ B<openssl> B<ocsp>
 [B<-respin> I<file>]
 [B<-url> I<URL>]
 [B<-host> I<host>:I<port>]
-[B<-path>]
-[B<-proxy> I<[http[s]://][userinfo@]host[:port][/path]>]
+[B<-path> I<pathname>]
+[B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>]
 [B<-no_proxy> I<addresses>]
 [B<-header>]
 [B<-timeout> I<seconds>]
@@ -160,24 +160,32 @@ with B<-serial>, B<-cert> and B<-host> options).
 
 =item B<-url> I<responder_url>
 
-Specify the responder URL. Both HTTP and HTTPS (SSL/TLS) URLs can be specified.
+Specify the responder host and optionally port and path via a URL.
+Both HTTP and HTTPS (SSL/TLS) URLs can be specified.
 The optional userinfo and fragment components are ignored.
 Any given query component is handled as part of the path component.
+For details, see the B<-host> and B<-path> options described next.
 
-=item B<-host> I<hostname>:I<port>, B<-path> I<pathname>
+=item B<-host> I<host>:I<port>, B<-path> I<pathname>
 
 If the B<-host> option is present then the OCSP request is sent to the host
-I<hostname> on port I<port>. The B<-path> option specifies the HTTP pathname
-to use or "/" by default.  This is equivalent to specifying B<-url> with scheme
-http:// and the given hostname, port, and pathname.
+I<host> on port I<port>.
+The I<host> may be a domain name or an IP (v4 or v6) address,
+such as C<127.0.0.1> or C<[::1]> for localhost.
+If it is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
-=item B<-proxy> I<[http[s]://][userinfo@]host[:port][/path]>
+The B<-path> option specifies the HTTP pathname to use or "/" by default.
+This is equivalent to specifying B<-url> with scheme
+http:// and the given I<host>, I<port>, and optional I<pathname>.
+
+=item B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>
 
 The HTTP(S) proxy server to use for reaching the OCSP server unless B<-no_proxy>
 applies, see below.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The proxy port defaults to 80 or 443 if the scheme is C<https>; apart from that
 the optional C<http://> or C<https://> prefix is ignored,
-as well as any userinfo and path components.
+as well as any userinfo, path, query, and fragment components.
 Defaults to the environment variable C<http_proxy> if set, else C<HTTP_PROXY>
 in case no TLS is used, otherwise C<https_proxy> if set, else C<HTTPS_PROXY>.
 
@@ -369,8 +377,8 @@ subject name.
 
 =item B<-port> I<portnum>
 
-Port to listen for OCSP requests on. The port may also be specified
-using the B<url> option.
+Port to listen for OCSP requests on. Both IPv4 and IPv6 are possible.
+The port may also be specified using the B<-url> option.
 A C<0> argument indicates that any available port shall be chosen automatically.
 
 =item B<-ignore_err>

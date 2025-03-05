@@ -24,8 +24,9 @@ The most important of them are detailed in the following sections.
 In a nutshell, a valid chain of certificates needs to be built up and verified
 starting from the I<target certificate> that is to be verified
 and ending in a certificate that due to some policy is trusted.
-Verification is done relative to the given I<purpose>, which is the intended use
-of the target certificate, such as SSL server, or by default for any purpose.
+Certificate validation can be performed in the context of a I<purpose>, which
+is a high-level specification of the intended use of the target certificate,
+such as C<sslserver> for TLS servers, or (by default) for any purpose.
 
 The details of how each OpenSSL command handles errors
 are documented on the specific command page.
@@ -150,16 +151,17 @@ the chain components and their links are checked thoroughly.
 The first step is to check that each certificate is well-formed.
 Part of these checks are enabled only if the B<-x509_strict> option is given.
 
-The second step is to check the extensions of every untrusted certificate
-for consistency with the supplied purpose.
-If the B<-purpose> option is not given then no such checks are done
-except for SSL/TLS connection setup,
-where by default C<sslserver> or C<sslclient>, are checked.
-The target or "leaf" certificate, as well as any other untrusted certificates,
-must have extensions compatible with the specified purpose.
-All certificates except the target or "leaf" must also be valid CA certificates.
-The precise extensions required are described in more detail in
-L<openssl-x509(1)/CERTIFICATE EXTENSIONS>.
+The second step is to check the X.509v3 extensions of every certificate
+for consistency with the intended specific purpose, if any.
+If the B<-purpose> option is not given then no such checks are done except for
+CMS signature checking, where by default C<smimesign> is checked, and SSL/(D)TLS
+connection setup, where by default C<sslserver> or C<sslclient> are checked.
+The X.509v3 extensions of the target or "leaf" certificate
+must be compatible with the specified purpose.
+All other certificates down the chain are checked to be valid CA certificates,
+and possibly also further non-standard checks are performed.
+The precise extensions required are described in detail
+in the L</Certificate Extensions> section below.
 
 The third step is to check the trust settings on the last certificate
 (which typically is a self-signed root CA certificate).
@@ -455,13 +457,16 @@ Set policy variable inhibit-policy-mapping (see RFC5280).
 
 =item B<-purpose> I<purpose>
 
-The intended use for the certificate.
-Currently defined purposes are C<sslclient>, C<sslserver>, C<nssslserver>,
+A high-level specification of the intended use of the target certificate.
+Currently predefined purposes are C<sslclient>, C<sslserver>, C<nssslserver>,
 C<smimesign>, C<smimeencrypt>, C<crlsign>, C<ocsphelper>, C<timestampsign>,
 and C<any>.
 If peer certificate verification is enabled, by default the TLS implementation
-as well as the commands B<s_client> and B<s_server> check for consistency
-with TLS server or TLS client use, respectively.
+and thus the commands L<openssl-s_client(1)> and L<openssl-s_server(1)>
+check for consistency with
+TLS server (C<sslserver>) or TLS client use (C<sslclient>), respectively.
+By default, CMS signature validation, which can be done via L<openssl-cms(1)>,
+checks for consistency with S/MIME signing use (C<smimesign>).
 
 While IETF RFC 5280 says that B<id-kp-serverAuth> and B<id-kp-clientAuth>
 are only for WWW use, in practice they are used for all kinds of TLS clients
@@ -491,19 +496,20 @@ the subject certificate.
 
 =item B<-verify_name> I<name>
 
-Use default verification policies like trust model and required certificate
-policies identified by I<name>.
+Use a set of verification parameters, also known as verification method,
+identified by I<name>. The currently predefined methods are named C<ssl_client>,
+C<ssl_server>, C<smime_sign> with alias C<pkcs7>, and C<default>.
+These mimic the combinations of purpose and trust settings used in SSL/(D)TLS,
+and CMS/PKCS7 (including S/MIME).
+
+The verification parameters include the trust model, various flags that can
+partly be set also via other command-line options, and the verification purpose,
+which in turn implies certificate key usage and extended key usage requirements.
+
 The trust model determines which auxiliary trust or reject OIDs are applicable
 to verifying the given certificate chain.
 They can be given using the B<-addtrust> and B<-addreject> options
 for L<openssl-x509(1)>.
-Supported policy names include: B<default>, B<pkcs7>, B<smime_sign>,
-B<ssl_client>, B<ssl_server>.
-These mimics the combinations of purpose and trust settings used in SSL, CMS
-and S/MIME.
-As of OpenSSL 1.1.0, the trust model is inferred from the purpose when not
-specified, so the B<-verify_name> options are functionally equivalent to the
-corresponding B<-purpose> settings.
 
 =back
 
@@ -548,9 +554,8 @@ This option has no effect and is retained for backward compatibility only.
 
 =head2 Certificate Extensions
 
-Options like B<-purpose> lead to checking the certificate extensions,
-which determine what the target certificate and intermediate CA certificates
-can be used for.
+Options like B<-purpose> and B<-verify_name> trigger the processing of specific
+certificate extensions, which determine what certificates can be used for.
 
 =head3 Basic Constraints
 
@@ -574,87 +579,117 @@ keyCertSign bit set if the keyUsage extension is present.
 
 =head3 Extended Key Usage
 
-The extKeyUsage (EKU) extension places additional restrictions on the
-certificate uses. If this extension is present (whether critical or not)
-the key can only be used for the purposes specified.
+The extKeyUsage (EKU) extension places additional restrictions on
+certificate use. If this extension is present (whether critical or not)
+in an end-entity certficiate, the key is allowed only for the uses specified,
+while the special EKU B<anyExtendedKeyUsage> allows for all uses.
 
-A complete description of each check is given below. The comments about
+Note that according to RFC 5280 section 4.2.1.12,
+the Extended Key Usage extension will appear only in end-entity certificates,
+and consequently the standard certification path validation described
+in its section 6 does not include EKU checks for CA certificates.
+The CA/Browser Forum requires for TLS server, S/MIME, and code signing use
+the presence of respective EKUs in subordinate CA certificates (while excluding
+them for root CA certificates), while taking over from RFC 5280
+the certificate validity concept and certificate path validation.
+
+For historic reasons, OpenSSL has its own way of interpreting and checking
+EKU extensions on CA certificates, which may change in the future.
+It does not require the presence of EKU extensions in CA certificates,
+but in case the verification purpose is
+C<sslclient>, C<nssslserver>, C<sslserver>, C<smimesign>, or C<smimeencrypt>,
+it checks that any present EKU extension (that does not contain
+B<anyExtendedKeyUsage>) contains the respective EKU as detailed below.
+Moreover, it does these checks even for trust anchor certificates.
+
+=head3 Checks Implied by Specific Predefined Policies
+
+A specific description of each check is given below. The comments about
 basicConstraints and keyUsage and X.509v1 certificates above apply to B<all>
 CA certificates.
 
-
 =over 4
 
-=item B<SSL Client>
+=item B<(D)TLS Client> (C<sslclient>)
 
-The extended key usage extension must be absent or include the "web client
-authentication" OID.  The keyUsage extension must be absent or it must have the
-digitalSignature bit set.  The Netscape certificate type must be absent
-or it must have the SSL client bit set.
+Any given extended key usage extension must allow for C<clientAuth>
+("TLS WWW client authentication").
 
-=item B<SSL Client CA>
+For target certificates,
+the key usage must allow for C<digitalSignature> and/or C<keyAgreement>.
+The Netscape certificate type must be absent or have the SSL client bit set.
 
-The extended key usage extension must be absent or include the "web client
-authentication" OID.
-The Netscape certificate type must be absent or it must have the SSL CA bit set.
-This is used as a work around if the basicConstraints extension is absent.
+For all other certificates the normal CA checks apply. In addition,
+the Netscape certificate type must be absent or have the SSL CA bit set.
+This is used as a workaround if the basicConstraints extension is absent.
 
-=item B<SSL Server>
+=item B<(D)TLS Server> (C<sslserver>)
 
-The extended key usage extension must be absent or include the "web server
-authentication" and/or one of the SGC OIDs.  The keyUsage extension must be
-absent or it
-must have the digitalSignature, the keyEncipherment set or both bits set.
+Any given extended key usage extension must allow for C<serverAuth>
+("TLS WWW server authentication") and/or include one of the SGC OIDs.
+
+For target certificates, the key usage must
+allow for C<digitalSignature>, C<keyEncipherment>, and/or C<keyAgreement>.
 The Netscape certificate type must be absent or have the SSL server bit set.
 
-=item B<SSL Server CA>
+For all other certificates the normal CA checks apply. In addition,
+the Netscape certificate type must be absent or have the SSL CA bit set.
+This is used as a workaround if the basicConstraints extension is absent.
 
-The extended key usage extension must be absent or include the "web server
-authentication" and/or one of the SGC OIDs.  The Netscape certificate type must
-be absent or the SSL CA bit must be set.
-This is used as a work around if the basicConstraints extension is absent.
+=item B<Netscape SSL Server> (C<nssslserver>)
 
-=item B<Netscape SSL Server>
-
-For Netscape SSL clients to connect to an SSL server it must have the
-keyEncipherment bit set if the keyUsage extension is present. This isn't
+In addition to what has been described for B<sslserver>, for a Netscape
+SSL client to connect to an SSL server, its EE certficate must have the
+B<keyEncipherment> bit set if the keyUsage extension is present. This isn't
 always valid because some cipher suites use the key for digital signing.
 Otherwise it is the same as a normal SSL server.
 
-=item B<Common S/MIME Client Tests>
+=item B<Common S/MIME Checks>
 
-The extended key usage extension must be absent or include the "email
-protection" OID.  The Netscape certificate type must be absent or should have the
-S/MIME bit set. If the S/MIME bit is not set in the Netscape certificate type
+Any given extended key usage extension must allow for C<emailProtection>.
+
+For target certificates,
+the Netscape certificate type must be absent or should have the S/MIME bit set.
+If the S/MIME bit is not set in the Netscape certificate type
 then the SSL client bit is tolerated as an alternative but a warning is shown.
 This is because some Verisign certificates don't set the S/MIME bit.
 
-=item B<S/MIME Signing>
+For all other certificates the normal CA checks apply. In addition,
+the Netscape certificate type must be absent or have the S/MIME CA bit set.
+This is used as a workaround if the basicConstraints extension is absent.
 
-In addition to the common S/MIME client tests the digitalSignature bit or
-the nonRepudiation bit must be set if the keyUsage extension is present.
+=item B<S/MIME Signing> (C<smimesign>)
 
-=item B<S/MIME Encryption>
+In addition to the common S/MIME checks, for target certficiates
+the key usage must allow for C<digitalSignature> and/or B<nonRepudiation>.
 
-In addition to the common S/MIME tests the keyEncipherment bit must be set
-if the keyUsage extension is present.
+=item B<S/MIME Encryption> (C<smimeencrypt>)
 
-=item B<S/MIME CA>
+In addition to the common S/MIME checks, for target certficiates
+the key usage must allow for C<keyEncipherment>.
 
-The extended key usage extension must be absent or include the "email
-protection" OID.  The Netscape certificate type must be absent or must have the
-S/MIME CA bit set.
-This is used as a work around if the basicConstraints extension is absent.
+=item B<CRL Signing> (C<crlsign>)
 
-=item B<CRL Signing>
+For target certificates, the key usage must allow for C<cRLSign>.
 
-The keyUsage extension must be absent or it must have the CRL signing bit
-set.
+For all other certifcates the normal CA checks apply.
+Except in this case the basicConstraints extension must be present.
 
-=item B<CRL Signing CA>
+=item B<OCSP Helper> (C<ocsphelper>)
 
-The normal CA tests apply. Except in this case the basicConstraints extension
-must be present.
+For target certificates, no checks are performed at this stage,
+but special checks apply; see L<OCSP_basic_verify(3)>.
+
+For all other certifcates the normal CA checks apply.
+
+=item B<Timestamp Signing> (C<timestampsign>)
+
+For target certificates, if the key usage extension is present, it must include
+C<digitalSignature> and/or C<nonRepudiation> and must not include other bits.
+The EKU extension must be present and contain C<timeStamping> only.
+Moreover, it must be marked as critical.
+
+For all other certifcates the normal CA checks apply.
 
 =back
 
@@ -671,6 +706,7 @@ only the first one (in the mentioned order of locations) is recognised.
 =head1 SEE ALSO
 
 L<X509_verify_cert(3)>,
+L<OCSP_basic_verify(3)>,
 L<openssl-verify(1)>,
 L<openssl-ocsp(1)>,
 L<openssl-ts(1)>,

@@ -42,6 +42,14 @@ use Text::Template 1.46;
 
 our @ISA = qw(Text::Template);  # parent
 
+sub tmpl_error {
+    my (%err_dict) = @_;
+
+    $ERROR = $err_dict{"error"};
+
+    return undef;
+}
+
 sub new {
     my $class = shift;
 
@@ -66,6 +74,7 @@ sub fill_in {
                                     output_on => sub { $self->output_on() },
                                     output_off => sub { $self->output_off() },
                                     %hash },
+                          BROKEN => \&tmpl_error,
                           %opts);
 }
 

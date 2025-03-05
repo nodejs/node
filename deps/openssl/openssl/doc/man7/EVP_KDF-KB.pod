@@ -10,6 +10,8 @@ The EVP_KDF-KB algorithm implements the Key-Based key derivation function
 (KBKDF).  KBKDF derives a key from repeated application of a keyed MAC to an
 input secret (and other optional values).
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "KBKDF" is the name for this implementation; it can be used with the

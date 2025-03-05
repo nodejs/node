@@ -35,7 +35,10 @@ unless I<genkeylen> is NULL.
 If I<wrappedkey> is not NULL and the call is successful then the
 internally generated key is written to I<genkey> and its size is written to
 I<*genkeylen>. The encapsulated version of the generated key is written to
-I<wrappedkey> and its size is written to I<*wrappedkeylen>.
+I<wrappedkey> and its size is written to I<*wrappedkeylen>.  Note that if
+I<wrappedlen> is not NULL, then the value it points to must initially hold the size of
+the  I<unwrapped> buffer so that its size can be validated by the call, ensuring
+it is large enough to hold the result written to I<wrapped>.
 
 =head1 NOTES
 
@@ -63,7 +66,7 @@ Encapsulate an RSASVE key (for RSA keys).
  unsigned char *out = NULL, *secret = NULL;
 
  ctx = EVP_PKEY_CTX_new_from_pkey(libctx, rsa_pub_key, NULL);
- if (ctx = NULL)
+ if (ctx == NULL)
      /* Error */
  if (EVP_PKEY_encapsulate_init(ctx, NULL) <= 0)
      /* Error */
