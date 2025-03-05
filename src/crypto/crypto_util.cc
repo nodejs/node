@@ -22,8 +22,6 @@
 #include "openssl/provider.h"
 #endif
 
-#include <openssl/rand.h>
-
 namespace node {
 
 using ncrypto::BignumPointer;
@@ -85,8 +83,14 @@ bool ProcessFipsOptions() {
   /* Override FIPS settings in configuration file, if needed. */
   if (per_process::cli_options->enable_fips_crypto ||
       per_process::cli_options->force_fips_crypto) {
+#if OPENSSL_VERSION_MAJOR >= 3
     if (!ncrypto::testFipsEnabled()) return false;
-    return ncrypto::setFipsEnabled(true, nullptr) && ncrypto::isFipsEnabled();
+    return ncrypto::setFipsEnabled(true, nullptr);
+#else
+    // TODO(@jasnell): Remove this ifdef branch when openssl 1.1.1 is
+    // no longer supported.
+    if (FIPS_mode() == 0) return FIPS_mode_set(1);
+#endif
   }
   return true;
 }
