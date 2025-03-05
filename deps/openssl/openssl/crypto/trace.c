@@ -473,7 +473,7 @@ BIO *OSSL_trace_begin(int category)
     char *prefix = NULL;
 
     category = ossl_trace_get_category(category);
-    if (category < 0)
+    if (category < 0 || !OSSL_trace_enabled(category))
         return NULL;
 
     channel = trace_channels[category].bio;
