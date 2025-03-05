@@ -65,7 +65,7 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
         std::unique_ptr<Flag> flag(static_cast<Flag*>(ptr));
         DataPointer free_me(data, len, flag->secure);
       },
-      new Flag { data.isSecure() });
+      new Flag{data.isSecure()});
   data.release();
 
   auto ab = ArrayBuffer::New(env->isolate(), std::move(backing));
