@@ -469,6 +469,11 @@ class Ec final {
   inline operator bool() const { return ec_ != nullptr; }
   inline operator OSSL3_CONST EC_KEY*() const { return ec_; }
 
+  static int GetCurveIdFromName(std::string_view name);
+
+  using GetCurveCallback = std::function<bool(std::string_view)>;
+  static bool GetCurves(GetCurveCallback callback);
+
  private:
   OSSL3_CONST EC_KEY* ec_ = nullptr;
 };

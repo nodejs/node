@@ -3918,6 +3918,26 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
+int Ec::GetCurveIdFromName(std::string_view name) {
+  int nid = EC_curve_nist2nid(name.data());
+  if (nid == NID_undef) {
+    nid = OBJ_sn2nid(name.data());
+  }
+  return nid;
+}
+
+bool Ec::GetCurves(Ec::GetCurveCallback callback) {
+  const size_t count = EC_get_builtin_curves(nullptr, 0);
+  std::vector<EC_builtin_curve> curves(count);
+  if (EC_get_builtin_curves(curves.data(), count) != count) {
+    return false;
+  }
+  for (auto curve : curves) {
+    if (!callback(OBJ_nid2sn(curve.nid))) return false;
+  }
+  return true;
+}
+
 // ============================================================================
 
 EVPMDCtxPointer::EVPMDCtxPointer() : ctx_(nullptr) {}
