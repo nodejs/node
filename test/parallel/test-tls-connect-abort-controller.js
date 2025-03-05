@@ -23,14 +23,11 @@ server.listen(0, common.mustCall(async () => {
     rejectUnauthorized: false,
   });
 
-  const assertAbort = async (socket, testName) => {
-    try {
-      await once(socket, 'close');
-      assert.fail(`close ${testName} should have thrown`);
-    } catch (err) {
-      assert.strictEqual(err.name, 'AbortError');
-    }
-  };
+  function assertAbort(socket, testName) {
+    return assert.rejects(() => once(socket, 'close'), {
+      name: 'AbortError',
+    }, `close ${testName} should have thrown`);
+  }
 
   async function postAbort() {
     const ac = new AbortController();
