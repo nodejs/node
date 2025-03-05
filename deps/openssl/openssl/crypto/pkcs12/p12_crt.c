@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -210,8 +210,10 @@ PKCS12_SAFEBAG *PKCS12_add_key_ex(STACK_OF(PKCS12_SAFEBAG) **pbags,
     /* Make a PKCS#8 structure */
     if ((p8 = EVP_PKEY2PKCS8(key)) == NULL)
         goto err;
-    if (key_usage && !PKCS8_add_keyusage(p8, key_usage))
+    if (key_usage && !PKCS8_add_keyusage(p8, key_usage)) {
+        PKCS8_PRIV_KEY_INFO_free(p8);
         goto err;
+    }
     if (nid_key != -1) {
         /* This call does not take ownership of p8 */
         bag = PKCS12_SAFEBAG_create_pkcs8_encrypt_ex(nid_key, pass, -1, NULL, 0,
