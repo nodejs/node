@@ -15,6 +15,8 @@ Five inputs are required to perform key derivation: The hashing function
 (for example SHA256), the Initial Key, the Exchange Hash, the Session ID,
 and the derivation key type.
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "SSHKDF" is the name for this implementation; it

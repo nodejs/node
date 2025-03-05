@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -495,11 +495,7 @@ static void to_words52(BN_ULONG *out, int out_len,
         out_len--;
     }
 
-    while (out_len > 0) {
-        *out = 0;
-        out_len--;
-        out++;
-    }
+    memset(out, 0, out_len * sizeof(BN_ULONG));
 }
 
 static ossl_inline void put_digit52(uint8_t *pStr, int strLen, uint64_t digit)

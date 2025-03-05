@@ -42,8 +42,7 @@ or not) to provide fallback data for the authority key identifier extension.
 
 =head1 RETURN VALUES
 
-X509V3_set_ctx() and X509V3_set_issuer_pkey()
-return 1 on success and 0 on error.
+X509V3_set_issuer_pkey() returns 1 on success and 0 on error.
 
 =head1 SEE ALSO
 
@@ -57,7 +56,7 @@ CTX_TEST was deprecated in OpenSSL 3.0; use X509V3_CTX_TEST instead.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
