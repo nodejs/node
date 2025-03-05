@@ -482,7 +482,11 @@ CMS_SignerInfo *CMS_add1_signer(CMS_ContentInfo *cms,
                                          ossl_cms_ctx_get0_libctx(ctx),
                                          ossl_cms_ctx_get0_propq(ctx),
                                          pk, NULL) <= 0) {
+            si->pctx = NULL;
             goto err;
+        }
+        else {
+            EVP_MD_CTX_set_flags(si->mctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
         }
     }
 
@@ -725,6 +729,7 @@ static int cms_SignerInfo_content_sign(CMS_ContentInfo *cms,
         unsigned int mdlen;
 
         pctx = si->pctx;
+        si->pctx = NULL;
         if (!EVP_DigestFinal_ex(mctx, md, &mdlen))
             goto err;
         siglen = EVP_PKEY_get_size(si->pkey);
@@ -813,6 +818,7 @@ int CMS_SignerInfo_sign(CMS_SignerInfo *si)
                                   ossl_cms_ctx_get0_propq(ctx), si->pkey,
                                   NULL) <= 0)
             goto err;
+        EVP_MD_CTX_set_flags(mctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
         si->pctx = pctx;
     }
 
@@ -884,9 +890,16 @@ int CMS_SignerInfo_verify(CMS_SignerInfo *si)
         goto err;
     }
     mctx = si->mctx;
+    if (si->pctx != NULL) {
+        EVP_PKEY_CTX_free(si->pctx);
+        si->pctx = NULL;
+    }
     if (EVP_DigestVerifyInit_ex(mctx, &si->pctx, EVP_MD_get0_name(md), libctx,
-                                propq, si->pkey, NULL) <= 0)
+                                propq, si->pkey, NULL) <= 0) {
+        si->pctx = NULL;
         goto err;
+    }
+    EVP_MD_CTX_set_flags(mctx, EVP_MD_CTX_FLAG_KEEP_PKEY_CTX);
 
     if (!cms_sd_asn1_ctrl(si, 1))
         goto err;
@@ -1003,8 +1016,11 @@ int CMS_SignerInfo_verify_content(CMS_SignerInfo *si, BIO *chain)
         if (EVP_PKEY_CTX_set_signature_md(pkctx, md) <= 0)
             goto err;
         si->pctx = pkctx;
-        if (!cms_sd_asn1_ctrl(si, 1))
+        if (!cms_sd_asn1_ctrl(si, 1)) {
+            si->pctx = NULL;
             goto err;
+        }
+        si->pctx = NULL;
         r = EVP_PKEY_verify(pkctx, si->signature->data,
                             si->signature->length, mval, mlen);
         if (r <= 0) {
