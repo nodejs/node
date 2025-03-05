@@ -300,6 +300,8 @@ int SMIME_write_ASN1_ex(BIO *bio, ASN1_VALUE *val, BIO *data, int flags,
 
     if (ctype_nid == NID_pkcs7_enveloped) {
         msg_type = "enveloped-data";
+    } else if (ctype_nid == NID_id_smime_ct_authEnvelopedData) {
+        msg_type = "authEnveloped-data";
     } else if (ctype_nid == NID_pkcs7_signed) {
         if (econt_nid == NID_id_smime_ct_receipt)
             msg_type = "signed-receipt";
