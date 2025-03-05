@@ -127,6 +127,7 @@ bool PBKDF2Traits::DeriveBits(Environment* env,
                             params.length);
 
   if (!dp) return false;
+  DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;
 }

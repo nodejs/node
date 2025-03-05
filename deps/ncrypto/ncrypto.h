@@ -545,6 +545,8 @@ class DataPointer final {
     };
   }
 
+  bool isSecure() const { return secure_; }
+
  private:
   void* data_ = nullptr;
   size_t len_ = 0;

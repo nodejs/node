@@ -449,6 +449,7 @@ bool ECDHBitsTraits::DeriveBits(Environment* env,
 
       auto data = ctx.derive();
       if (!data) return false;
+      DCHECK(!data.isSecure());
 
       *out = ByteSource::Allocated(data.release());
       break;
@@ -572,12 +573,14 @@ WebCryptoKeyExportStatus EC_Raw_Export(const KeyObjectData& key_data,
       case kKeyTypePrivate: {
         auto data = m_pkey.rawPrivateKey();
         if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
+        DCHECK(!data.isSecure());
         *out = ByteSource::Allocated(data.release());
         break;
       }
       case kKeyTypePublic: {
         auto data = m_pkey.rawPublicKey();
         if (!data) return WebCryptoKeyExportStatus::INVALID_KEY_TYPE;
+        DCHECK(!data.isSecure());
         *out = ByteSource::Allocated(data.release());
         break;
       }
