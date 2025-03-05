@@ -118,7 +118,7 @@ bool HKDFTraits::DeriveBits(
                           params.length);
   if (!dp) return false;
 
-  DCHECK(!data.isSecure());
+  DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;
 }

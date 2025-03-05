@@ -113,7 +113,6 @@ DataPointer DataPointer::Alloc(size_t len) {
 
 DataPointer DataPointer::SecureAlloc(size_t len) {
 #ifndef OPENSSL_IS_BORINGSSL
-  printf("... %zu\n", len);
   auto ptr = OPENSSL_secure_zalloc(len);
   if (ptr == nullptr) return {};
   return DataPointer(ptr, len, true);
@@ -236,7 +235,8 @@ bool setFipsEnabled(bool enable, CryptoErrorList* errors) {
   if (isFipsEnabled() == enable) return true;
   ClearErrorOnReturn clearErrorOnReturn(errors);
 #if OPENSSL_VERSION_MAJOR >= 3
-  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1;
+  return EVP_default_properties_enable_fips(nullptr, enable ? 1 : 0) == 1 &&
+         EVP_default_properties_is_fips_enabled(nullptr);
 #else
   return FIPS_mode_set(enable ? 1 : 0) == 1;
 #endif
@@ -249,18 +249,17 @@ bool testFipsEnabled() {
   if (OSSL_PROVIDER_available(nullptr, "fips")) {
     fips_provider = OSSL_PROVIDER_load(nullptr, "fips");
   }
-  const auto enabled = fips_provider == nullptr                 ? 0
-                       : OSSL_PROVIDER_self_test(fips_provider) ? 1
-                                                                : 0;
+  if (fips_provider == nullptr) return false;
+  int result = OSSL_PROVIDER_self_test(fips_provider);
+  OSSL_PROVIDER_unload(fips_provider);
+  return result;
 #else
 #ifdef OPENSSL_FIPS
-  const auto enabled = FIPS_selftest() ? 1 : 0;
+  return FIPS_selftest();
 #else  // OPENSSL_FIPS
-  const auto enabled = 0;
+  return false;
 #endif  // OPENSSL_FIPS
 #endif
-
-  return enabled;
 }
 
 // ============================================================================

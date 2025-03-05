@@ -14,21 +14,6 @@
 
 #include "ncrypto.h"
 
-#include <openssl/dsa.h>
-#include <openssl/ec.h>
-#include <openssl/err.h>
-#include <openssl/evp.h>
-#include <openssl/hmac.h>
-#include <openssl/kdf.h>
-#include <openssl/rsa.h>
-#include <openssl/ssl.h>
-
-// The FIPS-related functions are only available
-// when the OpenSSL itself was compiled with FIPS support.
-#if defined(OPENSSL_FIPS) && OPENSSL_VERSION_MAJOR < 3
-#  include <openssl/fips.h>
-#endif  // OPENSSL_FIPS
-
 #include <algorithm>
 #include <climits>
 #include <cstdio>
@@ -37,9 +22,7 @@
 #include <string>
 #include <vector>
 
-namespace node {
-
-namespace crypto {
+namespace node::crypto {
 // Currently known sizes of commonly used OpenSSL struct sizes.
 // OpenSSL considers it's various structs to be opaque and the
 // sizes may change from one version of OpenSSL to another, so
@@ -606,9 +589,7 @@ namespace Util {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace Util
-
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_UTIL_H_
