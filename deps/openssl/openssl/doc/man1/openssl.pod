@@ -653,111 +653,22 @@ See L<property(7)> for a more detailed description.
 
 =head1 ENVIRONMENT
 
-The OpenSSL library can be take some configuration parameters from the
-environment.  Some of these variables are listed below.  For information
-about specific commands, see L<openssl-engine(1)>,
-L<openssl-rehash(1)>, and L<tsget(1)>.
+The OpenSSL libraries can take some configuration parameters from the
+environment.
+
+For information about all environment variables used by the OpenSSL libraries,
+such as B<OPENSSL_CONF>, B<OPENSSL_MODULES>, and B<OPENSSL_TRACE>,
+see L<openssl-env(7)>.
 
 For information about the use of environment variables in configuration,
 see L<config(5)/ENVIRONMENT>.
 
+For information about specific commands, see L<openssl-engine(1)>,
+L<openssl-rehash(1)>, and L<tsget(1)>.
+
 For information about querying or specifying CPU architecture flags, see
 L<OPENSSL_ia32cap(3)>, and L<OPENSSL_s390xcap(3)>.
 
-For information about all environment variables used by the OpenSSL libraries,
-see L<openssl-env(7)>.
-
-=over 4
-
-=item B<OPENSSL_TRACE=>I<name>[,...]
-
-Enable tracing output of OpenSSL library, by name.
-This output will only make sense if you know OpenSSL internals well.
-Also, it might not give you any output at all, depending on how
-OpenSSL was built.
-
-The value is a comma separated list of names, with the following
-available:
-
-=over 4
-
-=item B<TRACE>
-
-Traces the OpenSSL trace API itself.
-
-=item B<INIT>
-
-Traces OpenSSL library initialization and cleanup.
-
-=item B<TLS>
-
-Traces the TLS/SSL protocol.
-
-=item B<TLS_CIPHER>
-
-Traces the ciphers used by the TLS/SSL protocol.
-
-=item B<CONF>
-
-Show details about provider and engine configuration.
-
-=item B<ENGINE_TABLE>
-
-The function that is used by RSA, DSA (etc) code to select registered
-ENGINEs, cache defaults and functional references (etc), will generate
-debugging summaries.
-
-=item B<ENGINE_REF_COUNT>
-
-Reference counts in the ENGINE structure will be monitored with a line
-of generated for each change.
-
-=item B<PKCS5V2>
-
-Traces PKCS#5 v2 key generation.
-
-=item B<PKCS12_KEYGEN>
-
-Traces PKCS#12 key generation.
-
-=item B<PKCS12_DECRYPT>
-
-Traces PKCS#12 decryption.
-
-=item B<X509V3_POLICY>
-
-Generates the complete policy tree at various points during X.509 v3
-policy evaluation.
-
-=item B<BN_CTX>
-
-Traces BIGNUM context operations.
-
-=item B<CMP>
-
-Traces CMP client and server activity.
-
-=item B<STORE>
-
-Traces STORE operations.
-
-=item B<DECODER>
-
-Traces decoder operations.
-
-=item B<ENCODER>
-
-Traces encoder operations.
-
-=item B<REF_COUNT>
-
-Traces decrementing certain ASN.1 structure references.
-
-=back
-
-=back
-
-=head1 SEE ALSO
 
 L<openssl-asn1parse(1)>,
 L<openssl-ca(1)>,

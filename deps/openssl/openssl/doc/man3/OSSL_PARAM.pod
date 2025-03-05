@@ -11,7 +11,7 @@ OSSL_PARAM - a structure to pass or request object parameters
  typedef struct ossl_param_st OSSL_PARAM;
  struct ossl_param_st {
      const char *key;             /* the name of the parameter */
-     unsigned char data_type;     /* declare what kind of content is in data */
+     unsigned int data_type;      /* declare what kind of content is in data */
      void *data;                  /* value being passed in or out */
      size_t data_size;            /* data size */
      size_t return_size;          /* returned size */

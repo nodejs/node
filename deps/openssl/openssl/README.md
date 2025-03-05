@@ -1,113 +1,212 @@
-What This Is
+Welcome to the OpenSSL Project
+==============================
+
+[![openssl logo]][www.openssl.org]
+
+[![github actions ci badge]][github actions ci]
+[![appveyor badge]][appveyor jobs]
+
+OpenSSL is a robust, commercial-grade, full-featured Open Source Toolkit
+for the Transport Layer Security (TLS) protocol formerly known as the
+Secure Sockets Layer (SSL) protocol. The protocol implementation is based
+on a full-strength general purpose cryptographic library, which can also
+be used stand-alone.
+
+OpenSSL is descended from the SSLeay library developed by Eric A. Young
+and Tim J. Hudson.
+
+The official Home Page of the OpenSSL Project is [www.openssl.org].
+
+Table of Contents
+=================
+
+ - [Overview](#overview)
+ - [Download](#download)
+ - [Build and Install](#build-and-install)
+ - [Documentation](#documentation)
+ - [License](#license)
+ - [Support](#support)
+ - [Contributing](#contributing)
+ - [Legalities](#legalities)
+
+Overview
+========
+
+The OpenSSL toolkit includes:
+
+- **libssl**
+  an implementation of all TLS protocol versions up to TLSv1.3 ([RFC 8446]).
+
+- **libcrypto**
+  a full-strength general purpose cryptographic library. It constitutes the
+  basis of the TLS implementation, but can also be used independently.
+
+- **openssl**
+  the OpenSSL command line tool, a swiss army knife for cryptographic tasks,
+  testing and analyzing. It can be used for
+  - creation of key parameters
+  - creation of X.509 certificates, CSRs and CRLs
+  - calculation of message digests
+  - encryption and decryption
+  - SSL/TLS client and server tests
+  - handling of S/MIME signed or encrypted mail
+  - and more...
+
+Download
+========
+
+For Production Use
+------------------
+
+Source code tarballs of the official releases can be downloaded from
+[openssl-library.org/source/](https://openssl-library.org/source/).
+The OpenSSL project does not distribute the toolkit in binary form.
+
+However, for a large variety of operating systems precompiled versions
+of the OpenSSL toolkit are available. In particular on Linux and other
+Unix operating systems it is normally recommended to link against the
+precompiled shared libraries provided by the distributor or vendor.
+
+For Testing and Development
+---------------------------
+
+Although testing and development could in theory also be done using
+the source tarballs, having a local copy of the git repository with
+the entire project history gives you much more insight into the
+code base.
+
+The main OpenSSL Git repository is private.
+There is a public GitHub mirror of it at [github.com/openssl/openssl],
+which is updated automatically from the former on every commit.
+
+A local copy of the Git repository can be obtained by cloning it from
+the GitHub mirror using
+
+    git clone https://github.com/openssl/openssl.git
+
+If you intend to contribute to OpenSSL, either to fix bugs or contribute
+new features, you need to fork the GitHub mirror and clone your public fork
+instead.
+
+    git clone https://github.com/yourname/openssl.git
+
+This is necessary, because all development of OpenSSL nowadays is done via
+GitHub pull requests. For more details, see [Contributing](#contributing).
+
+Build and Install
+=================
+
+After obtaining the Source, have a look at the [INSTALL](INSTALL.md) file for
+detailed instructions about building and installing OpenSSL. For some
+platforms, the installation instructions are amended by a platform specific
+document.
+
+ * [Notes for UNIX-like platforms](NOTES-UNIX.md)
+ * [Notes for Android platforms](NOTES-ANDROID.md)
+ * [Notes for Windows platforms](NOTES-WINDOWS.md)
+ * [Notes for the DOS platform with DJGPP](NOTES-DJGPP.md)
+ * [Notes for the OpenVMS platform](NOTES-VMS.md)
+ * [Notes on Perl](NOTES-PERL.md)
+ * [Notes on Valgrind](NOTES-VALGRIND.md)
+
+Specific notes on upgrading to OpenSSL 3.0 from previous versions can be found
+in the [migration_guide(7ossl)] manual page.
+
+Documentation
+=============
+
+Manual Pages
+------------
+
+The manual pages for the master branch and all current stable releases are
+available online.
+
+- [OpenSSL master](https://www.openssl.org/docs/manmaster)
+- [OpenSSL 3.0](https://www.openssl.org/docs/man3.0)
+- [OpenSSL 1.1.1](https://www.openssl.org/docs/man1.1.1)
+
+Wiki
+----
+
+There is a Wiki at [wiki.openssl.org] which is currently not very active.
+It contains a lot of useful information, not all of which is up to date.
+
+License
+=======
+
+OpenSSL is licensed under the Apache License 2.0, which means that
+you are free to get and use it for commercial and non-commercial
+purposes as long as you fulfill its conditions.
+
+See the [LICENSE.txt](LICENSE.txt) file for more details.
+
+Support
+=======
+
+There are various ways to get in touch. The correct channel depends on
+your requirement. see the [SUPPORT](SUPPORT.md) file for more details.
+
+Contributing
 ============
 
-This is a fork of [OpenSSL](https://www.openssl.org) to enable QUIC. In addition
-to the website, the official source distribution is at
-<https://github.com/openssl/openssl>. The OpenSSL `README` can be found at
-[README-OpenSSL.md](https://github.com/quictls/openssl/blob/openssl-3.0.15%2Bquic/README-OpenSSL.md)
+If you are interested and willing to contribute to the OpenSSL project,
+please take a look at the [CONTRIBUTING](CONTRIBUTING.md) file.
 
-This fork adds APIs that can be used by QUIC implementations for connection
-handshakes. Quoting the IETF Working group
-[charter](https://datatracker.ietf.org/wg/quic/about/), QUIC is a "UDP-based,
-stream-multiplexing, encrypted transport protocol." If you don't need QUIC, you
-should use the official OpenSSL distributions.
+Legalities
+==========
 
-The APIs here are used by Microsoft's
-[MsQuic](https://github.com/microsoft/msquic) and Google's
-[Chromium QUIC](https://chromium.googlesource.com/chromium/src/+/master/net/quic/)
+A number of nations restrict the use or export of cryptography. If you are
+potentially subject to such restrictions you should seek legal advice before
+attempting to develop or distribute cryptographic code.
 
-We are not in competition with OpenSSL project. We informed them of
-our plans to fork the code before we went public. We do not speak for the
-OpenSSL project, and can only point to a
-[blog post](https://www.openssl.org/blog/blog/2020/02/17/QUIC-and-OpenSSL/) and
-[openssl-project email](https://github.com/quictls/openssl/discussions/54)
-that provides their view of QUIC support.
+Copyright
+=========
 
-As stated in their blog post, the OpenSSL team is focused on their 3.0 release
-(released 2021-09-07), and does not intend to add QUIC functionality to 1.1.x.
-There is a community need for a QUIC-capable TLS library. This fork is intended
-as stopgap solution to enable higher level frameworks and runtimes to use QUIC
-with the proven and reliable TLS functionality from OpenSSL. This fork will be
-maintained until OpenSSL officially provides reasonable support for QUIC
-implementations.
+Copyright (c) 1998-2025 The OpenSSL Project
 
-This fork can be considered a supported version of
-[OpenSSL PR 8797](https://github.com/openssl/openssl/pull/8797).
-We will endeavor to track OpenSSL releases within a day or so, and there is an
-item below about how we'll follow their tagging.
+Copyright (c) 1995-1998 Eric A. Young, Tim J. Hudson
 
-On to the questions and answers.
+All rights reserved.
 
-What about branches?
---------------------
+<!-- Links  -->
 
-We don't want to conflict with OpenSSL branch names. Our current plan is to append
-`+quic`. Release tags are likely to be the QUIC branch with `-releaseX` appended.
-For example, the OpenSSL tag `openssl-3.0.0` would have a branch named
-`openssl-3.0.0+quic` and a release tag of `openssl-3.0.0+quic-release1`.
+[www.openssl.org]:
+    <https://www.openssl.org>
+    "OpenSSL Homepage"
 
-How are you keeping current with OpenSSL?
------------------------------------------
+[github.com/openssl/openssl]:
+    <https://github.com/openssl/openssl>
+    "OpenSSL GitHub Mirror"
 
-(In other words, "What about rebasing?")
+[wiki.openssl.org]:
+    <https://wiki.openssl.org>
+    "OpenSSL Wiki"
 
-Our plan is to always rebase on top of an upstream release tag. In particular:
+[migration_guide(7ossl)]:
+    <https://www.openssl.org/docs/man3.0/man7/migration_guide.html>
+    "OpenSSL Migration Guide"
 
-- The changes for QUIC will always be at the tip of the branch -- you will know what
-  is from the original OpenSSL and what is for QUIC.
-- New versions are quickly created once upstream creates a new tag.
-- The use of git commands (such as `cherry`) can be used to ensure that all changes
-  have moved forward with minimal or no changes. You will be able to see
-  "QUIC: Add X" on all branches and the commit itself will be nearly identical on
-  all branches, and any changes to that can be easily identified.
+[RFC 8446]:
+     <https://tools.ietf.org/html/rfc8446>
 
-What about library names?
--------------------------
+<!-- Logos and Badges -->
 
-Library names will be the same, but will use a different version number. The version
-numbers for the current OpenSSL libraries are `1.1` (for the 1.1.0 and 1.1.1 branches)
-and `3` (for the 3.0 branch). We will be prefixing `81` (ASCII for 'Q') to
-the version numbers to generate a unique version number.
+[openssl logo]:
+    doc/images/openssl.svg
+    "OpenSSL Logo"
 
-- `libcrypto.so.81.3` vs `libcrypto.so.3`
-- `libcrypto.so.81.1.1` vs `libcrypto.so.1.1`
-- `libssl.so.81.3` vs `libssl.so.3`
-- `libssl.so.81.1.1` vs `libssl.so.1.1`
+[github actions ci badge]:
+    <https://github.com/openssl/openssl/workflows/GitHub%20CI/badge.svg>
+    "GitHub Actions CI Status"
 
-The SONAME of these libraries are all different, guaranteeing the correct library
-will be used.
+[github actions ci]:
+    <https://github.com/openssl/openssl/actions?query=workflow%3A%22GitHub+CI%22>
+    "GitHub Actions CI"
 
-...and the executable?
-----------------------
+[appveyor badge]:
+    <https://ci.appveyor.com/api/projects/status/8e10o7xfrg73v98f/branch/master?svg=true>
+    "AppVeyor Build Status"
 
-We currently do not have any plans to change the name, mainly because we
-haven't made any changes there. If you see a need, please open an issue.
-
-The `openssl version` command will report that it is `+quic` enabled.
-
-...and FIPS?
-------------
-
-We are not doing anything with FIPS. This is actually good news: you should
-be able to load the OpenSSL 3.0 FIPS module into an application built against
-this fork and everything should Just Work&#8482;.
-
-How can I contribute?
----------------------
-
-We want any code here to be acceptable to OpenSSL. This means that all contributors
-must have signed the appropriate
-[contributor license agreements](https://www.openssl.org/policies/cla.html). We
-will not ask for copies of any paperwork, you just need to tell us that you've
-done so (and we might verify with OpenSSL). We are only interested in making it
-easier and better for at least the mentioned QUIC implementations to use a variant
-of OpenSSL. If you have a pull request that changes the TLS protocol, or adds
-assembly support for a new CPU, or otherwise is not specific to enabling QUIC,
-please contribute that to OpenSSL. This fork is intended to be a clean extension
-to OpenSSL, with the deltas being specific to QUIC.
-
-Who are you?
-------------
-
-This is a collaborative effort between [Akamai](https://www.akamai.com) and
-[Microsoft](https://www.microsoft.com). We welcome anyone to contribute!
+[appveyor jobs]:
+    <https://ci.appveyor.com/project/openssl/openssl/branch/master>
+    "AppVeyor Jobs"

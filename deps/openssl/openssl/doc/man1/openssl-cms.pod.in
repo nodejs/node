@@ -191,6 +191,10 @@ to the output file.
 Verify signed data. Expects a signed data on input and outputs
 the signed data. Both clear text and opaque signing is supported.
 
+By default, validation of signer certificates and their chain
+is done w.r.t. the S/MIME signing (C<smimesign>) purpose.
+For details see L<openssl-verification-options(1)/Certificate Extensions>.
+
 =item B<-resign>
 
 Resign a message: take an existing message and one or more new signers.
@@ -374,7 +378,8 @@ See L<openssl-format-options(1)> for details.
 =item B<-originator> I<file>
 
 A certificate of the originator of the encrypted message. Necessary for
-decryption when Key Agreement is in use for a shared key.
+decryption when Key Agreement is in use for a shared key. Currently, not
+allowed for encryption.
 
 =item B<-recip> I<file>
 
@@ -902,7 +907,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

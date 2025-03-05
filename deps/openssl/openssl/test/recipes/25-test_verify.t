@@ -61,7 +61,7 @@ ok(verify("ee-cert-ocsp-nocheck", "", ["root-cert"], ["ca-cert"]),
 ok(verify("ee-cert", "sslserver", [qw(sroot-cert)], [qw(ca-cert)]),
    "accept server purpose");
 ok(!verify("ee-cert", "sslserver", [qw(croot-cert)], [qw(ca-cert)]),
-   "fail client purpose");
+   "fail client purpose"); # beware, questionable non-standard EKU check on trust anchor
 ok(verify("ee-cert", "sslserver", [qw(root+serverAuth)], [qw(ca-cert)]),
    "accept server trust");
 ok(verify("ee-cert", "sslserver", [qw(sroot+serverAuth)], [qw(ca-cert)]),
@@ -81,7 +81,7 @@ ok(verify("ee-cert", "sslserver", [qw(root-clientAuth)], [qw(ca-cert)]),
 ok(verify("ee-cert", "sslserver", [qw(sroot-clientAuth)], [qw(ca-cert)]),
    "accept client mistrust with server purpose");
 ok(!verify("ee-cert", "sslserver", [qw(croot-clientAuth)], [qw(ca-cert)]),
-   "fail client mistrust with client purpose");
+   "fail client mistrust with client purpose"); # beware, questionable non-standard EKU check on trust anchor
 # Inapplicable trust
 ok(!verify("ee-cert", "sslserver", [qw(root+clientAuth)], [qw(ca-cert)]),
    "fail client trust");
@@ -150,7 +150,7 @@ ok(!verify("ee-cert", "sslserver", [qw(root-expired)], [qw(ca-cert)]),
 ok(verify("ee-cert", "sslserver", [qw(sca-cert)], [], "-partial_chain"),
    "accept partial chain with server purpose");
 ok(!verify("ee-cert", "sslserver", [qw(cca-cert)], [], "-partial_chain"),
-   "fail partial chain with client purpose");
+   "fail partial chain with client purpose"); # beware, questionable non-standard EKU check on trust anchor
 ok(verify("ee-cert", "sslserver", [qw(ca+serverAuth)], [], "-partial_chain"),
    "accept server trust partial chain");
 ok(verify("ee-cert", "sslserver", [qw(cca+serverAuth)], [], "-partial_chain"),
@@ -188,7 +188,7 @@ ok(verify("ee-cert", "sslserver", [qw(root-cert cca+serverAuth)], [qw(ca-cert)])
 ok(verify("ee-cert", "sslserver", [qw(root-cert cca+anyEKU)], [qw(ca-cert)]),
    "accept wildcard trust and client purpose");
 ok(!verify("ee-cert", "sslserver", [qw(root-cert cca-cert)], [qw(ca-cert)]),
-   "fail client purpose");
+   "fail client purpose intermediate trusted"); # beware, questionable non-standard EKU check on trust anchor
 ok(!verify("ee-cert", "sslserver", [qw(root-cert ca-anyEKU)], [qw(ca-cert)]),
    "fail wildcard mistrust");
 ok(!verify("ee-cert", "sslserver", [qw(root-cert ca-serverAuth)], [qw(ca-cert)]),

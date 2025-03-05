@@ -275,19 +275,21 @@ static int test_hmac_copy_uninited(void)
     return res;
 }
 
-# ifndef OPENSSL_NO_MD5
+#ifndef OPENSSL_NO_MD5
+# define OSSL_HEX_CHARS_PER_BYTE 2
 static char *pt(unsigned char *md, unsigned int len)
 {
     unsigned int i;
-    static char buf[80];
+    static char buf[201];
 
     if (md == NULL)
         return NULL;
-    for (i = 0; i < len; i++)
-        sprintf(&(buf[i * 2]), "%02x", md[i]);
+    for (i = 0; i < len && (i + 1) * OSSL_HEX_CHARS_PER_BYTE < sizeof(buf); i++)
+        BIO_snprintf(buf + i * OSSL_HEX_CHARS_PER_BYTE,
+                     OSSL_HEX_CHARS_PER_BYTE + 1, "%02x", md[i]);
     return buf;
 }
-# endif
+#endif
 
 int setup_tests(void)
 {

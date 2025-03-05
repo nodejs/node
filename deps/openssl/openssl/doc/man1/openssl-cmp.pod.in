@@ -453,8 +453,11 @@ Reason numbers defined in RFC 5280 are:
 
 =item B<-server> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>
 
-The DNS hostname or IP address and optionally port
+The I<host> domain name or IP address and optionally I<port>
 of the CMP server to connect to using HTTP(S).
+IP address may be for v4 or v6, such as C<127.0.0.1> or C<[::1]> for localhost.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
+
 This option excludes I<-port> and I<-use_mock_srv>.
 It is ignored if I<-rspin> is given with enough filename arguments.
 
@@ -468,6 +471,7 @@ If a path is included it provides the default value for the B<-path> option.
 
 The HTTP(S) proxy server to use for reaching the CMP server unless B<-no_proxy>
 applies, see below.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The proxy port defaults to 80 or 443 if the scheme is C<https>; apart from that
 the optional C<http://> or C<https://> prefix is ignored (note that TLS may be
 selected by B<-tls_used>), as well as any path, userinfo, and query, and fragment
@@ -969,8 +973,9 @@ This excludes the B<-server> and B<-port> options.
 
 =item B<-port> I<number>
 
-Act as HTTP-based CMP server mock-up listening on the given port.
-This excludes the B<-server> and B<-use_mock_srv> options.
+Act as HTTP-based CMP server mock-up listening on the given local port.
+The client may address the server via, e.g., C<127.0.0.1> or C<[::1]>.
+This option excludes the B<-server> and B<-use_mock_srv> options.
 The B<-rspin>, B<-rspout>, B<-reqin>, and B<-reqout> options
 so far are not supported in this mode.
 

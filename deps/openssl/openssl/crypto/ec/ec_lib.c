@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -20,6 +20,7 @@
 #include <openssl/err.h>
 #include <openssl/opensslv.h>
 #include "crypto/ec.h"
+#include "crypto/bn.h"
 #include "internal/nelem.h"
 #include "ec_local.h"
 
@@ -1262,10 +1263,10 @@ static int ec_field_inverse_mod_ord(const EC_GROUP *group, BIGNUM *r,
     if (!BN_sub(e, group->order, e))
         goto err;
     /*-
-     * Exponent e is public.
-     * No need for scatter-gather or BN_FLG_CONSTTIME.
+     * Although the exponent is public we want the result to be
+     * fixed top.
      */
-    if (!BN_mod_exp_mont(r, x, e, group->order, ctx, group->mont_data))
+    if (!bn_mod_exp_mont_fixed_top(r, x, e, group->order, ctx, group->mont_data))
         goto err;
 
     ret = 1;

@@ -25,10 +25,13 @@ specifying the private key to use.
 The EVP_PKEY_decapsulate() function performs a private key decapsulation
 operation using I<ctx>. The data to be decapsulated is specified using the
 I<wrapped> and I<wrappedlen> parameters.
-If I<unwrapped> is NULL then the maximum size of the output secret buffer
+If I<unwrapped> is NULL then the size of the output secret buffer
 is written to I<*unwrappedlen>. If I<unwrapped> is not NULL and the
 call is successful then the decapsulated secret data is written to I<unwrapped>
-and the amount of data written to I<*unwrappedlen>.
+and the amount of data written to I<*unwrappedlen>.  Note that, if I<unwrappedlen>
+is not NULL in this call, the value it points to must be initialised to the length of
+I<unwrapped>, so that the call can validate it is of sufficient size to hold the
+result of the operation.
 
 =head1 NOTES
 
@@ -57,7 +60,7 @@ Decapsulate data using RSA:
  unsigned char *secret = NULL;;
 
  ctx = EVP_PKEY_CTX_new_from_pkey(libctx, rsa_priv_key, NULL);
- if (ctx = NULL)
+ if (ctx == NULL)
      /* Error */
  if (EVP_PKEY_decapsulate_init(ctx, NULL) <= 0)
      /* Error */

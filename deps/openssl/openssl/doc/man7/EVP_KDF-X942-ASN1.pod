@@ -13,6 +13,8 @@ contains a 32 bit counter as well as optional fields for "partyu-info",
 "partyv-info", "supp-pubinfo" and "supp-privinfo".
 This kdf is used by Cryptographic Message Syntax (CMS).
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "X942KDF-ASN1" or "X942KDF" is the name for this implementation; it

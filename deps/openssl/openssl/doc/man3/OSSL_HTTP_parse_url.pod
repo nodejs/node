@@ -42,20 +42,25 @@ take any further default value from the C<HTTP_PROXY>
 environment variable, or from C<HTTPS_PROXY> if I<use_ssl> is nonzero.
 If I<no_proxy> is NULL, take any default exclusion value from the C<no_proxy>
 environment variable, or else from C<NO_PROXY>.
-Return the determined proxy hostname unless the exclusion contains I<server>.
+Return the determined proxy host unless the exclusion value,
+which is a list of proxy hosts separated by C<,> and/or whitespace,
+contains I<server>.
 Otherwise return NULL.
+When I<server> is a string delimited by C<[> and C<]>, which are used for IPv6
+addresses, the enclosing C<[> and C<]> are stripped prior to comparison.
 
 OSSL_parse_url() parses its input string I<url> as a URL of the form
 C<[scheme://][userinfo@]host[:port][/path][?query][#fragment]> and splits it up
 into scheme, userinfo, host, port, path, query, and fragment components.
 The host (or server) component may be a DNS name or an IP address
-where IPv6 addresses should be enclosed in square brackets C<[> and C<]>.
+where IPv6 addresses must be enclosed in square brackets C<[> and C<]>.
 The port component is optional and defaults to C<0>.
 If given, it must be in decimal form.  If the I<pport_num> argument is not NULL
 the integer value of the port number is assigned to I<*pport_num> on success.
 The path component is also optional and defaults to C</>.
 Each non-NULL result pointer argument I<pscheme>, I<puser>, I<phost>, I<pport>,
 I<ppath>, I<pquery>, and I<pfrag>, is assigned the respective url component.
+Any IPv6 address in I<*phost> is enclosed in C<[> and C<]>.
 On success, they are guaranteed to contain non-NULL string pointers, else NULL.
 It is the responsibility of the caller to free them using L<OPENSSL_free(3)>.
 If I<pquery> is NULL, any given query component is handled as part of the path.
@@ -70,7 +75,7 @@ and the scheme is C<https>, else 0.
 The port component is optional and defaults to C<443> if the scheme is C<https>,
 else C<80>.
 Note that relative paths must be given with a leading C</>,
-otherwise the first path element is interpreted as the hostname.
+otherwise the first path element is interpreted as the host.
 
 Calling the deprecated function OCSP_parse_url(url, host, port, path, ssl)
 is equivalent to
