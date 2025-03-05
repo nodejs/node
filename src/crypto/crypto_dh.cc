@@ -55,11 +55,17 @@ void DiffieHellman::MemoryInfo(MemoryTracker* tracker) const {
 
 namespace {
 MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
+  struct Flag {
+    bool secure;
+  };
   auto backing = ArrayBuffer::NewBackingStore(
       data.get(),
       data.size(),
-      [](void* data, size_t len, void* ptr) { DataPointer free_me(data, len); },
-      nullptr);
+      [](void* data, size_t len, void* ptr) {
+        std::unique_ptr<Flag> flag(static_cast<Flag*>(ptr));
+        DataPointer free_me(data, len, flag->secure);
+      },
+      new Flag { data.isSecure() });
   data.release();
 
   auto ab = ArrayBuffer::New(env->isolate(), std::move(backing));
@@ -482,6 +488,7 @@ ByteSource StatelessDiffieHellmanThreadsafe(const EVPKeyPointer& our_key,
                                             const EVPKeyPointer& their_key) {
   auto dp = DHPointer::stateless(our_key, their_key);
   if (!dp) return {};
+  DCHECK(!dp.isSecure());
 
   return ByteSource::Allocated(dp.release());
 }

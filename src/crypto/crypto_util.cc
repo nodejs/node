@@ -652,6 +652,7 @@ void SecureBuffer(const FunctionCallbackInfo<Value>& args) {
   uint32_t len = args[0].As<Uint32>()->Value();
 
   auto data = DataPointer::SecureAlloc(len);
+  CHECK(data.isSecure());
   if (!data) {
     return THROW_ERR_OPERATION_FAILED(env, "Allocation failed");
   }
