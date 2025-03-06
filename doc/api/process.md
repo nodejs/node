@@ -330,7 +330,7 @@ most convenient for scripts).
 ### Event: `'workerMessage'`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
@@ -1932,7 +1932,7 @@ A boolean value that is `true` if the current Node.js build includes support for
 ## `process.features.require_module`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 * {boolean}

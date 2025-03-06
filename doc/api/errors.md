@@ -2563,7 +2563,7 @@ before looking for the top-level awaits).
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->
@@ -3199,7 +3199,7 @@ nor a relative path starting with `./` or `../`.
 ### `ERR_WORKER_MESSAGING_ERRORED`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3211,7 +3211,7 @@ The destination thread threw an error while processing a message sent via [`post
 ### `ERR_WORKER_MESSAGING_FAILED`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3223,7 +3223,7 @@ The thread requested in [`postMessageToThread()`][] is invalid or has no `worker
 ### `ERR_WORKER_MESSAGING_SAME_THREAD`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -3235,7 +3235,7 @@ The thread id requested in [`postMessageToThread()`][] is the current thread id.
 ### `ERR_WORKER_MESSAGING_TIMEOUT`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development

@@ -1001,7 +1001,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now true by default.
 -->
@@ -1527,7 +1527,7 @@ added:
   - v20.10.0
 changes:
   - version:
-    - REPLACEME
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/53619
     description: Syntax detection is enabled by default.
 -->
@@ -1573,7 +1573,7 @@ added:
   - v22.0.0
   - v20.17.0
 changes:
-  - version: REPLACEME
+  - version: v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->
@@ -1686,7 +1686,7 @@ Node.js which is `nodejs_conf` and is default when this option is not used.
 ### `--env-file-if-exists=config`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -2407,7 +2407,7 @@ i.e. invoking `process.exit()`.
 
 <!-- YAML
 added:
- - REPLACEME
+ - v20.19.0
 -->
 
 Prints information about usage of [Loading ECMAScript modules using `require()`][].

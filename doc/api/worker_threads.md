@@ -223,7 +223,7 @@ if (isMainThread) {
 ## `worker.postMessageToThread(threadId, value[, transferList][, timeout])`
 
 <!-- YAML
-added: REPLACEME
+added: v20.19.0
 -->
 
 > Stability: 1.1 - Active development
