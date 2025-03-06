@@ -215,7 +215,8 @@ static napi_value testAdjustExternalMemory(napi_env env, napi_callback_info info
   napi_value result;
   int64_t adjustedValue;
 
-  NODE_API_CALL(env, napi_adjust_external_memory(env, 1, &adjustedValue));
+  // Some JavaScript engines may ignore small increments passed to napi_adjust_external_memory
+  NODE_API_CALL(env, napi_adjust_external_memory(env, 10000, &adjustedValue));
   NODE_API_CALL(env, napi_create_double(env, (double)adjustedValue, &result));
 
   return result;
