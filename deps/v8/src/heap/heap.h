@@ -1830,6 +1830,8 @@ class Heap final {
   void AddToRingBuffer(const char* string);
   void GetFromRingBuffer(char* buffer);
 
+  static constexpr int kRetainMapEntrySize = 2;
+
   void CompactRetainedMaps(Tagged<WeakArrayList> retained_maps);
 
   void CollectGarbageOnMemoryPressure();
