@@ -81,6 +81,7 @@ but we recommend version 5.8 or newer with the following `tsconfig.json` setting
 ```json
 {
   "compilerOptions": {
+     "noEmit": true, // Optional - see note below
      "target": "esnext",
      "module": "nodenext",
      "rewriteRelativeImportExtensions": true,
@@ -89,6 +90,10 @@ but we recommend version 5.8 or newer with the following `tsconfig.json` setting
   }
 }
 ```
+
+> \[!NOTE]
+> Use the `noEmit` option if you intend to only execute `*.ts` files, for example a build script.
+> You won't need this flag if you intend to distribute `*.js` files for performance reasons.
 
 ### Determining module system
 
