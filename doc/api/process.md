@@ -330,7 +330,9 @@ most convenient for scripts).
 ### Event: `'workerMessage'`
 
 <!-- YAML
-added: v22.5.0
+added:
+- v22.5.0
+- v20.19.0
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
@@ -1970,6 +1972,7 @@ Since all Node.js builds have IPv6 support, this value is always `true`.
 added:
  - v23.0.0
  - v22.10.0
+ - v20.19.0
 -->
 
 * {boolean}
