@@ -483,6 +483,7 @@ struct IsolateSettings {
   v8::Isolate::AbortOnUncaughtExceptionCallback
       should_abort_on_uncaught_exception_callback = nullptr;
   v8::FatalErrorCallback fatal_error_callback = nullptr;
+  v8::OOMErrorCallback oom_error_callback = nullptr;
   v8::PrepareStackTraceCallback prepare_stack_trace_callback = nullptr;
 
   // Miscellaneous callbacks
