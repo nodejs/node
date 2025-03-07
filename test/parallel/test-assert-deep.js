@@ -198,12 +198,14 @@ test('deepEqual should pass for these weird cases', () => {
 function assertDeepAndStrictEqual(a, b) {
   assert.deepEqual(a, b);
   assert.deepStrictEqual(a, b);
+  assert.partialDeepStrictEqual(a, b);
 
   assert.deepEqual(b, a);
   assert.deepStrictEqual(b, a);
+  assert.partialDeepStrictEqual(b, a);
 }
 
-function assertNotDeepOrStrict(a, b, err) {
+function assertNotDeepOrStrict(a, b, err, options) {
   assert.throws(
     () => assert.deepEqual(a, b),
     err || re`${a}\n\nshould loosely deep-equal\n\n${b}`
@@ -221,6 +223,15 @@ function assertNotDeepOrStrict(a, b, err) {
     () => assert.deepStrictEqual(b, a),
     err || { code: 'ERR_ASSERTION' }
   );
+  const partial = () => {
+    assert.partialDeepStrictEqual(b, a);
+    assert.partialDeepStrictEqual(a, b);
+  };
+  if (options?.partial === 'pass') {
+    partial();
+  } else {
+    assert.throws(partial, err || { code: 'ERR_ASSERTION' });
+  }
 }
 
 function assertOnlyDeepEqual(a, b, err) {
@@ -598,16 +609,17 @@ test('Handle sparse arrays', () => {
   /* eslint-disable no-sparse-arrays */
   assertDeepAndStrictEqual([1, , , 3], [1, , , 3]);
   assertNotDeepOrStrict([1, , , 3], [1, , , 3, , , ]);
+  assertNotDeepOrStrict([1, , , 3], [1, undefined, , 3]);
   /* eslint-enable no-sparse-arrays */
   const a = new Array(3);
   const b = new Array(3);
   a[2] = true;
   b[1] = true;
-  assertNotDeepOrStrict(a, b);
+  assertNotDeepOrStrict(a, b, AssertionError, { partial: 'pass' });
   b[2] = true;
   assertNotDeepOrStrict(a, b);
   a[0] = true;
-  assertNotDeepOrStrict(a, b);
+  assertNotDeepOrStrict(a, b, AssertionError, { partial: 'pass' });
 });
 
 test('Handle different error messages', () => {
@@ -1243,6 +1255,14 @@ test('Verify object types being identical on both sides', () => {
   Object.defineProperty(b, 'length', { value: 3, enumerable: false });
   Object.defineProperty(b, Symbol.toStringTag, {
     value: 'Array'
+  });
+  assertNotDeepOrStrict(a, b);
+
+  a = new ArrayBuffer(3);
+  b = new Uint8Array(3);
+  Object.setPrototypeOf(b, ArrayBuffer.prototype);
+  Object.defineProperty(b, Symbol.toStringTag, {
+    value: 'ArrayBuffer'
   });
   assertNotDeepOrStrict(a, b);
 
