@@ -801,6 +801,8 @@ in the file, the value from the environment takes precedence.
 You can pass multiple `--env-file` arguments. Subsequent files override
 pre-existing variables defined in previous files.
 
+An error is thrown if the file does not exist.
+
 ```bash
 node --env-file=.env --env-file=.development.env index.js
 ```
@@ -839,6 +841,9 @@ Export keyword before a key is ignored:
 ```text
 export USERNAME="nodejs" # will result in `nodejs` as the value.
 ```
+
+If you want to load environment variables from a file that may not exist, you
+can use the [`--env-file-if-exists`][] flag instead.
 
 ### `-e`, `--eval "script"`
 
@@ -886,38 +891,6 @@ Under `--experimental-default-type=module` and `--experimental-wasm-modules`,
 files with no extension will be treated as WebAssembly if they begin with the
 WebAssembly magic number (`\0asm`); otherwise they will be treated as ES module
 JavaScript.
-
-### `--experimental-detect-module`
-
-<!-- YAML
-added:
-  - v20.10.0
--->
-
-> Stability: 1.1 - Active development
-
-Node.js will inspect the source code of ambiguous input to determine whether it
-contains ES module syntax; if such syntax is detected, the input will be treated
-as an ES module.
-
-Ambiguous input is defined as:
-
-* Files with a `.js` extension or no extension; and either no controlling
-  `package.json` file or one that lacks a `type` field; and
-  `--experimental-default-type` is not specified.
-* String input (`--eval` or STDIN) when neither `--input-type` nor
-  `--experimental-default-type` are specified.
-
-ES module syntax is defined as syntax that would throw when evaluated as
-CommonJS. This includes the following:
-
-* `import` statements (but _not_ `import()` expressions, which are valid in
-  CommonJS).
-* `export` statements.
-* `import.meta` references.
-* `await` at the top level of a module.
-* Lexical redeclarations of the CommonJS wrapper variables (`require`, `module`,
-  `exports`, `__dirname`, `__filename`).
 
 ### `--experimental-eventsource`
 
@@ -1024,7 +997,13 @@ Use the specified file as a security policy.
 ### `--experimental-require-module`
 
 <!-- YAML
-added: v20.17.0
+added:
+  - v22.0.0
+  - v20.17.0
+changes:
+  - version: v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: This is now true by default.
 -->
 
 > Stability: 1.1 - Active Development
@@ -1540,6 +1519,21 @@ added: v0.8.0
 
 Silence deprecation warnings.
 
+### `--no-experimental-detect-module`
+
+<!-- YAML
+added:
+  - v21.1.0
+  - v20.10.0
+changes:
+  - version:
+    - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/53619
+    description: Syntax detection is enabled by default.
+-->
+
+Disable using [syntax detection][] to determine module type.
+
 ### `--no-experimental-fetch`
 
 <!-- YAML
@@ -1571,6 +1565,24 @@ added: v16.6.0
 -->
 
 Use this flag to disable top-level await in REPL.
+
+### `--no-experimental-require-module`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.17.0
+changes:
+  - version: v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/55085
+    description: This is now false by default.
+-->
+
+> Stability: 1.1 - Active Development
+
+Disable support for loading a synchronous ES module graph in `require()`.
+
+See [Loading ECMAScript modules using `require()`][].
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -1670,6 +1682,17 @@ The location of the default OpenSSL configuration file depends on how OpenSSL
 is being linked to Node.js. Sharing the OpenSSL configuration may have unwanted
 implications and it is recommended to use a configuration section specific to
 Node.js which is `nodejs_conf` and is default when this option is not used.
+
+### `--env-file-if-exists=config`
+
+<!-- YAML
+added: v20.19.0
+-->
+
+> Stability: 1.1 - Active development
+
+Behavior is the same as [`--env-file`][], but an error is not thrown if the file
+does not exist.
 
 ### `--pending-deprecation`
 
@@ -1781,9 +1804,7 @@ Identical to `-e` but prints the result.
 added: v20.17.0
 -->
 
-This flag is only useful when `--experimental-require-module` is enabled.
-
-If the ES module being `require()`'d contains top-level await, this flag
+If the ES module being `require()`'d contains top-level `await`, this flag
 allows Node.js to evaluate the module, try to locate the
 top-level awaits, and print their location to help users find them.
 
@@ -2382,6 +2403,18 @@ added:
 Prints a stack trace whenever an environment is exited proactively,
 i.e. invoking `process.exit()`.
 
+### `--trace-require-module=mode`
+
+<!-- YAML
+added:
+ - v20.19.0
+-->
+
+Prints information about usage of [Loading ECMAScript modules using `require()`][].
+
+When `mode` is `all`, all usage is printed. When `mode` is `no-node-modules`, usage
+from the `node_modules` folder is excluded.
+
 ### `--trace-sigint`
 
 <!-- YAML
@@ -2860,6 +2893,7 @@ one is included in the list below.
 * `--trace-event-file-pattern`
 * `--trace-events-enabled`
 * `--trace-exit`
+* `--trace-require-module`
 * `--trace-sigint`
 * `--trace-sync-io`
 * `--trace-tls`
@@ -3336,6 +3370,8 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--build-snapshot`]: #--build-snapshot
 [`--cpu-prof-dir`]: #--cpu-prof-dir
 [`--diagnostic-dir`]: #--diagnostic-dirdirectory
+[`--env-file-if-exists`]: #--env-file-if-existsconfig
+[`--env-file`]: #--env-fileconfig
 [`--experimental-default-type=module`]: #--experimental-default-typetype
 [`--experimental-sea-config`]: single-executable-applications.md#generating-single-executable-preparation-blobs
 [`--experimental-wasm-modules`]: #--experimental-wasm-modules
@@ -3384,6 +3420,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [security warning]: #warning-binding-inspector-to-a-public-ipport-combination-is-insecure
 [semi-space]: https://www.memorymanagement.org/glossary/s.html#semi.space
 [single executable application]: single-executable-applications.md
+[syntax detection]: packages.md#syntax-detection
 [test reporters]: test.md#test-reporters
 [timezone IDs]: https://en.wikipedia.org/wiki/List_of_tz_database_time_zones
 [tracking issue for user-land snapshots]: https://github.com/nodejs/node/issues/44014

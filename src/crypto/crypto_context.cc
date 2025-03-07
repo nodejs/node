@@ -219,6 +219,7 @@ X509_STORE* NewRootCertStore() {
   }
 
   X509_STORE* store = X509_STORE_new();
+  CHECK_NOT_NULL(store);
   if (*system_cert_path != '\0') {
     ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
@@ -1117,7 +1118,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
     X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
-    SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+    CHECK_EQ(1, SSL_CTX_add_client_CA(sc->ctx_.get(), ca));
   }
   ret = true;
 

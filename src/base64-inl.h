@@ -4,7 +4,6 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "base64.h"
-#include "libbase64.h"
 #include "util.h"
 
 namespace node {
@@ -122,68 +121,6 @@ size_t base64_decode(char* const dst, const size_t dstlen,
                      const TypeName* const src, const size_t srclen) {
   const size_t decoded_size = base64_decoded_size(src, srclen);
   return base64_decode_fast(dst, dstlen, src, srclen, decoded_size);
-}
-
-
-inline size_t base64_encode(const char* src,
-                            size_t slen,
-                            char* dst,
-                            size_t dlen,
-                            Base64Mode mode) {
-  // We know how much we'll write, just make sure that there's space.
-  CHECK(dlen >= base64_encoded_size(slen, mode) &&
-        "not enough space provided for base64 encode");
-
-  dlen = base64_encoded_size(slen, mode);
-
-  if (mode == Base64Mode::NORMAL) {
-    ::base64_encode(src, slen, dst, &dlen, 0);
-    return dlen;
-  }
-
-  unsigned a;
-  unsigned b;
-  unsigned c;
-  unsigned i;
-  unsigned k;
-  unsigned n;
-
-  const char* table = base64_table_url;
-
-  i = 0;
-  k = 0;
-  n = slen / 3 * 3;
-
-  while (i < n) {
-    a = src[i + 0] & 0xff;
-    b = src[i + 1] & 0xff;
-    c = src[i + 2] & 0xff;
-
-    dst[k + 0] = table[a >> 2];
-    dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
-    dst[k + 2] = table[((b & 0x0f) << 2) | (c >> 6)];
-    dst[k + 3] = table[c & 0x3f];
-
-    i += 3;
-    k += 4;
-  }
-
-  switch (slen - n) {
-    case 1:
-      a = src[i + 0] & 0xff;
-      dst[k + 0] = table[a >> 2];
-      dst[k + 1] = table[(a & 3) << 4];
-      break;
-    case 2:
-      a = src[i + 0] & 0xff;
-      b = src[i + 1] & 0xff;
-      dst[k + 0] = table[a >> 2];
-      dst[k + 1] = table[((a & 3) << 4) | (b >> 4)];
-      dst[k + 2] = table[(b & 0x0f) << 2];
-      break;
-  }
-
-  return dlen;
 }
 
 }  // namespace node

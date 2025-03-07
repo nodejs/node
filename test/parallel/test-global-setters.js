@@ -1,4 +1,10 @@
-/* eslint-disable strict */
+// When setters and getters were added for global.process and global.Buffer to
+// create a deprecation path for them in ESM, this test was added to make sure
+// the setters and getters behaved as expected.
+// Ref: https://github.com/nodejs/node/pull/26882
+// Ref: https://github.com/nodejs/node/pull/26334
+
+'use strict';
 require('../common');
 const assert = require('assert');
 const _process = require('process');

@@ -607,6 +607,10 @@ test-debug: BUILDTYPE_LOWER=debug
 test-release test-debug: test-build
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
 
+.PHONY: test-test426
+test-test426: all ## Run the Web Platform Tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) test426
+
 .PHONY: test-wpt
 test-wpt: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) wpt

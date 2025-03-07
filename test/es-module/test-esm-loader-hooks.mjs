@@ -716,15 +716,15 @@ describe('Loader hooks', { concurrency: true }, () => {
       '--no-warnings',
       '--experimental-loader',
       `data:text/javascript,import{readFile}from"node:fs/promises";import{fileURLToPath}from"node:url";export ${
-        async function load(u, c, n) {
-          const r = await n(u, c);
-          if (u.endsWith('/common/index.js')) {
-            r.source = '"use strict";module.exports=require("node:module").createRequire(' +
-                     `${JSON.stringify(u)})(${JSON.stringify(fileURLToPath(u))});\n`;
-          } else if (c.format === 'commonjs') {
-            r.source = await readFile(new URL(u));
+        async function load(url, context, nextLoad) {
+          const result = await nextLoad(url, context);
+          if (url.endsWith('/common/index.js')) {
+            result.source = '"use strict";module.exports=require("node:module").createRequire(' +
+                     `${JSON.stringify(url)})(${JSON.stringify(fileURLToPath(url))});\n`;
+          } else if (url.startsWith('file:') && (context.format == null || context.format === 'commonjs')) {
+            result.source = await readFile(new URL(url));
           }
-          return r;
+          return result;
         }}`,
       '--experimental-loader',
       fixtures.fileURL('es-module-loaders/loader-resolve-passthru.mjs'),
@@ -739,6 +739,7 @@ describe('Loader hooks', { concurrency: true }, () => {
 
   describe('should use hooks', async () => {
     const { code, signal, stdout, stderr } = await spawnPromisified(process.execPath, [
+      '--no-experimental-require-module',
       '--import',
       fixtures.fileURL('es-module-loaders/builtin-named-exports.mjs'),
       fixtures.path('es-modules/require-esm-throws-with-loaders.js'),

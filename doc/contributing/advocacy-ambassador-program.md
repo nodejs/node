@@ -94,11 +94,14 @@ process. An ambassador can request promotion of content in the following ways:
 * Posting a link to the content in the "what's new" issue in nodejs/ambassadors
   so that it goes out on the news feed.
 
-Foundation staff will repost the social media post
-without any need for validation based on the request coming from
-an ambassador. These requests can be made through the existing social channel
-in the OpenJS Slack. For that reason and for communication purposes and
-collaboration opportunities, ambassadors should be members of the
+For accounts managed by foundation staff, the staff will repost the social
+media post without any need for validation based on the request coming from
+an ambassador. For accounts managed by the project with an approval process,
+(for example bluesky) documentation for the approval process will indicate
+that repost requests from ambassadors should generally be approved. These
+requests can be made through the existing social channel in the OpenJS Slack.
+For that reason and for communication purposes and collaboration opportunities,
+ambassadors should be members of the
 [OpenJS Slack](https://slack-invite.openjsf.org/).
 
 ## Messages and topics to promote
@@ -165,3 +168,83 @@ Some of the things to highlight include:
 #### Project contacts
 
 * @mhdawson
+
+### How things get done in the Node.js project
+
+#### Goal
+
+Help people understand that no people are paid to answer their issues or
+implement their pull requests. Things get done based on what volunteers work on
+and the best way to get something fixed/changed is to submit a Pull request.
+
+Some of the things to highlight include:
+
+* Nobody is paid specifically to answer issues, fix bugs or implement new features.
+* No company owns/supports Node.js. Most contributions are from individuals
+  as opposed to organizations. When an individual becomes a collaborator
+  the access and priviledges are granted to the indidual, their employer does
+  not gain any additional rights in the project.
+* The governance of the project is specifically designed to prevent one or
+  a small number of companies from dominating the project.
+* Decisions are made by the active collaborators, there is no single person
+  who makes a decision for the project on their own. This can slow down
+  decision making but most often results in better outcomes.
+* The project is open and receptive to contributions. If you need something PR
+  in a fix or feature.
+* Maintainers are people just like you, with many priorities and end goals. We
+  all have the same goal of moving the Node.js project forward but at the same
+  time we all have other responsibilities that affect how much time we have
+  available to do so.
+* People are volunteering their time to review your PRs and answer questions in
+  the issues you open. Be mindfull of your asks for their time and acknowledge
+  the gift of their time. Too many issues/PRs in a short period of time may
+  overwelm maintainers leading to less progress versus more, try to pace your
+  issues and PRs so that you don't have too many open at the same time. The
+  same goes for comments in discussions, try to avoid overwelming a discussion
+  with too many responses, even too much useful data can overwelm a discussion
+  leading to lower engagement.
+* While volunteers work to do the right thing for the community, the project
+  does not owe anybody anything and does not tolerate abusive or
+  demanding language in issues, discussions or PRs. A respectful dialog will
+  maximize the chances of the outcome you desire.
+* If you depend on timely support or an SLA, contract with a company that provides
+  paid support and will prioritize your issues.
+
+#### Related Links
+
+* <https://github.com/nodejs/TSC/blob/main/TSC-Charter.md#section-3-establishment-of-the-tsc>
+
+#### Project contacts
+
+* @mcollina
+* @mhdawson
+* @marco-ippolito
+
+You can find their contact email in the [`README.md`](../../README.md#tsc-technical-steering-committee)
+
+#### Node.js Type Stripping
+
+##### Goal
+
+The goal is to raise awareness of the Node.js TypeScript Type Stripping in the JavaScript ecosystem.
+Some of the things to highlight include:
+
+* The benefits and limitations of the current implementation.
+* The `tsconfig.json` configuration options to use in combination for type checking.
+* Updates on the implementation advancements.
+
+#### Related Links
+
+<!-- lint disable prohibited-strings remark-lint-->
+
+* <https://github.com/nodejs/typescript>
+* <https://nodejs.org/api/typescript.html>
+* <https://nodejs.org/en/learn/typescript/run-natively>
+* <https://satanacchio.hashnode.dev/everything-you-need-to-know-about-nodejs-type-stripping>
+* <https://github.com/nodejs/amaro>
+
+<!-- lint enable prohibited-strings remark-lint-->
+
+#### Project contacts
+
+* @marco-ippolito

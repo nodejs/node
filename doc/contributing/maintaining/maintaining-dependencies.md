@@ -219,13 +219,6 @@ an abstract syntax tree walker for the ESTree format.
 The [ada](https://github.com/ada-url/ada) dependency is a
 fast and spec-compliant URL parser written in C++.
 
-### base64
-
-The [base64](https://github.com/aklomp/base64) dependency is a base64
-stream encoding/decoding library in C99 with SIMD and OpenMP acceleration.
-It also contains wrapper functions to encode/decode simple
-length-delimited strings.
-
 ### brotli
 
 The [brotli](https://github.com/google/brotli) dependency is

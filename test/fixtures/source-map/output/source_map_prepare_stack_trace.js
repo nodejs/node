@@ -20,10 +20,8 @@ try {
   console.log(e);
 }
 
-delete require.cache[require
-  .resolve('../enclosing-call-site-min.js')];
-
-// Disable
+// Source maps support is disabled programmatically even without deleting the
+// CJS module cache.
 process.setSourceMapsEnabled(false);
 assert.strictEqual(process.sourceMapsEnabled, false);
 
