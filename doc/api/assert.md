@@ -2589,87 +2589,151 @@ argument.
 added: v22.13.0
 -->
 
-> Stability: 1.0 - Early development
+> Stability: 1.2 - Release candidate
 
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
 
-[`assert.partialDeepStrictEqual()`][] Asserts the equivalence between the `actual` and `expected` parameters through a
-deep comparison, ensuring that all properties in the `expected` parameter are
-present in the `actual` parameter with equivalent values, not allowing type coercion.
-The main difference with [`assert.deepStrictEqual()`][] is that [`assert.partialDeepStrictEqual()`][] does not require
-all properties in the `actual` parameter to be present in the `expected` parameter.
-This method should always pass the same test cases as [`assert.deepStrictEqual()`][], behaving as a super set of it.
+Tests for partial deep equality between the `actual` and `expected` parameters.
+"Deep" equality means that the enumerable "own" properties of child objects
+are recursively evaluated also by the following rules. "Partial" equality means
+that only properties that exist on the `expected` parameter are going to be
+compared.
+
+This method always passes the same test cases as [`assert.deepStrictEqual()`][],
+behaving as a super set of it.
+
+### Comparison details
+
+* Primitive values are compared using [`Object.is()`][].
+* [Type tags][Object.prototype.toString()] of objects should be the same.
+* [`[[Prototype]]`][prototype-spec] of objects are not compared.
+* Only [enumerable "own" properties][] are considered.
+* {Error} names, messages, causes, and errors are always compared,
+  even if these are not enumerable properties.
+  `errors` is also compared.
+* Enumerable own {Symbol} properties are compared as well.
+* [Object wrappers][] are compared both as objects and unwrapped values.
+* `Object` properties are compared unordered.
+* {Map} keys and {Set} items are compared unordered.
+* Recursion stops when both sides differ or both sides encounter a circular
+  reference.
+* {WeakMap} and {WeakSet} instances are **not** compared structurally.
+  They are only equal if they reference the same object. Any comparison between
+  different `WeakMap` or `WeakSet` instances will result in inequality,
+  even if they contain the same entries.
+* {RegExp} lastIndex, flags, and source are always compared, even if these
+  are not enumerable properties.
+* Holes in sparse arrays are ignored.
 
 ```mjs
 import assert from 'node:assert';
 
-assert.partialDeepStrictEqual({ a: 1, b: 2 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  { a: { b: { c: 1 } } },
+  { a: { b: { c: 1 } } },
+);
 // OK
 
-assert.partialDeepStrictEqual({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+assert.partialDeepStrictEqual(
+  { a: 1, b: 2, c: 3 },
+  { b: 2 },
+);
 // OK
 
-assert.partialDeepStrictEqual({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [4, 5, 8],
+);
 // OK
 
-assert.partialDeepStrictEqual(new Set(['value1', 'value2']), new Set(['value1', 'value2']));
+assert.partialDeepStrictEqual(
+  new Set([{ a: 1 }, { b: 1 }]),
+  new Set([{ a: 1 }]),
+);
 // OK
 
-assert.partialDeepStrictEqual(new Map([['key1', 'value1']]), new Map([['key1', 'value1']]));
+assert.partialDeepStrictEqual(
+  new Map([['key1', 'value1'], ['key2', 'value2']]),
+  new Map([['key2', 'value2']]),
+);
 // OK
 
-assert.partialDeepStrictEqual(new Uint8Array([1, 2, 3]), new Uint8Array([1, 2, 3]));
+assert.partialDeepStrictEqual(123n, 123n);
 // OK
 
-assert.partialDeepStrictEqual(/abc/, /abc/);
-// OK
-
-assert.partialDeepStrictEqual([{ a: 5 }, { b: 5 }], [{ a: 5 }]);
-// OK
-
-assert.partialDeepStrictEqual(new Set([{ a: 1 }, { b: 1 }]), new Set([{ a: 1 }]));
-// OK
-
-assert.partialDeepStrictEqual(new Date(0), new Date(0));
-// OK
-
-assert.partialDeepStrictEqual({ a: 1 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [5, 4, 8],
+);
 // AssertionError
 
-assert.partialDeepStrictEqual({ a: 1, b: '2' }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  { a: 1 },
+  { a: 1, b: 2 },
+);
 // AssertionError
 
-assert.partialDeepStrictEqual({ a: { b: 2 } }, { a: { b: '2' } });
+assert.partialDeepStrictEqual(
+  { a: { b: 2 } },
+  { a: { b: '2' } },
+);
 // AssertionError
 ```
 
 ```cjs
 const assert = require('node:assert');
 
-assert.partialDeepStrictEqual({ a: 1, b: 2 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  { a: { b: { c: 1 } } },
+  { a: { b: { c: 1 } } },
+);
 // OK
 
-assert.partialDeepStrictEqual({ a: { b: { c: 1 } } }, { a: { b: { c: 1 } } });
+assert.partialDeepStrictEqual(
+  { a: 1, b: 2, c: 3 },
+  { b: 2 },
+);
 // OK
 
-assert.partialDeepStrictEqual({ a: 1, b: 2, c: 3 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [4, 5, 8],
+);
 // OK
 
-assert.partialDeepStrictEqual([{ a: 5 }, { b: 5 }], [{ a: 5 }]);
+assert.partialDeepStrictEqual(
+  new Set([{ a: 1 }, { b: 1 }]),
+  new Set([{ a: 1 }]),
+);
 // OK
 
-assert.partialDeepStrictEqual(new Set([{ a: 1 }, { b: 1 }]), new Set([{ a: 1 }]));
+assert.partialDeepStrictEqual(
+  new Map([['key1', 'value1'], ['key2', 'value2']]),
+  new Map([['key2', 'value2']]),
+);
 // OK
 
-assert.partialDeepStrictEqual({ a: 1 }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(123n, 123n);
+// OK
+
+assert.partialDeepStrictEqual(
+  [1, 2, 3, 4, 5, 6, 7, 8, 9],
+  [5, 4, 8],
+);
 // AssertionError
 
-assert.partialDeepStrictEqual({ a: 1, b: '2' }, { a: 1, b: 2 });
+assert.partialDeepStrictEqual(
+  { a: 1 },
+  { a: 1, b: 2 },
+);
 // AssertionError
 
-assert.partialDeepStrictEqual({ a: { b: 2 } }, { a: { b: '2' } });
+assert.partialDeepStrictEqual(
+  { a: { b: 2 } },
+  { a: { b: '2' } },
+);
 // AssertionError
 ```
 
@@ -2693,7 +2757,6 @@ assert.partialDeepStrictEqual({ a: { b: 2 } }, { a: { b: '2' } });
 [`assert.notEqual()`]: #assertnotequalactual-expected-message
 [`assert.notStrictEqual()`]: #assertnotstrictequalactual-expected-message
 [`assert.ok()`]: #assertokvalue-message
-[`assert.partialDeepStrictEqual()`]: #assertpartialdeepstrictequalactual-expected-message
 [`assert.strictEqual()`]: #assertstrictequalactual-expected-message
 [`assert.throws()`]: #assertthrowsfn-error-message
 [`getColorDepth()`]: tty.md#writestreamgetcolordepthenv
