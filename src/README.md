@@ -1305,7 +1305,7 @@ the cleanups of a cppgc-managed object should adhere to different patterns,
 depending on what it needs to do:
 
 1. If it does not need to do any non-trivial cleanup, nor does its members, just use
-   the default destructor. Note that cleanup of `v8::TracedReference` and
+   the default destructor. Cleanup of `v8::TracedReference` and
    `cppgc::Member` are already handled automatically by V8 so if they are all the
    non-trivial members the class has, this case applies.
 2. If the cleanup relies on a living `Realm`, but does not need to access V8
