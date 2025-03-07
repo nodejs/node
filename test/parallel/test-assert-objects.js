@@ -5,9 +5,12 @@ const vm = require('node:vm');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
 
+const x = ['x'];
+
 function createCircularObject() {
   const obj = {};
   obj.self = obj;
+  obj.set = new Set([x, ['y']]);
   return obj;
 }
 
@@ -42,6 +45,11 @@ describe('Object Comparison Tests', () => {
           description: 'throws when only actual is provided',
           actual: { a: 1 },
           expected: undefined,
+        },
+        {
+          description: 'throws when unequal zeros are compared',
+          actual: 0,
+          expected: -0,
         },
         {
           description: 'throws when only expected is provided',
@@ -262,9 +270,84 @@ describe('Object Comparison Tests', () => {
           expected: ['2'],
         },
         {
+          description: 'throws when comparing an array with symbol properties not matching',
+          actual: (() => {
+            const array = [1, 2, 3];
+            array[Symbol.for('test')] = 'test';
+            return array;
+          })(),
+          expected: (() => {
+            const array = [1, 2, 3];
+            array[Symbol.for('test')] = 'different';
+            return array;
+          })(),
+        },
+        {
+          description: 'throws when comparing an array with extra properties not matching',
+          actual: (() => {
+            const array = [1, 2, 3];
+            array.extra = 'test';
+            return array;
+          })(),
+          expected: (() => {
+            const array = [1, 2, 3];
+            array.extra = 'different';
+            return array;
+          })(),
+        },
+        {
+          description: 'throws when comparing an array with symbol properties matching but other enumerability',
+          actual: (() => {
+            const array = [1, 2, 3];
+            array[Symbol.for('abc')] = 'test';
+            Object.defineProperty(array, Symbol.for('test'), {
+              value: 'test',
+              enumerable: false,
+            });
+            array[Symbol.for('other')] = 'test';
+            return array;
+          })(),
+          expected: (() => {
+            const array = [1, 2, 3];
+            array[Symbol.for('test')] = 'test';
+            return array;
+          })(),
+        },
+        {
+          description: 'throws comparing an array with extra properties matching but other enumerability',
+          actual: (() => {
+            const array = [1, 2, 3];
+            array.alsoIgnored = [{ nested: { property: true } }];
+            Object.defineProperty(array, 'extra', {
+              value: 'test',
+              enumerable: false,
+            });
+            array.ignored = 'test';
+            return array;
+          })(),
+          expected: (() => {
+            const array = [1, 2, 3];
+            array.extra = 'test';
+            return array;
+          })(),
+        },
+        {
           description: 'throws when comparing an ArrayBuffer with a Uint8Array',
           actual: new ArrayBuffer(3),
           expected: new Uint8Array(3),
+        },
+        {
+          description: 'throws when comparing an TypedArrays with symbol properties not matching',
+          actual: (() => {
+            const typed = new Uint8Array(3);
+            typed[Symbol.for('test')] = 'test';
+            return typed;
+          })(),
+          expected: (() => {
+            const typed = new Uint8Array(3);
+            typed[Symbol.for('test')] = 'different';
+            return typed;
+          })(),
         },
         {
           description: 'throws when comparing a ArrayBuffer with a SharedArrayBuffer',
@@ -446,6 +529,44 @@ describe('Object Comparison Tests', () => {
         expected: [0, 0],
       },
       {
+        description: 'comparing an array with symbol properties matching',
+        actual: (() => {
+          const array = [1, 2, 3];
+          array[Symbol.for('abc')] = 'test';
+          array[Symbol.for('test')] = 'test';
+          Object.defineProperty(array, Symbol.for('hidden'), {
+            value: 'hidden',
+            enumerable: false,
+          });
+          return array;
+        })(),
+        expected: (() => {
+          const array = [1, 2, 3];
+          array[Symbol.for('test')] = 'test';
+          return array;
+        })(),
+      },
+      {
+        description: 'comparing an array with extra properties matching',
+        actual: (() => {
+          const array = [1, 2, 3];
+          array.alsoIgnored = [{ nested: { property: true } }];
+          array.extra = 'test';
+          array.ignored = 'test';
+          return array;
+        })(),
+        expected: (() => {
+          const array = [1, 2, 3];
+          array.extra = 'test';
+          Object.defineProperty(array, 'ignored', { enumerable: false });
+          Object.defineProperty(array, Symbol.for('hidden'), {
+            value: 'hidden',
+            enumerable: false,
+          });
+          return array;
+        })(),
+      },
+      {
         description: 'compares two Date objects with the same time',
         actual: new Date(0),
         expected: new Date(0),
@@ -598,6 +719,27 @@ describe('Object Comparison Tests', () => {
         ])
       },
       {
+        describe: 'compares two big sparse arrays',
+        actual: (() => {
+          const array = new Array(150_000_000);
+          array[0] = 1;
+          array[1] = 2;
+          array[100] = 100n;
+          array[200_000] = 3;
+          array[1_200_000] = 4;
+          array[120_200_000] = [];
+          return array;
+        })(),
+        expected: (() => {
+          const array = new Array(100_000_000);
+          array[0] = 1;
+          array[1] = 2;
+          array[200_000] = 3;
+          array[1_200_000] = 4;
+          return array;
+        })(),
+      },
+      {
         describe: 'compares two array of objects',
         actual: [{ a: 5 }],
         expected: [{ a: 5 }],
@@ -616,6 +758,16 @@ describe('Object Comparison Tests', () => {
         description: 'compares two Set objects where expected is a subset of actual',
         actual: new Set([{ a: 1 }, { b: 1 }]),
         expected: new Set([{ a: 1 }]),
+      },
+      {
+        description: 'compares two Sets with mixed entries',
+        actual: new Set([{ b: 1 }, [], 1, { a: 1 }, 2, []]),
+        expected: new Set([{ a: 1 }, 2, []]),
+      },
+      {
+        description: 'compares two Sets with mixed entries different order',
+        actual: new Set([{ a: 1 }, 1, { b: 1 }, [], 2, { a: 1 }]),
+        expected: new Set([{ a: 1 }, [], 2, { a: 1 }]),
       },
       {
         description: 'compares two Set objects with identical arrays',
@@ -785,8 +937,8 @@ describe('Object Comparison Tests', () => {
       {
         description:
           'compares one subset array with another',
-        actual: [1, 2, 3],
-        expected: [2],
+        actual: [1, 2, 3, 4, 5, 6, 7, 8, 9],
+        expected: [2, 5, 6, 7, 8],
       },
       {
         description: 'ensures that File extends Blob',
@@ -802,6 +954,38 @@ describe('Object Comparison Tests', () => {
         description: 'compares two identical urls',
         actual: new URL('http://foo'),
         expected: new URL('http://foo'),
+      },
+      {
+        description: 'compares a more complex object with additional parts on the actual',
+        actual: [{
+          foo: 'yarp',
+          nope: {
+            bar: '123',
+            a: [ 1, 2, 0 ],
+            c: {},
+            b: [
+              {
+                foo: 'yarp',
+                nope: { bar: '123', a: [ 1, 2, 0 ], c: {}, b: [] }
+              },
+              {
+                foo: 'yarp',
+                nope: { bar: '123', a: [ 1, 2, 1 ], c: {}, b: [] }
+              },
+            ],
+          }
+        }],
+        expected: [{
+          foo: 'yarp',
+          nope: {
+            bar: '123',
+            c: {},
+            b: [
+              { foo: 'yarp', nope: { bar: '123', c: {}, b: [] } },
+              { foo: 'yarp', nope: { bar: '123', c: {}, b: [] } },
+            ],
+          }
+        }]
       },
     ].forEach(({ description, actual, expected }) => {
       it(description, () => {
