@@ -234,6 +234,46 @@ describe('Object Comparison Tests', () => {
           ]),
         },
         {
+          description: 'throws for maps with object keys and different values',
+          actual: new Map([
+            [{ a: 1 }, 'value1'],
+            [{ b: 2 }, 'value2'],
+            [{ b: 2 }, 'value4'],
+          ]),
+          expected: new Map([
+            [{ a: 1 }, 'value1'],
+            [{ b: 2 }, 'value3'],
+          ]),
+        },
+        {
+          description: 'throws for maps with multiple identical object keys, just not enough',
+          actual: new Map([
+            [{ a: 1 }, 'value1'],
+            [{ b: 1 }, 'value2'],
+            [{ a: 1 }, 'value1'],
+          ]),
+          expected: new Map([
+            [{ a: 1 }, 'value1'],
+            [{ a: 1 }, 'value1'],
+            [{ a: 1 }, 'value1'],
+          ]),
+        },
+        {
+          description: 'throws for sets with different object values',
+          actual: new Set([
+            { a: 1 },
+            { a: 2 },
+            { a: 1 },
+            { a: 2 },
+          ]),
+          expected: new Set([
+            { a: 1 },
+            { a: 2 },
+            { a: 1 },
+            { a: 1 },
+          ]),
+        },
+        {
           description:
             'throws when comparing two TypedArray instances with different content',
           actual: new Uint8Array(10),
@@ -292,6 +332,44 @@ describe('Object Comparison Tests', () => {
           expected: (() => {
             const array = [1, 2, 3];
             array.extra = 'different';
+            return array;
+          })(),
+        },
+        {
+          description: 'throws when comparing a non matching sparse array',
+          actual: (() => {
+            const array = new Array(1000);
+            array[90] = 1;
+            array[92] = 2;
+            array[95] = 1;
+            array[96] = 2;
+            array.foo = 'bar';
+            array.extra = 'test';
+            return array;
+          })(),
+          expected: (() => {
+            const array = new Array(1000);
+            array[90] = 1;
+            array[92] = 1;
+            array[95] = 1;
+            array.extra = 'test';
+            array.foo = 'bar';
+            return array;
+          })(),
+        },
+        {
+          description: 'throws when comparing a same length sparse array with actual less keys',
+          actual: (() => {
+            const array = new Array(1000);
+            array[90] = 1;
+            array[92] = 1;
+            return array;
+          })(),
+          expected: (() => {
+            const array = new Array(1000);
+            array[90] = 1;
+            array[92] = 1;
+            array[95] = 1;
             return array;
           })(),
         },
@@ -719,6 +797,41 @@ describe('Object Comparison Tests', () => {
         ])
       },
       {
+        description: 'compares maps with object keys',
+        actual: new Map([
+          [{ a: 1 }, 'value1'],
+          [{ a: 2 }, 'value2'],
+          [{ a: 2 }, 'value3'],
+          [{ a: 2 }, 'value3'],
+          [{ a: 2 }, 'value4'],
+          [{ a: 1 }, 'value2'],
+        ]),
+        expected: new Map([
+          [{ a: 2 }, 'value3'],
+          [{ a: 1 }, 'value1'],
+          [{ a: 2 }, 'value3'],
+          [{ a: 1 }, 'value2'],
+        ]),
+      },
+      {
+        describe: 'compares two simple sparse arrays',
+        actual: new Array(1_000),
+        expected: new Array(100),
+      },
+      {
+        describe: 'compares two identical sparse arrays',
+        actual: (() => {
+          const array = new Array(100);
+          array[1] = 2;
+          return array;
+        })(),
+        expected: (() => {
+          const array = new Array(100);
+          array[1] = 2;
+          return array;
+        })(),
+      },
+      {
         describe: 'compares two big sparse arrays',
         actual: (() => {
           const array = new Array(150_000_000);
@@ -767,6 +880,11 @@ describe('Object Comparison Tests', () => {
       {
         description: 'compares two Sets with mixed entries different order',
         actual: new Set([{ a: 1 }, 1, { b: 1 }, [], 2, { a: 1 }]),
+        expected: new Set([{ a: 1 }, [], 2, { a: 1 }]),
+      },
+      {
+        description: 'compares two Sets with mixed entries different order 2',
+        actual: new Set([{ a: 1 }, { a: 1 }, 1, { b: 1 }, [], 2, { a: 1 }]),
         expected: new Set([{ a: 1 }, [], 2, { a: 1 }]),
       },
       {

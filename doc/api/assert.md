@@ -2630,6 +2630,7 @@ behaving as a super set of it.
   even if they contain the same entries.
 * {RegExp} lastIndex, flags, and source are always compared, even if these
   are not enumerable properties.
+* Holes in sparse arrays are ignored.
 
 ```mjs
 import assert from 'node:assert';
