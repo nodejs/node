@@ -1,8 +1,9 @@
 'use strict';
 const common = require('../../common');
 
-if (common.isAIX) {
-  common.skip('AIX is not supported by libuv');
+if (common.isAIX || common.isIBMi) {
+  // see: https://github.com/libuv/libuv/pull/4599#issuecomment-2498376606
+  common.skip('AIX, IBM i do not support get/set thread name');
 }
 
 const assert = require('node:assert');

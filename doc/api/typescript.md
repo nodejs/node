@@ -76,19 +76,24 @@ generation, and by replacing inline types with whitespace, Node.js can run
 TypeScript code without the need for source maps.
 
 Type stripping is compatible with most versions of TypeScript
-but we recommend version 5.7 or newer with the following `tsconfig.json` settings:
+but we recommend version 5.8 or newer with the following `tsconfig.json` settings:
 
 ```json
 {
   "compilerOptions": {
+     "noEmit": true, // Optional - see note below
      "target": "esnext",
      "module": "nodenext",
-     "allowImportingTsExtensions": true,
      "rewriteRelativeImportExtensions": true,
+     "erasableSyntaxOnly": true,
      "verbatimModuleSyntax": true
   }
 }
 ```
+
+> \[!NOTE]
+> Use the `noEmit` option if you intend to only execute `*.ts` files, for example a build script.
+> You won't need this flag if you intend to distribute `*.js` files for performance reasons.
 
 ### Determining module system
 

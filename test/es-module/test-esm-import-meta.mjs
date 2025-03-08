@@ -17,7 +17,7 @@ for (const descriptor of Object.values(descriptors)) {
 }
 
 const urlReg = /^file:\/\/\/.*\/test\/es-module\/test-esm-import-meta\.mjs$/;
-assert(import.meta.url.match(urlReg));
+assert.match(import.meta.url, urlReg);
 
 // Match *nix paths: `/some/path/test/es-module`
 // Match Windows paths: `d:\\some\\path\\test\\es-module`

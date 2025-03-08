@@ -66,6 +66,10 @@ bool Message::IsCloseMessage() const {
 
 namespace {
 
+MaybeLocal<Function> GetDOMException(Local<Context> context);
+
+static const uint32_t kDOMExceptionTag = 0xD011;
+
 // This is used to tell V8 how to read transferred host objects, like other
 // `MessagePort`s and `SharedArrayBuffer`s, and make new JS objects out of them.
 class DeserializerDelegate : public ValueDeserializer::Delegate {
@@ -83,11 +87,67 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
         wasm_modules_(wasm_modules),
         shared_value_conveyor_(shared_value_conveyor) {}
 
+  MaybeLocal<Object> ReadDOMException(Isolate* isolate,
+                                      Local<Context> context,
+                                      v8::ValueDeserializer* deserializer) {
+    Local<Value> name, message;
+    if (!deserializer->ReadValue(context).ToLocal(&name) ||
+        !deserializer->ReadValue(context).ToLocal(&message)) {
+      return MaybeLocal<Object>();
+    }
+
+    bool has_code = false;
+    Local<Value> code;
+    has_code = deserializer->ReadValue(context).ToLocal(&code);
+
+    // V8 disallows executing JS code in the deserialization process, so we
+    // cannot create a DOMException object directly. Instead, we create a
+    // placeholder object that will be converted to a DOMException object
+    // later on.
+    Local<Object> placeholder = Object::New(isolate);
+    if (placeholder
+            ->Set(context,
+                  String::NewFromUtf8(isolate, "__domexception_name")
+                      .ToLocalChecked(),
+                  name)
+            .IsNothing() ||
+        placeholder
+            ->Set(context,
+                  String::NewFromUtf8(isolate, "__domexception_message")
+                      .ToLocalChecked(),
+                  message)
+            .IsNothing() ||
+        (has_code &&
+         placeholder
+             ->Set(context,
+                   String::NewFromUtf8(isolate, "__domexception_code")
+                       .ToLocalChecked(),
+                   code)
+             .IsNothing()) ||
+        placeholder
+            ->Set(context,
+                  String::NewFromUtf8(isolate, "__domexception_placeholder")
+                      .ToLocalChecked(),
+                  v8::True(isolate))
+            .IsNothing()) {
+      return MaybeLocal<Object>();
+    }
+
+    return placeholder;
+  }
+
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
     // Identifying the index in the message's BaseObject array is sufficient.
     uint32_t id;
-    if (!deserializer->ReadUint32(&id))
+    if (!deserializer->ReadUint32(&id)) {
       return MaybeLocal<Object>();
+    }
+
+    Local<Context> context = isolate->GetCurrentContext();
+    if (id == kDOMExceptionTag) {
+      return ReadDOMException(isolate, context, deserializer);
+    }
+
     if (id != kNormalObject) {
       CHECK_LT(id, host_objects_.size());
       Local<Object> object = host_objects_[id]->object(isolate);
@@ -98,7 +158,6 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       }
     }
     EscapableHandleScope scope(isolate);
-    Local<Context> context = isolate->GetCurrentContext();
     Local<Value> object;
     if (!deserializer->ReadValue(context).ToLocal(&object))
       return MaybeLocal<Object>();
@@ -135,6 +194,71 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
 };
 
 }  // anonymous namespace
+
+MaybeLocal<Object> ConvertDOMExceptionData(Local<Context> context,
+                                           Local<Value> value) {
+  if (!value->IsObject()) return MaybeLocal<Object>();
+
+  Isolate* isolate = context->GetIsolate();
+  Local<Object> obj = value.As<Object>();
+
+  Local<String> marker_key =
+      String::NewFromUtf8(isolate, "__domexception_placeholder")
+          .ToLocalChecked();
+  Local<Value> marker_val;
+  if (!obj->Get(context, marker_key).ToLocal(&marker_val) ||
+      !marker_val->IsTrue()) {
+    return MaybeLocal<Object>();
+  }
+
+  Local<String> name_key =
+      String::NewFromUtf8(isolate, "__domexception_name").ToLocalChecked();
+  Local<String> message_key =
+      String::NewFromUtf8(isolate, "__domexception_message").ToLocalChecked();
+  Local<String> code_key =
+      String::NewFromUtf8(isolate, "__domexception_code").ToLocalChecked();
+
+  Local<Value> name, message, code;
+  if (!obj->Get(context, name_key).ToLocal(&name) ||
+      !obj->Get(context, message_key).ToLocal(&message)) {
+    return MaybeLocal<Object>();
+  }
+  bool has_code = obj->Get(context, code_key).ToLocal(&code);
+
+  Local<Function> dom_exception_ctor;
+  if (!GetDOMException(context).ToLocal(&dom_exception_ctor)) {
+    return MaybeLocal<Object>();
+  }
+
+  // Create arguments for the constructor according to the JS implementation
+  // First arg: message
+  // Second arg: options object with name and potentially code
+  Local<Object> options = Object::New(isolate);
+  if (options
+          ->Set(context,
+                String::NewFromUtf8(isolate, "name").ToLocalChecked(),
+                name)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  if (has_code &&
+      options
+          ->Set(context,
+                String::NewFromUtf8(isolate, "code").ToLocalChecked(),
+                code)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  Local<Value> argv[2] = {message, options};
+  Local<Value> exception;
+  if (!dom_exception_ctor->NewInstance(context, 2, argv).ToLocal(&exception)) {
+    return MaybeLocal<Object>();
+  }
+
+  return exception.As<Object>();
+}
 
 MaybeLocal<Value> Message::Deserialize(Environment* env,
                                        Local<Context> context,
@@ -227,8 +351,14 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       return {};
   }
 
-  host_objects.clear();
-  return handle_scope.Escape(return_value);
+  Local<Object> converted_dom_exception;
+  if (!ConvertDOMExceptionData(context, return_value)
+           .ToLocal(&converted_dom_exception)) {
+    host_objects.clear();
+    return handle_scope.Escape(return_value);
+  }
+
+  return handle_scope.Escape(converted_dom_exception);
 }
 
 void Message::AddSharedArrayBuffer(
@@ -294,6 +424,39 @@ void ThrowDataCloneException(Local<Context> context, Local<String> message) {
   isolate->ThrowException(exception);
 }
 
+Maybe<bool> IsDOMException(v8::Isolate* isolate,
+                           v8::Local<v8::Context> context,
+                           v8::Local<v8::Object> obj) {
+  v8::HandleScope handle_scope(isolate);
+
+  v8::Local<v8::Object> per_context_bindings;
+  v8::Local<v8::Value> dom_exception_ctor_val;
+
+  if (!GetPerContextExports(context).ToLocal(&per_context_bindings)) {
+    return Nothing<bool>();
+  }
+
+  if (!per_context_bindings
+           ->Get(context,
+                 v8::String::NewFromUtf8(isolate, "DOMException")
+                     .ToLocalChecked())
+           .ToLocal(&dom_exception_ctor_val) ||
+      !dom_exception_ctor_val->IsFunction()) {
+    return Nothing<bool>();
+  }
+
+  v8::Local<v8::Function> dom_exception_ctor =
+      dom_exception_ctor_val.As<v8::Function>();
+
+  v8::Maybe<bool> result = obj->InstanceOf(context, dom_exception_ctor);
+
+  if (result.IsNothing()) {
+    return Nothing<bool>();
+  }
+
+  return Just(result.FromJust());
+}
+
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
 // DeserializerDelegate understands how to unpack.
@@ -313,6 +476,10 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       return Just(true);
     }
 
+    if (IsDOMException(isolate, context_, object).FromJust()) {
+      return Just(true);
+    }
+
     return Just(JSTransferable::IsJSTransferable(env_, context_, object));
   }
 
@@ -326,6 +493,10 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       BaseObjectPtr<JSTransferable> js_transferable =
           JSTransferable::Wrap(env_, object);
       return WriteHostObject(js_transferable);
+    }
+
+    if (IsDOMException(isolate, context_, object).FromJust()) {
+      return WriteDOMException(context_, object);
     }
 
     // Convert process.env to a regular object.
@@ -424,6 +595,26 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   ValueSerializer* serializer = nullptr;
 
  private:
+  Maybe<bool> WriteDOMException(Local<Context> context,
+                                Local<Object> exception) {
+    serializer->WriteUint32(kDOMExceptionTag);
+
+    Local<Value> name_val, message_val, code_val;
+    if (!exception->Get(context, env_->name_string()).ToLocal(&name_val) ||
+        !exception->Get(context, env_->message_string())
+             .ToLocal(&message_val) ||
+        !exception->Get(context, env_->code_string()).ToLocal(&code_val)) {
+      return Nothing<bool>();
+    }
+
+    if (serializer->WriteValue(context, name_val).IsNothing() ||
+        serializer->WriteValue(context, message_val).IsNothing() ||
+        serializer->WriteValue(context, code_val).IsNothing()) {
+      return Nothing<bool>();
+    }
+
+    return Just(true);
+  }
   Maybe<bool> WriteHostObject(BaseObjectPtr<BaseObject> host_object) {
     BaseObject::TransferMode mode = host_object->GetTransferMode();
     if (mode == TransferMode::kDisallowCloneAndTransfer) {
@@ -501,7 +692,7 @@ Maybe<bool> Message::Serialize(Environment* env,
       // If we cannot render the ArrayBuffer unusable in this Isolate,
       // copying the buffer will have to do.
       // Note that we can currently transfer ArrayBuffers even if they were
-      // not allocated by Node’s ArrayBufferAllocator in the first place,
+      // not allocated by Node's ArrayBufferAllocator in the first place,
       // because we pass the underlying v8::BackingStore around rather than
       // raw data *and* an Isolate with a non-default ArrayBuffer allocator
       // is always going to outlive any Workers it creates, and so will its
@@ -713,7 +904,7 @@ void MessagePort::Close(v8::Local<v8::Value> close_callback) {
 }
 
 void MessagePort::New(const FunctionCallbackInfo<Value>& args) {
-  // This constructor just throws an error. Unfortunately, we can’t use V8’s
+  // This constructor just throws an error. Unfortunately, we can't use V8's
   // ConstructorBehavior::kThrow, as that also removes the prototype from the
   // class (i.e. makes it behave like an arrow function).
   Environment* env = Environment::GetCurrent(args);
@@ -1090,9 +1281,10 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Maybe<bool> res = port->PostMessage(env, context, args[0], transfer_list);
-  if (res.IsJust())
-    args.GetReturnValue().Set(res.FromJust());
+  bool res;
+  if (port->PostMessage(env, context, args[0], transfer_list).To(&res)) {
+    args.GetReturnValue().Set(res);
+  }
 }
 
 void MessagePort::Start() {
