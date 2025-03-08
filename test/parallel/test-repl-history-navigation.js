@@ -236,17 +236,22 @@ const tests = [
     // K = Erase in line; 0 = right; 1 = left; 2 = total
     expected: [
       // 0. Start
-      '\x1B[1G', '\x1B[0J',
-      prompt, '\x1B[3G',
-      // 1. UP
-      // This exceeds the maximum columns (250):
-      // Whitespace + prompt + ' // '.length + 'autocompleteMe'.length
-      // 230 + 2 + 4 + 14
-      '\x1B[1G', '\x1B[0J',
-      `${prompt}${' '.repeat(230)} aut`, '\x1B[237G',
-      ' // ocompleteMe', '\x1B[237G',
-      '\n// 123', '\x1B[237G',
-      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
+      '\x1B[1G',
+      '\x1B[0J',
+      `${prompt}`,
+      '\x1B[3G',
+      '\x1B[1G',
+      '\x1B[0J',
+      `${prompt}aut`,
+      '\x1B[6G',
+      ' // ocompleteMe',
+      '\x1B[6G',
+      '\n// 123',
+      '\x1B[6G',
+      '\x1B[1A',
+      '\x1B[1B',
+      '\x1B[2K',
+      '\x1B[1A',
       '\x1B[0K',
       // 2. UP
       '\x1B[1G', '\x1B[0J',
@@ -632,6 +637,42 @@ const tests = [
       prompt,
     ],
     clean: false
+  },
+  {
+    // Test that the multiline history is correctly navigated and it can be edited
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let a = ``',
+      ENTER,
+      'a = `I am a multiline strong',
+      ENTER,
+      'which ends here`',
+      ENTER,
+      UP,
+      // press LEFT 19 times to reach the typo
+      ...Array(19).fill(LEFT),
+      BACKSPACE,
+      'i',
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let a = ``',
+      'undefined\n',
+      prompt, ...'a = `I am a multiline strong',
+      '... ',
+      ...'which ends here`',
+      "'I am a multiline strong\\nwhich ends here'\n",
+      prompt,
+      `${prompt}a = \`I am a multiline strong\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline strong\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline strng\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline string\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline string\nwhich ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n",
+      prompt,
+    ],
+    clean: true
   },
 ];
 const numtests = tests.length;
