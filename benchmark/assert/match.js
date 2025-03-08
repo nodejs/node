@@ -7,11 +7,11 @@ const bench = common.createBenchmark(main, {
   n: [2e7],
   method: ['match', 'doesNotMatch'],
 }, {
-  combinationFilter() {
+  combinationFilter(p) {
     // These benchmarks purposefully do not run by default. They do not provide
     // might insight, due to only being a small wrapper around a native regexp
     // call.
-    return false;
+    return p.n === 1;
   },
 });
 

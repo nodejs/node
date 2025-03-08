@@ -8,10 +8,10 @@ const bench = common.createBenchmark(main, {
   type: ['string', 'object', 'number'],
   method: ['strictEqual', 'notStrictEqual'],
 }, {
-  combinationFilter() {
+  combinationFilter(p) {
     // These benchmarks purposefully do not run by default. They do not provide
     // much insight, due to only being a small wrapper around `Object.is()`.
-    return false;
+    return p.n === 1;
   },
 });
 

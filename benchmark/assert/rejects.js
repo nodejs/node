@@ -7,11 +7,11 @@ const bench = common.createBenchmark(main, {
   n: [2e5],
   method: ['rejects', 'doesNotReject'],
 }, {
-  combinationFilter() {
+  combinationFilter(p) {
     // These benchmarks purposefully do not run by default. They do not provide
     // much insight, due to only being a small wrapper around a native promise
     // with a few extra checks.
-    return false;
+    return p.n === 1;
   },
 });
 
