@@ -4,8 +4,14 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [25, 2e5],
+  n: [2e5],
   method: ['throws', 'doesNotThrow'],
+}, {
+  combinationFilter() {
+    // These benchmarks purposefully do not run by default. They do not provide
+    // much insight, due to only being a small wrapper around a try / catch.
+    return false;
+  },
 });
 
 function main({ n, method }) {
