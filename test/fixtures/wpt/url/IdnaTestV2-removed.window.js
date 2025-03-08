@@ -1,12 +1,9 @@
-promise_test(() => fetch("resources/IdnaTestV2.json").then(res => res.json()).then(runTests), "Loading data…");
+promise_test(() => fetch("resources/IdnaTestV2-removed.json").then(res => res.json()).then(runTests), "Loading data…");
 
 function runTests(idnaTests) {
   for (const idnaTest of idnaTests) {
     if (typeof idnaTest === "string") {
       continue // skip comments
-    }
-    if (idnaTest.input === "") {
-      continue // cannot test empty string input through new URL()
     }
 
     test(() => {
