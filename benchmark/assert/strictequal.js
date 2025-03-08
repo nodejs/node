@@ -4,9 +4,15 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [25, 2e5],
+  n: [2e5],
   type: ['string', 'object', 'number'],
   method: ['strictEqual', 'notStrictEqual'],
+}, {
+  combinationFilter(p) {
+    // These benchmarks purposefully do not run by default. They do not provide
+    // much insight, due to only being a small wrapper around `Object.is()`.
+    return p.n === 1;
+  },
 });
 
 function main({ type, n, method }) {
