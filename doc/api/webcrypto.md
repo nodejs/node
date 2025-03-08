@@ -499,7 +499,7 @@ The possible usages are:
 Valid key usages depend on the key algorithm (identified by
 `cryptokey.algorithm.name`).
 
-| Key Type                                                | `'encrypt'` | `'decrypt'` | `'sign'` | `'verify'` | `'deriveKey'` | `'deriveBits'` | `'wrapKey'` | `'unwrapKey'` |
+| Supported Key Algorithm                                 | `'encrypt'` | `'decrypt'` | `'sign'` | `'verify'` | `'deriveKey'` | `'deriveBits'` | `'wrapKey'` | `'unwrapKey'` |
 | ------------------------------------------------------- | ----------- | ----------- | -------- | ---------- | ------------- | -------------- | ----------- | ------------- |
 | `'AES-CBC'`                                             | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
 | `'AES-CTR'`                                             | ✔           | ✔           |          |            |               |                | ✔           | ✔             |
@@ -558,7 +558,7 @@ added: v15.0.0
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified in `algorithm` and the keying
 material provided by `key`, `subtle.decrypt()` attempts to decipher the
@@ -593,10 +593,10 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
 * `length`: {number|null} **Default:** `null`
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -633,12 +633,12 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
+* `algorithm`: {EcdhKeyDeriveParams|HkdfParams|Pbkdf2Params}
 * `baseKey`: {CryptoKey}
-* `derivedKeyAlgorithm`: {HmacKeyGenParams|AesKeyGenParams}
+* `derivedKeyAlgorithm`: {string|AlgorithmIdentifier|HmacImportParams|AesDerivedKeyParams}
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} Fulfills with a {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -665,9 +665,9 @@ The algorithms currently supported include:
 added: v15.0.0
 -->
 
-* `algorithm`: {string|Object}
+* `algorithm`: {string|AlgorithmIdentifier}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method identified by `algorithm`, `subtle.digest()` attempts to
 generate a digest of `data`. If successful, the returned promise is resolved
@@ -692,7 +692,7 @@ added: v15.0.0
 * `algorithm`: {RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 Using the method and parameters specified by `algorithm` and the keying
 material provided by `key`, `subtle.encrypt()` attempts to encipher `data`.
@@ -724,7 +724,7 @@ changes:
 
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
-* Returns: {Promise} Fulfills with an {ArrayBuffer|Object}.
+* Returns: {Promise} Fulfills with an {ArrayBuffer|Object} upon success.
 
 Exports the given key into the specified format, if supported.
 
@@ -738,7 +738,7 @@ When `format` is `'jwk'` and the export is successful, the returned promise
 will be resolved with a JavaScript object conforming to the [JSON Web Key][]
 specification.
 
-| Key Type                                                | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
+| Supported Key Algorithm                                 | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
 | ------------------------------------------------------- | -------- | --------- | ------- | ------- |
 | `'AES-CBC'`                                             |          |           | ✔       | ✔       |
 | `'AES-CTR'`                                             |          |           | ✔       | ✔       |
@@ -748,9 +748,7 @@ specification.
 | `'ECDSA'`                                               | ✔        | ✔         | ✔       | ✔       |
 | `'Ed25519'`                                             | ✔        | ✔         | ✔       | ✔       |
 | `'Ed448'` <span class="experimental-inline"></span>[^1] | ✔        | ✔         | ✔       | ✔       |
-| `'HDKF'`                                                |          |           |         |         |
 | `'HMAC'`                                                |          |           | ✔       | ✔       |
-| `'PBKDF2'`                                              |          |           |         |         |
 | `'RSA-OAEP'`                                            | ✔        | ✔         | ✔       |         |
 | `'RSA-PSS'`                                             | ✔        | ✔         | ✔       |         |
 | `'RSASSA-PKCS1-v1_5'`                                   | ✔        | ✔         | ✔       |         |
@@ -763,13 +761,13 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
+* `algorithm`: {string|AlgorithmIdentifier|RsaHashedKeyGenParams|EcKeyGenParams|HmacKeyGenParams|AesKeyGenParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair}
+* Returns: {Promise} Fulfills with a {CryptoKey|CryptoKeyPair} upon success.
 
 Using the method and parameters provided in `algorithm`, `subtle.generateKey()`
 attempts to generate new keying material. Depending the method used, the method
@@ -817,13 +815,13 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} Fulfills with a {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 The `subtle.importKey()` method attempts to interpret the provided `keyData`
 as the given `format` to create a {CryptoKey} instance using the provided
@@ -834,7 +832,7 @@ If importing a `'PBKDF2'` key, `extractable` must be `false`.
 
 The algorithms currently supported include:
 
-| Key Type                                                | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
+| Supported Key Algorithm                                 | `'spki'` | `'pkcs8'` | `'jwk'` | `'raw'` |
 | ------------------------------------------------------- | -------- | --------- | ------- | ------- |
 | `'AES-CBC'`                                             |          |           | ✔       | ✔       |
 | `'AES-CTR'`                                             |          |           | ✔       | ✔       |
@@ -867,10 +865,10 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -900,14 +898,14 @@ added: v15.0.0
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `unwrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* `unwrappedKeyAlgo`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `unwrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* `unwrappedKeyAlgo`: {string|AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
 * `extractable`: {boolean}
 * `keyUsages`: {string\[]} See [Key usages][].
-* Returns: {Promise} Fulfills with a {CryptoKey}
+* Returns: {Promise} Fulfills with a {CryptoKey} upon success.
 
 In cryptography, "wrapping a key" refers to exporting and then encrypting the
 keying material. The `subtle.unwrapKey()` method attempts to decrypt a wrapped
@@ -957,11 +955,11 @@ changes:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
+* `algorithm`: {string|AlgorithmIdentifier|RsaPssParams|EcdsaParams|Ed448Params}
 * `key`: {CryptoKey}
 * `signature`: {ArrayBuffer|TypedArray|DataView|Buffer}
 * `data`: {ArrayBuffer|TypedArray|DataView|Buffer}
-* Returns: {Promise} Fulfills with a {boolean}
+* Returns: {Promise} Fulfills with a {boolean} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -990,8 +988,8 @@ added: v15.0.0
 * `format`: {string} Must be one of `'raw'`, `'pkcs8'`, `'spki'`, or `'jwk'`.
 * `key`: {CryptoKey}
 * `wrappingKey`: {CryptoKey}
-* `wrapAlgo`: {AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
-* Returns: {Promise} Fulfills with an {ArrayBuffer}
+* `wrapAlgo`: {string|AlgorithmIdentifier|RsaOaepParams|AesCtrParams|AesCbcParams|AesGcmParams}
+* Returns: {Promise} Fulfills with an {ArrayBuffer} upon success.
 
 <!--lint enable maximum-line-length remark-lint-->
 
@@ -1022,20 +1020,42 @@ are simple JavaScript dictionary objects.
 ### Class: `AlgorithmIdentifier`
 
 <!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
+added: v15.0.0
 -->
 
 #### `algorithmIdentifier.name`
 
 <!-- YAML
-added:
-  - v18.4.0
-  - v16.17.0
+added: v15.0.0
 -->
 
 * Type: {string}
+
+### Class: `AesDerivedKeyParams`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+#### `aesDerivedKeyParams.name`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {string} Must be one of `'AES-CBC'`, `'AES-CTR'`, `'AES-GCM'`, or
+  `'AES-KW'`
+
+#### `aesDerivedKeyParams.length`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+* Type: {number}
+
+The length of the AES key to be derived. This must be either `128`, `192`,
+or `256`.
 
 ### Class: `AesCbcParams`
 
