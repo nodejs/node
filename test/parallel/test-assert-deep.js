@@ -226,7 +226,7 @@ function assertNotDeepOrStrict(a, b, err, options) {
   const partial = () => {
     assert.partialDeepStrictEqual(b, a);
     assert.partialDeepStrictEqual(a, b);
-  }
+  };
   if (options?.partial === 'pass') {
     partial();
   } else {
@@ -615,11 +615,11 @@ test('Handle sparse arrays', () => {
   const b = new Array(3);
   a[2] = true;
   b[1] = true;
-  assertNotDeepOrStrict(a, b, AssertionError, { partial: "pass" });
+  assertNotDeepOrStrict(a, b, AssertionError, { partial: 'pass' });
   b[2] = true;
   assertNotDeepOrStrict(a, b);
   a[0] = true;
-  assertNotDeepOrStrict(a, b, AssertionError, { partial: "pass" });
+  assertNotDeepOrStrict(a, b, AssertionError, { partial: 'pass' });
 });
 
 test('Handle different error messages', () => {
