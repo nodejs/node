@@ -74,6 +74,7 @@ expected.beforePreExec = new Set([
   'NativeModule internal/querystring',
   'NativeModule querystring',
   'Internal Binding url',
+  'Internal Binding url_pattern',
   'Internal Binding blob',
   'NativeModule internal/url',
   'NativeModule util',
@@ -87,8 +88,6 @@ expected.beforePreExec = new Set([
   'NativeModule internal/process/signal',
   'Internal Binding fs',
   'NativeModule internal/encoding',
-  'NativeModule internal/webstreams/util',
-  'NativeModule internal/webstreams/queuingstrategies',
   'NativeModule internal/blob',
   'NativeModule internal/fs/utils',
   'NativeModule fs',
@@ -98,6 +97,7 @@ expected.beforePreExec = new Set([
   'Internal Binding contextify',
   'NativeModule internal/vm',
   'NativeModule internal/modules/helpers',
+  'NativeModule internal/modules/customization_hooks',
   'NativeModule internal/modules/package_json_reader',
   'Internal Binding module_wrap',
   'NativeModule internal/modules/cjs/loader',
@@ -116,7 +116,9 @@ expected.atRunTime = new Set([
   'NativeModule internal/modules/esm/utils',
 ]);
 
-if (common.isMainThread) {
+const { isMainThread } = require('worker_threads');
+
+if (isMainThread) {
   [
     'NativeModule url',
   ].forEach(expected.beforePreExec.add.bind(expected.beforePreExec));
@@ -187,7 +189,7 @@ function err(message) {
   }
 }
 
-if (common.isMainThread) {
+if (isMainThread) {
   const missing = expected.beforePreExec.difference(actual.beforePreExec);
   const extra = actual.beforePreExec.difference(expected.beforePreExec);
   if (missing.size !== 0) {
@@ -213,10 +215,10 @@ if (common.isMainThread) {
   }
 }
 
-if (!common.isMainThread) {
+if (!isMainThread) {
   // For workers, just merge beforePreExec into atRunTime for now.
   // When we start adding modules to the worker snapshot, this branch
-  // can be removed and  we can just remove the common.isMainThread
+  // can be removed and  we can just remove the isMainThread
   // conditions.
   expected.beforePreExec.forEach(expected.atRunTime.add.bind(expected.atRunTime));
   actual.beforePreExec.forEach(actual.atRunTime.add.bind(actual.atRunTime));

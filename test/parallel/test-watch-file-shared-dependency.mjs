@@ -12,8 +12,6 @@ if (common.isIBMi)
 if (common.isAIX)
   common.skip('folder watch capability is limited in AIX.');
 
-tmpdir.refresh();
-
 const { FilesWatcher } = watcher;
 
 tmpdir.refresh();
@@ -32,15 +30,18 @@ Object.entries(fixtureContent)
   .forEach(([file, content]) => writeFileSync(fixturePaths[file], content));
 
 describe('watch file with shared dependency', () => {
-  it('should not remove shared dependencies when unfiltering an owner', () => {
+  it('should not remove shared dependencies when unfiltering an owner', (t, done) => {
     const controller = new AbortController();
-    const watcher = new FilesWatcher({ signal: controller.signal, debounce: 200 });
+    const watcher = new FilesWatcher({ signal: controller.signal });
 
     watcher.on('changed', ({ owners }) => {
-      assert.strictEqual(owners.size, 2);
+      if (owners.size !== 2) return;
+
+      // If this code is never reached the test times out.
       assert.ok(owners.has(fixturePaths['test.js']));
       assert.ok(owners.has(fixturePaths['test-2.js']));
       controller.abort();
+      done();
     });
     watcher.filterFile(fixturePaths['test.js']);
     watcher.filterFile(fixturePaths['test-2.js']);
@@ -49,6 +50,20 @@ describe('watch file with shared dependency', () => {
     watcher.unfilterFilesOwnedBy([fixturePaths['test.js']]);
     watcher.filterFile(fixturePaths['test.js']);
     watcher.filterFile(fixturePaths['dependency.js'], fixturePaths['test.js']);
-    writeFileSync(fixturePaths['dependency.js'], 'module.exports = { modified: true };');
+
+    if (common.isMacOS) {
+      // Do the write with a delay to ensure that the OS is ready to notify us.
+      setTimeout(() => {
+        writeFileSync(
+          fixturePaths['dependency.js'],
+          'module.exports = { modified: true };'
+        );
+      }, common.platformTimeout(200));
+    } else {
+      writeFileSync(
+        fixturePaths['dependency.js'],
+        'module.exports = { modified: true };'
+      );
+    }
   });
 });

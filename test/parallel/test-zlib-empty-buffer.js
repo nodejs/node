@@ -11,10 +11,12 @@ const emptyBuffer = Buffer.alloc(0);
     [ zlib.deflateSync, zlib.inflateSync, 'deflate sync' ],
     [ zlib.gzipSync, zlib.gunzipSync, 'gzip sync' ],
     [ zlib.brotliCompressSync, zlib.brotliDecompressSync, 'br sync' ],
+    [ zlib.zstdCompressSync, zlib.zstdDecompressSync, 'zstd sync' ],
     [ promisify(zlib.deflateRaw), promisify(zlib.inflateRaw), 'raw' ],
     [ promisify(zlib.deflate), promisify(zlib.inflate), 'deflate' ],
     [ promisify(zlib.gzip), promisify(zlib.gunzip), 'gzip' ],
     [ promisify(zlib.brotliCompress), promisify(zlib.brotliDecompress), 'br' ],
+    [ promisify(zlib.zstdCompress), promisify(zlib.zstdDecompress), 'zstd' ],
   ]) {
     const compressed = await compress(emptyBuffer);
     const decompressed = await decompress(compressed);

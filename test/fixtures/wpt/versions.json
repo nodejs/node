@@ -4,7 +4,7 @@
     "path": "common"
   },
   "compression": {
-    "commit": "da8d6860b22271d8ef4dc7894509692aaab9adf8",
+    "commit": "67880a4eb83ca9aa732eec4b35a1971ff5bf37ff",
     "path": "compression"
   },
   "console": {
@@ -68,12 +68,16 @@
     "path": "resources"
   },
   "streams": {
-    "commit": "2bd26e124cf17b2f0a25c150794d640b07b2a870",
+    "commit": "bc9dcbbf1a4c2c741ef47f47d6ede6458f40c4a4",
     "path": "streams"
   },
   "url": {
-    "commit": "6a39784534e118acc102cf5252c542378831401d",
+    "commit": "a23788b77a947304b2b3159d8efda492727ab623",
     "path": "url"
+  },
+  "urlpattern": {
+    "commit": "ef6d83d789483763207af8cedcbf1f3c1317b981",
+    "path": "urlpattern"
   },
   "user-timing": {
     "commit": "5ae85bf8267ac617833dc013dee9774c9e2a18b7",
@@ -88,7 +92,7 @@
     "path": "wasm/webapi"
   },
   "WebCryptoAPI": {
-    "commit": "b81831169b8527a6c569a4ad92cf8a1baf4a7118",
+    "commit": "3e3374efde7ce73d551ea908d52d0afab046971a",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {
@@ -100,7 +104,7 @@
     "path": "webmessaging/broadcastchannel"
   },
   "webstorage": {
-    "commit": "9dafa892146c4b5b1f604a39b3cf8677f8f70d44",
+    "commit": "1291340aaaa6e73db43b412e47401eca3830c556",
     "path": "webstorage"
   }
 }

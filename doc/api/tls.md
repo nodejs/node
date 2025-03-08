@@ -10,7 +10,11 @@ The `node:tls` module provides an implementation of the Transport Layer Security
 (TLS) and Secure Socket Layer (SSL) protocols that is built on top of OpenSSL.
 The module can be accessed using:
 
-```js
+```mjs
+import tls from 'node:tls';
+```
+
+```cjs
 const tls = require('node:tls');
 ```
 
@@ -461,17 +465,31 @@ To adjust the security level in your Node.js application, you can include `@SECL
 within a cipher string, where `X` is the desired security level. For example,
 to set the security level to 0 while using the default OpenSSL cipher list, you could use:
 
-```js
-const tls = require('node:tls');
+```mjs
+import { createServer, connect } from 'node:tls';
 const port = 443;
 
-tls.createServer({ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1'}, function (socket) {
+createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
   console.log('Client connected with protocol:', socket.getProtocol());
   socket.end();
   this.close();
-}).
-listen(port, () => {
-  tls.connect(port, {ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1'});
+})
+.listen(port, () => {
+  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
+});
+```
+
+```cjs
+const { createServer, connect } = require('node:tls');
+const port = 443;
+
+createServer({ ciphers: 'DEFAULT@SECLEVEL=0', minVersion: 'TLSv1' }, function(socket) {
+  console.log('Client connected with protocol:', socket.getProtocol());
+  socket.end();
+  this.close();
+})
+.listen(port, () => {
+  connect(port, { ciphers: 'DEFAULT@SECLEVEL=0', maxVersion: 'TLSv1' });
 });
 ```
 
@@ -1785,24 +1803,57 @@ to `host`.
 The following illustrates a client for the echo server example from
 [`tls.createServer()`][]:
 
-```js
+```mjs
 // Assumes an echo server that is listening on port 8000.
-const tls = require('node:tls');
-const fs = require('node:fs');
+import { connect } from 'node:tls';
+import { readFileSync } from 'node:fs';
+import { stdin } from 'node:process';
 
 const options = {
   // Necessary only if the server requires client certificate authentication.
-  key: fs.readFileSync('client-key.pem'),
-  cert: fs.readFileSync('client-cert.pem'),
+  key: readFileSync('client-key.pem'),
+  cert: readFileSync('client-cert.pem'),
 
   // Necessary only if the server uses a self-signed certificate.
-  ca: [ fs.readFileSync('server-cert.pem') ],
+  ca: [ readFileSync('server-cert.pem') ],
 
   // Necessary only if the server's cert isn't for "localhost".
   checkServerIdentity: () => { return null; },
 };
 
-const socket = tls.connect(8000, options, () => {
+const socket = connect(8000, options, () => {
+  console.log('client connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  stdin.pipe(socket);
+  stdin.resume();
+});
+socket.setEncoding('utf8');
+socket.on('data', (data) => {
+  console.log(data);
+});
+socket.on('end', () => {
+  console.log('server ends connection');
+});
+```
+
+```cjs
+// Assumes an echo server that is listening on port 8000.
+const { connect } = require('node:tls');
+const { readFileSync } = require('node:fs');
+
+const options = {
+  // Necessary only if the server requires client certificate authentication.
+  key: readFileSync('client-key.pem'),
+  cert: readFileSync('client-cert.pem'),
+
+  // Necessary only if the server uses a self-signed certificate.
+  ca: [ readFileSync('server-cert.pem') ],
+
+  // Necessary only if the server's cert isn't for "localhost".
+  checkServerIdentity: () => { return null; },
+};
+
+const socket = connect(8000, options, () => {
   console.log('client connected',
               socket.authorized ? 'authorized' : 'unauthorized');
   process.stdin.pipe(socket);
@@ -1815,6 +1866,20 @@ socket.on('data', (data) => {
 socket.on('end', () => {
   console.log('server ends connection');
 });
+```
+
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout client-key.pem -out client-cert.pem
+```
+
+Then, to generate the `server-cert.pem` certificate for this example, run:
+
+```bash
+openssl pkcs12 -certpbe AES-256-CBC -export -out server-cert.pem \
+  -inkey client-key.pem -in client-cert.pem
 ```
 
 ## `tls.connect(path[, options][, callback])`
@@ -1920,9 +1985,13 @@ changes:
   * `allowPartialTrustChain` {boolean} Treat intermediate (non-self-signed)
     certificates in the trust CA certificate list as trusted.
   * `ca` {string|string\[]|Buffer|Buffer\[]} Optionally override the trusted CA
-    certificates. Default is to trust the well-known CAs curated by Mozilla.
-    Mozilla's CAs are completely replaced when CAs are explicitly specified
-    using this option. The value can be a string or `Buffer`, or an `Array` of
+    certificates. If not specified, the CA certificates trusted by default are
+    the same as the ones returned by [`tls.getCACertificates()`][] using the
+    `default` type.  If specified, the default list would be completely replaced
+    (instead of being concatenated) by the certificates in the `ca` option.
+    Users need to concatenate manually if they wish to add additional certificates
+    instead of completely overriding the default.
+    The value can be a string or `Buffer`, or an `Array` of
     strings and/or `Buffer`s. Any string or `Buffer` can contain multiple PEM
     CAs concatenated together. The peer's certificate must be chainable to a CA
     trusted by the server for the connection to be authenticated. When using
@@ -1936,7 +2005,6 @@ changes:
     provided.
     For PEM encoded certificates, supported types are "TRUSTED CERTIFICATE",
     "X509 CERTIFICATE", and "CERTIFICATE".
-    See also [`tls.rootCertificates`][].
   * `cert` {string|string\[]|Buffer|Buffer\[]} Cert chains in PEM format. One
     cert chain should be provided per private key. Each cert chain should
     consist of the PEM formatted certificate for a provided private `key`,
@@ -2228,22 +2296,22 @@ workers.
 
 The following illustrates a simple echo server:
 
-```js
-const tls = require('node:tls');
-const fs = require('node:fs');
+```mjs
+import { createServer } from 'node:tls';
+import { readFileSync } from 'node:fs';
 
 const options = {
-  key: fs.readFileSync('server-key.pem'),
-  cert: fs.readFileSync('server-cert.pem'),
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
 
   // This is necessary only if using client certificate authentication.
   requestCert: true,
 
   // This is necessary only if the client uses a self-signed certificate.
-  ca: [ fs.readFileSync('client-cert.pem') ],
+  ca: [ readFileSync('client-cert.pem') ],
 };
 
-const server = tls.createServer(options, (socket) => {
+const server = createServer(options, (socket) => {
   console.log('server connected',
               socket.authorized ? 'authorized' : 'unauthorized');
   socket.write('welcome!\n');
@@ -2255,8 +2323,82 @@ server.listen(8000, () => {
 });
 ```
 
+```cjs
+const { createServer } = require('node:tls');
+const { readFileSync } = require('node:fs');
+
+const options = {
+  key: readFileSync('server-key.pem'),
+  cert: readFileSync('server-cert.pem'),
+
+  // This is necessary only if using client certificate authentication.
+  requestCert: true,
+
+  // This is necessary only if the client uses a self-signed certificate.
+  ca: [ readFileSync('client-cert.pem') ],
+};
+
+const server = createServer(options, (socket) => {
+  console.log('server connected',
+              socket.authorized ? 'authorized' : 'unauthorized');
+  socket.write('welcome!\n');
+  socket.setEncoding('utf8');
+  socket.pipe(socket);
+});
+server.listen(8000, () => {
+  console.log('server bound');
+});
+```
+
+To generate the certificate and key for this example, run:
+
+```bash
+openssl req -x509 -newkey rsa:2048 -nodes -sha256 -subj '/CN=localhost' \
+  -keyout server-key.pem -out server-cert.pem
+```
+
+Then, to generate the `client-cert.pem` certificate for this example, run:
+
+```bash
+openssl pkcs12 -certpbe AES-256-CBC -export -out client-cert.pem \
+  -inkey server-key.pem -in server-cert.pem
+```
+
 The server can be tested by connecting to it using the example client from
 [`tls.connect()`][].
+
+## `tls.getCACertificates([type])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `type` {string|undefined} The type of CA certificates that will be returned. Valid values
+  are `"default"`, `"system"`, `"bundled"` and `"extra"`.
+  **Default:** `"default"`.
+* Returns: {string\[]} An array of PEM-encoded certificates. The array may contain duplicates
+  if the same certificate is repeatedly stored in multiple sources.
+
+Returns an array containing the CA certificates from various sources, depending on `type`:
+
+* `"default"`: return the CA certificates that will be used by the Node.js TLS clients by default.
+  * When [`--use-bundled-ca`][] is enabled (default), or [`--use-openssl-ca`][] is not enabled,
+    this would include CA certificates from the bundled Mozilla CA store.
+  * When [`--use-system-ca`][] is enabled, this would also include certificates from the system's
+    trusted store.
+  * When [`NODE_EXTRA_CA_CERTS`][] is used, this would also include certificates loaded from the specified
+    file.
+* `"system"`: return the CA certificates that are loaded from the system's trusted store, according
+  to rules set by [`--use-system-ca`][]. This can be used to get the certificates from the system
+  when [`--use-system-ca`][] is not enabled.
+* `"bundled"`: return the CA certificates from the bundled Mozilla CA store. This would be the same
+  as [`tls.rootCertificates`][].
+* `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
+  [`NODE_EXTRA_CA_CERTS`][] is not set.
+
+<!-- YAML
+added: v0.10.2
+-->
 
 ## `tls.getCiphers()`
 
@@ -2293,6 +2435,11 @@ from the bundled Mozilla CA store as supplied by the current Node.js version.
 
 The bundled CA store, as supplied by Node.js, is a snapshot of Mozilla CA store
 that is fixed at release time. It is identical on all supported platforms.
+
+To get the actual CA certificates used by the current Node.js instance, which
+may include certificates loaded from the system store (if `--use-system-ca` is used)
+or loaded from a file indicated by `NODE_EXTRA_CA_CERTS`, use
+[`tls.getCACertificates()`][].
 
 ## `tls.DEFAULT_ECDH_CURVE`
 
@@ -2378,7 +2525,11 @@ added:
 [`'secureConnection'`]: #event-secureconnection
 [`'session'`]: #event-session
 [`--tls-cipher-list`]: cli.md#--tls-cipher-listlist
+[`--use-bundled-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
+[`--use-openssl-ca`]: cli.md#--use-bundled-ca---use-openssl-ca
+[`--use-system-ca`]: cli.md#--use-system-ca
 [`Duplex`]: stream.md#class-streamduplex
+[`NODE_EXTRA_CA_CERTS`]: cli.md#node_extra_ca_certsfile
 [`NODE_OPTIONS`]: cli.md#node_optionsoptions
 [`SSL_export_keying_material`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_export_keying_material.html
 [`SSL_get_version`]: https://www.openssl.org/docs/man1.1.1/man3/SSL_get_version.html
@@ -2407,6 +2558,7 @@ added:
 [`tls.createSecureContext()`]: #tlscreatesecurecontextoptions
 [`tls.createSecurePair()`]: #tlscreatesecurepaircontext-isserver-requestcert-rejectunauthorized-options
 [`tls.createServer()`]: #tlscreateserveroptions-secureconnectionlistener
+[`tls.getCACertificates()`]: #tlsgetcacertificatestype
 [`tls.getCiphers()`]: #tlsgetciphers
 [`tls.rootCertificates`]: #tlsrootcertificates
 [`x509.checkHost()`]: crypto.md#x509checkhostname-options

@@ -119,7 +119,6 @@ Array [
   "get",
   "help",
   "help-search",
-  "hook",
   "init",
   "install",
   "install-ci-test",
@@ -156,6 +155,7 @@ Array [
   "team",
   "test",
   "token",
+  "undeprecate",
   "uninstall",
   "unpublish",
   "unstar",
@@ -405,7 +405,7 @@ are same as \`cpu\` field of package.json, which comes from \`process.arch\`.
 
 #### \`depth\`
 
-* Default: \`Infinity\` if \`--all\` is set, otherwise \`1\`
+* Default: \`Infinity\` if \`--all\` is set, otherwise \`0\`
 * Type: null or Number
 
 The depth to go when recursing packages for \`npm ls\`.
@@ -1878,9 +1878,9 @@ When set to \`dev\` or \`development\`, this is an alias for \`--include=dev\`.
 * Default: null
 * Type: null or String
 * DEPRECATED: \`key\` and \`cert\` are no longer used for most registry
-  operations. Use registry scoped \`keyfile\` and \`certfile\` instead. Example:
+  operations. Use registry scoped \`keyfile\` and \`cafile\` instead. Example:
   //other-registry.tld/:keyfile=/path/to/key.pem
-  //other-registry.tld/:certfile=/path/to/cert.crt
+  //other-registry.tld/:cafile=/path/to/cert.crt
 
 A client certificate to pass when accessing the registry. Values should be
 in PEM format (Windows calls it "Base-64 encoded X.509 (.CER)") with
@@ -1891,8 +1891,8 @@ cert="-----BEGIN CERTIFICATE-----\\nXXXX\\nXXXX\\n-----END CERTIFICATE-----"
 \`\`\`
 
 It is _not_ the path to a certificate file, though you can set a
-registry-scoped "certfile" path like
-"//other-registry.tld/:certfile=/path/to/cert.pem".
+registry-scoped "cafile" path like
+"//other-registry.tld/:cafile=/path/to/cert.pem".
 
 
 
@@ -1983,9 +1983,9 @@ Alias for \`--init-version\`
 * Default: null
 * Type: null or String
 * DEPRECATED: \`key\` and \`cert\` are no longer used for most registry
-  operations. Use registry scoped \`keyfile\` and \`certfile\` instead. Example:
+  operations. Use registry scoped \`keyfile\` and \`cafile\` instead. Example:
   //other-registry.tld/:keyfile=/path/to/key.pem
-  //other-registry.tld/:certfile=/path/to/cert.crt
+  //other-registry.tld/:cafile=/path/to/cert.crt
 
 A client key to pass when accessing the registry. Values should be in PEM
 format with newlines replaced by the string "\\n". For example:
@@ -2851,7 +2851,7 @@ Usage:
 npm deprecate <package-spec> <message>
 
 Options:
-[--registry <registry>] [--otp <otp>]
+[--registry <registry>] [--otp <otp>] [--dry-run]
 
 Run "npm help deprecate" for more info
 
@@ -2863,6 +2863,7 @@ Note: This command is unaware of workspaces.
 
 #### \`registry\`
 #### \`otp\`
+#### \`dry-run\`
 `
 
 exports[`test/lib/docs.js TAP usage diff > must match snapshot 1`] = `
@@ -3198,33 +3199,6 @@ npm help-search <text>
 Note: This command is unaware of workspaces.
 
 #### \`long\`
-`
-
-exports[`test/lib/docs.js TAP usage hook > must match snapshot 1`] = `
-Manage registry hooks
-
-Usage:
-npm hook add <pkg> <url> <secret> [--type=<type>]
-npm hook ls [pkg]
-npm hook rm <id>
-npm hook update <id> <url> <secret>
-
-Options:
-[--registry <registry>] [--otp <otp>]
-
-Run "npm help hook" for more info
-
-\`\`\`bash
-npm hook add <pkg> <url> <secret> [--type=<type>]
-npm hook ls [pkg]
-npm hook rm <id>
-npm hook update <id> <url> <secret>
-\`\`\`
-
-Note: This command is unaware of workspaces.
-
-#### \`registry\`
-#### \`otp\`
 `
 
 exports[`test/lib/docs.js TAP usage init > must match snapshot 1`] = `
@@ -3708,7 +3682,7 @@ npm pack <package-spec>
 Options:
 [--dry-run] [--json] [--pack-destination <pack-destination>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
-[-ws|--workspaces] [--include-workspace-root]
+[-ws|--workspaces] [--include-workspace-root] [--ignore-scripts]
 
 Run "npm help pack" for more info
 
@@ -3722,6 +3696,7 @@ npm pack <package-spec>
 #### \`workspace\`
 #### \`workspaces\`
 #### \`include-workspace-root\`
+#### \`ignore-scripts\`
 `
 
 exports[`test/lib/docs.js TAP usage ping > must match snapshot 1`] = `
@@ -3781,7 +3756,7 @@ exports[`test/lib/docs.js TAP usage prefix > must match snapshot 1`] = `
 Display prefix
 
 Usage:
-npm prefix [-g]
+npm prefix
 
 Options:
 [-g|--global]
@@ -3789,7 +3764,7 @@ Options:
 Run "npm help prefix" for more info
 
 \`\`\`bash
-npm prefix [-g]
+npm prefix
 \`\`\`
 
 Note: This command is unaware of workspaces.
@@ -4299,6 +4274,28 @@ Note: This command is unaware of workspaces.
 #### \`cidr\`
 #### \`registry\`
 #### \`otp\`
+`
+
+exports[`test/lib/docs.js TAP usage undeprecate > must match snapshot 1`] = `
+Undeprecate a version of a package
+
+Usage:
+npm undeprecate <package-spec>
+
+Options:
+[--registry <registry>] [--otp <otp>] [--dry-run]
+
+Run "npm help undeprecate" for more info
+
+\`\`\`bash
+npm undeprecate <package-spec>
+\`\`\`
+
+Note: This command is unaware of workspaces.
+
+#### \`registry\`
+#### \`otp\`
+#### \`dry-run\`
 `
 
 exports[`test/lib/docs.js TAP usage uninstall > must match snapshot 1`] = `

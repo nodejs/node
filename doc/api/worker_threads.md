@@ -100,6 +100,46 @@ if (isMainThread) {
 }
 ```
 
+## `worker.isInternalThread`
+
+<!-- YAML
+added:
+  - v23.7.0
+  - v22.14.0
+-->
+
+* {boolean}
+
+Is `true` if this code is running inside of an internal [`Worker`][] thread (e.g the loader thread).
+
+```bash
+node --experimental-loader ./loader.js main.js
+```
+
+```cjs
+// loader.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // true
+```
+
+```mjs
+// loader.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // true
+```
+
+```cjs
+// main.js
+const { isInternalThread } = require('node:worker_threads');
+console.log(isInternalThread);  // false
+```
+
+```mjs
+// main.js
+import { isInternalThread } from 'node:worker_threads';
+console.log(isInternalThread);  // false
+```
+
 ## `worker.isMainThread`
 
 <!-- YAML
@@ -220,7 +260,7 @@ markAsUncloneable(anyObject);
 const { port1 } = new MessageChannel();
 try {
   // This will throw an error, because anyObject is not cloneable.
-  port1.postMessage(anyObject)
+  port1.postMessage(anyObject);
 } catch (error) {
   // error.name === 'DataCloneError'
 }
@@ -251,7 +291,7 @@ inherits from its global `Object` class. Objects passed to the
 and inherit from its global `Object` class.
 
 However, the created `MessagePort` no longer inherits from
-[`EventTarget`][], and only [`port.onmessage()`][] can be used to receive
+{EventTarget}, and only [`port.onmessage()`][] can be used to receive
 events using it.
 
 ## `worker.parentPort`
@@ -811,14 +851,14 @@ circularData.foo = circularData;
 port2.postMessage(circularData);
 ```
 
-`transferList` may be a list of [`ArrayBuffer`][], [`MessagePort`][], and
+`transferList` may be a list of {ArrayBuffer}, [`MessagePort`][], and
 [`FileHandle`][] objects.
 After transferring, they are not usable on the sending side of the channel
 anymore (even if they are not contained in `value`). Unlike with
 [child processes][], transferring handles such as network sockets is currently
 not supported.
 
-If `value` contains [`SharedArrayBuffer`][] instances, those are accessible
+If `value` contains {SharedArrayBuffer} instances, those are accessible
 from either thread. They cannot be listed in `transferList`.
 
 `value` may still contain `ArrayBuffer` instances that are not in
@@ -856,8 +896,8 @@ behind this API, see the [serialization API of the `node:v8` module][v8.serdes].
 
 #### Considerations when transferring TypedArrays and Buffers
 
-All `TypedArray` and `Buffer` instances are views over an underlying
-`ArrayBuffer`. That is, it is the `ArrayBuffer` that actually stores
+All {TypedArray|Buffer} instances are views over an underlying
+{ArrayBuffer}. That is, it is the `ArrayBuffer` that actually stores
 the raw data while the `TypedArray` and `Buffer` objects provide a
 way of viewing and manipulating the data. It is possible and common
 for multiple views to be created over the same `ArrayBuffer` instance.
@@ -906,9 +946,11 @@ those `ArrayBuffer`s unusable.
 
 Because object cloning uses the [HTML structured clone algorithm][],
 non-enumerable properties, property accessors, and object prototypes are
-not preserved. In particular, [`Buffer`][] objects will be read as
-plain [`Uint8Array`][]s on the receiving side, and instances of JavaScript
+not preserved. In particular, {Buffer} objects will be read as
+plain {Uint8Array}s on the receiving side, and instances of JavaScript
 classes will be cloned as plain JavaScript objects.
+
+<!-- eslint-disable no-unused-private-class-members -->
 
 ```js
 const b = Symbol('b');
@@ -1189,9 +1231,18 @@ changes:
       used for generated code.
     * `stackSizeMb` {number} The default maximum stack size for the thread.
       Small values may lead to unusable Worker instances. **Default:** `4`.
-  * `name` {string} An optional `name` to be appended to the worker title
-    for debugging/identification purposes, making the final title as
-    `[worker ${id}] ${name}`. **Default:** `''`.
+  * `name` {string} An optional `name` to be replaced in the thread name
+    and to the worker title for debugging/identification purposes,
+    making the final title as `[worker ${id}] ${name}`.
+    This parameter has a maximum allowed size, depending on the operating
+    system. If the provided name exceeds the limit, it will be truncated
+    * Maximum sizes:
+      * Windows: 32,767 characters
+      * macOS: 64 characters
+      * Linux: 16 characters
+      * NetBSD: limited to `PTHREAD_MAX_NAMELEN_NP`
+      * FreeBSD and OpenBSD: limited to `MAXCOMLEN`
+        **Default:** `'WorkerThread'`.
 
 ### Event: `'error'`
 
@@ -1536,21 +1587,16 @@ thread spawned will spawn another until the application crashes.
 [`'online'` event]: #event-online
 [`--max-old-space-size`]: cli.md#--max-old-space-sizesize-in-mib
 [`--max-semi-space-size`]: cli.md#--max-semi-space-sizesize-in-mib
-[`ArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/ArrayBuffer
 [`AsyncResource`]: async_hooks.md#class-asyncresource
 [`Buffer.allocUnsafe()`]: buffer.md#static-method-bufferallocunsafesize
-[`Buffer`]: buffer.md
 [`ERR_MISSING_MESSAGE_PORT_IN_TRANSFER_LIST`]: errors.md#err_missing_message_port_in_transfer_list
 [`ERR_WORKER_MESSAGING_ERRORED`]: errors.md#err_worker_messaging_errored
 [`ERR_WORKER_MESSAGING_FAILED`]: errors.md#err_worker_messaging_failed
 [`ERR_WORKER_MESSAGING_SAME_THREAD`]: errors.md#err_worker_messaging_same_thread
 [`ERR_WORKER_MESSAGING_TIMEOUT`]: errors.md#err_worker_messaging_timeout
 [`ERR_WORKER_NOT_RUNNING`]: errors.md#err_worker_not_running
-[`EventTarget`]: https://developer.mozilla.org/en-US/docs/Web/API/EventTarget
 [`FileHandle`]: fs.md#class-filehandle
 [`MessagePort`]: #class-messageport
-[`SharedArrayBuffer`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/SharedArrayBuffer
-[`Uint8Array`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Uint8Array
 [`WebAssembly.Module`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/WebAssembly/Module
 [`Worker constructor options`]: #new-workerfilename-options
 [`Worker`]: #class-worker

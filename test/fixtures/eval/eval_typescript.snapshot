@@ -1,0 +1,58 @@
+[eval]:1
+enum Foo{};
+^^^^
+  x TypeScript enum is not supported in strip-only mode
+   ,----
+ 1 | enum Foo{};
+   : ^^^^^^^^^^
+   `----
+
+SyntaxError: Unexpected reserved word
+
+Node.js *
+[eval]:1
+throw new SyntaxError("hello")
+^
+
+SyntaxError: hello
+
+Node.js *
+[eval]:1
+const foo;
+      ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | const foo;
+   :       ^^^
+   `----
+
+SyntaxError: Missing initializer in const declaration
+
+Node.js *
+100
+undefined
+false
+[eval]:1
+interface Foo{};const foo;
+          ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | interface Foo{};const foo;
+   :                       ^^^
+   `----
+
+SyntaxError: Unexpected identifier 'Foo'
+
+Node.js *
+[eval]:1
+function foo(){ await Promise.resolve(1)};
+                ^^^^^
+  x await isn't allowed in non-async function
+   ,----
+ 1 | function foo(){ await Promise.resolve(1)};
+   :                       ^^^^^^^
+   `----
+
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+
+Node.js *

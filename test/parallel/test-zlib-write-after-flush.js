@@ -28,9 +28,10 @@ const zlib = require('node:zlib');
 const { test } = require('node:test');
 
 test('zlib should accept writing after flush', async () => {
-  for (const [createCompress, createDecompress] of [
-    [zlib.createGzip, zlib.createGunzip],
-    [zlib.createBrotliCompress, zlib.createBrotliDecompress],
+  for (const [ createCompress, createDecompress ] of [
+    [ zlib.createGzip, zlib.createGunzip ],
+    [ zlib.createBrotliCompress, zlib.createBrotliDecompress ],
+    [ zlib.createZstdCompress, zlib.createZstdDecompress ],
   ]) {
     const { promise, resolve, reject } = Promise.withResolvers();
     const gzip = createCompress();

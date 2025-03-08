@@ -44,16 +44,6 @@
 
 namespace node {
 
-NoArrayBufferZeroFillScope::NoArrayBufferZeroFillScope(
-    IsolateData* isolate_data)
-    : node_allocator_(isolate_data->node_allocator()) {
-  if (node_allocator_ != nullptr) node_allocator_->zero_fill_field()[0] = 0;
-}
-
-NoArrayBufferZeroFillScope::~NoArrayBufferZeroFillScope() {
-  if (node_allocator_ != nullptr) node_allocator_->zero_fill_field()[0] = 1;
-}
-
 inline v8::Isolate* IsolateData::isolate() const {
   return isolate_;
 }
@@ -666,7 +656,8 @@ inline bool Environment::no_global_search_paths() const {
 }
 
 inline bool Environment::should_start_debug_signal_handler() const {
-  return (flags_ & EnvironmentFlags::kNoStartDebugSignalHandler) == 0;
+  return ((flags_ & EnvironmentFlags::kNoStartDebugSignalHandler) == 0) &&
+         !options_->disable_sigusr1;
 }
 
 inline bool Environment::no_browser_globals() const {
@@ -908,26 +899,6 @@ inline void Environment::RemoveHeapSnapshotNearHeapLimitCallback(
                                         heap_limit);
 }
 
-inline void Environment::SetAsyncResourceContextFrame(
-    std::uintptr_t async_resource_handle,
-    v8::Global<v8::Value>&& context_frame) {
-  async_resource_context_frames_.emplace(
-      std::make_pair(async_resource_handle, std::move(context_frame)));
-}
-
-inline const v8::Global<v8::Value>& Environment::GetAsyncResourceContextFrame(
-    std::uintptr_t async_resource_handle) {
-  auto&& async_resource_context_frame =
-      async_resource_context_frames_.find(async_resource_handle);
-  CHECK_NE(async_resource_context_frame, async_resource_context_frames_.end());
-
-  return async_resource_context_frame->second;
-}
-
-inline void Environment::RemoveAsyncResourceContextFrame(
-    std::uintptr_t async_resource_handle) {
-  async_resource_context_frames_.erase(async_resource_handle);
-}
 }  // namespace node
 
 // These two files depend on each other. Including base_object-inl.h after this

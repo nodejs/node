@@ -212,3 +212,17 @@ fs.lstat(__filename, undefined, common.mustCall());
     assert.strictEqual(s.birthtime, 5);
   }));
 }
+
+{
+  assert.throws(
+    () => fs.fstat(Symbol('test'), () => {}),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+    },
+  );
+}
+
+{
+  // Test that the throwIfNoEntry option works and returns undefined
+  assert.ok(!(fs.statSync('./wont_exists', { throwIfNoEntry: false })));
+}

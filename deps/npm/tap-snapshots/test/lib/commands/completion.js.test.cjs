@@ -64,7 +64,6 @@ Array [
     get
     help
     help-search
-    hook
     init
     install
     install-ci-test
@@ -101,6 +100,7 @@ Array [
     team
     test
     token
+    undeprecate
     uninstall
     unpublish
     unstar

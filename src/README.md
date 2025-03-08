@@ -467,10 +467,16 @@ void Initialize(Local<Object> target,
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(cares_wrap, Initialize)
 ```
 
-If the C++ binding is loaded during bootstrap, it needs to be registered
-with the utilities in `node_external_reference.h`, like this:
+#### Registering binding functions used in bootstrap
+
+If the C++ binding is loaded during bootstrap, in addition to registering it
+using `NODE_BINDING_CONTEXT_AWARE_INTERNAL` for `internalBinding()` lookup,
+it also needs to be registered with `NODE_BINDING_EXTERNAL_REFERENCE` so that
+the external references can be resolved from the built-in snapshot, like this:
 
 ```cpp
+#include "node_external_reference.h"
+
 namespace node {
 namespace util {
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
@@ -498,7 +504,8 @@ Unknown external reference 0x107769200.
 /bin/sh: line 1:  6963 Illegal instruction: 4  out/Release/node_mksnapshot out/Release/gen/node_snapshot.cc
 ```
 
-You can try using a debugger to symbolicate the external reference. For example,
+You can try using a debugger to symbolicate the external reference in order to find
+out the binding functions that you forget to register. For example,
 with lldb's `image lookup --address` command (with gdb it's `info symbol`):
 
 ```console
@@ -514,7 +521,9 @@ Process 7012 stopped
 ```
 
 Which explains that the unregistered external reference is
-`node::util::GetHiddenValue` defined in `node_util.cc`.
+`node::util::GetHiddenValue` defined in `node_util.cc`, and should be registered
+using `registry->Register()` in a registration function marked by
+`NODE_BINDING_EXTERNAL_REFERENCE`.
 
 <a id="per-binding-state"></a>
 
@@ -577,6 +586,68 @@ void InitializeHttpParser(Local<Object> target,
 
   Local<FunctionTemplate> t = NewFunctionTemplate(realm->isolate(), Parser::New);
   ...
+}
+```
+
+### Argument validation in public APIs vs. internal code
+
+#### Public API argument sanitization
+
+When arguments come directly from user code, Node.js will typically validate them at the
+JavaScript layer and throws user-friendly
+[errors](https://github.com/nodejs/node/blob/main/doc/contributing/using-internal-errors.md)
+(e.g., `ERR_INVALID_*`), if they are invalid. This helps end users
+quickly understand and fix mistakes in their own code.
+
+This approach ensures that the error message pinpoints which argument is wrong
+and how it should be fixed. Additionally, problems in user code do not cause
+mysterious crashes or hard-to-diagnose failures deeper in the engine.
+
+Example from `zlib.js`:
+
+```js
+function crc32(data, value = 0) {
+  if (typeof data !== 'string' && !isArrayBufferView(data)) {
+    throw new ERR_INVALID_ARG_TYPE('data', ['Buffer', 'TypedArray', 'DataView','string'], data);
+  }
+  validateUint32(value, 'value');
+  return crc32Native(data, value);
+}
+```
+
+The corresponding C++ assertion code for the above example from it's binding `node_zlib.cc`:
+
+```cpp
+CHECK(args[0]->IsArrayBufferView() || args[0]->IsString());
+CHECK(args[1]->IsUint32());
+```
+
+#### Internal code and C++ binding checks
+
+Inside Node.js’s internal layers, especially the C++ [binding function][]s
+typically assume their arguments have already been checked and sanitized
+by the upper-level (JavaScript) callers. As a result, internal C++ code
+often just uses `CHECK()` or similar assertions to confirm that the
+types/values passed in are correct. If that assertion fails, Node.js will
+crash or abort with an internal diagnostic message. This is to avoid
+re-validating every internal function argument repeatedly which can slow
+down the system.
+
+However, in a less common case where the API is implemented completely in
+C++, the arguments would be validated directly in C++, with the errors
+thrown using `THROW_ERR_INVALID_*` macros from `src/node_errors.h`.
+
+For example in `worker_threads.moveMessagePortToContext`:
+
+```cpp
+void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (!args[0]->IsObject() ||
+      !env->message_port_constructor_template()->HasInstance(args[0])) {
+    return THROW_ERR_INVALID_ARG_TYPE(env,
+        "The \"port\" argument must be a MessagePort instance");
+  }
+  // ...
 }
 ```
 

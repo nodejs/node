@@ -158,6 +158,8 @@ suite('SnapshotManager', () => {
 
     file.setSnapshot('foo`${x}` 1', 'test');
     t.assert.strictEqual(file.getSnapshot('foo\\`\\${x}\\` 1'), 'test');
+    file.setSnapshot('\r 1', 'test');
+    t.assert.strictEqual(file.getSnapshot('\\r 1'), 'test');
   });
 
   test('throws if snapshot file cannot be resolved', (t) => {
@@ -340,6 +342,30 @@ test('t.assert.snapshot()', async (t) => {
   });
 });
 
+test('special characters are allowed', async (t) => {
+  const fixture = fixtures.path(
+    'test-runner', 'snapshots', 'special-character.js'
+  );
+
+  await common.spawnPromisified(
+    process.execPath,
+    ['--test-update-snapshots', fixture],
+    { cwd: tmpdir.path },
+  );
+
+  const child = await common.spawnPromisified(
+    process.execPath,
+    [fixture],
+    { cwd: tmpdir.path },
+  );
+
+  t.assert.strictEqual(child.code, 0);
+  t.assert.strictEqual(child.signal, null);
+  t.assert.match(child.stdout, /tests 3/);
+  t.assert.match(child.stdout, /pass 3/);
+  t.assert.match(child.stdout, /fail 0/);
+});
+
 test('snapshots from multiple files (isolation=none)', async (t) => {
   tmpdir.refresh();
 
@@ -349,7 +375,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('fails prior to snapshot generation', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       fixture,
       fixture2,
     ];
@@ -370,7 +396,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('passes when regenerating snapshots', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       '--test-update-snapshots',
       fixture,
       fixture2,
@@ -391,7 +417,7 @@ test('snapshots from multiple files (isolation=none)', async (t) => {
   await t.test('passes when snapshots exist', async (t) => {
     const args = [
       '--test',
-      '--experimental-test-isolation=none',
+      '--test-isolation=none',
       fixture,
       fixture2,
     ];

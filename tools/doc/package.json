@@ -7,12 +7,12 @@
     "node": ">=14.8.0"
   },
   "devDependencies": {
-    "highlight.js": "^11.10.0",
+    "highlight.js": "^11.11.1",
     "js-yaml": "^4.1.0",
     "rehype-raw": "^7.0.0",
     "rehype-stringify": "^10.0.1",
     "remark-frontmatter": "^5.0.0",
-    "remark-gfm": "^4.0.0",
+    "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
     "remark-parse": "^11.0.0",
     "remark-rehype": "^11.1.1",

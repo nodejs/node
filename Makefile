@@ -311,7 +311,7 @@ v8: ## Build deps/v8.
 		tools/make-v8.sh $(V8_ARCH).$(BUILDTYPE_LOWER) $(V8_BUILD_OPTIONS)
 
 .PHONY: jstest
-jstest: build-addons build-js-native-api-tests build-node-api-tests ## Run addon tests and JS tests.
+jstest: build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Run addon tests and JS tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) \
 		$(TEST_CI_ARGS) \
 		--skip-tests=$(CI_SKIP_TESTS) \
@@ -337,6 +337,7 @@ test: all ## Run default tests, linters, and build docs.
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
+	$(MAKE) -s build-sqlite-tests
 	$(MAKE) -s cctest
 	$(MAKE) -s jstest
 
@@ -345,6 +346,7 @@ test-only: all  ## Run default tests, without linters or building the docs.
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
+	$(MAKE) build-sqlite-tests
 	$(MAKE) cctest
 	$(MAKE) jstest
 	$(MAKE) tooltest
@@ -355,6 +357,7 @@ test-cov: all ## Run coverage tests.
 	$(MAKE) build-addons
 	$(MAKE) build-js-native-api-tests
 	$(MAKE) build-node-api-tests
+	$(MAKE) build-sqlite-tests
 	$(MAKE) cctest
 	CI_SKIP_TESTS=$(COV_SKIP_TESTS) $(MAKE) jstest
 
@@ -500,6 +503,23 @@ benchmark/napi/.buildstamp: $(ADDONS_PREREQS) \
 	$(BENCHMARK_NAPI_BINDING_GYPS) $(BENCHMARK_NAPI_BINDING_SOURCES)
 	@$(call run_build_addons,"$$PWD/benchmark/napi",$@)
 
+SQLITE_BINDING_GYPS := $(wildcard test/sqlite/*/binding.gyp)
+
+SQLITE_BINDING_SOURCES := \
+	$(wildcard test/sqlite/*/*.c)
+
+# Implicitly depends on $(NODE_EXE), see the build-sqlite-tests rule for rationale.
+test/sqlite/.buildstamp: $(ADDONS_PREREQS) \
+	$(SQLITE_BINDING_GYPS) $(SQLITE_BINDING_SOURCES)
+	@$(call run_build_addons,"$$PWD/test/sqlite",$@)
+
+.PHONY: build-sqlite-tests
+# .buildstamp needs $(NODE_EXE) but cannot depend on it
+# directly because it calls make recursively.  The parent make cannot know
+# if the subprocess touched anything so it pessimistically assumes that
+# .buildstamp is out of date and need a rebuild.
+build-sqlite-tests: | $(NODE_EXE) test/sqlite/.buildstamp ## Build SQLite tests.
+
 .PHONY: clear-stalled
 clear-stalled: ## Clear any stalled processes.
 	$(info Clean up any leftover processes but don't error if found.)
@@ -510,13 +530,17 @@ clear-stalled: ## Clear any stalled processes.
 	fi
 
 .PHONY: test-build
-test-build: | all build-addons build-js-native-api-tests build-node-api-tests ## Build all tests.
+test-build: | all build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests ## Build all tests.
 
 .PHONY: test-build-js-native-api
 test-build-js-native-api: all build-js-native-api-tests ## Build JS Native-API tests.
 
 .PHONY: test-build-node-api
 test-build-node-api: all build-node-api-tests ## Build Node-API tests.
+
+.PHONY: test-build-sqlite
+test-build-sqlite: all build-sqlite-tests ## Build SQLite tests.
+
 
 .PHONY: test-all
 test-all: test-build ## Run default tests with both Debug and Release builds.
@@ -545,7 +569,7 @@ endif
 
 # Related CI job: node-test-commit-arm-fanned
 test-ci-native: LOGLEVEL := info ## Build and test addons without building anything else.
-test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp
+test-ci-native: | benchmark/napi/.buildstamp test/addons/.buildstamp test/js-native-api/.buildstamp test/node-api/.buildstamp test/sqlite/.buildstamp
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
 		$(TEST_CI_ARGS) $(CI_NATIVE_SUITES)
@@ -568,7 +592,7 @@ test-ci-js: | clear-stalled ## Build and test JavaScript with building anything 
 .PHONY: test-ci
 # Related CI jobs: most CI tests, excluding node-test-commit-arm-fanned
 test-ci: LOGLEVEL := info ## Build and test everything (CI).
-test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests doc-only
+test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tests build-node-api-tests build-sqlite-tests doc-only
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
@@ -606,6 +630,10 @@ run-ci: build-ci ## Build and run all tests (CI).
 test-debug: BUILDTYPE_LOWER=debug ## Run tests on a debug build.
 test-release test-debug: test-build ## Run tests on a release or debug build.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER)
+
+.PHONY: test-test426
+test-test426: all ## Run the Web Platform Tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) test426
 
 .PHONY: test-wpt
 test-wpt: all ## Run the Web Platform Tests.
@@ -675,6 +703,16 @@ test-node-api-clean: ## Remove Node-API testing artifacts.
 	$(RM) -r test/node-api/*/build
 	$(RM) test/node-api/.buildstamp
 
+.PHONY: test-sqlite
+test-sqlite: test-build-sqlite ## Run SQLite tests.
+	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) sqlite
+
+.PHONY: test-sqlite-clean
+.NOTPARALLEL: test-sqlite-clean
+test-sqlite-clean: ## Remove SQLite testing artifacts.
+	$(RM) -r test/sqlite/*/build
+	$(RM) test/sqlite/.buildstamp
+
 .PHONY: test-addons
 test-addons: test-build test-js-native-api test-node-api ## Run addon tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) addons
@@ -742,7 +780,9 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 endif
 
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
-apidoc_sources = $(wildcard doc/api/*.md)
+skip_apidoc_files = doc/api/quic.md
+
+apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
 apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
 apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
 
@@ -769,6 +809,7 @@ doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation wit
 
 out/doc:
 	mkdir -p $@
+	cp doc/node-config-schema.json $@
 
 # If it's a source tarball, doc/api already contains the generated docs.
 # Just copy everything under doc/api over.
@@ -905,9 +946,6 @@ else
 ifeq ($(findstring ppc64,$(UNAME_M)),ppc64)
 DESTCPU ?= ppc64
 else
-ifeq ($(findstring ppc,$(UNAME_M)),ppc)
-DESTCPU ?= ppc
-else
 ifeq ($(findstring s390x,$(UNAME_M)),s390x)
 DESTCPU ?= s390x
 else
@@ -931,6 +969,9 @@ DESTCPU ?= ppc64
 else
 ifeq ($(findstring riscv64,$(UNAME_M)),riscv64)
 DESTCPU ?= riscv64
+else
+ifeq ($(findstring loongarch64,$(UNAME_M)),loongarch64)
+DESTCPU ?= loong64
 else
 DESTCPU ?= x86
 endif
@@ -957,9 +998,6 @@ else
 ifeq ($(DESTCPU),ppc64)
 ARCH=ppc64
 else
-ifeq ($(DESTCPU),ppc)
-ARCH=ppc
-else
 ifeq ($(DESTCPU),s390)
 ARCH=s390
 else
@@ -968,6 +1006,9 @@ ARCH=s390x
 else
 ifeq ($(DESTCPU),riscv64)
 ARCH=riscv64
+else
+ifeq ($(DESTCPU),loong64)
+ARCH=loong64
 else
 ARCH=x86
 endif
@@ -1360,6 +1401,7 @@ lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintai
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
 format-md: tools/lint-md/node_modules/remark-parse/package.json ## Format the markdown documents maintained by us in the codebase.
+	$(info Formatting Markdown...)
 	@$(call available-node,$(run-format-md))
 
 
@@ -1428,10 +1470,13 @@ LINT_CPP_FILES = $(filter-out $(LINT_CPP_EXCLUDE), $(wildcard \
 	src/*/*.h \
 	test/addons/*/*.cc \
 	test/addons/*/*.h \
+	test/cctest/*/*.cc \
+	test/cctest/*/*.h \
 	test/cctest/*.cc \
 	test/cctest/*.h \
 	test/embedding/*.cc \
 	test/embedding/*.h \
+	test/sqlite/*/*.c \
 	test/fixtures/*.c \
 	test/js-native-api/*/*.cc \
 	test/node-api/*/*.cc \
@@ -1455,6 +1500,7 @@ FORMAT_CPP_FILES += $(wildcard \
 	test/js-native-api/*/*.h \
 	test/node-api/*/*.c \
 	test/node-api/*/*.h \
+	test/sqlite/*/*.c \
 	)
 
 # Code blocks don't have newline at the end,

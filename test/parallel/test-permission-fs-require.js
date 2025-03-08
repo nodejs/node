@@ -1,8 +1,14 @@
-// Flags: --experimental-permission --allow-fs-read=* --allow-child-process
+// Flags: --permission --allow-fs-read=* --allow-child-process
 'use strict';
 
 const common = require('../common');
-common.skipIfWorker();
+
+const { isMainThread } = require('worker_threads');
+
+if (!isMainThread) {
+  common.skip('This test only works on a main thread');
+}
+
 const fixtures = require('../common/fixtures');
 
 const assert = require('node:assert');
@@ -14,7 +20,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       '--allow-fs-read', requiredModule,
       mainModule,
@@ -31,7 +37,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       mainModule,
     ]
@@ -48,7 +54,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stdout, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       '--allow-fs-read', requiredModule,
       mainModule,
@@ -65,7 +71,7 @@ const { spawnSync } = require('node:child_process');
   const { status, stderr } = spawnSync(
     process.execPath,
     [
-      '--experimental-permission',
+      '--permission',
       '--allow-fs-read', mainModule,
       mainModule,
     ]

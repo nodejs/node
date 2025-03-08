@@ -13,6 +13,7 @@
 #include <openssl/ssl.h>
 #include <openssl/x509.h>
 #include <cstddef>
+#include <functional>
 #include <list>
 #include <memory>
 #include <optional>
@@ -27,10 +28,24 @@
 #include <openssl/fips.h>
 #endif  // OPENSSL_FIPS
 
+#if OPENSSL_VERSION_MAJOR >= 3
+#define OSSL3_CONST const
+#else
+#define OSSL3_CONST
+#endif
+
 #ifdef __GNUC__
 #define NCRYPTO_MUST_USE_RESULT __attribute__((warn_unused_result))
 #else
 #define NCRYPTO_MUST_USE_RESULT
+#endif
+
+#ifdef OPENSSL_IS_BORINGSSL
+// Boringssl has opted to use size_t for some size related
+// APIs while Openssl is still using ints
+using OPENSSL_SIZE_T = size_t;
+#else
+using OPENSSL_SIZE_T = int;
 #endif
 
 namespace ncrypto {
@@ -194,24 +209,29 @@ struct FunctionDeleter {
 template <typename T, void (*function)(T*)>
 using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 
-using BignumCtxPointer = DeleteFnPtr<BN_CTX, BN_CTX_free>;
-using CipherCtxPointer = DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free>;
-using DSAPointer = DeleteFnPtr<DSA, DSA_free>;
-using DSASigPointer = DeleteFnPtr<DSA_SIG, DSA_SIG_free>;
-using ECDSASigPointer = DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free>;
-using ECPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using ECGroupPointer = DeleteFnPtr<EC_GROUP, EC_GROUP_free>;
-using ECKeyPointer = DeleteFnPtr<EC_KEY, EC_KEY_free>;
-using ECPointPointer = DeleteFnPtr<EC_POINT, EC_POINT_free>;
-using EVPKeyCtxPointer = DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free>;
-using EVPMDCtxPointer = DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free>;
-using HMACCtxPointer = DeleteFnPtr<HMAC_CTX, HMAC_CTX_free>;
-using NetscapeSPKIPointer = DeleteFnPtr<NETSCAPE_SPKI, NETSCAPE_SPKI_free>;
 using PKCS8Pointer = DeleteFnPtr<PKCS8_PRIV_KEY_INFO, PKCS8_PRIV_KEY_INFO_free>;
 using RSAPointer = DeleteFnPtr<RSA, RSA_free>;
-using SSLCtxPointer = DeleteFnPtr<SSL_CTX, SSL_CTX_free>;
-using SSLPointer = DeleteFnPtr<SSL, SSL_free>;
 using SSLSessionPointer = DeleteFnPtr<SSL_SESSION, SSL_SESSION_free>;
+
+class BIOPointer;
+class BignumPointer;
+class CipherCtxPointer;
+class DataPointer;
+class DHPointer;
+class ECKeyPointer;
+class EVPKeyPointer;
+class EVPMDCtxPointer;
+class SSLCtxPointer;
+class SSLPointer;
+class X509View;
+class X509Pointer;
+class ECDSASigPointer;
+class ECGroupPointer;
+class ECPointPointer;
+class ECKeyPointer;
+class Dsa;
+class Rsa;
+class Ec;
 
 struct StackOfXASN1Deleter {
   void operator()(STACK_OF(ASN1_OBJECT) * p) const {
@@ -227,11 +247,166 @@ struct Buffer {
   size_t len = 0;
 };
 
+DataPointer hashDigest(const Buffer<const unsigned char>& data,
+                       const EVP_MD* md);
+
+class Cipher final {
+ public:
+  Cipher() = default;
+  Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
+  Cipher(const Cipher&) = default;
+  Cipher& operator=(const Cipher&) = default;
+  inline Cipher& operator=(const EVP_CIPHER* cipher) {
+    cipher_ = cipher;
+    return *this;
+  }
+  NCRYPTO_DISALLOW_MOVE(Cipher)
+
+  inline const EVP_CIPHER* get() const { return cipher_; }
+  inline operator const EVP_CIPHER*() const { return cipher_; }
+  inline operator bool() const { return cipher_ != nullptr; }
+
+  int getNid() const;
+  int getMode() const;
+  int getIvLength() const;
+  int getKeyLength() const;
+  int getBlockSize() const;
+  std::string_view getModeLabel() const;
+  std::string_view getName() const;
+
+  bool isSupportedAuthenticatedMode() const;
+
+  static const Cipher FromName(std::string_view name);
+  static const Cipher FromNid(int nid);
+  static const Cipher FromCtx(const CipherCtxPointer& ctx);
+
+  struct CipherParams {
+    int padding;
+    const EVP_MD* digest;
+    const Buffer<const void> label;
+  };
+
+  static DataPointer encrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+  static DataPointer decrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
+  static DataPointer sign(const EVPKeyPointer& key,
+                          const CipherParams& params,
+                          const Buffer<const void> in);
+
+  static DataPointer recover(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
+  static constexpr bool IsValidGCMTagLength(unsigned int tag_len) {
+    return tag_len == 4 || tag_len == 8 || (tag_len >= 12 && tag_len <= 16);
+  }
+
+ private:
+  const EVP_CIPHER* cipher_ = nullptr;
+};
+
+// ============================================================================
+// DSA
+
+class Dsa final {
+ public:
+  Dsa();
+  Dsa(OSSL3_CONST DSA* dsa);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Dsa)
+
+  inline operator bool() const { return dsa_ != nullptr; }
+  inline operator OSSL3_CONST DSA*() const { return dsa_; }
+
+  const BIGNUM* getP() const;
+  const BIGNUM* getQ() const;
+  size_t getModulusLength() const;
+  size_t getDivisorLength() const;
+
+ private:
+  OSSL3_CONST DSA* dsa_;
+};
+
+// ============================================================================
+// RSA
+
+class Rsa final {
+ public:
+  Rsa();
+  Rsa(OSSL3_CONST RSA* rsa);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Rsa)
+
+  inline operator bool() const { return rsa_ != nullptr; }
+  inline operator OSSL3_CONST RSA*() const { return rsa_; }
+
+  struct PublicKey {
+    const BIGNUM* n;
+    const BIGNUM* e;
+    const BIGNUM* d;
+  };
+  struct PrivateKey {
+    const BIGNUM* p;
+    const BIGNUM* q;
+    const BIGNUM* dp;
+    const BIGNUM* dq;
+    const BIGNUM* qi;
+  };
+  struct PssParams {
+    std::string_view digest = "sha1";
+    std::optional<std::string_view> mgf1_digest = "sha1";
+    int64_t salt_length = 20;
+  };
+
+  const PublicKey getPublicKey() const;
+  const PrivateKey getPrivateKey() const;
+  const std::optional<PssParams> getPssParams() const;
+
+  bool setPublicKey(BignumPointer&& n, BignumPointer&& e);
+  bool setPrivateKey(BignumPointer&& d,
+                     BignumPointer&& q,
+                     BignumPointer&& p,
+                     BignumPointer&& dp,
+                     BignumPointer&& dq,
+                     BignumPointer&& qi);
+
+  using CipherParams = Cipher::CipherParams;
+
+  static DataPointer encrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+  static DataPointer decrypt(const EVPKeyPointer& key,
+                             const CipherParams& params,
+                             const Buffer<const void> in);
+
+ private:
+  OSSL3_CONST RSA* rsa_;
+};
+
+class Ec final {
+ public:
+  Ec();
+  Ec(OSSL3_CONST EC_KEY* key);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(Ec)
+
+  const EC_GROUP* getGroup() const;
+  int getCurve() const;
+
+  inline operator bool() const { return ec_ != nullptr; }
+  inline operator OSSL3_CONST EC_KEY*() const { return ec_; }
+
+ private:
+  OSSL3_CONST EC_KEY* ec_ = nullptr;
+};
+
 // A managed pointer to a buffer of data. When destroyed the underlying
 // buffer will be freed.
 class DataPointer final {
  public:
   static DataPointer Alloc(size_t len);
+  static DataPointer Copy(const Buffer<const void>& buffer);
 
   DataPointer() = default;
   explicit DataPointer(void* data, size_t len);
@@ -243,10 +418,20 @@ class DataPointer final {
 
   inline bool operator==(std::nullptr_t) noexcept { return data_ == nullptr; }
   inline operator bool() const { return data_ != nullptr; }
-  inline void* get() const noexcept { return data_; }
+
+  template <typename T = void>
+  inline T* get() const noexcept {
+    return static_cast<T*>(data_);
+  }
+
   inline size_t size() const noexcept { return len_; }
   void reset(void* data = nullptr, size_t len = 0);
   void reset(const Buffer<void>& buffer);
+
+  // Sets the underlying data buffer to all zeros.
+  void zero();
+
+  DataPointer resize(size_t len);
 
   // Releases ownership of the underlying data buffer. It is the caller's
   // responsibility to ensure the buffer is appropriately freed.
@@ -272,6 +457,7 @@ class BIOPointer final {
   static BIOPointer NewSecMem();
   static BIOPointer New(const BIO_METHOD* method);
   static BIOPointer New(const void* data, size_t len);
+  static BIOPointer New(const BIGNUM* bn);
   static BIOPointer NewFile(std::string_view filename, std::string_view mode);
   static BIOPointer NewFp(FILE* fd, int flags);
 
@@ -350,8 +536,28 @@ class BignumPointer final {
   size_t encodeInto(unsigned char* out) const;
   size_t encodePaddedInto(unsigned char* out, size_t size) const;
 
+  using PrimeCheckCallback = std::function<bool(int, int)>;
+  int isPrime(int checks,
+              PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+  struct PrimeConfig {
+    int bits;
+    bool safe = false;
+    const BignumPointer& add;
+    const BignumPointer& rem;
+  };
+
+  static BignumPointer NewPrime(
+      const PrimeConfig& params,
+      PrimeCheckCallback cb = defaultPrimeCheckCallback);
+
+  bool generate(const PrimeConfig& params,
+                PrimeCheckCallback cb = defaultPrimeCheckCallback) const;
+
   static BignumPointer New();
   static BignumPointer NewSecure();
+  static BignumPointer NewSub(const BignumPointer& a, const BignumPointer& b);
+  static BignumPointer NewLShift(size_t length);
+
   static DataPointer Encode(const BIGNUM* bn);
   static DataPointer EncodePadded(const BIGNUM* bn, size_t size);
   static size_t EncodePaddedInto(const BIGNUM* bn,
@@ -366,6 +572,121 @@ class BignumPointer final {
 
  private:
   DeleteFnPtr<BIGNUM, BN_clear_free> bn_;
+
+  static bool defaultPrimeCheckCallback(int, int) { return 1; }
+};
+
+class CipherCtxPointer final {
+ public:
+  static CipherCtxPointer New();
+
+  CipherCtxPointer() = default;
+  explicit CipherCtxPointer(EVP_CIPHER_CTX* ctx);
+  CipherCtxPointer(CipherCtxPointer&& other) noexcept;
+  CipherCtxPointer& operator=(CipherCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(CipherCtxPointer)
+  ~CipherCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_CIPHER_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_CIPHER_CTX*() const { return ctx_.get(); }
+  void reset(EVP_CIPHER_CTX* ctx = nullptr);
+  EVP_CIPHER_CTX* release();
+
+  void setFlags(int flags);
+  bool setKeyLength(size_t length);
+  bool setIvLength(size_t length);
+  bool setAeadTag(const Buffer<const char>& tag);
+  bool setAeadTagLength(size_t length);
+  bool setPadding(bool padding);
+  bool init(const Cipher& cipher,
+            bool encrypt,
+            const unsigned char* key = nullptr,
+            const unsigned char* iv = nullptr);
+
+  int getBlockSize() const;
+  int getMode() const;
+  int getNid() const;
+
+  bool update(const Buffer<const unsigned char>& in,
+              unsigned char* out,
+              int* out_len,
+              bool finalize = false);
+  bool getAeadTag(size_t len, unsigned char* out);
+
+ private:
+  DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+};
+
+class EVPKeyCtxPointer final {
+ public:
+  EVPKeyCtxPointer();
+  explicit EVPKeyCtxPointer(EVP_PKEY_CTX* ctx);
+  EVPKeyCtxPointer(EVPKeyCtxPointer&& other) noexcept;
+  EVPKeyCtxPointer& operator=(EVPKeyCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPKeyCtxPointer)
+  ~EVPKeyCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_PKEY_CTX* get() const { return ctx_.get(); }
+  void reset(EVP_PKEY_CTX* ctx = nullptr);
+  EVP_PKEY_CTX* release();
+
+  bool initForDerive(const EVPKeyPointer& peer);
+  DataPointer derive() const;
+
+  bool initForParamgen();
+  bool setDhParameters(int prime_size, uint32_t generator);
+  bool setDsaParameters(uint32_t bits, std::optional<int> q_bits);
+  bool setEcParameters(int curve, int encoding);
+
+  bool setRsaOaepMd(const EVP_MD* md);
+  bool setRsaMgf1Md(const EVP_MD* md);
+  bool setRsaPadding(int padding);
+  bool setRsaKeygenPubExp(BignumPointer&& e);
+  bool setRsaKeygenBits(int bits);
+  bool setRsaPssKeygenMd(const EVP_MD* md);
+  bool setRsaPssKeygenMgf1Md(const EVP_MD* md);
+  bool setRsaPssSaltlen(int salt_len);
+  bool setRsaImplicitRejection();
+  bool setRsaOaepLabel(DataPointer&& data);
+
+  bool setSignatureMd(const EVPMDCtxPointer& md);
+
+  bool publicCheck() const;
+  bool privateCheck() const;
+
+  bool verify(const Buffer<const unsigned char>& sig,
+              const Buffer<const unsigned char>& data);
+  DataPointer sign(const Buffer<const unsigned char>& data);
+  bool signInto(const Buffer<const unsigned char>& data,
+                Buffer<unsigned char>* sig);
+
+  static constexpr int kDefaultRsaExponent = 0x10001;
+
+  static bool setRsaPadding(EVP_PKEY_CTX* ctx,
+                            int padding,
+                            std::optional<int> salt_len = std::nullopt);
+
+  EVPKeyPointer paramgen() const;
+
+  bool initForEncrypt();
+  bool initForDecrypt();
+  bool initForKeygen();
+  int initForVerify();
+  int initForSign();
+
+  static EVPKeyCtxPointer New(const EVPKeyPointer& key);
+  static EVPKeyCtxPointer NewFromID(int id);
+
+ private:
+  DeleteFnPtr<EVP_PKEY_CTX, EVP_PKEY_CTX_free> ctx_;
 };
 
 class EVPKeyPointer final {
@@ -375,6 +696,8 @@ class EVPKeyPointer final {
                                     const Buffer<const unsigned char>& data);
   static EVPKeyPointer NewRawPrivate(int id,
                                      const Buffer<const unsigned char>& data);
+  static EVPKeyPointer NewDH(DHPointer&& dh);
+  static EVPKeyPointer NewRSA(RSAPointer&& rsa);
 
   enum class PKEncodingType {
     // RSAPublicKey / RSAPrivateKey according to PKCS#1.
@@ -440,6 +763,10 @@ class EVPKeyPointer final {
   NCRYPTO_DISALLOW_COPY(EVPKeyPointer)
   ~EVPKeyPointer();
 
+  bool assign(const ECKeyPointer& eckey);
+  bool set(const ECKeyPointer& eckey);
+  operator const EC_KEY*() const;
+
   inline bool operator==(std::nullptr_t) const noexcept {
     return pkey_ == nullptr;
   }
@@ -470,6 +797,16 @@ class EVPKeyPointer final {
   EVPKeyCtxPointer newCtx() const;
 
   static bool IsRSAPrivateKey(const Buffer<const unsigned char>& buffer);
+
+  std::optional<uint32_t> getBytesOfRS() const;
+  int getDefaultSignPadding() const;
+  operator Rsa() const;
+  operator Dsa() const;
+
+  bool isRsaVariant() const;
+  bool isOneShotVariant() const;
+  bool isSigVariant() const;
+  bool validateDsaParameters() const;
 
  private:
   DeleteFnPtr<EVP_PKEY, EVP_PKEY_free> pkey_;
@@ -516,17 +853,25 @@ class DHPointer final {
     UNABLE_TO_CHECK_GENERATOR = DH_UNABLE_TO_CHECK_GENERATOR,
     NOT_SUITABLE_GENERATOR = DH_NOT_SUITABLE_GENERATOR,
     Q_NOT_PRIME = DH_CHECK_Q_NOT_PRIME,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define the DH_CHECK_INVALID_[Q or J]_VALUE
     INVALID_Q = DH_CHECK_INVALID_Q_VALUE,
     INVALID_J = DH_CHECK_INVALID_J_VALUE,
+#endif
     CHECK_FAILED = 512,
   };
   CheckResult check();
 
   enum class CheckPublicKeyResult {
     NONE,
+#ifndef OPENSSL_IS_BORINGSSL
+    // Boringssl does not define DH_R_CHECK_PUBKEY_TOO_SMALL or TOO_LARGE
     TOO_SMALL = DH_R_CHECK_PUBKEY_TOO_SMALL,
     TOO_LARGE = DH_R_CHECK_PUBKEY_TOO_LARGE,
     INVALID = DH_R_CHECK_PUBKEY_INVALID,
+#else
+    INVALID = DH_R_INVALID_PUBKEY,
+#endif
     CHECK_FAILED = 512,
   };
   // Check to see if the given public key is suitable for this DH instance.
@@ -551,7 +896,123 @@ class DHPointer final {
   DeleteFnPtr<DH, DH_free> dh_;
 };
 
-class X509Pointer;
+struct StackOfX509Deleter {
+  void operator()(STACK_OF(X509) * p) const { sk_X509_pop_free(p, X509_free); }
+};
+using StackOfX509 = std::unique_ptr<STACK_OF(X509), StackOfX509Deleter>;
+
+class SSLCtxPointer final {
+ public:
+  SSLCtxPointer() = default;
+  explicit SSLCtxPointer(SSL_CTX* ctx);
+  SSLCtxPointer(SSLCtxPointer&& other) noexcept;
+  SSLCtxPointer& operator=(SSLCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(SSLCtxPointer)
+  ~SSLCtxPointer();
+
+  inline bool operator==(std::nullptr_t) const noexcept {
+    return ctx_ == nullptr;
+  }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline SSL_CTX* get() const { return ctx_.get(); }
+  void reset(SSL_CTX* ctx = nullptr);
+  void reset(const SSL_METHOD* method);
+  SSL_CTX* release();
+
+  bool setGroups(const char* groups);
+  void setStatusCallback(auto callback) {
+    if (!ctx_) return;
+    SSL_CTX_set_tlsext_status_cb(get(), callback);
+    SSL_CTX_set_tlsext_status_arg(get(), nullptr);
+  }
+
+  static SSLCtxPointer NewServer();
+  static SSLCtxPointer NewClient();
+  static SSLCtxPointer New(const SSL_METHOD* method = TLS_method());
+
+ private:
+  DeleteFnPtr<SSL_CTX, SSL_CTX_free> ctx_;
+};
+
+class SSLPointer final {
+ public:
+  SSLPointer() = default;
+  explicit SSLPointer(SSL* ssl);
+  SSLPointer(SSLPointer&& other) noexcept;
+  SSLPointer& operator=(SSLPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(SSLPointer)
+  ~SSLPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ssl_ == nullptr; }
+  inline operator bool() const { return ssl_ != nullptr; }
+  inline SSL* get() const { return ssl_.get(); }
+  inline operator SSL*() const { return ssl_.get(); }
+  void reset(SSL* ssl = nullptr);
+  SSL* release();
+
+  bool setSession(const SSLSessionPointer& session);
+  bool setSniContext(const SSLCtxPointer& ctx) const;
+
+  const std::string_view getClientHelloAlpn() const;
+  const std::string_view getClientHelloServerName() const;
+
+  std::optional<const std::string_view> getServerName() const;
+  X509View getCertificate() const;
+  EVPKeyPointer getPeerTempKey() const;
+  const SSL_CIPHER* getCipher() const;
+  bool isServer() const;
+
+  std::optional<std::string_view> getCipherName() const;
+  std::optional<std::string_view> getCipherStandardName() const;
+  std::optional<std::string_view> getCipherVersion() const;
+
+  std::optional<uint32_t> verifyPeerCertificate() const;
+
+  void getCiphers(std::function<void(const std::string_view)> cb) const;
+
+  static SSLPointer New(const SSLCtxPointer& ctx);
+  static std::optional<const std::string_view> GetServerName(const SSL* ssl);
+
+ private:
+  DeleteFnPtr<SSL, SSL_free> ssl_;
+};
+
+class X509Name final {
+ public:
+  X509Name();
+  explicit X509Name(const X509_NAME* name);
+  NCRYPTO_DISALLOW_COPY_AND_MOVE(X509Name)
+
+  inline operator const X509_NAME*() const { return name_; }
+  inline operator bool() const { return name_ != nullptr; }
+  inline const X509_NAME* get() const { return name_; }
+  inline size_t size() const { return total_; }
+
+  class Iterator final {
+   public:
+    Iterator(const X509Name& name, int pos);
+    Iterator(const Iterator& other) = default;
+    Iterator(Iterator&& other) = default;
+    Iterator& operator=(const Iterator& other) = delete;
+    Iterator& operator=(Iterator&& other) = delete;
+    Iterator& operator++();
+    operator bool() const;
+    bool operator==(const Iterator& other) const;
+    bool operator!=(const Iterator& other) const;
+    std::pair<std::string, std::string> operator*() const;
+
+   private:
+    const X509Name& name_;
+    int loc_;
+  };
+
+  inline Iterator begin() const { return Iterator(*this, 0); }
+  inline Iterator end() const { return Iterator(*this, total_); }
+
+ private:
+  const X509_NAME* name_;
+  int total_;
+};
 
 class X509View final {
  public:
@@ -565,6 +1026,8 @@ class X509View final {
   NCRYPTO_DISALLOW_MOVE(X509View)
 
   inline X509* get() const { return const_cast<X509*>(cert_); }
+  inline operator X509*() const { return const_cast<X509*>(cert_); }
+  inline operator const X509*() const { return cert_; }
 
   inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
   inline operator bool() const { return cert_ != nullptr; }
@@ -572,6 +1035,8 @@ class X509View final {
   BIOPointer toPEM() const;
   BIOPointer toDER() const;
 
+  const X509Name getSubjectName() const;
+  const X509Name getIssuerName() const;
   BIOPointer getSubject() const;
   BIOPointer getSubjectAltName() const;
   BIOPointer getIssuer() const;
@@ -589,6 +1054,8 @@ class X509View final {
   bool checkPrivateKey(const EVPKeyPointer& pkey) const;
   bool checkPublicKey(const EVPKeyPointer& pkey) const;
 
+  std::optional<std::string> getFingerprint(const EVP_MD* method) const;
+
   X509Pointer clone() const;
 
   enum class CheckMatch {
@@ -602,6 +1069,14 @@ class X509View final {
                        DataPointer* peerName = nullptr) const;
   CheckMatch checkEmail(const std::string_view email, int flags) const;
   CheckMatch checkIp(const std::string_view ip, int flags) const;
+
+  using UsageCallback = std::function<void(std::string_view)>;
+  bool enumUsages(UsageCallback callback) const;
+
+  template <typename T>
+  using KeyCallback = std::function<bool(const T& t)>;
+  bool ifRsa(KeyCallback<Rsa> callback) const;
+  bool ifEc(KeyCallback<Ec> callback) const;
 
  private:
   const X509* cert_ = nullptr;
@@ -624,14 +1099,210 @@ class X509Pointer final {
   inline bool operator==(std::nullptr_t) noexcept { return cert_ == nullptr; }
   inline operator bool() const { return cert_ != nullptr; }
   inline X509* get() const { return cert_.get(); }
+  inline operator X509*() const { return cert_.get(); }
+  inline operator const X509*() const { return cert_.get(); }
   void reset(X509* cert = nullptr);
   X509* release();
 
   X509View view() const;
   operator X509View() const { return view(); }
 
+  static std::string_view ErrorCode(int32_t err);
+  static std::optional<std::string_view> ErrorReason(int32_t err);
+
  private:
   DeleteFnPtr<X509, X509_free> cert_;
+};
+
+class ECDSASigPointer final {
+ public:
+  explicit ECDSASigPointer();
+  explicit ECDSASigPointer(ECDSA_SIG* sig);
+  ECDSASigPointer(ECDSASigPointer&& other) noexcept;
+  ECDSASigPointer& operator=(ECDSASigPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECDSASigPointer)
+  ~ECDSASigPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return sig_ == nullptr; }
+  inline operator bool() const { return sig_ != nullptr; }
+  inline ECDSA_SIG* get() const { return sig_.get(); }
+  inline operator ECDSA_SIG*() const { return sig_.get(); }
+  void reset(ECDSA_SIG* sig = nullptr);
+  ECDSA_SIG* release();
+
+  static ECDSASigPointer New();
+  static ECDSASigPointer Parse(const Buffer<const unsigned char>& buffer);
+
+  inline const BIGNUM* r() const { return pr_; }
+  inline const BIGNUM* s() const { return ps_; }
+
+  bool setParams(BignumPointer&& r, BignumPointer&& s);
+
+  Buffer<unsigned char> encode() const;
+
+ private:
+  DeleteFnPtr<ECDSA_SIG, ECDSA_SIG_free> sig_;
+  const BIGNUM* pr_ = nullptr;
+  const BIGNUM* ps_ = nullptr;
+};
+
+class ECGroupPointer final {
+ public:
+  explicit ECGroupPointer();
+  explicit ECGroupPointer(EC_GROUP* group);
+  ECGroupPointer(ECGroupPointer&& other) noexcept;
+  ECGroupPointer& operator=(ECGroupPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECGroupPointer)
+  ~ECGroupPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return group_ == nullptr; }
+  inline operator bool() const { return group_ != nullptr; }
+  inline EC_GROUP* get() const { return group_.get(); }
+  inline operator EC_GROUP*() const { return group_.get(); }
+  void reset(EC_GROUP* group = nullptr);
+  EC_GROUP* release();
+
+  static ECGroupPointer NewByCurveName(int nid);
+
+ private:
+  DeleteFnPtr<EC_GROUP, EC_GROUP_free> group_;
+};
+
+class ECPointPointer final {
+ public:
+  ECPointPointer();
+  explicit ECPointPointer(EC_POINT* point);
+  ECPointPointer(ECPointPointer&& other) noexcept;
+  ECPointPointer& operator=(ECPointPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECPointPointer)
+  ~ECPointPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return point_ == nullptr; }
+  inline operator bool() const { return point_ != nullptr; }
+  inline EC_POINT* get() const { return point_.get(); }
+  inline operator EC_POINT*() const { return point_.get(); }
+  void reset(EC_POINT* point = nullptr);
+  EC_POINT* release();
+
+  bool setFromBuffer(const Buffer<const unsigned char>& buffer,
+                     const EC_GROUP* group);
+  bool mul(const EC_GROUP* group, const BIGNUM* priv_key);
+
+  static ECPointPointer New(const EC_GROUP* group);
+
+ private:
+  DeleteFnPtr<EC_POINT, EC_POINT_free> point_;
+};
+
+class ECKeyPointer final {
+ public:
+  ECKeyPointer();
+  explicit ECKeyPointer(EC_KEY* key);
+  ECKeyPointer(ECKeyPointer&& other) noexcept;
+  ECKeyPointer& operator=(ECKeyPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(ECKeyPointer)
+  ~ECKeyPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return key_ == nullptr; }
+  inline operator bool() const { return key_ != nullptr; }
+  inline EC_KEY* get() const { return key_.get(); }
+  inline operator EC_KEY*() const { return key_.get(); }
+  void reset(EC_KEY* key = nullptr);
+  EC_KEY* release();
+
+  ECKeyPointer clone() const;
+  bool setPrivateKey(const BignumPointer& priv);
+  bool setPublicKey(const ECPointPointer& pub);
+  bool setPublicKeyRaw(const BignumPointer& x, const BignumPointer& y);
+  bool generate();
+  bool checkKey() const;
+
+  const EC_GROUP* getGroup() const;
+  const BIGNUM* getPrivateKey() const;
+  const EC_POINT* getPublicKey() const;
+
+  static ECKeyPointer New(const EC_GROUP* group);
+  static ECKeyPointer NewByCurveName(int nid);
+
+  static const EC_POINT* GetPublicKey(const EC_KEY* key);
+  static const BIGNUM* GetPrivateKey(const EC_KEY* key);
+  static const EC_GROUP* GetGroup(const EC_KEY* key);
+  static int GetGroupName(const EC_KEY* key);
+  static bool Check(const EC_KEY* key);
+
+ private:
+  DeleteFnPtr<EC_KEY, EC_KEY_free> key_;
+};
+
+class EVPMDCtxPointer final {
+ public:
+  EVPMDCtxPointer();
+  explicit EVPMDCtxPointer(EVP_MD_CTX* ctx);
+  EVPMDCtxPointer(EVPMDCtxPointer&& other) noexcept;
+  EVPMDCtxPointer& operator=(EVPMDCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(EVPMDCtxPointer)
+  ~EVPMDCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline EVP_MD_CTX* get() const { return ctx_.get(); }
+  inline operator EVP_MD_CTX*() const { return ctx_.get(); }
+  void reset(EVP_MD_CTX* ctx = nullptr);
+  EVP_MD_CTX* release();
+
+  bool digestInit(const EVP_MD* digest);
+  bool digestUpdate(const Buffer<const void>& in);
+  DataPointer digestFinal(size_t length);
+  bool digestFinalInto(Buffer<void>* buf);
+  size_t getExpectedSize();
+
+  std::optional<EVP_PKEY_CTX*> signInit(const EVPKeyPointer& key,
+                                        const EVP_MD* digest);
+  std::optional<EVP_PKEY_CTX*> verifyInit(const EVPKeyPointer& key,
+                                          const EVP_MD* digest);
+
+  DataPointer signOneShot(const Buffer<const unsigned char>& buf) const;
+  DataPointer sign(const Buffer<const unsigned char>& buf) const;
+  bool verify(const Buffer<const unsigned char>& buf,
+              const Buffer<const unsigned char>& sig) const;
+
+  const EVP_MD* getDigest() const;
+  size_t getDigestSize() const;
+  bool hasXofFlag() const;
+
+  bool copyTo(const EVPMDCtxPointer& other) const;
+
+  static EVPMDCtxPointer New();
+
+ private:
+  DeleteFnPtr<EVP_MD_CTX, EVP_MD_CTX_free> ctx_;
+};
+
+class HMACCtxPointer final {
+ public:
+  HMACCtxPointer();
+  explicit HMACCtxPointer(HMAC_CTX* ctx);
+  HMACCtxPointer(HMACCtxPointer&& other) noexcept;
+  HMACCtxPointer& operator=(HMACCtxPointer&& other) noexcept;
+  NCRYPTO_DISALLOW_COPY(HMACCtxPointer)
+  ~HMACCtxPointer();
+
+  inline bool operator==(std::nullptr_t) noexcept { return ctx_ == nullptr; }
+  inline operator bool() const { return ctx_ != nullptr; }
+  inline HMAC_CTX* get() const { return ctx_.get(); }
+  inline operator HMAC_CTX*() const { return ctx_.get(); }
+  void reset(HMAC_CTX* ctx = nullptr);
+  HMAC_CTX* release();
+
+  bool init(const Buffer<const void>& buf, const EVP_MD* md);
+  bool update(const Buffer<const void>& buf);
+  DataPointer digest();
+  bool digestInto(Buffer<void>* buf);
+
+  static HMACCtxPointer New();
+
+ private:
+  DeleteFnPtr<HMAC_CTX, HMAC_CTX_free> ctx_;
 };
 
 #ifndef OPENSSL_NO_ENGINE
@@ -711,11 +1382,16 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 // KDF
 
 const EVP_MD* getDigestByName(const std::string_view name);
+const EVP_CIPHER* getCipherByName(const std::string_view name);
 
 // Verify that the specified HKDF output length is valid for the given digest.
 // The maximum length for HKDF output for a given digest is 255 times the
 // hash size for the given digest algorithm.
 bool checkHkdfLength(const EVP_MD* md, size_t length);
+
+bool extractP1363(const Buffer<const unsigned char>& buf,
+                  unsigned char* dest,
+                  size_t n);
 
 DataPointer hkdf(const EVP_MD* md,
                  const Buffer<const unsigned char>& key,

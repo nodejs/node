@@ -244,7 +244,10 @@ static void ParseEnv(const FunctionCallbackInfo<Value>& args) {
   Utf8Value content(env->isolate(), args[0]);
   Dotenv dotenv{};
   dotenv.ParseContent(content.ToStringView());
-  args.GetReturnValue().Set(dotenv.ToObject(env));
+  Local<Object> obj;
+  if (dotenv.ToObject(env).ToLocal(&obj)) {
+    args.GetReturnValue().Set(obj);
+  }
 }
 
 static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
@@ -275,16 +278,24 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
       script_name = v8::String::Empty(isolate);
     }
 
+    std::string script_id = std::to_string(stack_frame->GetScriptId());
+
     Local<Name> names[] = {
         env->function_name_string(),
+        env->script_id_string(),
         env->script_name_string(),
         env->line_number_string(),
+        env->column_number_string(),
+        // TODO(legendecas): deprecate CallSite.column.
         env->column_string(),
     };
     Local<Value> values[] = {
         function_name,
+        OneByteString(isolate, script_id),
         script_name,
         Integer::NewFromUnsigned(isolate, stack_frame->GetLineNumber()),
+        Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
+        // TODO(legendecas): deprecate CallSite.column.
         Integer::NewFromUnsigned(isolate, stack_frame->GetColumn()),
     };
     Local<Object> obj = Object::New(
@@ -340,6 +351,86 @@ static void IsInsideNodeModules(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+static void DefineLazyPropertiesGetter(
+    Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  // This getter has no JavaScript function representation and is not
+  // invoked in the creation context.
+  // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
+  // returns a nullptr and retrieve the creation context via `this` object and
+  // get the creation Realm.
+  Local<Value> receiver_val = info.This();
+  if (!receiver_val->IsObject()) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+  Local<Object> receiver = receiver_val.As<Object>();
+  Local<Context> context;
+  if (!receiver->GetCreationContext().ToLocal(&context)) {
+    THROW_ERR_INVALID_INVOCATION(isolate);
+    return;
+  }
+
+  Realm* realm = Realm::GetCurrent(context);
+  Local<Value> arg = info.Data();
+  Local<Value> require_result;
+  if (!realm->builtin_module_require()
+           ->Call(context, Null(isolate), 1, &arg)
+           .ToLocal(&require_result)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
+  Local<Value> ret;
+  if (!require_result.As<v8::Object>()->Get(context, name).ToLocal(&ret)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
+  info.GetReturnValue().Set(ret);
+}
+
+static void DefineLazyProperties(const FunctionCallbackInfo<Value>& args) {
+  // target: object, id: string, keys: string[][, enumerable = true]
+  CHECK_GE(args.Length(), 3);
+  // target: Object where to define the lazy properties.
+  CHECK(args[0]->IsObject());
+  // id: Internal module to lazy-load where the API to expose are implemented.
+  CHECK(args[1]->IsString());
+  // keys: Keys to map from `require(id)` and `target`.
+  CHECK(args[2]->IsArray());
+  // enumerable: Whether the property should be enumerable.
+  CHECK(args.Length() == 3 || args[3]->IsBoolean());
+
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  auto context = isolate->GetCurrentContext();
+
+  auto target = args[0].As<Object>();
+  Local<Value> id = args[1];
+  v8::PropertyAttribute attribute =
+      args.Length() == 3 || args[3]->IsTrue() ? v8::None : v8::DontEnum;
+
+  const Local<Array> keys = args[2].As<Array>();
+  size_t length = keys->Length();
+  for (size_t i = 0; i < length; i++) {
+    Local<Value> key;
+    if (!keys->Get(context, i).ToLocal(&key)) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    }
+    CHECK(key->IsString());
+    if (target
+            ->SetLazyDataProperty(context,
+                                  key.As<String>(),
+                                  DefineLazyPropertiesGetter,
+                                  id,
+                                  attribute)
+            .IsNothing()) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    };
+  }
+}
+
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetPromiseDetails);
   registry->Register(GetProxyDetails);
@@ -356,6 +447,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(fast_guess_handle_type_.GetTypeInfo());
   registry->Register(ParseEnv);
   registry->Register(IsInsideNodeModules);
+  registry->Register(DefineLazyProperties);
+  registry->Register(DefineLazyPropertiesGetter);
 }
 
 void Initialize(Local<Object> target,
@@ -440,6 +533,7 @@ void Initialize(Local<Object> target,
   }
 
   SetMethod(context, target, "isInsideNodeModules", IsInsideNodeModules);
+  SetMethod(context, target, "defineLazyProperties", DefineLazyProperties);
   SetMethodNoSideEffect(
       context, target, "getPromiseDetails", GetPromiseDetails);
   SetMethodNoSideEffect(context, target, "getProxyDetails", GetProxyDetails);

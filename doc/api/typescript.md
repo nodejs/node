@@ -2,10 +2,15 @@
 
 <!-- YAML
 changes:
+  - version: v23.6.0
+    pr-url: https://github.com/nodejs/node/pull/56350
+    description: Type stripping is enabled by default.
   - version: v22.7.0
     pr-url: https://github.com/nodejs/node/pull/54283
     description: Added `--experimental-transform-types` flag.
 -->
+
+<!--introduced_in=v22.6.0-->
 
 > Stability: 1.1 - Active development
 
@@ -52,14 +57,16 @@ added: v22.6.0
 
 > Stability: 1.1 - Active development
 
-The flag [`--experimental-strip-types`][] enables Node.js to run TypeScript
-files. By default Node.js will execute only files that contain no
-TypeScript features that require transformation, such as enums or namespaces.
-Node.js will replace inline type annotations with whitespace,
+By default Node.js will execute TypeScript files that contains only
+erasable TypeScript syntax.
+Node.js will replace TypeScript syntax with whitespace,
 and no type checking is performed.
-To enable the transformation of such features
-use the flag [`--experimental-transform-types`][].
-TypeScript features that depend on settings within `tsconfig.json`,
+To enable the transformation of non erasable TypeScript syntax, which requires JavaScript code generation,
+such as `enum` declarations, parameter properties use the flag [`--experimental-transform-types`][].
+To disable this feature, use the flag [`--no-experimental-strip-types`][].
+
+Node.js ignores `tsconfig.json` files and therefore
+features that depend on settings within `tsconfig.json`,
 such as paths or converting newer JavaScript syntax to older standards, are
 intentionally unsupported. To get full TypeScript support, see [Full TypeScript support][].
 
@@ -68,20 +75,25 @@ By intentionally not supporting syntaxes that require JavaScript code
 generation, and by replacing inline types with whitespace, Node.js can run
 TypeScript code without the need for source maps.
 
-Type stripping works with most versions of TypeScript
-but we recommend version 5.7 or newer with the following `tsconfig.json` settings:
+Type stripping is compatible with most versions of TypeScript
+but we recommend version 5.8 or newer with the following `tsconfig.json` settings:
 
 ```json
 {
   "compilerOptions": {
+     "noEmit": true, // Optional - see note below
      "target": "esnext",
      "module": "nodenext",
-     "allowImportingTsExtensions": true,
      "rewriteRelativeImportExtensions": true,
+     "erasableSyntaxOnly": true,
      "verbatimModuleSyntax": true
   }
 }
 ```
+
+> \[!NOTE]
+> Use the `noEmit` option if you intend to only execute `*.ts` files, for example a build script.
+> You won't need this flag if you intend to distribute `*.js` files for performance reasons.
 
 ### Determining module system
 
@@ -116,10 +128,30 @@ unless the flag [`--experimental-transform-types`][] is passed.
 
 The most prominent features that require transformation are:
 
-* `Enum`
-* `namespaces`
-* `legacy module`
+* `Enum` declarations
+* `namespace` with runtime code
+* legacy `module` with runtime code
 * parameter properties
+* import aliases
+
+`namespaces` and `module` that do not contain runtime code are supported.
+This example will work correctly:
+
+```ts
+// This namespace is exporting a type
+namespace TypeOnly {
+   export type A = string;
+}
+```
+
+This will result in [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`][] error:
+
+```ts
+// This namespace is exporting a value
+namespace A {
+   export let x = 1
+}
+```
 
 Since Decorators are currently a [TC39 Stage 3 proposal](https://github.com/tc39/proposal-decorators)
 and will soon be supported by the JavaScript engine,
@@ -153,10 +185,10 @@ import { fn, FnParams } from './fn.ts';
 
 ### Non-file forms of input
 
-Type stripping can be enabled for `--eval`. The module system
+Type stripping can be enabled for `--eval` and STDIN. The module system
 will be determined by `--input-type`, as it is for JavaScript.
 
-TypeScript syntax is unsupported in the REPL, STDIN input, `--print`, `--check`, and
+TypeScript syntax is unsupported in the REPL, `--check`, and
 `inspect`.
 
 ### Source maps
@@ -181,8 +213,9 @@ with `#`.
 [CommonJS]: modules.md
 [ES Modules]: esm.md
 [Full TypeScript support]: #full-typescript-support
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-transform-types`]: cli.md#--experimental-transform-types
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
+[`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
 [`tsconfig` "paths"]: https://www.typescriptlang.org/tsconfig/#paths
 [`tsx`]: https://tsx.is/
 [`verbatimModuleSyntax`]: https://www.typescriptlang.org/tsconfig/#verbatimModuleSyntax

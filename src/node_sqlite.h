@@ -43,25 +43,41 @@ class DatabaseOpenConfiguration {
 };
 
 class StatementSync;
+class BackupJob;
 
 class DatabaseSync : public BaseObject {
  public:
   DatabaseSync(Environment* env,
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
-               bool open);
+               bool open,
+               bool allow_load_extension);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void EnableLoadExtension(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void LoadExtension(const v8::FunctionCallbackInfo<v8::Value>& args);
   void FinalizeStatements();
+  void RemoveBackup(BackupJob* backup);
+  void AddBackup(BackupJob* backup);
+  void FinalizeBackups();
   void UntrackStatement(StatementSync* statement);
   bool IsOpen();
   sqlite3* Connection();
+
+  // In some situations, such as when using custom functions, it is possible
+  // that SQLite reports an error while JavaScript already has a pending
+  // exception. In this case, the SQLite error should be ignored. These methods
+  // enable that use case.
+  void SetIgnoreNextSQLiteError(bool ignore);
+  bool ShouldIgnoreSQLiteError();
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
@@ -72,8 +88,12 @@ class DatabaseSync : public BaseObject {
 
   ~DatabaseSync() override;
   DatabaseOpenConfiguration open_config_;
+  bool allow_load_extension_;
+  bool enable_load_extension_;
   sqlite3* connection_;
+  bool ignore_next_sqlite_error_;
 
+  std::set<BackupJob*> backups_;
   std::set<sqlite3_session*> sessions_;
   std::unordered_set<StatementSync*> statements_;
 
@@ -84,15 +104,16 @@ class StatementSync : public BaseObject {
  public:
   StatementSync(Environment* env,
                 v8::Local<v8::Object> object,
-                DatabaseSync* db,
+                BaseObjectPtr<DatabaseSync> db,
                 sqlite3_stmt* stmt);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
   static BaseObjectPtr<StatementSync> Create(Environment* env,
-                                             DatabaseSync* db,
+                                             BaseObjectPtr<DatabaseSync> db,
                                              sqlite3_stmt* stmt);
   static void All(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -109,7 +130,7 @@ class StatementSync : public BaseObject {
 
  private:
   ~StatementSync() override;
-  DatabaseSync* db_;
+  BaseObjectPtr<DatabaseSync> db_;
   sqlite3_stmt* statement_;
   bool use_big_ints_;
   bool allow_bare_named_params_;
@@ -118,6 +139,11 @@ class StatementSync : public BaseObject {
   bool BindValue(const v8::Local<v8::Value>& value, const int index);
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
+
+  static void IterateNextCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IterateReturnCallback(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
 };
 
 using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
@@ -146,6 +172,23 @@ class Session : public BaseObject {
   void Delete();
   sqlite3_session* session_;
   BaseObjectWeakPtr<DatabaseSync> database_;  // The Parent Database
+};
+
+class UserDefinedFunction {
+ public:
+  UserDefinedFunction(Environment* env,
+                      v8::Local<v8::Function> fn,
+                      DatabaseSync* db,
+                      bool use_bigint_args);
+  ~UserDefinedFunction();
+  static void xFunc(sqlite3_context* ctx, int argc, sqlite3_value** argv);
+  static void xDestroy(void* self);
+
+ private:
+  Environment* env_;
+  v8::Global<v8::Function> fn_;
+  DatabaseSync* db_;
+  bool use_bigint_args_;
 };
 
 }  // namespace sqlite

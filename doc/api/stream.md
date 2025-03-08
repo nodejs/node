@@ -315,7 +315,7 @@ events (due to incorrect stream implementations) do not cause unexpected
 crashes. If this is unwanted behavior then `options.cleanup` should be set to
 `true`:
 
-```js
+```mjs
 await finished(rs, { cleanup: true });
 ```
 
@@ -3138,6 +3138,11 @@ Returns whether the stream is readable.
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version:
+    - v18.7.0
+    pr-url: https://github.com/nodejs/node/pull/43515
+    description: include strategy options on Readable.
 -->
 
 > Stability: 1 - Experimental
@@ -3846,8 +3851,6 @@ added: v8.0.0
 
 The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
-Furthermore, the `callback` should not be mixed with async/await
-once it is executed when a promise is resolved.
 
 #### `writable._final(callback)`
 
@@ -3926,7 +3929,7 @@ const { StringDecoder } = require('node:string_decoder');
 class StringWritable extends Writable {
   constructor(options) {
     super(options);
-    this._decoder = new StringDecoder(options && options.defaultEncoding);
+    this._decoder = new StringDecoder(options?.defaultEncoding);
     this.data = '';
   }
   _write(chunk, encoding, callback) {
