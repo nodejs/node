@@ -53,8 +53,20 @@ SSLSessionPointer GetTLSSession(const unsigned char* buf, size_t length) {
 }
 
 MaybeLocal<Value> GetValidationErrorReason(Environment* env, int err) {
-  auto reason = X509Pointer::ErrorReason(err).value_or("");
+  auto reason = std::string(X509Pointer::ErrorReason(err).value_or(""));
   if (reason == "") return Undefined(env->isolate());
+
+  // Suggest --use-system-ca if the error indicates a certificate issue
+  bool suggest_system_ca =
+      (err == X509_V_ERR_UNABLE_TO_VERIFY_LEAF_SIGNATURE) ||
+      (err == X509_V_ERR_DEPTH_ZERO_SELF_SIGNED_CERT) ||
+      ((err == X509_V_ERR_UNABLE_TO_GET_ISSUER_CERT) &&
+       !per_process::cli_options->use_system_ca);
+
+  if (suggest_system_ca) {
+    reason.append("; if the root CA is installed locally, "
+                  "try running Node.js with --use-system-ca");
+  }
   return OneByteString(env->isolate(), reason);
 }
 

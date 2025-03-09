@@ -547,6 +547,12 @@ description are taken from deps/openssl/openssl/crypto/x509/x509_txt.c
 * `'CERT_REJECTED'`: Certificate rejected.
 * `'HOSTNAME_MISMATCH'`: Hostname mismatch.
 
+When certificate errors like `UNABLE_TO_VERIFY_LEAF_SIGNATURE`,
+`DEPTH_ZERO_SELF_SIGNED_CERT`, or `UNABLE_TO_GET_ISSUER_CERT` occur, Node.js
+appends a hint suggesting that if the root CA is installed locally,
+try running with the `--use-system-ca` flag to direct developers towards a
+secure solution, to prevent unsafe workarounds.
+
 ## Class: `tls.CryptoStream`
 
 <!-- YAML

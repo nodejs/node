@@ -13,7 +13,6 @@ const assert = require('assert');
 const events = require('events');
 const https = require('https');
 const timers = require('timers/promises');
-const { hasOpenSSL3 } = require('../common/crypto');
 const fixtures = require('../common/fixtures');
 const credentialOptions = [
   {
@@ -57,17 +56,18 @@ server.listen(0, common.mustCall(() => {
 
     server.setSecureContext(credentialOptions[1]);
     firstResponse.write('request-');
-    const errorMessageRegex = hasOpenSSL3 ?
-      /^Error: self-signed certificate$/ :
-      /^Error: self signed certificate$/;
-    await assert.rejects(makeRequest(port, 3), errorMessageRegex);
+    await assert.rejects(makeRequest(port, 3), {
+      code: 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    });
 
     server.setSecureContext(credentialOptions[0]);
     assert.strictEqual(await makeRequest(port, 4), 'success');
 
     server.setSecureContext(credentialOptions[1]);
     firstResponse.end('fun!');
-    await assert.rejects(makeRequest(port, 5), errorMessageRegex);
+    await assert.rejects(makeRequest(port, 5), {
+      code: 'DEPTH_ZERO_SELF_SIGNED_CERT',
+    });
 
     assert.strictEqual(await firstRequest, 'multi-request-success-fun!');
     server.close();
