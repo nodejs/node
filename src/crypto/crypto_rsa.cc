@@ -204,6 +204,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
 
   auto data = cipher(m_pkey, nparams, in);
   if (!data) return WebCryptoCipherStatus::FAILED;
+  DCHECK(!data.isSecure());
 
   *out = ByteSource::Allocated(data.release());
   return WebCryptoCipherStatus::OK;

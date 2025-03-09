@@ -28,13 +28,9 @@ using v8::Value;
 
 namespace crypto {
 EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Operation is unsupported in BoringSSL
-  return {};
-#else
   auto param_ctx = EVPKeyCtxPointer::NewFromID(EVP_PKEY_DSA);
 
-  if (!param_ctx.initForParamgen() ||
+  if (!param_ctx || !param_ctx.initForParamgen() ||
       !param_ctx.setDsaParameters(
           params->params.modulus_bits,
           params->params.divisor_bits != -1
@@ -49,7 +45,6 @@ EVPKeyCtxPointer DsaKeyGenTraits::Setup(DsaKeyPairGenConfig* params) {
   EVPKeyCtxPointer key_ctx = key_params.newCtx();
   if (!key_ctx.initForKeygen()) return {};
   return key_ctx;
-#endif
 }
 
 // Input arguments for DsaKeyPairGenJob

@@ -35,12 +35,10 @@ v8::MaybeLocal<v8::Value> GetPeerCert(Environment* env,
                                       bool abbreviated = false,
                                       bool is_server = false);
 
-v8::MaybeLocal<v8::Object> ECPointToBuffer(
-    Environment* env,
-    const EC_GROUP* group,
-    const EC_POINT* point,
-    point_conversion_form_t form,
-    const char** error);
+v8::MaybeLocal<v8::Object> ECPointToBuffer(Environment* env,
+                                           const EC_GROUP* group,
+                                           const EC_POINT* point,
+                                           point_conversion_form_t form);
 
 }  // namespace crypto
 }  // namespace node
