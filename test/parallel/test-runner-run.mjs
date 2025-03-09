@@ -629,6 +629,41 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       assert.strictEqual(diagnostics.includes(entry), true);
     }
   });
+
+  it('should report immediately without waiting for beforeExit event when isolation is none', (t) => {
+    t.plan(1, { wait: 5_000 });
+    const events = [];
+    const expectedEvents = [
+      'test:enqueue',
+      'test:dequeue',
+      'test:complete',
+      'test:start',
+      'test:pass',
+      'test:plan',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:diagnostic',
+      'test:summary',
+    ];
+
+    const stream = run({
+      isolation: 'none',
+      files: [fixtures.path('test-runner', 'default-behavior', 'index.test.js')],
+    });
+
+    stream.on('data', (event) => {
+      events.push(event);
+    });
+
+    stream.on('end', () => {
+      t.assert.deepStrictEqual(events.map(({ type }) => type), expectedEvents);
+    });
+  });
 });
 
 describe('forceExit', () => {
