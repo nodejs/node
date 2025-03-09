@@ -479,65 +479,6 @@ void ThrowCryptoError(Environment* env,
                       unsigned long err,  // NOLINT(runtime/int)
                       const char* message = nullptr);
 
-class CipherPushContext final {
- public:
-  inline explicit CipherPushContext(Environment* env)
-      : list_(env->isolate()), env_(env) {}
-
-  inline void push_back(const char* str) {
-    list_.emplace_back(OneByteString(env_->isolate(), str));
-  }
-
-  inline v8::Local<v8::Array> ToJSArray() {
-    return v8::Array::New(env_->isolate(), list_.data(), list_.size());
-  }
-
- private:
-  v8::LocalVector<v8::Value> list_;
-  Environment* env_;
-};
-
-#if OPENSSL_VERSION_MAJOR >= 3
-template <class TypeName,
-          TypeName* fetch_type(OSSL_LIB_CTX*, const char*, const char*),
-          void free_type(TypeName*),
-          const TypeName* getbyname(const char*),
-          const char* getname(const TypeName*)>
-void array_push_back(const TypeName* evp_ref,
-                     const char* from,
-                     const char* to,
-                     void* arg) {
-  if (!from) return;
-
-  const TypeName* real_instance = getbyname(from);
-  if (!real_instance) return;
-
-  const char* real_name = getname(real_instance);
-  if (!real_name) return;
-
-  // EVP_*_fetch() does not support alias names, so we need to pass it the
-  // real/original algorithm name.
-  // We use EVP_*_fetch() as a filter here because it will only return an
-  // instance if the algorithm is supported by the public OpenSSL APIs (some
-  // algorithms are used internally by OpenSSL and are also passed to this
-  // callback).
-  TypeName* fetched = fetch_type(nullptr, real_name, nullptr);
-  if (!fetched) return;
-
-  free_type(fetched);
-  static_cast<CipherPushContext*>(arg)->push_back(from);
-}
-#else
-template <class TypeName>
-void array_push_back(const TypeName* evp_ref,
-                     const char* from,
-                     const char* to,
-                     void* arg) {
-  if (!from) return;
-  static_cast<CipherPushContext*>(arg)->push_back(from);
-}
-#endif
-
 // WebIDL AllowSharedBufferSource.
 inline bool IsAnyBufferSource(v8::Local<v8::Value> arg) {
   return arg->IsArrayBufferView() ||

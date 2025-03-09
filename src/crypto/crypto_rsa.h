@@ -26,8 +26,8 @@ struct RsaKeyPairParams final : public MemoryRetainer {
 
   // The following options are used for RSA-PSS. If any of them are set, a
   // RSASSA-PSS-params sequence will be added to the key.
-  const EVP_MD* md = nullptr;
-  const EVP_MD* mgf1_md = nullptr;
+  ncrypto::Digest md = nullptr;
+  ncrypto::Digest mgf1_md = nullptr;
   int saltlen = -1;
 
   SET_NO_MEMORY_INFO()
@@ -80,7 +80,7 @@ struct RSACipherConfig final : public MemoryRetainer {
   CryptoJobMode mode = kCryptoJobAsync;
   ByteSource label;
   int padding = 0;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
 
   RSACipherConfig() = default;
 
