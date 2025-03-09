@@ -947,6 +947,9 @@ The [`tls.CryptoStream`][] class was removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -966,9 +969,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.SecurePair`][] class is deprecated. Please use
+The `tls.SecurePair` class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0044: `util.isArray()`
@@ -1488,6 +1491,9 @@ officially supported API.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -1507,7 +1513,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 0.11.3. Users should use `tls.Socket` instead.
@@ -3958,7 +3964,6 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 [`timeout.unref()`]: timers.md#timeoutunref
 [`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
-[`tls.SecurePair`]: tls.md#class-tlssecurepair
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions
