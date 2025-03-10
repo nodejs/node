@@ -166,9 +166,31 @@ describe('Object Comparison Tests', () => {
         },
         {
           description:
-            'throws when comparing two objects with different Error instances',
+            'throws when comparing two objects with different Error message',
           actual: { error: new Error('Test error 1') },
           expected: { error: new Error('Test error 2') },
+        },
+        {
+          description:
+            'throws when comparing two objects with missing cause on the actual Error',
+          actual: { error: new Error('Test error 1') },
+          expected: { error: new Error('Test error 1', { cause: 42 }) },
+        },
+        {
+          description:
+            'throws when comparing two objects with missing message on the actual Error',
+          actual: { error: new Error() },
+          expected: { error: new Error('Test error 1') },
+        },
+        {
+          description: 'throws when comparing two Errors with missing cause on the actual Error',
+          actual: { error: new Error('Test error 1') },
+          expected: { error: new Error('Test error 1', { cause: undefined }) },
+        },
+        {
+          description: 'throws when comparing two AggregateErrors with missing message on the actual Error',
+          actual: { error: new AggregateError([], 'Test error 1') },
+          expected: { error: new AggregateError([new Error()], 'Test error 1') },
         },
         {
           description:
@@ -1094,6 +1116,26 @@ describe('Object Comparison Tests', () => {
             ],
           }
         }]
+      },
+      {
+        description: 'comparing two Errors with missing cause on the expected Error',
+        actual: { error: new Error('Test error 1', { cause: 42 }) },
+        expected: { error: new Error('Test error 1') },
+      },
+      {
+        description: 'comparing two Errors with cause set to undefined on the actual Error',
+        actual: { error: new Error('Test error 1', { cause: undefined }) },
+        expected: { error: new Error('Test error 1') },
+      },
+      {
+        description: 'comparing two Errors with missing message on the expected Error',
+        actual: { error: new Error('Test error 1') },
+        expected: { error: new Error() },
+      },
+      {
+        description: 'comparing two AggregateErrors with no message or errors on the expected Error',
+        actual: { error: new AggregateError([new Error(), 123]) },
+        expected: { error: new AggregateError([]) },
       },
     ].forEach(({ description, actual, expected }) => {
       it(description, () => {
