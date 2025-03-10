@@ -28,7 +28,9 @@ static FARPROC WINAPI load_exe_hook(unsigned int event, DelayLoadInfo* info) {
   if (_stricmp(info->szDll, HOST_BINARY) != 0)
     return NULL;
 
-  m = GetModuleHandle(NULL);
+  // try for libnode.dll to compat node.js that using 'vcbuild.bat dll'
+  m = GetModuleHandle("libnode.dll");
+  if (m == NULL) m = GetModuleHandle(NULL);
   return (FARPROC) m;
 }
 

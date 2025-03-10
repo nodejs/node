@@ -1,20 +1,21 @@
 'use strict'
 
+const { dirname, resolve } = require('node:path')
+const crypto = require('node:crypto')
 const { mkdir } = require('node:fs/promises')
 const Arborist = require('@npmcli/arborist')
 const ciInfo = require('ci-info')
-const crypto = require('node:crypto')
 const { log, input } = require('proc-log')
 const npa = require('npm-package-arg')
 const pacote = require('pacote')
 const { read } = require('read')
 const semver = require('semver')
+const PackageJson = require('@npmcli/package-json')
 const { fileExists, localFileExists } = require('./file-exists.js')
 const getBinFromManifest = require('./get-bin-from-manifest.js')
 const noTTY = require('./no-tty.js')
 const runScript = require('./run-script.js')
 const isWindows = require('./is-windows.js')
-const { dirname, resolve } = require('node:path')
 
 const binPaths = []
 
@@ -37,6 +38,7 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree, shallow }) 
   //  - In local or global mode go with anything in the tree that matches
   //  - If looking in the npx cache check if a newer version is available
   const npxByNameOnly = isNpxTree && spec.name === spec.raw
+  // If they gave a range and not a tag we still need to check if it's outdated.
   if (spec.registry && spec.type !== 'tag' && !npxByNameOnly) {
     // registry spec that is not a specific tag.
     const nodesBySpec = tree.inventory.query('packageName', spec.name)
@@ -53,7 +55,8 @@ const missingFromTree = async ({ spec, tree, flatOptions, isNpxTree, shallow }) 
         return { node }
       }
       // package requested by version range, only remaining registry type
-      if (semver.satisfies(node.package.version, spec.rawSpec)) {
+      // the npx tree shouldn't be ok w/ an outdated version
+      if (!isNpxTree && semver.satisfies(node.package.version, spec.rawSpec)) {
         return { node }
       }
     }
@@ -293,6 +296,9 @@ const exec = async (opts) => {
       })
     }
     binPaths.push(resolve(installDir, 'node_modules/.bin'))
+    const pkgJson = await PackageJson.load(installDir)
+    pkgJson.update({ _npx: { packages } })
+    await pkgJson.save()
   }
 
   return await run()

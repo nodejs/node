@@ -380,7 +380,7 @@ t.test('dryRun with no args', async t => {
 
 t.test('publishConfig no spec', async t => {
   const alternateRegistry = 'https://other.registry.npmjs.org'
-  const { joinedOutput, npm } = await loadMockNpm(t, {
+  const { logs, joinedOutput, npm } = await loadMockNpm(t, {
     config: {
       force: true,
       '//other.registry.npmjs.org/:_authToken': 'test-other-token',
@@ -390,6 +390,7 @@ t.test('publishConfig no spec', async t => {
         name: pkg,
         version: '1.0.0',
         publishConfig: {
+          other: 'not defined',
           registry: alternateRegistry,
         },
       }, null, 2),
@@ -406,6 +407,10 @@ t.test('publishConfig no spec', async t => {
   registry.unpublish({ manifest })
   await npm.exec('unpublish', [])
   t.equal(joinedOutput(), '- test-package')
+  t.same(logs.warn, [
+    'using --force Recommended protections disabled.',
+    'Unknown publishConfig config "other". This will stop working in the next major version of npm.',
+  ])
 })
 
 t.test('prioritize CLI flags over publishConfig no spec', async t => {
