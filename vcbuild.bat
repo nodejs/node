@@ -587,7 +587,7 @@ if errorlevel 1 goto exit
 
 :install-doctools
 REM only install if building doc OR testing doctool OR building addons
-if not defined doc if not defined build_addons (
+if not defined doc if not defined build_addons if not defined lint_md (
   echo.%test_args% | findstr doctool 1>nul
   if errorlevel 1 goto :skip-install-doctools
 )
@@ -771,6 +771,7 @@ for /D %%D IN (doc\*) do (
   )
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
+%npx_exe% --prefix tools\doc api-docs-tooling -i doc/api/*.md
 ENDLOCAL
 goto format-md
 

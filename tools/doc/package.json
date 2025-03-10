@@ -1,6 +1,6 @@
 {
   "name": "doc",
   "dependencies": {
-    "@node-core/api-docs-tooling": "github:nodejs/api-docs-tooling#c428037bd7fe31e6a1f80146be3f7d7f77aff91b"
+    "@node-core/api-docs-tooling": "github:nodejs/api-docs-tooling#e54e15265da4e2ae0ac22eb4202e45ae7ae60093"
   }
 }

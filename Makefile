@@ -1325,7 +1325,12 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@touch $@
 
 .PHONY: lint-md
-lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+lint-md: lint-js-doc lint-docs | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+
+.PHONY: lint-docs
+lint-docs: tools/doc/node_modules
+	$(info Running API Doc linter...)
+	$(call available-npx, --prefix tools/doc api-docs-tooling -i doc/api/*.md)
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
