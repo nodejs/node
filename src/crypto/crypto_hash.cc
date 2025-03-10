@@ -405,6 +405,7 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     if (!data) [[unlikely]] {
       return ThrowCryptoError(env, ERR_get_error());
     }
+    DCHECK(!data.isSecure());
 
     hash->digest_ = ByteSource::Allocated(data.release());
   }
@@ -504,6 +505,7 @@ bool HashTraits::DeriveBits(
     if (!data) [[unlikely]]
       return false;
 
+    DCHECK(!data.isSecure());
     *out = ByteSource::Allocated(data.release());
   }
 

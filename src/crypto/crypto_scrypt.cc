@@ -140,6 +140,7 @@ bool ScryptTraits::DeriveBits(
       params.length);
 
   if (!dp) return false;
+  DCHECK(!dp.isSecure());
   *out = ByteSource::Allocated(dp.release());
   return true;
 }
