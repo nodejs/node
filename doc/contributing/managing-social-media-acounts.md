@@ -46,4 +46,4 @@ No project members have access to the Facebook account.
 Day to day management of the LinkedIn account has been
 delegated to the Foundation Staff.
 
-No project members have access to the LinkedIn account
+No project members have access to the LinkedIn account.
