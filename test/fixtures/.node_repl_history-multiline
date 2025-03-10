@@ -1,0 +1,4 @@
+var d = [  {    a: 1,    b: 2,  },  {    a: 3,    b: 4,    c: [{ a: 1, b: 2 },      {        a: 3,        b: 4,      }    ]  }]
+const c = [  {    a: 1,    b: 2,  }]
+`const b = [  1,  2,  3,  4,]`
+a = `I am a multiline stringI can be as long as I want`

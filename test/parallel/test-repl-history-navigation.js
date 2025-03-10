@@ -236,22 +236,17 @@ const tests = [
     // K = Erase in line; 0 = right; 1 = left; 2 = total
     expected: [
       // 0. Start
-      '\x1B[1G',
-      '\x1B[0J',
-      `${prompt}`,
-      '\x1B[3G',
-      '\x1B[1G',
-      '\x1B[0J',
-      `${prompt}aut`,
-      '\x1B[6G',
-      ' // ocompleteMe',
-      '\x1B[6G',
-      '\n// 123',
-      '\x1B[6G',
-      '\x1B[1A',
-      '\x1B[1B',
-      '\x1B[2K',
-      '\x1B[1A',
+      '\x1B[1G', '\x1B[0J',
+      prompt, '\x1B[3G',
+      // 1. UP
+      // This exceeds the maximum columns (250):
+      // Whitespace + prompt + ' // '.length + 'autocompleteMe'.length
+      // 230 + 2 + 4 + 14
+      '\x1B[1G', '\x1B[0J',
+      `${prompt}${' '.repeat(230)} aut`, '\x1B[237G',
+      ' // ocompleteMe', '\x1B[237G',
+      '\n// 123', '\x1B[237G',
+      '\x1B[1A', '\x1B[1B', '\x1B[2K', '\x1B[1A',
       '\x1B[0K',
       // 2. UP
       '\x1B[1G', '\x1B[0J',
