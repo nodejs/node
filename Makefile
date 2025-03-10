@@ -395,7 +395,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		[ -x $(NPM) ] && $(NPM) --prefix $< run addon-verify || npm --prefix $< run addon-verify ; \
+		$(call available-npx, --prefix $< api-docs-tooling -t addon-verify -i doc/api/addons.md -o test/addons/) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -775,7 +775,6 @@ endif
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
 skip_apidoc_files = doc/api/quic.md
 
-node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
 run-npm-ci = $(PWD)/$(NPM) ci
 
 tools/doc/node_modules: tools/doc/package.json
@@ -788,7 +787,7 @@ tools/doc/node_modules: tools/doc/package.json
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
 	$(apidoc_dirs)  ## Builds the docs with the local or the global Node.js binary.
-	@if [ "$(shell $(node_use_openssl))" != "true" ] || [ "$(shell $(node_use_icu))" != "true" ]; then \
+	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
 		echo "Skipping doc-only (no crypto or no icu)"; \
 	else \
 		$(call available-npx, --prefix tools/doc api-docs-tooling -t legacy-html-all legacy-json-all api-links -i doc/api/\*.md -i lib/\*.js -o out/doc/api/ -c file://$(PWD)/CHANGELOG.md) \
@@ -808,11 +807,11 @@ out/doc/api: doc/api
 	cp -r doc/api out/doc
 
 .PHONY: docopen
-docopen: out/doc/api/all.html ## Open the documentation in a web browser.
+docopen: doc-only ## Open the documentation in a web browser.
 	@$(PYTHON) -mwebbrowser file://$(abspath $<)
 
 .PHONY: docserve
-docserve: $(apidocs_html) $(apiassets) ## Serve the documentation on localhost:8000.
+docserve: doc-only ## Serve the documentation on localhost:8000.
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean

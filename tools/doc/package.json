@@ -1,8 +1,5 @@
 {
   "name": "doc",
-  "scripts": {
-    "addon-verify": "api-docs-tooling -t addon-verify -i ../../doc/api/addons.md -o ../../test/addons/"
-  },
   "dependencies": {
     "@node-core/api-docs-tooling": "github:nodejs/api-docs-tooling#c428037bd7fe31e6a1f80146be3f7d7f77aff91b"
   }
