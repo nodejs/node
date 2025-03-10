@@ -47,7 +47,6 @@ test-buffer-creation-regression: SKIP
 test-perf-hooks: SKIP
 # https://github.com/nodejs/node/issues/39683
 test-tls-psk-client: PASS, FLAKY
-test-tls-securepair-client: PASS, FLAKY
 
 [$arch==arm]
 # https://github.com/nodejs/node/issues/49933

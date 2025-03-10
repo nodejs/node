@@ -1,8 +1,5 @@
 'use strict';
 
-// This is based on test-tls-securepair-fiftharg.js
-// for the deprecated `tls.createSecurePair()` variant.
-
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
