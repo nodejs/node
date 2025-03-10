@@ -39,7 +39,7 @@ opening an issue in the nodejs/admin repo asking for access.
 Day to day management of the Facebook account has been
 delegated to the Foundation Staff.
 
-No project members have access to the Facebook account
+No project members have access to the Facebook account.
 
 ## Linkedin
 
