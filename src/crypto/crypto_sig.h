@@ -107,7 +107,7 @@ struct SignConfiguration final : public MemoryRetainer {
   KeyObjectData key;
   ByteSource data;
   ByteSource signature;
-  const EVP_MD* digest = nullptr;
+  ncrypto::Digest digest;
   int flags = SignConfiguration::kHasNone;
   int padding = 0;
   int salt_length = 0;

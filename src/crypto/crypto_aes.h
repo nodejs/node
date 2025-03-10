@@ -13,18 +13,18 @@ namespace node::crypto {
 constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
 #define VARIANTS(V)                                                            \
-  V(CTR_128, AES_CTR_Cipher, NID_aes_128_ctr)                                  \
-  V(CTR_192, AES_CTR_Cipher, NID_aes_192_ctr)                                  \
-  V(CTR_256, AES_CTR_Cipher, NID_aes_256_ctr)                                  \
-  V(CBC_128, AES_Cipher, NID_aes_128_cbc)                                      \
-  V(CBC_192, AES_Cipher, NID_aes_192_cbc)                                      \
-  V(CBC_256, AES_Cipher, NID_aes_256_cbc)                                      \
-  V(GCM_128, AES_Cipher, NID_aes_128_gcm)                                      \
-  V(GCM_192, AES_Cipher, NID_aes_192_gcm)                                      \
-  V(GCM_256, AES_Cipher, NID_aes_256_gcm)                                      \
-  V(KW_128, AES_Cipher, NID_id_aes128_wrap)                                    \
-  V(KW_192, AES_Cipher, NID_id_aes192_wrap)                                    \
-  V(KW_256, AES_Cipher, NID_id_aes256_wrap)
+  V(CTR_128, AES_CTR_Cipher, ncrypto::Cipher::AES_128_CTR)                     \
+  V(CTR_192, AES_CTR_Cipher, ncrypto::Cipher::AES_192_CTR)                     \
+  V(CTR_256, AES_CTR_Cipher, ncrypto::Cipher::AES_256_CTR)                     \
+  V(CBC_128, AES_Cipher, ncrypto::Cipher::AES_128_CBC)                         \
+  V(CBC_192, AES_Cipher, ncrypto::Cipher::AES_192_CBC)                         \
+  V(CBC_256, AES_Cipher, ncrypto::Cipher::AES_256_CBC)                         \
+  V(GCM_128, AES_Cipher, ncrypto::Cipher::AES_128_GCM)                         \
+  V(GCM_192, AES_Cipher, ncrypto::Cipher::AES_192_GCM)                         \
+  V(GCM_256, AES_Cipher, ncrypto::Cipher::AES_256_GCM)                         \
+  V(KW_128, AES_Cipher, ncrypto::Cipher::AES_128_KW)                           \
+  V(KW_192, AES_Cipher, ncrypto::Cipher::AES_192_KW)                           \
+  V(KW_256, AES_Cipher, ncrypto::Cipher::AES_256_KW)
 
 enum class AESKeyVariant {
 #define V(name, _, __) name,

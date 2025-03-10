@@ -31,9 +31,11 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
+using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::CryptoErrorList;
 using ncrypto::DHPointer;
+using ncrypto::Digest;
 #ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
@@ -1518,8 +1520,6 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
-  // BoringSSL doesn't allow API config of TLS1.3 cipher suites.
-#ifndef OPENSSL_IS_BORINGSSL
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
@@ -1529,9 +1529,9 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   const Utf8Value ciphers(env->isolate(), args[0]);
-  if (!SSL_CTX_set_ciphersuites(sc->ctx_.get(), *ciphers))
+  if (!sc->ctx_.setCipherSuites(ciphers.ToStringView())) {
     return ThrowCryptoError(env, ERR_get_error(), "Failed to set ciphers");
-#endif
+  }
 }
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
@@ -2010,25 +2010,14 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   }
 
   ArrayBufferViewContents<unsigned char> hmac_buf(hmac);
-  HMAC_Init_ex(hctx,
-               hmac_buf.data(),
-               hmac_buf.length(),
-               EVP_sha256(),
-               nullptr);
+  HMAC_Init_ex(
+      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr);
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
-    EVP_EncryptInit_ex(ectx,
-                       EVP_aes_128_cbc(),
-                       nullptr,
-                       aes_key.data(),
-                       iv);
+    EVP_EncryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
   } else {
-    EVP_DecryptInit_ex(ectx,
-                       EVP_aes_128_cbc(),
-                       nullptr,
-                       aes_key.data(),
-                       iv);
+    EVP_DecryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
   }
 
   return r;
@@ -2047,11 +2036,11 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
     if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
-            ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+            ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
         HMAC_Init_ex(hctx,
                      sc->ticket_key_hmac_,
                      sizeof(sc->ticket_key_hmac_),
-                     EVP_sha256(),
+                     Digest::SHA256,
                      nullptr) <= 0) {
       return -1;
     }
@@ -2063,10 +2052,13 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     return 0;
   }
 
-  if (EVP_DecryptInit_ex(ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_,
-                         iv) <= 0 ||
-      HMAC_Init_ex(hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_),
-                   EVP_sha256(), nullptr) <= 0) {
+  if (EVP_DecryptInit_ex(
+          ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+      HMAC_Init_ex(hctx,
+                   sc->ticket_key_hmac_,
+                   sizeof(sc->ticket_key_hmac_),
+                   Digest::SHA256,
+                   nullptr) <= 0) {
     return -1;
   }
   return 1;
