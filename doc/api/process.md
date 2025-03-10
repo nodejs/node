@@ -3342,7 +3342,7 @@ In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
 
-## \`process.execve(file\[, args\[, env]])\`
+## `process.execve(file\[, args\[, env]])`
 
 <!-- YAML
 added: REPLACEME
