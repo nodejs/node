@@ -1370,7 +1370,7 @@ opt-in to using the non-default behavior:
 import { readFile } from 'node:fs/promises';
 
 // Asynchronous version accepted by module.register(). This fix is not needed
-// for the synchronous version accepted by module.registerSync().
+// for the synchronous version accepted by module.registerHooks().
 export async function load(url, context, nextLoad) {
   const result = await nextLoad(url, context);
   if (result.format === 'commonjs') {
