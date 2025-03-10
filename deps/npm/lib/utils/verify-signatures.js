@@ -192,6 +192,7 @@ class VerifySignatures {
 
     // If keys not found in Sigstore TUF repo, fallback to registry keys API
     if (!keys) {
+      log.warn(`Fetching verification keys using TUF failed.  Fetching directly from ${registry}.`)
       keys = await npmFetch.json('/-/npm/v1/keys', {
         ...this.npm.flatOptions,
         registry,

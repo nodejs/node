@@ -41,6 +41,82 @@ make-fetch-happen:request-cache:https://registry.npmjs.org/foo
 make-fetch-happen:request-cache:https://registry.npmjs.org/foo/-/foo-1.2.3-beta.tgz
 `
 
+exports[`test/lib/commands/cache.js TAP cache npx info: valid and invalid entry > shows invalid package info 1`] = `
+invalid npx cache entry with key deadbeef
+location: {CWD}/cache/_npx/deadbeef
+
+invalid npx cache entry with key badc0de
+location: {CWD}/cache/_npx/badc0de
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx info: valid and invalid entry > shows valid package info 1`] = `
+invalid npx cache entry with key deadbeef
+location: {CWD}/cache/_npx/deadbeef
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx info: valid entry with _npx directory package > shows valid package info with _npx directory package 1`] = `
+valid npx cache entry with key valid123
+location: {CWD}/cache/_npx/valid123
+packages:
+- /path/to/valid-package
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx info: valid entry with _npx packages > shows valid package info with _npx packages 1`] = `
+valid npx cache entry with key valid123
+location: {CWD}/cache/_npx/valid123
+packages:
+- valid-package@1.0.0 (valid-package@1.0.0)
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx info: valid entry with a link dependency > shows link dependency realpath (child.isLink branch) 1`] = `
+valid npx cache entry with key link123
+location: {CWD}/cache/_npx/link123
+packages: (unknown)
+dependencies:
+- {CWD}/cache/_npx/some-other-loc
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx info: valid entry with dependencies > shows valid package info with dependencies 1`] = `
+valid npx cache entry with key valid456
+location: {CWD}/cache/_npx/valid456
+packages: (unknown)
+dependencies:
+- dep-package@1.0.0
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx ls: empty cache > logs message for empty npx cache 1`] = `
+npx cache does not exist
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx ls: entry with unknown package > lists entry with unknown package 1`] = `
+unknown123: (unknown)
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx ls: some entries > lists one valid and one invalid entry 1`] = `
+abc123: fake-npx-package@1.0.0
+z9y8x7: (empty/invalid)
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx rm: remove single entry > logs removing single npx cache entry 1`] = `
+Removing npx key at {CWD}/cache/_npx/123removeme
+Removing npx key at {CWD}/cache/_npx/123removeme
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx rm: removing all with --force works > logs removing everything 1`] = `
+Removing npx key at {CWD}/cache/_npx/remove-all-yes-force
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx rm: removing all without --force fails > logs usage error when removing all without --force 1`] = `
+
+`
+
+exports[`test/lib/commands/cache.js TAP cache npx rm: removing more than 1, less than all entries > logs removing 2 of 3 entries 1`] = `
+Removing npx key at {CWD}/cache/_npx/123removeme
+Removing npx key at {CWD}/cache/_npx/456removeme
+Removing npx key at {CWD}/cache/_npx/123removeme
+Removing npx key at {CWD}/cache/_npx/456removeme
+`
+
 exports[`test/lib/commands/cache.js TAP cache rm > logs deleting single entry 1`] = `
 Deleted: make-fetch-happen:request-cache:https://registry.npmjs.org/test-package/-/test-package-1.0.0.tgz
 `

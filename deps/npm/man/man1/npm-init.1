@@ -1,4 +1,4 @@
-.TH "NPM-INIT" "1" "January 2025" "NPM@11.1.0" ""
+.TH "NPM-INIT" "1" "March 2025" "NPM@11.2.0" ""
 .SH "NAME"
 \fBnpm-init\fR - Create a package.json file
 .SS "Synopsis"
@@ -188,6 +188,16 @@ Type: Path
 
 .P
 A module that will be loaded by the \fBnpm init\fR command. See the documentation for the \fBinit-package-json\fR \fI\(lahttps://github.com/npm/init-package-json\(ra\fR module for more information, or npm help init.
+.SS "\fBinit-type\fR"
+.RS 0
+.IP \(bu 4
+Default: "commonjs"
+.IP \(bu 4
+Type: String
+.RE 0
+
+.P
+The value that \fBnpm init\fR should use by default for the package.json type field.
 .SS "\fBinit-version\fR"
 .RS 0
 .IP \(bu 4

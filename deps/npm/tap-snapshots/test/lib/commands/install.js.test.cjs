@@ -135,8 +135,8 @@ verbose stack Error: The developer of this package has specified the following t
 verbose stack Invalid engine "runtime"
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:251:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:207:9)
+verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid engine "runtime"
@@ -200,8 +200,8 @@ verbose stack Error: The developer of this package has specified the following t
 verbose stack Invalid engine "runtime"
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:251:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:207:9)
+verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid engine "runtime"
@@ -226,8 +226,8 @@ verbose stack Error: The developer of this package has specified the following t
 verbose stack Invalid engine "runtime"
 verbose stack Invalid name "nondescript" does not match "node" for "runtime"
 verbose stack     at Install.checkDevEngines ({CWD}/lib/base-cmd.js:181:27)
-verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:251:7)
-verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:207:9)
+verbose stack     at MockNpm.#exec ({CWD}/lib/npm.js:252:7)
+verbose stack     at MockNpm.exec ({CWD}/lib/npm.js:208:9)
 error code EBADDEVENGINES
 error EBADDEVENGINES The developer of this package has specified the following through devEngines
 error EBADDEVENGINES Invalid engine "runtime"

@@ -196,6 +196,16 @@ more information, or [npm init](/commands/npm-init).
 
 
 
+#### `init-type`
+
+* Default: "commonjs"
+* Type: String
+
+The value that `npm init` should use by default for the package.json type
+field.
+
+
+
 #### `init-version`
 
 * Default: "1.0.0"

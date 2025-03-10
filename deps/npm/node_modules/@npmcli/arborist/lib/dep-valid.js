@@ -101,7 +101,7 @@ const depValid = (child, requested, requestor) => {
       })
     }
 
-    default: // unpossible, just being cautious
+    default: // impossible, just being cautious
       break
   }
 

@@ -5,6 +5,14 @@
  * Make sure to inspect the output below.  Do not ignore changes!
  */
 'use strict'
+exports[`test/lib/cli/update-notifier.js TAP notification situation with engine compatibility > must match snapshot 1`] = `
+
+New minor version of npm available! 123.420.70 -> 123.421.60
+Changelog: https://github.com/npm/cli/releases/tag/v123.421.60
+To update run: npm install -g npm@123.421.60
+
+`
+
 exports[`test/lib/cli/update-notifier.js TAP notification situations 122.420.69 - color=always > must match snapshot 1`] = `
 
 New [31mmajor[39m version of npm available! [31m122.420.69[39m -> [34m123.420.69[39m
