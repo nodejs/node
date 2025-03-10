@@ -86,5 +86,28 @@ for (const Transferrable of [File, Blob]) {
   assert.deepStrictEqual(cloned, {});
 }
 
+{
+  // https://github.com/nodejs/node/issues/49181
+  const [e, c] = (() => {
+    try {
+      structuredClone(() => {});
+    } catch (e) {
+      return [e, structuredClone(e)];
+    }
+  })();
+
+  assert.strictEqual(e instanceof Error, c instanceof Error);
+  assert.strictEqual(e.name, c.name);
+  assert.strictEqual(e.message, c.message);
+  assert.strictEqual(e.code, c.code);
+}
+
+{
+  const obj = {};
+  obj.setPrototypeOf(DOMException.prototype);
+  const clone = structuredClone(obj);
+  assert.strictEqual(clone instanceof DOMException, false);
+}
+
 const blob = new Blob();
 assert.throws(() => structuredClone(blob, { transfer: [blob] }), { name: 'DataCloneError' });
