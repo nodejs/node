@@ -633,6 +633,42 @@ const tests = [
     ],
     clean: false
   },
+  {
+    // Test that the multiline history is correctly navigated and it can be edited
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let a = ``',
+      ENTER,
+      'a = `I am a multiline strong',
+      ENTER,
+      'which ends here`',
+      ENTER,
+      UP,
+      // press LEFT 19 times to reach the typo
+      ...Array(19).fill(LEFT),
+      BACKSPACE,
+      'i',
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let a = ``',
+      'undefined\n',
+      prompt, ...'a = `I am a multiline strong',
+      '... ',
+      ...'which ends here`',
+      "'I am a multiline strong\\nwhich ends here'\n",
+      prompt,
+      `${prompt}a = \`I am a multiline strong\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline strong\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline strng\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline string\nwhich ends here\``,
+      `${prompt}a = \`I am a multiline string\nwhich ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n",
+      prompt,
+    ],
+    clean: true
+  },
 ];
 const numtests = tests.length;
 
