@@ -97,8 +97,8 @@ As part of the regular build/release process both the `html` and
 `json` files are published to [nodejs.org][].
 
 The generator that does the conversion is in the
-[tools/doc][]
-directory.
+[nodejs/api-docs-tooling][]
+repository.
 
 ## Markdown structure
 
@@ -125,4 +125,4 @@ JSON output.
 [next-10]: https://github.com/nodejs/next-10/blob/HEAD/meetings/summit-nov-2021.md#suitable-types-for-end-users
 [nodejs.org]: https://nodejs.org/en/docs/
 [suitable types for end-users]: https://github.com/nodejs/node/blob/HEAD/doc/contributing/technical-priorities.md#suitable-types-for-end-users
-[tools/doc]: https://github.com/nodejs/node/tree/HEAD/tools/doc
+[nodejs/api-docs-tooling]: https://github.com/nodejs/api-docs-tooling

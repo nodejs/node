@@ -82,6 +82,7 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+NPX ?= ./deps/npm/bin/npx-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -100,6 +101,16 @@ available-node = \
 		`command -v node` $(1); \
 	else \
 		echo "No available node, cannot run \"node $(1)\""; \
+		exit 1; \
+	fi;
+
+available-npx = \
+	if [ -x "$(NPX)" ] && [ -e "$(NPX)" ]; then \
+		"$(NPX)" $(1); \
+	elif [ -x `command -v npx` ] && [ -e `command -v npx` ] && [ `command -v npx` ]; then \
+		`command -v npx` $(1); \
+	else \
+		echo "No available npx, cannot run \"npx $(1)\""; \
 		exit 1; \
 	fi;
 
@@ -333,7 +344,6 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 # This does not run tests of third-party libraries inside deps.
 test: all ## Run default tests, linters, and build docs.
 	$(MAKE) -s tooltest
-	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
@@ -369,7 +379,7 @@ test-valgrind: all ## Run tests using valgrind.
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = tools/doc/ doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
@@ -385,7 +395,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
+		[ -x $(NPM) ] && $(NPM) --prefix $< run addon-verify || npm --prefix $< run addon-verify ; \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -559,11 +569,6 @@ NATIVE_SUITES ?= addons js-native-api node-api
 # CI_* variables should be kept synchronized with the ones in vcbuild.bat
 CI_NATIVE_SUITES ?= $(NATIVE_SUITES) benchmark
 CI_JS_SUITES ?= $(JS_SUITES) pummel
-ifeq ($(node_use_openssl_and_icu), false)
-	CI_DOC := doctool
-else
-	CI_DOC =
-endif
 
 .PHONY: test-ci-native
 
@@ -596,7 +601,7 @@ test-ci: | clear-stalled bench-addons-build build-addons build-js-native-api-tes
 	out/Release/cctest --gtest_output=xml:out/junit/cctest.xml
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) -p tap --logfile test.tap \
 		--mode=$(BUILDTYPE_LOWER) --flaky-tests=$(FLAKY_TESTS) \
-		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES) $(CI_DOC)
+		$(TEST_CI_ARGS) $(CI_JS_SUITES) $(CI_NATIVE_SUITES)
 	$(NODE) ./test/embedding/test-embedding.js
 	$(info Clean up any leftover processes, error if found.)
 	ps awwx | grep Release/node | grep -v grep | cat
@@ -657,18 +662,6 @@ test-tick-processor: all ## Run tick processor tests.
 .PHONY: test-hash-seed
 test-hash-seed: all ## Verifu that the hash seed used by V8 for hashing is random.
 	$(NODE) test/pummel/test-hash-seed.js
-
-.PHONY: test-doc
-test-doc: doc-only lint-md ## Build, lint, and verify the docs.
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping test-doc (no crypto and/or no ICU)"; \
-	else \
-		$(PYTHON) tools/test.py $(PARALLEL_ARGS) doctool; \
-	fi
-
-.PHONY: test-doc-ci
-test-doc-ci: doc-only ## Build, lint, and verify the docs (CI).
-	$(PYTHON) tools/test.py --shell $(NODE) $(TEST_CI_ARGS) $(PARALLEL_ARGS) doctool
 
 .PHONY: test-known-issues
 test-known-issues: all ## Run tests for known issues.
@@ -782,11 +775,8 @@ endif
 apidoc_dirs = out/doc out/doc/api out/doc/api/assets
 skip_apidoc_files = doc/api/quic.md
 
-apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
-apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
-apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
-
-apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
+node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
+run-npm-ci = $(PWD)/$(NPM) ci
 
 tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -797,11 +787,11 @@ tools/doc/node_modules: tools/doc/package.json
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
-	$(apidoc_dirs) $(apiassets) ## Build the docs with the local or the global Node.js binary.
-	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping doc-only (no crypto and/or no ICU)"; \
+	$(apidoc_dirs)  ## Builds the docs with the local or the global Node.js binary.
+	@if [ "$(shell $(node_use_openssl))" != "true" ] || [ "$(shell $(node_use_icu))" != "true" ]; then \
+		echo "Skipping doc-only (no crypto or no icu)"; \
 	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/api/stability; \
+		$(call available-npx, --prefix tools/doc api-docs-tooling -t legacy-html-all legacy-json-all api-links -i doc/api/\*.md -i lib/\*.js -o out/doc/api/ -c file://$(PWD)/CHANGELOG.md) \
 	fi
 
 .PHONY: doc
@@ -816,66 +806,6 @@ out/doc:
 out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
-
-# If it's a source tarball, assets are already in doc/api/assets
-out/doc/api/assets:
-	mkdir -p $@
-	if [ -d doc/api/assets ]; then cp -r doc/api/assets out/doc/api; fi;
-
-# If it's not a source tarball, we need to copy assets from doc/api_assets
-out/doc/api/assets/%: doc/api_assets/% | out/doc/api/assets
-	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
-
-
-run-npm-ci = $(PWD)/$(NPM) ci
-
-LINK_DATA = out/doc/apilinks.json
-VERSIONS_DATA = out/previous-doc-versions.json
-gen-api = tools/doc/generate.mjs --node-version=$(FULLVERSION) \
-		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
-		--versions-file=$(VERSIONS_DATA)
-gen-apilink = tools/doc/apilinks.mjs $(LINK_DATA) $(wildcard lib/*.js)
-
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
-	$(call available-node, $(gen-apilink))
-
-# Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
-	$(call available-node, tools/doc/versions.mjs $@)
-
-node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
-
-out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.mjs \
-	tools/doc/markdown.mjs tools/doc/html.mjs tools/doc/json.mjs \
-	tools/doc/apilinks.mjs $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping documentation generation (no ICU)"; \
-	else \
-		$(call available-node, $(gen-api)) \
-	fi
-
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.mjs \
-	tools/doc/apilinks.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping HTML single-page doc generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/allhtml.mjs) \
-	fi
-
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping JSON single-file generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/alljson.mjs) \
-	fi
-
-.PHONY: out/doc/api/stability
-out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping stability indicator generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/stability.mjs) \
-	fi
 
 .PHONY: docopen
 docopen: out/doc/api/all.html ## Open the documentation in a web browser.
