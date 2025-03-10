@@ -612,7 +612,7 @@ if not exist %node_exe% (
 mkdir %config%\doc
 robocopy /e doc\api %config%\doc\api
 
-"%npx_exe%" --prefix tools/doc api-docs-tooling -t legacy-html-all legacy-json-all api-links -i doc/api/*.md -i lib/*.js -o out/doc/api/
+"%npx_exe%" --prefix tools/doc api-docs-tooling -t legacy-html-all legacy-json-all api-links -i doc/api/*.md -i lib/*.js -o out/doc/api/ -c file://%~dp0\CHANGELOG.md
 
 :run
 @rem Run tests if requested.
@@ -771,7 +771,7 @@ for /D %%D IN (doc\*) do (
   )
 )
 %node_exe% tools\lint-md\lint-md.mjs %lint_md_files%
-%npx_exe% --prefix tools\doc api-docs-tooling -i doc/api/*.md
+%npx_exe% --prefix tools\doc api-docs-tooling -i doc\api\*.md
 ENDLOCAL
 goto format-md
 
