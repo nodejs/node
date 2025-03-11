@@ -450,7 +450,7 @@ util.formatWithOptions({ colors: true }, 'See object %O', { foo: 42 });
 // when printed to a terminal.
 ```
 
-## `util.getCallSites(frameCountOrOptions, [options])`
+## `util.getCallSites([frameCount][, options])`
 
 <!-- YAML
 added: v22.9.0
