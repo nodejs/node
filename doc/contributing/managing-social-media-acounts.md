@@ -30,9 +30,10 @@ and post when doing a release, and TSC members may post
 an announcement of a release if a releaser is not able to
 do it themselves.
 
-Login credentials are available to members of the Technical
-Steering Committee. Releasers may request access by
-opening an issue in the nodejs/admin repo asking for access.
+Linked in allows the addition of content admins. Releasers may 
+request access by opening an issue in the nodejs/admin repo
+asking for access. Once approved they should ask @bensternthal
+to add them.
 
 ## Facebook
 
