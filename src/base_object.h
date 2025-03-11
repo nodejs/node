@@ -105,8 +105,6 @@ class BaseObject : public MemoryRetainer {
   // to it anymore.
   inline bool IsWeakOrDetached() const;
 
-  inline v8::EmbedderGraph::Node::Detachedness GetDetachedness() const override;
-
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
@@ -192,7 +190,6 @@ class BaseObject : public MemoryRetainer {
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
-  bool IsRootNode() const override;
   void DeleteMe();
 
   // persistent_handle_ needs to be at a fixed offset from the start of the
