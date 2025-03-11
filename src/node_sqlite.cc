@@ -1887,13 +1887,9 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_.get());
-    return;
-  }
-
+  sqlite3_step(stmt->statement_);
+  r = sqlite3_reset(stmt->statement_);
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   Local<Object> result = Object::New(env->isolate());
   sqlite3_int64 last_insert_rowid =
       sqlite3_last_insert_rowid(stmt->db_->Connection());
