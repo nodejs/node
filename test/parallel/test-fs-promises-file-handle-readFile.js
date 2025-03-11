@@ -37,7 +37,7 @@ async function validateReadFile() {
 }
 
 async function validateLargeFileSupport() {
-  const LARGE_FILE_SIZE = 3 * 1024 * 1024 * 1024; // 3 GiB
+  const LARGE_FILE_SIZE = 2147483647 + 10 * 1024 * 1024; // INT32_MAX + 10 MB
   const FILE_PATH = path.join(os.tmpdir(), 'large-virtual-file.bin');
 
   function createVirtualLargeFile() {
