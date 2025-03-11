@@ -11,6 +11,7 @@ const fs = require('node:fs');
   const validContent = fs.readFileSync(validEnvFilePath, 'utf8');
 
   assert.deepStrictEqual(util.parseEnv(validContent), {
+    A: 'B=C',
     AFTER_LINE: 'after_line',
     BACKTICKS: 'backticks',
     BACKTICKS_INSIDE_DOUBLE: '`backticks` work inside double quotes',
