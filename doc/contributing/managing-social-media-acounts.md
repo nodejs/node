@@ -53,5 +53,5 @@ an announcement of a release if a releaser is not able to
 do it themselves.
 
 Login credentials are available to members of the Technical
-Steering Committee. Releasers may request access by
+Steering Committee. Releasers or TSC members may request access by
 opening an issue in the nodejs/admin repo asking for access.
