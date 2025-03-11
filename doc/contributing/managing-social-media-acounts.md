@@ -50,7 +50,8 @@ delegated to the Foundation Staff.
 In addition, it has been agreed that Releasers may login
 and post when doing a release, and TSC members may post
 an announcement of a release if a releaser is not able to
-do it themselves.
+do it themselves. All other content should be managed by the Foundation
+staff.
 
 Login credentials are available to members of the Technical
 Steering Committee. Releasers or TSC members may request access by
