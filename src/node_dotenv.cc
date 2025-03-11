@@ -129,129 +129,149 @@ void Dotenv::ParseContent(const std::string_view input) {
   std::string_view content = lines;
   content = trim_spaces(content);
 
-  std::string_view key;
-  std::string_view value;
-
   while (!content.empty()) {
     // Skip empty lines and comments
     if (content.front() == '\n' || content.front() == '#') {
       auto newline = content.find('\n');
       if (newline != std::string_view::npos) {
         content.remove_prefix(newline + 1);
-        continue;
+      } else {
+        content.remove_prefix(content.size());
       }
-    }
-
-    // If there is no equal character, then ignore everything
-    auto equal = content.find('=');
-    if (equal == std::string_view::npos) {
-      break;
-    }
-
-    key = content.substr(0, equal);
-    content.remove_prefix(equal + 1);
-    key = trim_spaces(key);
-
-    // If the value is not present (e.g. KEY=) set is to an empty string
-    if (content.empty() || content.front() == '\n') {
-      store_.insert_or_assign(std::string(key), "");
       continue;
     }
 
+    auto equal = content.find('=');
+    if (equal == std::string_view::npos) {
+      // If the line does not contain an equal sign, key = value pair is invalid
+      // Skip the line and move to the next one
+      auto newline = content.find('\n');
+      if (newline != std::string_view::npos) {
+        content.remove_prefix(newline + 1);
+      } else {
+        content.remove_prefix(content.size());
+      }
+      continue;
+    }
+
+    std::string key = content.substr(0, equal);
+    key = trim_spaces(key);
+
+    content.remove_prefix(equal + 1);
     content = trim_spaces(content);
 
-    if (key.empty()) {
-      break;
-    }
+    if (key.empty() {
+      auto newline = content.find('\n');
+      if (newline != std::string_view::npos) {
+        content.remove_prefix(newline + 1);
+      } else {
+        content.remove_prefix(content.size());
+      }
+      continue;
+    })
 
-    // Remove export prefix from key
     if (key.starts_with("export ")) {
       key.remove_prefix(7);
-    }
-
-    // SAFETY: Content is guaranteed to have at least one character
-    if (content.empty()) {
-      // In case the last line is a single key without value
-      // Example: KEY= (without a newline at the EOF)
-      store_.insert_or_assign(std::string(key), "");
-      break;
-    }
-
-    // Expand new line if \n it's inside double quotes
-    // Example: EXPAND_NEWLINES = 'expand\nnew\nlines'
-    if (content.front() == '"') {
-      auto closing_quote = content.find(content.front(), 1);
-      if (closing_quote != std::string_view::npos) {
-        value = content.substr(1, closing_quote - 1);
-        std::string multi_line_value = std::string(value);
-
-        size_t pos = 0;
-        while ((pos = multi_line_value.find("\\n", pos)) !=
-               std::string_view::npos) {
-          multi_line_value.replace(pos, 2, "\n");
-          pos += 1;
-        }
-
-        store_.insert_or_assign(std::string(key), multi_line_value);
-        auto newline = content.find('\n', closing_quote + 1);
+      key = trim_spaces(key);
+      if (key.empty()) {
+        auto newline = content.find('\n');
         if (newline != std::string_view::npos) {
-          content.remove_prefix(newline);
+          content.remove_prefix(newline + 1);
+        } else {
+          content.remove_prefix(content.size());
         }
         continue;
       }
     }
 
-    // Check if the value is wrapped in quotes, single quotes or backticks
-    if ((content.front() == '\'' || content.front() == '"' ||
-         content.front() == '`')) {
-      auto closing_quote = content.find(content.front(), 1);
-
-      // Check if the closing quote is not found
-      // Example: KEY="value
-      if (closing_quote == std::string_view::npos) {
-        // Check if newline exist. If it does, take the entire line as the value
-        // Example: KEY="value\nKEY2=value2
-        // The value pair should be `"value`
-        auto newline = content.find('\n');
-        if (newline != std::string_view::npos) {
-          value = content.substr(0, newline);
-          store_.insert_or_assign(std::string(key), value);
-          content.remove_prefix(newline);
-        }
+    if (content.empty() || content.front() == '\n') {
+      store_.insert_or_assign(std::string(key), "");
+      auto newline = content.find('\n');
+      if (newline != std::string_view::npos) {
+        content.remove_prefix(newline + 1);
       } else {
-        // Example: KEY="value"
-        value = content.substr(1, closing_quote - 1);
-        store_.insert_or_assign(std::string(key), value);
-        // Select the first newline after the closing quotation mark
-        // since there could be newline characters inside the value.
-        auto newline = content.find('\n', closing_quote + 1);
-        if (newline != std::string_view::npos) {
-          content.remove_prefix(newline);
+        content.remove_prefix(content.size());
+      }
+      continue;
+    }
+
+    bool did_store = false;
+
+    if (content.front('"')) {
+      auto closing_quote = content.find('"', 1);
+      if (closing_quote != std::string_view::npos) {
+        std::string_view raw_value = content.substr(1, closing_quote - 1);
+        std::string expanded = std::string(raw_value);
+
+        size_t pos = 0;
+        while ((pos = expanded.find("\\n", pos)) != std::string_view::npos) {
+          expanded.replace(pos, 2, "\n");
+          pos += 1;
+        }
+
+        store_.insert_or_assign(std::string(key), expanded);
+        did_store = true;
+
+        auto newline_pos = content.find('\n', closing_quote + 1);
+        if (newline_pos != std::string_view::npos) {
+          content.remove_prefix(newline_pos + 1);
+        } else {
+          content.remove_prefix(content.size());
         }
       }
-    } else {
-      // Regular key value pair.
-      // Example: `KEY=this is value`
-      auto newline = content.find('\n');
+    }
 
-      if (newline != std::string_view::npos) {
-        value = content.substr(0, newline);
-        auto hash_character = value.find('#');
-        // Check if there is a comment in the line
-        // Example: KEY=value # comment
-        // The value pair should be `value`
-        if (hash_character != std::string_view::npos) {
-          value = content.substr(0, hash_character);
+    if (!did_store) {
+      if (content.front() == '\'' ||
+      content.front() == '`' ||
+        content.front() == '"') {
+        auto quote_char = content.front();
+        auto closing_quote = content.find(content.front(), 1);
+        if (closing_quote == std::string_view::npos) {
+          auto newline = content.find('\n');
+          std::string_view val;
+          if (newline != std::string_view::npos) {
+            val = content.substr(0, newline);
+            store_.insert_or_assign(std::string(key), std::string(val));
+            did_store = true;
+            content.remove_prefix(newline + 1);
+          } else {
+            val = content;
+            store_.insert_or_assign(std::string(key), std::string(val));
+            did_store = true;
+            content.remove_prefix(content.size());
+          }
+        } else {
+          auto val = content.substr(1, closing_quote - 1);
+          store_.insert_or_assign(std::string(key), std::string(val));
+          did_store = true;
+          auto newline = content.find('\n', closing_quote + 1);
+          if (newline != std::string_view::npos) {
+            content.remove_prefix(newline + 1);
+          } else {
+            content.remove_prefix(content.size());
+          }
         }
+      }
+    }
+
+    if (!did_store) {
+      auto newline = content.find('\n');
+      std::string_view val;
+      if (newline != std::string_view::npos) {
+        val = content.substr(0, newline);
+        auto hash_pos = val.find('#');
+        if (hash_pos != std::string_view::npos) {
+          val = val.substr(0, hash_pos);
+        }
+        val = trim_spaces(val);
+        store_.insert_or_assign(std::string(key), std::string(val));
         content.remove_prefix(newline);
       } else {
-        // In case the last line is a single key/value pair
-        // Example: KEY=VALUE (without a newline at the EOF)
-        value = content.substr(0);
+        val = content;
+        store_.insert_or_assign(std::string(key), std::string(val));
+        content.remove_prefix(content.size());
       }
-
-      value = trim_spaces(value);
-      store_.insert_or_assign(std::string(key), value);
     }
   }
 }

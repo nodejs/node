@@ -82,3 +82,4 @@ assert.strictEqual(process.env.DONT_EXPAND_SQUOTED, 'dontexpand\\nnewlines');
 assert.strictEqual(process.env.EXPORT_EXAMPLE, 'ignore export');
 // Ignore spaces before double quotes to avoid quoted strings as value
 assert.strictEqual(process.env.SPACE_BEFORE_DOUBLE_QUOTES, 'space before double quotes');
+assert.strictEqual(process.env.MULTI_EQUALS, 'B=C');
