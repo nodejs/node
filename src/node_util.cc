@@ -357,7 +357,7 @@ static void DefineLazyPropertiesGetter(
   // This getter has no JavaScript function representation and is not
   // invoked in the creation context.
   // When this getter is invoked in a vm context, the `Realm::GetCurrent(info)`
-  // returns a nullptr and. Retrieve the creation context via `this` object and
+  // returns a nullptr and retrieve the creation context via `this` object and
   // get the creation Realm.
   Local<Value> receiver_val = info.This();
   if (!receiver_val->IsObject()) {

@@ -968,7 +968,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     Local<Object> options = args[0].As<Object>();
 
     Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
-    if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> table_value;
       if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
         return;
@@ -986,7 +990,10 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<String> db_key = FIXED_ONE_BYTE_STRING(env->isolate(), "db");
 
-    if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
+    if (!options->HasOwnProperty(env->context(), db_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> db_value;
       if (!options->Get(env->context(), db_key).ToLocal(&db_value)) {
         // An error will have been scheduled.
@@ -1205,8 +1212,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       };
     }
 
-    if (options->HasOwnProperty(env->context(), env->filter_string())
-            .FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), env->filter_string())
+             .To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> filterValue;
       if (!options->Get(env->context(), env->filter_string())
                .ToLocal(&filterValue)) {
@@ -1855,13 +1866,9 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_.get());
-    return;
-  }
-
+  sqlite3_step(stmt->statement_);
+  r = sqlite3_reset(stmt->statement_);
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   Local<Object> result = Object::New(env->isolate());
   sqlite3_int64 last_insert_rowid =
       sqlite3_last_insert_rowid(stmt->db_->Connection());
