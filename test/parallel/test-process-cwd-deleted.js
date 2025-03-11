@@ -10,7 +10,6 @@ const common = require('../common');
 const { fork } = require('node:child_process');
 const { rmSync } = require('node:fs');
 const assert = require('node:assert');
-const { Buffer } = require('node:buffer');
 
 if (process.argv[2] === 'child') {
   while (true) {
