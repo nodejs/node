@@ -3848,8 +3848,13 @@ changes:
   * `port` {number} Port of remote server. **Default:** `defaultPort` if set,
     else `80`.
   * `protocol` {string} Protocol to use. **Default:** `'http:'`.
+  * `setDefaultHeaders` {boolean}: Specifies whether or not to automatically add
+    default headers such as `Connection`, `Content-Length`, `Transfer-Encoding`,
+    and `Host`. If set to `false` then all necessary headers must be added
+    manually. Defaults to `true`.
   * `setHost` {boolean}: Specifies whether or not to automatically add the
-    `Host` header. Defaults to `true`.
+    `Host` header. If provided, this overrides `setDefaultHeaders`. Defaults to
+    `true`.
   * `signal` {AbortSignal}: An AbortSignal that may be used to abort an ongoing
     request.
   * `socketPath` {string} Unix domain socket. Cannot be used if one of `host`
@@ -4251,7 +4256,7 @@ A browser-compatible implementation of [`WebSocket`][].
 [`Headers`]: globals.md#class-headers
 [`TypeError`]: errors.md#class-typeerror
 [`URL`]: url.md#the-whatwg-url-api
-[`WebSocket`]: #websocket
+[`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket
 [`agent.createConnection()`]: #agentcreateconnectionoptions-callback
 [`agent.getName()`]: #agentgetnameoptions
 [`destroy()`]: #agentdestroy

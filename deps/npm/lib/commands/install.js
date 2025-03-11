@@ -68,7 +68,7 @@ class Install extends ArboristWorkspaceCmd {
           const contents = await readdir(join(partialPath, sibling))
           const result = (contents.indexOf('package.json') !== -1)
           return result
-        } catch (er) {
+        } catch {
           return false
         }
       }
@@ -86,7 +86,7 @@ class Install extends ArboristWorkspaceCmd {
         }
         // no matches
         return []
-      } catch (er) {
+      } catch {
         return [] // invalid dir: no matching
       }
     }
@@ -115,7 +115,6 @@ class Install extends ArboristWorkspaceCmd {
         if (forced) {
           log.warn(
             'install',
-            /* eslint-disable-next-line max-len */
             `Forcing global npm install with incompatible version ${npmManifest.version} into node ${process.version}`
           )
         } else {

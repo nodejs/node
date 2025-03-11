@@ -397,14 +397,14 @@ const definitions = {
       \`\`\`
 
       It is _not_ the path to a certificate file, though you can set a registry-scoped
-      "certfile" path like "//other-registry.tld/:certfile=/path/to/cert.pem".
+      "cafile" path like "//other-registry.tld/:cafile=/path/to/cert.pem".
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`certfile\` instead.
+      Use registry scoped \`keyfile\` and \`cafile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:certfile=/path/to/cert.crt
+      //other-registry.tld/:cafile=/path/to/cert.crt
     `,
     flatten,
   }),
@@ -461,7 +461,7 @@ const definitions = {
   depth: new Definition('depth', {
     default: null,
     defaultDescription: `
-      \`Infinity\` if \`--all\` is set, otherwise \`1\`
+      \`Infinity\` if \`--all\` is set, otherwise \`0\`
     `,
     type: [null, Number],
     description: `
@@ -1077,10 +1077,10 @@ const definitions = {
     `,
     deprecated: `
       \`key\` and \`cert\` are no longer used for most registry operations.
-      Use registry scoped \`keyfile\` and \`certfile\` instead.
+      Use registry scoped \`keyfile\` and \`cafile\` instead.
       Example:
       //other-registry.tld/:keyfile=/path/to/key.pem
-      //other-registry.tld/:certfile=/path/to/cert.crt
+      //other-registry.tld/:cafile=/path/to/cert.crt
     `,
     flatten,
   }),

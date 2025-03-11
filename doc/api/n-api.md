@@ -292,6 +292,10 @@ information is in the latest API documentation in:
     <th scope="col">Supported In</th>
   </tr>
   <tr>
+    <th scope="row">10</th>
+    <td>v22.14.0+, 23.6.0+ and all later versions</td>
+  </tr>
+  <tr>
     <th scope="row">9</th>
     <td>v18.17.0+, 20.3.0+, 21.0.0 and all later versions</td>
   </tr>
@@ -1748,7 +1752,7 @@ will not be freed. This can be avoided by calling
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   References can be created for all value types. The new supported value
   types do not support weak reference semantic and the values of these types
@@ -2699,10 +2703,11 @@ JavaScript `TypedArray` objects are described in
 #### `node_api_create_buffer_from_arraybuffer`
 
 <!-- YAML
-added: v23.0.0
+added:
+  - v23.0.0
+  - v22.12.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_buffer_from_arraybuffer(napi_env env,
@@ -2965,9 +2970,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -3045,9 +3049,8 @@ The JavaScript `string` type is described in
 added:
  - v20.4.0
  - v18.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status
@@ -3140,9 +3143,8 @@ creation methods.
 added:
   - v22.9.0
   - v20.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_latin1(napi_env env,
@@ -3175,9 +3177,8 @@ The JavaScript `string` type is described in
 added:
   - v21.7.0
   - v20.12.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf16(napi_env env,
@@ -3208,9 +3209,8 @@ The JavaScript `string` type is described in
 added:
   - v22.9.0
   - v20.18.0
+napiVersion: 10
 -->
-
-> Stability: 1 - Experimental
 
 ```c
 napi_status NAPI_CDECL node_api_create_property_key_utf8(napi_env env,
@@ -6531,7 +6531,7 @@ napi_create_threadsafe_function(napi_env env,
 
 **Change History:**
 
-* Experimental (`NAPI_EXPERIMENTAL` is defined):
+* Version 10 (`NAPI_VERSION` is defined as `10` or higher):
 
   Uncaught exceptions thrown in `call_js_cb` are handled with the
   [`'uncaughtException'`][] event, instead of being ignored.

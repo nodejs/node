@@ -112,16 +112,17 @@ class ExternString: public ResourceType {
     ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                    data,
                                                                    length);
-    MaybeLocal<Value> str = NewExternal(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+    Local<Value> str;
 
-    if (str.IsEmpty()) {
+    if (!NewExternal(isolate, h_str).ToLocal(&str)) {
       delete h_str;
       *error = node::ERR_STRING_TOO_LONG(isolate);
       return MaybeLocal<Value>();
     }
 
-    return str.ToLocalChecked();
+    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+
+    return str;
   }
 
   inline Isolate* isolate() const { return isolate_; }
@@ -168,16 +169,16 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const char* data,
                                                          size_t length,
                                                          Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromOneByte(isolate,
-                             reinterpret_cast<const uint8_t*>(data),
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
+  Local<String> str;
+  if (!String::NewFromOneByte(isolate,
+                              reinterpret_cast<const uint8_t*>(data),
+                              v8::NewStringType::kNormal,
+                              length)
+           .ToLocal(&str)) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
 
 
@@ -186,16 +187,13 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const uint16_t* data,
                                                          size_t length,
                                                          Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromTwoByte(isolate,
-                             data,
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
+  Local<String> str;
+  if (!String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal, length)
+           .ToLocal(&str)) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
 
 }  // anonymous namespace
@@ -305,10 +303,11 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
+        String::Value value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(input_view.data16()),
-            input_view.length(),
+            reinterpret_cast<const char16_t*>(*value),
+            value.length(),
             buf,
             written_len,
             simdutf::base64_url);
@@ -318,8 +317,7 @@ size_t StringBytes::Write(Isolate* isolate,
           // The input does not follow the WHATWG forgiving-base64 specification
           // (adapted for base64url with + and / replaced by - and _).
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(
-              buf, buflen, input_view.data16(), input_view.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *value, value.length());
         }
       }
       break;
@@ -344,10 +342,11 @@ size_t StringBytes::Write(Isolate* isolate,
               input_view.length());
         }
       } else {
+        String::Value value(isolate, str);
         size_t written_len = buflen;
         auto result = simdutf::base64_to_binary_safe(
-            reinterpret_cast<const char16_t*>(input_view.data16()),
-            input_view.length(),
+            reinterpret_cast<const char16_t*>(*value),
+            value.length(),
             buf,
             written_len);
         if (result.error == simdutf::error_code::SUCCESS) {
@@ -355,8 +354,7 @@ size_t StringBytes::Write(Isolate* isolate,
         } else {
           // The input does not follow the WHATWG base64 specification
           // https://infra.spec.whatwg.org/#forgiving-base64-decode
-          nbytes = nbytes::Base64Decode(
-              buf, buflen, input_view.data16(), input_view.length());
+          nbytes = nbytes::Base64Decode(buf, buflen, *value, value.length());
         }
       }
       break;
@@ -369,8 +367,8 @@ size_t StringBytes::Write(Isolate* isolate,
                               reinterpret_cast<const char*>(input_view.data8()),
                               input_view.length());
       } else {
-        String::ValueView value(isolate, str);
-        nbytes = nbytes::HexDecode(buf, buflen, value.data8(), value.length());
+        String::Value value(isolate, str);
+        nbytes = nbytes::HexDecode(buf, buflen, *value, value.length());
       }
       break;
 

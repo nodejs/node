@@ -1121,6 +1121,43 @@ While the diagnostics\_channel API is now considered stable, the built-in
 channels currently available are not. Each channel must be declared stable
 independently.
 
+#### Console
+
+`console.log`
+
+* `args` {any\[]}
+
+Emitted when `console.log()` is called. Receives and array of the arguments
+passed to `console.log()`.
+
+`console.info`
+
+* `args` {any\[]}
+
+Emitted when `console.info()` is called. Receives and array of the arguments
+passed to `console.info()`.
+
+`console.debug`
+
+* `args` {any\[]}
+
+Emitted when `console.debug()` is called. Receives and array of the arguments
+passed to `console.debug()`.
+
+`console.warn`
+
+* `args` {any\[]}
+
+Emitted when `console.warn()` is called. Receives and array of the arguments
+passed to `console.warn()`.
+
+`console.error`
+
+* `args` {any\[]}
+
+Emitted when `console.error()` is called. Receives and array of the arguments
+passed to `console.error()`.
+
 #### HTTP
 
 `http.client.request.created`
@@ -1158,6 +1195,14 @@ Emitted when client receives a response.
 * `server` {http.Server}
 
 Emitted when server receives a request.
+
+`http.server.response.created`
+
+* `request` {http.IncomingMessage}
+* `response` {http.ServerResponse}
+
+Emitted when server creates a response.
+The event is emitted before the response is sent.
 
 `http.server.response.finish`
 

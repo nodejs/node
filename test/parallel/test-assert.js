@@ -801,7 +801,7 @@ test('Test strict assert', () => {
     '\n' +
     '+ {}\n' +
     '- {\n' +
-    '-   [Symbol(nodejs.util.inspect.custom)]: [Function (anonymous)],\n' +
+    '-   Symbol(nodejs.util.inspect.custom): [Function (anonymous)],\n' +
     "-   loop: 'forever'\n" +
     '- }\n'
   });
@@ -919,11 +919,7 @@ test('Additional asserts', () => {
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'Expected values to be strictly equal:\n' +
-        '+ actual - expected\n' +
-        '\n' +
-        "+ 'string'\n" +
-        '- false\n'
+      message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
 
@@ -935,11 +931,7 @@ test('Additional asserts', () => {
     {
       code: 'ERR_ASSERTION',
       constructor: assert.AssertionError,
-      message: 'Expected values to be strictly equal:\n' +
-        '+ actual - expected\n' +
-        '\n' +
-        "+ 'string'\n" +
-        '- false\n'
+      message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
 
@@ -951,11 +943,7 @@ test('Additional asserts', () => {
   }, {
     code: 'ERR_ASSERTION',
     constructor: assert.AssertionError,
-    message: 'Expected values to be strictly equal:\n' +
-      '+ actual - expected\n' +
-      '\n' +
-      "+ 'string'\n" +
-      '- false\n'
+    message: 'Expected values to be strictly equal:\n\n\'string\' !== false\n'
     }
   );
   /* eslint-enable @stylistic/js/indent */
@@ -1355,6 +1343,17 @@ test('Additional assert', () => {
   assert.throws(
     () => {
       assert.deepStrictEqual({ a: true }, { a: false }, 'custom message');
+    },
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: 'custom message\n+ actual - expected\n\n  {\n+   a: true\n-   a: false\n  }\n'
+    }
+  );
+
+  assert.throws(
+    () => {
+      assert.partialDeepStrictEqual({ a: true }, { a: false }, 'custom message');
     },
     {
       code: 'ERR_ASSERTION',

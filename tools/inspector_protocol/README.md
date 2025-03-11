@@ -1,33 +1,37 @@
 # Chromium inspector (devtools) protocol
 
-This package contains code generators and templates for the Chromium
-inspector protocol.
+This directory contains scripts to update the [Chromium `inspector_protocol`][]
+to local at `deps/inspector_protocol`.
 
-The canonical location of this package is at
-https://chromium.googlesource.com/deps/inspector_protocol/
+To run the `roll.py`, a local clone of the `inspector_protocol` project is required.
+First, you will need to install Chromium's [`depot_tools`][], with `fetch` available
+in your `PATH`.
 
-In the Chromium tree, it's rolled into
-https://cs.chromium.org/chromium/src/third_party/inspector_protocol/
+```console
+$ cd workspace
+/workspace $ mkdir inspector_protocol
+/workspace/inspector_protocol $ fetch inspector_protocol
+# This will create a `src` directory in the current path.
 
-In the V8 tree, it's rolled into
-https://cs.chromium.org/chromium/src/v8/third_party/inspector_protocol/
+# To update local clone.
+/workspace/inspector_protocol $ cd src
+/workspace/inspector_protocol/src $ git checkout main && git pull
+```
 
-See also [Contributing to Chrome Devtools Protocol](https://docs.google.com/document/d/1c-COD2kaK__5iMM5SEx-PzNA7HFmgttcYfOHHX0HaOM/edit).
+With a local clone of the `inspector_protocol` project up to date, run the following
+commands to roll the dep.
 
-We're working on enabling standalone builds for parts of this package for
-testing and development, please feel free to ignore this for now.
-But, if you're familiar with
-[Chromium's development process](https://www.chromium.org/developers/contributing-code)
-and have the depot_tools installed, you may use these commands
-to fetch the package (and dependencies) and build and run the tests:
+```console
+$ cd workspace/node
+/workspace/node $ python tools/inspector_protocol/roll.py \
+  --ip_src_upstream /workspace/inspector_protocol/src \
+  --node_src_downstream /workspace/node \
+  --force
+  # Add --force when you decided to take the update.
+```
 
-    fetch inspector_protocol
-    cd src
-    gn gen out/Release
-    ninja -C out/Release json_parser_test
-    out/Release/json_parser_test
+The `roll.py` requires the node repository to be a clean state (no unstaged changes)
+to avoid unexpected overrides.
 
-You'll probably also need to install g++, since Clang uses this to find the
-standard C++ headers. E.g.,
-
-    sudo apt-get install g++-8
+[`depot_tools`]: https://commondatastorage.googleapis.com/chrome-infra-docs/flat/depot_tools/docs/html/depot_tools_tutorial.html#_setting_up
+[Chromium `inspector_protocol`]: https://chromium.googlesource.com/deps/inspector_protocol/

@@ -16,6 +16,10 @@
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::Cipher;
+using ncrypto::CipherCtxPointer;
+using ncrypto::DataPointer;
 using v8::FunctionCallbackInfo;
 using v8::Just;
 using v8::JustVoid;
@@ -28,6 +32,9 @@ using v8::Value;
 
 namespace crypto {
 namespace {
+constexpr size_t kAesBlockSize = 16;
+constexpr const char* kDefaultWrapIV = "\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6";
+
 // Implements general AES encryption and decryption for CBC
 // The key_data must be a secret key.
 // On success, this function sets out to a new ByteSource
@@ -40,43 +47,30 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
                                  ByteSource* out) {
   CHECK_EQ(key_data.GetKeyType(), kKeyTypeSecret);
 
-  const int mode = EVP_CIPHER_mode(params.cipher);
+  const int mode = params.cipher.getMode();
 
-  CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
-  EVP_CIPHER_CTX_init(ctx.get());
-  if (mode == EVP_CIPH_WRAP_MODE)
-    EVP_CIPHER_CTX_set_flags(ctx.get(), EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  auto ctx = CipherCtxPointer::New();
+  if (mode == EVP_CIPH_WRAP_MODE) {
+    ctx.setFlags(EVP_CIPHER_CTX_FLAG_WRAP_ALLOW);
+  }
 
   const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
 
-  if (!EVP_CipherInit_ex(
-          ctx.get(),
-          params.cipher,
-          nullptr,
-          nullptr,
-          nullptr,
-          encrypt)) {
+  if (!ctx.init(params.cipher, encrypt)) {
     // Cipher init failed
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (mode == EVP_CIPH_GCM_MODE && !EVP_CIPHER_CTX_ctrl(
-        ctx.get(),
-        EVP_CTRL_AEAD_SET_IVLEN,
-        params.iv.size(),
-        nullptr)) {
+  if (mode == EVP_CIPH_GCM_MODE && !ctx.setIvLength(params.iv.size())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (!EVP_CIPHER_CTX_set_key_length(ctx.get(),
-                                     key_data.GetSymmetricKeySize()) ||
-      !EVP_CipherInit_ex(
-          ctx.get(),
-          nullptr,
-          nullptr,
+  if (!ctx.setKeyLength(key_data.GetSymmetricKeySize()) ||
+      !ctx.init(
+          Cipher(),
+          encrypt,
           reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
-          params.iv.data<unsigned char>(),
-          encrypt)) {
+          params.iv.data<unsigned char>())) {
     return WebCryptoCipherStatus::FAILED;
   }
 
@@ -84,17 +78,19 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
 
   if (mode == EVP_CIPH_GCM_MODE) {
     switch (cipher_mode) {
-      case kWebCryptoCipherDecrypt:
+      case kWebCryptoCipherDecrypt: {
         // If in decrypt mode, the auth tag must be set in the params.tag.
         CHECK(params.tag);
-        if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
-                                 EVP_CTRL_AEAD_SET_TAG,
-                                 params.tag.size(),
-                                 const_cast<char*>(params.tag.data<char>()))) {
+        ncrypto::Buffer<const char> buffer = {
+            .data = params.tag.data<char>(),
+            .len = params.tag.size(),
+        };
+        if (!ctx.setAeadTag(buffer)) {
           return WebCryptoCipherStatus::FAILED;
         }
         break;
-      case kWebCryptoCipherEncrypt:
+      }
+      case kWebCryptoCipherEncrypt: {
         // In decrypt mode, we grab the tag length here. We'll use it to
         // ensure that that allocated buffer has enough room for both the
         // final block and the auth tag. Unlike our other AES-GCM implementation
@@ -102,51 +98,51 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
         // of the generated ciphertext and returned in the same ArrayBuffer.
         tag_len = params.length;
         break;
+      }
       default:
         UNREACHABLE();
     }
   }
 
   size_t total = 0;
-  int buf_len = in.size() + EVP_CIPHER_CTX_block_size(ctx.get()) + tag_len;
+  int buf_len = in.size() + ctx.getBlockSize() + tag_len;
   int out_len;
 
-  if (mode == EVP_CIPH_GCM_MODE &&
-      params.additional_data.size() &&
-      !EVP_CipherUpdate(
-            ctx.get(),
-            nullptr,
-            &out_len,
-            params.additional_data.data<unsigned char>(),
-            params.additional_data.size())) {
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = params.additional_data.data<unsigned char>(),
+      .len = params.additional_data.size(),
+  };
+  if (mode == EVP_CIPH_GCM_MODE && params.additional_data.size() &&
+      !ctx.update(buffer, nullptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  ByteSource::Builder buf(buf_len);
+  auto buf = DataPointer::Alloc(buf_len);
+  auto ptr = static_cast<unsigned char*>(buf.get());
 
   // In some outdated version of OpenSSL (e.g.
   // ubi81_sharedlibs_openssl111fips_x64) may be used in sharedlib mode, the
-  // logic will be failed when input size is zero. The newly OpenSSL has fixed
+  // logic will be failed when input size is zero. The newer OpenSSL has fixed
   // it up. But we still have to regard zero as special in Node.js code to
   // prevent old OpenSSL failure.
   //
-  // Refs: https://github.com/openssl/openssl/commit/420cb707b880e4fb649094241371701013eeb15f
+  // Refs:
+  // https://github.com/openssl/openssl/commit/420cb707b880e4fb649094241371701013eeb15f
   // Refs: https://github.com/nodejs/node/pull/38913#issuecomment-866505244
+  buffer = {
+      .data = in.data<unsigned char>(),
+      .len = in.size(),
+  };
   if (in.empty()) {
     out_len = 0;
-  } else if (!EVP_CipherUpdate(ctx.get(),
-                               buf.data<unsigned char>(),
-                               &out_len,
-                               in.data<unsigned char>(),
-                               in.size())) {
+  } else if (!ctx.update(buffer, ptr, &out_len)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
   total += out_len;
   CHECK_LE(out_len, buf_len);
-  out_len = EVP_CIPHER_CTX_block_size(ctx.get());
-  if (!EVP_CipherFinal_ex(
-          ctx.get(), buf.data<unsigned char>() + total, &out_len)) {
+  out_len = ctx.getBlockSize();
+  if (!ctx.update({}, ptr + total, &out_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }
   total += out_len;
@@ -154,16 +150,20 @@ WebCryptoCipherStatus AES_Cipher(Environment* env,
   // If using AES_GCM, grab the generated auth tag and append
   // it to the end of the ciphertext.
   if (cipher_mode == kWebCryptoCipherEncrypt && mode == EVP_CIPH_GCM_MODE) {
-    if (!EVP_CIPHER_CTX_ctrl(ctx.get(),
-                             EVP_CTRL_AEAD_GET_TAG,
-                             tag_len,
-                             buf.data<unsigned char>() + total))
+    if (!ctx.getAeadTag(tag_len, ptr + total)) {
       return WebCryptoCipherStatus::FAILED;
+    }
     total += tag_len;
   }
 
+  if (total == 0) {
+    *out = ByteSource::Allocated(nullptr, 0);
+    return WebCryptoCipherStatus::OK;
+  }
+
   // It's possible that we haven't used the full allocated space. Size down.
-  *out = std::move(buf).release(total);
+  buf = buf.resize(total);
+  *out = ByteSource::Allocated(buf.release());
 
   return WebCryptoCipherStatus::OK;
 }
@@ -221,39 +221,34 @@ WebCryptoCipherStatus AES_CTR_Cipher2(const KeyObjectData& key_data,
                                       const ByteSource& in,
                                       unsigned const char* counter,
                                       unsigned char* out) {
-  CipherCtxPointer ctx(EVP_CIPHER_CTX_new());
-  const bool encrypt = cipher_mode == kWebCryptoCipherEncrypt;
+  auto ctx = CipherCtxPointer::New();
+  if (!ctx) {
+    return WebCryptoCipherStatus::FAILED;
+  }
 
-  if (!EVP_CipherInit_ex(
-          ctx.get(),
+  if (!ctx.init(
           params.cipher,
-          nullptr,
+          cipher_mode == kWebCryptoCipherEncrypt,
           reinterpret_cast<const unsigned char*>(key_data.GetSymmetricKey()),
-          counter,
-          encrypt)) {
+          counter)) {
     // Cipher init failed
     return WebCryptoCipherStatus::FAILED;
   }
 
   int out_len = 0;
   int final_len = 0;
-  if (!EVP_CipherUpdate(
-          ctx.get(),
-          out,
-          &out_len,
-          in.data<unsigned char>(),
-          in.size())) {
+  ncrypto::Buffer<const unsigned char> buffer = {
+      .data = in.data<unsigned char>(),
+      .len = in.size(),
+  };
+  if (!ctx.update(buffer, out, &out_len) ||
+      !ctx.update({}, out + out_len, &final_len, true)) {
     return WebCryptoCipherStatus::FAILED;
   }
 
-  if (!EVP_CipherFinal_ex(ctx.get(), out + out_len, &final_len))
-    return WebCryptoCipherStatus::FAILED;
-
-  out_len += final_len;
-  if (static_cast<unsigned>(out_len) != in.size())
-    return WebCryptoCipherStatus::FAILED;
-
-  return WebCryptoCipherStatus::OK;
+  return static_cast<unsigned>(out_len + final_len) != in.size()
+             ? WebCryptoCipherStatus::FAILED
+             : WebCryptoCipherStatus::OK;
 }
 
 WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
@@ -262,30 +257,29 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
                                      const AESCipherConfig& params,
                                      const ByteSource& in,
                                      ByteSource* out) {
-  auto num_counters = BignumPointer::New();
-  if (!BN_lshift(num_counters.get(), BignumPointer::One(), params.length))
-    return WebCryptoCipherStatus::FAILED;
+  auto num_counters = BignumPointer::NewLShift(params.length);
+  if (!num_counters) return WebCryptoCipherStatus::FAILED;
 
   BignumPointer current_counter = GetCounter(params);
 
   auto num_output = BignumPointer::New();
 
-  if (!num_output.setWord(CeilDiv(in.size(), kAesBlockSize)))
+  if (!num_output.setWord(CeilDiv(in.size(), kAesBlockSize))) {
     return WebCryptoCipherStatus::FAILED;
+  }
 
   // Just like in chromium's implementation, if the counter will
   // be incremented more than there are counter values, we fail.
   if (num_output > num_counters) return WebCryptoCipherStatus::FAILED;
 
-  auto remaining_until_reset = BignumPointer::New();
-  if (!BN_sub(remaining_until_reset.get(),
-              num_counters.get(),
-              current_counter.get())) {
+  auto remaining_until_reset =
+      BignumPointer::NewSub(num_counters, current_counter);
+  if (!remaining_until_reset) {
     return WebCryptoCipherStatus::FAILED;
   }
 
   // Output size is identical to the input size.
-  ByteSource::Builder buf(in.size());
+  auto buf = DataPointer::Alloc(in.size());
 
   // Also just like in chromium's implementation, if we can process
   // the input without wrapping the counter, we'll do it as a single
@@ -296,8 +290,10 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
                                   params,
                                   in,
                                   params.iv.data<unsigned char>(),
-                                  buf.data<unsigned char>());
-    if (status == WebCryptoCipherStatus::OK) *out = std::move(buf).release();
+                                  static_cast<unsigned char*>(buf.get()));
+    if (status == WebCryptoCipherStatus::OK) {
+      *out = ByteSource::Allocated(buf.release());
+    }
     return status;
   }
 
@@ -310,14 +306,16 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
                       params,
                       ByteSource::Foreign(in.data<char>(), input_size_part1),
                       params.iv.data<unsigned char>(),
-                      buf.data<unsigned char>());
+                      static_cast<unsigned char*>(buf.get()));
 
-  if (status != WebCryptoCipherStatus::OK)
+  if (status != WebCryptoCipherStatus::OK) {
     return status;
+  }
 
   // Wrap the counter around to zero
   std::vector<unsigned char> new_counter_block = BlockWithZeroedCounter(params);
 
+  auto ptr = static_cast<unsigned char*>(buf.get()) + input_size_part1;
   // Encrypt the second part...
   status =
       AES_CTR_Cipher2(key_data,
@@ -326,9 +324,11 @@ WebCryptoCipherStatus AES_CTR_Cipher(Environment* env,
                       ByteSource::Foreign(in.data<char>() + input_size_part1,
                                           in.size() - input_size_part1),
                       new_counter_block.data(),
-                      buf.data<unsigned char>() + input_size_part1);
+                      ptr);
 
-  if (status == WebCryptoCipherStatus::OK) *out = std::move(buf).release();
+  if (status == WebCryptoCipherStatus::OK) {
+    *out = ByteSource::Allocated(buf.release());
+  }
 
   return status;
 }
@@ -469,7 +469,7 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
 
   int cipher_nid;
 #define V(name, _, nid)                                                        \
-  case kKeyVariantAES_##name: {                                                \
+  case AESKeyVariant::name: {                                                  \
     cipher_nid = nid;                                                          \
     break;                                                                     \
   }
@@ -480,13 +480,13 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
   }
 #undef V
 
-  params->cipher = EVP_get_cipherbynid(cipher_nid);
-  if (params->cipher == nullptr) {
+  params->cipher = Cipher::FromNid(cipher_nid);
+  if (!params->cipher) {
     THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
     return Nothing<void>();
   }
 
-  int cipher_op_mode = EVP_CIPHER_mode(params->cipher);
+  int cipher_op_mode = params->cipher.getMode();
   if (cipher_op_mode != EVP_CIPH_WRAP_MODE) {
     if (!ValidateIV(env, mode, args[offset + 1], params)) {
       return Nothing<void>();
@@ -505,8 +505,7 @@ Maybe<void> AESCipherTraits::AdditionalConfig(
     UseDefaultIV(params);
   }
 
-  if (params->iv.size() <
-      static_cast<size_t>(EVP_CIPHER_iv_length(params->cipher))) {
+  if (params->iv.size() < static_cast<size_t>(params->cipher.getIvLength())) {
     THROW_ERR_CRYPTO_INVALID_IV(env);
     return Nothing<void>();
   }
@@ -521,7 +520,7 @@ WebCryptoCipherStatus AESCipherTraits::DoCipher(Environment* env,
                                                 const ByteSource& in,
                                                 ByteSource* out) {
 #define V(name, fn, _)                                                         \
-  case kKeyVariantAES_##name:                                                  \
+  case AESKeyVariant::name:                                                    \
     return fn(env, key_data, cipher_mode, params, in, out);
   switch (params.variant) {
     VARIANTS(V)
@@ -534,8 +533,13 @@ WebCryptoCipherStatus AESCipherTraits::DoCipher(Environment* env,
 void AES::Initialize(Environment* env, Local<Object> target) {
   AESCryptoJob::Initialize(env, target);
 
-#define V(name, _, __) NODE_DEFINE_CONSTANT(target, kKeyVariantAES_##name);
+#define V(name, _, __)                                                         \
+  constexpr static auto kKeyVariantAES_##name =                                \
+      static_cast<int>(AESKeyVariant::name);                                   \
+  NODE_DEFINE_CONSTANT(target, kKeyVariantAES_##name);
+
   VARIANTS(V)
+
 #undef V
 }
 

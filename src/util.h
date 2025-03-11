@@ -42,6 +42,7 @@
 #include <limits>
 #include <memory>
 #include <optional>
+#include <ranges>
 #include <set>
 #include <string>
 #include <string_view>
@@ -340,6 +341,9 @@ inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
                                            const unsigned char* data,
                                            int length = -1);
 
+inline v8::Local<v8::String> OneByteString(v8::Isolate* isolate,
+                                           std::string_view str);
+
 // Used to be a macro, hence the uppercase name.
 template <int N>
 inline v8::Local<v8::String> FIXED_ONE_BYTE_STRING(
@@ -384,6 +388,11 @@ constexpr size_t strsize(const T (&)[N]) {
 template <typename T, size_t kStackStorageSize = 1024>
 class MaybeStackBuffer {
  public:
+  // Disallow copy constructor
+  MaybeStackBuffer(const MaybeStackBuffer&) = delete;
+  // Disallow copy assignment operator
+  MaybeStackBuffer& operator=(const MaybeStackBuffer& other) = delete;
+
   const T* out() const {
     return buf_;
   }
@@ -706,8 +715,6 @@ using DeleteFnPtr = typename FunctionDeleter<T, function>::Pointer;
 inline v8::Maybe<void> FromV8Array(v8::Local<v8::Context> context,
                                    v8::Local<v8::Array> js_array,
                                    std::vector<v8::Global<v8::Value>>* out);
-std::vector<std::string_view> SplitString(const std::string_view in,
-                                          const std::string_view delim);
 
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
@@ -729,6 +736,12 @@ template <typename T, typename U>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            const std::unordered_map<T, U>& map,
                                            v8::Isolate* isolate = nullptr);
+
+template <typename T, std::size_t U>
+inline v8::MaybeLocal<v8::Value> ToV8Value(
+    v8::Local<v8::Context> context,
+    const std::ranges::elements_view<T, U>& vec,
+    v8::Isolate* isolate = nullptr);
 
 // These macros expects a `Isolate* isolate` and a `Local<Context> context`
 // to be in the scope.

@@ -438,6 +438,11 @@ changes:
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/52723
     description: No longer experimental.
+  - version:
+    - v22.1.0
+    - v20.13.0
+    pr-url: https://github.com/nodejs/node/pull/52618
+    description: CustomEvent is now stable.
   - version: v19.0.0
     pr-url: https://github.com/nodejs/node/pull/44860
     description: No longer behind `--experimental-global-customevent` CLI flag.
@@ -1140,6 +1145,16 @@ added: v10.0.0
 
 The WHATWG `URL` class. See the [`URL`][] section.
 
+## `URLPattern`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+<!-- type=global -->
+
+The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
+
 ## `URLSearchParams`
 
 <!-- YAML
@@ -1257,6 +1272,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`TextEncoder`]: util.md#class-utiltextencoder
 [`TransformStreamDefaultController`]: webstreams.md#class-transformstreamdefaultcontroller
 [`TransformStream`]: webstreams.md#class-transformstream
+[`URLPattern`]: url.md#class-urlpattern
 [`URLSearchParams`]: url.md#class-urlsearchparams
 [`URL`]: url.md#class-url
 [`WebSocket`]: https://developer.mozilla.org/en-US/docs/Web/API/WebSocket

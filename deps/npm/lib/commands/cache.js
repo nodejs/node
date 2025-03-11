@@ -10,7 +10,6 @@ const localeCompare = require('@isaacs/string-locale-compare')('en')
 const { log, output } = require('proc-log')
 
 const searchCachePackage = async (path, parsed, cacheKeys) => {
-  /* eslint-disable-next-line max-len */
   const searchMFH = new RegExp(`^make-fetch-happen:request-cache:.*(?<!/[@a-zA-Z]+)/${parsed.name}/-/(${parsed.name}[^/]+.tgz)$`)
   const searchPack = new RegExp(`^make-fetch-happen:request-cache:.*/${parsed.escapedName}$`)
   const results = new Set()
@@ -38,7 +37,7 @@ const searchCachePackage = async (path, parsed, cacheKeys) => {
     try {
       details = await cacache.get(path, key)
       packument = jsonParse(details.data)
-    } catch (_) {
+    } catch {
       // if we couldn't parse the packument, abort
       continue
     }
@@ -131,7 +130,7 @@ class Cache extends BaseCommand {
       let entry
       try {
         entry = await cacache.get(cachePath, key)
-      } catch (err) {
+      } catch {
         log.warn('cache', `Not Found: ${key}`)
         break
       }
@@ -181,7 +180,6 @@ class Cache extends BaseCommand {
       output.standard(`Corrupted content removed: ${stats.badContentCount}`)
     }
     if (stats.reclaimedCount) {
-      /* eslint-disable-next-line max-len */
       output.standard(`Content garbage-collected: ${stats.reclaimedCount} (${stats.reclaimedSize} bytes)`)
     }
     if (stats.missingContent) {

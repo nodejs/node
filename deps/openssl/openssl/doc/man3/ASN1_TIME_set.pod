@@ -102,8 +102,8 @@ functions check the syntax of the time structure I<s>.
 
 The ASN1_TIME_print(), ASN1_UTCTIME_print() and ASN1_GENERALIZEDTIME_print()
 functions print the time structure I<s> to BIO I<b> in human readable
-format. It will be of the format MMM DD HH:MM:SS YYYY [GMT], for example
-"Feb  3 00:55:52 2015 GMT", which does not include a newline.
+format. It will be of the format MMM DD HH:MM:SS[.s*] YYYY GMT, for example
+"Feb E<32>3 00:55:52 2015 GMT", which does not include a newline.
 If the time structure has invalid format it prints out "Bad time value" and
 returns an error. The output for generalized time may include a fractional part
 following the second.
@@ -178,6 +178,10 @@ those starting with B<ASN1_UTCTIME> or B<ASN1_GENERALIZEDTIME>. The functions
 starting with B<ASN1_UTCTIME> and B<ASN1_GENERALIZEDTIME> act only on that
 specific time format. The functions starting with B<ASN1_TIME> will operate on
 either format.
+
+Users familiar with RFC822 should note that when specifying the flag
+B<ASN1_DTFLGS_RFC822> the year will be formatted as documented above,
+i.e., using 4 digits, not 2 as specified in RFC822.
 
 =head1 BUGS
 
@@ -272,7 +276,7 @@ The ASN1_TIME_compare() function was added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

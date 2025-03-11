@@ -18,14 +18,37 @@
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
+#ifdef __APPLE__
+#include <Security/Security.h>
+#endif
+
+#ifdef _WIN32
+#include <Windows.h>
+#include <wincrypt.h>
+#endif
 
 namespace node {
 
+using ncrypto::BignumPointer;
+using ncrypto::BIOPointer;
+using ncrypto::ClearErrorOnReturn;
+using ncrypto::CryptoErrorList;
+using ncrypto::DHPointer;
+#ifndef OPENSSL_NO_ENGINE
+using ncrypto::EnginePointer;
+#endif  // !OPENSSL_NO_ENGINE
+using ncrypto::EVPKeyPointer;
+using ncrypto::MarkPopErrorOnReturn;
+using ncrypto::SSLPointer;
+using ncrypto::StackOfX509;
+using ncrypto::X509Pointer;
+using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
 using v8::FunctionCallbackInfo;
@@ -36,7 +59,9 @@ using v8::Integer;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -53,6 +78,10 @@ static const char* const root_certs[] = {
 static const char system_cert_path[] = NODE_OPENSSL_SYSTEM_CERT_PATH;
 
 static std::string extra_root_certs_file;  // NOLINT(runtime/string)
+
+static std::atomic<bool> has_cached_bundled_root_certs{false};
+static std::atomic<bool> has_cached_system_root_certs{false};
+static std::atomic<bool> has_cached_extra_root_certs{false};
 
 X509_STORE* GetOrCreateRootCertStore() {
   // Guaranteed thread-safe by standard, just don't use -fno-threadsafe-statics.
@@ -198,7 +227,7 @@ int SSL_CTX_use_certificate_chain(SSL_CTX* ctx,
                                        issuer);
 }
 
-unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
+static unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
     std::vector<X509*>* certs,
     const char* file) {
   MarkPopErrorOnReturn mark_pop_error_on_return;
@@ -221,46 +250,592 @@ unsigned long LoadCertsFromFile(  // NOLINT(runtime/int)
   }
 }
 
-X509_STORE* NewRootCertStore() {
-  static std::vector<X509*> root_certs_vector;
-  static bool root_certs_vector_loaded = false;
-  static Mutex root_certs_vector_mutex;
-  Mutex::ScopedLock lock(root_certs_vector_mutex);
+// Indicates the trust status of a certificate.
+enum class TrustStatus {
+  // Trust status is unknown / uninitialized.
+  UNKNOWN,
+  // Certificate inherits trust value from its issuer. If the certificate is the
+  // root of the chain, this implies distrust.
+  UNSPECIFIED,
+  // Certificate is a trust anchor.
+  TRUSTED,
+  // Certificate is blocked / explicitly distrusted.
+  DISTRUSTED
+};
 
-  if (!root_certs_vector_loaded) {
-    if (per_process::cli_options->ssl_openssl_cert_store == false) {
-      for (size_t i = 0; i < arraysize(root_certs); i++) {
-        X509* x509 = PEM_read_bio_X509(
-            NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
-            nullptr,  // no re-use of X509 structure
-            NoPasswordCallback,
-            nullptr);  // no callback data
+bool isSelfIssued(X509* cert) {
+  auto subject = X509_get_subject_name(cert);
+  auto issuer = X509_get_issuer_name(cert);
 
-        // Parse errors from the built-in roots are fatal.
-        CHECK_NOT_NULL(x509);
+  return X509_NAME_cmp(subject, issuer) == 0;
+}
 
-        root_certs_vector.push_back(x509);
-      }
-    }
-
-    if (!extra_root_certs_file.empty()) {
-      unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
-          &root_certs_vector,
-          extra_root_certs_file.c_str());
-      if (err) {
-        char buf[256];
-        ERR_error_string_n(err, buf, sizeof(buf));
-        fprintf(stderr,
-                "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
-                extra_root_certs_file.c_str(),
-                buf);
-      }
-    }
-
-    root_certs_vector_loaded = true;
+// The following code is loosely based on
+// https://github.com/chromium/chromium/blob/54bd8e3/net/cert/internal/trust_store_mac.cc
+// and
+// https://github.com/chromium/chromium/blob/0192587/net/cert/internal/trust_store_win.cc
+// Copyright 2015 The Chromium Authors
+// Licensed under a BSD-style license
+// See https://chromium.googlesource.com/chromium/src/+/HEAD/LICENSE for
+// details.
+#ifdef __APPLE__
+TrustStatus IsTrustDictionaryTrustedForPolicy(CFDictionaryRef trust_dict,
+                                              bool is_self_issued) {
+  // Trust settings may be scoped to a single application
+  // skip as this is not supported
+  if (CFDictionaryContainsKey(trust_dict, kSecTrustSettingsApplication)) {
+    return TrustStatus::UNSPECIFIED;
   }
 
+  // Trust settings may be scoped using policy-specific constraints. For
+  // example, SSL trust settings might be scoped to a single hostname, or EAP
+  // settings specific to a particular WiFi network.
+  // As this is not presently supported, skip any policy-specific trust
+  // settings.
+  if (CFDictionaryContainsKey(trust_dict, kSecTrustSettingsPolicyString)) {
+    return TrustStatus::UNSPECIFIED;
+  }
+
+  // If the trust settings are scoped to a specific policy (via
+  // kSecTrustSettingsPolicy), ensure that the policy is the same policy as
+  // |kSecPolicyAppleSSL|. If there is no kSecTrustSettingsPolicy key, it's
+  // considered a match for all policies.
+  if (CFDictionaryContainsKey(trust_dict, kSecTrustSettingsPolicy)) {
+    SecPolicyRef policy_ref = reinterpret_cast<SecPolicyRef>(const_cast<void*>(
+        CFDictionaryGetValue(trust_dict, kSecTrustSettingsPolicy)));
+
+    if (!policy_ref) {
+      return TrustStatus::UNSPECIFIED;
+    }
+
+    CFDictionaryRef policy_dict(SecPolicyCopyProperties(policy_ref));
+
+    // kSecPolicyOid is guaranteed to be present in the policy dictionary.
+    CFStringRef policy_oid = reinterpret_cast<CFStringRef>(
+        const_cast<void*>(CFDictionaryGetValue(policy_dict, kSecPolicyOid)));
+
+    if (!CFEqual(policy_oid, kSecPolicyAppleSSL)) {
+      return TrustStatus::UNSPECIFIED;
+    }
+  }
+
+  int trust_settings_result = kSecTrustSettingsResultTrustRoot;
+  if (CFDictionaryContainsKey(trust_dict, kSecTrustSettingsResult)) {
+    CFNumberRef trust_settings_result_ref =
+        reinterpret_cast<CFNumberRef>(const_cast<void*>(
+            CFDictionaryGetValue(trust_dict, kSecTrustSettingsResult)));
+
+    if (!trust_settings_result_ref ||
+        !CFNumberGetValue(trust_settings_result_ref,
+                          kCFNumberIntType,
+                          &trust_settings_result)) {
+      return TrustStatus::UNSPECIFIED;
+    }
+
+    if (trust_settings_result == kSecTrustSettingsResultDeny) {
+      return TrustStatus::DISTRUSTED;
+    }
+
+    // This is a bit of a hack: if the cert is self-issued allow either
+    // kSecTrustSettingsResultTrustRoot or kSecTrustSettingsResultTrustAsRoot on
+    // the basis that SecTrustSetTrustSettings should not allow creating an
+    // invalid trust record in the first place. (The spec is that
+    // kSecTrustSettingsResultTrustRoot can only be applied to root(self-signed)
+    // certs and kSecTrustSettingsResultTrustAsRoot is used for other certs.)
+    // This hack avoids having to check the signature on the cert which is slow
+    // if using the platform APIs, and may require supporting MD5 signature
+    // algorithms on some older OSX versions or locally added roots, which is
+    // undesirable in the built-in signature verifier.
+    if (is_self_issued) {
+      return trust_settings_result == kSecTrustSettingsResultTrustRoot ||
+                     trust_settings_result == kSecTrustSettingsResultTrustAsRoot
+                 ? TrustStatus::TRUSTED
+                 : TrustStatus::UNSPECIFIED;
+    }
+
+    // kSecTrustSettingsResultTrustAsRoot can only be applied to non-root certs.
+    return (trust_settings_result == kSecTrustSettingsResultTrustAsRoot)
+               ? TrustStatus::TRUSTED
+               : TrustStatus::UNSPECIFIED;
+  }
+
+  return TrustStatus::UNSPECIFIED;
+}
+
+TrustStatus IsTrustSettingsTrustedForPolicy(CFArrayRef trust_settings,
+                                            bool is_self_issued) {
+  // The trust_settings parameter can return a valid but empty CFArrayRef.
+  // This empty trust-settings array means “always trust this certificate”
+  // with an overall trust setting for the certificate of
+  // kSecTrustSettingsResultTrustRoot
+  if (CFArrayGetCount(trust_settings) == 0) {
+    return is_self_issued ? TrustStatus::TRUSTED : TrustStatus::UNSPECIFIED;
+  }
+
+  for (CFIndex i = 0; i < CFArrayGetCount(trust_settings); ++i) {
+    CFDictionaryRef trust_dict = reinterpret_cast<CFDictionaryRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(trust_settings, i)));
+
+    TrustStatus trust =
+        IsTrustDictionaryTrustedForPolicy(trust_dict, is_self_issued);
+
+    if (trust == TrustStatus::DISTRUSTED || trust == TrustStatus::TRUSTED) {
+      return trust;
+    }
+  }
+  return TrustStatus::UNSPECIFIED;
+}
+
+bool IsCertificateTrustValid(SecCertificateRef ref) {
+  SecTrustRef sec_trust = nullptr;
+  CFMutableArrayRef subj_certs =
+      CFArrayCreateMutable(nullptr, 1, &kCFTypeArrayCallBacks);
+  CFArraySetValueAtIndex(subj_certs, 0, ref);
+
+  SecPolicyRef policy = SecPolicyCreateSSL(false, nullptr);
+  OSStatus ortn =
+      SecTrustCreateWithCertificates(subj_certs, policy, &sec_trust);
+  bool result = false;
+  if (ortn) {
+    /* should never happen */
+  } else {
+    result = SecTrustEvaluateWithError(sec_trust, nullptr);
+  }
+
+  if (policy) {
+    CFRelease(policy);
+  }
+  if (sec_trust) {
+    CFRelease(sec_trust);
+  }
+  if (subj_certs) {
+    CFRelease(subj_certs);
+  }
+  return result;
+}
+
+bool IsCertificateTrustedForPolicy(X509* cert, SecCertificateRef ref) {
+  OSStatus err;
+
+  bool trust_evaluated = false;
+  bool is_self_issued = isSelfIssued(cert);
+
+  // Evaluate user trust domain, then admin. User settings can override
+  // admin (and both override the system domain, but we don't check that).
+  for (const auto& trust_domain :
+       {kSecTrustSettingsDomainUser, kSecTrustSettingsDomainAdmin}) {
+    CFArrayRef trust_settings = nullptr;
+    err = SecTrustSettingsCopyTrustSettings(ref, trust_domain, &trust_settings);
+
+    if (err != errSecSuccess && err != errSecItemNotFound) {
+      fprintf(stderr,
+              "ERROR: failed to copy trust settings of system certificate%d\n",
+              err);
+      continue;
+    }
+
+    if (err == errSecSuccess && trust_settings != nullptr) {
+      TrustStatus result =
+          IsTrustSettingsTrustedForPolicy(trust_settings, is_self_issued);
+      if (result != TrustStatus::UNSPECIFIED) {
+        CFRelease(trust_settings);
+        return result == TrustStatus::TRUSTED;
+      }
+    }
+
+    // An empty trust settings array isn’t the same as no trust settings,
+    // where the trust_settings parameter returns NULL.
+    // No trust-settings array means
+    // “this certificate must be verifiable using a known trusted certificate”.
+    if (trust_settings == nullptr && !trust_evaluated) {
+      bool result = IsCertificateTrustValid(ref);
+      if (result) {
+        return true;
+      }
+      // no point re-evaluating this in the admin domain
+      trust_evaluated = true;
+    } else if (trust_settings) {
+      CFRelease(trust_settings);
+    }
+  }
+  return false;
+}
+
+void ReadMacOSKeychainCertificates(
+    std::vector<X509*>* system_root_certificates_X509) {
+  CFTypeRef search_keys[] = {kSecClass, kSecMatchLimit, kSecReturnRef};
+  CFTypeRef search_values[] = {
+      kSecClassCertificate, kSecMatchLimitAll, kCFBooleanTrue};
+  CFDictionaryRef search = CFDictionaryCreate(kCFAllocatorDefault,
+                                              search_keys,
+                                              search_values,
+                                              3,
+                                              &kCFTypeDictionaryKeyCallBacks,
+                                              &kCFTypeDictionaryValueCallBacks);
+
+  CFArrayRef curr_anchors = nullptr;
+  OSStatus ortn =
+      SecItemCopyMatching(search, reinterpret_cast<CFTypeRef*>(&curr_anchors));
+  CFRelease(search);
+
+  if (ortn) {
+    fprintf(stderr, "ERROR: SecItemCopyMatching failed %d\n", ortn);
+  }
+
+  CFIndex count = CFArrayGetCount(curr_anchors);
+
+  for (int i = 0; i < count; ++i) {
+    SecCertificateRef cert_ref = reinterpret_cast<SecCertificateRef>(
+        const_cast<void*>(CFArrayGetValueAtIndex(curr_anchors, i)));
+
+    CFDataRef der_data = SecCertificateCopyData(cert_ref);
+    if (!der_data) {
+      fprintf(stderr, "ERROR: SecCertificateCopyData failed\n");
+      continue;
+    }
+    auto data_buffer_pointer = CFDataGetBytePtr(der_data);
+
+    X509* cert =
+        d2i_X509(nullptr, &data_buffer_pointer, CFDataGetLength(der_data));
+    CFRelease(der_data);
+    bool is_valid = IsCertificateTrustedForPolicy(cert, cert_ref);
+    if (is_valid) {
+      system_root_certificates_X509->emplace_back(cert);
+    }
+  }
+  CFRelease(curr_anchors);
+}
+#endif  // __APPLE__
+
+#ifdef _WIN32
+
+// Returns true if the cert can be used for server authentication, based on
+// certificate properties.
+//
+// While there are a variety of certificate properties that can affect how
+// trust is computed, the main property is CERT_ENHKEY_USAGE_PROP_ID, which
+// is intersected with the certificate's EKU extension (if present).
+// The intersection is documented in the Remarks section of
+// CertGetEnhancedKeyUsage, and is as follows:
+// - No EKU property, and no EKU extension = Trusted for all purpose
+// - Either an EKU property, or EKU extension, but not both = Trusted only
+//   for the listed purposes
+// - Both an EKU property and an EKU extension = Trusted for the set
+//   intersection of the listed purposes
+// CertGetEnhancedKeyUsage handles this logic, and if an empty set is
+// returned, the distinction between the first and third case can be
+// determined by GetLastError() returning CRYPT_E_NOT_FOUND.
+//
+// See:
+// https://docs.microsoft.com/en-us/windows/win32/api/wincrypt/nf-wincrypt-certgetenhancedkeyusage
+//
+// If we run into any errors reading the certificate properties, we fail
+// closed.
+bool IsCertTrustedForServerAuth(PCCERT_CONTEXT cert) {
+  DWORD usage_size = 0;
+
+  if (!CertGetEnhancedKeyUsage(cert, 0, nullptr, &usage_size)) {
+    return false;
+  }
+
+  std::vector<BYTE> usage_bytes(usage_size);
+  CERT_ENHKEY_USAGE* usage =
+      reinterpret_cast<CERT_ENHKEY_USAGE*>(usage_bytes.data());
+  if (!CertGetEnhancedKeyUsage(cert, 0, usage, &usage_size)) {
+    return false;
+  }
+
+  if (usage->cUsageIdentifier == 0) {
+    // check GetLastError
+    HRESULT error_code = GetLastError();
+
+    switch (error_code) {
+      case CRYPT_E_NOT_FOUND:
+        return true;
+      case S_OK:
+        return false;
+      default:
+        return false;
+    }
+  }
+
+  // SAFETY: `usage->rgpszUsageIdentifier` is an array of LPSTR (pointer to null
+  // terminated string) of length `usage->cUsageIdentifier`.
+  for (DWORD i = 0; i < usage->cUsageIdentifier; ++i) {
+    std::string_view eku(usage->rgpszUsageIdentifier[i]);
+    if ((eku == szOID_PKIX_KP_SERVER_AUTH) ||
+        (eku == szOID_ANY_ENHANCED_KEY_USAGE)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+void GatherCertsForLocation(std::vector<X509*>* vector,
+                            DWORD location,
+                            LPCWSTR store_name) {
+  if (!(location == CERT_SYSTEM_STORE_LOCAL_MACHINE ||
+        location == CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY ||
+        location == CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE ||
+        location == CERT_SYSTEM_STORE_CURRENT_USER ||
+        location == CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY)) {
+    return;
+  }
+
+  DWORD flags =
+      location | CERT_STORE_OPEN_EXISTING_FLAG | CERT_STORE_READONLY_FLAG;
+
+  HCERTSTORE opened_store(
+      CertOpenStore(CERT_STORE_PROV_SYSTEM,
+                    0,
+                    // The Windows API only accepts NULL for hCryptProv.
+                    NULL, /* NOLINT (readability/null_usage) */
+                    flags,
+                    store_name));
+  if (!opened_store) {
+    return;
+  }
+
+  auto cleanup = OnScopeLeave(
+      [opened_store]() { CHECK_EQ(CertCloseStore(opened_store, 0), TRUE); });
+
+  PCCERT_CONTEXT cert_from_store = nullptr;
+  while ((cert_from_store = CertEnumCertificatesInStore(
+              opened_store, cert_from_store)) != nullptr) {
+    if (!IsCertTrustedForServerAuth(cert_from_store)) {
+      continue;
+    }
+    const unsigned char* cert_data =
+        reinterpret_cast<const unsigned char*>(cert_from_store->pbCertEncoded);
+    const size_t cert_size = cert_from_store->cbCertEncoded;
+
+    vector->emplace_back(d2i_X509(nullptr, &cert_data, cert_size));
+  }
+}
+
+void ReadWindowsCertificates(
+    std::vector<X509*>* system_root_certificates_X509) {
+  // TODO(joyeecheung): match Chromium's policy, collect more certificates
+  // from user-added CAs and support disallowed (revoked) certificates.
+
+  // Grab the user-added roots.
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"ROOT");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"ROOT");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"ROOT");
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"ROOT");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
+                         L"ROOT");
+
+  // Grab the intermediate certs
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"CA");
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
+                         L"CA");
+
+  // Grab the user-added trusted server certs. Trusted end-entity certs are
+  // only allowed for server auth in the "local machine" store, but not in the
+  // "current user" store.
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE,
+                         L"TrustedPeople");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"TrustedPeople");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"TrustedPeople");
+}
+#endif
+
+static void LoadCertsFromDir(std::vector<X509*>* certs,
+                             std::string_view cert_dir) {
+  uv_fs_t dir_req;
+  auto cleanup = OnScopeLeave([&dir_req]() { uv_fs_req_cleanup(&dir_req); });
+  int err = uv_fs_scandir(nullptr, &dir_req, cert_dir.data(), 0, nullptr);
+  if (err < 0) {
+    fprintf(stderr,
+            "Cannot open directory %s to load OpenSSL certificates.\n",
+            cert_dir.data());
+    return;
+  }
+
+  for (;;) {
+    uv_dirent_t ent;
+
+    int r = uv_fs_scandir_next(&dir_req, &ent);
+    if (r == UV_EOF) {
+      break;
+    }
+    if (r < 0) {
+      char message[64];
+      uv_strerror_r(r, message, sizeof(message));
+      fprintf(stderr,
+              "Cannot scan directory %s to load OpenSSL certificates.\n",
+              cert_dir.data());
+      return;
+    }
+
+    uv_fs_t stats_req;
+    std::string file_path = std::string(cert_dir) + "/" + ent.name;
+    int stats_r = uv_fs_stat(nullptr, &stats_req, file_path.c_str(), nullptr);
+    if (stats_r == 0 &&
+        (static_cast<uv_stat_t*>(stats_req.ptr)->st_mode & S_IFREG)) {
+      LoadCertsFromFile(certs, file_path.c_str());
+    }
+    uv_fs_req_cleanup(&stats_req);
+  }
+}
+
+// Loads CA certificates from the default certificate paths respected by
+// OpenSSL.
+void GetOpenSSLSystemCertificates(std::vector<X509*>* system_store_certs) {
+  std::string cert_file;
+  // While configurable when OpenSSL is built, this is usually SSL_CERT_FILE.
+  if (!credentials::SafeGetenv(X509_get_default_cert_file_env(), &cert_file)) {
+    // This is usually /etc/ssl/cert.pem if we are using the OpenSSL statically
+    // linked and built with default configurations.
+    cert_file = X509_get_default_cert_file();
+  }
+
+  std::string cert_dir;
+  // While configurable when OpenSSL is built, this is usually SSL_CERT_DIR.
+  if (!credentials::SafeGetenv(X509_get_default_cert_dir_env(), &cert_dir)) {
+    // This is usually /etc/ssl/certs if we are using the OpenSSL statically
+    // linked and built with default configurations.
+    cert_dir = X509_get_default_cert_dir();
+  }
+
+  if (!cert_file.empty()) {
+    LoadCertsFromFile(system_store_certs, cert_file.c_str());
+  }
+
+  if (!cert_dir.empty()) {
+    LoadCertsFromDir(system_store_certs, cert_dir.c_str());
+  }
+}
+
+static std::vector<X509*> InitializeBundledRootCertificates() {
+  // Read the bundled certificates in node_root_certs.h into
+  // bundled_root_certs_vector.
+  std::vector<X509*> bundled_root_certs;
+  size_t bundled_root_cert_count = arraysize(root_certs);
+  bundled_root_certs.reserve(bundled_root_cert_count);
+  for (size_t i = 0; i < bundled_root_cert_count; i++) {
+    X509* x509 = PEM_read_bio_X509(
+        NodeBIO::NewFixed(root_certs[i], strlen(root_certs[i])).get(),
+        nullptr,  // no re-use of X509 structure
+        NoPasswordCallback,
+        nullptr);  // no callback data
+
+    // Parse errors from the built-in roots are fatal.
+    CHECK_NOT_NULL(x509);
+
+    bundled_root_certs.push_back(x509);
+  }
+  return bundled_root_certs;
+}
+
+// TODO(joyeecheung): it is a bit excessive to do this PEM -> X509
+// dance when we could've just pass everything around in binary. Change the
+// root_certs to be embedded as DER so that we can save the serialization
+// and deserialization.
+static std::vector<X509*>& GetBundledRootCertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> bundled_root_certs =
+      InitializeBundledRootCertificates();
+  has_cached_bundled_root_certs.store(true);
+  return bundled_root_certs;
+}
+
+static std::vector<X509*> InitializeSystemStoreCertificates() {
+  std::vector<X509*> system_store_certs;
+#ifdef __APPLE__
+  ReadMacOSKeychainCertificates(&system_store_certs);
+#endif
+#ifdef _WIN32
+  ReadWindowsCertificates(&system_store_certs);
+#endif
+#if !defined(__APPLE__) && !defined(_WIN32)
+  GetOpenSSLSystemCertificates(&system_store_certs);
+#endif
+  return system_store_certs;
+}
+
+static std::vector<X509*>& GetSystemStoreCACertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> system_store_certs =
+      InitializeSystemStoreCertificates();
+  has_cached_system_root_certs.store(true);
+  return system_store_certs;
+}
+
+static std::vector<X509*> InitializeExtraCACertificates() {
+  std::vector<X509*> extra_certs;
+  unsigned long err = LoadCertsFromFile(  // NOLINT(runtime/int)
+      &extra_certs,
+      extra_root_certs_file.c_str());
+  if (err) {
+    char buf[256];
+    ERR_error_string_n(err, buf, sizeof(buf));
+    fprintf(stderr,
+            "Warning: Ignoring extra certs from `%s`, load failed: %s\n",
+            extra_root_certs_file.c_str(),
+            buf);
+  }
+  return extra_certs;
+}
+
+static std::vector<X509*>& GetExtraCACertificates() {
+  // Use function-local static to guarantee thread safety.
+  static std::vector<X509*> extra_certs = InitializeExtraCACertificates();
+  has_cached_extra_root_certs.store(true);
+  return extra_certs;
+}
+
+// Due to historical reasons the various options of CA certificates
+// may invalid one another. The current rule is:
+// 1. If the configure-time option --openssl-use-def-ca-store is NOT used
+//    (default):
+//    a. If the runtime option --use-openssl-ca is used, load the
+//       CA certificates from the default locations respected by OpenSSL.
+//    b. Otherwise, --use-bundled-ca is assumed to be the default, and we
+//       use the bundled CA certificates.
+// 2. If the configure-time option --openssl-use-def-ca-store IS used,
+//    --use-openssl-ca is assumed to be the default, with the default
+//    location set to the path specified by the configure-time option.
+// 3. --use-openssl-ca and --use-bundled-ca are mutually exclusive.
+// 4. --use-openssl-ca and --use-system-ca are mutually exclusive.
+// 5. --use-bundled-ca and --use-system-ca can be used together.
+//    The certificates can be combined.
+// 6. Independent of all other flags, NODE_EXTRA_CA_CERTS always
+//    adds extra certificates from the specified path, so it works
+//    with all the other flags.
+// 7. Certificates from --use-bundled-ca, --use-system-ca and
+//    NODE_EXTRA_CA_CERTS are cached after first load. Certificates
+//    from --use-system-ca are not cached and always reloaded from
+//    disk.
+// TODO(joyeecheung): maybe these rules need a bit of consolidation?
+X509_STORE* NewRootCertStore() {
   X509_STORE* store = X509_STORE_new();
+  CHECK_NOT_NULL(store);
+
   if (*system_cert_path != '\0') {
     ERR_set_mark();
     X509_STORE_load_locations(store, system_cert_path, nullptr);
@@ -270,16 +845,46 @@ X509_STORE* NewRootCertStore() {
   Mutex::ScopedLock cli_lock(node::per_process::cli_options_mutex);
   if (per_process::cli_options->ssl_openssl_cert_store) {
     CHECK_EQ(1, X509_STORE_set_default_paths(store));
+  } else {
+    for (X509* cert : GetBundledRootCertificates()) {
+      CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+    }
+    if (per_process::cli_options->use_system_ca) {
+      for (X509* cert : GetSystemStoreCACertificates()) {
+        CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+      }
+    }
   }
 
-  for (X509* cert : root_certs_vector) {
-    CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+  if (!extra_root_certs_file.empty()) {
+    for (X509* cert : GetExtraCACertificates()) {
+      CHECK_EQ(1, X509_STORE_add_cert(store, cert));
+    }
   }
 
   return store;
 }
 
-void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+void CleanupCachedRootCertificates() {
+  if (has_cached_bundled_root_certs.load()) {
+    for (X509* cert : GetBundledRootCertificates()) {
+      X509_free(cert);
+    }
+  }
+  if (has_cached_system_root_certs.load()) {
+    for (X509* cert : GetSystemStoreCACertificates()) {
+      X509_free(cert);
+    }
+  }
+
+  if (has_cached_extra_root_certs.load()) {
+    for (X509* cert : GetExtraCACertificates()) {
+      X509_free(cert);
+    }
+  }
+}
+
+void GetBundledRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Value> result[arraysize(root_certs)];
 
@@ -294,6 +899,58 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), result, arraysize(root_certs)));
+}
+
+MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
+                                        const std::vector<X509*>& certs) {
+  ClearErrorOnReturn clear_error_on_return;
+  EscapableHandleScope scope(env->isolate());
+
+  LocalVector<Value> result(env->isolate(), certs.size());
+  for (size_t i = 0; i < certs.size(); ++i) {
+    X509View view(certs[i]);
+    auto pem_bio = view.toPEM();
+    if (!pem_bio) {
+      ThrowCryptoError(env, ERR_get_error(), "X509 to PEM conversion");
+      return MaybeLocal<Array>();
+    }
+
+    char* pem_data = nullptr;
+    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
+    if (pem_size <= 0 || !pem_data) {
+      ThrowCryptoError(env, ERR_get_error(), "Reading PEM data");
+      return MaybeLocal<Array>();
+    }
+    // PEM is base64-encoded, so it must be one-byte.
+    if (!String::NewFromOneByte(env->isolate(),
+                                reinterpret_cast<uint8_t*>(pem_data),
+                                v8::NewStringType::kNormal,
+                                pem_size)
+             .ToLocal(&result[i])) {
+      return MaybeLocal<Array>();
+    }
+  }
+  return scope.Escape(Array::New(env->isolate(), result.data(), result.size()));
+}
+
+void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetSystemStoreCACertificates())
+          .ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
+}
+
+void GetExtraCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (extra_root_certs_file.empty()) {
+    return args.GetReturnValue().Set(Array::New(env->isolate()));
+  }
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetExtraCACertificates()).ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
 }
 
 bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
@@ -379,8 +1036,14 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                          GetConstructorTemplate(env),
                          SetConstructorFunctionFlag::NONE);
 
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getBundledRootCertificates",
+                        GetBundledRootCertificates);
   SetMethodNoSideEffect(
-      context, target, "getRootCertificates", GetRootCertificates);
+      context, target, "getSystemCACertificates", GetSystemCACertificates);
+  SetMethodNoSideEffect(
+      context, target, "getExtraCACertificates", GetExtraCACertificates);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -420,7 +1083,9 @@ void SecureContext::RegisterExternalReferences(
 
   registry->Register(CtxGetter);
 
-  registry->Register(GetRootCertificates);
+  registry->Register(GetBundledRootCertificates);
+  registry->Register(GetSystemCACertificates);
+  registry->Register(GetExtraCACertificates);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -550,7 +1215,7 @@ void SecureContext::Init(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  sc->ctx_.reset(SSL_CTX_new(method));
+  sc->ctx_.reset(method);
   if (!sc->ctx_) {
     return ThrowCryptoError(env, ERR_get_error(), "SSL_CTX_new");
   }
@@ -692,10 +1357,10 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
         "experimental permission model is enabled");
   }
 
-  ncrypto::CryptoErrorList errors;
+  CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  auto engine = ncrypto::EnginePointer::getEngineByName(
-      engine_id.ToStringView(), &errors);
+  auto engine =
+      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {
@@ -786,9 +1451,8 @@ void SecureContext::SetCACert(const BIOPointer& bio) {
   while (X509Pointer x509 = X509Pointer(PEM_read_bio_X509_AUX(
              bio.get(), nullptr, NoPasswordCallback, nullptr))) {
     CHECK_EQ(1,
-             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(),
-                                 x509.get()));
-    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509.get()));
+             X509_STORE_add_cert(GetCertStoreOwnedByThisSecureContext(), x509));
+    CHECK_EQ(1, SSL_CTX_add_client_CA(ctx_.get(), x509));
   }
 }
 
@@ -1154,7 +1818,7 @@ void SecureContext::LoadPKCS12(const FunctionCallbackInfo<Value>& args) {
     X509* ca = sk_X509_value(extra_certs.get(), i);
 
     X509_STORE_add_cert(sc->GetCertStoreOwnedByThisSecureContext(), ca);
-    SSL_CTX_add_client_CA(sc->ctx_.get(), ca);
+    CHECK_EQ(1, SSL_CTX_add_client_CA(sc->ctx_.get(), ca));
   }
   ret = true;
 
@@ -1205,10 +1869,10 @@ void SecureContext::SetClientCertEngine(
         "experimental permission model is enabled");
   }
 
-  ncrypto::CryptoErrorList errors;
+  CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  auto engine = ncrypto::EnginePointer::getEngineByName(
-      engine_id.ToStringView(), &errors);
+  auto engine =
+      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {
@@ -1441,7 +2105,7 @@ void SecureContext::GetCertificate(const FunctionCallbackInfo<Value>& args) {
 }
 
 // UseExtraCaCerts is called only once at the start of the Node.js process.
-void UseExtraCaCerts(const std::string& file) {
+void UseExtraCaCerts(std::string_view file) {
   extra_root_certs_file = file;
 }
 

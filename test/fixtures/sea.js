@@ -10,9 +10,9 @@ const builtinWarning =
 To load a module from disk after the single executable application is launched, use require("module").createRequire().
 Support for bundled module loading or virtual file systems are under discussions in https://github.com/nodejs/single-executable`;
 
-expectWarning('Warning', builtinWarning);  // Triggered by require() calls below.
 // This additionally makes sure that no unexpected warnings are emitted.
 if (!createdRequire('./sea-config.json').disableExperimentalSEAWarning) {
+  expectWarning('Warning', builtinWarning); // Triggered by require() calls below.
   expectWarning('ExperimentalWarning',
                 'Single executable application is an experimental feature and ' +
                 'might change at any time');

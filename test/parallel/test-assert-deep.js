@@ -846,6 +846,26 @@ test('Additional tests', () => {
     }
   );
 
+  assert.throws(
+    () => assert.strictEqual('apple', 'pear'),
+    {
+      name: 'AssertionError',
+      message: 'Expected values to be strictly equal:\n\n\'apple\' !== \'pear\'\n'
+    }
+  );
+
+  assert.throws(
+    () => assert.strictEqual('ABABABABABAB', 'BABABABABABA'),
+    {
+      name: 'AssertionError',
+      message: 'Expected values to be strictly equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        "+ 'ABABABABABAB'\n" +
+        "- 'BABABABABABA'\n"
+    }
+  );
+
   assert.notDeepStrictEqual(new Date(), new Date(2000, 3, 14));
 
   assert.throws(

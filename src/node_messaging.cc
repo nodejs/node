@@ -1090,9 +1090,10 @@ void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Maybe<bool> res = port->PostMessage(env, context, args[0], transfer_list);
-  if (res.IsJust())
-    args.GetReturnValue().Set(res.FromJust());
+  bool res;
+  if (port->PostMessage(env, context, args[0], transfer_list).To(&res)) {
+    args.GetReturnValue().Set(res);
+  }
 }
 
 void MessagePort::Start() {
@@ -1150,16 +1151,16 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port = Unwrap<MessagePort>(args[0].As<Object>());
   if (port == nullptr) {
     // Return 'no messages' for a closed port.
-    args.GetReturnValue().Set(
-        Environment::GetCurrent(args)->no_message_symbol());
+    args.GetReturnValue().Set(env->no_message_symbol());
     return;
   }
 
-  MaybeLocal<Value> payload =
-      port->ReceiveMessage(port->object()->GetCreationContextChecked(),
-                           MessageProcessingMode::kForceReadMessages);
-  if (!payload.IsEmpty())
-    args.GetReturnValue().Set(payload.ToLocalChecked());
+  Local<Value> payload;
+  if (port->ReceiveMessage(port->object()->GetCreationContextChecked(),
+                           MessageProcessingMode::kForceReadMessages)
+          .ToLocal(&payload)) {
+    args.GetReturnValue().Set(payload);
+  }
 }
 
 void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
@@ -1627,10 +1628,15 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
 
   MessagePort::Entangle(port1, port2);
 
-  args.This()->Set(context, env->port1_string(), port1->object())
-      .Check();
-  args.This()->Set(context, env->port2_string(), port2->object())
-      .Check();
+  if (args.This()
+          ->Set(context, env->port1_string(), port1->object())
+          .IsNothing() ||
+      args.This()
+          ->Set(context, env->port2_string(), port2->object())
+          .IsNothing()) {
+    port1->Close();
+    port2->Close();
+  }
 }
 
 static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
@@ -1642,6 +1648,36 @@ static void BroadcastChannel(const FunctionCallbackInfo<Value>& args) {
       MessagePort::New(env, env->context(), {}, SiblingGroup::Get(*name));
   if (port != nullptr) {
     args.GetReturnValue().Set(port->object());
+  }
+}
+
+static void ExposeLazyDOMExceptionPropertyGetter(
+    Local<v8::Name> name, const v8::PropertyCallbackInfo<Value>& info) {
+  auto context = info.GetIsolate()->GetCurrentContext();
+  Local<Function> domexception;
+  if (!GetDOMException(context).ToLocal(&domexception)) {
+    // V8 will have scheduled an error to be thrown.
+    return;
+  }
+  info.GetReturnValue().Set(domexception);
+}
+static void ExposeLazyDOMExceptionProperty(
+    const FunctionCallbackInfo<Value>& args) {
+  CHECK_GE(args.Length(), 1);
+  CHECK(args[0]->IsObject());
+
+  Isolate* isolate = args.GetIsolate();
+  auto target = args[0].As<Object>();
+
+  if (target
+          ->SetLazyDataProperty(isolate->GetCurrentContext(),
+                                FIXED_ONE_BYTE_STRING(isolate, "DOMException"),
+                                ExposeLazyDOMExceptionPropertyGetter,
+                                Local<Value>(),
+                                v8::DontEnum)
+          .IsNothing()) {
+    // V8 will have scheduled an error to be thrown.
+    return;
   }
 }
 
@@ -1660,7 +1696,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
     Local<FunctionTemplate> t = FunctionTemplate::New(isolate);
     t->InstanceTemplate()->SetInternalFieldCount(
         JSTransferable::kInternalFieldCount);
-    t->SetClassName(OneByteString(isolate, "JSTransferable"));
+    t->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "JSTransferable"));
     isolate_data->set_js_transferable_constructor_template(t);
   }
 
@@ -1669,6 +1705,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
                          isolate_data->message_port_constructor_string(),
                          GetMessagePortConstructorTemplate(isolate_data));
 
+  SetMethod(isolate,
+            target,
+            "exposeLazyDOMExceptionProperty",
+            ExposeLazyDOMExceptionProperty);
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
   SetMethod(isolate, target, "stopMessagePort", MessagePort::Stop);
@@ -1714,6 +1754,8 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::MoveToContext);
   registry->Register(SetDeserializerCreateObjectFunction);
   registry->Register(StructuredClone);
+  registry->Register(ExposeLazyDOMExceptionProperty);
+  registry->Register(ExposeLazyDOMExceptionPropertyGetter);
 }
 
 }  // anonymous namespace

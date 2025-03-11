@@ -39,6 +39,15 @@ const { subtle } = globalThis.crypto;
     await assert.rejects(
       subtle.importKey('raw', keyData, {
         name: 'HMAC',
+        hash: 'SHA-256',
+        length: 384,
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Invalid key length'
+      });
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
         hash: 'SHA-256'
       }, false, ['deriveBits']), {
         name: 'SyntaxError',
@@ -59,8 +68,8 @@ const { subtle } = globalThis.crypto;
         hash: 'SHA-256',
         length: 1
       }, false, ['sign', 'verify']), {
-        name: 'DataError',
-        message: 'Invalid key length'
+        name: 'NotSupportedError',
+        message: 'Unsupported algorithm.length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -85,6 +94,10 @@ const { subtle } = globalThis.crypto;
         name: 'HMAC',
         hash: 'SHA-256'
       }, true, ['sign', 'verify']);
+
+
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
 
     const raw = await subtle.exportKey('raw', key);
 
@@ -127,6 +140,8 @@ const { subtle } = globalThis.crypto;
         name: 'AES-CTR',
         length: 256,
       }, true, ['encrypt', 'decrypt']);
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
 
     const raw = await subtle.exportKey('raw', key);
 

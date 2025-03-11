@@ -101,6 +101,8 @@ experimental domain NodeWorker
 # Partial support for Network domain of ChromeDevTools Protocol.
 # https://chromedevtools.github.io/devtools-protocol/tot/Network
 experimental domain Network
+  depends on Runtime
+
   # Resource type as it was perceived by the rendering engine.
   type ResourceType extends string
     enum
@@ -131,6 +133,31 @@ experimental domain Network
 
   # Monotonically increasing time in seconds since an arbitrary point in the past.
   type MonotonicTime extends number
+
+  # Information about the request initiator.
+  type Initiator extends object
+    properties
+      # Type of this initiator.
+      enum type
+        parser
+        script
+        preload
+        SignedExchange
+        preflight
+        other
+      # Initiator JavaScript stack trace, set for Script only.
+      # Requires the Debugger domain to be enabled.
+      optional Runtime.StackTrace stack
+      # Initiator URL, set for Parser type or for Script type (when script is importing module) or for SignedExchange type.
+      optional string url
+      # Initiator line number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number lineNumber
+      # Initiator column number, set for Parser type or for Script type (when script is importing
+      # module) (0-based).
+      optional number columnNumber
+      # Set if another request triggered this request (e.g. preflight).
+      optional RequestId requestId
 
   # HTTP request data.
   type Request extends object
@@ -163,6 +190,8 @@ experimental domain Network
       RequestId requestId
       # Request data.
       Request request
+      # Request initiator.
+      Initiator initiator
       # Timestamp.
       MonotonicTime timestamp
       # Timestamp.

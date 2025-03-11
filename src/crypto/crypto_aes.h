@@ -9,11 +9,8 @@
 #include "env.h"
 #include "v8.h"
 
-namespace node {
-namespace crypto {
-constexpr size_t kAesBlockSize = 16;
+namespace node::crypto {
 constexpr unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
-constexpr const char* kDefaultWrapIV = "\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6";
 
 #define VARIANTS(V)                                                            \
   V(CTR_128, AES_CTR_Cipher, NID_aes_128_ctr)                                  \
@@ -29,8 +26,8 @@ constexpr const char* kDefaultWrapIV = "\xa6\xa6\xa6\xa6\xa6\xa6\xa6\xa6";
   V(KW_192, AES_Cipher, NID_id_aes192_wrap)                                    \
   V(KW_256, AES_Cipher, NID_id_aes256_wrap)
 
-enum AESKeyVariant {
-#define V(name, _, __) kKeyVariantAES_##name,
+enum class AESKeyVariant {
+#define V(name, _, __) name,
   VARIANTS(V)
 #undef V
 };
@@ -38,7 +35,7 @@ enum AESKeyVariant {
 struct AESCipherConfig final : public MemoryRetainer {
   CryptoJobMode mode;
   AESKeyVariant variant;
-  const EVP_CIPHER* cipher;
+  ncrypto::Cipher cipher;
   size_t length;
   ByteSource iv;  // Used for both iv or counter
   ByteSource additional_data;
@@ -81,8 +78,7 @@ namespace AES {
 void Initialize(Environment* env, v8::Local<v8::Object> target);
 void RegisterExternalReferences(ExternalReferenceRegistry* registry);
 }  // namespace AES
-}  // namespace crypto
-}  // namespace node
+}  // namespace node::crypto
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 #endif  // SRC_CRYPTO_CRYPTO_AES_H_

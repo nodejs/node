@@ -220,24 +220,6 @@ std::string GetHumanReadableProcessName() {
   return SPrintF("%s[%d]", GetProcessTitle("Node.js"), uv_os_getpid());
 }
 
-std::vector<std::string_view> SplitString(const std::string_view in,
-                                          const std::string_view delim) {
-  std::vector<std::string_view> out;
-
-  for (auto first = in.data(), second = in.data(), last = first + in.size();
-       second != last && first != last;
-       first = second + 1) {
-    second =
-        std::find_first_of(first, last, std::cbegin(delim), std::cend(delim));
-
-    if (first != second) {
-      out.emplace_back(first, second - first);
-    }
-  }
-
-  return out;
-}
-
 void ThrowErrStringTooLong(Isolate* isolate) {
   isolate->ThrowException(ERR_STRING_TOO_LONG(isolate));
 }
@@ -782,6 +764,16 @@ std::string DetermineSpecificErrorType(Environment* env,
         input.As<v8::Object>()->GetConstructorName();
     Utf8Value name(env->isolate(), constructor_name);
     return SPrintF("an instance of %s", name.out());
+  } else if (input->IsSymbol()) {
+    v8::MaybeLocal<v8::String> str =
+        input.As<v8::Symbol>()->ToDetailString(env->context());
+    v8::Local<v8::String> js_str;
+    if (!str.ToLocal(&js_str)) {
+      return "Symbol";
+    }
+    Utf8Value name(env->isolate(), js_str);
+    // Symbol(xxx)
+    return name.out();
   }
 
   Utf8Value utf8_value(env->isolate(),

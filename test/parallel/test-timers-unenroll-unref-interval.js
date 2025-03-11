@@ -1,7 +1,6 @@
 'use strict';
 
 const common = require('../common');
-const timers = require('timers');
 
 {
   const interval = setInterval(common.mustCall(() => {
@@ -17,7 +16,7 @@ const timers = require('timers');
 
 {
   const interval = setInterval(common.mustCall(() => {
-    timers.unenroll(interval);
+    clearInterval(interval);
   }), 1).unref();
 }
 

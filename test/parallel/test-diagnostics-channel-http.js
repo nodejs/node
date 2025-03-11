@@ -53,6 +53,14 @@ dc.subscribe('http.server.response.finish', common.mustCall(({
   assert.strictEqual(isHTTPServer(server), true);
 }));
 
+dc.subscribe('http.server.response.created', common.mustCall(({
+  request,
+  response,
+}) => {
+  assert.strictEqual(isIncomingMessage(request), true);
+  assert.strictEqual(isOutgoingMessage(response), true);
+}));
+
 dc.subscribe('http.client.request.created', common.mustCall(({ request }) => {
   assert.strictEqual(isOutgoingMessage(request), true);
   assert.strictEqual(isHTTPServer(server), true);

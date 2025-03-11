@@ -26,7 +26,6 @@ using v8::Context;
 using v8::FunctionCallbackInfo;
 using v8::Isolate;
 using v8::Local;
-using v8::MaybeLocal;
 using v8::Object;
 using v8::Uint32;
 using v8::Value;
@@ -72,9 +71,7 @@ static bool HasOnly(int capability) {
 // process only has the capability CAP_NET_BIND_SERVICE set. If the current
 // process does not have any capabilities set and the process is running as
 // setuid root then lookup will not be allowed.
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars) {
+bool SafeGetenv(const char* key, std::string* text, Environment* env) {
 #if !defined(__CloudABI__) && !defined(_WIN32)
 #if defined(__linux__)
   if ((!HasOnly(CAP_NET_BIND_SERVICE) && linux_at_secure()) ||
@@ -87,14 +84,23 @@ bool SafeGetenv(const char* key,
 
   // Fallback to system environment which reads the real environment variable
   // through uv_os_getenv.
-  if (env_vars == nullptr) {
+  std::shared_ptr<KVStore> env_vars;
+  if (env == nullptr) {
     env_vars = per_process::system_environment;
+  } else {
+    env_vars = env->env_vars();
   }
 
   std::optional<std::string> value = env_vars->Get(key);
-  if (!value.has_value()) return false;
-  *text = value.value();
-  return true;
+
+  bool has_env = value.has_value();
+  if (has_env) {
+    *text = value.value();
+  }
+
+  TraceEnvVar(env, "get", key);
+
+  return has_env;
 }
 
 static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
@@ -103,10 +109,11 @@ static void SafeGetenv(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = env->isolate();
   Utf8Value strenvtag(isolate, args[0]);
   std::string text;
-  if (!SafeGetenv(*strenvtag, &text, env->env_vars())) return;
-  Local<Value> result =
-      ToV8Value(isolate->GetCurrentContext(), text).ToLocalChecked();
-  args.GetReturnValue().Set(result);
+  if (!SafeGetenv(*strenvtag, &text, env)) return;
+  Local<Value> result;
+  if (ToV8Value(isolate->GetCurrentContext(), text).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
@@ -117,7 +124,7 @@ static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
 
   // Let's wrap SafeGetEnv since it returns true for empty string.
   auto get_env = [&dir, &env](std::string_view key) {
-    USE(SafeGetenv(key.data(), &dir, env->env_vars()));
+    USE(SafeGetenv(key.data(), &dir, env));
     return !dir.empty();
   };
 
@@ -130,8 +137,10 @@ static void GetTempDir(const FunctionCallbackInfo<Value>& args) {
     dir.pop_back();
   }
 
-  args.GetReturnValue().Set(
-      ToV8Value(isolate->GetCurrentContext(), dir).ToLocalChecked());
+  Local<Value> result;
+  if (ToV8Value(isolate->GetCurrentContext(), dir).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
@@ -378,9 +387,10 @@ static void GetGroups(const FunctionCallbackInfo<Value>& args) {
   gid_t egid = getegid();
   if (std::find(groups.begin(), groups.end(), egid) == groups.end())
     groups.push_back(egid);
-  MaybeLocal<Value> array = ToV8Value(env->context(), groups);
-  if (!array.IsEmpty())
-    args.GetReturnValue().Set(array.ToLocalChecked());
+  Local<Value> result;
+  if (ToV8Value(env->context(), groups).ToLocal(&result)) {
+    args.GetReturnValue().Set(result);
+  }
 }
 
 static void SetGroups(const FunctionCallbackInfo<Value>& args) {
@@ -396,8 +406,12 @@ static void SetGroups(const FunctionCallbackInfo<Value>& args) {
   MaybeStackBuffer<gid_t, 64> groups(size);
 
   for (size_t i = 0; i < size; i++) {
-    gid_t gid = gid_by_name(
-        env->isolate(), groups_list->Get(env->context(), i).ToLocalChecked());
+    Local<Value> val;
+    if (!groups_list->Get(env->context(), i).ToLocal(&val)) {
+      // V8 will have scheduled an error to be thrown.
+      return;
+    }
+    gid_t gid = gid_by_name(env->isolate(), val);
 
     if (gid == gid_not_found) {
       // Tells JS to throw ERR_INVALID_CREDENTIAL
