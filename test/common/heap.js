@@ -221,6 +221,7 @@ function validateSnapshotNodes(...args) {
  * A alternative heap snapshot validator that can be used to verify cppgc-managed nodes.
  * Modified from
  * https://chromium.googlesource.com/v8/v8/+/b00e995fb212737802810384ba2b868d0d92f7e5/test/unittests/heap/cppgc-js/unified-heap-snapshot-unittest.cc#134
+ * @param {object[]} nodes Snapshot nodes returned by createJSHeapSnapshot() or a subset filtered from it.
  * @param {string} rootName Name of the root node. Typically a class name used to filter all native nodes with
  *                          this name. For cppgc-managed objects, this is typically the name configured by
  *                          SET_CPPGC_NAME() prefixed with an additional "Node /" prefix e.g.
@@ -231,12 +232,12 @@ function validateSnapshotNodes(...args) {
  *   node_type?: string,
  *   edge_type?: string,
  * }]} retainingPath The retaining path specification to search from the root nodes.
+ * @param {boolean} allowEmpty Whether the function should fail if no matching nodes can be found.
  * @returns {[object]} All the leaf nodes matching the retaining path specification. If none can be found,
  *                     logs the nodes found in the last matching step of the path (if any), and throws an
  *                     assertion error.
  */
-function findByRetainingPath(rootName, retainingPath) {
-  const nodes = createJSHeapSnapshot();
+function validateByRetainingPathFromNodes(nodes, rootName, retainingPath, allowEmpty = false) {
   let haystack = nodes.filter((n) => n.name === rootName && n.type !== 'string');
 
   for (let i = 0; i < retainingPath.length; ++i) {
@@ -269,6 +270,9 @@ function findByRetainingPath(rootName, retainingPath) {
     }
 
     if (newHaystack.length === 0) {
+      if (allowEmpty) {
+        return [];
+      }
       const format = (val) => util.inspect(val, { breakLength: 128, depth: 3 });
       console.error('#');
       console.error('# Retaining path to search for:');
@@ -282,6 +286,7 @@ function findByRetainingPath(rootName, retainingPath) {
       }
 
       assert.fail(`Could not find target edge ${format(expected)} in the heap snapshot.`);
+
     }
 
     haystack = newHaystack;
@@ -321,9 +326,19 @@ function getHeapSnapshotOptionTests() {
   };
 }
 
+/**
+ * Similar to @see {validateByRetainingPathFromNodes} but creates the snapshot from scratch.
+ */
+function validateByRetainingPath(...args) {
+  const nodes = createJSHeapSnapshot();
+  return validateByRetainingPathFromNodes(nodes, ...args);
+}
+
 module.exports = {
   recordState,
   validateSnapshotNodes,
-  findByRetainingPath,
+  validateByRetainingPath,
+  validateByRetainingPathFromNodes,
   getHeapSnapshotOptionTests,
+  createJSHeapSnapshot,
 };
