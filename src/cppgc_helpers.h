@@ -67,6 +67,7 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
 
   inline v8::Local<v8::Object> object() const;
   inline Environment* env() const;
+  inline Realm* realm() const { return realm_; }
   inline v8::Local<v8::Object> object(v8::Isolate* isolate) const {
     return traced_reference_.Get(isolate);
   }
