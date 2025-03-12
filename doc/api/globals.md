@@ -539,12 +539,15 @@ if (res.ok) {
 }
 ```
 
-The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.1 client written from scratch for Node.js. You can figure out which version of `undici` is bundled in your Node.js process reading the `process.versions.undici` property.
+The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.1 client
+written from scratch for Node.js. You can figure out which version of `undici` is bundled
+in your Node.js process reading the `process.versions.undici` property.
 
 ## Custom dispatcher
 
 You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
-The dispatcher must be compatible with `undici`'s [`Dispatcher` class](https://undici.nodejs.org/#/docs/api/Dispatcher.md).
+The dispatcher must be compatible with `undici`'s
+[`Dispatcher` class](https://undici.nodejs.org/#/docs/api/Dispatcher.md).
 
 ```js
 fetch(url, { dispatcher: new MyAgent() });
