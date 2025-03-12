@@ -259,7 +259,7 @@
   },
   {
     "input": "look\u180Eout.net",
-    "output": null
+    "output": "lookout.net"
   },
   {
     "input": "look\u2060out.net",
@@ -291,7 +291,7 @@
   },
   {
     "input": "look\u206Bout.net",
-    "output": null
+    "output": "lookout.net"
   },
   {
     "input": "look\uDB40\uDC01out.net",
@@ -319,16 +319,15 @@
   },
   {
     "input": "\u04C0.com",
-    "output": null
+    "output": "xn--s5a.com"
   },
   {
-    "comment": "This is U+2F868 (which is mapped to U+36FC starting with Unicode 16.0)",
     "input": "\uD87E\uDC68.com",
     "output": "xn--snl.com"
   },
   {
     "input": "\u2183.com",
-    "output": null
+    "output": "xn--r5g.com"
   },
   {
     "input": "look\u034Fout.net",

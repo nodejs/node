@@ -72,11 +72,11 @@
     "path": "streams"
   },
   "url": {
-    "commit": "a23788b77a947304b2b3159d8efda492727ab623",
+    "commit": "d86fcc9e8764155485975a2a9bbfc5ec4aa9e75b",
     "path": "url"
   },
   "urlpattern": {
-    "commit": "3b6b19853a928ec9bfa28e9046c3cf601f160e42",
+    "commit": "827d52cc6e31939974f91cda7c0c77ef61d4444b",
     "path": "urlpattern"
   },
   "user-timing": {

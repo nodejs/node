@@ -11,26 +11,14 @@
   "urlpattern.any.js": {
     "fail": {
       "expected": [
-        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]",
-        "Pattern: [{\"hostname\":\"bad#hostname\"}] Inputs: [{\"hostname\":\"bad\"}]",
-        "Pattern: [{\"hostname\":\"bad/hostname\"}] Inputs: [{\"hostname\":\"bad\"}]",
-        "Pattern: [{\"hostname\":\"bad\\\\\\\\hostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\nhostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\rhostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\thostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]"
+        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]"
       ]
     }
   },
   "urlpattern.https.any.js": {
     "fail": {
       "expected": [
-        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]",
-        "Pattern: [{\"hostname\":\"bad#hostname\"}] Inputs: [{\"hostname\":\"bad\"}]",
-        "Pattern: [{\"hostname\":\"bad/hostname\"}] Inputs: [{\"hostname\":\"bad\"}]",
-        "Pattern: [{\"hostname\":\"bad\\\\\\\\hostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\nhostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\rhostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]",
-        "Pattern: [{\"hostname\":\"bad\\thostname\"}] Inputs: [{\"hostname\":\"badhostname\"}]"
+        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]"
       ]
     }
   }
