@@ -30,10 +30,9 @@ and post when doing a release, and TSC members may post
 an announcement of a release if a releaser is not able to
 do it themselves.
 
-Linked in allows the addition of content admins. Releasers may
-request access by opening an issue in the nodejs/admin repo
-asking for access. Once approved they should ask @bensternthal
-to add them.
+Login credentials are available to members of the Technical
+Steering Committee. Releasers may request access by
+opening an issue in the nodejs/admin repo asking for access.
 
 ## Facebook
 
@@ -48,11 +47,13 @@ Day to day management of the LinkedIn account has been
 delegated to the Foundation Staff.
 
 In addition, it has been agreed that Releasers may login
-and post when doing a release, and TSC members may post
-an announcement of a release if a releaser is not able to
-do it themselves. All other content should be managed by the Foundation
-staff.
+and re-post their release announcement when doing a release, 
+and TSC members may re-post an announcement of a release if a
+releaser is not able to do it themselves. All other content should
+be managed by the Foundation staff.
 
-Login credentials are available to members of the Technical
-Steering Committee. Releasers or TSC members may request access by
-opening an issue in the nodejs/admin repo asking for access.
+Linked in allows the addition of content admins. Releasers may
+request access by opening an issue in the nodejs/admin repo
+asking for access. Once approved they should ask @bensternthal
+to add them.
+
