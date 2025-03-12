@@ -3358,7 +3358,7 @@ added: REPLACEME
 
 Replaces the current process with a new process.
 
-This is achieved by using the `execve` Unix function and therefore no memory or other
+This is achieved by using the `execve` POSIX function and therefore no memory or other
 resources from the current process are preserved, except for the standard input,
 standard output and standard error file descriptor.
 
