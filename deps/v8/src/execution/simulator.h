@@ -97,7 +97,7 @@ class SimulatorStack : public v8::internal::AllStatic {
       v8::internal::Isolate* isolate) {
     uintptr_t upper_bound = base::Stack::GetStackStart();
     size_t size =
-        v8_flags.stack_size * KB + wasm::StackMemory::kJSLimitOffsetKB * KB;
+        isolate->stack_size() + wasm::StackMemory::kJSLimitOffsetKB * KB;
     uintptr_t lower_bound = upper_bound - size;
     return base::VectorOf(reinterpret_cast<uint8_t*>(lower_bound), size);
   }

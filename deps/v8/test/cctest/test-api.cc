@@ -17173,6 +17173,86 @@ TEST(SetStackLimitInThread) {
   }
 }
 
+static bool TestStackOverflow(v8::Isolate* isolate) {
+  v8::Isolate::Scope isolate_scope(isolate);
+  v8::HandleScope scope(isolate);
+  LocalContext context(isolate);
+  v8::TryCatch try_catch(isolate);
+  const char* code =
+      "var errored = false;"
+      "function fn(...args) {"
+      "  try { fn(...args); }"
+      "  catch (e) {"
+      // Only trigger GC once the stack is full to speedup the test.
+      "    if (!errored) {"
+      "      gc();"
+      "      errored = true;"
+      "    }"
+      "    throw e;"
+      "  }"
+      "}"
+      "try {"
+      "  fn.apply(null, new Array(10).fill(1).map(() => {}));"
+      "  false;"
+      "} catch (e) {"
+      "  e.name === 'RangeError'"  // StackOverflow is a RangeError
+      "}";
+  Local<Value> value = CompileRun(code);
+
+  // A StackOverflow error is thrown, without crashing.
+  return value->IsTrue();
+}
+
+class StackOverflowThread : public v8::base::Thread {
+ public:
+  explicit StackOverflowThread(int stack_size, int js_stack_size)
+      : Thread(Options("StackOverflowThread", stack_size)),
+        js_stack_size_(js_stack_size),
+        result_(false) {}
+
+  void Run() override {
+    uintptr_t stack_top = v8::base::Stack::GetStackStart();
+    // Compute isolate stack limit by js stack size.
+    uintptr_t stack_base = stack_top - js_stack_size_;
+    v8::Isolate::CreateParams create_params = CreateTestParams();
+    v8::Isolate* isolate = v8::Isolate::New(create_params);
+    isolate->SetStackLimit(stack_base);
+    result_ = TestStackOverflow(isolate);
+    isolate->Dispose();
+  }
+
+  int result() { return result_; }
+
+ private:
+  int js_stack_size_;
+  bool result_;
+};
+
+TEST(SetStackLimitInThreadAndStackOverflow) {
+  // Set a small --stack-size flag.
+  i::FlagScope<int> f_stack_size(&i::v8_flags.stack_size, 100);
+  // Trigger GC aggressively to verify that GC does not crash with stack litmit.
+  i::FlagScope<size_t> f_heap_size(&i::v8_flags.max_heap_size, 8);
+  i::FlagScope<bool> f_expose_gc(&i::v8_flags.expose_gc, true);
+
+  // ASAN requires more stack space.
+#ifdef V8_USE_ADDRESS_SANITIZER
+  constexpr int stack_size = 32 * v8::internal::MB;
+  constexpr int js_stack_size = 2 * v8::internal::MB;
+#else
+  constexpr int stack_size = 2 * v8::internal::MB;
+  constexpr int js_stack_size = 1 * v8::internal::MB;
+#endif
+  // Spawn an Isolate on a thread with larger stack limits than --stack-size.
+  StackOverflowThread thread1(stack_size, js_stack_size);
+
+  CHECK(thread1.Start());
+
+  thread1.Join();
+
+  CHECK(thread1.result());
+}
+
 THREADED_TEST(GetHeapStatistics) {
   LocalContext c1;
   v8::HandleScope scope(c1->GetIsolate());

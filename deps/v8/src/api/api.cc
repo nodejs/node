@@ -10154,6 +10154,7 @@ void Isolate::Initialize(Isolate* v8_isolate,
     uintptr_t limit =
         reinterpret_cast<uintptr_t>(params.constraints.stack_limit());
     i_isolate->stack_guard()->SetStackLimit(limit);
+    i_isolate->set_stack_size(base::Stack::GetStackStart() - limit);
   }
 
   // TODO(v8:2487): Once we got rid of Isolate::Current(), we can remove this.
@@ -10800,6 +10801,7 @@ void Isolate::SetStackLimit(uintptr_t stack_limit) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   CHECK(stack_limit);
   i_isolate->stack_guard()->SetStackLimit(stack_limit);
+  i_isolate->set_stack_size(base::Stack::GetStackStart() - stack_limit);
 }
 
 void Isolate::GetCodeRange(void** start, size_t* length_in_bytes) {

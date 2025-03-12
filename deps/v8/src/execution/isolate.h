@@ -1739,6 +1739,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   bool jitless() const { return jitless_; }
 
+  void set_stack_size(size_t v) { stack_size_ = v; }
+  size_t stack_size() { return stack_size_; }
+
   base::RandomNumberGenerator* random_number_generator();
 
   base::RandomNumberGenerator* fuzzer_rng();
@@ -2879,6 +2882,9 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   // The mutex only guards adding pages, the retrieval is signal safe.
   base::SpinningMutex code_pages_mutex_;
 
+  // Stack size set with ResourceConstraints or Isolate::SetStackLimit, in
+  // bytes. This is initialized with value of --stack-size.
+  size_t stack_size_;
 #ifdef V8_ENABLE_WEBASSEMBLY
   wasm::WasmCodeLookupCache* wasm_code_look_up_cache_ = nullptr;
   std::vector<std::unique_ptr<wasm::StackMemory>> wasm_stacks_;

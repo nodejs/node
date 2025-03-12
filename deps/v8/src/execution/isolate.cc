@@ -4135,14 +4135,13 @@ Isolate::Isolate(IsolateGroup* isolate_group)
       next_unique_sfi_id_(0),
       next_module_async_evaluation_ordinal_(
           SourceTextModule::kFirstAsyncEvaluationOrdinal),
-      cancelable_task_manager_(new CancelableTaskManager())
+      cancelable_task_manager_(new CancelableTaskManager()),
 #if defined(V8_ENABLE_ETW_STACK_WALKING)
-      ,
       etw_tracing_enabled_(false),
       etw_trace_interpreted_frames_(v8_flags.interpreted_frames_native_stack),
-      etw_in_rundown_(false)
+      etw_in_rundown_(false),
 #endif  // V8_ENABLE_ETW_STACK_WALKING
-{
+      stack_size_(v8_flags.stack_size * KB) {
   TRACE_ISOLATE(constructor);
   CheckIsolateLayout();
 
