@@ -78,7 +78,7 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->
@@ -517,7 +517,7 @@ exception.
 <!-- YAML
 added: v23.8.0
 changes:
-  - version: REPLACEME
+  - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->

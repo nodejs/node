@@ -2382,7 +2382,7 @@ of an asynchronous operation.
 ### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 An attempt was made to get options before the bootstrapping was completed.

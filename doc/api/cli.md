@@ -922,7 +922,7 @@ production.
 ### `--experimental-config-file=config`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 > Stability: 1.0 - Early development
@@ -988,7 +988,7 @@ so **NEVER** use untrusted configuration files.
 ### `--experimental-default-config-file`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 > Stability: 1.0 - Early development
