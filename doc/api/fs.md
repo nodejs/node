@@ -1119,6 +1119,8 @@ const { glob } = require('node:fs/promises');
 deprecated: v10.0.0
 -->
 
+> Stability: 0 - Deprecated
+
 * `path` {string|Buffer|URL}
 * `mode` {integer}
 * Returns: {Promise} Fulfills with `undefined` upon success.
@@ -3194,6 +3196,8 @@ changes:
     description: The `callback` parameter is no longer optional. Not passing
                  it will emit a deprecation warning with id DEP0013.
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
@@ -5713,6 +5717,8 @@ console.log(globSync('**/*.js'));
 <!-- YAML
 deprecated: v0.4.7
 -->
+
+> Stability: 0 - Deprecated
 
 * `path` {string|Buffer|URL}
 * `mode` {integer}
