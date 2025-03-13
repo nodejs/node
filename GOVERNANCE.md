@@ -185,24 +185,31 @@ nomination.
 
 #### How to review a collaborator nomination
 
-A collaborator nomination can be reviewed in the same way you'd review a PR
+A collaborator nomination can be reviewed in the same way one would review a PR
 adding a feature:
 
-- If you see the nomination as something positive to the project, say so!
-- If you are neutral, or feel you don't know enough to have an informed opinion,
+* If you see the nomination as something positive to the project, say so!
+* If you are neutral, or feel you don't know enough to have an informed opinion,
   it's certainly OK to not interact with the nomination.
-- If you think the nomination can be detrimental to the project, share your
+* If you think the nomination can be detrimental to the project, share your
   concerns, ideally before the public nomination is opened, and avoid sharing
   those concerns outside of the Collaborator discussion area.
   Ideally, list what step(s) the nominee could take that would make you
   approve their nomination.
+  Given that there is no "Request for changes" feature in discussions and issues,
+  try to be explicit when your comment is expressing a blocking concern.
+  Similarly, once the blocking concern has been addressed, explicitly say so.
 
 Our goal is to keep gate-keeping at a minimal, but it cannot be zero since being
 a collaborator requires trust (collaborators can start CI jobs, use their veto,
 push commits, etc.), so what's the minimal amount is subjective, and there will
 be cases where collaborators disagree on whether a nomination should move
-forward. In those case, refrain from opening the public nomination until all
-concerns have been addressed.
+forward.
+
+When concerns have been raised on the private discussion, refrain from opening
+the public issue. If no one has explicitly blocked the nomination and you'd like
+it to move forward, comment something like "If I don't hear any objections
+before (some time), I will open the public issue".
 
 ### Onboarding
 
