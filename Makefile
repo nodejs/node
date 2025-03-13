@@ -1567,6 +1567,7 @@ cpplint: lint-cpp
 # python -m pip install ruff
 # Try with '--system' if it fails without; the system may have set '--user'
 lint-py-build: ## Build resources needed to lint python files.
+	echo "jstan327POC"
 	$(info Pip installing ruff on $(shell $(PYTHON) --version)...)
 	$(PYTHON) -m pip install --upgrade --target tools/pip/site-packages ruff==0.6.5 || \
 		$(PYTHON) -m pip install --upgrade --system --target tools/pip/site-packages ruff==0.6.5
