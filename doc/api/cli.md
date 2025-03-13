@@ -2937,6 +2937,10 @@ The following values are valid for `mode`:
 
 ### `--use-system-ca`
 
+<!-- YAML
+added: v23.8.0
+-->
+
 Node.js uses the trusted CA certificates present in the system store along with
 the `--use-bundled-ca` option and the `NODE_EXTRA_CA_CERTS` environment variable.
 On platforms other than Windows and macOS, this loads certificates from the directory
