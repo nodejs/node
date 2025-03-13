@@ -1141,6 +1141,42 @@
                 "host": "example.com",
                 "hostname": "example.com"
             }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
         }
     ],
     "hostname": [
@@ -1551,6 +1587,42 @@
                 "href": "https://example.com/",
                 "host": "example.com",
                 "hostname": "example.com"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
             }
         }
     ],
