@@ -70,7 +70,7 @@ export declare namespace Client {
     /** TODO */
     maxRedirections?: number;
     /** TODO */
-    connect?: buildConnector.BuildOptions | buildConnector.connector;
+    connect?: Partial<buildConnector.BuildOptions> | buildConnector.connector;
     /** TODO */
     maxRequestsPerClient?: number;
     /** TODO */

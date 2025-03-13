@@ -179,7 +179,9 @@ for await (const data of result2.body) {
   console.log('data', data.toString('utf8')) // data hello
 }
 ```
+
 #### Example - Mock different requests within the same file
+
 ```js
 const { MockAgent, setGlobalDispatcher } = require('undici');
 const agent = new MockAgent();
@@ -539,4 +541,61 @@ agent.assertNoPendingInterceptors()
 // ├─────────┼────────┼───────────────────────┼──────┼─────────────┼────────────┼─────────────┼───────────┤
 // │    0    │ 'GET'  │ 'https://example.com' │ '/'  │     200     │    '❌'    │      0      │     1     │
 // └─────────┴────────┴───────────────────────┴──────┴─────────────┴────────────┴─────────────┴───────────┘
+```
+
+#### Example - access call history on MockAgent
+
+You can register every call made within a MockAgent to be able to retrieve the body, headers and so on.
+
+This is not enabled by default.
+
+```js
+import { MockAgent, setGlobalDispatcher, request } from 'undici'
+
+const mockAgent = new MockAgent({ enableCallHistory: true })
+setGlobalDispatcher(mockAgent)
+
+await request('http://example.com', { query: { item: 1 }})
+
+mockAgent.getCallHistory()?.firstCall()
+// Returns
+// MockCallHistoryLog {
+//   body: undefined,
+//   headers: undefined,
+//   method: 'GET',
+//   origin: 'http://example.com',
+//   fullUrl: 'http://example.com/?item=1',
+//   path: '/',
+//   searchParams: { item: '1' },
+//   protocol: 'http:',
+//   host: 'example.com',
+//   port: ''
+// }
+```
+
+#### Example - clear call history
+
+```js
+const mockAgent = new MockAgent()
+
+mockAgent.clearAllCallHistory()
+```
+
+#### Example - call history instance class method
+
+```js
+const mockAgent = new MockAgent()
+
+const mockAgentHistory = mockAgent.getCallHistory()
+
+mockAgentHistory?.calls() // returns an array of MockCallHistoryLogs
+mockAgentHistory?.firstCall() // returns the first MockCallHistoryLogs or undefined
+mockAgentHistory?.lastCall() // returns the last MockCallHistoryLogs or undefined
+mockAgentHistory?.nthCall(3) // returns the third MockCallHistoryLogs or undefined
+mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint OR hash === #hash-value
+mockAgentHistory?.filterCalls({ path: '/endpoint', hash: '#hash-value' }, { operator: 'AND' }) // returns an Array of MockCallHistoryLogs WHERE path === /endpoint AND hash === #hash-value
+mockAgentHistory?.filterCalls(/"data": "{}"/) // returns an Array of MockCallHistoryLogs where any value match regexp
+mockAgentHistory?.filterCalls('application/json') // returns an Array of MockCallHistoryLogs where any value === 'application/json'
+mockAgentHistory?.filterCalls((log) => log.path === '/endpoint') // returns an Array of MockCallHistoryLogs when given function returns true
+mockAgentHistory?.clear() // clear the history
 ```
