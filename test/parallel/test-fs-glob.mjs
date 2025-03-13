@@ -428,6 +428,9 @@ const patterns2 = [
     [`${absDir}/foo`, 'a/c', ...(common.isWindows ? [] : ['a/symlink/a/b/c'])],
   ],
   [ 'a/**', () => true, [] ],
+  [ 'a/**', [ '*' ], [] ],
+  [ 'a/**', [ '**' ], [] ],
+  [ 'a/**', [ 'a/**' ], [] ],
 ];
 
 describe('globSync - exclude', function() {
