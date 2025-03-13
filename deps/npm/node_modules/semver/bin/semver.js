@@ -61,6 +61,7 @@ const main = () => {
         switch (argv[0]) {
           case 'major': case 'minor': case 'patch': case 'prerelease':
           case 'premajor': case 'preminor': case 'prepatch':
+          case 'release':
             inc = argv.shift()
             break
           default:
@@ -149,7 +150,7 @@ Options:
 -i --increment [<level>]
         Increment a version by the specified level.  Level can
         be one of: major, minor, patch, premajor, preminor,
-        prepatch, or prerelease.  Default level is 'patch'.
+        prepatch, prerelease, or release.  Default level is 'patch'.
         Only one version may be specified.
 
 --preid <identifier>
