@@ -940,7 +940,7 @@ t.test('audit signatures', async t => {
   })
 
   t.test('with key fallback to legacy API', async t => {
-    const { npm, joinedOutput } = await loadMockNpm(t, {
+    const { logs, npm, joinedOutput } = await loadMockNpm(t, {
       prefixDir: installWithValidSigs,
     })
     const registry = new MockRegistry({ tap: t, registry: npm.config.get('registry') })
@@ -952,6 +952,7 @@ t.test('audit signatures', async t => {
 
     t.notOk(process.exitCode, 'should exit successfully')
     t.match(joinedOutput(), /audited 1 package/)
+    t.match(logs.warn, ['Fetching verification keys using TUF failed.  Fetching directly from https://registry.npmjs.org/.'])
     t.matchSnapshot(joinedOutput())
   })
 

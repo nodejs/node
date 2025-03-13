@@ -1,6 +1,6 @@
 {
   "name": "@npmcli/git",
-  "version": "6.0.1",
+  "version": "6.0.3",
   "main": "lib/index.js",
   "files": [
     "bin/",
@@ -32,8 +32,8 @@
   },
   "devDependencies": {
     "@npmcli/eslint-config": "^5.0.0",
-    "@npmcli/template-oss": "4.23.3",
-    "npm-package-arg": "^11.0.0",
+    "@npmcli/template-oss": "4.24.1",
+    "npm-package-arg": "^12.0.1",
     "slash": "^3.0.0",
     "tap": "^16.0.1"
   },
@@ -43,7 +43,6 @@
     "lru-cache": "^10.0.1",
     "npm-pick-manifest": "^10.0.0",
     "proc-log": "^5.0.0",
-    "promise-inflight": "^1.0.1",
     "promise-retry": "^2.0.1",
     "semver": "^7.3.5",
     "which": "^5.0.0"
@@ -53,7 +52,7 @@
   },
   "templateOSS": {
     "//@npmcli/template-oss": "This file is partially managed by @npmcli/template-oss. Edits may be overwritten.",
-    "version": "4.23.3",
+    "version": "4.24.1",
     "publish": true
   }
 }

@@ -3,7 +3,8 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.foregroundChild = exports.normalizeFgArgs = void 0;
+exports.normalizeFgArgs = void 0;
+exports.foregroundChild = foregroundChild;
 const child_process_1 = require("child_process");
 const cross_spawn_1 = __importDefault(require("cross-spawn"));
 const signal_exit_1 = require("signal-exit");
@@ -118,6 +119,5 @@ function foregroundChild(...fgArgs) {
     }
     return child;
 }
-exports.foregroundChild = foregroundChild;
 const isPromise = (o) => !!o && typeof o === 'object' && typeof o.then === 'function';
 //# sourceMappingURL=index.js.map
