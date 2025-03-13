@@ -183,6 +183,27 @@ Collaborators might overlook someone with valuable contributions. In that case,
 the contributor may open an issue or contact a collaborator to request a
 nomination.
 
+#### How to review a collaborator nomination
+
+A collaborator nomination can be reviewed in the same way you'd review a PR
+adding a feature:
+
+- If you see the nomination as something positive to the project, say so!
+- If you are neutral, or feel you don't know enough to have an informed opinion,
+  it's certainly OK to not interact with the nomination.
+- If you think the nomination can be detrimental to the project, share your
+  concerns, ideally before the public nomination is opened, and avoid sharing
+  those concerns outside of the Collaborator discussion area.
+  Ideally, list what step(s) the nominee could take that would make you
+  approve their nomination.
+
+Our goal is to keep gate-keeping at a minimal, but it cannot be zero since being
+a collaborator requires trust (collaborators can start CI jobs, use their veto,
+push commits, etc.), so what's the minimal amount is subjective, and there will
+be cases where collaborators disagree on whether a nomination should move
+forward. In those case, refrain from opening the public nomination until all
+concerns have been addressed.
+
 ### Onboarding
 
 After the nomination passes, a TSC member onboards the new collaborator. See
