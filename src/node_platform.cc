@@ -464,6 +464,11 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
   if (!per_isolate) return;
 
   do {
+    if (per_process::cli_options->force_gc_for_test) {
+      isolate->RequestGarbageCollectionForTesting(
+          Isolate::GarbageCollectionType::kFullGarbageCollection);
+    }
+
     // Worker tasks aren't associated with an Isolate.
     worker_thread_task_runner_->BlockingDrain();
   } while (per_isolate->FlushForegroundTasksInternal());
