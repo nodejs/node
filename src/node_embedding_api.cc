@@ -1,6 +1,6 @@
 #include "node_version.h"  // define NODE_VERSION first
 
-#include "node_embedding_api_cpp.h"
+#include "node_embedding_api.h"
 
 #include "env-inl.h"
 #include "js_native_api_v8.h"
@@ -91,6 +91,281 @@ v8::Maybe<ExitCode> SpinEventLoopWithoutCleanup(Environment* env,
 }  // namespace node
 
 namespace node::embedding {
+
+// Move-only pointer wrapper.
+// The class does not own the pointer and does not delete it.
+// It simplifies implementation of the C++ API classes that wrap pointers.
+template <typename TPointer>
+class NodePointer {
+ public:
+  NodePointer() = default;
+
+  explicit NodePointer(TPointer ptr) : ptr_(ptr) {}
+
+  NodePointer(const NodePointer&) = delete;
+  NodePointer& operator=(const NodePointer&) = delete;
+
+  NodePointer(NodePointer&& other) noexcept
+      : ptr_(std::exchange(other.ptr_, nullptr)) {}
+
+  NodePointer& operator=(NodePointer&& other) noexcept {
+    if (this != &other) {
+      ptr_ = std::exchange(other.ptr_, nullptr);
+    }
+    return *this;
+  }
+
+  NodePointer& operator=(std::nullptr_t) {
+    ptr_ = nullptr;
+    return *this;
+  }
+
+  TPointer ptr() const { return ptr_; }
+
+  explicit operator bool() const { return ptr_ != nullptr; }
+
+ private:
+  TPointer ptr_{};
+};
+
+// A helper class to convert std::vector<std::string> to an array of C strings.
+// If the number of strings is less than kInplaceBufferSize, the strings are
+// stored in the inplace_buffer_ array. Otherwise, the strings are stored in the
+// allocated_buffer_ array.
+// Ideally the class must be allocated on the stack.
+// In any case it must not outlive the passed vector since it keeps only the
+// string pointers returned by std::string::c_str() method.
+template <size_t kInplaceBufferSize = 32>
+class NodeCStringArray {
+ public:
+  NodeCStringArray() = default;
+
+  explicit NodeCStringArray(const std::vector<std::string>& strings) noexcept
+      : size_(strings.size()) {
+    if (size_ <= inplace_buffer_.size()) {
+      c_strs_ = inplace_buffer_.data();
+    } else {
+      allocated_buffer_ = std::make_unique<const char*[]>(size_);
+      c_strs_ = allocated_buffer_.get();
+    }
+    for (size_t i = 0; i < size_; ++i) {
+      c_strs_[i] = strings[i].c_str();
+    }
+  }
+
+  NodeCStringArray(const NodeCStringArray&) = delete;
+  NodeCStringArray& operator=(const NodeCStringArray&) = delete;
+
+  NodeCStringArray(NodeCStringArray&& other) noexcept
+      : size_(std::exchange(other.size_, 0)),
+        c_strs_(std::exchange(other.c_strs_, 0)),
+        allocated_buffer_(std::exchange(other.allocated_buffer_, nullptr)) {
+    if (size_ <= inplace_buffer_.size()) {
+      c_strs_ = inplace_buffer_.data();
+      std::memcpy(inplace_buffer_.data(),
+                  other.inplace_buffer_.data(),
+                  size_ * sizeof(const char*));
+    }
+  }
+
+  NodeCStringArray& operator=(NodeCStringArray&& other) noexcept {
+    if (this != &other) {
+      size_ = std::exchange(other.size_, 0);
+      c_strs_ = std::exchange(other.c_strs_, nullptr);
+      allocated_buffer_ = std::exchange(other.allocated_buffer_, nullptr);
+      if (size_ <= inplace_buffer_.size()) {
+        c_strs_ = inplace_buffer_.data();
+        std::memcpy(inplace_buffer_.data(),
+                    other.inplace_buffer_.data(),
+                    size_ * sizeof(const char*));
+      }
+    }
+    return *this;
+  }
+
+  int32_t size() const { return static_cast<int32_t>(size_); }
+  const char** c_strs() const { return c_strs_; }
+
+ private:
+  size_t size_{};
+  const char** c_strs_{};
+  std::array<const char*, kInplaceBufferSize> inplace_buffer_;
+  std::unique_ptr<const char*[]> allocated_buffer_;
+};
+
+template <typename TCallback, typename TFunctor, typename TEnable = void>
+class NodeFunctorInvoker;
+
+template <typename TCallback>
+class NodeFunctorRef;
+
+template <typename TResult, typename... TArgs>
+class NodeFunctorRef<TResult (*)(void*, TArgs...)> {
+  using TCallback = TResult (*)(void*, TArgs...);
+
+ public:
+  NodeFunctorRef(std::nullptr_t) {}
+
+  NodeFunctorRef(TCallback callback, void* data)
+      : callback_(callback), data_(data) {}
+
+  template <typename TFunctor>
+  NodeFunctorRef(TFunctor&& functor)
+      : callback_(&NodeFunctorInvoker<TCallback, TFunctor>::Invoke),
+        data_(&functor) {}
+
+  NodeFunctorRef(NodeFunctorRef&& other) = default;
+  NodeFunctorRef& operator=(NodeFunctorRef&& other) = default;
+
+  TCallback callback() const { return callback_.ptr(); }
+
+  void* data() const { return data_.ptr(); }
+
+  explicit operator bool() const { return static_cast<bool>(callback_); }
+
+ private:
+  NodePointer<TCallback> callback_;
+  NodePointer<void*> data_;
+};
+
+template <typename TCallback>
+class NodeFunctor;
+
+template <typename TResult, typename... TArgs>
+class NodeFunctor<TResult (*)(void*, TArgs...)> {
+  using TCallback = TResult (*)(void*, TArgs...);
+
+ public:
+  NodeFunctor() = default;
+  NodeFunctor(std::nullptr_t) {}
+
+  NodeFunctor(TCallback callback,
+              void* data,
+              node_embedding_data_release_callback data_release)
+      : callback_(callback), data_(data), data_release_(data_release) {}
+
+  // TODO: add overload for stateless lambdas.
+  template <typename TFunctor>
+  NodeFunctor(TFunctor&& functor)
+      : callback_(&NodeFunctorInvoker<TCallback, TFunctor>::Invoke),
+        data_(new TFunctor(std::forward<TFunctor>(functor))),
+        data_release_(&ReleaseFunctor<TFunctor>) {}
+
+  NodeFunctor(NodeFunctor&& other) = default;
+  NodeFunctor& operator=(NodeFunctor&& other) = default;
+
+  TCallback callback() const { return callback_.ptr(); }
+
+  void* data() const { return data_.ptr(); }
+
+  node_embedding_data_release_callback data_release() const {
+    return data_release_.ptr();
+  }
+
+  explicit operator bool() const { return static_cast<bool>(callback_); }
+
+  TResult operator()(TArgs... args) const {
+    return (*callback_.ptr())(data_.ptr(), args...);
+  }
+
+ private:
+  template <typename TFunctor>
+  static NodeStatus ReleaseFunctor(void* data) {
+    // TODO: Handle exceptions.
+    delete reinterpret_cast<TFunctor*>(data);
+    return NodeStatus::kOk;
+  }
+
+ private:
+  NodePointer<TCallback> callback_;
+  NodePointer<void*> data_;
+  NodePointer<node_embedding_data_release_callback> data_release_;
+};
+
+static std::string NodeFormatStringHelper(const char* format, va_list args) {
+  va_list args2;  // Required for some compilers like GCC since we go over the
+                  // args twice.
+  va_copy(args2, args);
+  std::string result(std::vsnprintf(nullptr, 0, format, args), '\0');
+  std::vsnprintf(&result[0], result.size() + 1, format, args2);
+  va_end(args2);
+  return result;
+}
+
+static std::string NodeFormatString(const char* format, ...) {
+  va_list args;
+  va_start(args, format);
+  std::string result = NodeFormatStringHelper(format, args);
+  va_end(args);
+  return result;
+}
+
+class NodeErrorInfo {
+ public:
+  static const char* GetLastErrorMessage() {
+    return node_embedding_last_error_message_get();
+  }
+
+  static void SetLastErrorMessage(const char* message) {
+    return node_embedding_last_error_message_set(message);
+  }
+
+  static void SetLastErrorMessage(std::string_view message,
+                                  std::string_view filename,
+                                  int32_t line) {
+    SetLastErrorMessage(
+        NodeFormatString(
+            "Error: %s at %s:%d", message.data(), filename.data(), line)
+            .c_str());
+  }
+
+  static void SetLastErrorMessage(const std::vector<std::string>& message) {
+    std::string message_str;
+    bool first = true;
+    for (const std::string& part : message) {
+      if (!first) {
+        message_str += '\n';
+      } else {
+        first = false;
+      }
+      message_str += part;
+    }
+    SetLastErrorMessage(message_str.c_str());
+  }
+
+  static void ClearLastErrorMessage() {
+    node_embedding_last_error_message_set(nullptr);
+  }
+
+  static std::string GetAndClearLastErrorMessage() {
+    std::string result = GetLastErrorMessage();
+    ClearLastErrorMessage();
+    return result;
+  }
+};
+
+// NodeHandleExecutionResultCallback supported signatures:
+// - void(const NodeRuntime& runtime,
+//        napi_env env,
+//        napi_value execution_result);
+using NodeHandleExecutionResultCallback =
+    NodeFunctor<node_embedding_runtime_loaded_callback>;
+
+// NodeInitializeModuleCallback supported signatures:
+// - napi_value(const NodeRuntime& runtime,
+//              napi_env env,
+//              std::string_view module_name,
+//              napi_value exports);
+using NodeInitializeModuleCallback =
+    NodeFunctor<node_embedding_module_initialize_callback>;
+
+// NodeRunTaskCallback supported signatures:
+// - NodeExpected<void>();
+using NodeRunTaskCallback = NodeFunctor<node_embedding_task_run_callback>;
+
+// NodePostTaskCallback supported signatures:
+// - NodeExpected<bool>(NodeRunTaskCallback run_task);
+using NodePostTaskCallback = NodeFunctor<node_embedding_task_post_callback>;
 
 //------------------------------------------------------------------------------
 // Convenience functor struct adapter for C++ function object or lambdas.

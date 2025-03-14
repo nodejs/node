@@ -129,7 +129,6 @@ function runCommonApiTests(apiType) {
 
 runCommonApiTests('cpp-api');
 runCommonApiTests('c-api');
-runCommonApiTests('c-cpp-api');
 
 function getReadFileCodeForPath(path) {
   return `(require("fs").readFileSync(${JSON.stringify(path)}, "utf8"))`;
@@ -385,7 +384,6 @@ function runCApiTests(apiType) {
 }
 
 runCApiTests('c-api');
-runCApiTests('c-cpp-api');
 
 function runEnvTests(apiType) {
   runTest(
@@ -414,4 +412,3 @@ function runEnvTests(apiType) {
 }
 
 runEnvTests('c-api');
-runEnvTests('c-cpp-api');
