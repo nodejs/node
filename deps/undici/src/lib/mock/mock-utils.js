@@ -15,6 +15,7 @@ const {
     isPromise
   }
 } = require('node:util')
+const { InvalidArgumentError } = require('../core/errors')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -367,9 +368,14 @@ function checkNetConnect (netConnect, origin) {
   return false
 }
 
-function buildMockOptions (opts) {
+function buildAndValidateMockOptions (opts) {
   if (opts) {
     const { agent, ...mockOptions } = opts
+
+    if ('enableCallHistory' in mockOptions && typeof mockOptions.enableCallHistory !== 'boolean') {
+      throw new InvalidArgumentError('options.enableCallHistory must to be a boolean')
+    }
+
     return mockOptions
   }
 }
@@ -387,7 +393,7 @@ module.exports = {
   mockDispatch,
   buildMockDispatch,
   checkNetConnect,
-  buildMockOptions,
+  buildAndValidateMockOptions,
   getHeaderByName,
   buildHeadersFromArray
 }
