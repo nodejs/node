@@ -894,11 +894,6 @@ class HasDebugStringAndShortDebugString {
       HasDebugStringType::value && HasShortDebugStringType::value;
 };
 
-#ifdef GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-template <typename T>
-constexpr bool HasDebugStringAndShortDebugString<T>::value;
-#endif
-
 // When the compiler sees expression IsContainerTest<C>(0), if C is an
 // STL-style container class, the first overload of IsContainerTest
 // will be viable (since both C::iterator* and C::const_iterator* are
@@ -1241,30 +1236,40 @@ class FlatTuple
 
 // Utility functions to be called with static_assert to induce deprecation
 // warnings.
-GTEST_INTERNAL_DEPRECATED(
+[[deprecated(
     "INSTANTIATE_TEST_CASE_P is deprecated, please use "
-    "INSTANTIATE_TEST_SUITE_P")
-constexpr bool InstantiateTestCase_P_IsDeprecated() { return true; }
+    "INSTANTIATE_TEST_SUITE_P")]]
+constexpr bool InstantiateTestCase_P_IsDeprecated() {
+  return true;
+}
 
-GTEST_INTERNAL_DEPRECATED(
+[[deprecated(
     "TYPED_TEST_CASE_P is deprecated, please use "
-    "TYPED_TEST_SUITE_P")
-constexpr bool TypedTestCase_P_IsDeprecated() { return true; }
+    "TYPED_TEST_SUITE_P")]]
+constexpr bool TypedTestCase_P_IsDeprecated() {
+  return true;
+}
 
-GTEST_INTERNAL_DEPRECATED(
+[[deprecated(
     "TYPED_TEST_CASE is deprecated, please use "
-    "TYPED_TEST_SUITE")
-constexpr bool TypedTestCaseIsDeprecated() { return true; }
+    "TYPED_TEST_SUITE")]]
+constexpr bool TypedTestCaseIsDeprecated() {
+  return true;
+}
 
-GTEST_INTERNAL_DEPRECATED(
+[[deprecated(
     "REGISTER_TYPED_TEST_CASE_P is deprecated, please use "
-    "REGISTER_TYPED_TEST_SUITE_P")
-constexpr bool RegisterTypedTestCase_P_IsDeprecated() { return true; }
+    "REGISTER_TYPED_TEST_SUITE_P")]]
+constexpr bool RegisterTypedTestCase_P_IsDeprecated() {
+  return true;
+}
 
-GTEST_INTERNAL_DEPRECATED(
+[[deprecated(
     "INSTANTIATE_TYPED_TEST_CASE_P is deprecated, please use "
-    "INSTANTIATE_TYPED_TEST_SUITE_P")
-constexpr bool InstantiateTypedTestCase_P_IsDeprecated() { return true; }
+    "INSTANTIATE_TYPED_TEST_SUITE_P")]]
+constexpr bool InstantiateTypedTestCase_P_IsDeprecated() {
+  return true;
+}
 
 }  // namespace internal
 }  // namespace testing
@@ -1501,8 +1506,7 @@ class NeverThrown {
                                                                                \
    private:                                                                    \
     void TestBody() override;                                                  \
-    GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED static ::testing::TestInfo* const    \
-        test_info_;                                                            \
+    [[maybe_unused]] static ::testing::TestInfo* const test_info_;             \
   };                                                                           \
                                                                                \
   ::testing::TestInfo* const GTEST_TEST_CLASS_NAME_(test_suite_name,           \
