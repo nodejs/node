@@ -627,6 +627,8 @@ For information about the governance of the Node.js project, see
   **Alexis Campailla** <<orangemocha@nodejs.org>>
 * [othiym23](https://github.com/othiym23) -
   **Forrest L Norvell** <<ogd@aoaioxxysz.net>> (they/them/themself)
+* [ovflowd](https://github.com/ovflowd) -
+  **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [oyyd](https://github.com/oyyd) -
   **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
 * [petkaantonov](https://github.com/petkaantonov) -
