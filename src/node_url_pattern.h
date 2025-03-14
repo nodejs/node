@@ -93,8 +93,7 @@ class URLPattern : public BaseObject {
  private:
   ada::url_pattern<URLPatternRegexProvider> url_pattern_;
   // Getter methods
-#define URL_PATTERN_COMPONENT_GETTERS(name, _)                                 \
-  v8::MaybeLocal<v8::Value> name() const;
+#define URL_PATTERN_COMPONENT_GETTERS(name, _) v8::MaybeLocal<v8::Value> name();
   URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
 #undef URL_PATTERN_COMPONENT_GETTERS
   bool HasRegExpGroups() const;
@@ -107,6 +106,10 @@ class URLPattern : public BaseObject {
       Environment* env,
       const ada::url_pattern_input& input,
       std::optional<std::string_view>& baseURL);  // NOLINT (runtime/references)
+
+#define URL_PATTERN_CACHED_VALUES(_, name) v8::Global<v8::Value> name;
+  URL_PATTERN_COMPONENTS(URL_PATTERN_CACHED_VALUES)
+#undef URL_PATTERN_CACHED_VALUES
 };
 
 }  // namespace node::url_pattern
