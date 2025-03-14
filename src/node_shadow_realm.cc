@@ -75,7 +75,8 @@ void ShadowRealm::DeleteMe(void* data) {
 }
 
 ShadowRealm::ShadowRealm(Environment* env)
-    : Realm(env, NewContext(env->isolate()), kShadowRealm) {
+    : Realm(
+          env, NewContext(env->isolate()), kShadowRealm) {
   context_.SetWeak(this, WeakCallback, v8::WeakCallbackType::kParameter);
   CreateProperties();
 

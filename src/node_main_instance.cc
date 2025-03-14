@@ -140,7 +140,7 @@ NodeMainInstance::CreateMainEnvironment(ExitCode* exit_code) {
     crypto::InitCryptoOnce(isolate_);
 #endif  // HAVE_OPENSSL
   } else {
-    context = NewContext(isolate_);
+    context = NewContext(isolate_, isolate_data_.get());
     CHECK(!context.IsEmpty());
     Context::Scope context_scope(context);
     env.reset(
