@@ -107,8 +107,7 @@ causing an unrecoverable crash, or any other unexpected side effects that can
 lead to a loss of confidentiality, integrity, or availability.
 
 For example, if trusted input (like secure application code) is correct,
-then untrusted input must not lead to arbitrary JavaScript code execution or
-escape the sandbox.
+then untrusted input must not lead to arbitrary JavaScript code execution.
 
 **Node.js trusts everything else**. Examples include:
 
