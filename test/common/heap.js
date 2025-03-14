@@ -231,11 +231,13 @@ function validateSnapshotNodes(...args) {
  *   node_type?: string,
  *   edge_type?: string,
  * }]} retainingPath The retaining path specification to search from the root nodes.
+ * @param {boolean} allowEmpty Whether the function should fail if no matching nodes can be found.
+ *
  * @returns {[object]} All the leaf nodes matching the retaining path specification. If none can be found,
  *                     logs the nodes found in the last matching step of the path (if any), and throws an
  *                     assertion error.
  */
-function findByRetainingPath(rootName, retainingPath) {
+function findByRetainingPath(rootName, retainingPath, allowEmpty = false) {
   const nodes = createJSHeapSnapshot();
   let haystack = nodes.filter((n) => n.name === rootName && n.type !== 'string');
 
@@ -269,19 +271,23 @@ function findByRetainingPath(rootName, retainingPath) {
     }
 
     if (newHaystack.length === 0) {
-      const format = (val) => util.inspect(val, { breakLength: 128, depth: 3 });
-      console.error('#');
-      console.error('# Retaining path to search for:');
-      for (let j = 0; j < retainingPath.length; ++j) {
-        console.error(`# - '${format(retainingPath[j])}'${i === j ? '\t<--- not found' : ''}`);
+      if (allowEmpty) {
+        return [];
+      } else {
+        const format = (val) => util.inspect(val, { breakLength: 128, depth: 3 });
+        console.error('#');
+        console.error('# Retaining path to search for:');
+        for (let j = 0; j < retainingPath.length; ++j) {
+          console.error(`# - '${format(retainingPath[j])}'${i === j ? '\t<--- not found' : ''}`);
+        }
+        console.error('#\n');
+        console.error('# Nodes found in the last step include:');
+        for (let j = 0; j < haystack.length; ++j) {
+          console.error(`# - '${format(haystack[j])}`);
+        }
+  
+        assert.fail(`Could not find target edge ${format(expected)} in the heap snapshot.`);
       }
-      console.error('#\n');
-      console.error('# Nodes found in the last step include:');
-      for (let j = 0; j < haystack.length; ++j) {
-        console.error(`# - '${format(haystack[j])}`);
-      }
-
-      assert.fail(`Could not find target edge ${format(expected)} in the heap snapshot.`);
     }
 
     haystack = newHaystack;
@@ -326,4 +332,5 @@ module.exports = {
   validateSnapshotNodes,
   findByRetainingPath,
   getHeapSnapshotOptionTests,
+  createJSHeapSnapshot,
 };
