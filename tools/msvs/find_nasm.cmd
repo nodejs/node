@@ -21,4 +21,36 @@ if EXIST "%LOCALAPPDATA%\bin\NASM\nasm.exe" (
   EXIT /B 0
 )
 
+IF EXIST "%USERPROFILE%\NASM\nasm.exe" (
+  ECHO Found NASM in %USERPROFILE%\NASM
+  SET "Path=%Path%;%USERPROFILE%\NASM"
+  EXIT /B 0
+)
+
+
+
+IF EXIST "%USERPROFILE%\scoop\apps\nasm\current\nasm.exe" (
+  ECHO Found NASM in Scoop installation
+  SET "Path=%Path%;%USERPROFILE%\scoop\apps\nasm\current"
+  EXIT /B 0
+)
+
+IF EXIST "C:\ProgramData\chocolatey\bin\nasm.exe" (
+  ECHO Found NASM in Chocolatey installation
+  SET "Path=%Path%;C:\ProgramData\chocolatey\bin"
+  EXIT /B 0
+)
+
+IF EXIST "C:\msys64\mingw64\bin\nasm.exe" (
+  ECHO Found NASM in MSYS2 mingw64
+  SET "Path=%Path%;C:\msys64\mingw64\bin"
+  EXIT /B 0
+)
+
+IF EXIST "C:\msys64\mingw32\bin\nasm.exe" (
+  ECHO Found NASM in MSYS2 mingw32
+  SET "Path=%Path%;C:\msys64\mingw32\bin"
+  EXIT /B 0
+)
+
 EXIT /B 1
