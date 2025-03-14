@@ -495,12 +495,18 @@ in the current working directory.
 If `--cpu-prof-name` is not specified, the generated profile is
 named `CPU.${yyyymmdd}.${hhmmss}.${pid}.${tid}.${seq}.cpuprofile`.
 
-If `--cpu-prof-name` is specified, the provided value will be used as-is; patterns such as `${hhmmss}` or `${pid}` are not supported.
-
 ```console
 $ node --cpu-prof index.js
 $ ls *.cpuprofile
 CPU.20190409.202950.15293.0.0.cpuprofile
+```
+
+If `--cpu-prof-name` is specified, the provided value will be used as-is; patterns such as `${hhmmss}` or `${pid}` are not supported.
+
+```console
+$ node --cpu-prof --cpu-prof-name 'CPU.${pid}.cpuprofile' index.js
+$ ls *.cpuprofile
+'CPU.${pid}.cpuprofile'
 ```
 
 ### `--cpu-prof-dir`
