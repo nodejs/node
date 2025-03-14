@@ -264,7 +264,7 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto url_pattern = parse_url_pattern<URLPatternRegexProvider>(
-      arg0,
+      std::move(arg0),
       base_url ? &base_url_view : nullptr,
       options.has_value() ? &options.value() : nullptr);
 
