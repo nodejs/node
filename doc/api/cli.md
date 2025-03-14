@@ -2939,6 +2939,10 @@ The following values are valid for `mode`:
 
 <!-- YAML
 added: v23.8.0
+changes:
+  - version: v23.9.0
+    pr-url: https://github.com/nodejs/node/pull/57009
+    description: Added support on non-Windows and non-macOS.
 -->
 
 Node.js uses the trusted CA certificates present in the system store along with
