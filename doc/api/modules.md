@@ -2,12 +2,12 @@
 
 <!--introduced_in=v0.10.0-->
 
-> Stability: 2 - Stable
+> Stability: 3 - Legacy: Use [ECMAScript modules][] instead.
 
 <!--name=module-->
 
-CommonJS modules are the original way to package JavaScript code for Node.js.
-Node.js also supports the [ECMAScript modules][] standard used by browsers
+CommonJS modules are the legacy way to package JavaScript code for Node.js.
+Node.js supports the [ECMAScript modules][] standard used by browsers
 and other JavaScript runtimes.
 
 In Node.js, each file is treated as a separate module. For
