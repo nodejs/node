@@ -462,48 +462,17 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
     // by returning std::nullopt.
     return std::nullopt;
   }
+
   return options;
 }
 
-MaybeLocal<Value> URLPattern::Hash() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_hash());
-}
-
-MaybeLocal<Value> URLPattern::Hostname() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_hostname());
-}
-
-MaybeLocal<Value> URLPattern::Password() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_password());
-}
-
-MaybeLocal<Value> URLPattern::Pathname() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_pathname());
-}
-
-MaybeLocal<Value> URLPattern::Port() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_port());
-}
-
-MaybeLocal<Value> URLPattern::Protocol() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_protocol());
-}
-
-MaybeLocal<Value> URLPattern::Search() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_search());
-}
-
-MaybeLocal<Value> URLPattern::Username() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_username());
-}
+#define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
+  MaybeLocal<Value> URLPattern::uppercase_name() const {                       \
+    auto context = env()->context();                                           \
+    return ToV8Value(context, url_pattern_.get_##lowercase_name());            \
+  }
+URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
 
 bool URLPattern::HasRegExpGroups() const {
   return url_pattern_.has_regexp_groups();
