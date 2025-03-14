@@ -168,6 +168,10 @@ URLPattern::URLPattern(Environment* env,
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TraitTrackInline(url_pattern_, "url_pattern");
+#define URL_PATTERN_CACHED_VALUES(_, lowercase)                                \
+  tracker->TrackField(#lowercase, lowercase);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_CACHED_VALUES)
+#undef URL_PATTERN_CACHED_VALUES
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
