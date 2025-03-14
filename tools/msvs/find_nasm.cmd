@@ -27,7 +27,11 @@ IF EXIST "%USERPROFILE%\NASM\nasm.exe" (
   EXIT /B 0
 )
 
-
+IF EXIST "%USERPROFILE%\PortableApps\NASM\nasm.exe" (
+  ECHO Found NASM in %USERPROFILE%\PortableApps\NASM
+  SET "Path=%Path%;%USERPROFILE%\PortableApps\NASM"
+  EXIT /B 0
+)
 
 IF EXIST "%USERPROFILE%\scoop\apps\nasm\current\nasm.exe" (
   ECHO Found NASM in Scoop installation
