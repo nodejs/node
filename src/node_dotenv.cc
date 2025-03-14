@@ -149,7 +149,7 @@ void Dotenv::ParseContent(const std::string_view input) {
       if (newline != std::string_view::npos) {
         content.remove_prefix(newline + 1);
       } else {
-        content.remove_prefix(content.size());
+        content = {};
       }
       continue;
     }
@@ -203,7 +203,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (newline != std::string_view::npos) {
           content.remove_prefix(newline + 1);
         } else {
-          content.remove_prefix(content.size());
+          content = {};
         }
         continue;
       }
@@ -236,7 +236,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (newline != std::string_view::npos) {
           content.remove_prefix(newline + 1);
         } else {
-          content.remove_prefix(content.size());
+          content = {};
         }
         continue;
       }
@@ -254,8 +254,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (hash_character != std::string_view::npos) {
           value = content.substr(0, hash_character);
         }
-        value = trim_spaces(value);
-        store_.insert_or_assign(std::string(key), value);
+        store_.insert_or_assign(std::string(key), trim_spaces(value));
         content.remove_prefix(newline + 1);
       } else {
         // In case the last line is a single key/value pair
@@ -265,14 +264,11 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (hash_char != std::string_view::npos) {
           value = content.substr(0, hash_char);
         }
-        value = trim_spaces(value);
-
-        store_.insert_or_assign(std::string(key), value);
-        content.remove_prefix(content.size());
+        store_.insert_or_assign(std::string(key), trim_spaces(value));
+        content = {};
       }
 
-      value = trim_spaces(value);
-      store_.insert_or_assign(std::string(key), value);
+      store_.insert_or_assign(std::string(key), trim_spaces(value));
     }
   }
 }
