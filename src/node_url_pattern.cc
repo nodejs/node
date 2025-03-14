@@ -168,6 +168,10 @@ URLPattern::URLPattern(Environment* env,
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TraitTrackInline(url_pattern_, "url_pattern");
+#define URL_PATTERN_CACHED_VALUES(_, lowercase)                                \
+  tracker->TrackField(#lowercase, lowercase);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_CACHED_VALUES)
+#undef URL_PATTERN_CACHED_VALUES
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
@@ -466,10 +470,20 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
   return options;
 }
 
+// Perform value lookup and cache the result in a v8::Global.
 #define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
-  MaybeLocal<Value> URLPattern::uppercase_name() const {                       \
-    auto context = env()->context();                                           \
-    return ToV8Value(context, url_pattern_.get_##lowercase_name());            \
+  MaybeLocal<Value> URLPattern::uppercase_name() {                             \
+    auto isolate = env()->isolate();                                           \
+    if (lowercase_name.IsEmpty()) {                                            \
+      Local<Value> value;                                                      \
+      if (ToV8Value(env()->context(), url_pattern_.get_##lowercase_name())     \
+              .ToLocal(&value)) {                                              \
+        lowercase_name.Reset(isolate, value);                                  \
+        return value;                                                          \
+      }                                                                        \
+      return {};                                                               \
+    }                                                                          \
+    return lowercase_name.Get(isolate);                                        \
   }
 URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
 #undef URL_PATTERN_COMPONENT_GETTERS
