@@ -147,10 +147,13 @@ void Dotenv::ParseContent(const std::string_view input) {
     if (equal == std::string_view::npos) {
       auto newline = content.find('\n');
       if (newline != std::string_view::npos) {
+        // If we used `newline` only,
+        // the '\n' might remain and cause an empty-line parse
         content.remove_prefix(newline + 1);
       } else {
         content = {};
       }
+      // No valid data here, skip to next line
       continue;
     }
 
@@ -234,10 +237,12 @@ void Dotenv::ParseContent(const std::string_view input) {
         // since there could be newline characters inside the value.
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
+          // Use +1 to discard the '\n' itself => next line
           content.remove_prefix(newline + 1);
         } else {
           content = {};
         }
+        // No valid data here, skip to next line
         continue;
       }
     } else {

@@ -12,6 +12,7 @@ const fs = require('node:fs');
 
   assert.deepStrictEqual(util.parseEnv(validContent), {
     A: 'B=C',
+    B: 'C=D',
     AFTER_LINE: 'after_line',
     BACKTICKS: 'backticks',
     BACKTICKS_INSIDE_DOUBLE: '`backticks` work inside double quotes',
