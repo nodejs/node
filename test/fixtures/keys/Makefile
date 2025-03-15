@@ -244,6 +244,31 @@ fake-startcom-root-cert.pem: fake-startcom-root.cnf \
 	echo '01' > fake-startcom-root-serial
 	touch fake-startcom-root-database.txt
 
+test-localhost-ca.key:
+	openssl genrsa -out test-localhost-ca.key 4096
+
+test-localhost-ca.pem: test-localhost-ca.key
+	openssl req -x509 -new \
+		-key test-localhost-ca.key \
+		-days 9999 \
+		-subj '/CN=NodeJS Test CA' \
+		-out test-localhost-ca.pem
+
+test-localhost-key.pem: test-localhost-ca.pem
+	openssl req -newkey rsa:4096 \
+		-keyout test-localhost-key.pem \
+		-out test-localhost.csr \
+		-nodes -subj '/CN=localhost'
+
+test-localhost-cert.pem: test-localhost-key.pem
+	openssl x509 -req -in test-localhost.csr \
+		-CA test-localhost-ca.pem \
+		-CAkey test-localhost-ca.key \
+		-CAcreateserial \
+		-days 99999 \
+		-out test-localhost-cert.pem
+
+	rm test-localhost.csr
 
 intermediate-ca-key.pem:
 	openssl genrsa -out intermediate.key 2048
