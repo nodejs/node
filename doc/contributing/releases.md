@@ -111,6 +111,9 @@ The key you use may be a child/subkey of an existing key.
 Additionally, full GPG key fingerprints for individuals authorized to release
 should be listed in the Node.js GitHub README.md file.
 
+> It is recommended to sign all commits under the Node.js repository.
+> Run: `git config commit.gpgsign true` inside the `node` folder.
+
 ## How to create a release
 
 Notes:
