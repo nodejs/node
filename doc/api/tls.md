@@ -2388,10 +2388,6 @@ Returns an array containing the CA certificates from various sources, depending 
 * `"extra"`: return the CA certificates loaded from [`NODE_EXTRA_CA_CERTS`][]. It's an empty array if
   [`NODE_EXTRA_CA_CERTS`][] is not set.
 
-<!-- YAML
-added: v0.10.2
--->
-
 ## `tls.getCiphers()`
 
 <!-- YAML
