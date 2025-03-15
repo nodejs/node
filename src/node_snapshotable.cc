@@ -1103,7 +1103,7 @@ ExitCode SnapshotBuilder::CreateSnapshot(SnapshotData* out,
     // The Node.js-specific context with primodials, can be used by workers
     // TODO(joyeecheung): investigate if this can be used by vm contexts
     // without breaking compatibility.
-    Local<Context> base_context = NewContext(isolate);
+    Local<Context> base_context = NewContext(isolate, setup->isolate_data());
     if (base_context.IsEmpty()) {
       return ExitCode::kBootstrapFailure;
     }

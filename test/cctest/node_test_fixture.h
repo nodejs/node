@@ -155,7 +155,7 @@ class EnvironmentTestFixture : public NodeTestFixture {
         node::EnvironmentFlags::Flags flags =
             node::EnvironmentFlags::kDefaultFlags) {
       auto isolate = handle_scope.GetIsolate();
-      context_ = node::NewContext(isolate);
+      context_ = node::NewContext(isolate, EnvironmentTestFixture::isolate_data_);
       CHECK(!context_.IsEmpty());
       context_->Enter();
 
@@ -174,6 +174,10 @@ class EnvironmentTestFixture : public NodeTestFixture {
     ~Env() {
       node::FreeEnvironment(environment_);
       context_->Exit();
+    }
+
+    inline node::IsolateData* isolate_data() const {
+      return EnvironmentTestFixture::isolate_data_;
     }
 
     node::Environment* operator*() const {
