@@ -325,6 +325,60 @@ The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
+## `util.diff(actual, expected)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `actual` {any}
+* `expected` {any}
+* Returns: {string | null} A string if there is difference
+  between `actual` and `expected`, `null` otherwise
+
+[`util.diff()`][] is a utility function that compares two values and returns a
+string that represents the difference between them. It is useful for debugging
+and testing.
+The output is exactly the same as the one used by all the assertion errors, therefore
+it is internally using the Myer's diff algorithm to compute the differences.
+
+```js
+const { diff } = require('node:util');
+
+console.log(diff({ a: 1, b: 2 }, { a: 1, b: 3 }));
+// above will log:
+/*
++ actual - expected
+
+  {
+    a: 1,
++   b: 2
+-   b: 3
+  }
+*/
+
+// if the sum of the strings length is less than 12 characters, a short diff will be returned
+console.log(diff('foo', 'bar'));
+// above will log:
+/*
+'foo' !== 'bar'
+*/
+
+// if the string comparison is too long and the first difference is after the second character
+// the diff will also indicate with the ^ character where the difference is.
+// this is only happening when the terminal you are using does not support colors;
+// if the terminal supports colors, the diff will be colored and the ^ character will not be used.
+console.log(diff('123456789ABCDEFGHI', '12!!5!7!9!BC!!!GHI'));
+// above will log:
+/*
++ actual - expected
+
++ '123456789ABCDEFGHI'
+- '12!!5!7!9!BC!!!GHI'
+     ^
+*/
+```
+
 ## `util.format(format[, ...args])`
 
 <!-- YAML
@@ -3622,6 +3676,7 @@ util.isArray({});
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
+[`util.diff()`]: #utildiffactual-expected
 [`util.format()`]: #utilformatformat-args
 [`util.inspect()`]: #utilinspectobject-options
 [`util.promisify()`]: #utilpromisifyoriginal
