@@ -6126,14 +6126,18 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_basic_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] change_in_bytes`: The change in externally allocated memory that is kept
   alive by JavaScript objects.
-* `[out] result`: The adjusted value
+* `[out] result`: The adjusted value. Their is no guarrantee that a request to
+  adjust by X bytes will result in an adjusted value being X bytes larger than
+  before the request. The runtime is free to adjust in the manner it deems
+  most appropriate.
 
 Returns `napi_ok` if the API succeeded.
 
-This function gives V8 an indication of the amount of externally allocated
-memory that is kept alive by JavaScript objects (i.e. a JavaScript object
-that points to its own memory allocated by a native addon). Registering
-externally allocated memory will trigger global garbage collections more
+This function gives the runtime an indication of the amount of externally
+allocated memory that is kept alive by JavaScript objects
+(i.e. a JavaScript object that points to its own memory allocated by a
+native addon). Registering externally allocated memory may, but is not
+guarranteed to, trigger global garbage collections more
 often than it would otherwise.
 
 ## Promises
