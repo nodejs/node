@@ -1166,6 +1166,10 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "force FIPS crypto (cannot be disabled)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvvar);
+  AddOption("--force-gc-for-test",
+            "",
+            &PerProcessOptions::force_gc_for_test,
+            kAllowedInEnvvar);
   AddOption("--secure-heap",
             "total size of the OpenSSL secure heap",
             &PerProcessOptions::secure_heap,

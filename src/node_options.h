@@ -321,6 +321,7 @@ class PerProcessOptions : public Options {
   std::string snapshot_blob;
 
   std::vector<std::string> security_reverts;
+  bool force_gc_for_test = false;
   bool print_bash_completion = false;
   bool print_help = false;
   bool print_v8_help = false;
