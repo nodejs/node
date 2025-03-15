@@ -70,7 +70,11 @@ jobs:
       - name: Open or update PR for the subsystem update
         uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         with:
-          branch: actions/update-wpt-${{ matrix.subsystem }}
+          # The create-or-update-pull-request-action matches the branch name by prefix,
+          # which is why we need to add the -wpt suffix. If we dont do that, we risk matching wrong PRs,
+          # like for example "url" mistakenly matching and updating the "urlpattern" PR
+          # as seen in https://github.com/nodejs/node/pull/57368
+          branch: actions/update-${{ matrix.subsystem }}-wpt
           author: Node.js GitHub Bot <github-bot@iojs.org>
           title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.short_version }}'
           commit-message: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.short_version }}'
