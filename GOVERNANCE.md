@@ -167,8 +167,8 @@ repository. Provide a summary of the nominee's contributions. For example:
 * Other participation in the wider Node.js community
 
 If the private discussion receives some support (in form of explicit comments or
-thumb up reactions) and no explicit block after a few days, add a comment in the
-private discussion stating you're planing on opening a public issue, e.g.
+thumbs-up reactions) and no explicit block after a few days, add a comment in the
+private discussion stating you're planning on opening a public issue, e.g.
 "I see a number of approvals and no block, I'll be opening a public
 nomination issue if I don't hear any objections in the next 72 hours".
 After sufficient time has passed, open an issue in the [nodejs/node][] repository.
