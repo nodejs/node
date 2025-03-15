@@ -613,18 +613,24 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 return;
             }
             // localeID minus all keywords
-            char baseID[ULOC_FULLNAME_CAPACITY];
-            int32_t length = uloc_getBaseName(localeID.data(), baseID, ULOC_FULLNAME_CAPACITY, &errorCode);
-            if(U_FAILURE(errorCode) || length >= ULOC_KEYWORDS_CAPACITY) {
+            CharString baseID = ulocimp_getBaseName(localeID.toStringPiece(), errorCode);
+            if (U_FAILURE(errorCode)) {
                 errorCode = U_ZERO_ERROR;
                 setParseError("expected language tag in [import langTag]", errorCode);
                 return;
             }
-            if(length == 0) {
-                uprv_strcpy(baseID, "root");
-            } else if(*baseID == '_') {
-                uprv_memmove(baseID + 3, baseID, length + 1);
-                uprv_memcpy(baseID, "und", 3);
+            if (baseID.isEmpty()) {
+                baseID.copyFrom("root", errorCode);
+            } else if (baseID[0] == '_') {
+                // CharString doesn't have any insert() method, only append().
+                constexpr char und[] = "und";
+                constexpr int32_t length = sizeof und - 1;
+                int32_t dummy;
+                char* tail = baseID.getAppendBuffer(length, length, dummy, errorCode);
+                char* head = baseID.data();
+                uprv_memmove(head + length, head, baseID.length());
+                uprv_memcpy(head, und, length);
+                baseID.append(tail, length, errorCode);
             }
             // @collation=type, or length=0 if not specified
             CharString collationType = ulocimp_getKeywordValue(localeID.data(), "collation", errorCode);
@@ -637,7 +643,7 @@ CollationRuleParser::parseSetting(UErrorCode &errorCode) {
                 setParseError("[import langTag] is not supported", errorCode);
             } else {
                 UnicodeString importedRules;
-                importer->getRules(baseID,
+                importer->getRules(baseID.data(),
                                    !collationType.isEmpty() ? collationType.data() : "standard",
                                    importedRules, errorReason, errorCode);
                 if(U_FAILURE(errorCode)) {

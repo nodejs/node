@@ -1568,12 +1568,12 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
 
     // divide up the descriptions into individual rule-set descriptions
     // and store them in a temporary array.  At each step, we also
-    // new up a rule set, but all this does is initialize its name
+    // create a rule set, but all this does is initialize its name
     // and remove it from its description.  We can't actually parse
     // the rest of the descriptions and finish initializing everything
     // because we have to know the names and locations of all the rule
     // sets before we can actually set everything up
-    if(!numRuleSets) {
+    if (!numRuleSets) {
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return;
     }
@@ -1616,9 +1616,9 @@ RuleBasedNumberFormat::init(const UnicodeString& rules, LocalizationInfo* locali
     // last public rule set, no matter what the localization data says.
     initDefaultRuleSet();
 
-    // finally, we can go back through the temporary descriptions
-    // list and finish setting up the substructure (and we throw
-    // away the temporary descriptions as we go)
+    // Now that we know all the rule names, we can go back through
+    // the temporary descriptions list and finish setting up the substructure
+    // (and we throw away the temporary descriptions as we go)
     {
         for (int i = 0; i < numRuleSets; i++) {
             fRuleSets[i]->parseRules(ruleSetDescriptions[i], status);
@@ -1706,10 +1706,13 @@ RuleBasedNumberFormat::stripWhitespace(UnicodeString& description)
     UnicodeString result;
 
     int start = 0;
-    while (start != -1 && start < description.length()) {
-        // seek to the first non-whitespace character...
+    UChar ch;
+    while (start < description.length()) {
+        // Seek to the first non-whitespace character...
+        // If the first non-whitespace character is semicolon, skip it and continue
         while (start < description.length()
-            && PatternProps::isWhiteSpace(description.charAt(start))) {
+            && (PatternProps::isWhiteSpace(ch = description.charAt(start)) || ch == gSemiColon))
+        {
             ++start;
         }
 
@@ -1720,20 +1723,16 @@ RuleBasedNumberFormat::stripWhitespace(UnicodeString& description)
             // or if we don't find a semicolon, just copy the rest of
             // the string into the result
             result.append(description, start, description.length() - start);
-            start = -1;
+            break;
         }
         else if (p < description.length()) {
             result.append(description, start, p + 1 - start);
             start = p + 1;
         }
-
-        // when we get here, we've seeked off the end of the string, and
+        // when we get here from the else, we've seeked off the end of the string, and
         // we terminate the loop (we continue until *start* is -1 rather
         // than until *p* is -1, because otherwise we'd miss the last
         // rule in the description)
-        else {
-            start = -1;
-        }
     }
 
     description.setTo(result);

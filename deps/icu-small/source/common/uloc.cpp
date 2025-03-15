@@ -482,8 +482,8 @@ constexpr CanonicalizationMap CANONICALIZE_MAP[] = {
 
 /* ### BCP47 Conversion *******************************************/
 /* Gets the size of the shortest subtag in the given localeID. */
-int32_t getShortestSubtagLength(const char *localeID) {
-    int32_t localeIDLength = static_cast<int32_t>(uprv_strlen(localeID));
+int32_t getShortestSubtagLength(std::string_view localeID) {
+    int32_t localeIDLength = static_cast<int32_t>(localeID.length());
     int32_t length = localeIDLength;
     int32_t tmpLength = 0;
     int32_t i;
@@ -507,8 +507,8 @@ int32_t getShortestSubtagLength(const char *localeID) {
     return length;
 }
 /* Test if the locale id has BCP47 u extension and does not have '@' */
-inline bool _hasBCP47Extension(const char *id) {
-    return id != nullptr && uprv_strstr(id, "@") == nullptr && getShortestSubtagLength(id) == 1;
+inline bool _hasBCP47Extension(std::string_view id) {
+    return id.find('@') == std::string_view::npos && getShortestSubtagLength(id) == 1;
 }
 
 /* ### Keywords **************************************************/
@@ -523,10 +523,9 @@ inline bool UPRV_OK_VALUE_PUNCTUATION(char c) { return c == '_' || c == '-' || c
 #define ULOC_MAX_NO_KEYWORDS 25
 
 U_CAPI const char * U_EXPORT2
-locale_getKeywordsStart(const char *localeID) {
-    const char *result = nullptr;
-    if((result = uprv_strchr(localeID, '@')) != nullptr) {
-        return result;
+locale_getKeywordsStart(std::string_view localeID) {
+    if (size_t pos = localeID.find('@'); pos != std::string_view::npos) {
+        return localeID.data() + pos;
     }
 #if (U_CHARSET_FAMILY == U_EBCDIC_FAMILY)
     else {
@@ -536,8 +535,8 @@ locale_getKeywordsStart(const char *localeID) {
         static const uint8_t ebcdicSigns[] = { 0x7C, 0x44, 0x66, 0x80, 0xAC, 0xAE, 0xAF, 0xB5, 0xEC, 0xEF, 0x00 };
         const uint8_t *charToFind = ebcdicSigns;
         while(*charToFind) {
-            if((result = uprv_strchr(localeID, *charToFind)) != nullptr) {
-                return result;
+            if (size_t pos = localeID.find(*charToFind); pos != std::string_view::npos) {
+                return localeID.data() + pos;
             }
             charToFind++;
         }
@@ -590,7 +589,7 @@ compareKeywordStructs(const void * /*context*/, const void *left, const void *ri
 }  // namespace
 
 U_EXPORT CharString
-ulocimp_getKeywords(const char* localeID,
+ulocimp_getKeywords(std::string_view localeID,
                     char prev,
                     bool valuesToo,
                     UErrorCode& status)
@@ -607,7 +606,7 @@ ulocimp_getKeywords(const char* localeID,
 }
 
 U_EXPORT void
-ulocimp_getKeywords(const char* localeID,
+ulocimp_getKeywords(std::string_view localeID,
                     char prev,
                     ByteSink& sink,
                     bool valuesToo,
@@ -619,9 +618,8 @@ ulocimp_getKeywords(const char* localeID,
 
     int32_t maxKeywords = ULOC_MAX_NO_KEYWORDS;
     int32_t numKeywords = 0;
-    const char* pos = localeID;
-    const char* equalSign = nullptr;
-    const char* semicolon = nullptr;
+    size_t equalSign = std::string_view::npos;
+    size_t semicolon = std::string_view::npos;
     int32_t i = 0, j, n;
 
     if(prev == '@') { /* start of keyword definition */
@@ -629,40 +627,40 @@ ulocimp_getKeywords(const char* localeID,
         do {
             bool duplicate = false;
             /* skip leading spaces */
-            while(*pos == ' ') {
-                pos++;
+            while (localeID.front() == ' ') {
+                localeID.remove_prefix(1);
             }
-            if (!*pos) { /* handle trailing "; " */
+            if (localeID.empty()) { /* handle trailing "; " */
                 break;
             }
             if(numKeywords == maxKeywords) {
                 status = U_INTERNAL_PROGRAM_ERROR;
                 return;
             }
-            equalSign = uprv_strchr(pos, '=');
-            semicolon = uprv_strchr(pos, ';');
+            equalSign = localeID.find('=');
+            semicolon = localeID.find(';');
             /* lack of '=' [foo@currency] is illegal */
             /* ';' before '=' [foo@currency;collation=pinyin] is illegal */
-            if(!equalSign || (semicolon && semicolon<equalSign)) {
+            if (equalSign == std::string_view::npos ||
+                (semicolon != std::string_view::npos && semicolon < equalSign)) {
+                status = U_INVALID_FORMAT_ERROR;
+                return;
+            }
+            /* zero-length keyword is an error. */
+            if (equalSign == 0) {
                 status = U_INVALID_FORMAT_ERROR;
                 return;
             }
             /* need to normalize both keyword and keyword name */
-            if(equalSign - pos >= ULOC_KEYWORD_BUFFER_LEN) {
+            if (equalSign >= ULOC_KEYWORD_BUFFER_LEN) {
                 /* keyword name too long for internal buffer */
                 status = U_INTERNAL_PROGRAM_ERROR;
                 return;
             }
-            for(i = 0, n = 0; i < equalSign - pos; ++i) {
-                if (pos[i] != ' ') {
-                    keywordList[numKeywords].keyword[n++] = uprv_tolower(pos[i]);
+            for (i = 0, n = 0; static_cast<size_t>(i) < equalSign; ++i) {
+                if (localeID[i] != ' ') {
+                    keywordList[numKeywords].keyword[n++] = uprv_tolower(localeID[i]);
                 }
-            }
-
-            /* zero-length keyword is an error. */
-            if (n == 0) {
-                status = U_INVALID_FORMAT_ERROR;
-                return;
             }
 
             keywordList[numKeywords].keyword[n] = 0;
@@ -670,33 +668,31 @@ ulocimp_getKeywords(const char* localeID,
             /* now grab the value part. First we skip the '=' */
             equalSign++;
             /* then we leading spaces */
-            while(*equalSign == ' ') {
+            while (equalSign < localeID.length() && localeID[equalSign] == ' ') {
                 equalSign++;
             }
 
             /* Premature end or zero-length value */
-            if (!*equalSign || equalSign == semicolon) {
+            if (equalSign == localeID.length() || equalSign == semicolon) {
                 status = U_INVALID_FORMAT_ERROR;
                 return;
             }
 
-            keywordList[numKeywords].valueStart = equalSign;
+            keywordList[numKeywords].valueStart = localeID.data() + equalSign;
 
-            pos = semicolon;
-            i = 0;
-            if(pos) {
-                while(*(pos - i - 1) == ' ') {
-                    i++;
-                }
-                keywordList[numKeywords].valueLen = static_cast<int32_t>(pos - equalSign - i);
-                pos++;
+            std::string_view value = localeID;
+            if (semicolon != std::string_view::npos) {
+                value.remove_suffix(value.length() - semicolon);
+                localeID.remove_prefix(semicolon + 1);
             } else {
-                i = static_cast<int32_t>(uprv_strlen(equalSign));
-                while(i && equalSign[i-1] == ' ') {
-                    i--;
-                }
-                keywordList[numKeywords].valueLen = i;
+                localeID = {};
             }
+            value.remove_prefix(equalSign);
+            if (size_t last = value.find_last_not_of(' '); last != std::string_view::npos) {
+                value.remove_suffix(value.length() - last - 1);
+            }
+            keywordList[numKeywords].valueLen = static_cast<int32_t>(value.length());
+
             /* If this is a duplicate keyword, then ignore it */
             for (j=0; j<numKeywords; ++j) {
                 if (uprv_strcmp(keywordList[j].keyword, keywordList[numKeywords].keyword) == 0) {
@@ -707,7 +703,7 @@ ulocimp_getKeywords(const char* localeID,
             if (!duplicate) {
                 ++numKeywords;
             }
-        } while(pos);
+        } while (!localeID.empty());
 
         /* now we have a list of keywords */
         /* we need to sort it */
@@ -784,7 +780,7 @@ ulocimp_getKeywordValue(const char* localeID,
       return;
     }
 
-    if (_hasBCP47Extension(localeID)) {
+    if (localeID != nullptr && _hasBCP47Extension(localeID)) {
         tempBuffer = ulocimp_forLanguageTag(localeID, -1, nullptr, status);
         tmpLocaleID = U_SUCCESS(status) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeID;
     } else {
@@ -889,7 +885,8 @@ uloc_setKeywordValue(const char* keywordName,
         return 0;
     }
 
-    char* keywords = const_cast<char*>(locale_getKeywordsStart(buffer));
+    char* keywords = const_cast<char*>(
+        locale_getKeywordsStart({buffer, static_cast<std::string_view::size_type>(bufLen)}));
     int32_t baseLen = keywords == nullptr ? bufLen : keywords - buffer;
     // Remove -1 from the capacity so that this function can guarantee NUL termination.
     CheckedArrayByteSink sink(keywords == nullptr ? buffer + bufLen : keywords,
@@ -921,7 +918,7 @@ ulocimp_setKeywordValue(std::string_view keywordName,
 {
     if (U_FAILURE(status)) { return; }
     std::string_view keywords;
-    if (const char* start = locale_getKeywordsStart(localeID.data()); start != nullptr) {
+    if (const char* start = locale_getKeywordsStart(localeID.toStringPiece()); start != nullptr) {
         // This is safe because CharString::truncate() doesn't actually erase any
         // data, but simply sets the position for where new data will be written.
         int32_t size = start - localeID.data();
@@ -1138,15 +1135,18 @@ inline bool _isPrefixLetter(char a) { return a == 'x' || a == 'X' || a == 'i' ||
 
 /*returns true if one of the special prefixes is here (s=string)
   'x-' or 'i-' */
-inline bool _isIDPrefix(const char *s) { return _isPrefixLetter(s[0]) && _isIDSeparator(s[1]); }
+inline bool _isIDPrefix(std::string_view s) {
+    return s.size() >= 2 && _isPrefixLetter(s[0]) && _isIDSeparator(s[1]);
+}
 
 /* Dot terminates it because of POSIX form  where dot precedes the codepage
  * except for variant
  */
-inline bool _isTerminator(char a) { return a == 0 || a == '.' || a == '@'; }
+inline bool _isTerminator(char a) { return a == '.' || a == '@'; }
 
-inline bool _isBCP47Extension(const char* p) {
-    return p[0] == '-' &&
+inline bool _isBCP47Extension(std::string_view p) {
+    return p.size() >= 3 &&
+           p[0] == '-' &&
            (p[1] == 't' || p[1] == 'T' ||
             p[1] == 'u' || p[1] == 'U' ||
             p[1] == 'x' || p[1] == 'X') &&
@@ -1202,49 +1202,44 @@ namespace {
  * TODO try to use this in Locale
  */
 
-void
-_getLanguage(const char* localeID,
-             ByteSink* sink,
-             const char** pEnd,
-             UErrorCode& status) {
-    U_ASSERT(pEnd != nullptr);
-    *pEnd = localeID;
-
-    if (uprv_stricmp(localeID, "root") == 0) {
-        localeID += 4;
-    } else if (uprv_strnicmp(localeID, "und", 3) == 0 &&
-               (localeID[3] == '\0' ||
+size_t _getLanguage(std::string_view localeID, ByteSink* sink, UErrorCode& status) {
+    size_t skip = 0;
+    if (localeID.size() == 4 && uprv_strnicmp(localeID.data(), "root", 4) == 0) {
+        skip = 4;
+        localeID.remove_prefix(skip);
+    } else if (localeID.size() >= 3 && uprv_strnicmp(localeID.data(), "und", 3) == 0 &&
+               (localeID.size() == 3 ||
                 localeID[3] == '-' ||
                 localeID[3] == '_' ||
                 localeID[3] == '@')) {
-        localeID += 3;
+        skip = 3;
+        localeID.remove_prefix(skip);
     }
 
     constexpr int32_t MAXLEN = ULOC_LANG_CAPACITY - 1;  // Minus NUL.
 
     /* if it starts with i- or x- then copy that prefix */
-    int32_t len = _isIDPrefix(localeID) ? 2 : 0;
-    while (!_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len])) {
+    size_t len = _isIDPrefix(localeID) ? 2 : 0;
+    while (len < localeID.size() && !_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len])) {
         if (len == MAXLEN) {
             status = U_ILLEGAL_ARGUMENT_ERROR;
-            return;
+            return 0;
         }
         len++;
     }
 
-    *pEnd = localeID + len;
-    if (sink == nullptr || len == 0) { return; }
+    if (sink == nullptr || len == 0) { return skip + len; }
 
-    int32_t minCapacity = uprv_max(len, 4);  // Minimum 3 letters plus NUL.
+    int32_t minCapacity = uprv_max(static_cast<int32_t>(len), 4);  // Minimum 3 letters plus NUL.
     char scratch[MAXLEN];
     int32_t capacity = 0;
     char* buffer = sink->GetAppendBuffer(
             minCapacity, minCapacity, scratch, UPRV_LENGTHOF(scratch), &capacity);
 
-    for (int32_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         buffer[i] = uprv_tolower(localeID[i]);
     }
-    if (_isIDSeparator(localeID[1])) {
+    if (localeID.size() >= 2 && _isIDSeparator(localeID[1])) {
         buffer[1] = '-';
     }
 
@@ -1256,32 +1251,26 @@ _getLanguage(const char* localeID,
         if (offset.has_value()) {
             const char* const alias = LANGUAGES[*offset];
             sink->Append(alias, static_cast<int32_t>(uprv_strlen(alias)));
-            return;
+            return skip + len;
         }
     }
 
-    sink->Append(buffer, len);
+    sink->Append(buffer, static_cast<int32_t>(len));
+    return skip + len;
 }
 
-void
-_getScript(const char* localeID,
-           ByteSink* sink,
-           const char** pEnd) {
-    U_ASSERT(pEnd != nullptr);
-    *pEnd = localeID;
-
+size_t _getScript(std::string_view localeID, ByteSink* sink) {
     constexpr int32_t LENGTH = 4;
 
-    int32_t len = 0;
-    while (!_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len]) &&
+    size_t len = 0;
+    while (len < localeID.size() && !_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len]) &&
             uprv_isASCIILetter(localeID[len])) {
-        if (len == LENGTH) { return; }
+        if (len == LENGTH) { return 0; }
         len++;
     }
-    if (len != LENGTH) { return; }
+    if (len != LENGTH) { return 0; }
 
-    *pEnd = localeID + LENGTH;
-    if (sink == nullptr) { return; }
+    if (sink == nullptr) { return len; }
 
     char scratch[LENGTH];
     int32_t capacity = 0;
@@ -1294,27 +1283,21 @@ _getScript(const char* localeID,
     }
 
     sink->Append(buffer, LENGTH);
+    return len;
 }
 
-void
-_getRegion(const char* localeID,
-           ByteSink* sink,
-           const char** pEnd) {
-    U_ASSERT(pEnd != nullptr);
-    *pEnd = localeID;
-
+size_t _getRegion(std::string_view localeID, ByteSink* sink) {
     constexpr int32_t MINLEN = 2;
     constexpr int32_t MAXLEN = ULOC_COUNTRY_CAPACITY - 1;  // Minus NUL.
 
-    int32_t len = 0;
-    while (!_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len])) {
-        if (len == MAXLEN) { return; }
+    size_t len = 0;
+    while (len < localeID.size() && !_isTerminator(localeID[len]) && !_isIDSeparator(localeID[len])) {
+        if (len == MAXLEN) { return 0; }
         len++;
     }
-    if (len < MINLEN) { return; }
+    if (len < MINLEN) { return 0; }
 
-    *pEnd = localeID + len;
-    if (sink == nullptr) { return; }
+    if (sink == nullptr) { return len; }
 
     char scratch[ULOC_COUNTRY_CAPACITY];
     int32_t capacity = 0;
@@ -1325,7 +1308,7 @@ _getRegion(const char* localeID,
             UPRV_LENGTHOF(scratch),
             &capacity);
 
-    for (int32_t i = 0; i < len; ++i) {
+    for (size_t i = 0; i < len; ++i) {
         buffer[i] = uprv_toupper(localeID[i]);
     }
 
@@ -1337,26 +1320,25 @@ _getRegion(const char* localeID,
         if (offset.has_value()) {
             const char* const alias = COUNTRIES[*offset];
             sink->Append(alias, static_cast<int32_t>(uprv_strlen(alias)));
-            return;
+            return len;
         }
     }
 
-    sink->Append(buffer, len);
+    sink->Append(buffer, static_cast<int32_t>(len));
+    return len;
 }
 
 /**
  * @param needSeparator if true, then add leading '_' if any variants
  * are added to 'variant'
  */
-void
-_getVariant(const char* localeID,
+size_t
+_getVariant(std::string_view localeID,
             char prev,
             ByteSink* sink,
-            const char** pEnd,
             bool needSeparator,
             UErrorCode& status) {
-    if (U_FAILURE(status)) return;
-    if (pEnd != nullptr) { *pEnd = localeID; }
+    if (U_FAILURE(status) || localeID.empty()) return 0;
 
     // Reasonable upper limit for variants
     // There are no strict limitation of the syntax of variant in the legacy
@@ -1369,63 +1351,82 @@ _getVariant(const char* localeID,
     constexpr int32_t MAX_VARIANTS_LENGTH = 179;
 
     /* get one or more variant tags and separate them with '_' */
-    int32_t index = 0;
+    size_t index = 0;
     if (_isIDSeparator(prev)) {
         /* get a variant string after a '-' or '_' */
-        for (index=0; !_isTerminator(localeID[index]); index++) {
-            if (index >= MAX_VARIANTS_LENGTH) { // same as length > MAX_VARIANTS_LENGTH
+        for (std::string_view sub = localeID;;) {
+            size_t next = sub.find_first_of(".@_-");
+            // For historical reasons, a trailing separator is included in the variant.
+            bool finished = next == std::string_view::npos || next + 1 == sub.length();
+            size_t limit = finished ? sub.length() : next;
+            index += limit;
+            if (index > MAX_VARIANTS_LENGTH) {
                 status = U_ILLEGAL_ARGUMENT_ERROR;
-                return;
+                return 0;
             }
-            if (needSeparator) {
-                if (sink != nullptr) {
-                    sink->Append("_", 1);
-                }
-                needSeparator = false;
-            }
+
             if (sink != nullptr) {
-                char c = uprv_toupper(localeID[index]);
-                if (c == '-') c = '_';
-                sink->Append(&c, 1);
+                if (needSeparator) {
+                    sink->Append("_", 1);
+                } else {
+                    needSeparator = true;
+                }
+
+                int32_t length = static_cast<int32_t>(limit);
+                int32_t minCapacity = uprv_min(length, MAX_VARIANTS_LENGTH);
+                char scratch[MAX_VARIANTS_LENGTH];
+                int32_t capacity = 0;
+                char* buffer = sink->GetAppendBuffer(
+                        minCapacity, minCapacity, scratch, UPRV_LENGTHOF(scratch), &capacity);
+
+                for (size_t i = 0; i < limit; ++i) {
+                    buffer[i] = uprv_toupper(sub[i]);
+                }
+                sink->Append(buffer, length);
             }
+
+            if (finished) { return index; }
+            sub.remove_prefix(next);
+            if (_isTerminator(sub.front()) || _isBCP47Extension(sub)) { return index; }
+            sub.remove_prefix(1);
+            index++;
         }
-        if (pEnd != nullptr) { *pEnd = localeID+index; }
     }
 
+    size_t skip = 0;
     /* if there is no variant tag after a '-' or '_' then look for '@' */
-    if (index == 0) {
-        if (prev=='@') {
-            /* keep localeID */
-        } else if((localeID=locale_getKeywordsStart(localeID))!=nullptr) {
-            ++localeID; /* point after the '@' */
-        } else {
-            return;
-        }
-        for(; !_isTerminator(localeID[index]); index++) {
-            if (index >= MAX_VARIANTS_LENGTH) { // same as length > MAX_VARIANTS_LENGTH
-                status = U_ILLEGAL_ARGUMENT_ERROR;
-                return;
-            }
-            if (needSeparator) {
-                if (sink != nullptr) {
-                    sink->Append("_", 1);
-                }
-                needSeparator = false;
-            }
-            if (sink != nullptr) {
-                char c = uprv_toupper(localeID[index]);
-                if (c == '-' || c == ',') c = '_';
-                sink->Append(&c, 1);
-            }
-        }
-        if (pEnd != nullptr) { *pEnd = localeID + index; }
+    if (prev == '@') {
+        /* keep localeID */
+    } else if (const char* p = locale_getKeywordsStart(localeID); p != nullptr) {
+        skip = 1 + p - localeID.data(); /* point after the '@' */
+        localeID.remove_prefix(skip);
+    } else {
+        return 0;
     }
+    for (; index < localeID.size() && !_isTerminator(localeID[index]); index++) {
+        if (index >= MAX_VARIANTS_LENGTH) { // same as length > MAX_VARIANTS_LENGTH
+            status = U_ILLEGAL_ARGUMENT_ERROR;
+            return 0;
+        }
+        if (needSeparator) {
+            if (sink != nullptr) {
+                sink->Append("_", 1);
+            }
+            needSeparator = false;
+        }
+        if (sink != nullptr) {
+            char c = uprv_toupper(localeID[index]);
+            if (c == '-' || c == ',') c = '_';
+            sink->Append(&c, 1);
+        }
+    }
+    return skip + index;
 }
 
 }  // namespace
 
 U_EXPORT CharString
-ulocimp_getLanguage(const char* localeID, UErrorCode& status) {
+ulocimp_getLanguage(std::string_view localeID, UErrorCode& status) {
     return ByteSinkUtil::viaByteSinkToCharString(
         [&](ByteSink& sink, UErrorCode& status) {
             ulocimp_getSubtags(
@@ -1441,7 +1442,7 @@ ulocimp_getLanguage(const char* localeID, UErrorCode& status) {
 }
 
 U_EXPORT CharString
-ulocimp_getScript(const char* localeID, UErrorCode& status) {
+ulocimp_getScript(std::string_view localeID, UErrorCode& status) {
     return ByteSinkUtil::viaByteSinkToCharString(
         [&](ByteSink& sink, UErrorCode& status) {
             ulocimp_getSubtags(
@@ -1457,7 +1458,7 @@ ulocimp_getScript(const char* localeID, UErrorCode& status) {
 }
 
 U_EXPORT CharString
-ulocimp_getRegion(const char* localeID, UErrorCode& status) {
+ulocimp_getRegion(std::string_view localeID, UErrorCode& status) {
     return ByteSinkUtil::viaByteSinkToCharString(
         [&](ByteSink& sink, UErrorCode& status) {
             ulocimp_getSubtags(
@@ -1473,7 +1474,7 @@ ulocimp_getRegion(const char* localeID, UErrorCode& status) {
 }
 
 U_EXPORT CharString
-ulocimp_getVariant(const char* localeID, UErrorCode& status) {
+ulocimp_getVariant(std::string_view localeID, UErrorCode& status) {
     return ByteSinkUtil::viaByteSinkToCharString(
         [&](ByteSink& sink, UErrorCode& status) {
             ulocimp_getSubtags(
@@ -1490,7 +1491,7 @@ ulocimp_getVariant(const char* localeID, UErrorCode& status) {
 
 U_EXPORT void
 ulocimp_getSubtags(
-        const char* localeID,
+        std::string_view localeID,
         CharString* language,
         CharString* script,
         CharString* region,
@@ -1521,7 +1522,7 @@ ulocimp_getSubtags(
 
 U_EXPORT void
 ulocimp_getSubtags(
-        const char* localeID,
+        std::string_view localeID,
         ByteSink* language,
         ByteSink* script,
         ByteSink* region,
@@ -1531,7 +1532,7 @@ ulocimp_getSubtags(
     if (U_FAILURE(status)) { return; }
 
     if (pEnd != nullptr) {
-        *pEnd = localeID;
+        *pEnd = localeID.data();
     } else if (language == nullptr &&
                script == nullptr &&
                region == nullptr &&
@@ -1539,62 +1540,94 @@ ulocimp_getSubtags(
         return;
     }
 
+    if (localeID.empty()) { return; }
+
     bool hasRegion = false;
 
-    if (localeID == nullptr) {
-        localeID = uloc_getDefault();
+    {
+        size_t len = _getLanguage(localeID, language, status);
+        if (U_FAILURE(status)) { return; }
+        if (len > 0) {
+            localeID.remove_prefix(len);
+        }
     }
 
-    _getLanguage(localeID, language, &localeID, status);
-    if (U_FAILURE(status)) { return; }
-    U_ASSERT(localeID != nullptr);
-
     if (pEnd != nullptr) {
-        *pEnd = localeID;
+        *pEnd = localeID.data();
     } else if (script == nullptr &&
                region == nullptr &&
                variant == nullptr) {
         return;
     }
 
-    if (_isIDSeparator(*localeID)) {
-        const char* begin = localeID + 1;
-        const char* end = nullptr;
-        _getScript(begin, script, &end);
-        U_ASSERT(end != nullptr);
-        if (end != begin) {
-            localeID = end;
-            if (pEnd != nullptr) { *pEnd = localeID; }
+    if (localeID.empty()) { return; }
+
+    if (_isIDSeparator(localeID.front())) {
+        std::string_view sub = localeID;
+        sub.remove_prefix(1);
+        size_t len = _getScript(sub, script);
+        if (len > 0) {
+            localeID.remove_prefix(len + 1);
+            if (pEnd != nullptr) { *pEnd = localeID.data(); }
         }
     }
 
-    if (region == nullptr && variant == nullptr && pEnd == nullptr) { return; }
+    if ((region == nullptr && variant == nullptr && pEnd == nullptr) || localeID.empty()) { return; }
 
-    if (_isIDSeparator(*localeID)) {
-        const char* begin = localeID + 1;
-        const char* end = nullptr;
-        _getRegion(begin, region, &end);
-        U_ASSERT(end != nullptr);
-        if (end != begin) {
+    if (_isIDSeparator(localeID.front())) {
+        std::string_view sub = localeID;
+        sub.remove_prefix(1);
+        size_t len = _getRegion(sub, region);
+        if (len > 0) {
             hasRegion = true;
-            localeID = end;
-            if (pEnd != nullptr) { *pEnd = localeID; }
+            localeID.remove_prefix(len + 1);
+            if (pEnd != nullptr) { *pEnd = localeID.data(); }
         }
     }
 
-    if (variant == nullptr && pEnd == nullptr) { return; }
+    if ((variant == nullptr && pEnd == nullptr) || localeID.empty()) { return; }
 
-    if (_isIDSeparator(*localeID) && !_isBCP47Extension(localeID)) {
+    bool hasVariant = false;
+
+    if (_isIDSeparator(localeID.front()) && !_isBCP47Extension(localeID)) {
+        std::string_view sub = localeID;
         /* If there was no country ID, skip a possible extra IDSeparator */
-        if (!hasRegion && _isIDSeparator(localeID[1])) {
-            localeID++;
-        }
-        const char* begin = localeID + 1;
-        const char* end = nullptr;
-        _getVariant(begin, *localeID, variant, &end, false, status);
+        size_t skip = !hasRegion && localeID.size() > 1 && _isIDSeparator(localeID[1]) ? 2 : 1;
+        sub.remove_prefix(skip);
+        size_t len = _getVariant(sub, localeID[0], variant, false, status);
         if (U_FAILURE(status)) { return; }
-        U_ASSERT(end != nullptr);
-        if (end != begin && pEnd != nullptr) { *pEnd = end; }
+        if (len > 0) {
+            hasVariant = true;
+            localeID.remove_prefix(skip + len);
+            if (pEnd != nullptr) { *pEnd = localeID.data(); }
+        }
+    }
+
+    if ((variant == nullptr && pEnd == nullptr) || localeID.empty()) { return; }
+
+    if (_isBCP47Extension(localeID)) {
+        localeID.remove_prefix(2);
+        constexpr char vaposix[] = "-va-posix";
+        constexpr size_t length = sizeof vaposix - 1;
+        for (size_t next;; localeID.remove_prefix(next)) {
+            next = localeID.find('-', 1);
+            if (next == std::string_view::npos) { break; }
+            next = localeID.find('-', next + 1);
+            bool finished = next == std::string_view::npos;
+            std::string_view sub = localeID;
+            if (!finished) { sub.remove_suffix(sub.length() - next); }
+
+            if (sub.length() == length && uprv_strnicmp(sub.data(), vaposix, length) == 0) {
+                if (variant != nullptr) {
+                    if (hasVariant) { variant->Append("_", 1); }
+                    constexpr char posix[] = "POSIX";
+                    variant->Append(posix, sizeof posix - 1);
+                }
+                if (pEnd != nullptr) { *pEnd = localeID.data() + length; }
+            }
+
+            if (finished) { break; }
+        }
     }
 }
 
@@ -1700,7 +1733,7 @@ uloc_openKeywords(const char* localeID,
     CharString tempBuffer;
     const char* tmpLocaleID;
 
-    if (_hasBCP47Extension(localeID)) {
+    if (localeID != nullptr && _hasBCP47Extension(localeID)) {
         tempBuffer = ulocimp_forLanguageTag(localeID, -1, nullptr, *status);
         tmpLocaleID = U_SUCCESS(*status) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeID;
     } else {
@@ -1753,7 +1786,7 @@ constexpr int32_t I_DEFAULT_LENGTH = UPRV_LENGTHOF(i_default);
  * This is the code underlying uloc_getName and uloc_canonicalize.
  */
 void
-_canonicalize(const char* localeID,
+_canonicalize(std::string_view localeID,
               ByteSink& sink,
               uint32_t options,
               UErrorCode& err) {
@@ -1764,33 +1797,30 @@ _canonicalize(const char* localeID,
     int32_t j, fieldCount=0;
     CharString tempBuffer;  // if localeID has a BCP47 extension, tmpLocaleID points to this
     CharString localeIDWithHyphens;  // if localeID has a BPC47 extension and have _, tmpLocaleID points to this
-    const char* origLocaleID;
-    const char* tmpLocaleID;
-    const char* keywordAssign = nullptr;
-    const char* separatorIndicator = nullptr;
+    std::string_view origLocaleID;
+    std::string_view tmpLocaleID;
+    size_t keywordAssign = std::string_view::npos;
+    size_t separatorIndicator = std::string_view::npos;
 
     if (_hasBCP47Extension(localeID)) {
-        const char* localeIDPtr = localeID;
+        std::string_view localeIDPtr = localeID;
 
         // convert all underbars to hyphens, unless the "BCP47 extension" comes at the beginning of the string
-        if (uprv_strchr(localeID, '_') != nullptr && localeID[1] != '-' && localeID[1] != '_') {
-            localeIDWithHyphens.append(localeID, -1, err);
+        if (localeID.size() >= 2 && localeID.find('_') != std::string_view::npos && localeID[1] != '-' && localeID[1] != '_') {
+            localeIDWithHyphens.append(localeID, err);
             if (U_SUCCESS(err)) {
                 for (char* p = localeIDWithHyphens.data(); *p != '\0'; ++p) {
                     if (*p == '_') {
                         *p = '-';
                     }
                 }
-                localeIDPtr = localeIDWithHyphens.data();
+                localeIDPtr = localeIDWithHyphens.toStringPiece();
             }
         }
 
-        tempBuffer = ulocimp_forLanguageTag(localeIDPtr, -1, nullptr, err);
-        tmpLocaleID = U_SUCCESS(err) && !tempBuffer.isEmpty() ? tempBuffer.data() : localeIDPtr;
+        tempBuffer = ulocimp_forLanguageTag(localeIDPtr.data(), static_cast<int32_t>(localeIDPtr.size()), nullptr, err);
+        tmpLocaleID = U_SUCCESS(err) && !tempBuffer.isEmpty() ? static_cast<std::string_view>(tempBuffer.toStringPiece()) : localeIDPtr;
     } else {
-        if (localeID==nullptr) {
-           localeID=uloc_getDefault();
-        }
         tmpLocaleID=localeID;
     }
 
@@ -1801,20 +1831,25 @@ _canonicalize(const char* localeID,
     CharString script;
     CharString country;
     CharString variant;
+    const char* end = nullptr;
     ulocimp_getSubtags(
             tmpLocaleID,
             &tag,
             &script,
             &country,
             &variant,
-            &tmpLocaleID,
+            &end,
             err);
     if (U_FAILURE(err)) {
         return;
     }
+    U_ASSERT(end != nullptr);
+    if (end > tmpLocaleID.data()) {
+        tmpLocaleID.remove_prefix(end - tmpLocaleID.data());
+    }
 
-    if (tag.length() == I_DEFAULT_LENGTH &&
-            uprv_strncmp(origLocaleID, i_default, I_DEFAULT_LENGTH) == 0) {
+    if (tag.length() == I_DEFAULT_LENGTH && origLocaleID.length() >= I_DEFAULT_LENGTH &&
+            uprv_strncmp(origLocaleID.data(), i_default, I_DEFAULT_LENGTH) == 0) {
         tag.clear();
         tag.append(uloc_getDefault(), err);
     } else {
@@ -1839,15 +1874,14 @@ _canonicalize(const char* localeID,
     }
 
     /* Copy POSIX-style charset specifier, if any [mr.utf8] */
-    if (!OPTION_SET(options, _ULOC_CANONICALIZE) && *tmpLocaleID == '.') {
+    if (!OPTION_SET(options, _ULOC_CANONICALIZE) && !tmpLocaleID.empty() && tmpLocaleID.front() == '.') {
         tag.append('.', err);
-        ++tmpLocaleID;
-        const char *atPos = nullptr;
+        tmpLocaleID.remove_prefix(1);
         size_t length;
-        if((atPos = uprv_strchr(tmpLocaleID, '@')) != nullptr) {
-            length = atPos - tmpLocaleID;
+        if (size_t atPos = tmpLocaleID.find('@'); atPos != std::string_view::npos) {
+            length = atPos;
         } else {
-            length = uprv_strlen(tmpLocaleID);
+            length = tmpLocaleID.length();
         }
         // The longest charset name we found in IANA charset registry
         // https://www.iana.org/assignments/character-sets/ is
@@ -1859,33 +1893,34 @@ _canonicalize(const char* localeID,
            err = U_ILLEGAL_ARGUMENT_ERROR; /* malformed keyword name */
            return;
         }
-        tag.append(tmpLocaleID, static_cast<int32_t>(length), err);
-        tmpLocaleID += length;
+        if (length > 0) {
+            tag.append(tmpLocaleID.data(), static_cast<int32_t>(length), err);
+            tmpLocaleID.remove_prefix(length);
+        }
     }
 
     /* Scan ahead to next '@' and determine if it is followed by '=' and/or ';'
-       After this, tmpLocaleID either points to '@' or is nullptr */
-    if ((tmpLocaleID=locale_getKeywordsStart(tmpLocaleID))!=nullptr) {
-        keywordAssign = uprv_strchr(tmpLocaleID, '=');
-        separatorIndicator = uprv_strchr(tmpLocaleID, ';');
+       After this, tmpLocaleID either starts at '@' or is empty. */
+    if (const char* start = locale_getKeywordsStart(tmpLocaleID); start != nullptr) {
+        if (start > tmpLocaleID.data()) {
+            tmpLocaleID.remove_prefix(start - tmpLocaleID.data());
+        }
+        keywordAssign = tmpLocaleID.find('=');
+        separatorIndicator = tmpLocaleID.find(';');
+    } else {
+        tmpLocaleID = {};
     }
 
     /* Copy POSIX-style variant, if any [mr@FOO] */
     if (!OPTION_SET(options, _ULOC_CANONICALIZE) &&
-        tmpLocaleID != nullptr && keywordAssign == nullptr) {
-        for (;;) {
-            char c = *tmpLocaleID;
-            if (c == 0) {
-                break;
-            }
-            tag.append(c, err);
-            ++tmpLocaleID;
-        }
+        !tmpLocaleID.empty() && keywordAssign == std::string_view::npos) {
+        tag.append(tmpLocaleID, err);
+        tmpLocaleID = {};
     }
 
     if (OPTION_SET(options, _ULOC_CANONICALIZE)) {
         /* Handle @FOO variant if @ is present and not followed by = */
-        if (tmpLocaleID!=nullptr && keywordAssign==nullptr) {
+        if (!tmpLocaleID.empty() && keywordAssign == std::string_view::npos) {
             /* Add missing '_' if needed */
             if (fieldCount < 2 || (fieldCount < 3 && !script.isEmpty())) {
                 do {
@@ -1895,7 +1930,9 @@ _canonicalize(const char* localeID,
             }
 
             CharStringByteSink s(&tag);
-            _getVariant(tmpLocaleID+1, '@', &s, nullptr, !variant.isEmpty(), err);
+            std::string_view sub = tmpLocaleID;
+            sub.remove_prefix(1);
+            _getVariant(sub, '@', &s, !variant.isEmpty(), err);
             if (U_FAILURE(err)) { return; }
         }
 
@@ -1903,7 +1940,7 @@ _canonicalize(const char* localeID,
         for (j=0; j<UPRV_LENGTHOF(CANONICALIZE_MAP); j++) {
             StringPiece id(CANONICALIZE_MAP[j].id);
             if (tag == id) {
-                if (id.empty() && tmpLocaleID != nullptr) {
+                if (id.empty() && !tmpLocaleID.empty()) {
                     break; /* Don't remap "" if keywords present */
                 }
                 tag.clear();
@@ -1916,11 +1953,12 @@ _canonicalize(const char* localeID,
     sink.Append(tag.data(), tag.length());
 
     if (!OPTION_SET(options, _ULOC_STRIP_KEYWORDS)) {
-        if (tmpLocaleID!=nullptr && keywordAssign!=nullptr &&
-            (!separatorIndicator || separatorIndicator > keywordAssign)) {
+        if (!tmpLocaleID.empty() && keywordAssign != std::string_view::npos &&
+            (separatorIndicator == std::string_view::npos || separatorIndicator > keywordAssign)) {
             sink.Append("@", 1);
             ++fieldCount;
-            ulocimp_getKeywords(tmpLocaleID+1, '@', sink, true, err);
+            tmpLocaleID.remove_prefix(1);
+            ulocimp_getKeywords(tmpLocaleID, '@', sink, true, err);
         }
     }
 }
@@ -1989,6 +2027,10 @@ uloc_getLanguage(const char*    localeID,
          int32_t languageCapacity,
          UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
+
     /* uloc_getLanguage will return a 2 character iso-639 code if one exists. *CWB*/
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         language, languageCapacity,
@@ -2011,6 +2053,10 @@ uloc_getScript(const char*    localeID,
          int32_t scriptCapacity,
          UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
+
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         script, scriptCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2032,6 +2078,10 @@ uloc_getCountry(const char* localeID,
             int32_t countryCapacity,
             UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
+
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         country, countryCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2053,6 +2103,10 @@ uloc_getVariant(const char* localeID,
                 int32_t variantCapacity,
                 UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
+
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         variant, variantCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2074,6 +2128,9 @@ uloc_getName(const char* localeID,
              int32_t nameCapacity,
              UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         name, nameCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2083,7 +2140,7 @@ uloc_getName(const char* localeID,
 }
 
 U_EXPORT CharString
-ulocimp_getName(const char* localeID,
+ulocimp_getName(std::string_view localeID,
                 UErrorCode& err)
 {
     return ByteSinkUtil::viaByteSinkToCharString(
@@ -2094,7 +2151,7 @@ ulocimp_getName(const char* localeID,
 }
 
 U_EXPORT void
-ulocimp_getName(const char* localeID,
+ulocimp_getName(std::string_view localeID,
                 ByteSink& sink,
                 UErrorCode& err)
 {
@@ -2107,6 +2164,9 @@ uloc_getBaseName(const char* localeID,
                  int32_t nameCapacity,
                  UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         name, nameCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2116,7 +2176,7 @@ uloc_getBaseName(const char* localeID,
 }
 
 U_EXPORT CharString
-ulocimp_getBaseName(const char* localeID,
+ulocimp_getBaseName(std::string_view localeID,
                     UErrorCode& err)
 {
     return ByteSinkUtil::viaByteSinkToCharString(
@@ -2127,7 +2187,7 @@ ulocimp_getBaseName(const char* localeID,
 }
 
 U_EXPORT void
-ulocimp_getBaseName(const char* localeID,
+ulocimp_getBaseName(std::string_view localeID,
                     ByteSink& sink,
                     UErrorCode& err)
 {
@@ -2140,6 +2200,9 @@ uloc_canonicalize(const char* localeID,
                   int32_t nameCapacity,
                   UErrorCode* err)
 {
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     return ByteSinkUtil::viaByteSinkToTerminatedChars(
         name, nameCapacity,
         [&](ByteSink& sink, UErrorCode& status) {
@@ -2149,7 +2212,7 @@ uloc_canonicalize(const char* localeID,
 }
 
 U_EXPORT CharString
-ulocimp_canonicalize(const char* localeID,
+ulocimp_canonicalize(std::string_view localeID,
                      UErrorCode& err)
 {
     return ByteSinkUtil::viaByteSinkToCharString(
@@ -2160,7 +2223,7 @@ ulocimp_canonicalize(const char* localeID,
 }
 
 U_EXPORT void
-ulocimp_canonicalize(const char* localeID,
+ulocimp_canonicalize(std::string_view localeID,
                      ByteSink& sink,
                      UErrorCode& err)
 {

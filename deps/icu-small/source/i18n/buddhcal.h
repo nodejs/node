@@ -83,13 +83,6 @@ public:
     BuddhistCalendar(const BuddhistCalendar& source);
 
     /**
-     * Default assignment operator
-     * @param right    the object to be copied.
-     * @internal
-     */
-    BuddhistCalendar& operator=(const BuddhistCalendar& right);
-
-    /**
      * Create and return a polymorphic copy of this calendar.
      * @return    return a polymorphic copy of this calendar.
      * @internal
