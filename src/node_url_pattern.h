@@ -14,6 +14,16 @@
 
 namespace node::url_pattern {
 
+#define URL_PATTERN_COMPONENTS(V)                                              \
+  V(Protocol, protocol)                                                        \
+  V(Username, username)                                                        \
+  V(Password, password)                                                        \
+  V(Hostname, hostname)                                                        \
+  V(Port, port)                                                                \
+  V(Pathname, pathname)                                                        \
+  V(Search, search)                                                            \
+  V(Hash, hash)
+
 // By default, ada::url_pattern doesn't ship with any regex library.
 // Ada has a std::regex implementation, but it is considered unsafe and does
 // not have a fully compliant ecmascript syntax support. Therefore, Ada
@@ -42,15 +52,12 @@ class URLPattern : public BaseObject {
   // - Functions
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& info);
   static void Test(const v8::FunctionCallbackInfo<v8::Value>& info);
-  // - Getters
-  static void Hash(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Hostname(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Password(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Pathname(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Port(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Protocol(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Search(const v8::FunctionCallbackInfo<v8::Value>& info);
-  static void Username(const v8::FunctionCallbackInfo<v8::Value>& info);
+  // - Component Getters
+#define URL_PATTERN_COMPONENT_GETTERS(name, _)                                 \
+  static void name(const v8::FunctionCallbackInfo<v8::Value>& info);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
+  // - Has Regexp Groups
   static void HasRegexpGroups(const v8::FunctionCallbackInfo<v8::Value>& info);
 
   void MemoryInfo(MemoryTracker* tracker) const override;
@@ -86,14 +93,10 @@ class URLPattern : public BaseObject {
  private:
   ada::url_pattern<URLPatternRegexProvider> url_pattern_;
   // Getter methods
-  v8::MaybeLocal<v8::Value> Hash() const;
-  v8::MaybeLocal<v8::Value> Hostname() const;
-  v8::MaybeLocal<v8::Value> Password() const;
-  v8::MaybeLocal<v8::Value> Pathname() const;
-  v8::MaybeLocal<v8::Value> Port() const;
-  v8::MaybeLocal<v8::Value> Protocol() const;
-  v8::MaybeLocal<v8::Value> Search() const;
-  v8::MaybeLocal<v8::Value> Username() const;
+#define URL_PATTERN_COMPONENT_GETTERS(name, _)                                 \
+  v8::MaybeLocal<v8::Value> name() const;
+  URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
   bool HasRegExpGroups() const;
   // Public API
   v8::MaybeLocal<v8::Value> Exec(
