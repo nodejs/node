@@ -475,8 +475,7 @@ are formatted correctly.
 
 If this release includes new APIs then it is necessary to document that they
 were first added in this version. The relevant commits should already include
-`REPLACEME` tags as per the example in the
-[docs README](../../tools/doc/README.md). Check for these tags with
+`REPLACEME` tags. Check for these tags with
 
 ```bash
 grep REPLACEME doc/api/*.md

@@ -1579,7 +1579,6 @@ def PrintCrashed(code):
 IGNORED_SUITES = [
   'addons',
   'benchmark',
-  'doctool',
   'embedding',
   'internet',
   'js-native-api',

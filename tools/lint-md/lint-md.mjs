@@ -35,13 +35,6 @@ paths.forEach(async (path) => {
   const result = await linter.process(file);
   const isDifferent = fileContents !== result.toString();
 
-  if (path.startsWith('doc/api/')) {
-    if (!fileContents.includes('introduced_in')) {
-      console.error(`${path} is missing an 'introduced_in' version. Please add one.`);
-      process.exitCode = 1;
-    }
-  }
-
   if (format) {
     if (isDifferent) {
       fs.writeFileSync(path, result.toString());
