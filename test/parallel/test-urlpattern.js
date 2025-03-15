@@ -26,3 +26,7 @@ throws(() => {
 }, {
   message: 'boom'
 });
+
+throws(() => {
+  new URLPattern('invalid value');
+}, /TypeError: Failed to construct URLPattern/);
