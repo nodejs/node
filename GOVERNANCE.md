@@ -146,7 +146,7 @@ Contributions can be:
 
 ### Nominating a new Collaborator
 
-To nominate a new Collaborator, [open a discussion in the nodejs/collaborators][]
+To nominate a new Collaborator, open a [discussion in the nodejs/collaborators][]
 repository. Provide a summary of the nominee's contributions. For example:
 
 * Commits in the [nodejs/node][] repository.
@@ -195,6 +195,6 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
-[open a discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
