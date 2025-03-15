@@ -269,7 +269,7 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
       options.has_value() ? &options.value() : nullptr);
 
   if (!url_pattern) {
-    THROW_ERR_INVALID_URL_PATTERN(env, "Failed to constuct URLPattern");
+    THROW_ERR_INVALID_URL_PATTERN(env, "Failed to construct URLPattern");
     return;
   }
 
