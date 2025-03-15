@@ -43,8 +43,8 @@ const methods = {
     bench.start();
     for (let i = 0; i < n; ++i) {
       generateKeyPairSync('dsa', {
-        modulusLength: 1024,
-        divisorLength: 160,
+        modulusLength: 2048,
+        divisorLength: 256,
       });
     }
     bench.end(n);
@@ -60,8 +60,8 @@ const methods = {
     bench.start();
     for (let i = 0; i < n; ++i)
       generateKeyPair('dsa', {
-        modulusLength: 1024,
-        divisorLength: 160,
+        modulusLength: 2048,
+        divisorLength: 256,
       }, done);
   },
 };
