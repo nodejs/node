@@ -191,9 +191,9 @@ adding a feature:
 * If you see the nomination as something positive to the project, say so!
 * If you are neutral, or feel you don't know enough to have an informed opinion,
   it's certainly OK to not interact with the nomination.
-* If you think the nomination can be detrimental to the project, share your
-  concerns, ideally before the public nomination is opened, and avoid sharing
-  those concerns outside of the Collaborator discussion area.
+* If you think the nomination was made too soon, or can be detrimental to the
+  project, share your concerns, ideally before the public nomination is opened,
+  and avoid sharing those concerns outside of the Collaborator discussion area.
   Ideally, list what step(s) the nominee could take that would make you
   approve their nomination.
   Given that there is no "Request for changes" feature in discussions and issues,
