@@ -146,8 +146,8 @@ Contributions can be:
 
 ### Nominating a new Collaborator
 
-To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
-Provide a summary of the nominee's contributions. For example:
+To nominate a new Collaborator, open a [discussion in the nodejs/collaborators][]
+repository. Provide a summary of the nominee's contributions. For example:
 
 * Commits in the [nodejs/node][] repository.
   * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
@@ -166,18 +166,17 @@ Provide a summary of the nominee's contributions. For example:
   organization
 * Other participation in the wider Node.js community
 
-Mention @nodejs/collaborators in the issue to notify other collaborators about
-the nomination.
+If the private discussion receives some support (in form of explicit comments or
+thumbs-up reactions) and no explicit block after a few days, add a comment in the
+private discussion stating you're planning on opening a public issue, e.g.
+"I see a number of approvals and no block, I'll be opening a public
+nomination issue if I don't hear any objections in the next 72 hours".
+After sufficient time has passed, open an issue in the [nodejs/node][] repository.
+Provide the same summary of the nominee's contributions.
 
 The nomination passes if no collaborators oppose it after one week. In the case
 of an objection, the TSC is responsible for working with the individuals
 involved and finding a resolution.
-
-There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. To request feedback from other collaborators in
-private, use the [collaborators discussion page][]
-(which only collaborators may view). A nominator may also work with the
-nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
 the contributor may open an issue or contact a collaborator to request a
@@ -196,6 +195,6 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
-[collaborators discussion page]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
