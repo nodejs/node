@@ -26,4 +26,3 @@ throws(() => {
 }, {
   message: 'boom'
 });
-
