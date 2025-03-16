@@ -144,6 +144,30 @@ Contributions can be:
 * Participation in other projects, teams, and working groups of the Node.js
   organization.
 
+Collaborators should be people volunteering to do unglamorous work because it's
+the right thing to do, they find the work itself satisfying, and they care about
+Node.js and its users. People should get collaborator status because they're
+doing work and are likely to continue doing work where having the abilities that
+come with collaborator status are helpful (abilities like starting CI jobs,
+reviewing and approving PRs, etc). That will usually--but, very importantly, not
+always--be work involving commiting to the `nodejs/node` repository. For an example
+of an exception, someone working primarily on the website might benefit from being
+able to start Jenkins CI jobs to test changes to documentation tooling. That,
+along with signals indicating commitment to Node.js, personal integrity, etc.,
+should be enough for a successful nomination.
+
+It is important to understand that potential collaborators may have vastly
+different areas and levels of expertise, interest, and skill. The Node.js
+project is large and complex, and it is not expected that every collaborator
+will have the same level of expertise in every area of the project. The
+complexity or "sophistication" of an individuals contributions, or even their
+relative engineering "skill" level, are not primary factors in determining
+whether they should be a collaborator. The primary factors do include the quality
+of their contributions (do the contributions make sense, do they add value, do
+they follow documented guidelines, are they authentic and well-intentioned,
+etc), their commitment to the project, can their judgement be trusted, and do
+they have the ability to work well with others.
+
 ### Nominating a new Collaborator
 
 To nominate a new Collaborator:
@@ -162,7 +186,8 @@ To nominate a new Collaborator:
 4. Open an issue in the [nodejs/node][] repository. Provide a summary of
    the nominee's contributions (see below for an example). Mention
    @nodejs/collaborators in the issue to notify other collaborators about
-   the nomination.
+   the nomination. _Ideally_, this issue should not be opened until any private
+   discussion (questions, concerns, objections, etc) has been resolved.
 
 The _Optional but strongly recommended_ steps are optional in the sense that
 skipping them would not invalidate the nomination, but it could put the nominee
@@ -189,10 +214,31 @@ Example of list of contributions:
   organization
 * Other participation in the wider Node.js community
 
-The nomination passes if no collaborators oppose it after one week, and if the
-nominee publicly accepts it. In the case
-of an objection, the TSC is responsible for working with the individuals
-involved and finding a resolution.
+The nomination passes if no collaborators _explicitly_ oppose it after one week.
+In the case of an objection, the TSC is responsible for working with the
+individuals involved and finding a resolution. The TSC may, following
+typical TSC consensus seeking processes, choose to advance a nomination that
+has otherwise failed to reach a natural consensus or clear path forward even
+if there are outstanding objections.
+
+Explicit opposition would typically be signaled as some form of clear
+and unambiguous comment like, "I don't believe this nomination should pass".
+These _should_ be paired with clear suggestions for positive, concrete,
+and unambiguous next steps that the nominee can take to overcome the objection
+and allow it to pass. While such suggestions are technically optional, they are
+_strongly encouraged_ to prevent the nomination from stalling indefinitely or
+objections from being overridden by the TSC.
+
+An important rule of thumb is that the nomination process is intended to be
+biased strongly towards implicit approval of the nomination. This means
+discussion and review around the proposal should ideally be more geared
+towards "I have reasons to say no..." as opposed to "Give me reasons to say
+yes...".
+
+Refrain from discussing or debating aspects of the nomination process
+itself directly within a nomination private discussion or public issue.
+Such discussions can derail and frustrate the nomination and cause unnecessary
+friction. Move such discussions to a separate issue or discussion thread.
 
 #### How to review a collaborator nomination
 
