@@ -4,12 +4,13 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [25],
+  n: [125],
   size: [500],
-  extraProps: [0],
+  extraProps: [0, 1],
   datasetName: [
     'objects',
     'sets',
+    'setsWithObjects',
     'maps',
     'circularRefs',
     'typedArrays',
@@ -31,17 +32,29 @@ function createObjects(length, extraProps, depth = 0) {
     foo: 'yarp',
     nope: {
       bar: '123',
-      ...extraProps ? { a: [1, 2, i] } : {},
+      ...(extraProps ? { a: [1, 2, i] } : {}),
       c: {},
       b: !depth ? createObjects(2, extraProps, depth + 1) : [],
     },
   }));
 }
 
+function createSetsWithObjects(length, extraProps, depth = 0) {
+  return Array.from({ length }, (_, i) => new Set([
+    ...(extraProps ? [{}] : []),
+    {
+      simple: 'object',
+      number: i,
+    },
+    ['array', 'with', 'values'],
+    new Set([[], {}, { nested: i }]),
+  ]));
+}
+
 function createSets(length, extraProps, depth = 0) {
   return Array.from({ length }, (_, i) => new Set([
     'yarp',
-    ...extraProps ? ['123', 1, 2] : [],
+    ...(extraProps ? ['123', 1, 2] : []),
     i + 3,
     null,
     {
@@ -56,7 +69,7 @@ function createSets(length, extraProps, depth = 0) {
 
 function createMaps(length, extraProps, depth = 0) {
   return Array.from({ length }, (_, i) => new Map([
-    ...extraProps ? [['primitiveKey', 'primitiveValue']] : [],
+    ...(extraProps ? [['primitiveKey', 'primitiveValue']] : []),
     [42, 'numberKey'],
     ['objectValue', { a: 1, b: i }],
     ['arrayValue', [1, 2, i]],
@@ -114,16 +127,23 @@ function createTypedArrays(length, extraParts) {
 }
 
 function createArrayBuffers(length, extra) {
-  return Array.from({ length }, (_, n) => new ArrayBuffer(n + extra ? 1 : 0));
+  return Array.from({ length }, (_, n) => {
+    const buffer = Buffer.alloc(n + (extra ? 1 : 0));
+    for (let i = 0; i < n; i++) {
+      buffer.writeInt8(i % 128, i);
+    }
+    return buffer.buffer;
+  });
 }
 
 function createDataViewArrayBuffers(length, extra) {
-  return Array.from({ length }, (_, n) => new DataView(new ArrayBuffer(n + extra ? 1 : 0)));
+  return createArrayBuffers(length, extra).map((buffer) => new DataView(buffer));
 }
 
 const datasetMappings = {
   objects: createObjects,
   sets: createSets,
+  setsWithObjects: createSetsWithObjects,
   maps: createMaps,
   circularRefs: createCircularRefs,
   typedArrays: createTypedArrays,
