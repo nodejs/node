@@ -305,8 +305,9 @@ void EraRules::initCurrentEra() {
         localMillis += (rawOffset + dstOffset);
     }
 
-    int year, month0, dom, dow, doy, mid;
-    Grego::timeToFields(localMillis, year, month0, dom, dow, doy, mid, ec);
+    int32_t year, mid;
+    int8_t  month0, dom;
+    Grego::timeToFields(localMillis, year, month0, dom, mid, ec);
     if (U_FAILURE(ec)) return;
     int currentEncodedDate = encodeDate(year, month0 + 1 /* changes to 1-base */, dom);
     int eraIdx = numEras - 1;

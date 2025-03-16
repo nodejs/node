@@ -194,6 +194,10 @@ class U_I18N_API ChineseCalendar : public Calendar {
   virtual void handleComputeFields(int32_t julianDay, UErrorCode &status) override;
   virtual const UFieldResolutionTable* getFieldResolutionTable() const override;
 
+ private:
+  int32_t handleGetMonthLengthWithLeap(int32_t extendedYear, int32_t month, bool isLeap, UErrorCode& status) const;
+  int64_t handleComputeMonthStartWithLeap(int32_t eyear, int32_t month, bool isLeap, UErrorCode& status) const;
+
  public:
   virtual void add(UCalendarDateFields field, int32_t amount, UErrorCode &status) override;
   virtual void add(EDateFields field, int32_t amount, UErrorCode &status) override;
@@ -253,6 +257,8 @@ class U_I18N_API ChineseCalendar : public Calendar {
    * @internal
    */
   virtual const char * getType() const override;
+
+  virtual int32_t getActualMaximum(UCalendarDateFields field, UErrorCode& status) const override;
 
   struct Setting {
       int32_t epochYear;

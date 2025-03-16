@@ -1828,8 +1828,13 @@ ulocimp_isCanonicalizedLocaleForTest(const char* localeName)
 
 U_NAMESPACE_BEGIN
 
-/*This function initializes a Locale from a C locale ID*/
 Locale& Locale::init(const char* localeID, UBool canonicalize)
+{
+    return localeID == nullptr ? *this = getDefault() : init(StringPiece{localeID}, canonicalize);
+}
+
+/*This function initializes a Locale from a C locale ID*/
+Locale& Locale::init(StringPiece localeID, UBool canonicalize)
 {
     fIsBogus = false;
     /* Free our current storage */
@@ -1854,19 +1859,28 @@ Locale& Locale::init(const char* localeID, UBool canonicalize)
         int32_t length;
         UErrorCode err;
 
-        if(localeID == nullptr) {
-            // not an error, just set the default locale
-            return *this = getDefault();
-        }
-
         /* preset all fields to empty */
         language[0] = script[0] = country[0] = 0;
 
+        const auto parse = [canonicalize](std::string_view localeID,
+                                          char* name,
+                                          int32_t nameCapacity,
+                                          UErrorCode& status) {
+            return ByteSinkUtil::viaByteSinkToTerminatedChars(
+                name, nameCapacity,
+                [&](ByteSink& sink, UErrorCode& status) {
+                    if (canonicalize) {
+                        ulocimp_canonicalize(localeID, sink, status);
+                    } else {
+                        ulocimp_getName(localeID, sink, status);
+                    }
+                },
+                status);
+        };
+
         // "canonicalize" the locale ID to ICU/Java format
         err = U_ZERO_ERROR;
-        length = canonicalize ?
-            uloc_canonicalize(localeID, fullName, sizeof(fullNameBuffer), &err) :
-            uloc_getName(localeID, fullName, sizeof(fullNameBuffer), &err);
+        length = parse(localeID, fullName, sizeof fullNameBuffer, err);
 
         if (err == U_BUFFER_OVERFLOW_ERROR || length >= static_cast<int32_t>(sizeof(fullNameBuffer))) {
             U_ASSERT(baseName == nullptr);
@@ -1877,9 +1891,7 @@ Locale& Locale::init(const char* localeID, UBool canonicalize)
             }
             fullName = newFullName;
             err = U_ZERO_ERROR;
-            length = canonicalize ?
-                uloc_canonicalize(localeID, fullName, length+1, &err) :
-                uloc_getName(localeID, fullName, length+1, &err);
+            length = parse(localeID, fullName, length + 1, err);
         }
         if(U_FAILURE(err) || err == U_STRING_NOT_TERMINATED_WARNING) {
             /* should never occur */
@@ -2198,6 +2210,13 @@ Locale::createFromName (const char *name)
     else {
         return getDefault();
     }
+}
+
+Locale U_EXPORT2
+Locale::createFromName(StringPiece name) {
+    Locale loc("");
+    loc.init(name, false);
+    return loc;
 }
 
 Locale U_EXPORT2

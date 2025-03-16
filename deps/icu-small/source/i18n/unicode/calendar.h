@@ -55,6 +55,7 @@ class ICUServiceFactory;
 typedef int32_t UFieldResolutionTable[12][8];
 
 class BasicTimeZone;
+class CharString;
 /**
  * `Calendar` is an abstract base class for converting between
  * a `UDate` object and a set of integer fields such as
@@ -1692,10 +1693,9 @@ protected:
      * calendar system.  Subclasses should override this method if they can
      * provide a more correct or more efficient implementation than the
      * default implementation in Calendar.
-     * @stable ICU 2.0
+     * @internal
      */
-    virtual int32_t handleGetYearLength(int32_t eyear) const;
-
+    virtual int32_t handleGetYearLength(int32_t eyear, UErrorCode& status) const;
 
     /**
      * Return the extended year defined by the current fields.  This will
@@ -1881,42 +1881,7 @@ private:
      */
     int32_t getActualHelper(UCalendarDateFields field, int32_t startValue, int32_t endValue, UErrorCode &status) const;
 
-
 protected:
-    /**
-     * The flag which indicates if the current time is set in the calendar.
-     * @stable ICU 2.0
-     */
-    UBool      fIsTimeSet;
-
-    /**
-     * True if the fields are in sync with the currently set time of this Calendar.
-     * If false, then the next attempt to get the value of a field will
-     * force a recomputation of all fields from the current value of the time
-     * field.
-     * <P>
-     * This should really be named areFieldsInSync, but the old name is retained
-     * for backward compatibility.
-     * @stable ICU 2.0
-     */
-    UBool      fAreFieldsSet;
-
-    /**
-     * True if all of the fields have been set.  This is initially false, and set to
-     * true by computeFields().
-     * @stable ICU 2.0
-     */
-    UBool      fAreAllFieldsSet;
-
-    /**
-     * True if all fields have been virtually set, but have not yet been
-     * computed.  This occurs only in setTimeInMillis().  A calendar set
-     * to this state will compute all fields from the time if it becomes
-     * necessary, but otherwise will delay such computation.
-     * @stable ICU 3.0
-     */
-    UBool fAreFieldsVirtuallySet;
-
     /**
      * Get the current time without recomputing.
      *
@@ -1940,14 +1905,7 @@ protected:
      */
     int32_t     fFields[UCAL_FIELD_COUNT];
 
-#ifndef U_FORCE_HIDE_DEPRECATED_API
-    /**
-     * The flags which tell if a specified time field for the calendar is set.
-     * @deprecated ICU 2.8 use (fStamp[n]!=kUnset)
-     */
-    UBool      fIsSet[UCAL_FIELD_COUNT];
-#endif  // U_FORCE_HIDE_DEPRECATED_API
-
+protected:
     /** Special values of stamp[]
      * @stable ICU 2.0
      */
@@ -1957,14 +1915,15 @@ protected:
         kMinimumUserStamp
     };
 
+private:
     /**
      * Pseudo-time-stamps which specify when each field was set. There
      * are two special values, UNSET and INTERNALLY_SET. Values from
-     * MINIMUM_USER_SET to Integer.MAX_VALUE are legal user set values.
-     * @stable ICU 2.0
+     * MINIMUM_USER_SET to STAMP_MAX are legal user set values.
      */
-    int32_t        fStamp[UCAL_FIELD_COUNT];
+    int8_t        fStamp[UCAL_FIELD_COUNT];
 
+protected:
     /**
      * Subclasses may override this method to compute several fields
      * specific to each calendar system.  These are:
@@ -2178,7 +2137,7 @@ private:
     /**
      * The next available value for fStamp[]
      */
-    int32_t fNextStamp;// = MINIMUM_USER_STAMP;
+    int8_t fNextStamp = kMinimumUserStamp;
 
     /**
      * Recalculates the time stamp array (fStamp).
@@ -2189,30 +2148,60 @@ private:
     /**
      * The current time set for the calendar.
      */
-    UDate        fTime;
-
-    /**
-     * @see   #setLenient
-     */
-    UBool      fLenient;
+    UDate        fTime = 0;
 
     /**
      * Time zone affects the time calculation done by Calendar. Calendar subclasses use
      * the time zone data to produce the local time. Always set; never nullptr.
      */
-    TimeZone*   fZone;
+    TimeZone*   fZone = nullptr;
+
+    /**
+     * The flag which indicates if the current time is set in the calendar.
+     */
+    bool      fIsTimeSet:1;
+
+    /**
+     * True if the fields are in sync with the currently set time of this Calendar.
+     * If false, then the next attempt to get the value of a field will
+     * force a recomputation of all fields from the current value of the time
+     * field.
+     * <P>
+     * This should really be named areFieldsInSync, but the old name is retained
+     * for backward compatibility.
+     */
+    bool      fAreFieldsSet:1;
+
+    /**
+     * True if all of the fields have been set.  This is initially false, and set to
+     * true by computeFields().
+     */
+    bool      fAreAllFieldsSet:1;
+
+    /**
+     * True if all fields have been virtually set, but have not yet been
+     * computed.  This occurs only in setTimeInMillis().  A calendar set
+     * to this state will compute all fields from the time if it becomes
+     * necessary, but otherwise will delay such computation.
+     */
+    bool      fAreFieldsVirtuallySet:1;
+
+    /**
+     * @see   #setLenient
+     */
+    bool      fLenient:1;
 
     /**
      * Option for repeated wall time
      * @see #setRepeatedWallTimeOption
      */
-    UCalendarWallTimeOption fRepeatedWallTime;
+    UCalendarWallTimeOption fRepeatedWallTime:3; // Somehow MSVC need 3 bits for UCalendarWallTimeOption
 
     /**
      * Option for skipped wall time
      * @see #setSkippedWallTimeOption
      */
-    UCalendarWallTimeOption fSkippedWallTime;
+    UCalendarWallTimeOption fSkippedWallTime:3; // Somehow MSVC need 3 bits for UCalendarWallTimeOption
 
     /**
      * Both firstDayOfWeek and minimalDaysInFirstWeek are locale-dependent. They are
@@ -2222,11 +2211,14 @@ private:
      * out the week count for a specific date for a given locale. These must be set when
      * a Calendar is constructed.
      */
-    UCalendarDaysOfWeek fFirstDayOfWeek;
-    uint8_t     fMinimalDaysInFirstWeek;
-    UCalendarDaysOfWeek fWeekendOnset;
+    UCalendarDaysOfWeek fFirstDayOfWeek:4; // Somehow MSVC need 4 bits for
+                                           // UCalendarDaysOfWeek
+    UCalendarDaysOfWeek fWeekendOnset:4; // Somehow MSVC need 4 bits for
+                                         // UCalendarDaysOfWeek
+    UCalendarDaysOfWeek fWeekendCease:4; // Somehow MSVC need 4 bits for
+                                         // UCalendarDaysOfWeek
+    uint8_t fMinimalDaysInFirstWeek;
     int32_t fWeekendOnsetMillis;
-    UCalendarDaysOfWeek fWeekendCease;
     int32_t fWeekendCeaseMillis;
 
     /**
@@ -2264,31 +2256,23 @@ private:
      * returned by getGregorianMonth().
      * @see #computeGregorianFields
      */
-    int32_t fGregorianMonth;
-
-    /**
-     * The Gregorian day of the year, as computed by
-     * computeGregorianFields() and returned by getGregorianDayOfYear().
-     * @see #computeGregorianFields
-     */
-    int32_t fGregorianDayOfYear;
+    int8_t fGregorianMonth;
 
     /**
      * The Gregorian day of the month, as computed by
      * computeGregorianFields() and returned by getGregorianDayOfMonth().
      * @see #computeGregorianFields
      */
-    int32_t fGregorianDayOfMonth;
-
-    /* calculations */
+    int8_t fGregorianDayOfMonth;
 
     /**
-     * Compute the Gregorian calendar year, month, and day of month from
-     * the given Julian day.  These values are not stored in fields, but in
-     * member variables gregorianXxx.  Also compute the DAY_OF_WEEK and
-     * DOW_LOCAL fields.
+     * The Gregorian day of the year, as computed by
+     * computeGregorianFields() and returned by getGregorianDayOfYear().
+     * @see #computeGregorianFields
      */
-    void computeGregorianAndDOWFields(int32_t julianDay, UErrorCode &ec);
+    int16_t fGregorianDayOfYear;
+
+    /* calculations */
 
 protected:
 
@@ -2359,8 +2343,8 @@ private:
 #endif  /* U_HIDE_INTERNAL_API */
 
  private:
-    char validLocale[ULOC_FULLNAME_CAPACITY];
-    char actualLocale[ULOC_FULLNAME_CAPACITY];
+    CharString* validLocale = nullptr;
+    CharString* actualLocale = nullptr;
 
  public:
 #if !UCONFIG_NO_SERVICE
@@ -2563,7 +2547,6 @@ Calendar::internalSet(UCalendarDateFields field, int32_t value)
 {
     fFields[field] = value;
     fStamp[field] = kInternallySet;
-    fIsSet[field]     = true; // Remove later
 }
 
 /**

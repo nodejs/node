@@ -355,9 +355,8 @@ AnnualTimeZoneRule::getNextStart(UDate base,
                                  int32_t prevDSTSavings,
                                  UBool inclusive,
                                  UDate& result) const {
-    int32_t year, month, dom, dow, doy, mid;
     UErrorCode status = U_ZERO_ERROR;
-    Grego::timeToFields(base, year, month, dom, dow, doy, mid, status);
+    int32_t year = Grego::timeToYear(base, status);
     U_ASSERT(U_SUCCESS(status));
     if (year < fStartYear) {
         return getFirstStart(prevRawOffset, prevDSTSavings, result);
@@ -381,9 +380,8 @@ AnnualTimeZoneRule::getPreviousStart(UDate base,
                                      int32_t prevDSTSavings,
                                      UBool inclusive,
                                      UDate& result) const {
-    int32_t year, month, dom, dow, doy, mid;
     UErrorCode status = U_ZERO_ERROR;
-    Grego::timeToFields(base, year, month, dom, dow, doy, mid, status);
+    int32_t year = Grego::timeToYear(base, status);
     U_ASSERT(U_SUCCESS(status));
     if (year > fEndYear) {
         return getFinalStart(prevRawOffset, prevDSTSavings, result);

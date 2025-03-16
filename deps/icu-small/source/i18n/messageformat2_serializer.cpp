@@ -3,6 +3,8 @@
 
 #include "unicode/utypes.h"
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -244,11 +246,12 @@ void Serializer::serializeDeclarations() {
 
 void Serializer::serializeSelectors() {
     U_ASSERT(!dataModel.hasPattern());
-    const Expression* selectors = dataModel.getSelectorsInternal();
+    const VariableName* selectors = dataModel.getSelectorsInternal();
 
     emit(ID_MATCH);
     for (int32_t i = 0; i < dataModel.numSelectors(); i++) {
-        // No whitespace needed here -- see `selectors` in the grammar
+        whitespace();
+        emit(DOLLAR);
         emit(selectors[i]);
     }
 }
@@ -256,6 +259,7 @@ void Serializer::serializeSelectors() {
 void Serializer::serializeVariants() {
     U_ASSERT(!dataModel.hasPattern());
     const Variant* variants = dataModel.getVariantsInternal();
+    whitespace();
     for (int32_t i = 0; i < dataModel.numVariants(); i++) {
         const Variant& v = variants[i];
         emit(v.getKeys());
@@ -285,3 +289,4 @@ U_NAMESPACE_END
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
 
+#endif /* #if !UCONFIG_NO_NORMALIZATION */

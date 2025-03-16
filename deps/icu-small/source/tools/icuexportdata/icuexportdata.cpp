@@ -47,68 +47,88 @@ int16_t DATAEXPORT_SCRIPT_X_WITH_INHERITED = 0x0800;
 int16_t DATAEXPORT_SCRIPT_X_WITH_OTHER     = 0x0c00;
 
 // TODO(ICU-21821): Replace this with a call to a library function
+// This is an array of all code points with explicit scx values, and can be generated the quick and dirty
+// way with this script:
+//
+// # <ScriptExtensions.txt python script.py
+//
+// import sys
+// for line in sys.stdin:
+//   line = line.strip()
+//   if len(line) == 0 or line.startswith("#"):
+//     continue
+//   entry = line.split(" ")[0]
+//   # Either it is a range
+//   if ".." in entry:
+//     split = entry.split("..")
+//     start = int(split[0], 16)
+//     end = int(split[1], 16)
+//     # +
+//     for ch in range(start, end + 1):
+//       print("0x%04x, " % ch, end="")
+//   # or a single code point
+//   else:
+//     print("0x%s, " % entry.lower(), end="")
+
 int32_t scxCodePoints[] = {
-      7415, 7377, 7380, 7387, 7390, 7391, 7394, 7395, 7396, 7397,
-      7398, 7399, 7400, 7403, 7404, 7406, 7407, 7408, 7409, 113824,
-      113825, 113826, 113827, 834, 837, 7616, 7617, 12294, 12350, 12351,
-      12688, 12689, 12690, 12691, 12692, 12693, 12694, 12695, 12696, 12697,
-      12698, 12699, 12700, 12701, 12702, 12703, 12736, 12737, 12738, 12739,
-      12740, 12741, 12742, 12743, 12744, 12745, 12746, 12747, 12748, 12749,
-      12750, 12751, 12752, 12753, 12754, 12755, 12756, 12757, 12758, 12759,
-      12760, 12761, 12762, 12763, 12764, 12765, 12766, 12767, 12768, 12769,
-      12770, 12771, 12832, 12833, 12834, 12835, 12836, 12837, 12838, 12839,
-      12840, 12841, 12842, 12843, 12844, 12845, 12846, 12847, 12848, 12849,
-      12850, 12851, 12852, 12853, 12854, 12855, 12856, 12857, 12858, 12859,
-      12860, 12861, 12862, 12863, 12864, 12865, 12866, 12867, 12868, 12869,
-      12870, 12871, 12928, 12929, 12930, 12931, 12932, 12933, 12934, 12935,
-      12936, 12937, 12938, 12939, 12940, 12941, 12942, 12943, 12944, 12945,
-      12946, 12947, 12948, 12949, 12950, 12951, 12952, 12953, 12954, 12955,
-      12956, 12957, 12958, 12959, 12960, 12961, 12962, 12963, 12964, 12965,
-      12966, 12967, 12968, 12969, 12970, 12971, 12972, 12973, 12974, 12975,
-      12976, 12992, 12993, 12994, 12995, 12996, 12997, 12998, 12999, 13000,
-      13001, 13002, 13003, 13055, 13144, 13145, 13146, 13147, 13148, 13149,
-      13150, 13151, 13152, 13153, 13154, 13155, 13156, 13157, 13158, 13159,
-      13160, 13161, 13162, 13163, 13164, 13165, 13166, 13167, 13168, 13179,
-      13180, 13181, 13182, 13183, 13280, 13281, 13282, 13283, 13284, 13285,
-      13286, 13287, 13288, 13289, 13290, 13291, 13292, 13293, 13294, 13295,
-      13296, 13297, 13298, 13299, 13300, 13301, 13302, 13303, 13304, 13305,
-      13306, 13307, 13308, 13309, 13310, 119648, 119649, 119650, 119651, 119652,
-      119653, 119654, 119655, 119656, 119657, 119658, 119659, 119660, 119661, 119662,
-      119663, 119664, 119665, 127568, 127569, 867, 868, 869, 870, 871,
-      872, 873, 874, 875, 876, 877, 878, 879, 7418, 7674,
-      66272, 66273, 66274, 66275, 66276, 66277, 66278, 66279, 66280, 66281,
-      66282, 66283, 66284, 66285, 66286, 66287, 66288, 66289, 66290, 66291,
-      66292, 66293, 66294, 66295, 66296, 66297, 66298, 66299, 1748, 64830,
-      64831, 1611, 1612, 1613, 1614, 1615, 1616, 1617, 1618, 1619,
-      1620, 1621, 1648, 65010, 65021, 7381, 7382, 7384, 7393, 7402,
-      7405, 7413, 7414, 43249, 12330, 12331, 12332, 12333, 43471, 65794,
-      65847, 65848, 65849, 65850, 65851, 65852, 65853, 65854, 65855, 1156,
-      1159, 11843, 42607, 1157, 1158, 1155, 7672, 7379, 7411, 7416,
-      7417, 7401, 7383, 7385, 7388, 7389, 7392, 43251, 4347, 3046,
-      3047, 3048, 3049, 3050, 3051, 3052, 3053, 3054, 3055, 3056,
-      3057, 3058, 3059, 70401, 70403, 70459, 70460, 73680, 73681, 73683,
-      2790, 2791, 2792, 2793, 2794, 2795, 2796, 2797, 2798, 2799,
-      2662, 2663, 2664, 2665, 2666, 2667, 2668, 2669, 2670, 2671,
-      42752, 42753, 42754, 42755, 42756, 42757, 42758, 42759, 12337, 12338,
-      12339, 12340, 12341, 12441, 12442, 12443, 12444, 12448, 12540, 65392,
-      65438, 65439, 3302, 3303, 3304, 3305, 3306, 3307, 3308, 3309,
-      3310, 3311, 8239, 68338, 6146, 6147, 6149, 1564, 1632, 1633,
-      1634, 1635, 1636, 1637, 1638, 1639, 1640, 1641, 2534, 2535,
-      2536, 2537, 2538, 2539, 2540, 2541, 2542, 2543, 4160, 4161,
-      4162, 4163, 4164, 4165, 4166, 4167, 4168, 4169, 65792, 65793,
-      65799, 65800, 65801, 65802, 65803, 65804, 65805, 65806, 65807, 65808,
-      65809, 65810, 65811, 65812, 65813, 65814, 65815, 65816, 65817, 65818,
-      65819, 65820, 65821, 65822, 65823, 65824, 65825, 65826, 65827, 65828,
-      65829, 65830, 65831, 65832, 65833, 65834, 65835, 65836, 65837, 65838,
-      65839, 65840, 65841, 65842, 65843, 7412, 8432, 12348, 12349, 43310,
-      7376, 7378, 5941, 5942, 2406, 2407, 2408, 2409, 2410, 2411,
-      2412, 2413, 2414, 2415, 12291, 12307, 12316, 12317, 12318, 12319,
-      12336, 12343, 65093, 65094, 1548, 1563, 12289, 12290, 12296, 12297,
-      12298, 12299, 12300, 12301, 12302, 12303, 12304, 12305, 12308, 12309,
-      12310, 12311, 12312, 12313, 12314, 12315, 12539, 65377, 65378, 65379,
-      65380, 65381, 7386, 1567, 7410, 1600, 43062, 43063, 43064, 43065,
-      2386, 2385, 43059, 43060, 43061, 43056, 43057, 43058, 2404, 2405
-    };
+    0x00b7, 0x02bc, 0x02c7, 0x02c9, 0x02ca, 0x02cb, 0x02cd, 0x02d7, 0x02d9, 0x0300, 0x0301, 0x0302,
+    0x0303, 0x0304, 0x0305, 0x0306, 0x0307, 0x0308, 0x0309, 0x030a, 0x030b, 0x030c, 0x030d, 0x030e,
+    0x0310, 0x0311, 0x0313, 0x0320, 0x0323, 0x0324, 0x0325, 0x032d, 0x032e, 0x0330, 0x0331, 0x0342,
+    0x0345, 0x0358, 0x035e, 0x0363, 0x0364, 0x0365, 0x0366, 0x0367, 0x0368, 0x0369, 0x036a, 0x036b,
+    0x036c, 0x036d, 0x036e, 0x036f, 0x0374, 0x0375, 0x0483, 0x0484, 0x0485, 0x0486, 0x0487, 0x0589,
+    0x060c, 0x061b, 0x061c, 0x061f, 0x0640, 0x064b, 0x064c, 0x064d, 0x064e, 0x064f, 0x0650, 0x0651,
+    0x0652, 0x0653, 0x0654, 0x0655, 0x0660, 0x0661, 0x0662, 0x0663, 0x0664, 0x0665, 0x0666, 0x0667,
+    0x0668, 0x0669, 0x0670, 0x06d4, 0x0951, 0x0952, 0x0964, 0x0965, 0x0966, 0x0967, 0x0968, 0x0969,
+    0x096a, 0x096b, 0x096c, 0x096d, 0x096e, 0x096f, 0x09e6, 0x09e7, 0x09e8, 0x09e9, 0x09ea, 0x09eb,
+    0x09ec, 0x09ed, 0x09ee, 0x09ef, 0x0a66, 0x0a67, 0x0a68, 0x0a69, 0x0a6a, 0x0a6b, 0x0a6c, 0x0a6d,
+    0x0a6e, 0x0a6f, 0x0ae6, 0x0ae7, 0x0ae8, 0x0ae9, 0x0aea, 0x0aeb, 0x0aec, 0x0aed, 0x0aee, 0x0aef,
+    0x0be6, 0x0be7, 0x0be8, 0x0be9, 0x0bea, 0x0beb, 0x0bec, 0x0bed, 0x0bee, 0x0bef, 0x0bf0, 0x0bf1,
+    0x0bf2, 0x0bf3, 0x0ce6, 0x0ce7, 0x0ce8, 0x0ce9, 0x0cea, 0x0ceb, 0x0cec, 0x0ced, 0x0cee, 0x0cef,
+    0x1040, 0x1041, 0x1042, 0x1043, 0x1044, 0x1045, 0x1046, 0x1047, 0x1048, 0x1049, 0x10fb, 0x16eb,
+    0x16ec, 0x16ed, 0x1735, 0x1736, 0x1802, 0x1803, 0x1805, 0x1cd0, 0x1cd1, 0x1cd2, 0x1cd3, 0x1cd4,
+    0x1cd5, 0x1cd6, 0x1cd7, 0x1cd8, 0x1cd9, 0x1cda, 0x1cdb, 0x1cdc, 0x1cdd, 0x1cde, 0x1cdf, 0x1ce0,
+    0x1ce1, 0x1ce2, 0x1ce3, 0x1ce4, 0x1ce5, 0x1ce6, 0x1ce7, 0x1ce8, 0x1ce9, 0x1cea, 0x1ceb, 0x1cec,
+    0x1ced, 0x1cee, 0x1cef, 0x1cf0, 0x1cf1, 0x1cf2, 0x1cf3, 0x1cf4, 0x1cf5, 0x1cf6, 0x1cf7, 0x1cf8,
+    0x1cf9, 0x1cfa, 0x1dc0, 0x1dc1, 0x1df8, 0x1dfa, 0x202f, 0x204f, 0x205a, 0x205d, 0x20f0, 0x2e17,
+    0x2e30, 0x2e31, 0x2e3c, 0x2e41, 0x2e43, 0x2ff0, 0x2ff1, 0x2ff2, 0x2ff3, 0x2ff4, 0x2ff5, 0x2ff6,
+    0x2ff7, 0x2ff8, 0x2ff9, 0x2ffa, 0x2ffb, 0x2ffc, 0x2ffd, 0x2ffe, 0x2fff, 0x3001, 0x3002, 0x3003,
+    0x3006, 0x3008, 0x3009, 0x300a, 0x300b, 0x300c, 0x300d, 0x300e, 0x300f, 0x3010, 0x3011, 0x3013,
+    0x3014, 0x3015, 0x3016, 0x3017, 0x3018, 0x3019, 0x301a, 0x301b, 0x301c, 0x301d, 0x301e, 0x301f,
+    0x302a, 0x302b, 0x302c, 0x302d, 0x3030, 0x3031, 0x3032, 0x3033, 0x3034, 0x3035, 0x3037, 0x303c,
+    0x303d, 0x303e, 0x303f, 0x3099, 0x309a, 0x309b, 0x309c, 0x30a0, 0x30fb, 0x30fc, 0x3190, 0x3191,
+    0x3192, 0x3193, 0x3194, 0x3195, 0x3196, 0x3197, 0x3198, 0x3199, 0x319a, 0x319b, 0x319c, 0x319d,
+    0x319e, 0x319f, 0x31c0, 0x31c1, 0x31c2, 0x31c3, 0x31c4, 0x31c5, 0x31c6, 0x31c7, 0x31c8, 0x31c9,
+    0x31ca, 0x31cb, 0x31cc, 0x31cd, 0x31ce, 0x31cf, 0x31d0, 0x31d1, 0x31d2, 0x31d3, 0x31d4, 0x31d5,
+    0x31d6, 0x31d7, 0x31d8, 0x31d9, 0x31da, 0x31db, 0x31dc, 0x31dd, 0x31de, 0x31df, 0x31e0, 0x31e1,
+    0x31e2, 0x31e3, 0x31e4, 0x31e5, 0x31ef, 0x3220, 0x3221, 0x3222, 0x3223, 0x3224, 0x3225, 0x3226,
+    0x3227, 0x3228, 0x3229, 0x322a, 0x322b, 0x322c, 0x322d, 0x322e, 0x322f, 0x3230, 0x3231, 0x3232,
+    0x3233, 0x3234, 0x3235, 0x3236, 0x3237, 0x3238, 0x3239, 0x323a, 0x323b, 0x323c, 0x323d, 0x323e,
+    0x323f, 0x3240, 0x3241, 0x3242, 0x3243, 0x3244, 0x3245, 0x3246, 0x3247, 0x3280, 0x3281, 0x3282,
+    0x3283, 0x3284, 0x3285, 0x3286, 0x3287, 0x3288, 0x3289, 0x328a, 0x328b, 0x328c, 0x328d, 0x328e,
+    0x328f, 0x3290, 0x3291, 0x3292, 0x3293, 0x3294, 0x3295, 0x3296, 0x3297, 0x3298, 0x3299, 0x329a,
+    0x329b, 0x329c, 0x329d, 0x329e, 0x329f, 0x32a0, 0x32a1, 0x32a2, 0x32a3, 0x32a4, 0x32a5, 0x32a6,
+    0x32a7, 0x32a8, 0x32a9, 0x32aa, 0x32ab, 0x32ac, 0x32ad, 0x32ae, 0x32af, 0x32b0, 0x32c0, 0x32c1,
+    0x32c2, 0x32c3, 0x32c4, 0x32c5, 0x32c6, 0x32c7, 0x32c8, 0x32c9, 0x32ca, 0x32cb, 0x32ff, 0x3358,
+    0x3359, 0x335a, 0x335b, 0x335c, 0x335d, 0x335e, 0x335f, 0x3360, 0x3361, 0x3362, 0x3363, 0x3364,
+    0x3365, 0x3366, 0x3367, 0x3368, 0x3369, 0x336a, 0x336b, 0x336c, 0x336d, 0x336e, 0x336f, 0x3370,
+    0x337b, 0x337c, 0x337d, 0x337e, 0x337f, 0x33e0, 0x33e1, 0x33e2, 0x33e3, 0x33e4, 0x33e5, 0x33e6,
+    0x33e7, 0x33e8, 0x33e9, 0x33ea, 0x33eb, 0x33ec, 0x33ed, 0x33ee, 0x33ef, 0x33f0, 0x33f1, 0x33f2,
+    0x33f3, 0x33f4, 0x33f5, 0x33f6, 0x33f7, 0x33f8, 0x33f9, 0x33fa, 0x33fb, 0x33fc, 0x33fd, 0x33fe,
+    0xa66f, 0xa700, 0xa701, 0xa702, 0xa703, 0xa704, 0xa705, 0xa706, 0xa707, 0xa830, 0xa831, 0xa832,
+    0xa833, 0xa834, 0xa835, 0xa836, 0xa837, 0xa838, 0xa839, 0xa8f1, 0xa8f3, 0xa92e, 0xa9cf, 0xfd3e,
+    0xfd3f, 0xfdf2, 0xfdfd, 0xfe45, 0xfe46, 0xff61, 0xff62, 0xff63, 0xff64, 0xff65, 0xff70, 0xff9e,
+    0xff9f, 0x10100, 0x10101, 0x10102, 0x10107, 0x10108, 0x10109, 0x1010a, 0x1010b, 0x1010c, 0x1010d,
+    0x1010e, 0x1010f, 0x10110, 0x10111, 0x10112, 0x10113, 0x10114, 0x10115, 0x10116, 0x10117, 0x10118,
+    0x10119, 0x1011a, 0x1011b, 0x1011c, 0x1011d, 0x1011e, 0x1011f, 0x10120, 0x10121, 0x10122, 0x10123,
+    0x10124, 0x10125, 0x10126, 0x10127, 0x10128, 0x10129, 0x1012a, 0x1012b, 0x1012c, 0x1012d, 0x1012e,
+    0x1012f, 0x10130, 0x10131, 0x10132, 0x10133, 0x10137, 0x10138, 0x10139, 0x1013a, 0x1013b, 0x1013c,
+    0x1013d, 0x1013e, 0x1013f, 0x102e0, 0x102e1, 0x102e2, 0x102e3, 0x102e4, 0x102e5, 0x102e6, 0x102e7,
+    0x102e8, 0x102e9, 0x102ea, 0x102eb, 0x102ec, 0x102ed, 0x102ee, 0x102ef, 0x102f0, 0x102f1, 0x102f2,
+    0x102f3, 0x102f4, 0x102f5, 0x102f6, 0x102f7, 0x102f8, 0x102f9, 0x102fa, 0x102fb, 0x10af2, 0x11301,
+    0x11303, 0x1133b, 0x1133c, 0x11fd0, 0x11fd1, 0x11fd3, 0x1bca0, 0x1bca1, 0x1bca2, 0x1bca3, 0x1d360,
+    0x1d361, 0x1d362, 0x1d363, 0x1d364, 0x1d365, 0x1d366, 0x1d367, 0x1d368, 0x1d369, 0x1d36a, 0x1d36b,
+    0x1d36c, 0x1d36d, 0x1d36e, 0x1d36f, 0x1d370, 0x1d371, 0x1f250, 0x1f251,
+};
 
 void handleError(ErrorCode& status, int line, const char* context) {
     if (status.isFailure()) {
@@ -331,13 +351,13 @@ void dumpGeneralCategoryMask(FILE* f) {
 
 
     fprintf(f, "mask_for = \"General_Category\"\n");
-    uint32_t minValue = u_getIntPropertyMinValue(UCHAR_GENERAL_CATEGORY);
+    int32_t minValue = u_getIntPropertyMinValue(UCHAR_GENERAL_CATEGORY);
     U_ASSERT(minValue >= 0);
-    uint32_t maxValue = u_getIntPropertyMaxValue(UCHAR_GENERAL_CATEGORY);
+    int32_t maxValue = u_getIntPropertyMaxValue(UCHAR_GENERAL_CATEGORY);
     U_ASSERT(maxValue >= 0);
 
     fprintf(f, "values = [\n");
-    for (uint32_t v = minValue; v <= maxValue; v++) {
+    for (int32_t v = minValue; v <= maxValue; v++) {
         dumpValueEntry(uproperty, U_MASK(v), true, f);
 
         // We want to dump these masks "in order", which means they
@@ -489,11 +509,28 @@ FILE* prepareOutputFile(const char* basename) {
 
 #if !UCONFIG_NO_NORMALIZATION
 
-struct PendingDescriptor {
+class PendingDescriptor {
+public:
     UChar32 scalar;
-    uint32_t descriptor;
+    uint32_t descriptorOrFlags;
+    // If false, we use the above fields only. If true, descriptor only
+    // contains the two highest-bit flags and the rest is computed later
+    // from the fields below.
+    UBool complex;
     UBool supplementary;
+    UBool onlyNonStartersInTrail;
+    uint32_t len;
+    uint32_t offset;
+
+    PendingDescriptor(UChar32 scalar, uint32_t descriptor);
+    PendingDescriptor(UChar32 scalar, uint32_t flags, UBool supplementary, UBool onlyNonStartersInTrail, uint32_t len, uint32_t offset);
 };
+
+PendingDescriptor::PendingDescriptor(UChar32 scalar, uint32_t descriptor)
+ : scalar(scalar), descriptorOrFlags(descriptor), complex(false), supplementary(false), onlyNonStartersInTrail(false), len(0), offset(0) {}
+
+PendingDescriptor::PendingDescriptor(UChar32 scalar, uint32_t flags, UBool supplementary, UBool onlyNonStartersInTrail, uint32_t len, uint32_t offset)
+ : scalar(scalar), descriptorOrFlags(flags), complex(true), supplementary(supplementary), onlyNonStartersInTrail(onlyNonStartersInTrail), len(len), offset(offset) {}
 
 void writeCanonicalCompositions(USet* backwardCombiningStarters) {
     IcuToolErrorCode status("icuexportdata: computeCanonicalCompositions");
@@ -557,21 +594,18 @@ void writeDecompositionTables(const char* basename, const uint16_t* ptr16, size_
     fclose(f);
 }
 
-void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t baseSize32, uint32_t supplementSize16, USet* uset, USet* reference, const std::vector<PendingDescriptor>& pendingTrieInsertions, char16_t passthroughCap) {
-    IcuToolErrorCode status("icuexportdata: writeDecompositionData");
-    FILE* f = prepareOutputFile(basename);
-
-    // Zero is a magic number that means the character decomposes to itself.
-    LocalUMutableCPTriePointer builder(umutablecptrie_open(0, 0, status));
-
+void pendingInsertionsToTrie(const char* basename, UMutableCPTrie* trie, const std::vector<PendingDescriptor>& pendingTrieInsertions, uint32_t baseSize16, uint32_t baseSize32, uint32_t supplementSize16) {
+    IcuToolErrorCode status("icuexportdata: pendingInsertionsToTrie");
     // Iterate backwards to insert lower code points in the trie first in case it matters
     // for trie block allocation.
     for (int32_t i = pendingTrieInsertions.size() - 1; i >= 0; --i) {
         const PendingDescriptor& pending = pendingTrieInsertions[i];
-        uint32_t additional = 0;
-        if (!(pending.descriptor & 0xFFFC0000)) {
-            uint32_t offset = pending.descriptor & 0xFFF;
+        if (pending.complex) {
+            uint32_t additional = 0;
+            uint32_t offset = pending.offset;
+            uint32_t len = pending.len;
             if (!pending.supplementary) {
+                len -= 2;
                 if (offset >= baseSize16) {
                     // This is a offset to supplementary 16-bit data. We have
                     // 16-bit base data and 32-bit base data before. However,
@@ -579,6 +613,7 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
                     additional = baseSize32;
                 }
             } else {
+                len -= 1;
                 if (offset >= baseSize32) {
                     // This is an offset to supplementary 32-bit data. We have 16-bit
                     // base data, 32-bit base data, and 16-bit supplementary data before.
@@ -591,21 +626,55 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
                     additional = baseSize16;
                 }
             }
+            // +1 to make offset always non-zero
+            offset += 1;
             if (offset + additional > 0xFFF) {
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, __LINE__, basename);
             }
+            if (len > 7) {
+                status.set(U_INTERNAL_PROGRAM_ERROR);
+                handleError(status, __LINE__, basename);
+            }
+            umutablecptrie_set(trie, pending.scalar, pending.descriptorOrFlags | (uint32_t(pending.onlyNonStartersInTrail) << 4) | len | (offset + additional) << 16, status);
+        } else {
+            umutablecptrie_set(trie, pending.scalar, pending.descriptorOrFlags, status);
         }
-        // It turns out it's better to swap the halves compared to the initial
-        // idea in order to put special marker values close to zero so that
-        // an important marker value becomes 1, so it's efficient to compare
-        // "1 or 0". Unfortunately, going through all the code to swap
-        // things is too error prone, so let's do the swapping here in one
-        // place.
-        uint32_t oldTrieValue = pending.descriptor + additional;
-        uint32_t swappedTrieValue = (oldTrieValue >> 16) | (oldTrieValue << 16);
-        umutablecptrie_set(builder.getAlias(), pending.scalar, swappedTrieValue, status);
     }
+}
+
+/// Marker that the decomposition does not round trip via NFC.
+const uint32_t NON_ROUND_TRIP_MASK = (1 << 30);
+
+/// Marker that the first character of the decomposition can combine
+/// backwards.
+const uint32_t BACKWARD_COMBINING_MASK = (1 << 31);
+
+void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t baseSize32, uint32_t supplementSize16, USet* uset, USet* reference, const std::vector<PendingDescriptor>& pendingTrieInsertions, const std::vector<PendingDescriptor>& nfdPendingTrieInsertions, char16_t passthroughCap) {
+    IcuToolErrorCode status("icuexportdata: writeDecompositionData");
+    FILE* f = prepareOutputFile(basename);
+
+    // Zero is a magic number that means the character decomposes to itself.
+    LocalUMutableCPTriePointer builder(umutablecptrie_open(0, 0, status));
+
+    if (uprv_strcmp(basename, "uts46d") != 0) {
+        // Make surrogates decompose to U+FFFD. Don't do this for UTS 46, since this
+        // optimization is only used by the UTF-16 slice mode, and UTS 46 is not
+        // supported in slice modes (which do not support ignorables).
+        // Mark these as potentially backward-combining, to make lead surrogates
+        // for non-BMP characters that are backward-combining count as
+        // backward-combining just in case, though the backward-combiningness
+        // is not actually being looked at today.
+        umutablecptrie_setRange(builder.getAlias(), 0xD800, 0xDFFF, NON_ROUND_TRIP_MASK | BACKWARD_COMBINING_MASK | 0xFFFD, status);
+    }
+
+    // Add a marker value for Hangul syllables
+    umutablecptrie_setRange(builder.getAlias(), 0xAC00, 0xD7A3, 1, status);
+
+    // First put the NFD data in the trie, to be partially overwritten in the NFKD and UTS 46 cases.
+    // This is easier that changing the logic that computes the pending insertions.
+    pendingInsertionsToTrie(basename, builder.getAlias(), nfdPendingTrieInsertions, baseSize16, baseSize32, supplementSize16);
+    pendingInsertionsToTrie(basename, builder.getAlias(), pendingTrieInsertions, baseSize16, baseSize32, supplementSize16);
     LocalUCPTriePointer utrie(umutablecptrie_buildImmutable(
         builder.getAlias(),
         trieType,
@@ -613,6 +682,7 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
         status));
     handleError(status, __LINE__, basename);
 
+    // The ICU4X side has changed enough this whole block of expectation checking might be more appropriate to remove.
     if (reference) {
         if (uset_contains(reference, 0xFF9E) || uset_contains(reference, 0xFF9F) || !uset_contains(reference, 0x0345)) {
             // NFD expectations don't hold. The set must not contain the half-width
@@ -628,13 +698,9 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
         USet* iotaSubscript = uset_openEmpty();
         uset_add(iotaSubscript, 0x0345);
 
-        uint8_t flags = 0;
-
         USet* halfWidthCheck = uset_cloneAsThawed(uset);
         uset_removeAll(halfWidthCheck, reference);
-        if (uset_equals(halfWidthCheck, halfWidthVoicing)) {
-            flags |= 1;
-        } else if (!uset_isEmpty(halfWidthCheck)) {
+        if (!uset_equals(halfWidthCheck, halfWidthVoicing) && !uset_isEmpty(halfWidthCheck)) {
             // The result was neither empty nor contained exactly
             // the two half-width voicing marks. The ICU4X
             // normalizer doesn't know how to deal with this case.
@@ -655,71 +721,13 @@ void writeDecompositionData(const char* basename, uint32_t baseSize16, uint32_t 
 
         uset_close(iotaSubscript);
         uset_close(halfWidthVoicing);
-
-        fprintf(f, "flags = 0x%X\n", flags);
-        fprintf(f, "cap = 0x%X\n", passthroughCap);
     }
+    fprintf(f, "cap = 0x%X\n", passthroughCap);
     fprintf(f, "[trie]\n");
     usrc_writeUCPTrie(f, "trie", utrie.getAlias(), UPRV_TARGET_SYNTAX_TOML);
     fclose(f);
     handleError(status, __LINE__, basename);
 }
-
-// Special marker for the NFKD form of U+FDFA
-const int32_t FDFA_MARKER = 3;
-
-// Special marker for characters whose decomposition starts with a non-starter
-// and the decomposition isn't the character itself.
-const int32_t SPECIAL_NON_STARTER_DECOMPOSITION_MARKER = 2;
-
-// Special marker for starters that decompose to themselves but that may
-// combine backwards under canonical composition
-const int32_t BACKWARD_COMBINING_STARTER_MARKER = 1;
-
-/// Marker that a complex decomposition isn't round-trippable
-/// under re-composition.
-///
-/// TODO: When taking a data format break, swap this around with
-/// `BACKWARD_COMBINING_STARTER_DECOMPOSITION_MARKER`.
-const uint32_t NON_ROUND_TRIP_MARKER = 1;
-
-/// Marker that a complex decomposition starts with a starter
-/// that can combine backwards.
-///
-/// TODO: When taking a data format break, swap this around with
-/// `NON_ROUND_TRIP_MARKER` to use the same bit as with characters
-/// that decompose to self but can combine backwards.
-const uint32_t BACKWARD_COMBINING_STARTER_DECOMPOSITION_MARKER = 2;
-
-UBool permissibleBmpPair(UBool knownToRoundTrip, UChar32 c, UChar32 second) {
-    if (knownToRoundTrip) {
-        return true;
-    }
-    // Nuktas, Hebrew presentation forms and polytonic Greek with oxia
-    // are special-cased in ICU4X.
-    if (c >= 0xFB1D && c <= 0xFB4E) {
-        // Hebrew presentation forms
-        return true;
-    }
-    if (c >= 0x1F71 && c <= 0x1FFB) {
-        // Polytonic Greek with oxia
-        return true;
-    }
-    if ((second & 0x7F) == 0x3C && second >= 0x0900 && second <= 0x0BFF) {
-        // Nukta
-        return true;
-    }
-    // To avoid more branchiness, 4 characters that decompose to
-    // a BMP starter followed by a BMP non-starter are excluded
-    // from being encoded directly into the trie value and are
-    // handled as complex decompositions instead. These are:
-    // U+0F76 TIBETAN VOWEL SIGN VOCALIC R
-    // U+0F78 TIBETAN VOWEL SIGN VOCALIC L
-    // U+212B ANGSTROM SIGN
-    // U+2ADC FORKING
-    return false;
-}
-
 
 // Find the slice `needle` within `storage` and return its index, failing which,
 // append all elements of `needle` to `storage` and return the index of it at the end.
@@ -749,6 +757,8 @@ size_t findOrAppend(std::vector<T>& storage, const UChar32* needle, size_t needl
 
 
 // Computes data for canonical decompositions
+// See components/normalizer/trie-value-format.md in the ICU4X repo
+// for documentation of the trie value format.
 void computeDecompositions(const char* basename,
                            const USet* backwardCombiningStarters,
                            std::vector<uint16_t>& storage16,
@@ -814,12 +824,23 @@ void computeDecompositions(const char* basename,
             // Surrogate
             continue;
         }
+        if (c == 0xFFFD) {
+            // REPLACEMENT CHARACTER
+            // This character is a starter that decomposes to self,
+            // so without a special case here it would end up as
+            // passthrough-eligible in all normalizations forms.
+            // However, in the potentially-ill-formed UTF-8 case
+            // UTF-8 errors return U+FFFD from the iterator, and
+            // errors need to be treated as ineligible for
+            // passthrough on the slice fast path. By giving
+            // U+FFFD a trie value whose flags make it ineligible
+            // for passthrough avoids a specific U+FFFD branch on
+            // the passthrough fast path.
+            pendingTrieInsertions.push_back({c, NON_ROUND_TRIP_MASK | BACKWARD_COMBINING_MASK});
+            continue;
+        }
         UnicodeString src;
         UnicodeString dst;
-        // True if we're building non-NFD or we're building NFD but
-        // the `c` round trips to NFC.
-        // False if we're building NFD and `c` does not round trip to NFC.
-        UBool nonNfdOrRoundTrips = true;
         src.append(c);
         if (mainNormalizer != nfdNormalizer) {
             UnicodeString inter;
@@ -827,38 +848,11 @@ void computeDecompositions(const char* basename,
             nfdNormalizer->normalize(inter, dst, status);
         } else {
             nfdNormalizer->normalize(src, dst, status);
-            UnicodeString nfc;
-            nfcNormalizer->normalize(dst, nfc, status);
-            nonNfdOrRoundTrips = (src == nfc);
         }
-        if (uts46) {
-            // Work around https://unicode-org.atlassian.net/browse/ICU-22658
-            // TODO: Remove the workaround after data corresponding to
-            // https://www.unicode.org/L2/L2024/24061.htm#179-C36 lands
-            // for Unicode 16.
-            switch (c) {
-                case 0x2F868:
-                    dst.truncate(0);
-                    dst.append(static_cast<UChar32>(0x36FC));
-                    break;
-                case 0x2F874:
-                    dst.truncate(0);
-                    dst.append(static_cast<UChar32>(0x5F53));
-                    break;
-                case 0x2F91F:
-                    dst.truncate(0);
-                    dst.append(static_cast<UChar32>(0x243AB));
-                    break;
-                case 0x2F95F:
-                    dst.truncate(0);
-                    dst.append(static_cast<UChar32>(0x7AEE));
-                    break;
-                case 0x2F9BF:
-                    dst.truncate(0);
-                    dst.append(static_cast<UChar32>(0x45D7));
-                    break;
-            }
-        }
+
+        UnicodeString nfc;
+        nfcNormalizer->normalize(dst, nfc, status);
+        UBool roundTripsViaCanonicalComposition = (src == nfc);
 
         int32_t len = dst.toUTF32(utf32, DECOMPOSITION_BUFFER_SIZE, status);
 
@@ -880,7 +874,7 @@ void computeDecompositions(const char* basename,
             compositionPassthroughBound = c;
             uset_add(decompositionStartsWithNonStarter, c);
             if (src != dst) {
-                if (c == 0x0340 || c == 0x0341 || c == 0x0343 || c == 0x0344 || c == 0x0F73 || c == 0x0F75 || c == 0x0F81 || c == 0xFF9E || c == 0xFF9F) {
+                if (c == 0x0340 || c == 0x0341 || c == 0x0343 || c == 0x0344 || c == 0x0F73 || c == 0x0F75 || c == 0x0F81 || (c == 0xFF9E && utf32[0] == 0x3099) || (c == 0xFF9F && utf32[0] == 0x309A)) {
                     specialNonStarterDecomposition = true;
                 } else {
                     // A character whose decomposition starts with a non-starter and isn't the same as the character itself and isn't already hard-coded into ICU4X.
@@ -893,18 +887,6 @@ void computeDecompositions(const char* basename,
             startsWithBackwardCombiningStarter = true;
             uset_add(decompositionStartsWithBackwardCombiningStarter, c);
         }
-        if (c != BACKWARD_COMBINING_STARTER_MARKER && len == 1 && utf32[0] == BACKWARD_COMBINING_STARTER_MARKER) {
-            status.set(U_INTERNAL_PROGRAM_ERROR);
-            handleError(status, __LINE__, basename);
-        }
-        if (c != SPECIAL_NON_STARTER_DECOMPOSITION_MARKER && len == 1 && utf32[0] == SPECIAL_NON_STARTER_DECOMPOSITION_MARKER) {
-            status.set(U_INTERNAL_PROGRAM_ERROR);
-            handleError(status, __LINE__, basename);
-        }
-        if (c != FDFA_MARKER && len == 1 && utf32[0] == FDFA_MARKER) {
-            status.set(U_INTERNAL_PROGRAM_ERROR);
-            handleError(status, __LINE__, basename);
-        }
         if (mainNormalizer != nfdNormalizer) {
             UnicodeString nfd;
             nfdNormalizer->normalize(src, nfd, status);
@@ -913,24 +895,29 @@ void computeDecompositions(const char* basename,
             }
             decompositionPassthroughBound = c;
             compositionPassthroughBound = c;
-        } else if (firstCombiningClass) {
+        }
+        if (firstCombiningClass) {
             len = 1;
             if (specialNonStarterDecomposition) {
-                utf32[0] = SPECIAL_NON_STARTER_DECOMPOSITION_MARKER; // magic value
+                // Special marker
+                pendingTrieInsertions.push_back({c, NON_ROUND_TRIP_MASK | BACKWARD_COMBINING_MASK | 0xD900 | u_getCombiningClass(c)});
             } else {
                 // Use the surrogate range to store the canonical combining class
-                utf32[0] = 0xD800 | static_cast<UChar32>(firstCombiningClass);
+                // XXX: Should non-started that decompose to self be marked as non-round-trippable in
+                // case such semantics turn out to be more useful for `NON_ROUND_TRIP_MASK`?
+                pendingTrieInsertions.push_back({c, BACKWARD_COMBINING_MASK | 0xD800 | static_cast<uint32_t>(firstCombiningClass)});
             }
+            continue;
         } else {
             if (src == dst) {
                 if (startsWithBackwardCombiningStarter) {
-                    pendingTrieInsertions.push_back({c, BACKWARD_COMBINING_STARTER_MARKER << 16, false});
+                    pendingTrieInsertions.push_back({c, BACKWARD_COMBINING_MASK});
                 }
                 continue;
             }
             decompositionPassthroughBound = c;
             // ICU4X hard-codes ANGSTROM SIGN
-            if (c != 0x212B) {
+            if (c != 0x212B && mainNormalizer == nfdNormalizer) {
                 UnicodeString raw;
                 if (!nfdNormalizer->getRawDecomposition(c, raw)) {
                     // We're always supposed to have a non-recursive decomposition
@@ -978,7 +965,7 @@ void computeDecompositions(const char* basename,
                 }
             }
         }
-        if (!nonNfdOrRoundTrips) {
+        if (!roundTripsViaCanonicalComposition) {
             compositionPassthroughBound = c;
         }
         if (!len) {
@@ -986,7 +973,7 @@ void computeDecompositions(const char* basename,
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, __LINE__, basename);
             }
-            pendingTrieInsertions.push_back({c, 0xFFFFFFFF, false});
+            pendingTrieInsertions.push_back({c, uint32_t(0xFFFFFFFF)});
         } else if (len == 1 && ((utf32[0] >= 0x1161 && utf32[0] <= 0x1175) || (utf32[0] >= 0x11A8 && utf32[0] <= 0x11C2))) {
             // Singleton decompositions to conjoining jamo.
             if (mainNormalizer == nfdNormalizer) {
@@ -994,16 +981,18 @@ void computeDecompositions(const char* basename,
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, __LINE__, basename);
             }
-            pendingTrieInsertions.push_back({c, static_cast<uint32_t>(utf32[0]) << 16, false});
+            pendingTrieInsertions.push_back({c, static_cast<uint32_t>(utf32[0]) | NON_ROUND_TRIP_MASK | (startsWithBackwardCombiningStarter ? BACKWARD_COMBINING_MASK : 0)});
         } else if (!startsWithBackwardCombiningStarter && len == 1 && utf32[0] <= 0xFFFF) {
-            pendingTrieInsertions.push_back({c, static_cast<uint32_t>(utf32[0]) << 16, false});
-        } else if (!startsWithBackwardCombiningStarter &&
+            pendingTrieInsertions.push_back({c, static_cast<uint32_t>(utf32[0]) | NON_ROUND_TRIP_MASK | (startsWithBackwardCombiningStarter ? BACKWARD_COMBINING_MASK : 0)});
+        } else if (c != 0x212B && // ANGSTROM SIGN is special to make the Harfbuzz case branch less in the more common case.
+                   !startsWithBackwardCombiningStarter &&
                    len == 2 &&
-                   utf32[0] <= 0xFFFF &&
-                   utf32[1] <= 0xFFFF &&
+                   utf32[0] <= 0x7FFF &&
+                   utf32[1] <= 0x7FFF &&
+                   utf32[0] > 0x1F &&
+                   utf32[1] > 0x1F &&
                    !u_getCombiningClass(utf32[0]) &&
-                   u_getCombiningClass(utf32[1]) &&
-                   permissibleBmpPair(nonNfdOrRoundTrips, c, utf32[1])) {
+                   u_getCombiningClass(utf32[1])) {
             for (int32_t i = 0; i < len; ++i) {
                 if (((utf32[i] == 0x0345) && (uprv_strcmp(basename, "uts46d") == 0)) || utf32[i] == 0xFF9E || utf32[i] == 0xFF9F) {
                     // Assert that iota subscript and half-width voicing marks never occur in these
@@ -1012,7 +1001,7 @@ void computeDecompositions(const char* basename,
                     handleError(status, __LINE__, basename);
                 }
             }
-            pendingTrieInsertions.push_back({c, (static_cast<uint32_t>(utf32[0]) << 16) | static_cast<uint32_t>(utf32[1]), false});
+            pendingTrieInsertions.push_back({c, static_cast<uint32_t>(utf32[0]) | (static_cast<uint32_t>(utf32[1]) << 15) | (roundTripsViaCanonicalComposition ? 0 : NON_ROUND_TRIP_MASK)});
         } else {
             UBool supplementary = false;
             UBool nonInitialStarter = false;
@@ -1046,73 +1035,38 @@ void computeDecompositions(const char* basename,
                 if (len > LONGEST_ENCODABLE_LENGTH_16 || !len || len == 1) {
                     if (len == 18 && c == 0xFDFA) {
                         // Special marker for the one character whose decomposition
-                        // is too long.
-                        pendingTrieInsertions.push_back({c, FDFA_MARKER << 16, supplementary});
+                        // is too long. (Too long even if we took the fourth bit into use!)
+                        pendingTrieInsertions.push_back({c, NON_ROUND_TRIP_MASK | 1});
                         continue;
                     } else {
+                        // Note: There's a fourth bit available, but let's error out
+                        // if it's ever needed so that it doesn't get used without
+                        // updating docs.
                         status.set(U_INTERNAL_PROGRAM_ERROR);
                         handleError(status, __LINE__, basename);
                     }
                 }
             } else if (len > LONGEST_ENCODABLE_LENGTH_32 || !len) {
+                // Note: There's a fourth bit available, but let's error out
+                // if it's ever needed so that it doesn't get used without
+                // updating docs.
                 status.set(U_INTERNAL_PROGRAM_ERROR);
                 handleError(status, __LINE__, basename);
             }
-            // Complex decomposition
-            // Format for 16-bit value:
-            // 15..13: length minus two for 16-bit case and length minus one for
-            //         the 32-bit case. Length 8 needs to fit in three bits in
-            //         the 16-bit case, and this way the value is future-proofed
-            //         up to 9 in the 16-bit case. Zero is unused and length one
-            //         in the 16-bit case goes directly into the trie.
-            //     12: 1 if all trailing characters are guaranteed non-starters,
-            //         0 if no guarantees about non-starterness.
-            //         Note: The bit choice is this way around to allow for
-            //         dynamically falling back to not having this but instead
-            //         having one more bit for length by merely choosing
-            //         different masks.
-            //  11..0: Start offset in storage. The offset is to the logical
-            //         sequence of scalars16, scalars32, supplementary_scalars16,
-            //         supplementary_scalars32.
-            uint32_t descriptor = static_cast<uint32_t>(!nonInitialStarter) << 12;
-            if (!supplementary) {
-                descriptor |= (static_cast<uint32_t>(len) - 2) << 13;
-            } else {
-                descriptor |= (static_cast<uint32_t>(len) - 1) << 13;
-            }
-            if (descriptor & 0xFFF) {
-                status.set(U_INTERNAL_PROGRAM_ERROR);
-                handleError(status, __LINE__, basename);
-            }
+
             size_t index = 0;
             if (!supplementary) {
                 index = findOrAppend(storage16, utf32, len);
             } else {
                 index = findOrAppend(storage32, utf32, len);
             }
-            if (index > 0xFFF) {
-                status.set(U_INTERNAL_PROGRAM_ERROR);
-                handleError(status, __LINE__, basename);
-            }
-            descriptor |= static_cast<uint32_t>(index);
-            if (!descriptor || descriptor > 0xFFFF) {
-                // > 0xFFFF should never happen if the code above is correct.
-                // == 0 should not happen due to the nature of the data.
-                status.set(U_INTERNAL_PROGRAM_ERROR);
-                handleError(status, __LINE__, basename);
-            }
-            uint32_t nonRoundTripMarker = 0;
-            if (!nonNfdOrRoundTrips) {
-                nonRoundTripMarker = (NON_ROUND_TRIP_MARKER << 16);
-            }
-            uint32_t canCombineBackwardsMarker = 0;
-            if (startsWithBackwardCombiningStarter) {
-                canCombineBackwardsMarker = (BACKWARD_COMBINING_STARTER_DECOMPOSITION_MARKER << 16);
-            }
-            pendingTrieInsertions.push_back({c, descriptor | nonRoundTripMarker | canCombineBackwardsMarker, supplementary});
+            pendingTrieInsertions.push_back({c, (startsWithBackwardCombiningStarter ? BACKWARD_COMBINING_MASK : 0) | (roundTripsViaCanonicalComposition ? 0 : NON_ROUND_TRIP_MASK), supplementary, !nonInitialStarter, uint32_t(len), uint32_t(index)});
         }
     }
     if (storage16.size() + storage32.size() > 0xFFF) {
+        // We actually have 14 bits available, but let's error out so
+        // that docs can be updated when taking a reserved bit out of
+        // potential future flag usage.
         status.set(U_INTERNAL_PROGRAM_ERROR);
     }
     if (f) {
@@ -1489,9 +1443,9 @@ int exportNorm() {
     uint32_t supplementSize16 = storage16.size() - baseSize16;
     uint32_t supplementSize32 = storage32.size() - baseSize32;
 
-    writeDecompositionData("nfd", baseSize16, baseSize32, supplementSize16, nfdDecompositionStartsWithNonStarter, nullptr, nfdPendingTrieInsertions, static_cast<char16_t>(nfcBound));
-    writeDecompositionData("nfkd", baseSize16, baseSize32, supplementSize16, nfkdDecompositionStartsWithNonStarter, nfdDecompositionStartsWithNonStarter, nfkdPendingTrieInsertions, static_cast<char16_t>(nfkcBound));
-    writeDecompositionData("uts46d", baseSize16, baseSize32, supplementSize16, uts46DecompositionStartsWithNonStarter, nfdDecompositionStartsWithNonStarter, uts46PendingTrieInsertions, static_cast<char16_t>(uts46Bound));
+    writeDecompositionData("nfd", baseSize16, baseSize32, supplementSize16, nfdDecompositionStartsWithNonStarter, nullptr, nfdPendingTrieInsertions, nfdPendingTrieInsertions, static_cast<char16_t>(nfcBound));
+    writeDecompositionData("nfkd", baseSize16, baseSize32, supplementSize16, nfkdDecompositionStartsWithNonStarter, nfdDecompositionStartsWithNonStarter, nfkdPendingTrieInsertions, nfdPendingTrieInsertions, static_cast<char16_t>(nfkcBound));
+    writeDecompositionData("uts46d", baseSize16, baseSize32, supplementSize16, uts46DecompositionStartsWithNonStarter, nfdDecompositionStartsWithNonStarter, uts46PendingTrieInsertions, nfdPendingTrieInsertions, static_cast<char16_t>(uts46Bound));
 
     writeDecompositionTables("nfdex", storage16.data(), baseSize16, storage32.data(), baseSize32);
     writeDecompositionTables("nfkdex", storage16.data() + baseSize16, supplementSize16, storage32.data() + baseSize32, supplementSize32);
