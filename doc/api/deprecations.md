@@ -3849,6 +3849,22 @@ Type: Documentation-only
 `process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
 deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
 
+### DEP0190: `repl.builtinModules`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57508
+    description: Documentation-only (supports [`--pending-deprecation`][]).
+-->
+
+Type: Documentation-only
+
+The `node:repl` module exports a `builtinModules` property that contains an array
+of built-in modules. This was incomplete and matched the already deprecated
+`repl._builtinLibs` (DEP0142) instead it's better to rely
+upon `require('node:module').builtinModules`.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
