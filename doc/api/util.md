@@ -1497,9 +1497,11 @@ equality.
 added:
   - v19.1.0
   - v18.13.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 An implementation of [the MIMEType class](https://bmeck.github.io/node-proposal-mime-api/).
 
