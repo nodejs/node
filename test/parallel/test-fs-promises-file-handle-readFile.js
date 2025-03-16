@@ -19,6 +19,10 @@ const tick = require('../common/tick');
 const assert = require('node:assert');
 const tmpDir = tmpdir.path;
 
+const skipMessage = 'intensive toString tests due to memory confinements';
+if (!common.enoughTestMem)
+  common.skip(skipMessage);
+
 tmpdir.refresh();
 
 async function validateReadFile() {
@@ -39,6 +43,11 @@ async function validateReadFile() {
 async function validateLargeFileSupport() {
   const LARGE_FILE_SIZE = 2147483647 + 10 * 1024 * 1024; // INT32_MAX + 10 MB
   const FILE_PATH = path.join(os.tmpdir(), 'large-virtual-file.bin');
+
+  if (!tmpDir.hasEnoughSpace(LARGE_FILE_SIZE)) {
+    common.printSkipMessage(`Not enough space in ${os.tmpdir()}`);
+    return;
+  }
 
   function createVirtualLargeFile() {
     return Buffer.alloc(LARGE_FILE_SIZE, 'A');
