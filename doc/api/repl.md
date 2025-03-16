@@ -649,11 +649,11 @@ added: v14.5.0
 deprecated: REPLACEME
 -->
 
-> Stability: 0 - Deprecated. Use `module.builtinModules` instead.
+> Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
 
 * {string\[]}
 
-A list of the names of all Node.js modules, e.g., `'http'`.
+A list of the names of some Node.js modules, e.g., `'http'`.
 
 ## `repl.start([options])`
 
