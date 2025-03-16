@@ -384,6 +384,19 @@ async function testImportJwk(
 
   const jwk = keyData[size].jwk;
 
+  let alg;
+  switch (name) {
+    case 'RSA-PSS':
+      alg = `PS${hash === 'SHA-1' ? 1 : hash.substring(4)}`;
+      break;
+    case 'RSA-OAEP':
+      alg = `RSA-OAEP${hash === 'SHA-1' ? '' : hash.substring(3)}`;
+      break;
+    case 'RSASSA-PKCS1-v1_5':
+      alg = `RS${hash === 'SHA-1' ? 1 : hash.substring(4)}`;
+      break;
+  }
+
   const [
     publicKey,
     privateKey,
@@ -394,14 +407,14 @@ async function testImportJwk(
         kty: jwk.kty,
         n: jwk.n,
         e: jwk.e,
-        alg: `PS${hash.substring(4)}`
+        alg,
       },
       { name, hash },
       extractable,
       publicUsages),
     subtle.importKey(
       'jwk',
-      { ...jwk, alg: `PS${hash.substring(4)}` },
+      { ...jwk, alg },
       { name, hash },
       extractable,
       privateUsages),
@@ -435,6 +448,8 @@ async function testImportJwk(
 
     assert.strictEqual(pubJwk.kty, 'RSA');
     assert.strictEqual(pvtJwk.kty, 'RSA');
+    assert.strictEqual(pubJwk.alg, alg);
+    assert.strictEqual(pvtJwk.alg, alg);
     assert.strictEqual(pubJwk.n, jwk.n);
     assert.strictEqual(pvtJwk.n, jwk.n);
     assert.strictEqual(pubJwk.e, jwk.e);
@@ -483,22 +498,10 @@ async function testImportJwk(
   }
 
   {
-    let invalidAlg = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
-    switch (name) {
-      case 'RSA-OAEP':
-        if (hash === 'SHA-1')
-          invalidAlg += '-256';
-        break;
-      default:
-        if (hash === 'SHA-256')
-          invalidAlg += '384';
-        else
-          invalidAlg += '256';
-    }
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlg },
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: alg.toLowerCase() },
         { name, hash },
         extractable,
         publicUsages),
@@ -506,7 +509,60 @@ async function testImportJwk(
     await assert.rejects(
       subtle.importKey(
         'jwk',
-        { ...jwk, alg: invalidAlg },
+        { ...jwk, alg: alg.toLowerCase() },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  {
+    let invalidAlgHash = name === 'RSA-OAEP' ? name : name === 'RSA-PSS' ? 'PS' : 'RS';
+    switch (name) {
+      case 'RSA-OAEP':
+        if (hash === 'SHA-1')
+          invalidAlgHash += '-256';
+        break;
+      default:
+        if (hash === 'SHA-256')
+          invalidAlgHash += '384';
+        else
+          invalidAlgHash += '256';
+    }
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgHash },
+        { name, hash },
+        extractable,
+        privateUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' });
+  }
+
+  {
+    const invalidAlgType = name === 'RSA-PSS' ? `RS${hash.substring(4)}` : `PS${hash.substring(4)}`;
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { kty: jwk.kty, n: jwk.n, e: jwk.e, alg: invalidAlgType },
+        { name, hash },
+        extractable,
+        publicUsages),
+      { message: 'JWK "alg" does not match the requested algorithm' }).catch((e) => {
+      throw e;
+    });
+    await assert.rejects(
+      subtle.importKey(
+        'jwk',
+        { ...jwk, alg: invalidAlgType },
         { name, hash },
         extractable,
         privateUsages),
