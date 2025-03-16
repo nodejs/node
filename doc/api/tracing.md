@@ -2,8 +2,6 @@
 
 <!--introduced_in=v7.7.0-->
 
-> Stability: 1 - Experimental
-
 <!-- source_link=lib/trace_events.js -->
 
 The `node:trace_events` module provides a mechanism to centralize tracing
