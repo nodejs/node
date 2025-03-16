@@ -48,6 +48,7 @@
 
 U_NAMESPACE_BEGIN
 
+class CharString;
 /**
  * This class represents the set of symbols needed by DecimalFormat
  * to format numbers. DecimalFormat creates for itself an instance of
@@ -504,8 +505,8 @@ private:
 
     Locale locale;
 
-    char actualLocale[ULOC_FULLNAME_CAPACITY];
-    char validLocale[ULOC_FULLNAME_CAPACITY];
+    CharString* actualLocale = nullptr;
+    CharString* validLocale = nullptr;
     const char16_t* currPattern = nullptr;
 
     UnicodeString currencySpcBeforeSym[UNUM_CURRENCY_SPACING_COUNT];

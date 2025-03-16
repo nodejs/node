@@ -1015,6 +1015,12 @@ blueprint_helpers::parseExponentSignOption(const StringSegment& segment, MacroPr
     return true;
 }
 
+// The function is called by skeleton::parseOption which called by skeleton::parseSkeleton
+// the data pointed in the return macros.unit is stack allocated in the parseSkeleton function.
+#if U_GCC_MAJOR_MINOR >= 1204
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdangling-pointer"
+#endif
 void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroProps& macros,
                                             UErrorCode& status) {
     // Unlike ICU4J, have to check length manually because ICU4C CurrencyUnit does not check it for us
@@ -1034,6 +1040,9 @@ void blueprint_helpers::parseCurrencyOption(const StringSegment& segment, MacroP
     // Slicing is OK
     macros.unit = currency; // NOLINT
 }
+#if U_GCC_MAJOR_MINOR >= 1204
+#pragma GCC diagnostic pop
+#endif
 
 void
 blueprint_helpers::generateCurrencyOption(const CurrencyUnit& currency, UnicodeString& sb, UErrorCode&) {

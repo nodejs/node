@@ -518,7 +518,7 @@ public:
      * default implementation in Calendar.
      * @stable ICU 2.0
      */
-    virtual int32_t handleGetYearLength(int32_t eyear) const override;
+    virtual int32_t handleGetYearLength(int32_t eyear, UErrorCode& status) const override;
 
     /**
      * return the length of the given month.
