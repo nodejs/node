@@ -82,13 +82,6 @@ protected:
      */
     virtual ~CECalendar();
 
-    /**
-     * Default assignment operator
-     * @param right    Calendar object to be copied
-     * @internal
-     */
-    CECalendar& operator=(const CECalendar& right);
-
 protected:
     //-------------------------------------------------------------------------
     // Calendar framework

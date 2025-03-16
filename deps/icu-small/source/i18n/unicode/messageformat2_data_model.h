@@ -8,6 +8,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -2211,7 +2213,7 @@ namespace message2 {
 
         friend class MFDataModel;
 
-        Matcher(Expression* ss, int32_t ns, Variant* vs, int32_t nv);
+        Matcher(VariableName* ss, int32_t ns, Variant* vs, int32_t nv);
         Matcher() {}
 
         // A Matcher may have numSelectors=0 and numVariants=0
@@ -2219,8 +2221,8 @@ namespace message2 {
         // So we have to keep a separate flag to track failed copies.
         bool bogus = false;
 
-        // The expressions that are being matched on.
-        LocalArray<Expression> selectors;
+        // The variables that are being matched on.
+        LocalArray<VariableName> selectors;
         // The number of selectors
         int32_t numSelectors = 0;
         // The list of `when` clauses (case arms).
@@ -2328,13 +2330,13 @@ namespace message2 {
          * @internal ICU 75 technology preview
          * @deprecated This API is for technology preview only.
          */
-        const std::vector<Expression> getSelectors() const {
+        std::vector<VariableName> getSelectors() const {
             if (std::holds_alternative<Pattern>(body)) {
                 return {};
             }
             const Matcher* match = std::get_if<Matcher>(&body);
             // match must be non-null, given the previous check
-            return toStdVector<Expression>(match->selectors.getAlias(), match->numSelectors);
+            return toStdVector<VariableName>(match->selectors.getAlias(), match->numSelectors);
         }
         /**
          * Accesses the variants. Returns an empty vector if this is a pattern message.
@@ -2462,17 +2464,17 @@ namespace message2 {
              */
             Builder& addBinding(Binding&& b, UErrorCode& status);
             /**
-             * Adds a selector expression. Copies `expression`.
+             * Adds a selector variable.
              * If a pattern was previously set, clears the pattern.
              *
-             * @param selector Expression to add as a selector. Passed by move.
+             * @param selector Variable to add as a selector. Passed by move.
              * @param errorCode Input/output error code
              * @return A reference to the builder.
              *
              * @internal ICU 75 technology preview
              * @deprecated This API is for technology preview only.
              */
-            Builder& addSelector(Expression&& selector, UErrorCode& errorCode) noexcept;
+            Builder& addSelector(VariableName&& selector, UErrorCode& errorCode);
             /**
              * Adds a single variant.
              * If a pattern was previously set using `setPattern()`, clears the pattern.
@@ -2564,7 +2566,7 @@ namespace message2 {
         int32_t bindingsLen = 0;
 
         const Binding* getLocalVariablesInternal() const;
-        const Expression* getSelectorsInternal() const;
+        const VariableName* getSelectorsInternal() const;
         const Variant* getVariantsInternal() const;
 
         int32_t numSelectors() const {
@@ -2591,6 +2593,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 
