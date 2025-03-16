@@ -911,6 +911,7 @@ avoiding open network interfaces.
 [`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
+[`module.builtinModules`]: module.md#modulebuiltinmodules
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
