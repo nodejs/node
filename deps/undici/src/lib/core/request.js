@@ -14,8 +14,8 @@ const {
   isFormDataLike,
   isIterable,
   isBlobLike,
-  serializePathWithQuery,
-  assertRequestHandler,
+  buildURL,
+  validateHandler,
   getServerName,
   normalizedMethodRecords
 } = require('./util')
@@ -40,9 +40,9 @@ class Request {
     headersTimeout,
     bodyTimeout,
     reset,
+    throwOnError,
     expectContinue,
-    servername,
-    throwOnError
+    servername
   }, handler) {
     if (typeof path !== 'string') {
       throw new InvalidArgumentError('path must be a string')
@@ -82,13 +82,11 @@ class Request {
       throw new InvalidArgumentError('invalid expectContinue')
     }
 
-    if (throwOnError != null) {
-      throw new InvalidArgumentError('invalid throwOnError')
-    }
-
     this.headersTimeout = headersTimeout
 
     this.bodyTimeout = bodyTimeout
+
+    this.throwOnError = throwOnError === true
 
     this.method = method
 
@@ -130,11 +128,12 @@ class Request {
     }
 
     this.completed = false
+
     this.aborted = false
 
     this.upgrade = upgrade || null
 
-    this.path = query ? serializePathWithQuery(path, query) : path
+    this.path = query ? buildURL(path, query) : path
 
     this.origin = origin
 
@@ -142,7 +141,7 @@ class Request {
       ? method === 'HEAD' || method === 'GET'
       : idempotent
 
-    this.blocking = blocking ?? this.method !== 'HEAD'
+    this.blocking = blocking == null ? false : blocking
 
     this.reset = reset == null ? null : reset
 
@@ -182,9 +181,9 @@ class Request {
       throw new InvalidArgumentError('headers must be an object or an array')
     }
 
-    assertRequestHandler(handler, method, upgrade)
+    validateHandler(handler, method, upgrade)
 
-    this.servername = servername || getServerName(this.host) || null
+    this.servername = servername || getServerName(this.host)
 
     this[kHandler] = handler
 
@@ -271,7 +270,6 @@ class Request {
     this.onFinally()
 
     assert(!this.aborted)
-    assert(!this.completed)
 
     this.completed = true
     if (channels.trailers.hasSubscribers) {

@@ -40,7 +40,6 @@ class TstNode {
   /**
    * @param {string} key
    * @param {any} value
-   * @returns {void}
    */
   add (key, value) {
     const length = key.length
@@ -48,9 +47,6 @@ class TstNode {
       throw new TypeError('Unreachable')
     }
     let index = 0
-    /**
-     * @type {TstNode}
-     */
     let node = this
     while (true) {
       const code = key.charCodeAt(index)
@@ -91,9 +87,6 @@ class TstNode {
   search (key) {
     const keylength = key.length
     let index = 0
-    /**
-     * @type {TstNode|null}
-     */
     let node = this
     while (node !== null && index < keylength) {
       let code = key[index]
@@ -128,7 +121,6 @@ class TernarySearchTree {
   /**
    * @param {string} key
    * @param {any} value
-   * @returns {void}
    * */
   insert (key, value) {
     if (this.node === null) {
@@ -140,7 +132,7 @@ class TernarySearchTree {
 
   /**
    * @param {Uint8Array} key
-   * @returns {any}
+   * @return {any}
    */
   lookup (key) {
     return this.node?.search(key)?.value ?? null

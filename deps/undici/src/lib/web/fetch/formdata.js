@@ -1,7 +1,9 @@
 'use strict'
 
-const { iteratorMixin } = require('./util')
+const { isBlobLike, iteratorMixin } = require('./util')
+const { kState } = require('./symbols')
 const { kEnumerableProperty } = require('../../core/util')
+const { FileLike, isFileLike } = require('./file')
 const { webidl } = require('./webidl')
 const { File: NativeFile } = require('node:buffer')
 const nodeUtil = require('node:util')
@@ -11,8 +13,6 @@ const File = globalThis.File ?? NativeFile
 
 // https://xhr.spec.whatwg.org/#formdata
 class FormData {
-  #state = []
-
   constructor (form) {
     webidl.util.markAsUncloneable(this)
 
@@ -23,6 +23,8 @@ class FormData {
         types: ['undefined']
       })
     }
+
+    this[kState] = []
   }
 
   append (name, value, filename = undefined) {
@@ -31,26 +33,28 @@ class FormData {
     const prefix = 'FormData.append'
     webidl.argumentLengthCheck(arguments, 2, prefix)
 
-    name = webidl.converters.USVString(name)
-
-    if (arguments.length === 3 || webidl.is.Blob(value)) {
-      value = webidl.converters.Blob(value, prefix, 'value')
-
-      if (filename !== undefined) {
-        filename = webidl.converters.USVString(filename)
-      }
-    } else {
-      value = webidl.converters.USVString(value)
+    if (arguments.length === 3 && !isBlobLike(value)) {
+      throw new TypeError(
+        "Failed to execute 'append' on 'FormData': parameter 2 is not of type 'Blob'"
+      )
     }
 
     // 1. Let value be value if given; otherwise blobValue.
+
+    name = webidl.converters.USVString(name, prefix, 'name')
+    value = isBlobLike(value)
+      ? webidl.converters.Blob(value, prefix, 'value', { strict: false })
+      : webidl.converters.USVString(value, prefix, 'value')
+    filename = arguments.length === 3
+      ? webidl.converters.USVString(filename, prefix, 'filename')
+      : undefined
 
     // 2. Let entry be the result of creating an entry with
     // name, value, and filename if given.
     const entry = makeEntry(name, value, filename)
 
     // 3. Append entry to this’s entry list.
-    this.#state.push(entry)
+    this[kState].push(entry)
   }
 
   delete (name) {
@@ -59,11 +63,11 @@ class FormData {
     const prefix = 'FormData.delete'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // The delete(name) method steps are to remove all entries whose name
     // is name from this’s entry list.
-    this.#state = this.#state.filter(entry => entry.name !== name)
+    this[kState] = this[kState].filter(entry => entry.name !== name)
   }
 
   get (name) {
@@ -72,18 +76,18 @@ class FormData {
     const prefix = 'FormData.get'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // 1. If there is no entry whose name is name in this’s entry list,
     // then return null.
-    const idx = this.#state.findIndex((entry) => entry.name === name)
+    const idx = this[kState].findIndex((entry) => entry.name === name)
     if (idx === -1) {
       return null
     }
 
     // 2. Return the value of the first entry whose name is name from
     // this’s entry list.
-    return this.#state[idx].value
+    return this[kState][idx].value
   }
 
   getAll (name) {
@@ -92,13 +96,13 @@ class FormData {
     const prefix = 'FormData.getAll'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // 1. If there is no entry whose name is name in this’s entry list,
     // then return the empty list.
     // 2. Return the values of all entries whose name is name, in order,
     // from this’s entry list.
-    return this.#state
+    return this[kState]
       .filter((entry) => entry.name === name)
       .map((entry) => entry.value)
   }
@@ -109,11 +113,11 @@ class FormData {
     const prefix = 'FormData.has'
     webidl.argumentLengthCheck(arguments, 1, prefix)
 
-    name = webidl.converters.USVString(name)
+    name = webidl.converters.USVString(name, prefix, 'name')
 
     // The has(name) method steps are to return true if there is an entry
     // whose name is name in this’s entry list; otherwise false.
-    return this.#state.findIndex((entry) => entry.name === name) !== -1
+    return this[kState].findIndex((entry) => entry.name === name) !== -1
   }
 
   set (name, value, filename = undefined) {
@@ -122,16 +126,10 @@ class FormData {
     const prefix = 'FormData.set'
     webidl.argumentLengthCheck(arguments, 2, prefix)
 
-    name = webidl.converters.USVString(name)
-
-    if (arguments.length === 3 || webidl.is.Blob(value)) {
-      value = webidl.converters.Blob(value, prefix, 'value')
-
-      if (filename !== undefined) {
-        filename = webidl.converters.USVString(filename)
-      }
-    } else {
-      value = webidl.converters.USVString(value)
+    if (arguments.length === 3 && !isBlobLike(value)) {
+      throw new TypeError(
+        "Failed to execute 'set' on 'FormData': parameter 2 is not of type 'Blob'"
+      )
     }
 
     // The set(name, value) and set(name, blobValue, filename) method steps
@@ -139,27 +137,35 @@ class FormData {
 
     // 1. Let value be value if given; otherwise blobValue.
 
+    name = webidl.converters.USVString(name, prefix, 'name')
+    value = isBlobLike(value)
+      ? webidl.converters.Blob(value, prefix, 'name', { strict: false })
+      : webidl.converters.USVString(value, prefix, 'name')
+    filename = arguments.length === 3
+      ? webidl.converters.USVString(filename, prefix, 'name')
+      : undefined
+
     // 2. Let entry be the result of creating an entry with name, value, and
     // filename if given.
     const entry = makeEntry(name, value, filename)
 
     // 3. If there are entries in this’s entry list whose name is name, then
     // replace the first such entry with entry and remove the others.
-    const idx = this.#state.findIndex((entry) => entry.name === name)
+    const idx = this[kState].findIndex((entry) => entry.name === name)
     if (idx !== -1) {
-      this.#state = [
-        ...this.#state.slice(0, idx),
+      this[kState] = [
+        ...this[kState].slice(0, idx),
         entry,
-        ...this.#state.slice(idx + 1).filter((entry) => entry.name !== name)
+        ...this[kState].slice(idx + 1).filter((entry) => entry.name !== name)
       ]
     } else {
       // 4. Otherwise, append entry to this’s entry list.
-      this.#state.push(entry)
+      this[kState].push(entry)
     }
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
-    const state = this.#state.reduce((a, b) => {
+    const state = this[kState].reduce((a, b) => {
       if (a[b.name]) {
         if (Array.isArray(a[b.name])) {
           a[b.name].push(b.value)
@@ -181,28 +187,9 @@ class FormData {
     // remove [Object null prototype]
     return `FormData ${output.slice(output.indexOf(']') + 2)}`
   }
-
-  /**
-   * @param {FormData} formData
-   */
-  static getFormDataState (formData) {
-    return formData.#state
-  }
-
-  /**
-   * @param {FormData} formData
-   * @param {any[]} newState
-   */
-  static setFormDataState (formData, newState) {
-    formData.#state = newState
-  }
 }
 
-const { getFormDataState, setFormDataState } = FormData
-Reflect.deleteProperty(FormData, 'getFormDataState')
-Reflect.deleteProperty(FormData, 'setFormDataState')
-
-iteratorMixin('FormData', FormData, getFormDataState, 'name', 'value')
+iteratorMixin('FormData', FormData, kState, 'name', 'value')
 
 Object.defineProperties(FormData.prototype, {
   append: kEnumerableProperty,
@@ -237,8 +224,10 @@ function makeEntry (name, value, filename) {
 
     // 1. If value is not a File object, then set value to a new File object,
     //    representing the same bytes, whose name attribute value is "blob"
-    if (!webidl.is.File(value)) {
-      value = new File([value], 'blob', { type: value.type })
+    if (!isFileLike(value)) {
+      value = value instanceof Blob
+        ? new File([value], 'blob', { type: value.type })
+        : new FileLike(value, 'blob', { type: value.type })
     }
 
     // 2. If filename is given, then set value to a new File object,
@@ -250,7 +239,9 @@ function makeEntry (name, value, filename) {
         lastModified: value.lastModified
       }
 
-      value = new File([value], filename, options)
+      value = value instanceof NativeFile
+        ? new File([value], filename, options)
+        : new FileLike(value, filename, options)
     }
   }
 
@@ -258,6 +249,4 @@ function makeEntry (name, value, filename) {
   return { name, value }
 }
 
-webidl.is.FormData = webidl.util.MakeTypeAssertion(FormData)
-
-module.exports = { FormData, makeEntry, setFormDataState }
+module.exports = { FormData, makeEntry }

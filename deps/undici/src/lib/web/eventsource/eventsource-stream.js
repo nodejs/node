@@ -35,16 +35,16 @@ const SPACE = 0x20
 /**
  * @typedef eventSourceSettings
  * @type {object}
- * @property {string} [lastEventId] The last event ID received from the server.
- * @property {string} [origin] The origin of the event source.
- * @property {number} [reconnectionTime] The reconnection time, in milliseconds.
+ * @property {string} lastEventId The last event ID received from the server.
+ * @property {string} origin The origin of the event source.
+ * @property {number} reconnectionTime The reconnection time, in milliseconds.
  */
 
 class EventSourceStream extends Transform {
   /**
    * @type {eventSourceSettings}
    */
-  state
+  state = null
 
   /**
    * Leading byte-order-mark check.
@@ -63,7 +63,7 @@ class EventSourceStream extends Transform {
   eventEndCheck = false
 
   /**
-   * @type {Buffer|null}
+   * @type {Buffer}
    */
   buffer = null
 
@@ -78,9 +78,8 @@ class EventSourceStream extends Transform {
 
   /**
    * @param {object} options
-   * @param {boolean} [options.readableObjectMode]
-   * @param {eventSourceSettings} [options.eventSourceSettings]
-   * @param {(chunk: any, encoding?: BufferEncoding | undefined) => boolean} [options.push]
+   * @param {eventSourceSettings} options.eventSourceSettings
+   * @param {Function} [options.push]
    */
   constructor (options = {}) {
     // Enable object mode as EventSourceStream emits objects of shape
@@ -281,7 +280,7 @@ class EventSourceStream extends Transform {
 
   /**
    * @param {Buffer} line
-   * @param {EventSourceStreamEvent} event
+   * @param {EventStreamEvent} event
    */
   parseLine (line, event) {
     // If the line is empty (a blank line)

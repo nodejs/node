@@ -1,61 +1,59 @@
 'use strict'
 
-// const { parseHeaders } = require('../core/util')
+const { parseHeaders } = require('../core/util')
 const DecoratorHandler = require('../handler/decorator-handler')
 const { ResponseError } = require('../core/errors')
 
-class ResponseErrorHandler extends DecoratorHandler {
+class Handler extends DecoratorHandler {
+  #handler
   #statusCode
   #contentType
   #decoder
   #headers
   #body
 
-  constructor (_opts, { handler }) {
+  constructor (opts, { handler }) {
     super(handler)
+    this.#handler = handler
   }
 
-  #checkContentType (contentType) {
-    return (this.#contentType ?? '').indexOf(contentType) === 0
-  }
-
-  onRequestStart (controller, context) {
+  onConnect (abort) {
     this.#statusCode = 0
     this.#contentType = null
     this.#decoder = null
     this.#headers = null
     this.#body = ''
 
-    return super.onRequestStart(controller, context)
+    return this.#handler.onConnect(abort)
   }
 
-  onResponseStart (controller, statusCode, headers, statusMessage) {
+  onHeaders (statusCode, rawHeaders, resume, statusMessage, headers = parseHeaders(rawHeaders)) {
     this.#statusCode = statusCode
     this.#headers = headers
     this.#contentType = headers['content-type']
 
     if (this.#statusCode < 400) {
-      return super.onResponseStart(controller, statusCode, headers, statusMessage)
+      return this.#handler.onHeaders(statusCode, rawHeaders, resume, statusMessage, headers)
     }
 
-    if (this.#checkContentType('application/json') || this.#checkContentType('text/plain')) {
+    if (this.#contentType === 'application/json' || this.#contentType === 'text/plain') {
       this.#decoder = new TextDecoder('utf-8')
     }
   }
 
-  onResponseData (controller, chunk) {
+  onData (chunk) {
     if (this.#statusCode < 400) {
-      return super.onResponseData(controller, chunk)
+      return this.#handler.onData(chunk)
     }
 
     this.#body += this.#decoder?.decode(chunk, { stream: true }) ?? ''
   }
 
-  onResponseEnd (controller, trailers) {
+  onComplete (rawTrailers) {
     if (this.#statusCode >= 400) {
       this.#body += this.#decoder?.decode(undefined, { stream: false }) ?? ''
 
-      if (this.#checkContentType('application/json')) {
+      if (this.#contentType === 'application/json') {
         try {
           this.#body = JSON.parse(this.#body)
         } catch {
@@ -67,29 +65,22 @@ class ResponseErrorHandler extends DecoratorHandler {
       const stackTraceLimit = Error.stackTraceLimit
       Error.stackTraceLimit = 0
       try {
-        err = new ResponseError('Response Error', this.#statusCode, {
-          body: this.#body,
-          headers: this.#headers
-        })
+        err = new ResponseError('Response Error', this.#statusCode, this.#headers, this.#body)
       } finally {
         Error.stackTraceLimit = stackTraceLimit
       }
 
-      super.onResponseError(controller, err)
+      this.#handler.onError(err)
     } else {
-      super.onResponseEnd(controller, trailers)
+      this.#handler.onComplete(rawTrailers)
     }
   }
 
-  onResponseError (controller, err) {
-    super.onResponseError(controller, err)
+  onError (err) {
+    this.#handler.onError(err)
   }
 }
 
-module.exports = () => {
-  return (dispatch) => {
-    return function Intercept (opts, handler) {
-      return dispatch(opts, new ResponseErrorHandler(opts, { handler }))
-    }
-  }
-}
+module.exports = (dispatch) => (opts, handler) => opts.throwOnError
+  ? dispatch(opts, new Handler(opts, { handler }))
+  : dispatch(opts, handler)

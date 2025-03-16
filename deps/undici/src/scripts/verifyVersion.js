@@ -1,5 +1,3 @@
-'use strict'
-
 /* istanbul ignore file */
 
 const [major, minor, patch] = process.versions.node.split('.').map(v => Number(v))

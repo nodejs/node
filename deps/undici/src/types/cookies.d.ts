@@ -26,5 +26,3 @@ export function getCookies (headers: Headers): Record<string, string>
 export function getSetCookies (headers: Headers): Cookie[]
 
 export function setCookie (headers: Headers, cookie: Cookie): void
-
-export function parseCookie (cookie: string): Cookie | null

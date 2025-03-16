@@ -1,67 +1,44 @@
 'use strict'
 
-const assert = require('node:assert')
-const WrapHandler = require('./wrap-handler')
-
-/**
- * @deprecated
- */
 module.exports = class DecoratorHandler {
   #handler
-  #onCompleteCalled = false
-  #onErrorCalled = false
-  #onResponseStartCalled = false
 
   constructor (handler) {
     if (typeof handler !== 'object' || handler === null) {
       throw new TypeError('handler must be an object')
     }
-    this.#handler = WrapHandler.wrap(handler)
+    this.#handler = handler
   }
 
-  onRequestStart (...args) {
-    this.#handler.onRequestStart?.(...args)
+  onConnect (...args) {
+    return this.#handler.onConnect?.(...args)
   }
 
-  onRequestUpgrade (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    return this.#handler.onRequestUpgrade?.(...args)
+  onError (...args) {
+    return this.#handler.onError?.(...args)
   }
 
-  onResponseStart (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-    assert(!this.#onResponseStartCalled)
-
-    this.#onResponseStartCalled = true
-
-    return this.#handler.onResponseStart?.(...args)
+  onUpgrade (...args) {
+    return this.#handler.onUpgrade?.(...args)
   }
 
-  onResponseData (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    return this.#handler.onResponseData?.(...args)
+  onResponseStarted (...args) {
+    return this.#handler.onResponseStarted?.(...args)
   }
 
-  onResponseEnd (...args) {
-    assert(!this.#onCompleteCalled)
-    assert(!this.#onErrorCalled)
-
-    this.#onCompleteCalled = true
-    return this.#handler.onResponseEnd?.(...args)
+  onHeaders (...args) {
+    return this.#handler.onHeaders?.(...args)
   }
 
-  onResponseError (...args) {
-    this.#onErrorCalled = true
-    return this.#handler.onResponseError?.(...args)
+  onData (...args) {
+    return this.#handler.onData?.(...args)
   }
 
-  /**
-   * @deprecated
-   */
-  onBodySent () {}
+  onComplete (...args) {
+    return this.#handler.onComplete?.(...args)
+  }
+
+  onBodySent (...args) {
+    return this.#handler.onBodySent?.(...args)
+  }
 }

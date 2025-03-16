@@ -1,5 +1,3 @@
-'use strict'
-
 const { addAbortListener } = require('../core/util')
 const { RequestAbortedError } = require('../core/errors')
 

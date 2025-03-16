@@ -95,9 +95,7 @@ function connect (opts, callback) {
 
   try {
     const connectHandler = new ConnectHandler(opts, callback)
-    const connectOptions = { ...opts, method: 'CONNECT' }
-
-    this.dispatch(connectOptions, connectHandler)
+    this.dispatch({ ...opts, method: 'CONNECT' }, connectHandler)
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

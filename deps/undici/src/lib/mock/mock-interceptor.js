@@ -7,11 +7,10 @@ const {
   kDefaultHeaders,
   kDefaultTrailers,
   kContentLength,
-  kMockDispatch,
-  kIgnoreTrailingSlash
+  kMockDispatch
 } = require('./mock-symbols')
 const { InvalidArgumentError } = require('../core/errors')
-const { serializePathWithQuery } = require('../core/util')
+const { buildURL } = require('../core/util')
 
 /**
  * Defines the scope API for an interceptor reply
@@ -73,7 +72,7 @@ class MockInterceptor {
     // fragments to servers when they retrieve a document,
     if (typeof opts.path === 'string') {
       if (opts.query) {
-        opts.path = serializePathWithQuery(opts.path, opts.query)
+        opts.path = buildURL(opts.path, opts.query)
       } else {
         // Matches https://github.com/nodejs/undici/blob/main/lib/web/fetch/index.js#L1811
         const parsedURL = new URL(opts.path, 'data://')
@@ -86,7 +85,6 @@ class MockInterceptor {
 
     this[kDispatchKey] = buildKey(opts)
     this[kDispatches] = mockDispatches
-    this[kIgnoreTrailingSlash] = opts.ignoreTrailingSlash ?? false
     this[kDefaultHeaders] = {}
     this[kDefaultTrailers] = {}
     this[kContentLength] = false
@@ -139,7 +137,7 @@ class MockInterceptor {
       }
 
       // Add usual dispatch data, but this time set the data parameter to function that will eventually provide data.
-      const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], wrappedDefaultsCallback, { ignoreTrailingSlash: this[kIgnoreTrailingSlash] })
+      const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], wrappedDefaultsCallback)
       return new MockScope(newMockDispatch)
     }
 
@@ -156,7 +154,7 @@ class MockInterceptor {
 
     // Send in-already provided data like usual
     const dispatchData = this.createMockScopeDispatchData(replyParameters)
-    const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], dispatchData, { ignoreTrailingSlash: this[kIgnoreTrailingSlash] })
+    const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], dispatchData)
     return new MockScope(newMockDispatch)
   }
 
@@ -168,7 +166,7 @@ class MockInterceptor {
       throw new InvalidArgumentError('error must be defined')
     }
 
-    const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error }, { ignoreTrailingSlash: this[kIgnoreTrailingSlash] })
+    const newMockDispatch = addMockDispatch(this[kDispatches], this[kDispatchKey], { error })
     return new MockScope(newMockDispatch)
   }
 

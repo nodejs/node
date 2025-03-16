@@ -9,6 +9,7 @@ const {
   isValidReasonPhrase,
   isCancelled,
   isAborted,
+  isBlobLike,
   serializeJavascriptValueToJSONString,
   isErrorLike,
   isomorphicEncode,
@@ -18,7 +19,9 @@ const {
   redirectStatusSet,
   nullBodyStatus
 } = require('./constants')
+const { kState, kHeaders } = require('./symbols')
 const { webidl } = require('./webidl')
+const { FormData } = require('./formdata')
 const { URLSerializer } = require('./data-url')
 const { kConstruct } = require('../../core/symbols')
 const assert = require('node:assert')
@@ -28,11 +31,6 @@ const textEncoder = new TextEncoder('utf-8')
 
 // https://fetch.spec.whatwg.org/#response-class
 class Response {
-  /** @type {Headers} */
-  #headers
-
-  #state
-
   // Creates network error Response.
   static error () {
     // The static error() method steps are to return the result of creating a
@@ -44,7 +42,7 @@ class Response {
   }
 
   // https://fetch.spec.whatwg.org/#dom-response-json
-  static json (data, init = undefined) {
+  static json (data, init = {}) {
     webidl.argumentLengthCheck(arguments, 1, 'Response.json')
 
     if (init !== null) {
@@ -98,22 +96,21 @@ class Response {
     const responseObject = fromInnerResponse(makeResponse({}), 'immutable')
 
     // 5. Set responseObject’s response’s status to status.
-    responseObject.#state.status = status
+    responseObject[kState].status = status
 
     // 6. Let value be parsedURL, serialized and isomorphic encoded.
     const value = isomorphicEncode(URLSerializer(parsedURL))
 
     // 7. Append `Location`/value to responseObject’s response’s header list.
-    responseObject.#state.headersList.append('location', value, true)
+    responseObject[kState].headersList.append('location', value, true)
 
     // 8. Return responseObject.
     return responseObject
   }
 
   // https://fetch.spec.whatwg.org/#dom-response
-  constructor (body = null, init = undefined) {
+  constructor (body = null, init = {}) {
     webidl.util.markAsUncloneable(this)
-
     if (body === kConstruct) {
       return
     }
@@ -125,14 +122,14 @@ class Response {
     init = webidl.converters.ResponseInit(init)
 
     // 1. Set this’s response to a new response.
-    this.#state = makeResponse({})
+    this[kState] = makeResponse({})
 
     // 2. Set this’s headers to a new Headers object with this’s relevant
     // Realm, whose header list is this’s response’s header list and guard
     // is "response".
-    this.#headers = new Headers(kConstruct)
-    setHeadersGuard(this.#headers, 'response')
-    setHeadersList(this.#headers, this.#state.headersList)
+    this[kHeaders] = new Headers(kConstruct)
+    setHeadersGuard(this[kHeaders], 'response')
+    setHeadersList(this[kHeaders], this[kState].headersList)
 
     // 3. Let bodyWithType be null.
     let bodyWithType = null
@@ -152,14 +149,14 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // The type getter steps are to return this’s response’s type.
-    return this.#state.type
+    return this[kState].type
   }
 
   // Returns response’s URL, if it has one; otherwise the empty string.
   get url () {
     webidl.brandCheck(this, Response)
 
-    const urlList = this.#state.urlList
+    const urlList = this[kState].urlList
 
     // The url getter steps are to return the empty string if this’s
     // response’s URL is null; otherwise this’s response’s URL,
@@ -179,7 +176,7 @@ class Response {
 
     // The redirected getter steps are to return true if this’s response’s URL
     // list has more than one item; otherwise false.
-    return this.#state.urlList.length > 1
+    return this[kState].urlList.length > 1
   }
 
   // Returns response’s status.
@@ -187,7 +184,7 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // The status getter steps are to return this’s response’s status.
-    return this.#state.status
+    return this[kState].status
   }
 
   // Returns whether response’s status is an ok status.
@@ -196,7 +193,7 @@ class Response {
 
     // The ok getter steps are to return true if this’s response’s status is an
     // ok status; otherwise false.
-    return this.#state.status >= 200 && this.#state.status <= 299
+    return this[kState].status >= 200 && this[kState].status <= 299
   }
 
   // Returns response’s status message.
@@ -205,7 +202,7 @@ class Response {
 
     // The statusText getter steps are to return this’s response’s status
     // message.
-    return this.#state.statusText
+    return this[kState].statusText
   }
 
   // Returns response’s headers as Headers.
@@ -213,19 +210,19 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // The headers getter steps are to return this’s headers.
-    return this.#headers
+    return this[kHeaders]
   }
 
   get body () {
     webidl.brandCheck(this, Response)
 
-    return this.#state.body ? this.#state.body.stream : null
+    return this[kState].body ? this[kState].body.stream : null
   }
 
   get bodyUsed () {
     webidl.brandCheck(this, Response)
 
-    return !!this.#state.body && util.isDisturbed(this.#state.body.stream)
+    return !!this[kState].body && util.isDisturbed(this[kState].body.stream)
   }
 
   // Returns a clone of response.
@@ -233,7 +230,7 @@ class Response {
     webidl.brandCheck(this, Response)
 
     // 1. If this is unusable, then throw a TypeError.
-    if (bodyUnusable(this.#state)) {
+    if (bodyUnusable(this)) {
       throw webidl.errors.exception({
         header: 'Response.clone',
         message: 'Body has already been consumed.'
@@ -241,11 +238,11 @@ class Response {
     }
 
     // 2. Let clonedResponse be the result of cloning this’s response.
-    const clonedResponse = cloneResponse(this.#state)
+    const clonedResponse = cloneResponse(this[kState])
 
     // 3. Return the result of creating a Response object, given
     // clonedResponse, this’s headers’s guard, and this’s relevant Realm.
-    return fromInnerResponse(clonedResponse, getHeadersGuard(this.#headers))
+    return fromInnerResponse(clonedResponse, getHeadersGuard(this[kHeaders]))
   }
 
   [nodeUtil.inspect.custom] (depth, options) {
@@ -269,45 +266,9 @@ class Response {
 
     return `Response ${nodeUtil.formatWithOptions(options, properties)}`
   }
-
-  /**
-   * @param {Response} response
-   */
-  static getResponseHeaders (response) {
-    return response.#headers
-  }
-
-  /**
-   * @param {Response} response
-   * @param {Headers} newHeaders
-   */
-  static setResponseHeaders (response, newHeaders) {
-    response.#headers = newHeaders
-  }
-
-  /**
-   * @param {Response} response
-   */
-  static getResponseState (response) {
-    return response.#state
-  }
-
-  /**
-   * @param {Response} response
-   * @param {any} newState
-   */
-  static setResponseState (response, newState) {
-    response.#state = newState
-  }
 }
 
-const { getResponseHeaders, setResponseHeaders, getResponseState, setResponseState } = Response
-Reflect.deleteProperty(Response, 'getResponseHeaders')
-Reflect.deleteProperty(Response, 'setResponseHeaders')
-Reflect.deleteProperty(Response, 'getResponseState')
-Reflect.deleteProperty(Response, 'setResponseState')
-
-mixinBody(Response, getResponseState)
+mixinBody(Response)
 
 Object.defineProperties(Response.prototype, {
   type: kEnumerableProperty,
@@ -504,17 +465,17 @@ function initializeResponse (response, init, body) {
 
   // 3. Set response’s response’s status to init["status"].
   if ('status' in init && init.status != null) {
-    getResponseState(response).status = init.status
+    response[kState].status = init.status
   }
 
   // 4. Set response’s response’s status message to init["statusText"].
   if ('statusText' in init && init.statusText != null) {
-    getResponseState(response).statusText = init.statusText
+    response[kState].statusText = init.statusText
   }
 
   // 5. If init["headers"] exists, then fill response’s headers with init["headers"].
   if ('headers' in init && init.headers != null) {
-    fill(getResponseHeaders(response), init.headers)
+    fill(response[kHeaders], init.headers)
   }
 
   // 6. If body was given, then:
@@ -528,12 +489,12 @@ function initializeResponse (response, init, body) {
     }
 
     // 2. Set response's body to body's body.
-    getResponseState(response).body = body.body
+    response[kState].body = body.body
 
     // 3. If body's type is non-null and response's header list does not contain
     //    `Content-Type`, then append (`Content-Type`, body's type) to response's header list.
-    if (body.type != null && !getResponseState(response).headersList.contains('content-type', true)) {
-      getResponseState(response).headersList.append('content-type', body.type, true)
+    if (body.type != null && !response[kState].headersList.contains('content-type', true)) {
+      response[kState].headersList.append('content-type', body.type, true)
     }
   }
 }
@@ -546,11 +507,10 @@ function initializeResponse (response, init, body) {
  */
 function fromInnerResponse (innerResponse, guard) {
   const response = new Response(kConstruct)
-  setResponseState(response, innerResponse)
-  const headers = new Headers(kConstruct)
-  setResponseHeaders(response, headers)
-  setHeadersList(headers, innerResponse.headersList)
-  setHeadersGuard(headers, guard)
+  response[kState] = innerResponse
+  response[kHeaders] = new Headers(kConstruct)
+  setHeadersList(response[kHeaders], innerResponse.headersList)
+  setHeadersGuard(response[kHeaders], guard)
 
   if (hasFinalizationRegistry && innerResponse.body?.stream) {
     // If the target (response) is reclaimed, the cleanup callback may be called at some point with
@@ -564,26 +524,38 @@ function fromInnerResponse (innerResponse, guard) {
   return response
 }
 
+webidl.converters.ReadableStream = webidl.interfaceConverter(
+  ReadableStream
+)
+
+webidl.converters.FormData = webidl.interfaceConverter(
+  FormData
+)
+
+webidl.converters.URLSearchParams = webidl.interfaceConverter(
+  URLSearchParams
+)
+
 // https://fetch.spec.whatwg.org/#typedefdef-xmlhttprequestbodyinit
 webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
   if (typeof V === 'string') {
     return webidl.converters.USVString(V, prefix, name)
   }
 
-  if (webidl.is.Blob(V)) {
-    return V
+  if (isBlobLike(V)) {
+    return webidl.converters.Blob(V, prefix, name, { strict: false })
   }
 
   if (ArrayBuffer.isView(V) || types.isArrayBuffer(V)) {
-    return V
+    return webidl.converters.BufferSource(V, prefix, name)
   }
 
-  if (webidl.is.FormData(V)) {
-    return V
+  if (util.isFormDataLike(V)) {
+    return webidl.converters.FormData(V, prefix, name, { strict: false })
   }
 
-  if (webidl.is.URLSearchParams(V)) {
-    return V
+  if (V instanceof URLSearchParams) {
+    return webidl.converters.URLSearchParams(V, prefix, name)
   }
 
   return webidl.converters.DOMString(V, prefix, name)
@@ -591,8 +563,8 @@ webidl.converters.XMLHttpRequestBodyInit = function (V, prefix, name) {
 
 // https://fetch.spec.whatwg.org/#bodyinit
 webidl.converters.BodyInit = function (V, prefix, argument) {
-  if (webidl.is.ReadableStream(V)) {
-    return V
+  if (V instanceof ReadableStream) {
+    return webidl.converters.ReadableStream(V, prefix, argument)
   }
 
   // Note: the spec doesn't include async iterables,
@@ -621,8 +593,6 @@ webidl.converters.ResponseInit = webidl.dictionaryConverter([
   }
 ])
 
-webidl.is.Response = webidl.util.MakeTypeAssertion(Response)
-
 module.exports = {
   isNetworkError,
   makeNetworkError,
@@ -631,6 +601,5 @@ module.exports = {
   filterResponse,
   Response,
   cloneResponse,
-  fromInnerResponse,
-  getResponseState
+  fromInnerResponse
 }

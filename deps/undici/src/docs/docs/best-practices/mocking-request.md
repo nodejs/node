@@ -1,6 +1,6 @@
 # Mocking Request
 
-Undici has its own mocking [utility](/docs/docs/api/MockAgent.md). It allow us to intercept undici HTTP requests and return mocked values instead. It can be useful for testing purposes.
+Undici has its own mocking [utility](../api/MockAgent.md). It allow us to intercept undici HTTP requests and return mocked values instead. It can be useful for testing purposes.
 
 Example:
 
@@ -29,7 +29,7 @@ And this is what the test file looks like:
 
 ```js
 // index.test.mjs
-import { strict as assert } from 'node:assert'
+import { strict as assert } from 'assert'
 import { MockAgent, setGlobalDispatcher, } from 'undici'
 import { bankTransfer } from './bank.mjs'
 
@@ -73,61 +73,7 @@ const badRequest = await bankTransfer('1234567890', '100')
 assert.deepEqual(badRequest, { message: 'bank account not found' })
 ```
 
-Explore other MockAgent functionality [here](/docs/docs/api/MockAgent.md)
-
-## Access agent call history
-
-Using a MockAgent also allows you to make assertions on the configuration used to make your request in your application.
-
-Here is an example :
-
-```js
-// index.test.mjs
-import { strict as assert } from 'node:assert'
-import { MockAgent, setGlobalDispatcher, fetch } from 'undici'
-import { app } from './app.mjs'
-
-// given an application server running on http://localhost:3000
-await app.start()
-
-// enable call history at instantiation
-const mockAgent = new MockAgent({ enableCallHistory: true })
-// or after instantiation
-mockAgent.enableCallHistory()
-
-setGlobalDispatcher(mockAgent)
-
-// this call is made (not intercepted)
-await fetch(`http://localhost:3000/endpoint?query='hello'`, {
-  method: 'POST',
-  headers: { 'content-type': 'application/json' }
-  body: JSON.stringify({ data: '' })
-})
-
-// access to the call history of the MockAgent (which register every call made intercepted or not)
-assert.ok(mockAgent.getCallHistory()?.calls().length === 1)
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.fullUrl, `http://localhost:3000/endpoint?query='hello'`)
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.body, JSON.stringify({ data: '' }))
-assert.deepStrictEqual(mockAgent.getCallHistory()?.firstCall()?.searchParams, { query: 'hello' })
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.port, '3000')
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.host, 'localhost:3000')
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.method, 'POST')
-assert.strictEqual(mockAgent.getCallHistory()?.firstCall()?.path, '/endpoint')
-assert.deepStrictEqual(mockAgent.getCallHistory()?.firstCall()?.headers, { 'content-type': 'application/json' })
-
-// clear all call history logs
-mockAgent.clearCallHistory()
-
-assert.ok(mockAgent.getCallHistory()?.calls().length === 0)
-```
-
-Calling `mockAgent.close()` will automatically clear and delete every call history for you.
-
-Explore other MockAgent functionality [here](/docs/docs/api/MockAgent.md)
-
-Explore other MockCallHistory functionality [here](/docs/docs/api/MockCallHistory.md)
-
-Explore other MockCallHistoryLog functionality [here](/docs/docs/api/MockCallHistoryLog.md)
+Explore other MockAgent functionality [here](../api/MockAgent.md)
 
 ## Debug Mock Value
 

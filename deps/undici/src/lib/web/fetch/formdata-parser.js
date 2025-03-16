@@ -3,15 +3,15 @@
 const { isUSVString, bufferToLowerCasedHeaderName } = require('../../core/util')
 const { utf8DecodeBytes } = require('./util')
 const { HTTP_TOKEN_CODEPOINTS, isomorphicDecode } = require('./data-url')
+const { isFileLike } = require('./file')
 const { makeEntry } = require('./formdata')
-const { webidl } = require('./webidl')
 const assert = require('node:assert')
 const { File: NodeFile } = require('node:buffer')
 
 const File = globalThis.File ?? NodeFile
 
 const formDataNameBuffer = Buffer.from('form-data; name="')
-const filenameBuffer = Buffer.from('filename')
+const filenameBuffer = Buffer.from('; filename')
 const dd = Buffer.from('--')
 const ddcrlf = Buffer.from('--\r\n')
 
@@ -75,7 +75,7 @@ function multipartFormDataParser (input, mimeType) {
   //    Otherwise, let boundary be the result of UTF-8 decoding mimeType’s
   //    parameters["boundary"].
   if (boundaryString === undefined) {
-    throw parsingError('missing boundary in content-type header')
+    return 'failure'
   }
 
   const boundary = Buffer.from(`--${boundaryString}`, 'utf8')
@@ -111,7 +111,7 @@ function multipartFormDataParser (input, mimeType) {
     if (input.subarray(position.position, position.position + boundary.length).equals(boundary)) {
       position.position += boundary.length
     } else {
-      throw parsingError('expected a value starting with -- and the boundary')
+      return 'failure'
     }
 
     // 5.2. If position points to the sequence of bytes 0x2D 0x2D 0x0D 0x0A
@@ -127,7 +127,7 @@ function multipartFormDataParser (input, mimeType) {
     // 5.3. If position does not point to a sequence of bytes starting with 0x0D
     //      0x0A (CR LF), return failure.
     if (input[position.position] !== 0x0d || input[position.position + 1] !== 0x0a) {
-      throw parsingError('expected CRLF')
+      return 'failure'
     }
 
     // 5.4. Advance position by 2. (This skips past the newline.)
@@ -137,6 +137,10 @@ function multipartFormDataParser (input, mimeType) {
     //      multipart/form-data headers on input and position, if the result
     //      is not failure. Otherwise, return failure.
     const result = parseMultipartFormDataHeaders(input, position)
+
+    if (result === 'failure') {
+      return 'failure'
+    }
 
     let { name, filename, contentType, encoding } = result
 
@@ -153,7 +157,7 @@ function multipartFormDataParser (input, mimeType) {
       const boundaryIndex = input.indexOf(boundary.subarray(2), position.position)
 
       if (boundaryIndex === -1) {
-        throw parsingError('expected boundary after body')
+        return 'failure'
       }
 
       body = input.subarray(position.position, boundaryIndex - 4)
@@ -170,7 +174,7 @@ function multipartFormDataParser (input, mimeType) {
     // 5.9. If position does not point to a sequence of bytes starting with
     //      0x0D 0x0A (CR LF), return failure. Otherwise, advance position by 2.
     if (input[position.position] !== 0x0d || input[position.position + 1] !== 0x0a) {
-      throw parsingError('expected CRLF')
+      return 'failure'
     } else {
       position.position += 2
     }
@@ -201,7 +205,7 @@ function multipartFormDataParser (input, mimeType) {
 
     // 5.12. Assert: name is a scalar value string and value is either a scalar value string or a File object.
     assert(isUSVString(name))
-    assert((typeof value === 'string' && isUSVString(value)) || webidl.is.File(value))
+    assert((typeof value === 'string' && isUSVString(value)) || isFileLike(value))
 
     // 5.13. Create an entry with name and value, and append it to entry list.
     entryList.push(makeEntry(name, value, filename))
@@ -226,7 +230,7 @@ function parseMultipartFormDataHeaders (input, position) {
     if (input[position.position] === 0x0d && input[position.position + 1] === 0x0a) {
       // 2.1.1. If name is null, return failure.
       if (name === null) {
-        throw parsingError('header name is null')
+        return 'failure'
       }
 
       // 2.1.2. Return name, filename and contentType.
@@ -246,12 +250,12 @@ function parseMultipartFormDataHeaders (input, position) {
 
     // 2.4. If header name does not match the field-name token production, return failure.
     if (!HTTP_TOKEN_CODEPOINTS.test(headerName.toString())) {
-      throw parsingError('header name does not match the field-name token production')
+      return 'failure'
     }
 
     // 2.5. If the byte at position is not 0x3A (:), return failure.
     if (input[position.position] !== 0x3a) {
-      throw parsingError('expected :')
+      return 'failure'
     }
 
     // 2.6. Advance position by 1.
@@ -274,7 +278,7 @@ function parseMultipartFormDataHeaders (input, position) {
         // 2. If position does not point to a sequence of bytes starting with
         //    `form-data; name="`, return failure.
         if (!bufferStartsWith(input, formDataNameBuffer, position)) {
-          throw parsingError('expected form-data; name=" for content-disposition header')
+          return 'failure'
         }
 
         // 3. Advance position so it points at the byte after the next 0x22 (")
@@ -286,61 +290,34 @@ function parseMultipartFormDataHeaders (input, position) {
         //    failure.
         name = parseMultipartFormDataName(input, position)
 
+        if (name === null) {
+          return 'failure'
+        }
+
         // 5. If position points to a sequence of bytes starting with `; filename="`:
-        if (input[position.position] === 0x3b /* ; */ && input[position.position + 1] === 0x20 /* ' ' */) {
-          const at = { position: position.position + 2 }
+        if (bufferStartsWith(input, filenameBuffer, position)) {
+          // Note: undici also handles filename*
+          let check = position.position + filenameBuffer.length
 
-          if (bufferStartsWith(input, filenameBuffer, at)) {
-            if (input[at.position + 8] === 0x2a /* '*' */) {
-              at.position += 10 // skip past filename*=
+          if (input[check] === 0x2a) {
+            position.position += 1
+            check += 1
+          }
 
-              // Remove leading http tab and spaces. See RFC for examples.
-              // https://datatracker.ietf.org/doc/html/rfc6266#section-5
-              collectASequenceOfBytes(
-                (char) => char === 0x20 || char === 0x09,
-                input,
-                at
-              )
+          if (input[check] !== 0x3d || input[check + 1] !== 0x22) { // ="
+            return 'failure'
+          }
 
-              const headerValue = collectASequenceOfBytes(
-                (char) => char !== 0x20 && char !== 0x0d && char !== 0x0a, // ' ' or CRLF
-                input,
-                at
-              )
+          // 1. Advance position so it points at the byte after the next 0x22 (") byte
+          //    (the one in the sequence of bytes matched above).
+          position.position += 12
 
-              if (
-                (headerValue[0] !== 0x75 && headerValue[0] !== 0x55) || // u or U
-                (headerValue[1] !== 0x74 && headerValue[1] !== 0x54) || // t or T
-                (headerValue[2] !== 0x66 && headerValue[2] !== 0x46) || // f or F
-                headerValue[3] !== 0x2d || // -
-                headerValue[4] !== 0x38 // 8
-              ) {
-                throw parsingError('unknown encoding, expected utf-8\'\'')
-              }
+          // 2. Set filename to the result of parsing a multipart/form-data name given
+          //    input and position, if the result is not failure. Otherwise, return failure.
+          filename = parseMultipartFormDataName(input, position)
 
-              // skip utf-8''
-              filename = decodeURIComponent(new TextDecoder().decode(headerValue.subarray(7)))
-
-              position.position = at.position
-            } else {
-              // 1. Advance position so it points at the byte after the next 0x22 (") byte
-              //    (the one in the sequence of bytes matched above).
-              position.position += 11
-
-              // Remove leading http tab and spaces. See RFC for examples.
-              // https://datatracker.ietf.org/doc/html/rfc6266#section-5
-              collectASequenceOfBytes(
-                (char) => char === 0x20 || char === 0x09,
-                input,
-                position
-              )
-
-              position.position++ // skip past " after removing whitespace
-
-              // 2. Set filename to the result of parsing a multipart/form-data name given
-              //    input and position, if the result is not failure. Otherwise, return failure.
-              filename = parseMultipartFormDataName(input, position)
-            }
+          if (filename === null) {
+            return 'failure'
           }
         }
 
@@ -390,7 +367,7 @@ function parseMultipartFormDataHeaders (input, position) {
     // 2.9. If position does not point to a sequence of bytes starting with 0x0D 0x0A
     //      (CR LF), return failure. Otherwise, advance position by 2 (past the newline).
     if (input[position.position] !== 0x0d && input[position.position + 1] !== 0x0a) {
-      throw parsingError('expected CRLF')
+      return 'failure'
     } else {
       position.position += 2
     }
@@ -416,7 +393,7 @@ function parseMultipartFormDataName (input, position) {
 
   // 3. If the byte at position is not 0x22 ("), return failure. Otherwise, advance position by 1.
   if (input[position.position] !== 0x22) {
-    throw parsingError('expected "')
+    return null // name could be 'failure'
   } else {
     position.position++
   }
@@ -489,10 +466,6 @@ function bufferStartsWith (buffer, start, position) {
   }
 
   return true
-}
-
-function parsingError (cause) {
-  return new TypeError('Failed to parse body as FormData.', { cause: new TypeError(cause) })
 }
 
 module.exports = {

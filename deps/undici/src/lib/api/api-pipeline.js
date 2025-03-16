@@ -5,17 +5,15 @@ const {
   Duplex,
   PassThrough
 } = require('node:stream')
-const assert = require('node:assert')
-const { AsyncResource } = require('node:async_hooks')
 const {
   InvalidArgumentError,
   InvalidReturnValueError,
   RequestAbortedError
 } = require('../core/errors')
 const util = require('../core/util')
+const { AsyncResource } = require('node:async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
-
-function noop () {}
+const assert = require('node:assert')
 
 const kResume = Symbol('resume')
 
@@ -94,7 +92,7 @@ class PipelineHandler extends AsyncResource {
     this.context = null
     this.onInfo = onInfo || null
 
-    this.req = new PipelineRequest().on('error', noop)
+    this.req = new PipelineRequest().on('error', util.nop)
 
     this.ret = new Duplex({
       readableObjectMode: opts.objectMode,
@@ -147,7 +145,7 @@ class PipelineHandler extends AsyncResource {
   }
 
   onConnect (abort, context) {
-    const { res } = this
+    const { ret, res } = this
 
     if (this.reason) {
       abort(this.reason)
@@ -155,6 +153,7 @@ class PipelineHandler extends AsyncResource {
     }
 
     assert(!res, 'pipeline cannot be retried')
+    assert(!ret.destroyed)
 
     this.abort = abort
     this.context = context
@@ -185,7 +184,7 @@ class PipelineHandler extends AsyncResource {
         context
       })
     } catch (err) {
-      this.res.on('error', noop)
+      this.res.on('error', util.nop)
       throw err
     }
 

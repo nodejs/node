@@ -3,20 +3,20 @@ const assert = require('node:assert')
 
 const { kRetryHandlerDefaultRetry } = require('../core/symbols')
 const { RequestRetryError } = require('../core/errors')
-const WrapHandler = require('./wrap-handler')
 const {
   isDisturbed,
+  parseHeaders,
   parseRangeHeader,
   wrapRequestBody
 } = require('../core/util')
 
 function calculateRetryAfterHeader (retryAfter) {
-  const retryTime = new Date(retryAfter).getTime()
-  return isNaN(retryTime) ? 0 : retryTime - Date.now()
+  const current = Date.now()
+  return new Date(retryAfter).getTime() - current
 }
 
 class RetryHandler {
-  constructor (opts, { dispatch, handler }) {
+  constructor (opts, handlers) {
     const { retryOptions, ...dispatchOpts } = opts
     const {
       // Retry scoped
@@ -32,9 +32,11 @@ class RetryHandler {
       statusCodes
     } = retryOptions ?? {}
 
-    this.dispatch = dispatch
-    this.handler = WrapHandler.wrap(handler)
+    this.dispatch = handlers.dispatch
+    this.handler = handlers.handler
     this.opts = { ...dispatchOpts, body: wrapRequestBody(opts.body) }
+    this.abort = null
+    this.aborted = false
     this.retryOpts = {
       retry: retryFn ?? RetryHandler[kRetryHandlerDefaultRetry],
       retryAfter: retryAfter ?? true,
@@ -62,20 +64,44 @@ class RetryHandler {
 
     this.retryCount = 0
     this.retryCountCheckpoint = 0
-    this.headersSent = false
     this.start = 0
     this.end = null
     this.etag = null
+    this.resume = null
+
+    // Handle possible onConnect duplication
+    this.handler.onConnect(reason => {
+      this.aborted = true
+      if (this.abort) {
+        this.abort(reason)
+      } else {
+        this.reason = reason
+      }
+    })
   }
 
-  onRequestStart (controller, context) {
-    if (!this.headersSent) {
-      this.handler.onRequestStart?.(controller, context)
+  onRequestSent () {
+    if (this.handler.onRequestSent) {
+      this.handler.onRequestSent()
     }
   }
 
-  onRequestUpgrade (controller, statusCode, headers, socket) {
-    this.handler.onRequestUpgrade?.(controller, statusCode, headers, socket)
+  onUpgrade (statusCode, headers, socket) {
+    if (this.handler.onUpgrade) {
+      this.handler.onUpgrade(statusCode, headers, socket)
+    }
+  }
+
+  onConnect (abort) {
+    if (this.aborted) {
+      abort(this.reason)
+    } else {
+      this.abort = abort
+    }
+  }
+
+  onBodySent (chunk) {
+    if (this.handler.onBodySent) return this.handler.onBodySent(chunk)
   }
 
   static [kRetryHandlerDefaultRetry] (err, { state, opts }, cb) {
@@ -124,7 +150,7 @@ class RetryHandler {
     if (retryAfterHeader) {
       retryAfterHeader = Number(retryAfterHeader)
       retryAfterHeader = Number.isNaN(retryAfterHeader)
-        ? calculateRetryAfterHeader(headers['retry-after'])
+        ? calculateRetryAfterHeader(retryAfterHeader)
         : retryAfterHeader * 1e3 // Retry-After is in seconds
     }
 
@@ -136,65 +162,80 @@ class RetryHandler {
     setTimeout(() => cb(null), retryTimeout)
   }
 
-  onResponseStart (controller, statusCode, headers, statusMessage) {
+  onHeaders (statusCode, rawHeaders, resume, statusMessage) {
+    const headers = parseHeaders(rawHeaders)
+
     this.retryCount += 1
 
     if (statusCode >= 300) {
       if (this.retryOpts.statusCodes.includes(statusCode) === false) {
-        this.headersSent = true
-        this.handler.onResponseStart?.(
-          controller,
+        return this.handler.onHeaders(
           statusCode,
-          headers,
+          rawHeaders,
+          resume,
           statusMessage
         )
-        return
       } else {
-        throw new RequestRetryError('Request failed', statusCode, {
-          headers,
-          data: {
-            count: this.retryCount
-          }
-        })
+        this.abort(
+          new RequestRetryError('Request failed', statusCode, {
+            headers,
+            data: {
+              count: this.retryCount
+            }
+          })
+        )
+        return false
       }
     }
 
     // Checkpoint for resume from where we left it
-    if (this.headersSent) {
+    if (this.resume != null) {
+      this.resume = null
+
       // Only Partial Content 206 supposed to provide Content-Range,
       // any other status code that partially consumed the payload
-      // should not be retried because it would result in downstream
-      // wrongly concatenate multiple responses.
+      // should not be retry because it would result in downstream
+      // wrongly concatanete multiple responses.
       if (statusCode !== 206 && (this.start > 0 || statusCode !== 200)) {
-        throw new RequestRetryError('server does not support the range header and the payload was partially consumed', statusCode, {
-          headers,
-          data: { count: this.retryCount }
-        })
+        this.abort(
+          new RequestRetryError('server does not support the range header and the payload was partially consumed', statusCode, {
+            headers,
+            data: { count: this.retryCount }
+          })
+        )
+        return false
       }
 
       const contentRange = parseRangeHeader(headers['content-range'])
       // If no content range
       if (!contentRange) {
-        throw new RequestRetryError('Content-Range mismatch', statusCode, {
-          headers,
-          data: { count: this.retryCount }
-        })
+        this.abort(
+          new RequestRetryError('Content-Range mismatch', statusCode, {
+            headers,
+            data: { count: this.retryCount }
+          })
+        )
+        return false
       }
 
       // Let's start with a weak etag check
       if (this.etag != null && this.etag !== headers.etag) {
-        throw new RequestRetryError('ETag mismatch', statusCode, {
-          headers,
-          data: { count: this.retryCount }
-        })
+        this.abort(
+          new RequestRetryError('ETag mismatch', statusCode, {
+            headers,
+            data: { count: this.retryCount }
+          })
+        )
+        return false
       }
 
-      const { start, size, end = size ? size - 1 : null } = contentRange
+      const { start, size, end = size - 1 } = contentRange
 
       assert(this.start === start, 'content-range mismatch')
       assert(this.end == null || this.end === end, 'content-range mismatch')
 
-      return
+      this.resume = resume
+      return true
     }
 
     if (this.end == null) {
@@ -203,17 +244,15 @@ class RetryHandler {
         const range = parseRangeHeader(headers['content-range'])
 
         if (range == null) {
-          this.headersSent = true
-          this.handler.onResponseStart?.(
-            controller,
+          return this.handler.onHeaders(
             statusCode,
-            headers,
+            rawHeaders,
+            resume,
             statusMessage
           )
-          return
         }
 
-        const { start, size, end = size ? size - 1 : null } = range
+        const { start, size, end = size - 1 } = range
         assert(
           start != null && Number.isFinite(start),
           'content-range mismatch'
@@ -236,50 +275,48 @@ class RetryHandler {
         'invalid content-length'
       )
 
-      this.resume = true
+      this.resume = resume
       this.etag = headers.etag != null ? headers.etag : null
 
       // Weak etags are not useful for comparison nor cache
       // for instance not safe to assume if the response is byte-per-byte
       // equal
-      if (
-        this.etag != null &&
-        this.etag[0] === 'W' &&
-        this.etag[1] === '/'
-      ) {
+      if (this.etag != null && this.etag.startsWith('W/')) {
         this.etag = null
       }
 
-      this.headersSent = true
-      this.handler.onResponseStart?.(
-        controller,
+      return this.handler.onHeaders(
         statusCode,
-        headers,
+        rawHeaders,
+        resume,
         statusMessage
       )
-    } else {
-      throw new RequestRetryError('Request failed', statusCode, {
-        headers,
-        data: { count: this.retryCount }
-      })
     }
+
+    const err = new RequestRetryError('Request failed', statusCode, {
+      headers,
+      data: { count: this.retryCount }
+    })
+
+    this.abort(err)
+
+    return false
   }
 
-  onResponseData (controller, chunk) {
+  onData (chunk) {
     this.start += chunk.length
 
-    this.handler.onResponseData?.(controller, chunk)
+    return this.handler.onData(chunk)
   }
 
-  onResponseEnd (controller, trailers) {
+  onComplete (rawTrailers) {
     this.retryCount = 0
-    return this.handler.onResponseEnd?.(controller, trailers)
+    return this.handler.onComplete(rawTrailers)
   }
 
-  onResponseError (controller, err) {
-    if (controller?.aborted || isDisturbed(this.opts.body)) {
-      this.handler.onResponseError?.(controller, err)
-      return
+  onError (err) {
+    if (this.aborted || isDisturbed(this.opts.body)) {
+      return this.handler.onError(err)
     }
 
     // We reconcile in case of a mix between network errors
@@ -302,14 +339,9 @@ class RetryHandler {
       onRetry.bind(this)
     )
 
-    /**
-     * @this {RetryHandler}
-     * @param {Error} [err]
-     * @returns
-     */
     function onRetry (err) {
-      if (err != null || controller?.aborted || isDisturbed(this.opts.body)) {
-        return this.handler.onResponseError?.(controller, err)
+      if (err != null || this.aborted || isDisturbed(this.opts.body)) {
+        return this.handler.onError(err)
       }
 
       if (this.start !== 0) {
@@ -333,7 +365,7 @@ class RetryHandler {
         this.retryCountCheckpoint = this.retryCount
         this.dispatch(this.opts, this)
       } catch (err) {
-        this.handler.onResponseError?.(controller, err)
+        this.handler.onError(err)
       }
     }
   }

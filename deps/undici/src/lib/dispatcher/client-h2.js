@@ -26,15 +26,15 @@ const {
   kHTTP2Session,
   kResume,
   kSize,
-  kHTTPContext,
-  kClosed,
-  kBodyTimeout
+  kHTTPContext
 } = require('../core/symbols.js')
-const { channels } = require('../core/diagnostics.js')
 
 const kOpenStreams = Symbol('open streams')
 
 let extractBody
+
+// Experimental
+let h2ExperimentalWarned = false
 
 /** @type {import('http2')} */
 let http2
@@ -80,51 +80,100 @@ function parseH2Headers (headers) {
 async function connectH2 (client, socket) {
   client[kSocket] = socket
 
+  if (!h2ExperimentalWarned) {
+    h2ExperimentalWarned = true
+    process.emitWarning('H2 support is experimental, expect them to change at any time.', {
+      code: 'UNDICI-H2'
+    })
+  }
+
   const session = http2.connect(client[kUrl], {
     createConnection: () => socket,
-    peerMaxConcurrentStreams: client[kMaxConcurrentStreams],
-    settings: {
-      // TODO(metcoder95): add support for PUSH
-      enablePush: false
-    }
+    peerMaxConcurrentStreams: client[kMaxConcurrentStreams]
   })
 
   session[kOpenStreams] = 0
   session[kClient] = client
   session[kSocket] = socket
-  session[kHTTP2Session] = null
 
   util.addListener(session, 'error', onHttp2SessionError)
   util.addListener(session, 'frameError', onHttp2FrameError)
   util.addListener(session, 'end', onHttp2SessionEnd)
-  util.addListener(session, 'goaway', onHttp2SessionGoAway)
-  util.addListener(session, 'close', onHttp2SessionClose)
+  util.addListener(session, 'goaway', onHTTP2GoAway)
+  util.addListener(session, 'close', function () {
+    const { [kClient]: client } = this
+    const { [kSocket]: socket } = client
+
+    const err = this[kSocket][kError] || this[kError] || new SocketError('closed', util.getSocketInfo(socket))
+
+    client[kHTTP2Session] = null
+
+    if (client.destroyed) {
+      assert(client[kPending] === 0)
+
+      // Fail entire queue.
+      const requests = client[kQueue].splice(client[kRunningIdx])
+      for (let i = 0; i < requests.length; i++) {
+        const request = requests[i]
+        util.errorRequest(client, request, err)
+      }
+    }
+  })
 
   session.unref()
 
   client[kHTTP2Session] = session
   socket[kHTTP2Session] = session
 
-  util.addListener(socket, 'error', onHttp2SocketError)
-  util.addListener(socket, 'end', onHttp2SocketEnd)
-  util.addListener(socket, 'close', onHttp2SocketClose)
+  util.addListener(socket, 'error', function (err) {
+    assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
 
-  socket[kClosed] = false
-  socket.on('close', onSocketClose)
+    this[kError] = err
+
+    this[kClient][kOnError](err)
+  })
+
+  util.addListener(socket, 'end', function () {
+    util.destroy(this, new SocketError('other side closed', util.getSocketInfo(this)))
+  })
+
+  util.addListener(socket, 'close', function () {
+    const err = this[kError] || new SocketError('closed', util.getSocketInfo(this))
+
+    client[kSocket] = null
+
+    if (this[kHTTP2Session] != null) {
+      this[kHTTP2Session].destroy(err)
+    }
+
+    client[kPendingIdx] = client[kRunningIdx]
+
+    assert(client[kRunning] === 0)
+
+    client.emit('disconnect', client[kUrl], [client], err)
+
+    client[kResume]()
+  })
+
+  let closed = false
+  socket.on('close', () => {
+    closed = true
+  })
 
   return {
     version: 'h2',
     defaultPipelining: Infinity,
-    write (request) {
-      return writeH2(client, request)
+    write (...args) {
+      return writeH2(client, ...args)
     },
     resume () {
       resumeH2(client)
     },
     destroy (err, callback) {
-      if (socket[kClosed]) {
+      if (closed) {
         queueMicrotask(callback)
       } else {
+        // Destroying the socket will trigger the session close
         socket.destroy(err).on('close', callback)
       }
     },
@@ -141,7 +190,7 @@ function resumeH2 (client) {
   const socket = client[kSocket]
 
   if (socket?.destroyed === false) {
-    if (client[kSize] === 0 || client[kMaxConcurrentStreams] === 0) {
+    if (client[kSize] === 0 && client[kMaxConcurrentStreams] === 0) {
       socket.unref()
       client[kHTTP2Session].unref()
     } else {
@@ -176,24 +225,19 @@ function onHttp2SessionEnd () {
  * This is the root cause of #3011
  * We need to handle GOAWAY frames properly, and trigger the session close
  * along with the socket right away
- *
- * @this {import('http2').ClientHttp2Session}
- * @param {number} errorCode
  */
-function onHttp2SessionGoAway (errorCode) {
-  // TODO(mcollina): Verify if GOAWAY implements the spec correctly:
-  // https://datatracker.ietf.org/doc/html/rfc7540#section-6.8
-  // Specifically, we do not verify the "valid" stream id.
-
-  const err = this[kError] || new SocketError(`HTTP/2: "GOAWAY" frame received with code ${errorCode}`, util.getSocketInfo(this[kSocket]))
+function onHTTP2GoAway (code) {
+  // We cannot recover, so best to close the session and the socket
+  const err = this[kError] || new SocketError(`HTTP/2: "GOAWAY" frame received with code ${code}`, util.getSocketInfo(this))
   const client = this[kClient]
 
   client[kSocket] = null
   client[kHTTPContext] = null
 
-  // this is an HTTP2 session
-  this.close()
-  this[kHTTP2Session] = null
+  if (this[kHTTP2Session] != null) {
+    this[kHTTP2Session].destroy(err)
+    this[kHTTP2Session] = null
+  }
 
   util.destroy(this[kSocket], err)
 
@@ -212,71 +256,12 @@ function onHttp2SessionGoAway (errorCode) {
   client[kResume]()
 }
 
-function onHttp2SessionClose () {
-  const { [kClient]: client } = this
-  const { [kSocket]: socket } = client
-
-  const err = this[kSocket][kError] || this[kError] || new SocketError('closed', util.getSocketInfo(socket))
-
-  client[kSocket] = null
-  client[kHTTPContext] = null
-
-  if (client.destroyed) {
-    assert(client[kPending] === 0)
-
-    // Fail entire queue.
-    const requests = client[kQueue].splice(client[kRunningIdx])
-    for (let i = 0; i < requests.length; i++) {
-      const request = requests[i]
-      util.errorRequest(client, request, err)
-    }
-  }
-}
-
-function onHttp2SocketClose () {
-  const err = this[kError] || new SocketError('closed', util.getSocketInfo(this))
-
-  const client = this[kHTTP2Session][kClient]
-
-  client[kSocket] = null
-  client[kHTTPContext] = null
-
-  if (this[kHTTP2Session] !== null) {
-    this[kHTTP2Session].destroy(err)
-  }
-
-  client[kPendingIdx] = client[kRunningIdx]
-
-  assert(client[kRunning] === 0)
-
-  client.emit('disconnect', client[kUrl], [client], err)
-
-  client[kResume]()
-}
-
-function onHttp2SocketError (err) {
-  assert(err.code !== 'ERR_TLS_CERT_ALTNAME_INVALID')
-
-  this[kError] = err
-
-  this[kClient][kOnError](err)
-}
-
-function onHttp2SocketEnd () {
-  util.destroy(this, new SocketError('other side closed', util.getSocketInfo(this)))
-}
-
-function onSocketClose () {
-  this[kClosed] = true
-}
-
 // https://www.rfc-editor.org/rfc/rfc7230#section-3.3.2
 function shouldSendContentLength (method) {
   return method !== 'GET' && method !== 'HEAD' && method !== 'OPTIONS' && method !== 'TRACE' && method !== 'CONNECT'
 }
 
 function writeH2 (client, request) {
-  const requestTimeout = request.bodyTimeout ?? client[kBodyTimeout]
   const session = client[kHTTP2Session]
   const { method, path, host, upgrade, expectContinue, signal, headers: reqHeaders } = request
   let { body } = request
@@ -305,7 +290,7 @@ function writeH2 (client, request) {
   }
 
   /** @type {import('node:http2').ClientHttp2Stream} */
-  let stream = null
+  let stream
 
   const { hostname, port } = client[kUrl]
 
@@ -322,21 +307,14 @@ function writeH2 (client, request) {
     util.errorRequest(client, request, err)
 
     if (stream != null) {
-      // Some chunks might still come after abort,
-      // let's ignore them
-      stream.removeAllListeners('data')
-
-      // On Abort, we close the stream to send RST_STREAM frame
-      stream.close()
-
-      // We move the running index to the next request
-      client[kOnError](err)
-      client[kResume]()
+      util.destroy(stream, err)
     }
 
     // We do not destroy the socket as we can continue using the session
-    // the stream gets destroyed and the session remains to create new streams
+    // the stream get's destroyed and the session remains to create new streams
     util.destroy(body, err)
+    client[kQueue][client[kRunningIdx]++] = null
+    client[kResume]()
   }
 
   try {
@@ -359,7 +337,7 @@ function writeH2 (client, request) {
     // We disabled endStream to allow the user to write to the stream
     stream = session.request(headers, { endStream: false, signal })
 
-    if (!stream.pending) {
+    if (stream.id && !stream.pending) {
       request.onUpgrade(null, null, stream)
       ++session[kOpenStreams]
       client[kQueue][client[kRunningIdx]++] = null
@@ -375,7 +353,6 @@ function writeH2 (client, request) {
       session[kOpenStreams] -= 1
       if (session[kOpenStreams] === 0) session.unref()
     })
-    stream.setTimeout(requestTimeout)
 
     return true
   }
@@ -449,15 +426,6 @@ function writeH2 (client, request) {
 
   session.ref()
 
-  if (channels.sendHeaders.hasSubscribers) {
-    let header = ''
-    for (const key in headers) {
-      header += `${key}: ${headers[key]}\r\n`
-    }
-    channels.sendHeaders.publish({ request, headers: header, socket: session[kSocket] })
-  }
-
-  // TODO(metcoder95): add support for sending trailers
   const shouldEndStream = method === 'GET' || method === 'HEAD' || body === null
   if (expectContinue) {
     headers[HTTP2_HEADER_EXPECT] = '100-continue'
@@ -469,13 +437,11 @@ function writeH2 (client, request) {
       endStream: shouldEndStream,
       signal
     })
-
     writeBodyH2()
   }
 
   // Increment counter as we have new streams open
   ++session[kOpenStreams]
-  stream.setTimeout(requestTimeout)
 
   stream.once('response', headers => {
     const { [HTTP2_HEADER_STATUS]: statusCode, ...realHeaders } = headers
@@ -487,53 +453,46 @@ function writeH2 (client, request) {
     // for those scenarios, best effort is to destroy the stream immediately
     // as there's no value to keep it open.
     if (request.aborted) {
-      stream.removeAllListeners('data')
+      const err = new RequestAbortedError()
+      util.errorRequest(client, request, err)
+      util.destroy(stream, err)
       return
     }
 
     if (request.onHeaders(Number(statusCode), parseH2Headers(realHeaders), stream.resume.bind(stream), '') === false) {
       stream.pause()
     }
+
+    stream.on('data', (chunk) => {
+      if (request.onData(chunk) === false) {
+        stream.pause()
+      }
+    })
   })
 
-  stream.on('data', (chunk) => {
-    if (request.onData(chunk) === false) {
-      stream.pause()
-    }
-  })
-
-  stream.once('end', (err) => {
-    stream.removeAllListeners('data')
+  stream.once('end', () => {
     // When state is null, it means we haven't consumed body and the stream still do not have
     // a state.
     // Present specially when using pipeline or stream
     if (stream.state?.state == null || stream.state.state < 6) {
-      // Do not complete the request if it was aborted
-      // Not prone to happen for as safety net to avoid race conditions with 'trailers'
-      if (!request.aborted && !request.completed) {
-        request.onComplete({})
-      }
+      request.onComplete([])
+    }
 
-      client[kQueue][client[kRunningIdx]++] = null
-      client[kResume]()
-    } else {
+    if (session[kOpenStreams] === 0) {
       // Stream is closed or half-closed-remote (6), decrement counter and cleanup
       // It does not have sense to continue working with the stream as we do not
       // have yet RST_STREAM support on client-side
-      --session[kOpenStreams]
-      if (session[kOpenStreams] === 0) {
-        session.unref()
-      }
 
-      abort(err ?? new InformationalError('HTTP/2: stream half-closed (remote)'))
-      client[kQueue][client[kRunningIdx]++] = null
-      client[kPendingIdx] = client[kRunningIdx]
-      client[kResume]()
+      session.unref()
     }
+
+    abort(new InformationalError('HTTP/2: stream half-closed (remote)'))
+    client[kQueue][client[kRunningIdx]++] = null
+    client[kPendingIdx] = client[kRunningIdx]
+    client[kResume]()
   })
 
   stream.once('close', () => {
-    stream.removeAllListeners('data')
     session[kOpenStreams] -= 1
     if (session[kOpenStreams] === 0) {
       session.unref()
@@ -541,38 +500,28 @@ function writeH2 (client, request) {
   })
 
   stream.once('error', function (err) {
-    stream.removeAllListeners('data')
     abort(err)
   })
 
   stream.once('frameError', (type, code) => {
-    stream.removeAllListeners('data')
     abort(new InformationalError(`HTTP/2: "frameError" received - type ${type}, code ${code}`))
   })
 
-  stream.on('aborted', () => {
-    stream.removeAllListeners('data')
-  })
+  // stream.on('aborted', () => {
+  //   // TODO(HTTP/2): Support aborted
+  // })
 
-  stream.on('timeout', () => {
-    const err = new InformationalError(`HTTP/2: "stream timeout after ${requestTimeout}"`)
-    stream.removeAllListeners('data')
-    session[kOpenStreams] -= 1
+  // stream.on('timeout', () => {
+  //   // TODO(HTTP/2): Support timeout
+  // })
 
-    if (session[kOpenStreams] === 0) {
-      session.unref()
-    }
+  // stream.on('push', headers => {
+  //   // TODO(HTTP/2): Support push
+  // })
 
-    abort(err)
-  })
-
-  stream.once('trailers', trailers => {
-    if (request.aborted || request.completed) {
-      return
-    }
-
-    request.onComplete(trailers)
-  })
+  // stream.on('trailers', headers => {
+  //   // TODO(HTTP/2): Support trailers
+  // })
 
   return true
 

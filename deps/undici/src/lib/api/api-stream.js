@@ -1,13 +1,12 @@
 'use strict'
 
 const assert = require('node:assert')
-const { finished } = require('node:stream')
-const { AsyncResource } = require('node:async_hooks')
+const { finished, PassThrough } = require('node:stream')
 const { InvalidArgumentError, InvalidReturnValueError } = require('../core/errors')
 const util = require('../core/util')
+const { getResolveErrorBodyCallback } = require('./util')
+const { AsyncResource } = require('node:async_hooks')
 const { addSignal, removeSignal } = require('./abort-signal')
-
-function noop () {}
 
 class StreamHandler extends AsyncResource {
   constructor (opts, factory, callback) {
@@ -15,7 +14,7 @@ class StreamHandler extends AsyncResource {
       throw new InvalidArgumentError('invalid opts')
     }
 
-    const { signal, method, opaque, body, onInfo, responseHeaders } = opts
+    const { signal, method, opaque, body, onInfo, responseHeaders, throwOnError } = opts
 
     try {
       if (typeof callback !== 'function') {
@@ -41,7 +40,7 @@ class StreamHandler extends AsyncResource {
       super('UNDICI_STREAM')
     } catch (err) {
       if (util.isStream(body)) {
-        util.destroy(body.on('error', noop), err)
+        util.destroy(body.on('error', util.nop), err)
       }
       throw err
     }
@@ -56,6 +55,7 @@ class StreamHandler extends AsyncResource {
     this.trailers = null
     this.body = body
     this.onInfo = onInfo || null
+    this.throwOnError = throwOnError || false
 
     if (util.isStream(body)) {
       body.on('error', (err) => {
@@ -79,7 +79,7 @@ class StreamHandler extends AsyncResource {
   }
 
   onHeaders (statusCode, rawHeaders, resume, statusMessage) {
-    const { factory, opaque, context, responseHeaders } = this
+    const { factory, opaque, context, callback, responseHeaders } = this
 
     const headers = responseHeaders === 'raw' ? util.parseRawHeaders(rawHeaders) : util.parseHeaders(rawHeaders)
 
@@ -92,42 +92,55 @@ class StreamHandler extends AsyncResource {
 
     this.factory = null
 
-    if (factory === null) {
-      return
-    }
+    let res
 
-    const res = this.runInAsyncScope(factory, null, {
-      statusCode,
-      headers,
-      opaque,
-      context
-    })
-
-    if (
-      !res ||
-      typeof res.write !== 'function' ||
-      typeof res.end !== 'function' ||
-      typeof res.on !== 'function'
-    ) {
-      throw new InvalidReturnValueError('expected Writable')
-    }
-
-    // TODO: Avoid finished. It registers an unnecessary amount of listeners.
-    finished(res, { readable: false }, (err) => {
-      const { callback, res, opaque, trailers, abort } = this
-
-      this.res = null
-      if (err || !res.readable) {
-        util.destroy(res, err)
-      }
+    if (this.throwOnError && statusCode >= 400) {
+      const parsedHeaders = responseHeaders === 'raw' ? util.parseHeaders(rawHeaders) : headers
+      const contentType = parsedHeaders['content-type']
+      res = new PassThrough()
 
       this.callback = null
-      this.runInAsyncScope(callback, null, err || null, { opaque, trailers })
-
-      if (err) {
-        abort()
+      this.runInAsyncScope(getResolveErrorBodyCallback, null,
+        { callback, body: res, contentType, statusCode, statusMessage, headers }
+      )
+    } else {
+      if (factory === null) {
+        return
       }
-    })
+
+      res = this.runInAsyncScope(factory, null, {
+        statusCode,
+        headers,
+        opaque,
+        context
+      })
+
+      if (
+        !res ||
+        typeof res.write !== 'function' ||
+        typeof res.end !== 'function' ||
+        typeof res.on !== 'function'
+      ) {
+        throw new InvalidReturnValueError('expected Writable')
+      }
+
+      // TODO: Avoid finished. It registers an unnecessary amount of listeners.
+      finished(res, { readable: false }, (err) => {
+        const { callback, res, opaque, trailers, abort } = this
+
+        this.res = null
+        if (err || !res.readable) {
+          util.destroy(res, err)
+        }
+
+        this.callback = null
+        this.runInAsyncScope(callback, null, err || null, { opaque, trailers })
+
+        if (err) {
+          abort()
+        }
+      })
+    }
 
     res.on('drain', resume)
 
@@ -194,9 +207,7 @@ function stream (opts, factory, callback) {
   }
 
   try {
-    const handler = new StreamHandler(opts, factory, callback)
-
-    this.dispatch(opts, handler)
+    this.dispatch(opts, new StreamHandler(opts, factory, callback))
   } catch (err) {
     if (typeof callback !== 'function') {
       throw err

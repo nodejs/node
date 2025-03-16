@@ -1,11 +1,12 @@
 'use strict'
 
-const { kConstruct } = require('../../core/symbols')
+const { kConstruct } = require('./symbols')
 const { urlEquals, getFieldValues } = require('./util')
 const { kEnumerableProperty, isDisturbed } = require('../../core/util')
 const { webidl } = require('../fetch/webidl')
-const { cloneResponse, fromInnerResponse, getResponseState } = require('../fetch/response')
-const { Request, fromInnerRequest, getRequestState } = require('../fetch/request')
+const { Response, cloneResponse, fromInnerResponse } = require('../fetch/response')
+const { Request, fromInnerRequest } = require('../fetch/request')
+const { kState } = require('../fetch/symbols')
 const { fetching } = require('../fetch/index')
 const { urlIsHttpHttpsScheme, createDeferredPromise, readAllBytes } = require('../fetch/util')
 const assert = require('node:assert')
@@ -115,7 +116,7 @@ class Cache {
       }
 
       // 3.1
-      const r = getRequestState(request)
+      const r = request[kState]
 
       // 3.2
       if (!urlIsHttpHttpsScheme(r.url) || r.method !== 'GET') {
@@ -133,7 +134,7 @@ class Cache {
     // 5.
     for (const request of requests) {
       // 5.1
-      const r = getRequestState(new Request(request))
+      const r = new Request(request)[kState]
 
       // 5.2
       if (!urlIsHttpHttpsScheme(r.url)) {
@@ -269,10 +270,10 @@ class Cache {
     let innerRequest = null
 
     // 2.
-    if (webidl.is.Request(request)) {
-      innerRequest = getRequestState(request)
+    if (request instanceof Request) {
+      innerRequest = request[kState]
     } else { // 3.
-      innerRequest = getRequestState(new Request(request))
+      innerRequest = new Request(request)[kState]
     }
 
     // 4.
@@ -284,7 +285,7 @@ class Cache {
     }
 
     // 5.
-    const innerResponse = getResponseState(response)
+    const innerResponse = response[kState]
 
     // 6.
     if (innerResponse.status === 206) {
@@ -334,7 +335,7 @@ class Cache {
       const reader = stream.getReader()
 
       // 11.3
-      readAllBytes(reader, bodyReadPromise.resolve, bodyReadPromise.reject)
+      readAllBytes(reader).then(bodyReadPromise.resolve, bodyReadPromise.reject)
     } else {
       bodyReadPromise.resolve(undefined)
     }
@@ -401,8 +402,8 @@ class Cache {
      */
     let r = null
 
-    if (webidl.is.Request(request)) {
-      r = getRequestState(request)
+    if (request instanceof Request) {
+      r = request[kState]
 
       if (r.method !== 'GET' && !options.ignoreMethod) {
         return false
@@ -410,7 +411,7 @@ class Cache {
     } else {
       assert(typeof request === 'string')
 
-      r = getRequestState(new Request(request))
+      r = new Request(request)[kState]
     }
 
     /** @type {CacheBatchOperation[]} */
@@ -467,16 +468,16 @@ class Cache {
     // 2.
     if (request !== undefined) {
       // 2.1
-      if (webidl.is.Request(request)) {
+      if (request instanceof Request) {
         // 2.1.1
-        r = getRequestState(request)
+        r = request[kState]
 
         // 2.1.2
         if (r.method !== 'GET' && !options.ignoreMethod) {
           return []
         }
       } else if (typeof request === 'string') { // 2.2
-        r = getRequestState(new Request(request))
+        r = new Request(request)[kState]
       }
     }
 
@@ -514,7 +515,6 @@ class Cache {
       for (const request of requests) {
         const requestObject = fromInnerRequest(
           request,
-          undefined,
           new AbortController().signal,
           'immutable'
         )
@@ -749,9 +749,9 @@ class Cache {
 
     // 2.
     if (request !== undefined) {
-      if (webidl.is.Request(request)) {
+      if (request instanceof Request) {
         // 2.1.1
-        r = getRequestState(request)
+        r = request[kState]
 
         // 2.1.2
         if (r.method !== 'GET' && !options.ignoreMethod) {
@@ -759,7 +759,7 @@ class Cache {
         }
       } else if (typeof request === 'string') {
         // 2.2.1
-        r = getRequestState(new Request(request))
+        r = new Request(request)[kState]
       }
     }
 
@@ -848,10 +848,7 @@ webidl.converters.MultiCacheQueryOptions = webidl.dictionaryConverter([
   }
 ])
 
-webidl.converters.Response = webidl.interfaceConverter(
-  webidl.is.Response,
-  'Response'
-)
+webidl.converters.Response = webidl.interfaceConverter(Response)
 
 webidl.converters['sequence<RequestInfo>'] = webidl.sequenceConverter(
   webidl.converters.RequestInfo

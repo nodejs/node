@@ -13,18 +13,19 @@ const { webidl } = require('./webidl')
 const assert = require('node:assert')
 const util = require('node:util')
 
+const kHeadersMap = Symbol('headers map')
+const kHeadersSortedMap = Symbol('headers map sorted')
+
 /**
  * @param {number} code
- * @returns {code is (0x0a | 0x0d | 0x09 | 0x20)}
  */
 function isHTTPWhiteSpaceCharCode (code) {
-  return code === 0x0a || code === 0x0d || code === 0x09 || code === 0x20
+  return code === 0x00a || code === 0x00d || code === 0x009 || code === 0x020
 }
 
 /**
  * @see https://fetch.spec.whatwg.org/#concept-header-value-normalize
  * @param {string} potentialValue
- * @returns {string}
  */
 function headerValueNormalize (potentialValue) {
   //  To normalize a byte sequence potentialValue, remove
@@ -38,10 +39,6 @@ function headerValueNormalize (potentialValue) {
   return i === 0 && j === potentialValue.length ? potentialValue : potentialValue.substring(i, j)
 }
 
-/**
- * @param {Headers} headers
- * @param {Array|Object} object
- */
 function fill (headers, object) {
   // To fill a Headers object headers with a given object object, run these steps:
 
@@ -81,9 +78,6 @@ function fill (headers, object) {
 
 /**
  * @see https://fetch.spec.whatwg.org/#concept-headers-append
- * @param {Headers} headers
- * @param {string} name
- * @param {string} value
  */
 function appendHeader (headers, name, value) {
   // 1. Normalize value.
@@ -125,67 +119,6 @@ function appendHeader (headers, name, value) {
   //    privileged no-CORS request headers from headers
 }
 
-// https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
-/**
- * @param {Headers} target
- */
-function headersListSortAndCombine (target) {
-  const headersList = getHeadersList(target)
-
-  if (!headersList) {
-    return []
-  }
-
-  if (headersList.sortedMap) {
-    return headersList.sortedMap
-  }
-
-  // 1. Let headers be an empty list of headers with the key being the name
-  //    and value the value.
-  const headers = []
-
-  // 2. Let names be the result of convert header names to a sorted-lowercase
-  //    set with all the names of the headers in list.
-  const names = headersList.toSortedArray()
-
-  const cookies = headersList.cookies
-
-  // fast-path
-  if (cookies === null || cookies.length === 1) {
-    // Note: The non-null assertion of value has already been done by `HeadersList#toSortedArray`
-    return (headersList.sortedMap = names)
-  }
-
-  // 3. For each name of names:
-  for (let i = 0; i < names.length; ++i) {
-    const { 0: name, 1: value } = names[i]
-    // 1. If name is `set-cookie`, then:
-    if (name === 'set-cookie') {
-      // 1. Let values be a list of all values of headers in list whose name
-      //    is a byte-case-insensitive match for name, in order.
-
-      // 2. For each value of values:
-      // 1. Append (name, value) to headers.
-      for (let j = 0; j < cookies.length; ++j) {
-        headers.push([name, cookies[j]])
-      }
-    } else {
-      // 2. Otherwise:
-
-      // 1. Let value be the result of getting name from list.
-
-      // 2. Assert: value is non-null.
-      // Note: This operation was done by `HeadersList#toSortedArray`.
-
-      // 3. Append (name, value) to headers.
-      headers.push([name, value])
-    }
-  }
-
-  // 4. Return headers.
-  return (headersList.sortedMap = headers)
-}
-
 function compareHeaderName (a, b) {
   return a[0] < b[0] ? -1 : 1
 }
@@ -194,17 +127,14 @@ class HeadersList {
   /** @type {[string, string][]|null} */
   cookies = null
 
-  sortedMap
-  headersMap
-
   constructor (init) {
     if (init instanceof HeadersList) {
-      this.headersMap = new Map(init.headersMap)
-      this.sortedMap = init.sortedMap
+      this[kHeadersMap] = new Map(init[kHeadersMap])
+      this[kHeadersSortedMap] = init[kHeadersSortedMap]
       this.cookies = init.cookies === null ? null : [...init.cookies]
     } else {
-      this.headersMap = new Map(init)
-      this.sortedMap = null
+      this[kHeadersMap] = new Map(init)
+      this[kHeadersSortedMap] = null
     }
   }
 
@@ -218,12 +148,12 @@ class HeadersList {
     // contains a header whose name is a byte-case-insensitive
     // match for name.
 
-    return this.headersMap.has(isLowerCase ? name : name.toLowerCase())
+    return this[kHeadersMap].has(isLowerCase ? name : name.toLowerCase())
   }
 
   clear () {
-    this.headersMap.clear()
-    this.sortedMap = null
+    this[kHeadersMap].clear()
+    this[kHeadersSortedMap] = null
     this.cookies = null
   }
 
@@ -234,22 +164,22 @@ class HeadersList {
    * @param {boolean} isLowerCase
    */
   append (name, value, isLowerCase) {
-    this.sortedMap = null
+    this[kHeadersSortedMap] = null
 
     // 1. If list contains name, then set name to the first such
     //    header’s name.
     const lowercaseName = isLowerCase ? name : name.toLowerCase()
-    const exists = this.headersMap.get(lowercaseName)
+    const exists = this[kHeadersMap].get(lowercaseName)
 
     // 2. Append (name, value) to list.
     if (exists) {
       const delimiter = lowercaseName === 'cookie' ? '; ' : ', '
-      this.headersMap.set(lowercaseName, {
+      this[kHeadersMap].set(lowercaseName, {
         name: exists.name,
         value: `${exists.value}${delimiter}${value}`
       })
     } else {
-      this.headersMap.set(lowercaseName, { name, value })
+      this[kHeadersMap].set(lowercaseName, { name, value })
     }
 
     if (lowercaseName === 'set-cookie') {
@@ -264,7 +194,7 @@ class HeadersList {
    * @param {boolean} isLowerCase
    */
   set (name, value, isLowerCase) {
-    this.sortedMap = null
+    this[kHeadersSortedMap] = null
     const lowercaseName = isLowerCase ? name : name.toLowerCase()
 
     if (lowercaseName === 'set-cookie') {
@@ -275,7 +205,7 @@ class HeadersList {
     //    the first such header to value and remove the
     //    others.
     // 2. Otherwise, append header (name, value) to list.
-    this.headersMap.set(lowercaseName, { name, value })
+    this[kHeadersMap].set(lowercaseName, { name, value })
   }
 
   /**
@@ -284,14 +214,14 @@ class HeadersList {
    * @param {boolean} isLowerCase
    */
   delete (name, isLowerCase) {
-    this.sortedMap = null
+    this[kHeadersSortedMap] = null
     if (!isLowerCase) name = name.toLowerCase()
 
     if (name === 'set-cookie') {
       this.cookies = null
     }
 
-    this.headersMap.delete(name)
+    this[kHeadersMap].delete(name)
   }
 
   /**
@@ -305,12 +235,12 @@ class HeadersList {
     // 2. Return the values of all headers in list whose name
     //    is a byte-case-insensitive match for name,
     //    separated from each other by 0x2C 0x20, in order.
-    return this.headersMap.get(isLowerCase ? name : name.toLowerCase())?.value ?? null
+    return this[kHeadersMap].get(isLowerCase ? name : name.toLowerCase())?.value ?? null
   }
 
   * [Symbol.iterator] () {
     // use the lowercased name
-    for (const { 0: name, 1: { value } } of this.headersMap) {
+    for (const { 0: name, 1: { value } } of this[kHeadersMap]) {
       yield [name, value]
     }
   }
@@ -318,8 +248,8 @@ class HeadersList {
   get entries () {
     const headers = {}
 
-    if (this.headersMap.size !== 0) {
-      for (const { name, value } of this.headersMap.values()) {
+    if (this[kHeadersMap].size !== 0) {
+      for (const { name, value } of this[kHeadersMap].values()) {
         headers[name] = value
       }
     }
@@ -328,14 +258,14 @@ class HeadersList {
   }
 
   rawValues () {
-    return this.headersMap.values()
+    return this[kHeadersMap].values()
   }
 
   get entriesList () {
     const headers = []
 
-    if (this.headersMap.size !== 0) {
-      for (const { 0: lowerName, 1: { name, value } } of this.headersMap) {
+    if (this[kHeadersMap].size !== 0) {
+      for (const { 0: lowerName, 1: { name, value } } of this[kHeadersMap]) {
         if (lowerName === 'set-cookie') {
           for (const cookie of this.cookies) {
             headers.push([name, cookie])
@@ -351,7 +281,7 @@ class HeadersList {
 
   // https://fetch.spec.whatwg.org/#convert-header-names-to-a-sorted-lowercase-set
   toSortedArray () {
-    const size = this.headersMap.size
+    const size = this[kHeadersMap].size
     const array = new Array(size)
     // In most cases, you will use the fast-path.
     // fast-path: Use binary insertion sort for small arrays.
@@ -362,7 +292,7 @@ class HeadersList {
       }
       // Improve performance by unrolling loop and avoiding double-loop.
       // Double-loop-less version of the binary insertion sort.
-      const iterator = this.headersMap[Symbol.iterator]()
+      const iterator = this[kHeadersMap][Symbol.iterator]()
       const firstValue = iterator.next().value
       // set [name, value] to first index.
       array[0] = [firstValue[0], firstValue[1].value]
@@ -412,7 +342,7 @@ class HeadersList {
       // This case would be a rare occurrence.
       // slow-path: fallback
       let i = 0
-      for (const { 0: name, 1: { value } } of this.headersMap) {
+      for (const { 0: name, 1: { value } } of this[kHeadersMap]) {
         array[i++] = [name, value]
         // https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
         // 3.2.2. Assert: value is non-null.
@@ -426,15 +356,8 @@ class HeadersList {
 // https://fetch.spec.whatwg.org/#headers-class
 class Headers {
   #guard
-  /**
-   * @type {HeadersList}
-   */
   #headersList
 
-  /**
-   * @param {HeadersInit|Symbol} [init]
-   * @returns
-   */
   constructor (init = undefined) {
     webidl.util.markAsUncloneable(this)
 
@@ -451,7 +374,7 @@ class Headers {
 
     // 2. If init is given, then fill this with init.
     if (init !== undefined) {
-      init = webidl.converters.HeadersInit(init, 'Headers constructor', 'init')
+      init = webidl.converters.HeadersInit(init, 'Headers contructor', 'init')
       fill(this, init)
     }
   }
@@ -624,6 +547,58 @@ class Headers {
     return []
   }
 
+  // https://fetch.spec.whatwg.org/#concept-header-list-sort-and-combine
+  get [kHeadersSortedMap] () {
+    if (this.#headersList[kHeadersSortedMap]) {
+      return this.#headersList[kHeadersSortedMap]
+    }
+
+    // 1. Let headers be an empty list of headers with the key being the name
+    //    and value the value.
+    const headers = []
+
+    // 2. Let names be the result of convert header names to a sorted-lowercase
+    //    set with all the names of the headers in list.
+    const names = this.#headersList.toSortedArray()
+
+    const cookies = this.#headersList.cookies
+
+    // fast-path
+    if (cookies === null || cookies.length === 1) {
+      // Note: The non-null assertion of value has already been done by `HeadersList#toSortedArray`
+      return (this.#headersList[kHeadersSortedMap] = names)
+    }
+
+    // 3. For each name of names:
+    for (let i = 0; i < names.length; ++i) {
+      const { 0: name, 1: value } = names[i]
+      // 1. If name is `set-cookie`, then:
+      if (name === 'set-cookie') {
+        // 1. Let values be a list of all values of headers in list whose name
+        //    is a byte-case-insensitive match for name, in order.
+
+        // 2. For each value of values:
+        // 1. Append (name, value) to headers.
+        for (let j = 0; j < cookies.length; ++j) {
+          headers.push([name, cookies[j]])
+        }
+      } else {
+        // 2. Otherwise:
+
+        // 1. Let value be the result of getting name from list.
+
+        // 2. Assert: value is non-null.
+        // Note: This operation was done by `HeadersList#toSortedArray`.
+
+        // 3. Append (name, value) to headers.
+        headers.push([name, value])
+      }
+    }
+
+    // 4. Return headers.
+    return (this.#headersList[kHeadersSortedMap] = headers)
+  }
+
   [util.inspect.custom] (depth, options) {
     options.depth ??= depth
 
@@ -638,19 +613,12 @@ class Headers {
     o.#guard = guard
   }
 
-  /**
-   * @param {Headers} o
-   */
   static getHeadersList (o) {
     return o.#headersList
   }
 
-  /**
-   * @param {Headers} target
-   * @param {HeadersList} list
-   */
-  static setHeadersList (target, list) {
-    target.#headersList = list
+  static setHeadersList (o, list) {
+    o.#headersList = list
   }
 }
 
@@ -660,7 +628,7 @@ Reflect.deleteProperty(Headers, 'setHeadersGuard')
 Reflect.deleteProperty(Headers, 'getHeadersList')
 Reflect.deleteProperty(Headers, 'setHeadersList')
 
-iteratorMixin('Headers', Headers, headersListSortAndCombine, 0, 1)
+iteratorMixin('Headers', Headers, kHeadersSortedMap, 0, 1)
 
 Object.defineProperties(Headers.prototype, {
   append: kEnumerableProperty,
@@ -679,7 +647,7 @@ Object.defineProperties(Headers.prototype, {
 })
 
 webidl.converters.HeadersInit = function (V, prefix, argument) {
-  if (webidl.util.Type(V) === webidl.util.Types.OBJECT) {
+  if (webidl.util.Type(V) === 'Object') {
     const iterator = Reflect.get(V, Symbol.iterator)
 
     // A work-around to ensure we send the properly-cased Headers when V is a Headers object.

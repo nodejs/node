@@ -28,8 +28,7 @@ const defaultReconnectionTime = 3000
 
 /**
  * The readyState attribute represents the state of the connection.
- * @typedef ReadyState
- * @type {0|1|2}
+ * @enum
  * @readonly
  * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#dom-eventsource-readystate-dev
  */
@@ -81,12 +80,9 @@ class EventSource extends EventTarget {
     message: null
   }
 
-  #url
+  #url = null
   #withCredentials = false
 
-  /**
-   * @type {ReadyState}
-   */
   #readyState = CONNECTING
 
   #request = null
@@ -102,7 +98,7 @@ class EventSource extends EventTarget {
   /**
    * Creates a new EventSource object.
    * @param {string} url
-   * @param {EventSourceInit} [eventSourceInitDict={}]
+   * @param {EventSourceInit} [eventSourceInitDict]
    * @see https://html.spec.whatwg.org/multipage/server-sent-events.html#the-eventsource-interface
    */
   constructor (url, eventSourceInitDict = {}) {
@@ -121,7 +117,7 @@ class EventSource extends EventTarget {
       })
     }
 
-    url = webidl.converters.USVString(url)
+    url = webidl.converters.USVString(url, prefix, 'url')
     eventSourceInitDict = webidl.converters.EventSourceInitDict(eventSourceInitDict, prefix, 'eventSourceInitDict')
 
     this.#dispatcher = eventSourceInitDict.dispatcher
@@ -154,7 +150,7 @@ class EventSource extends EventTarget {
     // 7. If the value of eventSourceInitDict's withCredentials member is true,
     // then set corsAttributeState to Use Credentials and set ev's
     // withCredentials attribute to true.
-    if (eventSourceInitDict.withCredentials === true) {
+    if (eventSourceInitDict.withCredentials) {
       corsAttributeState = USE_CREDENTIALS
       this.#withCredentials = true
     }
@@ -195,7 +191,7 @@ class EventSource extends EventTarget {
   /**
    * Returns the state of this EventSource object's connection. It can have the
    * values described below.
-   * @returns {ReadyState}
+   * @returns {0|1|2}
    * @readonly
    */
   get readyState () {

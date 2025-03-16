@@ -22,9 +22,10 @@ const badPorts = /** @type {const} */ ([
 const badPortsSet = new Set(badPorts)
 
 /**
- * @see https://w3c.github.io/webappsec-referrer-policy/#referrer-policy-header
+ * @see https://w3c.github.io/webappsec-referrer-policy/#referrer-policies
  */
-const referrerPolicyTokens = /** @type {const} */ ([
+const referrerPolicy = /** @type {const} */ ([
+  '',
   'no-referrer',
   'no-referrer-when-downgrade',
   'same-origin',
@@ -34,15 +35,7 @@ const referrerPolicyTokens = /** @type {const} */ ([
   'strict-origin-when-cross-origin',
   'unsafe-url'
 ])
-
-/**
- * @see https://w3c.github.io/webappsec-referrer-policy/#referrer-policies
- */
-const referrerPolicy = /** @type {const} */ ([
-  '',
-  ...referrerPolicyTokens
-])
-const referrerPolicyTokensSet = new Set(referrerPolicyTokens)
+const referrerPolicySet = new Set(referrerPolicy)
 
 const requestRedirect = /** @type {const} */ (['follow', 'manual', 'error'])
 
@@ -127,5 +120,5 @@ module.exports = {
   corsSafeListedMethodsSet,
   safeMethodsSet,
   forbiddenMethodsSet,
-  referrerPolicyTokens: referrerPolicyTokensSet
+  referrerPolicySet
 }
