@@ -1561,9 +1561,11 @@ equality.
 added:
   - v19.1.0
   - v18.13.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 An implementation of [the MIMEType class](https://bmeck.github.io/node-proposal-mime-api/).
 
@@ -2691,9 +2693,11 @@ Unicode "replacement character" U+FFFD.
 
 <!-- YAML
 added: v18.11.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 Creates and returns an {AbortController} instance whose {AbortSignal} is marked
 as transferable and can be used with `structuredClone()` or `postMessage()`.
@@ -2702,9 +2706,11 @@ as transferable and can be used with `structuredClone()` or `postMessage()`.
 
 <!-- YAML
 added: v18.11.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
 * Returns: {AbortSignal}
