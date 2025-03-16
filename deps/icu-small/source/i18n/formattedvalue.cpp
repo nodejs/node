@@ -193,6 +193,11 @@ ucfpos_close(UConstrainedFieldPosition* ptr) {
 }
 
 
+// -Wreturn-local-addr first found in https://gcc.gnu.org/onlinedocs/gcc-4.8.5/gcc/Warning-Options.html#Warning-Options
+#if U_GCC_MAJOR_MINOR >= 409
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wreturn-local-addr"
+#endif
 U_CAPI const char16_t* U_EXPORT2
 ufmtval_getString(
         const UFormattedValue* ufmtval,
@@ -213,6 +218,9 @@ ufmtval_getString(
     // defined to return memory owned by the ufmtval argument.
     return readOnlyAlias.getBuffer();
 }
+#if U_GCC_MAJOR_MINOR >= 409
+#pragma GCC diagnostic pop
+#endif
 
 
 U_CAPI UBool U_EXPORT2

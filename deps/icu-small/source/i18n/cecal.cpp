@@ -53,7 +53,6 @@ static const int32_t LIMITS[UCAL_FIELD_COUNT][4] = {
 CECalendar::CECalendar(const Locale& aLocale, UErrorCode& success)
 :   Calendar(TimeZone::forLocaleOrDefault(aLocale), aLocale, success)
 {
-    setTimeInMillis(getNow(), success);
 }
 
 CECalendar::CECalendar (const CECalendar& other) 
@@ -63,13 +62,6 @@ CECalendar::CECalendar (const CECalendar& other)
 
 CECalendar::~CECalendar()
 {
-}
-
-CECalendar&
-CECalendar::operator=(const CECalendar& right)
-{
-    Calendar::operator=(right);
-    return *this;
 }
 
 //-------------------------------------------------------------------------

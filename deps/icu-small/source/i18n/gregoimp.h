@@ -210,8 +210,21 @@ class Grego {
      * @param doy output parameter to receive day-of-year (1-based)
      * @param status error code.
      */
-    static void dayToFields(int32_t day, int32_t& year, int32_t& month,
-                            int32_t& dom, int32_t& dow, int32_t& doy, UErrorCode& status);
+    static void dayToFields(int32_t day, int32_t& year, int8_t& month,
+                            int8_t& dom, int8_t& dow, int16_t& doy, UErrorCode& status);
+
+    /**
+     * Convert a 1970-epoch day number to proleptic Gregorian year,
+     * month, day-of-month, and day-of-week.
+     * @param day 1970-epoch day
+     * @param year output parameter to receive year
+     * @param month output parameter to receive month (0-based, 0==Jan)
+     * @param dom output parameter to receive day-of-month (1-based)
+     * @param doy output parameter to receive day-of-year (1-based)
+     * @param status error code.
+     */
+    static void dayToFields(int32_t day, int32_t& year, int8_t& month,
+                            int8_t& dom, int16_t& doy, UErrorCode& status);
 
     /**
      * Convert a 1970-epoch day number to proleptic Gregorian year,
@@ -223,8 +236,24 @@ class Grego {
      * @param dow output parameter to receive day-of-week (1-based, 1==Sun)
      * @param status error code.
      */
-    static inline void dayToFields(int32_t day, int32_t& year, int32_t& month,
-                                   int32_t& dom, int32_t& dow, UErrorCode& status);
+    static void dayToFields(int32_t day, int32_t& year, int8_t& month,
+                            int8_t& dom, int8_t& dow, UErrorCode& status);
+
+    /**
+     * Convert a 1970-epoch day number to proleptic Gregorian year.
+     * @param day 1970-epoch day
+     * @param status error code.
+     * @return year.
+     */
+    static int32_t dayToYear(int32_t day, UErrorCode& status);
+    /**
+     * Convert a 1970-epoch day number to proleptic Gregorian year.
+     * @param day 1970-epoch day
+     * @param doy output parameter to receive day-of-year (1-based)
+     * @param status error code.
+     * @return year.
+     */
+    static int32_t dayToYear(int32_t day, int16_t& doy, UErrorCode& status);
 
     /**
      * Convert a 1970-epoch milliseconds to proleptic Gregorian year,
@@ -238,8 +267,43 @@ class Grego {
      * @param mid output parameter to receive millis-in-day
      * @param status error code.
      */
-    static void timeToFields(UDate time, int32_t& year, int32_t& month,
-                            int32_t& dom, int32_t& dow, int32_t& doy, int32_t& mid, UErrorCode& status);
+    static void timeToFields(UDate time, int32_t& year, int8_t& month,
+                            int8_t& dom, int8_t& dow, int16_t& doy, int32_t& mid, UErrorCode& status);
+
+    /**
+     * Convert a 1970-epoch milliseconds to proleptic Gregorian year,
+     * month, day-of-month, and day-of-week, day of year and millis-in-day.
+     * @param time 1970-epoch milliseconds
+     * @param year output parameter to receive year
+     * @param month output parameter to receive month (0-based, 0==Jan)
+     * @param dom output parameter to receive day-of-month (1-based)
+     * @param dow output parameter to receive day-of-week (1-based, 1==Sun)
+     * @param mid output parameter to receive millis-in-day
+     * @param status error code.
+     */
+    static void timeToFields(UDate time, int32_t& year, int8_t& month,
+                            int8_t& dom, int8_t& dow, int32_t& mid, UErrorCode& status);
+
+    /**
+     * Convert a 1970-epoch milliseconds to proleptic Gregorian year,
+     * month, day-of-month, and day-of-week, day of year and millis-in-day.
+     * @param time 1970-epoch milliseconds
+     * @param year output parameter to receive year
+     * @param month output parameter to receive month (0-based, 0==Jan)
+     * @param dom output parameter to receive day-of-month (1-based)
+     * @param mid output parameter to receive millis-in-day
+     * @param status error code.
+     */
+    static void timeToFields(UDate time, int32_t& year, int8_t& month,
+                            int8_t& dom, int32_t& mid, UErrorCode& status);
+
+    /**
+     * Convert a 1970-epoch milliseconds to proleptic Gregorian year.
+     * @param time 1970-epoch milliseconds
+     * @param status error code.
+     * @return year.
+     */
+    static int32_t timeToYear(UDate time, UErrorCode& status);
 
     /**
      * Return the day of week on the 1970-epoch day
@@ -303,12 +367,6 @@ Grego::monthLength(int32_t year, int32_t month) {
 inline int8_t
 Grego::previousMonthLength(int y, int m) {
   return (m > 0) ? monthLength(y, m-1) : 31;
-}
-
-inline void Grego::dayToFields(int32_t day, int32_t& year, int32_t& month,
-                               int32_t& dom, int32_t& dow, UErrorCode& status) {
-  int32_t doy_unused;
-  dayToFields(day,year,month,dom,dow,doy_unused, status);
 }
 
 inline double Grego::julianDayToMillis(int32_t julian)

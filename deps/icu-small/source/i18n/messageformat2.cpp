@@ -3,6 +3,8 @@
 
 #include "unicode/utypes.h"
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -11,8 +13,10 @@
 #include "unicode/messageformat2_data_model.h"
 #include "unicode/messageformat2_formattable.h"
 #include "unicode/messageformat2.h"
+#include "unicode/normalizer2.h"
 #include "unicode/unistr.h"
 #include "messageformat2_allocation.h"
+#include "messageformat2_checker.h"
 #include "messageformat2_evaluation.h"
 #include "messageformat2_macros.h"
 
@@ -37,7 +41,7 @@ static Formattable evalLiteral(const Literal& lit) {
         // The fallback for a variable name is itself.
         UnicodeString str(DOLLAR);
         str += var;
-        const Formattable* val = context.getGlobal(var, errorCode);
+        const Formattable* val = context.getGlobal(*this, var, errorCode);
         if (U_SUCCESS(errorCode)) {
             return (FormattedPlaceholder(*val, str));
         }
@@ -51,16 +55,16 @@ static Formattable evalLiteral(const Literal& lit) {
     return FormattedPlaceholder(evalLiteral(lit), lit.quoted());
 }
 
-[[nodiscard]] FormattedPlaceholder MessageFormatter::formatOperand(const Environment& env,
-                                                             const Operand& rand,
-                                                             MessageContext& context,
-                                                             UErrorCode &status) const {
+[[nodiscard]] InternalValue* MessageFormatter::formatOperand(const Environment& env,
+                                                            const Operand& rand,
+                                                            MessageContext& context,
+                                                            UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return {};
     }
 
     if (rand.isNull()) {
-        return FormattedPlaceholder();
+        return create<InternalValue>(InternalValue(FormattedPlaceholder()), status);
     }
     if (rand.isVariable()) {
         // Check if it's local or global
@@ -71,15 +75,19 @@ static Formattable evalLiteral(const Literal& lit) {
         // Eager vs. lazy evaluation is an open issue:
         // see https://github.com/unicode-org/message-format-wg/issues/299
 
+        // NFC-normalize the variable name. See
+        // https://github.com/unicode-org/message-format-wg/blob/main/spec/syntax.md#names-and-identifiers
+        const VariableName normalized = normalizeNFC(var);
+
         // Look up the variable in the environment
-        if (env.has(var)) {
+        if (env.has(normalized)) {
           // `var` is a local -- look it up
-          const Closure& rhs = env.lookup(var);
+          const Closure& rhs = env.lookup(normalized);
           // Format the expression using the environment from the closure
           return formatExpression(rhs.getEnv(), rhs.getExpr(), context, status);
         }
         // Variable wasn't found in locals -- check if it's global
-        FormattedPlaceholder result = evalArgument(var, context, status);
+        FormattedPlaceholder result = evalArgument(normalized, context, status);
         if (status == U_ILLEGAL_ARGUMENT_ERROR) {
             status = U_ZERO_ERROR;
             // Unbound variable -- set a resolution error
@@ -88,12 +96,12 @@ static Formattable evalLiteral(const Literal& lit) {
             // https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#fallback-resolution
             UnicodeString str(DOLLAR);
             str += var;
-            return FormattedPlaceholder(str);
+            return create<InternalValue>(InternalValue(FormattedPlaceholder(str)), status);
         }
-        return result;
+        return create<InternalValue>(InternalValue(std::move(result)), status);
     } else {
         U_ASSERT(rand.isLiteral());
-        return formatLiteral(rand.asLiteral());
+        return create<InternalValue>(InternalValue(formatLiteral(rand.asLiteral())), status);
     }
 }
 
@@ -114,28 +122,32 @@ FunctionOptions MessageFormatter::resolveOptions(const Environment& env, const O
 
         // Options are fully evaluated before calling the function
         // Format the operand
-        FormattedPlaceholder rhsVal = formatOperand(env, v, context, status);
+        LocalPointer<InternalValue> rhsVal(formatOperand(env, v, context, status));
         if (U_FAILURE(status)) {
             return {};
         }
-        if (!rhsVal.isFallback()) {
-            resolvedOpt.adoptInstead(create<ResolvedFunctionOption>(ResolvedFunctionOption(k, rhsVal.asFormattable()), status));
-            if (U_FAILURE(status)) {
-                return {};
-            }
-            optionsVector->adoptElement(resolvedOpt.orphan(), status);
+        // Note: this means option values are "eagerly" evaluated.
+        // Currently, options don't have options. This will be addressed by the
+        // full FormattedPlaceholder redesign.
+        FormattedPlaceholder optValue = rhsVal->forceFormatting(context.getErrors(), status);
+        resolvedOpt.adoptInstead(create<ResolvedFunctionOption>
+                                 (ResolvedFunctionOption(k,
+                                                         optValue.asFormattable()),
+                                  status));
+        if (U_FAILURE(status)) {
+            return {};
         }
+        optionsVector->adoptElement(resolvedOpt.orphan(), status);
     }
-
     return FunctionOptions(std::move(*optionsVector), status);
 }
 
 // Overload that dispatches on argument type. Syntax doesn't provide for options in this case.
-[[nodiscard]] FormattedPlaceholder MessageFormatter::evalFormatterCall(FormattedPlaceholder&& argument,
-                                                                       MessageContext& context,
-                                                                       UErrorCode& status) const {
+[[nodiscard]] InternalValue* MessageFormatter::evalFunctionCall(FormattedPlaceholder&& argument,
+                                                                MessageContext& context,
+                                                                UErrorCode& status) const {
     if (U_FAILURE(status)) {
-        return {};
+        return nullptr;
     }
 
     // These cases should have been checked for already
@@ -153,11 +165,11 @@ FunctionOptions MessageFormatter::resolveOptions(const Environment& env, const O
             // No formatter for this type -- follow default behavior
             break;
         }
-        return evalFormatterCall(functionName,
-                                 std::move(argument),
-                                 FunctionOptions(),
-                                 context,
-                                 status);
+        return evalFunctionCall(functionName,
+                                create<InternalValue>(std::move(argument), status),
+                                FunctionOptions(),
+                                context,
+                                status);
     }
     default: {
         // TODO: The array case isn't handled yet; not sure whether it's desirable
@@ -167,104 +179,76 @@ FunctionOptions MessageFormatter::resolveOptions(const Environment& env, const O
     }
     // No formatter for this type, or it's a primitive type (which will be formatted later)
     // -- just return the argument itself
-    return std::move(argument);
+    return create<InternalValue>(std::move(argument), status);
 }
 
 // Overload that dispatches on function name
-[[nodiscard]] FormattedPlaceholder MessageFormatter::evalFormatterCall(const FunctionName& functionName,
-                                                                 FormattedPlaceholder&& argument,
-                                                                 FunctionOptions&& options,
-                                                                 MessageContext& context,
-                                                                 UErrorCode& status) const {
+// Adopts `arg`
+[[nodiscard]] InternalValue* MessageFormatter::evalFunctionCall(const FunctionName& functionName,
+                                                                InternalValue* arg_,
+                                                                FunctionOptions&& options,
+                                                                MessageContext& context,
+                                                                UErrorCode& status) const {
     if (U_FAILURE(status)) {
         return {};
     }
 
-    DynamicErrors& errs = context.getErrors();
+    LocalPointer<InternalValue> arg(arg_);
 
-    UnicodeString fallback(COLON);
-    fallback += functionName;
-    if (!argument.isNullOperand()) {
-        fallback = argument.fallback;
-    }
-
+    // Look up the formatter or selector
+    LocalPointer<Formatter> formatterImpl(nullptr);
+    LocalPointer<Selector> selectorImpl(nullptr);
     if (isFormatter(functionName)) {
-        LocalPointer<Formatter> formatterImpl(getFormatter(functionName, status));
-        if (U_FAILURE(status)) {
-            if (status == U_MF_FORMATTING_ERROR) {
-                errs.setFormattingError(functionName, status);
-                status = U_ZERO_ERROR;
-                return {};
-            }
-            if (status == U_MF_UNKNOWN_FUNCTION_ERROR) {
-                errs.setUnknownFunction(functionName, status);
-                status = U_ZERO_ERROR;
-                return {};
-            }
-            // Other errors are non-recoverable
-            return {};
-        }
-        U_ASSERT(formatterImpl != nullptr);
-
-        UErrorCode savedStatus = status;
-        FormattedPlaceholder result = formatterImpl->format(std::move(argument), std::move(options), status);
-        // Update errors
-        if (savedStatus != status) {
-            if (U_FAILURE(status)) {
-                if (status == U_MF_OPERAND_MISMATCH_ERROR) {
-                    status = U_ZERO_ERROR;
-                    errs.setOperandMismatchError(functionName, status);
-                } else {
-                    status = U_ZERO_ERROR;
-                    // Convey any error generated by the formatter
-                    // as a formatting error, except for operand mismatch errors
-                    errs.setFormattingError(functionName, status);
-                }
-                return FormattedPlaceholder(fallback);
-            } else {
-                // Ignore warnings
-                status = savedStatus;
-            }
-        }
-        // Ignore the output if any errors occurred
-        if (errs.hasFormattingError()) {
-            return FormattedPlaceholder(fallback);
-        }
-        return result;
+        formatterImpl.adoptInstead(getFormatter(functionName, status));
+        U_ASSERT(U_SUCCESS(status));
     }
-    // No formatter with this name -- set error
     if (isSelector(functionName)) {
-        errs.setFormattingError(functionName, status);
-    } else {
-        errs.setUnknownFunction(functionName, status);
+        selectorImpl.adoptInstead(getSelector(context, functionName, status));
+        U_ASSERT(U_SUCCESS(status));
     }
-    return FormattedPlaceholder(fallback);
+    if (formatterImpl == nullptr && selectorImpl == nullptr) {
+        // Unknown function error
+        context.getErrors().setUnknownFunction(functionName, status);
+
+        if (arg->hasNullOperand()) {
+            // Non-selector used as selector; an error would have been recorded earlier
+            UnicodeString fallback(COLON);
+            fallback += functionName;
+            return new InternalValue(FormattedPlaceholder(fallback));
+        } else {
+            return new InternalValue(FormattedPlaceholder(arg->getFallback()));
+        }
+    }
+    return new InternalValue(arg.orphan(),
+                             std::move(options),
+                             functionName,
+                             formatterImpl.isValid() ? formatterImpl.orphan() : nullptr,
+                             selectorImpl.isValid() ? selectorImpl.orphan() : nullptr);
 }
 
 // Formats an expression using `globalEnv` for the values of variables
-[[nodiscard]] FormattedPlaceholder MessageFormatter::formatExpression(const Environment& globalEnv,
-                                                                const Expression& expr,
-                                                                MessageContext& context,
-                                                                UErrorCode &status) const {
+[[nodiscard]] InternalValue* MessageFormatter::formatExpression(const Environment& globalEnv,
+                                                               const Expression& expr,
+                                                               MessageContext& context,
+                                                               UErrorCode &status) const {
     if (U_FAILURE(status)) {
         return {};
     }
 
     const Operand& rand = expr.getOperand();
     // Format the operand (formatOperand handles the case of a null operand)
-    FormattedPlaceholder randVal = formatOperand(globalEnv, rand, context, status);
+    LocalPointer<InternalValue> randVal(formatOperand(globalEnv, rand, context, status));
 
-    // Don't call the function on error values
-    if (randVal.isFallback()) {
-        return randVal;
-    }
+    FormattedPlaceholder maybeRand = randVal->takeArgument(status);
 
-    if (!expr.isFunctionCall()) {
+    if (!expr.isFunctionCall() && U_SUCCESS(status)) {
         // Dispatch based on type of `randVal`
-        return evalFormatterCall(std::move(randVal),
-                                 context,
-                                 status);
-    } else {
+         if (maybeRand.isFallback()) {
+            return randVal.orphan();
+        }
+        return evalFunctionCall(std::move(maybeRand), context, status);
+    } else if (expr.isFunctionCall()) {
+        status = U_ZERO_ERROR;
         const Operator* rator = expr.getOperator(status);
         U_ASSERT(U_SUCCESS(status));
         const FunctionName& functionName = rator->getFunctionName();
@@ -273,19 +257,14 @@ FunctionOptions MessageFormatter::resolveOptions(const Environment& env, const O
         FunctionOptions resolvedOptions = resolveOptions(globalEnv, options, context, status);
 
         // Call the formatter function
-        // The fallback for a nullary function call is the function name
-        UnicodeString fallback;
-        if (rand.isNull()) {
-            fallback = UnicodeString(COLON);
-            fallback += functionName;
-        } else {
-            fallback = randVal.fallback;
-        }
-        return evalFormatterCall(functionName,
-                                 std::move(randVal),
-                                 std::move(resolvedOptions),
-                                 context,
-                                 status);
+        return evalFunctionCall(functionName,
+                                randVal.orphan(),
+                                std::move(resolvedOptions),
+                                context,
+                                status);
+    } else {
+        status = U_ZERO_ERROR;
+        return randVal.orphan();
     }
 }
 
@@ -301,11 +280,13 @@ void MessageFormatter::formatPattern(MessageContext& context, const Environment&
             // Markup is ignored
         } else {
 	      // Format the expression
-	      FormattedPlaceholder partVal = formatExpression(globalEnv, part.contents(), context, status);
-	      // Force full evaluation, e.g. applying default formatters to
+              LocalPointer<InternalValue> partVal(
+                  formatExpression(globalEnv, part.contents(), context, status));
+              FormattedPlaceholder partResult = partVal->forceFormatting(context.getErrors(),
+                                                                         status);
+              // Force full evaluation, e.g. applying default formatters to
 	      // unformatted input (or formatting numbers as strings)
-              UnicodeString partResult = partVal.formatToString(locale, status);
-              result += partResult;
+              result += partResult.formatToString(locale, status);
               // Handle formatting errors. `formatToString()` can't take a context and thus can't
               // register an error directly
               if (status == U_MF_FORMATTING_ERROR) {
@@ -328,14 +309,14 @@ void MessageFormatter::resolveSelectors(MessageContext& context, const Environme
     CHECK_ERROR(status);
     U_ASSERT(!dataModel.hasPattern());
 
-    const Expression* selectors = dataModel.getSelectorsInternal();
+    const VariableName* selectors = dataModel.getSelectorsInternal();
     // 1. Let res be a new empty list of resolved values that support selection.
     // (Implicit, since `res` is an out-parameter)
     // 2. For each expression exp of the message's selectors
     for (int32_t i = 0; i < dataModel.numSelectors(); i++) {
         // 2i. Let rv be the resolved value of exp.
-        ResolvedSelector rv = formatSelectorExpression(env, selectors[i], context, status);
-        if (rv.hasSelector()) {
+        LocalPointer<InternalValue> rv(formatOperand(env, Operand(selectors[i]), context, status));
+        if (rv->canSelect()) {
             // 2ii. If selection is supported for rv:
             // (True if this code has been reached)
         } else {
@@ -344,17 +325,17 @@ void MessageFormatter::resolveSelectors(MessageContext& context, const Environme
             // Append nomatch as the last element of the list res.
             // Emit a Selection Error.
             // (Note: in this case, rv, being a fallback, serves as `nomatch`)
-            #if U_DEBUG
-            const DynamicErrors& err = context.getErrors();
-            U_ASSERT(err.hasError());
-            U_ASSERT(rv.argument().isFallback());
-            #endif
+            DynamicErrors& err = context.getErrors();
+            err.setSelectorError(rv->getFunctionName(), status);
+            rv.adoptInstead(new InternalValue(FormattedPlaceholder(rv->getFallback())));
+            if (!rv.isValid()) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
         }
         // 2ii(a). Append rv as the last element of the list res.
         // (Also fulfills 2iii)
-        LocalPointer<ResolvedSelector> v(create<ResolvedSelector>(std::move(rv), status));
-        CHECK_ERROR(status);
-        res.adoptElement(v.orphan(), status);
+        res.adoptElement(rv.orphan(), status);
     }
 }
 
@@ -362,18 +343,17 @@ void MessageFormatter::resolveSelectors(MessageContext& context, const Environme
 // `keys` and `matches` are vectors of strings
 void MessageFormatter::matchSelectorKeys(const UVector& keys,
                                          MessageContext& context,
-					 ResolvedSelector&& rv,
+					 InternalValue* rv, // Does not adopt `rv`
 					 UVector& keysOut,
 					 UErrorCode& status) const {
     CHECK_ERROR(status);
 
-    if (!rv.hasSelector()) {
+    if (U_FAILURE(status)) {
         // Return an empty list of matches
+        status = U_ZERO_ERROR;
         return;
     }
 
-    auto selectorImpl = rv.getSelector();
-    U_ASSERT(selectorImpl != nullptr);
     UErrorCode savedStatus = status;
 
     // Convert `keys` to an array
@@ -400,15 +380,17 @@ void MessageFormatter::matchSelectorKeys(const UVector& keys,
     int32_t prefsLen = 0;
 
     // Call the selector
-    selectorImpl->selectKey(rv.takeArgument(), rv.takeOptions(),
-                            adoptedKeys.getAlias(), keysLen, adoptedPrefs.getAlias(), prefsLen,
-                            status);
+    FunctionName name = rv->getFunctionName();
+    rv->forceSelection(context.getErrors(),
+                       adoptedKeys.getAlias(), keysLen,
+                       adoptedPrefs.getAlias(), prefsLen,
+                       status);
 
     // Update errors
     if (savedStatus != status) {
         if (U_FAILURE(status)) {
             status = U_ZERO_ERROR;
-            context.getErrors().setSelectorError(rv.getSelectorName(), status);
+            context.getErrors().setSelectorError(name, status);
         } else {
             // Ignore warnings
             status = savedStatus;
@@ -461,8 +443,8 @@ void MessageFormatter::resolvePreferences(MessageContext& context, UVector& res,
             if (!key.isWildcard()) {
                 // 2ii(b)(a) Assert that key is a literal.
                 // (Not needed)
-                // 2ii(b)(b) Let `ks` be the resolved value of `key`.
-                ks = key.asLiteral().unquoted();
+                // 2ii(b)(b) Let `ks` be the resolved value of `key` in Unicode Normalization Form C.
+                ks = normalizeNFC(key.asLiteral().unquoted());
                 // 2ii(b)(c) Append `ks` as the last element of the list `keys`.
                 ksP.adoptInstead(create<UnicodeString>(std::move(ks), status));
                 CHECK_ERROR(status);
@@ -471,7 +453,7 @@ void MessageFormatter::resolvePreferences(MessageContext& context, UVector& res,
         }
         // 2iii. Let `rv` be the resolved value at index `i` of `res`.
         U_ASSERT(i < res.size());
-        ResolvedSelector rv = std::move(*(static_cast<ResolvedSelector*>(res[i])));
+        InternalValue* rv = static_cast<InternalValue*>(res[i]);
         // 2iv. Let matches be the result of calling the method MatchSelectorKeys(rv, keys)
         LocalPointer<UVector> matches(createUVector(status));
         matchSelectorKeys(*keys, context, std::move(rv), *matches, status);
@@ -523,7 +505,7 @@ void MessageFormatter::filterVariants(const UVector& pref, UVector& vars, UError
             // 2i(c). Assert that `key` is a literal.
             // (Not needed)
             // 2i(d). Let `ks` be the resolved value of `key`.
-            UnicodeString ks = key.asLiteral().unquoted();
+            UnicodeString ks = normalizeNFC(key.asLiteral().unquoted());
             // 2i(e). Let `matches` be the list of strings at index `i` of `pref`.
             const UVector& matches = *(static_cast<UVector*>(pref[i])); // `matches` is a vector of strings
             // 2i(f). If `matches` includes `ks`
@@ -585,7 +567,7 @@ void MessageFormatter::sortVariants(const UVector& pref, UVector& vars, UErrorCo
                 // 5iii(c)(a). Assert that `key` is a literal.
                 // (Not needed)
                 // 5iii(c)(b). Let `ks` be the resolved value of `key`.
-                UnicodeString ks = key.asLiteral().unquoted();
+                UnicodeString ks = normalizeNFC(key.asLiteral().unquoted());
                 // 5iii(c)(c) Let matchpref be the integer position of ks in `matches`.
                 matchpref = vectorFind(matches, ks);
                 U_ASSERT(matchpref >= 0);
@@ -604,123 +586,13 @@ void MessageFormatter::sortVariants(const UVector& pref, UVector& vars, UErrorCo
     // 7. Select the pattern of `var`
 }
 
-
-// Evaluate the operand
-ResolvedSelector MessageFormatter::resolveVariables(const Environment& env, const Operand& rand, MessageContext& context, UErrorCode &status) const {
-    if (U_FAILURE(status)) {
-        return {};
-    }
-
-    if (rand.isNull()) {
-        return ResolvedSelector(FormattedPlaceholder());
-    }
-
-    if (rand.isLiteral()) {
-        return ResolvedSelector(formatLiteral(rand.asLiteral()));
-    }
-
-    // Must be variable
-    const VariableName& var = rand.asVariable();
-    // Resolve the variable
-    if (env.has(var)) {
-        const Closure& referent = env.lookup(var);
-        // Resolve the referent
-        return resolveVariables(referent.getEnv(), referent.getExpr(), context, status);
-    }
-    // Either this is a global var or an unbound var --
-    // either way, it can't be bound to a function call.
-    // Check globals
-    FormattedPlaceholder val = evalArgument(var, context, status);
-    if (status == U_ILLEGAL_ARGUMENT_ERROR) {
-        status = U_ZERO_ERROR;
-        // Unresolved variable -- could be a previous warning. Nothing to resolve
-        U_ASSERT(context.getErrors().hasUnresolvedVariableError());
-        return ResolvedSelector(FormattedPlaceholder(var));
-    }
-    // Pass through other errors
-    return ResolvedSelector(std::move(val));
-}
-
-// Evaluate the expression except for not performing the top-level function call
-// (which is expected to be a selector, but may not be, in error cases)
-ResolvedSelector MessageFormatter::resolveVariables(const Environment& env,
-                                                    const Expression& expr,
-                                                    MessageContext& context,
-                                                    UErrorCode &status) const {
-    if (U_FAILURE(status)) {
-        return {};
-    }
-
-    // Function call -- resolve the operand and options
-    if (expr.isFunctionCall()) {
-        const Operator* rator = expr.getOperator(status);
-        U_ASSERT(U_SUCCESS(status));
-        // Already checked that rator is non-reserved
-        const FunctionName& selectorName = rator->getFunctionName();
-        if (isSelector(selectorName)) {
-            auto selector = getSelector(context, selectorName, status);
-            if (U_SUCCESS(status)) {
-                FunctionOptions resolvedOptions = resolveOptions(env, rator->getOptionsInternal(), context, status);
-                // Operand may be the null argument, but resolveVariables() handles that
-                FormattedPlaceholder argument = formatOperand(env, expr.getOperand(), context, status);
-                return ResolvedSelector(selectorName, selector, std::move(resolvedOptions), std::move(argument));
-            }
-        } else if (isFormatter(selectorName)) {
-            context.getErrors().setSelectorError(selectorName, status);
-        } else {
-            context.getErrors().setUnknownFunction(selectorName, status);
-        }
-        // Non-selector used as selector; an error would have been recorded earlier
-        UnicodeString fallback(COLON);
-        fallback += selectorName;
-        if (!expr.getOperand().isNull()) {
-            fallback = formatOperand(env, expr.getOperand(), context, status).fallback;
-        }
-        return ResolvedSelector(FormattedPlaceholder(fallback));
-    } else {
-        // Might be a variable reference, so expand one more level of variable
-        return resolveVariables(env, expr.getOperand(), context, status);
-    }
-}
-
-ResolvedSelector MessageFormatter::formatSelectorExpression(const Environment& globalEnv, const Expression& expr, MessageContext& context, UErrorCode &status) const {
-    if (U_FAILURE(status)) {
-        return {};
-    }
-
-    // Resolve expression to determine if it's a function call
-    ResolvedSelector exprResult = resolveVariables(globalEnv, expr, context, status);
-
-    DynamicErrors& err = context.getErrors();
-
-    // If there is a selector, then `resolveVariables()` recorded it in the context
-    if (exprResult.hasSelector()) {
-        // Check if there was an error
-        if (exprResult.argument().isFallback()) {
-            // Use a null expression if it's a syntax or data model warning;
-            // create a valid (non-fallback) formatted placeholder from the
-            // fallback string otherwise
-            if (err.hasSyntaxError() || err.hasDataModelError()) {
-                return ResolvedSelector(FormattedPlaceholder()); // Null operand
-            } else {
-                return ResolvedSelector(exprResult.takeArgument());
-            }
-        }
-        return exprResult;
-    }
-
-    // No selector was found; error should already have been set
-    U_ASSERT(err.hasMissingSelectorAnnotationError() || err.hasUnknownFunctionError() || err.hasSelectorError());
-    return ResolvedSelector(FormattedPlaceholder(exprResult.argument().fallback));
-}
-
 void MessageFormatter::formatSelectors(MessageContext& context, const Environment& env, UErrorCode &status, UnicodeString& result) const {
     CHECK_ERROR(status);
 
     // See https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#pattern-selection
 
     // Resolve Selectors
-    // res is a vector of FormattedPlaceholders
+    // res is a vector of InternalValues
     LocalPointer<UVector> res(createUVector(status));
     CHECK_ERROR(status);
     resolveSelectors(context, env, status, *res);
@@ -761,28 +633,35 @@ void MessageFormatter::formatSelectors(MessageContext& context, const Environmen
 UnicodeString MessageFormatter::formatToString(const MessageArguments& arguments, UErrorCode &status) {
     EMPTY_ON_ERROR(status);
 
-    // Create a new environment that will store closures for all local variables
-    Environment* env = Environment::create(status);
     // Create a new context with the given arguments and the `errors` structure
     MessageContext context(arguments, *errors, status);
-
-    // Check for unresolved variable errors
-    checkDeclarations(context, env, status);
-    LocalPointer<Environment> globalEnv(env);
-
     UnicodeString result;
-    if (dataModel.hasPattern()) {
-        formatPattern(context, *globalEnv, dataModel.getPattern(), status, result);
-    } else {
-        // Check for errors/warnings -- if so, then the result of pattern selection is the fallback value
-        // See https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#pattern-selection
-        const DynamicErrors& err = context.getErrors();
-        if (err.hasSyntaxError() || err.hasDataModelError()) {
-            result += REPLACEMENT;
+
+    if (!(errors->hasSyntaxError() || errors->hasDataModelError())) {
+        // Create a new environment that will store closures for all local variables
+        // Check for unresolved variable errors
+        // checkDeclarations needs a reference to the pointer to the environment
+        // since it uses its `env` argument as an out-parameter. So it needs to be
+        // temporarily not a LocalPointer...
+        Environment* env(Environment::create(status));
+        checkDeclarations(context, env, status);
+        // ...and then it's adopted to avoid leaks
+        LocalPointer<Environment> globalEnv(env);
+
+        if (dataModel.hasPattern()) {
+            formatPattern(context, *globalEnv, dataModel.getPattern(), status, result);
         } else {
-            formatSelectors(context, *globalEnv, status, result);
+            // Check for errors/warnings -- if so, then the result of pattern selection is the fallback value
+            // See https://github.com/unicode-org/message-format-wg/blob/main/spec/formatting.md#pattern-selection
+            const DynamicErrors& err = context.getErrors();
+            if (err.hasSyntaxError() || err.hasDataModelError()) {
+                result += REPLACEMENT;
+            } else {
+                formatSelectors(context, *globalEnv, status, result);
+            }
         }
     }
+
     // Update status according to all errors seen while formatting
     if (signalErrors) {
         context.checkErrors(status);
@@ -813,12 +692,14 @@ void MessageFormatter::check(MessageContext& context, const Environment& localEn
 
     // Check that variable is in scope
     const VariableName& var = rand.asVariable();
+    UnicodeString normalized = normalizeNFC(var);
+
     // Check local scope
-    if (localEnv.has(var)) {
+    if (localEnv.has(normalized)) {
         return;
     }
     // Check global scope
-    context.getGlobal(var, status);
+    context.getGlobal(*this, normalized, status);
     if (status == U_ILLEGAL_ARGUMENT_ERROR) {
         status = U_ZERO_ERROR;
         context.getErrors().setUnresolvedVariable(var, status);
@@ -855,7 +736,10 @@ void MessageFormatter::checkDeclarations(MessageContext& context, Environment*& 
         // memoizing the value of localEnv up to this point
 
         // Add the LHS to the environment for checking the next declaration
-        env = Environment::create(decl.getVariable(), Closure(rhs, *env), env, status);
+        env = Environment::create(normalizeNFC(decl.getVariable()),
+                                  Closure(rhs, *env),
+                                  env,
+                                  status);
         CHECK_ERROR(status);
     }
 }
@@ -866,3 +750,5 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
