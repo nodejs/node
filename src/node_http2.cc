@@ -2928,9 +2928,11 @@ void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t length = session->chunks_sent_since_last_write_;
 
-  session->object()->Set(env->context(),
-                         env->chunks_sent_since_last_write_string(),
-                         Integer::NewFromUnsigned(isolate, length)).Check();
+  if (session->object()->Set(env->context(),
+          env->chunks_sent_since_last_write_string(),
+          Integer::NewFromUnsigned(isolate, length)).IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(length);
 }
