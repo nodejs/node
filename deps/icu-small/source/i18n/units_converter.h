@@ -82,6 +82,7 @@ struct U_I18N_API Factor {
 
     void multiplyBy(const Factor &rhs);
     void divideBy(const Factor &rhs);
+    void divideBy(const uint64_t constant);
 
     // Apply the power to the factor.
     void power(int32_t power);

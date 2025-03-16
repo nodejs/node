@@ -32,12 +32,13 @@
 #include "unicode/utypes.h"
 #include "unicode/uchar.h"
 
-#if U_SHOW_CPLUSPLUS_API
+#if U_SHOW_CPLUSPLUS_API || U_SHOW_CPLUSPLUS_HEADER_API
+#include <string>
 #include <string_view>
 #include "unicode/char16ptr.h"
 #include "unicode/localpointer.h"
-#include "unicode/unistr.h"
-#endif   // U_SHOW_CPLUSPLUS_API
+#include "unicode/utf16.h"
+#endif
 
 #ifndef USET_DEFINED
 
@@ -1392,8 +1393,8 @@ public:
 private:
     friend class USetCodePoints;
 
-    USetCodePointIterator(const USet *uset, int32_t rangeIndex, int32_t rangeCount)
-            : uset(uset), rangeIndex(rangeIndex), rangeCount(rangeCount),
+    USetCodePointIterator(const USet *pUset, int32_t nRangeIndex, int32_t nRangeCount)
+            : uset(pUset), rangeIndex(nRangeIndex), rangeCount(nRangeCount),
                 c(U_SENTINEL), end(U_SENTINEL) {
         // Fetch the first range.
         operator++();
@@ -1429,7 +1430,7 @@ public:
      * Constructs a C++ "range" object over the code points of the USet.
      * @draft ICU 76
      */
-    USetCodePoints(const USet *uset) : uset(uset), rangeCount(uset_getRangeCount(uset)) {}
+    USetCodePoints(const USet *pUset) : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
 
     /** @draft ICU 76 */
     USetCodePoints(const USetCodePoints &other) = default;
@@ -1460,7 +1461,7 @@ struct CodePointRange {
     /** @draft ICU 76 */
     struct iterator {
         /** @draft ICU 76 */
-        iterator(UChar32 c) : c(c) {}
+        iterator(UChar32 aC) : c(aC) {}
 
         /** @draft ICU 76 */
         bool operator==(const iterator &other) const { return c == other.c; }
@@ -1573,8 +1574,8 @@ public:
 private:
     friend class USetRanges;
 
-    USetRangeIterator(const USet *uset, int32_t rangeIndex, int32_t rangeCount)
-            : uset(uset), rangeIndex(rangeIndex), rangeCount(rangeCount) {}
+    USetRangeIterator(const USet *pUset, int32_t nRangeIndex, int32_t nRangeCount)
+            : uset(pUset), rangeIndex(nRangeIndex), rangeCount(nRangeCount) {}
 
     const USet *uset;
     int32_t rangeIndex;
@@ -1610,7 +1611,7 @@ public:
      * Constructs a C++ "range" object over the code point ranges of the USet.
      * @draft ICU 76
      */
-    USetRanges(const USet *uset) : uset(uset), rangeCount(uset_getRangeCount(uset)) {}
+    USetRanges(const USet *pUset) : uset(pUset), rangeCount(uset_getRangeCount(pUset)) {}
 
     /** @draft ICU 76 */
     USetRanges(const USetRanges &other) = default;
@@ -1657,7 +1658,7 @@ public:
             int32_t length;
             const UChar *uchars = uset_getString(uset, index, &length);
             // assert uchars != nullptr;
-            return {ConstChar16Ptr(uchars), static_cast<uint32_t>(length)};
+            return {uprv_char16PtrFromUChar(uchars), static_cast<size_t>(length)};
         }
         return {};
     }
@@ -1684,8 +1685,8 @@ public:
 private:
     friend class USetStrings;
 
-    USetStringIterator(const USet *uset, int32_t index, int32_t count)
-            : uset(uset), index(index), count(count) {}
+    USetStringIterator(const USet *pUset, int32_t nIndex, int32_t nCount)
+            : uset(pUset), index(nIndex), count(nCount) {}
 
     const USet *uset;
     int32_t index;
@@ -1699,9 +1700,11 @@ private:
  * using U_HEADER_NESTED_NAMESPACE::USetStrings;
  * LocalUSetPointer uset(uset_openPattern(u"[abcçカ🚴{}{abc}{de}]", -1, &errorCode));
  * for (auto s : USetStrings(uset.getAlias())) {
- *     UnicodeString us(s);
- *     std::string u8;
- *     printf("uset.string length %ld \"%s\"\n", (long)s.length(), us.toUTF8String(u8).c_str());
+ *     int32_t len32 = s.length();
+ *     char utf8[200];
+ *     u_strToUTF8WithSub(utf8, int32_t{sizeof(utf8) - 1}, nullptr,
+ *                        s.data(), len32, 0xFFFD, nullptr, errorCode);
+ *     printf("uset.string length %ld \"%s\"\n", long{len32}, utf8);
  * }
  * \endcode
  *
@@ -1718,7 +1721,7 @@ public:
      * Constructs a C++ "range" object over the strings of the USet.
      * @draft ICU 76
      */
-    USetStrings(const USet *uset) : uset(uset), count(uset_getStringCount(uset)) {}
+    USetStrings(const USet *pUset) : uset(pUset), count(uset_getStringCount(pUset)) {}
 
     /** @draft ICU 76 */
     USetStrings(const USetStrings &other) = default;
@@ -1737,17 +1740,19 @@ private:
     const USet *uset;
     int32_t count;
 };
+#endif  // U_HIDE_DRAFT_API
 
+#ifndef U_HIDE_DRAFT_API
 /**
  * Iterator returned by USetElements.
- * @draft ICU 76
+ * @draft ICU 77
  */
 class USetElementIterator {
 public:
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     USetElementIterator(const USetElementIterator &other) = default;
 
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     bool operator==(const USetElementIterator &other) const {
         // No need to compare rangeCount & end given private constructor
         // and assuming we don't compare iterators across the set being modified.
@@ -1756,26 +1761,28 @@ public:
         return uset == other.uset && c == other.c && index == other.index;
     }
 
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     bool operator!=(const USetElementIterator &other) const { return !operator==(other); }
 
-    /** @draft ICU 76 */
-    UnicodeString operator*() const {
+    /** @draft ICU 77 */
+    std::u16string operator*() const {
         if (c >= 0) {
-            return UnicodeString(c);
+            return c <= 0xffff ?
+                std::u16string({static_cast<char16_t>(c)}) :
+                std::u16string({U16_LEAD(c), U16_TRAIL(c)});
         } else if (index < totalCount) {
             int32_t length;
             const UChar *uchars = uset_getString(uset, index - rangeCount, &length);
             // assert uchars != nullptr;
-            return UnicodeString(uchars, length);
+            return {uprv_char16PtrFromUChar(uchars), static_cast<size_t>(length)};
         } else {
-            return UnicodeString();
+            return {};
         }
     }
 
     /**
      * Pre-increment.
-     * @draft ICU 76
+     * @draft ICU 77
      */
     USetElementIterator &operator++() {
         if (c < end) {
@@ -1800,7 +1807,7 @@ public:
 
     /**
      * Post-increment.
-     * @draft ICU 76
+     * @draft ICU 77
      */
     USetElementIterator operator++(int) {
         USetElementIterator result(*this);
@@ -1811,8 +1818,8 @@ public:
 private:
     friend class USetElements;
 
-    USetElementIterator(const USet *uset, int32_t index, int32_t rangeCount, int32_t totalCount)
-            : uset(uset), index(index), rangeCount(rangeCount), totalCount(totalCount),
+    USetElementIterator(const USet *pUset, int32_t nIndex, int32_t nRangeCount, int32_t nTotalCount)
+            : uset(pUset), index(nIndex), rangeCount(nRangeCount), totalCount(nTotalCount),
                 c(U_SENTINEL), end(U_SENTINEL) {
         if (index < rangeCount) {
             // Fetch the first range.
@@ -1840,7 +1847,7 @@ private:
 
 /**
  * A C++ "range" for iterating over all of the elements of a USet.
- * Convenient all-in one iteration, but creates a UnicodeString for each
+ * Convenient all-in one iteration, but creates a std::u16string for each
  * code point or string.
  *
  * Code points are returned first, then empty and multi-character strings.
@@ -1849,15 +1856,18 @@ private:
  * using U_HEADER_NESTED_NAMESPACE::USetElements;
  * LocalUSetPointer uset(uset_openPattern(u"[abcçカ🚴{}{abc}{de}]", -1, &errorCode));
  * for (auto el : USetElements(uset.getAlias())) {
- *     std::string u8;
- *     printf("uset.string length %ld \"%s\"\n", (long)el.length(), el.toUTF8String(u8).c_str());
+ *     int32_t len32 = el.length();
+ *     char utf8[200];
+ *     u_strToUTF8WithSub(utf8, int32_t{sizeof(utf8) - 1}, nullptr,
+ *                        el.data(), len32, 0xFFFD, nullptr, errorCode);
+ *     printf("uset.element length %ld \"%s\"\n", long{len32}, utf8);
  * }
  * \endcode
  *
  * C++ UnicodeSet has member functions for iteration, including begin() and end().
  *
  * @return an all-elements iterator.
- * @draft ICU 76
+ * @draft ICU 77
  * @see USetCodePoints
  * @see USetRanges
  * @see USetStrings
@@ -1866,21 +1876,21 @@ class USetElements {
 public:
     /**
      * Constructs a C++ "range" object over all of the elements of the USet.
-     * @draft ICU 76
+     * @draft ICU 77
      */
-    USetElements(const USet *uset)
-        : uset(uset), rangeCount(uset_getRangeCount(uset)),
-            stringCount(uset_getStringCount(uset)) {}
+    USetElements(const USet *pUset)
+        : uset(pUset), rangeCount(uset_getRangeCount(pUset)),
+            stringCount(uset_getStringCount(pUset)) {}
 
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     USetElements(const USetElements &other) = default;
 
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     USetElementIterator begin() const {
         return USetElementIterator(uset, 0, rangeCount, rangeCount + stringCount);
     }
 
-    /** @draft ICU 76 */
+    /** @draft ICU 77 */
     USetElementIterator end() const {
         return USetElementIterator(uset, rangeCount + stringCount, rangeCount, rangeCount + stringCount);
     }

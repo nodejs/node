@@ -436,11 +436,11 @@ int32_t OlsonTimeZone::getRawOffset() const {
 
 #if defined U_DEBUG_TZ
 void printTime(double ms) {
-            int32_t year, month, dom, dow;
-            double millis=0;
-            double days = ClockMath::floorDivide(((double)ms), (double)U_MILLIS_PER_DAY, millis);
-            
-            Grego::dayToFields(days, year, month, dom, dow);
+            int32_t year;
+            int8_t month, dom, dow;
+            int32_t millis=0;
+            UErrorCode status = U_ZERO_ERROR;
+            Grego::timeToFields(ms, year, month, dom, dow, millis, status);
             U_DEBUG_TZ_MSG(("   getHistoricalOffset:  time %.1f (%04d.%02d.%02d+%.1fh)\n", ms,
                             year, month+1, dom, (millis/kOneHour)));
     }
@@ -568,9 +568,8 @@ UBool OlsonTimeZone::useDaylightTime() const {
         return finalZone->useDaylightTime();
     }
 
-    int32_t year, month, dom, dow, doy, mid;
     UErrorCode status = U_ZERO_ERROR;
-    Grego::timeToFields(current, year, month, dom, dow, doy, mid, status);
+    int32_t year = Grego::timeToYear(current, status);
     U_ASSERT(U_SUCCESS(status));
     if (U_FAILURE(status)) return false; // If error, just return false.
 

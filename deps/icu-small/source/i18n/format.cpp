@@ -24,6 +24,7 @@
 #include "utypeinfo.h"  // for 'typeid' to work
 
 #include "unicode/utypes.h"
+#include "charstr.h"
 
 #ifndef U_I18N_IMPLEMENTATION
 #error U_I18N_IMPLEMENTATION not set - must be set for all ICU source files in i18n/ - see https://unicode-org.github.io/icu/userguide/howtouseicu
@@ -72,13 +73,14 @@ FieldPosition::clone() const {
 Format::Format()
     : UObject()
 {
-    *validLocale = *actualLocale = 0;
 }
 
 // -------------------------------------
 
 Format::~Format()
 {
+    delete actualLocale;
+    delete validLocale;
 }
 
 // -------------------------------------
@@ -97,8 +99,10 @@ Format&
 Format::operator=(const Format& that)
 {
     if (this != &that) {
-        uprv_strcpy(validLocale, that.validLocale);
-        uprv_strcpy(actualLocale, that.actualLocale);
+        UErrorCode status = U_ZERO_ERROR;
+        U_LOCALE_BASED(locBased, *this);
+        locBased.setLocaleIDs(that.validLocale, that.actualLocale, status);
+        U_ASSERT(U_SUCCESS(status));
     }
     return *this;
 }
@@ -196,20 +200,20 @@ void Format::syntaxError(const UnicodeString& pattern,
 
 Locale
 Format::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocale(type, status);
+    return LocaleBased::getLocale(validLocale, actualLocale, type, status);
 }
 
 const char *
 Format::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
-    U_LOCALE_BASED(locBased, *this);
-    return locBased.getLocaleID(type, status);
+    return LocaleBased::getLocaleID(validLocale,actualLocale, type, status);
 }
 
 void
 Format::setLocaleIDs(const char* valid, const char* actual) {
     U_LOCALE_BASED(locBased, *this);
-    locBased.setLocaleIDs(valid, actual);
+    UErrorCode status = U_ZERO_ERROR;
+    locBased.setLocaleIDs(valid, actual, status);
+    U_ASSERT(U_SUCCESS(status));
 }
 
 U_NAMESPACE_END
