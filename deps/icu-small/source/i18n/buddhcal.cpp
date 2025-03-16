@@ -36,7 +36,6 @@ static const int32_t kGregorianEpoch = 1970;    // used as the default value of 
 BuddhistCalendar::BuddhistCalendar(const Locale& aLocale, UErrorCode& success)
 :   GregorianCalendar(aLocale, success)
 {
-    setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
 
 BuddhistCalendar::~BuddhistCalendar()
@@ -46,12 +45,6 @@ BuddhistCalendar::~BuddhistCalendar()
 BuddhistCalendar::BuddhistCalendar(const BuddhistCalendar& source)
 : GregorianCalendar(source)
 {
-}
-
-BuddhistCalendar& BuddhistCalendar::operator= ( const BuddhistCalendar& right)
-{
-    GregorianCalendar::operator=(right);
-    return *this;
 }
 
 BuddhistCalendar* BuddhistCalendar::clone() const

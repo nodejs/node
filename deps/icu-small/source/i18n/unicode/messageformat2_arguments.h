@@ -8,6 +8,8 @@
 
 #if U_SHOW_CPLUSPLUS_API
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -43,7 +45,7 @@ template class U_I18N_API LocalArray<message2::Formattable>;
 
 namespace message2 {
 
-    class MessageContext;
+    class MessageFormatter;
 
     // Arguments
     // ----------
@@ -112,7 +114,9 @@ namespace message2 {
     private:
         friend class MessageContext;
 
-        const Formattable* getArgument(const data_model::VariableName&, UErrorCode&) const;
+        const Formattable* getArgument(const MessageFormatter&,
+                                       const data_model::VariableName&,
+                                       UErrorCode&) const;
 
         // Avoids using Hashtable so that code constructing a Hashtable
         // doesn't have to appear in this header file
@@ -130,6 +134,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

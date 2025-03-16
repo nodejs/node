@@ -12,44 +12,84 @@
 */
 #include "locbased.h"
 #include "cstring.h"
+#include "charstr.h"
 
 U_NAMESPACE_BEGIN
 
-Locale LocaleBased::getLocale(ULocDataLocaleType type, UErrorCode& status) const {
-    const char* id = getLocaleID(type, status);
+Locale LocaleBased::getLocale(const CharString* valid, const CharString* actual,
+                              ULocDataLocaleType type, UErrorCode& status) {
+    const char* id = getLocaleID(valid, actual, type, status);
     return Locale(id != nullptr ? id : "");
 }
 
-const char* LocaleBased::getLocaleID(ULocDataLocaleType type, UErrorCode& status) const {
+const char* LocaleBased::getLocaleID(const CharString* valid, const CharString* actual,
+                                     ULocDataLocaleType type, UErrorCode& status) {
     if (U_FAILURE(status)) {
         return nullptr;
     }
 
     switch(type) {
     case ULOC_VALID_LOCALE:
-        return valid;
+        return valid == nullptr ? "" : valid->data();
     case ULOC_ACTUAL_LOCALE:
-        return actual;
+        return actual == nullptr ? "" : actual->data();
     default:
         status = U_ILLEGAL_ARGUMENT_ERROR;
         return nullptr;
     }
 }
 
-void LocaleBased::setLocaleIDs(const char* validID, const char* actualID) {
-    if (validID != nullptr) {
-      uprv_strncpy(valid, validID, ULOC_FULLNAME_CAPACITY);
-      valid[ULOC_FULLNAME_CAPACITY-1] = 0; // always terminate
-    }
-    if (actualID != nullptr) {
-      uprv_strncpy(actual, actualID, ULOC_FULLNAME_CAPACITY);
-      actual[ULOC_FULLNAME_CAPACITY-1] = 0; // always terminate
+void LocaleBased::setLocaleIDs(const CharString* validID, const CharString* actualID, UErrorCode& status) {
+    setValidLocaleID(validID, status);
+    setActualLocaleID(actualID,status);
+}
+void LocaleBased::setLocaleIDs(const char* validID, const char* actualID, UErrorCode& status) {
+    setValidLocaleID(validID, status);
+    setActualLocaleID(actualID,status);
+}
+
+void LocaleBased::setLocaleID(const char* id, CharString*& dest, UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
+    if (id == nullptr || *id == 0) {
+        delete dest;
+        dest = nullptr;
+    } else {
+        if (dest == nullptr) {
+            dest = new CharString(id, status);
+            if (dest == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+        } else {
+            dest->copyFrom(id, status);
+        }
     }
 }
 
-void LocaleBased::setLocaleIDs(const Locale& validID, const Locale& actualID) {
-  uprv_strcpy(valid, validID.getName());
-  uprv_strcpy(actual, actualID.getName());
+void LocaleBased::setLocaleID(const CharString* id, CharString*& dest, UErrorCode& status) {
+    if (U_FAILURE(status)) { return; }
+    if (id == nullptr || id->isEmpty()) {
+        delete dest;
+        dest = nullptr;
+    } else {
+        if (dest == nullptr) {
+            dest = new CharString(*id, status);
+            if (dest == nullptr) {
+                status = U_MEMORY_ALLOCATION_ERROR;
+                return;
+            }
+        } else {
+            dest->copyFrom(*id, status);
+        }
+    }
+}
+
+bool LocaleBased::equalIDs(const CharString* left, const CharString* right) {
+    // true if both are nullptr
+    if (left == nullptr && right == nullptr) return true;
+    // false if only one is nullptr
+    if (left == nullptr || right == nullptr) return false;
+    return *left == *right;
 }
 
 U_NAMESPACE_END

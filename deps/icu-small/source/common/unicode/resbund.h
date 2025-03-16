@@ -450,7 +450,7 @@ public:
      * @return a Locale object
      * @stable ICU 2.8
      */
-    const Locale
+    Locale
       getLocale(ULocDataLocaleType type, UErrorCode &status) const;
 #ifndef U_HIDE_INTERNAL_API
     /**

@@ -1526,7 +1526,6 @@ ucol_openBinary(const uint8_t *bin, int32_t length,
 #include <type_traits>
 
 #include "unicode/char16ptr.h"
-#include "unicode/stringpiece.h"
 #include "unicode/unistr.h"
 
 namespace U_HEADER_ONLY_NAMESPACE {
@@ -1547,6 +1546,7 @@ class Predicate {
     /** @internal */
     explicit Predicate(const UCollator* ucol) : collator(ucol) {}
 
+#if U_SHOW_CPLUSPLUS_API
     /** @internal */
     template <
         typename T, typename U,
@@ -1554,6 +1554,28 @@ class Predicate {
     bool operator()(const T& lhs, const U& rhs) const {
         return match(UnicodeString::readOnlyAlias(lhs), UnicodeString::readOnlyAlias(rhs));
     }
+#else
+    /** @internal */
+    bool operator()(std::u16string_view lhs, std::u16string_view rhs) const {
+        return match(lhs, rhs);
+    }
+
+#if !U_CHAR16_IS_TYPEDEF && (!defined(_LIBCPP_VERSION) || _LIBCPP_VERSION < 180000)
+    /** @internal */
+    bool operator()(std::basic_string_view<uint16_t> lhs, std::basic_string_view<uint16_t> rhs) const {
+        return match({uprv_char16PtrFromUint16(lhs.data()), lhs.length()},
+                     {uprv_char16PtrFromUint16(rhs.data()), rhs.length()});
+    }
+#endif
+
+#if U_SIZEOF_WCHAR_T==2
+    /** @internal */
+    bool operator()(std::wstring_view lhs, std::wstring_view rhs) const {
+        return match({uprv_char16PtrFromWchar(lhs.data()), lhs.length()},
+                     {uprv_char16PtrFromWchar(rhs.data()), rhs.length()});
+    }
+#endif
+#endif
 
     /** @internal */
     bool operator()(std::string_view lhs, std::string_view rhs) const {
@@ -1563,27 +1585,28 @@ class Predicate {
 #if defined(__cpp_char8_t)
     /** @internal */
     bool operator()(std::u8string_view lhs, std::u8string_view rhs) const {
-        return match(lhs, rhs);
+        return match({reinterpret_cast<const char*>(lhs.data()), lhs.length()},
+                     {reinterpret_cast<const char*>(rhs.data()), rhs.length()});
     }
 #endif
 
   private:
-    bool match(UnicodeString lhs, UnicodeString rhs) const {
+    bool match(std::u16string_view lhs, std::u16string_view rhs) const {
         return compare(
             ucol_strcoll(
                 collator,
-                toUCharPtr(lhs.getBuffer()), lhs.length(),
-                toUCharPtr(rhs.getBuffer()), rhs.length()),
+                toUCharPtr(lhs.data()), static_cast<int32_t>(lhs.length()),
+                toUCharPtr(rhs.data()), static_cast<int32_t>(rhs.length())),
             result);
     }
 
-    bool match(StringPiece lhs, StringPiece rhs) const {
+    bool match(std::string_view lhs, std::string_view rhs) const {
         UErrorCode status = U_ZERO_ERROR;
         return compare(
             ucol_strcollUTF8(
                 collator,
-                lhs.data(), lhs.length(),
-                rhs.data(), rhs.length(),
+                lhs.data(), static_cast<int32_t>(lhs.length()),
+                rhs.data(), static_cast<int32_t>(rhs.length()),
                 &status),
             result);
     }

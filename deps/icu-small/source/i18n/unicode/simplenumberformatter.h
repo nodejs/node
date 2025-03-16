@@ -78,14 +78,12 @@ class U_I18N_API SimpleNumber : public UMemory {
      */
     void roundTo(int32_t power, UNumberFormatRoundingMode roundingMode, UErrorCode& status);
 
-#ifndef U_HIDE_DRAFT_API
     /**
      * Sets the number of integer digits to the given amount, truncating if necessary.
      *
-     * @draft ICU 75
+     * @stable ICU 75
      */
     void setMaximumIntegerDigits(uint32_t maximumIntegerDigits, UErrorCode& status);
-#endif // U_HIDE_DRAFT_API
 
     /**
      * Pads the beginning of the number with zeros up to the given minimum number of integer digits.
