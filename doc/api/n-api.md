@@ -6126,7 +6126,7 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_basic_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] change_in_bytes`: The change in externally allocated memory that is kept
   alive by JavaScript objects.
-* `[out] result`: The adjusted value. Their is no guarrantee that a request to
+* `[out] result`: The adjusted value. There is no guarantee that a request to
   adjust by X bytes will result in an adjusted value being X bytes larger than
   before the request. The runtime is free to adjust in the manner it deems
   most appropriate.
