@@ -252,7 +252,7 @@ Used to handle binary data. See the [buffer section][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -343,7 +343,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -367,7 +367,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -466,7 +466,7 @@ A browser-compatible implementation of the [`CustomEvent` Web API][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -894,7 +894,7 @@ DataHandler.prototype.load = async function load(key) {
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -906,7 +906,7 @@ A browser-compatible implementation of [`ReadableByteStreamController`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -918,7 +918,7 @@ A browser-compatible implementation of [`ReadableStream`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -930,7 +930,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -942,7 +942,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -954,7 +954,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1111,7 +1111,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1133,7 +1133,7 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1145,7 +1145,7 @@ A browser-compatible implementation of [`TextEncoderStream`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1157,7 +1157,7 @@ A browser-compatible implementation of [`TransformStream`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1233,7 +1233,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1245,7 +1245,7 @@ A browser-compatible implementation of [`WritableStream`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -1257,7 +1257,7 @@ A browser-compatible implementation of [`WritableStreamDefaultController`][].
 added: v18.0.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 

@@ -1499,7 +1499,7 @@ added:
   - v18.13.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -2631,7 +2631,7 @@ Unicode "replacement character" U+FFFD.
 added: v18.11.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
@@ -2644,7 +2644,7 @@ as transferable and can be used with `structuredClone()` or `postMessage()`.
 added: v18.11.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
 
