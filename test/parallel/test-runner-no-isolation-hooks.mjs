@@ -43,24 +43,24 @@ const order = [
   'after(): global',
   'after one: <root>',
   'after two: <root>',
-];
+].join('\n');
 
 test('Using --require to define global hooks works', async (t) => {
-  const spawned = await common.spawnPromisified(process.execPath, [
+  const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
     '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.js'),
     ...testFiles,
   ]);
 
-  t.assert.ok(spawned.stdout.includes(order.join('\n')));
+  t.assert.equal(stdout, order);
 });
 
 test('Using --import to define global hooks works', async (t) => {
-  const spawned = await common.spawnPromisified(process.execPath, [
+  const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
     '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.js'),
     ...testFiles,
   ]);
 
-  t.assert.ok(spawned.stdout.includes(order.join('\n')));
+  t.assert.equal(stdout, order);
 });
