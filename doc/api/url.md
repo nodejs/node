@@ -628,9 +628,11 @@ console.log(JSON.stringify(myURLs));
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `blob` {Blob}
 * Returns: {string}
@@ -664,9 +666,11 @@ to other workers or the main thread.
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.

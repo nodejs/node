@@ -1267,9 +1267,11 @@ port2.postMessage(new URL('https://example.org'));
 added:
   - v18.1.0
   - v16.17.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {boolean}
 

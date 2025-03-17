@@ -481,6 +481,9 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
   - version: v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55461
     description: Removed option to create a 'bytes' stream. Streams are now always 'bytes' streams.
@@ -490,8 +493,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/46933
     description: Added option to create a 'bytes' stream.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {ReadableStream}
 
@@ -1074,6 +1075,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -1081,8 +1085,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
 -->
-
-> Stability: 1 - Experimental
 
 * `pattern` {string|string\[]}
 * `options` {Object}
@@ -3126,6 +3128,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -3133,8 +3138,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
 -->
-
-> Stability: 1 - Experimental
 
 * `pattern` {string|string\[]}
 
@@ -3575,9 +3578,11 @@ Functions based on `fs.open()` exhibit this behavior as well:
 
 <!-- YAML
 added: v19.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `path` {string|Buffer|URL}
 * `options` {Object}
@@ -5674,6 +5679,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -5681,8 +5689,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52837
     description: Add support for `withFileTypes` as an option.
 -->
-
-> Stability: 1 - Experimental
 
 * `pattern` {string|string\[]}
 * `options` {Object}
@@ -6827,9 +6833,11 @@ added:
   - v21.4.0
   - v20.12.0
   - v18.20.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {string}
 
