@@ -877,9 +877,11 @@ the stream has not been destroyed, errored, or ended.
 added:
   - v18.0.0
   - v16.17.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1641,9 +1643,11 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 
 <!-- YAML
 added: v16.8.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1655,9 +1659,11 @@ Returns whether the stream was destroyed or errored before emitting `'end'`.
 added:
   - v16.7.0
   - v14.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -2003,9 +2009,11 @@ a promise that fulfills when the stream is finished.
 added:
   - v19.1.0
   - v18.13.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Stream|Iterable|AsyncIterable|Function}
 * `options` {Object}
@@ -2038,9 +2046,11 @@ See [`stream.compose`][] for more information.
 
 <!-- YAML
 added: v16.3.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `options` {Object}
   * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
@@ -2095,14 +2105,15 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
   - version:
     - v20.7.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to map over every chunk in the
   stream.
@@ -2150,14 +2161,15 @@ added:
   - v17.4.0
   - v16.14.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
   - version:
     - v20.7.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/49249
     description: added `highWaterMark` in options.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to filter chunks from the stream.
   * `data` {any} a chunk of data from the stream.
@@ -2208,9 +2220,11 @@ for await (const result of dnsResults) {
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
@@ -2269,9 +2283,11 @@ console.log('done'); // Stream has finished
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `options` {Object}
   * `signal` {AbortSignal} allows cancelling the toArray operation if the
@@ -2309,9 +2325,11 @@ const dnsResults = await Readable.from([
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
@@ -2360,9 +2378,11 @@ console.log('done'); // Stream has finished
 added:
   - v17.5.0
   - v16.17.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
@@ -2412,9 +2432,11 @@ console.log('done'); // Stream has finished
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a function to call on each chunk of the stream.
   * `data` {any} a chunk of data from the stream.
@@ -2463,9 +2485,11 @@ console.log('done'); // Stream has finished
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncGeneratorFunction|AsyncFunction} a function to map over
   every chunk in the stream.
@@ -2514,9 +2538,11 @@ for await (const result of concatResult) {
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `limit` {number} the number of chunks to drop from the readable.
 * `options` {Object}
@@ -2538,9 +2564,11 @@ await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `limit` {number} the number of chunks to take from the readable.
 * `options` {Object}
@@ -2562,9 +2590,11 @@ await Readable.from([1, 2, 3, 4]).take(2).toArray(); // [1, 2]
 added:
   - v17.5.0
   - v16.15.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function|AsyncFunction} a reducer function to call over every chunk
   in the stream.
@@ -3079,9 +3109,11 @@ Readable.from([
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `readableStream` {ReadableStream}
 * `options` {Object}
@@ -3095,9 +3127,11 @@ added: v17.0.0
 
 <!-- YAML
 added: v16.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {stream.Readable|ReadableStream}
 * Returns: `boolean`
@@ -3110,9 +3144,11 @@ Returns whether the stream has been read from or cancelled.
 added:
   - v17.3.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
 * Returns: {boolean}
@@ -3125,9 +3161,11 @@ Returns whether the stream has encountered an error.
 added:
   - v17.4.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Readable|Duplex|ReadableStream}
 * Returns: {boolean}
@@ -3139,13 +3177,14 @@ Returns whether the stream is readable.
 <!-- YAML
 added: v17.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
   - version:
     - v18.7.0
     pr-url: https://github.com/nodejs/node/pull/43515
     description: include strategy options on Readable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamReadable` {stream.Readable}
 * `options` {Object}
@@ -3164,9 +3203,11 @@ changes:
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `writableStream` {WritableStream}
 * `options` {Object}
@@ -3180,9 +3221,11 @@ added: v17.0.0
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamWritable` {stream.Writable}
 * Returns: {WritableStream}
@@ -3242,9 +3285,11 @@ Duplex.from([
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `pair` {Object}
   * `readable` {ReadableStream}
@@ -3323,9 +3368,11 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamDuplex` {stream.Duplex}
 * Returns: {Object}
