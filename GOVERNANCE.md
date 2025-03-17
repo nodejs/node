@@ -158,7 +158,7 @@ To nominate a new Collaborator:
    be opening a public nomination issue if I don't hear any objections in the
    next 72 hours".
 3. **Optional but strongly recommended**: Privately contact the nominee to make
-   sure they're confortable with the nomination.
+   sure they're comfortable with the nomination.
 4. Open an issue in the [nodejs/node][] repository. Provide a summary of
    the nominee's contributions (see below for an example). Mention
    @nodejs/collaborators in the issue to notify other collaborators about
