@@ -194,6 +194,7 @@ The following example illustrates the implementation of a context-aware addon:
 
 ```cpp
 #include <node.h>
+#include <memory>
 
 using namespace v8;
 
@@ -209,8 +210,8 @@ class AddonData {
   int call_count;
 
   static void DeleteInstance(void* data) {
-    delete static_cast<AddonData*>(data);
-  }
+  std::unique_ptr<AddonData> instance(static_cast<AddonData*>(data));
+}
 };
 
 static void Method(const v8::FunctionCallbackInfo<v8::Value>& info) {
