@@ -6128,7 +6128,7 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_basic_env env,
   alive by JavaScript objects.
 * `[out] result`: The adjusted value. This value should reflect the total amount
   which was been adjusted based on calls to `napi_adjust_external_memory` so far.
-For example, if there has been a request for +1000 and a request for -500 it should
+  For example, if there has been a request for +1000 and a request for -500 it should
   return 500.  
 
 Returns `napi_ok` if the API succeeded.
