@@ -6137,7 +6137,7 @@ This function gives the runtime an indication of the amount of externally
 allocated memory that is kept alive by JavaScript objects
 (i.e. a JavaScript object that points to its own memory allocated by a
 native addon). Registering externally allocated memory may, but is not
-guarranteed to, trigger global garbage collections more
+guaranteed to, trigger global garbage collections more
 often than it would otherwise.
 
 ## Promises
