@@ -3855,10 +3855,11 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57508
-    description: Documentation-only (supports [`--pending-deprecation`][]).
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `node:repl` module exports a `builtinModules` property that contains an array
 of built-in modules. This was incomplete and matched the already deprecated
