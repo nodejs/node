@@ -936,14 +936,10 @@ added: v23.10.0
 
 > Stability: 1.0 - Early development
 
-If present, Node.js will look for a
-configuration file at the specified path.
-Node.js will read the configuration file and apply the settings.
-The configuration file should be a JSON file
-with the following structure:
-
-> \[!NOTE]
-> Replace `vX.Y.Z` in the `$schema` with the version of Node.js you are using.
+If present, Node.js will look for a configuration file at the specified path.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. `vX.Y.Z`
+in the `$schema` must be replaced with the version of Node.js you are using.
 
 ```json
 {
