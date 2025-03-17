@@ -3863,9 +3863,10 @@ Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `node:repl` module exports a `builtinModules` property that contains an array
 of built-in modules. This was incomplete and matched the already deprecated
-`repl._builtinLibs` (DEP0142) instead it's better to rely
+`repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+[DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
