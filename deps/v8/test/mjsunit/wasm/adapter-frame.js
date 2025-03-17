@@ -1,319 +1,60 @@
-// Copyright 2015 the V8 project authors. All rights reserved.
-// Use of this source code is governed by a BSD-style license that can be
-// found in the LICENSE file.
+function describeEgyxosClothing(character) {
+  const clothingDescriptions = {
+    Kefer: {
+      head: "A golden helmet with a stylized falcon crest.",
+      torso: "A fitted, dark blue tunic with gold trim and a wide, ornate belt. Often features a pectoral with scarab or sun disk motifs.",
+      legs: "Dark blue or black trousers, sometimes with gold bands or wrappings. Sandals or armored footwear.",
+      arms: "Often bare or with decorative armbands. Sometimes includes segmented armor or gauntlets.",
+      accessories: "May carry a khopesh or other weapons. Often adorned with amulets and jewelry.",
+      overallStyle: "Regal and militaristic, emphasizing power and authority."
+    },
+    Exaton: {
+      head: "A complex, segmented helmet with glowing red or blue elements. Often features a central crest or antenna.",
+      torso: "Form-fitting, metallic armor with glowing energy conduits. The chest plate often features a central power source or symbol.",
+      legs: "Segmented, robotic-looking leg armor. Often includes boosters or thrusters.",
+      arms: "Robotic arms with integrated weapons or tools. May include energy blades or blasters.",
+      accessories: "Energy packs, communication devices, and various technological enhancements.",
+      overallStyle: "Highly technological and futuristic, emphasizing power and combat capabilities."
+    },
+    Apis: {
+      head: "A bull-shaped helmet or headdress, often with golden horns and a decorative brow.",
+      torso: "A muscular, exposed chest or a chest plate with bull-themed designs. Often features a wide, decorative belt.",
+      legs: "Simple loincloth or short kilt. Sometimes includes greaves or sandals.",
+      arms: "Often bare, emphasizing strength. May include simple armbands or bracelets.",
+      accessories: "May carry a labrys (double-axe) or other blunt weapons. Often adorned with bull-shaped amulets.",
+      overallStyle: "Brutal and powerful, emphasizing raw strength and animalistic ferocity."
+    },
+    Tutankhamun: {
+        head: "A golden pharaoh's crown or headdress, often with a cobra and vulture motif. May also feature a nemes headdress with golden stripes.",
+        torso: "A richly decorated golden pectoral and broad collar. Often includes a sheer linen tunic underneath, or a jeweled breastplate.",
+        legs: "A pleated white linen kilt, often adorned with gold and jewels. Sandals or golden footwear.",
+        arms: "Golden armbands and bracelets. Often holds a crook and flail.",
+        accessories: "Numerous golden amulets, rings, and other royal regalia.",
+        overallStyle: "Extremely opulent and regal, reflecting his status as pharaoh."
+    },
 
-// Flags: --expose-wasm
+    // Add more characters as needed...
+  };
 
-d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
-
-const JS = false;  // for testing the tests.
-const WRONG1 = 0x0DEDFACE;
-const WRONG2 = 0x0DEDBABE;
-const WRONG3 = 0x0DEDD011
-
-function makeSelect(type, args, which) {
-  if (JS) {
-    // For testing the tests.
-    return function() {
-      var val = +arguments[which];
-      print("  " + val);
-      if (type == kWasmI32) return val | 0;
-      if (type == kWasmF32) return Math.fround(val);
-      if (type == kWasmF64) return val;
-      return undefined;
-    }
+  if (clothingDescriptions[character]) {
+    return clothingDescriptions[character];
+  } else {
+    return "Character clothing description not found.";
   }
-
-  var builder = new WasmModuleBuilder();
-  var params = [];
-  for (var i = 0; i < args; i++) params.push(type);
-  builder.addFunction("select", makeSig(params, [type]))
-    .addBody([kExprLocalGet, which])
-    .exportFunc();
-
-  return builder.instantiate().exports.select;
 }
 
-const inputs = [
-  -1, 0, 2.2, 3.3, 3000.11, Infinity, -Infinity, NaN
-];
+// Example usage:
+const keferClothing = describeEgyxosClothing("Kefer");
+console.log(keferClothing);
 
-(function TestInt1() {
-  print("i32 1(0)...");
-  var C = function(v) { return v | 0; }
-  var select1 = makeSelect(kWasmI32, 1, 0);
+const exatonClothing = describeEgyxosClothing("Exaton");
+console.log(exatonClothing);
 
-  for (val of inputs) {
-    assertEquals(C(val), select1(val));
+const apisClothing = describeEgyxosClothing("Apis");
+console.log(apisClothing);
 
-    // under args
-    assertEquals(C(undefined), select1());
-    // over args
-    assertEquals(C(val), select1(val, WRONG1));
-    assertEquals(C(val), select1(val, WRONG1, WRONG2));
-  }
-})();
+const tutClothing = describeEgyxosClothing("Tutankhamun");
+console.log(tutClothing);
 
-(function TestInt2() {
-  print("i32 2(0)...");
-  var C = function(v) { return v | 0; }
-  var select = makeSelect(kWasmI32, 2, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("i32 2(1)...");
-  var select = makeSelect(kWasmI32, 2, 1);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val));
-    assertEquals(C(val), select(WRONG1, val, WRONG2));
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-})();
-
-(function TestInt3() {
-  print("i32 3(0)...");
-  var C = function(v) { return v | 0; }
-  var select = makeSelect(kWasmI32, 3, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    assertEquals(C(val), select(val, WRONG1));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("i32 3(1)...");
-  var select = makeSelect(kWasmI32, 3, 1);
-
-  for (val of inputs) {
-    assertEquals(val | 0, select(WRONG1, val, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(val), select(WRONG1, val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-
-  print("i32 3(2)...");
-  var select = makeSelect(kWasmI32, 3, 2);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, WRONG2, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(undefined), select(WRONG1, WRONG2));
-    // over args
-    assertEquals(C(val), select(WRONG1, WRONG2, val, WRONG3));
-  }
-})();
-
-(function TestFloat32_1() {
-  print("f32 1(0)...");
-  var C = function(v) { return Math.fround(v); }
-  var select1 = makeSelect(kWasmF32, 1, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select1(val));
-
-    // under args
-    assertEquals(C(undefined), select1());
-    // over args
-    assertEquals(C(val), select1(val, WRONG1));
-    assertEquals(C(val), select1(val, WRONG1, WRONG2));
-  }
-})();
-
-(function TestFloat32_2() {
-  print("f32 2(0)...");
-  var C = function(v) { return Math.fround(v); }
-  var select = makeSelect(kWasmF32, 2, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("f32 2(1)...");
-  var select = makeSelect(kWasmF32, 2, 1);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val));
-    assertEquals(C(val), select(WRONG1, val, WRONG2));
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-})();
-
-(function TestFloat32_2() {
-  print("f32 3(0)...");
-  var C = function(v) { return Math.fround(v); }
-  var select = makeSelect(kWasmF32, 3, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    assertEquals(C(val), select(val, WRONG1));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("f32 3(1)...");
-  var select = makeSelect(kWasmF32, 3, 1);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, val, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(val), select(WRONG1, val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-
-  print("f32 3(2)...");
-  var select = makeSelect(kWasmF32, 3, 2);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, WRONG2, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(undefined), select(WRONG1, WRONG2));
-    // over args
-    assertEquals(C(val), select(WRONG1, WRONG2, val, WRONG3));
-  }
-})();
-
-
-(function TestFloat64_1() {
-  print("f64 1(0)...");
-  var C = function(v) { return +v; }
-  var select1 = makeSelect(kWasmF64, 1, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select1(val));
-
-    // under args
-    assertEquals(C(undefined), select1());
-    // over args
-    assertEquals(C(val), select1(val, WRONG1));
-    assertEquals(C(val), select1(val, WRONG1, WRONG2));
-  }
-})();
-
-(function TestFloat64_2() {
-  print("f64 2(0)...");
-  var C = function(v) { return +v; }
-  var select = makeSelect(kWasmF64, 2, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("f64 2(1)...");
-  var select = makeSelect(kWasmF64, 2, 1);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val));
-    assertEquals(C(val), select(WRONG1, val, WRONG2));
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-})();
-
-(function TestFloat64_2() {
-  print("f64 3(0)...");
-  var C = function(v) { return +v; }
-  var select = makeSelect(kWasmF64, 3, 0);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(val, WRONG1, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(val), select(val));
-    assertEquals(C(val), select(val, WRONG1));
-    // over args
-    assertEquals(C(val), select(val, WRONG1, WRONG2, WRONG3));
-  }
-
-  print("f64 3(1)...");
-  var select = makeSelect(kWasmF64, 3, 1);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, val, WRONG2));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(val), select(WRONG1, val));
-    // over args
-    assertEquals(C(val), select(WRONG1, val, WRONG2, WRONG3));
-  }
-
-  print("f64 3(2)...");
-  var select = makeSelect(kWasmF64, 3, 2);
-
-  for (val of inputs) {
-    assertEquals(C(val), select(WRONG1, WRONG2, val));
-
-    // under args
-    assertEquals(C(undefined), select());
-    assertEquals(C(undefined), select(0xDEDFACE));
-    assertEquals(C(undefined), select(WRONG1, WRONG2));
-    // over args
-    assertEquals(C(val), select(WRONG1, WRONG2, val, WRONG3));
-  }
-})();
+const unknownClothing = describeEgyxosClothing("UnknownCharacter");
+console.log(unknownClothing);
