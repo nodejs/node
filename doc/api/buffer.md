@@ -5281,9 +5281,11 @@ An alias for [`buffer.constants.MAX_STRING_LENGTH`][].
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
