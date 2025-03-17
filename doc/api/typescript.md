@@ -86,9 +86,9 @@ but we recommend version 5.8 or newer with the following `tsconfig.json` setting
 }
 ```
 
-> \[!NOTE]
-> Use the `noEmit` option if you intend to only execute `*.ts` files, for example a build script.
-> You won't need this flag if you intend to distribute `*.js` files.
+Use the `noEmit` option if you intend to only execute `*.ts` files, for example
+a build script. You won't need this flag if you intend to distribute `*.js`
+files.
 
 ### Determining module system
 
