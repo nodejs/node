@@ -720,6 +720,53 @@ const tests = [
     ],
     clean: true
   },
+  {
+    // Test that we can recover from a line with a syntax error
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let d = ``',
+      ENTER,
+      'd = `I am a',
+      ENTER,
+      'super',
+      ENTER,
+      'broken` line\'',
+      ENTER,
+      UP,
+      BACKSPACE,
+      '`',
+      // press LEFT 6 times to reach the typo
+      ...Array(6).fill(LEFT),
+      BACKSPACE,
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let d = ``',
+      'undefined\n',
+      prompt, ...'d = `I am a',
+      '| ',
+      ...'super',
+      '| ',
+      ...'broken` line\'',
+      "[broken` line'\n" +
+      '        ^^^^\n' +
+      '\n' +
+      "Uncaught SyntaxError: Unexpected identifier 'line'\n" +
+      '] {\n' +
+      '  [stack]: [Getter/Setter],\n' +
+      `  [message]: "Unexpected identifier 'line'"\n` +
+      '}\n',
+      prompt,
+      `${prompt}d = \`I am a\nsuper\nbroken\` line'`,
+      `${prompt}d = \`I am a\nsuper\nbroken\` line`,
+      '`',
+      `${prompt}d = \`I am a\nsuper\nbroken line\``,
+      "'I am a\\nsuper\\nbroken line'\n",
+      prompt,
+    ],
+    clean: true
+  },
 ];
 const numtests = tests.length;
 
@@ -767,6 +814,7 @@ function runTest() {
           try {
             assert.strictEqual(output, expected[i]);
           } catch (e) {
+            console.log({ output, expected: expected[i] });
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
               breakLength: 5, colors: true
