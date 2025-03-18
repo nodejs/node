@@ -445,6 +445,33 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   return v8::Number::New(isolate, static_cast<double>(number));
 }
 
+template <typename T>
+v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
+                                             const std::vector<T>& vec,
+                                             v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+  v8::Local<v8::Array> arr = v8::Array::New(isolate, vec.size());
+
+  for (size_t i = 0; i < vec.size(); i++) {
+    v8::Local<v8::Value> element;
+
+    if constexpr (std::is_same_v<T, bool>) {
+      element = v8::Boolean::New(isolate, vec[i]);
+    } else if constexpr (std::is_same_v<T, int32_t>) {
+      element = v8::Integer::New(isolate, vec[i]);
+    } else if constexpr (std::is_same_v<T, uint32_t>) {
+      element = v8::Integer::NewFromUnsigned(isolate, vec[i]);
+    } else if constexpr (std::is_same_v<T, double>) {
+      element = v8::Number::New(isolate, vec[i]);
+    } else {
+      element = ToV8Value(context, vec[i], isolate).ToLocalChecked();
+    }
+    arr->Set(context, i, element).Check();
+  }
+  return handle_scope.Escape(arr);
+}
+
 SlicedArguments::SlicedArguments(
     const v8::FunctionCallbackInfo<v8::Value>& args, size_t start) {
   const size_t length = static_cast<size_t>(args.Length());
