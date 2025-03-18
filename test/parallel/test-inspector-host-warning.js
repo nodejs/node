@@ -2,7 +2,6 @@
 
 const common = require('../common');
 common.skipIfInspectorDisabled();
-common.skipIfWorker();
 
 const inspector = require('inspector');
 inspector.open(0, '0.0.0.0', false);
