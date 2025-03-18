@@ -12,3 +12,10 @@ assert.deepStrictEqual(
   builtinModules.filter((mod) => mod.startsWith('internal/')),
   []
 );
+
+// Does not include modules starting with an underscore
+// (these are exposed to users but not proper public documented modules)
+assert.deepStrictEqual(
+  builtinModules.filter((mod) => mod.startsWith('_')),
+  []
+);
