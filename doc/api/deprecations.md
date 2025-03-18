@@ -3885,9 +3885,9 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
-[`child_process`]: child_process.md
 [`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
 [`child_process.spawn`]: child_process.md#child_processspawncommand-args-options
+[`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout
 [`clearTimeout()`]: timers.md#cleartimeouttimeout
 [`console.error()`]: console.md#consoleerrordata-args
