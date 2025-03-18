@@ -3849,7 +3849,7 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 changes:
   - version:
     - REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/57199
+    pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->
 
