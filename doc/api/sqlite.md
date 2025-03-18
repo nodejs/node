@@ -281,6 +281,17 @@ targetDb.applyChangeset(changeset);
 // Now that the changeset has been applied, targetDb contains the same data as sourceDb.
 ```
 
+### `database[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Closes the database connection. If the database connection is already closed
+then this is a no-op.
+
 ## Class: `Session`
 
 <!-- YAML
