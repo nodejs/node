@@ -186,6 +186,8 @@
   V(homedir_string, "homedir")                                                 \
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
+  V(hostname_string, "hostname")                                               \
+  V(href_string, "href")                                                       \
   V(http_1_1_string, "http/1.1")                                               \
   V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
@@ -295,6 +297,7 @@
   V(priority_string, "priority")                                               \
   V(process_string, "process")                                                 \
   V(promise_string, "promise")                                                 \
+  V(protocol_string, "protocol")                                               \
   V(prototype_string, "prototype")                                             \
   V(psk_string, "psk")                                                         \
   V(pubkey_string, "pubkey")                                                   \
