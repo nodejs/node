@@ -7,6 +7,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "node_url.h"
 #include "sqlite3.h"
 #include "util-inl.h"
 
@@ -292,11 +293,14 @@ bool DatabaseSync::Open() {
   }
 
   // TODO(cjihrig): Support additional flags.
+  int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
                   ? SQLITE_OPEN_READONLY
                   : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-  int r = sqlite3_open_v2(
-      open_config_.location().c_str(), &connection_, flags, nullptr);
+  int r = sqlite3_open_v2(open_config_.location().c_str(),
+                          &connection_,
+                          flags | default_flags,
+                          nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), connection_, r, SQLITE_OK, false);
 
   r = sqlite3_db_config(connection_,
@@ -358,27 +362,85 @@ inline sqlite3* DatabaseSync::Connection() {
   return connection_;
 }
 
+std::optional<std::string> ValidateDatabasePath(Environment* env,
+                                                Local<Value> path,
+                                                const std::string& field_name) {
+  auto has_null_bytes = [](const std::string& str) {
+    return str.find('\0') != std::string::npos;
+  };
+  std::string location;
+  if (path->IsString()) {
+    location = Utf8Value(env->isolate(), path.As<String>()).ToString();
+    if (!has_null_bytes(location)) {
+      return location;
+    }
+  }
+
+  if (path->IsUint8Array()) {
+    Local<Uint8Array> buffer = path.As<Uint8Array>();
+    size_t byteOffset = buffer->ByteOffset();
+    size_t byteLength = buffer->ByteLength();
+    auto data =
+        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+    if (!(std::find(data, data + byteLength, 0) != data + byteLength)) {
+      Local<Value> out;
+      if (String::NewFromUtf8(env->isolate(),
+                              reinterpret_cast<const char*>(data),
+                              NewStringType::kNormal,
+                              static_cast<int>(byteLength))
+              .ToLocal(&out)) {
+        return Utf8Value(env->isolate(), out.As<String>()).ToString();
+      }
+    }
+  }
+
+  // When is URL
+  if (path->IsObject()) {
+    Local<Object> url = path.As<Object>();
+    Local<Value> href;
+    Local<Value> protocol;
+    if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
+        href->IsString() &&
+        url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) &&
+        protocol->IsString()) {
+      location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+      if (!has_null_bytes(location)) {
+        auto file_url = ada::parse(location);
+        CHECK(file_url);
+        if (file_url->type != ada::scheme::FILE) {
+          THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+          return std::nullopt;
+        }
+
+        return location;
+      }
+    }
+  }
+
+  THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                             "The \"%s\" argument must be a string, "
+                             "Uint8Array, or URL without null bytes.",
+                             field_name.c_str());
+
+  return std::nullopt;
+}
+
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
   if (!args.IsConstructCall()) {
     THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
     return;
   }
 
-  if (!args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"path\" argument must be a string.");
+  std::optional<std::string> location =
+      ValidateDatabasePath(env, args[0], "path");
+  if (!location.has_value()) {
     return;
   }
 
-  std::string location =
-      Utf8Value(env->isolate(), args[0].As<String>()).ToString();
-  DatabaseOpenConfiguration open_config(std::move(location));
-
+  DatabaseOpenConfiguration open_config(std::move(location.value()));
   bool open = true;
   bool allow_load_extension = false;
-
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
