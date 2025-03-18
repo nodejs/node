@@ -194,10 +194,6 @@ nominee publicly accepts it. In the case
 of an objection, the TSC is responsible for working with the individuals
 involved and finding a resolution.
 
-Collaborators might overlook someone with valuable contributions. In that case,
-the contributor may open an issue or contact a collaborator to request a
-nomination.
-
 #### How to review a collaborator nomination
 
 A collaborator nomination can be reviewed in the same way one would review a PR
