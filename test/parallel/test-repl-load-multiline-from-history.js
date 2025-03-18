@@ -63,13 +63,19 @@ ActionStream.prototype.readable = true;
     ']'
     );
 
-    r.input.run([{ name: 'up' }]);
+    for (let i = 0; i < r.line.split('\n').length; i++) {
+      r.input.run([{ name: 'up' }]);
+    }
     assert.strictEqual(r.line, 'const c = [\n  {\n    a: 1,\n    b: 2,\n  }\n]');
 
-    r.input.run([{ name: 'up' }]);
+    for (let i = 0; i < r.line.split('\n').length; i++) {
+      r.input.run([{ name: 'up' }]);
+    }
     assert.strictEqual(r.line, '`const b = [\n  1,\n  2,\n  3,\n  4,\n]`');
 
-    r.input.run([{ name: 'up' }]);
+    for (let i = 0; i < r.line.split('\n').length; i++) {
+      r.input.run([{ name: 'up' }]);
+    }
     assert.strictEqual(r.line, 'a = `\nI am a multiline string\nI can be as long as I want`');
 
   });
