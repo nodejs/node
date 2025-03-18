@@ -767,6 +767,29 @@ const tests = [
     ],
     clean: true
   },
+  {
+    // Test that multiline history is not duplicated
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let f = `multiline',
+      ENTER,
+      'string`',
+      ENTER,
+      UP, UP, UP,
+    ],
+    expected: [
+      prompt, ...'let f = `multiline',
+      '| ',
+      ...'string`',
+      'undefined\n',
+      prompt,
+      `${prompt}let f = \`multiline\nstring\``,
+      `${prompt}let f = \`multiline\nstring\``,
+      prompt,
+    ],
+    clean: true
+  },
 ];
 const numtests = tests.length;
 
@@ -814,7 +837,6 @@ function runTest() {
           try {
             assert.strictEqual(output, expected[i]);
           } catch (e) {
-            console.log({ output, expected: expected[i] });
             console.error(`Failed test # ${numtests - tests.length}`);
             console.error('Last outputs: ' + inspect(lastChunks, {
               breakLength: 5, colors: true
