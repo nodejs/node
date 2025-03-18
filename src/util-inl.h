@@ -428,12 +428,9 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   return handle_scope.Escape(ret);
 }
 
-template <typename T, typename >
-v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
-                                    const T& number,
-                                    v8::Isolate* isolate) {
-  if (isolate == nullptr) isolate = context->GetIsolate();
-
+template <typename T>
+v8::Local<v8::Value> ConvertNumberToV8Value(v8::Isolate* isolate,
+                                            const T& number) {
   using Limits = std::numeric_limits<T>;
   // Choose Uint32, Int32, or Double depending on range checks.
   // These checks should all collapse at compile time.
@@ -452,6 +449,43 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   }
 
   return v8::Number::New(isolate, static_cast<double>(number));
+}
+
+template <typename T, typename>
+v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                    const T& number,
+                                    v8::Isolate* isolate) {
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  return ConvertNumberToV8Value(isolate, number);
+}
+
+template <typename T>
+v8::Local<v8::Array> ToV8ValuePrimitiveArray(v8::Local<v8::Context> context,
+                                             const std::vector<T>& vec,
+                                             v8::Isolate* isolate) {
+  static_assert(
+      std::is_same_v<T, bool> || std::is_integral_v<T> ||
+          std::is_floating_point_v<T>,
+      "Only primitive types (bool, integral, floating-point) are supported.");
+
+  if (isolate == nullptr) isolate = context->GetIsolate();
+  v8::EscapableHandleScope handle_scope(isolate);
+
+  v8::LocalVector<v8::Value> elements(isolate);
+  elements.reserve(vec.size());
+
+  for (const auto& value : vec) {
+    if constexpr (std::is_same_v<T, bool>) {
+      elements.emplace_back(v8::Boolean::New(isolate, value));
+    } else {
+      v8::Local<v8::Value> v = ConvertNumberToV8Value(isolate, value);
+      elements.emplace_back(v);
+    }
+  }
+
+  v8::Local<v8::Array> arr =
+      v8::Array::New(isolate, elements.data(), elements.size());
+  return handle_scope.Escape(arr);
 }
 
 SlicedArguments::SlicedArguments(

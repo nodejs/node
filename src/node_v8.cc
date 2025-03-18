@@ -385,23 +385,13 @@ static MaybeLocal<Object> ConvertHeapStatsToJSObject(
         FIXED_ONE_BYTE_STRING(isolate, "bucket_size"),
         FIXED_ONE_BYTE_STRING(isolate, "free_count"),
         FIXED_ONE_BYTE_STRING(isolate, "free_size")};
-    Local<Value> bucket_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.bucket_size)
-             .ToLocal(&bucket_size_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_count_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_count)
-             .ToLocal(&free_count_value)) {
-      return MaybeLocal<Object>();
-    }
-    Local<Value> free_size_value;
-    if (!ToV8Value(context, space_stats.free_list_stats.free_size)
-             .ToLocal(&free_size_value)) {
-      return MaybeLocal<Object>();
-    }
     Local<Value> free_list_statistics_values[] = {
-        bucket_size_value, free_count_value, free_size_value};
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.bucket_size, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_count, isolate),
+        ToV8ValuePrimitiveArray(
+            context, space_stats.free_list_stats.free_size, isolate)};
 
     Local<Object> free_list_statistics_obj =
         Object::New(isolate,
