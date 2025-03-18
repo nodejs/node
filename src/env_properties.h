@@ -117,6 +117,7 @@
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(database_string, "database")                                               \
   V(default_is_true_string, "defaultIsTrue")                                   \
   V(deserialize_info_string, "deserializeInfo")                                \
   V(dest_string, "dest")                                                       \
@@ -362,6 +363,7 @@
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
   V(syscall_string, "syscall")                                                 \
+  V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \

@@ -8,6 +8,7 @@ template("sqlite_gn_build") {
   config("sqlite_config") {
     include_dirs = [ "." ]
     defines = [
+      "SQLITE_ENABLE_COLUMN_METADATA",
       "SQLITE_ENABLE_MATH_FUNCTIONS",
       "SQLITE_ENABLE_SESSION",
       "SQLITE_ENABLE_PREUPDATE_HOOK",

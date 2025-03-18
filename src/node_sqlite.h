@@ -119,6 +119,7 @@ class StatementSync : public BaseObject {
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Columns(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);

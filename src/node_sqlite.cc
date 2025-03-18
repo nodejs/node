@@ -158,6 +158,16 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   }
 }
 
+inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
+                                                     const char* str) {
+  if (str == nullptr) {
+    return Null(isolate);
+  }
+
+  return String::NewFromUtf8(isolate, str, NewStringType::kInternalized)
+      .As<Value>();
+}
+
 class BackupJob : public ThreadPoolWork {
  public:
   explicit BackupJob(Environment* env,
@@ -1918,6 +1928,72 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(result);
 }
 
+void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  int num_cols = sqlite3_column_count(stmt->statement_);
+  Isolate* isolate = env->isolate();
+  LocalVector<Value> cols(isolate);
+  LocalVector<Name> col_keys(isolate,
+                             {env->column_string(),
+                              env->database_string(),
+                              env->name_string(),
+                              env->table_string(),
+                              env->type_string()});
+  Local<Value> value;
+
+  cols.reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    LocalVector<Value> col_values(isolate);
+    col_values.reserve(col_keys.size());
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_origin_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_database_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!stmt->ColumnNameToName(i).ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_table_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_decltype(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    Local<Object> column = Object::New(isolate,
+                                       Null(isolate),
+                                       col_keys.data(),
+                                       col_values.data(),
+                                       col_keys.size());
+    cols.emplace_back(column);
+  }
+
+  args.GetReturnValue().Set(Array::New(isolate, cols.data(), cols.size()));
+}
+
 void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -2040,6 +2116,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
     SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
     SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "columns", StatementSync::Columns);
     SetSideEffectFreeGetter(isolate,
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
