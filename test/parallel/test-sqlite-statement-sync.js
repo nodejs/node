@@ -415,6 +415,18 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
   });
 
   test('array rows with lots of columns', (t) => {
+    const expected = [
+      1,
+      'text1',
+      1.1,
+      new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+      5,
+      'text2',
+      2.2,
+      new Uint8Array([0xbe, 0xef, 0xca, 0xfe]),
+      9,
+      'text3',
+    ];
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
@@ -433,20 +445,11 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
     query.setReturnArrays(true);
 
     const row = query.get();
-    t.assert.strictEqual(row.length, 10);
-    t.assert.strictEqual(row[0], 1);
-    t.assert.strictEqual(row[1], 'text1');
-    t.assert.strictEqual(row[2], 1.1);
-    t.assert.ok(row[3] instanceof Uint8Array);
-    t.assert.strictEqual(row[4], 5);
-    t.assert.strictEqual(row[5], 'text2');
-    t.assert.strictEqual(row[6], 2.2);
-    t.assert.ok(row[7] instanceof Uint8Array);
-    t.assert.strictEqual(row[8], 9);
-    t.assert.strictEqual(row[9], 'text3');
+    t.assert.deepStrictEqual(row, expected);
   });
 
   test('array rows with BigInts', (t) => {
+    const expected = [1n, 9007199254740992n];
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const setup = db.exec(`
@@ -461,9 +464,7 @@ suite('StatementSync.prototype.setReturnArrays()', () => {
     query.setReadBigInts(true);
 
     const row = query.get();
-    t.assert.strictEqual(row.length, 2);
-    t.assert.strictEqual(row[0], 1n);
-    t.assert.strictEqual(row[1], 9007199254740992n);
+    t.assert.deepStrictEqual(row, expected);
   });
 });
 
