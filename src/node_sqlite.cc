@@ -1703,7 +1703,7 @@ void StatementSync::IterateNextCallback(
   Local<Value> return_arrays_val;
   bool return_arrays = false;
   if (self->Get(context, FIXED_ONE_BYTE_STRING(isolate, "return_arrays"))
-           .ToLocal(&return_arrays_val) &&
+          .ToLocal(&return_arrays_val) &&
       return_arrays_val->IsBoolean()) {
     return_arrays = return_arrays_val.As<Boolean>()->Value();
   }
@@ -1842,15 +1842,14 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Add the return_arrays flag to the iterator
-  auto return_arrays_pd =
-      v8::PropertyDescriptor(v8::Boolean::New(
-        isolate, stmt->return_arrays_), false);
+  auto return_arrays_pd = v8::PropertyDescriptor(
+      v8::Boolean::New(isolate, stmt->return_arrays_), false);
   return_arrays_pd.set_enumerable(false);
   return_arrays_pd.set_configurable(false);
   if (iterable_iterator
-          ->DefineProperty(
-            context, FIXED_ONE_BYTE_STRING(
-              isolate, "return_arrays"), return_arrays_pd)
+          ->DefineProperty(context,
+                           FIXED_ONE_BYTE_STRING(isolate, "return_arrays"),
+                           return_arrays_pd)
           .IsNothing()) {
     // An error will have been scheduled.
     return;
@@ -1909,9 +1908,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       values.emplace_back(val);
     }
 
-    Local<Object> result =
-        Object::New(
-          isolate, Null(isolate), keys.data(), values.data(), num_cols);
+    Local<Object> result = Object::New(
+        isolate, Null(isolate), keys.data(), values.data(), num_cols);
 
     args.GetReturnValue().Set(result);
   }
@@ -2165,7 +2163,7 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     SetProtoMethod(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     SetProtoMethod(
-      isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
+        isolate, tmpl, "setReturnArrays", StatementSync::SetReturnArrays);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
   }
   return tmpl;
