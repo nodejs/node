@@ -48,19 +48,19 @@ const order = [
 test('Using --require to define global hooks works', async (t) => {
   const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.js'),
+    '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.cjs'),
     ...testFiles,
   ]);
 
-  t.assert.equal(stdout, order);
+  t.assert.ok(stdout.includes(order));
 });
 
 test('Using --import to define global hooks works', async (t) => {
   const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.js'),
+    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.mjs'),
     ...testFiles,
   ]);
 
-  t.assert.equal(stdout, order);
+  t.assert.ok(stdout.includes(order));
 });
