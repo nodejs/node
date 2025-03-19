@@ -146,8 +146,31 @@ Contributions can be:
 
 ### Nominating a new Collaborator
 
-To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
-Provide a summary of the nominee's contributions. For example:
+To nominate a new Collaborator:
+
+1. **Optional but strongly recommended**: open a
+   [discussion in the nodejs/collaborators][] repository. Provide a summary of
+   the nominee's contributions (see below for an example).
+2. **Optional but strongly recommended**: After sufficient wait time (e.g. 72
+   hours), if the nomination proposal has received some support and no explicit
+   block, add a comment in the private discussion stating you're planning on
+   opening a public issue, e.g. "I see a number of approvals and no block, I'll
+   be opening a public nomination issue if I don't hear any objections in the
+   next 72 hours".
+3. **Optional but strongly recommended**: Privately contact the nominee to make
+   sure they're comfortable with the nomination.
+4. Open an issue in the [nodejs/node][] repository. Provide a summary of
+   the nominee's contributions (see below for an example). Mention
+   @nodejs/collaborators in the issue to notify other collaborators about
+   the nomination.
+
+The _Optional but strongly recommended_ steps are optional in the sense that
+skipping them would not invalidate the nomination, but it could put the nominee
+in a very awkward situation if a nomination they didn't ask for pops out of
+nowhere only to be rejected. Do not skip those steps unless you're absolutely
+certain the nominee is fine with the public scrutiny.
+
+Example of list of contributions:
 
 * Commits in the [nodejs/node][] repository.
   * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
@@ -166,18 +189,10 @@ Provide a summary of the nominee's contributions. For example:
   organization
 * Other participation in the wider Node.js community
 
-Mention @nodejs/collaborators in the issue to notify other collaborators about
-the nomination.
-
-The nomination passes if no collaborators oppose it after one week. In the case
+The nomination passes if no collaborators oppose it after one week, and if the
+nominee publicly accepts it. In the case
 of an objection, the TSC is responsible for working with the individuals
 involved and finding a resolution.
-
-There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. To request feedback from other collaborators in
-private, use the [collaborators discussion page][]
-(which only collaborators may view). A nominator may also work with the
-nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
 the contributor may open an issue or contact a collaborator to request a
@@ -206,11 +221,6 @@ push commits, etc.), so what's the minimal amount is subjective, and there will
 be cases where collaborators disagree on whether a nomination should move
 forward.
 
-When concerns have been raised on the private discussion, refrain from opening
-the public issue. If no one has explicitly blocked the nomination and you'd like
-it to move forward, comment something like "If I don't hear any objections
-before (some time), I will open the public issue".
-
 ### Onboarding
 
 After the nomination passes, a TSC member onboards the new collaborator. See
@@ -224,6 +234,6 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
-[collaborators discussion page]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
