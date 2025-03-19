@@ -1747,11 +1747,12 @@ void StatementSync::IterateNextCallback(
         isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
   }
 
-  Local<Name> keys[] = {env->done_string(), env->value_string()};
-  Local<Value> values[] = {Boolean::New(isolate, false), row};
-  static_assert(arraysize(keys) == arraysize(values));
+  LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
+  LocalVector<Value> values(isolate, {Boolean::New(isolate, false), row});
+
+  DCHECK_EQ(keys.size(), values.size());
   Local<Object> result = Object::New(
-      isolate, Null(isolate), &keys[0], &values[0], arraysize(keys));
+      isolate, Null(isolate), keys.data(), values.data(), keys.size());
   args.GetReturnValue().Set(result);
 }
 
