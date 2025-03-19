@@ -325,6 +325,70 @@ The `--throw-deprecation` command-line flag and `process.throwDeprecation`
 property take precedence over `--trace-deprecation` and
 `process.traceDeprecation`.
 
+## `util.diff(actual, expected)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `actual` {Array|string} The first value to compare
+
+* `expected` {Array|string} The second value to compare
+
+* Returns: {Array} An array of difference entries. Each entry is an array with two elements:
+  * Index 0: {number} Operation code: `-1` for delete, `0` for no-op/unchanged, `1` for insert
+  * Index 1: {string} The value associated with the operation
+
+* Algorithm complexity: O(N\*D), where:
+
+* N is the total length of the two sequences combined (N = actual.length + expected.length)
+
+* D is the edit distance (the minimum number of operations required to transform one sequence into the other).
+
+[`util.diff()`][] compares two string or array values and returns an array of difference entries.
+It uses the Myers diff algorithm to compute minimal differences, which is the same algorithm
+used internally by assertion error messages.
+
+If the values are equal, an empty array is returned.
+
+```js
+const { diff } = require('node:util');
+
+// Comparing strings
+const actualString = '12345678';
+const expectedString = '12!!5!7!';
+console.log(diff(actualString, expectedString));
+// [
+//   [0, '1'],
+//   [0, '2'],
+//   [1, '3'],
+//   [1, '4'],
+//   [-1, '!'],
+//   [-1, '!'],
+//   [0, '5'],
+//   [1, '6'],
+//   [-1, '!'],
+//   [0, '7'],
+//   [1, '8'],
+//   [-1, '!'],
+// ]
+// Comparing arrays
+const actualArray = ['1', '2', '3'];
+const expectedArray = ['1', '3', '4'];
+console.log(diff(actualArray, expectedArray));
+// [
+//   [0, '1'],
+//   [1, '2'],
+//   [0, '3'],
+//   [-1, '4'],
+// ]
+// Equal values return empty array
+console.log(diff('same', 'same'));
+// []
+```
+
 ## `util.format(format[, ...args])`
 
 <!-- YAML
@@ -4029,6 +4093,7 @@ util.log('Timestamped message.');
 [`napi_create_external()`]: n-api.md#napi_create_external
 [`target` and `handler`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Proxy#Terminology
 [`tty.hasColors()`]: tty.md#writestreamhascolorscount-env
+[`util.diff()`]: #utildiffactual-expected
 [`util.format()`]: #utilformatformat-args
 [`util.inspect()`]: #utilinspectobject-options
 [`util.promisify()`]: #utilpromisifyoriginal
