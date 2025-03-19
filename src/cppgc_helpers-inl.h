@@ -52,6 +52,12 @@ Environment* CppgcMixin::env() const {
   return realm_->env();
 }
 
+CppgcMixin::~CppgcMixin() {
+  if (realm_ != nullptr) {
+    realm_->set_should_purge_empty_cppgc_wrappers(true);
+  }
+}
+
 }  // namespace node
 
 #endif  // defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
