@@ -12,6 +12,12 @@ const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
 const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing args to a child process with shell option true can lead to security ' +
+  'vulnerabilities, as the arguments are not escaped, only concatenated.',
+  'DEP0190');
+
 {
   execFile(
     process.execPath,
@@ -47,7 +53,8 @@ const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: p
 {
   // Verify the shell option works properly
   execFile(
-    common.isWindows ? `"${execOpts.env.NODE}" "${execOpts.env.FIXTURE} 0` : `"$NODE" "$FIXTURE" 0`,
+    `"${common.isWindows ? execOpts.env.NODE : '$NODE'}"`,
+    [`"${common.isWindows ? execOpts.env.FIXTURE : '$FIXTURE'}"`, 0],
     execOpts,
     common.mustSucceed(),
   );
@@ -116,14 +123,10 @@ const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: p
     ...(common.isWindows ? [] : [{ encoding: 'utf8' }]),
     { shell: true, encoding: 'utf8' },
   ].forEach((options) => {
-    const command = options.shell ?
-      [[file, ...args].join(' ')] :
-      [file, args];
-
-    const execFileSyncStdout = execFileSync(...command, options);
+    const execFileSyncStdout = execFileSync(file, args, options);
     assert.strictEqual(execFileSyncStdout, `foo bar${os.EOL}`);
 
-    execFile(...command, options, common.mustCall((_, stdout) => {
+    execFile(file, args, options, common.mustCall((_, stdout) => {
       assert.strictEqual(stdout, execFileSyncStdout);
     }));
   });
