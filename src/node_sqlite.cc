@@ -1689,9 +1689,8 @@ void StatementSync::IterateNextCallback(
   Local<Value> return_arrays_val;
   bool return_arrays = false;
   if (self->Get(context, env->return_arrays_string())
-          .ToLocal(&return_arrays_val) &&
-      return_arrays_val->IsBoolean()) {
-    return_arrays = return_arrays_val.As<Boolean>()->Value();
+          .ToLocal(&return_arrays_val)) {
+    return_arrays = return_arrays_val->IsTrue();
   }
 
   int r = sqlite3_step(stmt->statement_);
