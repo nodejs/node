@@ -429,19 +429,6 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // which all subtypes of a given supertype use contiguous tags. This struct can
 // then be used to represent such a type range.
 //
-// As an example, consider the following type hierarchy:
-//
-//          A     F
-//         / \
-//        B   E
-//       / \
-//      C   D
-//
-// A potential type id assignment for range-based type checks is
-// {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5}. With that, the type check for type A
-// would check for the range [A, E], while the check for B would check range
-// [B, D], and for F it would simply check [F, F].
-//
 // In addition, there is an option for performance tweaks: if the size of the
 // type range corresponding to a supertype is a power of two and starts at a
 // power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
