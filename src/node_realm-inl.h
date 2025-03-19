@@ -130,9 +130,11 @@ void Realm::TrackBaseObject(BaseObject* bo) {
   ++base_object_count_;
 }
 
+CppgcWrapperListNode::CppgcWrapperListNode(CppgcMixin* ptr) : persistent(ptr) {}
+
 void Realm::TrackCppgcWrapper(CppgcMixin* handle) {
   DCHECK_EQ(handle->realm(), this);
-  cppgc_wrapper_list_.PushFront(handle);
+  cppgc_wrapper_list_.PushFront(new CppgcWrapperListNode(handle));
 }
 
 void Realm::UntrackBaseObject(BaseObject* bo) {

@@ -6,6 +6,7 @@
 #include <type_traits>  // std::remove_reference
 #include "cppgc/garbage-collected.h"
 #include "cppgc/name-provider.h"
+#include "cppgc/persistent.h"
 #include "memory_tracker.h"
 #include "util.h"
 #include "v8-cppgc.h"
@@ -16,7 +17,7 @@ namespace node {
 
 class Environment;
 class Realm;
-class CppgcWrapperList;
+class CppgcWrapperListNode;
 
 /**
  * This is a helper mixin with a BaseObject-like interface to help
@@ -100,17 +101,20 @@ class CppgcMixin : public cppgc::GarbageCollectedMixin, public MemoryRetainer {
     realm_ = nullptr;
   }
 
-  // The default implementation of Clean() is a no-op. Subclasses
-  // should override it to perform cleanup that require a living Realm,
-  // instead of doing these cleanups directly in the destructor.
+  // The default implementation of Clean() is a no-op. If subclasses wish
+  // to perform cleanup that require a living Realm, they should
+  // should put the cleanups in a Clean() override, and call this->Finalize()
+  // in the destructor, instead of doing those cleanups directly in the
+  // destructor.
   virtual void Clean(Realm* realm) {}
 
-  friend class CppgcWrapperList;
+  inline ~CppgcMixin();
+
+  friend class CppgcWrapperListNode;
 
  private:
   Realm* realm_ = nullptr;
   v8::TracedReference<v8::Object> traced_reference_;
-  ListNode<CppgcMixin> wrapper_list_node_;
 };
 
 // If the class doesn't have additional owned traceable data, use this macro to

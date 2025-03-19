@@ -26,11 +26,34 @@ using BindingDataStore =
     std::array<BaseObjectWeakPtr<BaseObject>,
                static_cast<size_t>(BindingDataType::kBindingDataTypeCount)>;
 
+/**
+ * This is a wrapper around a weak persistent of CppgcMixin, used in the
+ * CppgcWrapperList to avoid accessing already garbage collected CppgcMixins.
+ */
+class CppgcWrapperListNode {
+ public:
+  explicit inline CppgcWrapperListNode(CppgcMixin* ptr);
+  inline explicit operator bool() const { return !persistent; }
+  inline CppgcMixin* operator->() const { return persistent.Get(); }
+  inline CppgcMixin* operator*() const { return persistent.Get(); }
+
+  cppgc::WeakPersistent<CppgcMixin> persistent;
+  // Used by ContainerOf in the ListNode implementation for fast manipulation of
+  // CppgcWrapperList.
+  ListNode<CppgcWrapperListNode> wrapper_list_node;
+};
+
+/**
+ * A per-realm list of weak persistent of cppgc wrappers, which implements
+ * iterations that require iterate over cppgc wrappers created by Node.js.
+ */
 class CppgcWrapperList
-    : public ListHead<CppgcMixin, &CppgcMixin::wrapper_list_node_>,
+    : public ListHead<CppgcWrapperListNode,
+                      &CppgcWrapperListNode::wrapper_list_node>,
       public MemoryRetainer {
  public:
   void Cleanup();
+  void PurgeEmpty();
 
   SET_MEMORY_INFO_NAME(CppgcWrapperList)
   SET_SELF_SIZE(CppgcWrapperList)
@@ -141,6 +164,14 @@ class Realm : public MemoryRetainer {
   // it's only used for tests.
   std::vector<std::string> builtins_in_snapshot;
 
+  // This used during the destruction of cppgc wrappers to inform a GC epilogue
+  // callback to clean up the weak persistents used to track cppgc wrappers if
+  // the wrappers are already garbage collected to prevent holding on to
+  // excessive useless persistents.
+  inline void set_should_purge_empty_cppgc_wrappers(bool value) {
+    should_purge_empty_cppgc_wrappers_ = value;
+  }
+
  protected:
   ~Realm();
 
@@ -150,10 +181,16 @@ class Realm : public MemoryRetainer {
   // Shorthand for isolate pointer.
   v8::Isolate* isolate_;
   v8::Global<v8::Context> context_;
+  bool should_purge_empty_cppgc_wrappers_ = false;
 
 #define V(PropertyName, TypeName) v8::Global<TypeName> PropertyName##_;
   PER_REALM_STRONG_PERSISTENT_VALUES(V)
 #undef V
+
+  static void PurgeEmptyCppgcWrappers(v8::Isolate* isolate,
+                                      v8::GCType type,
+                                      v8::GCCallbackFlags flags,
+                                      void* data);
 
  private:
   void InitializeContext(v8::Local<v8::Context> context,
