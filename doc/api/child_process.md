@@ -349,6 +349,10 @@ controller.abort();
 added: v0.1.91
 changes:
   - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57389
+    description: Passing `args` when `shell` is set to `true` is deprecated.
+  - version:
       - v16.4.0
       - v14.18.0
     pr-url: https://github.com/nodejs/node/pull/38862
@@ -641,6 +645,10 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version:
+      - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57389
+    description: Passing `args` when `shell` is set to `true` is deprecated.
   - version:
       - v16.4.0
       - v14.18.0
