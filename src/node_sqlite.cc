@@ -1807,8 +1807,8 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   return_arrays_pd.set_enumerable(false);
   return_arrays_pd.set_configurable(false);
   if (iterable_iterator
-          ->DefineProperty(context,
-                           env->return_arrays_string(), return_arrays_pd)
+          ->DefineProperty(
+              context, env->return_arrays_string(), return_arrays_pd)
           .IsNothing()) {
     // An error will have been scheduled.
     return;
@@ -1854,8 +1854,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       row_values.emplace_back(val);
     }
 
-    Local<Array> result = Array::New(
-        isolate, row_values.data(), row_values.size());
+    Local<Array> result =
+        Array::New(isolate, row_values.data(), row_values.size());
     args.GetReturnValue().Set(result);
   } else {
     LocalVector<Name> keys(isolate);
