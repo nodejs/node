@@ -281,6 +281,11 @@ describe('Object Comparison Tests', () => {
           ]),
         },
         {
+          description: 'throws for Maps with mixed unequal entries',
+          actual: new Map([[{ a: 2 }, 1], [1, 1], [{ b: 1 }, 1], [[], 1], [2, 1], [{ a: 1 }, 1]]),
+          expected: new Map([[{ a: 1 }, 1], [[], 1], [2, 1], [{ a: 1 }, 1]]),
+        },
+        {
           description: 'throws for sets with different object values',
           actual: new Set([
             { a: 1 },
@@ -493,6 +498,11 @@ describe('Object Comparison Tests', () => {
           description: 'throws when comparing Float32Array([+0.0]) with Float32Array([-0.0])',
           actual: new Float32Array([+0.0]),
           expected: new Float32Array([-0.0]),
+        },
+        {
+          description: 'throws when comparing two Uint8Array objects with non-matching entries',
+          actual: { typedArray: new Uint8Array([1, 2, 3, 4, 5]) },
+          expected: { typedArray: new Uint8Array([1, 333, 2, 4]) },
         },
         {
           description: 'throws when comparing two different urls',
@@ -713,7 +723,7 @@ describe('Object Comparison Tests', () => {
       {
         description: 'compares two Uint8Array objects',
         actual: { typedArray: new Uint8Array([1, 2, 3, 4, 5]) },
-        expected: { typedArray: new Uint8Array([1, 2, 3]) },
+        expected: { typedArray: new Uint8Array([1, 2, 3, 5]) },
       },
       {
         description: 'compares two Int16Array objects',
