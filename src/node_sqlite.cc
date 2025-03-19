@@ -1641,7 +1641,8 @@ void StatementSync::IterateReturnCallback(
   args.GetReturnValue().Set(result);
 }
 
-void StatementSync::IterateNextCallback(const FunctionCallbackInfo<Value>& args) {
+void StatementSync::IterateNextCallback(
+    const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
   auto context = isolate->GetCurrentContext();
@@ -1807,8 +1808,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   return_arrays_pd.set_configurable(false);
   if (iterable_iterator
           ->DefineProperty(context,
-                           env->return_arrays_string(),
-                           return_arrays_pd)
+                           env->return_arrays_string(), return_arrays_pd)
           .IsNothing()) {
     // An error will have been scheduled.
     return;
@@ -1847,14 +1847,15 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   if (stmt->return_arrays_) {
     LocalVector<Value> row_values(isolate);
     row_values.reserve(num_cols);
-    
+
     for (int i = 0; i < num_cols; ++i) {
       Local<Value> val;
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
       row_values.emplace_back(val);
     }
-    
-    Local<Array> result = Array::New(isolate, row_values.data(), row_values.size());
+
+    Local<Array> result = Array::New(
+        isolate, row_values.data(), row_values.size());
     args.GetReturnValue().Set(result);
   } else {
     LocalVector<Name> keys(isolate);
