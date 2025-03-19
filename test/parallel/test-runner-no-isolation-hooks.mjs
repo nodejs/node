@@ -52,7 +52,9 @@ test('Using --require to define global hooks works', async (t) => {
     ...testFiles,
   ]);
 
-  t.assert.ok(stdout.includes(order));
+  const testHookOutput = stdout.split('\n▶')[0];
+
+  t.assert.equal(testHookOutput, order);
 });
 
 test('Using --import to define global hooks works', async (t) => {
@@ -62,5 +64,7 @@ test('Using --import to define global hooks works', async (t) => {
     ...testFiles,
   ]);
 
-  t.assert.ok(stdout.includes(order));
+  const testHookOutput = stdout.split('\n▶')[0];
+
+  t.assert.equal(testHookOutput, order);
 });
