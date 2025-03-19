@@ -1571,12 +1571,14 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
     if (stmt->return_arrays_) {
-      Local<Array> row = Array::New(isolate, num_cols);
+      LocalVector<Value> row_values(isolate);
+      row_values.reserve(num_cols);
       for (int i = 0; i < num_cols; ++i) {
         Local<Value> val;
         if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-        if (row->Set(env->context(), i, val).IsNothing()) return;
+        row_values.emplace_back(val);
       }
+      Local<Array> row = Array::New(isolate, row_values.data(), row_values.size());
       rows.emplace_back(row);
     } else {
       if (row_keys.size() == 0) {
