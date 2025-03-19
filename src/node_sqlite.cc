@@ -767,6 +767,12 @@ void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
   db->Open();
 }
 
+void DatabaseSync::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  args.GetReturnValue().Set(db->IsOpen());
+}
+
 void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -2247,6 +2253,10 @@ static void Initialize(Local<Object> target,
                  DatabaseSync::EnableLoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
+  SetSideEffectFreeGetter(isolate,
+                          db_tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                          DatabaseSync::IsOpenGetter);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,
