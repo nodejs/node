@@ -1818,7 +1818,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-Life.
+Type: End-of-Life
 
 The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
 be set to `false` to disable ECDH entirely on the server only. This mode was
@@ -2164,7 +2164,8 @@ This deprecation has been superseded by the deprecation of the
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18990
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2370,7 +2371,7 @@ changes:
     pr-url:
       - https://github.com/nodejs/node/pull/22519
       - https://github.com/nodejs/node/pull/23017
-    description: Added documentation-only deprecation
+    description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
 
@@ -2451,7 +2452,8 @@ It will become an error in future versions of Node.js.
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23597
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2696,7 +2698,8 @@ Prefer [`response.socket`][] over [`response.connection`][] and
 changes:
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29781
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2831,7 +2834,8 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 changes:
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
-    description: Documentation-only (supports [`--pending-deprecation`][]).
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2845,10 +2849,11 @@ instead of `.inputStream` and `.output` instead of `.outputStream`.
 changes:
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
-    description: Documentation-only (supports [`--pending-deprecation`][]).
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
 of built-in modules. It was incomplete so far and instead it's better to rely
@@ -2864,6 +2869,7 @@ changes:
 -->
 
 Type: Runtime
+
 `Transform._transformState` will be removed in future versions where it is
 no longer required due to simplification of the implementation.
 
@@ -2986,7 +2992,7 @@ changes:
     description: Documentation-only deprecation.
  -->
 
-Type: Documentation-only.
+Type: Documentation-only
 
 Prefer [`message.socket`][] over [`message.connection`][].
 
@@ -3210,7 +3216,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime.
+Type: Runtime
 
 This event was deprecated because it did not work with V8 promise combinators
 which diminished its usefulness.
