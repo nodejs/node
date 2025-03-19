@@ -192,6 +192,14 @@ added: v22.13.0
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
 
+### `database.isOpen`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} Whether the database is currently open or not.
+
 ### `database.open()`
 
 <!-- YAML

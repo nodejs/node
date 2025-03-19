@@ -172,8 +172,10 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(dbPath, { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.strictEqual(existsSync(dbPath), false);
     t.assert.strictEqual(db.open(), undefined);
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(existsSync(dbPath), true);
   });
 
@@ -181,13 +183,16 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(nextDb(), { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     db.open();
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.throws(() => {
       db.open();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is already open/,
     });
+    t.assert.strictEqual(db.isOpen, true);
   });
 });
 
@@ -195,18 +200,22 @@ suite('DatabaseSync.prototype.close()', () => {
   test('closes an open database connection', (t) => {
     const db = new DatabaseSync(nextDb());
 
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(db.close(), undefined);
+    t.assert.strictEqual(db.isOpen, false);
   });
 
   test('throws if database is not open', (t) => {
     const db = new DatabaseSync(nextDb(), { open: false });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.throws(() => {
       db.close();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
+    t.assert.strictEqual(db.isOpen, false);
   });
 });
 
