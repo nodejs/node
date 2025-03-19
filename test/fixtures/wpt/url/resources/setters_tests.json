@@ -1177,6 +1177,24 @@
                 "host": "test.invalid",
                 "hostname": "test.invalid"
             }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/@aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/:aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
         }
     ],
     "hostname": [
@@ -1623,6 +1641,24 @@
                 "href": "https://test.invalid/",
                 "host": "test.invalid",
                 "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/@aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "test/:aaa",
+            "expected": {
+                "href": "https://test/",
+                "host": "test",
+                "hostname": "test"
             }
         }
     ],
