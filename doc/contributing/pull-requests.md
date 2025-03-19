@@ -455,7 +455,7 @@ requests should generally be closed unless they provide clear ongoing value
 or have a well defined path forward. When closing a pull request, always
 leave a polite comment explaining the reason and encouraging the contributor
 to restart the effort and submit a new pull request if the changes are still
-relevant or valuable.
+relevant and applicable.
 
 ### Approving a change
 
