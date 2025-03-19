@@ -1578,7 +1578,8 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
         if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
         row_values.emplace_back(val);
       }
-      Local<Array> row = Array::New(isolate, row_values.data(), row_values.size());
+      Local<Array> row =
+          Array::New(isolate, row_values.data(), row_values.size());
       rows.emplace_back(row);
     } else {
       if (row_keys.size() == 0) {
