@@ -79,7 +79,9 @@
 
 Support for loading native ES modules using require() had been available on v20.x under the command line flag --experimental-require-module, and available by default on v22.x and v23.x. In this release, it is now no longer behind a flag on v20.x.
 
-This feature has been tested on v23.x and v22.x, and we are looking for user feedback from v20.x to make more final tweaks before fully stabilizing it. When the Node.js instance encounters a native ES module in require() somewhere outside `node_modules` for the first time, it will emit an experimental warning unless `require()` comes from a path that contains `node_modules`.  If there happens to be any regressions caused by this feature, users can report it to the Node.js issue tracker. Meanwhile this feature can also be disabled using `--no-experimental-require-module` as a workaround.
+This feature has been tested on v23.x and v22.x, and we are looking for user feedback from v20.x to make more final tweaks before fully stabilizing it.
+It now no longer emits a warning unless `--trace-require-module` is explicitly used.
+If there happens to be any regressions caused by this feature, users can report it to the Node.js issue tracker. Meanwhile this feature can also be disabled using `--no-experimental-require-module` as a workaround.
 
 With this feature enabled, Node.js will no longer throw `ERR_REQUIRE_ESM` if `require()` is used to load a ES module. It can, however, throw `ERR_REQUIRE_ASYNC_MODULE` if the ES module being loaded or its dependencies contain top-level `await`. When the ES module is loaded successfully by `require()`, the returned object will either be a ES module namespace object similar to what's returned by `import()`, or what gets exported as `"module.exports"` in the ES module.
 
