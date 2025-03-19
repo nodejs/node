@@ -446,16 +446,10 @@ credit for the work they started (either by preserving their name and email
 address) in the commit log, or by using an `Author:` meta-data tag in the
 commit.
 
-If a pull request has been inactive for more than six months, it is unlikely
-to be merged. The contributor may no longer be engaged, may have lost context
-on their changes, the Node.js codebase may have evolved to the point where
-resuming the effort is impractical, or all of the above.
-To keep the project well organized and more maintainable, such stale pull
-requests should generally be closed unless they provide clear ongoing value
-or have a well defined path forward. When closing a pull request, always
-leave a polite comment explaining the reason and encouraging the contributor
-to restart the effort and submit a new pull request if the changes are still
-relevant and applicable.
+If a pull request has been inactive for more than six months, add the `stalled` label
+to it. That should trigger an automation that adds a comment explaining the pull request
+may be close for inactivity, giving a heads-up to the contributor before actually
+close it if is still inactive.
 
 ### Approving a change
 
