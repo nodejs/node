@@ -146,8 +146,31 @@ Contributions can be:
 
 ### Nominating a new Collaborator
 
-To nominate a new Collaborator, open an issue in the [nodejs/node][] repository.
-Provide a summary of the nominee's contributions. For example:
+To nominate a new Collaborator:
+
+1. **Optional but strongly recommended**: open a
+   [discussion in the nodejs/collaborators][] repository. Provide a summary of
+   the nominee's contributions (see below for an example).
+2. **Optional but strongly recommended**: After sufficient wait time (e.g. 72
+   hours), if the nomination proposal has received some support and no explicit
+   block, add a comment in the private discussion stating you're planning on
+   opening a public issue, e.g. "I see a number of approvals and no block, I'll
+   be opening a public nomination issue if I don't hear any objections in the
+   next 72 hours".
+3. **Optional but strongly recommended**: Privately contact the nominee to make
+   sure they're comfortable with the nomination.
+4. Open an issue in the [nodejs/node][] repository. Provide a summary of
+   the nominee's contributions (see below for an example). Mention
+   @nodejs/collaborators in the issue to notify other collaborators about
+   the nomination.
+
+The _Optional but strongly recommended_ steps are optional in the sense that
+skipping them would not invalidate the nomination, but it could put the nominee
+in a very awkward situation if a nomination they didn't ask for pops out of
+nowhere only to be rejected. Do not skip those steps unless you're absolutely
+certain the nominee is fine with the public scrutiny.
+
+Example of list of contributions:
 
 * Commits in the [nodejs/node][] repository.
   * Use the link `https://github.com/nodejs/node/commits?author=GITHUB_ID`
@@ -166,22 +189,37 @@ Provide a summary of the nominee's contributions. For example:
   organization
 * Other participation in the wider Node.js community
 
-Mention @nodejs/collaborators in the issue to notify other collaborators about
-the nomination.
-
-The nomination passes if no collaborators oppose it after one week. In the case
+The nomination passes if no collaborators oppose it after one week, and if the
+nominee publicly accepts it. In the case
 of an objection, the TSC is responsible for working with the individuals
 involved and finding a resolution.
-
-There are steps a nominator can take in advance to make a nomination as
-frictionless as possible. To request feedback from other collaborators in
-private, use the [collaborators discussion page][]
-(which only collaborators may view). A nominator may also work with the
-nominee to improve their contribution profile.
 
 Collaborators might overlook someone with valuable contributions. In that case,
 the contributor may open an issue or contact a collaborator to request a
 nomination.
+
+#### How to review a collaborator nomination
+
+A collaborator nomination can be reviewed in the same way one would review a PR
+adding a feature:
+
+* If you see the nomination as something positive to the project, say so!
+* If you are neutral, or feel you don't know enough to have an informed opinion,
+  it's certainly OK to not interact with the nomination.
+* If you think the nomination was made too soon, or can be detrimental to the
+  project, share your concerns, ideally before the public nomination is opened,
+  and avoid sharing those concerns outside of the Collaborator discussion area.
+  Ideally, list what step(s) the nominee could take that would make you
+  approve their nomination.
+  Given that there is no "Request for changes" feature in discussions and issues,
+  try to be explicit when your comment is expressing a blocking concern.
+  Similarly, once the blocking concern has been addressed, explicitly say so.
+
+Our goal is to keep gate-keeping at a minimal, but it cannot be zero since being
+a collaborator requires trust (collaborators can start CI jobs, use their veto,
+push commits, etc.), so what's the minimal amount is subjective, and there will
+be cases where collaborators disagree on whether a nomination should move
+forward.
 
 ### Onboarding
 
@@ -196,6 +234,6 @@ The TSC follows a [Consensus Seeking][] decision-making model per the
 
 [Consensus Seeking]: https://en.wikipedia.org/wiki/Consensus-seeking_decision-making
 [TSC Charter]: https://github.com/nodejs/TSC/blob/HEAD/TSC-Charter.md
-[collaborators discussion page]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
+[discussion in the nodejs/collaborators]: https://github.com/nodejs/collaborators/discussions/categories/collaborator-nominations
 [nodejs/help]: https://github.com/nodejs/help
 [nodejs/node]: https://github.com/nodejs/node
