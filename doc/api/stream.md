@@ -2370,7 +2370,6 @@ console.log('done'); // Stream has finished
 added:
   - v17.5.0
   - v16.17.0
-changes:
 -->
 
 > Stability: 1 - Experimental
@@ -2549,7 +2548,6 @@ await Readable.from([1, 2, 3, 4]).drop(2).toArray(); // [3, 4]
 added:
   - v17.5.0
   - v16.15.0
-changes:
 -->
 
 > Stability: 1 - Experimental
