@@ -10,6 +10,7 @@ const {
   isValidHeaderName,
   isValidHeaderValue
 } = require('./util')
+const util = require('util')
 const { webidl } = require('./webidl')
 const assert = require('assert')
 
@@ -563,6 +564,9 @@ Object.defineProperties(Headers.prototype, {
   [Symbol.toStringTag]: {
     value: 'Headers',
     configurable: true
+  },
+  [util.inspect.custom]: {
+    enumerable: false
   }
 })
 

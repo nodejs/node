@@ -1,7 +1,7 @@
 'use strict'
 
 const { parseSetCookie } = require('./parse')
-const { stringify, getHeadersList } = require('./util')
+const { stringify } = require('./util')
 const { webidl } = require('../fetch/webidl')
 const { Headers } = require('../fetch/headers')
 
@@ -77,14 +77,13 @@ function getSetCookies (headers) {
 
   webidl.brandCheck(headers, Headers, { strict: false })
 
-  const cookies = getHeadersList(headers).cookies
+  const cookies = headers.getSetCookie()
 
   if (!cookies) {
     return []
   }
 
-  // In older versions of undici, cookies is a list of name:value.
-  return cookies.map((pair) => parseSetCookie(Array.isArray(pair) ? pair[1] : pair))
+  return cookies.map((pair) => parseSetCookie(pair))
 }
 
 /**
