@@ -47,7 +47,7 @@ dependencies, and tools contained in the `nodejs/node` repository.
 * [Reviewing Pull Requests](./doc/contributing/pull-requests.md#reviewing-pull-requests)
 * [Notes](./doc/contributing/pull-requests.md#notes)
 
-## Developer's Certificate of Origin 1.1 ->
+## Developer's Certificate of Origin 1.10 ->
 
 By making a contribution to this project, I certify that:
 
