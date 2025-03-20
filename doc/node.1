@@ -842,6 +842,19 @@ When set to
 .Ar 0 ,
 TLS certificate validation is disabled.
 .
+.It Ev NODE_USE_ENV_PROXY
+When enabled, Node.js parses the
+.Ar HTTP_PROXY
+,
+.Ar HTTPS_PROXY
+and
+.Ar NO_PROXY
+environment variables during startup, and tunnels requests over the specified proxy.
+.Pp
+This currently only affects requests sent over
+.Ar fetch() .
+Support for other built-in http and https methods is under way.
+.
 .It Ev NODE_USE_SYSTEM_CA
 Similar to
 .Fl -use-system-ca .
