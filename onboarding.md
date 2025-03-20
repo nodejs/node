@@ -53,6 +53,8 @@ onboarding session.
     set up email
   * Watching the main repository will flood your inbox (several hundred
     notifications on typical weekdays), so be prepared
+  * Watching the discussions in the
+    [collaborators repo](https://github.com/nodejs/collaborators) is recommended.
 
 The project has a venue for real-time discussion:
 
