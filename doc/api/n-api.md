@@ -6126,10 +6126,11 @@ NAPI_EXTERN napi_status napi_adjust_external_memory(node_api_basic_env env,
 * `[in] env`: The environment that the API is invoked under.
 * `[in] change_in_bytes`: The change in externally allocated memory that is kept
   alive by JavaScript objects.
-* `[out] result`: The adjusted value. This value should reflect the total amount
-  which was been adjusted based on calls to `napi_adjust_external_memory` so far.
-  For example, if there has been a request for +1000 and a request for -500 it should
-  return 500.
+* `[out] result`: The adjusted value. This value should reflect the relative
+  total amount changed with the given `change_in_bytes` of accounted external
+  memory size. Implementations may use a single counter for all addons, or a 
+  counter for each addon. The absolute value of the returned value should not 
+  be depended on.
 
 Returns `napi_ok` if the API succeeded.
 
