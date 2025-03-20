@@ -207,7 +207,7 @@ class Client extends DispatcherBase {
         allowH2,
         socketPath,
         timeout: connectTimeout,
-        ...(autoSelectFamily ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
+        ...(typeof autoSelectFamily === 'boolean' ? { autoSelectFamily, autoSelectFamilyAttemptTimeout } : undefined),
         ...connect
       })
     }

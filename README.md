@@ -403,8 +403,6 @@ For information about the governance of the Node.js project, see
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [MrJithil](https://github.com/MrJithil) -
   **Jithil P Ponnan** <<jithil@outlook.com>> (he/him)
-* [ovflowd](https://github.com/ovflowd) -
-  **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [panva](https://github.com/panva) -
   **Filip Skokan** <<panva.ip@gmail.com>> (he/him)
 * [pimterry](https://github.com/pimterry) -
@@ -629,6 +627,8 @@ For information about the governance of the Node.js project, see
   **Alexis Campailla** <<orangemocha@nodejs.org>>
 * [othiym23](https://github.com/othiym23) -
   **Forrest L Norvell** <<ogd@aoaioxxysz.net>> (they/them/themself)
+* [ovflowd](https://github.com/ovflowd) -
+  **Claudio Wunder** <<cwunder@gnome.org>> (he/they)
 * [oyyd](https://github.com/oyyd) -
   **Ouyang Yadong** <<oyydoibh@gmail.com>> (he/him)
 * [petkaantonov](https://github.com/petkaantonov) -
@@ -757,8 +757,6 @@ maintaining the Node.js project.
   **Akhil Marsonya** <<akhil.marsonya27@gmail.com>> (he/him)
 * [meixg](https://github.com/meixg) -
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
-* [mertcanaltin](https://github.com/mertcanaltin) -
-  **Mert Can Altin** <<mertgold60@gmail.com>>
 * [preveen-stack](https://github.com/preveen-stack) -
   **Preveen Padmanabhan** <<wide4head@gmail.com>> (he/him)
 * [RaisinTen](https://github.com/RaisinTen) -

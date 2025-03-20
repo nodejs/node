@@ -3,9 +3,8 @@ const common = require('../common.js');
 const assert = require('assert');
 
 const bench = common.createBenchmark(main, {
-  n: [10, 50, 200, 500],
-  size: [10, 100],
-  datasetName: ['objects'],
+  n: [200],
+  size: [2, 75],
 });
 
 const baseObject = {

@@ -39,7 +39,8 @@ release.
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V23.md#23.9.0">23.9.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V23.md#23.10.0">23.10.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.9.0">23.9.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V23.md#23.8.0">23.8.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V23.md#23.7.0">23.7.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V23.md#23.6.1">23.6.1</a><br/>
@@ -72,7 +73,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V22.md#22.0.0">22.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V20.md#20.18.3">20.18.3</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.19.0">20.19.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.18.3">20.18.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.18.2">20.18.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.18.1">20.18.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.18.0">20.18.0</a><br/>

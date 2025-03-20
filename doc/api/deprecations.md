@@ -947,6 +947,9 @@ The [`tls.CryptoStream`][] class was removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -966,9 +969,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.SecurePair`][] class is deprecated. Please use
+The `tls.SecurePair` class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0044: `util.isArray()`
@@ -1488,6 +1491,9 @@ officially supported API.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -1507,7 +1513,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 0.11.3. Users should use `tls.Socket` instead.
@@ -1866,7 +1872,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: End-of-Life.
+Type: End-of-Life
 
 The `ecdhCurve` option to `tls.createSecureContext()` and `tls.TLSSocket` could
 be set to `false` to disable ECDH entirely on the server only. This mode was
@@ -2224,7 +2230,8 @@ This deprecation has been superseded by the deprecation of the
 changes:
   - version: v10.0.0
     pr-url: https://github.com/nodejs/node/pull/18990
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2433,7 +2440,7 @@ changes:
     pr-url:
       - https://github.com/nodejs/node/pull/22519
       - https://github.com/nodejs/node/pull/23017
-    description: Added documentation-only deprecation
+    description: Documentation-only deprecation
                  with `--pending-deprecation` support.
 -->
 
@@ -2514,7 +2521,8 @@ It will become an error in future versions of Node.js.
 changes:
   - version: v11.0.0
     pr-url: https://github.com/nodejs/node/pull/23597
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2768,7 +2776,8 @@ Prefer [`response.socket`][] over [`response.connection`][] and
 changes:
   - version: v12.12.0
     pr-url: https://github.com/nodejs/node/pull/29781
-    description: Documentation-only deprecation.
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2903,7 +2912,8 @@ Use [`request.destroy()`][] instead of [`request.abort()`][].
 changes:
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
-    description: Documentation-only (supports [`--pending-deprecation`][]).
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
 Type: Documentation-only (supports [`--pending-deprecation`][])
@@ -2917,10 +2927,11 @@ instead of `.inputStream` and `.output` instead of `.outputStream`.
 changes:
   - version: v14.3.0
     pr-url: https://github.com/nodejs/node/pull/33294
-    description: Documentation-only (supports [`--pending-deprecation`][]).
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
 -->
 
-Type: Documentation-only
+Type: Documentation-only (supports [`--pending-deprecation`][])
 
 The `node:repl` module exports a `_builtinLibs` property that contains an array
 of built-in modules. It was incomplete so far and instead it's better to rely
@@ -2936,6 +2947,7 @@ changes:
 -->
 
 Type: Runtime
+
 `Transform._transformState` will be removed in future versions where it is
 no longer required due to simplification of the implementation.
 
@@ -3058,7 +3070,7 @@ changes:
     description: Documentation-only deprecation.
  -->
 
-Type: Documentation-only.
+Type: Documentation-only
 
 Prefer [`message.socket`][] over [`message.connection`][].
 
@@ -3282,7 +3294,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime.
+Type: Runtime
 
 This event was deprecated because it did not work with V8 promise combinators
 which diminished its usefulness.
@@ -3843,6 +3855,21 @@ Type: Documentation-only
 `process.features.tls_alpn`, `process.features.tls_ocsp`, and `process.features.tls_sni` are
 deprecated, as their values are guaranteed to be identical to that of `process.features.tls`.
 
+### DEP0190: Passing `args` to `node:child_process` `execFile`/`spawn` with `shell` option `true`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57389
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
+`{ shell: true }`, the values are not escaped, only space-separated, which can lead to shell injection.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3870,6 +3897,8 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
+[`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
+[`child_process.spawn`]: child_process.md#child_processspawncommand-args-options
 [`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout
 [`clearTimeout()`]: timers.md#cleartimeouttimeout
@@ -3958,7 +3987,6 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 [`timeout.unref()`]: timers.md#timeoutunref
 [`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
-[`tls.SecurePair`]: tls.md#class-tlssecurepair
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions

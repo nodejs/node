@@ -1173,10 +1173,12 @@ public:
     inline U_HEADER_NESTED_NAMESPACE::USetStrings strings() const {
         return U_HEADER_NESTED_NAMESPACE::USetStrings(toUSet());
     }
+#endif  // U_HIDE_DRAFT_API
 
+#ifndef U_HIDE_DRAFT_API
     /**
      * Returns a C++ iterator for iterating over all of the elements of this set.
-     * Convenient all-in one iteration, but creates a UnicodeString for each
+     * Convenient all-in one iteration, but creates a std::u16string for each
      * code point or string.
      * (Similar to how Java UnicodeSet *is an* Iterable&lt;String&gt;.)
      *
@@ -1185,13 +1187,14 @@ public:
      * \code
      * UnicodeSet set(u"[abcçカ🚴{}{abc}{de}]", errorCode);
      * for (auto el : set) {
+     *     UnicodeString us(el);
      *     std::string u8;
-     *     printf("set.string length %ld \"%s\"\n", (long)el.length(), el.toUTF8String(u8).c_str());
+     *     printf("set.element length %ld \"%s\"\n", (long)us.length(), us.toUTF8String(u8).c_str());
      * }
      * \endcode
      *
      * @return an all-elements iterator.
-     * @draft ICU 76
+     * @draft ICU 77
      * @see end
      * @see codePoints
      * @see ranges
@@ -1203,7 +1206,7 @@ public:
 
     /**
      * @return an exclusive-end sentinel for iterating over all of the elements of this set.
-     * @draft ICU 76
+     * @draft ICU 77
      * @see begin
      * @see codePoints
      * @see ranges

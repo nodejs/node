@@ -501,6 +501,15 @@ $ ls *.cpuprofile
 CPU.20190409.202950.15293.0.0.cpuprofile
 ```
 
+If `--cpu-prof-name` is specified, the provided value will be used as-is; patterns such as
+`${hhmmss}` or `${pid}` are not supported.
+
+```console
+$ node --cpu-prof --cpu-prof-name 'CPU.${pid}.cpuprofile' index.js
+$ ls *.cpuprofile
+'CPU.${pid}.cpuprofile'
+```
+
 ### `--cpu-prof-dir`
 
 <!-- YAML
@@ -914,19 +923,15 @@ Enable experimental import support for `.node` addons.
 ### `--experimental-config-file=config`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 > Stability: 1.0 - Early development
 
-If present, Node.js will look for a
-configuration file at the specified path.
-Node.js will read the configuration file and apply the settings.
-The configuration file should be a JSON file
-with the following structure:
-
-> \[!NOTE]
-> Replace `vX.Y.Z` in the `$schema` with the version of Node.js you are using.
+If present, Node.js will look for a configuration file at the specified path.
+Node.js will read the configuration file and apply the settings. The
+configuration file should be a JSON file with the following structure. `vX.Y.Z`
+in the `$schema` must be replaced with the version of Node.js you are using.
 
 ```json
 {
@@ -980,7 +985,7 @@ so **NEVER** use untrusted configuration files.
 ### `--experimental-default-config-file`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 > Stability: 1.0 - Early development
@@ -1081,6 +1086,7 @@ changes:
   - version:
     - v23.0.0
     - v22.12.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now true by default.
 -->
@@ -1713,6 +1719,7 @@ added:
 changes:
   - version:
     - v22.7.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/53619
     description: Syntax detection is enabled by default.
 -->
@@ -1747,6 +1754,7 @@ changes:
   - version:
     - v23.0.0
     - v22.12.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: This is now false by default.
 -->
@@ -2801,6 +2809,7 @@ i.e. invoking `process.exit()`.
 added:
  - v23.5.0
  - v22.13.0
+ - v20.19.0
 -->
 
 Prints information about usage of [Loading ECMAScript modules using `require()`][].
@@ -2936,6 +2945,14 @@ The following values are valid for `mode`:
   will be ignored and will not be reported.
 
 ### `--use-system-ca`
+
+<!-- YAML
+added: v23.8.0
+changes:
+  - version: v23.9.0
+    pr-url: https://github.com/nodejs/node/pull/57009
+    description: Added support on non-Windows and non-macOS.
+-->
 
 Node.js uses the trusted CA certificates present in the system store along with
 the `--use-bundled-ca` option and the `NODE_EXTRA_CA_CERTS` environment variable.
@@ -3527,6 +3544,21 @@ Node.js makes no guarantees about the reporter format used or its stability.
 If `value` equals `'0'`, certificate validation is disabled for TLS connections.
 This makes TLS, and HTTPS by extension, insecure. The use of this environment
 variable is strongly discouraged.
+
+### `NODE_USE_ENV_PROXY=1`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+When enabled, Node.js parses the `HTTP_PROXY`, `HTTPS_PROXY` and `NO_PROXY`
+environment variables during startup, and tunnels requests over the
+specified proxy.
+
+This currently only affects requests sent over `fetch()`. Support for other
+built-in `http` and `https` methods is under way.
 
 ### `NODE_V8_COVERAGE=dir`
 

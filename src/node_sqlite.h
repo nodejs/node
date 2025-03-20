@@ -55,6 +55,7 @@ class DatabaseSync : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -116,6 +117,7 @@ class StatementSync : public BaseObject {
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Columns(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);

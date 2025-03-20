@@ -11,8 +11,8 @@ const {
 } = require('../core/util')
 
 function calculateRetryAfterHeader (retryAfter) {
-  const current = Date.now()
-  return new Date(retryAfter).getTime() - current
+  const retryTime = new Date(retryAfter).getTime()
+  return isNaN(retryTime) ? 0 : retryTime - Date.now()
 }
 
 class RetryHandler {
@@ -124,7 +124,7 @@ class RetryHandler {
     if (retryAfterHeader) {
       retryAfterHeader = Number(retryAfterHeader)
       retryAfterHeader = Number.isNaN(retryAfterHeader)
-        ? calculateRetryAfterHeader(retryAfterHeader)
+        ? calculateRetryAfterHeader(headers['retry-after'])
         : retryAfterHeader * 1e3 // Retry-After is in seconds
     }
 

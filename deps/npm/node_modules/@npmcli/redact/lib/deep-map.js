@@ -1,20 +1,12 @@
-function filterError (input) {
-  return {
-    errorType: input.name,
-    message: input.message,
-    stack: input.stack,
-    ...(input.code ? { code: input.code } : {}),
-    ...(input.statusCode ? { statusCode: input.statusCode } : {}),
-  }
-}
+const { serializeError } = require('./error')
 
 const deepMap = (input, handler = v => v, path = ['$'], seen = new Set([input])) => {
   // this is in an effort to maintain bole's error logging behavior
   if (path.join('.') === '$' && input instanceof Error) {
-    return deepMap({ err: filterError(input) }, handler, path, seen)
+    return deepMap({ err: serializeError(input) }, handler, path, seen)
   }
   if (input instanceof Error) {
-    return deepMap(filterError(input), handler, path, seen)
+    return deepMap(serializeError(input), handler, path, seen)
   }
   if (input instanceof Buffer) {
     return `[unable to log instanceof buffer]`

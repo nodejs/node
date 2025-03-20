@@ -15,6 +15,7 @@ namespace node {
 using ncrypto::BignumPointer;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::DataPointer;
+using ncrypto::Digest;
 using ncrypto::ECDSASigPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
@@ -233,8 +234,8 @@ bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
 
 SignBase::Error SignBase::Init(std::string_view digest) {
   CHECK_NULL(mdctx_);
-  auto md = ncrypto::getDigestByName(digest);
-  if (md == nullptr) [[unlikely]]
+  auto md = Digest::FromName(digest);
+  if (!md) [[unlikely]]
     return Error::UnknownDigest;
 
   mdctx_ = EVPMDCtxPointer::New();
@@ -587,8 +588,8 @@ Maybe<void> SignTraits::AdditionalConfig(
 
   if (args[offset + 6]->IsString()) {
     Utf8Value digest(env->isolate(), args[offset + 6]);
-    params->digest = ncrypto::getDigestByName(digest.ToStringView());
-    if (params->digest == nullptr) [[unlikely]] {
+    params->digest = Digest::FromName(digest.ToStringView());
+    if (!params->digest) [[unlikely]] {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
       return Nothing<void>();
     }
@@ -682,6 +683,7 @@ bool SignTraits::DeriveBits(
           crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
+        DCHECK(!data.isSecure());
         *out = ByteSource::Allocated(data.release());
       } else {
         auto data = context.sign(params.data);
@@ -689,6 +691,7 @@ bool SignTraits::DeriveBits(
           crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
+        DCHECK(!data.isSecure());
         auto bs = ByteSource::Allocated(data.release());
 
         if (UseP1363Encoding(key, params.dsa_encoding)) {
