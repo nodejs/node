@@ -935,7 +935,7 @@ in the `$schema` must be replaced with the version of Node.js you are using.
 
 ```json
 {
-  "$schema": "https://nodejs.org/dist/vX.Y.Z/docs/node-config-schema.json",
+  "$schema": "https://nodejs.org/docs/vX.Y.Z/node-config-schema.json",
   "nodeOptions": {
     "import": [
       "amaro/strip"
