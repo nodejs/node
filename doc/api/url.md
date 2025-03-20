@@ -630,7 +630,7 @@ console.log(JSON.stringify(myURLs));
 added: v16.7.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
 
@@ -668,7 +668,7 @@ to other workers or the main thread.
 added: v16.7.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
 

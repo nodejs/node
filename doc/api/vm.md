@@ -406,11 +406,9 @@ console.log(script.sourceMapURL);
 added:
  - v13.0.0
  - v12.16.0
-changes:
- - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
-   description: Marking the API stable.
 -->
+
+> Stability: 1 - Experimental
 
 This feature is only available with the `--experimental-vm-modules` command
 flag enabled.
@@ -743,11 +741,9 @@ value that is not `undefined`.
 
 <!-- YAML
 added: v9.6.0
-changes:
- - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
-   description: Marking the API stable.
 -->
+
+> Stability: 1 - Experimental
 
 This feature is only available with the `--experimental-vm-modules` command
 flag enabled.
@@ -899,11 +895,9 @@ const module2 = new vm.SourceTextModule('const a = 1;', { cachedData });
 added:
  - v13.0.0
  - v12.16.0
-changes:
- - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
-   description: Marking the API stable.
 -->
+
+> Stability: 1 - Experimental
 
 This feature is only available with the `--experimental-vm-modules` command
 flag enabled.
@@ -1215,11 +1209,9 @@ using [`vm.constants.DONT_CONTEXTIFY`][].
 
 <!-- YAML
 added: v13.10.0
-changes:
- - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
-   description: Marking the API stable.
 -->
+
+> Stability: 1 - Experimental
 
 Measure the memory known to V8 and used by all contexts known to the
 current V8 isolate, or the main context.

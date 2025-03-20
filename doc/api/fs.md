@@ -482,7 +482,7 @@ number of bytes read is zero.
 added: v17.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version: v23.8.0
     pr-url: https://github.com/nodejs/node/pull/55461
@@ -1076,7 +1076,7 @@ behavior is similar to `cp dir1/ dir2/`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
     - v23.7.0
@@ -3135,7 +3135,7 @@ descriptor. See [`fs.utimes()`][].
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
     - v23.7.0
@@ -3588,7 +3588,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 added: v19.8.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
 
@@ -5688,7 +5688,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
     - v23.7.0
@@ -6845,7 +6845,7 @@ added:
   - v18.20.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
 
