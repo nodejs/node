@@ -1055,7 +1055,10 @@ Maybe<int> SyncProcessRunner::ParseStdioOption(int child_fd,
     return Just(AddStdioInheritFD(child_fd, inherit_fd));
   }
 
-  UNREACHABLE("invalid child stdio type");
+  Utf8Value stdio_type(env()->isolate(), js_type);
+  fprintf(stderr, "invalid child stdio type: %s\n", stdio_type.out());
+
+  UNREACHABLE();
 }
 
 int SyncProcessRunner::AddStdioIgnore(uint32_t child_fd) {
