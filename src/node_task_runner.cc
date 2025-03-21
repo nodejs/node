@@ -211,9 +211,10 @@ void ProcessRunner::Run() {
     if (!std::filesystem::is_directory(cwd)) {
       // If the given path is a file and the file name is package.json, the
       // parent directory is used
-      if (std::filesystem::is_regular_file(cwd) &&
-          std::filesystem::path(cwd).filename() == "package.json") {
-        cwd = std::filesystem::path(cwd).parent_path().string();
+      std::filesystem::path p(cwd);
+      if (std::filesystem::is_regular_file(p) &&
+          p.filename() == "package.json") {
+        cwd = p.parent_path().string();
       } else {
         fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
         init_result->exit_code_ = ExitCode::kGenericUserError;
