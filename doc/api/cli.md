@@ -2305,6 +2305,8 @@ added: REPLACEME
 Run a `package.json` script from a specified path to a `package.json` file
 or path to the containing folder of a `package.json` file.
 
+The script is run from the current working directory, not from the
+`package.json` containing folder.
 ```bash
 node --run-from=/app/package.json --run test
 # Or
