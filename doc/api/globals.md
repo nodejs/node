@@ -553,10 +553,13 @@ The dispatcher must be compatible with `undici`'s
 fetch(url, { dispatcher: new MyAgent() });
 ```
 
-It is possible to change the global dispatcher in Node.js using:
+It is possible to change the global dispatcher in Node.js installing `undici` and using
+the `setGlobalDispatcher()` method. Calling this method will affect both `undici` and
+Node.js.
 
-```js
-globalThis[Symbol.for('undici.globalDispatcher.1')] = yourDispatcher;
+```mjs
+import { setGlobalDispatcher } from 'undici';
+setGlobalDispatcher(new MyAgent());
 ```
 
 ## Related classes
