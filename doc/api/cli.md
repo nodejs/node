@@ -2311,6 +2311,7 @@ The script is run from the current working directory, not from the
 node --run-from=/app/package.json --run test
 # Or
 node --run-from=/app/ --run test
+```
 
 ### `--secure-heap-min=n`
 
