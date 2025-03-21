@@ -10,6 +10,7 @@ const crypto = require('crypto');
 
 const { subtle } = globalThis.crypto;
 
+// Regression test for https://github.com/nodejs/node/issues/57553.
 {
   const privateKey = crypto.createPrivateKey(fixtures.readKey('rsa_private.pem', 'ascii'));
   const publicKey = crypto.createPublicKey(fixtures.readKey('rsa_public.pem', 'ascii'));
