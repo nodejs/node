@@ -237,18 +237,18 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
-  it('returns error on non-directory path for --run-from', async () => {
-    const nonDirPath = fixtures.path('run-script/package.json');
-
+  it('runs script in a custom working directory when --run-from is provided as a package.json file path', async () => {
+    const pkgFilePath = fixtures.path('run-script/package.json');
+    const expectedDir = fixtures.path('run-script');
     const child = await common.spawnPromisified(
       process.execPath,
-      [ '--run-from', nonDirPath, '--run', 'pwd' ],
-      { cwd: fixtures.path('run-script') }
+      [ '--run-from', pkgFilePath, '--run', 'pwd' ],
+      { cwd: fixtures.path('run-script/sub-directory') }
     );
 
-    assert.match(child.stderr, /not a directory/);
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.code, 1);
+    assert.strictEqual(child.stdout.trim(), expectedDir);
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
   });
 
   it('--run-from should be no-op when used without --run', async () => {

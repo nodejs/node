@@ -209,13 +209,28 @@ void ProcessRunner::Run() {
   if (!node::per_process::cli_options->run_from.empty()) {
     cwd = node::per_process::cli_options->run_from;
     if (!std::filesystem::is_directory(cwd)) {
-      fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+      // If the given path is a file and the file name is package.json, the parent directory is used
+      if (std::filesystem::is_regular_file(cwd) &&
+          std::filesystem::path(cwd).filename() == "package.json") {
+        cwd = std::filesystem::path(cwd).parent_path().string();
+      } else {
+        fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+        init_result->exit_code_ = ExitCode::kGenericUserError;
+        return;
+      }
+    }
+
+    std::error_code ec;
+    std::filesystem::current_path(cwd, ec);
+    if (ec) {
+      fprintf(stderr, "Error: unable to change directory to %s: %s\n", 
+              cwd.c_str(), ec.message().c_str());
       init_result->exit_code_ = ExitCode::kGenericUserError;
       return;
     }
   } else {
     cwd = package_json_path_.parent_path().string();
-  }
+  }  
   options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
