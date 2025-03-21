@@ -82,16 +82,16 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
-    auto context = node::NewContext(isolate);
-    CHECK(!context.IsEmpty());
-    v8::Context::Scope context_scope(context);
-
     std::unique_ptr<node::IsolateData, decltype(&node::FreeIsolateData)>
       isolate_data{node::CreateIsolateData(isolate,
                                            &current_loop,
                                            platform.get()),
                    node::FreeIsolateData};
     CHECK(isolate_data);
+
+    auto context = node::NewContext(isolate, isolate_data.get());
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
 
     std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)>
       environment{node::CreateEnvironment(isolate_data.get(),
