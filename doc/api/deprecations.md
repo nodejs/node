@@ -3859,13 +3859,16 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57199
+    description: Runtime deprecation.
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
 `{ shell: true }`, the values are not escaped, only space-separated, which can lead to shell injection.
