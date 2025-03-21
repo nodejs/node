@@ -267,6 +267,7 @@ def headers(options, action):
       'include/v8-exception.h',
       'include/v8-extension.h',
       'include/v8-external.h',
+      'include/v8-fast-api-calls.h',
       'include/v8-forward.h',
       'include/v8-function-callback.h',
       'include/v8-function.h',
