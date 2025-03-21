@@ -345,7 +345,7 @@ void Worker::Run() {
         } else {
           Debug(
               this, "Worker %llu builds context from scratch\n", thread_id_.id);
-          context = NewContext(isolate_);
+          context = NewContext(isolate_, data.isolate_data_.get());
         }
         if (context.IsEmpty()) {
           // TODO(joyeecheung): maybe this should be kBootstrapFailure instead?

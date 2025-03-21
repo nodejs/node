@@ -478,6 +478,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
     node::MultiIsolatePlatform* platform;
     int32_t extracted_value = -1;
     uv_async_t thread_stopped_async;
+    Env* env;
   };
 
   ChildEnvironmentData data;
@@ -496,6 +497,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       });
   CHECK_EQ(err, 0);
   data.thread_stopped_async.data = &thread_stopped;
+  data.env = &env;
 
   uv_thread_t thread;
   err = uv_thread_create(&thread, [](void* arg) {
@@ -512,7 +514,8 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       v8::Isolate::Scope isolate_scope(isolate);
       v8::HandleScope handle_scope(isolate);
 
-      v8::Local<v8::Context> context = node::NewContext(isolate);
+      v8::Local<v8::Context> context =
+          node::NewContext(isolate, data->env->isolate_data());
       CHECK(!context.IsEmpty());
       v8::Context::Scope context_scope(context);
 
@@ -636,16 +639,16 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
     v8::Isolate::Scope isolate_scope(isolate);
     v8::HandleScope handle_scope(isolate);
 
-    auto context = node::NewContext(isolate);
-    CHECK(!context.IsEmpty());
-    v8::Context::Scope context_scope(context);
-
     std::unique_ptr<node::IsolateData, decltype(&node::FreeIsolateData)>
       isolate_data{node::CreateIsolateData(isolate,
                                            &current_loop,
                                            platform.get()),
                    node::FreeIsolateData};
     CHECK(isolate_data);
+
+    auto context = node::NewContext(isolate);
+    CHECK(!context.IsEmpty());
+    v8::Context::Scope context_scope(context);
 
     std::unique_ptr<node::Environment, decltype(&node::FreeEnvironment)>
       environment{node::CreateEnvironment(isolate_data.get(),
@@ -762,7 +765,7 @@ TEST_F(EnvironmentTest, RequestInterruptAtExit) {
   const v8::HandleScope handle_scope(isolate_);
   const Argv argv;
 
-  Local<Context> context = node::NewContext(isolate_);
+  Local<Context> context = node::NewContext(isolate_, isolate_data_);
   CHECK(!context.IsEmpty());
   context->Enter();
 
