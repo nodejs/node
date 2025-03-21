@@ -1,5 +1,6 @@
 // file: test-crypto-private-decrypt.js
 const crypto = require('crypto');
+
 const keys = crypto.generateKeyPairSync(
     'rsa',
     {
@@ -8,15 +9,18 @@ const keys = crypto.generateKeyPairSync(
         privateKeyEncoding: { type: 'pkcs8', format: 'pem' },
     }
 );
+
 const empty = '';
+
 const ciphertext = crypto.publicEncrypt({
     oaepHash:'sha1',
     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
     key: keys.publicKey,
-}, Buffer.from(empty));
+}, Buffer.from(empty)).toString('base64');
+
 const plaintext = crypto.privateDecrypt({
     oaepHash: 'sha1',
     padding: crypto.constants.RSA_PKCS1_OAEP_PADDING,
     key: keys.privateKey
-}, ciphertext).toString('utf8');
+}, Buffer.from(ciphertext, 'base64')).toString('utf8');
 console.assert(empty === plaintext, 'rsa-oaep `encrypt` empty string is success, but `decrypt` got unexpected string.');
