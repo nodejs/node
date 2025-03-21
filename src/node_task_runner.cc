@@ -206,7 +206,16 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  cwd = package_json_path_.parent_path().string();
+  if (!node::per_process::cli_options->run_from.empty()) {
+    cwd = node::per_process::cli_options->run_from;
+    if (!std::filesystem::is_directory(cwd)) {
+      fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+      init_result->exit_code_ = ExitCode::kGenericUserError;
+      return;
+    }
+  } else {
+    cwd = package_json_path_.parent_path().string();
+  }
   options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));

@@ -222,4 +222,46 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
   });
+
+  it('runs script in a custom working directory using --run-from', async () => {
+    const customDir = fixtures.path('run-script');
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run-from', customDir, '--run', `pwd${envSuffix}` ],
+
+      { cwd: fixtures.path('run-script/sub-directory') }
+    );
+
+    assert.strictEqual(child.stdout.trim(), customDir);
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('returns error on non-directory path for --run-from', async () => {
+    const nonDirPath = fixtures.path('run-script/package.json');
+
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run-from', nonDirPath, '--run', 'pwd' ],
+      { cwd: fixtures.path('run-script') }
+    );
+
+    assert.match(child.stderr, /not a directory/);
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 1);
+  });
+
+  it('--run-from should be no-op when used without --run', async () => {
+    const dirPath = fixtures.path('run-script/package.json');
+
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run-from', dirPath, '--print', 'process.cwd()' ],
+      { cwd: process.cwd() }
+    );
+
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.stdout, process.cwd() + '\n');
+    assert.strictEqual(child.code, 0);
+  });
 });
