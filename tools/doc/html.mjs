@@ -292,10 +292,11 @@ export function preprocessElements({ filename }) {
 
           if (heading && isStabilityIndex) {
             heading.stability = number;
-            for (let h = heading; h != null && h.stability === number; h = h.parentHeading) {
-              if (h.explication === explication) {
+            for (let h = heading; h != null; h = h.parentHeading) {
+              if (!h.hasStabilityIndexElement) continue;
+              if (h.stability === number && h.explication === explication) {
                 throw new Error(`Duplicate stability index at ${filename}:${node.position.start.line}, it already inherits it from a parent heading ${filename}:${h.position.start.line}`);
-              }
+              } else break;
             }
             heading.hasStabilityIndexElement = true;
             heading.explication = explication;
