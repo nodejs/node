@@ -6144,7 +6144,6 @@ often than it would otherwise.
 This function is expected to be called in a manner such that an
 addon does not decrease the external memory more than it has
 increased the external memory.
-it is expected to be invoked -512KB in sum at a later time.
 
 ## Promises
 
