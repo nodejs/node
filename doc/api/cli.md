@@ -2294,6 +2294,25 @@ The following environment variables are set when running a script with `--run`:
 * `NODE_RUN_PACKAGE_JSON_PATH`: The path to the `package.json` that is being
   processed.
 
+### `--run-from=<path>`
+
+<!--
+added: REPLACEME
+-->
+
+> Stability 1.0 - Early development
+
+Run a `package.json` script from a specified path to a `package.json` file or
+path to the containing folder of a `package.json` file.
+
+The script is ran from the directory of the `package.json` file.
+
+```bash
+node --run-from=/app/package.json --run test
+# Or
+node --run-from=/app/ --run test
+```
+
 ### `--secure-heap-min=n`
 
 <!-- YAML

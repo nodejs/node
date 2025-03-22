@@ -1,6 +1,7 @@
 #include "node_task_runner.h"
 #include "util-inl.h"
 
+#include <filesystem>
 #include <regex>  // NOLINT(build/c++11)
 
 namespace node::task_runner {
@@ -217,6 +218,7 @@ void ProcessRunner::Run() {
 
 std::optional<std::tuple<std::filesystem::path, std::string, std::string>>
 FindPackageJson(const std::filesystem::path& cwd) {
+  printf("FindPackageJson(%s)\n", cwd.c_str());
   auto package_json_path = cwd / "package.json";
   std::string raw_content;
   std::string path_env_var;
@@ -252,7 +254,25 @@ FindPackageJson(const std::filesystem::path& cwd) {
 void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
              std::string_view command_id,
              const std::vector<std::string_view>& positional_args) {
-  auto cwd = std::filesystem::current_path();
+  auto run_from = per_process::cli_options->run_from;
+  std::filesystem::path cwd;
+
+  if (run_from.empty()) {
+    cwd = std::filesystem::current_path();
+  } else {
+    cwd = std::filesystem::absolute(std::filesystem::path(run_from));
+
+    if (is_regular_file(cwd)) {
+      // Given a package.json
+      cwd = cwd.parent_path();
+    } else if (!is_directory(cwd)) {
+      // Given a directory that should have a package.json
+      fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+      result->exit_code_ = ExitCode::kGenericUserError;
+      return;
+    }
+  }
+
   auto package_json = FindPackageJson(cwd);
 
   if (!package_json.has_value()) {
