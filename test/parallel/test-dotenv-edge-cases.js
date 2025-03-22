@@ -200,4 +200,24 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.code, 9);
     assert.match(child.stderr, /bad option: --env-file-ABCD/);
   });
+
+  it('should handle invalid syntax in .env file', async () => {
+    const code = `
+      const assert = require('node:assert/strict');
+
+      process.loadEnvFile('./invalid-syntax.env');
+
+      assert.strictEqual(process.env.baz, 'whatever');
+      assert.strictEqual(process.env.VALID_AFTER_INVALID, 'test');
+      assert.strictEqual(process.env.ANOTHER_VALID, 'value');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: fixtures.path('dotenv') }
+    );
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 0);
+  });
 });
