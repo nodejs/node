@@ -1216,6 +1216,9 @@ PerProcessOptionsParser::PerProcessOptionsParser(
   AddOption("--run",
             "Run a script specified in package.json",
             &PerProcessOptions::run);
+  AddOption("--run-from",
+            "Run a package.json script in a specific working directory",
+            &PerProcessOptions::run_from);
   AddOption(
       "--disable-wasm-trap-handler",
       "Disable trap-handler-based WebAssembly bound checks. V8 will insert "

@@ -206,7 +206,30 @@ void ProcessRunner::OnExit(int64_t exit_status, int term_signal) {
 
 void ProcessRunner::Run() {
   // keeps the string alive until destructor
-  cwd = package_json_path_.parent_path().string();
+  if (!node::per_process::cli_options->run_from.empty()) {
+    cwd = node::per_process::cli_options->run_from;
+    if (!std::filesystem::is_directory(cwd)) {
+      // If the given path is a file and the file name is package.json, the
+      // parent directory is used
+      std::filesystem::path p(cwd);
+      if (std::filesystem::is_regular_file(p) &&
+          p.filename() == "package.json") {
+        cwd = p.parent_path().string();
+      } else {
+        fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
+        init_result->exit_code_ = ExitCode::kGenericUserError;
+        return;
+      }
+    }
+    // Adding node_modules/.bin under cwd to PATH environment variable
+    std::filesystem::path nmBin =
+        std::filesystem::path(cwd) / "node_modules" / ".bin";
+    if (std::filesystem::is_directory(nmBin)) {
+      path_env_var_ = nmBin.string() + env_var_separator + path_env_var_;
+    }
+  } else {
+    cwd = package_json_path_.parent_path().string();
+  }
   options_.cwd = cwd.c_str();
   if (int r = uv_spawn(loop_, &process_, &options_)) {
     fprintf(stderr, "Error: %s\n", uv_strerror(r));
