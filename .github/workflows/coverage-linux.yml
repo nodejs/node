@@ -56,9 +56,9 @@ jobs:
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Set up sccache
-        uses: mozilla-actions/sccache-action@054db53350805f83040bf3e6e9b8cf5a139aa7c9  # v0.0.7
+        uses: Mozilla-Actions/sccache-action@65101d47ea8028ed0c98a1cdea8dd9182e9b5133  # v0.0.8
         with:
-          version: v0.9.1
+          version: v0.10.0
       - name: Environment Information
         run: npx envinfo
       - name: Install gcovr
