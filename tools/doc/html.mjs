@@ -233,7 +233,6 @@ export function preprocessElements({ filename }) {
           }
         }
         heading = node;
-        return [true, index + 1];
       } else if (node.type === 'code') {
         if (!node.lang) {
           console.warn(
@@ -340,6 +339,10 @@ export function preprocessElements({ filename }) {
           node.children.push({ type: 'html', value: '</div>' });
         }
       }
+
+      // In case we've inserted/removed node(s) before the current one, we need
+      // to make sure we're not visiting the same node again or skipping one.
+      return [true, index + 1];
     });
   };
 }
