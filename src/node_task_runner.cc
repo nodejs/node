@@ -218,7 +218,6 @@ void ProcessRunner::Run() {
 
 std::optional<std::tuple<std::filesystem::path, std::string, std::string>>
 FindPackageJson(const std::filesystem::path& cwd) {
-  printf("FindPackageJson(%s)\n", cwd.c_str());
   auto package_json_path = cwd / "package.json";
   std::string raw_content;
   std::string path_env_var;
