@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('node:assert');
 const path = require('node:path');
 const { describe, it } = require('node:test');
+const { parseEnv } = require('node:util');
 const fixtures = require('../common/fixtures');
 
 const validEnvFilePath = '../fixtures/dotenv/valid.env';
@@ -202,33 +203,21 @@ describe('.env supports edge cases', () => {
   });
 
   it('should handle invalid syntax in .env file', async () => {
-    const code = `
-      const resutl = util.parseEnv(
-        \`
-        foo
+    const resutl = parseEnv([
+      'foo',
+      '',
+      'bar',
+      'baz=whatever',
+      'VALID_AFTER_INVALID=test',
+      'multiple_invalid',
+      'lines_without_equals',
+      'ANOTHER_VALID=value',
+    ].join('\n'));
 
-        bar
-        baz=whatever
-        VALID_AFTER_INVALID=test
-        multiple_invalid
-        lines_without_equals
-        ANOTHER_VALID=value
-        \`
-      );
-
-      assert.deepStrictEqual(resutl, {
-        baz: 'whatever',
-        VALID_AFTER_INVALID: 'test',
-        ANOTHER_VALID: 'value',
-      });
-    `.trim();
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--eval', code ],
-      { cwd: fixtures.path('dotenv') }
-    );
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.stdout, '');
-    assert.strictEqual(child.code, 0);
+    assert.deepStrictEqual(resutl, {
+      baz: 'whatever',
+      VALID_AFTER_INVALID: 'test',
+      ANOTHER_VALID: 'value',
+    });
   });
 });
