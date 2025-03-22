@@ -1361,6 +1361,7 @@ StatementSync::StatementSync(Environment* env,
   // connection level and inherited by statements to reduce boilerplate.
   use_big_ints_ = false;
   allow_bare_named_params_ = true;
+  allow_unknown_named_params_ = false;
   bare_named_params_ = std::nullopt;
 }
 
@@ -1443,9 +1444,13 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         }
 
         if (r == 0) {
-          THROW_ERR_INVALID_STATE(
-              env(), "Unknown named parameter '%s'", *utf8_key);
-          return false;
+          if (allow_unknown_named_params_) {
+            continue;
+          } else {
+            THROW_ERR_INVALID_STATE(
+                env(), "Unknown named parameter '%s'", *utf8_key);
+            return false;
+          }
         }
       }
 
@@ -2033,6 +2038,23 @@ void StatementSync::SetAllowBareNamedParameters(
   stmt->allow_bare_named_params_ = args[0]->IsTrue();
 }
 
+void StatementSync::SetAllowUnknownNamedParameters(
+    const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  if (!args[0]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"enabled\" argument must be a boolean.");
+    return;
+  }
+
+  stmt->allow_unknown_named_params_ = args[0]->IsTrue();
+}
+
 void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -2098,6 +2120,10 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                    tmpl,
                    "setAllowBareNamedParameters",
                    StatementSync::SetAllowBareNamedParameters);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "setAllowUnknownNamedParameters",
+                   StatementSync::SetAllowUnknownNamedParameters);
     SetProtoMethod(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
