@@ -30,7 +30,6 @@ const underscoreModules = [
   '_stream_writable',
   '_tls_common',
   '_tls_wrap',
-  'node:_http_agent',
 ];
 
 // Does not include modules starting with underscore
