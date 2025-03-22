@@ -27,6 +27,7 @@ declare_args() {
     "deps/cjs-module-lexer/dist/lexer.js",
     "deps/undici/undici.js",
     "deps/amaro/dist/index.js",
+    "deps/corepack/dist/lib/download.js",
   ]
 }
 

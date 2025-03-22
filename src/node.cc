@@ -366,6 +366,10 @@ MaybeLocal<Value> StartExecution(Environment* env, StartExecutionCallback cb) {
     return StartExecution(env, "internal/main/inspect");
   }
 
+  if (env->options()->install_from_lock_file) {
+    return StartExecution(env, "internal/main/install");
+  }
+
   if (per_process::cli_options->print_help) {
     return StartExecution(env, "internal/main/print_help");
   }
