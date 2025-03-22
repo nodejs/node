@@ -14,7 +14,5 @@ const linesRead = [];
 rli.on('line', (line) => linesRead.push(line));
 
 rli.on('close', common.mustCall(() => {
-  const regexpLines = str.split(/^/m).map((line) => line.trim()).filter(Boolean);
-  // Readline interprets different lines in the same way js regular expressions do
-  assert.deepStrictEqual(linesRead, regexpLines);
+  assert.deepStrictEqual(linesRead, ['012', '345', '67', '89', 'ABC', 'DEF']);
 }));
