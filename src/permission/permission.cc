@@ -59,7 +59,7 @@ static void Has(const FunctionCallbackInfo<Value>& args) {
 
 }  // namespace
 
-#define V(Name, label, _)                                                      \
+#define V(Name, label, _, __)                                                  \
   if (perm == PermissionScope::k##Name) return #Name;
 const char* Permission::PermissionToString(const PermissionScope perm) {
   PERMISSIONS(V)
@@ -67,7 +67,7 @@ const char* Permission::PermissionToString(const PermissionScope perm) {
 }
 #undef V
 
-#define V(Name, label, _)                                                      \
+#define V(Name, label, _, __)                                                  \
   if (perm == label) return PermissionScope::k##Name;
 PermissionScope Permission::StringToPermission(const std::string& perm) {
   PERMISSIONS(V)
@@ -84,32 +84,47 @@ Permission::Permission() : enabled_(false) {
   std::shared_ptr<PermissionBase> inspector =
       std::make_shared<InspectorPermission>();
   std::shared_ptr<PermissionBase> wasi = std::make_shared<WASIPermission>();
-#define V(Name, _, __)                                                         \
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
   FILESYSTEM_PERMISSIONS(V)
 #undef V
-#define V(Name, _, __)                                                         \
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, child_p));
   CHILD_PROCESS_PERMISSIONS(V)
 #undef V
-#define V(Name, _, __)                                                         \
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, worker_t));
   WORKER_THREADS_PERMISSIONS(V)
 #undef V
-#define V(Name, _, __)                                                         \
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, inspector));
   INSPECTOR_PERMISSIONS(V)
 #undef V
-#define V(Name, _, __)                                                         \
+#define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, wasi));
   WASI_PERMISSIONS(V)
 #undef V
 }
 
+const char* GetErrorFlagSuggestion(node::permission::PermissionScope perm) {
+  switch (perm) {
+#define V(Name, _, __, Flag)                                                   \
+  case node::permission::PermissionScope::k##Name:                             \
+    return Flag[0] != '\0' ? "Use " Flag " to manage permissions." : "";
+    PERMISSIONS(V)
+#undef V
+    default:
+      return "";
+  }
+}
+
 MaybeLocal<Value> CreateAccessDeniedError(Environment* env,
                                           PermissionScope perm,
                                           const std::string_view& res) {
-  Local<Object> err = ERR_ACCESS_DENIED(env->isolate());
+  const char* suggestion = GetErrorFlagSuggestion(perm);
+  Local<Object> err = ERR_ACCESS_DENIED(
+      env->isolate(), "Access to this API has been restricted. %s", suggestion);
+
   Local<Value> perm_string;
   Local<Value> resource_string;
   std::string_view perm_str = Permission::PermissionToString(perm);
