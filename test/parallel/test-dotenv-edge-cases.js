@@ -203,7 +203,7 @@ describe('.env supports edge cases', () => {
   });
 
   it('should handle invalid syntax in .env file', async () => {
-    const resutl = parseEnv([
+    const result = parseEnv([
       'foo',
       '',
       'bar',
@@ -214,7 +214,7 @@ describe('.env supports edge cases', () => {
       'ANOTHER_VALID=value',
     ].join('\n'));
 
-    assert.deepStrictEqual(resutl, {
+    assert.deepStrictEqual(result, {
       baz: 'whatever',
       VALID_AFTER_INVALID: 'test',
       ANOTHER_VALID: 'value',
