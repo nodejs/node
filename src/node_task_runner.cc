@@ -221,7 +221,12 @@ void ProcessRunner::Run() {
         return;
       }
     }
-
+    // Adding node_modules/.bin under cwd to PATH environment variable
+    std::filesystem::path nmBin =
+        std::filesystem::path(cwd) / "node_modules" / ".bin";
+    if (std::filesystem::is_directory(nmBin)) {
+      path_env_var_ = nmBin.string() + env_var_separator + path_env_var_;
+    }
   } else {
     cwd = package_json_path_.parent_path().string();
   }
