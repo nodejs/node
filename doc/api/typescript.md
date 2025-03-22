@@ -55,8 +55,6 @@ To use TypeScript with full support for all TypeScript features, including
 added: v22.6.0
 -->
 
-> Stability: 1.1 - Active development
-
 By default Node.js will execute TypeScript files that contains only
 erasable TypeScript syntax.
 Node.js will replace TypeScript syntax with whitespace,
