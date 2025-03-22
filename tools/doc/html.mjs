@@ -221,8 +221,19 @@ export function preprocessElements({ filename }) {
           for (let d = heading.depth; d >= node.depth; d--) {
             node.parentHeading = node.parentHeading.parentHeading;
           }
+
+          if (heading.depth > 2 || node.depth > 2) {
+            const isNonWrapped = node.depth > 2; // For depth of 1 and 2, there's already a wrapper.
+            parent.children.splice(index++, 0, {
+              type: 'html',
+              value:
+                `</div>`.repeat(heading.depth - node.depth + isNonWrapped) +
+                (isNonWrapped ? '<div>' : ''),
+            });
+          }
         }
         heading = node;
+        return [true, index + 1];
       } else if (node.type === 'code') {
         if (!node.lang) {
           console.warn(
