@@ -222,16 +222,6 @@ void ProcessRunner::Run() {
       }
     }
 
-    std::error_code ec;
-    std::filesystem::current_path(cwd, ec);
-    if (ec) {
-      fprintf(stderr,
-              "Error: unable to change directory to %s: %s\n",
-              cwd.c_str(),
-              ec.message().c_str());
-      init_result->exit_code_ = ExitCode::kGenericUserError;
-      return;
-    }
   } else {
     cwd = package_json_path_.parent_path().string();
   }
