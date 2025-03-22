@@ -115,7 +115,6 @@ exlusiveLabels:
   # More specific tests
   /^test\/addons\//: test, addons
   /^test\/debugger/: test, debugger
-  /^test\/doctool\//: test, doc, tools
   /^test\/timers/: test, timers
   /^test\/pseudo-tty\//: test, tty
   /^test\/inspector/: test, inspector
