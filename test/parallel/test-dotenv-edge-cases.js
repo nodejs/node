@@ -203,13 +203,24 @@ describe('.env supports edge cases', () => {
 
   it('should handle invalid syntax in .env file', async () => {
     const code = `
-      const assert = require('node:assert/strict');
+      const resutl = util.parseEnv(
+        \`
+        foo
 
-      process.loadEnvFile('./invalid-syntax.env');
+        bar
+        baz=whatever
+        VALID_AFTER_INVALID=test
+        multiple_invalid
+        lines_without_equals
+        ANOTHER_VALID=value
+        \`
+      );
 
-      assert.strictEqual(process.env.baz, 'whatever');
-      assert.strictEqual(process.env.VALID_AFTER_INVALID, 'test');
-      assert.strictEqual(process.env.ANOTHER_VALID, 'value');
+      assert.deepStrictEqual(resutl, {
+        baz: 'whatever',
+        VALID_AFTER_INVALID: 'test',
+        ANOTHER_VALID: 'value',
+      });
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
