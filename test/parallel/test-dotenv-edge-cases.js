@@ -202,7 +202,7 @@ describe('.env supports edge cases', () => {
     assert.match(child.stderr, /bad option: --env-file-ABCD/);
   });
 
-  it('should handle invalid syntax in .env file', async () => {
+  it('should handle invalid multiline syntax', () => {
     const result = parseEnv([
       'foo',
       '',
