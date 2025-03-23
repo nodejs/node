@@ -125,27 +125,27 @@ The goal is to raise awareness of XYZ in the JavaScript ecosystem.
 
 ##### Related Links
 
-List of links with more information about the topic to provide brackground
+List of links with more information about the topic to provide background
 or the information to be shared.
 
 ##### Project contacts
 
 Add a list of GitHub handles for those within the project that
-have volunteered to be contacated when necessary by ambassadors
+have volunteered to be contacted when necessary by ambassadors
 to get more info about the message to be promoted.
 
 #### Node.js is a great choice for a JavaScript runtime
 
 ##### Goal
 
-Highlight the benefits of chosing Node.js as your backend JavaScript runtime. Focus on what is great
+Highlight the benefits of choosing Node.js as your backend JavaScript runtime. Focus on what is great
 about Node.js without drawing comparisons to alternatives. We don't want to say negative things about
 other options, only highlight what is great about Node.js as a choice.
 
 Some of the things to highlight include:
 
-* How widely it is used (you never get fired for chosing Node.js).
-* The openess of the project. It is part of the OpenJS Foundation and it's governance is set up to avoid
+* How widely it is used (you never get fired for choosing Node.js).
+* The openness of the project. It is part of the OpenJS Foundation and it's governance is set up to avoid
   any one company from dominating the project. Decisions are made by the collaborators (of which there are quite
   a few) versus a small number of people.
 * It has predictable and stable releases and has delivered on the release schedule since 2015.
@@ -182,7 +182,7 @@ Some of the things to highlight include:
 * Nobody is paid specifically to answer issues, fix bugs or implement new features.
 * No company owns/supports Node.js. Most contributions are from individuals
   as opposed to organizations. When an individual becomes a collaborator
-  the access and priviledges are granted to the indidual, their employer does
+  the access and privileges are granted to the individual, their employer does
   not gain any additional rights in the project.
 * The governance of the project is specifically designed to prevent one or
   a small number of companies from dominating the project.
@@ -198,10 +198,10 @@ Some of the things to highlight include:
 * People are volunteering their time to review your PRs and answer questions in
   the issues you open. Be mindfull of your asks for their time and acknowledge
   the gift of their time. Too many issues/PRs in a short period of time may
-  overwelm maintainers leading to less progress versus more, try to pace your
+  overwhelm maintainers leading to less progress versus more, try to pace your
   issues and PRs so that you don't have too many open at the same time. The
-  same goes for comments in discussions, try to avoid overwelming a discussion
-  with too many responses, even too much useful data can overwelm a discussion
+  same goes for comments in discussions, try to avoid overwhelming a discussion
+  with too many responses, even too much useful data can overwhelm a discussion
   leading to lower engagement.
 * While volunteers work to do the right thing for the community, the project
   does not owe anybody anything and does not tolerate abusive or
