@@ -733,8 +733,6 @@ streams:
 
 #### Flush operations
 
-> Stability: 1 - Experimental
-
 The following values are valid flush operations for Zstd-based streams:
 
 * `zlib.constants.ZSTD_e_continue` (default for all operations)
@@ -742,8 +740,6 @@ The following values are valid flush operations for Zstd-based streams:
 * `zlib.constants.ZSTD_e_end` (default for the last chunk)
 
 #### Compressor options
-
-> Stability: 1 - Experimental
 
 There are several options that can be set on Zstd encoders, affecting
 compression efficiency and speed. Both the keys and the values can be accessed
@@ -757,15 +753,11 @@ The most important options are:
 
 #### Pledged Source Size
 
-> Stability: 1 - Experimental
-
 It's possible to specify the expected total size of the uncompressed input via
 `opts.pledgedSrcSize`. If the size doesn't match at the end of the input,
 compression will fail with the code `ZSTD_error_srcSize_wrong`.
 
 #### Decompressor options
-
-> Stability: 1 - Experimental
 
 These advanced options are available for controlling decompression:
 

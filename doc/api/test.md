@@ -2240,8 +2240,6 @@ changes:
     description: The Mock Timers is now stable.
 -->
 
-> Stability: 2 - Stable
-
 Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
 without actually waiting for the specified time intervals.
