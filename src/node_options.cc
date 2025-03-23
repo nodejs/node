@@ -1217,7 +1217,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "Run a script specified in package.json",
             &PerProcessOptions::run);
   AddOption("--run-from",
-            "Run a package.json script from a specific directory",
+            "Run a package.json script from a specific path",
             &PerProcessOptions::run_from);
   AddOption(
       "--disable-wasm-trap-handler",
