@@ -431,6 +431,10 @@ Enables
 to be generated on un-caught exceptions. Useful when inspecting JavaScript
 stack in conjunction with native stack and other runtime environment data.
 .
+.It Fl -run-from Ar string
+Run a package.json script from a specified path to a package.json file or a path to the containing folder of a package.json file.
+.Ar string
+.
 .It Fl -secure-heap Ns = Ns Ar n
 Specify the size of the OpenSSL secure heap. Any value less than 2 disables
 the secure heap. The default is 0. The value must be a power of two.
