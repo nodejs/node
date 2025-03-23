@@ -2600,8 +2600,6 @@ changes:
    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->
 
-> Stability: 2 - Stable
-
 * `actual` {any}
 * `expected` {any}
 * `message` {string|Error}
