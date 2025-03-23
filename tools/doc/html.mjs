@@ -216,6 +216,22 @@ export function preprocessElements({ filename }) {
     visit(tree, null, (node, index, parent) => {
       if (node.type === 'heading') {
         headingIndex = index;
+        if (heading) {
+          node.parentHeading = heading;
+          for (let d = heading.depth; d >= node.depth; d--) {
+            node.parentHeading = node.parentHeading.parentHeading;
+          }
+
+          if (heading.depth > 2 || node.depth > 2) {
+            const isNonWrapped = node.depth > 2; // For depth of 1 and 2, there's already a wrapper.
+            parent.children.splice(index++, 0, {
+              type: 'html',
+              value:
+                `</div>`.repeat(heading.depth - node.depth + isNonWrapped) +
+                (isNonWrapped ? '<div>' : ''),
+            });
+          }
+        }
         heading = node;
       } else if (node.type === 'code') {
         if (!node.lang) {
@@ -286,13 +302,20 @@ export function preprocessElements({ filename }) {
 
           if (heading && isStabilityIndex) {
             heading.stability = number;
+            for (let h = heading; h != null; h = h.parentHeading) {
+              if (!h.hasStabilityIndexElement) continue;
+              if (h.stability === number && h.explication === explication) {
+                throw new Error(`Duplicate stability index at ${filename}:${node.position.start.line}, it already inherits it from a parent heading ${filename}:${h.position.start.line}`);
+              } else break;
+            }
+            heading.hasStabilityIndexElement = true;
+            heading.explication = explication;
             headingIndex = -1;
-            heading = null;
           }
 
           // Do not link to the section we are already in.
           const noLinking = filename.includes('documentation') &&
-            heading !== null && heading.children[0].value === 'Stability index';
+            !heading.hasStabilityIndexElement && heading.children[0].value === 'Stability index';
 
           // Collapse blockquote and paragraph into a single node
           node.type = 'paragraph';
@@ -316,6 +339,10 @@ export function preprocessElements({ filename }) {
           node.children.push({ type: 'html', value: '</div>' });
         }
       }
+
+      // In case we've inserted/removed node(s) before the current one, we need
+      // to make sure we're not visiting the same node again or skipping one.
+      return [true, index + 1];
     });
   };
 }
