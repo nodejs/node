@@ -739,6 +739,8 @@ maintaining the Node.js project.
   **Chemi Atlow** <<chemi@atlow.co.il>> (he/him)
 * [Ayase-252](https://github.com/Ayase-252) -
   **Qingyu Deng** <<i@ayase-lab.com>>
+* [bjohansebas](https://github.com/bjohansebas) -
+  **Sebastian Beltran** <<bjohansebas@gmail.com>>
 * [bmuenzenmeyer](https://github.com/bmuenzenmeyer) -
   **Brian Muenzenmeyer** <<brian.muenzenmeyer@gmail.com>> (he/him)
 * [CanadaHonk](https://github.com/CanadaHonk) -
