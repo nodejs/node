@@ -937,7 +937,7 @@ changes:
 
 Type: End-of-Life
 
-The [`tls.CryptoStream`][] class was removed. Please use
+The `tls.CryptoStream` class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0043: `tls.SecurePair`
@@ -3866,7 +3866,6 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 [`timeout.ref()`]: timers.md#timeoutref
 [`timeout.refresh()`]: timers.md#timeoutrefresh
 [`timeout.unref()`]: timers.md#timeoutunref
-[`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
 [`tls.SecurePair`]: tls.md#class-tlssecurepair
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket

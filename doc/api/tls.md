@@ -547,28 +547,11 @@ description are taken from deps/openssl/openssl/crypto/x509/x509_txt.c
 * `'CERT_REJECTED'`: Certificate rejected.
 * `'HOSTNAME_MISMATCH'`: Hostname mismatch.
 
-## Class: `tls.CryptoStream`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-The `tls.CryptoStream` class represents a stream of encrypted data. This class
-is deprecated and should no longer be used.
-
-### `cryptoStream.bytesWritten`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-The `cryptoStream.bytesWritten` property returns the total number of bytes
-written to the underlying socket _including_ the bytes required for the
-implementation of the TLS protocol.
+When certificate errors like `UNABLE_TO_VERIFY_LEAF_SIGNATURE`,
+`DEPTH_ZERO_SELF_SIGNED_CERT`, or `UNABLE_TO_GET_ISSUER_CERT` occur, Node.js
+appends a hint suggesting that if the root CA is installed locally,
+try running with the `--use-system-ca` flag to direct developers towards a
+secure solution, to prevent unsafe workarounds.
 
 ## Class: `tls.SecurePair`
 
