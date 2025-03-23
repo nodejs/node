@@ -248,3 +248,40 @@ Some of the things to highlight include:
 ##### Project contacts
 
 * @marco-ippolito
+
+#### Do I Still Need This Node.js Dependency?
+
+##### Goal
+
+Advancements over time in Node.js are improving the out of the box experience. New versions are released all the time across Active LTS and Current development lines. It's easy to miss something between the release notes and our busy work schedules.
+
+Each of these on its own is respectable, but together they make a more cohesive narrative. This also shows a [healthy ecosystem at work](https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/#oss-pace-layers), with projects learning from one another and their users.
+
+"Recent" new or newish features, ordered by availability:
+
+| Feature                                       | Introduced | Release Status                                                     |
+| --------------------------------------------- | ---------- | ------------------------------------------------------------------ |
+| [testing source code](https://nodejs.org/api/test.html)   | [16.17.0](https://nodejs.org/en/blog/release/v16.17.0)    | Stable as of 20.0.0                                                |
+| [watching source code](https://nodejs.org/api/cli.html#--watch) | [16.19.0](https://nodejs.org/en/blog/release/v16.19.0)    | Stable as of 20.13.0                                               |
+| [parsing arguments](https://nodejs.org/api/util.html#utilparseargsconfig)       | [18.3.0](https://nodejs.org/en/blog/release/v18.3.0)     | Stable as of 20.0.0                                                |
+| [reading environment](https://nodejs.org/api/cli.html#--env-fileconfig)   | [20.6.0](https://nodejs.org/en/blog/release/v20.6.0)     | Active Development                                                 |
+| [styling output](https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options)             | [20.12.0](https://nodejs.org/en/blog/release/v20.12.0)    | Stable, as of [22.13.0](https://github.com/nodejs/node/pull/56329) |
+| [run typescript](https://nodejs.org/api/cli.html#--experimental-strip-types)                 | [22.6.0](https://nodejs.org/en/blog/release/v22.6.0)     | Active Development
+
+##### Related Links
+
+<!-- lint disable prohibited-strings remark-lint-->
+
+* <https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/>
+* <https://nodejs.org/api/test.html>
+* <https://nodejs.org/api/cli.html#--watch>
+* <https://nodejs.org/api/util.html#utilparseargsconfig>
+* <https://nodejs.org/api/cli.html#--env-fileconfig>
+* <https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options>
+* <https://nodejs.org/api/cli.html#--experimental-strip-types>
+
+<!-- lint enable prohibited-strings remark-lint-->
+
+##### Project contacts
+
+* @bmuenzenmeyer
