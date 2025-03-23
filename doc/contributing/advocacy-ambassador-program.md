@@ -123,12 +123,12 @@ when no longer relevant.
 
 The goal is to raise awareness of XYZ in the JavaScript ecosystem.
 
-#### Related Links
+##### Related Links
 
 List of links with more information about the topic to provide brackground
 or the information to be shared.
 
-#### Project contacts
+##### Project contacts
 
 Add a list of GitHub handles for those within the project that
 have volunteered to be contacated when necessary by ambassadors
@@ -157,7 +157,7 @@ Some of the things to highlight include:
 * Single threaded programming model enables very low resource consumption, making it ideal for containerised workloads.
 * Highly vibrant ecosystem with enterprise support from many vendors.
 
-#### Related Links
+##### Related Links
 
 * <https://github.com/nodejs/release>
 * <https://github.com/nodejs/node/blob/main/doc/contributing/security-release-process.md>
@@ -165,13 +165,13 @@ Some of the things to highlight include:
 * <https://github.com/mhdawson/presentations/blob/main/2024/NodeConfEU_2024-Node.js_whats_next.pdf>
   for slide  usage and topping recent surveys.
 
-#### Project contacts
+##### Project contacts
 
 * @mhdawson
 
-### How things get done in the Node.js project
+#### How things get done in the Node.js project
 
-#### Goal
+##### Goal
 
 Help people understand that no people are paid to answer their issues or
 implement their pull requests. Things get done based on what volunteers work on
@@ -210,11 +210,11 @@ Some of the things to highlight include:
 * If you depend on timely support or an SLA, contract with a company that provides
   paid support and will prioritize your issues.
 
-#### Related Links
+##### Related Links
 
 * <https://github.com/nodejs/TSC/blob/main/TSC-Charter.md#section-3-establishment-of-the-tsc>
 
-#### Project contacts
+##### Project contacts
 
 * @mcollina
 * @mhdawson
@@ -233,7 +233,7 @@ Some of the things to highlight include:
 * The `tsconfig.json` configuration options to use in combination for type checking.
 * Updates on the implementation advancements.
 
-#### Related Links
+##### Related Links
 
 <!-- lint disable prohibited-strings remark-lint-->
 
@@ -245,6 +245,6 @@ Some of the things to highlight include:
 
 <!-- lint enable prohibited-strings remark-lint-->
 
-#### Project contacts
+##### Project contacts
 
 * @marco-ippolito
