@@ -253,9 +253,13 @@ Some of the things to highlight include:
 
 ##### Goal
 
-Advancements over time in Node.js are improving the out of the box experience. New versions are released all the time across Active LTS and Current development lines. It's easy to miss something between the release notes and our busy work schedules.
+Advancements over time in Node.js are improving the out of the box experience.
+New versions are released all the time across Active LTS and Current development lines.
+It's easy to miss something between the release notes and our busy work schedules.
 
-Each of these on its own is respectable, but together they make a more cohesive narrative. This also shows a [healthy ecosystem at work](https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/#oss-pace-layers), with projects learning from one another and their users.
+Each of these on its own is respectable, but together they make a more cohesive narrative.
+This also shows a [healthy ecosystem at work](https://brianmuenzenmeyer.com/posts/2024-do-i-need-this-node-dependency/#oss-pace-layers),
+with projects learning from one another and their users.
 
 "Recent" new or newish features, ordered by availability:
 
@@ -266,7 +270,7 @@ Each of these on its own is respectable, but together they make a more cohesive 
 | [parsing arguments](https://nodejs.org/api/util.html#utilparseargsconfig)                             | [18.3.0](https://nodejs.org/en/blog/release/v18.3.0)   | Stable as of 20.0.0                                                |
 | [reading environment](https://nodejs.org/api/cli.html#--env-fileconfig)                               | [20.6.0](https://nodejs.org/en/blog/release/v20.6.0)   | Active Development                                                 |
 | [styling output](https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options) | [20.12.0](https://nodejs.org/en/blog/release/v20.12.0) | Stable, as of [22.13.0](https://github.com/nodejs/node/pull/56329) |
-| [run typescript](https://nodejs.org/api/cli.html#--experimental-strip-types)                          | [22.6.0](https://nodejs.org/en/blog/release/v22.6.0)   | Active Development                                                 |
+| [run TypeScript](https://nodejs.org/api/cli.html#--experimental-strip-types)                          | [22.6.0](https://nodejs.org/en/blog/release/v22.6.0)   | Active Development                                                 |
 
 ##### Related Links
 
