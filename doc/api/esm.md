@@ -276,8 +276,6 @@ changes:
     description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 2 - Stable
-
 [Import attributes][Import Attributes MDN] are an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
@@ -623,8 +621,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/55333
     description: JSON modules are no longer experimental.
 -->
-
-> Stability: 2 - Stable
 
 JSON files can be referenced by `import`:
 

@@ -2441,8 +2441,6 @@ changes:
     description: No longer behind `--experimental-global-customevent` CLI flag.
 -->
 
-> Stability: 2 - Stable
-
 * Extends: {Event}
 
 The `CustomEvent` object is an adaptation of the [`CustomEvent` Web API][].
@@ -2459,8 +2457,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/52618
     description: CustomEvent is now stable.
 -->
-
-> Stability: 2 - Stable
 
 * Type: {any} Returns custom data passed when initializing.
 

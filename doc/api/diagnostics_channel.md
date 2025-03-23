@@ -635,8 +635,6 @@ added:
  - v18.19.0
 -->
 
-> Stability: 1 - Experimental
-
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
   * `start` {Function} The [`start` event][] subscriber
   * `end` {Function} The [`end` event][] subscriber
@@ -703,8 +701,6 @@ added:
  - v19.9.0
  - v18.19.0
 -->
-
-> Stability: 1 - Experimental
 
 * `subscribers` {Object} Set of [TracingChannel Channels][] subscribers
   * `start` {Function} The [`start` event][] subscriber
@@ -775,8 +771,6 @@ added:
  - v18.19.0
 -->
 
-> Stability: 1 - Experimental
-
 * `fn` {Function} Function to wrap a trace around
 * `context` {Object} Shared object to correlate events through
 * `thisArg` {any} The receiver to be used for the function call
@@ -825,8 +819,6 @@ added:
  - v19.9.0
  - v18.19.0
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function} Promise-returning function to wrap a trace around
 * `context` {Object} Shared object to correlate trace events through
@@ -879,8 +871,6 @@ added:
  - v19.9.0
  - v18.19.0
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function} callback using function to wrap a trace around
 * `position` {number} Zero-indexed argument position of expected callback
@@ -983,8 +973,6 @@ channels.asyncStart.bindStore(myStore, (data) => {
 added:
  - v22.0.0
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {boolean} `true` if any of the individual channels has a subscriber,
   `false` if not.

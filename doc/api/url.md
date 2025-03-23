@@ -1433,8 +1433,6 @@ changes:
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 The legacy `urlObject` (`require('node:url').Url` or
 `import { Url } from 'node:url'`) is
 created and returned by the `url.parse()` function.
@@ -1561,8 +1559,6 @@ changes:
                  `slashes` option with no protocol is now also respected at all
                  times.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
@@ -1723,8 +1719,6 @@ changes:
     description: The `auth` fields is cleared now the `to` parameter
                  contains a hostname.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.

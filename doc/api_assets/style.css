@@ -293,6 +293,10 @@ li.picker-header a span {
   margin: 0 0 1rem;
   padding: 1rem;
   line-height: 1.5;
+
+  position: sticky;
+  top: 3rem;
+  z-index: 1;
 }
 
 .api_stability * {
@@ -824,6 +828,9 @@ kbd {
 @media not screen, (max-width: 600px) {
   .header {
     position: relative;
+    top: 0;
+  }
+  .api_stability {
     top: 0;
   }
 }

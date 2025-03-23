@@ -31,6 +31,8 @@ changes:
     description: No longer experimental.
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 A utility class used to signal cancelation in selected `Promise`-based APIs.
@@ -230,6 +232,8 @@ If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 added: v18.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 See {Blob}.
@@ -239,6 +243,8 @@ See {Blob}.
 <!-- YAML
 added: v0.1.103
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -282,6 +288,8 @@ Global alias for [`buffer.atob()`][].
 added: v18.0.0
 -->
 
+> Stability: 2 - Stable
+
 See {BroadcastChannel}.
 
 ## `btoa(data)`
@@ -300,6 +308,8 @@ Global alias for [`buffer.btoa()`][].
 added: v0.9.1
 -->
 
+> Stability: 2 - Stable
+
 <!--type=global-->
 
 [`clearImmediate`][] is described in the [timers][] section.
@@ -310,6 +320,8 @@ added: v0.9.1
 added: v0.0.1
 -->
 
+> Stability: 2 - Stable
+
 <!--type=global-->
 
 [`clearInterval`][] is described in the [timers][] section.
@@ -319,6 +331,8 @@ added: v0.0.1
 <!-- YAML
 added: v0.0.1
 -->
+
+> Stability: 2 - Stable
 
 <!--type=global-->
 
@@ -341,6 +355,8 @@ A browser-compatible implementation of [`CompressionStream`][].
 <!-- YAML
 added: v0.1.100
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -461,6 +477,8 @@ changes:
     description: No longer experimental.
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 A browser-compatible implementation of the `Event` class. See
@@ -486,6 +504,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -561,6 +581,8 @@ The following globals are available to use with `fetch`:
 <!-- YAML
 added: v20.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -647,6 +669,8 @@ of a server, it is shared across all users and requests.
 added: v15.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
@@ -657,6 +681,8 @@ The `MessageChannel` class. See [`MessageChannel`][] for more details.
 added: v15.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `MessageEvent` class. See [`MessageEvent`][] for more details.
@@ -666,6 +692,8 @@ The `MessageEvent` class. See [`MessageEvent`][] for more details.
 <!-- YAML
 added: v15.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -789,6 +817,8 @@ console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
@@ -798,6 +828,8 @@ The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -809,6 +841,8 @@ The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
@@ -819,6 +853,8 @@ The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
@@ -828,6 +864,8 @@ The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -840,6 +878,8 @@ The `PerformanceObserverEntryList` class. See
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceResourceTiming` class. See [`PerformanceResourceTiming`][] for
@@ -851,6 +891,8 @@ more details.
 added: v16.0.0
 -->
 
+> Stability: 2 - Stable
+
 The [`perf_hooks.performance`][] object.
 
 ## `process`
@@ -858,6 +900,8 @@ The [`perf_hooks.performance`][] object.
 <!-- YAML
 added: v0.1.7
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -870,6 +914,8 @@ The process object. See the [`process` object][] section.
 <!-- YAML
 added: v11.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1039,6 +1085,8 @@ the currently running process, and is not shared between workers.
 added: v0.9.1
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 [`setImmediate`][] is described in the [timers][] section.
@@ -1049,6 +1097,8 @@ added: v0.9.1
 added: v0.0.1
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 [`setInterval`][] is described in the [timers][] section.
@@ -1058,6 +1108,8 @@ added: v0.0.1
 <!-- YAML
 added: v0.0.1
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1079,6 +1131,8 @@ A browser-compatible implementation of [`Storage`][]. Enable this API with the
 <!-- YAML
 added: v17.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1109,6 +1163,8 @@ only if the Node.js binary was compiled with including support for the
 added: v17.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `DOMException` class. See [`DOMException`][] for more details.
@@ -1118,6 +1174,8 @@ The WHATWG `DOMException` class. See [`DOMException`][] for more details.
 <!-- YAML
 added: v11.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1140,6 +1198,8 @@ A browser-compatible implementation of [`TextDecoderStream`][].
 <!-- YAML
 added: v11.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1187,6 +1247,8 @@ A browser-compatible implementation of [`TransformStreamDefaultController`][].
 added: v10.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `URL` class. See the [`URL`][] section.
@@ -1197,6 +1259,8 @@ The WHATWG `URL` class. See the [`URL`][] section.
 added: v10.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
@@ -1206,6 +1270,8 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 <!-- YAML
 added: v8.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1230,7 +1296,7 @@ changes:
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of [`WebSocket`][]. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.

@@ -38,7 +38,7 @@ changes:
     description: This feature is no longer experimental.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 The Node.js Permission Model is a mechanism for restricting access to specific
 resources during execution.

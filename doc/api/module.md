@@ -1178,9 +1178,6 @@ changes:
     description: Add support for import assertions.
 -->
 
-> Stability: 1.2 - Release candidate (asynchronous version)
-> Stability: 1.1 - Active development (synchronous version)
-
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
@@ -1293,9 +1290,6 @@ changes:
       call `nextLoad()` or include a `shortCircuit` property set to `true` in
       its return.
 -->
-
-> Stability: 1.2 - Release candidate (asynchronous version)
-> Stability: 1.1 - Active development (synchronous version)
 
 * `url` {string} The URL returned by the `resolve` chain
 * `context` {Object}
