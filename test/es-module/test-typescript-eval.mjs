@@ -264,3 +264,23 @@ test('should not allow declare module keyword', async () => {
   match(result.stderr, /ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX/);
   strictEqual(result.code, 1);
 });
+
+// TODO (marco-ippolito) Remove the extra padding from the error message
+// The padding comes from swc it will be removed in a future amaro release
+test('the error message should not contain extra padding', async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--input-type=module-typescript',
+    '--eval',
+    'declare module F { export type x = number }']);
+  strictEqual(result.stdout, '');
+  // Windows uses \r\n as line endings
+  const lines = result.stderr.replace(/\r\n/g, '\n').split('\n');
+  // The extra padding at the end should not be present
+  strictEqual(lines[0], '[eval]:1   ');
+  // The extra padding at the beginning should not be present
+  strictEqual(lines[2], '     declare module F { export type x = number }');
+  strictEqual(lines[3], '             ^^^^^^^^');
+  strictEqual(lines[5], 'SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]:' +
+    ' `module` keyword is not supported. Use `namespace` instead.');
+  strictEqual(result.code, 1);
+});
