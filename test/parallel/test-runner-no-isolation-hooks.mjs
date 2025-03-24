@@ -45,7 +45,7 @@ const order = [
   'after two: <root>',
 ].join('\n');
 
-test('Using --require to define global hooks works', async (t) => {
+test('use --require to define global hooks', async (t) => {
   const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
     '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.cjs'),
@@ -57,7 +57,19 @@ test('Using --require to define global hooks works', async (t) => {
   t.assert.equal(testHookOutput, order);
 });
 
-test('Using --import to define global hooks works', async (t) => {
+test('use --import (CJS) to define global hooks', async (t) => {
+  const { stdout } = await common.spawnPromisified(process.execPath, [
+    ...testArguments,
+    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.cjs'),
+    ...testFiles,
+  ]);
+
+  const testHookOutput = stdout.split('\n▶')[0];
+
+  t.assert.equal(testHookOutput, order);
+});
+
+test('use --import (ESM) to define global hooks', async (t) => {
   const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
     '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.mjs'),
