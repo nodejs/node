@@ -64,29 +64,29 @@ When reporting security vulnerabilities, reporters must adhere to the following 
    will not be considered and may result in being banned from future participation.
 
 2. **No Harmful Actions**: Security research and vulnerability reporting must not:
-   * Cause damage to running systems or production environments
-   * Disrupt Node.js development or infrastructure
-   * Affect other users' applications or systems
-   * Include actual exploits that could harm users
-   * Involve social engineering or phishing attempts
+   * Cause damage to running systems or production environments.
+   * Disrupt Node.js development or infrastructure.
+   * Affect other users' applications or systems.
+   * Include actual exploits that could harm users.
+   * Involve social engineering or phishing attempts.
 
 3. **Responsible Testing**: When testing potential vulnerabilities:
-   * Use isolated, controlled environments
-   * Do not test on production systems
-   * Do not attempt to access or modify other users' data
-   * Immediately stop testing if unauthorized access is gained accidentally
+   * Use isolated, controlled environments.
+   * Do not test on production systems.
+   * Do not attempt to access or modify other users' data.
+   * Immediately stop testing if unauthorized access is gained accidentally.
 
-4. **Report Quality**:
-   * Provide clear, detailed steps to reproduce the vulnerability
-   * Include only the minimum proof of concept required to demonstrate the issue
-   * Remove any malicious payloads or components that could cause harm
+4. **Report Quality**
+   * Provide clear, detailed steps to reproduce the vulnerability.
+   * Include only the minimum proof of concept required to demonstrate the issue.
+   * Remove any malicious payloads or components that could cause harm.
 
 Failure to follow these guidelines may result in:
 
-* Rejection of the vulnerability report
-* Forfeiture of any potential bug bounty
-* Temporary or permanent ban from the bug bounty program
-* Legal action in cases of malicious intent
+* Rejection of the vulnerability report.
+* Forfeiture of any potential bug bounty.
+* Temporary or permanent ban from the bug bounty program.
+* Legal action in cases of malicious intent.
 
 ## The Node.js threat model
 
