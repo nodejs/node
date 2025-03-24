@@ -1673,7 +1673,7 @@ requiring a native C++ addon will fail and throw an exception.
 ### `--no-async-context-frame`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 Disables the use of [`AsyncLocalStorage`][] backed by `AsyncContextFrame` and
@@ -2455,7 +2455,7 @@ finished executing even if the event loop would otherwise remain active.
 ### `--test-global-setup=module`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1.0 - Early development
@@ -3539,7 +3539,7 @@ variable is strongly discouraged.
 ### `NODE_USE_ENV_PROXY=1`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1.1 - Active Development

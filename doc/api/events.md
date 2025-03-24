@@ -1835,7 +1835,7 @@ added:
  - v20.5.0
  - v18.18.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->

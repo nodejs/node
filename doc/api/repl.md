@@ -666,7 +666,7 @@ with REPL instances programmatically.
 
 <!-- YAML
 added: v14.5.0
-deprecated: REPLACEME
+deprecated: v24.0.0
 -->
 
 > Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
@@ -680,7 +680,7 @@ A list of the names of some Node.js modules, e.g., `'http'`.
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57400
     description: The multi-line indicator is now "|" instead of "...".
                  Added support for multi-line history.
