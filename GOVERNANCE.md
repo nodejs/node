@@ -273,7 +273,7 @@ Similarly, once the blocking concern has been addressed, explicitly say so.
 Explicit opposition would typically be signaled as some form of clear
 and unambiguous comment like, "I don't believe this nomination should pass".
 Asking clarifying questions or expressing general concerns is not the same as
-explicitly opposition; however, a best effort should be made to answer such
+explicit opposition; however, a best effort should be made to answer such
 questions or addressing those concerns before advancing the nomination.
 
 Opposition does not need to be public. Ideally, the comment showing opposition,
