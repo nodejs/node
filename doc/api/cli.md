@@ -36,6 +36,8 @@ If a file is found, its path will be passed to the
   point to be loaded with ECMAScript module loader, such as `--import` or
   [`--experimental-default-type=module`][].
 * The file has an `.mjs` extension.
+* The file has an `.mjs` or `.wasm` (with `--experimental-wasm-modules`)
+  extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
   `"module"`.
