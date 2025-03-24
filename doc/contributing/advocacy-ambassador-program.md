@@ -249,7 +249,7 @@ Some of the things to highlight include:
 
 * @marco-ippolito
 
-#### Do I Still Need This Node.js Dependency?
+#### Do I still need this dependency for my Node.js app?
 
 ##### Goal
 
