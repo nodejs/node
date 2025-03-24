@@ -666,7 +666,7 @@ with REPL instances programmatically.
 
 <!-- YAML
 added: v14.5.0
-deprecated: REPLACEME
+deprecated: v24.0.0
 -->
 
 > Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
@@ -684,7 +684,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/58003
     description: Added the possibility to add/edit/remove multilines
                  while adding a multiline command.
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57400
     description: The multi-line indicator is now "|" instead of "...".
                  Added support for multi-line history.

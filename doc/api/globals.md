@@ -1308,7 +1308,7 @@ The WHATWG `URL` class. See the [`URL`][] section.
 ## `URLPattern`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1 - Experimental

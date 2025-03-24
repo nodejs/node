@@ -695,10 +695,10 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/58008
     description: End-of-Life.
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55175
     description: Runtime deprecation.
   - version: v6.12.0
@@ -950,7 +950,7 @@ The `tls.CryptoStream` class was removed. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57361
     description: End-of-Life.
   - version: v8.0.0
@@ -1494,7 +1494,7 @@ officially supported API.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57361
     description: End-of-Life.
   - version: v8.0.0
@@ -1548,7 +1548,7 @@ removed. Please use `sloppy` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57551
     description: End-of-Life.
   - version: v12.0.0
@@ -1838,7 +1838,7 @@ and replaced with an identical, public `path.toNamespacedPath()` method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57567
     description: End-of-Life.
   - version: v9.0.0
@@ -2080,7 +2080,7 @@ method.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56966
     description: End-of-Life.
   - version: v10.0.0
@@ -2097,7 +2097,7 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56966
     description: End-of-Life.
   - version: v10.0.0
@@ -2563,7 +2563,7 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57550
     description: End-of-Life.
   - version: v12.0.0
@@ -2583,7 +2583,7 @@ generally useful and is being removed. See discussion here:
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57339
     description: End-of-Life.
   - version: v12.0.0
@@ -2642,7 +2642,7 @@ The `node:_stream_wrap` module is deprecated.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56966
     description: End-of-Life.
   - version: v11.14.0
@@ -2661,7 +2661,7 @@ with no performance impact since Node.js 10.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56966
     description: End-of-Life.
   - version: v11.14.0
@@ -3493,7 +3493,7 @@ Node-API callbacks.
 <!-- YAML
 changes:
   - version:
-      - REPLACEME
+      - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55017
     description: Application deprecation.
   - version:
@@ -3619,7 +3619,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55862
     description: End-of-Life.
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/49686
     description: Runtime deprecation.
   - version: v20.8.0
@@ -3660,7 +3660,7 @@ Please use `value instanceof WebAssembly.Module` instead.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55548
     description: End-of-Life.
   - version: v23.0.0
@@ -3779,7 +3779,7 @@ and [`crypto.setEngine()`][] all depend on this functionality from OpenSSL.
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55718
     description: Runtime deprecation.
   - version:
@@ -3799,7 +3799,7 @@ It is recommended to use the `new` qualifier instead. This applies to all Zlib c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/54869
     description: Runtime deprecation.
   - version:
@@ -3821,7 +3821,7 @@ It is recommended to use the `new` qualifier instead. This applies to all REPL c
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55753
     description: Runtime deprecation.
   - version:
@@ -3871,7 +3871,7 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57199
     description: Runtime deprecation.
   - version:
@@ -3890,7 +3890,7 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57508
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.
