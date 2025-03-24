@@ -238,22 +238,6 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 0);
   });
 
-  it('runs script in a custom working directory using --run-from is given a package.json', async () => {
-    const packageJson = fixtures.path('run-script/package.json');
-    const workingDir = fixtures.path('run-script');
-
-    const child = await common.spawnPromisified(
-      process.execPath,
-      [ '--run-from', packageJson, '--run', `pwd${envSuffix}` ],
-
-      { env: fixtures.path('run-script/sub-directory') }
-    );
-
-    assert.strictEqual(child.stdout.trim(), workingDir);
-    assert.strictEqual(child.stderr, '');
-    assert.strictEqual(child.code, 0);
-  });
-
   it('--run-from should be no-op when used without --run', async () => {
     const packageJson = fixtures.path('run-script/package.json');
 

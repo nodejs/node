@@ -2302,8 +2302,8 @@ added: REPLACEME
 
 > Stability 1.0 - Early development
 
-Run a `package.json` script from a specified path to a `package.json` file or
-path to the containing folder of a `package.json` file.
+Run a `package.json` script from a specified path to a containing folder of a
+`package.json` file.
 
 The script is run from the directory of the `package.json` file.
 

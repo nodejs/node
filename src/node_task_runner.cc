@@ -261,10 +261,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
   } else {
     cwd = std::filesystem::absolute(std::filesystem::path(run_from));
 
-    if (is_regular_file(cwd)) {
-      // Given a package.json
-      cwd = cwd.parent_path();
-    } else if (!is_directory(cwd)) {
+    if (!is_directory(cwd)) {
       // Given a directory that should have a package.json
       fprintf(stderr, "Error: %s is not a directory\n", cwd.c_str());
       result->exit_code_ = ExitCode::kGenericUserError;
