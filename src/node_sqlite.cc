@@ -67,62 +67,52 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-#define SQLITE_VALUE_TO_JS(                                                    \
-    from, unreachable_message, isolate, use_big_int_args, ...)                 \
-  switch (sqlite3_##from##_type(__VA_ARGS__)) {                                \
-    case SQLITE_INTEGER: {                                                     \
-      sqlite3_int64 val = sqlite3_##from##_int64(__VA_ARGS__);                 \
-      if (use_big_int_args) {                                                  \
-        return BigInt::New(isolate, val);                                      \
-      } else if (std::abs(val) <= kMaxSafeJsInteger) {                         \
-        return Number::New(isolate, val);                                      \
-      } else {                                                                 \
-        return MaybeLocal<Value>();                                            \
+#define SQLITE_VALUE_TO_JS(from, isolate, use_big_int_args, result, ...)       \
+  do {                                                                         \
+    switch (sqlite3_##from##_type(__VA_ARGS__)) {                              \
+      case SQLITE_INTEGER: {                                                   \
+        sqlite3_int64 val = sqlite3_##from##_int64(__VA_ARGS__);               \
+        if (use_big_int_args) {                                                \
+          result = BigInt::New(isolate, val);                                  \
+        } else if (std::abs(val) <= kMaxSafeJsInteger) {                       \
+          result = Number::New(isolate, val);                                  \
+        } else {                                                               \
+          THROW_ERR_OUT_OF_RANGE(isolate,                                      \
+                                 "Value is too large to be represented as a "  \
+                                 "JavaScript number: %" PRId64,                \
+                                 val);                                         \
+        }                                                                      \
+        break;                                                                 \
       }                                                                        \
-      break;                                                                   \
+      case SQLITE_FLOAT: {                                                     \
+        result = Number::New(isolate, sqlite3_##from##_double(__VA_ARGS__));   \
+        break;                                                                 \
+      }                                                                        \
+      case SQLITE_TEXT: {                                                      \
+        const char* v =                                                        \
+            reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
+        result = String::NewFromUtf8(isolate, v).As<Value>();                  \
+        break;                                                                 \
+      }                                                                        \
+      case SQLITE_NULL: {                                                      \
+        result = Null(isolate);                                                \
+        break;                                                                 \
+      }                                                                        \
+      case SQLITE_BLOB: {                                                      \
+        size_t size =                                                          \
+            static_cast<size_t>(sqlite3_##from##_bytes(__VA_ARGS__));          \
+        auto data = reinterpret_cast<const uint8_t*>(                          \
+            sqlite3_##from##_blob(__VA_ARGS__));                               \
+        auto store = ArrayBuffer::NewBackingStore(isolate, size);              \
+        memcpy(store->Data(), data, size);                                     \
+        auto ab = ArrayBuffer::New(isolate, std::move(store));                 \
+        result = Uint8Array::New(ab, 0, size);                                 \
+        break;                                                                 \
+      }                                                                        \
+      default:                                                                 \
+        UNREACHABLE("Bad SQLite value");                                       \
     }                                                                          \
-    case SQLITE_FLOAT: {                                                       \
-      return Number::New(isolate, sqlite3_##from##_double(__VA_ARGS__));       \
-      break;                                                                   \
-    }                                                                          \
-    case SQLITE_TEXT: {                                                        \
-      const char* v =                                                          \
-          reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__));   \
-      return String::NewFromUtf8(isolate, v).As<Value>();                      \
-    }                                                                          \
-    case SQLITE_NULL:                                                          \
-      return Null(isolate);                                                    \
-    case SQLITE_BLOB: {                                                        \
-      size_t size = static_cast<size_t>(sqlite3_##from##_bytes(__VA_ARGS__));  \
-      auto data = reinterpret_cast<const uint8_t*>(                            \
-          sqlite3_##from##_blob(__VA_ARGS__));                                 \
-      auto store = ArrayBuffer::NewBackingStore(isolate, size);                \
-      memcpy(store->Data(), data, size);                                       \
-      auto ab = ArrayBuffer::New(isolate, std::move(store));                   \
-      return Uint8Array::New(ab, 0, size);                                     \
-    }                                                                          \
-    default:                                                                   \
-      UNREACHABLE(unreachable_message);                                        \
-  }
-
-MaybeLocal<Value> SQLiteValueToJS(Isolate* isolate,
-                                  bool use_big_int_args,
-                                  sqlite3_value* sqlite_value) {
-  SQLITE_VALUE_TO_JS(
-      value, "Bad SQLite value", isolate, use_big_int_args, sqlite_value);
-}
-
-MaybeLocal<Value> SQLiteValueToJS(Isolate* isolate,
-                                  bool use_big_int_args,
-                                  sqlite3_stmt* stmt,
-                                  int column) {
-  SQLITE_VALUE_TO_JS(column,
-                     "Bad SQLite column type",
-                     isolate,
-                     use_big_int_args,
-                     stmt,
-                     column);
-}
+  } while (0)
 
 inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
@@ -413,17 +403,12 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
 
   for (int i = 0; i < argc; ++i) {
     sqlite3_value* value = argv[i];
-    MaybeLocal<Value> js_val =
-        SQLiteValueToJS(isolate, self->use_bigint_args_, value);
-
+    MaybeLocal<Value> js_val = MaybeLocal<Value>();
+    SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
     if (js_val.IsEmpty()) {
       // Ignore the SQLite error because a JavaScript exception is pending.
       self->db_->SetIgnoreNextSQLiteError(true);
       sqlite3_result_error(ctx, "", 0);
-      THROW_ERR_OUT_OF_RANGE(isolate,
-                             "Value is too large to be represented as a "
-                             "JavaScript number: %" PRId64,
-                             sqlite3_value_int64(value));
       return;
     }
 
@@ -1536,18 +1521,9 @@ bool StatementSync::BindValue(const Local<Value>& value, const int index) {
 
 MaybeLocal<Value> StatementSync::ColumnToValue(const int column) {
   Isolate* isolate = env()->isolate();
-  MaybeLocal<Value> js_val =
-      SQLiteValueToJS(isolate, use_big_ints_, statement_, column);
-
-  if (js_val.IsEmpty()) {
-    THROW_ERR_OUT_OF_RANGE(isolate,
-                           "The value of column %d is too large to be "
-                           "represented as a JavaScript number: %" PRId64,
-                           column,
-                           sqlite3_column_int64(statement_, column));
-    return MaybeLocal<Value>();
-  }
-
+  MaybeLocal<Value> js_val = MaybeLocal<Value>();
+  SQLITE_VALUE_TO_JS(
+      column, isolate, use_big_ints_, js_val, statement_, column);
   return js_val;
 }
 
