@@ -36,7 +36,7 @@ struct CollationSettings;
 
 class U_I18N_API CollationRuleParser : public UMemory {
 public:
-    /** Special reset positions. */
+    /** Special reset positions for collation rules. */
     enum Position {
         FIRST_TERTIARY_IGNORABLE,
         LAST_TERTIARY_IGNORABLE,
@@ -55,39 +55,54 @@ public:
     };
 
     /**
-     * First character of contractions that encode special reset positions.
+     * Constants used for reset positions in collation rules.
      * U+FFFE cannot be tailored via rule syntax.
-     *
-     * The second contraction character is POS_BASE + Position.
      */
-    static const char16_t POS_LEAD = 0xfffe;
-    /**
-     * Base for the second character of contractions that encode special reset positions.
-     * Braille characters U+28xx are printable and normalization-inert.
-     * @see POS_LEAD
-     */
-    static const char16_t POS_BASE = 0x2800;
+    static constexpr char16_t RESET_POSITION_LEAD = 0xfffe;
+    static constexpr char16_t RESET_POSITION_BASE = 0x2800;
 
     class U_I18N_API Sink : public UObject {
     public:
         virtual ~Sink();
+
         /**
-         * Adds a reset.
-         * strength=UCOL_IDENTICAL for &str.
-         * strength=UCOL_PRIMARY/UCOL_SECONDARY/UCOL_TERTIARY for &[before n]str where n=1/2/3.
+         * Adds a reset rule.
+         * @param strength The collation strength (e.g., UCOL_PRIMARY).
+         * @param str The UnicodeString for the rule.
+         * @param errorReason The error message, if any.
+         * @param errorCode The error code to track.
          */
         virtual void addReset(int32_t strength, const UnicodeString &str,
                               const char *&errorReason, UErrorCode &errorCode) = 0;
+
         /**
-         * Adds a relation with strength and prefix | str / extension.
+         * Adds a relation rule with the given strength and strings.
+         * @param strength The collation strength (e.g., UCOL_PRIMARY).
+         * @param prefix The prefix UnicodeString.
+         * @param str The UnicodeString for the rule.
+         * @param extension The extension UnicodeString.
+         * @param errorReason The error message, if any.
+         * @param errorCode The error code to track.
          */
         virtual void addRelation(int32_t strength, const UnicodeString &prefix,
                                  const UnicodeString &str, const UnicodeString &extension,
                                  const char *&errorReason, UErrorCode &errorCode) = 0;
 
+        /**
+         * Suppresses contractions for a given UnicodeSet.
+         * @param set The set of Unicode characters to suppress.
+         * @param errorReason The error message, if any.
+         * @param errorCode The error code to track.
+         */
         virtual void suppressContractions(const UnicodeSet &set, const char *&errorReason,
                                           UErrorCode &errorCode);
 
+        /**
+         * Optimizes the given UnicodeSet.
+         * @param set The set of Unicode characters to optimize.
+         * @param errorReason The error message, if any.
+         * @param errorCode The error code to track.
+         */
         virtual void optimize(const UnicodeSet &set, const char *&errorReason,
                               UErrorCode &errorCode);
     };
@@ -95,6 +110,15 @@ public:
     class U_I18N_API Importer : public UObject {
     public:
         virtual ~Importer();
+
+        /**
+         * Retrieves the collation rules for a given locale.
+         * @param localeID The locale identifier.
+         * @param collationType The collation type.
+         * @param rules The string to store the rules.
+         * @param errorReason The error message, if any.
+         * @param errorCode The error code to track.
+         */
         virtual void getRules(
                 const char *localeID, const char *collationType,
                 UnicodeString &rules,
@@ -112,6 +136,7 @@ public:
     /**
      * Sets the pointer to a Sink object.
      * The pointer is aliased: Pointer copy without cloning or taking ownership.
+     * @param sinkAlias The Sink object to be set.
      */
     void setSink(Sink *sinkAlias) {
         sink = sinkAlias;
@@ -120,30 +145,41 @@ public:
     /**
      * Sets the pointer to an Importer object.
      * The pointer is aliased: Pointer copy without cloning or taking ownership.
+     * @param importerAlias The Importer object to be set.
      */
     void setImporter(Importer *importerAlias) {
         importer = importerAlias;
     }
 
+    /**
+     * Parses the collation rule string.
+     * @param ruleString The rule string to be parsed.
+     * @param outSettings The parsed collation settings.
+     * @param outParseError The parse error details.
+     * @param errorCode The error code to track.
+     */
     void parse(const UnicodeString &ruleString,
                CollationSettings &outSettings,
                UParseError *outParseError,
                UErrorCode &errorCode);
 
+    /**
+     * Gets the last error reason.
+     * @return The last error message.
+     */
     const char *getErrorReason() const { return errorReason; }
 
     /**
      * Gets a script or reorder code from its string representation.
-     * @return the script/reorder code, or
-     * -1 if not recognized
+     * @param word The string representation.
+     * @return The script/reorder code, or -1 if not recognized.
      */
     static int32_t getReorderCode(const char *word);
 
 private:
-    /** UCOL_PRIMARY=0 .. UCOL_IDENTICAL=15 */
-    static const int32_t STRENGTH_MASK = 0xf;
-    static const int32_t STARRED_FLAG = 0x10;
-    static const int32_t OFFSET_SHIFT = 8;
+    static constexpr int32_t STRENGTH_MASK = 0xf;
+    static constexpr int32_t STARRED_FLAG = 0x10;
+    static constexpr int32_t OFFSET_SHIFT = 8;
 
     void parse(const UnicodeString &ruleString, UErrorCode &errorCode);
     void parseRuleChain(UErrorCode &errorCode);
@@ -154,10 +190,6 @@ private:
     int32_t parseTailoringString(int32_t i, UnicodeString &raw, UErrorCode &errorCode);
     int32_t parseString(int32_t i, UnicodeString &raw, UErrorCode &errorCode);
 
-    /**
-     * Sets str to a contraction of U+FFFE and (U+2800 + Position).
-     * @return rule index after the special reset position
-     */
     int32_t parseSpecialPosition(int32_t i, UnicodeString &str, UErrorCode &errorCode);
     void parseSetting(UErrorCode &errorCode);
     void parseReordering(const UnicodeString &raw, UErrorCode &errorCode);
@@ -170,11 +202,7 @@ private:
     void setParseError(const char *reason, UErrorCode &errorCode);
     void setErrorContext();
 
-    /**
-     * ASCII [:P:] and [:S:]:
-     * [\u0021-\u002F \u003A-\u0040 \u005B-\u0060 \u007B-\u007E]
-     */
-    static UBool isSyntaxChar(UChar32 c);
+    static bool isSyntaxChar(UChar32 c);
     int32_t skipWhiteSpace(int32_t i) const;
 
     const Normalizer2 &nfd, &nfc;
@@ -187,8 +215,6 @@ private:
 
     Sink *sink;
     Importer *importer;
-
-    int32_t ruleIndex;
 };
 
 U_NAMESPACE_END
