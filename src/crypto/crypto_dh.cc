@@ -512,15 +512,15 @@ MaybeLocal<Value> DHBitsTraits::EncodeOutput(Environment* env,
   return out->ToArrayBuffer(env);
 }
 
-bool DHBitsTraits::DeriveBits(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out) {
+bool DHBitsTraits::DeriveBits(Environment* env,
+                              const DHBitsConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   auto dp = DHPointer::stateless(params.private_key.GetAsymmetricKey(),
                                  params.public_key.GetAsymmetricKey());
   if (!dp) {
-    bool can_throw =
-        per_process::v8_initialized && Isolate::TryGetCurrent() != nullptr;
+    bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
+
     if (can_throw) {
       unsigned long err = ERR_get_error();  // NOLINT(runtime/int)
       if (err) ThrowCryptoError(env, err, "diffieHellman failed");

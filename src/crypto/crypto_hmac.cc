@@ -228,10 +228,10 @@ Maybe<void> HmacTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HmacTraits::DeriveBits(
-    Environment* env,
-    const HmacConfig& params,
-    ByteSource* out) {
+bool HmacTraits::DeriveBits(Environment* env,
+                            const HmacConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   auto ctx = HMACCtxPointer::New();
 
   ncrypto::Buffer<const void> key_buf{
