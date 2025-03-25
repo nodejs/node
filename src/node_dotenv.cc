@@ -65,18 +65,19 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
 }
 
 Maybe<void> Dotenv::SetEnvironment(node::Environment* env) {
-  Local<Value> name;
-  Local<Value> val;
   auto context = env->context();
+  auto env_vars = env->env_vars();
 
   for (const auto& entry : store_) {
-    auto existing = env->env_vars()->Get(entry.first.data());
+    auto existing = env_vars->Get(entry.first.data());
     if (!existing.has_value()) {
+      Local<Value> name;
+      Local<Value> val;
       if (!ToV8Value(context, entry.first).ToLocal(&name) ||
           !ToV8Value(context, entry.second).ToLocal(&val)) {
         return Nothing<void>();
       }
-      env->env_vars()->Set(env->isolate(), name.As<String>(), val.As<String>());
+      env_vars->Set(env->isolate(), name.As<String>(), val.As<String>());
     }
   }
 
