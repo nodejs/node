@@ -410,9 +410,11 @@ class DeriveBitsJob final : public CryptoJob<DeriveBitsTraits> {
             std::move(params)) {}
 
   void DoThreadPoolWork() override {
-    if (!DeriveBitsTraits::DeriveBits(
-            AsyncWrap::env(),
-            *CryptoJob<DeriveBitsTraits>::params(), &out_)) {
+    ncrypto::ClearErrorOnReturn clear_error_on_return;
+    if (!DeriveBitsTraits::DeriveBits(AsyncWrap::env(),
+                                      *CryptoJob<DeriveBitsTraits>::params(),
+                                      &out_,
+                                      this->mode())) {
       CryptoErrorStore* errors = CryptoJob<DeriveBitsTraits>::errors();
       errors->Capture();
       if (errors->Empty())
