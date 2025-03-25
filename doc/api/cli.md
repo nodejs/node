@@ -2202,8 +2202,6 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
-Both CommonJS module and [ECMAScript module][] are supported.
-Use [`--import`][] to preload only [ECMAScript module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 Modules are preloaded into the main thread as well as any worker threads,
