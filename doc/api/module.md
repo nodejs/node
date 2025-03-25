@@ -66,6 +66,46 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.detectSyntax(code)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The `module.detectSyntax()` method attempts to determine the syntax of agiven source code string.
+This detection is performed without executing the code, relying on file extensions, or checking the type field in `package.json`.
+Only TypeScript syntax that can be erased is supported.
+
+* `code` {string} The code to detect the syntax of.
+* Returns: {string|undefined} The detected syntax of the code. Possible values are:
+  * `'commonjs'` for CommonJS module code.
+  * `'module'` for ECMAScript module code.
+  * `'commonjs-typescript'` for CommonJS TypeScript code.
+  * `'module-typescript'` for ECMAScript TypeScript code.
+  * `undefined` if the syntax cannot be detected.
+    **Default:** `'commonjs'`.
+
+```mjs
+import { detectSyntax } from 'node:module';
+detectSyntax('export const a = 1;'); // 'module'
+detectSyntax('const a = 1;'); // 'commonjs'
+detectSyntax('export const a: number = 1;'); // 'module-typescript'
+detectSyntax('const a: number = 1;'); // 'commonjs-typescript'
+detectSyntax('const foo;'); // Invalid syntax, returns undefined
+```
+
+There are some limitations to the detection, where the syntax cannot be determined because it's ambiguous:
+
+```mjs
+import { detectSyntax } from 'node:module';
+// This could be CommonJS if we interpret < and > as greater and lesser,
+// or it could be TypeScript if we interpret them as type parameters.
+// In this case, it will be interpreted as TypeScript.
+detectSyntax('foo<Object>("bar")'); // 'commonjs-typescript'
+```
+
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
