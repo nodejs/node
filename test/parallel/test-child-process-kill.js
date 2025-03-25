@@ -42,9 +42,7 @@ assert.strictEqual(cat.killed, true);
 
 // Test different types of kill signals on Windows.
 if (common.isWindows) {
-  // SIGQUIT is not supported on Windows 2022, Visual Studio 2022 ClangCL-produced node.exe.
-  // TODO(StefanStojanovic): Investigate this and re-enable it when the issue is fixed.
-  for (const sendSignal of ['SIGTERM', 'SIGKILL', /* 'SIGQUIT', */'SIGINT']) {
+  for (const sendSignal of ['SIGTERM', 'SIGKILL', 'SIGQUIT', 'SIGINT']) {
     const process = spawn('cmd');
     process.on('exit', (code, signal) => {
       assert.strictEqual(code, null);

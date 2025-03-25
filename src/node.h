@@ -67,6 +67,7 @@
 #endif
 
 #ifdef _WIN32
+# define SIGQUIT 3
 # define SIGKILL 9
 #endif
 
