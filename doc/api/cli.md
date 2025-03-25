@@ -2188,6 +2188,13 @@ native stack and other runtime environment data.
 
 <!-- YAML
 added: v1.6.0
+changes:
+  - version:
+      - v23.0.0
+      - v22.12.0
+      - v20.19.0
+    pr-url: https://github.com/nodejs/node/issues/52697
+    description: This option also supports ECMAScript module.
 -->
 
 Preload the specified module at startup.
@@ -2195,8 +2202,8 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
-Only CommonJS modules are supported.
-Use [`--import`][] to preload an [ECMAScript module][].
+Both CommonJS module and [ECMAScript module][] are supported.
+Use [`--import`][] to preload only [ECMAScript module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 Modules are preloaded into the main thread as well as any worker threads,
