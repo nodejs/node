@@ -615,12 +615,11 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context,
   if (existing_value->IsObject())
     return handle_scope.Escape(existing_value.As<Object>());
 
-  Local<String> primordials_string =
-      FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  // To initialize the per-context binding exports, a non-nullptr isolate_data
+  // is needed
+  CHECK(isolate_data);
   Local<Object> exports = Object::New(isolate);
   if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
-      (isolate_data == nullptr &&
-       exports->Has(context, primordials_string).FromJust()) ||
       InitializePrimordials(context, isolate_data).IsNothing()) {
     return MaybeLocal<Object>();
   }
