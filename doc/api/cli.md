@@ -2308,8 +2308,6 @@ Run a `package.json` script from a specified path to a containing folder of a
 The script is run from the directory of the `package.json` file.
 
 ```bash
-node --run-from=/app/package.json --run test
-# Or
 node --run-from=/app/ --run test
 ```
 
