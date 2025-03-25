@@ -636,11 +636,11 @@ Maybe<void> SignTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool SignTraits::DeriveBits(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out) {
-  ClearErrorOnReturn clear_error_on_return;
+bool SignTraits::DeriveBits(Environment* env,
+                            const SignConfiguration& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
+  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
   auto context = EVPMDCtxPointer::New();
   if (!context) [[unlikely]]
     return false;
@@ -657,7 +657,7 @@ bool SignTraits::DeriveBits(
   })();
 
   if (!ctx.has_value()) [[unlikely]] {
-    crypto::CheckThrow(env, SignBase::Error::Init);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::Init);
     return false;
   }
 
@@ -671,7 +671,7 @@ bool SignTraits::DeriveBits(
           : std::nullopt;
 
   if (!ApplyRSAOptions(key, *ctx, padding, salt_length)) {
-    crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
     return false;
   }
 
@@ -680,7 +680,7 @@ bool SignTraits::DeriveBits(
       if (key.isOneShotVariant()) {
         auto data = context.signOneShot(params.data);
         if (!data) [[unlikely]] {
-          crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
@@ -688,7 +688,7 @@ bool SignTraits::DeriveBits(
       } else {
         auto data = context.sign(params.data);
         if (!data) [[unlikely]] {
-          crypto::CheckThrow(env, SignBase::Error::PrivateKey);
+          if (can_throw) crypto::CheckThrow(env, SignBase::Error::PrivateKey);
           return false;
         }
         DCHECK(!data.isSecure());
