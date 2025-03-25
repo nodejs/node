@@ -119,6 +119,12 @@ jobs:
             run: |
               make corepack-update
               echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
+          - id: doc
+            subsystem: tools
+            label: tools
+            run: |
+              cd tools/doc
+              ./update.sh
           - id: googletest
             subsystem: deps
             label: dependencies, test
