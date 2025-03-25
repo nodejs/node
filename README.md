@@ -31,6 +31,7 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [TSC (Technical Steering Committee)](#tsc-technical-steering-committee)
   * [Collaborators](#collaborators)
   * [Triagers](#triagers)
+  * [Companions](#companions)
   * [Release keys](#release-keys)
 * [License](#license)
 
@@ -766,6 +767,10 @@ maintaining the Node.js project.
 
 Triagers follow the [Triage Guide](./doc/contributing/issues.md#triaging-a-bug-report) when
 responding to new issues.
+
+### Companions
+
+Companions are people recognized for their significant contributions to Node.js.
 
 ### Release keys
 
