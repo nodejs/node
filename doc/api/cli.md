@@ -2193,7 +2193,7 @@ changes:
       - v23.0.0
       - v22.12.0
       - v20.19.0
-    pr-url: https://github.com/nodejs/node/issues/52697
+    pr-url: https://github.com/nodejs/node/pull/51977
     description: This option also supports ECMAScript module.
 -->
 
