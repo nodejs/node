@@ -1231,6 +1231,34 @@
     }
   },
   {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "8\t0" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80x" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80?x" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80\\x" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
     "pattern": [{ "port": "(.*)" }],
     "inputs": [{ "port": "invalid80" }],
     "expected_obj": {
