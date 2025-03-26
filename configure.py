@@ -817,7 +817,7 @@ parser.add_argument('--with-corepack',
     action='store_true',
     dest='with_corepack',
     default=None,
-    help='do install the bundled Corepack')
+    help='do install the bundled Corepack (experimental, will be removed without notice)')
 
 parser.add_argument('--control-flow-guard',
     action='store_true',
