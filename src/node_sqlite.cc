@@ -72,12 +72,12 @@ using v8::Value;
     switch (sqlite3_##from##_type(__VA_ARGS__)) {                              \
       case SQLITE_INTEGER: {                                                   \
         sqlite3_int64 val = sqlite3_##from##_int64(__VA_ARGS__);               \
-        if (use_big_int_args) {                                                \
-          result = BigInt::New(isolate, val);                                  \
+        if ((use_big_int_args)) {                                              \
+          (result) = BigInt::New((isolate), val);                              \
         } else if (std::abs(val) <= kMaxSafeJsInteger) {                       \
-          result = Number::New(isolate, val);                                  \
+          (result) = Number::New((isolate), val);                              \
         } else {                                                               \
-          THROW_ERR_OUT_OF_RANGE(isolate,                                      \
+          THROW_ERR_OUT_OF_RANGE((isolate),                                    \
                                  "Value is too large to be represented as a "  \
                                  "JavaScript number: %" PRId64,                \
                                  val);                                         \
@@ -85,17 +85,18 @@ using v8::Value;
         break;                                                                 \
       }                                                                        \
       case SQLITE_FLOAT: {                                                     \
-        result = Number::New(isolate, sqlite3_##from##_double(__VA_ARGS__));   \
+        (result) =                                                             \
+            Number::New((isolate), sqlite3_##from##_double(__VA_ARGS__));      \
         break;                                                                 \
       }                                                                        \
       case SQLITE_TEXT: {                                                      \
         const char* v =                                                        \
             reinterpret_cast<const char*>(sqlite3_##from##_text(__VA_ARGS__)); \
-        result = String::NewFromUtf8(isolate, v).As<Value>();                  \
+        (result) = String::NewFromUtf8((isolate), v).As<Value>();              \
         break;                                                                 \
       }                                                                        \
       case SQLITE_NULL: {                                                      \
-        result = Null(isolate);                                                \
+        (result) = Null((isolate));                                            \
         break;                                                                 \
       }                                                                        \
       case SQLITE_BLOB: {                                                      \
@@ -103,10 +104,10 @@ using v8::Value;
             static_cast<size_t>(sqlite3_##from##_bytes(__VA_ARGS__));          \
         auto data = reinterpret_cast<const uint8_t*>(                          \
             sqlite3_##from##_blob(__VA_ARGS__));                               \
-        auto store = ArrayBuffer::NewBackingStore(isolate, size);              \
+        auto store = ArrayBuffer::NewBackingStore((isolate), size);            \
         memcpy(store->Data(), data, size);                                     \
-        auto ab = ArrayBuffer::New(isolate, std::move(store));                 \
-        result = Uint8Array::New(ab, 0, size);                                 \
+        auto ab = ArrayBuffer::New((isolate), std::move(store));               \
+        (result) = Uint8Array::New(ab, 0, size);                               \
         break;                                                                 \
       }                                                                        \
       default:                                                                 \
