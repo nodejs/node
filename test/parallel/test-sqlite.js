@@ -202,7 +202,7 @@ suite('URI query params', () => {
   });
 });
 
-suite('sqlite flags', () => {
+suite('SQL APIs enabled at build time', () => {
   test('math functions are enabled', (t) => {
     const db = new DatabaseSync(':memory:');
     t.assert.deepStrictEqual(
