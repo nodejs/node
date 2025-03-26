@@ -115,8 +115,8 @@ v8::Maybe<void> InitializeBaseContextForSnapshot(
 v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
 v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
                                       IsolateData* isolate_data);
-v8::Local<v8::Object> InitializePrivateSymbols(v8::Local<v8::Context> context,
-                                               IsolateData* isolate_data);
+v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
+    v8::Local<v8::Context> context, IsolateData* isolate_data);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:

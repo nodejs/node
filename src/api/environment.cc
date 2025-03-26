@@ -767,8 +767,8 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
   return JustVoid();
 }
 
-Local<Object> InitializePrivateSymbols(Local<Context> context,
-                                       IsolateData* isolate_data) {
+MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
+                                            IsolateData* isolate_data) {
   CHECK(isolate_data);
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -785,7 +785,7 @@ Local<Object> InitializePrivateSymbols(Local<Context> context,
   if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
       private_symbols_object->SetPrototypeV2(context, Null(isolate))
           .IsNothing()) {
-    return Local<Object>();
+    return MaybeLocal<Object>();
   }
 
   return scope.Escape(private_symbols_object);
@@ -814,8 +814,11 @@ Maybe<void> InitializePrimordials(Local<Context> context,
     return Nothing<void>();
   }
 
-  Local<Object> private_symbols =
-      InitializePrivateSymbols(context, isolate_data);
+  Local<Object> private_symbols;
+  if (!InitializePrivateSymbols(context, isolate_data)
+           .ToLocal(&private_symbols)) {
+    return Nothing<void>();
+  }
 
   static const char* context_files[] = {"internal/per_context/primordials",
                                         "internal/per_context/domexception",
@@ -832,11 +835,7 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[3];
-    arguments[0] = exports;
-    arguments[1] = primordials;
-    arguments[2] = private_symbols.IsEmpty() ? Local<Value>(Undefined(isolate))
-                                             : Local<Value>(private_symbols);
+    Local<Value> arguments[] = {exports, primordials, private_symbols};
 
     if (builtin_loader
             .CompileAndCall(
