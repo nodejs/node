@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.8">18.20.8</a><br/>
 <a href="#18.20.7">18.20.7</a><br/>
 <a href="#18.20.6">18.20.6</a><br/>
 <a href="#18.20.5">18.20.5</a><br/>
@@ -76,6 +77,30 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.8"></a>
+
+## 2025-03-27, Version 18.20.8 'Hydrogen' (LTS), @richardlau
+
+### Notable Changes
+
+This release updates OpenSSL to 3.0.16 and root certificates to NSS 3.108.
+
+### Commits
+
+* \[[`f737a79073`](https://github.com/nodejs/node/commit/f737a79073)] - **async\_hooks,inspector**: implement inspector api without async\_wrap (Gabriel Bota) [#51501](https://github.com/nodejs/node/pull/51501)
+* \[[`fce923ba69`](https://github.com/nodejs/node/commit/fce923ba69)] - **build**: update gcovr to 7.2 and codecov config (Benjamin E. Coe) [#54019](https://github.com/nodejs/node/pull/54019)
+* \[[`8b7ffd807c`](https://github.com/nodejs/node/commit/8b7ffd807c)] - **build**: fix compatibility with V8's `depot_tools` (Richard Lau) [#57330](https://github.com/nodejs/node/pull/57330)
+* \[[`ee9a343413`](https://github.com/nodejs/node/commit/ee9a343413)] - **crypto**: update root certificates to NSS 3.108 (Node.js GitHub Bot) [#57381](https://github.com/nodejs/node/pull/57381)
+* \[[`738bf8aea4`](https://github.com/nodejs/node/commit/738bf8aea4)] - **crypto**: update root certificates to NSS 3.104 (Richard Lau) [#55681](https://github.com/nodejs/node/pull/55681)
+* \[[`69d661d591`](https://github.com/nodejs/node/commit/69d661d591)] - **deps**: update undici to v5.29.0 (Matteo Collina) [#57557](https://github.com/nodejs/node/pull/57557)
+* \[[`59fcf43b0e`](https://github.com/nodejs/node/commit/59fcf43b0e)] - **deps**: update corepack to 0.32.0 (Node.js GitHub Bot) [#57265](https://github.com/nodejs/node/pull/57265)
+* \[[`1b72869503`](https://github.com/nodejs/node/commit/1b72869503)] - **deps**: update archs files for openssl-3.0.16 (Node.js GitHub Bot) [#57335](https://github.com/nodejs/node/pull/57335)
+* \[[`a566560235`](https://github.com/nodejs/node/commit/a566560235)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.16 (Node.js GitHub Bot) [#57335](https://github.com/nodejs/node/pull/57335)
+* \[[`50c4e1da2f`](https://github.com/nodejs/node/commit/50c4e1da2f)] - **doc**: add missing `deprecated` badges in `fs.md` (Yukihiro Hasegawa) [#57384](https://github.com/nodejs/node/pull/57384)
+* \[[`c3babb4671`](https://github.com/nodejs/node/commit/c3babb4671)] - **doc**: update Xcode version used for arm64 and pkg (Michaël Zasso) [#57104](https://github.com/nodejs/node/pull/57104)
+* \[[`784da606a6`](https://github.com/nodejs/node/commit/784da606a6)] - **doc**: fix link and history of `SourceMap` sections (Antoine du Hamel) [#57098](https://github.com/nodejs/node/pull/57098)
+* \[[`f5dbceccbe`](https://github.com/nodejs/node/commit/f5dbceccbe)] - **test**: update error code in tls-psk-circuit for for OpenSSL 3.4 (sebastianas) [#56420](https://github.com/nodejs/node/pull/56420)
 
 <a id="18.20.7"></a>
 
