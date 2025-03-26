@@ -41,6 +41,7 @@ using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Object;
 using v8::ObjectTemplate;
 using v8::SnapshotCreator;
@@ -1479,11 +1480,13 @@ void CompileSerializeMain(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   // TODO(joyeecheung): do we need all of these? Maybe we would want a less
   // internal version of them.
-  std::vector<Local<String>> parameters = {
-      FIXED_ONE_BYTE_STRING(isolate, "require"),
-      FIXED_ONE_BYTE_STRING(isolate, "__filename"),
-      FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
-  };
+  LocalVector<String> parameters(
+      isolate,
+      {
+          FIXED_ONE_BYTE_STRING(isolate, "require"),
+          FIXED_ONE_BYTE_STRING(isolate, "__filename"),
+          FIXED_ONE_BYTE_STRING(isolate, "__dirname"),
+      });
   Local<Function> fn;
   if (contextify::CompileFunction(context, filename, source, &parameters)
           .ToLocal(&fn)) {
