@@ -59,7 +59,11 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 {
   cleanupTmpFile();
-  // It moves the cursor at the right places
+  // It moves the cursor at the right places.
+  // This test make sure that all the movements between lines are making the cursor
+  // Move to the right place.
+  // For example, when the cursor is at the end of a long line and the user presses
+  // the down key, the cursor should move to the end of the next line, if shorter.
   const checkResults = common.mustSucceed((r) => {
     r.write('let str = `');
     r.input.run([{ name: 'enter' }]);

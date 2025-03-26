@@ -657,6 +657,12 @@ A list of the names of all Node.js modules, e.g., `'http'`.
 <!-- YAML
 added: v0.1.91
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57400
+    description: The multi-line indicator is now "|" instead of "...".
+                 Added support for multi-line history.
+                 It is now possible to "fix" multi-line commands with syntax errors
+                 by visiting the history and editing the command.
   - version:
      - v13.4.0
      - v12.17.0
