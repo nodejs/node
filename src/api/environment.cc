@@ -769,9 +769,7 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
 
 Local<Object> InitializePrivateSymbols(Local<Context> context,
                                        IsolateData* isolate_data) {
-  if (isolate_data == nullptr) {
-    return Local<Object>();
-  }
+  CHECK(isolate_data);
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
   Context::Scope context_scope(context);
