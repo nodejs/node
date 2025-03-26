@@ -59,7 +59,9 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 {
   cleanupTmpFile();
-  // It moves the cursor at the right places
+  // Make sure the cursor is at the right places.
+  // If the cursor is at the end of a long line and the down key is pressed,
+  // Move the cursor to the end of the next line, if shorter.
   const checkResults = common.mustSucceed((r) => {
     r.write('let str = `');
     r.input.run([{ name: 'enter' }]);

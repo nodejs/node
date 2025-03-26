@@ -654,25 +654,25 @@ const tests = [
     expected: [
       prompt, ...'let a = ``',
       'undefined\n',
-      prompt, ...'a = `I am a multiline strong',
+      prompt, ...'a = `I am a multiline strong', // New Line, the user pressed ENTER
       '| ',
-      ...'which ends here`',
-      "'I am a multiline strong\\nwhich ends here'\n",
+      ...'which ends here`', // New Line, the user pressed ENTER
+      "'I am a multiline strong\\nwhich ends here'\n", // This is the result printed to the console
       prompt,
-      `${prompt}a = \`I am a multiline strong`,
+      `${prompt}a = \`I am a multiline strong`, // This is the history being shown and navigated
       `\n| which ends here\``,
-      `${prompt}a = \`I am a multiline strong`,
-      `\n| which ends here\``,
-
-      `${prompt}a = \`I am a multiline strng`,
+      `${prompt}a = \`I am a multiline strong`, // This is the history being shown and navigated
       `\n| which ends here\``,
 
-      `${prompt}a = \`I am a multiline string`,
+      `${prompt}a = \`I am a multiline strng`, // This is the history being shown and edited
       `\n| which ends here\``,
 
-      `${prompt}a = \`I am a multiline string`,
+      `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
       `\n| which ends here\``,
-      "'I am a multiline string\\nwhich ends here'\n",
+
+      `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n", // This is the result printed to the console
       prompt,
     ],
     clean: true
@@ -706,34 +706,34 @@ const tests = [
     expected: [
       prompt, ...'let b = ``',
       'undefined\n',
-      prompt, ...'b = `I am a multiline strong',
+      prompt, ...'b = `I am a multiline strong', // New Line, the user pressed ENTER
       '| ',
-      ...'which ends here`',
-      "'I am a multiline strong\\nwhich ends here'\n",
-      prompt, ...'let c = `I',
+      ...'which ends here`', // New Line, the user pressed ENTER
+      "'I am a multiline strong\\nwhich ends here'\n", // This is the result printed to the console
+      prompt, ...'let c = `I', // New Line, the user pressed ENTER
       '| ',
-      ...'am another one`',
+      ...'am another one`', // New Line, the user pressed ENTER
       'undefined\n',
       prompt,
-      `${prompt}let c = \`I`,
+      `${prompt}let c = \`I`, // This is the history being shown and navigated
       `\n| am another one\``,
 
-      `${prompt}let c = \`I`,
+      `${prompt}let c = \`I`, // This is the history being shown and navigated
       `\n| am another one\``,
 
-      `${prompt}b = \`I am a multiline strong`,
+      `${prompt}b = \`I am a multiline strong`, // This is the history being shown and edited
       `\n| which ends here\``,
-      `${prompt}b = \`I am a multiline strong`,
+      `${prompt}b = \`I am a multiline strong`, // This is the history being shown and edited
       `\n| which ends here\``,
-      `${prompt}b = \`I am a multiline strng`,
-      `\n| which ends here\``,
-
-      `${prompt}b = \`I am a multiline string`,
+      `${prompt}b = \`I am a multiline strng`, // This is the history being shown and edited
       `\n| which ends here\``,
 
-      `${prompt}b = \`I am a multiline string`,
+      `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited
       `\n| which ends here\``,
-      "'I am a multiline string\\nwhich ends here'\n",
+
+      `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n", // This is the result printed to the console
       prompt,
     ],
     clean: true
@@ -760,13 +760,13 @@ const tests = [
       ENTER,
     ],
     expected: [
-      prompt, ...'let d = ``',
+      prompt, ...'let d = ``', // New Line, the user pressed ENTER
       'undefined\n',
-      prompt, ...'d = `I am a',
+      prompt, ...'d = `I am a', // New Line, the user pressed ENTER
       '| ',
-      ...'super',
+      ...'super', // New Line, the user pressed ENTER
       '| ',
-      ...'broken` line\'',
+      ...'broken` line\'', // New Line, the user pressed ENTER
       "[broken` line'\n" +
       '        ^^^^\n' +
       '\n' +
@@ -776,19 +776,19 @@ const tests = [
       `  [message]: "Unexpected identifier 'line'"\n` +
       '}\n',
       prompt,
-      `${prompt}d = \`I am a`,
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
       `\n| super`,
       `\n| broken\` line'`,
 
-      `${prompt}d = \`I am a`,
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
       `\n| super`,
       '\n| broken` line',
       '`',
 
-      `${prompt}d = \`I am a`,
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
       `\n| super`,
       `\n| broken line\``,
-      "'I am a\\nsuper\\nbroken line'\n",
+      "'I am a\\nsuper\\nbroken line'\n", // This is the result printed to the console
       prompt,
     ],
     clean: true
