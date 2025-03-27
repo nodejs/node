@@ -14,7 +14,6 @@ const primValues = {
   'number': 1_000,
   'boolean': true,
   'object': { property: 'abcdef' },
-  'object_other_property': { property: 'abcdef' },
   'array': [1, 2, 3],
   'set_object': new Set([[1]]),
   'set_simple': new Set([1, 2, 3]),

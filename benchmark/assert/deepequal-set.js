@@ -6,7 +6,7 @@ const { deepEqual, deepStrictEqual, notDeepEqual, notDeepStrictEqual } =
 
 const bench = common.createBenchmark(main, {
   n: [1e3],
-  len: [5e2],
+  len: [2, 5e2],
   strict: [0, 1],
   method: [
     'deepEqual_primitiveOnly',
