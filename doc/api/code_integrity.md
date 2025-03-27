@@ -1,6 +1,6 @@
 # Code Integrity
 
-<!--introduced_in=v24.0.0-->
+<!--introduced_in=REPLACEME-->
 
 <!-- type=misc -->
 
