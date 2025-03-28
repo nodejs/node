@@ -87,11 +87,11 @@ MaybeLocal<Object> Dotenv::ToObject(Environment* env) const {
   EscapableHandleScope scope(env->isolate());
   Local<Object> result = Object::New(env->isolate());
 
-  Local<Value> name;
-  Local<Value> val;
   auto context = env->context();
 
   for (const auto& entry : store_) {
+    Local<Value> name;
+    Local<Value> val;
     if (!ToV8Value(context, entry.first).ToLocal(&name) ||
         !ToV8Value(context, entry.second).ToLocal(&val) ||
         result->Set(context, name, val).IsNothing()) {
