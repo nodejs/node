@@ -2003,6 +2003,11 @@ this is not set and the network interfaces are included.
 
 <!-- YAML
 added: v1.6.0
+changes:
+  - version:
+      - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/51977
+    description: This option also supports ECMAScript module.
 -->
 
 Preload the specified module at startup.
@@ -2010,8 +2015,6 @@ Preload the specified module at startup.
 Follows `require()`'s module resolution
 rules. `module` may be either a path to a file, or a node module name.
 
-Only CommonJS modules are supported.
-Use [`--import`][] to preload an [ECMAScript module][].
 Modules preloaded with `--require` will run before modules preloaded with `--import`.
 
 ### `--secure-heap=n`
