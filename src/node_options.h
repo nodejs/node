@@ -126,7 +126,7 @@ class EnvironmentOptions : public Options {
   bool experimental_fetch = true;
   bool experimental_websocket = true;
   bool experimental_sqlite = true;
-  bool experimental_webstorage = false;
+  bool experimental_webstorage = true;
 #ifdef NODE_OPENSSL_HAS_QUIC
   bool experimental_quic = false;
 #endif
