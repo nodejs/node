@@ -259,21 +259,6 @@ For completeness there is also `--input-type=commonjs`, for explicitly running
 string input as CommonJS. This is the default behavior if `--input-type` is
 unspecified.
 
-## Determining package manager
-
-> Stability: 1 - Experimental
-
-While all Node.js projects are expected to be installable by all package
-managers once published, their development teams are often required to use one
-specific package manager. To make this process easier, Node.js ships with a
-tool called [Corepack][] that aims to make all package managers transparently
-available in your environment - provided you have Node.js installed.
-
-By default Corepack won't enforce any specific package manager and will use
-the generic "Last Known Good" versions associated with each Node.js release,
-but you can improve this experience by setting the [`"packageManager"`][] field
-in your project's `package.json`.
-
 ## Package entry points
 
 In a package's `package.json` file, two fields can define entry points for a
@@ -905,8 +890,6 @@ The following fields in `package.json` files are used in Node.js:
   by package managers as the name of the package.
 * [`"main"`][] - The default module when loading the package, if exports is not
   specified, and in versions of Node.js prior to the introduction of exports.
-* [`"packageManager"`][] - The package manager recommended when contributing to
-  the package. Leveraged by the [Corepack][] shims.
 * [`"type"`][] - The package type determining whether to load `.js` files as
   CommonJS or ES modules.
 * [`"exports"`][] - Package exports and conditional exports. When present,
@@ -970,33 +953,6 @@ via `require()`](modules.md#folders-as-modules).
 // This resolves to ./path/to/directory/index.js.
 require('./path/to/directory');
 ```
-
-### `"packageManager"`
-
-<!-- YAML
-added:
-  - v16.9.0
-  - v14.19.0
--->
-
-> Stability: 1 - Experimental
-
-* Type: {string}
-
-```json
-{
-  "packageManager": "<package manager name>@<version>"
-}
-```
-
-The `"packageManager"` field defines which package manager is expected to be
-used when working on the current project. It can be set to any of the
-[supported package managers][], and will ensure that your teams use the exact
-same package manager versions without having to install anything else other than
-Node.js.
-
-This field is currently experimental and needs to be opted-in; check the
-[Corepack][] page for details about the procedure.
 
 ### `"type"`
 
@@ -1137,7 +1093,6 @@ This field defines [subpath imports][] for the current package.
 
 [CommonJS]: modules.md
 [Conditional exports]: #conditional-exports
-[Corepack]: corepack.md
 [ES module]: esm.md
 [ES modules]: esm.md
 [Node.js documentation for this section]: https://github.com/nodejs/node/blob/HEAD/doc/api/packages.md#conditions-definitions
@@ -1148,7 +1103,6 @@ This field defines [subpath imports][] for the current package.
 [`"imports"`]: #imports
 [`"main"`]: #main
 [`"name"`]: #name
-[`"packageManager"`]: #packagemanager
 [`"type"`]: #type
 [`--conditions` / `-C` flag]: #resolving-user-conditions
 [`--no-addons` flag]: cli.md#--no-addons
@@ -1163,7 +1117,6 @@ This field defines [subpath imports][] for the current package.
 [self-reference]: #self-referencing-a-package-using-its-name
 [subpath exports]: #subpath-exports
 [subpath imports]: #subpath-imports
-[supported package managers]: corepack.md#supported-package-managers
 [the dual CommonJS/ES module packages section]: #dual-commonjses-module-packages
 [the full specifier path]: esm.md#mandatory-file-extensions
 [the package examples repository]: https://github.com/nodejs/package-examples
