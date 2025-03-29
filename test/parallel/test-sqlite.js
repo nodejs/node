@@ -105,14 +105,6 @@ test('PRAGMAs are supported', (t) => {
   );
 });
 
-test('math functions are enabled', (t) => {
-  const db = new DatabaseSync(':memory:');
-  t.assert.deepStrictEqual(
-    db.prepare('SELECT PI() AS pi').get(),
-    { __proto__: null, pi: 3.141592653589793 },
-  );
-});
-
 test('Buffer is supported as the database path', (t) => {
   const db = new DatabaseSync(Buffer.from(nextDb()));
   t.after(() => { db.close(); });
@@ -141,7 +133,6 @@ test('URL is supported as the database path', (t) => {
     [{ __proto__: null, key: 1 }]
   );
 });
-
 
 suite('URI query params', () => {
   const baseDbPath = nextDb();
@@ -208,5 +199,136 @@ suite('URI query params', () => {
       code: 'ERR_SQLITE_ERROR',
       message: 'attempt to write a readonly database',
     });
+  });
+});
+
+suite('SQL APIs enabled at build time', () => {
+  test('math functions are enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT PI() AS pi').get(),
+      { __proto__: null, pi: 3.141592653589793 },
+    );
+  });
+
+  test('dbstat is enabled', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    db.exec(`
+      CREATE TABLE t1 (key INTEGER PRIMARY KEY);
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM dbstat WHERE name = \'t1\'').get(),
+      {
+        __proto__: null,
+        mx_payload: 0,
+        name: 't1',
+        ncell: 0,
+        pageno: 2,
+        pagetype: 'leaf',
+        path: '/',
+        payload: 0,
+        pgoffset: 4096,
+        pgsize: 4096,
+        unused: 4088
+      },
+    );
+  });
+
+  test('fts3 is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING fts3(content TEXT);
+      INSERT INTO t1 (content) VALUES ('hello world');
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM t1 WHERE t1 MATCH \'hello\'').all(),
+      [
+        { __proto__: null, content: 'hello world' },
+      ],
+    );
+  });
+
+  test('fts3 parenthesis', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING fts3(content TEXT);
+      INSERT INTO t1 (content) VALUES ('hello world');
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM t1 WHERE content MATCH \'(groupedterm1 OR groupedterm2) OR hello world\'').all(),
+      [
+        { __proto__: null, content: 'hello world' },
+      ],
+    );
+  });
+
+  test('fts4 is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING fts4(content TEXT);
+      INSERT INTO t1 (content) VALUES ('hello world');
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM t1 WHERE t1 MATCH \'hello\'').all(),
+      [
+        { __proto__: null, content: 'hello world' },
+      ],
+    );
+  });
+
+  test('fts5 is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING fts5(content);
+      INSERT INTO t1 (content) VALUES ('hello world');
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM t1 WHERE t1 MATCH \'hello\'').all(),
+      [
+        { __proto__: null, content: 'hello world' },
+      ],
+    );
+  });
+
+  test('rtree is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING rtree(id, minX, maxX, minY, maxY);
+      INSERT INTO t1 (id, minX, maxX, minY, maxY) VALUES (1, 0, 1, 0, 1);
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT * FROM t1 WHERE minX < 0.5').all(),
+      [
+        { __proto__: null, id: 1, minX: 0, maxX: 1, minY: 0, maxY: 1 },
+      ],
+    );
+  });
+
+  test('rbu is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT sqlite_compileoption_used(\'SQLITE_ENABLE_RBU\') as rbu_enabled;').get(),
+      { __proto__: null, rbu_enabled: 1 },
+    );
+  });
+
+  test('geopoly is enabled', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE VIRTUAL TABLE t1 USING geopoly(a,b,c);
+      INSERT INTO t1(_shape) VALUES('[[0,0],[1,0],[0.5,1],[0,0]]');
+    `);
+
+    t.assert.deepStrictEqual(
+      db.prepare('SELECT rowid FROM t1 WHERE geopoly_contains_point(_shape, 0, 0)').get(),
+      { __proto__: null, rowid: 1 },
+    );
   });
 });
