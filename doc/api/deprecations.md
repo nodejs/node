@@ -3879,6 +3879,20 @@ Type: Runtime
 When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
 `{ shell: true }`, the values are not escaped, only space-separated, which can lead to shell injection.
 
+### DEP0191: `require('node:_tls_common')` and `require('node:_tls_wrap')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57643
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
+
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
