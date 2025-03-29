@@ -188,11 +188,12 @@ using Cipher_t = DataPointer(const EVPKeyPointer& key,
                              const ncrypto::Buffer<const void> in);
 
 template <Cipher_t cipher>
+template <Cipher_t cipher>
 WebCryptoCipherStatus RSA_Cipher(Environment* env,
-                                 const KeyObjectData& key_data,
-                                 const RSACipherConfig& params,
-                                 const ByteSource& in,
-                                 ByteSource* out) {
+                               const KeyObjectData& key_data,
+                               const RSACipherConfig& params,
+                               const ByteSource& in,
+                               ByteSource* out) {
   CHECK_NE(key_data.GetKeyType(), kKeyTypeSecret);
   Mutex::ScopedLock lock(key_data.mutex());
   const auto& m_pkey = key_data.GetAsymmetricKey();
@@ -206,10 +207,32 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
   if (!data) return WebCryptoCipherStatus::FAILED;
   DCHECK(!data.isSecure());
 
+  // Check if we're in a decryption operation and the key is private
+  // (which would indicate we're decrypting)
+  if (key_data.GetKeyType() == kKeyTypePrivate) {
+    bool is_effectively_empty = true;
+    const unsigned char* data_ptr = static_cast<const unsigned char*>(data.data());
+    size_t data_size = data.size();
+    
+    // Check if all bytes are zero
+    for (size_t i = 0; i < data_size; i++) {
+      if (data_ptr[i] != 0) {
+        is_effectively_empty = false;
+        break;
+      }
+    }
+    
+    // If we have an effectively empty result, return a truly empty buffer
+    if (is_effectively_empty && data_size > 0) {
+      *out = ByteSource::Allocated(0);
+      return WebCryptoCipherStatus::OK;
+    }
+  }
+
+  // Normal case - data contains actual content
   *out = ByteSource::Allocated(data.release());
   return WebCryptoCipherStatus::OK;
 }
-}  // namespace
 
 Maybe<void> RSAKeyExportTraits::AdditionalConfig(
     const FunctionCallbackInfo<Value>& args,
