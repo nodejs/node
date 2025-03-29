@@ -561,7 +561,7 @@ test('GH-14441. Circular structures should be consistent', () => {
     b.a = {};
     b.a.a = a;
 
-    assertDeepAndStrictEqual(a, b);
+    assertNotDeepOrStrict(a, b);
   }
 
   {
@@ -571,7 +571,7 @@ test('GH-14441. Circular structures should be consistent', () => {
     b.a = b;
     const c = {};
     c.a = a;
-    assertDeepAndStrictEqual(b, c);
+    assertNotDeepOrStrict(b, c);
   }
 
   {
@@ -581,7 +581,7 @@ test('GH-14441. Circular structures should be consistent', () => {
     b.add(b);
     const c = new Set();
     c.add(a);
-    assertDeepAndStrictEqual(b, c);
+    assertNotDeepOrStrict(b, c);
   }
 });
 
