@@ -778,6 +778,7 @@ void ChannelWrap::Setup() {
   options.sock_state_cb_data = this;
   options.timeout = timeout_;
   options.tries = tries_;
+  options.qcache_max_ttl = 0;
 
   int r;
   if (!library_inited_) {
