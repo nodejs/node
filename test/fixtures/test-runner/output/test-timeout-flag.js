@@ -4,13 +4,16 @@ const { describe, test } = require('node:test');
 const { setTimeout } = require('node:timers/promises');
 
 describe('--test-timeout is set to 20ms', () => {
-  test('test 1 must fail due to testTimeoutFailure with error test timed out after 20ms', async () => {
-    await setTimeout(1000);
-  })
-  test('test 2  must fail due to testTimeoutFailure with error test timed out after 600ms', { timeout: 600 }, async () => {
-    await setTimeout(1000);
-  })
-  test('test 3 must pass', async () => {
+  test('should timeout after 20ms', async () => {
+    await setTimeout(100);
+  });
+  test('should timeout after 5ms', { timeout: 5 }, async () => {
+    await setTimeout(100);
+  });
+  test('should not timeout', { timeout: 50 }, async () => {
+    await setTimeout(25);
+  });
+  test('should pass', async () => {
     await setTimeout(10);
-  })
+  });
 });
