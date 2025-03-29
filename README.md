@@ -747,6 +747,8 @@ maintaining the Node.js project.
   **Feng Yu** <<F3n67u@outlook.com>> (he/him)
 * [gireeshpunathil](https://github.com/gireeshpunathil) -
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
+* [gurgunday](https://github.com/gurgunday) -
+  **Gürgün Dayıoğlu** <<hey@gurgun.day>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
 * [KevinEady](https://github.com/KevinEady) -
