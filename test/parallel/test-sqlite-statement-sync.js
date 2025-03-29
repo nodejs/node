@@ -293,6 +293,131 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
   });
 });
 
+suite('StatementSync.prototype.setReturnArrays()', () => {
+  test('array rows support can be toggled', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+    t.assert.strictEqual(query.setReturnArrays(true), undefined);
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+    t.assert.strictEqual(query.setReturnArrays(false), undefined);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+
+    const allQuery = db.prepare('SELECT key, val FROM data ORDER BY key');
+    t.assert.deepStrictEqual(allQuery.all(), [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+    t.assert.strictEqual(allQuery.setReturnArrays(true), undefined);
+    t.assert.deepStrictEqual(allQuery.all(), [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+    t.assert.strictEqual(allQuery.setReturnArrays(false), undefined);
+    t.assert.deepStrictEqual(allQuery.all(), [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+
+    const iterateQuery = db.prepare('SELECT key, val FROM data ORDER BY key');
+    const objectRows = [];
+    for (const row of iterateQuery.iterate()) {
+      objectRows.push(row);
+    }
+    t.assert.deepStrictEqual(objectRows, [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+
+    t.assert.strictEqual(iterateQuery.setReturnArrays(true), undefined);
+    const arrayRows = [];
+    for (const row of iterateQuery.iterate()) {
+      arrayRows.push(row);
+    }
+    t.assert.deepStrictEqual(arrayRows, [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+  });
+
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('SELECT key, val FROM data');
+    t.assert.throws(() => {
+      stmt.setReturnArrays();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "returnArrays" argument must be a boolean/,
+    });
+  });
+
+  test('array rows with lots of columns', (t) => {
+    const expected = [
+      1,
+      'text1',
+      1.1,
+      new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+      5,
+      'text2',
+      2.2,
+      new Uint8Array([0xbe, 0xef, 0xca, 0xfe]),
+      9,
+      'text3',
+    ];
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE wide_table(
+        col1 INTEGER, col2 TEXT, col3 REAL, col4 BLOB, col5 INTEGER,
+        col6 TEXT, col7 REAL, col8 BLOB, col9 INTEGER, col10 TEXT
+      );
+      INSERT INTO wide_table VALUES (
+        1, 'text1', 1.1, X'DEADBEEF', 5,
+        'text2', 2.2, X'BEEFCAFE', 9, 'text3'
+      );
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT * FROM wide_table');
+    query.setReturnArrays(true);
+
+    const row = query.get();
+    t.assert.deepStrictEqual(row, expected);
+  });
+
+  test('array rows with BigInts', (t) => {
+    const expected = [1n, 9007199254740992n];
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE big_data(id INTEGER, big_num INTEGER);
+      INSERT INTO big_data VALUES (1, 9007199254740992);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT id, big_num FROM big_data');
+
+    query.setReturnArrays(true);
+    query.setReadBigInts(true);
+
+    const row = query.get();
+    t.assert.deepStrictEqual(row, expected);
+  });
+});
+
 suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', (t) => {
     const db = new DatabaseSync(nextDb());
