@@ -1202,10 +1202,11 @@
   {
     "pattern": [{ "protocol": "http", "port": "80 " }],
     "inputs": [{ "protocol": "http", "port": "80" }],
-    "exactly_empty_components": ["port"],
-    "expected_match": {
-      "protocol": { "input": "http", "groups": {} }
-    }
+    "expected_obj": {
+      "protocol": "http",
+      "port": "80"
+    },
+    "expected_match": null
   },
   {
     "pattern": [{ "protocol": "http", "port": "100000" }],
@@ -1225,6 +1226,34 @@
   {
     "pattern": [{ "port": "80" }],
     "inputs": [{ "port": "80" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "8\t0" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80x" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80?x" }],
+    "expected_match": {
+      "port": { "input": "80", "groups": {}}
+    }
+  },
+  {
+    "pattern": [{ "port": "80" }],
+    "inputs": [{ "port": "80\\x" }],
     "expected_match": {
       "port": { "input": "80", "groups": {}}
     }
@@ -1874,7 +1903,17 @@
   {
     "pattern": [ "https://{sub.}?example{.com/}foo" ],
     "inputs": [ "https://example.com/foo" ],
-    "expected_obj": "error"
+    "exactly_empty_components": [ "port" ],
+    "expected_obj": {
+      "protocol": "https",
+      "hostname": "{sub.}?example.com",
+      "pathname": "*"
+    },
+    "expected_match": {
+      "protocol": { "input": "https", "groups": {} },
+      "hostname": { "input": "example.com", "groups": {} },
+      "pathname": { "input": "/foo", "groups": { "0": "/foo" } }
+    }
   },
   {
     "pattern": [ "{https://}example.com/foo" ],
