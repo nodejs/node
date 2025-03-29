@@ -13,6 +13,7 @@ const { WASI } = require('wasi');
       preopens: { '/': '/' },
     });
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-wasi to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'WASI',
   }));

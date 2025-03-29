@@ -22,6 +22,7 @@ if (isMainThread) {
   assert.throws(() => {
     new Worker(__filename);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-worker to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'WorkerThreads',
   }));
