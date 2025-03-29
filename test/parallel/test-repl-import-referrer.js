@@ -24,4 +24,6 @@ child.on('exit', common.mustCall(() => {
 
 child.stdin.write('await import(\'./message.mjs\');\n');
 child.stdin.write('.exit');
-child.stdin.end();
+setTimeout(() => {
+  child.stdin.end();
+}, 100);
