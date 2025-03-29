@@ -348,6 +348,11 @@ if (process.env.NODE_TEST_KNOWN_GLOBALS !== '0') {
       if (val === 'crypto' && !hasCrypto) {
         continue;
       }
+
+      if (val === 'localStorage' && globalThis[val] === undefined) {
+        continue;
+      }
+
       if (!knownGlobals.has(globalThis[val])) {
         leaked.push(val);
       }
