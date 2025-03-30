@@ -66,6 +66,42 @@ const require = createRequire(import.meta.url);
 const siblingModule = require('./sibling-module');
 ```
 
+### `module.customConditions`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Type: {Set<string>}
+
+The custom resolution conditions specified by the user. The default Node.js conditions are not included.
+
+For example, assuming the following script for `module-customconditions.js`:
+
+```mjs
+import module from 'node:module';
+
+console.log('conditions:', module.customConditions);
+```
+
+```cjs
+const module = require('node:module');
+
+console.log('conditions:', module.customConditions);
+```
+
+Launching the Node.js process as:
+
+```console
+$ node -C additional module-customconditions.js
+```
+
+Would generate the output:
+
+```text
+conditions: Set(1) { 'additional' }
+```
+
 ### `module.findPackageJSON(specifier[, base])`
 
 <!-- YAML
