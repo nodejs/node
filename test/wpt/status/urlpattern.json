@@ -11,28 +11,14 @@
   "urlpattern.any.js": {
     "fail": {
       "expected": [
-        "Pattern: [{\"protocol\":\"http\",\"port\":\"80 \"}] Inputs: [{\"protocol\":\"http\",\"port\":\"80\"}]",
-        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]",
-        "Pattern: [{\"hostname\":\"bad#hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad/hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\\\\\\\hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\nhostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\rhostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\thostname\"}] Inputs: undefined"
+        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]"
       ]
     }
   },
   "urlpattern.https.any.js": {
     "fail": {
       "expected": [
-        "Pattern: [{\"protocol\":\"http\",\"port\":\"80 \"}] Inputs: [{\"protocol\":\"http\",\"port\":\"80\"}]",
-        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]",
-        "Pattern: [{\"hostname\":\"bad#hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad/hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\\\\\\\hostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\nhostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\rhostname\"}] Inputs: undefined",
-        "Pattern: [{\"hostname\":\"bad\\thostname\"}] Inputs: undefined"
+        "Pattern: [\"https://{sub.}?example{.com/}foo\"] Inputs: [\"https://example.com/foo\"]"
       ]
     }
   }

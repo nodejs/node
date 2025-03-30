@@ -16,6 +16,7 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::DataPointer;
+using ncrypto::Digest;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using ncrypto::RSAPointer;
@@ -55,8 +56,7 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
   }
 
   if (params->params.variant == kKeyVariantRSA_PSS) {
-    if (params->params.md != nullptr &&
-        !ctx.setRsaPssKeygenMd(params->params.md)) {
+    if (params->params.md && !ctx.setRsaPssKeygenMd(params->params.md)) {
       return {};
     }
 
@@ -64,18 +64,18 @@ EVPKeyCtxPointer RsaKeyGenTraits::Setup(RsaKeyPairGenConfig* params) {
     // OpenSSL 1.1.1 behaves as recommended by RFC 8017 and defaults the MGF1
     // hash algorithm to the RSA-PSS hashAlgorithm. Remove this code if the
     // behavior of OpenSSL 3 changes.
-    const EVP_MD* mgf1_md = params->params.mgf1_md;
-    if (mgf1_md == nullptr && params->params.md != nullptr) {
+    auto& mgf1_md = params->params.mgf1_md;
+    if (!mgf1_md && params->params.md) {
       mgf1_md = params->params.md;
     }
 
-    if (mgf1_md != nullptr && !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
+    if (mgf1_md && !ctx.setRsaPssKeygenMgf1Md(mgf1_md)) {
       return {};
     }
 
     int saltlen = params->params.saltlen;
-    if (saltlen < 0 && params->params.md != nullptr) {
-      saltlen = EVP_MD_size(params->params.md);
+    if (saltlen < 0 && params->params.md) {
+      saltlen = params->params.md.size();
     }
 
     if (saltlen >= 0 && !ctx.setRsaPssSaltlen(saltlen)) {
@@ -141,8 +141,8 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
     if (!args[*offset]->IsUndefined()) {
       CHECK(args[*offset]->IsString());
       Utf8Value digest(env->isolate(), args[*offset]);
-      params->params.md = ncrypto::getDigestByName(digest.ToStringView());
-      if (params->params.md == nullptr) {
+      params->params.md = Digest::FromName(digest.ToStringView());
+      if (!params->params.md) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<void>();
       }
@@ -151,8 +151,8 @@ Maybe<void> RsaKeyGenTraits::AdditionalConfig(
     if (!args[*offset + 1]->IsUndefined()) {
       CHECK(args[*offset + 1]->IsString());
       Utf8Value digest(env->isolate(), args[*offset + 1]);
-      params->params.mgf1_md = ncrypto::getDigestByName(digest.ToStringView());
-      if (params->params.mgf1_md == nullptr) {
+      params->params.mgf1_md = Digest::FromName(digest.ToStringView());
+      if (!params->params.mgf1_md) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(
             env, "Invalid MGF1 digest: %s", *digest);
         return Nothing<void>();
@@ -204,6 +204,7 @@ WebCryptoCipherStatus RSA_Cipher(Environment* env,
 
   auto data = cipher(m_pkey, nparams, in);
   if (!data) return WebCryptoCipherStatus::FAILED;
+  DCHECK(!data.isSecure());
 
   *out = ByteSource::Allocated(data.release());
   return WebCryptoCipherStatus::OK;
@@ -276,9 +277,8 @@ Maybe<void> RSACipherTraits::AdditionalConfig(
     case kKeyVariantRSA_OAEP: {
       CHECK(args[offset + 1]->IsString());  // digest
       Utf8Value digest(env->isolate(), args[offset + 1]);
-
-      params->digest = ncrypto::getDigestByName(digest.ToStringView());
-      if (params->digest == nullptr) {
+      params->digest = Digest::FromName(digest.ToStringView());
+      if (!params->digest) {
         THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
         return Nothing<void>();
       }

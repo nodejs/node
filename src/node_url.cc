@@ -161,7 +161,7 @@ void BindingData::PathToFileURL(const FunctionCallbackInfo<Value>& args) {
       ada::parse<ada::url_aggregator>(EncodePathChars(input_str, os), nullptr);
 
   if (!out) {
-    return ThrowInvalidURL(realm->env(), input.ToStringView(), nullptr);
+    return ThrowInvalidURL(realm->env(), input.ToStringView(), std::nullopt);
   }
 
   if (os == OS::WINDOWS && args.Length() > 2 && !args[2]->IsUndefined())
@@ -397,8 +397,11 @@ void BindingData::Update(const FunctionCallbackInfo<Value>& args) {
   BindingData* binding_data = realm->GetBindingData<BindingData>();
   Isolate* isolate = realm->isolate();
 
-  enum url_update_action action = static_cast<enum url_update_action>(
-      args[1]->Uint32Value(realm->context()).FromJust());
+  uint32_t val;
+  if (!args[1]->Uint32Value(realm->context()).To(&val)) {
+    return;
+  }
+  enum url_update_action action = static_cast<enum url_update_action>(val);
   Utf8Value input(isolate, args[0].As<String>());
   Utf8Value new_value(isolate, args[2].As<String>());
 

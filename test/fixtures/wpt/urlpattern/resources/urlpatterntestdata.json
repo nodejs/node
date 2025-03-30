@@ -1202,6 +1202,14 @@
   {
     "pattern": [{ "protocol": "http", "port": "80 " }],
     "inputs": [{ "protocol": "http", "port": "80" }],
+    "exactly_empty_components": ["port"],
+    "expected_match": {
+      "protocol": { "input": "http", "groups": {} }
+    }
+  },
+  {
+    "pattern": [{ "protocol": "http", "port": "100000" }],
+    "inputs": [{ "protocol": "http", "port": "100000" }],
     "expected_obj": "error"
   },
   {
@@ -2424,7 +2432,13 @@
   },
   {
     "pattern": [{ "hostname": "bad#hostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname":  "bad" }],
+    "expected_obj": {
+      "hostname": "bad"
+    },
+    "expected_match": {
+      "hostname": { "input": "bad", "groups": {} }
+    }
   },
   {
     "pattern": [{ "hostname": "bad%hostname" }],
@@ -2432,7 +2446,13 @@
   },
   {
     "pattern": [{ "hostname": "bad/hostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname": "bad" }],
+    "expected_obj": {
+      "hostname": "bad"
+    },
+    "expected_match": {
+      "hostname": { "input": "bad", "groups": {} }
+    }
   },
   {
     "pattern": [{ "hostname": "bad\\:hostname" }],
@@ -2464,7 +2484,11 @@
   },
   {
     "pattern": [{ "hostname": "bad\\\\hostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname": "badhostname" }],
+    "expected_obj": {
+      "hostname": "bad"
+    },
+    "expected_match": null
   },
   {
     "pattern": [{ "hostname": "bad^hostname" }],
@@ -2476,15 +2500,33 @@
   },
   {
     "pattern": [{ "hostname": "bad\nhostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname": "badhostname" }],
+    "expected_obj": {
+      "hostname": "badhostname"
+    },
+    "expected_match": {
+      "hostname": { "input": "badhostname", "groups": {} }
+    }
   },
   {
     "pattern": [{ "hostname": "bad\rhostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname": "badhostname" }],
+    "expected_obj": {
+      "hostname": "badhostname"
+    },
+    "expected_match": {
+      "hostname": { "input": "badhostname", "groups": {} }
+    }
   },
   {
     "pattern": [{ "hostname": "bad\thostname" }],
-    "expected_obj": "error"
+    "inputs": [{ "hostname": "badhostname" }],
+    "expected_obj": {
+      "hostname": "badhostname"
+    },
+    "expected_match": {
+      "hostname": { "input": "badhostname", "groups": {} }
+    }
   },
   {
     "pattern": [{}],

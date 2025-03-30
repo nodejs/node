@@ -584,10 +584,12 @@ To verify a timestamp reply that includes the certificate chain:
         -CAfile cacert.pem
 
 To verify a timestamp token against the original data file:
+
   openssl ts -verify -data design2.txt -in design2.tsr \
         -CAfile cacert.pem
 
 To verify a timestamp token against a message imprint:
+
   openssl ts -verify -digest b7e5d3f93198b38379852f2c04e78d73abdd0f4b \
          -in design2.tsr -CAfile cacert.pem
 

@@ -12,10 +12,7 @@ const filename = path.resolve(tmp, 'truncate-sync-file.txt');
 
 fs.writeFileSync(filename, 'hello world', 'utf8');
 
-const fd = fs.openSync(filename, 'r+');
+fs.truncateSync(filename, 5);
+assert(fs.readFileSync(filename).equals(Buffer.from('hello')));
 
-fs.truncateSync(fd, 5);
-assert(fs.readFileSync(fd).equals(Buffer.from('hello')));
-
-fs.closeSync(fd);
 fs.unlinkSync(filename);

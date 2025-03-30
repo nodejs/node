@@ -1034,9 +1034,6 @@ changes:
     description: Add support for import assertions.
 -->
 
-> Stability: 1.2 - Release candidate (asynchronous version)
-> Stability: 1.1 - Active development (synchronous version)
-
 * `specifier` {string}
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
@@ -1150,9 +1147,6 @@ changes:
       its return.
 -->
 
-> Stability: 1.2 - Release candidate (asynchronous version)
-> Stability: 1.1 - Active development (synchronous version)
-
 * `url` {string} The URL returned by the `resolve` chain
 * `context` {Object}
   * `conditions` {string\[]} Export conditions of the relevant `package.json`
@@ -1226,7 +1220,7 @@ opt-in to using the non-default behavior:
 import { readFile } from 'node:fs/promises';
 
 // Asynchronous version accepted by module.register(). This fix is not needed
-// for the synchronous version accepted by module.registerSync().
+// for the synchronous version accepted by module.registerHooks().
 export async function load(url, context, nextLoad) {
   const result = await nextLoad(url, context);
   if (result.format === 'commonjs') {
@@ -1664,6 +1658,13 @@ added:
 
 #### `new SourceMap(payload[, { lineLengths }])`
 
+<!-- YAML
+changes:
+  - version: v20.5.0
+    pr-url: https://github.com/nodejs/node/pull/48461
+    description: Add support for `lineLengths`.
+-->
+
 * `payload` {Object}
 * `lineLengths` {number\[]}
 
@@ -1725,6 +1726,12 @@ and CallSite objects, use `sourceMap.findOrigin(lineNumber,
 columnNumber)`
 
 #### `sourceMap.findOrigin(lineNumber, columnNumber)`
+
+<!-- YAML
+added:
+  - v20.4.0
+  - v18.18.0
+-->
 
 * `lineNumber` {number} The 1-indexed line number of the call
   site in the generated source

@@ -95,28 +95,15 @@ int ngtcp2_bind_frame_chains(ngtcp2_frame_chain *a, ngtcp2_frame_chain *b,
 #define NGTCP2_MAX_STREAM_DATACNT 256
 
 /*
- * ngtcp2_frame_chain_new allocates ngtcp2_frame_chain object and
- * assigns its pointer to |*pfrc|.
- *
- * This function returns 0 if it succeeds, or one of the following
- * negative error codes:
- *
- * NGTCP2_ERR_NOMEM
- *     Out of memory.
- */
-int ngtcp2_frame_chain_new(ngtcp2_frame_chain **pfrc, const ngtcp2_mem *mem);
-
-/*
- * ngtcp2_frame_chain_objalloc_new behaves like
- * ngtcp2_frame_chain_new, but it uses |objalloc| to allocate the object.
+ * ngtcp2_frame_chain_objalloc_new allocates ngtcp2_frame_chain using
+ * |objalloc|.
  */
 int ngtcp2_frame_chain_objalloc_new(ngtcp2_frame_chain **pfrc,
                                     ngtcp2_objalloc *objalloc);
 
 /*
- * ngtcp2_frame_chain_extralen_new works like ngtcp2_frame_chain_new,
- * but it allocates extra memory |extralen| in order to extend
- * ngtcp2_frame.
+ * ngtcp2_frame_chain_extralen_new allocates ngtcp2_frame_chain
+ * followed by |extralen| bytes.
  */
 int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
                                     const ngtcp2_mem *mem);
@@ -134,12 +121,18 @@ int ngtcp2_frame_chain_extralen_new(ngtcp2_frame_chain **pfrc, size_t extralen,
 #define NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES                                \
   (NGTCP2_FRAME_CHAIN_STREAM_AVAIL / sizeof(ngtcp2_vec) + 1)
 
+/* NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES is the length of a token that
+   changes allocation method.  If the length is more than this value,
+   ngtcp2_frame_chain is allocated without ngtcp2_objalloc.
+   Otherwise, it is allocated using ngtcp2_objalloc. */
+#define NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES                                     \
+  (sizeof(ngtcp2_frame) - sizeof(ngtcp2_new_token))
+
 /*
- * ngtcp2_frame_chain_stream_datacnt_objalloc_new works like
- * ngtcp2_frame_chain_new, but it allocates enough data to store
- * additional |datacnt| - 1 ngtcp2_vec object after ngtcp2_stream
- * object.  If no additional space is required, in other words,
- * |datacnt| <= NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES,
+ * ngtcp2_frame_chain_stream_datacnt_objalloc_new allocates enough
+ * data to store additional |datacnt| - 1 ngtcp2_vec object after
+ * ngtcp2_stream object.  If no additional space is required, in other
+ * words, |datacnt| <= NGTCP2_FRAME_CHAIN_STREAM_DATACNT_THRES,
  * ngtcp2_frame_chain_objalloc_new is called internally.  Otherwise,
  * ngtcp2_frame_chain_extralen_new is used and objalloc is not used.
  * Therefore, it is important to call ngtcp2_frame_chain_objalloc_del
@@ -150,6 +143,13 @@ int ngtcp2_frame_chain_stream_datacnt_objalloc_new(ngtcp2_frame_chain **pfrc,
                                                    ngtcp2_objalloc *objalloc,
                                                    const ngtcp2_mem *mem);
 
+/*
+ * ngtcp2_frame_chain_new_token_objalloc_new allocates enough space to
+ * store the given token.  If |tokenlen| <=
+ * NGTCP2_FRAME_CHAIN_NEW_TOKEN_THRES, ngtcp2_frame_chain_objalloc_new
+ * is called internally.  Otherwise, ngtcp2_frame_chain_extralen_new
+ * is used, and objalloc is not used.
+ */
 int ngtcp2_frame_chain_new_token_objalloc_new(ngtcp2_frame_chain **pfrc,
                                               const uint8_t *token,
                                               size_t tokenlen,

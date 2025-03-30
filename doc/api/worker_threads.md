@@ -329,7 +329,9 @@ if (isMainThread) {
 ## `worker.postMessageToThread(threadId, value[, transferList][, timeout])`
 
 <!-- YAML
-added: v22.5.0
+added:
+- v22.5.0
+- v20.19.0
 -->
 
 > Stability: 1.1 - Active development
@@ -993,9 +995,11 @@ port2.postMessage(new URL('https://example.org'));
 added:
   - v18.1.0
   - v16.17.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {boolean}
 

@@ -104,10 +104,12 @@ On session establishment, by default, no peer credentials verification is done.
 This must be explicitly requested, typically using L<SSL_CTX_set_verify(3)>.
 For verifying peer certificates many options can be set using various functions
 such as L<SSL_CTX_load_verify_locations(3)> and L<SSL_CTX_set1_param(3)>.
-The L<X509_VERIFY_PARAM_set_purpose(3)> function can be used, also in conjunction
-with L<SSL_CTX_get0_param(3)>, to set the intended purpose of the session.
-The default is B<X509_PURPOSE_SSL_SERVER> on the client side
+
+The SSL/(D)TLS implementation uses the L<X509_STORE_CTX_set_default(3)>
+function to prepare checks for B<X509_PURPOSE_SSL_SERVER> on the client side
 and B<X509_PURPOSE_SSL_CLIENT> on the server side.
+The L<X509_VERIFY_PARAM_set_purpose(3)> function can be used, also in conjunction
+with L<SSL_CTX_get0_param(3)>, to override the default purpose of the session.
 
 The SSL_CTX object uses I<method> as the connection method.
 Three method variants are available: a generic method (for either client or
@@ -228,7 +230,7 @@ SSL_CTX_up_ref() returns 1 for success and 0 for failure.
 
 =head1 SEE ALSO
 
-L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>,
+L<SSL_CTX_set_options(3)>, L<SSL_CTX_free(3)>, L<X509_STORE_CTX_set_default(3)>,
 SSL_CTX_set_verify(3), L<SSL_CTX_set1_param(3)>, L<SSL_CTX_get0_param(3)>,
 L<SSL_connect(3)>, L<SSL_accept(3)>,
 L<SSL_CTX_set_min_proto_version(3)>, L<ssl(7)>, L<SSL_set_connect_state(3)>

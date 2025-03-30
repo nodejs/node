@@ -669,7 +669,7 @@ static int prov_tls13_hkdf_generate_secret(OSSL_LIB_CTX *libctx,
         EVP_MD_CTX_free(mctx);
 
         /* Generate the pre-extract secret */
-        if (!prov_tls13_hkdf_expand(md, prevsecret, mdlen,
+        if (!prov_tls13_hkdf_expand(md, prevsecret, prevsecretlen,
                                     prefix, prefixlen, label, labellen,
                                     hash, mdlen, preextractsec, mdlen))
             return 0;

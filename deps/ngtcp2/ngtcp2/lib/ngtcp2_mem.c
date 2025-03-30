@@ -51,8 +51,12 @@ static void *default_realloc(void *ptr, size_t size, void *user_data) {
   return realloc(ptr, size);
 }
 
-static const ngtcp2_mem mem_default = {NULL, default_malloc, default_free,
-                                       default_calloc, default_realloc};
+static const ngtcp2_mem mem_default = {
+  .malloc = default_malloc,
+  .free = default_free,
+  .calloc = default_calloc,
+  .realloc = default_realloc,
+};
 
 const ngtcp2_mem *ngtcp2_mem_default(void) { return &mem_default; }
 

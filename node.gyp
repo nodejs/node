@@ -105,6 +105,7 @@
       'src/node_buffer.cc',
       'src/node_builtins.cc',
       'src/node_config.cc',
+      'src/node_config_file.cc',
       'src/node_constants.cc',
       'src/node_contextify.cc',
       'src/node_credentials.cc',
@@ -230,6 +231,7 @@
       'src/node_blob.h',
       'src/node_buffer.h',
       'src/node_builtins.h',
+      'src/node_config_file.h',
       'src/node_constants.h',
       'src/node_context_data.h',
       'src/node_contextify.h',
@@ -927,10 +929,14 @@
         [ 'node_use_openssl=="true"', {
           'sources': [
             '<@(node_crypto_sources)',
-            '<@(node_quic_sources)',
           ],
           'dependencies': [
             'deps/ncrypto/ncrypto.gyp:ncrypto',
+          ],
+        }],
+        [ 'node_quic=="true"', {
+          'sources': [
+            '<@(node_quic_sources)',
           ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '

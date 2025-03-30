@@ -331,7 +331,7 @@ ngtcp2_crypto_hp_mask_cb(uint8_t *dest, const ngtcp2_crypto_cipher *hp,
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * set negotiated AEAD and message digest algorithm.  After the
  * successful call of this function, application can use
- * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
+ * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_0rtt_crypto_ctx`
  * if |level| ==
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * get :type:`ngtcp2_crypto_ctx`.
@@ -378,7 +378,7 @@ NGTCP2_EXTERN int ngtcp2_crypto_derive_and_install_rx_key(
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * set negotiated AEAD and message digest algorithm.  After the
  * successful call of this function, application can use
- * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_early_crypto_ctx`
+ * `ngtcp2_conn_get_crypto_ctx` (or `ngtcp2_conn_get_0rtt_crypto_ctx`
  * if |level| ==
  * :enum:`ngtcp2_encryption_level.NGTCP2_ENCRYPTION_LEVEL_0RTT`) to
  * get :type:`ngtcp2_crypto_ctx`.
