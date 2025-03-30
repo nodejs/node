@@ -1176,6 +1176,9 @@ endif
 	pkgbuild --version $(FULLVERSION) \
 		--identifier org.nodejs.node.pkg \
 		--root $(MACOSOUTDIR)/dist/node $(MACOSOUTDIR)/pkgs/node-$(FULLVERSION).pkg
+	mkdir -p $(MACOSOUTDIR)/dist/npm/usr/local/bin
+	ln -sf ../lib/node_modules/npm/bin/npm-cli.js $(MACOSOUTDIR)/dist/npm/usr/local/bin/npm
+	ln -sf ../lib/node_modules/npm/bin/npx-cli.js $(MACOSOUTDIR)/dist/npm/usr/local/bin/npx
 	pkgbuild --version $(NPMVERSION) \
 		--identifier org.nodejs.npm.pkg \
 		--root $(MACOSOUTDIR)/dist/npm \
