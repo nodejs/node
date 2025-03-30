@@ -792,7 +792,7 @@ var require_util = __commonJS({
     var { InvalidArgumentError } = require_errors();
     var { headerNameLowerCasedRecord } = require_constants();
     var { tree } = require_tree();
-    var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
+    var [nodeMajor, nodeMinor] = process.versions.node.split(".", 2).map((v) => Number(v));
     var BodyAsyncIterable = class {
       static {
         __name(this, "BodyAsyncIterable");
@@ -10968,7 +10968,10 @@ var require_fetch = __commonJS({
         originalURL.href,
         initiatorType,
         globalThis,
-        cacheState
+        cacheState,
+        "",
+        // bodyType
+        response.status
       );
     }
     __name(finalizeAndReportTiming, "finalizeAndReportTiming");
@@ -11268,7 +11271,7 @@ var require_fetch = __commonJS({
           fetchParams.controller.fullTimingInfo = timingInfo;
         }
         fetchParams.controller.reportTimingSteps = () => {
-          if (fetchParams.request.url.protocol !== "https:") {
+          if (!urlIsHttpHttpsScheme(fetchParams.request.url)) {
             return;
           }
           timingInfo.endTime = unsafeEndTime;
@@ -12285,7 +12288,7 @@ var require_util3 = __commonJS({
       const extensionList = /* @__PURE__ */ new Map();
       while (position.position < extensions.length) {
         const pair = collectASequenceOfCodePointsFast(";", extensions, position);
-        const [name, value = ""] = pair.split("=");
+        const [name, value = ""] = pair.split("=", 2);
         extensionList.set(
           removeHTTPWhitespace(name, true, false),
           removeHTTPWhitespace(value, false, true)
