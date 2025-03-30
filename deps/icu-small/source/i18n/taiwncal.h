@@ -80,13 +80,6 @@ public:
     TaiwanCalendar(const TaiwanCalendar& source);
 
     /**
-     * Default assignment operator
-     * @param right    the object to be copied.
-     * @internal
-     */
-    TaiwanCalendar& operator=(const TaiwanCalendar& right);
-
-    /**
      * Create and return a polymorphic copy of this calendar.
      * @return    return a polymorphic copy of this calendar.
      * @internal

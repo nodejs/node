@@ -2385,6 +2385,16 @@ added: v15.0.0
 An operation failed. This is typically used to signal the general failure
 of an asynchronous operation.
 
+<a id="ERR_OPTIONS_BEFORE_BOOTSTRAPPING"></a>
+
+### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
+
+<!-- YAML
+added: v23.10.0
+-->
+
+An attempt was made to get options before the bootstrapping was completed.
+
 <a id="ERR_OUT_OF_RANGE"></a>
 
 ### `ERR_OUT_OF_RANGE`
@@ -2588,6 +2598,7 @@ changes:
   - version:
     - v23.0.0
     - v22.12.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->
@@ -2725,6 +2736,17 @@ The source map could not be parsed because it does not exist, or is corrupt.
 ### `ERR_SOURCE_MAP_MISSING_SOURCE`
 
 A file imported from a source map was not found.
+
+<a id="ERR_SOURCE_PHASE_NOT_DEFINED"></a>
+
+### `ERR_SOURCE_PHASE_NOT_DEFINED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The provided module import does not provide a source phase imports representation for source phase
+import syntax `import source x from 'x'` or `import.source(x)`.
 
 <a id="ERR_SQLITE_ERROR"></a>
 

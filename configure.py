@@ -38,7 +38,6 @@ import nodedownload
 sys.path.insert(0, 'tools')
 import getmoduleversion
 import getnapibuildversion
-import getsharedopensslhasquic
 from gyp_node import run_gyp
 from utils import SearchFiles
 
@@ -820,6 +819,12 @@ parser.add_argument('--without-corepack',
     default=None,
     help='do not install the bundled Corepack')
 
+parser.add_argument('--control-flow-guard',
+    action='store_true',
+    dest='enable_cfg',
+    default=None,
+    help='enable Control Flow Guard (CFG)')
+
 # Dummy option for backwards compatibility
 parser.add_argument('--without-report',
     action='store_true',
@@ -846,6 +851,12 @@ parser.add_argument('--without-siphash',
     help=argparse.SUPPRESS)
 
 # End dummy list.
+
+parser.add_argument('--with-quic',
+    action='store_true',
+    dest='quic',
+    default=None,
+    help='build with QUIC support')
 
 parser.add_argument('--without-ssl',
     action='store_true',
@@ -1438,6 +1449,7 @@ def configure_node(o):
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
   o['variables']['node_install_corepack'] = b(not options.without_corepack)
+  o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
   o['default_configuration'] = 'Debug' if options.debug else 'Release'
@@ -1743,6 +1755,7 @@ def configure_openssl(o):
   variables['node_shared_ngtcp2'] = b(options.shared_ngtcp2)
   variables['node_shared_nghttp3'] = b(options.shared_nghttp3)
   variables['openssl_is_fips'] = b(options.openssl_is_fips)
+  variables['node_quic'] = b(options.quic)
   variables['node_fipsinstall'] = b(False)
 
   if options.openssl_no_asm:
@@ -1804,13 +1817,8 @@ def configure_openssl(o):
   if options.openssl_is_fips and not options.shared_openssl:
     variables['node_fipsinstall'] = b(True)
 
-  if options.shared_openssl:
-    has_quic = getsharedopensslhasquic.get_has_quic(options.__dict__['shared_openssl_includes'])
-  else:
-    has_quic = getsharedopensslhasquic.get_has_quic('deps/openssl/openssl/include')
-
-  variables['openssl_quic'] = b(has_quic)
-  if has_quic:
+  variables['openssl_quic'] = b(options.quic)
+  if options.quic:
     o['defines'] += ['NODE_OPENSSL_HAS_QUIC']
 
   configure_library('openssl', o)

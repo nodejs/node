@@ -330,7 +330,9 @@ most convenient for scripts).
 ### Event: `'workerMessage'`
 
 <!-- YAML
-added: v22.5.0
+added:
+- v22.5.0
+- v20.19.0
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
@@ -1893,8 +1895,28 @@ A number which will be the process exit code, when the process either
 exits gracefully, or is exited via [`process.exit()`][] without specifying
 a code.
 
-Specifying a code to [`process.exit(code)`][`process.exit()`] will override any
-previous setting of `process.exitCode`.
+The value of `process.exitCode` can be updated by either assigning a value to
+`process.exitCode` or by passing an argument to [`process.exit()`][]:
+
+```console
+$ node -e 'process.exitCode = 9'; echo $?
+9
+$ node -e 'process.exit(42)'; echo $?
+42
+$ node -e 'process.exitCode = 9; process.exit(42)'; echo $?
+42
+```
+
+The value can also be set implicitly by Node.js when unrecoverable errors occur (e.g.
+such as the encountering of an unsettled top-level await). However explicit
+manipulations of the exit code always take precedence over implicit ones:
+
+```console
+$ node --input-type=module -e 'await new Promise(() => {})'; echo $?
+13
+$ node --input-type=module -e 'process.exitCode = 9; await new Promise(() => {})'; echo $?
+9
+```
 
 ## `process.features.cached_builtins`
 
@@ -1950,6 +1972,7 @@ Since all Node.js builds have IPv6 support, this value is always `true`.
 added:
  - v23.0.0
  - v22.10.0
+ - v20.19.0
 -->
 
 * {boolean}
@@ -2496,8 +2519,7 @@ if (process.getuid) {
 }
 ```
 
-This function is only available on POSIX platforms (i.e. not Windows or
-Android).
+This function not available on Windows.
 
 ## `process.hasUncaughtExceptionCaptureCallback()`
 
@@ -3322,6 +3344,33 @@ tarball.
 In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
+
+## `process.execve(file[, args[, env]])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
+* `env` {Object} Environment key-value pairs.
+  No key or value can contain a null-byte (`\u0000`).
+  **Default:** `process.env`.
+
+Replaces the current process with a new process.
+
+This is achieved by using the `execve` POSIX function and therefore no memory or other
+resources from the current process are preserved, except for the standard input,
+standard output and standard error file descriptor.
+
+All other resources are discarded by the system when the processes are swapped, without triggering
+any exit or close events and without running any cleanup handler.
+
+This function will never return, unless an error occurred.
+
+This function is only available on POSIX platforms (i.e. not Windows or Android).
 
 ## `process.report`
 
@@ -4221,6 +4270,25 @@ true
 Thrown:
 [DeprecationWarning: test] { name: 'DeprecationWarning' }
 ```
+
+## `process.threadCpuUsage([previousValue])`
+
+<!-- YAML
+added: v23.9.0
+-->
+
+* `previousValue` {Object} A previous return value from calling
+  `process.threadCpuUsage()`
+* Returns: {Object}
+  * `user` {integer}
+  * `system` {integer}
+
+The `process.threadCpuUsage()` method returns the user and system CPU time usage of
+the current worker thread, in an object with properties `user` and `system`, whose
+values are microsecond values (millionth of a second).
+
+The result of a previous call to `process.threadCpuUsage()` can be passed as the
+argument to the function, to get a diff reading.
 
 ## `process.title`
 

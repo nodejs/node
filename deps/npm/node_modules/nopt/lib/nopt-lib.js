@@ -25,7 +25,9 @@ function nopt (args, {
   types,
   shorthands,
   typeDefs,
-  invalidHandler,
+  invalidHandler, // opt is configured but its value does not validate against given type
+  unknownHandler, // opt is not configured
+  abbrevHandler, // opt is being expanded via abbrev
   typeDefault,
   dynamicTypes,
 } = {}) {
@@ -38,7 +40,9 @@ function nopt (args, {
     original: args.slice(0),
   }
 
-  parse(args, data, argv.remain, { typeDefs, types, dynamicTypes, shorthands })
+  parse(args, data, argv.remain, {
+    typeDefs, types, dynamicTypes, shorthands, unknownHandler, abbrevHandler,
+  })
 
   // now data is full
   clean(data, { types, dynamicTypes, typeDefs, invalidHandler, typeDefault })
@@ -247,6 +251,8 @@ function parse (args, data, remain, {
   typeDefs = {},
   shorthands = {},
   dynamicTypes,
+  unknownHandler,
+  abbrevHandler,
 } = {}) {
   const StringType = typeDefs.String?.type
   const NumberType = typeDefs.Number?.type
@@ -282,7 +288,7 @@ function parse (args, data, remain, {
 
       // see if it's a shorthand
       // if so, splice and back up to re-parse it.
-      const shRes = resolveShort(arg, shortAbbr, abbrevs, { shorthands })
+      const shRes = resolveShort(arg, shortAbbr, abbrevs, { shorthands, abbrevHandler })
       debug('arg=%j shRes=%j', arg, shRes)
       if (shRes) {
         args.splice.apply(args, [i, 1].concat(shRes))
@@ -298,7 +304,13 @@ function parse (args, data, remain, {
         arg = arg.slice(3)
       }
 
-      if (abbrevs[arg]) {
+      // abbrev includes the original full string in its abbrev list
+      if (abbrevs[arg] && abbrevs[arg] !== arg) {
+        if (abbrevHandler) {
+          abbrevHandler(arg, abbrevs[arg])
+        } else if (abbrevHandler !== false) {
+          debug(`abbrev: ${arg} -> ${abbrevs[arg]}`)
+        }
         arg = abbrevs[arg]
       }
 
@@ -330,6 +342,23 @@ function parse (args, data, remain, {
         (la === 'false' &&
          (argType === null ||
           isTypeArray && ~argType.indexOf(null)))
+
+      if (typeof argType === 'undefined') {
+        // la is going to unexpectedly be parsed outside the context of this arg
+        const hangingLa = !hadEq && la && !la?.startsWith('-') && !['true', 'false'].includes(la)
+        if (unknownHandler) {
+          if (hangingLa) {
+            unknownHandler(arg, la)
+          } else {
+            unknownHandler(arg)
+          }
+        } else if (unknownHandler !== false) {
+          debug(`unknown: ${arg}`)
+          if (hangingLa) {
+            debug(`unknown: ${la} parsed as normal opt`)
+          }
+        }
+      }
 
       if (isBool) {
         // just set and move along
@@ -420,7 +449,7 @@ const singleCharacters = (arg, shorthands) => {
 }
 
 function resolveShort (arg, ...rest) {
-  const { types = {}, shorthands = {} } = rest.length ? rest.pop() : {}
+  const { abbrevHandler, types = {}, shorthands = {} } = rest.length ? rest.pop() : {}
   const shortAbbr = rest[0] ?? abbrev(Object.keys(shorthands))
   const abbrevs = rest[1] ?? abbrev(Object.keys(types))
 
@@ -457,7 +486,13 @@ function resolveShort (arg, ...rest) {
   }
 
   // if it's an abbr for a shorthand, then use that
+  // exact match has already happened so we don't need to account for that here
   if (shortAbbr[arg]) {
+    if (abbrevHandler) {
+      abbrevHandler(arg, shortAbbr[arg])
+    } else if (abbrevHandler !== false) {
+      debug(`abbrev: ${arg} -> ${shortAbbr[arg]}`)
+    }
     arg = shortAbbr[arg]
   }
 

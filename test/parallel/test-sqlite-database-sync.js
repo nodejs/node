@@ -23,12 +23,30 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
-  test('throws if database path is not a string', (t) => {
+  test('throws if database path is not a string, Uint8Array, or URL', (t) => {
     t.assert.throws(() => {
       new DatabaseSync();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "path" argument must be a string/,
+      message: /The "path" argument must be a string, Uint8Array, or URL without null bytes/,
+    });
+  });
+
+  test('throws if the database location as Buffer contains null bytes', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(Buffer.from('l\0cation'));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.',
+    });
+  });
+
+  test('throws if the database location as string contains null bytes', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('l\0cation');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.',
     });
   });
 
@@ -154,8 +172,10 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(dbPath, { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.strictEqual(existsSync(dbPath), false);
     t.assert.strictEqual(db.open(), undefined);
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(existsSync(dbPath), true);
   });
 
@@ -163,13 +183,16 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(nextDb(), { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     db.open();
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.throws(() => {
       db.open();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is already open/,
     });
+    t.assert.strictEqual(db.isOpen, true);
   });
 });
 
@@ -177,18 +200,22 @@ suite('DatabaseSync.prototype.close()', () => {
   test('closes an open database connection', (t) => {
     const db = new DatabaseSync(nextDb());
 
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(db.close(), undefined);
+    t.assert.strictEqual(db.isOpen, false);
   });
 
   test('throws if database is not open', (t) => {
     const db = new DatabaseSync(nextDb(), { open: false });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.throws(() => {
       db.close();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
+    t.assert.strictEqual(db.isOpen, false);
   });
 });
 
@@ -253,6 +280,15 @@ suite('DatabaseSync.prototype.exec()', () => {
     }, {
       code: 'ERR_SQLITE_ERROR',
       message: /syntax error/,
+    });
+  });
+
+  test('throws if the URL does not have the file: scheme', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(new URL('http://example.com'));
+    }, {
+      code: 'ERR_INVALID_URL_SCHEME',
+      message: 'The URL must be of scheme file:',
     });
   });
 

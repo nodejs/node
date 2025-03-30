@@ -2928,9 +2928,11 @@ void Http2Session::UpdateChunksSent(const FunctionCallbackInfo<Value>& args) {
 
   uint32_t length = session->chunks_sent_since_last_write_;
 
-  session->object()->Set(env->context(),
-                         env->chunks_sent_since_last_write_string(),
-                         Integer::NewFromUnsigned(isolate, length)).Check();
+  if (session->object()->Set(env->context(),
+          env->chunks_sent_since_last_write_string(),
+          Integer::NewFromUnsigned(isolate, length)).IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(length);
 }
@@ -3109,11 +3111,13 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   int32_t id = args[0]->Int32Value(env->context()).ToChecked();
 
   // origin and value are both required to be ASCII, handle them as such.
-  Local<String> origin_str = args[1]->ToString(env->context()).ToLocalChecked();
-  Local<String> value_str = args[2]->ToString(env->context()).ToLocalChecked();
+  Local<String> origin_str;
+  Local<String> value_str;
 
-  if (origin_str.IsEmpty() || value_str.IsEmpty())
+  if (!args[1]->ToString(env->context()).ToLocal(&origin_str) ||
+      !args[2]->ToString(env->context()).ToLocal(&value_str)) {
     return;
+  }
 
   size_t origin_len = origin_str->Length();
   size_t value_len = value_str->Length();

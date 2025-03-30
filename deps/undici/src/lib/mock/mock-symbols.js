@@ -21,5 +21,10 @@ module.exports = {
   kNetConnect: Symbol('net connect'),
   kGetNetConnect: Symbol('get net connect'),
   kConnected: Symbol('connected'),
-  kIgnoreTrailingSlash: Symbol('ignore trailing slash')
+  kIgnoreTrailingSlash: Symbol('ignore trailing slash'),
+  kMockAgentMockCallHistoryInstance: Symbol('mock agent mock call history name'),
+  kMockAgentRegisterCallHistory: Symbol('mock agent register mock call history'),
+  kMockAgentAddCallHistoryLog: Symbol('mock agent add call history log'),
+  kMockAgentIsCallHistoryEnabled: Symbol('mock agent is call history enabled'),
+  kMockCallHistoryAddLog: Symbol('mock call history add log')
 }

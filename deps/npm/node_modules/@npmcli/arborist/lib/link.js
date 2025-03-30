@@ -99,7 +99,7 @@ class Link extends Node {
     // the path/realpath guard is there for the benefit of setting
     // these things in the "wrong" order
     return this.path && this.realpath
-      ? `file:${relpath(dirname(this.path), this.realpath).replace(/#/g, '%23')}`
+      ? `file:${relpath(dirname(this.path), this.realpath)}`
       : null
   }
 

@@ -53,6 +53,8 @@ onboarding session.
     set up email
   * Watching the main repository will flood your inbox (several hundred
     notifications on typical weekdays), so be prepared
+  * Watching the discussions in the
+    [collaborators repo](https://github.com/nodejs/collaborators) is recommended.
 
 The project has a venue for real-time discussion:
 
@@ -258,8 +260,8 @@ needs to be pointed out separately during the onboarding.
   * <https://github.com/nodejs/citgm>
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
-  project. The Foundation has travel funds to cover participants' expenses
-  including accommodations, transportation, visa fees, etc. if needed. Check out
+  project. The Foundation has travel funds to cover [participants' expenses][]
+  including accommodations and transportation if needed. Check out
   the [summit](https://github.com/nodejs/summit) repository for details.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
@@ -272,6 +274,7 @@ needs to be pointed out separately during the onboarding.
 [`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[participants' expenses]: https://github.com/openjs-foundation/cross-project-council/blob/main/community-fund/COMMUNITY_FUND_POLICY.md#community-fund-rules
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/

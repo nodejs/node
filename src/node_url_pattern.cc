@@ -77,7 +77,7 @@ URLPatternRegexProvider::create_instance(std::string_view pattern,
                                          bool ignore_case) {
   auto isolate = Isolate::GetCurrent();
   auto env = Environment::GetCurrent(isolate);
-  int flags = RegExp::Flags::kUnicodeSets;
+  int flags = RegExp::Flags::kUnicodeSets | RegExp::Flags::kDotAll;
   if (ignore_case) {
     flags |= static_cast<int>(RegExp::Flags::kIgnoreCase);
   }
@@ -168,6 +168,10 @@ URLPattern::URLPattern(Environment* env,
 
 void URLPattern::MemoryInfo(MemoryTracker* tracker) const {
   tracker->TraitTrackInline(url_pattern_, "url_pattern");
+#define URL_PATTERN_CACHED_VALUES(_, lowercase)                                \
+  tracker->TrackField(#lowercase, lowercase);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_CACHED_VALUES)
+#undef URL_PATTERN_CACHED_VALUES
 }
 
 void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
@@ -264,12 +268,12 @@ void URLPattern::New(const FunctionCallbackInfo<Value>& args) {
   }
 
   auto url_pattern = parse_url_pattern<URLPatternRegexProvider>(
-      arg0,
+      std::move(arg0),
       base_url ? &base_url_view : nullptr,
       options.has_value() ? &options.value() : nullptr);
 
   if (!url_pattern) {
-    THROW_ERR_INVALID_URL_PATTERN(env, "Failed to constuct URLPattern");
+    THROW_ERR_INVALID_URL_PATTERN(env, "Failed to construct URLPattern");
     return;
   }
 
@@ -462,48 +466,27 @@ URLPattern::URLPatternOptions::FromJsObject(Environment* env,
     // by returning std::nullopt.
     return std::nullopt;
   }
+
   return options;
 }
 
-MaybeLocal<Value> URLPattern::Hash() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_hash());
-}
-
-MaybeLocal<Value> URLPattern::Hostname() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_hostname());
-}
-
-MaybeLocal<Value> URLPattern::Password() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_password());
-}
-
-MaybeLocal<Value> URLPattern::Pathname() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_pathname());
-}
-
-MaybeLocal<Value> URLPattern::Port() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_port());
-}
-
-MaybeLocal<Value> URLPattern::Protocol() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_protocol());
-}
-
-MaybeLocal<Value> URLPattern::Search() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_search());
-}
-
-MaybeLocal<Value> URLPattern::Username() const {
-  auto context = env()->context();
-  return ToV8Value(context, url_pattern_.get_username());
-}
+// Perform value lookup and cache the result in a v8::Global.
+#define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
+  MaybeLocal<Value> URLPattern::uppercase_name() {                             \
+    auto isolate = env()->isolate();                                           \
+    if (lowercase_name.IsEmpty()) {                                            \
+      Local<Value> value;                                                      \
+      if (ToV8Value(env()->context(), url_pattern_.get_##lowercase_name())     \
+              .ToLocal(&value)) {                                              \
+        lowercase_name.Reset(isolate, value);                                  \
+        return value;                                                          \
+      }                                                                        \
+      return {};                                                               \
+    }                                                                          \
+    return lowercase_name.Get(isolate);                                        \
+  }
+URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
 
 bool URLPattern::HasRegExpGroups() const {
   return url_pattern_.has_regexp_groups();
@@ -616,77 +599,17 @@ void URLPattern::Test(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(url_pattern->Test(env, input, baseURL_opt));
 }
 
-void URLPattern::Protocol(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Protocol().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
+#define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
+  void URLPattern::uppercase_name(const FunctionCallbackInfo<Value>& info) {   \
+    URLPattern* url_pattern;                                                   \
+    ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());                        \
+    Local<Value> result;                                                       \
+    if (url_pattern->uppercase_name().ToLocal(&result)) {                      \
+      info.GetReturnValue().Set(result);                                       \
+    }                                                                          \
   }
-}
-
-void URLPattern::Username(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Username().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Password(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Password().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Hostname(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Hostname().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Port(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Port().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Pathname(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Pathname().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Search(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Search().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
-
-void URLPattern::Hash(const FunctionCallbackInfo<Value>& info) {
-  URLPattern* url_pattern;
-  ASSIGN_OR_RETURN_UNWRAP(&url_pattern, info.This());
-  Local<Value> result;
-  if (url_pattern->Hash().ToLocal(&result)) {
-    info.GetReturnValue().Set(result);
-  }
-}
+URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
 
 void URLPattern::HasRegexpGroups(const FunctionCallbackInfo<Value>& info) {
   URLPattern* url_pattern;
@@ -696,14 +619,10 @@ void URLPattern::HasRegexpGroups(const FunctionCallbackInfo<Value>& info) {
 
 static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(URLPattern::New);
-  registry->Register(URLPattern::Protocol);
-  registry->Register(URLPattern::Username);
-  registry->Register(URLPattern::Password);
-  registry->Register(URLPattern::Hostname);
-  registry->Register(URLPattern::Port);
-  registry->Register(URLPattern::Pathname);
-  registry->Register(URLPattern::Search);
-  registry->Register(URLPattern::Hash);
+#define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, _)                       \
+  registry->Register(URLPattern::uppercase_name);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
   registry->Register(URLPattern::HasRegexpGroups);
   registry->Register(URLPattern::Exec);
   registry->Register(URLPattern::Test);
@@ -726,61 +645,18 @@ static void Initialize(Local<Object> target,
   auto signature = Signature::New(isolate, ctor_tmpl);
 
   instance_template->SetInternalFieldCount(URLPattern::kInternalFieldCount);
-  prototype_template->SetAccessorProperty(
-      env->protocol_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Protocol, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
 
-  prototype_template->SetAccessorProperty(
-      env->username_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Username, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
+#define ENV_GETTER(lowercase_name) env->lowercase_name##_string()
+#define URL_PATTERN_COMPONENT_GETTERS(uppercase_name, lowercase_name)          \
+  prototype_template->SetAccessorProperty(                                     \
+      ENV_GETTER(lowercase_name),                                              \
+      FunctionTemplate::New(                                                   \
+          isolate, URLPattern::uppercase_name, Local<Value>(), signature),     \
+      Local<FunctionTemplate>(),                                               \
       attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->password_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Password, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->hostname_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Hostname, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->port_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Port, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->pathname_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Pathname, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->search_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Search, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
-
-  prototype_template->SetAccessorProperty(
-      env->hash_string(),
-      FunctionTemplate::New(
-          isolate, URLPattern::Hash, Local<Value>(), signature),
-      Local<FunctionTemplate>(),
-      attributes);
+  URL_PATTERN_COMPONENTS(URL_PATTERN_COMPONENT_GETTERS)
+#undef URL_PATTERN_COMPONENT_GETTERS
+#undef ENV_GETTER
 
   prototype_template->SetAccessorProperty(
       env->has_regexp_groups_string(),

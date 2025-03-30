@@ -279,8 +279,6 @@ changes:
     description: Switch from Import Assertions to Import Attributes.
 -->
 
-> Stability: 2 - Stable
-
 [Import attributes][Import Attributes MDN] are an inline syntax for module import
 statements to pass on more information alongside the module specifier.
 
@@ -648,8 +646,6 @@ changes:
     description: JSON modules are no longer experimental.
 -->
 
-> Stability: 2 - Stable
-
 JSON files can be referenced by `import`:
 
 ```js
@@ -669,17 +665,19 @@ imported from the same path.
 
 > Stability: 1 - Experimental
 
-Importing WebAssembly modules is supported under the
-`--experimental-wasm-modules` flag, allowing any `.wasm` files to be
-imported as normal modules while also supporting their module imports.
+Importing both WebAssembly module instances and WebAssembly source phase
+imports are supported under the `--experimental-wasm-modules` flag.
 
-This integration is in line with the
+Both of these integrations are in line with the
 [ES Module Integration Proposal for WebAssembly][].
 
-For example, an `index.mjs` containing:
+Instance imports allow any `.wasm` files to be imported as normal modules,
+supporting their module imports in turn.
+
+For example, an `index.js` containing:
 
 ```js
-import * as M from './module.wasm';
+import * as M from './library.wasm';
 console.log(M);
 ```
 
@@ -689,7 +687,35 @@ executed under:
 node --experimental-wasm-modules index.mjs
 ```
 
-would provide the exports interface for the instantiation of `module.wasm`.
+would provide the exports interface for the instantiation of `library.wasm`.
+
+### Wasm Source Phase Imports
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The [Source Phase Imports][] proposal allows the `import source` keyword
+combination to import a `WebAssembly.Module` object directly, instead of getting
+a module instance already instantiated with its dependencies.
+
+This is useful when needing custom instantiations for Wasm, while still
+resolving and loading it through the ES module integration.
+
+For example, to create multiple instances of a module, or to pass custom imports
+into a new instance of `library.wasm`:
+
+```js
+import source libraryModule from './library.wasm';
+
+const instance1 = await WebAssembly.instantiate(libraryModule, {
+  custom: import1,
+});
+
+const instance2 = await WebAssembly.instantiate(libraryModule, {
+  custom: import2,
+});
+```
 
 <i id="esm_experimental_top_level_await"></i>
 
@@ -869,14 +895,12 @@ The resolver can throw the following errors:
 >    1. Throw an _Invalid Module Specifier_ error.
 > 7. Let _packageSubpath_ be _"."_ concatenated with the substring of
 >    _packageSpecifier_ from the position at the length of _packageName_.
-> 8. If _packageSubpath_ ends in _"/"_, then
->    1. Throw an _Invalid Module Specifier_ error.
-> 9. Let _selfUrl_ be the result of
+> 8. Let _selfUrl_ be the result of
 >    **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_).
-> 10. If _selfUrl_ is not **undefined**, return _selfUrl_.
-> 11. While _parentURL_ is not the file system root,
+> 9. If _selfUrl_ is not **undefined**, return _selfUrl_.
+> 10. While _parentURL_ is not the file system root,
 >     1. Let _packageURL_ be the URL resolution of _"node\_modules/"_
->        concatenated with _packageSpecifier_, relative to _parentURL_.
+>        concatenated with _packageName_, relative to _parentURL_.
 >     2. Set _parentURL_ to the parent folder URL of _parentURL_.
 >     3. If the folder at _packageURL_ does not exist, then
 >        1. Continue the next loop iteration.
@@ -890,7 +914,7 @@ The resolver can throw the following errors:
 >           1. Return the URL resolution of _main_ in _packageURL_.
 >     7. Otherwise,
 >        1. Return the URL resolution of _packageSubpath_ in _packageURL_.
-> 12. Throw a _Module Not Found_ error.
+> 11. Throw a _Module Not Found_ error.
 
 **PACKAGE\_SELF\_RESOLVE**(_packageName_, _packageSubpath_, _parentURL_)
 
@@ -907,6 +931,8 @@ The resolver can throw the following errors:
 > 6. Otherwise, return **undefined**.
 
 **PACKAGE\_EXPORTS\_RESOLVE**(_packageURL_, _subpath_, _exports_, _conditions_)
+
+Note: This function is directly invoked by the CommonJS resolution algorithm.
 
 > 1. If _exports_ is an Object with both a key starting with _"."_ and a key not
 >    starting with _"."_, throw an _Invalid Package Configuration_ error.
@@ -931,6 +957,8 @@ The resolver can throw the following errors:
 
 **PACKAGE\_IMPORTS\_RESOLVE**(_specifier_, _parentURL_, _conditions_)
 
+Note: This function is directly invoked by the CommonJS resolution algorithm.
+
 > 1. Assert: _specifier_ begins with _"#"_.
 > 2. If _specifier_ is exactly equal to _"#"_ or starts with _"#/"_, then
 >    1. Throw an _Invalid Module Specifier_ error.
@@ -947,14 +975,16 @@ The resolver can throw the following errors:
 **PACKAGE\_IMPORTS\_EXPORTS\_RESOLVE**(_matchKey_, _matchObj_, _packageURL_,
 _isImports_, _conditions_)
 
-> 1. If _matchKey_ is a key of _matchObj_ and does not contain _"\*"_, then
+> 1. If _matchKey_ ends in _"/"_, then
+>    1. Throw an _Invalid Module Specifier_ error.
+> 2. If _matchKey_ is a key of _matchObj_ and does not contain _"\*"_, then
 >    1. Let _target_ be the value of _matchObj_\[_matchKey_].
 >    2. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
 >       _target_, **null**, _isImports_, _conditions_).
-> 2. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
+> 3. Let _expansionKeys_ be the list of keys of _matchObj_ containing only a
 >    single _"\*"_, sorted by the sorting function **PATTERN\_KEY\_COMPARE**
 >    which orders in descending order of specificity.
-> 3. For each key _expansionKey_ in _expansionKeys_, do
+> 4. For each key _expansionKey_ in _expansionKeys_, do
 >    1. Let _patternBase_ be the substring of _expansionKey_ up to but excluding
 >       the first _"\*"_ character.
 >    2. If _matchKey_ starts with but is not equal to _patternBase_, then
@@ -969,7 +999,7 @@ _isImports_, _conditions_)
 >             _matchKey_ minus the length of _patternTrailer_.
 >          3. Return the result of **PACKAGE\_TARGET\_RESOLVE**(_packageURL_,
 >             _target_, _patternMatch_, _isImports_, _conditions_).
-> 4. Return **null**.
+> 5. Return **null**.
 
 **PATTERN\_KEY\_COMPARE**(_keyA_, _keyB_)
 
@@ -1126,6 +1156,7 @@ resolution for ESM specifiers is [commonjs-extension-resolution-loader][].
 [Loading ECMAScript modules using `require()`]: modules.md#loading-ecmascript-modules-using-require
 [Module customization hooks]: module.md#customization-hooks
 [Node.js Module Resolution And Loading Algorithm]: #resolution-algorithm-specification
+[Source Phase Imports]: https://github.com/tc39/proposal-source-phase-imports
 [Terminology]: #terminology
 [URL]: https://url.spec.whatwg.org/
 [`"exports"`]: packages.md#exports

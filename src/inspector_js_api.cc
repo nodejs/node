@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "inspector/protocol_helper.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
 #include "memory_tracker-inl.h"
@@ -27,15 +28,7 @@ using v8::Object;
 using v8::String;
 using v8::Uint32;
 using v8::Value;
-
-using v8_inspector::StringBuffer;
 using v8_inspector::StringView;
-
-std::unique_ptr<StringBuffer> ToProtocolString(Isolate* isolate,
-                                               Local<Value> value) {
-  TwoByteValue buffer(isolate, value);
-  return StringBuffer::create(StringView(*buffer, buffer.length()));
-}
 
 struct LocalConnection {
   static std::unique_ptr<InspectorSession> Connect(
@@ -143,7 +136,7 @@ class JSBindingsConnection : public BaseObject {
 
     if (session->session_) {
       session->session_->Dispatch(
-          ToProtocolString(env->isolate(), info[0])->string());
+          ToInspectorString(env->isolate(), info[0])->string());
     }
   }
 
@@ -238,8 +231,10 @@ template <void (Agent::*asyncTaskFn)(void*)>
 static void InvokeAsyncTaskFnWithId(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsNumber());
-  int64_t task_id = args[0]->IntegerValue(env->context()).FromJust();
-  (env->inspector_agent()->*asyncTaskFn)(GetAsyncTask(task_id));
+  int64_t task_id;
+  if (args[0]->IntegerValue(env->context()).To(&task_id)) {
+    (env->inspector_agent()->*asyncTaskFn)(GetAsyncTask(task_id));
+  }
 }
 
 static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
@@ -251,7 +246,10 @@ static void AsyncTaskScheduledWrapper(const FunctionCallbackInfo<Value>& args) {
   StringView task_name_view(*task_name_value, task_name_value.length());
 
   CHECK(args[1]->IsNumber());
-  int64_t task_id = args[1]->IntegerValue(env->context()).FromJust();
+  int64_t task_id;
+  if (!args[1]->IntegerValue(env->context()).To(&task_id)) {
+    return;
+  }
   void* task = GetAsyncTask(task_id);
 
   CHECK(args[2]->IsBoolean());
@@ -275,12 +273,13 @@ void EmitProtocolEvent(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   CHECK(args[0]->IsString());
   Local<String> eventName = args[0].As<String>();
-  CHECK(args[1]->IsString());
-  Local<String> params = args[1].As<String>();
+  CHECK(args[1]->IsObject());
+  Local<Object> params = args[1].As<Object>();
 
   env->inspector_agent()->EmitProtocolEvent(
-      ToProtocolString(env->isolate(), eventName)->string(),
-      ToProtocolString(env->isolate(), params)->string());
+      args.GetIsolate()->GetCurrentContext(),
+      ToInspectorString(env->isolate(), eventName)->string(),
+      params);
 }
 
 void SetupNetworkTracking(const FunctionCallbackInfo<Value>& args) {

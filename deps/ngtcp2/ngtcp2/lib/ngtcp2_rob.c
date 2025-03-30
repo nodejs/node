@@ -122,7 +122,10 @@ static int rob_write_data(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
   size_t n;
   int rv;
   ngtcp2_rob_data *d;
-  ngtcp2_range range = {offset, offset + len};
+  ngtcp2_range range = {
+    .begin = offset,
+    .end = offset + len,
+  };
   ngtcp2_ksl_it it;
 
   for (it = ngtcp2_ksl_lower_bound_search(&rob->dataksl, &range,
@@ -163,7 +166,11 @@ int ngtcp2_rob_push(ngtcp2_rob *rob, uint64_t offset, const uint8_t *data,
                     size_t datalen) {
   int rv;
   ngtcp2_rob_gap *g;
-  ngtcp2_range m, l, r, q = {offset, offset + datalen};
+  ngtcp2_range m, l, r;
+  ngtcp2_range q = {
+    .begin = offset,
+    .end = offset + datalen,
+  };
   ngtcp2_ksl_it it;
 
   it = ngtcp2_ksl_lower_bound_search(&rob->gapksl, &q,

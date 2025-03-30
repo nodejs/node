@@ -1133,7 +1133,7 @@ void DecimalQuantity::setDigitPos(int32_t position, int8_t value) {
 }
 
 void DecimalQuantity::shiftLeft(int32_t numDigits) {
-    if (!usingBytes && precision + numDigits > 16) {
+    if (!usingBytes && precision + numDigits >= 16) {
         switchStorage();
     }
     if (usingBytes) {

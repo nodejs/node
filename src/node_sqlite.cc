@@ -7,6 +7,7 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
+#include "node_url.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
@@ -157,6 +158,16 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   }
 }
 
+inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
+                                                     const char* str) {
+  if (str == nullptr) {
+    return Null(isolate);
+  }
+
+  return String::NewFromUtf8(isolate, str, NewStringType::kInternalized)
+      .As<Value>();
+}
+
 class BackupJob : public ThreadPoolWork {
  public:
   explicit BackupJob(Environment* env,
@@ -181,10 +192,11 @@ class BackupJob : public ThreadPoolWork {
   void ScheduleBackup() {
     Isolate* isolate = env()->isolate();
     HandleScope handle_scope(isolate);
-    backup_status_ = sqlite3_open_v2(destination_name_.c_str(),
-                                     &dest_,
-                                     SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-                                     nullptr);
+    backup_status_ = sqlite3_open_v2(
+        destination_name_.c_str(),
+        &dest_,
+        SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE | SQLITE_OPEN_URI,
+        nullptr);
     Local<Promise::Resolver> resolver =
         Local<Promise::Resolver>::New(env()->isolate(), resolver_);
     if (backup_status_ != SQLITE_OK) {
@@ -503,11 +515,14 @@ bool DatabaseSync::Open() {
   }
 
   // TODO(cjihrig): Support additional flags.
+  int default_flags = SQLITE_OPEN_URI;
   int flags = open_config_.get_read_only()
                   ? SQLITE_OPEN_READONLY
                   : SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE;
-  int r = sqlite3_open_v2(
-      open_config_.location().c_str(), &connection_, flags, nullptr);
+  int r = sqlite3_open_v2(open_config_.location().c_str(),
+                          &connection_,
+                          flags | default_flags,
+                          nullptr);
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
 
   r = sqlite3_db_config(connection_,
@@ -585,27 +600,69 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
   return ignore_next_sqlite_error_;
 }
 
+std::optional<std::string> ValidateDatabasePath(Environment* env,
+                                                Local<Value> path,
+                                                const std::string& field_name) {
+  constexpr auto has_null_bytes = [](std::string_view str) {
+    return str.find('\0') != std::string_view::npos;
+  };
+  if (path->IsString()) {
+    Utf8Value location(env->isolate(), path.As<String>());
+    if (!has_null_bytes(location.ToStringView())) {
+      return location.ToString();
+    }
+  } else if (path->IsUint8Array()) {
+    Local<Uint8Array> buffer = path.As<Uint8Array>();
+    size_t byteOffset = buffer->ByteOffset();
+    size_t byteLength = buffer->ByteLength();
+    auto data =
+        static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
+    if (std::find(data, data + byteLength, 0) == data + byteLength) {
+      return std::string(reinterpret_cast<const char*>(data), byteLength);
+    }
+  } else if (path->IsObject()) {  // When is URL
+    auto url = path.As<Object>();
+    Local<Value> href;
+    if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
+        href->IsString()) {
+      Utf8Value location_value(env->isolate(), href.As<String>());
+      auto location = location_value.ToStringView();
+      if (!has_null_bytes(location)) {
+        CHECK(ada::can_parse(location));
+        if (!location.starts_with("file:")) {
+          THROW_ERR_INVALID_URL_SCHEME(env->isolate());
+          return std::nullopt;
+        }
+
+        return location_value.ToString();
+      }
+    }
+  }
+
+  THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                             "The \"%s\" argument must be a string, "
+                             "Uint8Array, or URL without null bytes.",
+                             field_name.c_str());
+
+  return std::nullopt;
+}
+
 void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-
   if (!args.IsConstructCall()) {
     THROW_ERR_CONSTRUCT_CALL_REQUIRED(env);
     return;
   }
 
-  if (!args[0]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
-                               "The \"path\" argument must be a string.");
+  std::optional<std::string> location =
+      ValidateDatabasePath(env, args[0], "path");
+  if (!location.has_value()) {
     return;
   }
 
-  std::string location =
-      Utf8Value(env->isolate(), args[0].As<String>()).ToString();
-  DatabaseOpenConfiguration open_config(std::move(location));
-
+  DatabaseOpenConfiguration open_config(std::move(location.value()));
   bool open = true;
   bool allow_load_extension = false;
-
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -708,6 +765,12 @@ void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
   db->Open();
+}
+
+void DatabaseSync::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  args.GetReturnValue().Set(db->IsOpen());
 }
 
 void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
@@ -921,7 +984,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     Local<Object> options = args[0].As<Object>();
 
     Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
-    if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> table_value;
       if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
         return;
@@ -939,7 +1006,10 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<String> db_key = FIXED_ONE_BYTE_STRING(env->isolate(), "db");
 
-    if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
+    if (!options->HasOwnProperty(env->context(), db_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> db_value;
       if (!options->Get(env->context(), db_key).ToLocal(&db_value)) {
         // An error will have been scheduled.
@@ -984,17 +1054,15 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args[0].As<Object>());
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
-  if (!args[1]->IsString()) {
-    THROW_ERR_INVALID_ARG_TYPE(
-        env->isolate(), "The \"destination\" argument must be a string.");
+  std::optional<std::string> dest_path =
+      ValidateDatabasePath(env, args[1], "path");
+  if (!dest_path.has_value()) {
     return;
   }
 
   int rate = 100;
   std::string source_db = "main";
   std::string dest_db = "main";
-
-  Utf8Value dest_path(env->isolate(), args[1].As<String>());
   Local<Function> progressFunc = Local<Function>();
 
   if (args.Length() > 2) {
@@ -1077,12 +1145,11 @@ void Backup(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(resolver->GetPromise());
-
   BackupJob* job = new BackupJob(env,
                                  db,
                                  resolver,
                                  std::move(source_db),
-                                 *dest_path,
+                                 dest_path.value(),
                                  std::move(dest_db),
                                  rate,
                                  progressFunc);
@@ -1161,8 +1228,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       };
     }
 
-    if (options->HasOwnProperty(env->context(), env->filter_string())
-            .FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), env->filter_string())
+             .To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> filterValue;
       if (!options->Get(env->context(), env->filter_string())
                .ToLocal(&filterValue)) {
@@ -1290,6 +1361,7 @@ StatementSync::StatementSync(Environment* env,
   // connection level and inherited by statements to reduce boilerplate.
   use_big_ints_ = false;
   allow_bare_named_params_ = true;
+  allow_unknown_named_params_ = false;
   bare_named_params_ = std::nullopt;
 }
 
@@ -1372,9 +1444,13 @@ bool StatementSync::BindParams(const FunctionCallbackInfo<Value>& args) {
         }
 
         if (r == 0) {
-          THROW_ERR_INVALID_STATE(
-              env(), "Unknown named parameter '%s'", *utf8_key);
-          return false;
+          if (allow_unknown_named_params_) {
+            continue;
+          } else {
+            THROW_ERR_INVALID_STATE(
+                env(), "Unknown named parameter '%s'", *utf8_key);
+            return false;
+          }
         }
       }
 
@@ -1811,13 +1887,9 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_.get());
-    return;
-  }
-
+  sqlite3_step(stmt->statement_);
+  r = sqlite3_reset(stmt->statement_);
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   Local<Object> result = Object::New(env->isolate());
   sqlite3_int64 last_insert_rowid =
       sqlite3_last_insert_rowid(stmt->db_->Connection());
@@ -1844,6 +1916,72 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
   }
 
   args.GetReturnValue().Set(result);
+}
+
+void StatementSync::Columns(const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+  int num_cols = sqlite3_column_count(stmt->statement_);
+  Isolate* isolate = env->isolate();
+  LocalVector<Value> cols(isolate);
+  LocalVector<Name> col_keys(isolate,
+                             {env->column_string(),
+                              env->database_string(),
+                              env->name_string(),
+                              env->table_string(),
+                              env->type_string()});
+  Local<Value> value;
+
+  cols.reserve(num_cols);
+  for (int i = 0; i < num_cols; ++i) {
+    LocalVector<Value> col_values(isolate);
+    col_values.reserve(col_keys.size());
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_origin_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_database_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!stmt->ColumnNameToName(i).ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_table_name(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    if (!NullableSQLiteStringToValue(
+             isolate, sqlite3_column_decltype(stmt->statement_, i))
+             .ToLocal(&value)) {
+      return;
+    }
+    col_values.emplace_back(value);
+
+    Local<Object> column = Object::New(isolate,
+                                       Null(isolate),
+                                       col_keys.data(),
+                                       col_values.data(),
+                                       col_keys.size());
+    cols.emplace_back(column);
+  }
+
+  args.GetReturnValue().Set(Array::New(isolate, cols.data(), cols.size()));
 }
 
 void StatementSync::SourceSQLGetter(const FunctionCallbackInfo<Value>& args) {
@@ -1900,6 +2038,23 @@ void StatementSync::SetAllowBareNamedParameters(
   stmt->allow_bare_named_params_ = args[0]->IsTrue();
 }
 
+void StatementSync::SetAllowUnknownNamedParameters(
+    const FunctionCallbackInfo<Value>& args) {
+  StatementSync* stmt;
+  ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, stmt->IsFinalized(), "statement has been finalized");
+
+  if (!args[0]->IsBoolean()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"enabled\" argument must be a boolean.");
+    return;
+  }
+
+  stmt->allow_unknown_named_params_ = args[0]->IsTrue();
+}
+
 void StatementSync::SetReadBigInts(const FunctionCallbackInfo<Value>& args) {
   StatementSync* stmt;
   ASSIGN_OR_RETURN_UNWRAP(&stmt, args.This());
@@ -1951,6 +2106,8 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     SetProtoMethod(isolate, tmpl, "all", StatementSync::All);
     SetProtoMethod(isolate, tmpl, "get", StatementSync::Get);
     SetProtoMethod(isolate, tmpl, "run", StatementSync::Run);
+    SetProtoMethodNoSideEffect(
+        isolate, tmpl, "columns", StatementSync::Columns);
     SetSideEffectFreeGetter(isolate,
                             tmpl,
                             FIXED_ONE_BYTE_STRING(isolate, "sourceSQL"),
@@ -1963,6 +2120,10 @@ Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
                    tmpl,
                    "setAllowBareNamedParameters",
                    StatementSync::SetAllowBareNamedParameters);
+    SetProtoMethod(isolate,
+                   tmpl,
+                   "setAllowUnknownNamedParameters",
+                   StatementSync::SetAllowUnknownNamedParameters);
     SetProtoMethod(
         isolate, tmpl, "setReadBigInts", StatementSync::SetReadBigInts);
     env->set_sqlite_statement_sync_constructor_template(tmpl);
@@ -2118,6 +2279,10 @@ static void Initialize(Local<Object> target,
                  DatabaseSync::EnableLoadExtension);
   SetProtoMethod(
       isolate, db_tmpl, "loadExtension", DatabaseSync::LoadExtension);
+  SetSideEffectFreeGetter(isolate,
+                          db_tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
+                          DatabaseSync::IsOpenGetter);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,

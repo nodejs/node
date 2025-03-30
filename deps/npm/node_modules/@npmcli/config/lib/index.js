@@ -15,6 +15,14 @@ const {
   mkdir,
 } = require('node:fs/promises')
 
+// TODO these need to be either be ignored when parsing env, formalized as config, or not exported to the env in the first place. For now this list is just to suppress warnings till we can pay off this tech debt.
+const internalEnv = [
+  'global-prefix',
+  'local-prefix',
+  'npm-version',
+  'node-gyp',
+]
+
 const fileExists = (...p) => stat(resolve(...p))
   .then((st) => st.isFile())
   .catch(() => false)
@@ -61,6 +69,7 @@ class Config {
     definitions,
     shorthands,
     flatten,
+    nerfDarts = [],
     npmPath,
 
     // options just to override in tests, mostly
@@ -71,8 +80,9 @@ class Config {
     cwd = process.cwd(),
     excludeNpmCwd = false,
   }) {
-    // turn the definitions into nopt's weirdo syntax
+    this.nerfDarts = nerfDarts
     this.definitions = definitions
+    // turn the definitions into nopt's weirdo syntax
     const types = {}
     const defaults = {}
     this.deprecated = {}
@@ -272,6 +282,7 @@ class Config {
     }
 
     try {
+      // This does not have an actual definition
       defaultsObject['npm-version'] = require(join(this.npmPath, 'package.json')).version
     } catch {
       // in some weird state where the passed in npmPath does not have a package.json
@@ -346,6 +357,11 @@ class Config {
   }
 
   loadCLI () {
+    for (const s of Object.keys(this.shorthands)) {
+      if (s.length > 1 && this.argv.includes(`-${s}`)) {
+        log.warn(`-${s} is not a valid single-hyphen cli flag and will be removed in the future`)
+      }
+    }
     nopt.invalidHandler = (k, val, type) =>
       this.invalidHandler(k, val, type, 'command line options', 'cli')
     const conf = nopt(this.types, this.shorthands, this.argv)
@@ -566,13 +582,32 @@ class Config {
             }
           }
         }
+        // Some defaults like npm-version are not user-definable and thus don't have definitions
+        if (where !== 'default') {
+          this.checkUnknown(where, key)
+        }
         conf.data[k] = v
       }
     }
   }
 
+  checkUnknown (where, key) {
+    if (!this.definitions[key]) {
+      if (internalEnv.includes(key)) {
+        return
+      }
+      if (!key.includes(':')) {
+        log.warn(`Unknown ${where} config "${where === 'cli' ? '--' : ''}${key}". This will stop working in the next major version of npm.`)
+        return
+      }
+      const baseKey = key.split(':').pop()
+      if (!this.definitions[baseKey] && !this.nerfDarts.includes(baseKey)) {
+        log.warn(`Unknown ${where} config "${baseKey}" (${key}). This will stop working in the next major version of npm.`)
+      }
+    }
+  }
+
   #checkDeprecated (key) {
-    // XXX(npm9+) make this throw an error
     if (this.deprecated[key]) {
       log.warn('config', key, this.deprecated[key])
     }

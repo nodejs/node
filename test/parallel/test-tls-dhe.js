@@ -85,7 +85,10 @@ function test(dhparam, keylen, expectedCipher) {
 
     execFile(opensslCli, args, common.mustSucceed((stdout) => {
       assert(keylen === null ||
-             stdout.includes(`Server Temp Key: DH, ${keylen} bits`));
+             // s_client < OpenSSL 3.5
+             stdout.includes(`Server Temp Key: DH, ${keylen} bits`) ||
+             // s_client >= OpenSSL 3.5
+             stdout.includes(`Peer Temp Key: DH, ${keylen} bits`));
       assert(stdout.includes(`Cipher    : ${expectedCipher}`));
       server.close();
     }));

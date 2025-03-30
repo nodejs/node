@@ -59,7 +59,7 @@ a single call: that is it creates a new connect BIO with hostname B<name>.
 
 BIO_set_conn_hostname() uses the string B<name> to set the hostname.
 The hostname can be an IP address; if the address is an IPv6 one, it
-must be enclosed with brackets C<[> and C<]>.
+must be enclosed in brackets C<[> and C<]>.
 The hostname can also include the port in the form hostname:port;
 see L<BIO_parse_hostserv(3)> and BIO_set_conn_port() for details.
 

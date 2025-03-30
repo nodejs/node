@@ -91,6 +91,7 @@
   V(cached_data_rejected_string, "cachedDataRejected")                         \
   V(cached_data_string, "cachedData")                                          \
   V(cache_key_string, "cacheKey")                                              \
+  V(cert_usage_string, "certUsage")                                            \
   V(change_string, "change")                                                   \
   V(changes_string, "changes")                                                 \
   V(channel_string, "channel")                                                 \
@@ -117,6 +118,7 @@
   V(crypto_rsa_pss_string, "rsa-pss")                                          \
   V(cwd_string, "cwd")                                                         \
   V(data_string, "data")                                                       \
+  V(database_string, "database")                                               \
   V(default_is_true_string, "defaultIsTrue")                                   \
   V(deserialize_info_string, "deserializeInfo")                                \
   V(dest_string, "dest")                                                       \
@@ -135,6 +137,7 @@
   V(dns_ptr_string, "PTR")                                                     \
   V(dns_soa_string, "SOA")                                                     \
   V(dns_srv_string, "SRV")                                                     \
+  V(dns_tlsa_string, "TLSA")                                                   \
   V(dns_txt_string, "TXT")                                                     \
   V(done_string, "done")                                                       \
   V(duration_string, "duration")                                               \
@@ -192,6 +195,7 @@
   V(host_string, "host")                                                       \
   V(hostmaster_string, "hostmaster")                                           \
   V(hostname_string, "hostname")                                               \
+  V(href_string, "href")                                                       \
   V(http_1_1_string, "http/1.1")                                               \
   V(id_string, "id")                                                           \
   V(identity_string, "identity")                                               \
@@ -237,6 +241,7 @@
   V(line_number_string, "lineNumber")                                          \
   V(loop_count, "loopCount")                                                   \
   V(mac_string, "mac")                                                         \
+  V(match_string, "match")                                                     \
   V(max_buffer_string, "maxBuffer")                                            \
   V(max_concurrent_streams_string, "maxConcurrentStreams")                     \
   V(message_port_constructor_string, "MessagePort")                            \
@@ -291,6 +296,7 @@
   V(pathname_string, "pathname")                                               \
   V(pending_handle_string, "pendingHandle")                                    \
   V(permission_string, "permission")                                           \
+  V(phase_string, "phase")                                                     \
   V(pid_string, "pid")                                                         \
   V(ping_rtt_string, "pingRTT")                                                \
   V(pipe_source_string, "pipeSource")                                          \
@@ -336,6 +342,7 @@
   V(script_id_string, "scriptId")                                              \
   V(script_name_string, "scriptName")                                          \
   V(search_string, "search")                                                   \
+  V(selector_string, "selector")                                               \
   V(serial_number_string, "serialNumber")                                      \
   V(serial_string, "serial")                                                   \
   V(servername_string, "servername")                                           \
@@ -364,6 +371,7 @@
   V(subject_string, "subject")                                                 \
   V(subjectaltname_string, "subjectaltname")                                   \
   V(syscall_string, "syscall")                                                 \
+  V(table_string, "table")                                                     \
   V(target_string, "target")                                                   \
   V(thread_id_string, "threadId")                                              \
   V(ticketkeycallback_string, "onticketkeycallback")                           \

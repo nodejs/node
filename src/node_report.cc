@@ -439,10 +439,14 @@ static Maybe<std::string> ErrorToString(Isolate* isolate,
   } else if (!error->IsObject()) {
     maybe_str = error->ToString(context);
   } else if (error->IsObject()) {
-    MaybeLocal<Value> stack = error.As<Object>()->Get(
-        context, FIXED_ONE_BYTE_STRING(isolate, "stack"));
-    if (!stack.IsEmpty() && stack.ToLocalChecked()->IsString()) {
-      maybe_str = stack.ToLocalChecked().As<String>();
+    Local<Value> stack;
+    if (!error.As<Object>()
+             ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "stack"))
+             .ToLocal(&stack)) {
+      return Nothing<std::string>();
+    }
+    if (stack->IsString()) {
+      maybe_str = stack.As<String>();
     }
   }
 

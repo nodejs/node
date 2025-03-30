@@ -9,6 +9,8 @@
 </tr>
 <tr>
 <td>
+<a href="#18.20.8">18.20.8</a><br/>
+<a href="#18.20.7">18.20.7</a><br/>
 <a href="#18.20.6">18.20.6</a><br/>
 <a href="#18.20.5">18.20.5</a><br/>
 <a href="#18.20.4">18.20.4</a><br/>
@@ -75,6 +77,89 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="18.20.8"></a>
+
+## 2025-03-27, Version 18.20.8 'Hydrogen' (LTS), @richardlau
+
+### Notable Changes
+
+This release updates OpenSSL to 3.0.16 and root certificates to NSS 3.108.
+
+### Commits
+
+* \[[`f737a79073`](https://github.com/nodejs/node/commit/f737a79073)] - **async\_hooks,inspector**: implement inspector api without async\_wrap (Gabriel Bota) [#51501](https://github.com/nodejs/node/pull/51501)
+* \[[`fce923ba69`](https://github.com/nodejs/node/commit/fce923ba69)] - **build**: update gcovr to 7.2 and codecov config (Benjamin E. Coe) [#54019](https://github.com/nodejs/node/pull/54019)
+* \[[`8b7ffd807c`](https://github.com/nodejs/node/commit/8b7ffd807c)] - **build**: fix compatibility with V8's `depot_tools` (Richard Lau) [#57330](https://github.com/nodejs/node/pull/57330)
+* \[[`ee9a343413`](https://github.com/nodejs/node/commit/ee9a343413)] - **crypto**: update root certificates to NSS 3.108 (Node.js GitHub Bot) [#57381](https://github.com/nodejs/node/pull/57381)
+* \[[`738bf8aea4`](https://github.com/nodejs/node/commit/738bf8aea4)] - **crypto**: update root certificates to NSS 3.104 (Richard Lau) [#55681](https://github.com/nodejs/node/pull/55681)
+* \[[`69d661d591`](https://github.com/nodejs/node/commit/69d661d591)] - **deps**: update undici to v5.29.0 (Matteo Collina) [#57557](https://github.com/nodejs/node/pull/57557)
+* \[[`59fcf43b0e`](https://github.com/nodejs/node/commit/59fcf43b0e)] - **deps**: update corepack to 0.32.0 (Node.js GitHub Bot) [#57265](https://github.com/nodejs/node/pull/57265)
+* \[[`1b72869503`](https://github.com/nodejs/node/commit/1b72869503)] - **deps**: update archs files for openssl-3.0.16 (Node.js GitHub Bot) [#57335](https://github.com/nodejs/node/pull/57335)
+* \[[`a566560235`](https://github.com/nodejs/node/commit/a566560235)] - **deps**: upgrade openssl sources to quictls/openssl-3.0.16 (Node.js GitHub Bot) [#57335](https://github.com/nodejs/node/pull/57335)
+* \[[`50c4e1da2f`](https://github.com/nodejs/node/commit/50c4e1da2f)] - **doc**: add missing `deprecated` badges in `fs.md` (Yukihiro Hasegawa) [#57384](https://github.com/nodejs/node/pull/57384)
+* \[[`c3babb4671`](https://github.com/nodejs/node/commit/c3babb4671)] - **doc**: update Xcode version used for arm64 and pkg (Michaël Zasso) [#57104](https://github.com/nodejs/node/pull/57104)
+* \[[`784da606a6`](https://github.com/nodejs/node/commit/784da606a6)] - **doc**: fix link and history of `SourceMap` sections (Antoine du Hamel) [#57098](https://github.com/nodejs/node/pull/57098)
+* \[[`f5dbceccbe`](https://github.com/nodejs/node/commit/f5dbceccbe)] - **test**: update error code in tls-psk-circuit for for OpenSSL 3.4 (sebastianas) [#56420](https://github.com/nodejs/node/pull/56420)
+
+<a id="18.20.7"></a>
+
+## 2025-02-20, Version 18.20.7 'Hydrogen' (LTS), @aduh95
+
+### Notable Changes
+
+* \[[`ea5eb0e98b`](https://github.com/nodejs/node/commit/ea5eb0e98b)] - **crypto**: update root certificates to NSS 3.107 (Node.js GitHub Bot) [#56566](https://github.com/nodejs/node/pull/56566)
+
+### Commits
+
+* \[[`bb2977ca6c`](https://github.com/nodejs/node/commit/bb2977ca6c)] - **build**: use glob for dependencies of out/Makefile (Richard Lau) [#55789](https://github.com/nodejs/node/pull/55789)
+* \[[`92896945b8`](https://github.com/nodejs/node/commit/92896945b8)] - **build**: support python 3.13 (Chengzhong Wu) [#53190](https://github.com/nodejs/node/pull/53190)
+* \[[`ea5eb0e98b`](https://github.com/nodejs/node/commit/ea5eb0e98b)] - **crypto**: update root certificates to NSS 3.107 (Node.js GitHub Bot) [#56566](https://github.com/nodejs/node/pull/56566)
+* \[[`d03a23577d`](https://github.com/nodejs/node/commit/d03a23577d)] - **deps**: V8: cherry-pick 26fd1dfa9cd6 (Shu-yu Guo) [#55873](https://github.com/nodejs/node/pull/55873)
+* \[[`53bb21b093`](https://github.com/nodejs/node/commit/53bb21b093)] - **deps**: V8: backport ae5a4db8ad86 (Shu-yu Guo) [#55873](https://github.com/nodejs/node/pull/55873)
+* \[[`5eb6dfe284`](https://github.com/nodejs/node/commit/5eb6dfe284)] - **deps**: update zlib to 1.3.0.1-motley-82a5fec (Node.js GitHub Bot) [#55980](https://github.com/nodejs/node/pull/55980)
+* \[[`734515a0f7`](https://github.com/nodejs/node/commit/734515a0f7)] - **deps**: update zlib to 1.3.0.1-motley-7e2e4d7 (Node.js GitHub Bot) [#54432](https://github.com/nodejs/node/pull/54432)
+* \[[`d64cc98324`](https://github.com/nodejs/node/commit/d64cc98324)] - **deps**: update simdutf to 5.6.4 (Node.js GitHub Bot) [#56255](https://github.com/nodejs/node/pull/56255)
+* \[[`9eab21dd1d`](https://github.com/nodejs/node/commit/9eab21dd1d)] - **deps**: update simdutf to 5.6.3 (Node.js GitHub Bot) [#55973](https://github.com/nodejs/node/pull/55973)
+* \[[`2e3367b46a`](https://github.com/nodejs/node/commit/2e3367b46a)] - **deps**: update simdutf to 5.6.2 (Node.js GitHub Bot) [#55889](https://github.com/nodejs/node/pull/55889)
+* \[[`df74d66207`](https://github.com/nodejs/node/commit/df74d66207)] - **deps**: update simdutf to 5.6.1 (Node.js GitHub Bot) [#55850](https://github.com/nodejs/node/pull/55850)
+* \[[`ade37ee0b3`](https://github.com/nodejs/node/commit/ade37ee0b3)] - **deps**: update acorn to 8.14.0 (Node.js GitHub Bot) [#55699](https://github.com/nodejs/node/pull/55699)
+* \[[`a3c367adbd`](https://github.com/nodejs/node/commit/a3c367adbd)] - **deps**: update corepack to 0.31.0 (Node.js GitHub Bot) [#56795](https://github.com/nodejs/node/pull/56795)
+* \[[`2cff6a8428`](https://github.com/nodejs/node/commit/2cff6a8428)] - **deps**: update corepack to 0.30.0 (Node.js GitHub Bot) [#55977](https://github.com/nodejs/node/pull/55977)
+* \[[`8b8c9a2cf5`](https://github.com/nodejs/node/commit/8b8c9a2cf5)] - **doc**: update macOS and Xcode versions for releases (Michaël Zasso) [#56337](https://github.com/nodejs/node/pull/56337)
+* \[[`706af28113`](https://github.com/nodejs/node/commit/706af28113)] - **doc**: add "Skip to content" button (Antoine du Hamel) [#56750](https://github.com/nodejs/node/pull/56750)
+* \[[`634a6b3a14`](https://github.com/nodejs/node/commit/634a6b3a14)] - **doc**: improve accessibility of expandable lists (Antoine du Hamel) [#56749](https://github.com/nodejs/node/pull/56749)
+* \[[`f0b60c5bf9`](https://github.com/nodejs/node/commit/f0b60c5bf9)] - **doc**: fix arrow vertical alignment in HTML version (Akash Yeole) [#52193](https://github.com/nodejs/node/pull/52193)
+* \[[`91cce27ebb`](https://github.com/nodejs/node/commit/91cce27ebb)] - **doc**: remove flicker on page load on dark theme (Dima Demakov) [#50942](https://github.com/nodejs/node/pull/50942)
+* \[[`522fbb00a8`](https://github.com/nodejs/node/commit/522fbb00a8)] - **doc**: make theme consistent across api and other docs (Dima Demakov) [#50877](https://github.com/nodejs/node/pull/50877)
+* \[[`1486465520`](https://github.com/nodejs/node/commit/1486465520)] - **doc**: save user preference for JS flavor (Vidar Eldøy) [#49526](https://github.com/nodejs/node/pull/49526)
+* \[[`d74cff7e59`](https://github.com/nodejs/node/commit/d74cff7e59)] - **doc**: rename possibly confusing variable and CSS class (Antoine du Hamel) [#49536](https://github.com/nodejs/node/pull/49536)
+* \[[`4829d976fe`](https://github.com/nodejs/node/commit/4829d976fe)] - **doc**: add main ARIA landmark to API docs (Rich Trott) [#49882](https://github.com/nodejs/node/pull/49882)
+* \[[`6c4ce1f1d4`](https://github.com/nodejs/node/commit/6c4ce1f1d4)] - **doc**: add navigation ARIA landmark to doc ToC (Rich Trott) [#49882](https://github.com/nodejs/node/pull/49882)
+* \[[`33548f8c1f`](https://github.com/nodejs/node/commit/33548f8c1f)] - **doc**: add history entries for JSON modules stabilization (Antoine du Hamel) [#55855](https://github.com/nodejs/node/pull/55855)
+* \[[`e12bdf6141`](https://github.com/nodejs/node/commit/e12bdf6141)] - **meta**: bump `actions/upload-artifact` from 4.4.3 to 4.6.0 (dependabot\[bot]) [#56861](https://github.com/nodejs/node/pull/56861)
+* \[[`6f44ef388b`](https://github.com/nodejs/node/commit/6f44ef388b)] - **meta**: bump actions/upload-artifact from 4.4.0 to 4.4.3 (dependabot\[bot]) [#55685](https://github.com/nodejs/node/pull/55685)
+* \[[`ae39211117`](https://github.com/nodejs/node/commit/ae39211117)] - **meta**: bump actions/upload-artifact from 4.3.4 to 4.4.0 (dependabot\[bot]) [#54703](https://github.com/nodejs/node/pull/54703)
+* \[[`4cf80b37c7`](https://github.com/nodejs/node/commit/4cf80b37c7)] - **meta**: bump `actions/upload-artifact` from 4.3.3 to 4.3.4 (dependabot\[bot]) [#54166](https://github.com/nodejs/node/pull/54166)
+* \[[`4d402b79cb`](https://github.com/nodejs/node/commit/4d402b79cb)] - **meta**: bump `actions/download-artifact` from 4.1.7 to 4.1.8 (dependabot\[bot]) [#54167](https://github.com/nodejs/node/pull/54167)
+* \[[`1c01f93497`](https://github.com/nodejs/node/commit/1c01f93497)] - **meta**: bump actions/upload-artifact from 4.3.1 to 4.3.3 (dependabot\[bot]) [#52785](https://github.com/nodejs/node/pull/52785)
+* \[[`6558a516ec`](https://github.com/nodejs/node/commit/6558a516ec)] - **meta**: bump actions/download-artifact from 4.1.4 to 4.1.7 (dependabot\[bot]) [#52784](https://github.com/nodejs/node/pull/52784)
+* \[[`dd70860ec8`](https://github.com/nodejs/node/commit/dd70860ec8)] - **meta**: bump actions/download-artifact from 4.1.3 to 4.1.4 (dependabot\[bot]) [#52314](https://github.com/nodejs/node/pull/52314)
+* \[[`4a24d92a45`](https://github.com/nodejs/node/commit/4a24d92a45)] - **meta**: bump actions/upload-artifact from 4.3.0 to 4.3.1 (dependabot\[bot]) [#51941](https://github.com/nodejs/node/pull/51941)
+* \[[`655b9071b9`](https://github.com/nodejs/node/commit/655b9071b9)] - **meta**: bump actions/download-artifact from 4.1.1 to 4.1.3 (dependabot\[bot]) [#51938](https://github.com/nodejs/node/pull/51938)
+* \[[`0e6ad795aa`](https://github.com/nodejs/node/commit/0e6ad795aa)] - **meta**: bump actions/download-artifact from 4.1.0 to 4.1.1 (dependabot\[bot]) [#51644](https://github.com/nodejs/node/pull/51644)
+* \[[`61babc5037`](https://github.com/nodejs/node/commit/61babc5037)] - **meta**: bump actions/upload-artifact from 4.0.0 to 4.3.0 (dependabot\[bot]) [#51643](https://github.com/nodejs/node/pull/51643)
+* \[[`8b16d80029`](https://github.com/nodejs/node/commit/8b16d80029)] - **meta**: update artifact actions to v4 (Michaël Zasso) [#51219](https://github.com/nodejs/node/pull/51219)
+* \[[`d47e8cb86d`](https://github.com/nodejs/node/commit/d47e8cb86d)] - **test**: do not use deprecated import assertions (Antoine du Hamel) [#55873](https://github.com/nodejs/node/pull/55873)
+* \[[`06c523d693`](https://github.com/nodejs/node/commit/06c523d693)] - **test**: mark `test-inspector-stop-profile-after-done` as flaky (Antoine du Hamel) [#57001](https://github.com/nodejs/node/pull/57001)
+* \[[`dafea86962`](https://github.com/nodejs/node/commit/dafea86962)] - **test**: mark `test-perf-hooks` as flaky on macOS (Antoine du Hamel) [#57001](https://github.com/nodejs/node/pull/57001)
+* \[[`8e53f1f43d`](https://github.com/nodejs/node/commit/8e53f1f43d)] - **test**: mark test-inspector-multisession-ws as flaky (Antoine du Hamel) [#57001](https://github.com/nodejs/node/pull/57001)
+* \[[`350eb50bbe`](https://github.com/nodejs/node/commit/350eb50bbe)] - **test**: mark `test-performance-function` as flaky (Antoine du Hamel) [#57001](https://github.com/nodejs/node/pull/57001)
+* \[[`a1f428a343`](https://github.com/nodejs/node/commit/a1f428a343)] - **test**: skip `test-perf-hooks` on SmartOS (Antoine du Hamel) [#57001](https://github.com/nodejs/node/pull/57001)
+* \[[`199f52fcc0`](https://github.com/nodejs/node/commit/199f52fcc0)] - **test**: make test-crypto-hash compatible with OpenSSL > 3.4.0 (Jelle van der Waa) [#56160](https://github.com/nodejs/node/pull/56160)
+* \[[`b08ce67d48`](https://github.com/nodejs/node/commit/b08ce67d48)] - **test**: compare paths on Windows without considering case (Early Riser) [#53993](https://github.com/nodejs/node/pull/53993)
+* \[[`6e84d211a1`](https://github.com/nodejs/node/commit/6e84d211a1)] - **test**: deflake test-perf-hooks.js (Joyee Cheung) [#49892](https://github.com/nodejs/node/pull/49892)
+* \[[`a7f565fc7f`](https://github.com/nodejs/node/commit/a7f565fc7f)] - **tools**: fix failing `lint-sh` workflow (Antoine du Hamel) [#56995](https://github.com/nodejs/node/pull/56995)
 
 <a id="18.20.6"></a>
 

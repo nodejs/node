@@ -28,6 +28,11 @@ long PKCS7_ctrl(PKCS7 *p7, int cmd, long larg, char *parg)
     /* NOTE(emilia): does not support detached digested data. */
     case PKCS7_OP_SET_DETACHED_SIGNATURE:
         if (nid == NID_pkcs7_signed) {
+            if (p7->d.sign == NULL) {
+                ERR_raise(ERR_LIB_PKCS7, PKCS7_R_NO_CONTENT);
+                ret = 0;
+                break;
+            }
             ret = p7->detached = (int)larg;
             if (ret && PKCS7_type_is_data(p7->d.sign->contents)) {
                 ASN1_OCTET_STRING *os;

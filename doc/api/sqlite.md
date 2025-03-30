@@ -77,20 +77,24 @@ console.log(query.all());
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: v23.10.0
+    pr-url: https://github.com/nodejs/node/pull/56991
+    description: The `path` argument now supports Buffer and URL objects.
 -->
 
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
-### `new DatabaseSync(location[, options])`
+### `new DatabaseSync(path[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-* `location` {string} The location of the database. A SQLite database can be
+* `path` {string | Buffer | URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
-  the location should be a file path. To use an in-memory database, the location
+  the path should be a file path. To use an in-memory database, the path
   should be the special name `':memory:'`.
 * `options` {Object} Configuration options for the database connection. The
   following options are supported:
@@ -194,13 +198,21 @@ added:
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
 
+### `database.isOpen`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} Whether the database is currently open or not.
+
 ### `database.open()`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-Opens the database specified in the `location` argument of the `DatabaseSync`
+Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
@@ -264,7 +276,7 @@ added:
     applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
-* Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
+* Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
@@ -286,6 +298,17 @@ const changeset = session.changeset();
 targetDb.applyChangeset(changeset);
 // Now that the changeset has been applied, targetDb contains the same data as sourceDb.
 ```
+
+### `database[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Closes the database connection. If the database connection is already closed
+then this is a no-op.
 
 ## Class: `Session`
 
@@ -368,6 +391,34 @@ This method executes a prepared statement and returns all results as an array of
 objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`.
+
+### `statement.columns()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Array} An array of objects. Each object corresponds to a column
+  in the prepared statement, and contains the following properties:
+
+  * `column`: {string|null} The unaliased name of the column in the origin
+    table, or `null` if the column is the result of an expression or subquery.
+    This property is the result of [`sqlite3_column_origin_name()`][].
+  * `database`: {string|null} The unaliased name of the origin database, or
+    `null` if the column is the result of an expression or subquery. This
+    property is the result of [`sqlite3_column_database_name()`][].
+  * `name`: {string} The name assigned to the column in the result set of a
+    `SELECT` statement. This property is the result of
+    [`sqlite3_column_name()`][].
+  * `table`: {string|null} The unaliased name of the origin table, or `null` if
+    the column is the result of an expression or subquery. This property is the
+    result of [`sqlite3_column_table_name()`][].
+  * `type`: {string|null} The declared data type of the column, or `null` if the
+    column is the result of an expression or subquery. This property is the
+    result of [`sqlite3_column_decltype()`][].
+
+This method is used to retrieve information about the columns returned by the
+prepared statement.
 
 ### `statement.expandedSQL`
 
@@ -491,6 +542,17 @@ are several caveats to be aware of when enabling bare named parameters:
   statement will result in an exception as it cannot be determined how to bind
   a bare name.
 
+### `statement.setAllowUnknownNamedParameters(enabled)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `enabled` {boolean} Enables or disables support for unknown named parameters.
+
+By default, if an unknown name is encountered while binding parameters, an
+exception is thrown. This method allows unknown named parameters to be ignored.
+
 ### `statement.setReadBigInts(enabled)`
 
 <!-- YAML
@@ -534,15 +596,19 @@ exception.
 | `TEXT`    | {string}                   |
 | `BLOB`    | {TypedArray} or {DataView} |
 
-## `sqlite.backup(sourceDb, destination[, options])`
+## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
 added: v23.8.0
+changes:
+  - version: v23.10.0
+    pr-url: https://github.com/nodejs/node/pull/56991
+    description: The `path` argument now supports Buffer and URL objects.
 -->
 
 * `sourceDb` {DatabaseSync} The database to backup. The source database must be open.
-* `destination` {string} The path where the backup will be created. If the file already exists, the contents will be
-  overwritten.
+* `path` {string | Buffer | URL} The path where the backup will be created. If the file already exists,
+  the contents will be overwritten.
 * `options` {Object} Optional configuration for the backup. The
   following properties are supported:
   * `source` {string} Name of the source database. This can be `'main'` (the default primary database) or any other
@@ -679,6 +745,11 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_backup_step()`]: https://www.sqlite.org/c3ref/backup_finish.html#sqlite3backupstep
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
+[`sqlite3_column_decltype()`]: https://www.sqlite.org/c3ref/column_decltype.html
+[`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html
+[`sqlite3_column_origin_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
+[`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html

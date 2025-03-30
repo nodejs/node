@@ -54,7 +54,7 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
-const hasQuic = hasCrypto && !!process.config.variables.openssl_quic;
+const hasQuic = hasCrypto && !!process.config.variables.node_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
   // The copyright notice is relatively big and the flags could come afterwards.
@@ -855,6 +855,17 @@ function expectRequiredModule(mod, expectation, checkESModule = true) {
   assert.deepStrictEqual(clone, { ...expectation });
 }
 
+function expectRequiredTLAError(err) {
+  const message = /require\(\) cannot be used on an ESM graph with top-level await/;
+  if (typeof err === 'string') {
+    assert.match(err, /ERR_REQUIRE_ASYNC_MODULE/);
+    assert.match(err, message);
+  } else {
+    assert.strictEqual(err.code, 'ERR_REQUIRE_ASYNC_MODULE');
+    assert.match(err.message, message);
+  }
+}
+
 const common = {
   allowGlobals,
   buildType,
@@ -864,6 +875,7 @@ const common = {
   escapePOSIXShell,
   expectsError,
   expectRequiredModule,
+  expectRequiredTLAError,
   expectWarning,
   getArrayBufferViews,
   getBufferSources,

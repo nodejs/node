@@ -45,7 +45,7 @@ struct HmacConfig final : public MemoryRetainer {
   KeyObjectData key;
   ByteSource data;
   ByteSource signature;
-  const EVP_MD* digest;
+  ncrypto::Digest digest;
 
   HmacConfig() = default;
 

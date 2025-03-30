@@ -300,6 +300,9 @@ ulocimp_addLikelySubtags(const char* localeID,
                          icu::ByteSink& sink,
                          UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     icu::CharString localeBuffer = ulocimp_canonicalize(localeID, status);
     _uloc_addLikelySubtags(localeBuffer.data(), sink, status);
 }
@@ -334,6 +337,9 @@ ulocimp_minimizeSubtags(const char* localeID,
                         bool favorScript,
                         UErrorCode& status) {
     if (U_FAILURE(status)) { return; }
+    if (localeID == nullptr) {
+        localeID = uloc_getDefault();
+    }
     icu::CharString localeBuffer = ulocimp_canonicalize(localeID, status);
     _uloc_minimizeSubtags(localeBuffer.data(), sink, favorScript, status);
 }
@@ -349,7 +355,9 @@ uloc_isRightToLeft(const char *locale) {
     UErrorCode errorCode = U_ZERO_ERROR;
     icu::CharString lang;
     icu::CharString script;
-    ulocimp_getSubtags(locale, &lang, &script, nullptr, nullptr, nullptr, errorCode);
+    ulocimp_getSubtags(
+        locale == nullptr ? uloc_getDefault() : locale,
+        &lang, &script, nullptr, nullptr, nullptr, errorCode);
     if (U_FAILURE(errorCode) || script.isEmpty()) {
         // Fastpath: We know the likely scripts and their writing direction
         // for some common languages.
@@ -369,7 +377,7 @@ uloc_isRightToLeft(const char *locale) {
         if (U_FAILURE(errorCode)) {
             return false;
         }
-        ulocimp_getSubtags(likely.data(), nullptr, &script, nullptr, nullptr, nullptr, errorCode);
+        ulocimp_getSubtags(likely.toStringPiece(), nullptr, &script, nullptr, nullptr, nullptr, errorCode);
         if (U_FAILURE(errorCode) || script.isEmpty()) {
             return false;
         }
@@ -430,7 +438,7 @@ ulocimp_getRegionForSupplementalData(const char *localeID, bool inferRegion,
     icu::CharString rgBuf = GetRegionFromKey(localeID, "rg", status);
     if (U_SUCCESS(status) && rgBuf.isEmpty()) {
         // No valid rg keyword value, try for unicode_region_subtag
-        rgBuf = ulocimp_getRegion(localeID, status);
+        rgBuf = ulocimp_getRegion(localeID == nullptr ? uloc_getDefault() : localeID, status);
         if (U_SUCCESS(status) && rgBuf.isEmpty() && inferRegion) {
             // Second check for sd keyword value
             rgBuf = GetRegionFromKey(localeID, "sd", status);
@@ -439,7 +447,7 @@ ulocimp_getRegionForSupplementalData(const char *localeID, bool inferRegion,
                 UErrorCode rgStatus = U_ZERO_ERROR;
                 icu::CharString locBuf = ulocimp_addLikelySubtags(localeID, rgStatus);
                 if (U_SUCCESS(rgStatus)) {
-                    rgBuf = ulocimp_getRegion(locBuf.data(), status);
+                    rgBuf = ulocimp_getRegion(locBuf.toStringPiece(), status);
                 }
             }
         }
