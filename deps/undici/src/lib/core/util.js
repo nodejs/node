@@ -13,7 +13,7 @@ const { InvalidArgumentError } = require('./errors')
 const { headerNameLowerCasedRecord } = require('./constants')
 const { tree } = require('./tree')
 
-const [nodeMajor, nodeMinor] = process.versions.node.split('.').map(v => Number(v))
+const [nodeMajor, nodeMinor] = process.versions.node.split('.', 2).map(v => Number(v))
 
 class BodyAsyncIterable {
   constructor (body) {

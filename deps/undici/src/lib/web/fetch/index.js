@@ -309,7 +309,9 @@ function finalizeAndReportTiming (response, initiatorType = 'other') {
     originalURL.href,
     initiatorType,
     globalThis,
-    cacheState
+    cacheState,
+    '', // bodyType
+    response.status
   )
 }
 
@@ -994,7 +996,7 @@ function fetchFinale (fetchParams, response) {
     // 3. Set fetchParams’s controller’s report timing steps to the following steps given a global object global:
     fetchParams.controller.reportTimingSteps = () => {
       // 1. If fetchParams’s request’s URL’s scheme is not an HTTP(S) scheme, then return.
-      if (fetchParams.request.url.protocol !== 'https:') {
+      if (!urlIsHttpHttpsScheme(fetchParams.request.url)) {
         return
       }
 
@@ -1036,7 +1038,6 @@ function fetchFinale (fetchParams, response) {
       //    fetchParams’s request’s URL, fetchParams’s request’s initiator type, global, cacheState, bodyInfo,
       //    and responseStatus.
       if (fetchParams.request.initiatorType != null) {
-        // TODO: update markresourcetiming
         markResourceTiming(timingInfo, fetchParams.request.url.href, fetchParams.request.initiatorType, globalThis, cacheState, bodyInfo, responseStatus)
       }
     }
