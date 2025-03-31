@@ -7,6 +7,28 @@ const { describe, it } = require('node:test');
 
 const repl = require('repl');
 
+function getReplOutput(input, replOptions, run = true) {
+  const inputStream = new ArrayStream();
+  const outputStream = new ArrayStream();
+
+  repl.start({
+    input: inputStream,
+    output: outputStream,
+    ...replOptions,
+  });
+
+  let output = '';
+  outputStream.write = (chunk) => (output += chunk);
+
+  inputStream.emit('data', input);
+
+  if (run) {
+    inputStream.run(['']);
+  }
+
+  return output;
+}
+
 describe('repl with custom eval', () => {
   it('uses the custom eval function as expected', () => {
     const output = getReplOutput('Convert this to upper case', {
@@ -108,25 +130,3 @@ describe('repl with custom eval', () => {
     );
   });
 });
-
-function getReplOutput(input, replOptions, run = true) {
-  const inputStream = new ArrayStream();
-  const outputStream = new ArrayStream();
-
-  repl.start({
-    input: inputStream,
-    output: outputStream,
-    ...replOptions,
-  });
-
-  let output = '';
-  outputStream.write = (chunk) => (output += chunk);
-
-  inputStream.emit('data', input);
-
-  if (run) {
-    inputStream.run(['']);
-  }
-
-  return output;
-}
