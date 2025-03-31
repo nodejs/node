@@ -53,6 +53,9 @@ export default [
     // We want to lint only a few specific fixtures folders
     'test/fixtures/*',
     '!test/fixtures/console',
+    '!test/fixtures/source-map',
+    'test/fixtures/source-map/*',
+    '!test/fixtures/source-map/output',
     '!test/fixtures/v8',
     '!test/fixtures/vm',
   ]),

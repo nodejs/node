@@ -13,10 +13,13 @@ async function Throw() {
   throw new Error('message')
 }
 
+// eslint-disable-next-line node-core/async-iife-no-unused-result
 (async function main() {
   await Promise.all([0, 1, 2, Throw()]);
 })()
 
 // To recreate:
 //
-// npx --package typescript tsc --module nodenext --target esnext --outDir test/fixtures/source-map/output --sourceMap test/fixtures/source-map/output/source_map_throw_async_stack_trace.mts
+// npx --package typescript tsc --module nodenext --target esnext
+//   --outDir test/fixtures/source-map/output
+//   --sourceMap test/fixtures/source-map/output/source_map_throw_async_stack_trace.mts
