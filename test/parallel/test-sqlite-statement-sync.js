@@ -49,7 +49,6 @@ suite('StatementSync.prototype.get()', () => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const stmt = db.prepare('SELECT 1 as __proto__, 2 as constructor, 3 as toString');
-    // eslint-disable-next-line no-dupe-keys
     t.assert.deepStrictEqual(stmt.get(), { __proto__: null, ['__proto__']: 1, constructor: 2, toString: 3 });
   });
 });
