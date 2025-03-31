@@ -55,3 +55,21 @@ async function test(isSetAutoAttachBeforeExecution) {
 
 test(true);
 test(false);
+
+function withPermissionOptionTest() {
+  const permissionErrorThrow = common.mustCall();
+  const child = new NodeInstance(['--inspect-brk=0', '--experimental-worker-inspection', '--permission'],
+                                 '',
+                                 fixtures.path('inspect-worker/index.js'),
+                                 {
+                                   log: (_, msg) => {
+                                     if (msg.includes('Access to this API has been restricted')) {
+                                       permissionErrorThrow();
+                                     }
+                                   },
+                                   error: () => {},
+                                 }
+  );
+  child.connectInspectorSession();
+}
+withPermissionOptionTest();
