@@ -1140,7 +1140,7 @@ Enable experimental [`Web Storage`][] support.
 
 <!-- YAML
 added:
-  - v22.13.1
+  - REPLACEME
 -->
 
 > Stability: 1.1 - Active Development
