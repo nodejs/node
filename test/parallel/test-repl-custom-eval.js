@@ -101,7 +101,7 @@ describe('repl with custom eval', () => {
       preview: true,
     }, false);
 
-    const escapedInput = input.replace(/\+/g, '\\+');
+    const escapedInput = input.replace(/\+/g, '\\+'); // TODO: migrate to `RegExp.escape` when it's available.
     assert.match(
       output,
       new RegExp(`${escapedInput}\n// 'Hello custom eval World!'`)
