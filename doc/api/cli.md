@@ -1143,7 +1143,7 @@ added:
   - v22.13.1
 -->
 
-> Stability: 1 - Experimental
+> Stability: 1.1 - Active Development
 
 Enable experimental support for the worker inspection with Chrome DevTools.
 
