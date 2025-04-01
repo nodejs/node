@@ -19,16 +19,16 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-
+/* eslint-disable @stylistic/js/indent, @stylistic/js/no-tabs */
 'use strict';
 require('../../common');
 
 console.error('before');
 
 (function() {
-  // These lines should contain tab!
-  // eslint-disable-next-line no-throw-literal
-  throw ({ foo: 'bar' });
+	// These lines should contain tab!
+	// eslint-disable-next-line no-throw-literal
+	throw ({ foo: 'bar' });
 })();
 
 console.error('after');
