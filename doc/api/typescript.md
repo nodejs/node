@@ -12,7 +12,7 @@ changes:
 
 <!--introduced_in=v22.6.0-->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 ## Enabling
 
