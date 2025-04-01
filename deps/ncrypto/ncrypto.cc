@@ -215,7 +215,7 @@ Buffer<void> DataPointer::release() {
 DataPointer DataPointer::resize(size_t len) {
   size_t actual_len = std::min(len_, len);
   auto buf = release();
-  if (actual_len == len_) return DataPointer(buf);
+  if (actual_len == len_) return DataPointer(buf.data, actual_len);
   buf.data = OPENSSL_realloc(buf.data, actual_len);
   buf.len = actual_len;
   return DataPointer(buf);
