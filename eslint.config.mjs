@@ -29,7 +29,7 @@ nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.u
 function filterFilesInDir(dirpath, filterFn) {
   return readdirSync(dirpath)
     .filter(filterFn)
-    .map((f) => `${dirpath}/${f}`)
+    .map((f) => `${dirpath}/${f}`);
 }
 
 // The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
@@ -66,7 +66,7 @@ export default [
     ...filterFilesInDir(
       'test/fixtures/source-map/output',
       // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
-      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts'))
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')),
     ),
     '!test/fixtures/v8',
     '!test/fixtures/vm',
