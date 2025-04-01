@@ -26,6 +26,12 @@ const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugi
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
 
+function filterFilesInDir(dirpath, filterFn) {
+  return readdirSync(dirpath)
+    .filter(filterFn)
+    .map((f) => `${dirpath}/${f}`)
+}
+
 // The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
 // dynamically load extra modules that we install with it.
 const ModuleResolveFilename = Module._resolveFilename;
@@ -57,10 +63,11 @@ export default [
     '!test/fixtures/source-map',
     'test/fixtures/source-map/*',
     '!test/fixtures/source-map/output',
-    ...readdirSync('test/fixtures/source-map/output')
-      // We don't want to lint tsc output files
-      .filter((f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')))
-      .map((f) => `test/fixtures/source-map/output/${f}`),
+    ...filterFilesInDir(
+      'test/fixtures/source-map/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts'))
+    ),
     '!test/fixtures/v8',
     '!test/fixtures/vm',
   ]),
