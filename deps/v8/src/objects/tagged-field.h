@@ -23,7 +23,8 @@ class TaggedMember;
 
 // Base class for all TaggedMember<T> classes.
 // TODO(leszeks): Merge with TaggedImpl.
-using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::STRONG, Tagged_t>;
+// TODO(leszeks): Maybe split STRONG and WEAK bases.
+using TaggedMemberBase = TaggedImpl<HeapObjectReferenceType::WEAK, Tagged_t>;
 
 template <typename T, typename CompressionScheme>
 class TaggedMember : public TaggedMemberBase {
@@ -33,13 +34,32 @@ class TaggedMember : public TaggedMemberBase {
   inline Tagged<T> load() const;
   inline void store(HeapObjectLayout* host, Tagged<T> value,
                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void store_no_write_barrier(Tagged<T> value);
 
   inline Tagged<T> Relaxed_Load() const;
-
- private:
-  inline void store_no_write_barrier(Tagged<T> value);
+  inline void Relaxed_Store(HeapObjectLayout* host, Tagged<T> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
   inline void Relaxed_Store_no_write_barrier(Tagged<T> value);
 
+  inline Tagged<T> Acquire_Load() const;
+  inline void Release_Store(HeapObjectLayout* host, Tagged<T> value,
+                            WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void Release_Store_no_write_barrier(Tagged<T> value);
+
+  inline Tagged<T> SeqCst_Load() const;
+  inline void SeqCst_Store(HeapObjectLayout* host, Tagged<T> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void SeqCst_Store_no_write_barrier(Tagged<T> value);
+
+  inline Tagged<T> SeqCst_Swap(HeapObjectLayout* host, Tagged<T> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline Tagged<T> SeqCst_CompareAndSwap(
+      HeapObjectLayout* host, Tagged<T> expected_value, Tagged<T> value,
+      WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+ private:
+  inline void WriteBarrier(HeapObjectLayout* host, Tagged<T> value,
+                           WriteBarrierMode mode);
   static inline Address tagged_to_full(Tagged_t tagged_value);
   static inline Tagged_t full_to_tagged(Address value);
 };
@@ -101,10 +121,12 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 #define FLEXIBLE_ARRAY_MEMBER(Type, name)                     \
   using FlexibleDataReturnType = Type[0];                     \
   FlexibleDataReturnType& name() {                            \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<ReturnType&>(*(this + 1));        \
   }                                                           \
   const FlexibleDataReturnType& name() const {                \
+    static_assert(alignof(Type) <= alignof(decltype(*this))); \
     using ReturnType = Type[0];                               \
     return reinterpret_cast<const ReturnType&>(*(this + 1));  \
   }                                                           \
@@ -140,7 +162,7 @@ static_assert(sizeof(UnalignedDoubleMember) == sizeof(double));
 #if V8_CC_MSVC && !defined(__clang__)
 #define OFFSET_OF_DATA_START(Type) sizeof(Type)
 #else
-#define OFFSET_OF_DATA_START(Type) Type::OffsetOfDataStart<Type>()
+#define OFFSET_OF_DATA_START(Type) Type::template OffsetOfDataStart<Type>()
 #endif
 
 // This helper static class represents a tagged field of type T at offset
@@ -213,6 +235,8 @@ class TaggedField : public AllStatic {
                                     PtrType value);
 
   static inline Tagged_t Release_CompareAndSwap(Tagged<HeapObject> host,
+                                                PtrType old, PtrType value);
+  static inline Tagged_t Relaxed_CompareAndSwap(Tagged<HeapObject> host,
                                                 PtrType old, PtrType value);
   static inline PtrType SeqCst_CompareAndSwap(Tagged<HeapObject> host,
                                               int offset, PtrType old,
