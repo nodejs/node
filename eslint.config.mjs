@@ -14,6 +14,7 @@ import {
 } from './tools/eslint/eslint.config_utils.mjs';
 import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 
+const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
@@ -39,19 +40,22 @@ Module._resolveFilename = (request, parent, isMain, options) => {
 
 export default [
   // #region ignores
-  {
-    ignores: [
-      '**/node_modules/**',
-      'benchmark/fixtures/**',
-      'benchmark/tmp/**',
-      'doc/changelogs/CHANGELOG_V1*.md',
-      '!doc/changelogs/CHANGELOG_V18.md',
-      'lib/punycode.js',
-      'test/.tmp.*/**',
-      'test/addons/??_*',
-      'test/fixtures/**',
-    ],
-  },
+  globalIgnores([
+    '**/node_modules/**',
+    'benchmark/fixtures/**',
+    'benchmark/tmp/**',
+    'doc/changelogs/CHANGELOG_V1*.md',
+    '!doc/changelogs/CHANGELOG_V18.md',
+    'lib/punycode.js',
+    'test/.tmp.*/**',
+    'test/addons/??_*',
+
+    // We want to lint only a few specific fixtures folders
+    'test/fixtures/*',
+    '!test/fixtures/console',
+    '!test/fixtures/v8',
+    '!test/fixtures/vm',
+  ]),
   // #endregion
   // #region general config
   js.configs.recommended,
