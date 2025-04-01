@@ -316,7 +316,7 @@ class KVStore {
                         v8::Local<v8::String> key) const = 0;
   virtual int32_t Query(const char* key) const = 0;
   virtual void Delete(v8::Isolate* isolate, v8::Local<v8::String> key) = 0;
-  virtual v8::Local<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
+  virtual v8::MaybeLocal<v8::Array> Enumerate(v8::Isolate* isolate) const = 0;
 
   virtual std::shared_ptr<KVStore> Clone(v8::Isolate* isolate) const;
   virtual v8::Maybe<void> AssignFromObject(v8::Local<v8::Context> context,
