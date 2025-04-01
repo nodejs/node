@@ -1009,6 +1009,8 @@ struct InstructionSelectorT<Adapter>::CachedStateValues : public ZoneObject {
 
 template <>
 class InstructionSelectorT<TurbofanAdapter>::CachedStateValuesBuilder {
+  using StateObjectDeduplicator = InstructionSelectorT<TurbofanAdapter>::StateObjectDeduplicator;
+
  public:
   explicit CachedStateValuesBuilder(StateValueList* values,
                                     InstructionOperandVector* inputs,
