@@ -3329,7 +3329,7 @@ relied upon to exist.
 ## `process.execve(file[, args[, env]])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.11.0
 -->
 
 > Stability: 1 - Experimental
