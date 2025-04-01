@@ -252,19 +252,14 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc =
-      StringBytes::Encode(env->isolate(),
+  Local<Value> ret;
+  if (StringBytes::Encode(env->isolate(),
                           static_cast<const char*>(output.get()),
                           output.size(),
-                          output_enc,
-                          &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+                          output_enc)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
@@ -410,15 +405,12 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     hash->digest_ = ByteSource::Allocated(data.release());
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc = StringBytes::Encode(
-      env->isolate(), hash->digest_.data<char>(), len, encoding, &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+  Local<Value> ret;
+  if (StringBytes::Encode(
+          env->isolate(), hash->digest_.data<char>(), len, encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HashConfig::HashConfig(HashConfig&& other) noexcept
@@ -541,19 +533,14 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (digest_size != expected.size() ||
       CRYPTO_memcmp(digest, expected.data(), digest_size) != 0) {
-    Local<Value> error;
-    MaybeLocal<Value> rc =
-        StringBytes::Encode(env->isolate(),
+    Local<Value> ret;
+    if (StringBytes::Encode(env->isolate(),
                             reinterpret_cast<const char*>(digest),
                             digest_size,
-                            BASE64,
-                            &error);
-    if (rc.IsEmpty()) [[unlikely]] {
-      CHECK(!error.IsEmpty());
-      env->isolate()->ThrowException(error);
-      return;
+                            BASE64)
+            .ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
 }  // namespace crypto
