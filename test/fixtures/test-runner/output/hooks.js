@@ -141,7 +141,8 @@ test('test hooks', async (t) => {
       'beforeEach nested',
       'nested before nested',
       'beforeEach nested 1', 'nested beforeEach nested 1', 'nested1', 'nested afterEach nested 1', 'afterEach nested 1',
-      'beforeEach nested 2', 'nested beforeEach nested 2', 'nested2', 'nested afterEach nested 2', 'afterEach nested 2',
+      // eslint-disable-next-line @stylistic/js/max-len
+      'beforeEach nested 2', 'nested beforeEach nested 2', 'nested 2', 'nested afterEach nested 2', 'afterEach nested 2',
       'afterEach nested',
       'nested after nested',
       'after test hooks',
