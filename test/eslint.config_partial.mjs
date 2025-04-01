@@ -138,7 +138,7 @@ export default [
   },
   {
     files: [
-      'test/{common,wpt}/**/*.{js,mjs,cjs}',
+      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {
