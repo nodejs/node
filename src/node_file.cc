@@ -2239,8 +2239,19 @@ static void OpenFileHandle(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(argc, 5);
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(open);
-    int result = SyncCall(env, args[4], &req_wrap_sync, "open",
-                          uv_fs_open, *path, flags, mode);
+    int result;
+    if (!SyncCall(env,
+                  args[4],
+                  &req_wrap_sync,
+                  "open",
+                  uv_fs_open,
+                  *path,
+                  flags,
+                  mode)
+             .To(&result)) {
+      // v8 error occurred while setting the context. propagate!
+      return;
+    }
     FS_SYNC_TRACE_END(open);
     if (result < 0) {
       return;  // syscall failed, no need to continue, error info is in ctx
@@ -2356,8 +2367,20 @@ static void WriteBuffer(const FunctionCallbackInfo<Value>& args) {
     CHECK_EQ(argc, 7);
     FSReqWrapSync req_wrap_sync;
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[6], &req_wrap_sync, "write",
-                                uv_fs_write, fd, &uvbuf, 1, pos);
+    int bytesWritten;
+    if (!SyncCall(env,
+                  args[6],
+                  &req_wrap_sync,
+                  "write",
+                  uv_fs_write,
+                  fd,
+                  &uvbuf,
+                  1,
+                  pos)
+             .To(&bytesWritten)) {
+      FS_SYNC_TRACE_END(write, "bytesWritten", 0);
+      return;
+    }
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
     args.GetReturnValue().Set(bytesWritten);
   }
@@ -2515,8 +2538,20 @@ static void WriteString(const FunctionCallbackInfo<Value>& args) {
     uv_buf_t uvbuf = uv_buf_init(buf, len);
     FSReqWrapSync req_wrap_sync("write");
     FS_SYNC_TRACE_BEGIN(write);
-    int bytesWritten = SyncCall(env, args[5], &req_wrap_sync, "write",
-                                uv_fs_write, fd, &uvbuf, 1, pos);
+    int bytesWritten;
+    if (!SyncCall(env,
+                  args[5],
+                  &req_wrap_sync,
+                  "write",
+                  uv_fs_write,
+                  fd,
+                  &uvbuf,
+                  1,
+                  pos)
+             .To(&bytesWritten)) {
+      FS_SYNC_TRACE_END(write, "bytesWritten", 0);
+      return;
+    }
     FS_SYNC_TRACE_END(write, "bytesWritten", bytesWritten);
     args.GetReturnValue().Set(bytesWritten);
   }
