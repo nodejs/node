@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import Module from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -56,6 +57,10 @@ export default [
     '!test/fixtures/source-map',
     'test/fixtures/source-map/*',
     '!test/fixtures/source-map/output',
+    ...readdirSync('test/fixtures/source-map/output')
+      // We don't want to lint tsc output files
+      .filter((f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')))
+      .map((f) => `test/fixtures/source-map/output/${f}`),
     '!test/fixtures/v8',
     '!test/fixtures/vm',
   ]),
