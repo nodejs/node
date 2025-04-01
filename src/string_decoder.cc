@@ -211,8 +211,8 @@ MaybeLocal<String> StringDecoder::DecodeData(Isolate* isolate,
         size_t buffered = BufferedBytes();
         // Copy the requested number of buffered bytes from the end of the
         // input into the incomplete character buffer.
-        nread -= BufferedBytes();
-        *nread_ptr -= BufferedBytes();
+        nread -= buffered;
+        *nread_ptr -= buffered;
         memcpy(IncompleteCharacterBuffer(), data + nread, buffered);
       }
 
