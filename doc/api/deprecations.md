@@ -1545,6 +1545,9 @@ removed. Please use `sloppy` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57551
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/24167
     description: Runtime deprecation.
@@ -1553,7 +1556,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:http` module `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties are deprecated. Use one of
