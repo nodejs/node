@@ -267,6 +267,8 @@
         '<(ABSEIL_ROOT)/absl/synchronization/internal/waiter.h',
         '<(ABSEIL_ROOT)/absl/synchronization/internal/waiter_base.h',
         '<(ABSEIL_ROOT)/absl/synchronization/internal/waiter_base.cc',
+        '<(ABSEIL_ROOT)/absl/synchronization/internal/win32_waiter.h',
+        '<(ABSEIL_ROOT)/absl/synchronization/internal/win32_waiter.cc',
         '<(ABSEIL_ROOT)/absl/synchronization/mutex.h',
         '<(ABSEIL_ROOT)/absl/synchronization/mutex.cc',
         '<(ABSEIL_ROOT)/absl/time/civil_time.h',
