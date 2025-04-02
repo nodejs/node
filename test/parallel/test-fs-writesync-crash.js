@@ -27,10 +27,11 @@ writeFileSync(path, '');
 
 // Do this after calling tmpdir.refresh() or that call will fail
 // before we get to the part we want to test.
+const error = new Error();
 Object.defineProperty(Object.prototype, 'errno', {
   __proto__: null,
   set() {
-    throw new Error('error');
+    throw error;
   },
   get() { return 0; }
 });
@@ -38,6 +39,4 @@ Object.defineProperty(Object.prototype, 'errno', {
 const fd = openSync(path);
 chmodSync(path, 0o600);
 
-throws(() => writeSync(fd, 'test'), {
-  message: 'error',
-});
+throws(() => writeSync(fd, 'test'), error);
