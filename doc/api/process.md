@@ -578,6 +578,10 @@ address such failures, a non-operational
 `resource.loaded`, which would prevent the `'unhandledRejection'` event from
 being emitted.
 
+If an `'unhandledRejection'` event is emitted but not handled it will
+be raised as an uncaught exception. This alongside other behaviors of
+`'unhandledRejection'` events can changed via the [`--unhandled-rejections`][] flag.
+
 ### Event: `'warning'`
 
 <!-- YAML
