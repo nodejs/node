@@ -2,7 +2,7 @@
 
 Extends: `undici.Dispatcher`
 
-Agent allow dispatching requests against multiple different origins.
+Agent allows dispatching requests against multiple different origins.
 
 Requests are not guaranteed to be dispatched in order of invocation.
 

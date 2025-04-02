@@ -3869,7 +3869,7 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/57199
     description: Runtime deprecation.
   - version:
-    - REPLACEME
+    - v23.11.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->

@@ -97,7 +97,7 @@ function safeUrl (path) {
     return path
   }
 
-  const pathSegments = path.split('?')
+  const pathSegments = path.split('?', 3)
 
   if (pathSegments.length !== 2) {
     return path
