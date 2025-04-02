@@ -4,8 +4,7 @@ import { test } from 'node:test';
 
 const testArguments = [
   '--test',
-  '--test-reporter=spec',
-  '--experimental-test-isolation=none',
+  '--test-isolation=none',
 ];
 
 const testFiles = [
@@ -46,22 +45,20 @@ const order = [
   'after two: <root>',
 ].join('\n');
 
-test('use --import (CJS) to define global hooks', async (t) => {
+/**
+ * TODO: The `--require` flag is processed in `loadPreloadModules` (process/pre_execution.js) BEFORE
+ * the root test is created by the test runner. This causes a global `before` hook to register (and
+ * run) but then the root test-case is created, causing the "subsequent" hooks to get lost. This
+ * behaviour (CJS route only) is different from the ESM route, where test runner explicitly handles
+ * `--import` in `root.runInAsyncScope` (test_runner/runner.js).
+ * @see https://github.com/nodejs/node/pull/57595#issuecomment-2770724492
+ * @see https://github.com/nodejs/node/issues/57728
+ * Moved from test/parallel/test-runner-no-isolation-hooks.mjs
+ */
+test('use --require to define global hooks', async (t) => {
   const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.cjs'),
-    ...testFiles,
-  ]);
-
-  const testHookOutput = stdout.split('\n▶')[0];
-
-  t.assert.equal(testHookOutput, order);
-});
-
-test('use --import (ESM) to define global hooks', async (t) => {
-  const { stdout } = await common.spawnPromisified(process.execPath, [
-    ...testArguments,
-    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.mjs'),
+    '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.cjs'),
     ...testFiles,
   ]);
 
