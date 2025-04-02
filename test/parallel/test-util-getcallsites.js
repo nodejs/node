@@ -48,6 +48,11 @@ const assert = require('node:assert');
     code: 'ERR_OUT_OF_RANGE'
   }));
   assert.throws(() => {
+    getCallSites(0.5);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  assert.throws(() => {
     getCallSites(-1);
   }, common.expectsError({
     code: 'ERR_OUT_OF_RANGE'
