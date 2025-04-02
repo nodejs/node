@@ -29,7 +29,7 @@ const assert = require('node:assert');
   );
 }
 
-// Guarantee dot-left numbers are ignored
+// Guarantee dot-right numbers are ignored
 {
   const callSites = getCallSites(3.6);
   assert.strictEqual(callSites.length, 3);
