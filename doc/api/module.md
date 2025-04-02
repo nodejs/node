@@ -74,8 +74,9 @@ added: REPLACEME
 
 > Stability: 1.0 - Early development
 
-The `module.detectSyntax()` method attempts to determine the syntax of agiven source code string.
-This detection is performed without executing the code, relying on file extensions, or checking the type field in `package.json`.
+The `module.detectSyntax()` method attempts to determine the syntax of a given source code string.
+This detection is performed only by parsing the source code; there is no evaluation or reading of file extensions
+or reading of `package.json` files.
 Only TypeScript syntax that can be erased is supported.
 
 * `code` {string} The code to detect the syntax of.
