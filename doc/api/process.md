@@ -2056,7 +2056,7 @@ added:
  - v22.10.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * {boolean|string}
 
