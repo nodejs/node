@@ -480,10 +480,9 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
            i++) {
         WCHAR module_name[MAX_PATH];
         // Obtain and report the full pathname for each module
-        if (GetModuleFileNameExW(process_handle,
-                                 modules.data[i],
-                                 module_name,
-                                 arraysize(module_name) / sizeof(WCHAR))) {
+        if (GetModuleFileNameW(modules.data[i],
+                               module_name,
+                               arraysize(module_name) / sizeof(WCHAR))) {
           DWORD size = WideCharToMultiByte(
               CP_UTF8, 0, module_name, -1, nullptr, 0, nullptr, nullptr);
           char* str = new char[size];
