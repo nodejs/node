@@ -275,12 +275,10 @@ test('the error message should not contain extra padding', async () => {
   strictEqual(result.stdout, '');
   // Windows uses \r\n as line endings
   const lines = result.stderr.replace(/\r\n/g, '\n').split('\n');
-  // The extra padding at the end should not be present
-  strictEqual(lines[0], '[eval]:1   ');
-  // The extra padding at the beginning should not be present
-  strictEqual(lines[2], '     declare module F { export type x = number }');
-  strictEqual(lines[3], '             ^^^^^^^^');
-  strictEqual(lines[5], 'SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]:' +
+  strictEqual(lines[0], '[eval]:1');
+  strictEqual(lines[1], 'declare module F { export type x = number }');
+  strictEqual(lines[2], '        ^^^^^^^^');
+  strictEqual(lines[4], 'SyntaxError [ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX]:' +
     ' `module` keyword is not supported. Use `namespace` instead.');
   strictEqual(result.code, 1);
 });

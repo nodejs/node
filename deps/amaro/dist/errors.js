@@ -3,7 +3,9 @@ export function isSwcError(error) {
   return error.code !== void 0;
 }
 export function wrapAndReThrowSwcError(error) {
-  const errorHints = `${error.filename}:${error.startLine}${error.snippet}`;
+  const errorHints = `${error.filename}:${error.startLine}
+${error.snippet}
+`;
   switch (error.code) {
     case "UnsupportedSyntax": {
       const unsupportedSyntaxError = new Error(error.message);
