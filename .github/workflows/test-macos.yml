@@ -58,7 +58,7 @@ jobs:
       - name: Set up Xcode ${{ env.XCODE_VERSION }}
         run: sudo xcode-select -s /Applications/Xcode_${{ env.XCODE_VERSION }}.app
       - name: Set up sccache
-        uses: Mozilla-Actions/sccache-action@65101d47ea8028ed0c98a1cdea8dd9182e9b5133  # v0.0.8
+        uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
           version: v0.10.0
       - name: Environment Information
