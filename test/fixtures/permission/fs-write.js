@@ -25,6 +25,15 @@ const relativeProtectedFolder = process.env.RELATIVEBLOCKEDFOLDER;
   assert.ok(!process.permission.has('fs.write', blockedFile));
 }
 
+// Guarantee the error message suggest the --allow-fs-write
+{
+  fs.writeFile(blockedFile, 'example', common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-fs-write to manage permissions.',
+    code: 'ERR_ACCESS_DENIED',
+    permission: 'FileSystemWrite',
+  }));
+}
+
 // fs.writeFile
 {
   assert.throws(() => {
