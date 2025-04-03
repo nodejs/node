@@ -1154,7 +1154,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 added: v22.7.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 Enables the transformation of TypeScript-only syntax into JavaScript code.
 Implies `--enable-source-maps`.
@@ -1767,7 +1767,7 @@ changes:
     description: Type stripping is enabled by default.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 Disable experimental type-stripping for TypeScript files.
 For more information, see the [TypeScript type-stripping][] documentation.
