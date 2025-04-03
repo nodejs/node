@@ -471,7 +471,7 @@ std::vector<std::string> NativeSymbolDebuggingContext::GetLoadedLibraries() {
   DWORD size_2 = 0;
   // First call to get the size of module array needed
   if (EnumProcessModules(process_handle, nullptr, 0, &size_1)) {
-    MallocedBuffer<HMODULE> modules(size_1);
+    MallocedBuffer<HMODULE> modules(size_1/sizeof(HMODULE);
 
     // Second call to populate the module array
     if (EnumProcessModules(process_handle, modules.data, size_1, &size_2)) {
