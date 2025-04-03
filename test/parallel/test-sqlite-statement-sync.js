@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 'use strict';
 require('../common');
 const tmpdir = require('../common/tmpdir');
@@ -88,7 +89,10 @@ suite('StatementSync.prototype.iterate()', () => {
     const db = new DatabaseSync(nextDb());
     t.after(() => { db.close(); });
     const stmt = db.prepare('CREATE TABLE storage(key TEXT, val TEXT)');
-    t.assert.deepStrictEqual(stmt.iterate().toArray(), []);
+    const iter = stmt.iterate();
+    t.assert.strictEqual(iter instanceof globalThis.Iterator, true);
+    t.assert.ok(iter[Symbol.iterator]);
+    t.assert.deepStrictEqual(iter.toArray(), []);
   });
 
   test('executes a query and returns all results', (t) => {
@@ -118,6 +122,53 @@ suite('StatementSync.prototype.iterate()', () => {
     for (const item of stmt.iterate()) {
       t.assert.deepStrictEqual(item, itemsLoop.shift());
     }
+  });
+
+  test('iterator keeps the prepared statement from being collected', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT, val TEXT);
+      INSERT INTO test (key, val) VALUES ('key1', 'val1');
+      INSERT INTO test (key, val) VALUES ('key2', 'val2');
+    `);
+    // Do not keep an explicit reference to the prepared statement.
+    const iterator = db.prepare('SELECT * FROM test').iterate();
+    const results = [];
+
+    global.gc();
+
+    for (const item of iterator) {
+      results.push(item);
+    }
+
+    t.assert.deepStrictEqual(results, [
+      { __proto__: null, key: 'key1', val: 'val1' },
+      { __proto__: null, key: 'key2', val: 'val2' },
+    ]);
+  });
+
+  test('iterator can be exited early', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT, val TEXT);
+      INSERT INTO test (key, val) VALUES ('key1', 'val1');
+      INSERT INTO test (key, val) VALUES ('key2', 'val2');
+    `);
+    const iterator = db.prepare('SELECT * FROM test').iterate();
+    const results = [];
+
+    for (const item of iterator) {
+      results.push(item);
+      break;
+    }
+
+    t.assert.deepStrictEqual(results, [
+      { __proto__: null, key: 'key1', val: 'val1' },
+    ]);
+    t.assert.deepStrictEqual(
+      iterator.next(),
+      { __proto__: null, done: true, value: null },
+    );
   });
 });
 
