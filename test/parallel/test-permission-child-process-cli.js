@@ -26,6 +26,7 @@ if (process.argv[2] === 'child') {
   assert.throws(() => {
     childProcess.spawn(process.execPath, ['--version']);
   }, common.expectsError({
+    message: 'Access to this API has been restricted. Use --allow-child-process to manage permissions.',
     code: 'ERR_ACCESS_DENIED',
     permission: 'ChildProcess',
   }));
