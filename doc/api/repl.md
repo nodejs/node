@@ -605,8 +605,8 @@ The `replServer.displayPrompt()` method readies the REPL instance for input
 from the user, printing the configured `prompt` to a new line in the `output`
 and resuming the `input` to accept new input.
 
-When multi-line input is being entered, the "|" character is printed rather
-than the 'prompt'.
+When multi-line input is being entered, a pipe `'|'` is printed rather than the
+'prompt'.
 
 When `preserveCursor` is `true`, the cursor placement will not be reset to `0`.
 
