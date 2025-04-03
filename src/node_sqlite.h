@@ -147,10 +147,29 @@ class StatementSync : public BaseObject {
   v8::MaybeLocal<v8::Value> ColumnToValue(const int column);
   v8::MaybeLocal<v8::Name> ColumnNameToName(const int column);
 
-  static void IterateNextCallback(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IterateReturnCallback(
-      const v8::FunctionCallbackInfo<v8::Value>& args);
+  friend class StatementSyncIterator;
+};
+
+class StatementSyncIterator : public BaseObject {
+ public:
+  StatementSyncIterator(Environment* env,
+                        v8::Local<v8::Object> object,
+                        BaseObjectPtr<StatementSync> stmt);
+  void MemoryInfo(MemoryTracker* tracker) const override;
+  static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
+      Environment* env);
+  static BaseObjectPtr<StatementSyncIterator> Create(
+      Environment* env, BaseObjectPtr<StatementSync> stmt);
+  static void Next(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Return(const v8::FunctionCallbackInfo<v8::Value>& args);
+
+  SET_MEMORY_INFO_NAME(StatementSyncIterator)
+  SET_SELF_SIZE(StatementSyncIterator)
+
+ private:
+  ~StatementSyncIterator() override;
+  BaseObjectPtr<StatementSync> stmt_;
+  bool done_;
 };
 
 using Sqlite3ChangesetGenFunc = int (*)(sqlite3_session*, int*, void**);
