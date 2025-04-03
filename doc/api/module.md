@@ -383,7 +383,7 @@ See [Customization hooks][].
 added: v22.13.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * `code` {string} The code to strip type annotations from.
 * `options` {Object}
