@@ -332,7 +332,7 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
       bad.get();
     }, {
       code: 'ERR_OUT_OF_RANGE',
-      message: /^The value of column 0 is too large.*: 9007199254740992$/,
+      message: /^Value is too large to be represented as a JavaScript number: 9007199254740992$/,
     });
     const good = db.prepare(`SELECT ${Number.MAX_SAFE_INTEGER} + 1`);
     good.setReadBigInts(true);
