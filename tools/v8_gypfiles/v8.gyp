@@ -53,6 +53,11 @@
           'BUILDING_V8_SHARED',  # Make V8_EXPORT visible.
         ],
       }],
+      ['node_target_type=="shared_library"', {
+        'defines': [
+          'V8_TLS_USED_IN_LIBRARY',  # Enable V8_TLS_LIBRARY_MODE.
+        ],
+      }],
     ],
   },
   'targets': [
