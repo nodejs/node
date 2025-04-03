@@ -1109,7 +1109,7 @@ void Stream::Acknowledge(size_t datalen) {
 }
 
 void Stream::Commit(size_t datalen) {
-  Debug(this, "Commiting %zu bytes", datalen);
+  Debug(this, "Committing %zu bytes", datalen);
   STAT_RECORD_TIMESTAMP(Stats, acked_at);
   if (outbound_) outbound_->Commit(datalen);
 }
