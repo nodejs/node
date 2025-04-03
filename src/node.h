@@ -67,7 +67,8 @@
 #endif
 
 #ifdef _WIN32
-# define SIGKILL 9
+#define SIGQUIT 3
+#define SIGKILL 9
 #endif
 
 #include "v8.h"  // NOLINT(build/include_order)
