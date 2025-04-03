@@ -25,6 +25,7 @@
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
 #include "uv.h"
+#include "v8-inspector.h"
 #include "v8.h"
 
 #include "node.h"
@@ -720,6 +721,9 @@ std::vector<std::string_view> SplitString(const std::string_view in,
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
                                            std::string_view str,
                                            v8::Isolate* isolate = nullptr);
+inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
+                                           v8_inspector::StringView str,
+                                           v8::Isolate* isolate);
 template <typename T, typename test_for_number =
     typename std::enable_if<std::numeric_limits<T>::is_specialized, bool>::type>
 inline v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
