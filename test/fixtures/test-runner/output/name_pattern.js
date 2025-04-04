@@ -82,8 +82,8 @@ describe('DescribeForMatchWithAncestors', () => {
   describe('NestedDescribeForMatchWithAncestors', () => {
     it('NestedTest', common.mustCall());
   });
-})
+});
 
 describe('DescribeForMatchWithAncestors', () => {
   it('NestedTest', () => common.mustNotCall());
-})
+});
