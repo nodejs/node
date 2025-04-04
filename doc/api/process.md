@@ -580,6 +580,10 @@ address such failures, a non-operational
 `resource.loaded`, which would prevent the `'unhandledRejection'` event from
 being emitted.
 
+If an `'unhandledRejection'` event is emitted but not handled it will
+be raised as an uncaught exception. This alongside other behaviors of
+`'unhandledRejection'` events can changed via the [`--unhandled-rejections`][] flag.
+
 ### Event: `'warning'`
 
 <!-- YAML
@@ -2052,7 +2056,7 @@ added:
  - v22.10.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 * {boolean|string}
 
@@ -3348,7 +3352,7 @@ relied upon to exist.
 ## `process.execve(file[, args[, env]])`
 
 <!-- YAML
-added: REPLACEME
+added: v23.11.0
 -->
 
 > Stability: 1 - Experimental
@@ -3370,7 +3374,7 @@ any exit or close events and without running any cleanup handler.
 
 This function will never return, unless an error occurred.
 
-This function is only available on POSIX platforms (i.e. not Windows or Android).
+This function is not available on Windows.
 
 ## `process.report`
 

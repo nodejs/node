@@ -42,9 +42,7 @@ assert.strictEqual(cat.killed, true);
 
 // Test different types of kill signals on Windows.
 if (common.isWindows) {
-  // SIGQUIT is not supported on Windows 2022, Visual Studio 2022 ClangCL-produced node.exe.
-  // TODO(StefanStojanovic): Investigate this and re-enable it when the issue is fixed.
-  for (const sendSignal of ['SIGTERM', 'SIGKILL', /* 'SIGQUIT', */'SIGINT']) {
+  for (const sendSignal of ['SIGTERM', 'SIGKILL', 'SIGQUIT', 'SIGINT']) {
     const process = spawn('cmd');
     process.on('exit', (code, signal) => {
       assert.strictEqual(code, null);
@@ -60,3 +58,23 @@ if (common.isWindows) {
   });
   process.kill('SIGHUP');
 }
+
+// Test that the process is not killed when sending a 0 signal.
+// This is a no-op signal that is used to check if the process is alive.
+const code = `const interval = setInterval(() => {}, 1000);
+process.stdin.on('data', () => { clearInterval(interval); });
+process.stdout.write('x');`;
+
+const checkProcess = spawn(process.execPath, ['-e', code]);
+
+checkProcess.on('exit', (code, signal) => {
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
+});
+
+checkProcess.stdout.on('data', common.mustCall((chunk) => {
+  assert.strictEqual(chunk.toString(), 'x');
+  checkProcess.kill(0);
+  checkProcess.stdin.write('x');
+  checkProcess.stdin.end();
+}));

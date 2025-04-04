@@ -257,7 +257,7 @@ Used to handle binary data. See the [buffer section][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -358,7 +358,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -384,7 +384,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -483,7 +483,7 @@ A browser-compatible implementation of the [`CustomEvent` Web API][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -560,6 +560,46 @@ changes:
 > Stability: 2 - Stable
 
 A browser-compatible implementation of the [`fetch()`][] function.
+
+```mjs
+const res = await fetch('https://nodejs.org/api/documentation.json');
+if (res.ok) {
+  const data = await res.json();
+  console.log(data);
+}
+```
+
+The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.1 client
+written from scratch for Node.js. You can figure out which version of `undici` is bundled
+in your Node.js process reading the `process.versions.undici` property.
+
+## Custom dispatcher
+
+You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
+The dispatcher must be compatible with `undici`'s
+[`Dispatcher` class](https://undici.nodejs.org/#/docs/api/Dispatcher.md).
+
+```js
+fetch(url, { dispatcher: new MyAgent() });
+```
+
+It is possible to change the global dispatcher in Node.js installing `undici` and using
+the `setGlobalDispatcher()` method. Calling this method will affect both `undici` and
+Node.js.
+
+```mjs
+import { setGlobalDispatcher } from 'undici';
+setGlobalDispatcher(new MyAgent());
+```
+
+## Related classes
+
+The following globals are available to use with `fetch`:
+
+* [`FormData`](https://nodejs.org/api/globals.html#class-formdata)
+* [`Headers`](https://nodejs.org/api/globals.html#class-headers)
+* [`Request`](https://nodejs.org/api/globals.html#request)
+* [`Response`](https://nodejs.org/api/globals.html#response).
 
 ## Class: `File`
 
@@ -941,7 +981,7 @@ DataHandler.prototype.load = async function load(key) {
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -953,7 +993,7 @@ A browser-compatible implementation of [`ReadableByteStreamController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -965,7 +1005,7 @@ A browser-compatible implementation of [`ReadableStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -977,7 +1017,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -989,7 +1029,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1001,7 +1041,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1170,7 +1210,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1194,7 +1234,7 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1206,7 +1246,7 @@ A browser-compatible implementation of [`TextEncoderStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1218,7 +1258,7 @@ A browser-compatible implementation of [`TransformStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1302,7 +1342,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1314,7 +1354,7 @@ A browser-compatible implementation of [`WritableStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1326,7 +1366,7 @@ A browser-compatible implementation of [`WritableStreamDefaultController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v23.11.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->

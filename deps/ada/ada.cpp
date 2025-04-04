@@ -1,4 +1,4 @@
-/* auto-generated on 2025-03-10 13:14:56 -0400. Do not edit! */
+/* auto-generated on 2025-03-30 13:24:42 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -13334,10 +13334,18 @@ result_type parse_url_impl(std::string_view user_input,
           input_position = input_size + 1;
         }
         url.has_opaque_path = true;
+
         // This is a really unlikely scenario in real world. We should not seek
         // to optimize it.
-        url.update_base_pathname(unicode::percent_encode(
-            view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        if (view.ends_with(' ')) {
+          std::string modified_view =
+              std::string(view.begin(), view.end() - 1) + "%20";
+          url.update_base_pathname(unicode::percent_encode(
+              modified_view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        } else {
+          url.update_base_pathname(unicode::percent_encode(
+              view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        }
         break;
       }
       case state::PORT: {

@@ -206,7 +206,7 @@ function parseExtensions (extensions) {
 
   while (position.position < extensions.length) {
     const pair = collectASequenceOfCodePointsFast(';', extensions, position)
-    const [name, value = ''] = pair.split('=')
+    const [name, value = ''] = pair.split('=', 2)
 
     extensionList.set(
       removeHTTPWhitespace(name, true, false),
