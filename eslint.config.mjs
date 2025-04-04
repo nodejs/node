@@ -68,6 +68,7 @@ export default [
       'test/fixtures/source-map/output',
       // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
       (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')),
+    ),
     '!test/fixtures/test-runner',
     'test/fixtures/test-runner/*',
     '!test/fixtures/test-runner/output',
