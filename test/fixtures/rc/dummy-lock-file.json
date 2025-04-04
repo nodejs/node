@@ -1,0 +1,8 @@
+{
+ "packages": {
+    "node_modules/corepack": {
+        "resolved": "https://registry.npmjs.org/corepack/-/corepack-0.32.0.tgz",
+        "integrity": "sha512-KhahVUFy7xL8OTty/ToY646hXMQhih8rnvUkA9/qnk/u4QUF2+SbQneX/zZnDxG1NiABFm5ojZCWnIv93oyhhQ=="
+    }
+ }
+}
