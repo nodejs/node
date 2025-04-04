@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import Module from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -24,6 +25,12 @@ const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
+
+function filterFilesInDir(dirpath, filterFn) {
+  return readdirSync(dirpath)
+    .filter(filterFn)
+    .map((f) => `${dirpath}/${f}`);
+}
 
 // The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
 // dynamically load extra modules that we install with it.
@@ -54,6 +61,14 @@ export default [
     'test/fixtures/*',
     '!test/fixtures/console',
     '!test/fixtures/eval',
+    '!test/fixtures/test-runner',
+    'test/fixtures/test-runner/*',
+    '!test/fixtures/test-runner/output',
+    ...filterFilesInDir(
+      'test/fixtures/test-runner/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/\.[cm]?js$/, '.ts')),
+    ),
     '!test/fixtures/v8',
     '!test/fixtures/vm',
   ]),

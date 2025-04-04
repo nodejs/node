@@ -72,5 +72,5 @@ describe('planning with wait', () => {
     };
 
     asyncActivity();
-  })
+  });
 });

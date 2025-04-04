@@ -8,5 +8,8 @@ const fixtures = require('../../../common/fixtures');
   const test = fixtures.path('test-runner/output/arbitrary-output-colored-1.js');
   const reset = fixtures.path('test-runner/output/reset-color-depth.js');
   await once(spawn(process.execPath, ['-r', reset, '--test', test], { stdio: 'inherit' }), 'exit');
-  await once(spawn(process.execPath, ['-r', reset, '--test', '--test-reporter', 'tap', test], { stdio: 'inherit'  }), 'exit');
+  await once(
+    spawn(process.execPath, ['-r', reset, '--test', '--test-reporter', 'tap', test], { stdio: 'inherit' }),
+    'exit',
+  );
 })().then(common.mustCall());
