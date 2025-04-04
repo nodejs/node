@@ -328,6 +328,7 @@
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
   V(retry_string, "retry")                                                     \
+  V(return_arrays_string, "returnArrays")                                      \
   V(return_string, "return")                                                   \
   V(salt_length_string, "saltLength")                                          \
   V(scheme_string, "scheme")                                                   \

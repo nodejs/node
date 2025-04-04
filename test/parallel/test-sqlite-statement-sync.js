@@ -343,6 +343,198 @@ suite('StatementSync.prototype.setReadBigInts()', () => {
   });
 });
 
+suite('StatementSync.prototype.setReturnArrays()', () => {
+  test('throws when input is not a boolean', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(
+      'CREATE TABLE data(key INTEGER PRIMARY KEY, val INTEGER) STRICT;'
+    );
+    t.assert.strictEqual(setup, undefined);
+    const stmt = db.prepare('SELECT key, val FROM data');
+    t.assert.throws(() => {
+      stmt.setReturnArrays();
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "returnArrays" argument must be a boolean/,
+    });
+  });
+});
+
+suite('StatementSync.prototype.get() with array output', () => {
+  test('returns array row when setReturnArrays is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+
+    query.setReturnArrays(true);
+    t.assert.deepStrictEqual(query.get(), [1, 'one']);
+
+    query.setReturnArrays(false);
+    t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
+  });
+
+  test('returns array rows with BigInts when both flags are set', (t) => {
+    const expected = [1n, 9007199254740992n];
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE big_data(id INTEGER, big_num INTEGER);
+      INSERT INTO big_data VALUES (1, 9007199254740992);
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT id, big_num FROM big_data');
+    query.setReturnArrays(true);
+    query.setReadBigInts(true);
+
+    const row = query.get();
+    t.assert.deepStrictEqual(row, expected);
+  });
+});
+
+suite('StatementSync.prototype.all() with array output', () => {
+  test('returns array rows when setReturnArrays is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
+    t.assert.deepStrictEqual(query.all(), [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+
+    query.setReturnArrays(true);
+    t.assert.deepStrictEqual(query.all(), [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+
+    query.setReturnArrays(false);
+    t.assert.deepStrictEqual(query.all(), [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+  });
+
+  test('handles array rows with many columns', (t) => {
+    const expected = [
+      1,
+      'text1',
+      1.1,
+      new Uint8Array([0xde, 0xad, 0xbe, 0xef]),
+      5,
+      'text2',
+      2.2,
+      new Uint8Array([0xbe, 0xef, 0xca, 0xfe]),
+      9,
+      'text3',
+    ];
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE wide_table(
+        col1 INTEGER, col2 TEXT, col3 REAL, col4 BLOB, col5 INTEGER,
+        col6 TEXT, col7 REAL, col8 BLOB, col9 INTEGER, col10 TEXT
+      );
+      INSERT INTO wide_table VALUES (
+        1, 'text1', 1.1, X'DEADBEEF', 5,
+        'text2', 2.2, X'BEEFCAFE', 9, 'text3'
+      );
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT * FROM wide_table');
+    query.setReturnArrays(true);
+
+    const results = query.all();
+    t.assert.strictEqual(results.length, 1);
+    t.assert.deepStrictEqual(results[0], expected);
+  });
+});
+
+suite('StatementSync.prototype.iterate() with array output', () => {
+  test('iterates array rows when setReturnArrays is true', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+    const setup = db.exec(`
+      CREATE TABLE data(key INTEGER PRIMARY KEY, val TEXT) STRICT;
+      INSERT INTO data (key, val) VALUES (1, 'one');
+      INSERT INTO data (key, val) VALUES (2, 'two');
+    `);
+    t.assert.strictEqual(setup, undefined);
+
+    const query = db.prepare('SELECT key, val FROM data ORDER BY key');
+
+    // Test with objects first
+    const objectRows = [];
+    for (const row of query.iterate()) {
+      objectRows.push(row);
+    }
+    t.assert.deepStrictEqual(objectRows, [
+      { __proto__: null, key: 1, val: 'one' },
+      { __proto__: null, key: 2, val: 'two' },
+    ]);
+
+    // Test with arrays
+    query.setReturnArrays(true);
+    const arrayRows = [];
+    for (const row of query.iterate()) {
+      arrayRows.push(row);
+    }
+    t.assert.deepStrictEqual(arrayRows, [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+
+    // Test toArray() method
+    t.assert.deepStrictEqual(query.iterate().toArray(), [
+      [1, 'one'],
+      [2, 'two'],
+    ]);
+  });
+
+  test('iterator can be exited early with array rows', (t) => {
+    const db = new DatabaseSync(':memory:');
+    db.exec(`
+      CREATE TABLE test(key TEXT, val TEXT);
+      INSERT INTO test (key, val) VALUES ('key1', 'val1');
+      INSERT INTO test (key, val) VALUES ('key2', 'val2');
+    `);
+    const stmt = db.prepare('SELECT key, val FROM test');
+    stmt.setReturnArrays(true);
+
+    const iterator = stmt.iterate();
+    const results = [];
+
+    for (const item of iterator) {
+      results.push(item);
+      break;
+    }
+
+    t.assert.deepStrictEqual(results, [
+      ['key1', 'val1'],
+    ]);
+    t.assert.deepStrictEqual(
+      iterator.next(),
+      { __proto__: null, done: true, value: null },
+    );
+  });
+});
+
 suite('StatementSync.prototype.setAllowBareNamedParameters()', () => {
   test('bare named parameter support can be toggled', (t) => {
     const db = new DatabaseSync(nextDb());
