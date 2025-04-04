@@ -60,6 +60,7 @@ export default [
     // We want to lint only a few specific fixtures folders
     'test/fixtures/*',
     '!test/fixtures/console',
+    '!test/fixtures/errors',
     '!test/fixtures/eval',
     '!test/fixtures/source-map',
     'test/fixtures/source-map/*',

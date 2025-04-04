@@ -19,7 +19,7 @@
 // OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 // USE OR OTHER DEALINGS IN THE SOFTWARE.
 
-/* eslint-disable indent, no-tabs */
+/* eslint-disable @stylistic/js/indent, @stylistic/js/no-tabs */
 'use strict';
 require('../../common');
 
