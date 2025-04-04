@@ -128,6 +128,7 @@ class StatementSync : public BaseObject {
   static void SetAllowUnknownNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetReturnArrays(const v8::FunctionCallbackInfo<v8::Value>& args);
   void Finalize();
   bool IsFinalized();
 
@@ -138,6 +139,7 @@ class StatementSync : public BaseObject {
   ~StatementSync() override;
   BaseObjectPtr<DatabaseSync> db_;
   sqlite3_stmt* statement_;
+  bool return_arrays_ = false;
   bool use_big_ints_;
   bool allow_bare_named_params_;
   bool allow_unknown_named_params_;
