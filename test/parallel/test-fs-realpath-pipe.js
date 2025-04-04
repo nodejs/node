@@ -3,14 +3,14 @@
 const common = require('../common');
 
 if (common.isWindows || common.isAIX || common.isIBMi)
-  common.skip(`No /proc/self/fd/0 on ${process.platform}.`);
+  common.skip(`No /dev/fd/0 on ${process.platform}.`);
 
 const assert = require('assert');
 
 const { spawnSync } = require('child_process');
 
 for (const code of [
-  `require('fs').realpath('/proc/self/fd/0', (err, resolvedPath) => {
+  `require('fs').realpath('/dev/fd/0', (err, resolvedPath) => {
     if (err) {
       console.error(err);
       process.exit(1);
@@ -20,7 +20,7 @@ for (const code of [
     }
   });`,
   `try {
-    if (require('fs').realpathSync('/proc/self/fd/0')) {
+    if (require('fs').realpathSync('/dev/fd/0')) {
       process.exit(2);
     }
   } catch (e) {

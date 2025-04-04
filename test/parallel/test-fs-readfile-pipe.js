@@ -25,13 +25,13 @@ const common = require('../common');
 // Simulate `cat readfile.js | node readfile.js`
 
 if (common.isWindows || common.isAIX || common.isIBMi)
-  common.skip(`No /proc/self/fd/0 on ${process.platform}.`);
+  common.skip(`No /dev/fd/0 on ${process.platform}.`);
 
 const assert = require('assert');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
-  fs.readFile('/proc/self/fd/0', common.mustSucceed((data) => {
+  fs.readFile('/dev/fd/0', common.mustSucceed((data) => {
     process.stdout.write(data);
   }));
   return;
