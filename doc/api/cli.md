@@ -33,7 +33,8 @@ If a file is found, its path will be passed to the
 
 * The program was started with a command-line flag that forces the entry
   point to be loaded with ECMAScript module loader, such as `--import`.
-* The file has an `.mjs` extension.
+* The file has an `.mjs` or `.wasm` (with `--experimental-wasm-modules`)
+  extension.
 * The file does not have a `.cjs` extension, and the nearest parent
   `package.json` file contains a top-level [`"type"`][] field with a value of
   `"module"`.
@@ -1154,7 +1155,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 added: v22.7.0
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 Enables the transformation of TypeScript-only syntax into JavaScript code.
 Implies `--enable-source-maps`.
@@ -1767,7 +1768,7 @@ changes:
     description: Type stripping is enabled by default.
 -->
 
-> Stability: 1.1 - Active development
+> Stability: 1.2 - Release candidate
 
 Disable experimental type-stripping for TypeScript files.
 For more information, see the [TypeScript type-stripping][] documentation.
