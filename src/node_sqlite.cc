@@ -1579,8 +1579,8 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
         if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
         array_values.emplace_back(val);
       }
-      Local<Array> row_array = Array::New(
-            isolate, array_values.data(), array_values.size());
+      Local<Array> row_array =
+          Array::New(isolate, array_values.data(), array_values.size());
       rows.emplace_back(row_array);
     } else {
       if (row_keys.size() == 0) {
@@ -1686,8 +1686,8 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
       array_values.emplace_back(val);
     }
-    Local<Array> result = Array::New(
-          isolate, array_values.data(), array_values.size());
+    Local<Array> result =
+        Array::New(isolate, array_values.data(), array_values.size());
     args.GetReturnValue().Set(result);
   } else {
     LocalVector<Name> keys(isolate);
@@ -1705,7 +1705,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> result = Object::New(
-          isolate, Null(isolate), keys.data(), values.data(), num_cols);
+        isolate, Null(isolate), keys.data(), values.data(), num_cols);
 
     args.GetReturnValue().Set(result);
   }
@@ -2051,7 +2051,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
 
   if (iter->done_) {
     LocalVector<Value> values(isolate,
-                             {Boolean::New(isolate, true), Null(isolate)});
+                              {Boolean::New(isolate, true), Null(isolate)});
     Local<Object> result = Object::New(
         isolate, Null(isolate), keys.data(), values.data(), keys.size());
     args.GetReturnValue().Set(result);
@@ -2066,7 +2066,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
     sqlite3_reset(iter->stmt_->statement_);
     LocalVector<Value> values(isolate,
-                             {Boolean::New(isolate, true), Null(isolate)});
+                              {Boolean::New(isolate, true), Null(isolate)});
     Local<Object> result = Object::New(
         isolate, Null(isolate), keys.data(), values.data(), keys.size());
     args.GetReturnValue().Set(result);
