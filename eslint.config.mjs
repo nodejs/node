@@ -67,7 +67,6 @@ export default [
       // The default is `commonjs` but it's not supported by the Babel parser.
       sourceType: 'script',
     },
-    // Code change
   },
   {
     plugins: {
