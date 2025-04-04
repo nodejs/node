@@ -1,0 +1,18 @@
+diff --git a/common.gypi b/common.gypi
+index 5e39ad3f09..1e535f48a8 100644
+--- a/common.gypi
++++ b/common.gypi
+@@ -520,11 +520,11 @@
+           }],
+           ['_toolset=="host"', {
+             'conditions': [
+-              [ 'host_arch=="ia32"', {
++              [ 'host_arch=="ia32" or (target_arch=="ia32" or target_arch=="arm")', {
+                 'cflags': [ '-m32' ],
+                 'ldflags': [ '-m32' ],
+               }],
+-              [ 'host_arch=="x64"', {
++              [ 'host_arch=="x64" and (target_arch=="x64" or target_arch=="arm64")', {
+                 'cflags': [ '-m64' ],
+                 'ldflags': [ '-m64' ],
+               }],

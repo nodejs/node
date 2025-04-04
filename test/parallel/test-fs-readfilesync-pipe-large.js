@@ -4,13 +4,13 @@ const common = require('../common');
 // Simulate `cat readfile.js | node readfile.js`
 
 if (common.isWindows || common.isAIX || common.isIBMi)
-  common.skip(`No /dev/stdin on ${process.platform}.`);
+  common.skip(`No /proc/self/fd/0 on ${process.platform}.`);
 
 const assert = require('assert');
 const fs = require('fs');
 
 if (process.argv[2] === 'child') {
-  process.stdout.write(fs.readFileSync('/dev/stdin', 'utf8'));
+  process.stdout.write(fs.readFileSync('/proc/self/fd/0', 'utf8'));
   return;
 }
 

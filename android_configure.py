@@ -5,9 +5,18 @@ import os
 # TODO: In next version, it will be a JSON file listing all the patches, and then it will iterate through to apply them.
 def patch_android():
     print("- Patches List -")
-    print("[1] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
+    print("[1] [common.gypi] related to cross-compiling for 32-bit architectures on 64-bit host")
+    print("[2] [deps/v8/src/trap-handler/trap-handler.h] related to https://github.com/nodejs/node/issues/36287")
+    print("[3] [tools/v8_gypfiles/v8.gyp] build correct push_registers_asm.cc when cross-compiling for 32-bit on 64-bit host")
     if platform.system() == "Linux":
-        os.system('patch -f ./deps/v8/src/trap-handler/trap-handler.h < ./android-patches/trap-handler.h.patch')
+        patches = [
+            './android-patches/common.gypi.patch',
+            './android-patches/trap-handler.h.patch',
+            './android-patches/v8.gyp.patch',
+        ]
+        for patch in patches:
+            print(f"Applying patch: {patch}")
+            os.system('patch -p1 < ' + patch)
     print("\033[92mInfo: \033[0m" + "Tried to patch.")
 
 if platform.system() != "Linux" and platform.system() != "Darwin":

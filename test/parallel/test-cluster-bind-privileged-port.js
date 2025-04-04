@@ -26,7 +26,7 @@ const cluster = require('cluster');
 const net = require('net');
 const { readFileSync } = require('fs');
 
-if (common.isLinux) {
+if (common.isLinux || common.isAndroid) {
   try {
     const unprivilegedPortStart = parseInt(readFileSync('/proc/sys/net/ipv4/ip_unprivileged_port_start'));
     if (unprivilegedPortStart <= 42) {

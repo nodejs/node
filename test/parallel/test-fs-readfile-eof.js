@@ -2,19 +2,19 @@
 const common = require('../common');
 
 if (common.isWindows || common.isAIX || common.isIBMi)
-  common.skip(`No /dev/stdin on ${process.platform}.`);
+  common.skip(`No /proc/self/fd/0 on ${process.platform}.`);
 
 const assert = require('assert');
 const fs = require('fs/promises');
 const childType = ['child-encoding', 'child-non-encoding'];
 
 if (process.argv[2] === childType[0]) {
-  fs.readFile('/dev/stdin', 'utf8').then((data) => {
+  fs.readFile('/proc/self/fd/0', 'utf8').then((data) => {
     process.stdout.write(data);
   });
   return;
 } else if (process.argv[2] === childType[1]) {
-  fs.readFile('/dev/stdin').then((data) => {
+  fs.readFile('/proc/self/fd/0').then((data) => {
     process.stdout.write(data);
   });
   return;
