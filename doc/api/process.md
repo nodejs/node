@@ -3342,7 +3342,7 @@ any exit or close events and without running any cleanup handler.
 
 This function will never return, unless an error occurred.
 
-This function is only available on POSIX platforms (i.e. not Windows or Android).
+This function is not available on Windows.
 
 ## `process.report`
 
