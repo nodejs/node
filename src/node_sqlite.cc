@@ -1568,10 +1568,9 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
   auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
   int num_cols = sqlite3_column_count(stmt->statement_);
   LocalVector<Value> rows(isolate);
-  LocalVector<Name> row_keys(isolate);
 
-  while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-    if (stmt->return_arrays_) {
+  if (stmt->return_arrays_) {
+    while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
       LocalVector<Value> array_values(isolate);
       array_values.reserve(num_cols);
       for (int i = 0; i < num_cols; ++i) {
@@ -1582,7 +1581,11 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
       Local<Array> row_array =
           Array::New(isolate, array_values.data(), array_values.size());
       rows.emplace_back(row_array);
-    } else {
+    }
+  } else {
+    LocalVector<Name> row_keys(isolate);
+    
+    while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
       if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
