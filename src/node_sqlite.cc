@@ -1368,6 +1368,7 @@ StatementSync::StatementSync(Environment* env,
   statement_ = stmt;
   // In the future, some of these options could be set at the database
   // connection level and inherited by statements to reduce boilerplate.
+  return_arrays_ = false;
   use_big_ints_ = false;
   allow_bare_named_params_ = true;
   allow_unknown_named_params_ = false;
@@ -1571,16 +1572,16 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
 
   while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
     if (stmt->return_arrays_) {
-      LocalVector<Value> row_values(isolate);
-      row_values.reserve(num_cols);
+      LocalVector<Value> array_values(isolate);
+      array_values.reserve(num_cols);
       for (int i = 0; i < num_cols; ++i) {
         Local<Value> val;
         if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-        row_values.emplace_back(val);
+        array_values.emplace_back(val);
       }
-      Local<Array> row =
-          Array::New(isolate, row_values.data(), row_values.size());
-      rows.emplace_back(row);
+      Local<Array> row_array = Array::New(
+            isolate, array_values.data(), array_values.size());
+      rows.emplace_back(row_array);
     } else {
       if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);
@@ -1599,162 +1600,14 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
         row_values.emplace_back(val);
       }
 
-      Local<Object> row = Object::New(
+      Local<Object> row_obj = Object::New(
           isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
-      rows.emplace_back(row);
+      rows.emplace_back(row_obj);
     }
   }
 
   CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_DONE, void());
   args.GetReturnValue().Set(Array::New(isolate, rows.data(), rows.size()));
-}
-
-void StatementSync::IterateReturnCallback(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto isolate = env->isolate();
-  auto context = isolate->GetCurrentContext();
-
-  auto self = args.This();
-  // iterator has fetch all result or break, prevent next func to return result
-  if (self->Set(context, env->isfinished_string(), Boolean::New(isolate, true))
-          .IsNothing()) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  Local<Value> val;
-  if (!self->Get(context, env->statement_string()).ToLocal(&val)) {
-    // An error will have been scheduled.
-    return;
-  }
-  auto external_stmt = Local<External>::Cast(val);
-  auto stmt = static_cast<StatementSync*>(external_stmt->Value());
-  if (!stmt->IsFinalized()) {
-    sqlite3_reset(stmt->statement_);
-  }
-
-  LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
-  LocalVector<Value> values(isolate,
-                            {Boolean::New(isolate, true), Null(isolate)});
-
-  DCHECK_EQ(keys.size(), values.size());
-  Local<Object> result = Object::New(
-      isolate, Null(isolate), keys.data(), values.data(), keys.size());
-  args.GetReturnValue().Set(result);
-}
-
-void StatementSync::IterateNextCallback(
-    const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  auto isolate = env->isolate();
-  auto context = isolate->GetCurrentContext();
-
-  auto self = args.This();
-
-  Local<Value> val;
-  if (!self->Get(context, env->isfinished_string()).ToLocal(&val)) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  // skip iteration if is_finished
-  auto is_finished = Local<Boolean>::Cast(val);
-  if (is_finished->Value()) {
-    Local<Name> keys[] = {env->done_string(), env->value_string()};
-    Local<Value> values[] = {Boolean::New(isolate, true), Null(isolate)};
-    static_assert(arraysize(keys) == arraysize(values));
-    Local<Object> result = Object::New(
-        isolate, Null(isolate), &keys[0], &values[0], arraysize(keys));
-    args.GetReturnValue().Set(result);
-    return;
-  }
-
-  if (!self->Get(context, env->statement_string()).ToLocal(&val)) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  auto external_stmt = Local<External>::Cast(val);
-  auto stmt = static_cast<StatementSync*>(external_stmt->Value());
-
-  if (!self->Get(context, env->num_cols_string()).ToLocal(&val)) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  auto num_cols = Local<Integer>::Cast(val)->Value();
-
-  THROW_AND_RETURN_ON_BAD_STATE(
-      env, stmt->IsFinalized(), "statement has been finalized");
-
-  // Get the return_arrays flag from the iterator object
-  Local<Value> return_arrays_val;
-  bool return_arrays = false;
-  if (self->Get(context, env->return_arrays_string())
-          .ToLocal(&return_arrays_val)) {
-    return_arrays = return_arrays_val->IsTrue();
-  }
-
-  int r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW) {
-    CHECK_ERROR_OR_THROW(
-        env->isolate(), stmt->db_.get(), r, SQLITE_DONE, void());
-
-    // cleanup when no more rows to fetch
-    sqlite3_reset(stmt->statement_);
-    if (self->Set(
-                context, env->isfinished_string(), Boolean::New(isolate, true))
-            .IsNothing()) {
-      // An error would have been scheduled
-      return;
-    }
-
-    LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
-    LocalVector<Value> values(isolate,
-                              {Boolean::New(isolate, true), Null(isolate)});
-    DCHECK_EQ(keys.size(), values.size());
-    Local<Object> result = Object::New(
-        isolate, Null(isolate), keys.data(), values.data(), keys.size());
-    args.GetReturnValue().Set(result);
-    return;
-  }
-
-  Local<Value> row;
-  if (return_arrays) {
-    LocalVector<Value> row_values(isolate);
-    row_values.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Value> val;
-      if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-      row_values.emplace_back(val);
-    }
-    row = Array::New(isolate, row_values.data(), row_values.size());
-  } else {
-    LocalVector<Name> row_keys(isolate);
-    row_keys.reserve(num_cols);
-    LocalVector<Value> row_values(isolate);
-    row_values.reserve(num_cols);
-    for (int i = 0; i < num_cols; ++i) {
-      Local<Name> key;
-      if (!stmt->ColumnNameToName(i).ToLocal(&key)) return;
-      Local<Value> val;
-      if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-      row_keys.emplace_back(key);
-      row_values.emplace_back(val);
-    }
-
-    row = Object::New(
-        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
-  }
-
-  LocalVector<Name> keys(isolate, {env->done_string(), env->value_string()});
-  LocalVector<Value> values(isolate, {Boolean::New(isolate, false), row});
-
-  DCHECK_EQ(keys.size(), values.size());
-  Local<Object> result = Object::New(
-      isolate, Null(isolate), keys.data(), values.data(), keys.size());
-  args.GetReturnValue().Set(result);
 }
 
 void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
@@ -1763,9 +1616,10 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   THROW_AND_RETURN_ON_BAD_STATE(
       env, stmt->IsFinalized(), "statement has been finalized");
+  auto isolate = env->isolate();
   auto context = env->context();
   int r = sqlite3_reset(stmt->statement_);
-  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
+  CHECK_ERROR_OR_THROW(isolate, stmt->db_.get(), r, SQLITE_OK, void());
 
   if (!stmt->BindParams(args)) {
     return;
@@ -1785,6 +1639,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
 
   BaseObjectPtr<StatementSyncIterator> iter =
       StatementSyncIterator::Create(env, BaseObjectPtr<StatementSync>(stmt));
+
   if (iter->object()
           ->GetPrototype()
           .As<Object>()
@@ -1793,31 +1648,7 @@ void StatementSync::Iterate(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto is_finished_pd =
-      v8::PropertyDescriptor(v8::Boolean::New(isolate, false), true);
-  is_finished_pd.set_enumerable(false);
-  is_finished_pd.set_configurable(false);
-  if (iterable_iterator
-          ->DefineProperty(context, env->isfinished_string(), is_finished_pd)
-          .IsNothing()) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  // Add the return_arrays flag to the iterator
-  auto return_arrays_pd = v8::PropertyDescriptor(
-      v8::Boolean::New(isolate, stmt->return_arrays_), false);
-  return_arrays_pd.set_enumerable(false);
-  return_arrays_pd.set_configurable(false);
-  if (iterable_iterator
-          ->DefineProperty(
-              context, env->return_arrays_string(), return_arrays_pd)
-          .IsNothing()) {
-    // An error will have been scheduled.
-    return;
-  }
-
-  args.GetReturnValue().Set(iterable_iterator);
+  args.GetReturnValue().Set(iter->object());
 }
 
 void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
@@ -1848,17 +1679,15 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (stmt->return_arrays_) {
-    LocalVector<Value> row_values(isolate);
-    row_values.reserve(num_cols);
-
+    LocalVector<Value> array_values(isolate);
+    array_values.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
       Local<Value> val;
       if (!stmt->ColumnToValue(i).ToLocal(&val)) return;
-      row_values.emplace_back(val);
+      array_values.emplace_back(val);
     }
-
-    Local<Array> result =
-        Array::New(isolate, row_values.data(), row_values.size());
+    Local<Array> result = Array::New(
+          isolate, array_values.data(), array_values.size());
     args.GetReturnValue().Set(result);
   } else {
     LocalVector<Name> keys(isolate);
@@ -1876,7 +1705,7 @@ void StatementSync::Get(const FunctionCallbackInfo<Value>& args) {
     }
 
     Local<Object> result = Object::New(
-        isolate, Null(isolate), keys.data(), values.data(), num_cols);
+          isolate, Null(isolate), keys.data(), values.data(), num_cols);
 
     args.GetReturnValue().Set(result);
   }
@@ -2222,12 +2051,14 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
 
   if (iter->done_) {
     LocalVector<Value> values(isolate,
-                              {Boolean::New(isolate, true), Null(isolate)});
+                             {Boolean::New(isolate, true), Null(isolate)});
     Local<Object> result = Object::New(
         isolate, Null(isolate), keys.data(), values.data(), keys.size());
     args.GetReturnValue().Set(result);
     return;
   }
+
+  bool return_arrays = iter->stmt_->return_arrays_;
 
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
@@ -2235,7 +2066,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
         env->isolate(), iter->stmt_->db_.get(), r, SQLITE_DONE, void());
     sqlite3_reset(iter->stmt_->statement_);
     LocalVector<Value> values(isolate,
-                              {Boolean::New(isolate, true), Null(isolate)});
+                             {Boolean::New(isolate, true), Null(isolate)});
     Local<Object> result = Object::New(
         isolate, Null(isolate), keys.data(), values.data(), keys.size());
     args.GetReturnValue().Set(result);
@@ -2243,22 +2074,36 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   }
 
   int num_cols = sqlite3_column_count(iter->stmt_->statement_);
-  LocalVector<Name> row_keys(isolate);
-  LocalVector<Value> row_values(isolate);
-  row_keys.reserve(num_cols);
-  row_values.reserve(num_cols);
-  for (int i = 0; i < num_cols; ++i) {
-    Local<Name> key;
-    if (!iter->stmt_->ColumnNameToName(i).ToLocal(&key)) return;
-    Local<Value> val;
-    if (!iter->stmt_->ColumnToValue(i).ToLocal(&val)) return;
-    row_keys.emplace_back(key);
-    row_values.emplace_back(val);
+  Local<Value> row_value;
+
+  if (return_arrays) {
+    LocalVector<Value> array_values(isolate);
+    array_values.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      Local<Value> val;
+      if (!iter->stmt_->ColumnToValue(i).ToLocal(&val)) return;
+      array_values.emplace_back(val);
+    }
+    row_value = Array::New(isolate, array_values.data(), array_values.size());
+  } else {
+    LocalVector<Name> row_keys(isolate);
+    LocalVector<Value> row_values(isolate);
+    row_keys.reserve(num_cols);
+    row_values.reserve(num_cols);
+    for (int i = 0; i < num_cols; ++i) {
+      Local<Name> key;
+      if (!iter->stmt_->ColumnNameToName(i).ToLocal(&key)) return;
+      Local<Value> val;
+      if (!iter->stmt_->ColumnToValue(i).ToLocal(&val)) return;
+      row_keys.emplace_back(key);
+      row_values.emplace_back(val);
+    }
+
+    row_value = Object::New(
+        isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
   }
 
-  Local<Object> row = Object::New(
-      isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
-  LocalVector<Value> values(isolate, {Boolean::New(isolate, false), row});
+  LocalVector<Value> values(isolate, {Boolean::New(isolate, false), row_value});
   Local<Object> result = Object::New(
       isolate, Null(isolate), keys.data(), values.data(), keys.size());
   args.GetReturnValue().Set(result);
