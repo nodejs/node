@@ -91,6 +91,18 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     match(stderr, /WebAssembly/);
   });
 
+  it('should support top-level execution', async () => {
+    const { code, stderr, stdout } = await spawnPromisified(execPath, [
+      '--no-warnings',
+      '--experimental-wasm-modules',
+      fixtures.path('es-modules/top-level-wasm.wasm'),
+    ]);
+
+    strictEqual(stderr, '');
+    strictEqual(stdout, '[Object: null prototype] { prop: \'hello world\' }\n');
+    strictEqual(code, 0);
+  });
+
   it('should support static source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',

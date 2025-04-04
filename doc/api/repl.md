@@ -303,7 +303,19 @@ When a new [`repl.REPLServer`][] is created, a custom evaluation function may be
 provided. This can be used, for instance, to implement fully customized REPL
 applications.
 
-The following illustrates an example of a REPL that squares a given number:
+An evaluation function accepts the following four arguments:
+
+* `code` {string} The code to be executed (e.g. `1 + 1`).
+* `context` {Object} The context in which the code is executed. This can either be the JavaScript `global`
+  context or a context specific to the REPL instance, depending on the `useGlobal` option.
+* `replResourceName` {string} An identifier for the REPL resource associated with the current code
+  evaluation. This can be useful for debugging purposes.
+* `callback` {Function} A function to invoke once the code evaluation is complete. The callback takes two parameters:
+  * An error object to provide if an error occurred during evaluation, or `null`/`undefined` if no error occurred.
+  * The result of the code evaluation (this is not relevant if an error is provided).
+
+The following illustrates an example of a REPL that squares a given number, an error is instead printed
+if the provided input is not actually a number:
 
 ```mjs
 import repl from 'node:repl';
@@ -312,8 +324,12 @@ function byThePowerOfTwo(number) {
   return number * number;
 }
 
-function myEval(cmd, context, filename, callback) {
-  callback(null, byThePowerOfTwo(cmd));
+function myEval(code, context, replResourceName, callback) {
+  if (isNaN(code)) {
+    callback(new Error(`${code.trim()} is not a number`));
+  } else {
+    callback(null, byThePowerOfTwo(code));
+  }
 }
 
 repl.start({ prompt: 'Enter a number: ', eval: myEval });
@@ -326,8 +342,12 @@ function byThePowerOfTwo(number) {
   return number * number;
 }
 
-function myEval(cmd, context, filename, callback) {
-  callback(null, byThePowerOfTwo(cmd));
+function myEval(code, context, replResourceName, callback) {
+  if (isNaN(code)) {
+    callback(new Error(`${code.trim()} is not a number`));
+  } else {
+    callback(null, byThePowerOfTwo(code));
+  }
 }
 
 repl.start({ prompt: 'Enter a number: ', eval: myEval });
@@ -691,7 +711,8 @@ changes:
   * `eval` {Function} The function to be used when evaluating each given line
     of input. **Default:** an async wrapper for the JavaScript `eval()`
     function. An `eval` function can error with `repl.Recoverable` to indicate
-    the input was incomplete and prompt for additional lines.
+    the input was incomplete and prompt for additional lines. See the
+    [custom evaluation functions][] section for more details.
   * `useColors` {boolean} If `true`, specifies that the default `writer`
     function should include ANSI color styling to REPL output. If a custom
     `writer` function is provided then this has no effect. **Default:** checking
@@ -914,4 +935,5 @@ avoiding open network interfaces.
 [`repl.start()`]: #replstartoptions
 [`reverse-i-search`]: #reverse-i-search
 [`util.inspect()`]: util.md#utilinspectobject-options
+[custom evaluation functions]: #custom-evaluation-functions
 [stream]: stream.md

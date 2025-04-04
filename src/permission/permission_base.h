@@ -15,18 +15,19 @@ class Environment;
 namespace permission {
 
 #define FILESYSTEM_PERMISSIONS(V)                                              \
-  V(FileSystem, "fs", PermissionsRoot)                                         \
-  V(FileSystemRead, "fs.read", FileSystem)                                     \
-  V(FileSystemWrite, "fs.write", FileSystem)
+  V(FileSystem, "fs", PermissionsRoot, "")                                     \
+  V(FileSystemRead, "fs.read", FileSystem, "--allow-fs-read")                  \
+  V(FileSystemWrite, "fs.write", FileSystem, "--allow-fs-write")
 
-#define CHILD_PROCESS_PERMISSIONS(V) V(ChildProcess, "child", PermissionsRoot)
+#define CHILD_PROCESS_PERMISSIONS(V)                                           \
+  V(ChildProcess, "child", PermissionsRoot, "--allow-child-process")
 
-#define WASI_PERMISSIONS(V) V(WASI, "wasi", PermissionsRoot)
+#define WASI_PERMISSIONS(V) V(WASI, "wasi", PermissionsRoot, "--allow-wasi")
 
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
-  V(WorkerThreads, "worker", PermissionsRoot)
+  V(WorkerThreads, "worker", PermissionsRoot, "--allow-worker")
 
-#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot)
+#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot, "")
 
 #define PERMISSIONS(V)                                                         \
   FILESYSTEM_PERMISSIONS(V)                                                    \
@@ -35,7 +36,7 @@ namespace permission {
   WORKER_THREADS_PERMISSIONS(V)                                                \
   INSPECTOR_PERMISSIONS(V)
 
-#define V(name, _, __) k##name,
+#define V(name, _, __, ___) k##name,
 enum class PermissionScope {
   kPermissionsRoot = -1,
   PERMISSIONS(V) kPermissionsCount

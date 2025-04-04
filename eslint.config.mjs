@@ -54,6 +54,7 @@ export default [
     'test/fixtures/*',
     '!test/fixtures/console',
     '!test/fixtures/errors',
+    '!test/fixtures/eval',
     '!test/fixtures/v8',
     '!test/fixtures/vm',
   ]),
