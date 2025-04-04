@@ -2058,8 +2058,6 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  bool return_arrays = iter->stmt_->return_arrays_;
-
   int r = sqlite3_step(iter->stmt_->statement_);
   if (r != SQLITE_ROW) {
     CHECK_ERROR_OR_THROW(
@@ -2076,7 +2074,7 @@ void StatementSyncIterator::Next(const FunctionCallbackInfo<Value>& args) {
   int num_cols = sqlite3_column_count(iter->stmt_->statement_);
   Local<Value> row_value;
 
-  if (return_arrays) {
+  if (iter->stmt_->return_arrays_) {
     LocalVector<Value> array_values(isolate);
     array_values.reserve(num_cols);
     for (int i = 0; i < num_cols; ++i) {
