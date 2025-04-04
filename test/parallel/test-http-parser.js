@@ -39,7 +39,7 @@ const kOnMessageComplete = HTTPParser.kOnMessageComplete | 0;
 
 function newParser(type) {
   const parser = new HTTPParser();
-  parser.initialize(type, {});
+  parser.initialize(type);
 
   parser.headers = [];
   parser.url = '';
@@ -96,7 +96,7 @@ function expectBody(expected) {
     throw new Error('hello world');
   };
 
-  parser.initialize(REQUEST, {});
+  parser.initialize(REQUEST);
 
   assert.throws(
     () => { parser.execute(request, 0, request.length); },
@@ -553,11 +553,6 @@ function expectBody(expected) {
   parser[kOnHeadersComplete] = onHeadersComplete1;
   parser[kOnBody] = expectBody('ping');
   parser.execute(req1, 0, req1.length);
-
-  parser.initialize(REQUEST, req2);
-  parser[kOnBody] = expectBody('pong');
-  parser[kOnHeadersComplete] = onHeadersComplete2;
-  parser.execute(req2, 0, req2.length);
 }
 
 // Test parser 'this' safety
