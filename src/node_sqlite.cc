@@ -1584,7 +1584,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     }
   } else {
     LocalVector<Name> row_keys(isolate);
-    
+
     while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
       if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);

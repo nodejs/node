@@ -373,14 +373,14 @@ suite('StatementSync.prototype.get() with array output', () => {
 
     const query = db.prepare('SELECT key, val FROM data WHERE key = 1');
     t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
-    
+
     query.setReturnArrays(true);
     t.assert.deepStrictEqual(query.get(), [1, 'one']);
-    
+
     query.setReturnArrays(false);
     t.assert.deepStrictEqual(query.get(), { __proto__: null, key: 1, val: 'one' });
   });
-  
+
   test('returns array rows with BigInts when both flags are set', (t) => {
     const expected = [1n, 9007199254740992n];
     const db = new DatabaseSync(nextDb());
@@ -416,20 +416,20 @@ suite('StatementSync.prototype.all() with array output', () => {
       { __proto__: null, key: 1, val: 'one' },
       { __proto__: null, key: 2, val: 'two' },
     ]);
-    
+
     query.setReturnArrays(true);
     t.assert.deepStrictEqual(query.all(), [
       [1, 'one'],
       [2, 'two'],
     ]);
-    
+
     query.setReturnArrays(false);
     t.assert.deepStrictEqual(query.all(), [
       { __proto__: null, key: 1, val: 'one' },
       { __proto__: null, key: 2, val: 'two' },
     ]);
   });
-  
+
   test('handles array rows with many columns', (t) => {
     const expected = [
       1,
@@ -459,7 +459,7 @@ suite('StatementSync.prototype.all() with array output', () => {
 
     const query = db.prepare('SELECT * FROM wide_table');
     query.setReturnArrays(true);
-    
+
     const results = query.all();
     t.assert.strictEqual(results.length, 1);
     t.assert.deepStrictEqual(results[0], expected);
@@ -478,7 +478,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
     t.assert.strictEqual(setup, undefined);
 
     const query = db.prepare('SELECT key, val FROM data ORDER BY key');
-    
+
     // Test with objects first
     const objectRows = [];
     for (const row of query.iterate()) {
@@ -499,14 +499,14 @@ suite('StatementSync.prototype.iterate() with array output', () => {
       [1, 'one'],
       [2, 'two'],
     ]);
-    
+
     // Test toArray() method
     t.assert.deepStrictEqual(query.iterate().toArray(), [
       [1, 'one'],
       [2, 'two'],
     ]);
   });
-  
+
   test('iterator can be exited early with array rows', (t) => {
     const db = new DatabaseSync(':memory:');
     db.exec(`
@@ -516,7 +516,7 @@ suite('StatementSync.prototype.iterate() with array output', () => {
     `);
     const stmt = db.prepare('SELECT key, val FROM test');
     stmt.setReturnArrays(true);
-    
+
     const iterator = stmt.iterate();
     const results = [];
 
