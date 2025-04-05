@@ -18,7 +18,6 @@ for their particular purposes:
 
 * JavaScript engine: V8
 * Package manager: `npm`
-* Package manager version manager: Corepack
 
 Being user-accessible, removal or replacement of these projects could happen
 only as a semver-major change, unless the related feature or project is
