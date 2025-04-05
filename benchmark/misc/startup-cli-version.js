@@ -14,7 +14,6 @@ const availableCli = [
   'tools/eslint/node_modules/eslint/bin/eslint.js',
   'deps/npm/bin/npx-cli.js',
   'deps/npm/bin/npm-cli.js',
-  'deps/corepack/dist/corepack.js',
 ].filter((cli) => existsSync(path.resolve(__dirname, '../../', cli)));
 const bench = common.createBenchmark(main, {
   cli: availableCli,

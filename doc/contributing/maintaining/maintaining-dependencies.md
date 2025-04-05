@@ -15,7 +15,6 @@ This a list of all the dependencies:
 * [brotli][]
 * [c-ares][]
 * [cjs-module-lexer][]
-* [corepack][]
 * [googletest][]
 * [histogram][]
 * [icu-small][]
@@ -245,16 +244,6 @@ dependency is used within the Node.js ESM implementation to detect the
 named exports of a CommonJS module.
 See [maintaining-cjs-module-lexer][] for more information.
 
-### corepack
-
-The [corepack](https://github.com/nodejs/corepack) dependency is a
-zero-runtime-dependency Node.js script that acts as a bridge between
-Node.js projects and the package managers they are intended to
-be used with during development.
-In practical terms, Corepack will let you use Yarn and pnpm without having to
-install them - just like what currently happens with npm, which is shipped
-by Node.js by default.
-
 ### googletest
 
 The [googletest](https://github.com/google/googletest) dependency is Google’s
@@ -407,7 +396,6 @@ according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
 [brotli]: #brotli
 [c-ares]: #c-ares
 [cjs-module-lexer]: #cjs-module-lexer
-[corepack]: #corepack
 [dependency-update-action]: ../../../.github/workflows/tools.yml
 [googletest]: #googletest
 [histogram]: #histogram
