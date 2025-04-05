@@ -2730,9 +2730,11 @@ channel.port2.postMessage(signal, [signal]);
 added:
  - v19.7.0
  - v18.16.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
 * `resource` {Object} Any non-null object tied to the abortable operation and held weakly.
