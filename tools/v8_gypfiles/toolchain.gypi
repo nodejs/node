@@ -156,6 +156,9 @@
         'xcode_settings': {
           # -Wno-invalid-offsetof
           'GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO': 'NO',
+          'OTHER_CFLAGS': [
+            '-Wno-nullability-completeness',
+          ],
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
