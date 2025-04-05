@@ -426,8 +426,13 @@ Http2Priority::Http2Priority(Environment* env,
                              Local<Value> weight,
                              Local<Value> exclusive) {
   Local<Context> context = env->context();
-  int32_t parent_ = parent->Int32Value(context).ToChecked();
-  int32_t weight_ = weight->Int32Value(context).ToChecked();
+  int32_t parent_;
+  int32_t weight_;
+  if (!parent->Int32Value(context).To(&parent_) ||
+      !weight->Int32Value(context).To(&weight_)) {
+    nghttp2_priority_spec_init(this, 0, 0, 0);
+    return;
+  }
   bool exclusive_ = exclusive->IsTrue();
   Debug(env, DebugCategory::HTTP2STREAM,
         "Http2Priority: parent: %d, weight: %d, exclusive: %s\n",
@@ -2719,11 +2724,12 @@ void Http2Stream::DecrementAvailableOutboundLength(size_t amount) {
 // back to JS land
 void HttpErrorString(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  uint32_t val = args[0]->Uint32Value(env->context()).ToChecked();
-  args.GetReturnValue().Set(
-      OneByteString(
-          env->isolate(),
-          reinterpret_cast<const uint8_t*>(nghttp2_strerror(val))));
+  uint32_t val;
+  if (args[0]->Uint32Value(env->context()).To(&val)) {
+    args.GetReturnValue().Set(
+        OneByteString(env->isolate(),
+                      reinterpret_cast<const uint8_t*>(nghttp2_strerror(val))));
+  }
 }
 
 
@@ -2748,7 +2754,10 @@ void Http2Session::SetNextStreamID(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
-  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+  int32_t id;
+  if (!args[0]->Int32Value(env->context()).To(&id)) {
+    return;
+  }
   if (nghttp2_session_set_next_stream_id(session->session(), id) < 0) {
     Debug(session, "failed to set next stream id to %d", id);
     return args.GetReturnValue().Set(false);
@@ -2766,7 +2775,10 @@ void Http2Session::SetLocalWindowSize(
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
-  int32_t window_size = args[0]->Int32Value(env->context()).ToChecked();
+  int32_t window_size;
+  if (!args[0]->Int32Value(env->context()).To(&window_size)) {
+    return;
+  }
 
   int result = nghttp2_session_set_local_window_size(
       session->session(), NGHTTP2_FLAG_NONE, 0, window_size);
@@ -2826,8 +2838,11 @@ void Http2Session::New(const FunctionCallbackInfo<Value>& args) {
   Http2State* state = realm->GetBindingData<Http2State>();
 
   CHECK(args.IsConstructCall());
-  SessionType type = static_cast<SessionType>(
-      args[0]->Int32Value(realm->context()).ToChecked());
+  int32_t val;
+  if (!args[0]->Int32Value(realm->context()).To(&val)) {
+    return;
+  }
+  SessionType type = static_cast<SessionType>(val);
   Http2Session* session = new Http2Session(state, args.This(), type);
   Debug(session, "session created");
 }
@@ -2849,7 +2864,10 @@ void Http2Session::Destroy(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Context> context = env->context();
 
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
+  uint32_t code;
+  if (!args[0]->Uint32Value(context).To(&code)) {
+    return;
+  }
   session->Close(code, args[1]->IsTrue());
 }
 
@@ -2861,7 +2879,10 @@ void Http2Session::Request(const FunctionCallbackInfo<Value>& args) {
   Environment* env = session->env();
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options;
+  if (!args[1]->Int32Value(env->context()).To(&options)) {
+    return;
+  }
 
   Debug(session, "request submitted");
 
@@ -2910,8 +2931,14 @@ void Http2Session::Goaway(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
-  int32_t lastStreamID = args[1]->Int32Value(context).ToChecked();
+  uint32_t code;
+  if (!args[0]->Uint32Value(context).To(&code)) {
+    return;
+  }
+  int32_t lastStreamID;
+  if (!args[1]->Int32Value(context).To(&lastStreamID)) {
+    return;
+  }
   ArrayBufferViewContents<uint8_t> opaque_data;
 
   if (args[2]->IsArrayBufferView()) {
@@ -2947,7 +2974,10 @@ void Http2Stream::RstStream(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = env->context();
   Http2Stream* stream;
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
-  uint32_t code = args[0]->Uint32Value(context).ToChecked();
+  uint32_t code;
+  if (!args[0]->Uint32Value(context).To(&code)) {
+    return;
+  }
   Debug(stream, "sending rst_stream with code %d", code);
   stream->SubmitRstStream(code);
 }
@@ -2960,7 +2990,10 @@ void Http2Stream::Respond(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&stream, args.This());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options;
+  if (!args[1]->Int32Value(env->context()).To(&options)) {
+    return;
+  }
 
   args.GetReturnValue().Set(
       stream->SubmitResponse(
@@ -3015,7 +3048,10 @@ void Http2Stream::PushPromise(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&parent, args.This());
 
   Local<Array> headers = args[0].As<Array>();
-  int32_t options = args[1]->Int32Value(env->context()).ToChecked();
+  int32_t options;
+  if (!args[1]->Int32Value(env->context()).To(&options)) {
+    return;
+  }
 
   Debug(parent, "creating push promise");
 
@@ -3110,7 +3146,10 @@ void Http2Session::AltSvc(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
-  int32_t id = args[0]->Int32Value(env->context()).ToChecked();
+  int32_t id;
+  if (!args[0]->Int32Value(env->context()).To(&id)) {
+    return;
+  }
 
   // origin and value are both required to be ASCII, handle them as such.
   Local<String> origin_str = args[1]->ToString(env->context()).ToLocalChecked();
@@ -3142,9 +3181,12 @@ void Http2Session::Origin(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
 
   Local<String> origin_string = args[0].As<String>();
-  size_t count = args[1]->Int32Value(context).ToChecked();
+  int32_t count;
+  if (!args[1]->Int32Value(context).To(&count)) {
+    return;
+  }
 
-  session->Origin(Origins(env, origin_string, count));
+  session->Origin(Origins(env, origin_string, static_cast<size_t>(count)));
 }
 
 // Submits a PING frame to be sent to the connected peer.
