@@ -1836,7 +1836,7 @@ added:
  - v18.18.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57765
    description: No longer experimental.
 -->
 
