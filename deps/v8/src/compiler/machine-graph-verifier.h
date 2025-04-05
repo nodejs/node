@@ -11,7 +11,7 @@ namespace internal {
 class Zone;
 namespace compiler {
 
-class Graph;
+class TFGraph;
 class Linkage;
 class Schedule;
 class Node;
@@ -20,7 +20,7 @@ class Node;
 // of the correct type.
 class MachineGraphVerifier {
  public:
-  static void Run(Graph* graph, Schedule const* const schedule,
+  static void Run(TFGraph* graph, Schedule const* const schedule,
                   Linkage* linkage, bool is_stub, const char* name,
                   Zone* temp_zone);
 };

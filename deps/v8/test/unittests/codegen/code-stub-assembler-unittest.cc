@@ -78,7 +78,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAllocateEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -99,7 +99,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -113,7 +113,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListAddEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }
@@ -127,7 +127,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
 
   // Tests that the CSA implementation of ArrayList behave the same as the C++
   // implementation.
-  Handle<Code> allocate_arraylist_in_csa;
+  DirectHandle<Code> allocate_arraylist_in_csa;
   {
     compiler::CodeAssemblerTester tester(i_isolate(), JSParameterCount(0));
     CodeStubAssembler assembler(tester.state());
@@ -141,7 +141,7 @@ TARGET_TEST_F(CodeStubAssemblerTest, ArrayListElementsEquivalent) {
     allocate_arraylist_in_csa = tester.GenerateCodeCloseAndEscape();
   }
 
-  Handle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
+  DirectHandle<ArrayList> array1 = ArrayList::New(i_isolate(), L);
   for (int i = 0; i < 5; i++) {
     array1 = ArrayList::Add(i_isolate(), array1, Smi::FromInt(i));
   }

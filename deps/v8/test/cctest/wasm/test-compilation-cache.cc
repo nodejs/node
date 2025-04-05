@@ -26,14 +26,15 @@ class TestResolver : public CompilationResultResolver {
   explicit TestResolver(std::atomic<int>* pending)
       : native_module_(nullptr), pending_(pending) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       native_module_ = module->shared_native_module();
       pending_->fetch_sub(1);
     }
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     CHECK(false);
   }
 
@@ -50,7 +51,7 @@ class StreamTester {
       : internal_scope_(CcTest::i_isolate()), test_resolver_(test_resolver) {
     i::Isolate* i_isolate = CcTest::i_isolate();
 
-    Handle<Context> context = i_isolate->native_context();
+    DirectHandle<Context> context = i_isolate->native_context();
 
     stream_ = GetWasmEngine()->StartStreamingCompilation(
         i_isolate, WasmEnabledFeatures::All(), CompileTimeImports{}, context,
@@ -76,8 +77,7 @@ ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
   WasmModuleBuilder builder(zone);
   {
     WasmFunctionBuilder* f = builder.AddFunction(sigs.v_v());
-    uint8_t code[] = {kExprI32Const, n, kExprDrop, kExprEnd};
-    f->EmitCode(code, arraysize(code));
+    f->EmitCode({kExprI32Const, n, kExprDrop, kExprEnd});
   }
   builder.WriteTo(&buffer);
   return buffer;
@@ -86,11 +86,11 @@ ZoneBuffer GetValidModuleBytes(Zone* zone, uint8_t n) {
 std::shared_ptr<NativeModule> SyncCompile(base::Vector<const uint8_t> bytes) {
   ErrorThrower thrower(CcTest::i_isolate(), "Test");
   auto enabled_features = WasmEnabledFeatures::FromIsolate(CcTest::i_isolate());
-  auto wire_bytes = ModuleWireBytes(bytes.begin(), bytes.end());
   DirectHandle<WasmModuleObject> module =
       GetWasmEngine()
           ->SyncCompile(CcTest::i_isolate(), enabled_features,
-                        CompileTimeImports{}, &thrower, wire_bytes)
+                        CompileTimeImports{}, &thrower,
+                        base::OwnedCopyOf(bytes))
           .ToHandleChecked();
   return module->shared_native_module();
 }
@@ -138,18 +138,15 @@ TEST(TestAsyncCache) {
   auto resolverA2 = std::make_shared<TestResolver>(&pending);
   auto resolverB = std::make_shared<TestResolver>(&pending);
 
-  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmEnabledFeatures::All(),
-                                CompileTimeImports{}, resolverA1,
-                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
-                                true, "WebAssembly.compile");
-  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmEnabledFeatures::All(),
-                                CompileTimeImports{}, resolverA2,
-                                ModuleWireBytes(bufferA.begin(), bufferA.end()),
-                                true, "WebAssembly.compile");
-  GetWasmEngine()->AsyncCompile(CcTest::i_isolate(), WasmEnabledFeatures::All(),
-                                CompileTimeImports{}, resolverB,
-                                ModuleWireBytes(bufferB.begin(), bufferB.end()),
-                                true, "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(
+      CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
+      resolverA1, base::OwnedCopyOf(bufferA), "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(
+      CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
+      resolverA2, base::OwnedCopyOf(bufferA), "WebAssembly.compile");
+  GetWasmEngine()->AsyncCompile(
+      CcTest::i_isolate(), WasmEnabledFeatures::All(), CompileTimeImports{},
+      resolverB, base::OwnedCopyOf(bufferB), "WebAssembly.compile");
 
   while (pending > 0) {
     v8::platform::PumpMessageLoop(i::V8::GetCurrentPlatform(),
@@ -258,7 +255,7 @@ void TestModuleSharingBetweenIsolates() {
             GetWasmEngine()
                 ->SyncCompile(i_isolate, WasmEnabledFeatures::All(),
                               CompileTimeImports{}, &thrower,
-                              ModuleWireBytes{full_bytes.as_vector()})
+                              std::move(full_bytes))
                 .ToHandleChecked()
                 ->shared_native_module();
         register_module_(native_module);

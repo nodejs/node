@@ -224,7 +224,10 @@ class Worklist<EntryType, MinSegmentSize>::Segment final
     } else {
       result = v8::base::AllocateAtLeast<char>(wanted_bytes);
     }
-    CHECK_NOT_NULL(result.ptr);
+    if (!result.ptr) {
+      v8::base::FatalOOM(v8::base::OOMType::kProcess,
+                         "Worklist::Segment::Create");
+    }
     return new (result.ptr)
         Segment(CapacityForMallocSize(result.count * sizeof(char)));
   }

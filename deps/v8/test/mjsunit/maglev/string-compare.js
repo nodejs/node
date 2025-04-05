@@ -4,6 +4,7 @@
 
 // Flags: --allow-natives-syntax --maglev --no-always-turbofan
 // Flags: --no-always-use-string-forwarding-table
+// Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 let internalized1234 = %ConstructInternalizedString("1234123412341234");
 let nonInternalized1234 = %ConstructConsString("12341234", "12341234");

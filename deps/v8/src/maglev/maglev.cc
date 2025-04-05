@@ -25,7 +25,8 @@ MaybeHandle<Code> Maglev::Compile(Isolate* isolate, Handle<JSFunction> function,
                                        info.get())) {
     return {};
   }
-  return maglev::MaglevCompiler::GenerateCode(isolate, info.get());
+  // TODO(olivf): Maybe return the BailoutReason too.
+  return maglev::MaglevCompiler::GenerateCode(isolate, info.get()).first;
 }
 
 }  // namespace internal

@@ -5,8 +5,10 @@
 #ifndef V8_WASM_BASELINE_PARALLEL_MOVE_INL_H_
 #define V8_WASM_BASELINE_PARALLEL_MOVE_INL_H_
 
-#include "src/wasm/baseline/liftoff-assembler-inl.h"
 #include "src/wasm/baseline/parallel-move.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/wasm/baseline/liftoff-assembler-inl.h"
 
 namespace v8::internal::wasm {
 

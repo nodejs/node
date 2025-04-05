@@ -52,7 +52,7 @@ class V8_EXPORT_PRIVATE SimplifiedOperatorReducer final
   Reduction ReplaceNumber(int32_t value);
 
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   MachineOperatorBuilder* machine() const;
   SimplifiedOperatorBuilder* simplified() const;
 

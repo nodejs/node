@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file contains runtime implementations of a few macros that are defined
-// as external in Torque, so that generated runtime code can work.
-
 #ifndef V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
 #define V8_TORQUE_RUNTIME_MACRO_SHIMS_H_
+
+// This file contains runtime implementations of a few macros that are defined
+// as external in Torque, so that generated runtime code can work.
 
 #include <cstdint>
 

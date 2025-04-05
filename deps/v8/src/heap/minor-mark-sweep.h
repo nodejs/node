@@ -241,8 +241,6 @@ class MinorMarkSweepCollector final {
   std::unique_ptr<YoungGenerationRememberedSetsMarkingWorklist>
       remembered_sets_marking_handler_;
 
-  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
-
   std::optional<bool> use_background_threads_in_cycle_;
 
   std::atomic<bool> is_in_atomic_pause_{false};

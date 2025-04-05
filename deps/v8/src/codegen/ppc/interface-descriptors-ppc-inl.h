@@ -314,10 +314,7 @@ constexpr Register
 CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r6;
 }
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return r3;
-}
+
 // static
 constexpr Register
 CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
@@ -332,10 +329,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r6;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return r3;
 }
 
 // static

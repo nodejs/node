@@ -12,6 +12,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 namespace {
 
 using Constructor = Node* (RawMachineAssembler::*)(Node*, Node*);
@@ -3290,6 +3292,8 @@ const AddWithPairwiseAddSideAndWidth kAddWithPairAddTestCases[] = {
 INSTANTIATE_TEST_SUITE_P(InstructionSelectorTest,
                          InstructionSelectorAddWithPairwiseAddTest,
                          ::testing::ValuesIn(kAddWithPairAddTestCases));
+
+#endif
 
 }  // namespace compiler
 }  // namespace internal

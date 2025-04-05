@@ -2017,6 +2017,13 @@ TEST(DemangleRegression, DeeplyNestedArrayType) {
   TestOnInput(data.c_str());
 }
 
+TEST(DemangleRegression, ShortOutputBuffer) {
+  // This should not crash.
+  char buffer[1];
+  EXPECT_FALSE(
+      absl::debugging_internal::Demangle("_ZZ2wwE", buffer, sizeof(buffer)));
+}
+
 struct Base {
   virtual ~Base() = default;
 };

@@ -15,6 +15,7 @@
 #include "absl/synchronization/internal/graphcycles.h"
 
 #include <climits>
+#include <cstdint>
 #include <map>
 #include <random>
 #include <unordered_set>
@@ -461,20 +462,20 @@ TEST_F(GraphCyclesTest, ManyEdges) {
 
 TEST(GraphCycles, IntegerOverflow) {
   GraphCycles graph_cycles;
-  char *buf = (char *)nullptr;
-  GraphId prev_id = graph_cycles.GetId(buf);
+  uintptr_t buf = 0;
+  GraphId prev_id = graph_cycles.GetId(reinterpret_cast<void*>(buf));
   buf += 1;
-  GraphId id = graph_cycles.GetId(buf);
+  GraphId id = graph_cycles.GetId(reinterpret_cast<void*>(buf));
   ASSERT_TRUE(graph_cycles.InsertEdge(prev_id, id));
 
   // INT_MAX / 40 is enough to cause an overflow when multiplied by 41.
   graph_cycles.TestOnlyAddNodes(INT_MAX / 40);
 
   buf += 1;
-  GraphId newid = graph_cycles.GetId(buf);
+  GraphId newid = graph_cycles.GetId(reinterpret_cast<void*>(buf));
   graph_cycles.HasEdge(prev_id, newid);
 
-  graph_cycles.RemoveNode(buf);
+  graph_cycles.RemoveNode(reinterpret_cast<void*>(buf));
 }
 
 }  // namespace synchronization_internal

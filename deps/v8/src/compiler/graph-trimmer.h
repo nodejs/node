@@ -12,12 +12,12 @@ namespace internal {
 namespace compiler {
 
 // Forward declarations.
-class Graph;
+class TFGraph;
 
 // Trims dead nodes from the node graph.
 class V8_EXPORT_PRIVATE GraphTrimmer final {
  public:
-  GraphTrimmer(Zone* zone, Graph* graph);
+  GraphTrimmer(Zone* zone, TFGraph* graph);
   ~GraphTrimmer();
   GraphTrimmer(const GraphTrimmer&) = delete;
   GraphTrimmer& operator=(const GraphTrimmer&) = delete;
@@ -46,9 +46,9 @@ class V8_EXPORT_PRIVATE GraphTrimmer final {
     }
   }
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   NodeMarker<bool> is_live_;
   NodeVector live_;
 };

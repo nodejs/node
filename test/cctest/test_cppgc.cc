@@ -46,18 +46,17 @@ int CppGCed::kDestructCount = 0;
 int CppGCed::kTraceCount = 0;
 
 TEST_F(NodeZeroIsolateTestFixture, ExistingCppHeapTest) {
-  v8::Isolate* isolate =
-      node::NewIsolate(allocator.get(), &current_loop, platform.get());
-
   // Create and attach the CppHeap before we set up the IsolateData so that
   // it recognizes the existing heap.
   std::unique_ptr<v8::CppHeap> cpp_heap =
       v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}});
 
-  // TODO(joyeecheung): pass it into v8::Isolate::CreateParams and let V8
-  // own it when we can keep the isolate registered/task runner discoverable
-  // during isolate disposal.
-  isolate->AttachCppHeap(cpp_heap.get());
+  v8::Isolate* isolate = node::NewIsolate(allocator.get(),
+                                          &current_loop,
+                                          platform.get(),
+                                          nullptr,
+                                          {},
+                                          std::move(cpp_heap));
 
   // Try creating Context + IsolateData + Environment.
   {
@@ -102,8 +101,6 @@ TEST_F(NodeZeroIsolateTestFixture, ExistingCppHeapTest) {
     platform->DrainTasks(isolate);
 
     // Cleanup.
-    isolate->DetachCppHeap();
-    cpp_heap->Terminate();
     platform->DrainTasks(isolate);
   }
 

@@ -5,7 +5,7 @@
 #ifndef V8_CODEGEN_S390_INTERFACE_DESCRIPTORS_S390_INL_H_
 #define V8_CODEGEN_S390_INTERFACE_DESCRIPTORS_S390_INL_H_
 
-#if V8_TARGET_ARCH_S390
+#if V8_TARGET_ARCH_S390X
 
 #include "src/codegen/interface-descriptors.h"
 #include "src/execution/frames.h"
@@ -334,10 +334,7 @@ constexpr Register
 CallApiCallbackOptimizedDescriptor::FunctionTemplateInfoRegister() {
   return r5;
 }
-// static
-constexpr Register CallApiCallbackOptimizedDescriptor::HolderRegister() {
-  return r2;
-}
+
 // static
 constexpr Register
 CallApiCallbackGenericDescriptor::ActualArgumentsCountRegister() {
@@ -352,10 +349,6 @@ CallApiCallbackGenericDescriptor::TopmostScriptHavingContextRegister() {
 constexpr Register
 CallApiCallbackGenericDescriptor::FunctionTemplateInfoRegister() {
   return r5;
-}
-// static
-constexpr Register CallApiCallbackGenericDescriptor::HolderRegister() {
-  return r2;
 }
 
 // static
@@ -406,6 +399,6 @@ constexpr auto WasmJSToWasmWrapperDescriptor::registers() {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_TARGET_ARCH_S390
+#endif  // V8_TARGET_ARCH_S390X
 
 #endif  // V8_CODEGEN_S390_INTERFACE_DESCRIPTORS_S390_INL_H_

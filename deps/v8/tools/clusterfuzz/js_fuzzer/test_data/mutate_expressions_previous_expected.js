@@ -7,6 +7,5 @@
 let foo = undefined;
 2;
 3;
-
 /* ExpressionMutator: Cloned sibling */
 2;

@@ -56,8 +56,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
                         LocalIsolate* local_isolate) override;
   Status FinalizeJobImpl(Isolate* isolate) override;
 
-  Handle<JSFunction> function() const;
-  MaybeHandle<Code> code() const;
+  IndirectHandle<JSFunction> function() const;
+  MaybeIndirectHandle<Code> code() const;
   BytecodeOffset osr_offset() const;
   bool is_osr() const;
 
@@ -73,6 +73,8 @@ class MaglevCompilationJob final : public OptimizedCompilationJob {
 
   // Intended for use as a globally unique id in trace events.
   uint64_t trace_id() const;
+
+  BailoutReason bailout_reason_ = BailoutReason::kNoReason;
 
  private:
   explicit MaglevCompilationJob(Isolate* isolate,

@@ -14,9 +14,9 @@
 
 #include <cstdint>
 
-#include "benchmark/benchmark.h"
 #include "absl/log/check.h"
 #include "absl/strings/charset.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 

@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_OFF_HEAP_HASH_TABLE_INL_H_
 #define V8_OBJECTS_OFF_HEAP_HASH_TABLE_INL_H_
 
-#include "src/objects/compressed-slots-inl.h"
 #include "src/objects/off-heap-hash-table.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/compressed-slots-inl.h"
 
 namespace v8 {
 namespace internal {

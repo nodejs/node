@@ -8,7 +8,6 @@ try {
 } catch (e) {
   __caught++;
 }
-
 /* DifferentialFuzzMutator: Print variables and exceptions from section */
 try {
   print("Hash: " + __hash);

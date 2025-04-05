@@ -156,6 +156,9 @@
         'xcode_settings': {
           # -Wno-invalid-offsetof
           'GCC_WARN_ABOUT_INVALID_OFFSETOF_MACRO': 'NO',
+          'OTHER_CFLAGS': [
+            '-Wno-nullability-completeness',
+          ],
         },
         'msvs_settings': {
           'VCCLCompilerTool': {
@@ -527,6 +530,13 @@
         'msvs_configuration_attributes': {
           'CharacterSet': '1',
         },
+        'msvs_settings': {
+          'VCCLCompilerTool': {
+            'AdditionalOptions': [
+              '/bigobj', # Prevent C1128: number of sections exceeded object file format limit.
+            ],
+          },
+        },
       }],
       ['OS=="win" and v8_enable_prof==1', {
         'msvs_settings': {
@@ -807,7 +817,10 @@
           }],
           # Temporary refs: https://github.com/nodejs/node/pull/23801
           ['v8_enable_handle_zapping==1', {
-            'defines': ['ENABLE_HANDLE_ZAPPING',],
+            'defines': [
+              'ENABLE_LOCAL_HANDLE_ZAPPING',
+              'ENABLE_GLOBAL_HANDLE_ZAPPING',
+            ],
           }],
         ],
 

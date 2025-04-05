@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_REGEXP_INL_H_
 
 #include "src/objects/js-regexp.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
 #include "src/objects/objects-inl.h"  // Needed for write barriers
@@ -141,7 +142,8 @@ Tagged<TrustedByteArray> IrRegExpData::bytecode(bool is_one_byte) const {
   return is_one_byte ? latin1_bytecode() : uc16_bytecode();
 }
 ACCESSORS(IrRegExpData, capture_name_map, Tagged<Object>, kCaptureNameMapOffset)
-void IrRegExpData::set_capture_name_map(Handle<FixedArray> capture_name_map) {
+void IrRegExpData::set_capture_name_map(
+    DirectHandle<FixedArray> capture_name_map) {
   if (capture_name_map.is_null()) {
     set_capture_name_map(Smi::zero());
   } else {

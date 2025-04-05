@@ -273,13 +273,13 @@ class RessurectingPrefinalizer
 
  public:
   explicit RessurectingPrefinalizer(RefType<GCed>& ref, GCed* obj)
-      : ref_(ref), obj_(obj) {}
+      : ref_(reinterpret_cast<void*>(&ref)), obj_(obj) {}
   void Trace(Visitor*) const {}
-  void PreFinalizer() { ref_ = obj_; }
+  void PreFinalizer() { *reinterpret_cast<RefType<GCed>*>(ref_) = obj_; }
 
  private:
-  RefType<GCed>& ref_;
-  GCed* obj_;
+  void* const ref_;
+  const UntracedMember<GCed> obj_;
 };
 
 class GCedHolder : public GarbageCollected<GCedHolder> {
@@ -310,6 +310,8 @@ TEST_F(PrefinalizerDeathTest, PrefinalizerCanRewireGraphWithDeadObjects) {
   PreciseGC();
 }
 
+#ifdef CPPGC_ENABLE_SLOW_API_CHECKS
+
 TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnStack) {
   Persistent<GCed> persistent;
   MakeGarbageCollected<RessurectingPrefinalizer<Persistent>>(
@@ -317,6 +319,8 @@ TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnStack) {
       MakeGarbageCollected<GCed>(GetAllocationHandle()));
   EXPECT_DEATH_IF_SUPPORTED(PreciseGC(), "");
 }
+
+#endif  // CPPGC_ENABLE_SLOW_API_CHECKS
 
 TEST_F(PrefinalizerDeathTest, PrefinalizerCantRessurectObjectOnHeap) {
   Persistent<GCedHolder> persistent(

@@ -5,11 +5,13 @@
 #ifndef V8_OBJECTS_FEEDBACK_CELL_INL_H_
 #define V8_OBJECTS_FEEDBACK_CELL_INL_H_
 
+#include "src/objects/feedback-cell.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/execution/tiering-manager.h"
 #include "src/heap/heap-write-barrier-inl.h"
-#include "src/objects/feedback-cell.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/struct-inl.h"
@@ -54,39 +56,37 @@ void FeedbackCell::clear_interrupt_budget() {
   set_interrupt_budget(0);
 }
 
-#ifdef V8_ENABLE_LEAPTIERING
-void FeedbackCell::allocate_dispatch_handle(IsolateForSandbox isolate,
-                                            uint16_t parameter_count,
-                                            Tagged<Code> code,
-                                            WriteBarrierMode mode) {
-  DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  AllocateAndInstallJSDispatchHandle(kDispatchHandleOffset, isolate,
-                                     parameter_count, code, mode);
-}
-
 void FeedbackCell::clear_dispatch_handle() {
-  WriteField<JSDispatchHandle>(kDispatchHandleOffset, kNullJSDispatchHandle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                kNullJSDispatchHandle.value());
 }
 
+#ifdef V8_ENABLE_LEAPTIERING
 JSDispatchHandle FeedbackCell::dispatch_handle() const {
-  return ReadField<JSDispatchHandle>(kDispatchHandleOffset);
+  return JSDispatchHandle(
+      ReadField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset));
 }
 
 void FeedbackCell::set_dispatch_handle(JSDispatchHandle new_handle) {
   DCHECK_EQ(dispatch_handle(), kNullJSDispatchHandle);
-  WriteField<JSDispatchHandle>(kDispatchHandleOffset, new_handle);
+  WriteField<JSDispatchHandle::underlying_type>(kDispatchHandleOffset,
+                                                new_handle.value());
   JS_DISPATCH_HANDLE_WRITE_BARRIER(*this, new_handle);
 }
 #endif  // V8_ENABLE_LEAPTIERING
 
-void FeedbackCell::IncrementClosureCount(Isolate* isolate) {
+FeedbackCell::ClosureCountTransition FeedbackCell::IncrementClosureCount(
+    Isolate* isolate) {
   ReadOnlyRoots r(isolate);
   if (map() == r.no_closures_cell_map()) {
-    set_map(r.one_closure_cell_map());
+    set_map(isolate, r.one_closure_cell_map());
+    return kNoneToOne;
   } else if (map() == r.one_closure_cell_map()) {
-    set_map(r.many_closures_cell_map());
+    set_map(isolate, r.many_closures_cell_map());
+    return kOneToMany;
   } else {
     DCHECK(map() == r.many_closures_cell_map());
+    return kMany;
   }
 }
 

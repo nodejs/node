@@ -13,22 +13,33 @@ namespace struct_types_unittest {
 class StructTypesTest : public TestWithZone {};
 
 TEST_F(StructTypesTest, Empty) {
-  StructType::Builder builder(this->zone(), 0);
+  StructType::Builder builder(this->zone(), 0, false);
   StructType* type = builder.Build();
   EXPECT_EQ(0u, type->total_fields_size());
+
+  StructType::Builder desc_builder(this->zone(), 0, true);
+  StructType* desc_type = desc_builder.Build();
+  EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->total_fields_size());
 }
 
 TEST_F(StructTypesTest, OneField) {
-  StructType::Builder builder(this->zone(), 1);
+  StructType::Builder builder(this->zone(), 1, false);
   builder.AddField(kWasmI32, true);
   StructType* type = builder.Build();
   uint32_t expected = std::max(kUInt32Size, kTaggedSize);
   EXPECT_EQ(expected, type->total_fields_size());
   EXPECT_EQ(0u, type->field_offset(0));
+
+  StructType::Builder desc_builder(this->zone(), 1, true);
+  desc_builder.AddField(kWasmI32, true);
+  StructType* desc_type = desc_builder.Build();
+  EXPECT_EQ(uint32_t{kTaggedSize + std::max(kUInt32Size, kTaggedSize)},
+            desc_type->total_fields_size());
+  EXPECT_EQ(uint32_t{kTaggedSize}, desc_type->field_offset(0));
 }
 
 TEST_F(StructTypesTest, Packing) {
-  StructType::Builder builder(this->zone(), 5);
+  StructType::Builder builder(this->zone(), 5, false);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -44,7 +55,7 @@ TEST_F(StructTypesTest, Packing) {
 }
 
 TEST_F(StructTypesTest, CopyingOffsets) {
-  StructType::Builder builder(this->zone(), 5);
+  StructType::Builder builder(this->zone(), 5, false);
   builder.AddField(kWasmI64, true);
   builder.AddField(kWasmI8, true);
   builder.AddField(kWasmI32, true);
@@ -52,7 +63,7 @@ TEST_F(StructTypesTest, CopyingOffsets) {
   builder.AddField(kWasmI8, true);
   StructType* type = builder.Build();
 
-  StructType::Builder copy_builder(this->zone(), type->field_count());
+  StructType::Builder copy_builder(this->zone(), type->field_count(), false);
   for (uint32_t i = 0; i < type->field_count(); i++) {
     copy_builder.AddField(type->field(i), type->mutability(i),
                           type->field_offset(i));

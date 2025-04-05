@@ -100,16 +100,18 @@ class V8_EXPORT_PRIVATE SimplifiedLowering final {
   Node* ToNumberCode();
   Node* ToNumberConvertBigIntCode();
   Node* ToNumericCode();
+  Node* Ieee754Fp64ToFp16RawBitsCode();
   Operator const* ToNumberOperator();
   Operator const* ToNumberConvertBigIntOperator();
   Operator const* ToNumericOperator();
+  Operator const* Ieee754Fp64ToFp16RawBitsOperator();
 
   friend class RepresentationSelector;
 
   Isolate* isolate() { return jsgraph_->isolate(); }
   Zone* zone() { return jsgraph_->zone(); }
   JSGraph* jsgraph() { return jsgraph_; }
-  Graph* graph() { return jsgraph()->graph(); }
+  TFGraph* graph() { return jsgraph()->graph(); }
   CommonOperatorBuilder* common() { return jsgraph()->common(); }
   MachineOperatorBuilder* machine() { return jsgraph()->machine(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph()->simplified(); }
