@@ -315,7 +315,12 @@ const knownGlobals = new Set([
  'localStorage',
  'sessionStorage',
 ].forEach((i) => {
-  if (globalThis[i] !== undefined) {
+  if (i === 'localStorage') {
+    if (Object.hasOwn(globalThis, i)) {
+      globalThis[i] = {};
+      knownGlobals.add(globalThis[i]);
+    }
+  } else if (globalThis[i] !== undefined) {
     knownGlobals.add(globalThis[i]);
   }
 });
