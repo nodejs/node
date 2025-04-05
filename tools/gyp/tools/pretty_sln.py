@@ -16,6 +16,7 @@
 import os
 import re
 import sys
+
 import pretty_vcproj
 
 __author__ = "nsylvain (Nicolas Sylvain)"
@@ -118,7 +119,7 @@ def PrintDependencies(projects, deps):
         if dep_list:
             for dep in dep_list:
                 print("  - %s" % dep)
-        print("")
+        print()
 
     print("--                                   --")
 

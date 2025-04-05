@@ -137,14 +137,15 @@ Strings of class unicode are handled properly and encoded in UTF-8 when
 a project file is output.
 """
 
-import gyp.common
-from functools import cmp_to_key
 import hashlib
-from operator import attrgetter
 import posixpath
 import re
 import struct
 import sys
+from functools import cmp_to_key
+from operator import attrgetter
+
+import gyp.common
 
 
 def cmp(x, y):
@@ -460,7 +461,7 @@ class XCObject:
             digest_int_count = hash.digest_size // 4
             digest_ints = struct.unpack(">" + "I" * digest_int_count, hash.digest())
             id_ints = [0, 0, 0]
-            for index in range(0, digest_int_count):
+            for index in range(digest_int_count):
                 id_ints[index % 3] ^= digest_ints[index]
             self.id = "%08X%08X%08X" % tuple(id_ints)
 
@@ -1640,7 +1641,6 @@ class PBXVariantGroup(PBXGroup, XCFileLikeElement):
     """PBXVariantGroup is used by Xcode to represent localizations."""
 
     # No additions to the schema relative to PBXGroup.
-    pass
 
 
 # PBXReferenceProxy is also an XCFileLikeElement subclass.  It is defined below
@@ -1766,9 +1766,8 @@ class XCConfigurationList(XCObject):
             configuration_value = configuration.GetBuildSetting(key)
             if value is None:
                 value = configuration_value
-            else:
-                if value != configuration_value:
-                    raise ValueError("Variant values for " + key)
+            elif value != configuration_value:
+                raise ValueError("Variant values for " + key)
 
         return value
 
@@ -1924,14 +1923,13 @@ class XCBuildPhase(XCObject):
             # It's best when the caller provides the path.
             if isinstance(xcfilelikeelement, PBXVariantGroup):
                 paths.append(path)
+        # If the caller didn't provide a path, there can be either multiple
+        # paths (PBXVariantGroup) or one.
+        elif isinstance(xcfilelikeelement, PBXVariantGroup):
+            for variant in xcfilelikeelement._properties["children"]:
+                paths.append(variant.FullPath())
         else:
-            # If the caller didn't provide a path, there can be either multiple
-            # paths (PBXVariantGroup) or one.
-            if isinstance(xcfilelikeelement, PBXVariantGroup):
-                for variant in xcfilelikeelement._properties["children"]:
-                    paths.append(variant.FullPath())
-            else:
-                paths.append(xcfilelikeelement.FullPath())
+            paths.append(xcfilelikeelement.FullPath())
 
         # Add the paths first, because if something's going to raise, the
         # messages provided by _AddPathToDict are more useful owing to its

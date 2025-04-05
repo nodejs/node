@@ -7,9 +7,8 @@
 """Pretty-prints the contents of a GYP file."""
 
 
-import sys
 import re
-
+import sys
 
 # Regex to remove comments when we're counting braces.
 COMMENT_RE = re.compile(r"\s*#.*")
@@ -136,7 +135,7 @@ def prettyprint_input(lines):
                 else:
                     print(" " * (basic_offset * indent) + line)
             else:
-                print("")
+                print()
 
 
 def main():

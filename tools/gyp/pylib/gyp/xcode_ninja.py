@@ -13,10 +13,11 @@ of targets within Xcode.
 """
 
 import errno
-import gyp.generator.ninja
 import os
 import re
 import xml.sax.saxutils
+
+import gyp.generator.ninja
 
 
 def _WriteWorkspace(main_gyp, sources_gyp, params):

@@ -22,16 +22,16 @@
 # the side to keep the files readable.
 
 
+import hashlib
 import os
 import re
 import subprocess
 import sys
+
 import gyp
 import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
-
-import hashlib
 
 generator_default_variables = {
     "EXECUTABLE_PREFIX": "",
@@ -1440,7 +1440,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         for obj in objs:
             assert " " not in obj, "Spaces in object filenames not supported (%s)" % obj
         self.WriteLn(
-            "# Add to the list of files we specially track " "dependencies for."
+            "# Add to the list of files we specially track dependencies for."
         )
         self.WriteLn("all_deps += $(OBJS)")
         self.WriteLn()
@@ -1450,7 +1450,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 deps,
-                comment="Make sure our dependencies are built " "before any of us.",
+                comment="Make sure our dependencies are built before any of us.",
                 order_only=True,
             )
 
@@ -1461,7 +1461,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 extra_outputs,
-                comment="Make sure our actions/rules run " "before any of us.",
+                comment="Make sure our actions/rules run before any of us.",
                 order_only=True,
             )
 
@@ -1699,7 +1699,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 extra_outputs,
                 deps,
-                comment=("Preserve order dependency of " "special output on deps."),
+                comment=("Preserve order dependency of special output on deps."),
                 order_only=True,
             )
 
@@ -1738,7 +1738,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         # into the link command, so we need lots of escaping.
                         ldflags.append(r"-Wl,-rpath=\$$ORIGIN/")
                         ldflags.append(r"-Wl,-rpath-link=\$(builddir)/")
-                library_dirs = config.get("library_dirs", [])
+                if library_dirs := config.get("library_dirs", []):
+                    library_dirs = [Sourceify(self.Absolutify(i)) for i in library_dirs]
                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
                 if self.flavor == "mac":
@@ -1844,7 +1845,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 "on the bundle, not the binary (target '%s')" % self.target
             )
             assert "product_dir" not in spec, (
-                "Postbuilds do not work with " "custom product_dir"
+                "Postbuilds do not work with custom product_dir"
             )
 
         if self.type == "executable":
@@ -1895,21 +1896,20 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         part_of_all,
                         postbuilds=postbuilds,
                     )
+            elif self.flavor in ("linux", "android"):
+                self.WriteMakeRule(
+                    [self.output_binary],
+                    link_deps,
+                    actions=["$(call create_archive,$@,$^)"],
+                )
             else:
-                if self.flavor in ("linux", "android"):
-                    self.WriteMakeRule(
-                        [self.output_binary],
-                        link_deps,
-                        actions=["$(call create_archive,$@,$^)"],
-                    )
-                else:
-                    self.WriteDoCmd(
-                        [self.output_binary],
-                        link_deps,
-                        "alink",
-                        part_of_all,
-                        postbuilds=postbuilds,
-                    )
+                self.WriteDoCmd(
+                    [self.output_binary],
+                    link_deps,
+                    "alink",
+                    part_of_all,
+                    postbuilds=postbuilds,
+                )
         elif self.type == "shared_library":
             self.WriteLn(
                 "%s: LD_INPUTS := %s"

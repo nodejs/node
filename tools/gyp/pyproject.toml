@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "gyp-next"
-version = "0.19.1"
+version = "0.20.0"
 authors = [
   { name="Node.js contributors", email="ryzokuken@disroot.org" },
 ]
@@ -92,14 +92,9 @@ select = [
   # "TRY",  # tryceratops
 ]
 ignore = [
-  "PLC1901",
-  "PLR0402",
   "PLR1714",
-  "PLR2004",
-  "PLR5501",
   "PLW0603",
   "PLW2901",
-  "PYI024",
   "RUF005",
   "RUF012",
   "UP031",
@@ -109,6 +104,7 @@ ignore = [
 max-complexity = 101
 
 [tool.ruff.lint.pylint]
+allow-magic-value-types = ["float", "int", "str"]
 max-args = 11
 max-branches = 108
 max-returns = 10
