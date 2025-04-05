@@ -909,20 +909,22 @@ to connect to both Unix and TCP sockets.
 By starting a REPL from a Unix socket-based server instead of stdin, it is
 possible to connect to a long-running Node.js process without restarting it.
 
-For an example of running a "full-featured" (`terminal`) REPL over
-a `net.Server` and `net.Socket` instance, see:
-<https://gist.github.com/TooTallNate/2209310>.
+### Examples
 
-For an example of running a REPL instance over [`curl(1)`][], see:
-<https://gist.github.com/TooTallNate/2053342>.
+* running a "full-featured" (`terminal`) REPL over
+  a `net.Server` and `net.Socket` instance:
+  <https://gist.github.com/TooTallNate/2209310>.
 
-This example is intended purely for educational purposes to demonstrate how
-Node.js REPLs can be started using different I/O streams.
-It should **not** be used in production environments or any context where security
-is a concern without additional protective measures.
-If you need to implement REPLs in a real-world application, consider alternative
-approaches that mitigate these risks, such as using secure input mechanisms and
-avoiding open network interfaces.
+* running a REPL instance over [`curl(1)`][]:
+  <https://gist.github.com/TooTallNate/2053342>.
+
+  **Note**: This example is intended purely for educational purposes to demonstrate how
+  Node.js REPLs can be started using different I/O streams.
+  It should **not** be used in production environments or any context where security
+  is a concern without additional protective measures.
+  If you need to implement REPLs in a real-world application, consider alternative
+  approaches that mitigate these risks, such as using secure input mechanisms and
+  avoiding open network interfaces.
 
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
