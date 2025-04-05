@@ -544,20 +544,11 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
   size_t length = end - start;
 
-  Local<Value> error;
-  MaybeLocal<Value> maybe_ret =
-      StringBytes::Encode(isolate,
-                          buffer.data() + start,
-                          length,
-                          encoding,
-                          &error);
   Local<Value> ret;
-  if (!maybe_ret.ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
-    return;
+  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(ret);
 }
 
 // Assume caller has properly validated args.

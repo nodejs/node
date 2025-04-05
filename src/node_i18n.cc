@@ -500,7 +500,6 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
       }
     }
 
-    Local<Value> error;
     UChar* output = result.out();
     size_t beginning = 0;
     size_t length = result.length() * sizeof(UChar);
@@ -517,11 +516,9 @@ void ConverterObject::Decode(const FunctionCallbackInfo<Value>& args) {
       CHECK(nbytes::SwapBytes16(value, length));
     }
 
-    MaybeLocal<Value> encoded =
-        StringBytes::Encode(env->isolate(), value, length, UCS2, &error);
-
     Local<Value> ret;
-    if (encoded.ToLocal(&ret)) {
+    if (StringBytes::Encode(env->isolate(), value, length, UCS2)
+            .ToLocal(&ret)) {
       args.GetReturnValue().Set(ret);
       return;
     }

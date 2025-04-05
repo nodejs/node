@@ -82,6 +82,7 @@ using v8::Object;
 using v8::ObjectTemplate;
 using v8::Promise;
 using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -845,11 +846,13 @@ void AfterMkdirp(uv_fs_t* req) {
     if (first_path.empty())
       return req_wrap->Resolve(Undefined(req_wrap->env()->isolate()));
     Local<Value> path;
-    Local<Value> error;
-    if (!StringBytes::Encode(req_wrap->env()->isolate(), first_path.c_str(),
-                             req_wrap->encoding(),
-                             &error).ToLocal(&path)) {
-      return req_wrap->Reject(error);
+    TryCatch try_catch(req_wrap->env()->isolate());
+    if (!StringBytes::Encode(req_wrap->env()->isolate(),
+                             first_path.c_str(),
+                             req_wrap->encoding())
+             .ToLocal(&path)) {
+      CHECK(try_catch.CanContinue());
+      return req_wrap->Reject(try_catch.Exception());
     }
     return req_wrap->Resolve(path);
   }
@@ -861,15 +864,14 @@ void AfterStringPath(uv_fs_t* req) {
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   MaybeLocal<Value> link;
-  Local<Value> error;
 
   if (after.Proceed()) {
-    link = StringBytes::Encode(req_wrap->env()->isolate(),
-                               req->path,
-                               req_wrap->encoding(),
-                               &error);
+    TryCatch try_catch(req_wrap->env()->isolate());
+    link = StringBytes::Encode(
+        req_wrap->env()->isolate(), req->path, req_wrap->encoding());
     if (link.IsEmpty()) {
-      req_wrap->Reject(error);
+      CHECK(try_catch.CanContinue());
+      req_wrap->Reject(try_catch.Exception());
     } else {
       Local<Value> val;
       if (link.ToLocal(&val)) req_wrap->Resolve(val);
@@ -883,15 +885,15 @@ void AfterStringPtr(uv_fs_t* req) {
   FS_ASYNC_TRACE_END1(
       req->fs_type, req_wrap, "result", static_cast<int>(req->result))
   MaybeLocal<Value> link;
-  Local<Value> error;
 
   if (after.Proceed()) {
+    TryCatch try_catch(req_wrap->env()->isolate());
     link = StringBytes::Encode(req_wrap->env()->isolate(),
                                static_cast<const char*>(req->ptr),
-                               req_wrap->encoding(),
-                               &error);
+                               req_wrap->encoding());
     if (link.IsEmpty()) {
-      req_wrap->Reject(error);
+      CHECK(try_catch.CanContinue());
+      req_wrap->Reject(try_catch.Exception());
     } else {
       Local<Value> val;
       if (link.ToLocal(&val)) req_wrap->Resolve(val);
@@ -910,7 +912,6 @@ void AfterScanDir(uv_fs_t* req) {
 
   Environment* env = req_wrap->env();
   Isolate* isolate = env->isolate();
-  Local<Value> error;
   int r;
 
   LocalVector<Value> name_v(isolate);
@@ -930,9 +931,11 @@ void AfterScanDir(uv_fs_t* req) {
     }
 
     Local<Value> filename;
-    if (!StringBytes::Encode(isolate, ent.name, req_wrap->encoding(), &error)
+    TryCatch try_catch(isolate);
+    if (!StringBytes::Encode(isolate, ent.name, req_wrap->encoding())
              .ToLocal(&filename)) {
-      return req_wrap->Reject(error);
+      CHECK(try_catch.CanContinue());
+      return req_wrap->Reject(try_catch.Exception());
     }
     name_v.push_back(filename);
 
@@ -1422,16 +1425,10 @@ static void ReadLink(const FunctionCallbackInfo<Value>& args) {
     }
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
-    Local<Value> error;
     Local<Value> ret;
-    if (!StringBytes::Encode(isolate, link_path, encoding, &error)
-             .ToLocal(&ret)) {
-      DCHECK(!error.IsEmpty());
-      env->isolate()->ThrowException(error);
-      return;
+    if (StringBytes::Encode(isolate, link_path, encoding).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-
-    args.GetReturnValue().Set(ret);
   }
 }
 
@@ -1932,17 +1929,12 @@ static void MKDir(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       if (!req_wrap_sync.continuation_data()->first_path().empty()) {
-        Local<Value> error;
         Local<Value> ret;
         std::string first_path(req_wrap_sync.continuation_data()->first_path());
-        if (!StringBytes::Encode(
-                 env->isolate(), first_path.c_str(), UTF8, &error)
-                 .ToLocal(&ret)) {
-          DCHECK(!error.IsEmpty());
-          env->isolate()->ThrowException(error);
-          return;
+        if (StringBytes::Encode(env->isolate(), first_path.c_str(), UTF8)
+                .ToLocal(&ret)) {
+          args.GetReturnValue().Set(ret);
         }
-        args.GetReturnValue().Set(ret);
       }
     } else {
       SyncCallAndThrowOnError(env, &req_wrap_sync, uv_fs_mkdir, *path, mode);
@@ -1982,16 +1974,10 @@ static void RealPath(const FunctionCallbackInfo<Value>& args) {
 
     const char* link_path = static_cast<const char*>(req_wrap_sync.req.ptr);
 
-    Local<Value> error;
     Local<Value> ret;
-    if (!StringBytes::Encode(isolate, link_path, encoding, &error)
-             .ToLocal(&ret)) {
-      DCHECK(!error.IsEmpty());
-      env->isolate()->ThrowException(error);
-      return;
+    if (StringBytes::Encode(isolate, link_path, encoding).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-
-    args.GetReturnValue().Set(ret);
   }
 }
 
@@ -2077,12 +2063,8 @@ static void ReadDir(const FunctionCallbackInfo<Value>& args) {
         return;
       }
 
-      Local<Value> error;
       Local<Value> fn;
-      if (!StringBytes::Encode(isolate, ent.name, encoding, &error)
-               .ToLocal(&fn)) {
-        DCHECK(!error.IsEmpty());
-        isolate->ThrowException(error);
+      if (!StringBytes::Encode(isolate, ent.name, encoding).ToLocal(&fn)) {
         return;
       }
 
@@ -3141,15 +3123,11 @@ static void Mkdtemp(const FunctionCallbackInfo<Value>& args) {
     if (is_uv_error(result)) {
       return;
     }
-    Local<Value> error;
     Local<Value> ret;
-    if (!StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding, &error)
-             .ToLocal(&ret)) {
-      DCHECK(!error.IsEmpty());
-      env->isolate()->ThrowException(error);
-      return;
+    if (StringBytes::Encode(isolate, req_wrap_sync.req.path, encoding)
+            .ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-    args.GetReturnValue().Set(ret);
   }
 }
 

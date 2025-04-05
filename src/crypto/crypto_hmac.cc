@@ -145,19 +145,14 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     hmac->ctx_.reset();
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc =
-      StringBytes::Encode(env->isolate(),
+  Local<Value> ret;
+  if (StringBytes::Encode(env->isolate(),
                           reinterpret_cast<const char*>(md_value),
                           buf.len,
-                          encoding,
-                          &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+                          encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HmacConfig::HmacConfig(HmacConfig&& other) noexcept

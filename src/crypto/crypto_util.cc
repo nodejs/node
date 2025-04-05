@@ -36,6 +36,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -605,21 +606,18 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
 #endif  // !OPENSSL_NO_ENGINE
 
 MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
+  EscapableHandleScope scope(env->isolate());
   auto buf = BignumPointer::EncodePadded(bn, size);
   CHECK_EQ(buf.size(), static_cast<size_t>(size));
   Local<Value> ret;
-  Local<Value> error;
   if (!StringBytes::Encode(env->isolate(),
                            reinterpret_cast<const char*>(buf.get()),
                            buf.size(),
-                           BASE64URL,
-                           &error)
+                           BASE64URL)
            .ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return MaybeLocal<Value>();
+    return {};
   }
-  return ret;
+  return scope.Escape(ret);
 }
 
 Maybe<void> SetEncodedValue(Environment* env,

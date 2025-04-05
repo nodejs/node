@@ -42,6 +42,7 @@ using v8::Null;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::TryCatch;
 using v8::Value;
 
 static const char* get_dir_func_name_by_type(uv_fs_type req_type) {
@@ -206,27 +207,20 @@ void DirHandle::Close(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
-static MaybeLocal<Array> DirentListToArray(
-    Environment* env,
-    uv_dirent_t* ents,
-    int num,
-    enum encoding encoding,
-    Local<Value>* err_out) {
+static MaybeLocal<Array> DirentListToArray(Environment* env,
+                                           uv_dirent_t* ents,
+                                           int num,
+                                           enum encoding encoding) {
   MaybeStackBuffer<Local<Value>, 64> entries(num * 2);
 
   // Return an array of all read filenames.
   int j = 0;
   for (int i = 0; i < num; i++) {
     Local<Value> filename;
-    Local<Value> error;
     const size_t namelen = strlen(ents[i].name);
-    if (!StringBytes::Encode(env->isolate(),
-                             ents[i].name,
-                             namelen,
-                             encoding,
-                             &error).ToLocal(&filename)) {
-      *err_out = error;
-      return MaybeLocal<Array>();
+    if (!StringBytes::Encode(env->isolate(), ents[i].name, namelen, encoding)
+             .ToLocal(&filename)) {
+      return {};
     }
 
     entries[j++] = filename;
@@ -258,18 +252,18 @@ static void AfterDirRead(uv_fs_t* req) {
 
   uv_dir_t* dir = static_cast<uv_dir_t*>(req->ptr);
 
-  Local<Value> error;
+  TryCatch try_catch(isolate);
   Local<Array> js_array;
   if (!DirentListToArray(env,
                          dir->dirents,
                          static_cast<int>(req->result),
-                         req_wrap->encoding(),
-                         &error)
+                         req_wrap->encoding())
            .ToLocal(&js_array)) {
     // Clear libuv resources *before* delivering results to JS land because
     // that can schedule another operation on the same uv_dir_t. Ditto below.
     after.Clear();
-    return req_wrap->Reject(error);
+    CHECK(try_catch.CanContinue());
+    return req_wrap->Reject(try_catch.Exception());
   }
 
   after.Clear();
@@ -320,16 +314,16 @@ void DirHandle::Read(const FunctionCallbackInfo<Value>& args) {
 
     CHECK_GE(req_wrap_sync.req.result, 0);
 
-    Local<Value> error;
+    TryCatch try_catch(isolate);
     Local<Array> js_array;
     if (!DirentListToArray(env,
                            dir->dir()->dirents,
                            static_cast<int>(req_wrap_sync.req.result),
-                           encoding,
-                           &error)
+                           encoding)
              .ToLocal(&js_array)) {
       // TODO(anonrig): Initializing BufferValue here is wasteful.
-      BufferValue error_payload(isolate, error);
+      CHECK(try_catch.CanContinue());
+      BufferValue error_payload(isolate, try_catch.Exception());
       env->ThrowError(error_payload.out());
       return;
     }
