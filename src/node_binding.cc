@@ -21,6 +21,12 @@
 #define NODE_BUILTIN_PROFILER_BINDINGS(V)
 #endif
 
+#if HAVE_FFI
+#define NODE_BUILTIN_FFI_BINDINGS(V) V(ffi)
+#else
+#define NODE_BUILTIN_FFI_BINDINGS(V)
+#endif
+
 #ifdef DEBUG
 #define NODE_BUILTIN_DEBUG_BINDINGS(V) V(debug)
 #else
@@ -105,7 +111,8 @@
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
-  NODE_BUILTIN_QUIC_BINDINGS(V)
+  NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
+  NODE_BUILTIN_FFI_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>
