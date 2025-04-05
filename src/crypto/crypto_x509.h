@@ -110,11 +110,10 @@ class X509Certificate final : public BaseObject {
   std::unique_ptr<worker::TransferData> CloneForMessaging() const override;
 
  private:
-  X509Certificate(
-      Environment* env,
-      v8::Local<v8::Object> object,
-      std::shared_ptr<ManagedX509> cert,
-      STACK_OF(X509)* issuer_chain = nullptr);
+  X509Certificate(Environment* env,
+                  v8::Local<v8::Object> object,
+                  std::shared_ptr<ManagedX509> cert,
+                  v8::Local<v8::Object> issuer_chain = v8::Local<v8::Object>());
 
   std::shared_ptr<ManagedX509> cert_;
   BaseObjectPtr<X509Certificate> issuer_cert_;
