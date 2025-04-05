@@ -5,5 +5,3 @@ cd /usr/local/bin || exit
 
 ln -sf ../lib/node_modules/npm/bin/npm-cli.js npm
 ln -sf ../lib/node_modules/npm/bin/npx-cli.js npx
-
-ln -sf ../lib/node_modules/corepack/dist/corepack.js corepack

@@ -20,7 +20,6 @@ on:
           - brotli
           - c-ares
           - cjs-module-lexer
-          - corepack
           - doc
           - googletest
           - gyp-next
@@ -112,12 +111,6 @@ jobs:
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
-          - id: corepack
-            subsystem: deps
-            label: dependencies
-            run: |
-              make corepack-update
-              echo "NEW_VERSION=$(node deps/corepack/dist/corepack.js --version)" >> $GITHUB_ENV
           - id: doc
             subsystem: tools
             label: tools
