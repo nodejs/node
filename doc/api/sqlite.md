@@ -116,6 +116,8 @@ added: v22.5.0
     and the `loadExtension()` method are enabled.
     You can call `enableLoadExtension(false)` later to disable this feature.
     **Default:** `false`.
+  * `timeout` {number} Number of milliseconds to wait for the database to
+    become available when it is locked. **Default:** `0`.
 
 Constructs a new `DatabaseSync` instance.
 
