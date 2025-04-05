@@ -252,13 +252,13 @@ request, try the "🔄 Re-run all jobs" button, on the right-hand side of the
 If there are Jenkins CI failures unrelated to the change in the pull request,
 try "Resume Build". It is in the left navigation of the relevant
 `node-test-pull-request` job. It will preserve all the green results from the
-current job but re-run everything else. Start a fresh CI if more than seven days
-have elapsed since the original failing CI as the compiled binaries for the
-Windows and ARM platforms are only kept for seven days.
+current job but re-run everything else. Start a fresh CI by pressing "Retry"
+if more than seven days have elapsed since the original failing CI as the
+compiled binaries for the Windows and ARM platforms are only kept for seven days.
 
 If new commits are pushed to the pull request branch after the latest Jenkins
-CI run, a fresh CI run is required. It can be started by pressing "Retry" on
-the left sidebar, or by adding the `request-ci` label to the pull request.
+CI run, a fresh CI run is required. It can be started by adding the `request-ci`
+label to the pull request.
 
 #### Useful Jenkins CI jobs
 
