@@ -29,9 +29,9 @@ async function requestAndClose(server) {
     // Send a valid HEADERS frame
     const headersFrame = Buffer.concat([
       Buffer.from([
-        0x00, 0x00, 0x0c, // Length: 12 bytes
+        0x00, 0x00, 0x0e, // Length: 14 bytes
         0x01, // Type: HEADERS
-        0x05, // Flags: END_HEADERS + END_STREAM
+        0x04, // Flags: END_HEADERS
         (streamId >> 24) & 0xFF, // Stream ID: high byte
         (streamId >> 16) & 0xFF,
         (streamId >> 8) & 0xFF,
@@ -41,7 +41,7 @@ async function requestAndClose(server) {
         0x82, // Indexed Header Field Representation (Predefined ":method: GET")
         0x84, // Indexed Header Field Representation (Predefined ":path: /")
         0x86, // Indexed Header Field Representation (Predefined ":scheme: http")
-        0x44, 0x0a, // Custom ":authority: localhost"
+        0x41, 0x09, // ":authority: localhost" Length: 9 bytes
         0x6c, 0x6f, 0x63, 0x61, 0x6c, 0x68, 0x6f, 0x73, 0x74,
       ]),
     ]);
