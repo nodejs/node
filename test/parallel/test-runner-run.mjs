@@ -207,7 +207,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       if (data.name === 'this is a test') {
         t.assert.strictEqual(data.type, 'test');
       }
-    }, 2));
+    }, 3));
     stream.on('test:dequeue', common.mustCall((data) => {
       if (data.name === 'this is a suite') {
         t.assert.strictEqual(data.type, 'suite');
@@ -215,7 +215,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       if (data.name === 'this is a test') {
         t.assert.strictEqual(data.type, 'test');
       }
-    }, 2));
+    }, 3));
 
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);

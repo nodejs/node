@@ -397,6 +397,60 @@ their dependencies. When a change is detected, the test runner will
 rerun the tests affected by the change.
 The test runner will continue to run until the process is terminated.
 
+## Global setup and teardown
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The test runner supports specifying a module that will be evaluated before all tests are executed and
+can be used to setup global state or fixtures for tests. This is useful for preparing resources or setting up
+shared state that is required by multiple tests.
+
+This module should export either:
+
+* A `globalSetup` function which runs once before all tests start
+* A `globalTeardown` function which runs once after all tests complete
+
+The module is specified using the `--test-global-setup` flag when running tests from the command line.
+
+```cjs
+// setup-module.js
+async function globalSetup() {
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
+}
+
+async function globalTeardown() {
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
+}
+
+module.exports = { globalSetup, globalTeardown };
+```
+
+```mjs
+// setup-module.mjs
+export async function globalSetup() {
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
+}
+
+export async function globalTeardown() {
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
+}
+```
+
+If the global setup function throws an error, no tests will be run and the process will exit with a non-zero exit code.
+The global teardown function will not be called in this case.
+
 ## Running tests from the command line
 
 The Node.js test runner can be invoked from the command line by passing the
