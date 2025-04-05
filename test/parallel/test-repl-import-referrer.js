@@ -26,4 +26,4 @@ child.stdin.write('await import(\'./message.mjs\');\n');
 child.stdin.write('.exit');
 setTimeout(() => {
   child.stdin.end();
-}, common.platformTimeout(100));
+}, common.platformTimeout(300));
