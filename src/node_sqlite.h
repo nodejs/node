@@ -51,7 +51,8 @@ class DatabaseSync : public BaseObject {
                v8::Local<v8::Object> object,
                DatabaseOpenConfiguration&& open_config,
                bool open,
-               bool allow_load_extension);
+               bool allow_load_extension,
+               int timeout);
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -93,6 +94,7 @@ class DatabaseSync : public BaseObject {
   DatabaseOpenConfiguration open_config_;
   bool allow_load_extension_;
   bool enable_load_extension_;
+  int timeout_;
   sqlite3* connection_;
   bool ignore_next_sqlite_error_;
 

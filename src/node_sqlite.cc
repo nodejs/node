@@ -648,13 +648,15 @@ DatabaseSync::DatabaseSync(Environment* env,
                            Local<Object> object,
                            DatabaseOpenConfiguration&& open_config,
                            bool open,
-                           bool allow_load_extension)
+                           bool allow_load_extension,
+                           int timeout)
     : BaseObject(env, object), open_config_(std::move(open_config)) {
   MakeWeak();
   connection_ = nullptr;
   allow_load_extension_ = allow_load_extension;
   enable_load_extension_ = allow_load_extension;
   ignore_next_sqlite_error_ = false;
+  timeout_ = timeout;
 
   if (open) {
     Open();
@@ -731,6 +733,8 @@ bool DatabaseSync::Open() {
       &foreign_keys_enabled);
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
   CHECK_EQ(foreign_keys_enabled, open_config_.get_enable_foreign_keys());
+
+  sqlite3_busy_timeout(connection_, timeout_);
 
   if (allow_load_extension_) {
     if (env()->permission()->enabled()) [[unlikely]] {
@@ -850,6 +854,7 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
   DatabaseOpenConfiguration open_config(std::move(location.value()));
   bool open = true;
   bool allow_load_extension = false;
+  int timeout = 0;
   if (args.Length() > 1) {
     if (!args[1]->IsObject()) {
       THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
@@ -942,10 +947,30 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
       }
       allow_load_extension = allow_extension_v.As<Boolean>()->Value();
     }
+
+    Local<Value> timeout_v;
+    if (!options->Get(env->context(), env->timeout_string())
+             .ToLocal(&timeout_v)) {
+      return;
+    }
+
+    if (!timeout_v->IsUndefined()) {
+      if (!timeout_v->IsInt32()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.timeout\" argument must be a number.");
+        return;
+      }
+      timeout = timeout_v.As<Int32>()->Value();
+    }
   }
 
-  new DatabaseSync(
-      env, args.This(), std::move(open_config), open, allow_load_extension);
+  new DatabaseSync(env,
+                   args.This(),
+                   std::move(open_config),
+                   open,
+                   allow_load_extension,
+                   timeout);
 }
 
 void DatabaseSync::Open(const FunctionCallbackInfo<Value>& args) {
