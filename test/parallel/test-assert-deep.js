@@ -406,6 +406,18 @@ test('es6 Maps and Sets', () => {
     new Set([xarray, ['y']]),
     new Set([xarray, ['y']])
   );
+  assertDeepAndStrictEqual(
+    new Set([2, xarray, ['y'], 1]),
+    new Set([xarray, ['y'], 1, 2])
+  );
+  assertDeepAndStrictEqual(
+    new Set([{ a: 1 }, { a: 3 }, { a: 2 }, { a: 4 }]),
+    new Set([{ a: 2 }, { a: 1 }, { a: 4 }, { a: 3 }])
+  );
+  assertNotDeepOrStrict(
+    new Set([{ a: 1 }, { a: 2 }, { a: 3 }, { a: 4 }]),
+    new Set([{ a: 1 }, { a: 2 }, { a: 3 }, { a: 5 }])
+  );
   assertOnlyDeepEqual(
     new Set([null, '', 1n, 5, 2n, false]),
     new Set([undefined, 0, 5n, true, '2', '-000'])
