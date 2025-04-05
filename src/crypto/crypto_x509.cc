@@ -918,7 +918,6 @@ MaybeLocal<Object> X509Certificate::GetPeerCert(Environment* env,
                                                 const SSLPointer& ssl,
                                                 GetPeerCertificateFlag flag) {
   ClearErrorOnReturn clear_error_on_return;
-  MaybeLocal<Object> maybe_cert;
 
   X509Pointer cert;
   if ((flag & GetPeerCertificateFlag::SERVER) ==
