@@ -580,13 +580,15 @@ NODE_EXTERN v8::Isolate* NewIsolate(
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
     const EmbedderSnapshotData* snapshot_data = nullptr,
-    const IsolateSettings& settings = {});
+    const IsolateSettings& settings = {},
+    std::unique_ptr<v8::CppHeap> cpp_heap = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
     const EmbedderSnapshotData* snapshot_data = nullptr,
-    const IsolateSettings& settings = {});
+    const IsolateSettings& settings = {},
+    std::unique_ptr<v8::CppHeap> cpp_heap = {});
 
 // Creates a new context with Node.js-specific tweaks.
 NODE_EXTERN v8::Local<v8::Context> NewContext(

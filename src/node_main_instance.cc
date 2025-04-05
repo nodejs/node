@@ -25,6 +25,8 @@
 namespace node {
 
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
@@ -44,6 +46,8 @@ NodeMainInstance::NodeMainInstance(const SnapshotData* snapshot_data,
       isolate_params_(std::make_unique<Isolate::CreateParams>()),
       snapshot_data_(snapshot_data) {
   isolate_params_->array_buffer_allocator = array_buffer_allocator_.get();
+  isolate_params_->cpp_heap =
+      CppHeap::Create(platform_, CppHeapCreateParams{{}}).release();
 
   isolate_ =
       NewIsolate(isolate_params_.get(), event_loop, platform, snapshot_data);

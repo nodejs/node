@@ -143,7 +143,6 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
       ArrayBufferAllocator* node_allocator = nullptr,
       const EmbedderSnapshotData* embedder_snapshot_data = nullptr,
       std::shared_ptr<PerIsolateOptions> options = nullptr);
-  ~IsolateData();
 
   SET_MEMORY_INFO_NAME(IsolateData)
   SET_SELF_SIZE(IsolateData)
@@ -246,7 +245,6 @@ class NODE_EXTERN_PRIVATE IsolateData : public MemoryRetainer {
   const SnapshotData* snapshot_data_;
   std::optional<SnapshotConfig> snapshot_config_;
 
-  std::unique_ptr<v8::CppHeap> cpp_heap_;
   std::shared_ptr<PerIsolateOptions> options_;
   worker::Worker* worker_context_ = nullptr;
   PerIsolateWrapperData* wrapper_data_;
