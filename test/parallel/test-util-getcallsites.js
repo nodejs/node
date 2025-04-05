@@ -29,7 +29,7 @@ const assert = require('node:assert');
   );
 }
 
-// Guarantee dot-left numbers are ignored
+// Guarantee dot-right numbers are ignored
 {
   const callSites = getCallSites(3.6);
   assert.strictEqual(callSites.length, 3);
@@ -44,6 +44,11 @@ const assert = require('node:assert');
   assert.throws(() => {
     // Max than kDefaultMaxCallStackSizeToCapture
     getCallSites(201);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  assert.throws(() => {
+    getCallSites(0.5);
   }, common.expectsError({
     code: 'ERR_OUT_OF_RANGE'
   }));
