@@ -13,6 +13,7 @@ using v8::HandleScope;
 using v8::Isolate;
 using v8::Local;
 using v8::MaybeLocal;
+using v8::Number;
 using v8::Object;
 using v8::String;
 using v8::Undefined;
@@ -51,7 +52,7 @@ InternalCallbackScope::InternalCallbackScope(Environment* env,
                                              Local<Object> object,
                                              const async_context& asyncContext,
                                              int flags,
-                                             v8::Local<v8::Value> context_frame)
+                                             Local<Value> context_frame)
     : env_(env),
       async_context_(asyncContext),
       object_(object),
@@ -216,7 +217,7 @@ MaybeLocal<Value> InternalMakeCallback(Environment* env,
   Local<Context> context = env->context();
   if (use_async_hooks_trampoline) {
     MaybeStackBuffer<Local<Value>, 16> args(3 + argc);
-    args[0] = v8::Number::New(env->isolate(), asyncContext.async_id);
+    args[0] = Number::New(env->isolate(), asyncContext.async_id);
     args[1] = resource;
     args[2] = callback;
     for (int i = 0; i < argc; i++) {
@@ -248,8 +249,10 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                int argc,
                                Local<Value> argv[],
                                async_context asyncContext) {
-  Local<String> method_string =
-      String::NewFromUtf8(isolate, method).ToLocalChecked();
+  Local<String> method_string;
+  if (!String::NewFromUtf8(isolate, method).ToLocal(&method_string)) {
+    return {};
+  }
   return MakeCallback(isolate, recv, method_string, argc, argv, asyncContext);
 }
 
@@ -260,13 +263,18 @@ MaybeLocal<Value> MakeCallback(Isolate* isolate,
                                Local<Value> argv[],
                                async_context asyncContext) {
   // Check can_call_into_js() first because calling Get() might do so.
-  Environment* env = Environment::GetCurrent(recv->GetCreationContextChecked());
+  Local<Context> context;
+  if (!recv->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
-  if (!env->can_call_into_js()) return Local<Value>();
+  if (!env->can_call_into_js()) return {};
 
   Local<Value> callback_v;
-  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v))
-    return Local<Value>();
+  if (!recv->Get(isolate->GetCurrentContext(), symbol).ToLocal(&callback_v)) {
+    return {};
+  }
   if (!callback_v->IsFunction()) {
     // This used to return an empty value, but Undefined() makes more sense
     // since no exception is pending here.
@@ -300,8 +308,11 @@ MaybeLocal<Value> InternalMakeCallback(Isolate* isolate,
   //
   // Because of the AssignToContext() call in src/node_contextify.cc,
   // the two contexts need not be the same.
-  Environment* env =
-      Environment::GetCurrent(callback->GetCreationContextChecked());
+  Local<Context> context;
+  if (!callback->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
   Context::Scope context_scope(env->context());
   MaybeLocal<Value> ret = InternalMakeCallback(
@@ -323,12 +334,14 @@ MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
                                    Local<Function> callback,
                                    int argc,
                                    Local<Value> argv[]) {
-  Environment* env =
-      Environment::GetCurrent(callback->GetCreationContextChecked());
+  Local<Context> context;
+  if (!callback->GetCreationContext().ToLocal(&context)) {
+    return {};
+  }
+  Environment* env = Environment::GetCurrent(context);
   CHECK_NOT_NULL(env);
-  if (!env->can_call_into_js()) return Local<Value>();
+  if (!env->can_call_into_js()) return {};
 
-  Local<Context> context = env->context();
   Context::Scope context_scope(context);
   if (env->async_callback_scope_depth()) {
     // There's another MakeCallback() on the stack, piggy back on it.
@@ -345,7 +358,7 @@ MaybeLocal<Value> MakeSyncCallback(Isolate* isolate,
                                                argc,
                                                argv,
                                                async_context{0, 0},
-                                               v8::Undefined(isolate));
+                                               Undefined(isolate));
   return ret;
 }
 
