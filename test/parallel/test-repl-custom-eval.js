@@ -29,7 +29,7 @@ function getReplOutput(input, replOptions, run = true) {
   return output;
 }
 
-describe('repl with custom eval', () => {
+describe('repl with custom eval', { concurrency: true }, () => {
   it('uses the custom eval function as expected', () => {
     const output = getReplOutput('Convert this to upper case', {
       terminal: true,
@@ -60,32 +60,35 @@ describe('repl with custom eval', () => {
     assert.strictEqual(context.foo, 'bar');
   });
 
-  it('provides a global context to the eval callback', async () => {
+  it('provides the global context to the eval callback', async () => {
     const context = await new Promise((resolve) => {
       const r = repl.start({
         useGlobal: true,
         eval: (_cmd, context) => resolve(context),
       });
-      global.foo = 'global_bar';
+      global.foo = 'global_foo';
       r.write('\n.exit\n');
     });
 
-    assert.strictEqual(context.foo, 'global_bar');
+    assert.strictEqual(context.foo, 'global_foo');
     delete global.foo;
   });
 
-  it('does not access the global context if `useGlobal` is false', async () => {
+  it('inherits variables from the global context but does not use it afterwords if `useGlobal` is false', async () => {
+    global.bar = 'global_bar';
     const context = await new Promise((resolve) => {
       const r = repl.start({
         useGlobal: false,
         eval: (_cmd, context) => resolve(context),
       });
-      global.foo = 'global_bar';
+      global.baz = 'global_baz';
       r.write('\n.exit\n');
     });
 
-    assert.notStrictEqual(context.foo, 'global_bar');
-    delete global.foo;
+    assert.strictEqual(context.bar, 'global_bar');
+    assert.notStrictEqual(context.baz, 'global_baz');
+    delete global.bar;
+    delete global.baz;
   });
 
   /**
