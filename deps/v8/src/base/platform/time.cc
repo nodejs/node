@@ -41,6 +41,7 @@
 #endif
 #include "src/base/cpu.h"
 #include "src/base/logging.h"
+#include "src/base/platform/mutex.h"
 #include "src/base/platform/platform.h"
 
 #if V8_OS_STARBOARD

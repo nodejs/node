@@ -32,7 +32,8 @@
 #include "src/common/globals.h"
 #include "src/heap/factory-inl.h"
 #include "src/heap/local-factory-inl.h"
-#include "src/objects/string.h"
+#include "src/objects/string-inl.h"
+#include "src/roots/roots.h"
 #include "src/strings/string-hasher.h"
 #include "src/utils/utils-inl.h"
 
@@ -99,7 +100,7 @@ bool AstRawString::IsIntegerIndex() const {
 bool AstRawString::IsOneByteEqualTo(const char* data) const {
   if (!is_one_byte()) return false;
 
-  size_t length = static_cast<size_t>(literal_bytes_.length());
+  size_t length = literal_bytes_.size();
   if (length != strlen(data)) return false;
 
   return 0 == strncmp(reinterpret_cast<const char*>(literal_bytes_.begin()),
@@ -296,19 +297,23 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
       string_table_(),
       hash_seed_(hash_seed) {
   DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
-#define F(name, str)                                                         \
-  {                                                                          \
-    const char* data = str;                                                  \
-    base::Vector<const uint8_t> literal(                                     \
-        reinterpret_cast<const uint8_t*>(data),                              \
-        static_cast<int>(strlen(data)));                                     \
-    uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(   \
-        literal.begin(), literal.length(), hash_seed_);                      \
-    name##_string_ = zone_.New<AstRawString>(true, literal, raw_hash_field); \
-    /* The Handle returned by the factory is located on the roots */         \
-    /* array, not on the temporary HandleScope, so this is safe.  */         \
-    name##_string_->set_string(isolate->factory()->name##_string());         \
-    string_table_.InsertNew(name##_string_, name##_string_->Hash());         \
+#define F(name, str)                                                  \
+  {                                                                   \
+    static const char data[] = str;                                   \
+    base::Vector<const uint8_t> literal(                              \
+        reinterpret_cast<const uint8_t*>(data),                       \
+        static_cast<int>(arraysize(data) - 1));                       \
+    IndirectHandle<String> handle = isolate->factory()->name();       \
+    uint32_t raw_hash_field = handle->raw_hash_field();               \
+    DCHECK_EQ(raw_hash_field,                                         \
+              StringHasher::HashSequentialString<uint8_t>(            \
+                  literal.begin(), literal.length(), hash_seed_));    \
+    DCHECK_EQ(literal.length(), handle->length());                    \
+    name##_ = zone_.New<AstRawString>(true, literal, raw_hash_field); \
+    /* The Handle returned by the factory is located on the roots */  \
+    /* array, not on the temporary HandleScope, so this is safe.  */  \
+    name##_->set_string(handle);                                      \
+    string_table_.InsertNew(name##_, name##_->Hash());                \
   }
   AST_STRING_CONSTANTS(F)
 #undef F
@@ -316,14 +321,11 @@ AstStringConstants::AstStringConstants(Isolate* isolate, uint64_t hash_seed)
 
 const AstRawString* AstValueFactory::GetOneByteStringInternal(
     base::Vector<const uint8_t> literal) {
-  if (literal.length() == 1 && literal[0] < kMaxOneCharStringValue) {
-    int key = literal[0];
-    if (V8_UNLIKELY(one_character_strings_[key] == nullptr)) {
-      uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(
-          literal.begin(), literal.length(), hash_seed_);
-      one_character_strings_[key] = GetString(raw_hash_field, true, literal);
+  if (literal.length() == 1) {
+    uint8_t key = literal[0];
+    if (key < AstStringConstants::kMaxOneCharStringValue) {
+      return string_constants_->one_character_string(key);
     }
-    return one_character_strings_[key];
   }
   uint32_t raw_hash_field = StringHasher::HashSequentialString<uint8_t>(
       literal.begin(), literal.length(), hash_seed_);

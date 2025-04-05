@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// MemorySanitizer support.
-
 #ifndef V8_BASE_SANITIZER_MSAN_H_
 #define V8_BASE_SANITIZER_MSAN_H_
+
+// MemorySanitizer support.
 
 #include "src/base/macros.h"
 #include "src/base/memory.h"
@@ -22,18 +22,22 @@
 #define MSAN_MEMORY_IS_INITIALIZED(start, size) \
   __msan_unpoison(reinterpret_cast<const void*>(start), (size))
 
+#define DISABLE_MSAN __attribute__((no_sanitize("memory")))
+
 #else  // !V8_USE_MEMORY_SANITIZER
 
-#define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)                   \
-  static_assert((std::is_pointer<decltype(start)>::value ||                \
-                 std::is_same<v8::base::Address, decltype(start)>::value), \
-                "static type violation");                                  \
-  static_assert(std::is_convertible<decltype(size), size_t>::value,        \
-                "static type violation");                                  \
+#define MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)              \
+  static_assert((std::is_pointer_v<decltype(start)> ||                \
+                 std::is_same_v<v8::base::Address, decltype(start)>), \
+                "static type violation");                             \
+  static_assert(std::is_convertible_v<decltype(size), size_t>,        \
+                "static type violation");                             \
   USE(start, size)
 
 #define MSAN_MEMORY_IS_INITIALIZED(start, size) \
   MSAN_ALLOCATED_UNINITIALIZED_MEMORY(start, size)
+
+#define DISABLE_MSAN
 
 #endif  // V8_USE_MEMORY_SANITIZER
 

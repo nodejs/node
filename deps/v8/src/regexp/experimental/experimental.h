@@ -20,7 +20,7 @@ class ExperimentalRegExp final : public AllStatic {
   // TODO(mbid, v8:10765): This walks the RegExpTree, but it could also be
   // checked on the fly in the parser.  Not done currently because walking the
   // AST again is more flexible and less error prone (but less performant).
-  static bool CanBeHandled(RegExpTree* tree, Handle<String> pattern,
+  static bool CanBeHandled(RegExpTree* tree, DirectHandle<String> pattern,
                            RegExpFlags flags, int capture_count);
   static void Initialize(Isolate* isolate, DirectHandle<JSRegExp> re,
                          DirectHandle<String> pattern, RegExpFlags flags,
@@ -36,11 +36,11 @@ class ExperimentalRegExp final : public AllStatic {
                                     int32_t output_register_count,
                                     RegExp::CallOrigin call_origin,
                                     Isolate* isolate, Address regexp_data);
-  static MaybeHandle<Object> Exec(
-      Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-      Handle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+  static std::optional<int> Exec(Isolate* isolate,
+                                 DirectHandle<IrRegExpData> regexp_data,
+                                 DirectHandle<String> subject, int index,
+                                 int32_t* result_offsets_vector,
+                                 uint32_t result_offsets_vector_length);
   static int32_t ExecRaw(Isolate* isolate, RegExp::CallOrigin call_origin,
                          Tagged<IrRegExpData> regexp_data,
                          Tagged<String> subject, int32_t* output_registers,
@@ -48,11 +48,11 @@ class ExperimentalRegExp final : public AllStatic {
 
   // Compile and execute a regexp with the experimental engine, regardless of
   // its type tag.  The regexp itself is not changed (apart from lastIndex).
-  static MaybeHandle<Object> OneshotExec(
-      Isolate* isolate, DirectHandle<IrRegExpData> regexp_data,
-      DirectHandle<String> subject, int index,
-      Handle<RegExpMatchInfo> last_match_info,
-      RegExp::ExecQuirks exec_quirks = RegExp::ExecQuirks::kNone);
+  static std::optional<int> OneshotExec(Isolate* isolate,
+                                        DirectHandle<IrRegExpData> regexp_data,
+                                        DirectHandle<String> subject, int index,
+                                        int32_t* result_offsets_vector,
+                                        uint32_t result_offsets_vector_length);
   static int32_t OneshotExecRaw(Isolate* isolate,
                                 DirectHandle<IrRegExpData> regexp_data,
                                 DirectHandle<String> subject,

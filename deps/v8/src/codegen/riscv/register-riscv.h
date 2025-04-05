@@ -65,7 +65,6 @@ namespace internal {
   V(ft9)  V(ft10) V(ft11) V(fa0) V(fa1) V(fa2) V(fa3) V(fa4) V(fa5)  \
   V(fa6)  V(fa7)
 
-
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.
@@ -267,6 +266,8 @@ constexpr Register kRootRegister = s6;
 constexpr Register cp = s7;
 constexpr Register kScratchReg = s3;
 constexpr Register kScratchReg2 = s4;
+constexpr Register kStackPointerRegister = sp;
+constexpr Register padreg = t6;
 
 constexpr DoubleRegister kScratchDoubleReg = ft0;
 
@@ -299,6 +300,11 @@ constexpr Register kJavaScriptCallCodeStartRegister = a2;
 constexpr Register kJavaScriptCallTargetRegister = kJSFunctionRegister;
 constexpr Register kJavaScriptCallNewTargetRegister = a3;
 constexpr Register kJavaScriptCallExtraArg1Register = a2;
+#ifdef V8_TARGET_ARCH_RISCV64
+constexpr Register kJavaScriptCallDispatchHandleRegister = a4;
+#else
+constexpr Register kJavaScriptCallDispatchHandleRegister = no_reg;
+#endif
 
 constexpr Register kRuntimeCallFunctionRegister = a1;
 constexpr Register kRuntimeCallArgCountRegister = a0;
@@ -308,6 +314,12 @@ constexpr Register kWasmCompileLazyFuncIndexRegister = t0;
 constexpr Register kWasmTrapHandlerFaultAddressRegister = t6;
 
 constexpr DoubleRegister kFPReturnRegister0 = fa0;
+
+constexpr Register kSimulatorBreakArgument = t6;
+
+constexpr Register kMaglevFlagsRegister = t6;
+constexpr Register kMaglevExtraScratchRegister = t2;
+
 constexpr VRegister kSimd128ScratchReg = v24;
 constexpr VRegister kSimd128ScratchReg2 = v23;
 constexpr VRegister kSimd128ScratchReg3 = v8;

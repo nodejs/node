@@ -4,6 +4,8 @@
 
 #include "src/compiler-dispatcher/optimizing-compile-dispatcher.h"
 
+#include <memory>
+
 #include "src/api/api-inl.h"
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/semaphore.h"
@@ -29,10 +31,10 @@ namespace {
 class BlockingCompilationJob : public TurbofanCompilationJob {
  public:
   BlockingCompilationJob(Isolate* isolate, Handle<JSFunction> function)
-      : TurbofanCompilationJob(&info_, State::kReadyToExecute),
+      : TurbofanCompilationJob(isolate, &info_, State::kReadyToExecute),
         shared_(function->shared(), isolate),
         zone_(isolate->allocator(), ZONE_NAME),
-        info_(&zone_, isolate, shared_, function, CodeKind::TURBOFAN),
+        info_(&zone_, isolate, shared_, function, CodeKind::TURBOFAN_JS),
         blocking_(false),
         semaphore_(0) {}
   ~BlockingCompilationJob() override = default;
@@ -66,7 +68,8 @@ class BlockingCompilationJob : public TurbofanCompilationJob {
 }  // namespace
 
 TEST_F(OptimizingCompileDispatcherTest, Construct) {
-  OptimizingCompileDispatcher dispatcher(i_isolate());
+  OptimizingCompileTaskExecutor task_executor;
+  OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
 }
@@ -77,12 +80,17 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
   IsCompiledScope is_compiled_scope;
   ASSERT_TRUE(Compiler::Compile(i_isolate(), fun, Compiler::CLEAR_EXCEPTION,
                                 &is_compiled_scope));
+  OptimizingCompileTaskExecutor task_executor;
+  task_executor.EnsureInitialized();
+  OptimizingCompileDispatcher dispatcher(i_isolate(), &task_executor);
   BlockingCompilationJob* job = new BlockingCompilationJob(i_isolate(), fun);
+  OptimizingCompileDispatcher* const original =
+      i_isolate()->SetOptimizingCompileDispatcherForTesting(&dispatcher);
 
-  OptimizingCompileDispatcher dispatcher(i_isolate());
   ASSERT_TRUE(OptimizingCompileDispatcher::Enabled());
   ASSERT_TRUE(dispatcher.IsQueueAvailable());
-  dispatcher.QueueForOptimization(job);
+  std::unique_ptr<TurbofanCompilationJob> compilation_job(job);
+  ASSERT_TRUE(dispatcher.TryQueueForOptimization(compilation_job));
 
   // Busy-wait for the job to run on a background thread.
   while (!job->IsBlocking()) {
@@ -93,7 +101,9 @@ TEST_F(OptimizingCompileDispatcherTest, NonBlockingFlush) {
 
   // Unblock the job & finish.
   job->Signal();
-  dispatcher.Stop();
+  dispatcher.StartTearDown();
+  dispatcher.FinishTearDown();
+  i_isolate()->SetOptimizingCompileDispatcherForTesting(original);
 }
 
 }  // namespace internal

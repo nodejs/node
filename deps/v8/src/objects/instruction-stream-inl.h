@@ -5,12 +5,15 @@
 #ifndef V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 #define V8_OBJECTS_INSTRUCTION_STREAM_INL_H_
 
+#include "src/objects/instruction-stream.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <optional>
 
 #include "src/common/ptr-compr-inl.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/code.h"
-#include "src/objects/instruction-stream.h"
 #include "src/objects/objects-inl.h"  // For HeapObject::IsInstructionStream.
 
 // Has to be the last include (doesn't have include guards):
@@ -61,7 +64,7 @@ Tagged<InstructionStream> InstructionStream::Initialize(
     writable_allocation.WriteHeaderSlot<Smi, kCodeOffset>(Smi::zero(),
                                                           kReleaseStore);
 
-    DCHECK(!ObjectInYoungGeneration(reloc_info));
+    DCHECK(!HeapLayout::InYoungGeneration(reloc_info));
     writable_allocation.WriteProtectedPointerHeaderSlot<TrustedByteArray,
                                                         kRelocationInfoOffset>(
         reloc_info, kRelaxedStore);
@@ -132,7 +135,7 @@ void InstructionStream::Finalize(Tagged<Code> code,
     WritableJitAllocation writable_allocation =
         ThreadIsolation::LookupJitAllocation(
             address(), InstructionStream::SizeFor(body_size()),
-            ThreadIsolation::JitAllocationType::kInstructionStream);
+            ThreadIsolation::JitAllocationType::kInstructionStream, true);
 
     // Copy code and inline metadata.
     static_assert(InstructionStream::kOnHeapBodyIsContiguous);
@@ -149,9 +152,8 @@ void InstructionStream::Finalize(Tagged<Code> code,
                                      code->constant_pool(), no_gc));
 
     // Publish the code pointer after the istream has been fully initialized.
-    // TODO(sroettger): this write should go through writable_allocation. At
-    // this point, set_code could probably be removed entirely.
-    set_code(code, kReleaseStore);
+    writable_allocation.WriteProtectedPointerHeaderSlot<Code, kCodeOffset>(
+        code, kReleaseStore);
   }
 
   // Trigger the write barriers after we dropped the JIT write permissions.
@@ -174,21 +176,13 @@ Address InstructionStream::body_end() const {
 
 Tagged<Object> InstructionStream::raw_code(AcquireLoadTag tag) const {
   Tagged<Object> value = RawProtectedPointerField(kCodeOffset).Acquire_Load();
-  DCHECK(!ObjectInYoungGeneration(value));
-  DCHECK(IsSmi(value) || IsTrustedSpaceObject(Cast<HeapObject>(value)));
+  DCHECK(!HeapLayout::InYoungGeneration(value));
+  DCHECK(IsSmi(value) || HeapLayout::InTrustedSpace(Cast<HeapObject>(value)));
   return value;
 }
 
 Tagged<Code> InstructionStream::code(AcquireLoadTag tag) const {
   return Cast<Code>(raw_code(tag));
-}
-
-void InstructionStream::set_code(Tagged<Code> value, ReleaseStoreTag tag) {
-  DCHECK(!ObjectInYoungGeneration(value));
-  DCHECK(IsTrustedSpaceObject(value));
-  WriteProtectedPointerField(kCodeOffset, value, tag);
-  CONDITIONAL_PROTECTED_POINTER_WRITE_BARRIER(*this, kCodeOffset, value,
-                                              UPDATE_WRITE_BARRIER);
 }
 
 bool InstructionStream::TryGetCode(Tagged<Code>* code_out,

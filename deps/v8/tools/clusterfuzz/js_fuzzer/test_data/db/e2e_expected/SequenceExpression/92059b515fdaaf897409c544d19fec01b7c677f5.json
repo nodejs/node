@@ -1,0 +1,1 @@
+{"type":"SequenceExpression","source":"VAR_1, VAR_2","isStatement":true,"originalPath":"e2e/input1.js","dependencies":["VAR_1","VAR_2"],"needsSuper":false}

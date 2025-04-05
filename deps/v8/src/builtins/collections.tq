@@ -35,7 +35,7 @@ extern macro CodeStubAssembler::CloneFixedArray(
     FixedArrayBase, constexpr ExtractFixedArrayFlag): FixedArrayBase;
 
 extern macro CollectionsBuiltinsAssembler::AddToSetTable(
-    implicit context: Context)(OrderedHashSet, Object, String): OrderedHashSet;
+    implicit context: Context)(OrderedHashSet, JSAny, String): OrderedHashSet;
 
 extern macro CollectionsBuiltinsAssembler::TableHasKey(
     implicit context: Context)(OrderedHashSet, Object): bool;
@@ -45,8 +45,8 @@ extern macro CollectionsBuiltinsAssembler::TableHasKey(
 extern macro CollectionsBuiltinsAssembler::DeleteFromSetTable(
     implicit context: Context)(OrderedHashSet, Object): Smi labels NotFound;
 
-extern runtime OrderedHashSetShrink(implicit context: Context)(OrderedHashSet):
-    OrderedHashSet;
+extern runtime OrderedHashSetShrink(implicit context: Context)(
+                                    OrderedHashSet): OrderedHashSet;
 
 // Direct iteration helpers.
 @export
@@ -126,8 +126,7 @@ macro NewUnmodifiedOrderedHashSetIterator(table: OrderedHashSet):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -137,8 +136,7 @@ macro NewOrderedHashSetIterator(table: OrderedHashSet):
   return OrderedHashSetIterator{
     table: table,
     current: KeyIndexPair {
-      key:
-        Undefined, index: 0
+      key: Undefined, index: 0
     }
   };
 }
@@ -211,8 +209,7 @@ macro NewUnmodifiedOrderedHashMapIterator(table: OrderedHashMap):
     numBuckets: numBuckets,
     usedCapacity: usedCapacity,
     current: KeyValueIndexTuple {
-      key:
-        Undefined, value: Undefined, index: 0
+      key: Undefined, value: Undefined, index: 0
     }
   };
 }
@@ -252,8 +249,8 @@ macro LoadKeyValuePairNoSideEffects(implicit context: Context)(o: JSAny):
 }
 
 @export
-transitioning macro LoadKeyValuePair(implicit context: Context)(o: JSAny):
-    KeyValuePair {
+transitioning macro LoadKeyValuePair(implicit context: Context)(
+                                     o: JSAny): KeyValuePair {
   try {
     return LoadKeyValuePairNoSideEffects(o) otherwise Generic;
   } label Generic {

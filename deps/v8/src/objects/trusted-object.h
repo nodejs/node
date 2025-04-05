@@ -56,6 +56,8 @@ class TrustedObject : public HeapObject {
   inline void ClearProtectedPointerField(int offset, ReleaseStoreTag);
 
   inline ProtectedPointerSlot RawProtectedPointerField(int byte_offset) const;
+  inline ProtectedMaybeObjectSlot RawProtectedMaybeObjectField(
+      int byte_offset) const;
 
 #ifdef VERIFY_HEAP
   inline void VerifyProtectedPointerField(Isolate* isolate, int offset);
@@ -65,6 +67,11 @@ class TrustedObject : public HeapObject {
 
   OBJECT_CONSTRUCTORS(TrustedObject, HeapObject);
 };
+
+V8_OBJECT class TrustedObjectLayout : public HeapObjectLayout {
+ public:
+  DECL_VERIFIER(TrustedObject)
+} V8_OBJECT_END;
 
 // A trusted object that can safely be referenced from untrusted objects.
 //
@@ -101,7 +108,8 @@ class TrustedObject : public HeapObject {
 class ExposedTrustedObject : public TrustedObject {
  public:
   // Initializes this object by creating its pointer table entry.
-  inline void init_self_indirect_pointer(IsolateForSandbox isolate);
+  inline void init_self_indirect_pointer(Isolate* isolate);
+  inline void init_self_indirect_pointer(LocalIsolate* isolate);
 
   // Returns the 'self' indirect pointer of this object.
   // This indirect pointer references a pointer table entry (either in the

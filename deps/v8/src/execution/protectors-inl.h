@@ -6,6 +6,8 @@
 #define V8_EXECUTION_PROTECTORS_INL_H_
 
 #include "src/execution/protectors.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/property-cell-inl.h"
 #include "src/objects/smi.h"
 

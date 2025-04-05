@@ -22,7 +22,8 @@ class MockPlatformForPool : public TestPlatform {
  public:
   ~MockPlatformForPool() override {
     for (auto& task : worker_tasks_) {
-      CcTest::default_platform()->CallOnWorkerThread(std::move(task));
+      CcTest::default_platform()->PostTaskOnWorkerThread(
+          TaskPriority::kUserVisible, std::move(task));
     }
     worker_tasks_.clear();
   }
@@ -55,8 +56,7 @@ UNINITIALIZED_TEST(EagerDiscardingInCollectAllAvailableGarbage) {
     Heap* heap = i_isolate->heap();
     i::heap::SimulateFullSpace(heap->old_space());
     i::heap::InvokeMemoryReducingMajorGCs(heap);
-    CHECK_EQ(0, heap->memory_allocator()->pool()->NumberOfCommittedChunks());
-    CHECK_EQ(0u, heap->memory_allocator()->pool()->CommittedBufferedMemory());
+    CHECK_EQ(0, heap->memory_allocator()->GetPooledChunksCount());
   }
   isolate->Dispose();
 }

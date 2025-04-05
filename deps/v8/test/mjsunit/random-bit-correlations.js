@@ -11,10 +11,11 @@
 (function() {
   var kHistory = 2;
   var kRepeats = 100;
-  var history = new Uint32Array(kHistory);
+  var kBits = 53;
+  var history = new BigUint64Array(kHistory);
 
   function random() {
-    return (Math.random() * Math.pow(2, 32)) >>> 0;
+    return BigInt(Math.random() * Math.pow(2, kBits));
   }
 
   function ChiSquared(m, n) {
@@ -24,9 +25,9 @@
     var chi_squared_2 = ys_minus_np2 * ys_minus_np2 * 2.0 / n;
     return chi_squared_1 + chi_squared_2;
   }
-  for (var predictor_bit = -2; predictor_bit < 32; predictor_bit++) {
+  for (var predictor_bit = -2; predictor_bit < kBits; predictor_bit++) {
     // The predicted bit is one of the bits from the PRNG.
-    for (var random_bit = 0; random_bit < 32; random_bit++) {
+    for (var random_bit = 0; random_bit < kBits; random_bit++) {
       for (var ago = 0; ago < kHistory; ago++) {
         // We don't want to check whether each bit predicts itself.
         if (ago == 0 && predictor_bit == random_bit) continue;
@@ -41,11 +42,11 @@
           history[0] = random();
           var predicted;
           if (predictor_bit >= 0) {
-            predicted = (history[ago] >> predictor_bit) & 1;
+            predicted = Number((history[ago] >> BigInt(predictor_bit)) & 1n);
           } else {
             predicted = predictor_bit == -2 ? 0 : 1;
           }
-          var bit = (history[0] >> random_bit) & 1;
+          var bit = Number((history[0] >> BigInt(random_bit)) & 1n);
           if (bit == predicted) m++;
         }
         // Chi squared analysis for k = 2 (2, states: same/not-same) and one

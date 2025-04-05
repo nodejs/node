@@ -7,7 +7,6 @@
 
 #include <optional>
 
-#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/gc-info.h"
 #include "include/cppgc/macros.h"
 #include "src/base/logging.h"
@@ -40,6 +39,7 @@ class GarbageCollector;
 
 class V8_EXPORT_PRIVATE ObjectAllocator final : public cppgc::AllocationHandle {
  public:
+  using AlignVal = std::align_val_t;
   static constexpr size_t kSmallestSpaceSize = 32;
 
   ObjectAllocator(RawHeap&, PageBackend&, StatsCollector&, PreFinalizerHandler&,

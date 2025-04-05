@@ -18,11 +18,11 @@
 #else  // defined(_WIN32)
 
 // Setup for Linux shared library export.
-#ifdef BUILDING_V8_PLATFORM_SHARED
+#if defined(BUILDING_V8_PLATFORM_SHARED) || USING_V8_PLATFORM_SHARED
 #define V8_PLATFORM_EXPORT __attribute__((visibility("default")))
 #else
 #define V8_PLATFORM_EXPORT
-#endif
+#endif  // defined(BUILDING_V8_PLATFORM_SHARED) || ...
 
 #endif  // defined(_WIN32)
 

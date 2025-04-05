@@ -175,8 +175,8 @@ macro BigIntAddImpl(implicit context: Context)(x: BigInt, y: BigInt): BigInt
   return MutableBigIntAbsoluteSub(y, x, InvertSign(xsign));
 }
 
-builtin BigIntAddNoThrow(implicit context: Context)(x: BigInt, y: BigInt):
-    Numeric {
+builtin BigIntAddNoThrow(implicit context: Context)(x: BigInt,
+                          y: BigInt): Numeric {
   try {
     return BigIntAddImpl(x, y) otherwise BigIntTooBig;
   } label BigIntTooBig {
@@ -185,8 +185,8 @@ builtin BigIntAddNoThrow(implicit context: Context)(x: BigInt, y: BigInt):
   }
 }
 
-builtin BigIntAdd(implicit context: Context)(xNum: Numeric, yNum: Numeric):
-    BigInt {
+builtin BigIntAdd(implicit context: Context)(xNum: Numeric,
+                   yNum: Numeric): BigInt {
   try {
     const x = Cast<BigInt>(xNum) otherwise MixedTypes;
     const y = Cast<BigInt>(yNum) otherwise MixedTypes;
@@ -199,8 +199,8 @@ builtin BigIntAdd(implicit context: Context)(xNum: Numeric, yNum: Numeric):
   }
 }
 
-macro BigIntSubtractImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt labels BigIntTooBig {
+macro BigIntSubtractImpl(implicit context: Context)(x: BigInt,
+                            y: BigInt): BigInt labels BigIntTooBig {
   const xsign = ReadBigIntSign(x);
   const ysign = ReadBigIntSign(y);
   if (xsign != ysign) {
@@ -339,8 +339,8 @@ macro BigIntDivideImpl(implicit context: Context)(x: BigInt, y: BigInt):
   return Convert<BigInt>(result);
 }
 
-builtin BigIntDivideNoThrow(implicit context: Context)(x: BigInt, y: BigInt):
-    Numeric {
+builtin BigIntDivideNoThrow(implicit context: Context)(x: BigInt,
+                             y: BigInt): Numeric {
   try {
     return BigIntDivideImpl(x, y) otherwise BigIntDivZero, TerminationRequested;
   } label BigIntDivZero {
@@ -352,8 +352,8 @@ builtin BigIntDivideNoThrow(implicit context: Context)(x: BigInt, y: BigInt):
   }
 }
 
-builtin BigIntDivide(implicit context: Context)(xNum: Numeric, yNum: Numeric):
-    BigInt {
+builtin BigIntDivide(implicit context: Context)(xNum: Numeric,
+                      yNum: Numeric): BigInt {
   try {
     const x = Cast<BigInt>(xNum) otherwise MixedTypes;
     const y = Cast<BigInt>(yNum) otherwise MixedTypes;
@@ -401,8 +401,8 @@ macro BigIntModulusImpl(implicit context: Context)(x: BigInt, y: BigInt):
   return Convert<BigInt>(result);
 }
 
-builtin BigIntModulusNoThrow(implicit context: Context)(x: BigInt, y: BigInt):
-    Numeric {
+builtin BigIntModulusNoThrow(implicit context: Context)(x: BigInt,
+                              y: BigInt): Numeric {
   try {
     return BigIntModulusImpl(x, y) otherwise BigIntDivZero,
            TerminationRequested;
@@ -432,8 +432,8 @@ builtin BigIntModulus(
   }
 }
 
-macro BigIntBitwiseAndImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt labels BigIntTooBig {
+macro BigIntBitwiseAndImpl(implicit context: Context)(x: BigInt,
+                              y: BigInt): BigInt labels BigIntTooBig {
   const xlength = ReadBigIntLength(x);
   const ylength = ReadBigIntLength(y);
 
@@ -499,8 +499,8 @@ builtin BigIntBitwiseAnd(
   }
 }
 
-macro BigIntBitwiseOrImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt {
+macro BigIntBitwiseOrImpl(implicit context: Context)(x: BigInt,
+                             y: BigInt): BigInt {
   const xlength = ReadBigIntLength(x);
   const ylength = ReadBigIntLength(y);
 
@@ -558,8 +558,8 @@ builtin BigIntBitwiseOr(
   }
 }
 
-macro BigIntBitwiseXorImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt labels BigIntTooBig {
+macro BigIntBitwiseXorImpl(implicit context: Context)(x: BigInt,
+                              y: BigInt): BigInt labels BigIntTooBig {
   const xlength = ReadBigIntLength(x);
   const ylength = ReadBigIntLength(y);
 
@@ -718,8 +718,8 @@ macro MutableBigIntRightShiftByAbsolute(
   return Convert<BigInt>(result);
 }
 
-macro BigIntShiftLeftImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt labels BigIntTooBig {
+macro BigIntShiftLeftImpl(implicit context: Context)(x: BigInt,
+                             y: BigInt): BigInt labels BigIntTooBig {
   if (ReadBigIntSign(y) == kNegativeSign) {
     return MutableBigIntRightShiftByAbsolute(x, y);
   } else {
@@ -727,8 +727,8 @@ macro BigIntShiftLeftImpl(implicit context: Context)(x: BigInt, y: BigInt):
   }
 }
 
-macro BigIntShiftRightImpl(implicit context: Context)(x: BigInt, y: BigInt):
-    BigInt labels BigIntTooBig {
+macro BigIntShiftRightImpl(implicit context: Context)(x: BigInt,
+                              y: BigInt): BigInt labels BigIntTooBig {
   if (ReadBigIntSign(y) == kNegativeSign) {
     return MutableBigIntLeftShiftByAbsolute(x, y) otherwise BigIntTooBig;
   } else {
@@ -784,8 +784,8 @@ builtin BigIntShiftRight(
   }
 }
 
-builtin BigIntEqual(implicit context: Context)(x: BigInt, y: BigInt):
-    Boolean {
+builtin BigIntEqual(implicit context: Context)(x: BigInt,
+                     y: BigInt): Boolean {
   if (ReadBigIntSign(x) != ReadBigIntSign(y)) {
     return False;
   }
@@ -828,8 +828,8 @@ macro BigIntCompareAbsolute(
 }
 
 // Returns r such that r < 0 if x < y; r > 0 if x > y; r == 0 if x == y.
-macro BigIntCompare(implicit context: Context)(x: BigInt, y: BigInt):
-    intptr {
+macro BigIntCompare(implicit context: Context)(x: BigInt,
+                       y: BigInt): intptr {
   const xsign = ReadBigIntSign(x);
   const ysign = ReadBigIntSign(y);
   if (xsign != ysign) {
@@ -841,13 +841,13 @@ macro BigIntCompare(implicit context: Context)(x: BigInt, y: BigInt):
   return xsign == kPositiveSign ? diff : 0 - diff;
 }
 
-builtin BigIntLessThan(implicit context: Context)(x: BigInt, y: BigInt):
-    Boolean {
+builtin BigIntLessThan(implicit context: Context)(x: BigInt,
+                        y: BigInt): Boolean {
   return BigIntCompare(x, y) < 0 ? True : False;
 }
 
-builtin BigIntGreaterThan(implicit context: Context)(x: BigInt, y: BigInt):
-    Boolean {
+builtin BigIntGreaterThan(implicit context: Context)(x: BigInt,
+                           y: BigInt): Boolean {
   return BigIntCompare(x, y) > 0 ? True : False;
 }
 

@@ -31,20 +31,30 @@ Tagged<Object> Code::raw_position_table() const {
   return RawProtectedPointerField(kPositionTableOffset).load();
 }
 
-void Code::ClearEmbeddedObjects(Heap* heap) {
+void Code::ClearEmbeddedObjectsAndJSDispatchHandles(Heap* heap) {
   DisallowGarbageCollection no_gc;
   Tagged<HeapObject> undefined = ReadOnlyRoots(heap).undefined_value();
   Tagged<InstructionStream> istream = unchecked_instruction_stream();
   int mode_mask = RelocInfo::EmbeddedObjectModeMask();
+#ifdef V8_ENABLE_LEAPTIERING
+  mode_mask |= RelocInfo::JSDispatchHandleModeMask();
+#endif
   {
     WritableJitAllocation jit_allocation = ThreadIsolation::LookupJitAllocation(
         istream->address(), istream->Size(),
-        ThreadIsolation::JitAllocationType::kInstructionStream);
+        ThreadIsolation::JitAllocationType::kInstructionStream, true);
     for (WritableRelocIterator it(jit_allocation, istream, constant_pool(),
                                   mode_mask);
          !it.done(); it.next()) {
-      DCHECK(RelocInfo::IsEmbeddedObjectMode(it.rinfo()->rmode()));
-      it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
+      const auto mode = it.rinfo()->rmode();
+      if (RelocInfo::IsEmbeddedObjectMode(mode)) {
+        it.rinfo()->set_target_object(istream, undefined, SKIP_WRITE_BARRIER);
+#ifdef V8_ENABLE_LEAPTIERING
+      } else {
+        it.rinfo()->set_js_dispatch_handle(istream, kNullJSDispatchHandle,
+                                           SKIP_WRITE_BARRIER);
+#endif  // V8_ENABLE_LEAPTIERING
+      }
     }
   }
   set_embedded_objects_cleared(true);
@@ -108,7 +118,8 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
       ~RelocInfo::ModeMask(RelocInfo::CONST_POOL) &
       ~RelocInfo::ModeMask(RelocInfo::OFF_HEAP_TARGET) &
       ~RelocInfo::ModeMask(RelocInfo::VENEER_POOL) &
-      ~RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID);
+      ~RelocInfo::ModeMask(RelocInfo::WASM_CANONICAL_SIG_ID) &
+      ~RelocInfo::ModeMask(RelocInfo::WASM_CODE_POINTER_TABLE_ENTRY);
   static_assert(kModeMask ==
                 (RelocInfo::ModeMask(RelocInfo::CODE_TARGET) |
                  RelocInfo::ModeMask(RelocInfo::RELATIVE_CODE_TARGET) |
@@ -117,6 +128,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
                  RelocInfo::ModeMask(RelocInfo::EXTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE) |
                  RelocInfo::ModeMask(RelocInfo::INTERNAL_REFERENCE_ENCODED) |
+                 RelocInfo::ModeMask(RelocInfo::JS_DISPATCH_HANDLE) |
                  RelocInfo::ModeMask(RelocInfo::NEAR_BUILTIN_ENTRY) |
                  RelocInfo::ModeMask(RelocInfo::WASM_CALL) |
                  RelocInfo::ModeMask(RelocInfo::WASM_STUB_CALL)));
@@ -124,7 +136,7 @@ bool Code::IsIsolateIndependent(Isolate* isolate) {
 #if defined(V8_TARGET_ARCH_PPC64) || defined(V8_TARGET_ARCH_MIPS64)
   return RelocIterator(*this, kModeMask).done();
 #elif defined(V8_TARGET_ARCH_X64) || defined(V8_TARGET_ARCH_ARM64) ||  \
-    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390) ||     \
+    defined(V8_TARGET_ARCH_ARM) || defined(V8_TARGET_ARCH_S390X) ||    \
     defined(V8_TARGET_ARCH_IA32) || defined(V8_TARGET_ARCH_RISCV64) || \
     defined(V8_TARGET_ARCH_LOONG64) || defined(V8_TARGET_ARCH_RISCV32)
   for (RelocIterator it(*this, kModeMask); !it.done(); it.next()) {
@@ -157,7 +169,7 @@ bool Code::Inlines(Tagged<SharedFunctionInfo> sfi) {
   Tagged<DeoptimizationData> const data =
       Cast<DeoptimizationData>(deoptimization_data());
   if (data->length() == 0) return false;
-  if (data->SharedFunctionInfo() == sfi) return true;
+  if (data->GetSharedFunctionInfo() == sfi) return true;
   Tagged<DeoptimizationLiteralArray> const literals = data->LiteralArray();
   int const inlined_count = data->InlinedFunctionCount().value();
   for (int i = 0; i < inlined_count; ++i) {
@@ -200,9 +212,6 @@ void Disassemble(const char* name, std::ostream& os, Isolate* isolate,
   }
   if ((name != nullptr) && (name[0] != '\0')) {
     os << "name = " << name << "\n";
-  }
-  if (CodeKindIsOptimizedJSFunction(kind)) {
-    os << "stack_slots = " << code->stack_slots() << "\n";
   }
   os << "compiler = "
      << (code->is_turbofanned()       ? "turbofan"
@@ -325,8 +334,8 @@ void Code::DisassembleOnlyCode(const char* name, std::ostream& os,
 
 #endif  // ENABLE_DISASSEMBLER
 
-void Code::SetMarkedForDeoptimization(Isolate* isolate, const char* reason) {
-  set_marked_for_deoptimization(true);
+void Code::TraceMarkForDeoptimization(Isolate* isolate,
+                                      LazyDeoptimizeReason reason) {
   Deoptimizer::TraceMarkForDeoptimization(isolate, *this, reason);
 }
 

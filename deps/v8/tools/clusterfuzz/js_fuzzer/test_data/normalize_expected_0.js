@@ -10,19 +10,14 @@ class __c_0 {
     this.abc = 789;
     this.selfRef = __c_0;
   }
-
 }
-
 function __f_0() {
   let __v_2 = 123;
   console.log(__v_2);
 }
-
 __f_0();
-
 let __v_0 = 456;
 console.log(__v_0);
-
 let __v_1 = new __c_0();
-
 console.log(__v_1.abc);
+__v_3 = undefined;

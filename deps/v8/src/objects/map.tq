@@ -70,11 +70,13 @@ extern class Map extends HeapObject {
 
   prototype: JSReceiver|Null;
   constructor_or_back_pointer_or_native_context: Object;
-  instance_descriptors: DescriptorArray;
+  @if(V8_ENABLE_WEBASSEMBLY) instance_descriptors: DescriptorArray
+      |WasmStruct;
+  @ifnot(V8_ENABLE_WEBASSEMBLY) instance_descriptors: DescriptorArray;
   dependent_code: DependentCode;
-  prototype_validity_cell: Smi|Cell;
+  prototype_validity_cell: Zero|Cell;
   transitions_or_prototype_info: Map|Weak<Map>|TransitionArray|PrototypeInfo|
-      Smi;
+      Zero;
 }
 
 @export

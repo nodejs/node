@@ -1,0 +1,1 @@
+{"type":"UnaryExpression","source":"delete NaN","isStatement":true,"originalPath":"e2e/input1.js","needsSuper":false}

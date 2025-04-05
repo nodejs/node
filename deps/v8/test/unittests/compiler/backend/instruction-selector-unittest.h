@@ -37,7 +37,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
    public:
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type)
         : RawMachineAssembler(test->isolate(),
-                              test->zone()->New<Graph>(test->zone()),
+                              test->zone()->New<TFGraph>(test->zone()),
                               MakeCallDescriptor(test->zone(), return_type),
                               MachineType::PointerRepresentation(),
                               MachineOperatorBuilder::kAllOptionalOps),
@@ -45,7 +45,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type),
               MachineType::PointerRepresentation(),
               MachineOperatorBuilder::kAllOptionalOps,
@@ -54,7 +54,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
     StreamBuilder(InstructionSelectorTest* test, MachineType return_type,
                   MachineType parameter0_type, MachineType parameter1_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type),
               MachineType::PointerRepresentation(),
@@ -64,7 +64,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
                   MachineType parameter0_type, MachineType parameter1_type,
                   MachineType parameter2_type)
         : RawMachineAssembler(
-              test->isolate(), test->zone()->New<Graph>(test->zone()),
+              test->isolate(), test->zone()->New<TFGraph>(test->zone()),
               MakeCallDescriptor(test->zone(), return_type, parameter0_type,
                                  parameter1_type, parameter2_type),
               MachineType::PointerRepresentation(),
@@ -126,7 +126,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
           kDefaultCodeEntrypointTag,     // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
-          locations.Build(),             // location_sig
+          locations.Get(),               // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
@@ -139,7 +139,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type) {
       MachineSignature::Builder builder(zone, 1, 0);
       builder.AddReturn(return_type);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -147,7 +147,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
       MachineSignature::Builder builder(zone, 1, 1);
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -157,7 +157,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
       builder.AddReturn(return_type);
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     CallDescriptor* MakeCallDescriptor(Zone* zone, MachineType return_type,
@@ -169,7 +169,7 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
       builder.AddParam(parameter0_type);
       builder.AddParam(parameter1_type);
       builder.AddParam(parameter2_type);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     InstructionSelectorTest* test_;
@@ -219,7 +219,8 @@ class InstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+    DirectHandle<HeapObject> ToHeapObject(
+        const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 

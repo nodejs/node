@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_ATOMICOPS_H_
+#define V8_BASE_ATOMICOPS_H_
+
 // The routines exported by this module are subtle.  If you use them, even if
 // you get the code right, it will depend on careful reasoning about atomicity
 // and memory ordering; it will be less readable, and harder to maintain.  If
@@ -21,9 +24,6 @@
 // Although there are currently no compiler enforcement, you are encouraged
 // to use these.
 //
-
-#ifndef V8_BASE_ATOMICOPS_H_
-#define V8_BASE_ATOMICOPS_H_
 
 #include <stdint.h>
 

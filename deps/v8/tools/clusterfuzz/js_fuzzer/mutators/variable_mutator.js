@@ -19,16 +19,37 @@ function _isInFunctionParam(path) {
   return child && child.parentKey === 'params';
 }
 
-class VariableMutator extends mutator.Mutator {
-  constructor(settings) {
-    super();
-    this.settings = settings;
-  }
+// Skip possible loop-variable mutations with a high probability.
+const SKIP_LOOP_VAR_PROB = 0.95;
 
+/**
+ * Returns true if path appears on the left-hand side of a variable declarator.
+ *
+ * This also includes nesting:
+ * let lhs_var = rhs_var;
+ * let {prop: lhs_var} = rhs_var;
+ */
+function _isBeingDeclared(path) {
+  const child = path.find(
+      p => p.parent && babelTypes.isVariableDeclarator(p.parent));
+  return child && child.parent.id == child.node;
+}
+
+class VariableMutator extends mutator.Mutator {
   get visitor() {
     const thisMutator = this;
 
     return {
+      AssignmentExpression(path) {
+        // Don't change assignments to loop variables, also outside of loop
+        // conditions.
+        if (babelTypes.isIdentifier(path.node.left) &&
+            common.isVariableIdentifier(path.node.left.name) &&
+            thisMutator.context.loopVariables.has(path.node.left.name) &&
+            random.choose(module.exports.SKIP_LOOP_VAR_PROB)) {
+          path.skip();
+        }
+      },
       Identifier(path) {
         if (!random.choose(thisMutator.settings.MUTATE_VARIABLES)) {
           return;
@@ -38,8 +59,8 @@ class VariableMutator extends mutator.Mutator {
           return;
         }
 
-        // Don't mutate variables that are being declared.
-        if (babelTypes.isVariableDeclarator(path.parent)) {
+        // Don't mutate variables on the left-hand side of a declaration.
+        if (_isBeingDeclared(path)) {
           return;
         }
 
@@ -59,6 +80,15 @@ class VariableMutator extends mutator.Mutator {
         }
 
         const newName = randVar.name;
+
+        // Don't assign to loop variables.
+        if (babelTypes.isAssignmentExpression(path.parent) &&
+            path.parent.left == path.node &&
+            thisMutator.context.loopVariables.has(newName) &&
+            random.choose(module.exports.SKIP_LOOP_VAR_PROB)) {
+          return;
+        }
+
         thisMutator.annotate(
             path.node,
             `Replaced ${path.node.name} with ${newName}`);
@@ -69,5 +99,6 @@ class VariableMutator extends mutator.Mutator {
 }
 
 module.exports = {
+  SKIP_LOOP_VAR_PROB: SKIP_LOOP_VAR_PROB,
   VariableMutator: VariableMutator,
 };

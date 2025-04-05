@@ -21,6 +21,7 @@
 #define ABSL_DEBUGGING_INTERNAL_STACKTRACE_EMSCRIPTEN_INL_H_
 
 #include <emscripten.h>
+#include <stdint.h>
 
 #include <atomic>
 #include <cstring>
@@ -62,8 +63,9 @@ ABSL_ATTRIBUTE_UNUSED static int stacktraces_enabler = []() {
 }();
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
-                      const void *ucp, int *min_dropped_frames) {
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void *ucp,
+                      int *min_dropped_frames) {
   if (recursive || disable_stacktraces.load(std::memory_order_relaxed)) {
     return 0;
   }
@@ -83,8 +85,13 @@ static int UnwindImpl(void **result, int *sizes, int max_depth, int skip_count,
   for (int i = 0; i < result_count; i++) result[i] = stack[i + skip_count];
 
   if (IS_STACK_FRAMES) {
-    // No implementation for finding out the stack frame sizes yet.
-    memset(sizes, 0, sizeof(*sizes) * result_count);
+    // No implementation for finding out the stack frames yet.
+    if (frames != nullptr) {
+      memset(frames, 0, sizeof(*frames) * result_count);
+    }
+    if (sizes != nullptr) {
+      memset(sizes, 0, sizeof(*sizes) * result_count);
+    }
   }
   if (min_dropped_frames != nullptr) {
     if (size - skip_count - max_depth > 0) {

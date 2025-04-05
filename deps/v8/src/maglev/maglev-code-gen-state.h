@@ -22,6 +22,7 @@ namespace maglev {
 
 class InterpreterFrameState;
 class MaglevAssembler;
+class Graph;
 
 class DeferredCodeInfo {
  public:
@@ -32,9 +33,11 @@ class DeferredCodeInfo {
 class MaglevCodeGenState {
  public:
   MaglevCodeGenState(MaglevCompilationInfo* compilation_info,
-                     MaglevSafepointTableBuilder* safepoint_table_builder)
+                     MaglevSafepointTableBuilder* safepoint_table_builder,
+                     uint32_t max_block_id)
       : compilation_info_(compilation_info),
-        safepoint_table_builder_(safepoint_table_builder) {}
+        safepoint_table_builder_(safepoint_table_builder),
+        real_jump_target_(max_block_id) {}
 
   void set_tagged_slots(int slots) { tagged_slots_ = slots; }
   void set_untagged_slots(int slots) { untagged_slots_ = slots; }
@@ -113,6 +116,8 @@ class MaglevCodeGenState {
 
   Label* osr_entry() { return &osr_entry_; }
 
+  inline BasicBlock* RealJumpTarget(BasicBlock* block);
+
  private:
   MaglevCompilationInfo* const compilation_info_;
   MaglevSafepointTableBuilder* const safepoint_table_builder_;
@@ -130,6 +135,9 @@ class MaglevCodeGenState {
   // Entry point label for recursive calls.
   Label entry_label_;
   Label osr_entry_;
+
+  // Cached jump targets skipping empty blocks.
+  std::vector<BasicBlock*> real_jump_target_;
 };
 
 // Some helpers for codegen.
