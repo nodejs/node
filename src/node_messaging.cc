@@ -488,8 +488,12 @@ Maybe<bool> Message::Serialize(Environment* env,
     Local<Object> entry = entry_val.As<Object>();
     // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
     // for details.
-    if (entry->HasPrivate(context, env->untransferable_object_private_symbol())
-            .ToChecked()) {
+    bool ans;
+    if (!entry->HasPrivate(context, env->untransferable_object_private_symbol())
+             .To(&ans)) {
+      return Nothing<bool>();
+    }
+    if (ans) {
       ThrowDataCloneException(context, env->transfer_unsupported_type_str());
       return Nothing<bool>();
     }
@@ -587,7 +591,9 @@ Maybe<bool> Message::Serialize(Environment* env,
   for (Local<ArrayBuffer> ab : array_buffers) {
     // If serialization succeeded, we render it inaccessible in this Isolate.
     std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-    ab->Detach(Local<Value>()).Check();
+    if (ab->Detach(Local<Value>()).IsNothing()) {
+      return Nothing<bool>();
+    }
 
     array_buffers_.emplace_back(std::move(backing_store));
   }
@@ -1068,7 +1074,10 @@ bool GetTransferList(Environment* env,
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Object> obj = args.This();
-  Local<Context> context = obj->GetCreationContextChecked();
+  Local<Context> context;
+  if (!obj->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
 
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
@@ -1155,11 +1164,15 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  MaybeLocal<Value> payload =
-      port->ReceiveMessage(port->object()->GetCreationContextChecked(),
-                           MessageProcessingMode::kForceReadMessages);
-  if (!payload.IsEmpty())
-    args.GetReturnValue().Set(payload.ToLocalChecked());
+  Local<Value> payload;
+  Local<Context> context;
+  if (!port->object()->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
+  if (port->ReceiveMessage(context, MessageProcessingMode::kForceReadMessages)
+          .ToLocal(&payload)) {
+    args.GetReturnValue().Set(payload);
+  }
 }
 
 void MessagePort::MoveToContext(const FunctionCallbackInfo<Value>& args) {
@@ -1615,7 +1628,10 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Context> context = args.This()->GetCreationContextChecked();
+  Local<Context> context;
+  if (!args.This()->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
   Context::Scope context_scope(context);
 
   MessagePort* port1 = MessagePort::New(env, context);
