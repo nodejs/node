@@ -14,27 +14,33 @@ class Environment;
 
 namespace permission {
 
+#define CHILD_PROCESS_PERMISSIONS(V)                                           \
+  V(ChildProcess, "child", PermissionsRoot, "--allow-child-process")
+
+#define FFI_PERMISSIONS(V)                                                     \
+  V(FFI, "ffi", PermissionsRoot, "--allow-ffi")
+
 #define FILESYSTEM_PERMISSIONS(V)                                              \
   V(FileSystem, "fs", PermissionsRoot, "")                                     \
   V(FileSystemRead, "fs.read", FileSystem, "--allow-fs-read")                  \
   V(FileSystemWrite, "fs.write", FileSystem, "--allow-fs-write")
 
-#define CHILD_PROCESS_PERMISSIONS(V)                                           \
-  V(ChildProcess, "child", PermissionsRoot, "--allow-child-process")
+#define INSPECTOR_PERMISSIONS(V)                                               \
+  V(Inspector, "inspector", PermissionsRoot, "")
 
-#define WASI_PERMISSIONS(V) V(WASI, "wasi", PermissionsRoot, "--allow-wasi")
+#define WASI_PERMISSIONS(V)                                                    \
+  V(WASI, "wasi", PermissionsRoot, "--allow-wasi")
 
 #define WORKER_THREADS_PERMISSIONS(V)                                          \
   V(WorkerThreads, "worker", PermissionsRoot, "--allow-worker")
 
-#define INSPECTOR_PERMISSIONS(V) V(Inspector, "inspector", PermissionsRoot, "")
-
 #define PERMISSIONS(V)                                                         \
-  FILESYSTEM_PERMISSIONS(V)                                                    \
   CHILD_PROCESS_PERMISSIONS(V)                                                 \
+  FFI_PERMISSIONS(V)                                                           \
+  FILESYSTEM_PERMISSIONS(V)                                                    \
+  INSPECTOR_PERMISSIONS(V)                                                     \
   WASI_PERMISSIONS(V)                                                          \
-  WORKER_THREADS_PERMISSIONS(V)                                                \
-  INSPECTOR_PERMISSIONS(V)
+  WORKER_THREADS_PERMISSIONS(V)
 
 #define V(name, _, __, ___) k##name,
 enum class PermissionScope {
