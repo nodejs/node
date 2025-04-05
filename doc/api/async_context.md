@@ -116,13 +116,16 @@ Each instance of `AsyncLocalStorage` maintains an independent storage context.
 Multiple instances can safely exist simultaneously without risk of interfering
 with each other's data.
 
-### `new AsyncLocalStorage()`
+### `new AsyncLocalStorage([options])`
 
 <!-- YAML
 added:
  - v13.10.0
  - v12.17.0
 changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: Add `defaultValue` and `name` options.
  - version:
     - v19.7.0
     - v18.16.0
@@ -134,6 +137,10 @@ changes:
    pr-url: https://github.com/nodejs/node/pull/45386
    description: Add option onPropagate.
 -->
+
+* `options` {Object}
+  * `defaultValue` {any} The default value to be used when no store is provided.
+  * `name` {string} A name for the `AsyncLocalStorage` value.
 
 Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 `run()` call or after an `enterWith()` call.
@@ -285,6 +292,16 @@ asyncLocalStorage.getStore(); // Returns undefined
 emitter.emit('my-event');
 asyncLocalStorage.getStore(); // Returns the same object
 ```
+
+### `asyncLocalStorage.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The name of the `AsyncLocalStorage` instance if provided.
 
 ### `asyncLocalStorage.run(store, callback[, ...args])`
 
