@@ -23,6 +23,8 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::Float64Array;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -162,6 +164,8 @@ class WorkerThreadData {
     SetIsolateCreateParamsForNode(&params);
     w->UpdateResourceConstraints(&params.constraints);
     params.array_buffer_allocator_shared = allocator;
+    params.cpp_heap =
+        CppHeap::Create(w->platform_, CppHeapCreateParams{{}}).release();
     Isolate* isolate =
         NewIsolate(&params, &loop_, w->platform_, w->snapshot_data());
     if (isolate == nullptr) {

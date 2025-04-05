@@ -25,6 +25,8 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -304,6 +306,10 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
                     MultiIsolatePlatform* platform,
                     const SnapshotData* snapshot_data,
                     const IsolateSettings& settings) {
+  if (params->cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  }
   Isolate* isolate = Isolate::Allocate();
   if (isolate == nullptr) return nullptr;
 
@@ -345,9 +351,13 @@ Isolate* NewIsolate(ArrayBufferAllocator* allocator,
                     uv_loop_t* event_loop,
                     MultiIsolatePlatform* platform,
                     const EmbedderSnapshotData* snapshot_data,
-                    const IsolateSettings& settings) {
+                    const IsolateSettings& settings,
+                    std::unique_ptr<CppHeap> cpp_heap) {
   Isolate::CreateParams params;
   if (allocator != nullptr) params.array_buffer_allocator = allocator;
+  if (cpp_heap) {
+    params.cpp_heap = cpp_heap.release();
+  }
   return NewIsolate(&params,
                     event_loop,
                     platform,
@@ -359,9 +369,13 @@ Isolate* NewIsolate(std::shared_ptr<ArrayBufferAllocator> allocator,
                     uv_loop_t* event_loop,
                     MultiIsolatePlatform* platform,
                     const EmbedderSnapshotData* snapshot_data,
-                    const IsolateSettings& settings) {
+                    const IsolateSettings& settings,
+                    std::unique_ptr<CppHeap> cpp_heap) {
   Isolate::CreateParams params;
   if (allocator) params.array_buffer_allocator_shared = allocator;
+  if (cpp_heap) {
+    params.cpp_heap = cpp_heap.release();
+  }
   return NewIsolate(&params,
                     event_loop,
                     platform,

@@ -580,19 +580,10 @@ IsolateData::IsolateData(Isolate* isolate,
       platform_(platform),
       snapshot_data_(snapshot_data),
       options_(std::move(options)) {
-  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
-
   uint16_t cppgc_id = kDefaultCppGCEmbedderID;
   // We do not care about overflow since we just want this to be different
   // from the cppgc id.
   uint16_t non_cppgc_id = cppgc_id + 1;
-  if (cpp_heap == nullptr) {
-    cpp_heap_ = CppHeap::Create(platform, v8::CppHeapCreateParams{{}});
-    // TODO(joyeecheung): pass it into v8::Isolate::CreateParams and let V8
-    // own it when we can keep the isolate registered/task runner discoverable
-    // during isolate disposal.
-    isolate->AttachCppHeap(cpp_heap_.get());
-  }
 
   {
     // GC could still be run after the IsolateData is destroyed, so we store
@@ -613,15 +604,6 @@ IsolateData::IsolateData(Isolate* isolate,
     CreateProperties();
   } else {
     DeserializeProperties(&snapshot_data->isolate_data_info);
-  }
-}
-
-IsolateData::~IsolateData() {
-  if (cpp_heap_ != nullptr) {
-    v8::Locker locker(isolate_);
-    // The CppHeap must be detached before being terminated.
-    isolate_->DetachCppHeap();
-    cpp_heap_->Terminate();
   }
 }
 
