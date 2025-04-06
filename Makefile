@@ -813,6 +813,12 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
+out/doc/api/%.json out/doc/api/%.html: doc-only
+
+out/doc/api/all.html: doc-only
+
+out/doc/api/all.json: doc-only
+
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
 	@$(PYTHON) -mwebbrowser file://$(abspath $<)
