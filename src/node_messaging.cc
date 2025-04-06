@@ -251,14 +251,16 @@ void Message::AdoptSharedValueConveyor(SharedValueConveyor&& conveyor) {
 
 namespace {
 
-MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context) {
+MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
+                                            IsolateData* isolate_data) {
   Isolate* isolate = context->GetIsolate();
   Local<Object> per_context_bindings;
   Local<Value> emit_message_val;
-  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
-      !per_context_bindings->Get(context,
-                                FIXED_ONE_BYTE_STRING(isolate, "emitMessage"))
-          .ToLocal(&emit_message_val)) {
+  if (!GetPerContextExports(context, isolate_data)
+           .ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emitMessage"))
+           .ToLocal(&emit_message_val)) {
     return MaybeLocal<Function>();
   }
   CHECK(emit_message_val->IsFunction());
@@ -687,7 +689,8 @@ MessagePort::MessagePort(Environment* env,
   }
 
   Local<Function> emit_message_fn;
-  if (!GetEmitMessageFunction(context).ToLocal(&emit_message_fn))
+  if (!GetEmitMessageFunction(context, env->isolate_data())
+           .ToLocal(&emit_message_fn))
     return;
   emit_message_fn_.Reset(env->isolate(), emit_message_fn);
 

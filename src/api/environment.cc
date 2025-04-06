@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
@@ -602,7 +603,8 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
                                         page_allocator);
 }
 
-MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
+MaybeLocal<Object> GetPerContextExports(Local<Context> context,
+                                        IsolateData* isolate_data) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope handle_scope(isolate);
 
@@ -616,10 +618,14 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   if (existing_value->IsObject())
     return handle_scope.Escape(existing_value.As<Object>());
 
+  // To initialize the per-context binding exports, a non-nullptr isolate_data
+  // is needed
+  CHECK(isolate_data);
   Local<Object> exports = Object::New(isolate);
   if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
-      InitializePrimordials(context).IsNothing())
+      InitializePrimordials(context, isolate_data).IsNothing()) {
     return MaybeLocal<Object>();
+  }
   return handle_scope.Escape(exports);
 }
 
@@ -764,7 +770,32 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
   return JustVoid();
 }
 
-Maybe<void> InitializePrimordials(Local<Context> context) {
+MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
+                                            IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
+  Local<Object> private_symbols_object;
+#define V(PropertyName, _)                                                     \
+  private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
+      private_symbols_object->SetPrototype(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(private_symbols_object);
+}
+
+Maybe<void> InitializePrimordials(Local<Context> context,
+                                  IsolateData* isolate_data) {
   // Run per-context JS files.
   Isolate* isolate = context->GetIsolate();
   Context::Scope context_scope(context);
@@ -785,6 +816,12 @@ Maybe<void> InitializePrimordials(Local<Context> context) {
     return Nothing<void>();
   }
 
+  Local<Object> private_symbols;
+  if (!InitializePrivateSymbols(context, isolate_data)
+           .ToLocal(&private_symbols)) {
+    return Nothing<void>();
+  }
+
   static const char* context_files[] = {"internal/per_context/primordials",
                                         "internal/per_context/domexception",
                                         "internal/per_context/messageport",
@@ -800,7 +837,8 @@ Maybe<void> InitializePrimordials(Local<Context> context) {
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials};
+    Local<Value> arguments[] = {exports, primordials, private_symbols};
+
     if (builtin_loader
             .CompileAndCall(
                 context, *module, arraysize(arguments), arguments, nullptr)

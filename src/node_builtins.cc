@@ -412,6 +412,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+        FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
     };
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
