@@ -9,21 +9,21 @@
 #include "src/common/globals.h"
 #include "src/compiler/common-node-cache.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/runtime/runtime.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
 
-// Implements a facade on a Graph, enhancing the graph with machine-specific
+// Implements a facade on a TFGraph, enhancing the graph with machine-specific
 // notions, including a builder for common and machine operators, as well
 // as caching primitive constants.
 class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
  public:
-  MachineGraph(Graph* graph, CommonOperatorBuilder* common,
+  MachineGraph(TFGraph* graph, CommonOperatorBuilder* common,
                MachineOperatorBuilder* machine)
       : graph_(graph),
         common_(common),
@@ -99,11 +99,11 @@ class V8_EXPORT_PRIVATE MachineGraph : public NON_EXPORTED_BASE(ZoneObject) {
 
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Zone* zone() const { return graph()->zone(); }
 
  protected:
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   CommonNodeCache cache_;

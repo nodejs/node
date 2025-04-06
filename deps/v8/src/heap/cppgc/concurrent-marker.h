@@ -41,6 +41,11 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
     return incremental_marking_schedule_;
   }
 
+  void AddConcurrentlyMarkedBytes(size_t marked_bytes);
+  size_t concurrently_marked_bytes() const {
+    return concurrently_marked_bytes_.load(std::memory_order_relaxed);
+  }
+
   virtual std::unique_ptr<Visitor> CreateConcurrentMarkingVisitor(
       ConcurrentMarkingState&) const = 0;
 
@@ -56,8 +61,7 @@ class V8_EXPORT_PRIVATE ConcurrentMarkerBase {
   // The job handle doubles as flag to denote concurrent marking was started.
   std::unique_ptr<JobHandle> concurrent_marking_handle_{nullptr};
 
-  size_t last_concurrently_marked_bytes_ = 0;
-  v8::base::TimeTicks last_concurrently_marked_bytes_update_;
+  std::atomic<size_t> concurrently_marked_bytes_ = 0;
   bool concurrent_marking_priority_increased_{false};
 };
 

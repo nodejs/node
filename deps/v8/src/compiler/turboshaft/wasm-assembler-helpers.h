@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_ASSEMBLER_HELPERS_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_ASSEMBLER_HELPERS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_ASSEMBLER_HELPERS_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_ASSEMBLER_HELPERS_H_
 
 #include "src/compiler/turboshaft/operations.h"
 #include "src/roots/roots.h"

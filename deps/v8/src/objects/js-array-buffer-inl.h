@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 #define V8_OBJECTS_JS_ARRAY_BUFFER_INL_H_
 
-#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-array-buffer.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/js-objects-inl.h"
 #include "src/objects/objects-inl.h"
 
@@ -30,6 +32,12 @@ RELEASE_ACQUIRE_ACCESSORS(JSTypedArray, base_pointer, Tagged<Object>,
                           kBasePointerOffset)
 
 size_t JSArrayBuffer::byte_length() const {
+  // Use GetByteLength() for growable SharedArrayBuffers.
+  DCHECK(!is_shared() || !is_resizable_by_js());
+  return byte_length_unchecked();
+}
+
+size_t JSArrayBuffer::byte_length_unchecked() const {
   return ReadBoundedSizeField(kRawByteLengthOffset);
 }
 
@@ -63,8 +71,9 @@ std::shared_ptr<BackingStore> JSArrayBuffer::GetBackingStore() const {
 size_t JSArrayBuffer::GetByteLength() const {
   if (V8_UNLIKELY(is_shared() && is_resizable_by_js())) {
     // Invariant: byte_length for GSAB is 0 (it needs to be read from the
-    // BackingStore).
-    DCHECK_EQ(0, byte_length());
+    // BackingStore). Don't use the byte_length getter, which DCHECKs that it's
+    // not used on growable SharedArrayBuffers.
+    DCHECK_EQ(0, byte_length_unchecked());
 
     // If the byte length is read after the JSArrayBuffer object is allocated
     // but before it's attached to the backing store, GetBackingStore returns
@@ -130,6 +139,7 @@ void JSArrayBuffer::set_extension(ArrayBufferExtension* extension) {
     ExternalPointerHandle handle = table.AllocateAndInitializeEntry(
         isolate.GetExternalPointerTableSpaceFor(tag, address()), value, tag);
     base::AsAtomic32::Release_Store(extension_handle_location(), handle);
+    EXTERNAL_POINTER_WRITE_BARRIER(*this, kExtensionOffset, tag);
   } else {
     table.Set(current_handle, value, tag);
   }
@@ -367,25 +377,24 @@ bool JSTypedArray::is_on_heap(AcquireLoadTag tag) const {
 }
 
 // static
-MaybeHandle<JSTypedArray> JSTypedArray::Validate(Isolate* isolate,
-                                                 Handle<Object> receiver,
-                                                 const char* method_name) {
+MaybeDirectHandle<JSTypedArray> JSTypedArray::Validate(
+    Isolate* isolate, DirectHandle<Object> receiver, const char* method_name) {
   if (V8_UNLIKELY(!IsJSTypedArray(*receiver))) {
     const MessageTemplate message = MessageTemplate::kNotTypedArray;
     THROW_NEW_ERROR(isolate, NewTypeError(message));
   }
 
-  Handle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
+  DirectHandle<JSTypedArray> array = Cast<JSTypedArray>(receiver);
   if (V8_UNLIKELY(array->WasDetached())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }
 
   if (V8_UNLIKELY(array->IsVariableLength() && array->IsOutOfBounds())) {
     const MessageTemplate message = MessageTemplate::kDetachedOperation;
-    Handle<String> operation =
+    DirectHandle<String> operation =
         isolate->factory()->NewStringFromAsciiChecked(method_name);
     THROW_NEW_ERROR(isolate, NewTypeError(message, operation));
   }

@@ -31,10 +31,51 @@
 #ifndef ABSL_DEBUGGING_STACKTRACE_H_
 #define ABSL_DEBUGGING_STACKTRACE_H_
 
+#include <stdint.h>
+
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
+
+namespace internal_stacktrace {
+
+// Same as `absl::GetStackFrames`, but with an optional `frames` parameter to
+// allow callers to receive the raw stack frame addresses.
+// This is internal for now; use `absl::GetStackFrames()` instead.
+extern int GetStackFrames(void** result, uintptr_t* frames, int* sizes,
+                          int max_depth, int skip_count);
+
+// Same as `absl::GetStackFramesWithContext`, but with an optional `frames`
+// parameter to allow callers to receive a start address for each stack frame.
+// The address may be zero in cases where it cannot be computed.
+//
+// DO NOT use this function without consulting the owners of absl/debuggging.
+// There is NO GUARANTEE on the precise frame addresses returned on any given
+// platform. It is only intended to provide sufficient non-overlapping bounds on
+// the local variables of a stack frame when used in conjunction with the
+// returned frame sizes. The actual pointers may be ABI-dependent, may vary at
+// run time, and are subject to breakage without notice.
+//
+// Implementation note:
+// Currently, we *attempt* to return the Canonical Frame Address (CFA) in DWARF
+// on most platforms. This is the value of the stack pointer just before the
+// 'call' instruction is executed in the caller.
+// Not all platforms and toolchains support this exact address, so this should
+// not be relied on for correctness.
+extern int GetStackFramesWithContext(void** result, uintptr_t* frames,
+                                     int* sizes, int max_depth, int skip_count,
+                                     const void* uc, int* min_dropped_frames);
+
+// Same as `absl::DefaultStackUnwinder`, but with an optional `frames` parameter
+// to allow callers to receive the raw stack frame addresses.
+// This is internal for now; do not depend on this externally.
+extern int DefaultStackUnwinder(void** pcs, uintptr_t* frames, int* sizes,
+                                int max_depth, int skip_count, const void* uc,
+                                int* min_dropped_frames);
+
+}  // namespace internal_stacktrace
 
 // GetStackFrames()
 //
@@ -78,8 +119,13 @@ ABSL_NAMESPACE_BEGIN
 //
 // This routine may return fewer stack frame entries than are
 // available. Also note that `result` and `sizes` must both be non-null.
-extern int GetStackFrames(void** result, int* sizes, int max_depth,
-                          int skip_count);
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int GetStackFrames(void** result,
+                                                       int* sizes,
+                                                       int max_depth,
+                                                       int skip_count) {
+  return internal_stacktrace::GetStackFrames(result, nullptr, sizes, max_depth,
+                                             skip_count);
+}
 
 // GetStackFramesWithContext()
 //
@@ -102,9 +148,12 @@ extern int GetStackFrames(void** result, int* sizes, int max_depth,
 // or other reasons. (This value will be set to `0` if no frames were dropped.)
 // The number of total stack frames is guaranteed to be >= skip_count +
 // max_depth + *min_dropped_frames.
-extern int GetStackFramesWithContext(void** result, int* sizes, int max_depth,
-                                     int skip_count, const void* uc,
-                                     int* min_dropped_frames);
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int GetStackFramesWithContext(
+    void** result, int* sizes, int max_depth, int skip_count, const void* uc,
+    int* min_dropped_frames) {
+  return internal_stacktrace::GetStackFramesWithContext(
+      result, nullptr, sizes, max_depth, skip_count, uc, min_dropped_frames);
+}
 
 // GetStackTrace()
 //

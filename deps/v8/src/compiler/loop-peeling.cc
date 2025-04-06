@@ -6,12 +6,12 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/loop-analysis.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-origin-table.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/zone/zone.h"
 
 // Loop peeling is an optimization that copies the body of a loop, creating
@@ -267,7 +267,7 @@ void LoopPeeler::PeelInnerLoopsOfTree() {
 }
 
 // static
-void LoopPeeler::EliminateLoopExits(Graph* graph, Zone* tmp_zone) {
+void LoopPeeler::EliminateLoopExits(TFGraph* graph, Zone* tmp_zone) {
   ZoneQueue<Node*> queue(tmp_zone);
   BitVector visited(static_cast<int>(graph->NodeCount()), tmp_zone);
   queue.push(graph->end());

@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_CONTEXTS_INL_H_
 #define V8_OBJECTS_CONTEXTS_INL_H_
 
+#include "src/objects/contexts.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/globals.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/objects/casting.h"
-#include "src/objects/contexts.h"
 #include "src/objects/dictionary-inl.h"
 #include "src/objects/fixed-array-inl.h"
 #include "src/objects/js-function-inl.h"
@@ -28,11 +30,21 @@ namespace internal {
 
 #include "torque-generated/src/objects/contexts-tq-inl.inc"
 
-OBJECT_CONSTRUCTORS_IMPL(ScriptContextTable, ScriptContextTable::Super)
+int ScriptContextTable::length(AcquireLoadTag) const {
+  return length_.Acquire_Load().value();
+}
+void ScriptContextTable::set_length(int value, ReleaseStoreTag) {
+  length_.Release_Store(this, Smi::FromInt(value));
+}
 
-RELEASE_ACQUIRE_SMI_ACCESSORS(ScriptContextTable, length, kLengthOffset)
-ACCESSORS(ScriptContextTable, names_to_context_index,
-          Tagged<NameToIndexHashTable>, kNamesToContextIndexOffset)
+Tagged<NameToIndexHashTable> ScriptContextTable::names_to_context_index()
+    const {
+  return names_to_context_index_.load();
+}
+void ScriptContextTable::set_names_to_context_index(
+    Tagged<NameToIndexHashTable> value, WriteBarrierMode mode) {
+  names_to_context_index_.store(this, value, mode);
+}
 
 Tagged<Context> ScriptContextTable::get(int i) const {
   DCHECK_LT(i, length(kAcquireLoad));

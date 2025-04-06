@@ -7,8 +7,7 @@
 
 #include "src/common/globals.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 class HeapObjectLayout;
 
@@ -35,7 +34,6 @@ V8_INLINE Isolate* GetIsolateFromWritableObject(const HeapObjectLayout& object);
 V8_INLINE bool GetIsolateFromHeapObject(Tagged<HeapObject> object,
                                         Isolate** isolate);
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_EXECUTION_ISOLATE_UTILS_H_

@@ -9,6 +9,7 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/code-stub-assembler-inl.h"
 #include "src/codegen/interface-descriptors.h"
+#include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/ic/accessor-assembler.h"
 #include "src/objects/contexts.h"
@@ -72,7 +73,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
   // the above. It is essentially the same as "KeyedStoreGeneric" but does not
   // use feedback slot and uses a hardcoded LanguageMode instead of trying
   // to deduce it from the feedback slot's kind.
-  void StoreProperty(TNode<Context> context, TNode<Object> receiver,
+  void StoreProperty(TNode<Context> context, TNode<JSAny> receiver,
                      TNode<Object> key, TNode<Object> value,
                      LanguageMode language_mode);
 
@@ -89,7 +90,7 @@ class KeyedStoreGenericAssembler : public AccessorAssembler {
 
   // Helper that is used by the public KeyedStoreGeneric, KeyedStoreMegamorphic
   // and StoreProperty.
-  void KeyedStoreGeneric(TNode<Context> context, TNode<Object> receiver,
+  void KeyedStoreGeneric(TNode<Context> context, TNode<JSAny> receiver,
                          TNode<Object> key, TNode<Object> value,
                          Maybe<LanguageMode> language_mode,
                          UseStubCache use_stub_cache = kDontUseStubCache,
@@ -248,7 +249,7 @@ void KeyedStoreGenericGenerator::SetProperty(
 // static
 void KeyedStoreGenericGenerator::SetProperty(
     compiler::CodeAssemblerState* state, TNode<Context> context,
-    TNode<Object> receiver, TNode<Object> key, TNode<Object> value,
+    TNode<JSAny> receiver, TNode<Object> key, TNode<Object> value,
     LanguageMode language_mode) {
   KeyedStoreGenericAssembler assembler(state, StoreMode::kSet);
   assembler.StoreProperty(context, receiver, key, value, language_mode);
@@ -424,8 +425,9 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     GotoIf(IsSetWord32(details, PropertyDetails::kAttributesReadOnlyMask),
            slow);
   }
-  static_assert(FixedArray::kHeaderSize == FixedDoubleArray::kHeaderSize);
-  const int kHeaderSize = FixedArray::kHeaderSize - kHeapObjectTag;
+  static_assert(OFFSET_OF_DATA_START(FixedArray) ==
+                OFFSET_OF_DATA_START(FixedDoubleArray));
+  const int kHeaderSize = OFFSET_OF_DATA_START(FixedArray) - kHeapObjectTag;
 
   Label check_double_elements(this), check_cow_elements(this);
   TNode<Map> elements_map = LoadMap(elements);
@@ -492,8 +494,24 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     {
       Label transition_to_double(this), transition_to_object(this);
       TNode<NativeContext> native_context = LoadNativeContext(context);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      GotoIf(IsHeapNumber(CAST(value)), &transition_to_double);
+      GotoIfNot(IsUndefined(value), &transition_to_object);
+      TryRewriteElements(receiver, receiver_map, elements, native_context,
+                         PACKED_SMI_ELEMENTS, HOLEY_DOUBLE_ELEMENTS, slow);
+      // Reload migrated elements.
+      TNode<FixedArrayBase> double_elements = LoadElements(receiver);
+      TNode<IntPtrT> double_offset =
+          ElementOffsetFromIndex(index, PACKED_DOUBLE_ELEMENTS, kHeaderSize);
+      // Make sure we do not store signalling NaNs into double arrays.
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, double_elements,
+                          double_offset, Uint64Constant(kUndefinedNanInt64));
+      MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+#else
       Branch(IsHeapNumber(CAST(value)), &transition_to_double,
              &transition_to_object);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+
       BIND(&transition_to_double);
       {
         // If we're adding holes at the end, always transition to a holey
@@ -561,8 +579,12 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
     // Try to store the value as a double.
     {
       Label non_number_value(this);
-      TNode<Float64T> double_value =
-          TryTaggedToFloat64(value, &non_number_value);
+      Label undefined_value(this);
+      TNode<Float64T> double_value = TryTaggedToFloat64(value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                        &undefined_value,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                                        &non_number_value);
 
       // Make sure we do not store signalling NaNs into double arrays.
       double_value = Float64SilenceNaN(double_value);
@@ -574,6 +596,22 @@ void KeyedStoreGenericAssembler::StoreElementWithCapacity(
       StoreNoWriteBarrier(MachineRepresentation::kFloat64, elements, offset,
                           double_value);
       MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+
+      // Convert undefined to double value.
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+      BIND(&undefined_value);
+      // FIXME(nicohartmann): Unify with above.
+
+      // If we're about to introduce holes, ensure holey elements.
+      if (update_length == kBumpLengthWithGap) {
+        TryChangeToHoleyMap(receiver, receiver_map, elements_kind, context,
+                            PACKED_DOUBLE_ELEMENTS, slow);
+      }
+      StoreNoWriteBarrier(MachineRepresentation::kWord64, elements, offset,
+                          Uint64Constant(kUndefinedNanInt64));
+      // double_value);
+      MaybeUpdateLengthAndReturn(receiver, index, value, update_length);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
       BIND(&non_number_value);
     }
@@ -851,7 +889,7 @@ TNode<Map> KeyedStoreGenericAssembler::FindCandidateStoreICTransitionMapHandler(
                                       TransitionArray::kEntryKeyIndex) *
                                      kTaggedSize;
       var_transition_map = CAST(GetHeapObjectAssumeWeak(
-          LoadArrayElement(transitions, WeakFixedArray::kHeaderSize,
+          LoadArrayElement(transitions, OFFSET_OF_DATA_START(WeakFixedArray),
                            var_name_index.value(), kKeyToTargetOffset)));
       Goto(&found_handler_candidate);
     }
@@ -1153,7 +1191,7 @@ void KeyedStoreGenericAssembler::EmitGenericPropertyStore(
 
 // Helper that is used by the public KeyedStoreGeneric and by StoreProperty.
 void KeyedStoreGenericAssembler::KeyedStoreGeneric(
-    TNode<Context> context, TNode<Object> receiver_maybe_smi, TNode<Object> key,
+    TNode<Context> context, TNode<JSAny> receiver_maybe_smi, TNode<Object> key,
     TNode<Object> value, Maybe<LanguageMode> language_mode,
     UseStubCache use_stub_cache, TNode<TaggedIndex> slot,
     TNode<HeapObject> maybe_vector) {
@@ -1164,7 +1202,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       not_internalized(this), slow(this);
 
   GotoIf(TaggedIsSmi(receiver_maybe_smi), &slow);
-  TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+  TNode<JSAnyNotSmi> receiver = CAST(receiver_maybe_smi);
   TNode<Map> receiver_map = LoadMap(receiver);
   TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
   // Receivers requiring non-standard element accesses (interceptors, access
@@ -1218,10 +1256,11 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
       DCHECK(IsDefineKeyedOwnInLiteral());
       TNode<Smi> flags =
           SmiConstant(DefineKeyedOwnPropertyInLiteralFlag::kNoFlags);
-      TNode<TaggedIndex> slot =
+      TNode<TaggedIndex> invalid_slot =
           TaggedIndexConstant(FeedbackSlot::Invalid().ToInt());
       TailCallRuntime(Runtime::kDefineKeyedOwnPropertyInLiteral, context,
-                      receiver, key, value, flags, UndefinedConstant(), slot);
+                      receiver, key, value, flags, UndefinedConstant(),
+                      invalid_slot);
     }
   }
 }
@@ -1229,7 +1268,7 @@ void KeyedStoreGenericAssembler::KeyedStoreGeneric(
 void KeyedStoreGenericAssembler::KeyedStoreGeneric() {
   using Descriptor = StoreNoFeedbackDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1241,7 +1280,7 @@ void KeyedStoreGenericAssembler::KeyedStoreMegamorphic() {
   DCHECK(IsSet());  // Only [[Set]] handlers are stored in the stub cache.
   using Descriptor = StoreWithVectorDescriptor;
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1253,7 +1292,7 @@ void KeyedStoreGenericAssembler::KeyedStoreMegamorphic() {
 }
 
 void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
-                                               TNode<Object> receiver,
+                                               TNode<JSAny> receiver,
                                                TNode<Object> key,
                                                TNode<Object> value,
                                                LanguageMode language_mode) {
@@ -1263,7 +1302,7 @@ void KeyedStoreGenericAssembler::StoreProperty(TNode<Context> context,
 void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   using Descriptor = StoreNoFeedbackDescriptor;
 
-  auto receiver_maybe_smi = Parameter<Object>(Descriptor::kReceiver);
+  auto receiver_maybe_smi = Parameter<JSAny>(Descriptor::kReceiver);
   auto name = Parameter<Object>(Descriptor::kName);
   auto value = Parameter<Object>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
@@ -1273,7 +1312,7 @@ void KeyedStoreGenericAssembler::StoreIC_NoFeedback() {
   GotoIf(TaggedIsSmi(receiver_maybe_smi), &miss);
 
   {
-    TNode<HeapObject> receiver = CAST(receiver_maybe_smi);
+    TNode<JSAnyNotSmi> receiver = CAST(receiver_maybe_smi);
     TNode<Map> receiver_map = LoadMap(receiver);
     TNode<Uint16T> instance_type = LoadMapInstanceType(receiver_map);
     // Receivers requiring non-standard element accesses (interceptors, access

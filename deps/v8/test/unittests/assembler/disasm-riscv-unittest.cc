@@ -373,7 +373,7 @@ TEST_F(DisasmRiscvTest, RV64A) {
   COMPARE(amomin_d(true, true, a0, s3, s4),
           "8749b52f       amomin.d.aqrl a0, s4, (s3)");
   COMPARE(amomax_d(false, true, a0, s3, s4),
-          "a349b52f       amoswap.d.rl a0, s4, (s3)");
+          "a349b52f       amomax.d.rl a0, s4, (s3)");
   COMPARE(amominu_d(true, false, a0, s3, s4),
           "c549b52f       amominu.d.aq a0, s4, (s3)");
   COMPARE(amomaxu_d(false, true, a0, s3, s4),

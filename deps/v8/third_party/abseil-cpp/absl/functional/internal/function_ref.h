@@ -19,7 +19,6 @@
 #include <functional>
 #include <type_traits>
 
-#include "absl/base/internal/invoke.h"
 #include "absl/functional/any_invocable.h"
 #include "absl/meta/type_traits.h"
 
@@ -74,15 +73,13 @@ using Invoker = R (*)(VoidPtr, typename ForwardT<Args>::type...);
 template <typename Obj, typename R, typename... Args>
 R InvokeObject(VoidPtr ptr, typename ForwardT<Args>::type... args) {
   auto o = static_cast<const Obj*>(ptr.obj);
-  return static_cast<R>(
-      absl::base_internal::invoke(*o, std::forward<Args>(args)...));
+  return static_cast<R>(std::invoke(*o, std::forward<Args>(args)...));
 }
 
 template <typename Fun, typename R, typename... Args>
 R InvokeFunction(VoidPtr ptr, typename ForwardT<Args>::type... args) {
   auto f = reinterpret_cast<Fun>(ptr.fun);
-  return static_cast<R>(
-      absl::base_internal::invoke(f, std::forward<Args>(args)...));
+  return static_cast<R>(std::invoke(f, std::forward<Args>(args)...));
 }
 
 template <typename Sig>

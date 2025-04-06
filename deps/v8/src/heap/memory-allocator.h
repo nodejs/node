@@ -15,7 +15,7 @@
 #include "include/v8-platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/export-template.h"
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/base/macros.h"
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/semaphore.h"
@@ -37,6 +37,7 @@ class TestMemoryAllocatorScope;
 class Heap;
 class Isolate;
 class ReadOnlyPageMetadata;
+class PagePool;
 
 // ----------------------------------------------------------------------------
 // A space acquires chunks of memory from the operating system. The memory
@@ -44,47 +45,6 @@ class ReadOnlyPageMetadata;
 // pages for large object space.
 class MemoryAllocator {
  public:
-  // Pool keeps pages allocated and accessible until explicitly flushed.
-  class V8_EXPORT_PRIVATE Pool {
-   public:
-    explicit Pool(MemoryAllocator* allocator) : allocator_(allocator) {}
-
-    Pool(const Pool&) = delete;
-    Pool& operator=(const Pool&) = delete;
-
-    void Add(MutablePageMetadata* chunk) {
-      // This method is called only on the main thread and only during the
-      // atomic pause so a lock is not needed.
-      DCHECK_NOT_NULL(chunk);
-      DCHECK_EQ(chunk->size(), PageMetadata::kPageSize);
-      DCHECK(!chunk->Chunk()->IsLargePage());
-      DCHECK(!chunk->Chunk()->IsTrusted());
-      DCHECK_NE(chunk->Chunk()->executable(), EXECUTABLE);
-      chunk->ReleaseAllAllocatedMemory();
-      pooled_chunks_.push_back(chunk);
-    }
-
-    MutablePageMetadata* TryGetPooled() {
-      base::MutexGuard guard(&mutex_);
-      if (pooled_chunks_.empty()) return nullptr;
-      MutablePageMetadata* chunk = pooled_chunks_.back();
-      pooled_chunks_.pop_back();
-      return chunk;
-    }
-
-    void ReleasePooledChunks();
-
-    size_t NumberOfCommittedChunks() const;
-    size_t CommittedBufferedMemory() const;
-
-   private:
-    MemoryAllocator* const allocator_;
-    std::vector<MutablePageMetadata*> pooled_chunks_;
-    mutable base::Mutex mutex_;
-
-    friend class MemoryAllocator;
-  };
-
   enum class AllocationMode {
     // Regular allocation path. Does not use pool.
     kRegular,
@@ -118,12 +78,6 @@ class MemoryAllocator {
     DCHECK_LT(0, commit_page_size_bits_);
     return commit_page_size_bits_;
   }
-
-  // Computes the memory area of discardable memory within a given memory area
-  // [addr, addr+size) and returns the result as base::AddressRegion. If the
-  // memory is not discardable base::AddressRegion is an empty region.
-  V8_EXPORT_PRIVATE static base::AddressRegion ComputeDiscardMemoryArea(
-      Address addr, size_t size);
 
   V8_EXPORT_PRIVATE MemoryAllocator(Isolate* isolate,
                                     v8::PageAllocator* code_page_allocator,
@@ -233,18 +187,20 @@ class MemoryAllocator {
     }
   }
 
-  Pool* pool() { return &pool_; }
+  PagePool* pool() { return pool_; }
 
   void UnregisterReadOnlyPage(ReadOnlyPageMetadata* page);
 
   Address HandleAllocationFailure(Executability executable);
 
-#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Return the normal or large page that contains this address, if it is owned
   // by this heap, otherwise a nullptr.
   V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddress(
       Address addr) const;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
+  // This version can be used when all threads are either parked or in a
+  // safepoint. In that case we can skip taking a mutex.
+  V8_EXPORT_PRIVATE const MemoryChunk* LookupChunkContainingAddressInSafepoint(
+      Address addr) const;
 
   // Insert and remove normal and large pages that are owned by this heap.
   void RecordMemoryChunkCreated(const MemoryChunk* chunk);
@@ -253,6 +209,21 @@ class MemoryAllocator {
   // We postpone page freeing until the pointer-update phase is done (updating
   // slots may happen for dead objects which point to dead memory).
   void ReleaseQueuedPages();
+
+  // Returns the number of cached chunks for this isolate.
+  V8_EXPORT_PRIVATE size_t GetPooledChunksCount();
+
+  // Returns the number of shared cached chunks.
+  V8_EXPORT_PRIVATE size_t GetSharedPooledChunksCount();
+
+  // Returns the number of total cached chunks (including cached pages of other
+  // isolates).
+  V8_EXPORT_PRIVATE size_t GetTotalPooledChunksCount();
+
+  // Releases all pooled chunks for this isolate immediately.
+  V8_EXPORT_PRIVATE void ReleasePooledChunksImmediately();
+
+  static void DeleteMemoryChunk(MutablePageMetadata* metadata);
 
  private:
   // Used to store all data about MemoryChunk allocation, e.g. in
@@ -272,7 +243,7 @@ class MemoryAllocator {
   static size_t ComputeChunkSize(size_t area_size, AllocationSpace space);
 
   // Internal allocation method for all pages/memory chunks. Returns data about
-  // the unintialized memory region.
+  // the uninitialized memory region.
   V8_WARN_UNUSED_RESULT std::optional<MemoryChunkAllocationResult>
   AllocateUninitializedChunk(BaseSpace* space, size_t area_size,
                              Executability executable, PageSize page_size) {
@@ -434,7 +405,7 @@ class MemoryAllocator {
   std::atomic<Address> highest_executable_ever_allocated_{kNullAddress};
 
   std::optional<VirtualMemory> reserved_chunk_at_virtual_memory_limit_;
-  Pool pool_;
+  PagePool* pool_;
   std::vector<MutablePageMetadata*> queued_pages_to_be_freed_;
 
 #ifdef DEBUG
@@ -445,7 +416,6 @@ class MemoryAllocator {
   base::Mutex executable_memory_mutex_;
 #endif  // DEBUG
 
-#if defined(V8_ENABLE_CONSERVATIVE_STACK_SCANNING) || defined(DEBUG)
   // Allocated normal and large pages are stored here, to be used during
   // conservative stack scanning.
   std::unordered_set<const MemoryChunk*, base::hash<const MemoryChunk*>>
@@ -453,7 +423,6 @@ class MemoryAllocator {
   std::set<const MemoryChunk*> large_pages_;
 
   mutable base::Mutex chunks_mutex_;
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING || DEBUG
 
   V8_EXPORT_PRIVATE static size_t commit_page_size_;
   V8_EXPORT_PRIVATE static size_t commit_page_size_bits_;

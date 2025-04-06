@@ -539,20 +539,20 @@ void SubstituteAndAppend(
 //  void VarMsg(absl::string_view format, const Args&... args) {
 //    std::string s = absl::Substitute(format, args...);
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(absl::string_view format) {
+[[nodiscard]] inline std::string Substitute(absl::string_view format) {
   std::string result;
   SubstituteAndAppend(&result, format);
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0) {
   std::string result;
   SubstituteAndAppend(&result, format, a0);
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1) {
   std::string result;
@@ -560,7 +560,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2) {
   std::string result;
@@ -568,7 +568,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3) {
@@ -577,7 +577,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4) {
@@ -586,7 +586,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
@@ -596,7 +596,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
@@ -606,7 +606,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
@@ -617,7 +617,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,
@@ -628,7 +628,7 @@ ABSL_MUST_USE_RESULT inline std::string Substitute(
   return result;
 }
 
-ABSL_MUST_USE_RESULT inline std::string Substitute(
+[[nodiscard]] inline std::string Substitute(
     absl::string_view format, const substitute_internal::Arg& a0,
     const substitute_internal::Arg& a1, const substitute_internal::Arg& a2,
     const substitute_internal::Arg& a3, const substitute_internal::Arg& a4,

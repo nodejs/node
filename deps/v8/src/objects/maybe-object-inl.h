@@ -5,9 +5,11 @@
 #ifndef V8_OBJECTS_MAYBE_OBJECT_INL_H_
 #define V8_OBJECTS_MAYBE_OBJECT_INL_H_
 
+#include "src/objects/maybe-object.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/objects/casting.h"
-#include "src/objects/maybe-object.h"
 #include "src/objects/smi-inl.h"
 #include "src/objects/tagged-impl-inl.h"
 #include "src/objects/tagged.h"
@@ -29,6 +31,17 @@ inline Tagged<ClearedWeakValue> ClearedValue(PtrComprCageBase cage_base) {
   // The rest of the code will check only the lower 32-bits.
   DCHECK_EQ(kClearedWeakHeapObjectLower32, static_cast<uint32_t>(value));
   return Tagged<ClearedWeakValue>(value);
+}
+
+inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
+#ifdef V8_COMPRESS_POINTERS
+  return Tagged<ClearedWeakValue>(
+      TrustedSpaceCompressionScheme::DecompressTagged(
+          TrustedSpaceCompressionScheme::base(),
+          kClearedWeakHeapObjectLower32));
+#else
+  return Tagged<ClearedWeakValue>(kClearedWeakHeapObjectLower32);
+#endif
 }
 
 template <typename THeapObjectSlot>

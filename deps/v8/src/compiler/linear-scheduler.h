@@ -20,7 +20,7 @@ namespace compiler {
 // basic block without actually building basic block.
 class V8_EXPORT_PRIVATE LinearScheduler {
  public:
-  explicit LinearScheduler(Zone* zone, Graph* graph);
+  explicit LinearScheduler(Zone* zone, TFGraph* graph);
   bool SameBasicBlock(Node* node0, Node* node1);
   // Get a node's early schedule position. It is the earliest block (represented
   // by a control node) where a node could be scheduled.
@@ -52,7 +52,7 @@ class V8_EXPORT_PRIVATE LinearScheduler {
     early_schedule_position_[node] = early_schedule_position;
   }
 
-  Graph* graph_;
+  TFGraph* graph_;
   // A map from a control node to the control level of the corresponding basic
   // block.
   ZoneMap<Node*, int> control_level_;

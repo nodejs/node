@@ -202,7 +202,8 @@ inline bool SafeAddRepHi(double a_hi, double b_hi, Duration* d) {
     *d = -InfiniteDuration();
     return false;
   }
-  *d = time_internal::MakeDuration(c, time_internal::GetRepLo(*d));
+  *d = time_internal::MakeDuration(static_cast<int64_t>(c),
+                                   time_internal::GetRepLo(*d));
   return true;
 }
 
@@ -239,8 +240,8 @@ inline Duration ScaleFixed(Duration d, int64_t r) {
 template <template <typename> class Operation>
 inline Duration ScaleDouble(Duration d, double r) {
   Operation<double> op;
-  double hi_doub = op(time_internal::GetRepHi(d), r);
-  double lo_doub = op(time_internal::GetRepLo(d), r);
+  double hi_doub = op(static_cast<double>(time_internal::GetRepHi(d)), r);
+  double lo_doub = op(static_cast<double>(time_internal::GetRepLo(d)), r);
 
   double hi_int = 0;
   double hi_frac = std::modf(hi_doub, &hi_int);
@@ -253,12 +254,15 @@ inline Duration ScaleDouble(Duration d, double r) {
   double lo_frac = std::modf(lo_doub, &lo_int);
 
   // Rolls lo into hi if necessary.
-  int64_t lo64 = std::round(lo_frac * kTicksPerSecond);
+  int64_t lo64 = static_cast<int64_t>(std::round(lo_frac * kTicksPerSecond));
 
   Duration ans;
   if (!SafeAddRepHi(hi_int, lo_int, &ans)) return ans;
   int64_t hi64 = time_internal::GetRepHi(ans);
-  if (!SafeAddRepHi(hi64, lo64 / kTicksPerSecond, &ans)) return ans;
+  if (!SafeAddRepHi(static_cast<double>(hi64),
+                    static_cast<double>(lo64 / kTicksPerSecond), &ans)) {
+    return ans;
+  }
   hi64 = time_internal::GetRepHi(ans);
   lo64 %= kTicksPerSecond;
   NormalizeTicks(&hi64, &lo64);
@@ -549,50 +553,6 @@ Duration DurationFromTimeval(timeval tv) {
 //
 // Conversion to other duration types.
 //
-
-int64_t ToInt64Nanoseconds(Duration d) {
-  if (time_internal::GetRepHi(d) >= 0 &&
-      time_internal::GetRepHi(d) >> 33 == 0) {
-    return (time_internal::GetRepHi(d) * 1000 * 1000 * 1000) +
-           (time_internal::GetRepLo(d) / kTicksPerNanosecond);
-  }
-  return d / Nanoseconds(1);
-}
-int64_t ToInt64Microseconds(Duration d) {
-  if (time_internal::GetRepHi(d) >= 0 &&
-      time_internal::GetRepHi(d) >> 43 == 0) {
-    return (time_internal::GetRepHi(d) * 1000 * 1000) +
-           (time_internal::GetRepLo(d) / (kTicksPerNanosecond * 1000));
-  }
-  return d / Microseconds(1);
-}
-int64_t ToInt64Milliseconds(Duration d) {
-  if (time_internal::GetRepHi(d) >= 0 &&
-      time_internal::GetRepHi(d) >> 53 == 0) {
-    return (time_internal::GetRepHi(d) * 1000) +
-           (time_internal::GetRepLo(d) / (kTicksPerNanosecond * 1000 * 1000));
-  }
-  return d / Milliseconds(1);
-}
-int64_t ToInt64Seconds(Duration d) {
-  int64_t hi = time_internal::GetRepHi(d);
-  if (time_internal::IsInfiniteDuration(d)) return hi;
-  if (hi < 0 && time_internal::GetRepLo(d) != 0) ++hi;
-  return hi;
-}
-int64_t ToInt64Minutes(Duration d) {
-  int64_t hi = time_internal::GetRepHi(d);
-  if (time_internal::IsInfiniteDuration(d)) return hi;
-  if (hi < 0 && time_internal::GetRepLo(d) != 0) ++hi;
-  return hi / 60;
-}
-int64_t ToInt64Hours(Duration d) {
-  int64_t hi = time_internal::GetRepHi(d);
-  if (time_internal::IsInfiniteDuration(d)) return hi;
-  if (hi < 0 && time_internal::GetRepLo(d) != 0) ++hi;
-  return hi / (60 * 60);
-}
-
 double ToDoubleNanoseconds(Duration d) {
   return FDivDuration(d, Nanoseconds(1));
 }
@@ -718,13 +678,12 @@ struct DisplayUnit {
   int prec;
   double pow10;
 };
-ABSL_CONST_INIT const DisplayUnit kDisplayNano = {"ns", 2, 1e2};
-ABSL_CONST_INIT const DisplayUnit kDisplayMicro = {"us", 5, 1e5};
-ABSL_CONST_INIT const DisplayUnit kDisplayMilli = {"ms", 8, 1e8};
-ABSL_CONST_INIT const DisplayUnit kDisplaySec = {"s", 11, 1e11};
-ABSL_CONST_INIT const DisplayUnit kDisplayMin = {"m", -1, 0.0};  // prec ignored
-ABSL_CONST_INIT const DisplayUnit kDisplayHour = {"h", -1,
-                                                  0.0};  // prec ignored
+constexpr DisplayUnit kDisplayNano = {"ns", 2, 1e2};
+constexpr DisplayUnit kDisplayMicro = {"us", 5, 1e5};
+constexpr DisplayUnit kDisplayMilli = {"ms", 8, 1e8};
+constexpr DisplayUnit kDisplaySec = {"s", 11, 1e11};
+constexpr DisplayUnit kDisplayMin = {"m", -1, 0.0};   // prec ignored
+constexpr DisplayUnit kDisplayHour = {"h", -1, 0.0};  // prec ignored
 
 void AppendNumberUnit(std::string* out, int64_t n, DisplayUnit unit) {
   char buf[sizeof("2562047788015216")];  // hours in max duration
@@ -744,8 +703,9 @@ void AppendNumberUnit(std::string* out, double n, DisplayUnit unit) {
   char buf[kBufferSize];  // also large enough to hold integer part
   char* ep = buf + sizeof(buf);
   double d = 0;
-  int64_t frac_part = std::round(std::modf(n, &d) * unit.pow10);
-  int64_t int_part = d;
+  int64_t frac_part =
+      static_cast<int64_t>(std::round(std::modf(n, &d) * unit.pow10));
+  int64_t int_part = static_cast<int64_t>(d);
   if (int_part != 0 || frac_part != 0) {
     char* bp = Format64(ep, 0, int_part);  // always < 1000
     out->append(bp, static_cast<size_t>(ep - bp));

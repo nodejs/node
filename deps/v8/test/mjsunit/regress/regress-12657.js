@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --gc-global --expose-statistics --max-semi-space-size=1
+// Flags: --gc-global --expose-statistics --max-semi-space-size=1 --no-incremental-marking
 
 const a = new Array();
 for (var i = 0; i < 50000; i++) {

@@ -19,6 +19,7 @@
 
 #include <cstdint>
 
+#include "absl/debugging/internal/addresses.h"
 #include "absl/debugging/stacktrace.h"
 
 // WARNING:
@@ -67,8 +68,9 @@ void StacktraceArmDummyFunction() { __asm__ volatile(""); }
 #endif
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
-                      const void * /* ucp */, int *min_dropped_frames) {
+static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
+                      int max_depth, int skip_count, const void * /* ucp */,
+                      int *min_dropped_frames) {
 #ifdef __GNUC__
   void **sp = reinterpret_cast<void**>(__builtin_frame_address(0));
 #else
@@ -97,11 +99,18 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
       result[n] = *sp;
 
       if (IS_STACK_FRAMES) {
-        if (next_sp > sp) {
-          sizes[n] = (uintptr_t)next_sp - (uintptr_t)sp;
-        } else {
-          // A frame-size of 0 is used to indicate unknown frame size.
-          sizes[n] = 0;
+        if (frames != nullptr) {
+          frames[n] = absl::debugging_internal::StripPointerMetadata(sp) +
+                      1 * sizeof(void *) /* go past the return address */;
+        }
+        if (sizes != nullptr) {
+          if (next_sp > sp) {
+            sizes[n] = absl::debugging_internal::StripPointerMetadata(next_sp) -
+                       absl::debugging_internal::StripPointerMetadata(sp);
+          } else {
+            // A frame-size of 0 is used to indicate unknown frame size.
+            sizes[n] = 0;
+          }
         }
       }
       n++;

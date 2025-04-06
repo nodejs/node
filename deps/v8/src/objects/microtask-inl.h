@@ -6,6 +6,7 @@
 #define V8_OBJECTS_MICROTASK_INL_H_
 
 #include "src/objects/microtask.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/contexts-inl.h"

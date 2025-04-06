@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_STREAMING_DECODER_H_
+#define V8_WASM_STREAMING_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_STREAMING_DECODER_H_
-#define V8_WASM_STREAMING_DECODER_H_
 
 #include <memory>
 
@@ -113,7 +113,7 @@ class V8_EXPORT_PRIVATE StreamingDecoder {
 
   static std::unique_ptr<StreamingDecoder> CreateSyncStreamingDecoder(
       Isolate* isolate, WasmEnabledFeatures enabled,
-      CompileTimeImports compile_imports, Handle<Context> context,
+      CompileTimeImports compile_imports, DirectHandle<Context> context,
       const char* api_method_name_for_errors,
       std::shared_ptr<CompilationResultResolver> resolver);
 

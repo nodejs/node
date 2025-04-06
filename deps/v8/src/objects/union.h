@@ -29,8 +29,38 @@ struct is_union<Union<Ts...>> : public std::true_type {};
 template <typename... Ts>
 static constexpr bool is_union_v = is_union<Ts...>::value;
 
+namespace detail {
+
+template <typename Accumulator, typename TWithout, typename... InputTypes>
+struct UnionWithoutHelper;
+
+// Base case: No input types, return the accumulated types.
+template <typename... OutputTs, typename TWithout>
+struct UnionWithoutHelper<Union<OutputTs...>, TWithout> {
+  using type = Union<OutputTs...>;
+};
+
+// Recursive case: Found Head matching TWithout, drop it and accumulate the
+// remainder.
+template <typename... OutputTs, typename TWithout, typename... Ts>
+struct UnionWithoutHelper<Union<OutputTs...>, TWithout, TWithout, Ts...> {
+  using type = Union<OutputTs..., Ts...>;
+};
+
+// Recursive case: Non-matching input, accumulate and continue.
+template <typename... OutputTs, typename TWithout, typename Head,
+          typename... Ts>
+struct UnionWithoutHelper<Union<OutputTs...>, TWithout, Head, Ts...> {
+  // Don't accumulate duplicate types.
+  using type = typename UnionWithoutHelper<Union<OutputTs..., Head>, TWithout,
+                                           Ts...>::type;
+};
+
+}  // namespace detail
+
 template <typename... Ts>
 class Union final : public AllStatic {
+ public:
   static_assert((!is_union_v<Ts> && ...),
                 "Cannot have a union of unions -- use the UnionOf<T...> helper "
                 "to flatten nested unions");
@@ -38,6 +68,9 @@ class Union final : public AllStatic {
       (base::has_type_v<Ts, Ts...> && ...),
       "Unions should have each type only once -- use the UnionOf<T...> "
       "helper to deduplicate unions");
+
+  template <typename U>
+  using Without = typename detail::UnionWithoutHelper<Union<>, U, Ts...>::type;
 };
 
 namespace detail {
@@ -97,6 +130,17 @@ static_assert(std::is_same_v<Union<Smi, HeapObject>,
                              UnionOf<HeapObject, Smi, Smi, HeapObject>>);
 // Unions with Smis are normalized to have the Smi be the first element.
 static_assert(std::is_same_v<Union<Smi, HeapObject>, UnionOf<HeapObject, Smi>>);
+
+// Union::Without matches expectations.
+static_assert(
+    std::is_same_v<Union<Smi, HeapObject>::Without<Smi>, Union<HeapObject>>);
+static_assert(std::is_same_v<JSAny::Without<Smi>, JSAnyNotSmi>);
+static_assert(
+    std::is_same_v<JSAny::Without<Smi>::Without<HeapNumber>, JSAnyNotNumber>);
+
+// Union::Without that doesn't have a match is a no-op
+static_assert(std::is_same_v<Union<Smi, HeapObject>::Without<HeapNumber>,
+                             Union<Smi, HeapObject>>);
 
 }  // namespace v8::internal
 

@@ -41,20 +41,21 @@ macro LoadElementOrUndefined(
 
 macro LoadElementOrUndefined(a: FixedDoubleArray, i: Smi):
     NumberOrUndefined {
-  const f: float64 = a.floats[i].Value() otherwise return Undefined;
+  const f: float64 = a.values[i].Value() otherwise return Undefined,
+           return Undefined;
   return AllocateHeapNumberWithValue(f);
 }
 
 macro StoreArrayHole(elements: FixedDoubleArray, k: Smi): void {
-  elements.floats[k] = kDoubleHole;
+  elements.values[k] = kDoubleHole;
 }
 
 macro StoreArrayHole(elements: FixedArray, k: Smi): void {
   elements.objects[k] = TheHole;
 }
 
-extern macro SetPropertyLength(implicit context: Context)(JSAny, Number):
-    void;
+extern macro SetPropertyLength(implicit context: Context)(JSAny,
+                                Number): void;
 
 const kLengthDescriptorIndex:
     constexpr int31 generates 'JSArray::kLengthDescriptorIndex';
@@ -62,8 +63,8 @@ const kAttributesReadOnlyMask: constexpr int31
     generates 'PropertyDetails::kAttributesReadOnlyMask';
 
 @export
-macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
-    void labels Bailout {
+macro EnsureArrayLengthWritable(implicit context: Context)(
+                                   map: Map): void labels Bailout {
   // Don't support arrays in dictionary named property mode.
   if (IsDictionaryMap(map)) {
     goto Bailout;
@@ -72,7 +73,8 @@ macro EnsureArrayLengthWritable(implicit context: Context)(map: Map):
   // Check whether the length property is writable. The length property is the
   // only default named property on arrays. It's nonconfigurable, hence is
   // guaranteed to stay the first property.
-  const descriptors: DescriptorArray = map.instance_descriptors;
+  const descriptors: DescriptorArray =
+      UnsafeCast<DescriptorArray>(map.instance_descriptors);
   const descriptor:&DescriptorEntry =
       &descriptors.descriptors[kLengthDescriptorIndex];
   dcheck(TaggedEqual(descriptor->key, LengthStringConstant()));

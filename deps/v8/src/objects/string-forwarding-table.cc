@@ -6,6 +6,7 @@
 
 #include "src/base/atomicops.h"
 #include "src/common/globals.h"
+#include "src/heap/heap-layout-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/slots-inl.h"
 #include "src/objects/slots.h"
@@ -95,7 +96,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     if (!IsHeapObject(original)) continue;
     Tagged<HeapObject> object = Cast<HeapObject>(original);
     if (Heap::InFromPage(object)) {
-      DCHECK(!InWritableSharedSpace(object));
+      DCHECK(!HeapLayout::InWritableSharedSpace(object));
       const bool was_forwarded = UpdateForwardedSlot(object, slot);
       if (!was_forwarded) {
         // The object died in young space.
@@ -110,7 +111,7 @@ void StringForwardingTable::Block::UpdateAfterYoungEvacuation(
     Tagged<Object> forward =
         record(index)->ForwardStringObjectOrHash(cage_base);
     if (IsHeapObject(forward)) {
-      DCHECK(!Heap::InYoungGeneration(Cast<HeapObject>(forward)));
+      DCHECK(!HeapLayout::InYoungGeneration(Cast<HeapObject>(forward)));
     }
 #endif
   }
@@ -206,9 +207,9 @@ StringForwardingTable::BlockVector* StringForwardingTable::EnsureCapacity(
 int StringForwardingTable::AddForwardString(Tagged<String> string,
                                             Tagged<String> forward_to) {
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 InAnySharedSpace(string));
+                 HeapLayout::InAnySharedSpace(string));
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 InAnySharedSpace(forward_to));
+                 HeapLayout::InAnySharedSpace(forward_to));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);
@@ -237,7 +238,7 @@ int StringForwardingTable::AddExternalResourceAndHash(Tagged<String> string,
       std::is_base_of_v<v8::String::ExternalOneByteStringResource, T>;
 
   DCHECK_IMPLIES(!v8_flags.always_use_string_forwarding_table,
-                 InAnySharedSpace(string));
+                 HeapLayout::InAnySharedSpace(string));
   int index = next_free_index_++;
   uint32_t index_in_block;
   const uint32_t block_index = BlockForIndex(index, &index_in_block);

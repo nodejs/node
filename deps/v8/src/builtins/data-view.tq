@@ -534,6 +534,7 @@ transitioning javascript builtin DataViewPrototypeGetInt32(
       context, receiver, offset, isLittleEndian, ElementsKind::INT32_ELEMENTS);
 }
 
+@incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin DataViewPrototypeGetFloat16(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const offset: JSAny = arguments[0];
@@ -810,7 +811,8 @@ transitioning macro DataViewSet(
             buffer, bufferIndex, TruncateFloat64ToWord32(doubleValue),
             littleEndian);
       } else if constexpr (kind == ElementsKind::FLOAT16_ELEMENTS) {
-        const floatValue: float16 = TruncateFloat64ToFloat16(doubleValue);
+        const floatValue: float16_raw_bits =
+            TruncateFloat64ToFloat16(doubleValue);
         StoreDataView16(
             buffer, bufferIndex, BitcastFloat16ToUint32(floatValue),
             littleEndian);
@@ -894,6 +896,7 @@ transitioning javascript builtin DataViewPrototypeSetInt32(
       ElementsKind::INT32_ELEMENTS);
 }
 
+@incrementUseCounter('v8::Isolate::kFloat16Array')
 transitioning javascript builtin DataViewPrototypeSetFloat16(
     js-implicit context: NativeContext, receiver: JSAny)(...arguments): JSAny {
   const offset: JSAny = arguments[0];

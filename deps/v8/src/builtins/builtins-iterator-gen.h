@@ -6,6 +6,7 @@
 #define V8_BUILTINS_BUILTINS_ITERATOR_GEN_H_
 
 #include "src/codegen/code-stub-assembler.h"
+#include "src/objects/contexts.h"
 
 namespace v8 {
 namespace internal {
@@ -20,12 +21,12 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   using IteratorRecord = TorqueStructIteratorRecord;
 
   // Returns object[Symbol.iterator].
-  TNode<Object> GetIteratorMethod(TNode<Context> context, TNode<Object>);
+  TNode<JSAny> GetIteratorMethod(TNode<Context> context, TNode<JSAny>);
 
   // https://tc39.github.io/ecma262/#sec-getiterator --- never used for
   // @@asyncIterator.
-  IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object);
-  IteratorRecord GetIterator(TNode<Context> context, TNode<Object> object,
+  IteratorRecord GetIterator(TNode<Context> context, TNode<JSAny> object);
+  IteratorRecord GetIterator(TNode<Context> context, TNode<JSAny> object,
                              TNode<Object> method);
 
   // https://tc39.github.io/ecma262/#sec-iteratorstep
@@ -44,10 +45,10 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
 
   // https://tc39.es/ecma262/#sec-iteratorcomplete
   void IteratorComplete(
-      TNode<Context> context, const TNode<HeapObject> iterator, Label* if_done,
+      TNode<Context> context, const TNode<JSAnyNotSmi> iterator, Label* if_done,
       std::optional<TNode<Map>> fast_iterator_result_map = std::nullopt);
   void IteratorComplete(TNode<Context> context,
-                        const TNode<HeapObject> iterator,
+                        const TNode<JSAnyNotSmi> iterator,
                         std::optional<TNode<Map>> fast_iterator_result_map,
                         Label* if_done) {
     return IteratorComplete(context, iterator, if_done,
@@ -58,15 +59,15 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // Return the `value` field from an iterator.
   // `fast_iterator_result_map` refers to the map for the JSIteratorResult
   // object, loaded from the native context.
-  TNode<Object> IteratorValue(
+  TNode<JSAny> IteratorValue(
       TNode<Context> context, TNode<JSReceiver> result,
       std::optional<TNode<Map>> fast_iterator_result_map = std::nullopt);
 
-  void Iterate(TNode<Context> context, TNode<Object> iterable,
+  void Iterate(TNode<Context> context, TNode<JSAny> iterable,
                std::function<void(TNode<Object>)> func,
                std::initializer_list<compiler::CodeAssemblerVariable*>
                    merged_variables = {});
-  void Iterate(TNode<Context> context, TNode<Object> iterable,
+  void Iterate(TNode<Context> context, TNode<JSAny> iterable,
                TNode<Object> iterable_fn,
                std::function<void(TNode<Object>)> func,
                std::initializer_list<compiler::CodeAssemblerVariable*>
@@ -75,27 +76,26 @@ class IteratorBuiltinsAssembler : public CodeStubAssembler {
   // #sec-iterabletolist
   // Build a JSArray by iterating over {iterable} using {iterator_fn},
   // following the ECMAscript operation with the same name.
-  TNode<JSArray> IterableToList(TNode<Context> context, TNode<Object> iterable,
+  TNode<JSArray> IterableToList(TNode<Context> context, TNode<JSAny> iterable,
                                 TNode<Object> iterator_fn);
 
   TNode<FixedArray> IterableToFixedArray(TNode<Context> context,
-                                         TNode<Object> iterable,
+                                         TNode<JSAny> iterable,
                                          TNode<Object> iterator_fn);
 
-  void FillFixedArrayFromIterable(TNode<Context> context,
-                                  TNode<Object> iterable,
+  void FillFixedArrayFromIterable(TNode<Context> context, TNode<JSAny> iterable,
                                   TNode<Object> iterator_fn,
                                   GrowableFixedArray* values);
 
   // Currently at https://tc39.github.io/proposal-intl-list-format/
   // #sec-createstringlistfromiterable
   TNode<FixedArray> StringListFromIterable(TNode<Context> context,
-                                           TNode<Object> iterable);
+                                           TNode<JSAny> iterable);
 
-  void FastIterableToList(TNode<Context> context, TNode<Object> iterable,
+  void FastIterableToList(TNode<Context> context, TNode<JSAny> iterable,
                           TVariable<JSArray>* var_result, Label* slow);
   TNode<JSArray> FastIterableToList(TNode<Context> context,
-                                    TNode<Object> iterable, Label* slow);
+                                    TNode<JSAny> iterable, Label* slow);
 };
 
 }  // namespace internal

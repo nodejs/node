@@ -464,7 +464,7 @@ class StatusOr : private internal_statusor::StatusOrData<T>,
   // Returns a reference to the current `absl::Status` contained within the
   // `absl::StatusOr<T>`. If `absl::StatusOr<T>` contains a `T`, then this
   // function returns `absl::OkStatus()`.
-  const Status& status() const&;
+  ABSL_MUST_USE_RESULT const Status& status() const&;
   Status status() &&;
 
   // StatusOr<T>::value()

@@ -6,9 +6,12 @@
 #define V8_OBJECTS_EMBEDDER_DATA_ARRAY_INL_H_
 
 #include "src/objects/embedder-data-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/heap-object-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/maybe-object-inl.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

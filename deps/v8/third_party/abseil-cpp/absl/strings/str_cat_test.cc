@@ -24,8 +24,13 @@
 #include <vector>
 
 #include "gtest/gtest.h"
+#include "absl/base/config.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
+
+#if defined(ABSL_HAVE_STD_STRING_VIEW)
+#include <string_view>
+#endif
 
 #ifdef __ANDROID__
 // Android assert messages only go to system log, so death tests cannot inspect
@@ -73,7 +78,7 @@ TEST(StrCat, Ints) {
 TEST(StrCat, Enums) {
   enum SmallNumbers { One = 1, Ten = 10 } e = Ten;
   EXPECT_EQ("10", absl::StrCat(e));
-  EXPECT_EQ("-5", absl::StrCat(SmallNumbers(-5)));
+  EXPECT_EQ("1", absl::StrCat(One));
 
   enum class Option { Boxers = 1, Briefs = -1 };
 
@@ -213,6 +218,14 @@ TEST(StrCat, CornerCases) {
   result = absl::StrCat("", "", "", "", "");
   EXPECT_EQ(result, "");
 }
+
+#if defined(ABSL_HAVE_STD_STRING_VIEW)
+TEST(StrCat, StdStringView) {
+  std::string_view pieces[] = {"Hello", ", ", "World", "!"};
+  EXPECT_EQ(absl::StrCat(pieces[0], pieces[1], pieces[2], pieces[3]),
+                         "Hello, World!");
+}
+#endif  // ABSL_HAVE_STD_STRING_VIEW
 
 TEST(StrCat, NullConstCharPtr) {
   const char* null = nullptr;

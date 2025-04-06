@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// ThreadSanitizer support.
-
 #ifndef V8_BASE_SANITIZER_TSAN_H_
 #define V8_BASE_SANITIZER_TSAN_H_
+
+// ThreadSanitizer support.
 
 #if defined(THREAD_SANITIZER)
 

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
+#define V8_WASM_WASM_FEATURE_FLAGS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_FEATURE_FLAGS_H_
-#define V8_WASM_WASM_FEATURE_FLAGS_H_
 
 // Each entry in this file generates a V8 command-line flag with the prefix
 // "--experimental-wasm-".
@@ -24,6 +24,12 @@
 
 // Experimental features (disabled by default).
 #define FOREACH_WASM_EXPERIMENTAL_FEATURE_FLAG(V) /*     (force 80 columns) */ \
+  /* Type reflection proposal. */                                              \
+  /* https://github.com/webassembly/js-types */                                \
+  /* V8 side owner: ahaas */                                                   \
+  /* Staged in v7.8, unstaged in v13.6 (see https://crbug.com/402340845) */    \
+  V(type_reflection, "wasm type reflection in JS", false)                      \
+                                                                               \
   /* No official proposal (yet?). */                                           \
   /* V8 side owner: clemensb */                                                \
   V(compilation_hints, "compilation hints section", false)                     \
@@ -33,27 +39,16 @@
   /* V8 side owner: jabraham */                                                \
   V(instruction_tracing, "instruction tracing section", false)                 \
                                                                                \
-  /* Non-specified, V8-only experimental additions to the GC proposal */       \
-  /* V8 side owner: jkummerow */                                               \
-  V(assume_ref_cast_succeeds,                                                  \
-    "assume ref.cast always succeeds and skip the related type check "         \
-    "(unsafe)",                                                                \
-    false)                                                                     \
-  V(ref_cast_nop, "enable unsafe ref.cast_nop instruction", false)             \
-  V(skip_null_checks,                                                          \
-    "skip null checks for call.ref and array and struct operations (unsafe)",  \
-    false)                                                                     \
-  V(skip_bounds_checks, "skip array bounds checks (unsafe)", false)            \
-                                                                               \
-  /* Branch Hinting proposal. */                                               \
-  /* https://github.com/WebAssembly/branch-hinting */                          \
-  /* V8 side owner: jkummerow */                                               \
-  V(branch_hinting, "branch hinting", false)                                   \
-                                                                               \
-  /* Stack Switching proposal. */                                              \
-  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* Old flag for JavaScript Promise Integration proposal. */                  \
+  /* Use --experimental-wasm-jspi instead. */                                  \
+  /* https://github.com/WebAssembly/js-promise-integration */                  \
   /* V8 side owner: thibaudm, fgm */                                           \
   V(stack_switching, "stack switching", false)                                 \
+                                                                               \
+  /* Custom Descriptors proposal. */                                           \
+  /* https://github.com/WebAssembly/custom-descriptors */                      \
+  /* V8 side owner: jkummerow */                                               \
+  V(custom_descriptors, "custom descriptors", false)                           \
                                                                                \
   /* Shared-Everything Threads proposal. */                                    \
   /* https://github.com/WebAssembly/shared-everything-threads */               \
@@ -66,7 +61,22 @@
   V(fp16, "fp16", false)                                                       \
                                                                                \
   /* V8 side owner: irezvov */                                                 \
-  V(growable_stacks, "growable stacks for jspi", false)
+  V(growable_stacks, "growable stacks for jspi", false)                        \
+                                                                               \
+  /* Memory Control proposal */                                                \
+  /* https://github.com/WebAssembly/memory-control */                          \
+  /* V8 side owner: ahaas */                                                   \
+  V(memory_control, "memory control", false)                                   \
+                                                                               \
+  /* Core stack switching, main proposal */                                    \
+  /* https://github.com/WebAssembly/stack-switching */                         \
+  /* V8 side owner: fgm */                                                     \
+  V(wasmfx, "core stack switching", false)                                     \
+                                                                               \
+  /* Resizable buffer integration */                                           \
+  /* https://github.com/WebAssembly/spec/issues/1292 */                        \
+  /* V8 side owner: syg */                                                     \
+  V(rab_integration, "resizable buffers integration", false)
 
 // #############################################################################
 // Staged features (disabled by default, but enabled via --wasm-staging (also
@@ -79,16 +89,11 @@
 // Consider adding a chromium-side use counter if you want to track usage in the
 // wild (also see {V8::UseCounterFeature}).
 #define FOREACH_WASM_STAGING_FEATURE_FLAG(V) /*          (force 80 columns) */ \
-  /* Type reflection proposal. */                                              \
-  /* https://github.com/webassembly/js-types */                                \
-  /* V8 side owner: ahaas */                                                   \
-  /* Staged in v7.8. */                                                        \
-  V(type_reflection, "wasm type reflection in JS", false)                      \
-                                                                               \
-  /* Memory64 proposal. */                                                     \
-  /* https://github.com/WebAssembly/memory64 */                                \
-  /* V8 side owner: clemensb */                                                \
-  V(memory64, "memory64", false)                                               \
+  /* Branch Hinting proposal. */                                               \
+  /* https://github.com/WebAssembly/branch-hinting */                          \
+  /* V8 side owner: jkummerow */                                               \
+  /* Staged in v13.6. */                                                       \
+  V(branch_hinting, "branch hinting", false)                                   \
                                                                                \
   /* Reference-Typed Strings Proposal. */                                      \
   /* https://github.com/WebAssembly/stringref */                               \
@@ -120,14 +125,6 @@
   /* Staged in v8.9 */                                                         \
   /* Shipped in v9.5 */                                                        \
   V(legacy_eh, "legacy exception handling opcodes", true)                      \
-                                                                               \
-  /* Not user-visible, defined here so an Origin Trial can control it. */      \
-  /* V8 side owner: manoskouk, clemensb */                                     \
-  /* Staged in v11.3 */                                                        \
-  /* Shipped in V12.7 */                                                       \
-  /* Shipped for wasm-gc modules as part of wasm-gc in v11.9 */                \
-  /* Launch bug: https://crbug.com/40898108 */                                 \
-  V(inlining, "wasm-into-wasm inlining", true)                                 \
                                                                                \
   /* Imported Strings Proposal. */                                             \
   /* https://github.com/WebAssembly/js-string-builtins */                      \

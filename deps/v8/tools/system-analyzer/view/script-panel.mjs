@@ -10,206 +10,207 @@ import {arrayEquals, CollapsableElement, CSSColor, defer, delay, DOM, formatByte
 // TODO(leszeks): Make this configurable.
 const sourceMapFetchPrefix = 'http://localhost:8080/';
 
-DOM.defineCustomElement('view/script-panel',
-                        (templateText) =>
-                            class SourcePanel extends CollapsableElement {
-  _selectedSourcePositions = [];
-  _sourcePositionsToMarkNodesPromise = defer();
-  _scripts = [];
-  _script;
+DOM.defineCustomElement(
+    'view/script-panel',
+    (templateText) => class SourcePanel extends CollapsableElement {
+      _selectedSourcePositions = [];
+      _sourcePositionsToMarkNodesPromise = defer();
+      _scripts = [];
+      _script;
 
-  showToolTipEntriesHandler = this.handleShowToolTipEntries.bind(this);
+      showToolTipEntriesHandler = this.handleShowToolTipEntries.bind(this);
 
-  constructor() {
-    super(templateText);
-    this.scriptDropdown.addEventListener(
-        'change', e => this._handleSelectScript(e));
-    this.$('#selectedRelatedButton').onclick =
-        this._handleSelectRelated.bind(this);
-  }
-
-  get script() {
-    return this.$('#script');
-  }
-
-  get scriptNode() {
-    return this.$('.scriptNode');
-  }
-
-  set script(script) {
-    if (this._script === script) return;
-    this._script = script;
-    script.ensureSourceMapCalculated(sourceMapFetchPrefix);
-    this._sourcePositionsToMarkNodesPromise = defer();
-    this._selectedSourcePositions =
-        this._selectedSourcePositions.filter(each => each.script === script);
-    this.requestUpdate();
-  }
-
-  set focusedSourcePositions(sourcePositions) {
-    this.selectedSourcePositions = sourcePositions;
-  }
-
-  set selectedSourcePositions(sourcePositions) {
-    if (arrayEquals(this._selectedSourcePositions, sourcePositions)) {
-      this._focusSelectedMarkers(0);
-    } else {
-      this._selectedSourcePositions = sourcePositions;
-      // TODO: highlight multiple scripts
-      this.script = sourcePositions[0]?.script;
-      this._focusSelectedMarkers(100);
-    }
-  }
-
-  set scripts(scripts) {
-    this._scripts = scripts;
-    this._initializeScriptDropdown();
-  }
-
-  get scriptDropdown() {
-    return this.$('#script-dropdown');
-  }
-
-  _update() {
-    this._renderSourcePanel();
-    this._updateScriptDropdownSelection();
-  }
-
-  _initializeScriptDropdown() {
-    this._scripts.sort((a, b) => a.name?.localeCompare(b.name) ?? 0);
-    let select = this.scriptDropdown;
-    select.options.length = 0;
-    for (const script of this._scripts) {
-      const option = document.createElement('option');
-      const size = formatBytes(script.source.length);
-      option.text = `${script.name} (id=${script.id} size=${size})`;
-      option.script = script;
-      select.add(option);
-    }
-  }
-
-  _updateScriptDropdownSelection() {
-    this.scriptDropdown.selectedIndex =
-        this._script ? this._scripts.indexOf(this._script) : -1;
-  }
-
-  async _renderSourcePanel() {
-    let scriptNode;
-    const script = this._script;
-    if (script) {
-      await delay(1);
-      if (script != this._script) return;
-      const builder = new LineBuilder(this, this._script);
-      scriptNode = await builder.createScriptNode(this._script.startLine);
-      if (script != this._script) return;
-      this._sourcePositionsToMarkNodesPromise.resolve(
-          builder.sourcePositionToMarkers);
-    } else {
-      scriptNode = DOM.div();
-      this._selectedMarkNodes = undefined;
-      this._sourcePositionsToMarkNodesPromise.resolve(new Map());
-    }
-    const oldScriptNode = this.script.childNodes[1];
-    this.script.replaceChild(scriptNode, oldScriptNode);
-  }
-
-  async _focusSelectedMarkers(delay_ms) {
-    if (delay_ms) await delay(delay_ms);
-    const sourcePositionsToMarkNodes =
-        await this._sourcePositionsToMarkNodesPromise;
-    // Remove all marked nodes.
-    for (let markNode of sourcePositionsToMarkNodes.values()) {
-      markNode.className = '';
-    }
-    for (let sourcePosition of this._selectedSourcePositions) {
-      if (sourcePosition.script !== this._script) continue;
-      sourcePositionsToMarkNodes.get(sourcePosition).className = 'marked';
-    }
-    this._scrollToFirstSourcePosition(sourcePositionsToMarkNodes)
-  }
-
-  _scrollToFirstSourcePosition(sourcePositionsToMarkNodes) {
-    const sourcePosition = this._selectedSourcePositions.find(
-        each => each.script === this._script);
-    if (!sourcePosition) return;
-    const markNode = sourcePositionsToMarkNodes.get(sourcePosition);
-    markNode.scrollIntoView(
-        {behavior: 'smooth', block: 'center', inline: 'center'});
-  }
-
-  _handleSelectScript(e) {
-    const option =
-        this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
-    this.script = option.script;
-  }
-
-  _handleSelectRelated(e) {
-    if (!this._script) return;
-    this.dispatchEvent(new SelectRelatedEvent(this._script));
-  }
-
-  setSelectedSourcePositionInternal(sourcePosition) {
-    this._selectedSourcePositions = [sourcePosition];
-    console.assert(sourcePosition.script === this._script);
-  }
-
-  handleSourcePositionClick(e) {
-    const sourcePosition = e.target.sourcePosition;
-    this.setSelectedSourcePositionInternal(sourcePosition);
-    this.dispatchEvent(new SelectRelatedEvent(sourcePosition));
-  }
-
-  handleSourcePositionMouseOver(e) {
-    const sourcePosition = e.target.sourcePosition;
-    const entries = sourcePosition.entries;
-    const toolTipContent = DOM.div();
-    toolTipContent.appendChild(
-        new ToolTipTableBuilder(this, entries).tableNode);
-
-    let sourceMapContent;
-    switch (this._script.sourceMapState) {
-      case 'loaded': {
-        const originalPosition = sourcePosition.originalPosition;
-        if (originalPosition.source === null) {
-          sourceMapContent =
-              DOM.element('i', {textContent: 'no source mapping for location'});
-        } else {
-          sourceMapContent = DOM.element('a', {
-            href: `${originalPosition.source}`,
-            target: '_blank',
-            textContent: `${originalPosition.source}:${originalPosition.line}:${
-                originalPosition.column}`
-          });
-        }
-        break;
+      constructor() {
+        super(templateText);
+        this.scriptDropdown.addEventListener(
+            'change', e => this._handleSelectScript(e));
+        this.$('#selectedRelatedButton').onclick =
+            this._handleSelectRelated.bind(this);
       }
-      case 'loading':
-        sourceMapContent =
-            DOM.element('i', {textContent: 'source map still loading...'});
-        break;
-      case 'failed':
-        sourceMapContent =
-            DOM.element('i', {textContent: 'source map failed to load'});
-        break;
-      case 'none':
-        sourceMapContent = DOM.element('i', {textContent: 'no source map'});
-        break;
-      default:
-        break;
-    }
-    toolTipContent.appendChild(sourceMapContent);
-    this.dispatchEvent(new ToolTipEvent(toolTipContent, e.target, e.ctrlKey));
-  }
 
-  handleShowToolTipEntries(event) {
-    let entries = event.currentTarget.data;
-    const sourcePosition = entries[0].sourcePosition;
-    // Add a source position entry so the current position stays focused.
-    this.setSelectedSourcePositionInternal(sourcePosition);
-    entries = entries.concat(this._selectedSourcePositions);
-    this.dispatchEvent(new SelectionEvent(entries));
-  }
-});
+      get script() {
+        return this.$('#script');
+      }
+
+      get scriptNode() {
+        return this.$('.scriptNode');
+      }
+
+      set script(script) {
+        if (this._script === script) return;
+        this._script = script;
+        script.ensureSourceMapCalculated(sourceMapFetchPrefix);
+        this._sourcePositionsToMarkNodesPromise = defer();
+        this._selectedSourcePositions = this._selectedSourcePositions.filter(
+            each => each.script === script);
+        this.requestUpdate();
+      }
+
+      set focusedSourcePositions(sourcePositions) {
+        this.selectedSourcePositions = sourcePositions;
+      }
+
+      set selectedSourcePositions(sourcePositions) {
+        if (arrayEquals(this._selectedSourcePositions, sourcePositions)) {
+          this._focusSelectedMarkers(0);
+        } else {
+          this._selectedSourcePositions = sourcePositions;
+          // TODO: highlight multiple scripts
+          this.script = sourcePositions[0]?.script;
+          this._focusSelectedMarkers(100);
+        }
+      }
+
+      set scripts(scripts) {
+        this._scripts = scripts;
+        this._initializeScriptDropdown();
+      }
+
+      get scriptDropdown() {
+        return this.$('#script-dropdown');
+      }
+
+      _update() {
+        this._renderSourcePanel();
+        this._updateScriptDropdownSelection();
+      }
+
+      _initializeScriptDropdown() {
+        this._scripts.sort((a, b) => a.name?.localeCompare(b.name) ?? 0);
+        let select = this.scriptDropdown;
+        select.options.length = 0;
+        for (const script of this._scripts) {
+          const option = document.createElement('option');
+          const size = formatBytes(script.source.length);
+          option.text = `${script.name} (id=${script.id} size=${size})`;
+          option.script = script;
+          select.add(option);
+        }
+      }
+
+      _updateScriptDropdownSelection() {
+        this.scriptDropdown.selectedIndex =
+            this._script ? this._scripts.indexOf(this._script) : -1;
+      }
+
+      async _renderSourcePanel() {
+        let scriptNode;
+        const script = this._script;
+        if (script) {
+          await delay(1);
+          if (script != this._script) return;
+          const builder = new LineBuilder(this, this._script);
+          scriptNode = await builder.createScriptNode(this._script.startLine);
+          if (script != this._script) return;
+          this._sourcePositionsToMarkNodesPromise.resolve(
+              builder.sourcePositionToMarkers);
+        } else {
+          scriptNode = DOM.div();
+          this._selectedMarkNodes = undefined;
+          this._sourcePositionsToMarkNodesPromise.resolve(new Map());
+        }
+        const oldScriptNode = this.script.childNodes[1];
+        this.script.replaceChild(scriptNode, oldScriptNode);
+      }
+
+      async _focusSelectedMarkers(delay_ms) {
+        if (delay_ms) await delay(delay_ms);
+        const sourcePositionsToMarkNodes =
+            await this._sourcePositionsToMarkNodesPromise;
+        // Remove all marked nodes.
+        for (let markNode of sourcePositionsToMarkNodes.values()) {
+          markNode.className = '';
+        }
+        for (let sourcePosition of this._selectedSourcePositions) {
+          if (sourcePosition.script !== this._script) continue;
+          sourcePositionsToMarkNodes.get(sourcePosition).className = 'marked';
+        }
+        this._scrollToFirstSourcePosition(sourcePositionsToMarkNodes)
+      }
+
+      _scrollToFirstSourcePosition(sourcePositionsToMarkNodes) {
+        const sourcePosition = this._selectedSourcePositions.find(
+            each => each.script === this._script);
+        if (!sourcePosition) return;
+        const markNode = sourcePositionsToMarkNodes.get(sourcePosition);
+        markNode.scrollIntoView(
+            {behavior: 'smooth', block: 'center', inline: 'center'});
+      }
+
+      _handleSelectScript(e) {
+        const option =
+            this.scriptDropdown.options[this.scriptDropdown.selectedIndex];
+        this.script = option.script;
+      }
+
+      _handleSelectRelated(e) {
+        if (!this._script) return;
+        this.dispatchEvent(new SelectRelatedEvent(this._script));
+      }
+
+      setSelectedSourcePositionInternal(sourcePosition) {
+        this._selectedSourcePositions = [sourcePosition];
+        console.assert(sourcePosition.script === this._script);
+      }
+
+      handleSourcePositionClick(e) {
+        const sourcePosition = e.target.sourcePosition;
+        this.setSelectedSourcePositionInternal(sourcePosition);
+        this.dispatchEvent(new SelectRelatedEvent(sourcePosition));
+      }
+
+      handleSourcePositionMouseOver(e) {
+        const sourcePosition = e.target.sourcePosition;
+        const entries = sourcePosition.entries;
+        const toolTipContent = DOM.div();
+        toolTipContent.appendChild(
+            new ToolTipTableBuilder(this, entries).tableNode);
+
+        let sourceMapContent;
+        switch (this._script.sourceMapState) {
+          case 'loaded': {
+            const originalPosition = sourcePosition.originalPosition;
+            if (originalPosition.source === null) {
+              sourceMapContent = DOM.element(
+                  'i', {textContent: 'no source mapping for location'});
+            } else {
+              sourceMapContent = DOM.element('a', {
+                href: `${originalPosition.source}`,
+                target: '_blank',
+                textContent: `${originalPosition.source}:${
+                    originalPosition.line}:${originalPosition.column}`
+              });
+            }
+            break;
+          }
+          case 'loading':
+            sourceMapContent =
+                DOM.element('i', {textContent: 'source map still loading...'});
+            break;
+          case 'failed':
+            sourceMapContent =
+                DOM.element('i', {textContent: 'source map failed to load'});
+            break;
+          case 'none':
+            sourceMapContent = DOM.element('i', {textContent: 'no source map'});
+            break;
+          default:
+            break;
+        }
+        toolTipContent.appendChild(sourceMapContent);
+        this.dispatchEvent(
+            new ToolTipEvent(toolTipContent, e.target, e.ctrlKey));
+      }
+
+      handleShowToolTipEntries(event) {
+        let entries = event.currentTarget.data;
+        const sourcePosition = entries[0].sourcePosition;
+        // Add a source position entry so the current position stays focused.
+        this.setSelectedSourcePositionInternal(sourcePosition);
+        entries = entries.concat(this._selectedSourcePositions);
+        this.dispatchEvent(new SelectionEvent(entries));
+      }
+    });
 
 class ToolTipTableBuilder {
   constructor(scriptPanel, entries) {

@@ -54,10 +54,6 @@ crc32c_t ExtendCrc32cInternal(crc32c_t initial_crc,
 
 }  // namespace crc_internal
 
-crc32c_t ComputeCrc32c(absl::string_view buf) {
-  return ExtendCrc32c(crc32c_t{0}, buf);
-}
-
 crc32c_t ExtendCrc32cByZeroes(crc32c_t initial_crc, size_t length) {
   uint32_t crc = static_cast<uint32_t>(initial_crc) ^ kCRC32Xor;
   CrcEngine()->ExtendByZeroes(&crc, length);

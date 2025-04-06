@@ -31,7 +31,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone()),
         dependencies_(broker(), main_zone()),
-        graph_(main_zone()->New<Graph>(main_zone())),
+        graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -46,7 +46,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
       : HandleAndZoneScope(kCompressGraphZone),
         JSHeapBrokerTestBase(main_isolate(), main_zone(), std::move(handles)),
         dependencies_(broker(), main_zone()),
-        graph_(main_zone()->New<Graph>(main_zone())),
+        graph_(main_zone()->New<TFGraph>(main_zone())),
         common_(main_zone()),
         javascript_(main_zone()),
         machine_(main_zone()),
@@ -64,7 +64,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
   JSOperatorBuilder* javascript() { return &javascript_; }
   SimplifiedOperatorBuilder* simplified() { return &simplified_; }
   JSGraph* jsgraph() { return &jsgraph_; }
-  Graph* graph() { return graph_; }
+  TFGraph* graph() { return graph_; }
 
   void CheckChangesToValue(Node* node, DirectHandle<HeapObject> expected_value);
   void CheckContextInputAndDepthChanges(
@@ -76,7 +76,7 @@ class ContextSpecializationTester : public HandleAndZoneScope,
  private:
   CompilationDependencies dependencies_;
   TickCounter tick_counter_;
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder common_;
   JSOperatorBuilder javascript_;
   MachineOperatorBuilder machine_;

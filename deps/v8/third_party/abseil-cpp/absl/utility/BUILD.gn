@@ -12,17 +12,3 @@ absl_source_set("utility") {
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
 }
-
-absl_source_set("if_constexpr") {
-  public = [ "internal/if_constexpr.h" ]
-  deps = [
-    "//third_party/abseil-cpp/absl/base:config",
-  ]
-}
-
-absl_test("if_constexpr_test") {
-  sources = [ "internal/if_constexpr_test.cc" ]
-  deps = [
-    ":if_constexpr",
-  ]
-}

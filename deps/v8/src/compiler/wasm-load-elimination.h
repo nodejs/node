@@ -15,7 +15,7 @@ namespace v8::internal::compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class Graph;
+class TFGraph;
 class JSGraph;
 class MachineOperatorBuilder;
 struct ObjectAccess;
@@ -148,7 +148,7 @@ class V8_EXPORT_PRIVATE WasmLoadElimination final
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
   Isolate* isolate() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Node* dead() const { return dead_; }
   Zone* zone() const { return zone_; }

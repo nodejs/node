@@ -29,16 +29,16 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
  public:
   DEFINE_TORQUE_GENERATED_JS_REG_EXP_FLAGS()
 
-  V8_EXPORT_PRIVATE static MaybeHandle<JSRegExp> New(
-      Isolate* isolate, Handle<String> source, Flags flags,
+  V8_EXPORT_PRIVATE static MaybeDirectHandle<JSRegExp> New(
+      Isolate* isolate, DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
 
-  static MaybeHandle<JSRegExp> Initialize(
-      Handle<JSRegExp> regexp, Handle<String> source, Flags flags,
+  static MaybeDirectHandle<JSRegExp> Initialize(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> source, Flags flags,
       uint32_t backtrack_limit = kNoBacktrackLimit);
-  static MaybeHandle<JSRegExp> Initialize(Handle<JSRegExp> regexp,
-                                          Handle<String> source,
-                                          Handle<String> flags_string);
+  static MaybeDirectHandle<JSRegExp> Initialize(
+      DirectHandle<JSRegExp> regexp, DirectHandle<String> source,
+      DirectHandle<String> flags_string);
 
   DECL_ACCESSORS(last_index, Tagged<Object>)
 
@@ -79,10 +79,10 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
   static_assert(kFlagCount == kRegExpFlagCount);
 
   static std::optional<Flags> FlagsFromString(Isolate* isolate,
-                                              Handle<String> flags);
+                                              DirectHandle<String> flags);
 
-  V8_EXPORT_PRIVATE static Handle<String> StringFromFlags(Isolate* isolate,
-                                                          Flags flags);
+  V8_EXPORT_PRIVATE static DirectHandle<String> StringFromFlags(
+      Isolate* isolate, Flags flags);
 
   inline Tagged<String> EscapedPattern();
 
@@ -95,6 +95,9 @@ class JSRegExp : public TorqueGeneratedJSRegExp<JSRegExp, JSObject> {
     DCHECK_GE(register_count, 2);
     return (register_count - 2) / 2;
   }
+  // ATOM regexps don't have captures.
+  static constexpr int kAtomCaptureCount = 0;
+  static constexpr int kAtomRegisterCount = 2;
 
   // Dispatched behavior.
   DECL_PRINTER(JSRegExp)
@@ -252,7 +255,7 @@ class IrRegExpData : public RegExpData {
   inline void set_bytecode(bool is_one_byte, Tagged<TrustedByteArray> bytecode);
   inline Tagged<TrustedByteArray> bytecode(bool is_one_byte) const;
   DECL_ACCESSORS(capture_name_map, Tagged<Object>)
-  inline void set_capture_name_map(Handle<FixedArray> capture_name_map);
+  inline void set_capture_name_map(DirectHandle<FixedArray> capture_name_map);
   DECL_INT_ACCESSORS(max_register_count)
   // Number of captures (without the match itself).
   DECL_INT_ACCESSORS(capture_count)
@@ -350,9 +353,9 @@ class JSRegExpResultIndices
     : public TorqueGeneratedJSRegExpResultIndices<JSRegExpResultIndices,
                                                   JSArray> {
  public:
-  static Handle<JSRegExpResultIndices> BuildIndices(
+  static DirectHandle<JSRegExpResultIndices> BuildIndices(
       Isolate* isolate, DirectHandle<RegExpMatchInfo> match_info,
-      Handle<Object> maybe_names);
+      DirectHandle<Object> maybe_names);
 
   // Indices of in-object properties.
   static constexpr int kGroupsIndex = 0;

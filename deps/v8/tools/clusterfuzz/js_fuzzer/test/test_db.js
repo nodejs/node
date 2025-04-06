@@ -14,6 +14,8 @@ const fs = require('fs');
 const path = require('path');
 const tempy = require('tempy');
 
+const helpers = require('./helpers.js');
+
 function buildDb(inputDir, corpusName, outputDir) {
   execSync(
       `node build_db.js -i ${inputDir} -o ${outputDir} ${corpusName}`,
@@ -21,13 +23,20 @@ function buildDb(inputDir, corpusName, outputDir) {
 }
 
 describe('DB tests', () => {
-    // Test feeds an expression that does not apply.
-    it('omits erroneous expressions', () => {
+  // Test feeds an expression that does not apply.
+  it('omits erroneous expressions', () => {
     const outPath = tempy.directory();
     buildDb('test_data/db', 'this', outPath);
     const indexFile = path.join(outPath, 'index.json');
     const indexJSON = JSON.parse(fs.readFileSync(indexFile), 'utf-8');
     assert.deepEqual(
         indexJSON, {"statements": [], "superStatements": [], "all": []});
+  });
+
+  // End to end test with various extracted and not extracted examples.
+  it('build db e2e', () => {
+    const outPath = tempy.directory();
+    buildDb('test_data/db', 'e2e', outPath);
+    helpers.assertExpectedPath('db/e2e_expected', outPath);
   });
 });

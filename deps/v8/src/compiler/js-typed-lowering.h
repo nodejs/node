@@ -52,7 +52,9 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
   Reduction ReduceJSOrdinaryHasInstance(Node* node);
   Reduction ReduceJSHasContextExtension(Node* node);
   Reduction ReduceJSLoadContext(Node* node);
+  Reduction ReduceJSLoadScriptContext(Node* node);
   Reduction ReduceJSStoreContext(Node* node);
+  Reduction ReduceJSStoreScriptContext(Node* node);
   Reduction ReduceJSLoadModule(Node* node);
   Reduction ReduceJSStoreModule(Node* node);
   Reduction ReduceJSEqual(Node* node);
@@ -99,7 +101,7 @@ class V8_EXPORT_PRIVATE JSTypedLowering final
                             Node** control);
 
   Factory* factory() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   JSHeapBroker* broker() const { return broker_; }
   CompilationDependencies* dependencies() const;

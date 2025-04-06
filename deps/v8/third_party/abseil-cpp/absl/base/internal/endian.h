@@ -12,6 +12,8 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 //
+// This file is for Abseil internal use only.
+// See //absl/numeric/bits.h for supported functions related to endian-ness.
 
 #ifndef ABSL_BASE_INTERNAL_ENDIAN_H_
 #define ABSL_BASE_INTERNAL_ENDIAN_H_
@@ -28,44 +30,38 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-inline uint64_t gbswap_64(uint64_t host_int) {
+constexpr uint64_t gbswap_64(uint64_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap64) || defined(__GNUC__)
-  return __builtin_bswap64(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_uint64(host_int);
+  return __builtin_bswap64(x);
 #else
-  return (((host_int & uint64_t{0xFF}) << 56) |
-          ((host_int & uint64_t{0xFF00}) << 40) |
-          ((host_int & uint64_t{0xFF0000}) << 24) |
-          ((host_int & uint64_t{0xFF000000}) << 8) |
-          ((host_int & uint64_t{0xFF00000000}) >> 8) |
-          ((host_int & uint64_t{0xFF0000000000}) >> 24) |
-          ((host_int & uint64_t{0xFF000000000000}) >> 40) |
-          ((host_int & uint64_t{0xFF00000000000000}) >> 56));
+  return (((x & uint64_t{0xFF}) << 56) |
+          ((x & uint64_t{0xFF00}) << 40) |
+          ((x & uint64_t{0xFF0000}) << 24) |
+          ((x & uint64_t{0xFF000000}) << 8) |
+          ((x & uint64_t{0xFF00000000}) >> 8) |
+          ((x & uint64_t{0xFF0000000000}) >> 24) |
+          ((x & uint64_t{0xFF000000000000}) >> 40) |
+          ((x & uint64_t{0xFF00000000000000}) >> 56));
 #endif
 }
 
-inline uint32_t gbswap_32(uint32_t host_int) {
+constexpr uint32_t gbswap_32(uint32_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap32) || defined(__GNUC__)
-  return __builtin_bswap32(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_ulong(host_int);
+  return __builtin_bswap32(x);
 #else
-  return (((host_int & uint32_t{0xFF}) << 24) |
-          ((host_int & uint32_t{0xFF00}) << 8) |
-          ((host_int & uint32_t{0xFF0000}) >> 8) |
-          ((host_int & uint32_t{0xFF000000}) >> 24));
+  return (((x & uint32_t{0xFF}) << 24) |
+          ((x & uint32_t{0xFF00}) << 8) |
+          ((x & uint32_t{0xFF0000}) >> 8) |
+          ((x & uint32_t{0xFF000000}) >> 24));
 #endif
 }
 
-inline uint16_t gbswap_16(uint16_t host_int) {
+constexpr uint16_t gbswap_16(uint16_t x) {
 #if ABSL_HAVE_BUILTIN(__builtin_bswap16) || defined(__GNUC__)
-  return __builtin_bswap16(host_int);
-#elif defined(_MSC_VER)
-  return _byteswap_ushort(host_int);
+  return __builtin_bswap16(x);
 #else
-  return (((host_int & uint16_t{0xFF}) << 8) |
-          ((host_int & uint16_t{0xFF00}) >> 8));
+  return (((x & uint16_t{0xFF}) << 8) |
+          ((x & uint16_t{0xFF00}) >> 8));
 #endif
 }
 

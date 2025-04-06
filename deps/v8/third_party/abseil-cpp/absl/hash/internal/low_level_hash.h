@@ -35,16 +35,12 @@ ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
 
 // Hash function for a byte array. A 64-bit seed and a set of five 64-bit
-// integers are hashed into the result.
+// integers are hashed into the result. The length must be greater than 32.
 //
 // To allow all hashable types (including string_view and Span) to depend on
 // this algorithm, we keep the API low-level, with as few dependencies as
 // possible.
-uint64_t LowLevelHash(const void* data, size_t len, uint64_t seed,
-                      const uint64_t salt[5]);
-
-// Same as above except the length must be greater than 16.
-uint64_t LowLevelHashLenGt16(const void* data, size_t len, uint64_t seed,
+uint64_t LowLevelHashLenGt32(const void* data, size_t len, uint64_t seed,
                              const uint64_t salt[5]);
 
 }  // namespace hash_internal

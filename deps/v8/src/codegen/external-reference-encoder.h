@@ -42,8 +42,8 @@ class ExternalReferenceEncoder {
   ~ExternalReferenceEncoder();
 #endif  // DEBUG
 
-  Value Encode(Address key);
-  Maybe<Value> TryEncode(Address key);
+  Value Encode(Address key) const;
+  Maybe<Value> TryEncode(Address key) const;
 
   const char* NameOfAddress(Isolate* isolate, Address address) const;
 
@@ -51,8 +51,8 @@ class ExternalReferenceEncoder {
   AddressToIndexHashMap* map_;
 
 #ifdef DEBUG
-  std::vector<int> count_;
-  const intptr_t* api_references_;
+  mutable std::vector<int> count_;
+  mutable const intptr_t* api_references_;
 #endif  // DEBUG
 };
 

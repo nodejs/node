@@ -33,7 +33,7 @@ V8_INLINE uint32_t maximum_unrollable_size(uint32_t depth) {
 }
 
 void UnrollLoop(Node* loop_node, ZoneUnorderedSet<Node*>* loop, uint32_t depth,
-                Graph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
+                TFGraph* graph, CommonOperatorBuilder* common, Zone* tmp_zone,
                 SourcePositionTable* source_positions,
                 NodeOriginTable* node_origins);
 

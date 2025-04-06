@@ -14,6 +14,8 @@ bool InstructionScheduler::SchedulerSupported() { return true; }
 int InstructionScheduler::GetTargetInstructionFlags(
     const Instruction* instr) const {
   switch (instr->arch_opcode()) {
+    case kRiscvEnableDebugTrace:
+    case kRiscvDisableDebugTrace:
 #if V8_TARGET_ARCH_RISCV64
     case kRiscvAdd32:
     case kRiscvBitcastDL:
@@ -28,7 +30,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvAdd64:
     case kRiscvAddOvf64:
     case kRiscvClz64:
-    case kRiscvCtz64:
     case kRiscvDiv64:
     case kRiscvDivU64:
     case kRiscvZeroExtendWord:
@@ -37,7 +38,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvModU64:
     case kRiscvMul64:
     case kRiscvMulOvf64:
-    case kRiscvPopcnt64:
     case kRiscvRor64:
     case kRiscvSar64:
     case kRiscvShl64:
@@ -124,7 +124,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvCmpZero:
     case kRiscvCmpD:
     case kRiscvCmpS:
-    case kRiscvCtz32:
     case kRiscvCvtDS:
     case kRiscvCvtDUw:
     case kRiscvCvtDW:
@@ -231,7 +230,6 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kRiscvNegS:
     case kRiscvOr:
     case kRiscvOr32:
-    case kRiscvPopcnt32:
     case kRiscvRor32:
     case kRiscvRoundWD:
     case kRiscvRoundWS:
@@ -926,30 +924,11 @@ int MulOverflow64Latency() {
 }
 
 // TODO(RISCV): This is incorrect for RISC-V.
-int Clz64Latency() { return 1; }
-
-int Ctz32Latency() {
-  return Add64Latency(false) + XorLatency() + AndLatency() + Clz64Latency() +
-         1 + Sub64Latency();
+int Clz64Latency() {
+  if (CpuFeatures::IsSupported(ZBB)) return 1;
+  return 12;
 }
 
-int Ctz64Latency() {
-  return Add64Latency(false) + XorLatency() + AndLatency() + 1 + Sub64Latency();
-}
-
-int Popcnt32Latency() {
-  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
-         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
-         1 + Mul32Latency() + 1;
-}
-
-#if V8_TARGET_ARCH_RISCV64
-int Popcnt64Latency() {
-  return 2 + AndLatency() + Sub64Latency() + 1 + AndLatency() + 1 +
-         AndLatency() + Add64Latency() + 1 + Add64Latency() + 1 + AndLatency() +
-         1 + Mul64Latency() + 1;
-}
-#endif
 int CompareFLatency() { return Latency::C_cond_S; }
 
 int CompareF32Latency() { return CompareFLatency(); }
@@ -1277,16 +1256,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
     case kRiscvClz64:
 #endif
       return Clz64Latency();
-#if V8_TARGET_ARCH_RISCV64
-    case kRiscvCtz64:
-      return Ctz64Latency();
-    case kRiscvPopcnt64:
-      return Popcnt64Latency();
-#endif
-    case kRiscvCtz32:
-      return Ctz32Latency();
-    case kRiscvPopcnt32:
-      return Popcnt32Latency();
     case kRiscvShl32:
       return 1;
     case kRiscvShr32:
@@ -1486,8 +1455,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       return UldLatency();
     case kRiscvUsd:
       return UsdLatency();
-    case kRiscvByteSwap64:
-      return ByteSwapSignedLatency();
 #endif
     case kRiscvUlw:
       return UlwLatency();
@@ -1546,8 +1513,6 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
       }
       return latency;
     }
-    case kRiscvByteSwap32:
-      return ByteSwapSignedLatency();
     case kAtomicLoadInt8:
     case kAtomicLoadUint8:
     case kAtomicLoadInt16:
