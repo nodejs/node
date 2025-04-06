@@ -45,7 +45,7 @@ void Realm::CreateProperties() {
 
   // Store primordials setup by the per-context script in the environment.
   Local<Object> per_context_bindings =
-      GetPerContextExports(ctx).ToLocalChecked();
+      GetPerContextExports(ctx, env_->isolate_data()).ToLocalChecked();
   Local<Value> primordials =
       per_context_bindings->Get(ctx, env_->primordials_string())
           .ToLocalChecked();
