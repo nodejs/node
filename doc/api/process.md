@@ -1138,7 +1138,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57765
-    description: API is now stable.
+    description: Change stability index for this feature from Experimental to Stable.
   - version:
     - v22.0.0
     - v20.13.0
@@ -1164,7 +1164,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57765
-    description: API is now stable.
+    description: Change stability index for this feature from Experimental to Stable.
 -->
 
 * {number}
@@ -2307,7 +2307,7 @@ added:
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57765
-    description: API is now stable.
+    description: Change stability index for this feature from Experimental to Stable.
 -->
 
 * Returns: {string\[]}
