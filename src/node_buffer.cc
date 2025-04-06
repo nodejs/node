@@ -1528,11 +1528,11 @@ uint32_t FastWriteString(Local<Value> receiver,
       std::min<uint32_t>(dst.length() - offset, max_length));
 }
 
-static v8::CFunction fast_write_string_ascii(
+static const v8::CFunction fast_write_string_ascii(
     v8::CFunction::Make(FastWriteString<ASCII>));
-static v8::CFunction fast_write_string_latin1(
+static const v8::CFunction fast_write_string_latin1(
     v8::CFunction::Make(FastWriteString<LATIN1>));
-static v8::CFunction fast_write_string_utf8(
+static const v8::CFunction fast_write_string_utf8(
     v8::CFunction::Make(FastWriteString<UTF8>));
 
 void Initialize(Local<Object> target,
