@@ -282,6 +282,8 @@ Security Update
 
 ## 2015.11.25, Version 0.12.8 (LTS), @rvagg
 
+### Commits
+
 * \[[`d9399569bd`](https://github.com/nodejs/node/commit/d9399569bd)] - build: backport tools/release.sh (Rod Vagg) <https://github.com/nodejs/node/pull/3642>
 * \[[`78c5b4c8bd`](https://github.com/nodejs/node/commit/78c5b4c8bd)] - build: backport config for new CI infrastructure (Rod Vagg) <https://github.com/nodejs/node/pull/3642>
 * \[[`83441616a5`](https://github.com/nodejs/node/commit/83441616a5)] - build: fix --without-ssl compile time error (Ben Noordhuis) <https://github.com/nodejs/node/pull/3825>
@@ -312,6 +314,10 @@ Security Update
 * \[[`eda2560cdc`](https://github.com/nodejs/node/commit/eda2560cdc)] - doc: additional refinement to readable event (James M Snell) <https://github.com/nodejs/node-v0.x-archive/pull/25591>
 * \[[`881d9bea01`](https://github.com/nodejs/node/commit/881d9bea01)] - doc: readable event clarification (James M Snell) <https://github.com/nodejs/node-v0.x-archive/pull/25591>
 * \[[`b6378f0c75`](https://github.com/nodejs/node/commit/b6378f0c75)] - doc: stream.unshift does not reset reading state (James M Snell) <https://github.com/nodejs/node-v0.x-archive/pull/25591>
+
+<a id="0.12.7"></a>
+
+## 2015-07-09, Version 0.12.7 (Stable)
 
 ### Commits
 
