@@ -1046,9 +1046,6 @@ a connection established via [`curl()`][].
 ```mjs
 import http from 'node:http';
 import repl from 'node:repl';
-import { Buffer } from 'node:buffer';
-
-const buf0 = Buffer.from([0]);
 
 const server = http.createServer((req, res) => {
   res.setHeader('content-type', 'multipart/octet-stream');
@@ -1061,24 +1058,14 @@ const server = http.createServer((req, res) => {
     useColors: true,
     useGlobal: false,
   });
-
-  // Hack to thread stdin and stdout
-  // simultaneously in curl's single thread
-  const iv = setInterval(() => {
-    res.write(buf0);
-  }, 100);
-
-  req.on('close', () => {
-    clearInterval(iv);
-  });
 });
+
 server.listen(8000);
 ```
 
 ```cjs
 const http = require('node:http');
 const repl = require('node:repl');
-const buf0 = Buffer.alloc(1);
 
 const server = http.createServer((req, res) => {
   res.setHeader('content-type', 'multipart/octet-stream');
@@ -1091,17 +1078,8 @@ const server = http.createServer((req, res) => {
     useColors: true,
     useGlobal: false,
   });
-
-  // Hack to thread stdin and stdout
-  // simultaneously in curl's single thread
-  const iv = setInterval(() => {
-    res.write(buf0);
-  }, 100);
-
-  req.on('close', () => {
-    clearInterval(iv);
-  });
 });
+
 server.listen(8000);
 ```
 
