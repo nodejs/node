@@ -1078,7 +1078,7 @@ server.listen(8000);
 ```cjs
 const http = require('node:http');
 const repl = require('node:repl');
-const buf0 = Buffer.from([0]);
+const buf0 = Buffer.alloc(1);
 
 const server = http.createServer((req, res) => {
   res.setHeader('content-type', 'multipart/octet-stream');
@@ -1106,7 +1106,7 @@ server.listen(8000);
 ```
 
 When the above script is running you can then use [`curl()`][] to connect to
-the server and connect to its REPL instance by running `curl -sSNT. localhost:8000`
+the server and connect to its REPL instance by running `curl --no-progress-meter -sSNT. localhost:8000`.
 
 **Warning** This example is intended purely for educational purposes to demonstrate how
 Node.js REPLs can be started using different I/O streams.
