@@ -80,9 +80,7 @@ if (process.env.TERM === 'dumb') {
           output = '';
         });
       }
-      setTimeout(() => {
-        rli.close();
-      }, common.platformTimeout(100));
+      fi.end();
     });
   });
 });
@@ -116,7 +114,5 @@ if (process.env.TERM === 'dumb') {
     assert.match(output, /^Tab completion error: Error: message/);
     output = '';
   });
-  setTimeout(() => {
-    rli.close();
-  }, common.platformTimeout(100));
+  fi.end();
 }
