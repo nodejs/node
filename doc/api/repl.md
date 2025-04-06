@@ -911,11 +911,11 @@ possible to connect to a long-running Node.js process without restarting it.
 
 ### Examples
 
-* running a "full-featured" (`terminal`) REPL over
+* Running a "full-featured" (`terminal`) REPL over
   a `net.Server` and `net.Socket` instance:
   <https://gist.github.com/TooTallNate/2209310>.
 
-* running a REPL instance over [`curl(1)`][]:
+* Running a REPL instance over [`curl(1)`][]:
   <https://gist.github.com/TooTallNate/2053342>.
 
   **Note**: This example is intended purely for educational purposes to demonstrate how
