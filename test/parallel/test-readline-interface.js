@@ -1224,6 +1224,9 @@ for (let i = 0; i < 12; i++) {
     rli.question('What\'s your name?', common.mustCall((name) => {
       assert.strictEqual(name, 'Node.js');
       rli.close();
+      // No 'resume' nor 'pause' event should be emitted after close
+      rli.on('resume', common.mustNotCall());
+      rli.on('pause', common.mustNotCall());
       assert.throws(() => {
         rli.pause();
       }, {
