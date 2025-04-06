@@ -831,7 +831,6 @@ docserve: doc-only ## Serve the documentation on localhost:8000.
 .NOTPARALLEL: docclean
 docclean: ## Remove the generated documentation.
 	$(RM) -r out/doc
-	$(RM) "$(VERSIONS_DATA)"
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
