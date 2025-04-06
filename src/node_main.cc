@@ -21,78 +21,89 @@
 
 #include "node.h"
 #include <cstdio>
+#include <memory>
+#include <vector>
 
 #ifdef _WIN32
 #include <windows.h>
 #include <VersionHelpers.h>
 #include <WinError.h>
 
-#define SKIP_CHECK_VAR "NODE_SKIP_PLATFORM_CHECK"
-#define SKIP_CHECK_VALUE "1"
-#define SKIP_CHECK_STRLEN (sizeof(SKIP_CHECK_VALUE) - 1)
+namespace {
+constexpr const char* SKIP_CHECK_VAR = "NODE_SKIP_PLATFORM_CHECK";
+constexpr const char* SKIP_CHECK_VALUE = "1";
+constexpr size_t SKIP_CHECK_STRLEN = sizeof(SKIP_CHECK_VALUE) - 1;
+
+// Custom error codes
+enum class NodeErrorCode {
+  SUCCESS = 0,
+  PLATFORM_CHECK_FAILED = ERROR_EXE_MACHINE_TYPE_MISMATCH,
+  ARGUMENT_CONVERSION_FAILED = 2
+};
+
+bool CheckWindowsVersion() {
+  char buf[SKIP_CHECK_STRLEN + 1];
+  if (IsWindows10OrGreater()) return true;
+  
+  return (GetEnvironmentVariableA(SKIP_CHECK_VAR, buf, sizeof(buf)) == SKIP_CHECK_STRLEN &&
+          strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_STRLEN) == 0);
+}
+
+void PrintPlatformError() {
+  fprintf(stderr,
+          "Node.js is only supported on Windows 10, Windows Server 2016, or higher.\n"
+          "Setting the %s environment variable to 1 skips this check, but Node.js\n"
+          "might not execute correctly. Any issues encountered on unsupported\n"
+          "platforms will not be fixed.\n",
+          SKIP_CHECK_VAR);
+}
+
+std::unique_ptr<char[]> ConvertWideToUTF8(const wchar_t* wide_str) {
+  // Compute the size of the required buffer
+  DWORD size = WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, nullptr, 0, nullptr, nullptr);
+  if (size == 0) {
+    fprintf(stderr, "Error: Could not determine UTF-8 buffer size for argument conversion.\n");
+    exit(static_cast<int>(NodeErrorCode::ARGUMENT_CONVERSION_FAILED));
+  }
+
+  // Allocate and convert
+  auto utf8_str = std::make_unique<char[]>(size);
+  DWORD result = WideCharToMultiByte(CP_UTF8, 0, wide_str, -1, utf8_str.get(), size, nullptr, nullptr);
+  if (result == 0) {
+    fprintf(stderr, "Error: Failed to convert command line argument to UTF-8.\n");
+    exit(static_cast<int>(NodeErrorCode::ARGUMENT_CONVERSION_FAILED));
+  }
+
+  return utf8_str;
+}
+}  // namespace
 
 int wmain(int argc, wchar_t* wargv[]) {
-  // Windows Server 2012 (not R2) is supported until 10/10/2023, so we allow it
-  // to run in the experimental support tier.
-  char buf[SKIP_CHECK_STRLEN + 1];
-  if (!IsWindows10OrGreater() &&
-      (GetEnvironmentVariableA(SKIP_CHECK_VAR, buf, sizeof(buf)) !=
-           SKIP_CHECK_STRLEN ||
-       strncmp(buf, SKIP_CHECK_VALUE, SKIP_CHECK_STRLEN) != 0)) {
-    fprintf(stderr,
-            "Node.js is only supported on Windows 10, Windows "
-            "Server 2016, or higher.\n"
-            "Setting the " SKIP_CHECK_VAR " environment variable "
-            "to 1 skips this\ncheck, but Node.js might not execute "
-            "correctly. Any issues encountered on\nunsupported "
-            "platforms will not be fixed.");
-    exit(ERROR_EXE_MACHINE_TYPE_MISMATCH);
+  // Check Windows version compatibility
+  if (!CheckWindowsVersion()) {
+    PrintPlatformError();
+    return static_cast<int>(NodeErrorCode::PLATFORM_CHECK_FAILED);
   }
 
-  // Convert argv to UTF8
-  char** argv = new char*[argc + 1];
+  // Convert argv to UTF8 using RAII
+  std::vector<std::unique_ptr<char[]>> arg_storage;
+  std::vector<char*> argv;
+  
+  arg_storage.reserve(argc);
+  argv.reserve(argc + 1);
+
   for (int i = 0; i < argc; i++) {
-    // Compute the size of the required buffer
-    DWORD size = WideCharToMultiByte(CP_UTF8,
-                                     0,
-                                     wargv[i],
-                                     -1,
-                                     nullptr,
-                                     0,
-                                     nullptr,
-                                     nullptr);
-    if (size == 0) {
-      // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
-      // TODO(joyeecheung): should be ExitCode::kInvalidCommandLineArgument,
-      // but we are not ready to expose that to node.h yet.
-      exit(1);
-    }
-    // Do the actual conversion
-    argv[i] = new char[size];
-    DWORD result = WideCharToMultiByte(CP_UTF8,
-                                       0,
-                                       wargv[i],
-                                       -1,
-                                       argv[i],
-                                       size,
-                                       nullptr,
-                                       nullptr);
-    if (result == 0) {
-      // This should never happen.
-      fprintf(stderr, "Could not convert arguments to utf8.");
-      // TODO(joyeecheung): should be ExitCode::kInvalidCommandLineArgument,
-      // but we are not ready to expose that to node.h yet.
-      exit(1);
-    }
+    auto utf8_arg = ConvertWideToUTF8(wargv[i]);
+    argv.push_back(utf8_arg.get());
+    arg_storage.push_back(std::move(utf8_arg));
   }
-  argv[argc] = nullptr;
-  // Now that conversion is done, we can finally start.
-  return node::Start(argc, argv);
+  argv.push_back(nullptr);
+
+  // Start Node.js
+  return node::Start(argc, argv.data());
 }
 #else
 // UNIX
-
 int main(int argc, char* argv[]) {
   return node::Start(argc, argv);
 }
