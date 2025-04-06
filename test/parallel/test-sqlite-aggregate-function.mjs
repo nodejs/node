@@ -94,9 +94,9 @@ describe('varargs', () => {
     t.after(() => db.close());
     db.exec(`
       CREATE TABLE t3(x, y);
-      INSERT INTO t3 VALUES('a', 1),
-                          ('b', 2),
-                          ('c', 3);
+      INSERT INTO t3 VALUES ('a', 1),
+                            ('b', 2),
+                            ('c', 3);
     `);
 
     db.aggregate('sumint', {
@@ -167,9 +167,9 @@ describe('directOnly', () => {
     });
     db.exec(`
       CREATE TABLE t3(x, y);
-      INSERT INTO t3 VALUES('a', 4),
-                          ('b', 5),
-                          ('c', 3);
+      INSERT INTO t3 VALUES ('a', 4),
+                            ('b', 5),
+                            ('c', 3);
     `);
 
     db.exec(`
@@ -335,9 +335,9 @@ describe('result', () => {
     const mockFn = t.mock.fn((acc) => acc);
     db.exec(`
       CREATE TABLE t3(x, y);
-      INSERT INTO t3 VALUES('a', 4),
-                          ('b', 5),
-                          ('c', 3);
+      INSERT INTO t3 VALUES ('a', 4),
+                            ('b', 5),
+                            ('c', 3);
     `);
     db.aggregate('sumint', {
       start: 0,
@@ -369,9 +369,9 @@ test('throws an error when trying to use as windown function but didn\'t provide
   t.after(() => db.close());
   db.exec(`
     CREATE TABLE t3(x, y);
-    INSERT INTO t3 VALUES('a', 4),
-                        ('b', 5),
-                        ('c', 3);
+    INSERT INTO t3 VALUES ('a', 4),
+                          ('b', 5),
+                          ('c', 3);
   `);
 
   db.aggregate('sumint', {

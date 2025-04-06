@@ -143,7 +143,7 @@ Registers a new aggregate function with the SQLite database. This method is a wr
     **Default:** `false`.
   * `start` {number | string | null | Array | Object | Function} The identity
     value for the aggregation function. This value is used when the aggregation
-    function is initialized. When a {Function} is passed the identity will be its return.
+    function is initialized. When a {Function} is passed the identity will be its return value.
   * `step` {Function} The function to call for each row in the aggregation. The
     function receives the current state and the row value. The return value of
     this function should be the new state.
@@ -162,11 +162,11 @@ const { DatabaseSync } = require('node:sqlite');
 const db = new DatabaseSync(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
-  INSERT INTO t3 VALUES('a', 4),
-                      ('b', 5),
-                      ('c', 3),
-                      ('d', 8),
-                      ('e', 1);
+  INSERT INTO t3 VALUES ('a', 4),
+                        ('b', 5),
+                        ('c', 3),
+                        ('d', 8),
+                        ('e', 1);
 `);
 
 db.aggregate('sumint', {
@@ -183,11 +183,11 @@ import { DatabaseSync } from 'node:sqlite';
 const db = new DatabaseSync(':memory:');
 db.exec(`
   CREATE TABLE t3(x, y);
-  INSERT INTO t3 VALUES('a', 4),
-                      ('b', 5),
-                      ('c', 3),
-                      ('d', 8),
-                      ('e', 1);
+  INSERT INTO t3 VALUES ('a', 4),
+                        ('b', 5),
+                        ('c', 3),
+                        ('d', 8),
+                        ('e', 1);
 `);
 
 db.aggregate('sumint', {
