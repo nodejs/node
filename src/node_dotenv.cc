@@ -145,7 +145,16 @@ void Dotenv::ParseContent(const std::string_view input) {
     // If there is no equal character, then ignore everything
     auto equal = content.find('=');
     if (equal == std::string_view::npos) {
-      break;
+      auto newline = content.find('\n');
+      if (newline != std::string_view::npos) {
+        // If we used `newline` only,
+        // the '\n' might remain and cause an empty-line parse
+        content.remove_prefix(newline + 1);
+      } else {
+        content = {};
+      }
+      // No valid data here, skip to next line
+      continue;
     }
 
     key = content.substr(0, equal);
@@ -195,7 +204,9 @@ void Dotenv::ParseContent(const std::string_view input) {
         store_.insert_or_assign(std::string(key), multi_line_value);
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
-          content.remove_prefix(newline);
+          content.remove_prefix(newline + 1);
+        } else {
+          content = {};
         }
         continue;
       }
@@ -216,7 +227,7 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (newline != std::string_view::npos) {
           value = content.substr(0, newline);
           store_.insert_or_assign(std::string(key), value);
-          content.remove_prefix(newline);
+          content.remove_prefix(newline + 1);
         }
       } else {
         // Example: KEY="value"
@@ -226,8 +237,13 @@ void Dotenv::ParseContent(const std::string_view input) {
         // since there could be newline characters inside the value.
         auto newline = content.find('\n', closing_quote + 1);
         if (newline != std::string_view::npos) {
-          content.remove_prefix(newline);
+          // Use +1 to discard the '\n' itself => next line
+          content.remove_prefix(newline + 1);
+        } else {
+          content = {};
         }
+        // No valid data here, skip to next line
+        continue;
       }
     } else {
       // Regular key value pair.
@@ -243,15 +259,21 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (hash_character != std::string_view::npos) {
           value = content.substr(0, hash_character);
         }
-        content.remove_prefix(newline);
+        store_.insert_or_assign(std::string(key), trim_spaces(value));
+        content.remove_prefix(newline + 1);
       } else {
         // In case the last line is a single key/value pair
         // Example: KEY=VALUE (without a newline at the EOF)
-        value = content.substr(0);
+        value = content;
+        auto hash_char = value.find('#');
+        if (hash_char != std::string_view::npos) {
+          value = content.substr(0, hash_char);
+        }
+        store_.insert_or_assign(std::string(key), trim_spaces(value));
+        content = {};
       }
 
-      value = trim_spaces(value);
-      store_.insert_or_assign(std::string(key), value);
+      store_.insert_or_assign(std::string(key), trim_spaces(value));
     }
   }
 }
