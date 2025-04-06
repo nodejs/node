@@ -1034,7 +1034,7 @@ process.stdin.on('data', (b) => {
 To run the example open two different terminals on your machine, start the server
 with `node repl-server.js` in one terminal and `node repl-client.js` on the other.
 
-Original code from: [gist.github.com/TooTallNate/2209310][full-featured REPL gist]
+Original code from <https://gist.github.com/TooTallNate/2209310>.
 
 #### REPL over `curl`
 
@@ -1116,9 +1116,8 @@ If you need to implement REPLs in a real-world application, consider alternative
 approaches that mitigate these risks, such as using secure input mechanisms and
 avoiding open network interfaces.
 
-Original code from: [gist.github.com/TooTallNate/2053342][REPL over curl gist]
+Original code from <https://gist.github.com/TooTallNate/2053342>.
 
-[REPL over curl gist]: https://gist.github.com/TooTallNate/2053342
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#event-uncaughtexception
@@ -1137,5 +1136,4 @@ Original code from: [gist.github.com/TooTallNate/2053342][REPL over curl gist]
 [`reverse-i-search`]: #reverse-i-search
 [`util.inspect()`]: util.md#utilinspectobject-options
 [custom evaluation functions]: #custom-evaluation-functions
-[full-featured REPL gist]: https://gist.github.com/TooTallNate/2209310
 [stream]: stream.md
