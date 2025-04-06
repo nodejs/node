@@ -206,7 +206,7 @@ function assertCursorRowsAndCols(rli, rows, cols) {
   fi.emit('data', '\n');
   setTimeout(() => {
     rli.close();
-  });
+  }, common.platformTimeout(100));
 }
 
 // \t when there is no completer function should behave like an ordinary

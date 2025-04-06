@@ -82,7 +82,7 @@ if (process.env.TERM === 'dumb') {
       }
       setTimeout(() => {
         rli.close();
-      });
+      }, common.platformTimeout(100));
     });
   });
 });
@@ -118,5 +118,5 @@ if (process.env.TERM === 'dumb') {
   });
   setTimeout(() => {
     rli.close();
-  });
+  }, common.platformTimeout(100));
 }
