@@ -183,17 +183,10 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   if (length == 0) return args.GetReturnValue().SetEmptyString();
 
-  Local<Value> error;
   Local<Value> ret;
-
-  if (!StringBytes::Encode(env->isolate(), data, length, UTF8, &error)
-           .ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+  if (StringBytes::Encode(env->isolate(), data, length, UTF8).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-
-  args.GetReturnValue().Set(ret);
 }
 
 void BindingData::ToASCII(const FunctionCallbackInfo<Value>& args) {

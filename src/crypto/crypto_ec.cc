@@ -800,17 +800,11 @@ bool ExportJWKEdKey(Environment* env,
                                        Local<Object> target,
                                        Local<String> key) {
     Local<Value> encoded;
-    Local<Value> error;
     if (!data) return false;
     const ncrypto::Buffer<const char> out = data;
-    if (!StringBytes::Encode(
-             env->isolate(), out.data, out.len, BASE64URL, &error)
-             .ToLocal(&encoded) ||
-        target->Set(env->context(), key, encoded).IsNothing()) {
-      if (!error.IsEmpty()) env->isolate()->ThrowException(error);
-      return false;
-    }
-    return true;
+    return StringBytes::Encode(env->isolate(), out.data, out.len, BASE64URL)
+               .ToLocal(&encoded) &&
+           target->Set(env->context(), key, encoded).IsJust();
   };
 
   return !(
