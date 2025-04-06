@@ -2733,7 +2733,7 @@ added:
 changes:
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/57765
-   description: No longer experimental.
+   description: API is now stable.
 -->
 
 * `signal` {AbortSignal}
