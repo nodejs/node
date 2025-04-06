@@ -1837,7 +1837,7 @@ added:
 changes:
  - version: REPLACEME
    pr-url: https://github.com/nodejs/node/pull/57765
-   description: API is now stable.
+   description: Change stability index for this feature from Experimental to Stable.
 -->
 
 * `signal` {AbortSignal}
