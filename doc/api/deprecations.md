@@ -3026,6 +3026,9 @@ The [`crypto.Certificate()` constructor][] is deprecated. Use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37302
     description: Runtime deprecation.
@@ -3037,7 +3040,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 In future versions of Node.js, `recursive` option will be ignored for
 `fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir`.
