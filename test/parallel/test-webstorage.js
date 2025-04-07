@@ -46,7 +46,7 @@ test('localStorage emits a warning without --localstorage-file ', async () => {
   ]);
   assert.strictEqual(cp.code, 0);
   assert.strictEqual(cp.signal, null);
-  assert.match(cp.stderr, /Warning:  is an invalid localStorage location/);
+  assert.match(cp.stderr, /Warning: `--localstorage-file` was provided without a valid path/);
 });
 
 test('localStorage is not persisted if it is unused', async () => {
