@@ -172,7 +172,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
 void JSValueToSQLiteResult(Isolate* isolate,
                            sqlite3_context* ctx,
                            Local<Value> value) {
-  if (value->IsUndefined() || value->IsNull()) {
+  if (value->IsNullOrUndefined()) {
     sqlite3_result_null(ctx);
   } else if (value->IsNumber()) {
     sqlite3_result_double(ctx, value.As<Number>()->Value());
