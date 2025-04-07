@@ -1,0 +1,94 @@
+Error: Number error cause
+    at * {
+  [cause]: 42
+}
+Error: Object cause
+    at * {
+  [cause]: {
+    message: 'Unique',
+    name: 'Error',
+    stack: 'Error: Unique\n' +
+      '    at Module._compile (node:internal*modules*cjs*loader:*:*)'
+  }
+}
+Error: undefined cause
+    at * {
+  [cause]: undefined
+}
+Error: cause that throws
+    at * {
+  [cause]: [Getter]
+}
+RangeError: New Stack Frames
+    at * {
+  [cause]: FoobarError: Individual message
+      at Object.<anonymous> \x1B[90m(/\x1B[39mtest*util_inspect_error_cause.js:*:*\x1B[90m)\x1B[39m {
+    status: \x1B[32m'Feeling good'\x1B[39m,
+    extraProperties: \x1B[32m'Yes!'\x1B[39m,
+    [cause]: TypeError: Inner error
+        at Object.<anonymous> \x1B[90m(/\x1B[39mtest*util_inspect_error_cause.js:*:*\x1B[90m)\x1B[39m
+  }
+}
+Error: Stack causes
+    at *
+*[90m    at *[39m
+*[90m    ... 6 lines matching cause stack trace ...*[39m
+*[90m    at *[39m {
+  [cause]: FoobarError: Individual message
+      at Object.<anonymous> \x1B[90m(/\x1B[39mtest*util_inspect_error_cause.js:*:*\x1B[90m)\x1B[39m {
+    status: \x1B[32m'Feeling good'\x1B[39m,
+    extraProperties: \x1B[32m'Yes!'\x1B[39m,
+    [cause]: TypeError: Inner error
+        at *
+  }
+}
+RangeError: New Stack Frames
+    at *
+*[90m    at *[39m {
+  [cause]: Error: Stack causes
+      at *
+  *[90m    at *[39m
+  *[90m    ... 6 lines matching cause stack trace ...*[39m
+  *[90m    at *[39m {
+    [cause]: FoobarError: Individual message
+        at Object.<anonymous> \x1B[90m(/\x1B[39mtest*util_inspect_error_cause.js:*:*\x1B[90m)\x1B[39m {
+      status: \x1B[32m'Feeling good'\x1B[39m,
+      extraProperties: \x1B[32m'Yes!'\x1B[39m,
+      [cause]: TypeError: Inner error
+          at Object.<anonymous> \x1B[90m(/\x1B[39mtest*util_inspect_error_cause.js:*:*\x1B[90m)\x1B[39m
+    }
+  }
+}
+RangeError: New Stack Frames
+    at * {
+  [cause]: FoobarError: Individual message
+      at * {
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at *
+  }
+}
+Error: Stack causes
+    at * {
+  [cause]: FoobarError: Individual message
+      at * {
+    status: 'Feeling good',
+    extraProperties: 'Yes!',
+    [cause]: TypeError: Inner error
+        at *
+  }
+}
+RangeError: New Stack Frames
+    at * {
+  [cause]: Error: Stack causes
+      at * {
+    [cause]: FoobarError: Individual message
+        at * {
+      status: 'Feeling good',
+      extraProperties: 'Yes!',
+      [cause]: TypeError: Inner error
+          at *
+    }
+  }
+}
