@@ -1,8 +1,8 @@
-name: "CodeQL"
+name: CodeQL
 
 on:
   schedule:
-    - cron: "0 0 * * *"
+    - cron: 0 0 * * *
 
 permissions:
   contents: read
@@ -19,20 +19,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        language: ["cpp", "javascript", "python", "typescript"]
+        language: [cpp, javascript, python, typescript]
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683  # v4.2.2
 
       # Initializes the CodeQL tools for scanning.
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
+        uses: github/codeql-action/init@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
         with:
           languages: ${{ matrix.language }}
 
       - name: Autobuild
-        uses: github/codeql-action/autobuild@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
+        uses: github/codeql-action/autobuild@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
 
       # ℹ️ Command-line programs to run using the OS shell.
       # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
@@ -45,6 +45,6 @@ jobs:
       #   ./location_of_script_within_repo/buildscript.sh
 
       - name: Perform CodeQL Analysis
-        uses: github/codeql-action/analyze@6bb031afdd8eb862ea3fc1848194185e076637e5 # v3.28.11
+        uses: github/codeql-action/analyze@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
         with:
-          category: "/language:${{matrix.language}}"
+          category: /language:${{matrix.language}}
