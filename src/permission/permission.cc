@@ -87,7 +87,7 @@ Permission::Permission() : enabled_(false) {
   std::shared_ptr<PermissionBase> wasi = std::make_shared<WASIPermission>();
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
-  FILESYSTEM_PERMISSIONS(V)
+  FFI_PERMISSIONS(V)
 #undef V
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
