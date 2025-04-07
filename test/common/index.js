@@ -353,11 +353,15 @@ const knownGlobals = new Set([
  'sessionStorage',
 ].forEach((i) => {
   if (i === 'localStorage') {
-    Object.defineProperty(globalThis, i, {
-      configurable: true,
-      enumerable: true,
-      get() {
-        return undefined;
+    const getLocalStorage = Object.defineProperty(() => {}, 'name', {
+      value: 'get localStorage',
+    });
+
+    Object.defineProperties(globalThis, {
+      localStorage: {
+        configurable: true,
+        enumerable: true,
+        get: getLocalStorage,
       },
     });
 
