@@ -70,28 +70,27 @@ describe('cjs loader code integrity integration tests', () => {
   );
 });
 
-describe('2esm loader code integrity integration tests', async () => {
-  it('2should NOT throw an error if a file passes code integrity policy',
+describe('esm loader code integrity integration tests', async () => {
+  it('should NOT throw an error if a file passes code integrity policy',
      async (t) => {
        t.mock.method(ci, ci.isAllowedToExecuteFile.name, () => { return true; });
 
        // This should import without throwing ERR_CODE_INTEGRITY_VIOLATION
-       await import('../fixtures/code_integrity_test.node');
+       await import('../fixtures/code_integrity_test.js');
      }
   );
 
   it('should throw an error if a file does not pass code integrity policy',
      async (t) => {
        t.mock.method(ci, ci.isAllowedToExecuteFile.name, () => { return false; });
+       try {
+         await import('../fixtures/code_integrity_test2.js');
+       } catch (e) {
+         assert.strictEqual(e.code, 'ERR_CODE_INTEGRITY_VIOLATION');
+         return;
+       }
 
-       assert.throws(
-         async () => {
-           await import('../fixtures/code_integrity_test.js');
-         },
-         {
-           code: 'ERR_CODE_INTEGRITY_VIOLATION',
-         },
-       );
+       assert.fail('No exception thrown');
      }
   );
 });
