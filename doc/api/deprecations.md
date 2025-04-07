@@ -3042,8 +3042,8 @@ changes:
 
 Type: End-of-Life
 
-In future versions of Node.js, `recursive` option will be ignored for
-`fs.rmdir`, `fs.rmdirSync`, and `fs.promises.rmdir`.
+`recursive` option is ignored for `fs.rmdir`, `fs.rmdirSync`,
+and `fs.promises.rmdir`.
 
 Use `fs.rm(path, { recursive: true, force: true })`,
 `fs.rmSync(path, { recursive: true, force: true })` or
