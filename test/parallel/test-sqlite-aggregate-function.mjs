@@ -184,7 +184,7 @@ describe('directOnly', () => {
     db.exec('INSERT INTO t3 VALUES(\'d\', 6)');
   });
 
-  test('set SQLITE_DIRECT_ONLY flag when trye', (t) => {
+  test('set SQLITE_DIRECT_ONLY flag when true', (t) => {
     const db = new DatabaseSync(':memory:');
     t.after(() => db.close());
     db.aggregate('func', {
@@ -195,9 +195,9 @@ describe('directOnly', () => {
     });
     db.exec(`
       CREATE TABLE t3(x, y);
-      INSERT INTO t3 VALUES('a', 4),
-                          ('b', 5),
-                          ('c', 3);
+      INSERT INTO t3 VALUES ('a', 4),
+                            ('b', 5),
+                            ('c', 3);
     `);
 
     db.exec(`
