@@ -11,9 +11,6 @@
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
-#ifdef OPENSSL_IS_BORINGSSL
-#include "dh-primes.h"
-#endif  // OPENSSL_IS_BORINGSSL
 
 namespace ncrypto {
 namespace {
