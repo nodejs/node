@@ -16,6 +16,6 @@ Documentation for this tool can be found on the [Corepack repository][].
 
 Despite Corepack being distributed with default installs of Node.js, the package
 managers managed by Corepack are not part of the Node.js distribution, and
-Corepack itself will no longer be distributed with future versions of Node.js.
+Corepack itself will no longer be distributed with Node.js 25+.
 
 [Corepack repository]: https://github.com/nodejs/corepack
