@@ -17,7 +17,7 @@ server.on('stream', common.mustCall((stream, headers) => {
 
   // Initiate the server close before client data is sent, this will
   // test if the server properly waits for the stream to finish
-  server.close(common.mustCall());
+  server.close();
   setImmediate(() => {
     stream.respond({
       'content-type': 'text/plain',
@@ -37,6 +37,7 @@ server.on('stream', common.mustCall((stream, headers) => {
   });
 
   stream.on('close', common.mustCall(() => {
+    assert.strictEqual(stream.readableEnded, true);
     assert.strictEqual(stream.writableFinished, true);
   }));
 }));
@@ -53,13 +54,12 @@ server.listen(0, common.mustCall(() => {
     receivedData += chunk.length;
   });
 
-  // When the request completes
-  req.on('end', common.mustCall());
-
   // When request closes
   req.on('close', common.mustCall(() => {
     // Should receive all data
+    assert.strictEqual(req.readableEnded, true);
     assert.strictEqual(receivedData, 64 * 1024 * 16);
+    assert.strictEqual(req.writableFinished, true);
   }));
 
   // Start the request

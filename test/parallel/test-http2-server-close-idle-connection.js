@@ -36,8 +36,6 @@ server.listen(0, common.mustCall(() => {
   // Make an initial request
   const req = client.request({ ':path': '/' });
 
-  req.on('response', common.mustCall());
-
   // Process the response data
   req.setEncoding('utf8');
   let data = '';
@@ -50,7 +48,7 @@ server.listen(0, common.mustCall(() => {
     assert.strictEqual(data, 'hello');
     // Close the server as client is idle now
     setImmediate(() => {
-      server.close(common.mustCall());
+      server.close();
     });
   }));
 
