@@ -327,15 +327,21 @@ void FindSymbol(const FunctionCallbackInfo<Value>& args) {
 }
 
 void FreeCallback(const FunctionCallbackInfo<Value>& args) {
-  delete static_cast<FFICallback*>(readAddress(args[0]));
+  if (const auto temp = static_cast<FFICallback*>(readAddress(args[0]))) {
+    delete temp;
+  }
 }
 
 void FreeInvoker(const FunctionCallbackInfo<Value>& args) {
-  delete static_cast<FFIInvoker*>(readAddress(args[0]));
+  if (const auto temp = static_cast<FFIInvoker*>(readAddress(args[0]))) {
+    delete temp;
+  }
 }
 
 void FreeLibrary(const FunctionCallbackInfo<Value>& args) {
-  delete static_cast<FFILibrary*>(readAddress(args[0]));
+  if (const auto temp = static_cast<FFILibrary*>(readAddress(args[0]))) {
+    delete temp;
+  }
 }
 
 void GetAddress(const FunctionCallbackInfo<Value>& args) {
