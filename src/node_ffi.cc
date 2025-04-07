@@ -5,6 +5,27 @@
 #include "node_buffer.h"
 
 namespace node::ffi {
+using binding::DLib;
+using permission::PermissionScope;
+using v8::Array;
+using v8::ArrayBuffer;
+using v8::BackingStore;
+using v8::BigInt;
+using v8::Boolean;
+using v8::Context;
+using v8::External;
+using v8::Function;
+using v8::FunctionCallbackInfo;
+using v8::Int32;
+using v8::Isolate;
+using v8::Local;
+using v8::LocalVector;
+using v8::Number;
+using v8::Object;
+using v8::Persistent;
+using v8::Uint32;
+using v8::Value;
+
 void* readAddress(const Local<Value> value) {
   if (value->IsExternal()) {
     return value.As<External>()->Value();
@@ -16,7 +37,7 @@ void* readAddress(const Local<Value> value) {
     return Buffer::Data(value);
   }
   if (value->IsBigInt()) {
-    return (void*)value.As<BigInt>()->Uint64Value();
+    return reinterpret_cast<void*>(value.As<BigInt>()->Uint64Value());
   }
   return nullptr;
 }
@@ -29,7 +50,7 @@ int64_t readInt64(const Local<Value> value) {
     return value.As<Uint32>()->Value();
   }
   if (value->IsNumber()) {
-    return (int64_t)value.As<Number>()->Value();
+    return static_cast<int64_t>(value.As<Number>()->Value());
   }
   if (value->IsBigInt()) {
     return value.As<BigInt>()->Int64Value();
@@ -45,7 +66,7 @@ uint64_t readUInt64(const Local<Value> value) {
     return value.As<Int32>()->Value();
   }
   if (value->IsNumber()) {
-    return (uint64_t)value.As<Number>()->Value();
+    return static_cast<uint64_t>(value.As<Number>()->Value());
   }
   if (value->IsBigInt()) {
     return value.As<BigInt>()->Uint64Value();
@@ -58,7 +79,7 @@ double readDouble(const Local<Value> value) {
     return value.As<Number>()->Value();
   }
   if (value->IsBigInt()) {
-    return (double)value.As<BigInt>()->Int64Value();
+    return static_cast<double>(value.As<BigInt>()->Int64Value());
   }
   return 0.0;
 }
@@ -71,8 +92,9 @@ std::string readString(Isolate* isolate, const Local<Value> value) {
 }
 
 void ffiCallback(ffi_cif* cif, void* ret, ffi_raw* args, void* hint) {
-  const auto self = (FFICallback*)hint;
-  self->doCallback((ffi_raw*)ret, (int)cif->nargs, args);
+  const auto self = static_cast<FFICallback*>(hint);
+  self->doCallback(
+      static_cast<ffi_raw*>(ret), static_cast<int>(cif->nargs), args);
 }
 
 FFILibrary::FFILibrary(const char* path) : DLib(path, kDefaultFlags) {}
@@ -152,7 +174,7 @@ void FFIDefinition::readValue(const int i,
       output->sint = readInt64(input);
       break;
     case FFI_TYPE_FLOAT:
-      output->flt = (float)readDouble(input);
+      output->flt = static_cast<float>(readDouble(input));
       break;
     case FFI_TYPE_POINTER:
       output->ptr = readAddress(input);
@@ -171,13 +193,14 @@ Local<Value> FFIDefinition::wrapValue(const int i,
     case FFI_TYPE_UINT8:
     case FFI_TYPE_UINT16:
     case FFI_TYPE_UINT32:
-      return Uint32::NewFromUnsigned(isolate, (uint32_t)input->uint);
+      return Uint32::NewFromUnsigned(isolate,
+                                     static_cast<uint32_t>(input->uint));
     case FFI_TYPE_UINT64:
       return BigInt::NewFromUnsigned(isolate, input->uint);
     case FFI_TYPE_SINT8:
     case FFI_TYPE_SINT16:
     case FFI_TYPE_SINT32:
-      return Int32::New(isolate, (int32_t)input->sint);
+      return Int32::New(isolate, static_cast<int32_t>(input->sint));
     case FFI_TYPE_SINT64:
       return BigInt::New(isolate, input->sint);
     case FFI_TYPE_FLOAT:
@@ -206,7 +229,7 @@ Local<Value> FFIInvoker::doInvoke(Isolate* isolate) {
 }
 
 FFICallback::FFICallback(const char* defStr) : FFIDefinition(defStr) {
-  frc = (ffi_raw_closure*)ffi_closure_alloc(RCS, &address);
+  frc = static_cast<ffi_raw_closure*>(ffi_closure_alloc(RCS, &address));
   if (!frc) {
     UNREACHABLE("ffi_closure_alloc Failed");
   }
@@ -226,15 +249,16 @@ void FFICallback::doCallback(ffi_raw* result,
                              const int argc,
                              const ffi_raw* args) const {
   const auto isolate = Isolate::GetCurrent();
-  const auto params = std::make_unique<Local<Value>[]>(argc);
+  LocalVector<Value> params(isolate);
+  params.reserve(argc);
   for (int i = 0; i < argc; i++) {
-    params[i] = wrapValue(i + 1, isolate, args + i);
+    params.emplace_back(wrapValue(i + 1, isolate, args + i));
   }
   const auto function = callback.Get(isolate);
   const auto context = function->GetCreationContextChecked(isolate);
   const auto global = Undefined(isolate);
   const auto return1 =
-      function->Call(isolate, context, global, argc, params.get());
+      function->Call(isolate, context, global, argc, params.data());
   Local<Value> return2;
   if (return1.ToLocal(&return2)) {
     readValue(0, return2, result);
@@ -249,22 +273,24 @@ FFICallback::~FFICallback() {
 void CallInvoker(const FunctionCallbackInfo<Value>& args) {
   const auto isolate = args.GetIsolate();
   const auto length = args.Length();
-  const auto invoker = (FFIInvoker*)readAddress(args[0]);
-  for (int i = 1; i < length; i++) {
-    invoker->setParam(i, args[i]);
+  if (const auto invoker = static_cast<FFIInvoker*>(readAddress(args[0]))) {
+    for (int i = 1; i < length; i++) {
+      invoker->setParam(i, args[i]);
+    }
+    args.GetReturnValue().Set(invoker->doInvoke(isolate));
   }
-  args.GetReturnValue().Set(invoker->doInvoke(isolate));
 }
 
 void CreateBuffer(const FunctionCallbackInfo<Value>& args) {
   const auto isolate = args.GetIsolate();
   const auto env = Environment::GetCurrent(isolate);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, PermissionScope::kFFI, "");
-  const auto address = readAddress(args[0]);
-  const auto length = readUInt64(args[1]);
-  auto store = ArrayBuffer::NewBackingStore(
-      address, length, BackingStore::EmptyDeleter, nullptr);
-  args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
+  if (const auto address = readAddress(args[0])) {
+    const auto length = readUInt64(args[1]);
+    auto store = ArrayBuffer::NewBackingStore(
+        address, length, BackingStore::EmptyDeleter, nullptr);
+    args.GetReturnValue().Set(ArrayBuffer::New(isolate, std::move(store)));
+  }
 }
 
 void CreateCallback(const FunctionCallbackInfo<Value>& args) {
@@ -283,39 +309,40 @@ void CreateInvoker(const FunctionCallbackInfo<Value>& args) {
   const auto isolate = args.GetIsolate();
   const auto env = Environment::GetCurrent(isolate);
   THROW_IF_INSUFFICIENT_PERMISSIONS(env, PermissionScope::kFFI, "");
-  const auto address = readAddress(args[0]);
-  const auto defStr = readString(isolate, args[1]);
-  const auto invoker = new FFIInvoker(defStr.c_str(), address);
-  args.GetReturnValue().Set(External::New(isolate, invoker));
+  if (const auto address = readAddress(args[0])) {
+    const auto defStr = readString(isolate, args[1]);
+    const auto invoker = new FFIInvoker(defStr.c_str(), address);
+    args.GetReturnValue().Set(External::New(isolate, invoker));
+  }
 }
 
 void FindSymbol(const FunctionCallbackInfo<Value>& args) {
   const auto isolate = args.GetIsolate();
-  const auto library = (FFILibrary*)readAddress(args[0]);
-  const auto symbol = readString(isolate, args[1]);
-  const auto address = library->GetSymbolAddress(symbol.c_str());
-  if (address) {
-    args.GetReturnValue().Set(External::New(isolate, address));
+  if (const auto library = static_cast<FFILibrary*>(readAddress(args[0]))) {
+    const auto symbol = readString(isolate, args[1]);
+    if (const auto address = library->GetSymbolAddress(symbol.c_str())) {
+      args.GetReturnValue().Set(External::New(isolate, address));
+    }
   }
 }
 
 void FreeCallback(const FunctionCallbackInfo<Value>& args) {
-  delete (FFICallback*)readAddress(args[0]);
+  delete static_cast<FFICallback*>(readAddress(args[0]));
 }
 
 void FreeInvoker(const FunctionCallbackInfo<Value>& args) {
-  delete (FFIInvoker*)readAddress(args[0]);
+  delete static_cast<FFIInvoker*>(readAddress(args[0]));
 }
 
 void FreeLibrary(const FunctionCallbackInfo<Value>& args) {
-  delete (FFILibrary*)readAddress(args[0]);
+  delete static_cast<FFILibrary*>(readAddress(args[0]));
 }
 
 void GetAddress(const FunctionCallbackInfo<Value>& args) {
   const auto isolate = args.GetIsolate();
   const auto address = readAddress(args[0]);
   args.GetReturnValue().Set(
-      BigInt::NewFromUnsigned(isolate, (uint64_t)address));
+      BigInt::NewFromUnsigned(isolate, reinterpret_cast<uint64_t>(address)));
 }
 
 void LoadLibrary(const FunctionCallbackInfo<Value>& args) {
