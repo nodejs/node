@@ -124,7 +124,7 @@ added:
  - v12.17.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/57766
    description: Add `defaultValue` and `name` options.
  - version:
     - v19.7.0
