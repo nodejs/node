@@ -417,14 +417,14 @@ static Intercepted EnvGetter(Local<Name> property,
   MaybeLocal<String> value_string =
       env->env_vars()->Get(env->isolate(), property.As<String>());
 
-  bool has_env = !value_string.IsEmpty();
   TraceEnvVar(env, "get", property.As<String>());
 
-  if (has_env) {
-    info.GetReturnValue().Set(value_string.ToLocalChecked());
-    return Intercepted::kYes;
+  Local<Value> ret;
+  if (!value_string.ToLocal(&ret)) {
+    return Intercepted::kNo;
   }
-  return Intercepted::kNo;
+  info.GetReturnValue().Set(ret);
+  return Intercepted::kYes;
 }
 
 static Intercepted EnvSetter(Local<Name> property,
