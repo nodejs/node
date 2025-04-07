@@ -1717,8 +1717,8 @@ added: v22.4.0
 
 The file used to store `localStorage` data. If the file does not exist, it is
 created the first time `localStorage` is accessed. The same file may be shared
-between multiple Node.js processes concurrently. This flag is a no-op unless
-Node.js is started with the `--experimental-webstorage` flag.
+between multiple Node.js processes concurrently. This flag is a no-op if
+Node.js is started with the `--no-experimental-webstorage` flag.
 
 ### `--max-http-header-size=size`
 
@@ -1893,6 +1893,14 @@ added: v22.0.0
 -->
 
 Disable exposition of {WebSocket} on the global scope.
+
+### `--no-experimental-webstorage`
+
+<!-- YAML
+added: v22.4.0
+-->
+
+Disable experimental [`Web Storage`][] support.
 
 ### `--no-extra-info-on-fatal-exception`
 
@@ -3461,7 +3469,11 @@ one is included in the list below.
 * `--experimental-transform-types`
 * `--experimental-vm-modules`
 * `--experimental-wasi-unstable-preview1`
+<<<<<<< HEAD
 * `--experimental-webstorage`
+=======
+* `--experimental-wasm-modules`
+>>>>>>> 06691b516a (doc: add --no-experimental-webstorage docs)
 * `--force-context-aware`
 * `--force-fips`
 * `--force-node-api-uncaught-exceptions-policy`
@@ -3495,6 +3507,7 @@ one is included in the list below.
 * `--no-experimental-sqlite`
 * `--no-experimental-strip-types`
 * `--no-experimental-websocket`
+* `--no-experimental-webstorage`
 * `--no-extra-info-on-fatal-exception`
 * `--no-force-async-hooks-checks`
 * `--no-global-search-paths`
