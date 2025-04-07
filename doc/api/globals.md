@@ -628,7 +628,7 @@ A browser-compatible implementation of [`localStorage`][]. Data is stored
 unencrypted in the file specified by the [`--localstorage-file`][] CLI flag.
 The maximum amount of data that can be stored is 10 MB.
 Any modification of this data outside of the Web Storage API is not supported.
-Enable this API with the [`--experimental-webstorage`][] CLI flag.
+Disable this API with the [`--no-experimental-webstorage`][] CLI flag.
 `localStorage` data is not stored per user or per request when used in the context
 of a server, it is shared across all users and requests.
 
@@ -1092,7 +1092,8 @@ added: v22.4.0
 > Stability: 1.0 - Early development. Enable this API with the
 > [`--experimental-webstorage`][] CLI flag.
 
-A browser-compatible implementation of {Storage}.
+A browser-compatible implementation of {Storage}. Disable this API with the
+[`--no-experimental-webstorage`][] CLI flag.
 
 ## `structuredClone(value[, options])`
 
@@ -1303,7 +1304,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [RFC 5646]: https://www.rfc-editor.org/rfc/rfc5646.txt
 [Web Crypto API]: webcrypto.md
 [`--experimental-eventsource`]: cli.md#--experimental-eventsource
-[`--experimental-webstorage`]: cli.md#--experimental-webstorage
+[`--no-experimental-webstorage`]: cli.md#--no-experimental-webstorage
 [`--localstorage-file`]: cli.md#--localstorage-filefile
 [`--no-experimental-global-navigator`]: cli.md#--no-experimental-global-navigator
 [`--no-experimental-websocket`]: cli.md#--no-experimental-websocket
