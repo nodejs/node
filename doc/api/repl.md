@@ -663,6 +663,8 @@ changes:
                  Added support for multi-line history.
                  It is now possible to "fix" multi-line commands with syntax errors
                  by visiting the history and editing the command.
+                 When visiting the multiline history from an old node version,
+                 the multiline structure is not preserved.
   - version:
      - v13.4.0
      - v12.17.0
