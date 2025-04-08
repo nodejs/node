@@ -101,9 +101,7 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     if (sig_buf.len < sig->ByteLength()) {
       auto new_sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_buf.len);
       if (sig_buf.len > 0) [[likely]] {
-        memcpy(static_cast<char*>(new_sig->Data()),
-               static_cast<char*>(sig->Data()),
-               sig_buf.len);
+        memcpy(new_sig->Data(), sig->Data(), sig_buf.len);
       }
       sig = std::move(new_sig);
     }
