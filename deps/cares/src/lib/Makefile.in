@@ -15,7 +15,7 @@
 @SET_MAKE@
 
 # aminclude_static.am generated automatically by Autoconf
-# from AX_AM_MACROS_STATIC on Sat Dec 14 15:15:44 UTC 2024
+# from AX_AM_MACROS_STATIC on Tue Apr  8 12:12:30 UTC 2025
 
 # Copyright (C) The c-ares project and its contributors
 # SPDX-License-Identifier: MIT
@@ -490,6 +490,7 @@ EGREP = @EGREP@
 ETAGS = @ETAGS@
 EXEEXT = @EXEEXT@
 FGREP = @FGREP@
+FILECMD = @FILECMD@
 GCOV = @GCOV@
 GENHTML = @GENHTML@
 GMOCK112_CFLAGS = @GMOCK112_CFLAGS@
