@@ -40,12 +40,9 @@ following table:
 | `crypto_dsa`         | DSA (Digital Signature) Key Generation functions.                          |
 | `crypto_ec`          | Elliptic-curve cryptography implementation.                                |
 | `crypto_hash`        | Basic hash (e.g. SHA-256) functions.                                       |
-| `crypto_hkdf`        | HKDF (Key derivation) implementation.                                      |
 | `crypto_hmac`        | HMAC implementations.                                                      |
 | `crypto_keys`        | Utilities for using and generating secret, private, and public keys.       |
-| `crypto_pbkdf2`      | PBKDF2 key / bit generation implementation.                                |
 | `crypto_rsa`         | RSA Key Generation functions.                                              |
-| `crypto_scrypt`      | Scrypt key / bit generation implementation.                                |
 | `crypto_sig`         | General digital signature and verification utilities.                      |
 | `crypto_spkac`       | Netscape SPKAC certificate utilities.                                      |
 | `crypto_ssl`         | Implementation of the `SSLWrap` object.                                    |

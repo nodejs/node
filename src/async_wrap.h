@@ -85,7 +85,7 @@ namespace node {
 #if HAVE_OPENSSL
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
   V(CHECKPRIMEREQUEST)                                                        \
-  V(PBKDF2REQUEST)                                                            \
+  V(KDFREQUEST)                                                               \
   V(KEYPAIRGENREQUEST)                                                        \
   V(KEYGENREQUEST)                                                            \
   V(KEYEXPORTREQUEST)                                                         \
@@ -94,7 +94,6 @@ namespace node {
   V(HASHREQUEST)                                                              \
   V(RANDOMBYTESREQUEST)                                                       \
   V(RANDOMPRIMEREQUEST)                                                       \
-  V(SCRYPTREQUEST)                                                            \
   V(SIGNREQUEST)                                                              \
   V(TLSWRAP)                                                                  \
   V(VERIFYREQUEST)

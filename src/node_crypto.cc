@@ -36,19 +36,18 @@ using v8::Value;
 
 namespace crypto {
 
-#define CRYPTO_NAMESPACE_LIST_BASE(V)                                          \
+#define CRYPTO_NAMESPACE_LIST(V)                                          \
   V(AES)                                                                       \
   V(CipherBase)                                                                \
   V(DiffieHellman)                                                             \
   V(DSAAlg)                                                                    \
   V(ECDH)                                                                      \
   V(Hash)                                                                      \
-  V(HKDFJob)                                                                   \
   V(Hmac)                                                                      \
+  V(KDFJob)                                                                    \
   V(Keygen)                                                                    \
   V(Keys)                                                                      \
   V(NativeKeyObject)                                                           \
-  V(PBKDF2Job)                                                                 \
   V(Random)                                                                    \
   V(RSAAlg)                                                                    \
   V(SecureContext)                                                             \
@@ -58,16 +57,6 @@ namespace crypto {
   V(Util)                                                                      \
   V(Verify)                                                                    \
   V(X509Certificate)
-
-#ifdef OPENSSL_NO_SCRYPT
-#define SCRYPT_NAMESPACE_LIST(V)
-#else
-#define SCRYPT_NAMESPACE_LIST(V) V(ScryptJob)
-#endif  // OPENSSL_NO_SCRYPT
-
-#define CRYPTO_NAMESPACE_LIST(V)                                               \
-  CRYPTO_NAMESPACE_LIST_BASE(V)                                                \
-  SCRYPT_NAMESPACE_LIST(V)
 
 void Initialize(Local<Object> target,
                 Local<Value> unused,

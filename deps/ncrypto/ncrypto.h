@@ -15,10 +15,12 @@
 #include <cstddef>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -727,6 +729,28 @@ class CipherCtxPointer final {
 
  private:
   DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+};
+
+class KdfCtxPointer final {
+ public:
+  using ParamType =
+      std::variant<uint32_t, double, std::string, std::vector<char>>;
+  using Params = std::map<std::string, ParamType>;
+
+  static KdfCtxPointer FromName(std::string_view name);
+
+  KdfCtxPointer() = default;
+  KdfCtxPointer(EVP_KDF_CTX* ctx);
+  KdfCtxPointer(KdfCtxPointer&& other) noexcept = default;
+  KdfCtxPointer& operator=(KdfCtxPointer&& other) noexcept = default;
+  NCRYPTO_DISALLOW_COPY(KdfCtxPointer)
+
+  size_t getSize() const;
+  bool setParams(const Params& params);
+  DataPointer derive(size_t keylen) const;
+
+ private:
+  DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free> ctx_ = nullptr;
 };
 
 class EVPKeyCtxPointer final {
@@ -1496,36 +1520,9 @@ Buffer<char> ExportChallenge(const char* input, size_t length);
 const EVP_MD* getDigestByName(const std::string_view name);
 const EVP_CIPHER* getCipherByName(const std::string_view name);
 
-// Verify that the specified HKDF output length is valid for the given digest.
-// The maximum length for HKDF output for a given digest is 255 times the
-// hash size for the given digest algorithm.
-bool checkHkdfLength(const Digest& digest, size_t length);
-
 bool extractP1363(const Buffer<const unsigned char>& buf,
                   unsigned char* dest,
                   size_t n);
-
-DataPointer hkdf(const Digest& md,
-                 const Buffer<const unsigned char>& key,
-                 const Buffer<const unsigned char>& info,
-                 const Buffer<const unsigned char>& salt,
-                 size_t length);
-
-bool checkScryptParams(uint64_t N, uint64_t r, uint64_t p, uint64_t maxmem);
-
-DataPointer scrypt(const Buffer<const char>& pass,
-                   const Buffer<const unsigned char>& salt,
-                   uint64_t N,
-                   uint64_t r,
-                   uint64_t p,
-                   uint64_t maxmem,
-                   size_t length);
-
-DataPointer pbkdf2(const Digest& md,
-                   const Buffer<const char>& pass,
-                   const Buffer<const unsigned char>& salt,
-                   uint32_t iterations,
-                   size_t length);
 
 // ============================================================================
 // Version metadata

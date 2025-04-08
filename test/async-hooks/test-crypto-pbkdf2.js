@@ -23,7 +23,7 @@ hooks.enable();
 crypto.pbkdf2('password', 'salt', 1, 20, 'sha256', common.mustCall(onpbkdf2));
 
 function onpbkdf2() {
-  const as = hooks.activitiesOfTypes('PBKDF2REQUEST');
+  const as = hooks.activitiesOfTypes('KDFREQUEST');
   const a = as[0];
   checkInvocations(a, { init: 1, before: 1 }, 'while in onpbkdf2 callback');
   tick(2);
@@ -32,13 +32,13 @@ function onpbkdf2() {
 process.on('exit', onexit);
 function onexit() {
   hooks.disable();
-  hooks.sanityCheck('PBKDF2REQUEST');
+  hooks.sanityCheck('KDFREQUEST');
 
-  const as = hooks.activitiesOfTypes('PBKDF2REQUEST');
+  const as = hooks.activitiesOfTypes('KDFREQUEST');
   assert.strictEqual(as.length, 1);
 
   const a = as[0];
-  assert.strictEqual(a.type, 'PBKDF2REQUEST');
+  assert.strictEqual(a.type, 'KDFREQUEST');
   assert.strictEqual(typeof a.uid, 'number');
   assert.strictEqual(a.triggerAsyncId, 1);
   checkInvocations(a, { init: 1, before: 1, after: 1, destroy: 1 },
