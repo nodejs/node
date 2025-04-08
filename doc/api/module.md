@@ -224,7 +224,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-* `specifier` {string|URL} Customization hooks to be registered; this should be
+* `specifier` {string|URL} Module to resolve and load; this should be
   the same string that would be passed to `import()`, except that if it is
   relative, it is resolved relative to `parentURL`.
 * `parentURL` {string|URL} If you want to resolve `specifier` relative to a base
@@ -237,11 +237,11 @@ added: REPLACEME
   * `format` {string} The format this module will be parsed as.
   * `source` {null|TypedArray}
 
-This API tells you how a specific URL will be loaded by the ECMAScript loader if
+This API tells you how a specific URL will be loaded by the module loader if
 it was imported from the `parentURL` in the current process. If the module was
 already imported before `resolveLoadAndCache` is called, the cached version is
 returned; if not, it will populate the cache so future calls to
-`resolveLoadAndCache` or `import` do re-do the work.
+`resolveLoadAndCache` or `import` do not re-do the work.
 
 ### `module.registerHooks(options)`
 
