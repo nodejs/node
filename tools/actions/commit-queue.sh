@@ -88,7 +88,7 @@ for pr in "$@"; do
     commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
 
     if ! commits="$(
-      jq -n \
+      jq -cn \
         --arg title "${commit_title}" \
         --arg body "${commit_body}" \
         --arg head "${commit_head}" \

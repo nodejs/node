@@ -40,7 +40,7 @@ commit_title=$(git log -1 --pretty='format:%s')
 commit_body=$(git log -1 --pretty='format:%b')
 
 commitSHA="$(
-  jq -n \
+  jq -cn \
     --arg title "${commit_title}" \
     --arg body "${commit_body}" \
     --arg head "${commit_head}" \
