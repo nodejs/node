@@ -1,6 +1,6 @@
 # How to write documentation for the Node.js project
 
-This document refers to the Node.js API documentation that gets deployed to [nodejs.org/en/doc][]
+This document refers to the Node.js API documentation that gets deployed to [nodejs.org/en/docs][]
 and consists in a general reference on how to write and update such documentation.
 
 ## Style Guide
@@ -35,4 +35,4 @@ make lint-md
 [API Documentation Tooling]: ./api-documentation.md
 [building-the-documentation]: ../../BUILDING.md#building-the-documentation
 [doc/README]: ../../doc/README.md
-[nodejs.org/en/doc]: https://nodejs.org/en/docs/
+[nodejs.org/en/docs]: https://nodejs.org/en/docs/
