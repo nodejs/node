@@ -220,4 +220,42 @@ describe('.env supports edge cases', () => {
       ANOTHER_VALID: 'value',
     });
   });
+
+  it('should handle trimming of keys and values correctly', () => {
+    const result = parseEnv([
+      '   KEY_WITH_SPACES_BEFORE=   value_with_spaces_before_and_after   ',
+      'KEY_WITH_TABS_BEFORE\t=\tvalue_with_tabs_before_and_after\t',
+      'KEY_WITH_SPACES_AND_TABS\t = \t value_with_spaces_and_tabs \t',
+      '   KEY_WITH_SPACES_ONLY   =value',
+      'KEY_WITH_NO_VALUE=',
+      'KEY_WITH_SPACES_AFTER=   value   ',
+      'KEY_WITH_SPACES_AND_COMMENT=value   # this is a comment',
+      'KEY_WITH_ONLY_COMMENT=# this is a comment',
+      'KEY_WITH_EXPORT=export value',
+      '   export   KEY_WITH_EXPORT_AND_SPACES   =   value   ',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_SPACES_BEFORE: 'value_with_spaces_before_and_after',
+      KEY_WITH_TABS_BEFORE: 'value_with_tabs_before_and_after',
+      KEY_WITH_SPACES_AND_TABS: 'value_with_spaces_and_tabs',
+      KEY_WITH_SPACES_ONLY: 'value',
+      KEY_WITH_NO_VALUE: '',
+      KEY_WITH_ONLY_COMMENT: '',
+      KEY_WITH_SPACES_AFTER: 'value',
+      KEY_WITH_SPACES_AND_COMMENT: 'value',
+      KEY_WITH_EXPORT: 'export value',
+      KEY_WITH_EXPORT_AND_SPACES: 'value',
+    });
+  });
+
+  it('should handle a comment in a valid value', () => {
+    const result = parseEnv([
+      'KEY_WITH_COMMENT_IN_VALUE="value # this is a comment"',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_COMMENT_IN_VALUE: 'value # this is a comment',
+    });
+  });
 });

@@ -137,21 +137,15 @@ void Dotenv::ParseContent(const std::string_view input) {
 
   while (!content.empty()) {
     // Skip empty lines and comments
-    // Example:
-    //   # This is a comment
     if (content.front() == '\n' || content.front() == '#') {
       // Check if the first character of the content is a newline or a hash
-      if (content.front() == '\n') {
-        // If the first character is a newline, remove it
-        content.remove_prefix(1);
+      auto newline = content.find('\n');
+      if (newline != std::string_view::npos) {
+        // Remove everything up to and including the newline character
+        content.remove_prefix(newline + 1);
       } else {
-        // If the first character is a hash, find the next newline character
-        auto newline = content.find('\n');
-        if (newline != std::string_view::npos) {
-          // If a newline is found, remove the comment line including the
-          // newline character.
-          content.remove_prefix(newline + 1);
-        }
+        // If no newline is found, clear the content
+        content = {};
       }
 
       // Skip the remaining code in the loop and continue with the next
@@ -231,6 +225,8 @@ void Dotenv::ParseContent(const std::string_view input) {
         if (newline != std::string_view::npos) {
           content.remove_prefix(newline + 1);
         } else {
+          // In case the last line is a single key/value pair
+          // Example: KEY=VALUE (without a newline at the EOF
           content = {};
         }
         continue;
