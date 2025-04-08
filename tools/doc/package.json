@@ -15,7 +15,7 @@
     "remark-gfm": "^4.0.1",
     "remark-html": "^16.0.1",
     "remark-parse": "^11.0.0",
-    "remark-rehype": "^11.1.1",
+    "remark-rehype": "^11.1.2",
     "to-vfile": "^8.0.0",
     "unified": "^11.0.4",
     "unist-util-select": "^5.1.0",
