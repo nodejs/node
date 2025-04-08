@@ -909,14 +909,184 @@ to connect to both Unix and TCP sockets.
 By starting a REPL from a Unix socket-based server instead of stdin, it is
 possible to connect to a long-running Node.js process without restarting it.
 
-For an example of running a "full-featured" (`terminal`) REPL over
-a `net.Server` and `net.Socket` instance, see:
-<https://gist.github.com/TooTallNate/2209310>.
+### Examples
 
-For an example of running a REPL instance over [`curl(1)`][], see:
-<https://gist.github.com/TooTallNate/2053342>.
+#### Full-featured "terminal" REPL over `net.Server` and `net.Socket`
 
-This example is intended purely for educational purposes to demonstrate how
+This is an example on how to run a "full-featured" (terminal) REPL using
+[`net.Server`][] and [`net.Socket`][]
+
+The following script starts an HTTP server on port `1337` that allows
+clients to establish socket connections to its REPL instance.
+
+```mjs
+// repl-server.js
+import repl from 'node:repl';
+import net from 'node:net';
+
+net
+  .createServer((socket) => {
+    const r = repl.start({
+      prompt: `socket ${socket.remoteAddress}:${socket.remotePort}> `,
+      input: socket,
+      output: socket,
+      terminal: true,
+      useGlobal: false,
+    });
+    r.on('exit', () => {
+      socket.end();
+    });
+    r.context.socket = socket;
+  })
+  .listen(1337);
+```
+
+```cjs
+// repl-server.js
+const repl = require('node:repl');
+const net = require('node:net');
+
+net
+  .createServer((socket) => {
+    const r = repl.start({
+      prompt: `socket ${socket.remoteAddress}:${socket.remotePort}> `,
+      input: socket,
+      output: socket,
+      terminal: true,
+      useGlobal: false,
+    });
+    r.on('exit', () => {
+      socket.end();
+    });
+    r.context.socket = socket;
+  })
+  .listen(1337);
+```
+
+While the following implements a client that can create a socket connection
+with the above defined server over port `1337`.
+
+```mjs
+// repl-client.js
+import net from 'node:net';
+import process from 'node:process';
+
+const sock = net.connect(1337);
+
+process.stdin.pipe(sock);
+sock.pipe(process.stdout);
+
+sock.on('connect', () => {
+  process.stdin.resume();
+  process.stdin.setRawMode(true);
+});
+
+sock.on('close', () => {
+  process.stdin.setRawMode(false);
+  process.stdin.pause();
+  sock.removeListener('close', done);
+});
+
+process.stdin.on('end', () => {
+  sock.destroy();
+  console.log();
+});
+
+process.stdin.on('data', (b) => {
+  if (b.length === 1 && b[0] === 4) {
+    process.stdin.emit('end');
+  }
+});
+```
+
+```cjs
+// repl-client.js
+const net = require('node:net');
+
+const sock = net.connect(1337);
+
+process.stdin.pipe(sock);
+sock.pipe(process.stdout);
+
+sock.on('connect', () => {
+  process.stdin.resume();
+  process.stdin.setRawMode(true);
+});
+
+sock.on('close', () => {
+  process.stdin.setRawMode(false);
+  process.stdin.pause();
+  sock.removeListener('close', done);
+});
+
+process.stdin.on('end', () => {
+  sock.destroy();
+  console.log();
+});
+
+process.stdin.on('data', (b) => {
+  if (b.length === 1 && b[0] === 4) {
+    process.stdin.emit('end');
+  }
+});
+```
+
+To run the example open two different terminals on your machine, start the server
+with `node repl-server.js` in one terminal and `node repl-client.js` on the other.
+
+Original code from <https://gist.github.com/TooTallNate/2209310>.
+
+#### REPL over `curl`
+
+This is an example on how to run a REPL instance over [`curl()`][]
+
+The following script starts an HTTP server on port `8000` that can accept
+a connection established via [`curl()`][].
+
+```mjs
+import http from 'node:http';
+import repl from 'node:repl';
+
+const server = http.createServer((req, res) => {
+  res.setHeader('content-type', 'multipart/octet-stream');
+
+  repl.start({
+    prompt: 'curl repl> ',
+    input: req,
+    output: res,
+    terminal: false,
+    useColors: true,
+    useGlobal: false,
+  });
+});
+
+server.listen(8000);
+```
+
+```cjs
+const http = require('node:http');
+const repl = require('node:repl');
+
+const server = http.createServer((req, res) => {
+  res.setHeader('content-type', 'multipart/octet-stream');
+
+  repl.start({
+    prompt: 'curl repl> ',
+    input: req,
+    output: res,
+    terminal: false,
+    useColors: true,
+    useGlobal: false,
+  });
+});
+
+server.listen(8000);
+```
+
+When the above script is running you can then use [`curl()`][] to connect to
+the server and connect to its REPL instance by running `curl --no-progress-meter -sSNT. localhost:8000`.
+
+**Warning** This example is intended purely for educational purposes to demonstrate how
 Node.js REPLs can be started using different I/O streams.
 It should **not** be used in production environments or any context where security
 is a concern without additional protective measures.
@@ -924,15 +1094,19 @@ If you need to implement REPLs in a real-world application, consider alternative
 approaches that mitigate these risks, such as using secure input mechanisms and
 avoiding open network interfaces.
 
+Original code from <https://gist.github.com/TooTallNate/2053342>.
+
 [TTY keybindings]: readline.md#tty-keybindings
 [ZSH]: https://en.wikipedia.org/wiki/Z_shell
 [`'uncaughtException'`]: process.md#event-uncaughtexception
 [`--no-experimental-repl-await`]: cli.md#--no-experimental-repl-await
 [`ERR_DOMAIN_CANNOT_SET_UNCAUGHT_EXCEPTION_CAPTURE`]: errors.md#err_domain_cannot_set_uncaught_exception_capture
 [`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
-[`curl(1)`]: https://curl.haxx.se/docs/manpage.html
+[`curl()`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
 [`module.builtinModules`]: module.md#modulebuiltinmodules
+[`net.Server`]: net.md#class-netserver
+[`net.Socket`]: net.md#class-netsocket
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver
