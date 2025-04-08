@@ -12,30 +12,27 @@
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|x64' ">
     <OutputPath>..\..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
     <Cultures>en-US</Cultures>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|x64' ">
     <OutputPath>..\..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Debug|arm64' ">
     <OutputPath>..\..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <PropertyGroup Condition=" '$(Configuration)|$(Platform)' == 'Release|arm64' ">
     <OutputPath>..\..\..\..\</OutputPath>
     <IntermediateOutputPath>obj\$(Configuration)\</IntermediateOutputPath>
-    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;CorepackSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
+    <DefineConstants>Debug;ProductVersion=$(NodeVersion);FullVersion=$(FullVersion);DistTypeDir=$(DistTypeDir);NpmSourceDir=..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm\;ProgramFilesFolderId=ProgramFiles64Folder</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\..\..\..\npm.wxs">
       <Link>npm.wxs</Link>
-    </Compile>
-    <Compile Include="..\..\..\..\corepack.wxs">
-      <Link>corepack.wxs</Link>
     </Compile>
   </ItemGroup>
   <ItemGroup>
@@ -49,8 +46,6 @@
   <Import Project="Sdk.targets" Sdk="WixToolset.Sdk" Version="4.0.0-rc.1" />
   <Target Name="BeforeBuild">
     <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\npm" PreprocessorVariable="var.NpmSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="NpmSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\npm.wxs">
-    </HeatDirectory>
-    <HeatDirectory ToolPath="$(WixToolPath)" Directory="..\..\..\..\Release\node-v$(FullVersion)-win-$(Platform)\node_modules\corepack" PreprocessorVariable="var.CorepackSourceDir" DirectoryRefId="NodeModulesFolder" ComponentGroupName="CorepackSourceFiles" GenerateGuidsNow="true" SuppressFragments="false" OutputFile="..\..\..\..\corepack.wxs">
     </HeatDirectory>
   </Target>
   <PropertyGroup>
