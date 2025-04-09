@@ -765,6 +765,22 @@ void Http2Stream::EmitStatistics() {
   });
 }
 
+void Http2Session::HasPendingData(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  args.GetReturnValue().Set(session->HasPendingData());
+}
+
+bool Http2Session::HasPendingData() const {
+  nghttp2_session* session = session_.get();
+  int want_write = nghttp2_session_want_write(session);
+  int want_read = nghttp2_session_want_read(session);
+  if (want_write == 0 && want_read == 0) {
+    return false;
+  }
+  return true;
+}
+
 void Http2Session::EmitStatistics() {
   if (!HasHttp2Observer(env())) [[likely]] {
     return;
@@ -1743,6 +1759,8 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
 void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   Debug(this, "write finished with status %d", status);
 
+  HandleScope scope(env()->isolate());
+  MakeCallback(env()->onstreamafterwrite_string(), 0, nullptr);
   CHECK(is_write_in_progress());
   set_write_in_progress(false);
 
@@ -1965,6 +1983,8 @@ uint8_t Http2Session::SendPendingData() {
   if (!res.async) {
     set_write_in_progress(false);
     ClearOutgoing(res.err);
+    HandleScope scope(env()->isolate());
+    MakeCallback(env()->onstreamafterwrite_string(), 0, nullptr);
   }
 
   MaybeStopReading();
@@ -3478,6 +3498,8 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, session, "receive", Http2Session::Receive);
   SetProtoMethod(isolate, session, "destroy", Http2Session::Destroy);
   SetProtoMethod(isolate, session, "goaway", Http2Session::Goaway);
+  SetProtoMethod(
+      isolate, session, "hasPendingData", Http2Session::HasPendingData);
   SetProtoMethod(isolate, session, "settings", Http2Session::Settings);
   SetProtoMethod(isolate, session, "request", Http2Session::Request);
   SetProtoMethod(

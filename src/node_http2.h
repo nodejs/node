@@ -712,6 +712,7 @@ class Http2Session : public AsyncWrap,
   static void Consume(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Receive(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Destroy(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void HasPendingData(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Settings(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Request(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetNextStreamID(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -735,6 +736,7 @@ class Http2Session : public AsyncWrap,
 
   BaseObjectPtr<Http2Ping> PopPing();
   bool AddPing(const uint8_t* data, v8::Local<v8::Function> callback);
+  bool HasPendingData() const;
 
   BaseObjectPtr<Http2Settings> PopSettings();
   bool AddSettings(v8::Local<v8::Function> callback);
