@@ -380,6 +380,35 @@ async function runTest(
       assert.strictEqual(GlobalTeardownOccurrences, 1);
     });
 
+    it('should run globalSetup and globalTeardown only once for run with multiple test files',
+       {
+         skip: !runnerEnabled ? 'Skipping test as --test is not enabled' : false
+       },
+       async () => {
+         const setupFlagPath = tmpdir.resolve('setup-executed-once.tmp');
+         const teardownFlagPath = tmpdir.resolve('teardown-executed-once.tmp');
+         const testFiles = ['test-file.js', 'another-test-file.js'];
+         const { stdout } = await runTest({
+           isolation,
+           globalSetupFile: 'basic-setup-teardown.js',
+           env: {
+             SETUP_FLAG_PATH: setupFlagPath,
+             TEARDOWN_FLAG_PATH: teardownFlagPath
+           },
+           runnerEnabled,
+           testFiles
+         });
+         const GlobalSetupOccurrences = (stdout.match(/Global setup executed/g) || []).length;
+         const GlobalTeardownOccurrences = (stdout.match(/Global teardown executed/g) || []).length;
+
+         assert.strictEqual(GlobalSetupOccurrences, 1);
+         assert.strictEqual(GlobalTeardownOccurrences, 1);
+
+         assert.match(stdout, /pass 3/);
+         assert.match(stdout, /fail 0/);
+       }
+    );
+
     describe('interop with --require and --import', () => {
       const cjsPath = join(testFixtures, 'global-setup-teardown', 'required-module.cjs');
       const esmpFile = fixtures.fileURL('test-runner', 'global-setup-teardown', 'imported-module.mjs');
