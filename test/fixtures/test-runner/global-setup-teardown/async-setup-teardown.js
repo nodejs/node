@@ -8,7 +8,7 @@ async function globalSetup() {
   console.log('Async setup starting');
 
   // Simulate an async operation
-  await new Promise((resolve) => setTimeout(resolve, 100));
+  await new Promise((resolve) => setTimeout(resolve, 500));
 
   fs.writeFileSync(asyncFlagPath, 'Setup part');
   console.log('Async setup completed');
