@@ -406,7 +406,7 @@ added:
 > Stability: 1.2 - Release candidate <!-- TODO: is this correct? -->
 
 * {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
-* Equivalent to `require.main === module` in CommonJS.  <!-- TODO: Is this still accurate? -->
+* Equivalent to `require.main === module` in CommonJS.
 * Analogous to Python's `__name__ == "__main__"`.
 
 [`import.meta.resolve`][]
