@@ -403,7 +403,7 @@ added:
   - REPLACEME
 -->
 
-> Stability: 1.2 - Release candidate <!-- TODO: is this correct? -->
+> Stability: 1.0 - Early development
 
 * {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
 * Equivalent to `require.main === module` in CommonJS.
