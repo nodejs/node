@@ -1,0 +1,100 @@
+=pod
+
+=head1 NAME
+
+SSL_new_stream, SSL_STREAM_FLAG_UNI, SSL_STREAM_FLAG_NO_BLOCK,
+SSL_STREAM_FLAG_ADVANCE - create a new locally-initiated QUIC stream
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ #define SSL_STREAM_FLAG_UNI          (1U << 0)
+ #define SSL_STREAM_FLAG_NO_BLOCK     (1U << 1)
+ #define SSL_STREAM_FLAG_ADVANCE      (1U << 2)
+ SSL *SSL_new_stream(SSL *ssl, uint64_t flags);
+
+=head1 DESCRIPTION
+
+The SSL_new_stream() function, when passed a QUIC connection SSL object, creates
+a new locally-initiated bidirectional or unidirectional QUIC stream and returns
+the newly created QUIC stream SSL object.
+
+If the B<SSL_STREAM_FLAG_UNI> flag is passed, a unidirectional stream is
+created; else a bidirectional stream is created.
+
+To retrieve the stream ID of the newly created stream, use
+L<SSL_get_stream_id(3)>.
+
+It is the caller's responsibility to free the QUIC stream SSL object using
+L<SSL_free(3)>. The lifetime of the QUIC connection SSL object must exceed that
+of the QUIC stream SSL object; in other words, the QUIC stream SSL object must
+be freed first.
+
+Once a stream has been created using SSL_new_stream(), it may be used in the
+normal way using L<SSL_read(3)> and L<SSL_write(3)>.
+
+This function can only be used to create stream objects for locally-initiated
+streams. To accept incoming streams initiated by a peer, use
+L<SSL_accept_stream(3)>.
+
+Calling SSL_new_stream() if there is no default stream already present
+inhibits the future creation of a default stream. See L<openssl-quic(7)>.
+
+The creation of new streams is subject to flow control by the QUIC protocol. If
+it is currently not possible to create a new locally initiated stream of the
+specified type, a call to SSL_new_stream() will either block (if the connection
+is configured in blocking mode) until a new stream can be created, or otherwise
+return NULL.
+
+This function operates in blocking mode if the QUIC connection SSL object is
+configured in blocking mode (see L<SSL_set_blocking_mode(3)>). It may also be
+used in nonblocking mode on a connection configured in blocking mode by passing
+the flag B<SSL_STREAM_FLAG_NO_BLOCK>.
+
+The flag B<SSL_STREAM_FLAG_ADVANCE> may be used to create a QUIC stream SSL
+object even if a new QUIC stream cannot yet be opened due to flow control. The
+caller may begin to use the new stream and fill the write buffer of the stream
+by calling L<SSL_write(3)>. However, no actual stream data (or QUIC frames
+regarding the stream) will be sent until QUIC flow control allows it. Any queued
+data will be sent as soon as a peer permits it. There is no guarantee the stream
+will be eventually created; for example, the connection could fail, or a peer
+might simply decide never to increase the number of allowed streams for the
+remainder of the connection lifetime.
+
+=head1 RETURN VALUES
+
+SSL_new_stream() returns a new stream object, or NULL on error.
+
+This function fails if called on a QUIC stream SSL object or on a non-QUIC SSL
+object.
+
+SSL_new_stream() may also fail if the underlying connection has reached the
+maximum stream count, based on the B<max_streams_bidi> or B<max_streams_uni>
+transport parameter values negotiated with the peer.  In this event the NULL
+return will be accompanied by an error on the error stack (obtainable via
+ERR_get_error()), which will contain a reason code of
+B<SSL_R_STREAM_COUNT_LIMITED>.  When this error is encountered, the operation
+may be retried.  It is recommended that, prior to retry, the error stack be
+cleared via a call to ERR_clear_error(), and that the TLS state machine be
+activated via a call to SSL_handle_events() to process any potential updates
+from the server allowing additional streams to be created.
+
+=head1 SEE ALSO
+
+L<SSL_accept_stream(3)>, L<SSL_free(3)>
+
+=head1 HISTORY
+
+SSL_new_stream() was added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

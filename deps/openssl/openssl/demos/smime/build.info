@@ -1,0 +1,32 @@
+#
+# To run the demos when linked with a shared library (default) ensure that
+# libcrypto is on the library path. For example, to run the
+# sm_enc demo:
+#
+#    LD_LIBRARY_PATH=../.. ./sms_enc
+
+PROGRAMS{noinst} = smenc \
+                   smdec \
+                   smsign \
+                   smsign2 \
+                   smver
+
+INCLUDE[smenc]=../../include
+SOURCE[smenc]=smenc.c
+DEPEND[smenc]=../../libcrypto
+
+INCLUDE[smdec]=../../include
+SOURCE[smdec]=smdec.c
+DEPEND[smdec]=../../libcrypto
+
+INCLUDE[smsign]=../../include
+SOURCE[smsign]=smsign.c
+DEPEND[smsign]=../../libcrypto
+
+INCLUDE[smsign2]=../../include
+SOURCE[smsign2]=smsign2.c
+DEPEND[smsign2]=../../libcrypto
+
+INCLUDE[smver]=../../include
+SOURCE[smver]=smver.c
+DEPEND[smver]=../../libcrypto

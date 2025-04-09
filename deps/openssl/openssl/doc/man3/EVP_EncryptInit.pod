@@ -8,6 +8,8 @@ EVP_CIPHER_free,
 EVP_CIPHER_CTX_new,
 EVP_CIPHER_CTX_reset,
 EVP_CIPHER_CTX_free,
+EVP_CIPHER_CTX_dup,
+EVP_CIPHER_CTX_copy,
 EVP_EncryptInit_ex,
 EVP_EncryptInit_ex2,
 EVP_EncryptUpdate,
@@ -18,6 +20,7 @@ EVP_DecryptUpdate,
 EVP_DecryptFinal_ex,
 EVP_CipherInit_ex,
 EVP_CipherInit_ex2,
+EVP_CipherInit_SKEY,
 EVP_CipherUpdate,
 EVP_CipherFinal_ex,
 EVP_CIPHER_CTX_set_key_length,
@@ -29,6 +32,11 @@ EVP_DecryptFinal,
 EVP_CipherInit,
 EVP_CipherFinal,
 EVP_Cipher,
+EVP_CIPHER_can_pipeline,
+EVP_CipherPipelineEncryptInit,
+EVP_CipherPipelineDecryptInit,
+EVP_CipherPipelineUpdate,
+EVP_CipherPipelineFinal,
 EVP_get_cipherbyname,
 EVP_get_cipherbynid,
 EVP_get_cipherbyobj,
@@ -109,6 +117,8 @@ EVP_CIPHER_CTX_mode
  EVP_CIPHER_CTX *EVP_CIPHER_CTX_new(void);
  int EVP_CIPHER_CTX_reset(EVP_CIPHER_CTX *ctx);
  void EVP_CIPHER_CTX_free(EVP_CIPHER_CTX *ctx);
+ EVP_CIPHER_CTX *EVP_CIPHER_CTX_dup(const EVP_CIPHER_CTX *in);
+ int EVP_CIPHER_CTX_copy(EVP_CIPHER_CTX *out, const EVP_CIPHER_CTX *in);
 
  int EVP_EncryptInit_ex(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
                         ENGINE *impl, const unsigned char *key, const unsigned char *iv);
@@ -133,6 +143,9 @@ EVP_CIPHER_CTX_mode
  int EVP_CipherInit_ex2(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
                         const unsigned char *key, const unsigned char *iv,
                         int enc, const OSSL_PARAM params[]);
+ int EVP_CipherInit_SKEY(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *cipher,
+                         EVP_SKEY *skey, const unsigned char *iv, size_t iv_len,
+                         int enc, const OSSL_PARAM params[]);
  int EVP_CipherUpdate(EVP_CIPHER_CTX *ctx, unsigned char *out,
                       int *outl, const unsigned char *in, int inl);
  int EVP_CipherFinal_ex(EVP_CIPHER_CTX *ctx, unsigned char *outm, int *outl);
@@ -151,6 +164,25 @@ EVP_CIPHER_CTX_mode
 
  int EVP_Cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                 const unsigned char *in, unsigned int inl);
+
+ int EVP_CIPHER_can_pipeline(const EVP_CIPHER *cipher, int enc);
+ int EVP_CipherPipelineEncryptInit(EVP_CIPHER_CTX *ctx,
+                                   const EVP_CIPHER *cipher,
+                                   const unsigned char *key, size_t keylen,
+                                   size_t numpipes,
+                                   const unsigned char **iv, size_t ivlen);
+ int EVP_CipherPipelineDecryptInit(EVP_CIPHER_CTX *ctx,
+                                   const EVP_CIPHER *cipher,
+                                   const unsigned char *key, size_t keylen,
+                                   size_t numpipes,
+                                   const unsigned char **iv, size_t ivlen);
+ int EVP_CipherPipelineUpdate(EVP_CIPHER_CTX *ctx,
+                              unsigned char **out, size_t *outl,
+                              const size_t *outsize,
+                              const unsigned char **in, const size_t *inl);
+ int EVP_CipherPipelineFinal(EVP_CIPHER_CTX *ctx,
+                             unsigned char **outm, size_t *outl,
+                             const size_t *outsize);
 
  int EVP_CIPHER_CTX_set_padding(EVP_CIPHER_CTX *x, int padding);
  int EVP_CIPHER_CTX_set_key_length(EVP_CIPHER_CTX *x, int keylen);
@@ -281,6 +313,16 @@ associated with it, including I<ctx> itself. This function should be called
 after all operations using a cipher are complete so sensitive information does
 not remain in memory. If the argument is NULL, nothing is done.
 
+=item EVP_CIPHER_CTX_dup()
+
+Can be used to duplicate the cipher state from I<in>.  This is useful
+to avoid multiple EVP_CIPHER_fetch() calls or if large amounts of data are to be
+fed which only differ in the last few bytes.
+
+=item EVP_CIPHER_CTX_copy()
+
+Can be used to copy the cipher state from I<in> to I<out>.
+
 =item EVP_CIPHER_CTX_ctrl()
 
 I<This is a legacy method.> EVP_CIPHER_CTX_set_params() and
@@ -338,8 +380,8 @@ can be set in the context's current state.
 
 =item EVP_EncryptInit_ex2()
 
-Sets up cipher context I<ctx> for encryption with cipher I<type>. I<type> is
-typically supplied by calling EVP_CIPHER_fetch(). I<type> may also be set
+Sets up cipher context I<ctx> for encryption with cipher I<type>. I<ctx> B<MUST NOT> be NULL.
+I<type> is typically supplied by calling EVP_CIPHER_fetch(). I<type> may also be set
 using legacy functions such as EVP_aes_256_cbc(), but this is not recommended
 for new applications. I<key> is the symmetric key to use and I<iv> is the IV to
 use (if necessary), the actual number of bytes used for the key and IV depends
@@ -364,7 +406,7 @@ I<out>. The pointers I<out> and I<in> may point to the same location, in which
 case the encryption will be done in-place. However, in-place encryption is
 guaranteed to work only if the encryption context (I<ctx>) has processed data in
 multiples of the block size. If the context contains an incomplete data block
-from previous operations, in-place encryption will fail.
+from previous operations, in-place encryption will fail. I<ctx> B<MUST NOT> be NULL.
 
 If I<out> and I<in> point to different locations, the two buffers must be
 disjoint, otherwise the operation might fail or the outcome might be undefined.
@@ -401,10 +443,7 @@ and EVP_DecryptFinal_ex()
 These functions are the corresponding decryption operations.
 EVP_DecryptFinal() will return an error code if padding is enabled and the
 final block is not correctly formatted. The parameters and restrictions are
-identical to the encryption operations except that if padding is enabled the
-decrypted data buffer I<out> passed to EVP_DecryptUpdate() should have
-sufficient room for (I<inl> + cipher_block_size) bytes unless the cipher block
-size is 1 in which case I<inl> bytes is sufficient.
+identical to the encryption operations. I<ctx> B<MUST NOT> be NULL.
 
 =item EVP_CipherInit_ex2(), EVP_CipherInit_ex(), EVP_CipherUpdate() and
 EVP_CipherFinal_ex()
@@ -413,6 +452,11 @@ These functions can be used for decryption or encryption. The operation
 performed depends on the value of the I<enc> parameter. It should be set to 1
 for encryption, 0 for decryption and -1 to leave the value unchanged
 (the actual value of 'enc' being supplied in a previous call).
+
+=item EVP_CipherInit_SKEY()
+
+This function is similar to EVP_CipherInit_ex2() but accepts a
+symmetric key object of type I<EVP_SKEY> as a key.
 
 =item EVP_CIPHER_CTX_reset()
 
@@ -448,6 +492,51 @@ Due to the constraints of the API contract of this function it shouldn't be used
 in applications, please consider using EVP_CipherUpdate() and
 EVP_CipherFinal_ex() instead.
 
+=item EVP_CIPHER_can_pipeline()
+
+This function checks if a B<EVP_CIPHER> fetched using EVP_CIPHER_fetch() supports
+cipher pipelining. If the cipher supports pipelining, it returns 1, otherwise 0.
+This function will return 0 for non-fetched ciphers such as EVP_aes_128_gcm().
+There are currently no built-in ciphers that support pipelining.
+
+Cipher pipelining support allows an application to submit multiple chunks of
+data in one set of EVP_CipherUpdate()/EVP_CipherFinal calls, thereby allowing
+the provided implementation to take advantage of parallel computing. This is
+beneficial for hardware accelerators as pipeline amortizes the latency over
+multiple chunks.
+
+For non-fetched ciphers, EVP_CipherPipelineEncryptInit() or
+EVP_CipherPipelineDecryptInit() may be directly called, which will perform a
+fetch and return an error if a pipeline supported implementation is not found.
+
+=item EVP_CipherPipelineEncryptInit(), EVP_CipherPipelineDecryptInit(), EVP_CipherPipelineUpdate() and EVP_CipherPipelineFinal()
+
+These functions can be used to perform multiple encryption or decryption
+operations in parallel. EVP_CIPHER_can_pipeline() may be called to check if the
+cipher supports pipelining. These functions are analogous to
+EVP_EncryptInit_ex2(), EVP_DecryptInit_ex2(), EVP_CipherUpdate() and
+EVP_CipherFinal() but take an array of pointers for iv, input and output buffers.
+
+The I<key>, of length I<keylen>, is the symmetric key to use. The I<numpipes>
+parameter specifies the number of parallel operations to perform. The
+I<numpipes> cannot exceed B<EVP_MAX_PIPES>. The I<iv> parameter is an array of
+buffer pointers, containing IVs. The array size must be equal to I<numpipes>.
+The size of each IV buffer must be equal to I<ivlen>. When IV is not provided,
+I<iv> must be NULL, rather than an array of NULL pointers. The I<in>
+parameters takes an array of buffer pointers, each pointing to a buffer
+containing the input data. The buffers can be of different sizes. The I<inl>
+parameter is an array of size_t, each specifying the size of the corresponding
+input buffer. The I<out> and I<outm> parameters are arrays of buffer pointers,
+each pointing to a buffer where the output data will be written. The I<outsize>
+parameter is an array of size_t, each specifying the size of the corresponding
+output buffer. The I<outl> parameter is an array of size_t which will be updated
+with the size of the output data written to the corresponding output buffer.
+For size requirement of the output buffers, see the description of EVP_CipherUpdate().
+
+The EVP_CipherPipelineUpdate() function can be called multiple times to encrypt
+successive blocks of data. For AAD data, the I<out>, and I<outsize> parameter
+should be NULL, rather than an array of NULL pointers.
+
 =item EVP_get_cipherbyname(), EVP_get_cipherbynid() and EVP_get_cipherbyobj()
 
 Returns an B<EVP_CIPHER> structure when passed a cipher name, a cipher B<NID> or
@@ -479,7 +568,9 @@ EVP_CIPHER_free().
 
 Return the NID of a cipher when passed an B<EVP_CIPHER> or B<EVP_CIPHER_CTX>
 structure.  The actual NID value is an internal value which may not have a
-corresponding OBJECT IDENTIFIER.
+corresponding OBJECT IDENTIFIER.  NID_undef is returned in the event that the
+nid is unknown or if the cipher has not been properly initialized via a call to
+B<EVP_CipherInit>.
 
 =item EVP_CIPHER_CTX_set_flags(), EVP_CIPHER_CTX_clear_flags() and EVP_CIPHER_CTX_test_flags()
 
@@ -493,11 +584,12 @@ L</PARAMETERS> instead.
 
 Enables or disables padding. This function should be called after the context
 is set up for encryption or decryption with EVP_EncryptInit_ex2(),
-EVP_DecryptInit_ex2() or EVP_CipherInit_ex2(). By default encryption operations
-are padded using standard block padding and the padding is checked and removed
-when decrypting. If the I<pad> parameter is zero then no padding is
-performed, the total amount of data encrypted or decrypted must then
-be a multiple of the block size or an error will occur.
+EVP_DecryptInit_ex2(), EVP_CipherInit_ex2(), or EVP_CipherInit_SKEY(). By
+default encryption operations are padded using standard block padding and the
+padding is checked and removed when decrypting. If the I<pad> parameter is zero
+then no padding is performed, the total amount of data encrypted or decrypted
+must then be a multiple of the block size or an error will occur. I<x> B<MUST
+NOT> be NULL.
 
 =item EVP_CIPHER_get_key_length() and EVP_CIPHER_CTX_get_key_length()
 
@@ -516,8 +608,10 @@ length to any value other than the fixed value is an error.
 =item EVP_CIPHER_get_iv_length() and EVP_CIPHER_CTX_get_iv_length()
 
 Return the IV length of a cipher when passed an B<EVP_CIPHER> or
-B<EVP_CIPHER_CTX>. It will return zero if the cipher does not use an IV.
-The constant B<EVP_MAX_IV_LENGTH> is the maximum IV length for all ciphers.
+B<EVP_CIPHER_CTX>. It will return zero if the cipher does not use an IV, if
+the cipher has not yet been initialized within the B<EVP_CIPHER_CTX>, or if the
+passed cipher is NULL.  The constant B<EVP_MAX_IV_LENGTH> is the maximum IV
+length for all ciphers.
 
 =item EVP_CIPHER_CTX_get_tag_length()
 
@@ -530,6 +624,10 @@ the tag length has not been set.
 Return the block size of a cipher when passed an B<EVP_CIPHER> or
 B<EVP_CIPHER_CTX> structure. The constant B<EVP_MAX_BLOCK_LENGTH> is also the
 maximum block length for all ciphers.
+A value of 0 is returned if, with B<EVP_CIPHER_get_block_size()>, the cipher
+I<e> is NULL, or, with B<EVP_CIPHER_CTX_get_block_size()>, the context
+I<ctx> is NULL or has not been properly initialized with a call to
+B<EVP_CipherInit>.
 
 =item EVP_CIPHER_get_type() and EVP_CIPHER_CTX_get_type()
 
@@ -551,6 +649,7 @@ context (see L<OSSL_LIB_CTX(3)>) will be considered.
 
 Return the name of the passed cipher or context.  For fetched ciphers with
 multiple names, only one of them is returned. See also EVP_CIPHER_names_do_all().
+I<cipher> B<MUST NOT> be NULL.
 
 =item EVP_CIPHER_names_do_all()
 
@@ -571,7 +670,7 @@ B<EVP_CIPHER>.
 
 Returns the B<EVP_CIPHER> structure when passed an B<EVP_CIPHER_CTX> structure.
 EVP_CIPHER_CTX_get1_cipher() is the same except the ownership is passed to
-the caller.
+the caller. Both functions return NULL on error.
 
 =item EVP_CIPHER_get_mode() and EVP_CIPHER_CTX_get_mode()
 
@@ -607,7 +706,8 @@ Sets the AlgorithmIdentifier "parameter" based on the passed cipher. This will
 typically include any parameters and an IV. The cipher IV (if any) must be set
 when this call is made. This call should be made before the cipher is actually
 "used" (before any EVP_EncryptUpdate(), EVP_DecryptUpdate() calls for example).
-This function may fail if the cipher does not have any ASN1 support.
+This function may fail if the cipher does not have any ASN1 support, or if an
+uninitialized cipher is passed to it.
 
 =item EVP_CIPHER_asn1_to_param()
 
@@ -713,6 +813,12 @@ Gets 1 if the cipher algorithm I<cipher> supports the gettable EVP_CIPHER_CTX
 parameter B<OSSL_CIPHER_PARAM_RANDOM_KEY>. Only DES and 3DES set this to 1,
 all other OpenSSL ciphers return 0.
 
+=item "decrypt-only" (B<OSSL_CIPHER_PARAM_DECRYPT_ONLY) <integer>
+
+Gets 1 if the cipher algorithm I<cipher> implementation supports only
+the decryption operation such as the 3DES ciphers in the fips provider.
+Otherwise gets 0 or the parameter might not be present at all.
+
 =back
 
 =head2 Gettable and Settable EVP_CIPHER_CTX parameters
@@ -746,6 +852,13 @@ See also EVP_CIPHER_CTX_get_key_length() and EVP_CIPHER_CTX_set_key_length().
 Gets or sets the AEAD tag for the associated cipher context I<ctx>.
 See L<EVP_EncryptInit(3)/AEAD Interface>.
 
+=item "pipeline-tag" (B<OSSL_CIPHER_PARAM_PIPELINE_AEAD_TAG>) <octet ptr>
+
+Gets or sets the AEAD tag when using cipher pipelining. The pointer must 
+point to an array of buffers, where the aead tag will be read from or written to.
+The array size must be equal to I<numpipes> used in
+EVP_CipherPipelineEncryptInit() or EVP_CipherPipelineDecryptInit().
+
 =item "keybits" (B<OSSL_CIPHER_PARAM_RC2_KEYBITS>) <unsigned integer>
 
 Gets or sets the effective keybits used for a RC2 cipher.
@@ -756,12 +869,23 @@ The length of the "keybits" parameter should not exceed that of a B<size_t>.
 Gets or sets the number of rounds to be used for a cipher.
 This is used by the RC5 cipher.
 
-=item "alg_id_param" (B<OSSL_CIPHER_PARAM_ALGORITHM_ID_PARAMS>) <octet string>
+=item "algorithm-id" (B<OSSL_CIPHER_PARAM_ALGORITHM_ID>) <octet string>
+
+Used to get the DER encoded AlgorithmIdentifier from the cipher
+implementation.  Functions like L<EVP_PKEY_CTX_get_algor(3)> use this
+parameter.
+
+=item "algorithm-id-params" (B<OSSL_CIPHER_PARAM_ALGORITHM_ID_PARAMS>) <octet string>
 
 Used to pass the DER encoded AlgorithmIdentifier parameter to or from
-the cipher implementation.  Functions like L<EVP_CIPHER_param_to_asn1(3)>
-and L<EVP_CIPHER_asn1_to_param(3)> use this parameter for any implementation
-that has the flag B<EVP_CIPH_FLAG_CUSTOM_ASN1> set.
+the cipher implementation.
+Functions like L<EVP_CIPHER_CTX_set_algor_params(3)> and
+L<EVP_CIPHER_CTX_get_algor_params(3)> use this parameter.
+
+=item "alg_id_params" (B<OSSL_CIPHER_PARAM_ALGORITHM_ID_PARAMS_OLD>) <octet string>
+
+An deprecated alias for "algorithm-id-params", only used by
+L<EVP_CIPHER_param_to_asn1(3)> and L<EVP_CIPHER_asn1_to_param(3)>.
 
 =item "cts_mode" (B<OSSL_CIPHER_PARAM_CTS_MODE>) <UTF8 string>
 
@@ -872,6 +996,24 @@ Gets the result of running the "tls1multi_aad" operation.
 =item "tls-mac" (B<OSSL_CIPHER_PARAM_TLS_MAC>) <octet ptr>
 
 Used to pass the TLS MAC data.
+
+=item "fips-indicator" (B<OSSL_CIPHER_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+This option is used by the OpenSSL FIPS provider.
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling a cipher final operation such as
+EVP_EncryptFinal_ex(). It may return 0 if the "encrypt-check" option is set to 0.
+
+=item "iv-generated" (B<OSSL_CIPHER_PARAM_AEAD_IV_GENERATED>) <unsigned integer>
+
+An indicator that returns 1 if an IV was generated internally during encryption,
+or O otherwise.
+This may be used by GCM ciphers after calling a cipher final operation such
+as EVP_EncryptFinal_ex().
+GCM should generate an IV internally if the IV is not specified during a
+cipher initialisation call such as EVP_CipherInit_ex().
+See FIPS 140-3 IG C.H for information related to IV requirements.
 
 =back
 
@@ -984,6 +1126,52 @@ Byte 9-10: The protocol version
 Byte 11-12: Input length (Always 0)
 
 "tls1multi_interleave" must also be set for this operation.
+
+=item "xts_standard" (B<OSSL_CIPHER_PARAM_XTS_STANDARD>) <UTF8 string>
+
+Sets the XTS standard to use with SM4-XTS algorithm. XTS mode has two
+implementations, one is standardized in IEEE Std. 1619-2007 and has
+been widely used (e.g., XTS AES), the other is proposed recently
+(GB/T 17964-2021 implemented in May 2022) and is currently only used
+in SM4.
+
+The main difference between them is the multiplication by the
+primitive element E<alpha> to calculate the tweak values. The IEEE
+Std 1619-2007 noted that the multiplication "is a left shift of each
+byte by one bit with carry propagating from one byte to the next
+one", which means that in each byte, the leftmost bit is the most
+significant bit. But in GB/T 17964-2021, the rightmost bit is the
+most significant bit, thus the multiplication becomes a right shift
+of each byte by one bit with carry propagating from one byte to the
+next one.
+
+Valid values for the mode are:
+
+=over 4
+
+=item "GB"
+
+The GB/T 17964-2021 variant of SM4-XTS algorithm.
+
+=item "IEEE"
+
+The IEEE Std. 1619-2007 variant of SM4-XTS algorithm.
+
+=back
+
+The default value is "GB".
+
+=item "encrypt-check" (B<OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK>) <integer>
+
+This option is used by the OpenSSL FIPS provider.
+
+If required this parameter should be set early via an cipher encrypt init
+function such as EVP_EncryptInit_ex2().
+The default value of 1 causes an error when an encryption operation is triggered.
+Setting this to 0 will ignore the error and set the approved "fips-indicator" to
+0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
 
 =back
 
@@ -1185,12 +1373,16 @@ flags.
 =head1 RETURN VALUES
 
 EVP_CIPHER_fetch() returns a pointer to a B<EVP_CIPHER> for success
-and B<NULL> for failure.
+and NULL for failure.
 
 EVP_CIPHER_up_ref() returns 1 for success or 0 otherwise.
 
 EVP_CIPHER_CTX_new() returns a pointer to a newly created
-B<EVP_CIPHER_CTX> for success and B<NULL> for failure.
+B<EVP_CIPHER_CTX> for success and NULL for failure.
+
+EVP_CIPHER_CTX_dup() returns a new EVP_CIPHER_CTX if successful or NULL on failure.
+
+EVP_CIPHER_CTX_copy() returns 1 if successful or 0 for failure.
 
 EVP_EncryptInit_ex2(), EVP_EncryptUpdate() and EVP_EncryptFinal_ex()
 return 1 for success and 0 for failure.
@@ -1198,14 +1390,26 @@ return 1 for success and 0 for failure.
 EVP_DecryptInit_ex2() and EVP_DecryptUpdate() return 1 for success and 0 for failure.
 EVP_DecryptFinal_ex() returns 0 if the decrypt failed or 1 for success.
 
-EVP_CipherInit_ex2() and EVP_CipherUpdate() return 1 for success and 0 for failure.
-EVP_CipherFinal_ex() returns 0 for a decryption failure or 1 for success.
+EVP_CipherInit_ex2(), EVP_CipherInit_SKEY() and EVP_CipherUpdate() return 1 for
+success and 0 for failure.
+EVP_CipherFinal_ex() returns 0 for an encryption/decryption failure or 1 for
+success.
 
-EVP_Cipher() returns 1 on success or 0 on failure, if the flag
-B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is not set for the cipher.
-EVP_Cipher() returns the number of bytes written to I<out> for encryption / decryption, or
-the number of bytes authenticated in a call specifying AAD for an AEAD cipher, if the flag
-B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is set for the cipher.
+EVP_Cipher() returns 1 on success and <= 0 on failure, if the flag
+B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is not set for the cipher, or if the cipher has
+not been initialized via a call to B<EVP_CipherInit_ex2>.
+EVP_Cipher() returns the number of bytes written to I<out> for
+encryption/decryption, or the number of bytes authenticated in a call specifying
+AAD for an AEAD cipher, if the flag B<EVP_CIPH_FLAG_CUSTOM_CIPHER> is set for
+the cipher.
+
+EVP_CIPHER_can_pipeline() returns 1 if the cipher can be used in a pipeline, 0 otherwise.
+
+EVP_CipherPipelineEncryptInit() and EVP_CipherPipelineDecryptInit()
+return 1 for success and 0 for failure.
+
+EVP_CipherPipelineUpdate() and EVP_CipherPipelineFinal()
+return 1 for success and 0 for failure.
 
 EVP_CIPHER_CTX_reset() returns 1 for success and 0 for failure.
 
@@ -1215,7 +1419,7 @@ return an B<EVP_CIPHER> structure or NULL on error.
 EVP_CIPHER_get_nid() and EVP_CIPHER_CTX_get_nid() return a NID.
 
 EVP_CIPHER_get_block_size() and EVP_CIPHER_CTX_get_block_size() return the
-block size.
+block size, or 0 on error.
 
 EVP_CIPHER_get_key_length() and EVP_CIPHER_CTX_get_key_length() return the key
 length.
@@ -1223,7 +1427,7 @@ length.
 EVP_CIPHER_CTX_set_padding() always returns 1.
 
 EVP_CIPHER_get_iv_length() and EVP_CIPHER_CTX_get_iv_length() return the IV
-length or zero if the cipher does not use an IV.
+length, zero if the cipher does not use an IV and a negative value on error.
 
 EVP_CIPHER_CTX_get_tag_length() return the tag length or zero if the cipher
 does not use a tag.
@@ -1276,7 +1480,7 @@ depending on the mode specified.
 
 To specify additional authenticated data (AAD), a call to EVP_CipherUpdate(),
 EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made with the output
-parameter I<out> set to B<NULL>. In this case, on success, the parameter
+parameter I<out> set to NULL. In this case, on success, the parameter
 I<outl> is set to the number of bytes authenticated.
 
 When decrypting, the return value of EVP_DecryptFinal() or EVP_CipherFinal()
@@ -1344,7 +1548,7 @@ few additional requirements and different I<ctrl> values.
 
 For CCM mode, the total plaintext or ciphertext length B<MUST> be passed to
 EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() with the output
-and input parameters (I<in> and I<out>) set to B<NULL> and the length passed in
+and input parameters (I<in> and I<out>) set to NULL and the length passed in
 the I<inl> parameter.
 
 The following I<ctrl>s are supported in CCM mode.
@@ -1374,12 +1578,14 @@ AES.
 
 =head2 SIV Mode
 
+Both the AES-SIV and AES-GCM-SIV ciphers fall under this mode.
+
 For SIV mode ciphers the behaviour of the EVP interface is subtly
 altered and several additional ctrl operations are supported.
 
 To specify any additional authenticated data (AAD) and/or a Nonce, a call to
 EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made
-with the output parameter I<out> set to B<NULL>.
+with the output parameter I<out> set to NULL.
 
 RFC5297 states that the Nonce is the last piece of AAD before the actual
 encrypt/decrypt takes place. The API does not differentiate the Nonce from
@@ -1390,7 +1596,7 @@ indicates if the operation was successful. If it does not indicate success
 the authentication operation has failed and any output data B<MUST NOT>
 be used as it is corrupted.
 
-The API does not store the the SIV (Synthetic Initialization Vector) in
+The API does not store the SIV (Synthetic Initialization Vector) in
 the cipher text. Instead, it is stored as the tag within the EVP_CIPHER_CTX.
 The SIV must be retrieved from the context after encryption, and set into
 the context before decryption.
@@ -1422,7 +1628,7 @@ calls). For SIV mode the taglen must be 16.
 
 SIV mode makes two passes over the input data, thus, only one call to
 EVP_CipherUpdate(), EVP_EncryptUpdate() or EVP_DecryptUpdate() should be made
-with I<out> set to a non-B<NULL> value. A call to EVP_DecryptFinal() or
+with I<out> set to a non-NULL value. A call to EVP_DecryptFinal() or
 EVP_CipherFinal() is not required, but will indicate if the update
 operation succeeded.
 
@@ -1744,9 +1950,17 @@ non-deprecated alias macro.
 
 The EVP_CIPHER_CTX_flags() macro was deprecated in OpenSSL 1.1.0.
 
+EVP_CIPHER_CTX_dup() was added in OpenSSL 3.2.
+
+EVP_CipherInit_SKEY() was added in OpenSSL 3.5.
+
+Prior to OpenSSL 3.5, passing a NULL I<ctx> to
+B<EVP_CIPHER_CTX_get_block_size()> would result in a NULL pointer dereference,
+rather than a 0 return value indicating an error.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

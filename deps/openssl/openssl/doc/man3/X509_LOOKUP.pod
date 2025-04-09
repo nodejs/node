@@ -92,7 +92,8 @@ associates and retrieves a pointer to application data to and from the
 given B<X509_LOOKUP>, respectively.
 
 X509_LOOKUP_ctrl_ex() is used to set or get additional data to or from
-a B<X509_LOOKUP> structure or its associated L<X509_LOOKUP_METHOD(3)>.
+a B<X509_LOOKUP> structure using any control function in the
+associated L<X509_LOOKUP_METHOD(3)>.
 The arguments of the control command are passed via I<argc> and I<argl>,
 its return value via I<*ret>. The library context I<libctx> and property
 query I<propq> are used when fetching algorithms from providers.
@@ -196,21 +197,29 @@ or NULL on error.
 X509_LOOKUP_init() and X509_LOOKUP_shutdown() return 1 on success, or
 0 on error.
 
-X509_LOOKUP_ctrl() returns -1 if the B<X509_LOOKUP> doesn't have an
+X509_LOOKUP_ctrl_ex() and X509_LOOKUP_ctrl()
+return -1 if the B<X509_LOOKUP> doesn't have an
 associated B<X509_LOOKUP_METHOD>, or 1 if the X<509_LOOKUP_METHOD>
 doesn't have a control function.
 Otherwise, it returns what the control function in the
-B<X509_LOOKUP_METHOD> returns, which is usually 1 on success and 0 in
-error.
+B<X509_LOOKUP_METHOD> returns, which is usually 1 on success and 0 on error
+but could also be -1 on failure.
 
 X509_LOOKUP_get_store() returns a B<X509_STORE> pointer if there is
 one, otherwise NULL.
 
-X509_LOOKUP_by_subject_ex(), X509_LOOKUP_by_subject(),
+X509_LOOKUP_by_subject_ex() returns 0 if there is no B<X509_LOOKUP_METHOD>
+that implements any of the get_by_subject_ex() or get_by_subject() functions.
+It calls get_by_subject_ex() if present, otherwise get_by_subject(), and returns
+the result of the function, which is usually 1 on success and 0 on error.
+
+X509_LOOKUP_by_subject() is similar to X509_LOOKUP_by_subject_ex()
+but passes NULL for both the libctx and propq.
+
 X509_LOOKUP_by_issuer_serial(), X509_LOOKUP_by_fingerprint(), and
 X509_LOOKUP_by_alias() all return 0 if there is no B<X509_LOOKUP_METHOD> or that
 method doesn't implement the corresponding function.
-Otherwise, it returns what the corresponding function in the
+Otherwise, they return what the corresponding function in the
 B<X509_LOOKUP_METHOD> returns, which is usually 1 on success and 0 in
 error.
 

@@ -38,13 +38,26 @@ Setting this parameter is identical to passing a I<key> to L<EVP_MAC_init(3)>.
 
 =item "cipher" (B<OSSL_MAC_PARAM_CIPHER>) <UTF8 string>
 
-Sets the name of the underlying cipher to be used.
+Sets the name of the underlying cipher to be used. The mode of the cipher
+must be CBC.
 
 =item "properties" (B<OSSL_MAC_PARAM_PROPERTIES>) <UTF8 string>
 
 Sets the properties to be queried when trying to fetch the underlying cipher.
 This must be given together with the cipher naming parameter to be considered
 valid.
+
+=item "encrypt-check" (B<OSSL_CIPHER_PARAM_FIPS_ENCRYPT_CHECK>) <integer>
+
+This option is used by the OpenSSL FIPS provider.
+If required this parameter should be set before EVP_MAC_init()
+
+The default value of 1 causes an error when a unapproved Triple-DES encryption
+operation is triggered.
+Setting this to 0 will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
 
 =back
 
@@ -58,14 +71,19 @@ EVP_MAC_CTX_get_params():
 The "size" parameter can also be retrieved with with EVP_MAC_CTX_get_mac_size().
 The length of the "size" parameter is equal to that of an B<unsigned int>.
 
-=back
-
-=over 4
 
 =item "block-size" (B<OSSL_MAC_PARAM_BLOCK_SIZE>) <unsigned integer>
 
 Gets the MAC block size.  The "block-size" parameter can also be retrieved with
 EVP_MAC_CTX_get_block_size().
+
+=item "fips-indicator" (B<OSSL_CIPHER_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+This option is used by the OpenSSL FIPS provider.
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling EVP_MAC_final().
+It may return 0 if the "encrypt-check" option is set to 0.
 
 =back
 
@@ -76,7 +94,7 @@ L<EVP_MAC(3)/PARAMETERS>, L<OSSL_PARAM(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

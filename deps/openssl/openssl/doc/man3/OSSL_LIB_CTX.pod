@@ -2,8 +2,9 @@
 
 =head1 NAME
 
-OSSL_LIB_CTX, OSSL_LIB_CTX_new, OSSL_LIB_CTX_new_from_dispatch,
-OSSL_LIB_CTX_new_child, OSSL_LIB_CTX_free, OSSL_LIB_CTX_load_config,
+OSSL_LIB_CTX, OSSL_LIB_CTX_get_data, OSSL_LIB_CTX_new,
+OSSL_LIB_CTX_new_from_dispatch, OSSL_LIB_CTX_new_child,
+OSSL_LIB_CTX_free, OSSL_LIB_CTX_load_config,
 OSSL_LIB_CTX_get0_global_default, OSSL_LIB_CTX_set0_default
 - OpenSSL library context
 
@@ -22,6 +23,7 @@ OSSL_LIB_CTX_get0_global_default, OSSL_LIB_CTX_set0_default
  void OSSL_LIB_CTX_free(OSSL_LIB_CTX *ctx);
  OSSL_LIB_CTX *OSSL_LIB_CTX_get0_global_default(void);
  OSSL_LIB_CTX *OSSL_LIB_CTX_set0_default(OSSL_LIB_CTX *ctx);
+ void *OSSL_LIB_CTX_get_data(OSSL_LIB_CTX *ctx, int index);
 
 =head1 DESCRIPTION
 
@@ -85,7 +87,8 @@ library context.
 
 OSSL_LIB_CTX_load_config() loads a configuration file using the given I<ctx>.
 This can be used to associate a library context with providers that are loaded
-from a configuration.
+from a configuration. This function must not be called concurrently from
+multiple threads on a single I<ctx>.
 
 OSSL_LIB_CTX_free() frees the given I<ctx>, unless it happens to be the
 default OpenSSL library context. If the argument is NULL, nothing is done.
@@ -110,6 +113,14 @@ in the mean time.  This means that the calling thread must not free the
 library context that was the default at the start of the async job before
 that job has finished.
 
+OSSL_LIB_CTX_get_data() returns a memory address whose interpretation depends
+on the index.  The index argument refers to a context member which is
+to be retrieved. The values for index are all private to OpenSSL currently
+and so applications should not typically call this function.
+If ctx is NULL then the function operates on the default library context.
+OSSL_LIB_CTX_get_data() returns a memory address whose interpretation
+depends on the index.
+
 =head1 RETURN VALUES
 
 OSSL_LIB_CTX_new(), OSSL_LIB_CTX_get0_global_default() and
@@ -120,9 +131,14 @@ OSSL_LIB_CTX_free() doesn't return any value.
 
 OSSL_LIB_CTX_load_config() returns 1 on success, 0 on error.
 
+OSSL_LIB_CTX_get_data() returns a memory address whose interpretation
+depends on the index.
+
 =head1 HISTORY
 
 All of the functions described on this page were added in OpenSSL 3.0.
+
+OSSL_LIB_CTX_get_data() was introduced in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 

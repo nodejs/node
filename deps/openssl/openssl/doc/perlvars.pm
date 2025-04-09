@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -94,11 +94,14 @@ $OpenSSL::safe::opt_r_item = ""
 $OpenSSL::safe::opt_provider_synopsis = ""
 . "[B<-provider> I<name>]\n"
 . "[B<-provider-path> I<path>]\n"
+. "[B<-provparam> I<[name:]key=value>]\n"
 . "[B<-propquery> I<propq>]";
 $OpenSSL::safe::opt_provider_item = ""
 . "=item B<-provider> I<name>\n"
 . "\n"
 . "=item B<-provider-path> I<path>\n"
+. "\n"
+. "=item B<-provparam> I<[name:]key=value>\n"
 . "\n"
 . "=item B<-propquery> I<propq>\n"
 . "\n"
@@ -187,6 +190,7 @@ $OpenSSL::safe::opt_s_synopsis = ""
 . "[B<-no_legacy_server_connect>]\n"
 . "[B<-no_etm>]\n"
 . "[B<-allow_no_dhe_kex>]\n"
+. "[B<-prefer_no_dhe_kex>]\n"
 . "[B<-prioritize_chacha>]\n"
 . "[B<-strict>]\n"
 . "[B<-sigalgs> I<algs>]\n"
@@ -207,7 +211,8 @@ $OpenSSL::safe::opt_s_item = ""
 . "B<-legacy_renegotiation>, B<-no_renegotiation>,\n"
 . "B<-no_resumption_on_reneg>,\n"
 . "B<-legacy_server_connect>, B<-no_legacy_server_connect>, B<-no_etm>\n"
-. "B<-allow_no_dhe_kex>, B<-prioritize_chacha>, B<-strict>, B<-sigalgs>\n"
+. "B<-allow_no_dhe_kex>, B<-prefer_no_dhe_kex>,\n"
+. "B<-prioritize_chacha>, B<-strict>, B<-sigalgs>\n"
 . "I<algs>, B<-client_sigalgs> I<algs>, B<-groups> I<groups>, B<-curves>\n"
 . "I<curves>, B<-named_curve> I<curve>, B<-cipher> I<ciphers>, B<-ciphersuites>\n"
 . "I<1.3ciphers>, B<-min_protocol> I<minprot>, B<-max_protocol> I<maxprot>,\n"

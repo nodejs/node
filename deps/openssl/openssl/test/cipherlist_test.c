@@ -244,10 +244,26 @@ end:
     return result;
 }
 
+/* SSL_CTX_set_cipher_list matching with cipher standard name */
+static int test_stdname_cipherlist(void)
+{
+    SETUP_CIPHERLIST_TEST_FIXTURE();
+    if (!TEST_true(SSL_CTX_set_cipher_list(fixture->server, TLS1_RFC_RSA_WITH_AES_128_SHA))
+            || !TEST_true(SSL_CTX_set_cipher_list(fixture->client, TLS1_RFC_RSA_WITH_AES_128_SHA))) {
+        goto end;
+    }
+    result = 1;
+end:
+    tear_down(fixture);
+    fixture = NULL;
+    return result;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_default_cipherlist_implicit);
     ADD_TEST(test_default_cipherlist_explicit);
     ADD_TEST(test_default_cipherlist_clear);
+    ADD_TEST(test_stdname_cipherlist);
     return 1;
 }

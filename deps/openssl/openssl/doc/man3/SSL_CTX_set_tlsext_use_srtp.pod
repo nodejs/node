@@ -56,6 +56,38 @@ This corresponds to the profile of the same name defined in RFC7714.
 
 This corresponds to the profile of the same name defined in RFC7714.
 
+=item SRTP_DOUBLE_AEAD_AES_128_GCM_AEAD_AES_128_GCM
+
+This corresponds to the profile of the same name defined in RFC8723.
+
+=item SRTP_DOUBLE_AEAD_AES_256_GCM_AEAD_AES_256_GCM
+
+This corresponds to the profile of the same name defined in RFC8723.
+
+=item SRTP_ARIA_128_CTR_HMAC_SHA1_80
+
+This corresponds to the profile of the same name defined in RFC8269.
+
+=item SRTP_ARIA_128_CTR_HMAC_SHA1_32
+
+This corresponds to the profile of the same name defined in RFC8269.
+
+=item SRTP_ARIA_256_CTR_HMAC_SHA1_80
+
+This corresponds to the profile of the same name defined in RFC8269.
+
+=item SRTP_ARIA_256_CTR_HMAC_SHA1_32
+
+This corresponds to the profile of the same name defined in RFC8269.
+
+=item SRTP_AEAD_ARIA_128_GCM
+
+This corresponds to the profile of the same name defined in RFC8269.
+
+=item SRTP_AEAD_ARIA_256_GCM
+
+This corresponds to the profile of the same name defined in RFC8269.
+
 =back
 
 Supplying an unrecognised protection profile name will result in an error.
@@ -84,6 +116,10 @@ master key length and the salt length as defined for the protection profile in
 use. This provides the client write master key, the server write master key, the
 client write master salt and the server write master salt in that order.
 
+These functions cannot be used with QUIC SSL objects.
+SSL_CTX_set_tlsext_use_srtp() fails if called on a QUIC SSL context.
+SSL_set_tlsext_use_srtp() fails if called on a QUIC SSL object.
+
 =head1 RETURN VALUES
 
 SSL_CTX_set_tlsext_use_srtp() and SSL_set_tlsext_use_srtp() return 0 on success
@@ -102,7 +138,7 @@ L<SSL_export_keying_material(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2017-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -42,7 +42,7 @@ EC_KEY_METHOD_new(), etc.)
 =back
 
 All of the above APIs are deprecated in OpenSSL 3.0 - so a simple rule is to
-avoid using all deprecated functions. See L<migration_guide(7)> for a list of
+avoid using all deprecated functions. See L<ossl-guide-migration(7)> for a list of
 deprecated functions.
 
 =head2 Making all applications use the FIPS module by default
@@ -83,6 +83,7 @@ Edit the config file to add the following lines near the beginning:
 
     [openssl_init]
     providers = provider_sect
+    alg_section = algorithm_sect
 
     [provider_sect]
     fips = fips_sect
@@ -90,6 +91,9 @@ Edit the config file to add the following lines near the beginning:
 
     [base_sect]
     activate = 1
+
+    [algorithm_sect]
+    default_properties = fips=yes
 
 Obviously the include file location above should match the path and name of the
 FIPS module config file that you installed earlier.
@@ -208,7 +212,7 @@ application. If any OpenSSL functions get called that require the use of
 cryptographic functions before this occurs then, if no provider has yet been
 loaded, then the default provider will be automatically loaded. If you then
 later explicitly load the FIPS provider then you will have both the FIPS and the
-default provider loaded at the same time. It is undefined which implementation
+default provider loaded at the same time. It is unspecified which implementation
 of an algorithm will be used if multiple implementations are available and you
 have not explicitly specified via a property query (see below) which one should
 be used.
@@ -240,7 +244,7 @@ standards you can specify the property query C<fips=yes> like this:
     sha256 = EVP_MD_fetch(NULL, "SHA2-256", "fips=yes");
 
 If no property query is specified, or more than one implementation matches the
-property query then it is undefined which implementation of a particular
+property query then it is unspecified which implementation of a particular
 algorithm will be returned.
 
 This example shows an explicit request for an implementation of SHA256 from the
@@ -334,6 +338,14 @@ base providers. The other library context will just use the default provider.
         goto err;
 
     /*
+     * Set the default property query on the FIPS library context to
+     * ensure that only FIPS algorithms can be used.  There are a few non-FIPS
+     * approved algorithms in the FIPS provider for backward compatibility reasons.
+     */
+    if (!EVP_set_default_properties(fips_libctx, "fips=yes"))
+        goto err;
+
+    /*
      * We don't need to do anything special to load the default
      * provider into nonfips_libctx. This happens automatically if no
      * other providers are loaded.
@@ -381,7 +393,7 @@ explicitly loaded, the default provider will not automatically load. This means
 code using the default context by accident will fail because no algorithms will
 be available.
 
-See L<migration_guide(7)/Library Context> for additional information about the
+See L<ossl-guide-migration(7)/Library Context> for additional information about the
 Library Context.
 
 =head2 Using Encoders and Decoders with the FIPS module
@@ -422,7 +434,7 @@ contexts.
      * We assume that a nondefault library context with the FIPS
      * provider loaded has been created called fips_libctx.
      */
-    SSL_CTX *fips_ssl_ctx = SSL_CTX_new_ex(fips_libctx, NULL, TLS_method());
+    SSL_CTX *fips_ssl_ctx = SSL_CTX_new_ex(fips_libctx, "fips=yes", TLS_method());
     /*
      * We assume that a nondefault library context with the default
      * provider loaded has been created called non_fips_libctx.
@@ -459,6 +471,119 @@ use L<EVP_MD_get0_provider(3)>.
 To extract the name from the B<OSSL_PROVIDER>, use
 L<OSSL_PROVIDER_get0_name(3)>.
 
+=head2 FIPS indicators
+
+FIPS indicators have been added to the FIPS provider in OpenSSL 3.4.
+FIPS 140-3 requires indicators to be used if the FIPS provider allows non
+approved algorithms. An algorithm is approved if it passes all required checks
+such as minimum key size. By default an error will occur if any check fails.
+For backwards compatibility individual algorithms may override the checks by
+using either an option in the FIPS configuration (See
+L<fips_config(5)/FIPS indicator options>) OR in code using an algorithm context
+setter. Overriding the check means that the algorithm is not FIPS compliant.
+L<OSSL_INDICATOR_set_callback(3)> can be called to register a callback to log
+unapproved algorithms. At the end of any algorithm operation the approved status
+can be queried using an algorithm context getter to retrieve the indicator
+(e.g. "fips-indicator").
+An example of an algorithm context setter is "key-check"
+in L<EVP_KDF-HKDF(7)/Supported parameters>.
+
+The following algorithms use "fips-indicator" to query if the algorithm
+is approved:
+
+=over 4
+
+=item DSA Key generation
+
+DSA Key generation is no longer approved.
+See L<EVP_PKEY-DSA(7)/DSA parameters>
+
+=item DSA Signatures
+
+DSA Signature generation is no longer approved.
+See L<EVP_SIGNATURE-DSA(7)/Signature Parameters>
+
+=item ECDSA Signatures
+
+See L<EVP_SIGNATURE-ECDSA(7)/ECDSA Signature Parameters>
+
+=item EC Key Generation
+
+See L<EVP_PKEY-EC(7)/Common EC parameters>
+
+=item RSA Encryption
+
+"pkcs1" padding is no longer approved.
+
+See L<EVP_ASYM_CIPHER-RSA(7)/RSA Asymmetric Cipher parameters> and
+L<EVP_KEM-RSA(7)/RSA KEM parameters>
+
+=item RSA Signatures
+
+See L<EVP_SIGNATURE-RSA(7)/Signature Parameters>
+
+=item DRBGS
+
+See L<EVP_RAND-HASH-DRBG(7)/Supported parameters> and
+EVP_RAND-HMAC-DRBG(7)/Supported parameters>
+
+=item DES
+
+Triple-DES is not longer approved for encryption.
+See L<EVP_CIPHER-DES(7)/Parameters>
+
+=item DH
+
+See L<EVP_KEYEXCH-DH(7)/DH and DHX key exchange parameters>
+
+=item ECDH
+
+See L<EVP_KEYEXCH-ECDH(7)/ECDH Key Exchange parameters>
+
+=item KDFS
+
+See relevant KDF documentation e.g. L<EVP_KDF-HKDF(7)/Supported parameters>
+
+=item CMAC and KMAC
+
+See L<EVP_MAC-CMAC(7)/Supported parameters> and
+L<EVP_MAC-KMAC(7)/Supported parameters>
+
+=back
+
+The following FIPS algorithms are unapproved and use the "fips-indicator".
+
+=over 4
+
+=item RAND-TEST-RAND
+
+See L<EVP_RAND-TEST-RAND(7)/Supported parameters>
+The indicator callback is NOT triggered for this algorithm since it is used
+internally for non security purposes.
+
+=item X25519 and X448 Key Generation and Key Exchange
+
+=back
+
+The unapproved (non FIPS validated) algorithms have a property query value of
+"fips=no".
+
+The following algorithms use a unique indicator and do not trigger the
+indicator callback.
+
+=over 4
+
+=item AES-GCM ciphers support the indicator "iv-generated"
+
+See L<EVP_EncryptInit(3)/PARAMETERS> for further information.
+
+=item ECDSA and RSA Signatures support the indicator "verify-message".
+
+See L<EVP_SIGNATURE-ECDSA(7)/ECDSA Signature Parameters> and
+L<EVP_SIGNATURE-RSA(7)/Signature Parameters> /for further information.
+
+=back
+
 =head1 NOTES
 
 Some released versions of OpenSSL do not include a validated
@@ -472,19 +597,24 @@ validated versions alongside F<libcrypto> and F<libssl> compiled from any
 release within the same major release series.  This flexibility enables
 you to address bug fixes and CVEs that fall outside the FIPS boundary.
 
+As the FIPS provider still supports non-FIPS validated algorithms,
+The property query C<fips=yes> is mandatory for applications that
+want to operate in a FIPS approved manner.
+
 =head1 SEE ALSO
 
-L<migration_guide(7)>, L<crypto(7)>, L<fips_config(5)>,
+L<ossl-guide-migration(7)>, L<crypto(7)>, L<fips_config(5)>,
 L<https://www.openssl.org/source/>
 
 =head1 HISTORY
 
 The FIPS module guide was created for use with the new FIPS provider
 in OpenSSL 3.0.
+FIPS indicators were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 
-Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -600,7 +600,7 @@ static int rfc5114_test(void)
 
         if (!TEST_ptr(priv_key = BN_bin2bn(td->xB, td->xB_len, NULL))
                 || !TEST_ptr(pub_key = BN_bin2bn(td->yB, td->yB_len, NULL))
-                || !TEST_true( DH_set0_key(dhB, pub_key, priv_key)))
+                || !TEST_true(DH_set0_key(dhB, pub_key, priv_key)))
             goto bad_err;
         priv_key = pub_key = NULL;
 

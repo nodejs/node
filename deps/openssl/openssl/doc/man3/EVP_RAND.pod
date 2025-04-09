@@ -3,7 +3,7 @@
 =head1 NAME
 
 EVP_RAND, EVP_RAND_fetch, EVP_RAND_free, EVP_RAND_up_ref, EVP_RAND_CTX,
-EVP_RAND_CTX_new, EVP_RAND_CTX_free, EVP_RAND_instantiate,
+EVP_RAND_CTX_new, EVP_RAND_CTX_free, EVP_RAND_CTX_up_ref, EVP_RAND_instantiate,
 EVP_RAND_uninstantiate, EVP_RAND_generate, EVP_RAND_reseed, EVP_RAND_nonce,
 EVP_RAND_enable_locking, EVP_RAND_verify_zeroization, EVP_RAND_get_strength,
 EVP_RAND_get_state,
@@ -30,6 +30,7 @@ EVP_RAND_STATE_ERROR - EVP RAND routines
  void EVP_RAND_free(EVP_RAND *rand);
  EVP_RAND_CTX *EVP_RAND_CTX_new(EVP_RAND *rand, EVP_RAND_CTX *parent);
  void EVP_RAND_CTX_free(EVP_RAND_CTX *ctx);
+ int EVP_RAND_CTX_up_ref(EVP_RAND_CTX *ctx);
  EVP_RAND *EVP_RAND_CTX_get0_rand(EVP_RAND_CTX *ctx);
  int EVP_RAND_get_params(EVP_RAND *rand, OSSL_PARAM params[]);
  int EVP_RAND_CTX_get_params(EVP_RAND_CTX *ctx, OSSL_PARAM params[]);
@@ -266,6 +267,12 @@ Returns the state of the random number generator.
 
 Returns the bit strength of the random number generator.
 
+=item "fips-indicator" (B<OSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This option is used by the OpenSSL FIPS provider and is not supported
+by all EVP_RAND sources.
+
 =back
 
 For rands that are also deterministic random bit generators (DRBGs), these
@@ -376,6 +383,8 @@ B<EVP_RAND_CTX> structure or NULL if an error occurred.
 
 EVP_RAND_CTX_free() does not return a value.
 
+EVP_RAND_CTX_up_ref() returns 1 on success, 0 on error.
+
 EVP_RAND_nonce() returns the length of the nonce.
 
 EVP_RAND_get_strength() returns the strength of the random number generator
@@ -402,7 +411,9 @@ L<life_cycle-rand(7)>
 
 =head1 HISTORY
 
-This functionality was added to OpenSSL 3.0.
+EVP_RAND_CTX_up_ref() was added in OpenSSL 3.1.
+
+The remaining functions were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

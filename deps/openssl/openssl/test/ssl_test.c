@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -406,6 +406,13 @@ static int test_handshake(int idx)
     if (!TEST_ptr(test_ctx))
         goto err;
 
+    /* Verify that the FIPS provider supports this test */
+    if (test_ctx->fips_version != NULL
+                && !fips_provider_version_match(libctx, test_ctx->fips_version)) {
+            ret = TEST_skip("FIPS provider unable to run this test");
+            goto err;
+    }
+
 #ifndef OPENSSL_NO_DTLS
     if (test_ctx->method == SSL_TEST_METHOD_DTLS) {
         server_ctx = SSL_CTX_new_ex(libctx, NULL, DTLS_server_method());
@@ -502,14 +509,18 @@ static int test_handshake(int idx)
         goto err;
 
     if (!SSL_CTX_config(server_ctx, "server")
+        || !SSL_CTX_set_dh_auto(server_ctx, 1)
         || !SSL_CTX_config(client_ctx, "client")) {
         goto err;
     }
 
-    if (server2_ctx != NULL && !SSL_CTX_config(server2_ctx, "server2"))
+    if (server2_ctx != NULL
+        && (!SSL_CTX_config(server2_ctx, "server2")
+            || !SSL_CTX_set_dh_auto(server2_ctx, 1)))
         goto err;
     if (resume_server_ctx != NULL
-        && !SSL_CTX_config(resume_server_ctx, "resume-server"))
+        && (!SSL_CTX_config(resume_server_ctx, "resume-server")
+            || !SSL_CTX_set_dh_auto(resume_server_ctx, 1)))
         goto err;
     if (resume_client_ctx != NULL
         && !SSL_CTX_config(resume_client_ctx, "resume-client"))

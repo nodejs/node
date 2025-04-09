@@ -297,7 +297,7 @@ static int ffc_params_validate_pq_test(void)
                                                        &res, NULL)))
         goto err;
 
-    /* Provided seed doesnt produce a valid prime q */
+    /* Provided seed doesn't produce a valid prime q */
     ossl_ffc_params_set_validate_params(&params, dsa_2048_224_sha224_bad_seed,
                                         sizeof(dsa_2048_224_sha224_bad_seed),
                                         dsa_2048_224_sha224_counter);

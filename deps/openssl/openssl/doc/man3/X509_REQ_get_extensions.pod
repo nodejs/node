@@ -10,7 +10,7 @@ X509_REQ_add_extensions, X509_REQ_add_extensions_nid
 
  #include <openssl/x509.h>
 
- STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(X509_REQ *req);
+ STACK_OF(X509_EXTENSION) *X509_REQ_get_extensions(const X509_REQ *req);
  int X509_REQ_add_extensions(X509_REQ *req, const STACK_OF(X509_EXTENSION) *exts);
  int X509_REQ_add_extensions_nid(X509_REQ *req,
                                  const STACK_OF(X509_EXTENSION) *exts, int nid);
@@ -22,13 +22,15 @@ found in the attributes of I<req>.
 The returned list is empty if there are no such extensions in I<req>.
 The caller is responsible for freeing the list obtained.
 
-X509_REQ_add_extensions() adds to I<req> a list of X.509 extensions I<exts>,
-which must not be NULL, using the default B<NID_ext_req>.
-This function must not be called more than once on the same I<req>.
+X509_REQ_add_extensions_nid() adds to I<req> a list of X.509 extensions I<exts>,
+using I<nid> to identify the extensions attribute.
+I<req> is unchanged if I<exts> is NULL or an empty list.
+This function may be called more than once on the same I<req> and I<nid>.
+In such case any previous extensions are augmented, where an extension to be
+added that has the same OID as a pre-existing one replaces this earlier one.
 
-X509_REQ_add_extensions_nid() is like X509_REQ_add_extensions()
-except that I<nid> is used to identify the extensions attribute.
-This function must not be called more than once with the same I<req> and I<nid>.
+X509_REQ_add_extensions() is like X509_REQ_add_extensions_nid()
+except that the default B<NID_ext_req> is used.
 
 =head1 RETURN VALUES
 

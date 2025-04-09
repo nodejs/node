@@ -150,7 +150,7 @@ static int test_int_stack(int reserve)
             goto end;
         }
     for (i = 0; i < n_exfinds; i++)
-        if (!TEST_int_eq(sk_sint_find_ex(s, &exfinds[i].value), exfinds[i].ex)){
+        if (!TEST_int_eq(sk_sint_find_ex(s, &exfinds[i].value), exfinds[i].ex)) {
             TEST_info("int sorted find_ex absent %d", i);
             goto end;
         }

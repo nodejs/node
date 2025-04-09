@@ -3,7 +3,7 @@
 =head1 NAME
 
 ossl_namemap_new, ossl_namemap_free, ossl_namemap_stored, ossl_namemap_empty,
-ossl_namemap_add_name, ossl_namemap_add_name_n, ossl_namemap_add_names,
+ossl_namemap_add_name, ossl_namemap_add_names,
 ossl_namemap_name2num, ossl_namemap_name2num_n,
 ossl_namemap_doall_names
 - internal number E<lt>-E<gt> name map
@@ -19,8 +19,6 @@ ossl_namemap_doall_names
  int ossl_namemap_empty(OSSL_NAMEMAP *namemap);
 
  int ossl_namemap_add_name(OSSL_NAMEMAP *namemap, int number, const char *name);
- int ossl_namemap_add_name_n(OSSL_NAMEMAP *namemap, int number,
-                             const char *name, size_t name_len);
 
  int ossl_namemap_name2num(const OSSL_NAMEMAP *namemap, const char *name);
  int ossl_namemap_name2num_n(const OSSL_NAMEMAP *namemap,
@@ -62,10 +60,9 @@ names already associated with that number.
 ossl_namemap_name2num() finds the number corresponding to the given
 I<name>.
 
-ossl_namemap_add_name_n() and ossl_namemap_name2num_n() do the same thing
-as ossl_namemap_add_name() and ossl_namemap_name2num(), but take a string
-length I<name_len> as well, allowing the caller to use a fragment of
-a string as a name.
+ossl_namemap_name2num_n() does the same thing as
+ossl_namemap_name2num(), but takes a string length I<name_len> as well,
+allowing the caller to use a fragment of a string as a name.
 
 ossl_namemap_doall_names() walks through all names associated with
 I<number> in the given I<namemap> and calls the function I<fn> for
@@ -88,8 +85,8 @@ ossl_namemap_empty() returns 1 if the B<OSSL_NAMEMAP> is NULL or
 empty, 0 if it's not empty, or -1 on internal error (such as inability
 to lock).
 
-ossl_namemap_add_name() and ossl_namemap_add_name_n() return the number
-associated with the added string, or zero on error.
+ossl_namemap_add_name() returns the number associated with the added
+string, or zero on error.
 
 ossl_namemap_num2names() returns a pointer to a NULL-terminated list of
 pointers to the names corresponding to the given number, or NULL if

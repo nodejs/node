@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,7 @@
 #include <openssl/core_names.h>
 #include <openssl/self_test.h>
 #include <openssl/evp.h>
+#include <openssl/rsa.h>
 #include "testutil.h"
 
 typedef enum OPTION_choice {
@@ -147,6 +148,8 @@ static int test_provider_status(void)
     OSSL_PROVIDER *prov = NULL;
     OSSL_PARAM params[2];
     EVP_MD *fetch = NULL;
+    EVP_PKEY_CTX *pctx = NULL;
+    EVP_PKEY *pkey = NULL;
 
     if (!TEST_ptr(prov = OSSL_PROVIDER_load(libctx, provider_name)))
         goto err;
@@ -163,6 +166,16 @@ static int test_provider_status(void)
         goto err;
     EVP_MD_free(fetch);
     fetch = NULL;
+    /* Use RNG before triggering on-demand self tests */
+    if (!TEST_ptr((pctx = EVP_PKEY_CTX_new_from_name(libctx, "RSA", NULL)))
+        || !TEST_int_gt(EVP_PKEY_keygen_init(pctx), 0)
+        || !TEST_int_gt(EVP_PKEY_CTX_set_rsa_keygen_bits(pctx, 2048), 0)
+        || !TEST_int_gt(EVP_PKEY_keygen(pctx, &pkey), 0))
+        goto err;
+    EVP_PKEY_free(pkey);
+    EVP_PKEY_CTX_free(pctx);
+    pkey = NULL;
+    pctx = NULL;
 
     /* Test that the provider self test is ok */
     self_test_args.count = 0;

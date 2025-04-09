@@ -3,12 +3,16 @@
 =head1 NAME
 
 X509_STORE_CTX_new_ex, X509_STORE_CTX_new, X509_STORE_CTX_cleanup,
-X509_STORE_CTX_free, X509_STORE_CTX_init, X509_STORE_CTX_set0_trusted_stack,
+X509_STORE_CTX_free, X509_STORE_CTX_init,
+X509_STORE_CTX_init_rpk,
+X509_STORE_CTX_set0_trusted_stack,
 X509_STORE_CTX_set_cert, X509_STORE_CTX_set0_crls,
+X509_STORE_CTX_set0_rpk,
 X509_STORE_CTX_get0_param, X509_STORE_CTX_set0_param,
 X509_STORE_CTX_get0_untrusted, X509_STORE_CTX_set0_untrusted,
 X509_STORE_CTX_get_num_untrusted,
 X509_STORE_CTX_get0_chain, X509_STORE_CTX_set0_verified_chain,
+X509_STORE_CTX_get0_rpk,
 X509_STORE_CTX_set_default,
 X509_STORE_CTX_set_verify,
 X509_STORE_CTX_verify_fn,
@@ -28,11 +32,14 @@ X509_STORE_CTX_purpose_inherit
 
  int X509_STORE_CTX_init(X509_STORE_CTX *ctx, X509_STORE *trust_store,
                          X509 *target, STACK_OF(X509) *untrusted);
+ int X509_STORE_CTX_init_rpk(X509_STORE_CTX *ctx, X509_STORE *trust_store,
+                             EVP_PKEY *rpk);
 
  void X509_STORE_CTX_set0_trusted_stack(X509_STORE_CTX *ctx, STACK_OF(X509) *sk);
 
  void X509_STORE_CTX_set_cert(X509_STORE_CTX *ctx, X509 *target);
  void X509_STORE_CTX_set0_crls(X509_STORE_CTX *ctx, STACK_OF(X509_CRL) *sk);
+ void X509_STORE_CTX_set0_rpk(X509_STORE_CTX *ctx, EVP_PKEY *target);
 
  X509_VERIFY_PARAM *X509_STORE_CTX_get0_param(const X509_STORE_CTX *ctx);
  void X509_STORE_CTX_set0_param(X509_STORE_CTX *ctx, X509_VERIFY_PARAM *param);
@@ -43,6 +50,7 @@ X509_STORE_CTX_purpose_inherit
  int X509_STORE_CTX_get_num_untrusted(const X509_STORE_CTX *ctx);
  STACK_OF(X509) *X509_STORE_CTX_get0_chain(const X509_STORE_CTX *ctx);
  void X509_STORE_CTX_set0_verified_chain(X509_STORE_CTX *ctx, STACK_OF(X509) *chain);
+ EVP_PKEY *X509_STORE_CTX_get0_rpk(const X509_STORE_CTX *ctx);
 
  int X509_STORE_CTX_set_default(X509_STORE_CTX *ctx, const char *name);
  typedef int (*X509_STORE_CTX_verify_fn)(X509_STORE_CTX *);
@@ -90,6 +98,8 @@ they are provided simply as a list using X509_STORE_CTX_set0_trusted_stack().
 The certificate to be verified is set to I<target>,
 and a list of additional certificates may be provided in I<untrusted>,
 which will be untrusted but may be used to build the chain.
+The I<target> certificate is not copied (its reference count is not updated),
+and the caller must not free it before verification is complete.
 Each of the I<trust_store>, I<target> and I<untrusted> parameters can be NULL.
 Yet note that L<X509_verify_cert(3)> and L<X509_STORE_CTX_verify(3)>
 will need a verification target.
@@ -98,6 +108,14 @@ For L<X509_STORE_CTX_verify(3)>, which takes by default the first element of the
 list of untrusted certificates as its verification target,
 this can be also set indirectly using X509_STORE_CTX_set0_untrusted().
 
+X509_STORE_CTX_init_rpk() sets up I<ctx> for a subsequent verification
+operation for the I<target> raw public key.
+It behaves similarly to X509_STORE_CTX_init().
+The I<target> raw public key can also be supplied separately, via
+X509_STORE_CTX_set0_rpk().
+The I<target> public key is not copied (its reference count is not updated),
+and the caller must not free it before verification is complete.
+
 X509_STORE_CTX_set0_trusted_stack() sets the set of trusted certificates of
 I<ctx> to I<sk>. This is an alternative way of specifying trusted certificates
 instead of using an B<X509_STORE> where its complexity is not needed
@@ -105,6 +123,14 @@ or to make sure that only the given set I<sk> of certificates are trusted.
 
 X509_STORE_CTX_set_cert() sets the target certificate to be verified in I<ctx>
 to I<target>.
+The target certificate is not copied (its reference count is not updated),
+and the caller must not free it before verification is complete.
+
+X509_STORE_CTX_set0_rpk() sets the target raw public key to be verified in I<ctx>
+to I<target>, a non-NULL raw public key preempts any target certificate, which
+is then ignored.
+The I<target> public key is not copied (its reference count is not updated),
+and the caller must not free it before verification is complete.
 
 X509_STORE_CTX_set0_verified_chain() sets the validated chain to I<chain>.
 Ownership of the chain is transferred to I<ctx>,
@@ -112,6 +138,9 @@ and so it should not be free'd by the caller.
 
 X509_STORE_CTX_get0_chain() returns the internal pointer used by the
 I<ctx> that contains the constructed (output) chain.
+
+X509_STORE_CTX_get0_rpk() returns the internal pointer used by the
+I<ctx> that contains the raw public key.
 
 X509_STORE_CTX_set0_crls() sets a set of CRLs to use to aid certificate
 verification to I<sk>. These CRLs will only be used if CRL verification is
@@ -193,14 +222,18 @@ verified in the I<ctx>. Built-in available values for the I<purpose> argument
 are B<X509_PURPOSE_SSL_CLIENT>, B<X509_PURPOSE_SSL_SERVER>,
 B<X509_PURPOSE_NS_SSL_SERVER>, B<X509_PURPOSE_SMIME_SIGN>,
 B<X509_PURPOSE_SMIME_ENCRYPT>, B<X509_PURPOSE_CRL_SIGN>, B<X509_PURPOSE_ANY>,
-B<X509_PURPOSE_OCSP_HELPER> and B<X509_PURPOSE_TIMESTAMP_SIGN>. It is also
-possible to create a custom purpose value. Setting a purpose will ensure that
-the key usage declared within certificates in the chain being verified is
-consistent with that purpose as well as, potentially, other checks. Every
-purpose also has an associated default trust value which will also be set at the
-same time. During verification this trust setting will be verified to check it
-is consistent with the trust set by the system administrator for certificates in
-the chain.
+B<X509_PURPOSE_OCSP_HELPER>, B<X509_PURPOSE_TIMESTAMP_SIGN> and
+B<X509_PURPOSE_CODE_SIGN>.  It is also
+possible to create a custom purpose value. Setting a purpose requests that
+the key usage and extended key usage (EKU) extensions optionally declared within
+the certificate and its chain are verified to be consistent with that purpose.
+For SSL client, SSL server, and S/MIME purposes, the EKU is checked also for the
+CA certificates along the chain, including any given trust anchor certificate.
+Potentially also further checks are done (depending on the purpose given).
+Every purpose also has an associated default trust value, which will also be set
+at the same time. During verification, this trust setting will be verified
+to check whether it is consistent with the trust set by the system administrator
+for certificates in the chain.
 
 X509_STORE_CTX_set_trust() sets the trust value for the target certificate
 being verified in the I<ctx>. Built-in available values for the I<trust>
@@ -249,10 +282,14 @@ should be made or reference counts increased instead.
 X509_STORE_CTX_new() returns a newly allocated context or NULL if an
 error occurred.
 
-X509_STORE_CTX_init() returns 1 for success or 0 if an error occurred.
+X509_STORE_CTX_init() and X509_STORE_CTX_init_rpk() return 1 for success
+or 0 if an error occurred.
 
 X509_STORE_CTX_get0_param() returns a pointer to an B<X509_VERIFY_PARAM>
 structure or NULL if an error occurred.
+
+X509_STORE_CTX_get0_rpk() returns a pointer to an B<EVP_PKEY> structure if
+present, or NULL if absent.
 
 X509_STORE_CTX_cleanup(), X509_STORE_CTX_free(),
 X509_STORE_CTX_set0_trusted_stack(),
@@ -275,12 +312,14 @@ L<X509_VERIFY_PARAM_set_flags(3)>
 The X509_STORE_CTX_set0_crls() function was added in OpenSSL 1.0.0.
 The X509_STORE_CTX_get_num_untrusted() function was added in OpenSSL 1.1.0.
 The X509_STORE_CTX_new_ex() function was added in OpenSSL 3.0.
+The X509_STORE_CTX_init_rpk(), X509_STORE_CTX_get0_rpk(), and
+X509_STORE_CTX_set0_rpk() functions were added in OpenSSL 3.2.
 
 There is no need to call X509_STORE_CTX_cleanup() explicitly since OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

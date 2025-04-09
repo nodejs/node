@@ -34,8 +34,8 @@ EVP_PKEY_fromdata() creates the structure to store a key or key parameters,
 given data from I<params>, I<selection> and a context that's been initialized
 with EVP_PKEY_fromdata_init().  The result is written to I<*ppkey>.
 I<selection> is described in L</Selections>.
-The parameters that can be used for various types of key are as described by the
-diverse "Common parameters" sections of the
+The parameters that can be used for various types of key are as described by
+the various "Common parameters" sections of the
 L<B<EVP_PKEY-RSA>(7)|EVP_PKEY-RSA(7)/Common RSA parameters>,
 L<B<EVP_PKEY-DSA>(7)|EVP_PKEY-DSA(7)/Common DSA & DH parameters>,
 L<B<EVP_PKEY-DH>(7)|EVP_PKEY-DH(7)/Common DH parameters>,
@@ -43,7 +43,11 @@ L<B<EVP_PKEY-EC>(7)|EVP_PKEY-EC(7)/Common EC parameters>,
 L<B<EVP_PKEY-ED448>(7)|EVP_PKEY-ED448(7)/Common X25519, X448, ED25519 and ED448 parameters>,
 L<B<EVP_PKEY-X25519>(7)|EVP_PKEY-X25519(7)/Common X25519, X448, ED25519 and ED448 parameters>,
 L<B<EVP_PKEY-X448>(7)|EVP_PKEY-X448(7)/Common X25519, X448, ED25519 and ED448 parameters>,
-and L<B<EVP_PKEY-ED25519>(7)|EVP_PKEY-ED25519(7)/Common X25519, X448, ED25519 and ED448 parameters> pages.
+L<B<EVP_PKEY-ED25519>(7)|EVP_PKEY-ED25519(7)/Common X25519, X448, ED25519 and ED448 parameters>,
+L<B<EVP_PKEY-ML-DSA(7)>|EVP_PKEY-ML-DSA(7)/Common parameters>
+and
+L<B<EVP_PKEY-ML-KEM(7)>|EVP_PKEY-ML-KEM(7)/Common parameters>
+pages.
 
 =for comment the awful list of links above is made this way so we get nice
 rendering as a man-page while still getting proper links in HTML
@@ -257,19 +261,32 @@ example with L<OSSL_PARAM_allocate_from_text(3)>.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_CTX_new(3)>, L<provider(7)>, L<EVP_PKEY_gettable_params(3)>,
-L<OSSL_PARAM(3)>, L<EVP_PKEY_todata(3)>,
-L<EVP_PKEY-RSA(7)>, L<EVP_PKEY-DSA(7)>, L<EVP_PKEY-DH(7)>, L<EVP_PKEY-EC(7)>,
-L<EVP_PKEY-ED448(7)>, L<EVP_PKEY-X25519(7)>, L<EVP_PKEY-X448(7)>,
-L<EVP_PKEY-ED25519(7)>
+L<EVP_PKEY_CTX_new(3)>,
+L<EVP_PKEY_todata(3)>,
+L<EVP_PKEY_gettable_params(3)>,
+L<OSSL_PARAM(3)>,
+L<provider(7)>,
+L<EVP_PKEY-RSA(7)>,
+L<EVP_PKEY-EC(7)>,
+L<EVP_PKEY-ED25519(7)>,
+L<EVP_PKEY-ED448(7)>,
+L<EVP_PKEY-DSA(7)>,
+L<EVP_PKEY-DH(7)>,
+L<EVP_PKEY-X25519(7)>,
+L<EVP_PKEY-X448(7)>,
+L<EVP_PKEY-ML-DSA(7)>,
+L<EVP_PKEY-ML-KEM(7)>,
+L<EVP_PKEY-SLH-DSA(7)>.
 
 =head1 HISTORY
 
 These functions were added in OpenSSL 3.0.
 
+Support for B<ML-DSA>, B<ML-KEM> and B<SLH-DSA> was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

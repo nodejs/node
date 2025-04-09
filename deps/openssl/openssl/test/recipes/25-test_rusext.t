@@ -16,7 +16,7 @@ use OpenSSL::Test qw/:DEFAULT srctop_file/;
 
 setup("test_rusext");
 
-plan tests => 5;
+plan tests => 7;
 
 require_ok(srctop_file('test', 'recipes', 'tconversion.pl'));
 my $pem = srctop_file("test/certs", "grfc.pem");
@@ -31,3 +31,7 @@ ok(run(app(["openssl", "x509", "-text", "-in", $pem, "-out", $out_utf8,
             "-nameopt", "utf8", "-certopt", "no_pubkey"])));
 is(cmp_text($out_utf8, srctop_file('test', 'recipes', '25-test_rusext_data', 'grfc.utf8')),
    0, 'Comparing utf8 output');
+ok(run(app(["openssl", "x509", "-text", "-in", $pem, "-out", $out_utf8,
+            "-certopt", "no_pubkey"])));
+is(cmp_text($out_utf8, srctop_file('test', 'recipes', '25-test_rusext_data', 'grfc.utf8')),
+   0, 'Comparing cyrillic utf8 output by default');

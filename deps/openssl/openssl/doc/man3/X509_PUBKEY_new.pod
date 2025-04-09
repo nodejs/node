@@ -4,8 +4,9 @@
 
 X509_PUBKEY_new_ex, X509_PUBKEY_new, X509_PUBKEY_free, X509_PUBKEY_dup,
 X509_PUBKEY_set, X509_PUBKEY_get0, X509_PUBKEY_get,
-d2i_PUBKEY_ex, d2i_PUBKEY, i2d_PUBKEY, d2i_PUBKEY_bio, d2i_PUBKEY_fp,
-i2d_PUBKEY_fp, i2d_PUBKEY_bio, X509_PUBKEY_set0_param, X509_PUBKEY_get0_param,
+d2i_PUBKEY_ex, d2i_PUBKEY, i2d_PUBKEY, d2i_PUBKEY_ex_bio, d2i_PUBKEY_bio,
+d2i_PUBKEY_ex_fp, d2i_PUBKEY_fp, i2d_PUBKEY_fp, i2d_PUBKEY_bio,
+X509_PUBKEY_set0_public_key, X509_PUBKEY_set0_param, X509_PUBKEY_get0_param,
 X509_PUBKEY_eq - SubjectPublicKeyInfo public key functions
 
 =head1 SYNOPSIS
@@ -26,12 +27,19 @@ X509_PUBKEY_eq - SubjectPublicKeyInfo public key functions
  EVP_PKEY *d2i_PUBKEY(EVP_PKEY **a, const unsigned char **pp, long length);
  int i2d_PUBKEY(const EVP_PKEY *a, unsigned char **pp);
 
+ EVP_PKEY *d2i_PUBKEY_ex_bio(BIO *bp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+                             const char *propq);
  EVP_PKEY *d2i_PUBKEY_bio(BIO *bp, EVP_PKEY **a);
+
+ EVP_PKEY *d2i_PUBKEY_ex_fp(FILE *fp, EVP_PKEY **a, OSSL_LIB_CTX *libctx,
+                            const char *propq);
  EVP_PKEY *d2i_PUBKEY_fp(FILE *fp, EVP_PKEY **a);
 
  int i2d_PUBKEY_fp(const FILE *fp, EVP_PKEY *pkey);
  int i2d_PUBKEY_bio(BIO *bp, const EVP_PKEY *pkey);
 
+ void X509_PUBKEY_set0_public_key(X509_PUBKEY *pub,
+                                  unsigned char *penc, int penclen);
  int X509_PUBKEY_set0_param(X509_PUBKEY *pub, ASN1_OBJECT *aobj,
                             int ptype, void *pval,
                             unsigned char *penc, int penclen);
@@ -85,13 +93,23 @@ d2i_PUBKEY_bio(), d2i_PUBKEY_fp(), i2d_PUBKEY_bio() and i2d_PUBKEY_fp() are
 similar to d2i_PUBKEY() and i2d_PUBKEY() except they decode or encode using a
 B<BIO> or B<FILE> pointer.
 
-X509_PUBKEY_set0_param() sets the public key parameters of I<pub>. The
-OID associated with the algorithm is set to I<aobj>. The type of the
+d2i_PUBKEY_ex_bio() and d2i_PUBKEY_ex_fp() are similar to d2i_PUBKEY_ex() except
+they decode using a B<BIO> or B<FILE> pointer.
+
+X509_PUBKEY_set0_public_key() sets the public-key encoding of I<pub>
+to the I<penclen> bytes contained in buffer I<penc>.
+Any earlier public-key encoding in I<pub> is freed.
+I<penc> may be NULL to indicate that there is no actual public key data.
+Ownership of the I<penc> argument is passed to I<pub>.
+
+X509_PUBKEY_set0_param() sets the public-key parameters of I<pub>.
+The OID associated with the algorithm is set to I<aobj>. The type of the
 algorithm parameters is set to I<type> using the structure I<pval>.
-The encoding of the public key itself is set to the I<penclen>
-bytes contained in buffer I<penc>. On success ownership of all the supplied
-parameters is passed to I<pub> so they must not be freed after the
-call.
+If I<penc> is not NULL the encoding of the public key itself is set
+to the I<penclen> bytes contained in buffer I<penc> and
+any earlier public-key encoding in I<pub> is freed.
+On success ownership of all the supplied arguments is passed to I<pub>
+so they must not be freed after the call.
 
 X509_PUBKEY_get0_param() retrieves the public key parameters from I<pub>,
 I<*ppkalg> is set to the associated OID and the encoding consists of
@@ -119,8 +137,17 @@ Otherwise they return a pointer to the newly allocated structure.
 
 X509_PUBKEY_free() does not return a value.
 
-X509_PUBKEY_get0() and X509_PUBKEY_get() return a pointer to an B<EVP_PKEY>
-structure or NULL if an error occurs.
+X509_PUBKEY_get0(), X509_PUBKEY_get(), d2i_PUBKEY_ex(), d2i_PUBKEY(),
+d2i_PUBKEY_ex_bio(), d2i_PUBKEY_bio(), d2i_PUBKEY_ex_fp() and d2i_PUBKEY_fp()
+return a pointer to an B<EVP_PKEY> structure or NULL if an error occurs.
+
+i2d_PUBKEY() returns the number of bytes successfully encoded or a
+negative value if an error occurs.
+
+i2d_PUBKEY_fp() and i2d_PUBKEY_bio() return 1 if successfully
+encoded or 0 if an error occurs.
+
+X509_PUBKEY_set0_public_key() does not return a value.
 
 X509_PUBKEY_set(), X509_PUBKEY_set0_param() and X509_PUBKEY_get0_param()
 return 1 for success and 0 if an error occurred.
@@ -138,9 +165,12 @@ L<X509_get_pubkey(3)>,
 The X509_PUBKEY_new_ex() and X509_PUBKEY_eq() functions were added in OpenSSL
 3.0.
 
+The X509_PUBKEY_set0_public_key(), d2i_PUBKEY_ex_bio() and d2i_PUBKEY_ex_fp()
+functions were added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

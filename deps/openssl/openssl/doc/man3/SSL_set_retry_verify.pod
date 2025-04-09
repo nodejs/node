@@ -39,7 +39,7 @@ with the B<X509_STORE_CTX> to call the SSL_set_retry_verify() function:
 
     /* this should not happen but check anyway */
     if (idx < 0
-        || (ssl = X509_STORE_CTX_get_ex_data(ctx, idx)) == NULL) 
+        || (ssl = X509_STORE_CTX_get_ex_data(ctx, idx)) == NULL)
         return 0;
 
     if (/* we need to retry verification callback */)

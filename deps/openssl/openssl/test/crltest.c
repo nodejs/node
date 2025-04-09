@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -266,9 +266,13 @@ static int verify(X509 *leaf, X509 *root, STACK_OF(X509_CRL) *crls,
         goto err;
 
     /* Create a stack; upref the cert because we free it below. */
-    X509_up_ref(root);
-    if (!TEST_true(sk_X509_push(roots, root))
-        || !TEST_true(X509_STORE_CTX_init(ctx, store, leaf, NULL)))
+    if (!TEST_true(X509_up_ref(root)))
+        goto err;
+    if (!TEST_true(sk_X509_push(roots, root))) {
+        X509_free(root);
+        goto err;
+    }
+    if (!TEST_true(X509_STORE_CTX_init(ctx, store, leaf, NULL)))
         goto err;
     X509_STORE_CTX_set0_trusted_stack(ctx, roots);
     X509_STORE_CTX_set0_crls(ctx, crls);
@@ -285,7 +289,7 @@ static int verify(X509 *leaf, X509 *root, STACK_OF(X509_CRL) *crls,
     status = X509_verify_cert(ctx) == 1 ? X509_V_OK
                                         : X509_STORE_CTX_get_error(ctx);
 err:
-    sk_X509_pop_free(roots, X509_free);
+    OSSL_STACK_OF_X509_free(roots);
     sk_X509_CRL_pop_free(crls, X509_CRL_free);
     X509_VERIFY_PARAM_free(param);
     X509_STORE_CTX_free(ctx);
@@ -302,13 +306,29 @@ static STACK_OF(X509_CRL) *make_CRL_stack(X509_CRL *x1, X509_CRL *x2)
 {
     STACK_OF(X509_CRL) *sk = sk_X509_CRL_new_null();
 
-    sk_X509_CRL_push(sk, x1);
-    X509_CRL_up_ref(x1);
-    if (x2 != NULL) {
-        sk_X509_CRL_push(sk, x2);
-        X509_CRL_up_ref(x2);
+    if (x1 != NULL) {
+        if (!X509_CRL_up_ref(x1))
+            goto err;
+        if (!sk_X509_CRL_push(sk, x1)) {
+            X509_CRL_free(x1);
+            goto err;
+        }
     }
+
+    if (x2 != NULL) {
+        if (!X509_CRL_up_ref(x2))
+            goto err;
+        if (!sk_X509_CRL_push(sk, x2)) {
+            X509_CRL_free(x2);
+            goto err;
+        }
+    }
+
     return sk;
+
+err:
+    sk_X509_CRL_pop_free(sk, X509_CRL_free);
+    return NULL;
 }
 
 static int test_basic_crl(void)

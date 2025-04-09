@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -83,7 +83,7 @@ static char *propq = NULL;
 
 int main(int argc, char **argv)
 {
-    int rv = EXIT_FAILURE;
+    int ret = EXIT_FAILURE;
     EVP_CIPHER *aes = NULL;
     EVP_CIPHER_CTX *aesctx = NULL;
     EVP_MAC *mac = NULL;
@@ -196,14 +196,14 @@ int main(int argc, char **argv)
         goto end;
     }
 
-    rv = EXIT_SUCCESS;
+    ret = EXIT_SUCCESS;
 end:
     EVP_CIPHER_CTX_free(aesctx);
     EVP_CIPHER_free(aes);
     EVP_MAC_CTX_free(mctx);
     EVP_MAC_free(mac);
     OSSL_LIB_CTX_free(library_context);
-    if (rv != EXIT_SUCCESS)
+    if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
-    return rv;
+    return ret;
 }

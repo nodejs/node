@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -14,6 +14,8 @@ use warnings;
 
 package ssltests;
 use OpenSSL::Test::Utils;
+
+our $fips_3_4;
 
 our @tests = (
     {
@@ -126,7 +128,7 @@ our @tests = (
         }
     },
 );
-our @tests_tls1_2 = (
+our @tests_tls1_2_rsa = (
     {
         name => "renegotiate-aead-to-non-aead",
         server => {
@@ -202,7 +204,10 @@ our @tests_tls1_2 = (
             "ResumptionExpected" => "No",
             "ExpectedResult" => "Success"
         }
-    },
+    }
+);
+
+our @tests_tls1_2 = (
     {
         name => "no-renegotiation-server-by-client",
         server => {
@@ -313,4 +318,5 @@ our @tests_tls1_2 = (
     }
 );
 
+push @tests, @tests_tls1_2_rsa unless disabled("tls1_2") or $fips_3_4;
 push @tests, @tests_tls1_2 unless disabled("tls1_2");

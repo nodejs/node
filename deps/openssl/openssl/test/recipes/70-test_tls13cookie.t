@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -26,8 +26,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLS1.3 enabled"
     if disabled("tls1_3") || (disabled("ec") && disabled("dh"));
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
-
 use constant {
     COOKIE_ONLY => 0,
     COOKIE_AND_KEY_SHARE => 1
@@ -44,31 +42,31 @@ my $cookieseen = 0;
 my $testtype;
 
 #Test 1: Inserting a cookie into an HRR should see it echoed in the ClientHello
-$testtype = COOKIE_ONLY;
-$proxy->filter(\&cookie_filter);
-$proxy->serverflags("-curves X25519") if !disabled("ec");
-$proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
-plan tests => 2;
-SKIP: {
-    skip "EC disabled", 1, if disabled("ec");
-    ok(TLSProxy::Message->success() && $cookieseen == 1, "Cookie seen");
-}
-
-
-
-#Test 2: Same as test 1 but should also work where a new key_share is also
-#        required
+#        (when a key share is required)
 $testtype = COOKIE_AND_KEY_SHARE;
-$proxy->clear();
-if (disabled("ec")) {
+$proxy->filter(\&cookie_filter);
+if (disabled("ecx")) {
     $proxy->clientflags("-curves ffdhe3072:ffdhe2048");
     $proxy->serverflags("-curves ffdhe2048");
 } else {
     $proxy->clientflags("-curves P-256:X25519");
     $proxy->serverflags("-curves X25519");
 }
-$proxy->start();
+$proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
+plan tests => 2;
 ok(TLSProxy::Message->success() && $cookieseen == 1, "Cookie seen");
+
+#Test 2: Inserting a cookie into an HRR should see it echoed in the ClientHello
+#        (without a key share required)
+SKIP: {
+    skip "ECX disabled", 1, if (disabled("ecx"));
+    $testtype = COOKIE_ONLY;
+    $proxy->clear();
+    $proxy->serverflags("-curves X25519");
+    $proxy->clientflags("-curves X25519:secp256r1");
+    $proxy->start();
+    ok(TLSProxy::Message->success() && $cookieseen == 1, "Cookie seen");
+}
 
 sub cookie_filter
 {

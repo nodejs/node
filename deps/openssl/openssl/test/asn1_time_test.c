@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,9 +9,11 @@
 
 /* Time tests for the asn1 module */
 
+#include <limits.h>
 #include <stdio.h>
 #include <string.h>
 
+#include <crypto/asn1.h>
 #include <openssl/asn1.h>
 #include <openssl/evp.h>
 #include <openssl/objects.h>
@@ -26,6 +28,53 @@ struct testdata {
     time_t t;               /* expected time_t*/
     int cmp_result;         /* comparison to baseline result */
     int convert_result;     /* conversion result */
+};
+
+struct TESTDATA_asn1_to_utc {
+    char *input;
+    time_t expected;
+};
+
+static const struct TESTDATA_asn1_to_utc asn1_to_utc[] = {
+    {
+        /*
+         * last second of standard time in central Europe in 2021
+         * specified in GMT
+         */
+        "210328005959Z",
+        1616893199,
+    },
+    {
+        /*
+         * first second of daylight saving time in central Europe in 2021
+         * specified in GMT
+         */
+        "210328010000Z",
+        1616893200,
+    },
+    {
+        /*
+         * last second of standard time in central Europe in 2021
+         * specified in offset to GMT
+         */
+        "20210328015959+0100",
+        1616893199,
+    },
+    {
+        /*
+         * first second of daylight saving time in central Europe in 2021
+         * specified in offset to GMT
+         */
+        "20210328030000+0200",
+        1616893200,
+    },
+    {
+        /*
+         * Invalid strings should get -1 as a result
+         */
+        "INVALID",
+        -1,
+    },
 };
 
 static struct testdata tbl_testdata_pos[] = {
@@ -52,6 +101,10 @@ static struct testdata tbl_testdata_pos[] = {
     { "1970010100000AZ",   V_ASN1_GENERALIZEDTIME, V_ASN1_GENERALIZEDTIME, 0,           0,  0, 0, },
     { "700101000000X",     V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         0,           0,  0, 0, },
     { "19700101000000X",   V_ASN1_GENERALIZEDTIME, V_ASN1_GENERALIZEDTIME, 0,           0,  0, 0, },
+    { "209912312359Z",     V_ASN1_GENERALIZEDTIME, V_ASN1_GENERALIZEDTIME, 0,           0,  0, 0, },
+    { "199912310000Z",     V_ASN1_GENERALIZEDTIME, V_ASN1_GENERALIZEDTIME, 0,           0,  0, 0, },
+    { "9912312359Z",       V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         0,           0,  0, 0, },
+    { "9912310000Z",       V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         0,           0,  0, 0, },
     { "19700101000000Z",   V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,           0, -1, 1, }, /* Epoch begins */
     { "700101000000Z",     V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,           0, -1, 1, }, /* ditto */
     { "20380119031407Z",   V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,  0x7FFFFFFF,  1, 1, }, /* Max 32bit time_t */
@@ -62,9 +115,7 @@ static struct testdata tbl_testdata_pos[] = {
     { "19701006121456Z",   V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,    24063296, -1, 1, },
     { "701006121456Z",     V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,    24063296, -1, 1, },
     { "19991231000000Z",   V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,   946598400,  0, 1, }, /* Match baseline */
-    { "199912310000Z",     V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,   946598400,  0, 1, }, /* In various flavors */
     { "991231000000Z",     V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,   946598400,  0, 1, },
-    { "9912310000Z",       V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,   946598400,  0, 1, },
     { "9912310000+0000",   V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,   946598400,  0, 1, },
     { "199912310000+0000", V_ASN1_GENERALIZEDTIME, V_ASN1_UTCTIME,         1,   946598400,  0, 1, },
     { "9912310000-0000",   V_ASN1_UTCTIME,         V_ASN1_UTCTIME,         1,   946598400,  0, 1, },
@@ -379,6 +430,46 @@ static int test_time_dup(void)
     return ret;
 }
 
+static int convert_asn1_to_time_t(int idx)
+{
+    time_t testdateutc;
+
+    testdateutc = test_asn1_string_to_time_t(asn1_to_utc[idx].input);
+
+    if (!TEST_time_t_eq(testdateutc, asn1_to_utc[idx].expected)) {
+        TEST_info("test_asn1_string_to_time_t (%s) failed: expected %lli, got %lli\n",
+                  asn1_to_utc[idx].input,
+                  (long long int)asn1_to_utc[idx].expected,
+                  (long long int)testdateutc);
+        return 0;
+    }
+    return 1;
+}
+
+/*
+ * this test is here to exercise ossl_asn1_time_from_tm
+ * with an integer year close to INT_MAX.
+ */
+static int convert_tm_to_asn1_time(void)
+{
+    /* we need 64 bit time_t */
+#if ((ULONG_MAX >> 31) >> 31) >= 1
+    time_t t;
+    ASN1_TIME *at;
+
+    if (sizeof(time_t) * CHAR_BIT >= 64) {
+        t = 67768011791126057ULL;
+        at = ASN1_TIME_set(NULL, t);
+        /*
+         * If ASN1_TIME_set returns NULL, it means it could not handle the input
+         * which is fine for this edge case.
+         */
+        ASN1_STRING_free(at);
+    }
+#endif
+    return 1;
+}
+
 int setup_tests(void)
 {
     /*
@@ -414,5 +505,7 @@ int setup_tests(void)
     }
     ADD_ALL_TESTS(test_table_compare, OSSL_NELEM(tbl_compare_testdata));
     ADD_TEST(test_time_dup);
+    ADD_ALL_TESTS(convert_asn1_to_time_t, OSSL_NELEM(asn1_to_utc));
+    ADD_TEST(convert_tm_to_asn1_time);
     return 1;
 }

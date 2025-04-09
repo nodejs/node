@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -110,7 +110,7 @@ static const BIO_METHOD *bio_f_tls_corrupt_filter(void)
     if (method_tls_corrupt == NULL) {
         method_tls_corrupt = BIO_meth_new(BIO_TYPE_CUSTOM_FILTER,
                                           "TLS corrupt filter");
-        if (   method_tls_corrupt == NULL
+        if (method_tls_corrupt == NULL
             || !BIO_meth_set_write(method_tls_corrupt, tls_corrupt_write)
             || !BIO_meth_set_read(method_tls_corrupt, tls_corrupt_read)
             || !BIO_meth_set_puts(method_tls_corrupt, tls_corrupt_puts)

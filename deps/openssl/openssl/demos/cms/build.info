@@ -1,0 +1,45 @@
+PROGRAMS{noinst} = cms_comp \
+                   cms_ddec \
+                   cms_dec \
+                   cms_denc \
+                   cms_enc \
+                   cms_sign \
+                   cms_sign2 \
+                   cms_uncomp \
+                   cms_ver
+
+INCLUDE[cms_comp]=../../include
+SOURCE[cms_comp]=cms_comp.c
+DEPEND[cms_comp]=../../libcrypto ../../libssl
+
+INCLUDE[cms_ddec]=../../include
+SOURCE[cms_ddec]=cms_ddec.c
+DEPEND[cms_ddec]=../../libcrypto ../../libssl
+
+INCLUDE[cms_dec]=../../include
+SOURCE[cms_dec]=cms_dec.c
+DEPEND[cms_dec]=../../libcrypto ../../libssl
+
+INCLUDE[cms_denc]=../../include
+SOURCE[cms_denc]=cms_denc.c
+DEPEND[cms_denc]=../../libcrypto ../../libssl
+
+INCLUDE[cms_enc]=../../include
+SOURCE[cms_enc]=cms_enc.c
+DEPEND[cms_enc]=../../libcrypto ../../libssl
+
+INCLUDE[cms_sign]=../../include
+SOURCE[cms_sign]=cms_sign.c
+DEPEND[cms_sign]=../../libcrypto ../../libssl
+
+INCLUDE[cms_sign2]=../../include
+SOURCE[cms_sign2]=cms_sign2.c
+DEPEND[cms_sign2]=../../libcrypto ../../libssl
+
+INCLUDE[cms_uncomp]=../../include
+SOURCE[cms_uncomp]=cms_uncomp.c
+DEPEND[cms_uncomp]=../../libcrypto ../../libssl
+
+INCLUDE[cms_ver]=../../include
+SOURCE[cms_ver]=cms_ver.c
+DEPEND[cms_ver]=../../libcrypto ../../libssl

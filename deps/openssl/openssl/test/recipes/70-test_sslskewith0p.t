@@ -29,7 +29,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLS enabled"
     if alldisabled(available_protocols("tls"));
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 my $proxy = TLSProxy::Proxy->new(
     \&ske_0_p_filter,
     cmdstr(app(["openssl"]), display => 1),

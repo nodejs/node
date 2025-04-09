@@ -100,8 +100,21 @@ If I<type> is C<RSA>,
 a B<size_t> parameter must be given to specify the size of the RSA key.
 If I<type> is C<EC>,
 a string parameter must be given to specify the name of the EC curve.
-If I<type> is C<X25519>, C<X448>, C<ED25519>, C<ED448>, or C<SM2>
-no further parameter is needed.
+If I<type> is:
+C<ED25519>,
+C<ED448>,
+C<SM2>,
+C<X25519>,
+C<X448>,
+C<ML-DSA-44>,
+C<ML-DSA-65>,
+C<ML-DSA-87>,
+C<ML-KEM-512>,
+C<ML-KEM-768>, or
+C<ML-KEM-1024>
+no further parameters are needed. Other key types may be possible if they are
+supplied by the loaded providers. EVP_PKEY_Q_keygen() may be usable with such
+key types as long as they do not require further parameters.
 
 =head1 RETURN VALUES
 
@@ -226,7 +239,7 @@ EVP_PKEY_Q_keygen() and EVP_PKEY_generate() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

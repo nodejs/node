@@ -3,7 +3,8 @@
 =head1 NAME
 
 OSSL_CMP_HDR_get0_transactionID,
-OSSL_CMP_HDR_get0_recipNonce
+OSSL_CMP_HDR_get0_recipNonce,
+OSSL_CMP_HDR_get0_geninfo_ITAVs
 - functions manipulating CMP message headers
 
 =head1 SYNOPSIS
@@ -14,6 +15,8 @@ OSSL_CMP_HDR_get0_recipNonce
                                                      OSSL_CMP_PKIHEADER *hdr);
   ASN1_OCTET_STRING *OSSL_CMP_HDR_get0_recipNonce(const
                                                   OSSL_CMP_PKIHEADER *hdr);
+ STACK_OF(OSSL_CMP_ITAV)
+     *OSSL_CMP_HDR_get0_geninfo_ITAVs(const OSSL_CMP_PKIHEADER *hdr);
 
 =head1 DESCRIPTION
 
@@ -21,6 +24,9 @@ OSSL_CMP_HDR_get0_transactionID returns the transaction ID of the given
 PKIHeader.
 
 OSSL_CMP_HDR_get0_recipNonce returns the recipient nonce of the given PKIHeader.
+
+OSSL_CMP_HDR_get0_geninfo_ITAVs() returns the list of ITAVs
+in the generalInfo field of the given PKIHeader.
 
 =head1 NOTES
 
@@ -34,6 +40,8 @@ or NULL if the respective entry does not exist and on error.
 =head1 HISTORY
 
 The OpenSSL CMP support was added in OpenSSL 3.0.
+
+OSSL_CMP_HDR_get0_geninfo_ITAVs() was added in OpenSSL 3.3.
 
 =head1 COPYRIGHT
 

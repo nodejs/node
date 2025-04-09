@@ -58,78 +58,78 @@ X509_STORE_CTX_lookup_certs_fn, X509_STORE_CTX_lookup_crls_fn
                                                               const X509_NAME *nm);
  typedef int (*X509_STORE_CTX_cleanup_fn)(X509_STORE_CTX *ctx);
 
- void X509_STORE_set_verify_cb(X509_STORE *ctx,
+ void X509_STORE_set_verify_cb(X509_STORE *xs,
                                X509_STORE_CTX_verify_cb verify_cb);
  X509_STORE_CTX_verify_cb X509_STORE_get_verify_cb(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_verify(X509_STORE *ctx, X509_STORE_CTX_verify_fn verify);
+ void X509_STORE_set_verify(X509_STORE *xs, X509_STORE_CTX_verify_fn verify);
  X509_STORE_CTX_verify_fn X509_STORE_CTX_get_verify(const X509_STORE_CTX *ctx);
 
  int X509_STORE_CTX_get1_issuer(X509 **issuer, X509_STORE_CTX *ctx, X509 *x);
  X509_STORE_CTX_get_issuer_fn X509_STORE_get_get_issuer(const X509_STORE_CTX *ctx);
- void X509_STORE_set_get_issuer(X509_STORE *ctx,
+ void X509_STORE_set_get_issuer(X509_STORE *xs,
                                 X509_STORE_CTX_get_issuer_fn get_issuer);
 
- void X509_STORE_set_check_issued(X509_STORE *ctx,
+ void X509_STORE_set_check_issued(X509_STORE *xs,
                                   X509_STORE_CTX_check_issued_fn check_issued);
  X509_STORE_CTX_check_issued_fn
      X509_STORE_get_check_issued(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_check_revocation(X509_STORE *ctx,
+ void X509_STORE_set_check_revocation(X509_STORE *xs,
                                       X509_STORE_CTX_check_revocation_fn check_revocation);
  X509_STORE_CTX_check_revocation_fn
      X509_STORE_get_check_revocation(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_get_crl(X509_STORE *ctx,
+ void X509_STORE_set_get_crl(X509_STORE *xs,
                              X509_STORE_CTX_get_crl_fn get_crl);
  X509_STORE_CTX_get_crl_fn X509_STORE_get_get_crl(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_check_crl(X509_STORE *ctx,
+ void X509_STORE_set_check_crl(X509_STORE *xs,
                                X509_STORE_CTX_check_crl_fn check_crl);
  X509_STORE_CTX_check_crl_fn
      X509_STORE_get_check_crl(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_cert_crl(X509_STORE *ctx,
+ void X509_STORE_set_cert_crl(X509_STORE *xs,
                               X509_STORE_CTX_cert_crl_fn cert_crl);
  X509_STORE_CTX_cert_crl_fn X509_STORE_get_cert_crl(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_check_policy(X509_STORE *ctx,
+ void X509_STORE_set_check_policy(X509_STORE *xs,
                                   X509_STORE_CTX_check_policy_fn check_policy);
  X509_STORE_CTX_check_policy_fn
      X509_STORE_get_check_policy(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_lookup_certs(X509_STORE *ctx,
+ void X509_STORE_set_lookup_certs(X509_STORE *xs,
                                   X509_STORE_CTX_lookup_certs_fn lookup_certs);
  X509_STORE_CTX_lookup_certs_fn
      X509_STORE_get_lookup_certs(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_lookup_crls(X509_STORE *ctx,
+ void X509_STORE_set_lookup_crls(X509_STORE *xs,
                                  X509_STORE_CTX_lookup_crls_fn lookup_crls);
  X509_STORE_CTX_lookup_crls_fn
      X509_STORE_get_lookup_crls(const X509_STORE_CTX *ctx);
 
- void X509_STORE_set_cleanup(X509_STORE *ctx,
+ void X509_STORE_set_cleanup(X509_STORE *xs,
                              X509_STORE_CTX_cleanup_fn cleanup);
  X509_STORE_CTX_cleanup_fn X509_STORE_get_cleanup(const X509_STORE_CTX *ctx);
 
  /* Aliases */
  void X509_STORE_set_verify_cb_func(X509_STORE *st,
                                     X509_STORE_CTX_verify_cb verify_cb);
- void X509_STORE_set_verify_func(X509_STORE *ctx,
+ void X509_STORE_set_verify_func(X509_STORE *xs,
                                  X509_STORE_CTX_verify_fn verify);
- void X509_STORE_set_lookup_crls_cb(X509_STORE *ctx,
+ void X509_STORE_set_lookup_crls_cb(X509_STORE *xs,
                                     X509_STORE_CTX_lookup_crls_fn lookup_crls);
 
 =head1 DESCRIPTION
 
-X509_STORE_set_verify_cb() sets the verification callback of I<ctx> to
+X509_STORE_set_verify_cb() sets the verification callback of I<xs> to
 I<verify_cb> overwriting the previous callback.
 The callback assigned with this function becomes a default for the one
 that can be assigned directly to the corresponding B<X509_STORE_CTX>,
 please see L<X509_STORE_CTX_set_verify_cb(3)> for further information.
 
 X509_STORE_set_verify() sets the final chain verification function for
-I<ctx> to I<verify>.
+I<xs> to I<verify>.
 Its purpose is to go through the chain of certificates and check that
 all signatures are valid and that the current time is within the
 limits of each certificate's first and last validity time.
@@ -139,12 +139,14 @@ I<If no chain verification function is provided, the internal default
 function will be used instead.>
 
 X509_STORE_CTX_get1_issuer() tries to find a certificate from the I<store>
-component of I<ctx> with a subject name matching the issuer name of I<x>.
-On success it assigns to I<*issuer> the first match that is currently valid,
-or at least the most recently expired match if there is no currently valid one.
+component of I<ctx> that has a subject name matching the issuer name of I<x>
+and is accepted by the I<check_issued> function in I<ctx>.
+On success it assigns to I<*issuer> the first match that has a suitable validity
+period or otherwise has the latest expiration date of all matching certificates.
 If the function returns 1 the caller is responsible for freeing I<*issuer>.
+Note that this search does not support backtracking.
 
-X509_STORE_set_get_issuer() sets the function I<get_issuer>
+X509_STORE_set_get_issuer() sets the function I<get_issuer> that is used
 to get the "best" candidate issuer certificate of the given certificate I<x>.
 When such a certificate is found, I<get_issuer> must up-ref and assign it
 to I<*issuer> and then return 1.

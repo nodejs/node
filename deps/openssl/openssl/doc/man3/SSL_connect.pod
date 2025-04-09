@@ -14,7 +14,7 @@ SSL_connect - initiate the TLS/SSL handshake with an TLS/SSL server
 
 SSL_connect() initiates the TLS/SSL handshake with a server. The communication
 channel must already have been set and assigned to the B<ssl> by setting an
-underlying B<BIO>.
+underlying B<BIO>. B<ssl> B<MUST NOT> be NULL.
 
 =head1 NOTES
 

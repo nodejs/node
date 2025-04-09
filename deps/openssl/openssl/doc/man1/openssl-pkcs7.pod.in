@@ -19,6 +19,7 @@ B<openssl> B<pkcs7>
 [B<-out> I<filename>]
 [B<-print>]
 [B<-print_certs>]
+[B<-quiet>]
 [B<-text>]
 [B<-noout>]
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
@@ -63,6 +64,11 @@ Print out the full PKCS7 object.
 Prints out any certificates or CRLs contained in the file. They are
 preceded by their subject and issuer names in one line format.
 
+=item B<-quiet>
+
+When used with -print_certs, prints out just the PEM-encoded 
+certificates without any other output. 
+
 =item B<-text>
 
 Prints out certificate details in full rather than just subject and
@@ -100,7 +106,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

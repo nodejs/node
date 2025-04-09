@@ -1,0 +1,85 @@
+=pod
+
+=head1 NAME
+
+EVP_KEM-X25519, EVP_KEM-X448
+- EVP_KEM X25519 and EVP_KEM X448 keytype and algorithm support
+
+=head1 DESCRIPTION
+
+The B<X25519> and <X448> keytype and its parameters are described in
+L<EVP_PKEY-X25519(7)>.
+See L<EVP_PKEY_encapsulate(3)> and L<EVP_PKEY_decapsulate(3)> for more info.
+
+=head2 X25519 and X448 KEM parameters
+
+=over 4
+
+=item "operation" (B<OSSL_KEM_PARAM_OPERATION>)<UTF8 string>
+
+The OpenSSL X25519 and X448 Key Encapsulation Mechanisms only support the
+following default operation (operating mode):
+
+=over 4
+
+=item "DHKEM" (B<OSSL_KEM_PARAM_OPERATION_DHKEM>)
+
+The encapsulate function generates an ephemeral keypair. It produces keymaterial
+by doing an X25519 or X448 key exchange using the ephemeral private key and a
+supplied recipient public key. A HKDF operation using the keymaterial and a kem
+context then produces a shared secret. The shared secret and the ephemeral
+public key are returned.
+The decapsulate function uses the recipient private key and the
+ephemeral public key to produce the same keymaterial, which can then be used to
+produce the same shared secret.
+See L<https://www.rfc-editor.org/rfc/rfc9180.html#name-dh-based-kem-dhkem>
+
+=back
+
+This can be set using either EVP_PKEY_CTX_set_kem_op() or
+EVP_PKEY_CTX_set_params().
+
+=item "ikme" (B<OSSL_KEM_PARAM_IKME>) <octet string>
+
+Used to specify the key material used for generation of the ephemeral key.
+This value should not be reused for other purposes.
+It should have a length of at least 32 for X25519, and 56 for X448.
+If this value is not set, then a random ikm is used.
+
+=back
+
+=head1 CONFORMING TO
+
+=over 4
+
+=item RFC9180
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_CTX_set_kem_op(3)>,
+L<EVP_PKEY_encapsulate(3)>,
+L<EVP_PKEY_decapsulate(3)>
+L<EVP_KEYMGMT(3)>,
+L<EVP_PKEY(3)>,
+L<provider-keymgmt(7)>
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.2.
+
+The C<operation> (operating mode) was a required parameter prior to OpenSSL 3.5.
+As of OpenSSL 3.5, C<DHKEM> is the default operating mode, and no explicit value
+need be specified.
+
+=head1 COPYRIGHT
+
+Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -25,6 +25,10 @@ The default provider understands these RSA padding modes in string form:
 
 =item "pkcs1" (B<OSSL_PKEY_RSA_PAD_MODE_PKCSV15>)
 
+This padding mode is no longer supported by the FIPS provider for key
+agreement and key transport.
+(This is a FIPS 140-3 requirement)
+
 =item "x931" (B<OSSL_PKEY_RSA_PAD_MODE_X931>)
 
 =back
@@ -36,6 +40,10 @@ The default provider understands these RSA padding modes in integer form:
 =over 4
 
 =item 1 (B<RSA_PKCS1_PADDING>)
+
+This padding mode is no longer supported by the FIPS provider for key
+agreement and key transport.
+(This is a FIPS 140-3 requirement)
 
 =item 3 (B<RSA_NO_PADDING>)
 
@@ -69,6 +77,27 @@ See L<provider-asym_cipher(7)/Asymmetric Cipher Parameters> for more information
 
 =back
 
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_ASYM_CIPHER_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+=item "key-check" (B<OSSL_ASYM_CIPHER_PARAM_FIPS_KEY_CHECK>) <integer>
+
+See L<provider-asym_cipher(7)/Asymmetric Cipher Parameters> for more information.
+
+=item "pkcs15-pad-disabled" (B<OSSL_ASYM_CIPHER_PARAM_FIPS_RSA_PKCS15_PAD_DISABLED>) <integer>
+
+The default value of 1 causes an error during encryption if the RSA padding
+mode is set to "pkcs1".
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 SEE ALSO
 
 L<EVP_PKEY-RSA(7)>,
@@ -80,7 +109,7 @@ L<OSSL_PROVIDER-FIPS(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

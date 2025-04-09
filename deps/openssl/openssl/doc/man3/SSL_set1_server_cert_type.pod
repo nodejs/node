@@ -1,0 +1,196 @@
+=pod
+
+=head1 NAME
+
+SSL_set1_client_cert_type,
+SSL_set1_server_cert_type,
+SSL_CTX_set1_client_cert_type,
+SSL_CTX_set1_server_cert_type,
+SSL_get0_client_cert_type,
+SSL_get0_server_cert_type,
+SSL_CTX_get0_client_cert_type,
+SSL_CTX_get0_server_cert_type - certificate type (RFC7250) support
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_set1_client_cert_type(SSL *s, const unsigned char *val, size_t len);
+ int SSL_set1_server_cert_type(SSL *s, const unsigned char *val, size_t len);
+ int SSL_CTX_set1_client_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len);
+ int SSL_CTX_set1_server_cert_type(SSL_CTX *ctx, const unsigned char *val, size_t len);
+ int SSL_get0_client_cert_type(const SSL *s, unsigned char **val, size_t *len);
+ int SSL_get0_server_cert_type(const SSL *s, unsigned char **val, size_t *len);
+ int SSL_CTX_get0_client_cert_type(const SSL_CTX *ctx, unsigned char **val, size_t *len);
+ int SSL_CTX_get0_server_cert_type(const SSL_CTX *s, unsigned char **val, size_t *len);
+
+=head1 DESCRIPTION
+
+The SSL_set1_client_cert_type() and SSL_CTX_set1_client_cert_type() functions
+set the values for the client certificate type extension.
+The SSL_get0_client_cert_type() and SSL_CTX_get0_client_cert_type() functions
+retrieve the local values to be used in the client certificate type extension.
+
+The SSL_set1_server_cert_type() and SSL_CTX_set1_server_cert_type() functions
+set the values for the server certificate type extension.
+The SSL_get0_server_cert_type() and SSL_CTX_get0_server_cert_type() functions
+retrieve the local values to be used in the server certificate type extension.
+
+=head1 NOTES
+
+The certificate type extensions are used to negotiate the certificate type to
+be used in the handshake.
+These extensions let each side know what its peer is able to accept.
+
+The client certificate type is sent from the client to the server to indicate
+what certificate types the client is able to present.
+Values are configured in preference order.
+On the server, this setting determines which certificate types the server is
+willing to accept.
+The server ultimately chooses what type to request (if any) from the values
+that are mutually supported.
+By default (if no explicit settings are specified), only X.509 certificates
+are supported.
+
+The server certificate type is sent from the client to the server to indicate
+what certificate types the client accepts.
+Values are configured in preference order.
+On the server, this setting determines which certificate types the server is
+willing to present.
+The server ultimately chooses what type to use from the values that are
+mutually supported.
+By default (if no explicit settings are specified), only X.509 certificates
+are supported.
+
+Having RPK specified first means that side will attempt to send (or request)
+RPKs if its peer also supports RPKs, otherwise X.509 certificate will be used
+if both have specified that (or have not configured these options).
+
+The two supported values in the B<val> array are:
+
+=over 4
+
+=item TLSEXT_cert_type_x509
+
+Which corresponds to an X.509 certificate normally used in TLS.
+
+=item TLSEXT_cert_type_rpk
+
+Which corresponds to a raw public key.
+
+=back
+
+If B<val> is set to a non-NULL value, then the extension is sent in the handshake.
+If b<val> is set to a NULL value (and B<len> is 0), then the extension is
+disabled. The default value is NULL, meaning the extension is not sent, and
+X.509 certificates are used in the handshake.
+
+Raw public keys may be used in place of certificates when specified in the
+certificate type and negotiated.
+Raw public keys have no subject, issuer, validity dates or digital signature.
+
+Use the L<SSL_get_negotiated_client_cert_type(3)> and
+L<SSL_get_negotiated_server_cert_type(3)> functions to get the negotiated cert
+type values (at the conclusion of the handshake, or in callbacks that happen
+after the TLS ServerHello has been processed).
+
+=head1 RETURN VALUES
+
+All functions return 1 on success and 0 on failure.
+
+The memory returned from the get0 functions must not be freed.
+
+=head1 EXAMPLES
+
+To use raw public keys on the server, set up the SSL_CTX and SSL as follows:
+
+ SSL_CTX *ctx;
+ SSL *ssl;
+ unsigned char cert_type[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
+ EVP_PKEY *rpk;
+
+ /* Assign rpk to an EVP_PKEY from a file or other means */
+
+ if ((ctx = SSL_CTX_new(TLS_server_method())) == NULL)
+     /* error */
+ if ((ssl = SSL_new(ctx)) == NULL)
+     /* error */
+ if (!SSL_set1_server_cert_type(ssl, cert_type, sizeof(cert_type)))
+     /* error */
+
+ /* A certificate does not need to be specified when using raw public keys */
+ if (!SSL_use_PrivateKey(ssl, rpk))
+     /* error */
+
+ /* Perform SSL_accept() operations */
+
+To connect to this server, set the client SSL_CTX and SSL as follows:
+
+ /* Connect function */
+
+ SSL_CTX *ctx;
+ SSL *ssl;
+ const char *dane_tlsa_domain = "smtp.example.com";
+ unsigned char cert_type[] = { TLSEXT_cert_type_rpk, TLSEXT_cert_type_x509 };
+ EVP_PKEY *rpk;
+ int verify_result;
+
+ /* Assign rpk to an EVP_PKEY from a file or other means */
+
+ if ((ctx = SSL_CTX_new(TLS_client_method())) == NULL)
+     /* error */
+ if (SSL_CTX_dane_enable(ctx) <= 0)
+     /* error */
+ if ((ssl = SSL_new(ctx)) == NULL)
+     /* error */
+ /*
+  * The `dane_tlsa_domain` arguments sets the default SNI hostname.
+  * It may be set to NULL when enabling DANE on the server side.
+  */
+ if (SSL_dane_enable(ssl, dane_tlsa_domain) <= 0)
+     /* error */
+ if (!SSL_set1_server_cert_type(ssl, cert_type, sizeof(cert_type)))
+     /* error */
+ if (!SSL_add_expected_rpk(ssl, rpk))
+     /* error */
+
+ /* Do SSL_connect() handshake and handle errors here */
+
+ /* Optional: verify the peer RPK */
+ verify_result = SSL_get_verify_result(ssl);
+ if (verify_result == X509_V_OK) {
+     /* The server's raw public key matched the TLSA record */
+ } else if (verify_result == X509_V_ERR_DANE_NO_MATCH) {
+     /*
+      * The server's raw public key, or public key in certificate, did not
+      * match the TLSA record
+      */
+ } else if (verify_result == X509_V_ERR_RPK_UNTRUSTED) {
+     /*
+      * No TLSA records of the correct type are available to verify the
+      * server's raw public key. This would not happen in this example,
+      * as a TLSA record is configured.
+      */
+ } else {
+     /* Some other verify error */
+ }
+
+To validate client raw public keys, code from the client example may need to be
+incorporated into the server side.
+
+=head1 SEE ALSO
+
+L<SSL_get0_peer_rpk(3)>,
+L<SSL_get_negotiated_client_cert_type(3)>,
+L<SSL_get_negotiated_server_cert_type(3)>,
+L<SSL_use_certificate(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+=cut

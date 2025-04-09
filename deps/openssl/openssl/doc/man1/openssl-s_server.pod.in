@@ -7,6 +7,8 @@ openssl-s_server - SSL/TLS server program
 
 =head1 SYNOPSIS
 
+=for openssl duplicate options
+
 B<openssl> B<s_server>
 [B<-help>]
 [B<-port> I<+int>]
@@ -70,7 +72,7 @@ B<openssl> B<s_server>
 [B<-verify_quiet>]
 [B<-ign_eof>]
 [B<-no_ign_eof>]
-[B<-no_etm>]
+[B<-no_ems>]
 [B<-status>]
 [B<-status_verbose>]
 [B<-status_timeout> I<int>]
@@ -90,27 +92,9 @@ B<openssl> B<s_server>
 [B<-max_pipelines> I<+int>]
 [B<-naccept> I<+int>]
 [B<-read_buf> I<+int>]
-[B<-bugs>]
-[B<-no_comp>]
-[B<-comp>]
-[B<-no_ticket>]
-[B<-serverpref>]
-[B<-legacy_renegotiation>]
-[B<-no_renegotiation>]
-[B<-no_resumption_on_reneg>]
-[B<-allow_no_dhe_kex>]
-[B<-prioritize_chacha>]
-[B<-strict>]
-[B<-sigalgs> I<val>]
-[B<-client_sigalgs> I<val>]
-[B<-groups> I<val>]
-[B<-curves> I<val>]
-[B<-named_curve> I<val>]
-[B<-cipher> I<val>]
-[B<-ciphersuites> I<val>]
+[B<-no_tx_cert_comp>]
+[B<-no_rx_cert_comp>]
 [B<-dhparam> I<infile>]
-[B<-record_padding> I<val>]
-[B<-debug_broken_protocol>]
 [B<-nbio>]
 [B<-psk_identity> I<val>]
 [B<-psk_hint> I<val>]
@@ -127,7 +111,9 @@ B<openssl> B<s_server>
 [B<-no_dhe>]
 [B<-nextprotoneg> I<val>]
 [B<-alpn> I<val>]
+[B<-ktls>]
 [B<-sendfile>]
+[B<-zerocopy_sendfile>]
 [B<-keylogfile> I<outfile>]
 [B<-recv_max_early_data> I<int>]
 [B<-max_early_data> I<int>]
@@ -136,6 +122,8 @@ B<openssl> B<s_server>
 [B<-anti_replay>]
 [B<-no_anti_replay>]
 [B<-num_tickets>]
+[B<-tfo>]
+[B<-cert_comp>]
 {- $OpenSSL::safe::opt_name_synopsis -}
 {- $OpenSSL::safe::opt_version_synopsis -}
 {- $OpenSSL::safe::opt_v_synopsis -}
@@ -144,6 +132,8 @@ B<openssl> B<s_server>
 {- $OpenSSL::safe::opt_trust_synopsis -}
 {- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
+[B<-enable_server_rpk>]
+[B<-enable_client_rpk>]
 
 =head1 DESCRIPTION
 
@@ -226,6 +216,8 @@ See L<openssl-format-options(1)> for details.
 
 A file or URI of untrusted certificates to use when attempting to build the
 certificate chain related to the certificate specified via the B<-cert> option.
+These untrusted certificates are sent to clients and used for generating
+certificate status (aka OCSP stapling) requests.
 The input can be in PEM, DER, or PKCS#12 format.
 
 =item B<-build_chain>
@@ -404,7 +396,6 @@ information about the ciphers used and various session parameters.
 The output is in HTML format so this option can be used with a web browser.
 The special URL C</renegcert> turns on client cert validation, and C</reneg>
 tells the server to request renegotiation.
-The B<-early_data> option cannot be used with this option.
 
 =item B<-WWW>, B<-HTTP>
 
@@ -420,7 +411,6 @@ Extensions of C<html>, C<htm>, and C<php> are C<text/html> and all others are
 C<text/plain>.
 In addition, the special URL C</stats> will return status
 information like the B<-www> option.
-Neither of these options can be used in conjunction with B<-early_data>.
 
 =item B<-http_server_binmode>
 
@@ -491,9 +481,9 @@ Ignore input EOF (default: when B<-quiet>).
 
 Do not ignore input EOF.
 
-=item B<-no_etm>
+=item B<-no_ems>
 
-Disable Encrypt-then-MAC negotiation.
+Disable Extended master secret negotiation.
 
 =item B<-status>
 
@@ -503,6 +493,8 @@ Enables certificate status request support (aka OCSP stapling).
 
 Enables certificate status request support (aka OCSP stapling) and gives
 a verbose printout of the OCSP response.
+Use the B<-cert_chain> option to specify the certificate of the server's
+certificate signer that is required for certificate status requests.
 
 =item B<-status_timeout> I<int>
 
@@ -597,10 +589,13 @@ effect if the buffer size is larger than the size that would otherwise be used
 and pipelining is in use (see L<SSL_CTX_set_default_read_buffer_len(3)> for
 further information).
 
-=item B<-bugs>
+=item B<-no_tx_cert_comp>
 
-There are several known bugs in SSL and TLS implementations. Adding this
-option enables various workarounds.
+Disables support for sending TLSv1.3 compressed certificates.
+
+=item B<-no_rx_cert_comp>
+
+Disables support for receiving TLSv1.3 compressed certificates.
 
 =item B<-no_comp>
 
@@ -608,69 +603,11 @@ Disable negotiation of TLS compression.
 TLS compression is not recommended and is off by default as of
 OpenSSL 1.1.0.
 
-=item B<-comp>
-
-Enable negotiation of TLS compression.
-This option was introduced in OpenSSL 1.1.0.
-TLS compression is not recommended and is off by default as of
-OpenSSL 1.1.0.
-
-=item B<-no_ticket>
-
-Disable RFC4507bis session ticket support. This option has no effect if TLSv1.3
-is negotiated. See B<-num_tickets>.
-
 =item B<-num_tickets>
 
 Control the number of tickets that will be sent to the client after a full
 handshake in TLSv1.3. The default number of tickets is 2. This option does not
 affect the number of tickets sent after a resumption handshake.
-
-=item B<-serverpref>
-
-Use the server's cipher preferences, rather than the client's preferences.
-
-=item B<-prioritize_chacha>
-
-Prioritize ChaCha ciphers when preferred by clients. Requires B<-serverpref>.
-
-=item B<-no_resumption_on_reneg>
-
-Set the B<SSL_OP_NO_SESSION_RESUMPTION_ON_RENEGOTIATION> option.
-
-=item B<-client_sigalgs> I<val>
-
-Signature algorithms to support for client certificate authentication
-(colon-separated list).
-
-=item B<-named_curve> I<val>
-
-Specifies the elliptic curve to use. NOTE: this is single curve, not a list.
-
-The list of all supported groups includes named EC parameters as well as X25519
-and X448 or FFDHE groups, and may also include groups implemented in 3rd-party
-providers. For a list of named EC parameters, use:
-
-    $ openssl ecparam -list_curves
-
-=item B<-cipher> I<val>
-
-This allows the list of TLSv1.2 and below ciphersuites used by the server to be
-modified. This list is combined with any TLSv1.3 ciphersuites that have been
-configured. When the client sends a list of supported ciphers the first client
-cipher also included in the server list is used. Because the client specifies
-the preference order, the order of the server cipherlist is irrelevant. See
-L<openssl-ciphers(1)> for more information.
-
-=item B<-ciphersuites> I<val>
-
-This allows the list of TLSv1.3 ciphersuites used by the server to be modified.
-This list is combined with any TLSv1.2 and below ciphersuites that have been
-configured. When the client sends a list of supported ciphers the first client
-cipher also included in the server list is used. Because the client specifies
-the preference order, the order of the server cipherlist is irrelevant. See
-L<openssl-ciphers(1)> command for more information. The format for this list is
-a simple colon (":") separated list of TLSv1.3 ciphersuite names.
 
 =item B<-dhparam> I<infile>
 
@@ -769,11 +706,27 @@ Protocol names are printable ASCII strings, for example "http/1.1" or
 "spdy/3".
 The flag B<-nextprotoneg> cannot be specified if B<-tls1_3> is used.
 
+=item B<-ktls>
+
+Enable Kernel TLS for sending and receiving.
+This option was introduced in OpenSSL 3.2.0.
+Kernel TLS is off by default as of OpenSSL 3.2.0.
+
 =item B<-sendfile>
 
 If this option is set and KTLS is enabled, SSL_sendfile() will be used
 instead of BIO_write() to send the HTTP response requested by a client.
-This option is only valid if B<-WWW> or B<-HTTP> is specified.
+This option is only valid when B<-ktls> along with B<-WWW> or B<-HTTP>
+are specified.
+
+=item B<-zerocopy_sendfile>
+
+If this option is set, SSL_sendfile() will use the zerocopy TX mode, which gives
+a performance boost when used with KTLS hardware offload. Note that invalid
+TLS records might be transmitted if the file is changed while being sent.
+This option depends on B<-sendfile>; when used alone, B<-sendfile> is implied,
+and a warning is shown. Note that KTLS sendfile on FreeBSD always runs in the
+zerocopy mode.
 
 =item B<-keylogfile> I<outfile>
 
@@ -810,6 +763,14 @@ has been negotiated, and early data is enabled on the server. A full handshake
 is forced if a session ticket is used a second or subsequent time. Any early
 data that was sent will be rejected.
 
+=item B<-tfo>
+
+Enable acceptance of TCP Fast Open (RFC7413) connections.
+
+=item B<-cert_comp>
+
+Pre-compresses certificates (RFC8879) that will be sent during the handshake.
+
 {- $OpenSSL::safe::opt_name_item -}
 
 {- $OpenSSL::safe::opt_version_item -}
@@ -831,6 +792,26 @@ data that was sent will be rejected.
 If the server requests a client certificate, then
 verification errors are displayed, for debugging, but the command will
 proceed unless the B<-verify_return_error> option is used.
+
+=item B<-enable_server_rpk>
+
+Enable support for sending raw public keys (RFC7250) to the client.
+A raw public key will be sent by the server, if solicited by the client,
+provided a suitable key and public certificate pair is configured.
+Clients that don't support raw public keys or prefer to use X.509
+certificates can still elect to receive X.509 certificates as usual.
+
+Raw public keys are extracted from the configured certificate/private key.
+
+=item B<-enable_client_rpk>
+
+Enable support for receiving raw public keys (RFC7250) from the client.
+Use of X.509 certificates by the client becomes optional, and clients that
+support raw public keys may elect to use them.
+Clients that don't support raw public keys or prefer to use X.509
+certificates can still elect to send X.509 certificates as usual.
+
+Raw public keys are extracted from the configured certificate/private key.
 
 =back
 
@@ -936,9 +917,17 @@ The
 The B<-srpvfile>, B<-srpuserseed>, and B<-engine>
 option were deprecated in OpenSSL 3.0.
 
+The
+B<-enable_client_rpk>,
+B<-enable_server_rpk>,
+B<-no_rx_cert_comp>,
+B<-no_tx_cert_comp>,
+and B<-tfo>
+options were added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

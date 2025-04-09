@@ -90,16 +90,41 @@ or
 
   openssl genpkey -algorithm EC -pkeyopt ec_paramgen_curve:P-256
 
+5. To generate an ML-DSA key
 
-5. NOTE
+An ML-DSA key can be used for signing (and verification via the public key)
+only.
+
+Generating a key for the ML-DSA algorithm is a one-step process.
+
+  openssl genpkey -algorithm ML-DSA-44 -out key.pem
+  openssl genpkey -algorithm ML-DSA-65 -out key.pem
+  openssl genpkey -algorithm ML-DSA-87 -out key.pem
+
+See L<EVP_PKEY-ML-DSA(7)> for more detail.
+
+6. To generate an ML-KEM key
+
+An ML-KEM key can be used for decapsulation (and encapsulation via the public
+key) only.
+
+Generating a key for the ML-KEM algorithm is a one-step process.
+
+  openssl genpkey -algorithm ML-KEM-512 -out key.pem
+  openssl genpkey -algorithm ML-KEM-768 -out key.pem
+  openssl genpkey -algorithm ML-KEM-1024 -out key.pem
+
+See L<EVP_PKEY-ML-KEM(7)> for more detail.
+
+7. NOTE
 
 If you intend to use the key together with a server certificate,
 it may be reasonable to avoid protecting it with a password, since
 otherwise someone would have to type in the password every time the
 server needs to access the key.
 
-For X25519 and X448, it's treated as a distinct algorithm but not as one of
-the curves listed with 'ecparam -list_curves' option. You can use
-the following command to generate an X25519 key:
+X25519, X448, Ed25519 and Ed448 are treated as distinct algorithms and not as
+one of the EC curves listed with 'ecparam -list_curves' option. You can use the
+following command to generate an X25519 key:
 
   openssl genpkey -algorithm X25519 -out xkey.pem

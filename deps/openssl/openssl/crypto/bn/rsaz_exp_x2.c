@@ -1,6 +1,6 @@
 /*
  * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
- * Copyright (c) 2020, Intel Corporation. All Rights Reserved.
+ * Copyright (c) 2020-2021, Intel Corporation. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,7 +8,8 @@
  * https://www.openssl.org/source/license.html
  *
  *
- * Originally written by Ilya Albrekht, Sergey Kirillov and Andrey Matyukov
+ * Originally written by Sergey Kirillov and Andrey Matyukov.
+ * Special thanks to Ilya Albrekht for his valuable hints.
  * Intel Corporation
  *
  */
@@ -23,14 +24,6 @@ NON_EMPTY_TRANSLATION_UNIT
 # include <assert.h>
 # include <string.h>
 
-# if defined(__GNUC__)
-#  define ALIGN64 __attribute__((aligned(64)))
-# elif defined(_MSC_VER)
-#  define ALIGN64 __declspec(align(64))
-# else
-#  define ALIGN64
-# endif
-
 # define ALIGN_OF(ptr, boundary) \
     ((unsigned char *)(ptr) + (boundary - (((size_t)(ptr)) & (boundary - 1))))
 
@@ -42,8 +35,12 @@ NON_EMPTY_TRANSLATION_UNIT
 # define BITS2WORD8_SIZE(x)  (((x) + 7) >> 3)
 # define BITS2WORD64_SIZE(x) (((x) + 63) >> 6)
 
-static ossl_inline uint64_t get_digit52(const uint8_t *in, int in_len);
-static ossl_inline void put_digit52(uint8_t *out, int out_len, uint64_t digit);
+/* Number of registers required to hold |digits_num| amount of qword digits */
+# define NUMBER_OF_REGISTERS(digits_num, register_size)            \
+    (((digits_num) * 64 + (register_size) - 1) / (register_size))
+
+static ossl_inline uint64_t get_digit(const uint8_t *in, int in_len);
+static ossl_inline void put_digit(uint8_t *out, int out_len, uint64_t digit);
 static void to_words52(BN_ULONG *out, int out_len, const BN_ULONG *in,
                        int in_bitsize);
 static void from_words52(BN_ULONG *bn_out, int out_bitsize, const BN_ULONG *in);
@@ -55,41 +52,117 @@ static ossl_inline int number_of_digits(int bitsize, int digit_size)
     return (bitsize + digit_size - 1) / digit_size;
 }
 
-typedef void (*AMM52)(BN_ULONG *res, const BN_ULONG *base,
-                      const BN_ULONG *exp, const BN_ULONG *m, BN_ULONG k0);
-typedef void (*EXP52_x2)(BN_ULONG *res, const BN_ULONG *base,
-                         const BN_ULONG *exp[2], const BN_ULONG *m,
-                         const BN_ULONG *rr, const BN_ULONG k0[2]);
-
 /*
  * For details of the methods declared below please refer to
  *    crypto/bn/asm/rsaz-avx512.pl
  *
- * Naming notes:
+ * Naming conventions:
  *  amm = Almost Montgomery Multiplication
  *  ams = Almost Montgomery Squaring
- *  52x20 - data represented as array of 20 digits in 52-bit radix
+ *  52xZZ - data represented as array of ZZ digits in 52-bit radix
  *  _x1_/_x2_ - 1 or 2 independent inputs/outputs
- *  _256 suffix - uses 256-bit (AVX512VL) registers
+ *  _ifma256 - uses 256-bit wide IFMA ISA (AVX512_IFMA256)
+ *  _avxifma256 - uses 256-bit wide AVXIFMA ISA (AVX_IFMA256)
  */
 
-/*AMM = Almost Montgomery Multiplication. */
-void ossl_rsaz_amm52x20_x1_256(BN_ULONG *res, const BN_ULONG *base,
-                               const BN_ULONG *exp, const BN_ULONG *m,
-                               BN_ULONG k0);
-static void RSAZ_exp52x20_x2_256(BN_ULONG *res, const BN_ULONG *base,
-                                 const BN_ULONG *exp[2], const BN_ULONG *m,
-                                 const BN_ULONG *rr, const BN_ULONG k0[2]);
-void ossl_rsaz_amm52x20_x2_256(BN_ULONG *out, const BN_ULONG *a,
-                               const BN_ULONG *b, const BN_ULONG *m,
-                               const BN_ULONG k0[2]);
+void ossl_rsaz_amm52x20_x1_ifma256(BN_ULONG *res, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   BN_ULONG k0);
+void ossl_rsaz_amm52x20_x2_ifma256(BN_ULONG *out, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   const BN_ULONG k0[2]);
 void ossl_extract_multiplier_2x20_win5(BN_ULONG *red_Y,
                                        const BN_ULONG *red_table,
-                                       int red_table_idx, int tbl_idx);
+                                       int red_table_idx1, int red_table_idx2);
+
+void ossl_rsaz_amm52x30_x1_ifma256(BN_ULONG *res, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   BN_ULONG k0);
+void ossl_rsaz_amm52x30_x2_ifma256(BN_ULONG *out, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x30_win5(BN_ULONG *red_Y,
+                                       const BN_ULONG *red_table,
+                                       int red_table_idx1, int red_table_idx2);
+
+void ossl_rsaz_amm52x40_x1_ifma256(BN_ULONG *res, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   BN_ULONG k0);
+void ossl_rsaz_amm52x40_x2_ifma256(BN_ULONG *out, const BN_ULONG *a,
+                                   const BN_ULONG *b, const BN_ULONG *m,
+                                   const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x40_win5(BN_ULONG *red_Y,
+                                       const BN_ULONG *red_table,
+                                       int red_table_idx1, int red_table_idx2);
+
+void ossl_rsaz_amm52x20_x1_avxifma256(BN_ULONG *res, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      BN_ULONG k0);
+void ossl_rsaz_amm52x20_x2_avxifma256(BN_ULONG *out, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x20_win5_avx(BN_ULONG *red_Y,
+                                           const BN_ULONG *red_table,
+                                           int red_table_idx1,
+                                           int red_table_idx2);
+
+void ossl_rsaz_amm52x30_x1_avxifma256(BN_ULONG *res, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      BN_ULONG k0);
+void ossl_rsaz_amm52x30_x2_avxifma256(BN_ULONG *out, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x30_win5_avx(BN_ULONG *red_Y,
+                                           const BN_ULONG *red_table,
+                                           int red_table_idx1,
+                                           int red_table_idx2);
+
+void ossl_rsaz_amm52x40_x1_avxifma256(BN_ULONG *res, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      BN_ULONG k0);
+void ossl_rsaz_amm52x40_x2_avxifma256(BN_ULONG *out, const BN_ULONG *a,
+                                      const BN_ULONG *b, const BN_ULONG *m,
+                                      const BN_ULONG k0[2]);
+void ossl_extract_multiplier_2x40_win5_avx(BN_ULONG *red_Y,
+                                           const BN_ULONG *red_table,
+                                           int red_table_idx1,
+                                           int red_table_idx2);
+
+typedef void (*AMM)(BN_ULONG *res, const BN_ULONG *a, const BN_ULONG *b,
+                    const BN_ULONG *m, BN_ULONG k0);
+
+static AMM ossl_rsaz_amm52_x1[] = {
+    ossl_rsaz_amm52x20_x1_avxifma256, ossl_rsaz_amm52x20_x1_ifma256,
+    ossl_rsaz_amm52x30_x1_avxifma256, ossl_rsaz_amm52x30_x1_ifma256,
+    ossl_rsaz_amm52x40_x1_avxifma256, ossl_rsaz_amm52x40_x1_ifma256,
+};
+
+typedef void (*DAMM)(BN_ULONG *res, const BN_ULONG *a, const BN_ULONG *b,
+                     const BN_ULONG *m, const BN_ULONG k0[2]);
+
+static DAMM ossl_rsaz_amm52_x2[] = {
+    ossl_rsaz_amm52x20_x2_avxifma256, ossl_rsaz_amm52x20_x2_ifma256,
+    ossl_rsaz_amm52x30_x2_avxifma256, ossl_rsaz_amm52x30_x2_ifma256,
+    ossl_rsaz_amm52x40_x2_avxifma256, ossl_rsaz_amm52x40_x2_ifma256,
+};
+
+typedef void (*DEXTRACT)(BN_ULONG *res, const BN_ULONG *red_table,
+                         int red_table_idx, int tbl_idx);
+
+static DEXTRACT ossl_extract_multiplier_win5[] = {
+    ossl_extract_multiplier_2x20_win5_avx, ossl_extract_multiplier_2x20_win5,
+    ossl_extract_multiplier_2x30_win5_avx, ossl_extract_multiplier_2x30_win5,
+    ossl_extract_multiplier_2x40_win5_avx, ossl_extract_multiplier_2x40_win5,
+};
+
+static int RSAZ_mod_exp_x2_ifma256(BN_ULONG *res, const BN_ULONG *base,
+                                   const BN_ULONG *exp[2], const BN_ULONG *m,
+                                   const BN_ULONG *rr, const BN_ULONG k0[2],
+                                   int modulus_bitsize);
 
 /*
  * Dual Montgomery modular exponentiation using prime moduli of the
- * same bit size, optimized with AVX512 ISA.
+ * same bit size, optimized with AVX512 ISA or AVXIFMA ISA.
  *
  * Input and output parameters for each exponentiation are independent and
  * denoted here by index |i|, i = 1..2.
@@ -98,7 +171,10 @@ void ossl_extract_multiplier_2x20_win5(BN_ULONG *red_Y,
  *
  * Each moduli shall be |factor_size| bit size.
  *
- * NOTE: currently only 2x1024 case is supported.
+ * Supported cases:
+ *   - 2x1024
+ *   - 2x1536
+ *   - 2x2048
  *
  *  [out] res|i|      - result of modular exponentiation: array of qword values
  *                      in regular (2^64) radix. Size of array shall be enough
@@ -135,52 +211,52 @@ int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
      */
     int exp_digits = number_of_digits(factor_size + 2, DIGIT_SIZE);
     int coeff_pow = 4 * (DIGIT_SIZE * exp_digits - factor_size);
+
+    /*  Number of YMM registers required to store exponent's digits */
+    int ymm_regs_num = NUMBER_OF_REGISTERS(exp_digits, 256 /* ymm bit size */);
+    /* Capacity of the register set (in qwords) to store exponent */
+    int regs_capacity = ymm_regs_num * 4;
+
     BN_ULONG *base1_red, *m1_red, *rr1_red;
     BN_ULONG *base2_red, *m2_red, *rr2_red;
     BN_ULONG *coeff_red;
     BN_ULONG *storage = NULL;
     BN_ULONG *storage_aligned = NULL;
-    BN_ULONG storage_len_bytes = 7 * exp_digits * sizeof(BN_ULONG);
-
-    /* AMM = Almost Montgomery Multiplication */
-    AMM52 amm = NULL;
-    /* Dual (2-exps in parallel) exponentiation */
-    EXP52_x2 exp_x2 = NULL;
+    int storage_len_bytes = 7 * regs_capacity * sizeof(BN_ULONG)
+                           + 64 /* alignment */;
 
     const BN_ULONG *exp[2] = {0};
     BN_ULONG k0[2] = {0};
+    /* AMM = Almost Montgomery Multiplication */
+    AMM amm = NULL;
+    int avx512ifma = !!ossl_rsaz_avx512ifma_eligible();
 
-    /* Only 1024-bit factor size is supported now */
-    switch (factor_size) {
-    case 1024:
-        amm = ossl_rsaz_amm52x20_x1_256;
-        exp_x2 = RSAZ_exp52x20_x2_256;
-        break;
-    default:
+    if (factor_size != 1024 && factor_size != 1536 && factor_size != 2048)
         goto err;
-    }
 
-    storage = (BN_ULONG *)OPENSSL_malloc(storage_len_bytes + 64);
+    amm = ossl_rsaz_amm52_x1[(factor_size / 512 - 2) * 2 + avx512ifma];
+
+    storage = (BN_ULONG *)OPENSSL_malloc(storage_len_bytes);
     if (storage == NULL)
         goto err;
     storage_aligned = (BN_ULONG *)ALIGN_OF(storage, 64);
 
     /* Memory layout for red(undant) representations */
     base1_red = storage_aligned;
-    base2_red = storage_aligned + 1 * exp_digits;
-    m1_red    = storage_aligned + 2 * exp_digits;
-    m2_red    = storage_aligned + 3 * exp_digits;
-    rr1_red   = storage_aligned + 4 * exp_digits;
-    rr2_red   = storage_aligned + 5 * exp_digits;
-    coeff_red = storage_aligned + 6 * exp_digits;
+    base2_red = storage_aligned + 1 * regs_capacity;
+    m1_red    = storage_aligned + 2 * regs_capacity;
+    m2_red    = storage_aligned + 3 * regs_capacity;
+    rr1_red   = storage_aligned + 4 * regs_capacity;
+    rr2_red   = storage_aligned + 5 * regs_capacity;
+    coeff_red = storage_aligned + 6 * regs_capacity;
 
     /* Convert base_i, m_i, rr_i, from regular to 52-bit radix */
-    to_words52(base1_red, exp_digits, base1, factor_size);
-    to_words52(base2_red, exp_digits, base2, factor_size);
-    to_words52(m1_red, exp_digits, m1, factor_size);
-    to_words52(m2_red, exp_digits, m2, factor_size);
-    to_words52(rr1_red, exp_digits, rr1, factor_size);
-    to_words52(rr2_red, exp_digits, rr2, factor_size);
+    to_words52(base1_red, regs_capacity, base1, factor_size);
+    to_words52(base2_red, regs_capacity, base2, factor_size);
+    to_words52(m1_red,    regs_capacity, m1,    factor_size);
+    to_words52(m2_red,    regs_capacity, m2,    factor_size);
+    to_words52(rr1_red,   regs_capacity, rr1,   factor_size);
+    to_words52(rr2_red,   regs_capacity, rr2,   factor_size);
 
     /*
      * Compute target domain Montgomery converters RR' for each modulus
@@ -193,10 +269,10 @@ int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
      * where
      *  k = 4 * (52 * digits52 - modlen)
      *  R  = 2^(64 * ceil(modlen/64)) mod m
-     *  RR = R^2 mod M
+     *  RR = R^2 mod m
      *  R' = 2^(52 * ceil(modlen/52)) mod m
      *
-     *  modlen = 1024: k = 64, RR = 2^2048 mod m, RR' = 2^2080 mod m
+     *  EX/ modlen = 1024: k = 64, RR = 2^2048 mod m, RR' = 2^2080 mod m
      */
     memset(coeff_red, 0, exp_digits * sizeof(BN_ULONG));
     /* (1) in reduced domain representation */
@@ -214,7 +290,11 @@ int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
     k0[0] = k0_1;
     k0[1] = k0_2;
 
-    exp_x2(rr1_red, base1_red, exp, m1_red, rr1_red, k0);
+    /* Dual (2-exps in parallel) exponentiation */
+    ret = RSAZ_mod_exp_x2_ifma256(rr1_red, base1_red, exp, m1_red, rr1_red,
+                                  k0, factor_size);
+    if (!ret)
+        goto err;
 
     /* Convert rr_i back to regular radix */
     from_words52(res1, factor_size, rr1_red);
@@ -226,7 +306,6 @@ int ossl_rsaz_mod_exp_avx512_x2(BN_ULONG *res1,
     bn_reduce_once_in_place(res1, /*carry=*/0, m1, storage, factor_size);
     bn_reduce_once_in_place(res2, /*carry=*/0, m2, storage, factor_size);
 
-    ret = 1;
 err:
     if (storage != NULL) {
         OPENSSL_cleanse(storage, storage_len_bytes);
@@ -236,91 +315,144 @@ err:
 }
 
 /*
- * Dual 1024-bit w-ary modular exponentiation using prime moduli of the same
- * bit size using Almost Montgomery Multiplication, optimized with AVX512_IFMA
- * ISA.
+ * Dual {1024,1536,2048}-bit w-ary modular exponentiation using prime moduli of
+ * the same bit size using Almost Montgomery Multiplication, optimized with
+ * AVX512_IFMA256 ISA.
  *
  * The parameter w (window size) = 5.
  *
- *  [out] res      - result of modular exponentiation: 2x20 qword
+ *  [out] res      - result of modular exponentiation: 2x{20,30,40} qword
  *                   values in 2^52 radix.
- *  [in]  base     - base (2x20 qword values in 2^52 radix)
- *  [in]  exp      - array of 2 pointers to 16 qword values in 2^64 radix.
+ *  [in]  base     - base (2x{20,30,40} qword values in 2^52 radix)
+ *  [in]  exp      - array of 2 pointers to {16,24,32} qword values in 2^64 radix.
  *                   Exponent is not converted to redundant representation.
- *  [in]  m        - moduli (2x20 qword values in 2^52 radix)
- *  [in]  rr       - Montgomery parameter for 2 moduli: RR = 2^2080 mod m.
- *                   (2x20 qword values in 2^52 radix)
+ *  [in]  m        - moduli (2x{20,30,40} qword values in 2^52 radix)
+ *  [in]  rr       - Montgomery parameter for 2 moduli:
+ *                     RR(1024) = 2^2080 mod m.
+ *                     RR(1536) = 2^3120 mod m.
+ *                     RR(2048) = 2^4160 mod m.
+ *                   (2x{20,30,40} qword values in 2^52 radix)
  *  [in]  k0       - Montgomery parameter for 2 moduli: k0 = -1/m mod 2^64
  *
  * \return (void).
  */
-static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
-                                 const BN_ULONG *base,   /* [2][20] */
-                                 const BN_ULONG *exp[2], /* 2x16    */
-                                 const BN_ULONG *m,      /* [2][20] */
-                                 const BN_ULONG *rr,     /* [2][20] */
-                                 const BN_ULONG k0[2])
+int RSAZ_mod_exp_x2_ifma256(BN_ULONG *out,
+                            const BN_ULONG *base,
+                            const BN_ULONG *exp[2],
+                            const BN_ULONG *m,
+                            const BN_ULONG *rr,
+                            const BN_ULONG k0[2],
+                            int modulus_bitsize)
 {
-# define BITSIZE_MODULUS (1024)
-# define EXP_WIN_SIZE (5)
-# define EXP_WIN_MASK ((1U << EXP_WIN_SIZE) - 1)
-/*
- * Number of digits (64-bit words) in redundant representation to handle
- * modulus bits
- */
-# define RED_DIGITS (20)
-# define EXP_DIGITS (16)
-# define DAMM ossl_rsaz_amm52x20_x2_256
+    int ret = 0;
+    int idx;
+
+    /* Exponent window size */
+    int exp_win_size = 5;
+    int exp_win_mask = (1U << exp_win_size) - 1;
+
+    /*
+    * Number of digits (64-bit words) in redundant representation to handle
+    * modulus bits
+    */
+    int red_digits = 0;
+    int exp_digits = 0;
+
+    BN_ULONG *storage = NULL;
+    BN_ULONG *storage_aligned = NULL;
+    int storage_len_bytes = 0;
+
+    /* Red(undant) result Y and multiplier X */
+    BN_ULONG *red_Y = NULL;     /* [2][red_digits] */
+    BN_ULONG *red_X = NULL;     /* [2][red_digits] */
+    /* Pre-computed table of base powers */
+    BN_ULONG *red_table = NULL; /* [1U << exp_win_size][2][red_digits] */
+    /* Expanded exponent */
+    BN_ULONG *expz = NULL;      /* [2][exp_digits + 1] */
+
+    /* Dual AMM */
+    DAMM damm = NULL;
+    /* Extractor from red_table */
+    DEXTRACT extract = NULL;
+    int avx512ifma = !!ossl_rsaz_avx512ifma_eligible();
+
 /*
  * Squaring is done using multiplication now. That can be a subject of
  * optimization in future.
  */
-# define DAMS(r,a,m,k0) \
-              ossl_rsaz_amm52x20_x2_256((r),(a),(a),(m),(k0))
+# define DAMS(r,a,m,k0) damm((r),(a),(a),(m),(k0))
 
-    /* Allocate stack for red(undant) result Y and multiplier X */
-    ALIGN64 BN_ULONG red_Y[2][RED_DIGITS];
-    ALIGN64 BN_ULONG red_X[2][RED_DIGITS];
+    if (modulus_bitsize != 1024 && modulus_bitsize != 1536 && modulus_bitsize != 2048)
+        goto err;
 
-    /* Allocate expanded exponent */
-    ALIGN64 BN_ULONG expz[2][EXP_DIGITS + 1];
+    damm = ossl_rsaz_amm52_x2[(modulus_bitsize / 512 - 2) * 2 + avx512ifma];
+    extract = ossl_extract_multiplier_win5[(modulus_bitsize / 512 - 2) * 2 + avx512ifma];
 
-    /* Pre-computed table of base powers */
-    ALIGN64 BN_ULONG red_table[1U << EXP_WIN_SIZE][2][RED_DIGITS];
+    switch (modulus_bitsize) {
+    case 1024:
+        red_digits = 20;
+        exp_digits = 16;
+        break;
+    case 1536:
+        /* Extended with 2 digits padding to avoid mask ops in high YMM register */
+        red_digits = 30 + 2;
+        exp_digits = 24;
+        break;
+    case 2048:
+        red_digits = 40;
+        exp_digits = 32;
+        break;
+    default:
+        goto err;
+    }
 
-    int idx;
+    storage_len_bytes = (2 * red_digits                         /* red_Y     */
+                       + 2 * red_digits                         /* red_X     */
+                       + 2 * red_digits * (1U << exp_win_size)  /* red_table */
+                       + 2 * (exp_digits + 1))                  /* expz      */
+                       * sizeof(BN_ULONG)
+                       + 64;                                    /* alignment */
 
-    memset(red_Y, 0, sizeof(red_Y));
-    memset(red_table, 0, sizeof(red_table));
-    memset(red_X, 0, sizeof(red_X));
+    storage = (BN_ULONG *)OPENSSL_zalloc(storage_len_bytes);
+    if (storage == NULL)
+        goto err;
+    storage_aligned = (BN_ULONG *)ALIGN_OF(storage, 64);
+
+    red_Y     = storage_aligned;
+    red_X     = red_Y + 2 * red_digits;
+    red_table = red_X + 2 * red_digits;
+    expz      = red_table + 2 * red_digits * (1U << exp_win_size);
 
     /*
      * Compute table of powers base^i, i = 0, ..., (2^EXP_WIN_SIZE) - 1
      *   table[0] = mont(x^0) = mont(1)
      *   table[1] = mont(x^1) = mont(x)
      */
-    red_X[0][0] = 1;
-    red_X[1][0] = 1;
-    DAMM(red_table[0][0], (const BN_ULONG*)red_X, rr, m, k0);
-    DAMM(red_table[1][0], base,  rr, m, k0);
+    red_X[0 * red_digits] = 1;
+    red_X[1 * red_digits] = 1;
+    damm(&red_table[0 * 2 * red_digits], (const BN_ULONG*)red_X, rr, m, k0);
+    damm(&red_table[1 * 2 * red_digits], base,  rr, m, k0);
 
-    for (idx = 1; idx < (int)((1U << EXP_WIN_SIZE) / 2); idx++) {
-        DAMS(red_table[2 * idx + 0][0], red_table[1 * idx][0], m, k0);
-        DAMM(red_table[2 * idx + 1][0], red_table[2 * idx][0], red_table[1][0], m, k0);
+    for (idx = 1; idx < (int)((1U << exp_win_size) / 2); idx++) {
+        DAMS(&red_table[(2 * idx + 0) * 2 * red_digits],
+             &red_table[(1 * idx)     * 2 * red_digits], m, k0);
+        damm(&red_table[(2 * idx + 1) * 2 * red_digits],
+             &red_table[(2 * idx)     * 2 * red_digits],
+             &red_table[1 * 2 * red_digits], m, k0);
     }
 
     /* Copy and expand exponents */
-    memcpy(expz[0], exp[0], EXP_DIGITS * sizeof(BN_ULONG));
-    expz[0][EXP_DIGITS] = 0;
-    memcpy(expz[1], exp[1], EXP_DIGITS * sizeof(BN_ULONG));
-    expz[1][EXP_DIGITS] = 0;
+    memcpy(&expz[0 * (exp_digits + 1)], exp[0], exp_digits * sizeof(BN_ULONG));
+    expz[1 * (exp_digits + 1) - 1] = 0;
+    memcpy(&expz[1 * (exp_digits + 1)], exp[1], exp_digits * sizeof(BN_ULONG));
+    expz[2 * (exp_digits + 1) - 1] = 0;
 
     /* Exponentiation */
     {
-        const int rem = BITSIZE_MODULUS % EXP_WIN_SIZE;
-        BN_ULONG table_idx_mask = EXP_WIN_MASK;
+        const int rem = modulus_bitsize % exp_win_size;
+        const BN_ULONG table_idx_mask = exp_win_mask;
 
-        int exp_bit_no = BITSIZE_MODULUS - rem;
+        int exp_bit_no = modulus_bitsize - rem;
         int exp_chunk_no = exp_bit_no / 64;
         int exp_chunk_shift = exp_bit_no % 64;
 
@@ -337,8 +469,9 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
         OPENSSL_assert(rem != 0);
 
         /* Process 1-st exp window - just init result */
-        red_table_idx_0 = expz[0][exp_chunk_no];
-        red_table_idx_1 = expz[1][exp_chunk_no];
+        red_table_idx_0 = expz[exp_chunk_no + 0 * (exp_digits + 1)];
+        red_table_idx_1 = expz[exp_chunk_no + 1 * (exp_digits + 1)];
+
         /*
          * The function operates with fixed moduli sizes divisible by 64,
          * thus table index here is always in supported range [0, EXP_WIN_SIZE).
@@ -346,13 +479,10 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
         red_table_idx_0 >>= exp_chunk_shift;
         red_table_idx_1 >>= exp_chunk_shift;
 
-        ossl_extract_multiplier_2x20_win5(red_Y[0], (const BN_ULONG*)red_table,
-                                          (int)red_table_idx_0, 0);
-        ossl_extract_multiplier_2x20_win5(red_Y[1], (const BN_ULONG*)red_table,
-                                          (int)red_table_idx_1, 1);
+        extract(&red_Y[0 * red_digits], (const BN_ULONG*)red_table, (int)red_table_idx_0, (int)red_table_idx_1);
 
         /* Process other exp windows */
-        for (exp_bit_no -= EXP_WIN_SIZE; exp_bit_no >= 0; exp_bit_no -= EXP_WIN_SIZE) {
+        for (exp_bit_no -= exp_win_size; exp_bit_no >= 0; exp_bit_no -= exp_win_size) {
             /* Extract pre-computed multiplier from the table */
             {
                 BN_ULONG T;
@@ -360,43 +490,37 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
                 exp_chunk_no = exp_bit_no / 64;
                 exp_chunk_shift = exp_bit_no % 64;
                 {
-                    red_table_idx_0 = expz[0][exp_chunk_no];
-                    T = expz[0][exp_chunk_no + 1];
+                    red_table_idx_0 = expz[exp_chunk_no + 0 * (exp_digits + 1)];
+                    T = expz[exp_chunk_no + 1 + 0 * (exp_digits + 1)];
 
                     red_table_idx_0 >>= exp_chunk_shift;
                     /*
                      * Get additional bits from then next quadword
                      * when 64-bit boundaries are crossed.
                      */
-                    if (exp_chunk_shift > 64 - EXP_WIN_SIZE) {
+                    if (exp_chunk_shift > 64 - exp_win_size) {
                         T <<= (64 - exp_chunk_shift);
                         red_table_idx_0 ^= T;
                     }
                     red_table_idx_0 &= table_idx_mask;
-
-                    ossl_extract_multiplier_2x20_win5(red_X[0],
-                                                      (const BN_ULONG*)red_table,
-                                                      (int)red_table_idx_0, 0);
                 }
                 {
-                    red_table_idx_1 = expz[1][exp_chunk_no];
-                    T = expz[1][exp_chunk_no + 1];
+                    red_table_idx_1 = expz[exp_chunk_no + 1 * (exp_digits + 1)];
+                    T = expz[exp_chunk_no + 1 + 1 * (exp_digits + 1)];
 
                     red_table_idx_1 >>= exp_chunk_shift;
                     /*
                      * Get additional bits from then next quadword
                      * when 64-bit boundaries are crossed.
                      */
-                    if (exp_chunk_shift > 64 - EXP_WIN_SIZE) {
+                    if (exp_chunk_shift > 64 - exp_win_size) {
                         T <<= (64 - exp_chunk_shift);
                         red_table_idx_1 ^= T;
                     }
                     red_table_idx_1 &= table_idx_mask;
-
-                    ossl_extract_multiplier_2x20_win5(red_X[1],
-                                                      (const BN_ULONG*)red_table,
-                                                      (int)red_table_idx_1, 1);
                 }
+
+                extract(&red_X[0 * red_digits], (const BN_ULONG*)red_table, (int)red_table_idx_0, (int)red_table_idx_1);
             }
 
             /* Series of squaring */
@@ -406,43 +530,46 @@ static void RSAZ_exp52x20_x2_256(BN_ULONG *out,          /* [2][20] */
             DAMS((BN_ULONG*)red_Y, (const BN_ULONG*)red_Y, m, k0);
             DAMS((BN_ULONG*)red_Y, (const BN_ULONG*)red_Y, m, k0);
 
-            DAMM((BN_ULONG*)red_Y, (const BN_ULONG*)red_Y, (const BN_ULONG*)red_X, m, k0);
+            damm((BN_ULONG*)red_Y, (const BN_ULONG*)red_Y, (const BN_ULONG*)red_X, m, k0);
         }
     }
 
     /*
      *
      * NB: After the last AMM of exponentiation in Montgomery domain, the result
-     * may be 1025-bit, but the conversion out of Montgomery domain performs an
-     * AMM(x,1) which guarantees that the final result is less than |m|, so no
-     * conditional subtraction is needed here. See "Efficient Software
-     * Implementations of Modular Exponentiation" (by Shay Gueron) paper for details.
+     * may be (modulus_bitsize + 1), but the conversion out of Montgomery domain
+     * performs an AMM(x,1) which guarantees that the final result is less than
+     * |m|, so no conditional subtraction is needed here. See [1] for details.
+     *
+     * [1] Gueron, S. Efficient software implementations of modular exponentiation.
+     *     DOI: 10.1007/s13389-012-0031-5
      */
 
     /* Convert result back in regular 2^52 domain */
-    memset(red_X, 0, sizeof(red_X));
-    red_X[0][0] = 1;
-    red_X[1][0] = 1;
-    DAMM(out, (const BN_ULONG*)red_Y, (const BN_ULONG*)red_X, m, k0);
+    memset(red_X, 0, 2 * red_digits * sizeof(BN_ULONG));
+    red_X[0 * red_digits] = 1;
+    red_X[1 * red_digits] = 1;
+    damm(out, (const BN_ULONG*)red_Y, (const BN_ULONG*)red_X, m, k0);
 
-    /* Clear exponents */
-    OPENSSL_cleanse(expz, sizeof(expz));
-    OPENSSL_cleanse(red_Y, sizeof(red_Y));
+    ret = 1;
 
-# undef DAMS
-# undef DAMM
-# undef EXP_DIGITS
-# undef RED_DIGITS
-# undef EXP_WIN_MASK
-# undef EXP_WIN_SIZE
-# undef BITSIZE_MODULUS
+err:
+    if (storage != NULL) {
+        /* Clear whole storage */
+        OPENSSL_cleanse(storage, storage_len_bytes);
+        OPENSSL_free(storage);
+    }
+
+#undef DAMS
+    return ret;
 }
 
-static ossl_inline uint64_t get_digit52(const uint8_t *in, int in_len)
+static ossl_inline uint64_t get_digit(const uint8_t *in, int in_len)
 {
     uint64_t digit = 0;
 
     assert(in != NULL);
+    assert(in_len <= 8);
 
     for (; in_len > 0; in_len--) {
         digit <<= 8;
@@ -480,17 +607,17 @@ static void to_words52(BN_ULONG *out, int out_len,
     }
 
     if (in_bitsize > DIGIT_SIZE) {
-        uint64_t digit = get_digit52(in_str, 7);
+        uint64_t digit = get_digit(in_str, 7);
 
         out[0] = digit & DIGIT_MASK;
         in_str += 6;
         in_bitsize -= DIGIT_SIZE;
-        digit = get_digit52(in_str, BITS2WORD8_SIZE(in_bitsize));
+        digit = get_digit(in_str, BITS2WORD8_SIZE(in_bitsize));
         out[1] = digit >> 4;
         out += 2;
         out_len -= 2;
     } else if (in_bitsize > 0) {
-        out[0] = get_digit52(in_str, BITS2WORD8_SIZE(in_bitsize));
+        out[0] = get_digit(in_str, BITS2WORD8_SIZE(in_bitsize));
         out++;
         out_len--;
     }
@@ -498,12 +625,13 @@ static void to_words52(BN_ULONG *out, int out_len,
     memset(out, 0, out_len * sizeof(BN_ULONG));
 }
 
-static ossl_inline void put_digit52(uint8_t *pStr, int strLen, uint64_t digit)
+static ossl_inline void put_digit(uint8_t *out, int out_len, uint64_t digit)
 {
-    assert(pStr != NULL);
+    assert(out != NULL);
+    assert(out_len <= 8);
 
-    for (; strLen > 0; strLen--) {
-        *pStr++ = (uint8_t)(digit & 0xFF);
+    for (; out_len > 0; out_len--) {
+        *out++ = (uint8_t)(digit & 0xFF);
         digit >>= 8;
     }
 }
@@ -539,13 +667,13 @@ static void from_words52(BN_ULONG *out, int out_bitsize, const BN_ULONG *in)
         }
 
         if (out_bitsize > DIGIT_SIZE) {
-            put_digit52(out_str, 7, in[0]);
+            put_digit(out_str, 7, in[0]);
             out_str += 6;
             out_bitsize -= DIGIT_SIZE;
-            put_digit52(out_str, BITS2WORD8_SIZE(out_bitsize),
+            put_digit(out_str, BITS2WORD8_SIZE(out_bitsize),
                         (in[1] << 4 | in[0] >> 48));
         } else if (out_bitsize) {
-            put_digit52(out_str, BITS2WORD8_SIZE(out_bitsize), in[0]);
+            put_digit(out_str, BITS2WORD8_SIZE(out_bitsize), in[0]);
         }
     }
 }

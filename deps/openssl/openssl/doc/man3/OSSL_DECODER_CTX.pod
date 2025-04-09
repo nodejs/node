@@ -47,8 +47,8 @@ OSSL_DECODER_INSTANCE_get_input_structure
  int OSSL_DECODER_CTX_set_input_structure(OSSL_DECODER_CTX *ctx,
                                           const char *input_structure);
  int OSSL_DECODER_CTX_add_decoder(OSSL_DECODER_CTX *ctx, OSSL_DECODER *decoder);
- int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx, 
-                                OSSL_LIB_CTX *libctx, 
+ int OSSL_DECODER_CTX_add_extra(OSSL_DECODER_CTX *ctx,
+                                OSSL_LIB_CTX *libctx,
                                 const char *propq);
  int OSSL_DECODER_CTX_get_num_decoders(OSSL_DECODER_CTX *ctx);
 

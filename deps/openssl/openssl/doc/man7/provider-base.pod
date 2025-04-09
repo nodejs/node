@@ -76,13 +76,23 @@ provider-base
  size_t get_entropy(const OSSL_CORE_HANDLE *handle,
                     unsigned char **pout, int entropy,
                     size_t min_len, size_t max_len);
+ size_t get_user_entropy(const OSSL_CORE_HANDLE *handle,
+                         unsigned char **pout, int entropy,
+                         size_t min_len, size_t max_len);
  void cleanup_entropy(const OSSL_CORE_HANDLE *handle,
                       unsigned char *buf, size_t len);
+ void cleanup_user_entropy(const OSSL_CORE_HANDLE *handle,
+                           unsigned char *buf, size_t len);
  size_t get_nonce(const OSSL_CORE_HANDLE *handle,
                   unsigned char **pout, size_t min_len, size_t max_len,
                   const void *salt, size_t salt_len);
+ size_t get_user_nonce(const OSSL_CORE_HANDLE *handle,
+                       unsigned char **pout, size_t min_len, size_t max_len,
+                       const void *salt, size_t salt_len);
  void cleanup_nonce(const OSSL_CORE_HANDLE *handle,
                     unsigned char *buf, size_t len);
+ void cleanup_user_nonce(const OSSL_CORE_HANDLE *handle,
+                         unsigned char *buf, size_t len);
 
  /* Functions for querying the providers in the application library context */
  int provider_register_child_cb(const OSSL_CORE_HANDLE *handle,
@@ -171,9 +181,13 @@ provider):
  OPENSSL_cleanse                OSSL_FUNC_OPENSSL_CLEANSE
  OSSL_SELF_TEST_set_callback    OSSL_FUNC_SELF_TEST_CB
  ossl_rand_get_entropy          OSSL_FUNC_GET_ENTROPY
+ ossl_rand_get_user_entropy     OSSL_FUNC_GET_USER_ENTROPY
  ossl_rand_cleanup_entropy      OSSL_FUNC_CLEANUP_ENTROPY
+ ossl_rand_cleanup_user_entropy OSSL_FUNC_CLEANUP_USER_ENTROPY
  ossl_rand_get_nonce            OSSL_FUNC_GET_NONCE
+ ossl_rand_get_user_nonce       OSSL_FUNC_GET_USER_NONCE
  ossl_rand_cleanup_nonce        OSSL_FUNC_CLEANUP_NONCE
+ ossl_rand_cleanup_user_nonce   OSSL_FUNC_CLEANUP_USER_NONCE
  provider_register_child_cb     OSSL_FUNC_PROVIDER_REGISTER_CHILD_CB
  provider_deregister_child_cb   OSSL_FUNC_PROVIDER_DEREGISTER_CHILD_CB
  provider_name                  OSSL_FUNC_PROVIDER_NAME
@@ -265,7 +279,6 @@ It will treat as success the case where the OID already exists (even if the
 short name I<sn> or long name I<ln> provided as arguments differ from those
 associated with the existing OID, in which case the new names are not
 associated).
-This function is not thread safe.
 
 The core_obj_add_sigid() function registers a new composite signature algorithm
 (I<sign_name>) consisting of an underlying signature algorithm (I<pkey_name>)
@@ -280,7 +293,6 @@ signature algorithm already exists (even if registered against a different
 underlying signature or digest algorithm). For I<digest_name>, NULL or an
 empty string is permissible for signature algorithms that do not need a digest
 to operate correctly. The function returns 1 on success or 0 on failure.
-This function is not thread safe.
 
 CRYPTO_malloc(), CRYPTO_zalloc(), CRYPTO_free(), CRYPTO_clear_free(),
 CRYPTO_realloc(), CRYPTO_clear_realloc(), CRYPTO_secure_malloc(),
@@ -304,9 +316,17 @@ output will have at least I<min_len> and at most I<max_len> bytes.
 The buffer address is stored in I<*pout> and the buffer length is
 returned to the caller.  On error, zero is returned.
 
+get_user_entropy() is the same as get_entropy() except that it will
+attempt to gather seed material via the seed source specified by a call to
+L<RAND_set_seed_source_type(3)> or via L<config(5)/Random Configuration>.
+
 cleanup_entropy() is used to clean up and free the buffer returned by
-get_entropy().  The entropy pointer returned by get_entropy() is passed in
-B<buf> and its length in B<len>.
+get_entropy().  The entropy pointer returned by get_entropy()
+is passed in B<buf> and its length in B<len>.
+
+cleanup_user_entropy() is used to clean up and free the buffer returned by
+get_user_entropy().  The entropy pointer returned by get_user_entropy()
+is passed in B<buf> and its length in B<len>.
 
 get_nonce() retrieves a nonce using the passed I<salt> parameter
 of length I<salt_len> and operating system specific information.
@@ -316,9 +336,17 @@ The output is stored in a buffer which contains at least I<min_len> and at
 most I<max_len> bytes.  The buffer address is stored in I<*pout> and the
 buffer length returned to the caller.  On error, zero is returned.
 
+get_user_nonce() is the same as get_nonce() except that it will attempt
+to gather seed material via the seed source specified by a call to
+L<RAND_set_seed_source_type(3)> or via L<config(5)/Random Configuration>.
+
 cleanup_nonce() is used to clean up and free the buffer returned by
-get_nonce().  The nonce pointer returned by get_nonce() is passed in
-B<buf> and its length in B<len>.
+get_nonce().  The nonce pointer returned by get_nonce()
+is passed in B<buf> and its length in B<len>.
+
+cleanup_user_nonce() is used to clean up and free the buffer returned by
+get_user_nonce().  The nonce pointer returned by get_user_nonce()
+is passed in B<buf> and its length in B<len>.
 
 provider_register_child_cb() registers callbacks for being informed about the
 loading and unloading of providers in the application's library context.
@@ -553,6 +581,11 @@ The name of the group as known by the provider. This could be the same as the
 
 The TLS group id value as given in the IANA TLS Supported Groups registry.
 
+It is possible to register the same group id from within different
+providers. Users should note that if no property query is specified, or
+more than one implementation matches the property query then it is
+unspecified which implementation for a particular group id will be used.
+
 =item "tls-group-alg" (B<OSSL_CAPABILITY_TLS_GROUP_ALG>) <UTF8 string>
 
 The name of a Key Management algorithm that the provider offers and that should
@@ -609,6 +642,143 @@ or maximum. A -1 indicates that the group should not be used in that protocol.
 
 =back
 
+=head3 "TLS-SIGALG" Capability
+
+The "TLS-SIGALG" capability can be queried by libssl to discover the list of
+TLS signature algorithms that a provider can support. Each signature supported
+can be used for client- or server-authentication in addition to the built-in
+signature algorithms.
+TLS1.3 clients can advertise the list of TLS signature algorithms they support
+in the signature_algorithms extension, and TLS servers can select an algorithm
+from the offered list that they also support. In this way a provider can add
+to the list of signature algorithms that libssl already supports with
+additional ones.
+
+Each TLS signature algorithm that a provider supports should be described via
+the callback passed in through the provider_get_capabilities function. Each
+algorithm can have the following details supplied:
+
+=over 4
+
+=item "iana-name" (B<OSSL_CAPABILITY_TLS_SIGALG_IANA_NAME>) <UTF8 string>
+
+The name of the signature algorithm as given in the IANA TLS Signature Scheme
+registry as "Description":
+L<https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-signaturescheme>.
+This value must be supplied.
+
+=item "iana-code-point" (B<OSSL_CAPABILITY_TLS_SIGALG_CODE_POINT>) <unsigned integer>
+
+The TLS algorithm ID value as given in the IANA TLS SignatureScheme registry.
+This value must be supplied.
+
+It is possible to register the same code point from within different
+providers. Users should note that if no property query is specified, or
+more than one implementation matches the property query then it is
+unspecified which implementation for a particular code point will be used.
+
+=item "sigalg-name" (B<OSSL_CAPABILITY_TLS_SIGALG_NAME>) <UTF8 string>
+
+A name for the full (possibly composite hash-and-signature) signature
+algorithm.
+The provider may, but is not obligated to, provide a signature implementation
+with this name; if it doesn't, this is assumed to be a composite of a pure
+signature algorithm and a hash algorithm, which must be given with the
+parameters "sig-name" and "hash-name".
+This value must be supplied.
+
+=item "sigalg-oid" (B<OSSL_CAPABILITY_TLS_SIGALG_OID>) <UTF8 string>
+
+The OID of the "sigalg-name" algorithm in canonical numeric text form. If
+this parameter is given, OBJ_create() will be used to create an OBJ and
+a NID for this OID, using the "sigalg-name" parameter for its (short) name.
+Otherwise, it's assumed to already exist in the object database, possibly
+done by the provider with the core_obj_create() upcall.
+This value is optional.
+
+=item "sig-name" (B<OSSL_CAPABILITY_TLS_SIGALG_SIG_NAME>) <UTF8 string>
+
+The name of the pure signature algorithm that is part of a composite
+"sigalg-name". If "sigalg-name" is implemented by the provider, this
+parameter is redundant and must not be given.
+This value is optional.
+
+=item "sig-oid" (B<OSSL_CAPABILITY_TLS_SIGALG_SIG_OID>) <UTF8 string>
+
+The OID of the "sig-name" algorithm in canonical numeric text form. If
+this parameter is given, OBJ_create() will be used to create an OBJ and
+a NID for this OID, using the "sig-name" parameter for its (short) name.
+Otherwise, it is assumed to already exist in the object database. This
+can be done by the provider using the core_obj_create() upcall.
+This value is optional.
+
+=item "hash-name" (B<OSSL_CAPABILITY_TLS_SIGALG_HASH_NAME>) <UTF8 string>
+
+The name of the hash algorithm that is part of a composite "sigalg-name".
+If "sigalg-name" is implemented by the provider, this parameter is redundant
+and must not be given.
+This value is optional.
+
+=item "hash-oid" (B<OSSL_CAPABILITY_TLS_SIGALG_HASH_OID>) <UTF8 string>
+
+The OID of the "hash-name" algorithm in canonical numeric text form. If
+this parameter is given, OBJ_create() will be used to create an OBJ and
+a NID for this OID, using the "hash-name" parameter for its (short) name.
+Otherwise, it's assumed to already exist in the object database, possibly
+done by the provider with the core_obj_create() upcall.
+This value is optional.
+
+=item "key-type" (B<OSSL_CAPABILITY_TLS_SIGALG_KEYTYPE>) <UTF8 string>
+
+The key type of the public key of applicable certificates. If this parameter
+isn't present, it's assumed to be the same as "sig-name" if that's present,
+otherwise "sigalg-name".
+This value is optional.
+
+=item "key-type-oid" (B<OSSL_CAPABILITY_TLS_SIGALG_KEYTYPE_OID>) <UTF8 string>
+
+The OID of the "key-type" in canonical numeric text form. If
+this parameter is given, OBJ_create() will be used to create an OBJ and
+a NID for this OID, using the "key-type" parameter for its (short) name.
+Otherwise, it's assumed to already exist in the object database, possibly
+done by the provider with the core_obj_create() upcall.
+This value is optional.
+
+=item "sec-bits" (B<OSSL_CAPABILITY_TLS_SIGALG_SECURITY_BITS>) <unsigned integer>
+
+The number of bits of security offered by keys of this algorithm. The number
+of bits should be comparable with the ones given in table 2 and 3 of the NIST
+SP800-57 document. This number is used to determine the security strength of
+the algorithm if no digest algorithm has been registered that otherwise
+defines the security strength. If the signature algorithm implements its own
+digest internally, this value needs to be set to properly reflect the overall
+security strength.
+This value must be supplied.
+
+=item "tls-min-tls" (B<OSSL_CAPABILITY_TLS_SIGALG_MIN_TLS>) <integer>
+
+=item "tls-max-tls" (B<OSSL_CAPABILITY_TLS_SIGALG_MAX_TLS>) <integer>
+
+=item "tls-min-dtls" (B<OSSL_CAPABILITY_TLS_SIGALG_MIN_DTLS>) <integer>
+
+=item "tls-max-dtls" (B<OSSL_CAPABILITY_TLS_SIGALG_MAX_DTLS>) <integer>
+
+These parameters can be used to describe the minimum and maximum TLS and DTLS
+versions supported by the signature algorithm. The values equate to the
+on-the-wire encoding of the various TLS versions. For example TLSv1.3 is
+0x0304 (772 decimal), and TLSv1.2 is 0x0303 (771 decimal). A 0 indicates that
+there is no defined minimum or maximum. A -1 in either the min or max field
+indicates that the signature algorithm should not be used in that protocol.
+Presently, provider signature algorithms are used only with TLS 1.3, if
+that's enclosed in the specified range.
+
+=back
+
+=head1 NOTES
+
+The core_obj_create() and core_obj_add_sigid() functions were not thread safe
+in OpenSSL 3.0.
+
 =head1 EXAMPLES
 
 This is an example of a simple provider made available as a
@@ -625,7 +795,7 @@ operation C<BAR>.
 
  static const OSSL_ITEM reasons[] = {
      { E_MALLOC, "memory allocation failure" }.
-     { 0, NULL } /* Termination */
+     OSSL_DISPATCH_END
  };
 
  /*
@@ -705,7 +875,7 @@ operation C<BAR>.
      { OSSL_FUNC_BAR_INIT, (void (*)(void))foo_init },
      { OSSL_FUNC_BAR_UPDATE, (void (*)(void))foo_update },
      { OSSL_FUNC_BAR_FINAL, (void (*)(void))foo_final },
-     { 0, NULL }
+     OSSL_DISPATCH_END
  };
 
  static const OSSL_ALGORITHM bars[] = {
@@ -737,7 +907,7 @@ operation C<BAR>.
      { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))p_teardown },
      { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))p_query },
      { OSSL_FUNC_PROVIDER_GET_REASON_STRINGS, (void (*)(void))p_reasons },
-     { 0, NULL }
+     OSSL_DISPATCH_END
  };
 
  int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,
@@ -807,9 +977,15 @@ L<provider(7)>
 The concept of providers and everything surrounding them was
 introduced in OpenSSL 3.0.
 
+Definitions for
+B<OSSL_CAPABILITY_TLS_SIGALG_MIN_DTLS>
+and
+B<OSSL_CAPABILITY_TLS_SIGALG_MAX_DTLS>
+were added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

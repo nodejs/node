@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -11,13 +11,13 @@ use warnings;
 
 use File::Spec;
 use File::Basename;
-use OpenSSL::Test qw/:DEFAULT srctop_file ok_nofips/;
+use OpenSSL::Test qw/:DEFAULT srctop_file ok_nofips with/;
 use OpenSSL::Test::Utils;
-use File::Compare qw/compare_text/;
+use File::Compare qw/compare_text compare/;
 
 setup("test_pkeyutl");
 
-plan tests => 14;
+plan tests => 27;
 
 # For the tests below we use the cert itself as the TBS file
 
@@ -54,20 +54,27 @@ SKIP: {
 }
 
 SKIP: {
-    skip "Skipping tests that require EC", 4
-        if disabled("ec");
+    skip "Skipping tests that require ECX", 7
+        if disabled("ecx");
 
     # Ed25519
     ok(run(app(([ 'openssl', 'pkeyutl', '-sign', '-in',
                   srctop_file('test', 'certs', 'server-ed25519-cert.pem'),
                   '-inkey', srctop_file('test', 'certs', 'server-ed25519-key.pem'),
-                  '-out', 'Ed25519.sig', '-rawin']))),
+                  '-out', 'Ed25519.sig']))),
                   "Sign a piece of data using Ed25519");
     ok(run(app(([ 'openssl', 'pkeyutl', '-verify', '-certin', '-in',
                   srctop_file('test', 'certs', 'server-ed25519-cert.pem'),
                   '-inkey', srctop_file('test', 'certs', 'server-ed25519-cert.pem'),
-                  '-sigfile', 'Ed25519.sig', '-rawin']))),
+                  '-sigfile', 'Ed25519.sig']))),
                   "Verify an Ed25519 signature against a piece of data");
+    #Check for failure return code
+    with({ exit_checker => sub { return shift == 1; } },
+        sub {
+            ok(run(app(([ 'openssl', 'pkeyutl', '-verifyrecover', '-in', 'Ed25519.sig',
+                          '-inkey', srctop_file('test', 'certs', 'server-ed25519-key.pem')]))),
+               "Cannot use -verifyrecover with EdDSA");
+        });
 
     # Ed448
     ok(run(app(([ 'openssl', 'pkeyutl', '-sign', '-in',
@@ -80,8 +87,19 @@ SKIP: {
                   '-inkey', srctop_file('test', 'certs', 'server-ed448-cert.pem'),
                   '-sigfile', 'Ed448.sig', '-rawin']))),
                   "Verify an Ed448 signature against a piece of data");
+    ok(run(app(([ 'openssl', 'pkeyutl', '-sign', '-in',
+                  srctop_file('test', 'certs', 'server-ed448-cert.pem'),
+                  '-inkey', srctop_file('test', 'certs', 'server-ed448-key.pem'),
+                  '-out', 'Ed448.sig']))),
+                  "Sign a piece of data using Ed448 -rawin no more needed");
+    ok(run(app(([ 'openssl', 'pkeyutl', '-verify', '-certin', '-in',
+                  srctop_file('test', 'certs', 'server-ed448-cert.pem'),
+                  '-inkey', srctop_file('test', 'certs', 'server-ed448-cert.pem'),
+                  '-sigfile', 'Ed448.sig']))),
+                  "Verify an Ed448 signature against a piece of data, no -rawin");
 }
 
+my $sigfile;
 sub tsignverify {
     my $testtext = shift;
     my $privkey = shift;
@@ -90,7 +108,7 @@ sub tsignverify {
 
     my $data_to_sign = srctop_file('test', 'data.bin');
     my $other_data = srctop_file('test', 'data2.bin');
-    my $sigfile = basename($privkey, '.pem') . '.sig';
+    $sigfile = basename($privkey, '.pem') . '.sig';
 
     my @args = ();
     plan tests => 5;
@@ -109,8 +127,12 @@ sub tsignverify {
              '-out', $sigfile,
              '-in', $data_to_sign);
     push(@args, @extraopts);
-    ok(!run(app([@args])),
-       $testtext.": Checking that mismatching keyform fails");
+    #Check for failure return code
+    with({ exit_checker => sub { return shift == 1; } },
+        sub {
+            ok(run(app([@args])),
+               $testtext.": Checking that mismatching keyform fails");
+        });
 
     @args = ('openssl', 'pkeyutl', '-verify',
              '-inkey', $privkey,
@@ -134,12 +156,16 @@ sub tsignverify {
              '-sigfile', $sigfile,
              '-in', $other_data);
     push(@args, @extraopts);
-    ok(!run(app([@args])),
-       $testtext.": Expect failure verifying mismatching data");
+    #Check for failure return code
+    with({ exit_checker => sub { return shift == 1; } },
+        sub {
+            ok(run(app([@args])),
+               $testtext.": Expect failure verifying mismatching data");
+        });
 }
 
 SKIP: {
-    skip "RSA is not supported by this OpenSSL build", 1
+    skip "RSA is not supported by this OpenSSL build", 3
         if disabled("rsa");
 
     subtest "RSA CLI signature generation and verification" => sub {
@@ -149,6 +175,10 @@ SKIP: {
                     "-rawin", "-digest", "sha256");
     };
 
+    ok(run(app((['openssl', 'pkeyutl', '-verifyrecover', '-in', $sigfile,
+                 '-pubin', '-inkey', srctop_file('test', 'testrsapub.pem')]))),
+       "RSA: Verify signature with -verifyrecover");
+
     subtest "RSA CLI signature and verification with pkeyopt" => sub {
         tsignverify("RSA",
                     srctop_file("test","testrsa.pem"),
@@ -156,6 +186,7 @@ SKIP: {
                     "-rawin", "-digest", "sha256",
                     "-pkeyopt", "rsa_padding_mode:pss");
     };
+
 }
 
 SKIP: {
@@ -183,8 +214,8 @@ SKIP: {
 }
 
 SKIP: {
-    skip "EdDSA is not supported by this OpenSSL build", 2
-        if disabled("ec");
+    skip "EdDSA is not supported by this OpenSSL build", 4
+        if disabled("ecx");
 
     subtest "Ed2559 CLI signature generation and verification" => sub {
         tsignverify("Ed25519",
@@ -199,4 +230,53 @@ SKIP: {
                     srctop_file("test","tested448pub.pem"),
                     "-rawin");
     };
+
+    subtest "Ed2559 CLI signature generation and verification, no -rawin" => sub {
+        tsignverify("Ed25519",
+                    srctop_file("test","tested25519.pem"),
+                    srctop_file("test","tested25519pub.pem"));
+    };
+
+    subtest "Ed448 CLI signature generation and verification, no -rawin" => sub {
+        tsignverify("Ed448",
+                    srctop_file("test","tested448.pem"),
+                    srctop_file("test","tested448pub.pem"));
+    };
+}
+
+#Encap/decap tests
+# openssl pkeyutl -encap -pubin -inkey rsa_pub.pem -secret secret.bin -out encap_out.bin
+# openssl pkeyutl -decap -inkey rsa_priv.pem -in encap_out.bin -out decap_out.bin
+# decap_out is equal to secret
+SKIP: {
+    skip "RSA is not supported by this OpenSSL build", 7
+        if disabled("rsa"); # Note "rsa" isn't (yet?) disablable.
+
+    # Self-compat
+    ok(run(app(([ 'openssl', 'pkeyutl', '-encap',
+                  '-inkey', srctop_file('test', 'testrsa2048pub.pem'),
+                  '-out', 'encap_out.bin', '-secret', 'secret.bin']))),
+                  "RSA pubkey encapsulation");
+    ok(run(app(([ 'openssl', 'pkeyutl', '-decap',
+                  '-inkey', srctop_file('test', 'testrsa2048.pem'),
+                  '-in', 'encap_out.bin', '-secret', 'decap_secret.bin']))),
+                  "RSA pubkey decapsulation");
+    is(compare("secret.bin", "decap_secret.bin"), 0, "Secret is correctly decapsulated");
+
+    # Legacy CLI with decap output written to '-out' and with '-kemop` specified
+    ok(run(app(([ 'openssl', 'pkeyutl', '-decap', '-kemop', 'RSASVE',
+                  '-inkey', srctop_file('test', 'testrsa2048.pem'),
+                  '-in', 'encap_out.bin', '-out', 'decap_out.bin']))),
+                  "RSA pubkey decapsulation");
+    is(compare("secret.bin", "decap_out.bin"), 0, "Secret is correctly decapsulated");
+
+    # Pregenerated
+    ok(run(app(([ 'openssl', 'pkeyutl', '-decap', '-kemop', 'RSASVE',
+                  '-inkey', srctop_file('test', 'testrsa2048.pem'),
+                  '-in', srctop_file('test', 'encap_out.bin'),
+                  '-secret', 'decap_out_etl.bin']))),
+                  "RSA pubkey decapsulation - pregenerated");
+
+    is(compare(srctop_file('test', 'encap_secret.bin'), "decap_out_etl.bin"), 0,
+               "Secret is correctly decapsulated - pregenerated");
 }

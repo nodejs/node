@@ -206,6 +206,36 @@ and EVP_PKEY_CTX_get0_dh_kdf_ukm() functions.
 
 =back
 
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_EXCHANGE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling OSSL_FUNC_keyexch_derive(). It may
+return 0 if either the "digest-check" or the "key-check" are set to 0.
+
+=item "key-check" (B<OSSL_EXCHANGE_PARAM_FIPS_KEY_CHECK>) <integer>
+
+If required this parameter should be set using OSSL_FUNC_keyexch_init().
+The default value of 1 causes an error during the init if the key is not FIPS
+approved (e.g. The key has a security strength of less than 112 bits). Setting
+this to 0 will ignore the error and set the approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=item "digest-check" (B<OSSL_EXCHANGE_PARAM_FIPS_DIGEST_CHECK>) <integer>
+
+If required this parameter should be set before any optional digest is set.
+The default value of 1 causes an error when the digest is set if the digest is
+not FIPS approved. Setting this to 0 will ignore the error and set the
+approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 RETURN VALUES
 
 OSSL_FUNC_keyexch_newctx() and OSSL_FUNC_keyexch_dupctx() should return the newly created
@@ -226,9 +256,12 @@ L<provider(7)>
 
 The provider KEYEXCH interface was introduced in OpenSSL 3.0.
 
+The Key Exchange Parameters "fips-indicator", "key-check" and "digest-check"
+were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

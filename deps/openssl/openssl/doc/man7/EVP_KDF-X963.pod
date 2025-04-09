@@ -40,6 +40,41 @@ This parameter specifies an optional value for shared info.
 
 =back
 
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling EVP_KDF_derive. It returns 0 if any "***-check"
+related parameter is set to 0 and the check fails.
+
+=item "digest-check" (B<OSSL_KDF_PARAM_FIPS_DIGEST_CHECK>) <int>
+
+The default value of 1 causes an error during EVP_KDF_CTX_set_params() if
+used digest is not approved.
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+According to ANSI X9.63-2001, the following are approved digest algorithms:
+SHA2-224, SHA2-256, SHA2-384, SHA2-512, SHA2-512/224, SHA2-512/256, SHA3-224,
+SHA3-256, SHA3-384, SHA3-512.
+
+=item "key-check" (B<OSSL_KDF_PARAM_FIPS_KEY_CHECK>) <integer>
+
+The default value of 1 causes an error during EVP_KDF_CTX_set_params() if the
+length of used key-derivation key (B<OSSL_KDF_PARAM_KEY>) is shorter than 112
+bits.
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 NOTES
 
 X963KDF is very similar to the SSKDF that uses a digest as the auxiliary function,
@@ -100,7 +135,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

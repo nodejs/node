@@ -127,6 +127,12 @@ associated parameters for the PBKDF2 algorithm.
 PKCS5_pbe_set0_algor() and PKCS5_pbe_set0_algor_ex() set the PBE algorithm OID and
 parameters into the supplied B<X509_ALGOR>.
 
+If I<salt> is NULL, then I<saltlen> specifies the size in bytes of the random salt to
+generate. If I<saltlen> is 0 then a default size is used.
+For PBE related functions such as PKCS5_pbe_set_ex() the default salt length is 8 bytes.
+For PBE2 related functions that use PBKDF2 such as PKCS5_pbkdf2_set(),
+PKCS5_pbe2_set_scrypt() and PKCS5_pbe2_set() the default salt length is 16 bytes.
+
 =head1 NOTES
 
 The *_keyivgen() functions are typically used in PKCS#12 to encrypt objects.
@@ -165,9 +171,13 @@ PKCS5_pbkdf2_set_ex() were added in OpenSSL 3.0.
 From OpenSSL 3.0 the PBKDF1 algorithm used in PKCS5_PBE_keyivgen() and
 PKCS5_PBE_keyivgen_ex() has been moved to the legacy provider as an EVP_KDF.
 
+In OpenSSL 3.2 the default salt length changed from 8 bytes to 16 bytes for PBE2
+related functions such as PKCS5_pbe2_set().
+This is required for PBKDF2 FIPS compliance.
+
 =head1 COPYRIGHT
 
-Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

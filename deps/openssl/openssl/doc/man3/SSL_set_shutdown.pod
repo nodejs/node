@@ -57,11 +57,21 @@ If a close_notify was received, SSL_RECEIVED_SHUTDOWN will be set,
 for setting SSL_SENT_SHUTDOWN the application must however still call
 L<SSL_shutdown(3)> or SSL_set_shutdown() itself.
 
+SSL_set_shutdown() is not supported for QUIC SSL objects.
+
 =head1 RETURN VALUES
 
 SSL_set_shutdown() does not return diagnostic information.
 
-SSL_get_shutdown() returns the current setting.
+SSL_get_shutdown() returns the current shutdown state as set or based
+on the actual connection state.
+
+SSL_get_shutdown() returns 0 if called on a QUIC stream SSL object. If it
+is called on a QUIC connection SSL object, it returns a value with
+SSL_SENT_SHUTDOWN set if CONNECTION_CLOSE has been sent to the peer and
+it returns a value with SSL_RECEIVED_SHUTDOWN set if CONNECTION_CLOSE
+has been received from the peer or the QUIC connection is fully terminated
+for other reasons.
 
 =head1 SEE ALSO
 
@@ -71,7 +81,7 @@ L<SSL_clear(3)>, L<SSL_free(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -12,6 +12,7 @@ B<openssl list>
 [B<-verbose>]
 [B<-select> I<name>]
 [B<-1>]
+[B<-all-algorithms>]
 [B<-commands>]
 [B<-standard-commands>]
 [B<-digest-algorithms>]
@@ -29,9 +30,15 @@ B<openssl list>
 -}[B<-encoders>]
 [B<-decoders>]
 [B<-key-managers>]
+[B<-skey-managers>]
 [B<-key-exchange-algorithms>]
 [B<-kem-algorithms>]
+[B<-tls-groups>]
+[B<-all-tls-groups>]
+[B<-tls1_2>]
+[B<-tls1_3>]
 [B<-signature-algorithms>]
+[B<-tls-signature-algorithms>]
 [B<-asymcipher-algorithms>]
 [B<-public-key-algorithms>]
 [B<-public-key-methods>]
@@ -71,6 +78,42 @@ Only list algorithms that match this name.
 
 List the commands, digest-commands, or cipher-commands in a single column.
 If used, this option must be given first.
+
+=item B<-all-algorithms>
+
+Display lists of all algorithms.  These include:
+
+=over 4
+
+=item Asymmetric ciphers
+
+=item Decoders
+
+=item Digests
+
+=item Encoders
+
+=item Key derivation algorithms (KDF)
+
+=item Key encapsulation methods (KEM)
+
+=item Key exchange algorithms (KEX)
+
+=item Key managers
+
+=item Symmetric key managers
+
+=item Message authentication code algorithms (MAC)
+
+=item Random number generators (RNG, DRBG)
+
+=item Signature algorithms
+
+=item Store loaders
+
+=item Symmetric ciphers
+
+=back
 
 =item B<-commands>
 
@@ -147,6 +190,10 @@ Display a list of public key methods.
 
 Display a list of key managers.
 
+=item B<-skey-managers>
+
+Display a list of symmetric key managers.
+
 =item B<-key-exchange-algorithms>
 
 Display a list of key exchange algorithms.
@@ -155,9 +202,39 @@ Display a list of key exchange algorithms.
 
 Display a list of key encapsulation algorithms.
 
+=item B<-tls-groups>
+
+Display a list of the IANA names of all available (implemented) TLS groups.
+By default the listed groups are those compatible with TLS 1.3.
+
+=item B<-all-tls-groups>
+
+Display a list of the names of all available (implemented) TLS groups,
+including any aliases.
+Some groups are known under multiple names, for example, B<secp256r1> is also
+known as B<P-256>.
+By default the listed groups are those compatible with TLS 1.3.
+
+=item B<-tls1_2>
+
+When listing TLS groups, list those compatible with TLS 1.2
+
+=item B<-tls1_3>
+
+When listing TLS groups, output those compatible with TLS 1.3.
+TLS 1.3 is the current default protocol version, but the default version is
+subject to change, so best to specify the version explicitly.
+
 =item B<-signature-algorithms>
 
 Display a list of signature algorithms.
+
+=item B<-tls-signature-algorithms>
+
+Display the list of signature algorithms available for TLS handshakes
+made available by all currently active providers.
+The output format is colon delimited in a form directly usable in
+L<SSL_CONF_cmd(3)> specifying SignatureAlgorithms.
 
 =item B<-asymcipher-algorithms>
 
@@ -235,9 +312,11 @@ In both cases, C<bar> is the name of the provider.
 The B<-engines>, B<-digest-commands>, and B<-cipher-commands> options
 were deprecated in OpenSSL 3.0.
 
+The B<-skey-managers> option was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -7,14 +7,16 @@
 
 =head1 NAME
 
-openssl-genpkey - generate a private key
+openssl-genpkey - generate a private key or key pair
 
 =head1 SYNOPSIS
 
 B<openssl> B<genpkey>
 [B<-help>]
 [B<-out> I<filename>]
+[B<-outpubkey> I<filename>]
 [B<-outform> B<DER>|B<PEM>]
+[B<-verbose>]
 [B<-quiet>]
 [B<-pass> I<arg>]
 [B<-I<cipher>>]
@@ -23,12 +25,14 @@ B<openssl> B<genpkey>
 [B<-pkeyopt> I<opt>:I<value>]
 [B<-genparam>]
 [B<-text>]
-{- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
+{- $OpenSSL::safe::opt_r_synopsis -}
+{- $OpenSSL::safe::opt_engine_synopsis -}
+{- $OpenSSL::safe::opt_provider_synopsis -}
 {- $OpenSSL::safe::opt_config_synopsis -}
 
 =head1 DESCRIPTION
 
-This command generates a private key.
+This command generates a private key or key pair.
 
 =head1 OPTIONS
 
@@ -40,8 +44,13 @@ Print out a usage message.
 
 =item B<-out> I<filename>
 
-Output the key to the specified file. If this argument is not specified then
-standard output is used.
+Output the private key to the specified file. If this argument is not
+specified then standard output is used.
+
+=item B<-outpubkey> I<filename>
+
+Output the public key to the specified file. If this argument is not
+specified then the public key is not output.
 
 =item B<-outform> B<DER>|B<PEM>
 
@@ -49,6 +58,10 @@ The output format, except when B<-genparam> is given; the default is B<PEM>.
 See L<openssl-format-options(1)> for details.
 
 When B<-genparam> is given, B<-outform> is ignored.
+
+=item B<-verbose>
+
+Output "status dots" while generating keys.
 
 =item B<-quiet>
 
@@ -68,11 +81,11 @@ name accepted by EVP_get_cipherbyname() is acceptable such as B<des3>.
 
 Public key algorithm to use such as RSA, DSA, DH or DHX. If used this option must
 precede any B<-pkeyopt> options. The options B<-paramfile> and B<-algorithm>
-are mutually exclusive. Engines may add algorithms in addition to the standard
-built-in ones.
+are mutually exclusive. Engines or providers may add algorithms in addition to
+the standard built-in ones.
 
 Valid built-in algorithm names for private key generation are RSA, RSA-PSS, EC,
-X25519, X448, ED25519 and ED448.
+X25519, X448, ED25519, ED448, ML-DSA and ML-KEM.
 
 Valid built-in algorithm names for parameter generation (see the B<-genparam>
 option) are DH, DSA and EC.
@@ -86,6 +99,9 @@ Set the public key algorithm option I<opt> to I<value>. The precise set of
 options supported depends on the public key algorithm used and its
 implementation. See L</KEY GENERATION OPTIONS> and
 L</PARAMETER GENERATION OPTIONS> below for more details.
+
+To list the possible I<opt> values for an algorithm use:
+B<openssl> B<genpkey> -algorithm XXX -help
 
 =item B<-genparam>
 
@@ -104,6 +120,8 @@ are mutually exclusive.
 
 Print an (unencrypted) text representation of private and public keys and
 parameters along with the PEM or DER structure.
+
+{- $OpenSSL::safe::opt_r_item -}
 
 {- $OpenSSL::safe::opt_engine_item -}
 
@@ -179,6 +197,40 @@ The EC curve to use. OpenSSL supports NIST curve names such as "P-256".
 
 The encoding to use for parameters. The I<encoding> parameter must be either
 B<named_curve> or B<explicit>. The default value is B<named_curve>.
+
+=back
+
+=head2 ML-DSA Key Generation Options
+
+=over 4
+
+=item B<hexseed>:I<seed>
+
+This specifies the optional ML-DSA I<seed> in hexadecimal form.  The seed is 32
+bytes, giving 64 hexadecimal digits.
+When generated from an explicit seed the key is completely determined by the
+seed value.
+If other users can see the command-line arguments of the running process, this
+option may compromise the secret key, it is best avoided, tests-aside.
+
+See L<EVP_PKEY-ML-DSA(7)> for more detail.
+
+=back
+
+=head2 ML-KEM Key Generation Options
+
+=over 4
+
+=item B<hexseed>:I<seed>
+
+This specifies the optional ML-KEM I<seed> in hexadecimal form.  The seed is 64
+bytes, giving 128 hexadecimal digits.
+When generated from an explicit seed the key is completely determined by the
+seed value.
+If other users can see the command-line arguments of the running process, this
+option may compromise the secret key, it is best avoided, tests-aside.
+
+See L<EVP_PKEY-ML-KEM(7)> for more detail.
 
 =back
 
@@ -483,6 +535,14 @@ Generate an ED448 private key:
 
  openssl genpkey -algorithm ED448 -out xkey.pem
 
+Generate an ML-DSA-65 private key:
+
+ openssl genpkey -algorithm ML-DSA-65 -out ml-dsa-key.pem
+
+Generate an ML-KEM-768 private key:
+
+ openssl genpkey -algorithm ML-KEM-768 -out ml-kem-key.pem
+
 =head1 HISTORY
 
 The ability to use NIST curve names, and to generate an EC key directly,
@@ -492,9 +552,11 @@ The ability to generate X448, ED25519 and ED448 keys was added in OpenSSL 1.1.1.
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
 
+Support for B<ML-DSA> and B<ML-KEM> was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

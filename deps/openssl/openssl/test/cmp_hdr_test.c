@@ -408,7 +408,6 @@ static int test_HDR_set_and_check_implicit_confirm(void)
     return result;
 }
 
-
 static int execute_HDR_init_test(CMP_HDR_TEST_FIXTURE *fixture)
 {
     ASN1_OCTET_STRING *header_nonce, *header_transactionID;
@@ -428,8 +427,8 @@ static int execute_HDR_init_test(CMP_HDR_TEST_FIXTURE *fixture)
                                               fixture->cmp_ctx->senderNonce)))
         return 0;
     header_transactionID = OSSL_CMP_HDR_get0_transactionID(fixture->hdr);
-    if (!TEST_true(0 == ASN1_OCTET_STRING_cmp(header_transactionID,
-                                              fixture->cmp_ctx->transactionID)))
+    if (!TEST_true(ASN1_OCTET_STRING_cmp(header_transactionID,
+                                         fixture->cmp_ctx->transactionID) == 0))
         return 0;
 
     header_nonce = OSSL_CMP_HDR_get0_recipNonce(fixture->hdr);
@@ -477,7 +476,6 @@ static int test_HDR_init_with_subject(void)
     EXECUTE_TEST(execute_HDR_init_test, tear_down);
     return result;
 }
-
 
 void cleanup_tests(void)
 {

@@ -37,34 +37,34 @@ PrivPubKeyPair = P-256:P-256-PUBLIC
 
 Title = ECDSA tests
 
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF1234"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
 
 # Digest too long
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF12345"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
 Result = VERIFY_ERROR
 
 # Digest too short
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF123"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
 Result = VERIFY_ERROR
 
 # Digest invalid
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF1235"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
 Result = VERIFY_ERROR
 
 # Invalid signature
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF1234"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec7
@@ -72,14 +72,14 @@ Result = VERIFY_ERROR
 
 # Garbage after signature
 Availablein = default
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF1234"
 Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec800
 Result = VERIFY_ERROR
 
 # BER signature
-Verify = P-256
+Verify = P-256-PUBLIC
 Ctrl = digest:SHA1
 Input = "0123456789ABCDEF1234"
 Output = 3080022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec80000
@@ -185,7 +185,6 @@ Title = FIPS Negative tests (using different curves and digests)
 # Test that a explicit curve is not allowed in fips mode
 Availablein = fips
 DigestVerify = SHA256
-Securitycheck = 1
 Key = EC_EXPLICIT
 Input = "Hello World"
 Result = DIGESTVERIFYINIT_ERROR
@@ -215,8 +214,7 @@ Input = "Hello World"
 Result = DIGESTSIGNINIT_ERROR
 
 # Test that SHA1 is not allowed in fips mode for signing
-Availablein = fips
-FIPSversion = <3.4.0
+FIPSversion = >=3.4.0
 Sign = P-256
 Securitycheck = 1
 Ctrl = digest:SHA1
@@ -228,4 +226,44 @@ Availablein = fips
 DigestVerify = MD5
 Securitycheck = 1
 Key = P-256-PUBLIC
+Result = DIGESTVERIFYINIT_ERROR
+
+Title = FIPS Indicator tests
+# Check that the indicator callback is triggered
+# We check for signature mismatch since the signature is unique
+
+FIPSversion = >=3.4.0
+DigestSign = SHA3-512
+Securitycheck = 1
+Unapproved = 1
+CtrlInit = key-check:0
+Key = B-163
+Input = "Hello World"
+Result = SIGNATURE_MISMATCH
+
+# Test that SHA1 is not allowed in fips mode for signing
+FIPSversion = >=3.4.0
+DigestSign = SHA1
+Securitycheck = 1
+Unapproved = 1
+CtrlInit = digest-check:0
+Key = P-256
+Input = "Hello World"
+Result = SIGNATURE_MISMATCH
+
+# Test that SHA1 is not allowed in fips mode for signing
+FIPSversion = >=3.4.0
+Sign = P-256
+Securitycheck = 1
+Unapproved = 1
+CtrlInit = digest-check:0
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Result = KEYOP_MISMATCH
+
+Title = XOF disallowed
+
+DigestVerify = SHAKE256
+Key = B-163
+Input = "Hello World"
 Result = DIGESTVERIFYINIT_ERROR

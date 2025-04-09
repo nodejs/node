@@ -19,7 +19,7 @@ Explicit parameters are supported for backwards compatibility reasons, but they
 are not compliant with multiple standards (including RFC5915) which only allow
 named curves.
 
-The following KeyGen/Gettable/Import/Export types are available for the
+The following Key generation/Gettable/Import/Export types are available for the
 built-in EC algorithm:
 
 =over 4
@@ -147,6 +147,14 @@ Used for getting the EC public key Y component.
 Getter that returns the default digest name.
 (Currently returns "SHA256" as of OpenSSL 3.0).
 
+=item "dhkem-ikm" (B<OSSL_PKEY_PARAM_DHKEM_IKM>) <octet string>
+
+DHKEM requires the generation of a keypair using an input key material (seed).
+Use this to specify the key material used for generation of the private key.
+This value should not be reused for other purposes. It can only be used
+for the curves "P-256", "P-384" and "P-521" and should have a length of at least
+the size of the encoded private key (i.e. 32, 48 and 66 for the listed curves).
+
 =back
 
 The following Gettable types are also available for the built-in EC algorithm:
@@ -176,6 +184,28 @@ range m > tp > 0.
 
 I<k1>, I<k2> and I<k3> are used to get the middle bits of a pentanomial such
 that m > k3 > k2 > k1 > 0
+
+=back
+
+The following key generation settable parameter is also available for the
+OpenSSL FIPS provider's EC algorithm:
+
+=over 4
+
+=item "key-check" (B<OSSL_PKEY_PARAM_FIPS_KEY_CHECK>) <integer>
+
+See L<provider-keymgmt(7)/Common Information Parameters> for further information.
+
+=back
+
+The following key generation Gettable parameter is available for the OpenSSL
+FIPS provider's EC algorithm:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_PKEY_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+See L<provider-keymgmt(7)/Common Information Parameters> for further information.
 
 =back
 
@@ -272,7 +302,7 @@ L<EVP_KEYEXCH-ECDH(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

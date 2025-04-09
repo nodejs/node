@@ -306,10 +306,13 @@ the lifetime of the SSL connection.
      int depth = SSL_get0_dane_authority(ssl, NULL, &mspki);
      if (depth >= 0) {
          (void) SSL_get0_dane_tlsa(ssl, &usage, &selector, &mtype, NULL, NULL);
-         printf("DANE TLSA %d %d %d %s at depth %d\n", usage, selector, mtype,
-                (mspki != NULL) ? "TA public key verified certificate" :
-                depth ? "matched TA certificate" : "matched EE certificate",
-                depth);
+         printf("DANE TLSA %d %d %d ", usage, selector, mtype);
+         if (SSL_get0_peer_rpk(ssl) == NULL)
+             printf("%s certificate at depth %d\n",
+                    (mspki != NULL) ? "signed the peer" :
+                    mdpth ? "matched the TA" : "matched the EE", mdpth);
+         else
+             printf(bio, "matched the peer raw public key\n");
      }
      if (peername != NULL) {
          /* Name checks were in scope and matched the peername */
@@ -373,7 +376,7 @@ These functions were added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

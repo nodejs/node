@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -2054,6 +2054,118 @@ err:
     return r;
 }
 
+/*
+ * This test validates converting an EC_GROUP to an OSSL_PARAM array
+ * using EC_GROUP_to_params(). A named and an explicit curve are tested.
+ */
+static int ossl_parameter_test(void)
+{
+    EC_GROUP *group_nmd = NULL, *group_nmd2 = NULL, *group_nmd3 = NULL;
+    EC_GROUP *group_exp = NULL, *group_exp2 = NULL;
+    OSSL_PARAM *params_nmd = NULL, *params_nmd2 = NULL;
+    OSSL_PARAM *params_exp = NULL, *params_exp2 = NULL;
+    unsigned char *buf = NULL, *buf2 = NULL;
+    BN_CTX *bn_ctx = NULL;
+    OSSL_PARAM_BLD *bld = NULL;
+    BIGNUM *p, *a, *b;
+    const EC_POINT *group_gen = NULL;
+    size_t bsize;
+    int r = 0;
+
+    if (!TEST_ptr(bn_ctx = BN_CTX_new()))
+        goto err;
+
+    /* test named curve */
+    if (!TEST_ptr(group_nmd = EC_GROUP_new_by_curve_name(NID_secp384r1))
+        /* test with null BN_CTX */
+        || !TEST_ptr(params_nmd = EC_GROUP_to_params(
+                group_nmd, NULL, NULL, NULL))
+        || !TEST_ptr(group_nmd2 = EC_GROUP_new_from_params(
+                params_nmd, NULL, NULL))
+        || !TEST_int_eq(EC_GROUP_cmp(group_nmd, group_nmd2, NULL), 0)
+        /* test with BN_CTX set */
+        || !TEST_ptr(params_nmd2 = EC_GROUP_to_params(
+                group_nmd, NULL, NULL, bn_ctx))
+        || !TEST_ptr(group_nmd3 = EC_GROUP_new_from_params(
+                params_nmd2, NULL, NULL))
+        || !TEST_int_eq(EC_GROUP_cmp(group_nmd, group_nmd3, NULL), 0))
+        goto err;
+
+    /* test explicit curve */
+    if (!TEST_ptr(bld = OSSL_PARAM_BLD_new()))
+        goto err;
+
+    BN_CTX_start(bn_ctx);
+    p = BN_CTX_get(bn_ctx);
+    a = BN_CTX_get(bn_ctx);
+    b = BN_CTX_get(bn_ctx);
+
+    if (!TEST_true(EC_GROUP_get_curve(group_nmd, p, a, b, bn_ctx))
+        || !TEST_true(OSSL_PARAM_BLD_push_utf8_string(
+                bld, OSSL_PKEY_PARAM_EC_FIELD_TYPE, SN_X9_62_prime_field, 0))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_EC_P, p))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_EC_A, a))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(bld, OSSL_PKEY_PARAM_EC_B, b)))
+        goto err;
+
+    if (EC_GROUP_get0_seed(group_nmd) != NULL) {
+        if (!TEST_true(OSSL_PARAM_BLD_push_octet_string(
+                bld, OSSL_PKEY_PARAM_EC_SEED, EC_GROUP_get0_seed(group_nmd),
+                EC_GROUP_get_seed_len(group_nmd))))
+            goto err;
+    }
+    if (EC_GROUP_get0_cofactor(group_nmd) != NULL) {
+        if (!TEST_true(OSSL_PARAM_BLD_push_BN(
+                bld, OSSL_PKEY_PARAM_EC_COFACTOR,
+                EC_GROUP_get0_cofactor(group_nmd))))
+            goto err;
+    }
+
+    if (!TEST_ptr(group_gen = EC_GROUP_get0_generator(group_nmd))
+        || !TEST_size_t_gt(bsize = EC_POINT_point2oct(
+                group_nmd, EC_GROUP_get0_generator(group_nmd),
+                POINT_CONVERSION_UNCOMPRESSED, NULL, 0, bn_ctx), 0)
+        || !TEST_ptr(buf2 = OPENSSL_malloc(bsize))
+        || !TEST_size_t_eq(EC_POINT_point2oct(
+                group_nmd, EC_GROUP_get0_generator(group_nmd),
+                POINT_CONVERSION_UNCOMPRESSED, buf2, bsize, bn_ctx), bsize)
+        || !TEST_true(OSSL_PARAM_BLD_push_octet_string(
+                bld, OSSL_PKEY_PARAM_EC_GENERATOR, buf2, bsize))
+        || !TEST_true(OSSL_PARAM_BLD_push_BN(
+                bld, OSSL_PKEY_PARAM_EC_ORDER, EC_GROUP_get0_order(group_nmd))))
+        goto err;
+
+    if (!TEST_ptr(params_exp = OSSL_PARAM_BLD_to_param(bld))
+        || !TEST_ptr(group_exp =
+                EC_GROUP_new_from_params(params_exp, NULL, NULL))
+        || !TEST_ptr(params_exp2 =
+                EC_GROUP_to_params(group_exp, NULL, NULL, NULL))
+        || !TEST_ptr(group_exp2 =
+                EC_GROUP_new_from_params(params_exp2, NULL, NULL))
+        || !TEST_int_eq(EC_GROUP_cmp(group_exp, group_exp2, NULL), 0))
+        goto err;
+
+    r = 1;
+
+err:
+    EC_GROUP_free(group_nmd);
+    EC_GROUP_free(group_nmd2);
+    EC_GROUP_free(group_nmd3);
+    OSSL_PARAM_free(params_nmd);
+    OSSL_PARAM_free(params_nmd2);
+    OPENSSL_free(buf);
+
+    EC_GROUP_free(group_exp);
+    EC_GROUP_free(group_exp2);
+    BN_CTX_end(bn_ctx);
+    BN_CTX_free(bn_ctx);
+    OPENSSL_free(buf2);
+    OSSL_PARAM_BLD_free(bld);
+    OSSL_PARAM_free(params_exp);
+    OSSL_PARAM_free(params_exp2);
+    return r;
+}
+
 /*-
  * random 256-bit explicit parameters curve, cofactor absent
  * order:    0x0c38d96a9f892b88772ec2e39614a82f4f (132 bit)
@@ -2345,7 +2457,7 @@ static int ec_point_hex2point_test(int id)
     EC_GROUP *group = NULL;
     const EC_POINT *G = NULL;
     EC_POINT *P = NULL;
-    BN_CTX * bnctx = NULL;
+    BN_CTX *bnctx = NULL;
 
     /* Do some setup */
     nid = curves[id].nid;
@@ -2861,11 +2973,11 @@ static int custom_params_test(int id)
         goto err;
 
     /* create two `EVP_PKEY`s from the `EC_KEY`s */
-    if(!TEST_ptr(pkey1 = EVP_PKEY_new())
+    if (!TEST_ptr(pkey1 = EVP_PKEY_new())
             || !TEST_int_eq(EVP_PKEY_assign_EC_KEY(pkey1, eckey1), 1))
         goto err;
     eckey1 = NULL; /* ownership passed to pkey1 */
-    if(!TEST_ptr(pkey2 = EVP_PKEY_new())
+    if (!TEST_ptr(pkey2 = EVP_PKEY_new())
             || !TEST_int_eq(EVP_PKEY_assign_EC_KEY(pkey2, eckey2), 1))
         goto err;
     eckey2 = NULL; /* ownership passed to pkey2 */
@@ -3015,6 +3127,7 @@ int setup_tests(void)
         return 0;
 
     ADD_TEST(parameter_test);
+    ADD_TEST(ossl_parameter_test);
     ADD_TEST(cofactor_range_test);
     ADD_ALL_TESTS(cardinality_test, crv_len);
     ADD_TEST(prime_field_tests);

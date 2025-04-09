@@ -7,7 +7,7 @@ OSSL_PROVIDER-FIPS - OpenSSL FIPS provider
 =head1 DESCRIPTION
 
 The OpenSSL FIPS provider is a special provider that conforms to the Federal
-Information Processing Standards (FIPS) specified in FIPS 140-2. This 'module'
+Information Processing Standards (FIPS) specified in FIPS 140-3. This 'module'
 contains an approved set of cryptographic algorithms that is validated by an
 accredited testing laboratory.
 
@@ -29,14 +29,32 @@ L<EVP_MD_fetch(3)> or L<EVP_CIPHER_fetch(3)>, as well as with other
 functions that take a property query string, such as
 L<EVP_PKEY_CTX_new_from_name(3)>.
 
-It isn't mandatory to query for any of these properties, except to
-make sure to get implementations of this provider and none other.
+To be FIPS compliant, it is mandatory to include C<fips=yes> as
+part of all property queries.  This ensures that only FIPS approved
+implementations are used for cryptographic operations.  The C<fips=yes>
+query may also include other non-crypto support operations that
+are not in the FIPS provider, such as asymmetric key encoders, see
+L<OSSL_PROVIDER-default(7)/Asymmetric Key Management>.
 
-The "fips=yes" property can be use to make sure only FIPS approved
-implementations are used for crypto operations.  This may also include
-other non-crypto support operations that are not in the FIPS provider,
-such as asymmetric key encoders,
-see L<OSSL_PROVIDER-default(7)/Asymmetric Key Management>.
+It is not mandatory to include C<provider=fips> as part of your property
+query.  Including C<provider=fips> in your property query guarantees
+that the OpenSSL FIPS provider is used for cryptographic operations
+rather than other FIPS capable providers.
+
+=head2 Provider parameters
+
+See L<provider-base(7)/Provider parameters> for a list of base parameters.
+Additionally the OpenSSL FIPS provider also supports the following gettable
+parameters:
+
+=over 4
+
+=item "security-checks" (B<OSSL_OSSL_PROV_PARAM_SECURITY_CHECKS>) <unsigned integer>
+
+For further information refer to the L<openssl-fipsinstall(1)> option
+B<-no_security_checks>.
+
+=back
 
 =head1 OPERATIONS AND ALGORITHMS
 
@@ -54,6 +72,8 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item KECCAK-KMAC, see L<EVP_MD-KECCAK-KMAC(7)>
 
+=item SHAKE, see L<EVP_MD-SHAKE(7)>
+
 =back
 
 =head2 Symmetric Ciphers
@@ -62,7 +82,9 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item AES, see L<EVP_CIPHER-AES(7)>
 
-=item DES-EDE3 (TripleDES), see L<EVP_CIPHER-DES(7)>
+=item 3DES, see L<EVP_CIPHER-DES(7)>
+
+This is an unapproved algorithm.
 
 =back
 
@@ -118,6 +140,12 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item X448, see L<EVP_KEYEXCH-X448(7)>
 
+=item ML-KEM, see L<EVP_KEM-ML-KEM(7)>
+
+=item TLS1-PRF
+
+=item HKDF
+
 =back
 
 =head2 Asymmetric Signature
@@ -126,9 +154,25 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item RSA, see L<EVP_SIGNATURE-RSA(7)>
 
-=item X25519, see L<EVP_SIGNATURE-ED25519(7)>
+The B<X931> padding mode "OSSL_PKEY_RSA_PAD_MODE_X931" is no longer supported
+for signature generation, but may be used for verification for legacy use cases.
+(This is a FIPS 140-3 requirement)
 
-=item X448, see L<EVP_SIGNATURE-ED448(7)>
+=item DSA, see L<EVP_SIGNATURE-DSA(7)>
+
+=item ED25519, see L<EVP_SIGNATURE-ED25519(7)>
+
+=item ED448, see L<EVP_SIGNATURE-ED448(7)>
+
+=item ECDSA, see L<EVP_SIGNATURE-ECDSA(7)>
+
+=item ML-DSA-44, see L<EVP_SIGNATURE-ML-DSA(7)>
+
+=item ML-DSA-65, see L<EVP_SIGNATURE-ML-DSA(7)>
+
+=item ML-DSA-87, see L<EVP_SIGNATURE-ML-DSA(7)>
+
+=item SLH-DSA, see L<EVP_SIGNATURE-SLH-DSA(7)>
 
 =item HMAC, see L<EVP_SIGNATURE-HMAC(7)>
 
@@ -164,17 +208,71 @@ The OpenSSL FIPS provider supports these operations and algorithms:
 
 =item RSA, see L<EVP_KEYMGMT-RSA(7)>
 
+=item RSA-PSS
+
 =item EC, see L<EVP_KEYMGMT-EC(7)>
 
 =item X25519, see L<EVP_KEYMGMT-X25519(7)>
 
+This is an unapproved algorithm.
+
 =item X448, see L<EVP_KEYMGMT-X448(7)>
+
+This is an unapproved algorithm.
+
+=item ED25519, see L<EVP_KEYMGMT-ED25519(7)>
+
+This is an unapproved algorithm.
+
+=item ED448, see L<EVP_KEYMGMT-ED448(7)>
+
+This is an unapproved algorithm.
+
+=item TLS1-PRF
+
+=item HKDF
+
+=item HMAC, see L<EVP_KEYMGMT-HMAC(7)>
+
+=item CMAC, see L<EVP_KEYMGMT-CMAC(7)>
+
+=item ML-DSA-44, see L<EVP_KEYMGMT-ML-DSA(7)>
+
+=item ML-DSA-65, see L<EVP_KEYMGMT-ML-DSA(7)>
+
+=item ML-DSA-87, see L<EVP_KEYMGMT-ML-DSA(7)>
+
+=item SLH-DSA-SHA2-128s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHA2-128f, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHA2-192s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHA2-192f, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHA2-256s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHA2-256f, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-128s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-128f, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-192s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-192f, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-256s, see L<EVP_KEYMGMT-SLH-DSA(7)>
+
+=item SLH-DSA-SHAKE-256f, see L<EVP_KEYMGMT-SLH-DSA(7)>
 
 =back
 
 =head2 Random Number Generation
 
 =over 4
+
+=item CRNG-TEST, see L<EVP_RAND-CRNG-TEST(7)>
 
 =item CTR-DRBG, see L<EVP_RAND-CTR-DRBG(7)>
 
@@ -232,6 +330,10 @@ Known answer test for a asymmetric cipher.
 
 Known answer test for a digest.
 
+=item "KAT_AsymmetricKeyGeneration" (B<OSSL_SELF_TEST_TYPE_KAT_ASYM_KEYGEN>)
+
+Known answer test for asymmetric key generation.
+
 =item "KAT_Signature" (B<OSSL_SELF_TEST_TYPE_KAT_SIGNATURE>)
 
 Known answer test for a signature.
@@ -248,13 +350,17 @@ Known answer test for a key derivation function.
 
 Known answer test for key agreement.
 
+=item "KAT_KEM" (B<OSSL_SELF_TEST_TYPE_KAT_KEM>)
+
+Known answer test for key encapsulation.
+
 =item "DRBG" (B<OSSL_SELF_TEST_TYPE_DRBG>)
 
 Known answer test for a Deterministic Random Bit Generator.
 
 =item "Conditional_PCT" (B<OSSL_SELF_TEST_TYPE_PCT>)
 
-Conditional test that is run during the generation of key pairs.
+Conditional test that is run during the generation or importing of key pairs.
 
 =item "Continuous_RNG_Test" (B<OSSL_SELF_TEST_TYPE_CRNG>)
 
@@ -283,9 +389,19 @@ The FIPS module passes the following descriptions(s) to OSSL_SELF_TEST_onbegin()
 
 =item "RSA" (B<OSSL_SELF_TEST_DESC_PCT_RSA_PKCS1>)
 
+=item "RSA" (B<OSSL_SELF_TEST_DESC_PCT_RSA>)
+
 =item "ECDSA" (B<OSSL_SELF_TEST_DESC_PCT_ECDSA>)
 
+=item "EDDSA" (B<OSSL_SELF_TEST_DESC_PCT_EDDSA>)
+
 =item "DSA" (B<OSSL_SELF_TEST_DESC_PCT_DSA>)
+
+=item "ML-DSA" (B<OSSL_SELF_TEST_DESC_PCT_ML_DSA>)
+
+=item "ML-KEM" (B<OSSL_SELF_TEST_DESC_PCT_ML_KEM>)
+
+=item "SLH-DSA" (B<OSSL_SELF_TEST_DESC_PCT_SLH_DSA>)
 
 Key generation tests used with the "Pairwise_Consistency_Test" type.
 
@@ -294,6 +410,14 @@ Key generation tests used with the "Pairwise_Consistency_Test" type.
 =item "RSA_Decrypt" (B<OSSL_SELF_TEST_DESC_ASYM_RSA_DEC>)
 
 "KAT_AsymmetricCipher" uses this to indicate an encrypt or decrypt KAT.
+
+=item "ML-DSA" (B<OSSL_SELF_TEST_DESC_KEYGEN_ML_DSA>)
+
+=item "ML-KEM" (B<OSSL_SELF_TEST_DESC_KEYGEN_ML_KEM>)
+
+=item "SLH-DSA" (B<OSSL_SELF_TEST_DESC_KEYGEN_SLH_DSA>)
+
+"KAT_AsymmetricKeyGeneration" uses this to indicate a key generation KAT.
 
 =item "AES_GCM" (B<OSSL_SELF_TEST_DESC_CIPHER_AES_GCM>)
 
@@ -316,6 +440,12 @@ Digest tests used with the "KAT_Digest" type.
 =item "RSA" (B<OSSL_SELF_TEST_DESC_SIGN_RSA>)
 
 =item "ECDSA" (B<OSSL_SELF_TEST_DESC_SIGN_ECDSA>)
+
+=item "EDDSA" (B<OSSL_SELF_TEST_DESC_SIGN_EDDSA>)
+
+=item "ML-DSA" (B<OSSL_SELF_TEST_DESC_SIGN_ML_DSA>)
+
+=item "SLH-DSA" (B<OSSL_SELF_TEST_DESC_SIGN_SLH_DSA>)
 
 Signature tests used with the "KAT_Signature" type.
 
@@ -345,6 +475,14 @@ Key agreement tests used with the "KAT_KA" type.
 
 =item "KBKDF" (B<OSSL_SELF_TEST_DESC_KDF_KBKDF>)
 
+Key Encapsulation Function tests used with the "KAT_KEM" type.
+
+=item "KEM_Encap" (B<OSSL_SELF_TEST_DESC_ENCAP_KEM>)
+
+=item "KEM_Decap" (B<OSSL_SELF_TEST_DESC_DECAP_KEM>)
+
+=item "KEM_Decap_Reject" (B<OSSL_SELF_TEST_DESC_DECAP_REJ_KEM>)
+
 Key Derivation Function tests used with the "KAT_KDF" type.
 
 =item "CTR" (B<OSSL_SELF_TEST_DESC_DRBG_CTR>)
@@ -355,7 +493,7 @@ Key Derivation Function tests used with the "KAT_KDF" type.
 
 DRBG tests used with the "DRBG" type.
 
-= item "RNG" (B<OSSL_SELF_TEST_DESC_RNG>)
+=item "RNG" (B<OSSL_SELF_TEST_DESC_RNG>)
 
 "Continuous_RNG_Test" uses this.
 
@@ -421,6 +559,20 @@ validated versions alongside F<libcrypto> and F<libssl> compiled from any
 release within the same major release series.  This flexibility enables
 you to address bug fixes and CVEs that fall outside the FIPS boundary.
 
+The FIPS provider in OpenSSL 3.1 includes some non-FIPS validated algorithms,
+consequently the property query C<fips=yes> is mandatory for applications that
+want to operate in a FIPS approved manner.  The algorithms are:
+
+=over 4
+
+=item Triple DES ECB
+
+=item Triple DES CBC
+
+=item EdDSA
+
+=back
+
 =head1 SEE ALSO
 
 L<openssl-fipsinstall(1)>,
@@ -439,7 +591,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

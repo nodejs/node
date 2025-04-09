@@ -39,10 +39,6 @@ section, as described in L<config(5)/Provider Configuration Module>.
 If present, the module is activated. The value assigned to this name is not
 significant.
 
-=item B<install-version>
-
-A version number for the fips install process. Should be 1.
-
 =item B<conditional-errors>
 
 The FIPS module normally enters an internal error mode if any self test fails.
@@ -56,17 +52,13 @@ Regardless of the value, the operation (e.g., key generation) that called the
 continuous test will return an error code if its continuous test fails. The
 operation may then be retried if the error mode has not been triggered.
 
-=item B<security-checks>
-
-This indicates if run-time checks related to enforcement of security parameters
-such as minimum security strength of keys and approved curve names are used.
-A value of '1' will perform the checks, otherwise if the value is '0' the checks
-are not performed and FIPS compliance must be done by procedures documented in
-the relevant Security Policy.
-
 =item B<module-mac>
 
 The calculated MAC of the FIPS provider file.
+
+=item B<install-version>
+
+A version number for the fips install process. Should be 1.
 
 =item B<install-status>
 
@@ -81,6 +73,134 @@ loads.
 A MAC of the value of the B<install-status> option, to prevent accidental
 changes to that value.
 It is written-to at the same time as B<install-status> is updated.
+
+=back
+
+=head2 FIPS indicator options
+
+The following FIPS configuration options indicate if run-time checks related to
+enforcement of FIPS security parameters such as minimum security strength of
+keys and approved curve names are used.
+A value of '1' will perform the checks, otherwise if the value is '0' the checks
+are not performed and FIPS compliance must be done by procedures documented in
+the relevant Security Policy.
+
+See L<openssl-fipsinstall(1)/OPTIONS> for further information related to these
+options.
+
+=over 4
+
+=item B<security-checks>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-no_security_checks>
+
+=item B<tls1-prf-ems-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-ems_check>
+
+=item B<no-short-mac>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-no_short_mac>
+
+=item B<drbg-no-trunc-md>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-no_drbg_truncated_digests>
+
+=item B<signature-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-signature_digest_check>
+
+=item B<hkdf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-hkdf_digest_check>
+
+=item B<tls13-kdf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-tls13_kdf_digest_check>
+
+=item B<tls1-prf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-tls1_prf_digest_check>
+
+=item B<sshkdf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-sshkdf_digest_check>
+
+=item B<sskdf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-sskdf_digest_check>
+
+=item B<x963kdf-digest-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-x963kdf_digest_check>
+
+=item B<dsa-sign-disabled>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-dsa_sign_disabled>
+
+=item B<tdes-encrypt-disabled>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-tdes_encrypt_disabled>
+
+=item B<rsa-pkcs15-pad-disabled>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-rsa_pkcs15_pad_disabled>
+
+=item B<rsa-pss-saltlen-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-rsa_pss_saltlen_check>
+
+=item B<rsa-sign-x931-pad-disabled>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-rsa_sign_x931_disabled>
+
+=item B<hkdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-hkdf_key_check>
+
+=item B<kbkdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-kbkdf_key_check>
+
+=item B<tls13-kdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-tls13_kdf_key_check>
+
+=item B<tls1-prf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-tls1_prf_key_check>
+
+=item B<sshkdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-sshkdf_key_check>
+
+=item B<sskdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-sskdf_key_check>
+
+=item B<x963kdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-x963kdf_key_check>
+
+=item B<x942kdf-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-x942kdf_key_check>
+
+=item B<pbkdf2-lower-bound-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-no_pbkdf2_lower_bound_check>
+
+=item B<ecdh-cofactor-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-ecdh_cofactor_check>
+
+=item B<hmac-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-hmac_key_check>
+
+=item B<kmac-key-check>
+
+See L<openssl-fipsinstall(1)/OPTIONS> B<-kmac_key_check>
 
 =back
 
@@ -113,7 +233,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

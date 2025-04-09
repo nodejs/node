@@ -27,8 +27,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLSv1.0, TLSv1.1 or TLSv1.2 enabled"
     if disabled("tls1") && disabled("tls1_1") && disabled("tls1_2");
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
-
 sub checkmessages($$$$$);
 sub setrmextms($$);
 sub clearall();

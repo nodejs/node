@@ -24,6 +24,8 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
     char *p;
     int left;
     size_t l = 0;
+    BIO_MMSG_CB_ARGS *args;
+    long ret_ = ret;
 
     if (processed != NULL)
         l = *processed;
@@ -69,6 +71,16 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
         BIO_snprintf(p, left, "ctrl(%d) - %s\n", argi,
                      bio->method->name);
         break;
+    case BIO_CB_RECVMMSG:
+        args = (BIO_MMSG_CB_ARGS *)argp;
+        BIO_snprintf(p, left, "recvmmsg(%zu) - %s",
+                     args->num_msg, bio->method->name);
+        break;
+    case BIO_CB_SENDMMSG:
+        args = (BIO_MMSG_CB_ARGS *)argp;
+        BIO_snprintf(p, left, "sendmmsg(%zu) - %s",
+                     args->num_msg, bio->method->name);
+        break;
     case BIO_CB_RETURN | BIO_CB_READ:
         BIO_snprintf(p, left, "read return %d processed: %zu\n", ret, l);
         break;
@@ -84,6 +96,14 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
     case BIO_CB_RETURN | BIO_CB_CTRL:
         BIO_snprintf(p, left, "ctrl return %d\n", ret);
         break;
+    case BIO_CB_RETURN | BIO_CB_RECVMMSG:
+        BIO_snprintf(p, left, "recvmmsg processed: %zu\n", len);
+        ret_ = (long)len;
+        break;
+    case BIO_CB_RETURN | BIO_CB_SENDMMSG:
+        BIO_snprintf(p, left, "sendmmsg processed: %zu\n", len);
+        ret_ = (long)len;
+        break;
     default:
         BIO_snprintf(p, left, "bio callback - unknown type (%d)\n", cmd);
         break;
@@ -96,7 +116,7 @@ long BIO_debug_callback_ex(BIO *bio, int cmd, const char *argp, size_t len,
     else
         fputs(buf, stderr);
 #endif
-    return ret;
+    return ret_;
 }
 
 #ifndef OPENSSL_NO_DEPRECATED_3_0

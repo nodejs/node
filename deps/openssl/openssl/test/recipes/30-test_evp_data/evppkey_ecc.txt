@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -3594,9 +3594,32 @@ Derive=BOB_cf_prime192v1
 Securitycheck = 1
 PeerKey=ALICE_cf_prime192v1_PUB
 SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
-Result = DERIVE_SET_PEER_ERROR
+Result = KEYOP_INIT_ERROR
+
+# Check the indicator callback is triggered
+FIPSversion = >=3.4.0
+Derive=BOB_cf_prime192v1
+Securitycheck = 1
+Unapproved = 1
+CtrlInit = key-check:0
+PeerKey=ALICE_cf_prime192v1_PUB
+SharedSecret=e36cad3b0f8d00f60f090440a76df47896713ae61421c354
 
 Title=prime256v1 curve tests
+
+PrivateKey=ALICE_naf_prime256v1
+-----BEGIN PRIVATE KEY-----
+MEECAQAwEwYHKoZIzj0CAQYIKoZIzj0DAQcEJzAlAgEBBCCrgvdSKyu+zo6wERHP
++5gkQ5yoY1SIgHYyZXQXRr+O2A==
+-----END PRIVATE KEY-----
+
+PublicKey=ALICE_naf_prime256v1_PUB
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE5usNhOHMXYW1W8/E0TRbMhSvK4a0
+ipu5+xDoKbhz55WBgERHxLWAvZugiDpyoshYqVPseGubEPA4ZpGdieYajA==
+-----END PUBLIC KEY-----
+
+PrivPubKeyPair=ALICE_naf_prime256v1:ALICE_naf_prime256v1_PUB
 
 PrivateKey=ALICE_cf_prime256v1
 -----BEGIN PRIVATE KEY-----
@@ -3943,11 +3966,13 @@ ufNGbdd131KLaKPivB38a6n5Y+2BVSJangow
 PrivPubKeyPair=BOB_cf_sect233k1:BOB_cf_sect233k1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect233k1
 PeerKey=BOB_cf_sect233k1_PUB
 SharedSecret=012145026e8de65973c154e085456fc5539ba9e25663e7f5816abfcab310
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect233k1
 PeerKey=ALICE_cf_sect233k1_PUB
 SharedSecret=012145026e8de65973c154e085456fc5539ba9e25663e7f5816abfcab310
@@ -4015,11 +4040,13 @@ TzzbBSTp5iqM13mP0/Bo4OO66NS3lA9e/GTO
 PrivPubKeyPair=BOB_cf_sect233r1:BOB_cf_sect233r1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect233r1
 PeerKey=BOB_cf_sect233r1_PUB
 SharedSecret=00209d2995a63f1e8b7a5c33dee5abb602e32e1835ae8bb57eb264d8d795
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect233r1
 PeerKey=ALICE_cf_sect233r1_PUB
 SharedSecret=00209d2995a63f1e8b7a5c33dee5abb602e32e1835ae8bb57eb264d8d795
@@ -4087,11 +4114,13 @@ QkBYA5BpuG8Knlugq1iB31whPAgRCZfdLKHpHRPJSfXvKyUIdeUm
 PrivPubKeyPair=BOB_cf_sect283k1:BOB_cf_sect283k1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect283k1
 PeerKey=BOB_cf_sect283k1_PUB
 SharedSecret=03f67c88bdc230b43773d17fdb4d0a980556d074ceccee726932160e4ed965e3be72803c
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect283k1
 PeerKey=ALICE_cf_sect283k1_PUB
 SharedSecret=03f67c88bdc230b43773d17fdb4d0a980556d074ceccee726932160e4ed965e3be72803c
@@ -4159,11 +4188,13 @@ PKpmAkrAeCMty6mw2mEnOR5HA1d4Ee+z7/NJgJJ80Ra9bFnreOW3
 PrivPubKeyPair=BOB_cf_sect283r1:BOB_cf_sect283r1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect283r1
 PeerKey=BOB_cf_sect283r1_PUB
 SharedSecret=0424259cf09727574fb863cab7c27d8fe3835e96433110a45a951f94347fc81939ec4773
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect283r1
 PeerKey=ALICE_cf_sect283r1_PUB
 SharedSecret=0424259cf09727574fb863cab7c27d8fe3835e96433110a45a951f94347fc81939ec4773
@@ -4233,11 +4264,13 @@ vuu4aApQiWE3yQd9v/I=
 PrivPubKeyPair=BOB_cf_sect409k1:BOB_cf_sect409k1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect409k1
 PeerKey=BOB_cf_sect409k1_PUB
 SharedSecret=01fbe13188588c9d1ac3a8a2680ea9a009b28e4b7d7fa4efcb1a22553876fb7973616819fd87c75e5b8ce6e3628595e4ce12edb0
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect409k1
 PeerKey=ALICE_cf_sect409k1_PUB
 SharedSecret=01fbe13188588c9d1ac3a8a2680ea9a009b28e4b7d7fa4efcb1a22553876fb7973616819fd87c75e5b8ce6e3628595e4ce12edb0
@@ -4308,11 +4341,13 @@ sUTYee6cEf71oqJ1sCKPQiYzlwCu/HLQeWPxISE6Uo+53kkeJml2xpMBwoE25Gq/DSS61dR7SRTZ
 PrivPubKeyPair=BOB_cf_sect409r1:BOB_cf_sect409r1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect409r1
 PeerKey=BOB_cf_sect409r1_PUB
 SharedSecret=00a751259cdb3b445ce71a40a01a2189dfce70226111190505fc6eabe4e5a05bff7af55f2015e1ffcab6aea7ea9a6e74905da2a1
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect409r1
 PeerKey=ALICE_cf_sect409r1_PUB
 SharedSecret=00a751259cdb3b445ce71a40a01a2189dfce70226111190505fc6eabe4e5a05bff7af55f2015e1ffcab6aea7ea9a6e74905da2a1
@@ -4383,11 +4418,13 @@ rKtR8fe+dg2V15FieC3qZe/wCpMtyp79VmEabGi6iGLlAN/rUE81URsA/K7GVpmklslV5gmwryR0
 PrivPubKeyPair=BOB_cf_sect571k1:BOB_cf_sect571k1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect571k1
 PeerKey=BOB_cf_sect571k1_PUB
 SharedSecret=02b79c92cee50dc5b9fdddce36d4fa2e28d7d178cd74e575961f39429496305b38815c840c2e66327435c044ed885ec964068531251a2112717602532e8b6d5411db2fe05c1ac18c
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect571k1
 PeerKey=ALICE_cf_sect571k1_PUB
 SharedSecret=02b79c92cee50dc5b9fdddce36d4fa2e28d7d178cd74e575961f39429496305b38815c840c2e66327435c044ed885ec964068531251a2112717602532e8b6d5411db2fe05c1ac18c
@@ -4458,11 +4495,13 @@ c1rETMV6ZruZinwzEWWWjwJf6612oy2HG3CX3B8Rm+a3sS0q6IzowEwqmDv6v9bMTFk8bsCv0Fk=
 PrivPubKeyPair=BOB_cf_sect571r1:BOB_cf_sect571r1_PUB
 
 # ECDH Alice with Bob peer
+Availablein = default
 Derive=ALICE_cf_sect571r1
 PeerKey=BOB_cf_sect571r1_PUB
 SharedSecret=0031f9879fa75b8c67ba81ee861be634e2b53aa79f834e9a8ca4df7f4461bcb02f083d9fa5b4767f881a710caa6524b58eb626623ba394961d46535204c26d165089e7d4f7be1827
 
 # ECDH Bob with Alice peer
+Availablein = default
 Derive=BOB_cf_sect571r1
 PeerKey=ALICE_cf_sect571r1_PUB
 SharedSecret=0031f9879fa75b8c67ba81ee861be634e2b53aa79f834e9a8ca4df7f4461bcb02f083d9fa5b4767f881a710caa6524b58eb626623ba394961d46535204c26d165089e7d4f7be1827
@@ -4499,3 +4538,26 @@ PeerKey=MALICE_cf_sect571r1_PUB
 Ctrl=ecdh_cofactor_mode:1
 Result=DERIVE_ERROR
 Reason=point at infinity
+
+Title = Test EC keygen
+
+KeyGen = ec
+KeyName = ec1
+Ctrl = group:P-256
+
+# Test KeyGen with a curve with < 112 bits of security fails.
+Availablein = fips
+FIPSversion = >=3.4.0
+KeyGen = ec
+KeyName = ec2
+Ctrl = group:P-192
+Result = KEYGEN_GENERATE_ERROR
+
+# Test KeyGen with a curve with < 112 bits of security is not approved
+Availablein = fips
+FIPSversion = >=3.4.0
+KeyGen = ec
+KeyName = ec3
+Ctrl = group:P-192
+Unapproved = 1
+Ctrl = key-check:0

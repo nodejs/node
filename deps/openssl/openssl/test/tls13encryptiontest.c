@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,8 @@
 #include <openssl/evp.h>
 #include "../ssl/ssl_local.h"
 #include "../ssl/record/record_local.h"
+#include "internal/recordmethod.h"
+#include "../ssl/record/methods/recmethod_local.h"
 #include "internal/nelem.h"
 #include "testutil.h"
 
@@ -236,8 +238,9 @@ static unsigned char *multihexstr2buf(const char *str[3], size_t *len)
     return outbuf;
 }
 
-static int load_record(SSL3_RECORD *rec, RECORD_DATA *recd, unsigned char **key,
-                       unsigned char *iv, size_t ivlen, unsigned char *seq)
+static int load_record(TLS_RL_RECORD *rec, RECORD_DATA *recd,
+                       unsigned char **key, unsigned char *iv, size_t ivlen,
+                       unsigned char *seq)
 {
     unsigned char *pt = NULL, *sq = NULL, *ivtmp = NULL;
     size_t ptlen;
@@ -273,7 +276,7 @@ static int load_record(SSL3_RECORD *rec, RECORD_DATA *recd, unsigned char **key,
     return 0;
 }
 
-static int test_record(SSL3_RECORD *rec, RECORD_DATA *recd, int enc)
+static int test_record(TLS_RL_RECORD *rec, RECORD_DATA *recd, int enc)
 {
     int ret = 0;
     unsigned char *refd;
@@ -303,13 +306,14 @@ static int test_record(SSL3_RECORD *rec, RECORD_DATA *recd, int enc)
 
 static int test_tls13_encryption(void)
 {
-    SSL_CTX *ctx = NULL;
-    SSL *s = NULL;
-    SSL3_RECORD rec;
-    unsigned char *key = NULL, *iv = NULL, *seq = NULL;
+    TLS_RL_RECORD rec;
+    unsigned char *key = NULL;
     const EVP_CIPHER *ciph = EVP_aes_128_gcm();
     int ret = 0;
     size_t ivlen, ctr;
+    unsigned char seqbuf[SEQ_NUM_SIZE];
+    unsigned char iv[EVP_MAX_IV_LENGTH];
+    OSSL_RECORD_LAYER *rrl = NULL, *wrl = NULL;
 
     /*
      * Encrypted TLSv1.3 records always have an outer content type of
@@ -319,94 +323,77 @@ static int test_tls13_encryption(void)
     rec.type = SSL3_RT_APPLICATION_DATA;
     rec.rec_version = TLS1_2_VERSION;
 
-    ctx = SSL_CTX_new(TLS_method());
-    if (!TEST_ptr(ctx)) {
-        TEST_info("Failed creating SSL_CTX");
-        goto err;
-    }
-
-    s = SSL_new(ctx);
-    if (!TEST_ptr(s)) {
-        TEST_info("Failed creating SSL");
-        goto err;
-    }
-
-    s->enc_read_ctx = EVP_CIPHER_CTX_new();
-    if (!TEST_ptr(s->enc_read_ctx))
-        goto err;
-
-    s->enc_write_ctx = EVP_CIPHER_CTX_new();
-    if (!TEST_ptr(s->enc_write_ctx))
-        goto err;
-
-    s->s3.tmp.new_cipher = SSL_CIPHER_find(s, TLS13_AES_128_GCM_SHA256_BYTES);
-    if (!TEST_ptr(s->s3.tmp.new_cipher)) {
-        TEST_info("Failed to find cipher");
-        goto err;
-    }
-
     for (ctr = 0; ctr < OSSL_NELEM(refdata); ctr++) {
         /* Load the record */
         ivlen = EVP_CIPHER_get_iv_length(ciph);
-        if (!load_record(&rec, &refdata[ctr], &key, s->read_iv, ivlen,
-                         RECORD_LAYER_get_read_sequence(&s->rlayer))) {
+        if (!load_record(&rec, &refdata[ctr], &key, iv, ivlen, seqbuf)) {
             TEST_error("Failed loading key into EVP_CIPHER_CTX");
             goto err;
         }
 
-        /* Set up the read/write sequences */
-        memcpy(RECORD_LAYER_get_write_sequence(&s->rlayer),
-               RECORD_LAYER_get_read_sequence(&s->rlayer), SEQ_NUM_SIZE);
-        memcpy(s->write_iv, s->read_iv, ivlen);
-
-        /* Load the key into the EVP_CIPHER_CTXs */
-        if (EVP_CipherInit_ex(s->enc_write_ctx, ciph, NULL, key, NULL, 1) <= 0
-                || EVP_CipherInit_ex(s->enc_read_ctx, ciph, NULL, key, NULL, 0)
-                   <= 0) {
-            TEST_error("Failed loading key into EVP_CIPHER_CTX\n");
+        /* Set up the write record layer */
+        if (!TEST_true(ossl_tls_record_method.new_record_layer(
+                          NULL, NULL, TLS1_3_VERSION, OSSL_RECORD_ROLE_SERVER,
+                          OSSL_RECORD_DIRECTION_WRITE,
+                          OSSL_RECORD_PROTECTION_LEVEL_APPLICATION, 0, NULL, 0,
+                          key, 16, iv, ivlen, NULL, 0, EVP_aes_128_gcm(),
+                          EVP_GCM_TLS_TAG_LEN, 0, NULL, NULL, NULL, NULL, NULL,
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                          &wrl)))
             goto err;
-        }
+        memcpy(wrl->sequence, seqbuf, sizeof(seqbuf));
 
         /* Encrypt it */
-        if (!TEST_size_t_eq(tls13_enc(s, &rec, 1, 1, NULL, 0), 1)) {
+        if (!TEST_size_t_eq(wrl->funcs->cipher(wrl, &rec, 1, 1, NULL, 0), 1)) {
             TEST_info("Failed to encrypt record %zu", ctr);
             goto err;
         }
+
         if (!TEST_true(test_record(&rec, &refdata[ctr], 1))) {
             TEST_info("Record %zu encryption test failed", ctr);
             goto err;
         }
 
+        /* Set up the read record layer */
+        if (!TEST_true(ossl_tls_record_method.new_record_layer(
+                          NULL, NULL, TLS1_3_VERSION, OSSL_RECORD_ROLE_SERVER,
+                          OSSL_RECORD_DIRECTION_READ,
+                          OSSL_RECORD_PROTECTION_LEVEL_APPLICATION, 0, NULL, 0,
+                          key, 16, iv, ivlen, NULL, 0, EVP_aes_128_gcm(),
+                          EVP_GCM_TLS_TAG_LEN, 0, NULL, NULL, NULL, NULL, NULL,
+                          NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL,
+                          &rrl)))
+            goto err;
+        memcpy(rrl->sequence, seqbuf, sizeof(seqbuf));
+
         /* Decrypt it */
-        if (!TEST_int_eq(tls13_enc(s, &rec, 1, 0, NULL, 0), 1)) {
+        if (!TEST_int_eq(rrl->funcs->cipher(rrl, &rec, 1, 0, NULL, 0), 1)) {
             TEST_info("Failed to decrypt record %zu", ctr);
             goto err;
         }
+
         if (!TEST_true(test_record(&rec, &refdata[ctr], 0))) {
             TEST_info("Record %zu decryption test failed", ctr);
             goto err;
         }
 
+        ossl_tls_record_method.free(rrl);
+        ossl_tls_record_method.free(wrl);
+        rrl = wrl = NULL;
         OPENSSL_free(rec.data);
         OPENSSL_free(key);
-        OPENSSL_free(iv);
-        OPENSSL_free(seq);
         rec.data = NULL;
         key = NULL;
-        iv = NULL;
-        seq = NULL;
     }
 
     TEST_note("PASS: %zu records tested", ctr);
     ret = 1;
 
  err:
+    ossl_tls_record_method.free(rrl);
+    ossl_tls_record_method.free(wrl);
     OPENSSL_free(rec.data);
     OPENSSL_free(key);
-    OPENSSL_free(iv);
-    OPENSSL_free(seq);
-    SSL_free(s);
-    SSL_CTX_free(ctx);
     return ret;
 }
 

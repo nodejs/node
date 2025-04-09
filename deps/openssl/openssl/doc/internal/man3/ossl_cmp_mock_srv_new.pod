@@ -4,9 +4,13 @@
 
 ossl_cmp_mock_srv_new,
 ossl_cmp_mock_srv_free,
+ossl_cmp_mock_srv_set1_refCert,
 ossl_cmp_mock_srv_set1_certOut,
 ossl_cmp_mock_srv_set1_chainOut,
 ossl_cmp_mock_srv_set1_caPubsOut,
+ossl_cmp_mock_srv_set1_newWithNew,
+ossl_cmp_mock_srv_set1_newWithOld,
+ossl_cmp_mock_srv_set1_oldWithNew,
 ossl_cmp_mock_srv_set_statusInfo,
 ossl_cmp_mock_srv_set_sendError,
 ossl_cmp_mock_srv_set_pollCount,
@@ -20,11 +24,15 @@ ossl_cmp_mock_srv_set_checkAfterTime
  OSSL_CMP_SRV_CTX *ossl_cmp_mock_srv_new(OSSL_LIB_CTX *libctx, const char *propq);
  void ossl_cmp_mock_srv_free(OSSL_CMP_SRV_CTX *srv_ctx);
 
- int ossl_cmp_mock_srv_set1_certOut(OSSL_CMP_SRV_CTX *srv_ctx, X509 *cert);
+ int ossl_cmp_mock_srv_set1_refCert(OSSL_CMP_SRV_CTX *ctx, const X509 *cert);
+ int ossl_cmp_mock_srv_set1_certOut(OSSL_CMP_SRV_CTX *ctx, const X509 *cert);
  int ossl_cmp_mock_srv_set1_chainOut(OSSL_CMP_SRV_CTX *srv_ctx,
-                                     STACK_OF(X509) *chain);
+                                     const STACK_OF(X509) *chain);
  int ossl_cmp_mock_srv_set1_caPubsOut(OSSL_CMP_SRV_CTX *srv_ctx,
-                                      STACK_OF(X509) *caPubs);
+                                      const STACK_OF(X509) *caPubs);
+ int ossl_cmp_mock_srv_set1_newWithNew(OSSL_CMP_SRV_CTX *ctx, const X509 *cert);
+ int ossl_cmp_mock_srv_set1_newWithOld(OSSL_CMP_SRV_CTX *ctx, const X509 *cert);
+ int ossl_cmp_mock_srv_set1_oldWithNew(OSSL_CMP_SRV_CTX *ctx, const X509 *cert);
  int ossl_cmp_mock_srv_set_statusInfo(OSSL_CMP_SRV_CTX *srv_ctx, int status,
                                       int fail_info, const char *text);
  int ossl_cmp_mock_srv_set_sendError(OSSL_CMP_SRV_CTX *srv_ctx, int bodytype);
@@ -39,15 +47,30 @@ I<propq>, both of which may be NULL to select the defaults.
 
 ossl_cmp_mock_srv_free() deallocates the contexts for the CMP mock server.
 
-ossl_cmp_mock_srv_set1_certOut() sets the certificate to be returned in
-cp/ip/kup.
+ossl_cmp_mock_srv_set1_refCert() sets the reference certificate (or NULL)
+to be expected for rr messages and for any oldCertID included in kur messages.
 
-ossl_cmp_mock_srv_set1_chainOut() sets the certificate chain to be added to
-the extraCerts in a cp/ip/kup.
+ossl_cmp_mock_srv_set1_certOut() sets the certificate (or NULL)
+to be returned in cp/ip/kup messages.
+Note that on each certificate request the mock server does not produce
+a fresh certificate but just returns the same pre-existing certificate.
+
+ossl_cmp_mock_srv_set1_chainOut() sets the certificate chain (or NULL)
+to be added to the extraCerts in a cp/ip/kup message.
 It should be useful for the validation of the certificate given via
 ossl_cmp_mock_srv_set1_certOut().
 
-ossl_cmp_mock_srv_set1_caPubsOut() sets the caPubs to be returned in an ip.
+ossl_cmp_mock_srv_set1_caPubsOut() sets list of certificates (or NULL) to be
+returned in the caPubs field an ip message and in a genp of infoType caCerts.
+
+ossl_cmp_mock_srv_set1_newWithNew() sets the value (which may be NULL)
+of the newWithNew field to be returned in a genp of infoType rootCaKeyUpdate.
+
+ossl_cmp_mock_srv_set1_newWithOld() sets the value (which may be NULL)
+of the newWithOld field to be returned in a genp of infoType rootCaKeyUpdate.
+
+ossl_cmp_mock_srv_set1_oldWithNew() sets the value (which may be NULL)
+of the oldWithNew field to be returned in a genp of infoType rootCaKeyUpdate.
 
 ossl_cmp_mock_srv_set_statusInfo() sets the status info to be returned.
 

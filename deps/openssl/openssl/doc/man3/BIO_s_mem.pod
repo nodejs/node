@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-BIO_s_secmem,
+BIO_s_secmem, BIO_s_dgram_mem,
 BIO_s_mem, BIO_set_mem_eof_return, BIO_get_mem_data, BIO_set_mem_buf,
 BIO_get_mem_ptr, BIO_new_mem_buf - memory BIO
 
@@ -11,6 +11,7 @@ BIO_get_mem_ptr, BIO_new_mem_buf - memory BIO
  #include <openssl/bio.h>
 
  const BIO_METHOD *BIO_s_mem(void);
+ const BIO_METHOD *BIO_s_dgram_mem(void);
  const BIO_METHOD *BIO_s_secmem(void);
 
  BIO_set_mem_eof_return(BIO *b, int v);
@@ -31,11 +32,31 @@ as appropriate to accommodate the stored data.
 BIO_s_secmem() is like BIO_s_mem() except that the secure heap is used
 for buffer storage.
 
+BIO_s_dgram_mem() is a memory BIO that respects datagram semantics. A single
+call to L<BIO_write(3)> will write a single datagram to the memory BIO. A
+subsequent call to L<BIO_read(3)> will read the data in that datagram. The
+L<BIO_read(3)> call will never return more data than was written in the original
+L<BIO_write(3)> call even if there were subsequent L<BIO_write(3)> calls that
+wrote more datagrams. Each successive call to L<BIO_read(3)> will read the next
+datagram. If a L<BIO_read(3)> call supplies a read buffer that is smaller than
+the size of the datagram, then the read buffer will be completely filled and the
+remaining data from the datagram will be discarded.
+
+It is not possible to write a zero length datagram. Calling L<BIO_write(3)> in
+this case will return 0 and no datagrams will be written. Calling L<BIO_read(3)>
+when there are no datagrams in the BIO to read will return a negative result and
+the "retry" flags will be set (i.e. calling L<BIO_should_retry(3)> will return
+true). A datagram mem BIO will never return true from L<BIO_eof(3)>.
+
 Any data written to a memory BIO can be recalled by reading from it.
 Unless the memory BIO is read only any data read from it is deleted from
 the BIO.
 
-Memory BIOs support BIO_gets() and BIO_puts().
+Memory BIOs except BIO_s_dgram_mem() support BIO_gets() and BIO_puts().
+
+BIO_s_dgram_mem() supports L<BIO_sendmmsg(3)> and L<BIO_recvmmsg(3)> calls
+and calls related to B<BIO_ADDR> and MTU handling similarly to the
+L<BIO_s_dgram_pair(3)>.
 
 If the BIO_CLOSE flag is set when a memory BIO is freed then the underlying
 BUF_MEM structure is also freed.
@@ -56,6 +77,7 @@ it will return zero and BIO_should_retry(b) will be false. If B<v> is non
 zero then it will return B<v> when it is empty and it will set the read retry
 flag (that is BIO_read_retry(b) is true). To avoid ambiguity with a normal
 positive return value B<v> should be set to a negative value, typically -1.
+Calling this macro will fail for datagram mem BIOs.
 
 BIO_get_mem_data() sets *B<pp> to a pointer to the start of the memory BIOs data
 and returns the total amount of data available. It is implemented as a macro.
@@ -77,10 +99,16 @@ made available from a static area of memory in the form of a BIO. The
 supplied data is read directly from the supplied buffer: it is B<not> copied
 first, so the supplied area of memory must be unchanged until the BIO is freed.
 
+All of the five functions described above return an error with
+BIO_s_dgram_mem().
+
 =head1 NOTES
 
 Writes to memory BIOs will always succeed if memory is available: that is
-their size can grow indefinitely.
+their size can grow indefinitely. An exception is BIO_s_dgram_mem() when
+L<BIO_set_write_buf_size(3)> is called on it. In such case the write buffer
+size will be fixed and any writes that would overflow the buffer will return
+an error.
 
 Every write after partial read (not all data in the memory buffer was read)
 to a read write memory BIO will have to move the unread data with an internal
@@ -88,15 +116,15 @@ copy operation, if a BIO contains a lot of data and it is read in small
 chunks intertwined with writes the operation can be very slow. Adding
 a buffering BIO to the chain can speed up the process.
 
-Calling BIO_set_mem_buf() on a BIO created with BIO_new_secmem() will
-give undefined results, including perhaps a program crash.
+Calling BIO_set_mem_buf() on a secmem or dgram BIO will give undefined results,
+including perhaps a program crash.
 
-Switching the memory BIO from read write to read only is not supported and
+Switching a memory BIO from read write to read only is not supported and
 can give undefined results including a program crash. There are two notable
 exceptions to the rule. The first one is to assign a static memory buffer
 immediately after BIO creation and set the BIO as read only.
 
-The other supported sequence is to start with read write BIO then temporarily
+The other supported sequence is to start with a read write BIO then temporarily
 switch it to read only and call BIO_reset() on the read only BIO immediately
 before switching it back to read write. Before the BIO is freed it must be
 switched back to the read write mode.
@@ -120,13 +148,10 @@ Calling BIO_set_close() with BIO_NOCLOSE orphans the BUF_MEM internal to the
 BIO, _not_ its actual data buffer. See the examples section for the proper
 method for claiming ownership of the data pointer for a deferred free operation.
 
-=head1 BUGS
-
-There should be an option to set the maximum size of a memory BIO.
-
 =head1 RETURN VALUES
 
-BIO_s_mem() and BIO_s_secmem() return a valid memory B<BIO_METHOD> structure.
+BIO_s_mem(), BIO_s_dgram_mem() and BIO_s_secmem() return a valid memory
+B<BIO_METHOD> structure.
 
 BIO_set_mem_eof_return(), BIO_set_mem_buf() and BIO_get_mem_ptr()
 return 1 on success or a value which is less than or equal to 0 if an error occurred.
@@ -172,9 +197,13 @@ and BUF_MEM structure:
  ...
  free(data);
 
+=head1 HISTORY
+
+BIO_s_dgram_mem() was added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

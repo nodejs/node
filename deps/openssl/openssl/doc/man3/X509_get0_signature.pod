@@ -5,7 +5,9 @@
 X509_get0_signature, X509_REQ_set0_signature, X509_REQ_set1_signature_algo,
 X509_get_signature_nid, X509_get0_tbs_sigalg, X509_REQ_get0_signature,
 X509_REQ_get_signature_nid, X509_CRL_get0_signature, X509_CRL_get_signature_nid,
-X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set - signature information
+X509_ACERT_get0_signature, X509_ACERT_get0_info_sigalg,
+X509_ACERT_get_signature_nid, X509_get_signature_info,
+X509_SIG_INFO_get, X509_SIG_INFO_set - signature information
 
 =head1 SYNOPSIS
 
@@ -24,6 +26,8 @@ X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set - signature inform
                               const X509_ALGOR **palg);
  int X509_REQ_get_signature_nid(const X509_REQ *crl);
 
+ const X509_ALGOR *X509_ACERT_get0_info_sigalg(const X509_ACERT *x);
+
  void X509_CRL_get0_signature(const X509_CRL *crl,
                               const ASN1_BIT_STRING **psig,
                               const X509_ALGOR **palg);
@@ -37,6 +41,12 @@ X509_get_signature_info, X509_SIG_INFO_get, X509_SIG_INFO_set - signature inform
  void X509_SIG_INFO_set(X509_SIG_INFO *siginf, int mdnid, int pknid,
                         int secbits, uint32_t flags);
 
+ #include <openssl/x509_acert.h>
+
+ void X509_ACERT_get0_signature(const X509_ACERT *x,
+                                const ASN1_BIT_STRING **psig,
+                                const X509_ALGOR **palg);
+ int X509_ACERT_get_signature_nid(const X509_ACERT *x);
 =head1 DESCRIPTION
 
 X509_get0_signature() sets B<*psig> to the signature of B<x> and B<*palg>
@@ -55,6 +65,10 @@ algorithm of B<x>.
 X509_REQ_get0_signature(), X509_REQ_get_signature_nid()
 X509_CRL_get0_signature() and X509_CRL_get_signature_nid() perform the
 same function for certificate requests and CRLs.
+
+X509_ACERT_get0_signature(), X509_ACERT_get_signature_nid() and
+X509_ACERT_get0_info_sigalg() perform the same function for attribute
+certificates.
 
 X509_get_signature_info() retrieves information about the signature of
 certificate B<x>. The NID of the signing digest is written to B<*mdnid>,
@@ -130,9 +144,12 @@ added in OpenSSL 1.1.0.
 The X509_REQ_set0_signature() and X509_REQ_set1_signature_algo()
 were added in OpenSSL 1.1.1e.
 
+The X509_ACERT_get0_signature(), X509_ACERT_get0_info_sigalg() and
+X509_ACERT_get_signature_nid() functions were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

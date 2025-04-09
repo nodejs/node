@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2018 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,16 +16,30 @@
 #include <openssl/tls1.h>
 #include "testutil.h"
 
-static SSL_CTX *ctx;
+static int expect_failure = 0;
 
 static int test_func(void)
 {
-    if (!TEST_int_eq(SSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION)
-        && !TEST_int_eq(SSL_CTX_get_max_proto_version(ctx), TLS1_2_VERSION)) {
-        TEST_info("min/max version setting incorrect");
-        return 0;
+    int ret = 0;
+    SSL_CTX *ctx;
+
+    ctx = SSL_CTX_new(TLS_method());
+    if (expect_failure) {
+        if (!TEST_ptr_null(ctx))
+            goto err;
+    } else {
+        if (!TEST_ptr(ctx))
+            return 0;
+        if (!TEST_int_eq(SSL_CTX_get_min_proto_version(ctx), TLS1_2_VERSION)
+            && !TEST_int_eq(SSL_CTX_get_max_proto_version(ctx), TLS1_2_VERSION)) {
+            TEST_info("min/max version setting incorrect");
+            goto err;
+        }
     }
-    return 1;
+    ret = 1;
+ err:
+    SSL_CTX_free(ctx);
+    return ret;
 }
 
 int global_init(void)
@@ -36,15 +50,39 @@ int global_init(void)
     return 1;
 }
 
-int setup_tests(void)
+typedef enum OPTION_choice {
+    OPT_ERR = -1,
+    OPT_EOF = 0,
+    OPT_FAIL,
+    OPT_TEST_ENUM
+} OPTION_CHOICE;
+
+const OPTIONS *test_get_options(void)
 {
-    if (!TEST_ptr(ctx = SSL_CTX_new(TLS_method())))
-        return 0;
-    ADD_TEST(test_func);
-    return 1;
+    static const OPTIONS test_options[] = {
+        OPT_TEST_OPTIONS_DEFAULT_USAGE,
+        { "f", OPT_FAIL, '-', "A failure is expected" },
+        { NULL }
+    };
+    return test_options;
 }
 
-void cleanup_tests(void)
+int setup_tests(void)
 {
-    SSL_CTX_free(ctx);
+    OPTION_CHOICE o;
+
+    while ((o = opt_next()) != OPT_EOF) {
+        switch (o) {
+        case OPT_FAIL:
+            expect_failure = 1;
+            break;
+        case OPT_TEST_CASES:
+            break;
+        default:
+            return 0;
+        }
+    }
+
+    ADD_TEST(test_func);
+    return 1;
 }

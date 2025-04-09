@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -311,7 +311,7 @@ static int test_addr_fam_len(void)
         goto end;
 
     testresult = 1;
-  end:
+ end:
     /* Free stack and any memory owned by detached element */
     IPAddressFamily_free(f1);
     sk_IPAddressFamily_pop_free(addr, IPAddressFamily_free);

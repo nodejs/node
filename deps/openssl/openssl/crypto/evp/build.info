@@ -1,7 +1,8 @@
 LIBS=../../libcrypto
 $COMMON=digest.c evp_enc.c evp_lib.c evp_fetch.c evp_utils.c \
         mac_lib.c mac_meth.c keymgmt_meth.c keymgmt_lib.c kdf_lib.c kdf_meth.c \
-        m_sigver.c pmeth_lib.c signature.c p_lib.c pmeth_gn.c exchange.c \
+        skeymgmt_meth.c \
+        pmeth_lib.c signature.c p_lib.c s_lib.c pmeth_gn.c exchange.c \
         evp_rand.c asymcipher.c kem.c dh_support.c ec_support.c pmeth_check.c
 
 SOURCE[../../libcrypto]=$COMMON\
@@ -16,7 +17,7 @@ SOURCE[../../libcrypto]=$COMMON\
         e_aes_cbc_hmac_sha1.c e_aes_cbc_hmac_sha256.c e_rc4_hmac_md5.c \
         e_chacha20_poly1305.c \
         legacy_sha.c ctrl_params_translate.c \
-        cmeth_lib.c
+        cmeth_lib.c m_sigver.c
 
 # Diverse type specific ctrl functions.  They are kinda sorta legacy, kinda
 # sorta not.

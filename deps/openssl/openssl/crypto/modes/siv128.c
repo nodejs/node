@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -291,7 +291,7 @@ int ossl_siv128_encrypt(SIV128_CONTEXT *ctx,
     if (!siv128_do_encrypt(ctx->cipher_ctx, out, in, len, &q))
         return 0;
     ctx->final_ret = 0;
-    return len;
+    return 1;
 }
 
 /*
@@ -327,7 +327,7 @@ int ossl_siv128_decrypt(SIV128_CONTEXT *ctx,
         return 0;
     }
     ctx->final_ret = 0;
-    return len;
+    return 1;
 }
 
 /*

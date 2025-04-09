@@ -14,12 +14,12 @@ BIO_find_type, BIO_next, BIO_method_type - BIO chain traversal
 
 =head1 DESCRIPTION
 
-The BIO_find_type() searches for a BIO of a given type in a chain, starting
-at BIO B<b>. If B<type> is a specific type (such as B<BIO_TYPE_MEM>) then a search
-is made for a BIO of that type. If B<type> is a general type (such as
-B<BIO_TYPE_SOURCE_SINK>) then the next matching BIO of the given general type is
-searched for. BIO_find_type() returns the next matching BIO or NULL if none is
-found.
+The BIO_find_type() searches for a B<BIO> of a given type in a chain, starting
+at B<BIO> I<b>. If I<type> is a specific type (such as B<BIO_TYPE_MEM>) then a
+search is made for a B<BIO> of that type. If I<type> is a general type (such as
+B<BIO_TYPE_SOURCE_SINK>) then the next matching B<BIO> of the given general type is
+searched for. BIO_find_type() returns the next matching B<BIO> or NULL if none is
+found. If I<type> is B<BIO_TYPE_NONE> it will not find a match.
 
 The following general types are defined:
 B<BIO_TYPE_DESCRIPTOR>, B<BIO_TYPE_FILTER>, and B<BIO_TYPE_SOURCE_SINK>.
@@ -38,7 +38,7 @@ BIO_find_type() returns a matching BIO or NULL for no match.
 
 BIO_next() returns the next BIO in a chain.
 
-BIO_method_type() returns the type of the BIO B<b>.
+BIO_method_type() returns the type of the BIO I<b>.
 
 =head1 EXAMPLES
 
@@ -60,7 +60,7 @@ Traverse a chain looking for digest BIOs:
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

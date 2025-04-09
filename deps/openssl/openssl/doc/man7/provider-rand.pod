@@ -191,6 +191,12 @@ Returns the state of the random number generator.
 
 Returns the bit strength of the random number generator.
 
+=item "fips-indicator" (B<OSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This option is used by the OpenSSL FIPS provider and is not supported
+by all EVP_RAND sources.
+
 =back
 
 For rands that are also deterministic random bit generators (DRBGs), these
@@ -256,6 +262,27 @@ considered valid.
 
 =back
 
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_DRBG_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling OSSL_FUNC_rand_generate(). It may
+return 0 if the "digest-check" is set to 0.
+
+=item "digest-check" (B<OSSL_DRBG_PARAM_FIPS_DIGEST_CHECK>) <integer>
+
+If required this parameter should be set before the digest is set.
+The default value of 1 causes an error when the digest is set if the digest is
+not FIPS approved (e.g. truncated digests). Setting this to 0 will ignore
+the error and set the approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 RETURN VALUES
 
 OSSL_FUNC_rand_newctx() should return the newly created
@@ -289,10 +316,12 @@ L<EVP_RAND(3)>
 =head1 HISTORY
 
 The provider RAND interface was introduced in OpenSSL 3.0.
+The Rand Parameters "fips-indicator" and "digest-check" were added in
+OpenSSL 3.4.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

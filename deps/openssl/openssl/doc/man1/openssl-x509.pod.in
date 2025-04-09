@@ -54,8 +54,12 @@ B<openssl> B<x509>
 [B<-checkip> I<ipaddr>]
 [B<-set_serial> I<n>]
 [B<-next_serial>]
+[B<-not_before> I<date>]
+[B<-not_after> I<date>]
 [B<-days> I<arg>]
 [B<-preserve_dates>]
+[B<-set_issuer> I<arg>]
+[B<-set_subject> I<arg>]
 [B<-subj> I<arg>]
 [B<-force_pubkey> I<filename>]
 [B<-clrext>]
@@ -84,8 +88,12 @@ B<openssl> B<x509>
 This command is a multi-purposes certificate handling command.
 It can be used to print certificate information,
 convert certificates to various forms, edit certificate trust settings,
-generate certificates from scratch or from certificating requests
+generate certificates from scratch or from certification requests
 and then self-signing them or signing them like a "micro CA".
+
+Generated certificates bear X.509 version 3.
+Unless specified otherwise,
+key identifier extensions are included as described in L<x509v3_config(5)>.
 
 Since there are a large number of options they will split up into
 various sections.
@@ -117,8 +125,9 @@ see L<openssl-passphrase-options(1)>.
 =item B<-new>
 
 Generate a certificate from scratch, not using an input certificate
-or certificate request. So the B<-in> option must not be used in this case.
-Instead, the B<-subj> option needs to be given.
+or certificate request.
+So this excludes the B<-in> and B<-req> options.
+Instead, the B<-set_subject> option needs to be given.
 The public key to include can be given with the B<-force_pubkey> option
 and defaults to the key given with the B<-key> (or B<-signkey>) option,
 which implies self-signature.
@@ -155,7 +164,7 @@ The B<-ext> option can be used to further restrict which extensions to copy.
 
 =item B<-inform> B<DER>|B<PEM>
 
-The input file format; unspecified by default.
+The input file format to use; by default PEM is tried first.
 See L<openssl-format-options(1)> for details.
 
 =item B<-vfyopt> I<nm>:I<v>
@@ -172,12 +181,12 @@ the new certificate or certificate request, resulting in a self-signature.
 
 This option cannot be used in conjunction with the B<-CA> option.
 
-It sets the issuer name to the subject name (i.e., makes it self-issued)
-and changes the public key to the supplied value (unless overridden
-by B<-force_pubkey>).
+It sets the issuer name to the subject name (i.e., makes it self-issued).
 Unless the B<-preserve_dates> option is supplied,
 it sets the validity start date to the current time
 and the end date to a value determined by the B<-days> option.
+Start date and end date can also be explicitly supplied with options
+B<-not_before> and B<-not_after>.
 
 =item B<-signkey> I<filename>|I<uri>
 
@@ -303,7 +312,7 @@ as used by OpenSSL before version 1.0.0.
 Prints out the certificate extensions in text form.
 Can also be used to restrict which extensions to copy.
 Extensions are specified
-with a comma separated string, e.g., "subjectAltName,subjectKeyIdentifier".
+with a comma separated string, e.g., "subjectAltName, subjectKeyIdentifier".
 See the L<x509v3_config(5)> manual page for the extension names.
 
 =item B<-ocspid>
@@ -371,22 +380,52 @@ The serial number can be decimal or hex (if preceded by C<0x>).
 
 Set the serial to be one more than the number in the certificate.
 
+=item B<-not_before> I<date>
+
+This allows the start date to be explicitly set. The format of the
+date is YYMMDDHHMMSSZ (the same as an ASN1 UTCTime structure), or
+YYYYMMDDHHMMSSZ (the same as an ASN1 GeneralizedTime structure). In
+both formats, seconds SS and timezone Z must be present.
+Alternatively, you can also use "today".
+
+Cannot be used together with the B<-preserve_dates> option.
+
+=item B<-not_after> I<date>
+
+This allows the expiry date to be explicitly set. The format of the
+date is YYMMDDHHMMSSZ (the same as an ASN1 UTCTime structure), or
+YYYYMMDDHHMMSSZ (the same as an ASN1 GeneralizedTime structure). In
+both formats, seconds SS and timezone Z must be present.
+Alternatively, you can also use "today".
+
+Cannot be used together with the B<-preserve_dates> option.
+This overrides the option B<-days>.
+
 =item B<-days> I<arg>
 
-Specifies the number of days until a newly generated certificate expires.
+Specifies the number of days from today until a newly generated certificate expires.
 The default is 30.
-Cannot be used together with the B<-preserve_dates> option.
+
+Cannot be used together with the option B<-preserve_dates>.
+If option B<-not_after> is set, the explicit expiry date takes precedence.
 
 =item B<-preserve_dates>
 
 When signing a certificate, preserve "notBefore" and "notAfter" dates of any
 input certificate instead of adjusting them to current time and duration.
-Cannot be used together with the B<-days> option.
+Cannot be used together with the options B<-days>, B<-not_before> and B<-not_after>.
 
-=item B<-subj> I<arg>
+=item B<-set_issuer> I<arg>
+
+When a certificate is created set its issuer name to the given value.
+
+See B<-set_subject> on how the arg must be formatted.
+
+=item B<-set_subject> I<arg>
 
 When a certificate is created set its subject name to the given value.
-When the certificate is self-signed the issuer name is set to the same value.
+When the certificate is self-signed the issuer name is set to the same value,
+unless the B<-set_issuer> option is given.
 
 The arg must be formatted as C</type0=value0/type1=value1/type2=...>.
 Special characters may be escaped by C<\> (backslash), whitespace is retained.
@@ -399,20 +438,26 @@ Example:
 
 C</DC=org/DC=OpenSSL/DC=users/UID=123456+CN=John Doe>
 
-This option can be used in conjunction with the B<-force_pubkey> option
-to create a certificate even without providing an input certificate
-or certificate request.
+This option can be used with the B<-new> and B<-force_pubkey> options to create
+a new certificate without providing an input certificate or certificate request.
+
+=item B<-subj> I<arg>
+
+This option is an alias of B<-set_subject>.
 
 =item B<-force_pubkey> I<filename>
 
-When a certificate is created set its public key to the key in I<filename>
+When a new certificate or certificate request is created
+set its public key to the given key
 instead of the key contained in the input
 or given with the B<-key> (or B<-signkey>) option.
+If the input contains no public key but a private key, its public part is used.
 
-This option is useful for creating self-issued certificates that are not
+This option can be used in conjunction with b<-new> and B<-set_subject>
+to directly generate a certificate containing any desired public key.
+
+This option is also useful for creating self-issued certificates that are not
 self-signed, for instance when the key cannot be used for signing, such as DH.
-It can also be used in conjunction with B<-new> and B<-subj> to directly
-generate a certificate containing any desired public key.
 
 =item B<-clrext>
 
@@ -435,8 +480,12 @@ If this option is not
 specified then the extensions should either be contained in the unnamed
 (default) section or the default section should contain a variable called
 "extensions" which contains the section to use.
+
 See the L<x509v3_config(5)> manual page for details of the
 extension section format.
+
+Unless specified otherwise,
+key identifier extensions are included as described in L<x509v3_config(5)>.
 
 =item B<-sigopt> I<nm>:I<v>
 
@@ -782,9 +831,12 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 The B<-C> option was removed in OpenSSL 3.0.
 
+Since OpenSSL 3.2, generated certificates bear X.509 version 3,
+and key identifier extensions are included by default.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,0 +1,122 @@
+=pod
+
+=head1 NAME
+
+X509_ACERT_get0_holder_baseCertId,
+X509_ACERT_get0_holder_digest,
+X509_ACERT_get0_holder_entityName,
+X509_ACERT_set0_holder_baseCertId,
+X509_ACERT_set0_holder_digest,
+X509_ACERT_set0_holder_entityName,
+OSSL_ISSUER_SERIAL_get0_issuer,
+OSSL_ISSUER_SERIAL_get0_issuerUID,
+OSSL_ISSUER_SERIAL_get0_serial,
+OSSL_ISSUER_SERIAL_set1_issuer,
+OSSL_ISSUER_SERIAL_set1_issuerUID,
+OSSL_ISSUER_SERIAL_set1_serial,
+OSSL_OBJECT_DIGEST_INFO_get0_digest,
+OSSL_OBJECT_DIGEST_INFO_set1_digest - get and set Attribute Certificate holder fields
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509_acert.h>
+
+ const GENERAL_NAMES *X509_ACERT_get0_holder_entityName(const X509_ACERT *x);
+ OSSL_ISSUER_SERIAL *X509_ACERT_get0_holder_baseCertId(const X509_ACERT *x);
+ OSSL_OBJECT_DIGEST_INFO * X509_ACERT_get0_holder_digest(const X509_ACERT *x);
+ void X509_ACERT_set0_holder_entityName(X509_ACERT *x, GENERAL_NAMES *name);
+ void X509_ACERT_set0_holder_baseCertId(X509_ACERT *x, OSSL_ISSUER_SERIAL *isss);
+ void X509_ACERT_set0_holder_digest(X509_ACERT *x,
+                                    OSSL_OBJECT_DIGEST_INFO *dinfo);
+
+ X509_NAME *OSSL_ISSUER_SERIAL_get0_issuer(OSSL_ISSUER_SERIAL *isss);
+ ASN1_INTEGER *OSSL_ISSUER_SERIAL_get0_serial(OSSL_ISSUER_SERIAL *isss);
+ ASN1_BIT_STRING *OSSL_ISSUER_SERIAL_get0_issuerUID(OSSL_ISSUER_SERIAL *isss);
+ int OSSL_ISSUER_SERIAL_set1_issuer(OSSL_ISSUER_SERIAL *isss, X509_NAME *issuer);
+ int OSSL_ISSUER_SERIAL_set1_serial(OSSL_ISSUER_SERIAL *isss, ASN1_INTEGER *serial);
+ int OSSL_ISSUER_SERIAL_set1_issuerUID(OSSL_ISSUER_SERIAL *isss, ASN1_BIT_STRING *uid);
+
+ void OSSL_OBJECT_DIGEST_INFO_get0_digest(OSSL_OBJECT_DIGEST_INFO *o,
+                                          ASN1_ENUMERATED **digestedObjectType,
+                                          X509_ALGOR **digestAlgorithm,
+                                          ASN1_BIT_STRING **digest);
+ void OSSL_OBJECT_DIGEST_INFO_set1_digest(OSSL_OBJECT_DIGEST_INFO *o,
+                                          ASN1_ENUMERATED *digestedObjectType,
+                                          X509_ALGOR *digestAlgorithm,
+                                          ASN1_BIT_STRING *digest);
+
+=head1 DESCRIPTION
+
+These routines set and get the holder identity of an X509 attribute certificate.
+
+X509_ACERT_set0_holder_entityName() sets the identity as a B<GENERAL_NAME>
+I<name>, X509_ACERT_set0_holder_baseCertId() sets the identity based on the
+issuer and serial number of a certificate detailed in I<isss> and
+X509_ACERT_set0_holder_digest() sets the holder entity based on digest
+information I<dinfo>. Although RFC 5755 section 4.2.2 recommends that only
+one of the above methods be used to set the holder identity for a given
+attribute certificate I<x>, setting multiple methods at the same time is
+possible.  It is up to the application to handle cases when conflicting
+identity information is specified using different methods.
+
+Pointers to the internal structures describing the holder identity of
+attribute certificate I<x> can be retrieved with
+X509_ACERT_get0_holder_entityName(), X509_ACERT_get0_holder_baseCertId(), and
+X509_ACERT_get0_holder_digest().
+
+A B<OSSL_ISSUER_SERIAL> object holds the subject name and UID of a certificate
+issuer and a certificate's serial number.  OSSL_ISSUER_SERIAL_set1_issuer(),
+OSSL_ISSUER_SERIAL_set1_issuerUID(), and OSSL_ISSUER_SERIAL_set1_serial()
+respectively copy these values into the B<OSSL_ISSUER_SERIAL> structure.
+The application is responsible for freeing its own copy of these values after
+use.  OSSL_ISSUER_SERIAL_get0_issuer(), OSSL_ISSUER_SERIAL_get0_issuerUID(),
+and OSSL_ISSUER_SERIAL_get0_serial() return pointers to these values in the object.
+
+An B<OSSL_OBJECT_DIGEST_INFO> object holds a digest of data to identify the
+attribute certificate holder.  OSSL_OBJECT_DIGEST_INFO_set1_digest() sets the
+digest information of the object.  The type of I<digest> information is given
+by I<digestedObjectType> and can be one of:
+
+=over 4
+
+=item OSSL_OBJECT_DIGEST_INFO_PUBLIC_KEY
+
+Hash of a public key
+
+=item OSSL_OBJECT_DIGEST_INFO_PUBLIC_KEY_CERT
+
+Hash of a public key certificate
+
+=item OSSL_OBJECT_DIGEST_INFO_OTHER
+
+Hash of another object. See NOTES below.
+
+=back
+
+I<digestAlgorithm> indicates the algorithm used to compute I<digest>.
+
+=head1 RETURN VALUES
+
+All I<set0>/I<set1> routines return 1 for success and 0 for failure.
+All I<get0> functions return a pointer to the object's inner structure. These
+pointers must not be freed after use.
+
+=head1 NOTES
+
+Although the value of B<OSSL_OBJECT_DIGEST_INFO_OTHER> is defined in RFC 5755,
+its use is prohibited for conformant attribute certificates.
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.4.
+
+=head1 COPYRIGHT
+
+Copyright 2023-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

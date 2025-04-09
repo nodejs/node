@@ -6,6 +6,8 @@ openssl - OpenSSL command line program
 
 =head1 SYNOPSIS
 
+=for openssl duplicate options
+
 B<openssl>
 I<command>
 [ I<options> ... ]
@@ -13,10 +15,12 @@ I<command>
 
 B<openssl> B<no->I<XXX> [ I<options> ]
 
+B<openssl> B<-help> | B<-version>
+
 =head1 DESCRIPTION
 
-OpenSSL is a cryptography toolkit implementing the Secure Sockets Layer (SSL
-v2/v3) and Transport Layer Security (TLS v1) network protocols and related
+OpenSSL is a cryptography toolkit implementing the Secure Sockets Layer (SSL)
+and Transport Layer Security (TLS) network protocols and related
 cryptography standards required by them.
 
 The B<openssl> program is a command line program for using the various
@@ -364,6 +368,22 @@ SHA-3 384 Digest
 
 SHA-3 512 Digest
 
+=item B<keccak-224>
+
+KECCAK 224 Digest
+
+=item B<keccak-256>
+
+KECCAK 256 Digest
+
+=item B<keccak-384>
+
+KECCAK 384 Digest
+
+=item B<keccak-512>
+
+KECCAK 512 Digest
+
 =item B<shake128>
 
 SHA-3 SHAKE128 Digest
@@ -483,13 +503,33 @@ SM4 Cipher
 Details of which options are available depend on the specific command.
 This section describes some common options with common behavior.
 
-=head2 Common Options
+=head2 Program Options
+
+These options can be specified without a command specified to get help
+or version information.
 
 =over 4
 
 =item B<-help>
 
 Provides a terse summary of all options.
+For more detailed information, each command supports a B<-help> option.
+Accepts B<--help> as well.
+
+=item B<-version>
+
+Provides a terse summary of the B<openssl> program version.
+For more detailed information see L<openssl-version(1)>.
+Accepts B<--version> as well.
+
+=back
+
+=head2 Common Options
+
+=over 4
+
+=item B<-help>
+
 If an option takes an argument, the "type" of argument is also given.
 
 =item B<-->
@@ -643,6 +683,21 @@ See L<provider(7)> for a more detailed description.
 Specifies the search path that is to be used for looking for providers.
 Equivalently, the B<OPENSSL_MODULES> environment variable may be set.
 
+=item B<-provparam> I<[name:]key=value>
+
+Set configuration parameter I<key> to value I<val> in provider I<name>
+(optional), if I<name> is not specified, the setting will be applied to all
+loaded providers.
+This option can be specified multiple times, to set multiple parameters.
+Options that specify nondefault providers to load should precede this option
+if the setting is intended to apply to the to be loaded providers.
+Parameters that only affect provider initialisation must, for now, be set in
+the configuration file, only parameters that are also queried as needed later
+have any affect when set via this interface.
+Only UTF8-string-valued parameters are supported.
+See the documentation of the specific provider and associated algorithms for
+any supported parameters.
+
 =item B<-propquery> I<propq>
 
 Specifies the I<property query clause> to be used when fetching algorithms
@@ -667,8 +722,9 @@ For information about specific commands, see L<openssl-engine(1)>,
 L<openssl-rehash(1)>, and L<tsget(1)>.
 
 For information about querying or specifying CPU architecture flags, see
-L<OPENSSL_ia32cap(3)>, and L<OPENSSL_s390xcap(3)>.
+L<OPENSSL_ia32cap(3)>, L<OPENSSL_s390xcap(3)> and L<OPENSSL_riscvcap(3)>.
 
+=head1 SEE ALSO
 
 L<openssl-asn1parse(1)>,
 L<openssl-ca(1)>,
@@ -744,7 +800,7 @@ that program with no arguments is now equivalent to C<openssl help>.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

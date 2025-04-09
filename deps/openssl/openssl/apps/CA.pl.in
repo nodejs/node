@@ -36,6 +36,8 @@ my $CACERT = "cacert.pem";
 my $CACRL = "crl.pem";
 my $DAYS = "-days 365";
 my $CADAYS = "-days 1095";	# 3 years
+my $EXTENSIONS = "-extensions v3_ca";
+my $POLICY = "-policy policy_anything";
 my $NEWKEY = "newkey.pem";
 my $NEWREQ = "newreq.pem";
 my $NEWCERT = "newcert.pem";
@@ -179,7 +181,7 @@ if ($WHAT eq '-newcert' ) {
         $RET = run("$CA -create_serial"
                 . " -out ${CATOP}/$CACERT $CADAYS -batch"
                 . " -keyfile ${CATOP}/private/$CAKEY -selfsign"
-                . " -extensions v3_ca"
+                . " $EXTENSIONS"
                 . " -infiles ${CATOP}/$CAREQ $EXTRA{ca}") if $RET == 0;
         print "CA certificate is in ${CATOP}/$CACERT\n" if $RET == 0;
     }
@@ -191,19 +193,19 @@ if ($WHAT eq '-newcert' ) {
             . " -export -name \"$cname\" $EXTRA{pkcs12}");
     print "PKCS #12 file is in $NEWP12\n" if $RET == 0;
 } elsif ($WHAT eq '-xsign' ) {
-    $RET = run("$CA -policy policy_anything -infiles $NEWREQ $EXTRA{ca}");
+    $RET = run("$CA $POLICY -infiles $NEWREQ $EXTRA{ca}");
 } elsif ($WHAT eq '-sign' ) {
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
+    $RET = run("$CA $POLICY -out $NEWCERT"
             . " -infiles $NEWREQ $EXTRA{ca}");
     print "Signed certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-signCA' ) {
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
-            . " -extensions v3_ca -infiles $NEWREQ $EXTRA{ca}");
+    $RET = run("$CA $POLICY -out $NEWCERT"
+            . " $EXTENSIONS -infiles $NEWREQ $EXTRA{ca}");
     print "Signed CA certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-signcert' ) {
     $RET = run("$X509 -x509toreq -in $NEWREQ -signkey $NEWREQ"
             . " -out tmp.pem $EXTRA{x509}");
-    $RET = run("$CA -policy policy_anything -out $NEWCERT"
+    $RET = run("$CA $POLICY -out $NEWCERT"
             .  "-infiles tmp.pem $EXTRA{ca}") if $RET == 0;
     print "Signed certificate is in $NEWCERT\n" if $RET == 0;
 } elsif ($WHAT eq '-verify' ) {

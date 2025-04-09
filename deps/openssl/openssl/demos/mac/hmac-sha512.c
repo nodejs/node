@@ -1,5 +1,5 @@
 /*-
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -75,7 +75,7 @@ static const char *propq = NULL;
 
 int main(void)
 {
-    int rv = EXIT_FAILURE;
+    int ret = EXIT_FAILURE;
     OSSL_LIB_CTX *library_context = NULL;
     EVP_MAC *mac = NULL;
     EVP_MAC_CTX *mctx = NULL;
@@ -152,9 +152,9 @@ int main(void)
         goto end;
     }
 
-    rv = EXIT_SUCCESS;
+    ret = EXIT_SUCCESS;
 end:
-    if (rv != EXIT_SUCCESS)
+    if (ret != EXIT_SUCCESS)
         ERR_print_errors_fp(stderr);
     /* OpenSSL free functions will ignore NULL arguments */
     OPENSSL_free(out);
@@ -162,5 +162,5 @@ end:
     EVP_MAC_CTX_free(mctx);
     EVP_MAC_free(mac);
     OSSL_LIB_CTX_free(library_context);
-    return rv;
+    return ret;
 }

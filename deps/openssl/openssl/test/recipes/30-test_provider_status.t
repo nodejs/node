@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -20,7 +20,7 @@ setup("test_provider_status");
 use lib srctop_dir('Configurations');
 use lib bldtop_dir('.');
 
-my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+my $no_fips = disabled('fips') || disabled('fips-post') || ($ENV{NO_FIPS} // 0);
 
 plan tests => 5;
 
