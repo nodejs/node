@@ -82,18 +82,11 @@ for pr in "$@"; do
     fi
   else
     # If there's only one commit, we can use the Squash and Merge feature from GitHub.
-    # TODO: use `gh pr merge` when the GitHub CLI allows to customize the commit title (https://github.com/cli/cli/issues/1023).
     commit_title=$(git log -1 --pretty='format:%s')
     commit_body=$(git log -1 --pretty='format:%b')
     commit_head=$(grep 'Fetched commits as' output | cut -d. -f3 | xargs git rev-parse)
 
-    jq -n \
-      --arg title "${commit_title}" \
-      --arg body "${commit_body}" \
-      --arg head "${commit_head}" \
-      '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
-    cat output.json
-    if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
+    if ! gh pr merge "$pr" --squash --body "$commit_body" --subject "$commit_title" --match-head-commit "$commit_head" --admin > output; then
       commit_queue_failed "$pr"
       continue
     fi
@@ -102,7 +95,6 @@ for pr in "$@"; do
       commit_queue_failed "$pr"
       continue
     fi
-    rm output.json
   fi
 
   rm output

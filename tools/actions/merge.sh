@@ -39,24 +39,18 @@ git log -1 HEAD^ --pretty='format:%B' | git interpret-trailers --parse --no-divi
 commit_title=$(git log -1 --pretty='format:%s')
 commit_body=$(git log -1 --pretty='format:%b')
 
-jq -n \
-    --arg title "${commit_title}" \
-    --arg body "${commit_body}" \
-    --arg head "${commit_head}" \
-    '{merge_method:"squash",commit_title:$title,commit_message:$body,sha:$head}' > output.json
-cat output.json
-if ! gh api -X PUT "repos/${OWNER}/${REPOSITORY}/pulls/${pr}/merge" --input output.json > output; then
+if ! gh pr merge "$pr" --squash --body "$commit_body" --subject "$commit_title" --match-head-commit "$commit_head" --admin > output; then
     cat output
     echo "Failed to merge $pr"
-    rm output output.json
+    rm output
     exit 1
 fi
 cat output
 if ! commits="$(jq -r 'if .merged then .sha else error("not merged") end' < output)"; then
     echo "Failed to merge $pr"
-    rm output output.json
+    rm output
     exit 1
 fi
-rm output.json output
+rm output
 
 gh pr comment "$pr" --repo "$OWNER/$REPOSITORY" --body "Landed in $commits"
