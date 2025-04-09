@@ -2468,7 +2468,7 @@ This module should export either:
 * A `globalTeardown` function which runs once after all tests complete
 * Or both functions
 
-```js
+```cjs
 // setup-module.js
 async function globalSetup() {
   // Setup shared resources, state, or environment
@@ -2488,11 +2488,15 @@ module.exports = { globalSetup, globalTeardown };
 ```mjs
 // setup-module.mjs
 export async function globalSetup() {
-  // Setup code here
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
 }
 
 export async function globalTeardown() {
-  // Teardown code here
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
 }
 ```
 
