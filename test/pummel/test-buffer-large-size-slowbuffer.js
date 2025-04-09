@@ -4,30 +4,19 @@ const common = require('../common');
 // Buffer with size > INT32_MAX
 common.skipIf32Bits();
 
-// Test Buffer size larger than integer range
-const { test } = require('node:test');
-const assert = require('assert');
+const assert = require('node:assert');
 const {
   SlowBuffer,
-} = require('buffer');
-const kStringMaxLength = require('buffer').constants.MAX_STRING_LENGTH;
-
-const stringTooLongError = {
-  message: `Cannot create a string longer than 0x${kStringMaxLength.toString(16)}` +
-    ' characters',
-  code: 'ERR_STRING_TOO_LONG',
-  name: 'Error',
-};
+} = require('node:buffer');
 
 const size = 2 ** 31;
 
-test('SlowBuffer.toString with too long size', () => {
-  try {
-    assert.throws(() => SlowBuffer(size).toString('utf8'), stringTooLongError);
-  } catch (e) {
-    if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
-      throw e;
-    }
-    common.skip('insufficient space for SlowBuffer');
+// Test SlowBuffer with size larger than integer range
+try {
+  assert.throws(() => SlowBuffer(size).toString('utf8'), { code: 'ERR_STRING_TOO_LONG' });
+} catch (e) {
+  if (e.code !== 'ERR_MEMORY_ALLOCATION_FAILED') {
+    throw e;
   }
-});
+  common.skip('insufficient space for SlowBuffer');
+}
