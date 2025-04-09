@@ -90,7 +90,7 @@ class CipherBase : public BaseObject {
   const CipherKind kind_;
   AuthTagState auth_tag_state_;
   unsigned int auth_tag_len_;
-  char auth_tag_[EVP_GCM_TLS_TAG_LEN];
+  char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
   int max_message_size_;
 };
