@@ -38,19 +38,25 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
         stdio: 'pipe',
         env: {
           ...runnerEnv,
-          AVOID_PRINT_LOGS: 'true'
+          AVOID_PRINT_LOGS: 'true',
+          NODE_OPTIONS: '--no-warnings',
         }
       }
     );
 
     let stdout = '';
+    let stderr = '';
     child.stdout.on('data', (data) => {
       stdout += data.toString();
+    });
+    child.stderr.on('data', (data) => {
+      stderr += data.toString();
     });
 
     await once(child, 'exit');
 
     // Assert in order to print a detailed error message if the test fails
+    assert.partialDeepStrictEqual(stderr, '');
     assert.match(stdout, /pass (\d+)/);
     assert.match(stdout, /fail (\d+)/);
 
