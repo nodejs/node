@@ -2594,10 +2594,10 @@ static void ReadFileUtf8(const FunctionCallbackInfo<Value>& args) {
     FS_SYNC_TRACE_END(open);
     if (req.result < 0) {
       uv_fs_req_cleanup(&req);
-      // req will be cleaned up by scope leave.
       return env->ThrowUVException(
           static_cast<int>(req.result), "open", nullptr, path.out());
     }
+    uv_fs_req_cleanup(&req);
   }
 
   auto defer_close = OnScopeLeave([file, is_fd, &req]() {
