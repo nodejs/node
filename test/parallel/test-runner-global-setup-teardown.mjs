@@ -382,7 +382,7 @@ async function runTest(
 
     describe('interop with --require and --import', () => {
       const cjsPath = join(testFixtures, 'global-setup-teardown', 'required-module.cjs');
-      const esmPath = join(testFixtures, 'global-setup-teardown', 'imported-module.mjs');
+      const esmpFile = fixtures.fileURL('test-runner', 'global-setup-teardown', 'imported-module.mjs');
 
       it('should run required module before globalSetup', async () => {
         const setupFlagPath = tmpdir.resolve('setup-for-required.tmp');
@@ -445,7 +445,7 @@ async function runTest(
               TEARDOWN_FLAG_PATH: teardownFlagPath
             },
             additionalFlags: [
-              `--import=${esmPath}`,
+              `--import=${esmpFile}`,
             ],
             runnerEnabled
           });
@@ -487,7 +487,7 @@ async function runTest(
               TEARDOWN_FLAG_PATH: teardownFlagPath
             },
             additionalFlags: [
-              `--import=${esmPath}`,
+              `--import=${esmpFile}`,
             ],
             runnerEnabled
           });
@@ -517,8 +517,11 @@ async function runTest(
       it('should execute globalSetup and globalTeardown correctly with imported module containing tests', async () => {
         const setupFlagPath = tmpdir.resolve('setup-executed.tmp');
         const teardownFlagPath = tmpdir.resolve('teardown-executed.tmp');
-        const importedModuleWithTestPath = join(testFixtures, 'global-setup-teardown', 'imported-module-with-test.mjs');
-
+        const importedModuleWithTestFile = fixtures.fileURL(
+          'test-runner',
+          'global-setup-teardown',
+          'imported-module-with-test.mjs'
+        );
         // Create a setup file for test-file.js to find
         fs.writeFileSync(setupFlagPath, 'non-empty');
 
@@ -530,7 +533,7 @@ async function runTest(
             TEARDOWN_FLAG_PATH: teardownFlagPath
           },
           additionalFlags: [
-            `--import=${importedModuleWithTestPath}`,
+            `--import=${importedModuleWithTestFile}`,
           ],
           runnerEnabled
         });
