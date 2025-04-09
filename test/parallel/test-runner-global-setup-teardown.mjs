@@ -14,13 +14,12 @@ async function runTest(
   {
     isolation,
     globalSetupFile,
-    testFile = 'test-file.js',
+    testFiles = ['test-file.js'],
     env = {},
     additionalFlags = [],
     runnerEnabled = true,
   }
 ) {
-  const testFilePath = join(testFixtures, 'global-setup-teardown', testFile);
   const globalSetupPath = join(testFixtures, 'global-setup-teardown', globalSetupFile);
 
   const args = [];
@@ -29,8 +28,11 @@ async function runTest(
     args.push('--test');
   }
 
+  if (isolation) {
+    args.push(`--test-isolation=${isolation}`);
+  }
+
   args.push(
-    `--test-isolation=${isolation}`,
     '--test-reporter=spec',
     `--test-global-setup=${globalSetupPath}`
   );
@@ -39,7 +41,8 @@ async function runTest(
     args.push(...additionalFlags);
   }
 
-  args.push(testFilePath);
+  const testFilePaths = testFiles.map((file) => join(testFixtures, 'global-setup-teardown', file));
+  args.push(...testFilePaths);
 
   const child = spawn(
     process.execPath,
@@ -76,16 +79,12 @@ async function runTest(
     runnerEnabled: true
   },
   {
-    isolation: 'none',
-    runnerEnabled: false
-  },
-  {
-    isolation: 'process',
-    runnerEnabled: false
-  },
-  {
     isolation: 'process',
     runnerEnabled: true
+  },
+  {
+    isolation: undefined,
+    runnerEnabled: false
   },
 ].forEach((testCase) => {
   const { isolation, runnerEnabled } = testCase;
@@ -162,6 +161,41 @@ async function runTest(
       });
 
       assert.match(stdout, /pass 2/);
+      assert.match(stdout, /fail 0/);
+      assert.match(stdout, /Teardown-only module executed/);
+
+      assert.ok(fs.existsSync(teardownOnlyFlagPath), 'Teardown-only flag file should exist');
+      const content = fs.readFileSync(teardownOnlyFlagPath, 'utf8');
+      assert.strictEqual(content, 'Teardown-only was executed');
+    });
+
+    // Create a file in globalSetup and delete it in globalTeardown
+    // two test files should both verify that the file exists
+    // This works as the globalTeardown removes the setupFlag
+    it('should run globalTeardown only after all tests are done in case of more than one test file', async () => {
+      const teardownOnlyFlagPath = tmpdir.resolve('teardown-only-executed.tmp');
+      const setupFlagPath = tmpdir.resolve('setup-for-teardown-only.tmp');
+
+      // Create a setup file for test-file.js to find
+      fs.writeFileSync(setupFlagPath, 'Setup was executed');
+
+      const { stdout } = await runTest({
+        isolation,
+        globalSetupFile: 'teardown-only.js',
+        env: {
+          TEARDOWN_ONLY_FLAG_PATH: teardownOnlyFlagPath,
+          SETUP_FLAG_PATH: setupFlagPath
+        },
+        runnerEnabled,
+        testFiles: ['test-file.js', 'another-test-file.js']
+      });
+
+      if (runnerEnabled) {
+        assert.match(stdout, /pass 3/);
+      } else {
+        assert.match(stdout, /pass 2/);
+      }
+
       assert.match(stdout, /fail 0/);
       assert.match(stdout, /Teardown-only module executed/);
 
@@ -524,9 +558,5 @@ async function runTest(
         assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
       });
     });
-
-    if (runnerEnabled) {
-      it.todo('should run globalTeardown after all tests are done');
-    }
   });
 });
