@@ -285,6 +285,14 @@ class Cipher final {
  public:
   static constexpr size_t MAX_KEY_LENGTH = EVP_MAX_KEY_LENGTH;
   static constexpr size_t MAX_IV_LENGTH = EVP_MAX_IV_LENGTH;
+#ifdef EVP_MAX_AEAD_TAG_LENGTH
+  static constexpr size_t MAX_AUTH_TAG_LENGTH = EVP_MAX_AEAD_TAG_LENGTH;
+#else
+  static constexpr size_t MAX_AUTH_TAG_LENGTH = 16;
+#endif
+  static_assert(EVP_GCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
+                EVP_CCM_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH &&
+                EVP_CHACHAPOLY_TLS_TAG_LEN <= MAX_AUTH_TAG_LENGTH);
 
   Cipher() = default;
   Cipher(const EVP_CIPHER* cipher) : cipher_(cipher) {}
