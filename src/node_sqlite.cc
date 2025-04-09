@@ -169,6 +169,38 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   return e;
 }
 
+void JSValueToSQLiteResult(Isolate* isolate,
+                           sqlite3_context* ctx,
+                           Local<Value> value) {
+  if (value->IsNullOrUndefined()) {
+    sqlite3_result_null(ctx);
+  } else if (value->IsNumber()) {
+    sqlite3_result_double(ctx, value.As<Number>()->Value());
+  } else if (value->IsString()) {
+    Utf8Value val(isolate, value.As<String>());
+    sqlite3_result_text(ctx, *val, val.length(), SQLITE_TRANSIENT);
+  } else if (value->IsArrayBufferView()) {
+    ArrayBufferViewContents<uint8_t> buf(value);
+    sqlite3_result_blob(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
+  } else if (value->IsBigInt()) {
+    bool lossless;
+    int64_t as_int = value.As<BigInt>()->Int64Value(&lossless);
+    if (!lossless) {
+      sqlite3_result_error(ctx, "BigInt value is too large for SQLite", -1);
+      return;
+    }
+    sqlite3_result_int64(ctx, as_int);
+  } else if (value->IsPromise()) {
+    sqlite3_result_error(
+        ctx, "Asynchronous user-defined functions are not supported", -1);
+  } else {
+    sqlite3_result_error(
+        ctx,
+        "Returned JavaScript value cannot be converted to a SQLite value",
+        -1);
+  }
+}
+
 class DatabaseSync;
 
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, DatabaseSync* db) {
@@ -214,6 +246,178 @@ inline MaybeLocal<Value> NullableSQLiteStringToValue(Isolate* isolate,
   return String::NewFromUtf8(isolate, str, NewStringType::kInternalized)
       .As<Value>();
 }
+
+class CustomAggregate {
+ public:
+  explicit CustomAggregate(Environment* env,
+                           DatabaseSync* db,
+                           bool use_bigint_args,
+                           Local<Value> start,
+                           Local<Function> step_fn,
+                           Local<Function> inverse_fn,
+                           Local<Function> result_fn)
+      : env_(env),
+        db_(db),
+        use_bigint_args_(use_bigint_args),
+        start_(env->isolate(), start),
+        step_fn_(env->isolate(), step_fn),
+        inverse_fn_(env->isolate(), inverse_fn),
+        result_fn_(env->isolate(), result_fn) {}
+
+  static void xStep(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
+    xStepBase(ctx, argc, argv, &CustomAggregate::step_fn_);
+  }
+
+  static void xInverse(sqlite3_context* ctx, int argc, sqlite3_value** argv) {
+    xStepBase(ctx, argc, argv, &CustomAggregate::inverse_fn_);
+  }
+
+  static void xFinal(sqlite3_context* ctx) { xValueBase(ctx, true); }
+
+  static void xValue(sqlite3_context* ctx) { xValueBase(ctx, false); }
+
+  static void xDestroy(void* self) {
+    delete static_cast<CustomAggregate*>(self);
+  }
+
+ private:
+  struct aggregate_data {
+    Global<Value> value;
+    bool initialized;
+    bool is_window;
+  };
+
+  static inline void xStepBase(sqlite3_context* ctx,
+                               int argc,
+                               sqlite3_value** argv,
+                               Global<Function> CustomAggregate::*mptr) {
+    CustomAggregate* self =
+        static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
+    Environment* env = self->env_;
+    Isolate* isolate = env->isolate();
+    auto agg = self->GetAggregate(ctx);
+
+    if (!agg) {
+      return;
+    }
+
+    auto recv = Undefined(isolate);
+    LocalVector<Value> js_argv(isolate);
+    js_argv.emplace_back(Local<Value>::New(isolate, agg->value));
+
+    for (int i = 0; i < argc; ++i) {
+      sqlite3_value* value = argv[i];
+      MaybeLocal<Value> js_val;
+      SQLITE_VALUE_TO_JS(value, isolate, self->use_bigint_args_, js_val, value);
+      if (js_val.IsEmpty()) {
+        // Ignore the SQLite error because a JavaScript exception is pending.
+        self->db_->SetIgnoreNextSQLiteError(true);
+        sqlite3_result_error(ctx, "", 0);
+        return;
+      }
+
+      Local<Value> local;
+      if (!js_val.ToLocal(&local)) {
+        // Ignore the SQLite error because a JavaScript exception is pending.
+        self->db_->SetIgnoreNextSQLiteError(true);
+        sqlite3_result_error(ctx, "", 0);
+        return;
+      }
+
+      js_argv.emplace_back(local);
+    }
+
+    Local<Value> ret;
+    if (!(self->*mptr)
+             .Get(isolate)
+             ->Call(env->context(), recv, argc + 1, js_argv.data())
+             .ToLocal(&ret)) {
+      self->db_->SetIgnoreNextSQLiteError(true);
+      sqlite3_result_error(ctx, "", 0);
+      return;
+    }
+
+    agg->value.Reset(isolate, ret);
+  }
+
+  static inline void xValueBase(sqlite3_context* ctx, bool is_final) {
+    CustomAggregate* self =
+        static_cast<CustomAggregate*>(sqlite3_user_data(ctx));
+    Environment* env = self->env_;
+    Isolate* isolate = env->isolate();
+    auto agg = self->GetAggregate(ctx);
+
+    if (!agg) {
+      return;
+    }
+
+    if (!is_final) {
+      agg->is_window = true;
+    } else if (agg->is_window) {
+      DestroyAggregateData(ctx);
+      return;
+    }
+
+    Local<Value> result;
+    if (!self->result_fn_.IsEmpty()) {
+      Local<Function> fn =
+          Local<Function>::New(env->isolate(), self->result_fn_);
+      Local<Value> js_arg[] = {Local<Value>::New(isolate, agg->value)};
+
+      if (!fn->Call(env->context(), Null(isolate), 1, js_arg)
+               .ToLocal(&result)) {
+        self->db_->SetIgnoreNextSQLiteError(true);
+        sqlite3_result_error(ctx, "", 0);
+      }
+    } else {
+      result = Local<Value>::New(isolate, agg->value);
+    }
+
+    JSValueToSQLiteResult(isolate, ctx, result);
+    if (is_final) {
+      DestroyAggregateData(ctx);
+    }
+  }
+
+  static void DestroyAggregateData(sqlite3_context* ctx) {
+    aggregate_data* agg = static_cast<aggregate_data*>(
+        sqlite3_aggregate_context(ctx, sizeof(aggregate_data)));
+    CHECK(agg->initialized);
+    agg->value.Reset();
+  }
+
+  aggregate_data* GetAggregate(sqlite3_context* ctx) {
+    aggregate_data* agg = static_cast<aggregate_data*>(
+        sqlite3_aggregate_context(ctx, sizeof(aggregate_data)));
+    if (!agg->initialized) {
+      Isolate* isolate = env_->isolate();
+      Local<Value> start_v = Local<Value>::New(isolate, start_);
+      if (start_v->IsFunction()) {
+        auto fn = start_v.As<Function>();
+        MaybeLocal<Value> retval =
+            fn->Call(env_->context(), Null(isolate), 0, nullptr);
+        if (!retval.ToLocal(&start_v)) {
+          db_->SetIgnoreNextSQLiteError(true);
+          sqlite3_result_error(ctx, "", 0);
+          return nullptr;
+        }
+      }
+
+      agg->value.Reset(env_->isolate(), start_v);
+      agg->initialized = true;
+    }
+
+    return agg;
+  }
+
+  Environment* env_;
+  DatabaseSync* db_;
+  bool use_bigint_args_;
+  Global<Value> start_;
+  Global<Function> step_fn_;
+  Global<Function> inverse_fn_;
+  Global<Function> result_fn_;
+};
 
 class BackupJob : public ThreadPoolWork {
  public:
@@ -432,33 +636,7 @@ void UserDefinedFunction::xFunc(sqlite3_context* ctx,
     return;
   }
 
-  if (result->IsUndefined() || result->IsNull()) {
-    sqlite3_result_null(ctx);
-  } else if (result->IsNumber()) {
-    sqlite3_result_double(ctx, result.As<Number>()->Value());
-  } else if (result->IsString()) {
-    Utf8Value val(isolate, result.As<String>());
-    sqlite3_result_text(ctx, *val, val.length(), SQLITE_TRANSIENT);
-  } else if (result->IsArrayBufferView()) {
-    ArrayBufferViewContents<uint8_t> buf(result);
-    sqlite3_result_blob(ctx, buf.data(), buf.length(), SQLITE_TRANSIENT);
-  } else if (result->IsBigInt()) {
-    bool lossless;
-    int64_t as_int = result.As<BigInt>()->Int64Value(&lossless);
-    if (!lossless) {
-      sqlite3_result_error(ctx, "BigInt value is too large for SQLite", -1);
-      return;
-    }
-    sqlite3_result_int64(ctx, as_int);
-  } else if (result->IsPromise()) {
-    sqlite3_result_error(
-        ctx, "Asynchronous user-defined functions are not supported", -1);
-  } else {
-    sqlite3_result_error(
-        ctx,
-        "Returned JavaScript value cannot be converted to a SQLite value",
-        -1);
-  }
+  JSValueToSQLiteResult(isolate, ctx, result);
 }
 
 void UserDefinedFunction::xDestroy(void* self) {
@@ -982,6 +1160,163 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
                                      nullptr,
                                      nullptr,
                                      UserDefinedFunction::xDestroy);
+  CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
+}
+
+void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  Utf8Value name(env->isolate(), args[0].As<String>());
+  Local<Object> options = args[1].As<Object>();
+  Local<Value> start_v;
+  if (!options->Get(env->context(), env->start_string()).ToLocal(&start_v)) {
+    return;
+  }
+
+  if (start_v->IsUndefined()) {
+    THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                               "The \"options.start\" argument must be a "
+                               "function or a primitive value.");
+    return;
+  }
+
+  Local<Value> step_v;
+  if (!options->Get(env->context(), env->step_string()).ToLocal(&step_v)) {
+    return;
+  }
+
+  if (!step_v->IsFunction()) {
+    THROW_ERR_INVALID_ARG_TYPE(
+        env->isolate(), "The \"options.step\" argument must be a function.");
+    return;
+  }
+
+  Local<Value> result_v;
+  if (!options->Get(env->context(), env->result_string()).ToLocal(&result_v)) {
+    return;
+  }
+
+  bool use_bigint_args = false;
+  bool varargs = false;
+  bool direct_only = false;
+  Local<Value> use_bigint_args_v;
+  Local<Function> inverseFunc = Local<Function>();
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "useBigIntArguments"))
+           .ToLocal(&use_bigint_args_v)) {
+    return;
+  }
+
+  if (!use_bigint_args_v->IsUndefined()) {
+    if (!use_bigint_args_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.useBigIntArguments\" argument must be a boolean.");
+      return;
+    }
+    use_bigint_args = use_bigint_args_v.As<Boolean>()->Value();
+  }
+
+  Local<Value> varargs_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "varargs"))
+           .ToLocal(&varargs_v)) {
+    return;
+  }
+
+  if (!varargs_v->IsUndefined()) {
+    if (!varargs_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.varargs\" argument must be a boolean.");
+      return;
+    }
+    varargs = varargs_v.As<Boolean>()->Value();
+  }
+
+  Local<Value> direct_only_v;
+  if (!options
+           ->Get(env->context(),
+                 FIXED_ONE_BYTE_STRING(env->isolate(), "directOnly"))
+           .ToLocal(&direct_only_v)) {
+    return;
+  }
+
+  if (!direct_only_v->IsUndefined()) {
+    if (!direct_only_v->IsBoolean()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.directOnly\" argument must be a boolean.");
+      return;
+    }
+    direct_only = direct_only_v.As<Boolean>()->Value();
+  }
+
+  Local<Value> inverse_v;
+  if (!options->Get(env->context(), env->inverse_string())
+           .ToLocal(&inverse_v)) {
+    return;
+  }
+
+  if (!inverse_v->IsUndefined()) {
+    if (!inverse_v->IsFunction()) {
+      THROW_ERR_INVALID_ARG_TYPE(
+          env->isolate(),
+          "The \"options.inverse\" argument must be a function.");
+      return;
+    }
+    inverseFunc = inverse_v.As<Function>();
+  }
+
+  Local<Function> stepFunction = step_v.As<Function>();
+  Local<Function> resultFunction =
+      result_v->IsFunction() ? result_v.As<Function>() : Local<Function>();
+  int argc = -1;
+  if (!varargs) {
+    Local<Value> js_len;
+    if (!stepFunction->Get(env->context(), env->length_string())
+             .ToLocal(&js_len)) {
+      return;
+    }
+
+    // Subract 1 because the first argument is the aggregate value.
+    argc = js_len.As<Int32>()->Value() - 1;
+    if (!inverseFunc.IsEmpty() &&
+        !inverseFunc->Get(env->context(), env->length_string())
+             .ToLocal(&js_len)) {
+      return;
+    }
+
+    argc = std::max({argc, js_len.As<Int32>()->Value() - 1, 0});
+  }
+
+  int text_rep = SQLITE_UTF8;
+  if (direct_only) {
+    text_rep |= SQLITE_DIRECTONLY;
+  }
+
+  auto xInverse = !inverseFunc.IsEmpty() ? CustomAggregate::xInverse : nullptr;
+  auto xValue = xInverse ? CustomAggregate::xValue : nullptr;
+  int r = sqlite3_create_window_function(db->connection_,
+                                         *name,
+                                         argc,
+                                         text_rep,
+                                         new CustomAggregate(env,
+                                                             db,
+                                                             use_bigint_args,
+                                                             start_v,
+                                                             stepFunction,
+                                                             inverseFunc,
+                                                             resultFunction),
+                                         CustomAggregate::xStep,
+                                         CustomAggregate::xFinal,
+                                         xValue,
+                                         xInverse,
+                                         CustomAggregate::xDestroy);
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
@@ -2263,6 +2598,8 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
+  SetProtoMethod(
+      isolate, db_tmpl, "aggregate", DatabaseSync::AggregateFunction);
   SetProtoMethod(
       isolate, db_tmpl, "createSession", DatabaseSync::CreateSession);
   SetProtoMethod(
