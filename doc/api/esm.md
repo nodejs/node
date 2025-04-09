@@ -410,11 +410,16 @@ added:
 * Analogous to Python's `__name__ == "__main__"`.
 
 ```js
-function main() {
+export function foo() {
   console.log('Hello, world!');
 }
 
+function main() {
+  foo();
+}
+
 if (import.meta.main) main();
+// `foo` can be imported from another module without possible side-effects from `main`
 ```
 
 ### `import.meta.resolve(specifier)`
