@@ -2460,7 +2460,9 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-Specify a module that will be run before all tests are executed and can be used to setup global state or fixtures for tests. This module should export either:
+Specify a module that will be run before all tests are executed and
+can be used to setup global state or fixtures for tests.
+This module should export either:
 
 * A `globalSetup` function which runs once before all tests start
 * A `globalTeardown` function which runs once after all tests complete
@@ -2483,8 +2485,6 @@ async function globalTeardown() {
 module.exports = { globalSetup, globalTeardown };
 ```
 
-If the module is an ESM module, the functions should be exported using named exports:
-
 ```mjs
 // setup-module.mjs
 export async function globalSetup() {
@@ -2496,7 +2496,9 @@ export async function globalTeardown() {
 }
 ```
 
-If the global setup function throws an error, no tests will be run and the process will exit with a non-zero exit code. The global teardown function will not be called in this case.
+If the global setup function throws an error,
+no tests will be run and the process will exit with a non-zero exit code.
+The global teardown function will not be called in this case.
 
 ### `--test-isolation=mode`
 
