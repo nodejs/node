@@ -3,7 +3,7 @@ import assert from 'assert';
 
 assert.strictEqual(Object.getPrototypeOf(import.meta), null);
 
-const keys = ['dirname', 'filename', 'resolve', 'url', 'main'];
+const keys = ['dirname', 'filename', 'main', 'resolve', 'url'];
 assert.deepStrictEqual(Reflect.ownKeys(import.meta), keys);
 
 const descriptors = Object.getOwnPropertyDescriptors(import.meta);
