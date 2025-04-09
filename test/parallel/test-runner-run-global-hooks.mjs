@@ -1,10 +1,12 @@
 import '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
-import { describe, it, beforeEach, afterEach, run } from 'node:test';
+import { describe, it, beforeEach, run } from 'node:test';
 import assert from 'node:assert';
 import fs from 'node:fs';
 import tmpdir from '../common/tmpdir.js';
 import path from 'node:path';
+import { spawn } from 'node:child_process';
+import { once } from 'node:events';
 
 const testFixtures = fixtures.path('test-runner', 'global-setup-teardown');
 
@@ -13,36 +15,39 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
     tmpdir.refresh();
   });
 
-  let originalEnv;
-
-  beforeEach(() => {
-    originalEnv = { ...process.env };
-  });
-
-  afterEach(() => {
-    process.env = originalEnv;
-  });
-
-  async function runTestWithGlobalHooks({ globalSetupFile, testFile = 'test-file.js', env = {} }) {
+  async function runTestWithGlobalHooks({ globalSetupFile, testFile = 'test-file.js', runnerEnv = {} }) {
     const testFilePath = path.join(testFixtures, testFile);
     const globalSetupPath = path.join(testFixtures, globalSetupFile);
+    const runner = path.join(import.meta.dirname, '..', 'fixtures', 'test-runner-global-hooks.mjs');
 
-    Object.entries(env).forEach(([key, value]) => {
-      process.env[key] = value;
+    const child = spawn(
+      process.execPath,
+      [
+        runner,
+        '--file', testFilePath,
+        '--globalSetup', globalSetupPath,
+      ],
+      {
+        encoding: 'utf8',
+        stdio: 'pipe',
+        env: {
+          ...runnerEnv,
+          AVOID_PRINT_LOGS: 'true'
+        }
+      }
+    );
+
+    let stdout = '';
+    child.stdout.on('data', (data) => {
+      stdout += data.toString();
     });
-    process.env.AVOID_PRINT_LOGS = true;
 
-    const stream = run({
-      files: [testFilePath],
-      globalSetupPath
-    });
+    await once(child, 'exit');
 
-    const results = { passed: 0, failed: 0 };
-    stream.on('test:pass', () => { results.passed++; });
-    stream.on('test:fail', () => { results.failed++; });
-
-    // eslint-disable-next-line no-unused-vars
-    for await (const _ of stream);
+    const results = {
+      passed: parseInt((stdout.match(/pass (\d+)/) || [])[1] || '0', 10),
+      failed: parseInt((stdout.match(/fail (\d+)/) || [])[1] || '0', 10)
+    };
 
     return { results };
   }
@@ -53,7 +58,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'basic-setup-teardown.js',
-      env: {
+      runnerEnv: {
         SETUP_FLAG_PATH: setupFlagPath,
         TEARDOWN_FLAG_PATH: teardownFlagPath
       }
@@ -74,7 +79,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'setup-only.js',
-      env: {
+      runnerEnv: {
         SETUP_ONLY_FLAG_PATH: setupOnlyFlagPath,
         SETUP_FLAG_PATH: setupOnlyFlagPath
       }
@@ -96,7 +101,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'teardown-only.js',
-      env: {
+      runnerEnv: {
         TEARDOWN_ONLY_FLAG_PATH: teardownOnlyFlagPath,
         SETUP_FLAG_PATH: setupFlagPath
       }
@@ -118,7 +123,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     await runTestWithGlobalHooks({
       globalSetupFile: 'context-sharing.js',
-      env: {
+      runnerEnv: {
         CONTEXT_FLAG_PATH: contextFlagPath,
         SETUP_FLAG_PATH: setupFlagPath
       }
@@ -132,10 +137,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
     assert.deepStrictEqual(contextData.complexData, { key: 'value', nested: { data: true } });
   });
 
-  // TODO(pmarchini): This test is expected to fail because the teardown runs after the test stream closes.
-  // We need to find a way to run the teardown before the stream closes.
-  // This is related only to the usage of `run` function.
-  it.todo('should handle async setup and teardown', async () => {
+  it('should handle async setup and teardown', async () => {
     const asyncFlagPath = tmpdir.resolve('async-executed.tmp');
     const setupFlagPath = tmpdir.resolve('setup-for-async.tmp');
 
@@ -144,7 +146,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'async-setup-teardown.js',
-      env: {
+      runnerEnv: {
         ASYNC_FLAG_PATH: asyncFlagPath,
         SETUP_FLAG_PATH: setupFlagPath
       }
@@ -163,7 +165,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'basic-setup-teardown.ts',
-      env: {
+      runnerEnv: {
         SETUP_FLAG_PATH: setupFlagPath,
         TEARDOWN_FLAG_PATH: teardownFlagPath
       }
@@ -186,7 +188,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     const { results } = await runTestWithGlobalHooks({
       globalSetupFile: 'basic-setup-teardown.mjs',
-      env: {
+      runnerEnv: {
         SETUP_FLAG_PATH: setupFlagPath,
         TEARDOWN_FLAG_PATH: teardownFlagPath
       }
