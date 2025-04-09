@@ -207,6 +207,7 @@
   V(inputs_string, "inputs")                                                   \
   V(internal_binding_string, "internalBinding")                                \
   V(internal_string, "internal")                                               \
+  V(inverse_string, "inverse")                                                 \
   V(ipv4_string, "IPv4")                                                       \
   V(ipv6_string, "IPv6")                                                       \
   V(isclosing_string, "isClosing")                                             \
@@ -334,6 +335,7 @@
     "const __esModule = true;")                                                \
   V(require_string, "require")                                                 \
   V(resource_string, "resource")                                               \
+  V(result_string, "result")                                                   \
   V(retry_string, "retry")                                                     \
   V(return_arrays_string, "returnArrays")                                      \
   V(return_string, "return")                                                   \
@@ -361,12 +363,14 @@
   V(specifier_string, "specifier")                                             \
   V(stack_string, "stack")                                                     \
   V(standard_name_string, "standardName")                                      \
+  V(start_string, "start")                                                     \
   V(start_time_string, "startTime")                                            \
   V(state_string, "state")                                                     \
   V(statement_string, "statement")                                             \
   V(stats_string, "stats")                                                     \
   V(status_string, "status")                                                   \
   V(stdio_string, "stdio")                                                     \
+  V(step_string, "step")                                                       \
   V(stream_average_duration_string, "streamAverageDuration")                   \
   V(stream_count_string, "streamCount")                                        \
   V(subject_string, "subject")                                                 \
