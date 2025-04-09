@@ -2452,6 +2452,52 @@ added:
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
 
+### `--test-global-setup=module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Specify a module that will be run before all tests are executed and can be used to setup global state or fixtures for tests. This module should export either:
+
+* A `globalSetup` function which runs once before all tests start
+* A `globalTeardown` function which runs once after all tests complete
+* Or both functions
+
+```js
+// setup-module.js
+async function globalSetup() {
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
+}
+
+async function globalTeardown() {
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
+}
+
+module.exports = { globalSetup, globalTeardown };
+```
+
+If the module is an ESM module, the functions should be exported using named exports:
+
+```mjs
+// setup-module.mjs
+export async function globalSetup() {
+  // Setup code here
+}
+
+export async function globalTeardown() {
+  // Teardown code here
+}
+```
+
+If the global setup function throws an error, no tests will be run and the process will exit with a non-zero exit code. The global teardown function will not be called in this case.
+
 ### `--test-isolation=mode`
 
 <!-- YAML
@@ -3347,6 +3393,7 @@ one is included in the list below.
 * `--test-coverage-functions`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
 * `--test-only`
