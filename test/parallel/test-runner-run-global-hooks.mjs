@@ -50,6 +50,10 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
 
     await once(child, 'exit');
 
+    // Assert in order to print a detailed error message if the test fails
+    assert.match(stdout, /pass (\d+)/);
+    assert.match(stdout, /fail (\d+)/);
+
     const results = {
       passed: parseInt((stdout.match(/pass (\d+)/) || [])[1] || '0', 10),
       failed: parseInt((stdout.match(/fail (\d+)/) || [])[1] || '0', 10)
