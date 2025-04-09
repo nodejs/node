@@ -391,8 +391,49 @@ async function runTest(
         // Setup flag should have been removed by teardown
         assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
       });
+
+      it('should execute globalSetup and globalTeardown correctly with imported module containing tests', async () => {
+        const setupFlagPath = tmpdir.resolve('setup-executed.tmp');
+        const teardownFlagPath = tmpdir.resolve('teardown-executed.tmp');
+        const importedModuleWithTestPath = join(testFixtures, 'global-setup-teardown', 'imported-module-with-test.mjs');
+
+        // Create a setup file for test-file.js to find
+        fs.writeFileSync(setupFlagPath, 'non-empty');
+
+        const { stdout } = await runTest({
+          isolation,
+          globalSetupFile: 'basic-setup-teardown.js',
+          env: {
+            SETUP_FLAG_PATH: setupFlagPath,
+            TEARDOWN_FLAG_PATH: teardownFlagPath
+          },
+          additionalFlags: [
+            `--import=${importedModuleWithTestPath}`,
+          ]
+        });
+
+        assert.match(stdout, /Global setup executed/);
+        assert.match(stdout, /Imported module Ok/);
+        assert.match(stdout, /Imported module Fail/);
+        assert.match(stdout, /verify setup was executed/);
+        assert.match(stdout, /another simple test/);
+        assert.match(stdout, /Global teardown executed/);
+        assert.match(stdout, /Data from setup: data from setup/);
+        assert.match(stdout, /tests 4/);
+        assert.match(stdout, /suites 0/);
+        assert.match(stdout, /pass 3/);
+        assert.match(stdout, /fail 1/);
+        assert.match(stdout, /cancelled 0/);
+        assert.match(stdout, /skipped 0/);
+        assert.match(stdout, /todo 0/);
+
+        // After all tests complete, the teardown should have run
+        assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
+        const content = fs.readFileSync(teardownFlagPath, 'utf8');
+        assert.strictEqual(content, 'Teardown was executed');
+        // Setup flag should have been removed by teardown
+        assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
+      });
     });
   });
-
-  it.todo('should run globalSetup and globalTeardown correctly even if they contain a test');
 });
