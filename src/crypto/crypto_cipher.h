@@ -50,9 +50,6 @@ class CipherBase : public BaseObject {
                   const unsigned char* iv,
                   int iv_len,
                   unsigned int auth_tag_len);
-  void Init(std::string_view cipher_type,
-            const ArrayBufferOrViewContents<unsigned char>& key_buf,
-            unsigned int auth_tag_len);
   void InitIv(std::string_view cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
@@ -73,7 +70,6 @@ class CipherBase : public BaseObject {
   bool MaybePassAuthTagToOpenSSL();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitIv(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);

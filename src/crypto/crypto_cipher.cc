@@ -231,7 +231,6 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
 
-  SetProtoMethod(isolate, t, "init", Init);
   SetProtoMethod(isolate, t, "initiv", InitIv);
   SetProtoMethod(isolate, t, "update", Update);
   SetProtoMethod(isolate, t, "final", Final);
@@ -275,7 +274,6 @@ void CipherBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
 
-  registry->Register(Init);
   registry->Register(InitIv);
   registry->Register(Update);
   registry->Register(Final);
@@ -345,69 +343,6 @@ void CipherBase::CommonInit(std::string_view cipher_type,
                             mark_pop_error_on_return.peekError(),
                             "Failed to initialize cipher");
   }
-}
-
-void CipherBase::Init(std::string_view cipher_type,
-                      const ArrayBufferOrViewContents<unsigned char>& key_buf,
-                      unsigned int auth_tag_len) {
-  HandleScope scope(env()->isolate());
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-  const auto cipher = Cipher::FromName(cipher_type);
-  if (!cipher) {
-    return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
-  }
-
-  unsigned char key[Cipher::MAX_KEY_LENGTH];
-  unsigned char iv[Cipher::MAX_IV_LENGTH];
-
-  ncrypto::Buffer<const unsigned char> keyBuf{
-      .data = key_buf.data(),
-      .len = key_buf.size(),
-  };
-  int key_len = cipher.bytesToKey(Digest::MD5, keyBuf, key, iv);
-  CHECK_NE(key_len, 0);
-
-  if (kind_ == kCipher &&
-      (cipher.isCtrMode() || cipher.isGcmMode() || cipher.isCcmMode())) {
-    // Ignore the return value (i.e. possible exception) because we are
-    // not calling back into JS anyway.
-    ProcessEmitWarning(env(),
-                       "Use Cipheriv for counter mode of %s",
-                       cipher_type);
-  }
-
-  CommonInit(cipher_type,
-             cipher,
-             key,
-             key_len,
-             iv,
-             cipher.getIvLength(),
-             auth_tag_len);
-}
-
-void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
-  CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_GE(args.Length(), 3);
-
-  const Utf8Value cipher_type(args.GetIsolate(), args[0]);
-  ArrayBufferOrViewContents<unsigned char> key_buf(args[1]);
-  if (!key_buf.CheckSizeInt32())
-    return THROW_ERR_OUT_OF_RANGE(env, "password is too large");
-
-  // Don't assign to cipher->auth_tag_len_ directly; the value might not
-  // represent a valid length at this point.
-  unsigned int auth_tag_len;
-  if (args[2]->IsUint32()) {
-    auth_tag_len = args[2].As<Uint32>()->Value();
-  } else {
-    CHECK(args[2]->IsInt32() && args[2].As<Int32>()->Value() == -1);
-    auth_tag_len = kNoAuthTagLength;
-  }
-
-  cipher->Init(cipher_type.ToStringView(), key_buf, auth_tag_len);
 }
 
 void CipherBase::InitIv(std::string_view cipher_type,
