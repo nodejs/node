@@ -30,7 +30,7 @@ async function globalSetup({ context }) {
   console.log('Global setup executed');
   process.on('message', (message) => {
     if (message === 'exit') {
-      process.kill(process.pid, 'SIGINT');
+      process.exit(0);
     }
   });
 }
