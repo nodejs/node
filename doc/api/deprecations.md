@@ -2886,11 +2886,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Using a trailing `"/"` to define subpath folder mappings in the
-[subpath exports][] or [subpath imports][] fields is deprecated. Use
-[subpath patterns][] instead.
+[subpath exports][] or [subpath imports][] fields is no longer supported.
+Use [subpath patterns][] instead.
 
 ### DEP0149: `http.IncomingMessage#connection`
 
