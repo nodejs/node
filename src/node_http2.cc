@@ -1213,7 +1213,7 @@ int Http2Session::OnFrameNotSent(nghttp2_session* handle,
     // closed but the Http2Session will still be up causing a memory leak.
     // Therefore, if the GOAWAY frame couldn't be send due to
     // ERR_SESSION_CLOSING we should force close from our side.
-    if (frame->hd.type != 0x03) {
+    if (frame->hd.type != NGHTTP2_GOAWAY) {
       return 0;
     }
   }
