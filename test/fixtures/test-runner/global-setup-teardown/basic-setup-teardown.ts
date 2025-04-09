@@ -1,4 +1,4 @@
-import * as fs from 'fs';
+import * as fs from 'node:fs';
 
 // Path for temporary file to track execution
 const setupFlagPath = process.env.SETUP_FLAG_PATH;
@@ -25,10 +25,8 @@ async function globalTeardown({ context }: SetupContext): Promise<void> {
   if (teardownFlagPath) {
     fs.writeFileSync(teardownFlagPath, 'Teardown was executed');
   }
-  
-  // Clean up the setup file too
-  if (setupFlagPath && fs.existsSync(setupFlagPath)) {
-    fs.unlinkSync(setupFlagPath);
+  if (setupFlagPath) {
+    fs.rmSync(setupFlagPath, { force: true });
   }
 }
 

@@ -1,6 +1,6 @@
 'use strict';
 
-const fs = require('fs');
+const fs = require('node:fs');
 
 const setupFlagPath = process.env.SETUP_ONLY_FLAG_PATH;
 
