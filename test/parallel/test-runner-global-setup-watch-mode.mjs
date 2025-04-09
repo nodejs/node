@@ -1,5 +1,5 @@
-import '../common/index.mjs';
-import { beforeEach, describe, it } from 'node:test';
+import * as common from '../common/index.mjs';
+import { afterEach, describe, it } from 'node:test';
 import * as fixtures from '../common/fixtures.mjs';
 import { once } from 'node:events';
 import assert from 'node:assert';
@@ -8,10 +8,18 @@ import { writeFileSync, existsSync, readFileSync } from 'node:fs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
+if (common.isAIX)
+  common.skip('folder watch capability is limited in AIX.');
+
 const testFixtures = fixtures.path('test-runner');
 
+tmpdir.refresh();
+
 describe('test runner watch mode with global setup hooks', () => {
-  beforeEach(() => {
+  afterEach(() => {
     tmpdir.refresh();
   });
 
