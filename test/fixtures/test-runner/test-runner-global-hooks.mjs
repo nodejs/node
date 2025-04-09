@@ -9,6 +9,9 @@ const options = {
     globalSetup: {
         type: 'string',
     },
+    isolation: {
+        type: 'string',
+    },
 };
 
 const {
