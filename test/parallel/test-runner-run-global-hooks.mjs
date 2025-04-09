@@ -9,6 +9,7 @@ import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 
 const testFixtures = fixtures.path('test-runner', 'global-setup-teardown');
+const runnerFixture = fixtures.path('test-runner', 'test-runner-global-hooks.mjs');
 
 describe('require(\'node:test\').run with global hooks', { concurrency: false }, () => {
   beforeEach(() => {
@@ -18,12 +19,11 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
   async function runTestWithGlobalHooks({ globalSetupFile, testFile = 'test-file.js', runnerEnv = {} }) {
     const testFilePath = path.join(testFixtures, testFile);
     const globalSetupPath = path.join(testFixtures, globalSetupFile);
-    const runner = path.join(import.meta.dirname, '..', 'fixtures', 'test-runner-global-hooks.mjs');
 
     const child = spawn(
       process.execPath,
       [
-        runner,
+        runnerFixture,
         '--file', testFilePath,
         '--globalSetup', globalSetupPath,
       ],
