@@ -409,8 +409,6 @@ added:
 * Equivalent to `require.main === module` in CommonJS.
 * Analogous to Python's `__name__ == "__main__"`.
 
-[`import.meta.resolve`][]
-
 ```js
 function main() {
   console.log('Hello, world!');
