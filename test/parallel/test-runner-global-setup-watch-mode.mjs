@@ -91,7 +91,7 @@ describe('test runner watch mode with global setup hooks', () => {
         runs.push(currentRun);
 
         currentRun = '';
-        child.kill();
+        child.kill('SIGINT');
         await once(child, 'exit');
 
         assert.match(runs[0], /Global setup executed/);
