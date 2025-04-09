@@ -2815,6 +2815,22 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 it->second->Equals(scope_info, parse_info_sfi->live_edited(),
                                    &last_checked_field_index);
 
+            std::unique_ptr<char[]> script_source;
+            size_t script_source_length = 0;
+            std::unique_ptr<char[]> function_source;
+            size_t function_source_length = 0;
+            if (IsString(script->source())) {
+              script_source = Cast<String>(script->source())
+                                  ->ToCString(&script_source_length);
+
+              function_source =
+                  Cast<String>(script->source())
+                      ->ToCString(parse_info_sfi->StartPosition(),
+                                  parse_info_sfi->EndPosition() -
+                                      parse_info_sfi->StartPosition(),
+                                  &function_source_length);
+            }
+
             std::vector<Address> data{
                 scope_info->ptr(),
                 it->second->ptr(),
@@ -2840,7 +2856,27 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 it->second->HasOuterScopeInfo()
                     ? it->second->OuterScopeInfo().ptr()
                     : 0,
-                0xcafe00ff,
+                0xcafe0003,
+                script->ptr(),
+                script->GetNameOrSourceURL().ptr(),
+                static_cast<Address>(parse_info_sfi->StartPosition()),
+                static_cast<Address>(parse_info_sfi->EndPosition()),
+                0xcafe0004,
+                script->source().ptr(),
+                reinterpret_cast<Address>(script_source.get()),
+                script_source_length,
+                reinterpret_cast<Address>(script_source.get() +
+                                          parse_info_sfi->StartPosition()),
+                reinterpret_cast<Address>(script_source.get() +
+                                          parse_info_sfi->EndPosition()),
+                0xcafe0005,
+                parse_info_sfi->Name().ptr(),
+                reinterpret_cast<Address>(function_source.get()),
+                function_source_length,
+                reinterpret_cast<Address>(function_source.get() +
+                                          function_source_length),
+
+                0xcafeffff,
             };
 
             Isolate* main_thread_isolate =
