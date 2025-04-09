@@ -761,7 +761,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
             kAllowedInEnvvar);
-  AddOption("--test-global-setup", 
+  AddOption("--test-global-setup",
             "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar);
