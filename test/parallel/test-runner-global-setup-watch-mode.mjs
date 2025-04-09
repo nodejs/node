@@ -16,6 +16,8 @@ let fixturePaths;
 
 // This test updates these files repeatedly,
 // Reading them from disk is unreliable due to race conditions.
+// We're using ipc to signal the child process to exit
+// as process.kill() does not work on Windows preventing the harness teardown from completing.
 const fixtureContent = {
   'test.js': `
 const test = require('node:test');
@@ -26,7 +28,13 @@ test('test with global hooks', (t) => {
   'global-setup-teardown.js': `
 async function globalSetup({ context }) {
   console.log('Global setup executed');
+  process.on('message', (message) => {
+    if (message === 'exit') {
+      process.kill(process.pid, 'SIGINT');
+    }
+  });
 }
+
 async function globalTeardown({ context }) {
   console.log('Global teardown executed');
 }
@@ -63,7 +71,7 @@ describe('test runner watch mode with global setup hooks', () => {
                             ],
                             {
                               encoding: 'utf8',
-                              stdio: 'pipe',
+                              stdio: ['pipe', 'pipe', 'pipe', 'ipc'],
                               cwd: tmpdir.path,
                             });
 
@@ -91,7 +99,7 @@ describe('test runner watch mode with global setup hooks', () => {
         runs.push(currentRun);
 
         currentRun = '';
-        child.kill('SIGINT');
+        child.send('exit');
         await once(child, 'exit');
 
         assert.match(runs[0], /Global setup executed/);
@@ -106,7 +114,7 @@ describe('test runner watch mode with global setup hooks', () => {
         assert.match(runs[1], /fail 0/);
 
         // Verify stdout after killing the child
-        assert.doesNotMatch(runs[1], /Global setup executed/);
+        assert.doesNotMatch(currentRun, /Global setup executed/);
         assert.match(currentRun, /Global teardown executed/);
       });
     });
