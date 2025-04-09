@@ -465,7 +465,7 @@ Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
 .
 .It Fl -test-global-setup
-Specify a module that will be run before all tests are executed and can be used to setup global state or fixtures for tests.
+Specifies a module containing global setup and teardown functions for the test runner.
 .
 .It Fl -test-isolation Ns = Ns Ar mode
 Configures the type of test isolation used in the test runner.
