@@ -104,8 +104,8 @@ TEST_F(NodeZeroIsolateTestFixture, ExistingCppHeapTest) {
     platform->DrainTasks(isolate);
   }
 
-  platform->UnregisterIsolate(isolate);
   isolate->Dispose();
+  platform->UnregisterIsolate(isolate);
 
   // Check that all the objects are created and destroyed properly.
   EXPECT_EQ(CppGCed::kConstructCount, 100);

@@ -82,12 +82,10 @@ NodeMainInstance::~NodeMainInstance() {
     Isolate::DisallowJavascriptExecutionScope disallow_js(
         isolate_, Isolate::DisallowJavascriptExecutionScope::CRASH_ON_FAILURE);
 #endif
-    // This should only be done on a main instance that owns its isolate.
-    // IsolateData must be freed before UnregisterIsolate() is called.
-    isolate_data_.reset();
+    isolate_->Dispose();
     platform_->UnregisterIsolate(isolate_);
+    isolate_data_.reset();
   }
-  isolate_->Dispose();
 }
 
 ExitCode NodeMainInstance::Run() {
