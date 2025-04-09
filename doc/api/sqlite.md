@@ -119,6 +119,85 @@ added: v22.5.0
 
 Constructs a new `DatabaseSync` instance.
 
+### `database.aggregate(name, options)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Registers a new aggregate function with the SQLite database. This method is a wrapper around
+[`sqlite3_create_window_function()`][].
+
+* `name` {string} The name of the SQLite function to create.
+* `options` {Object} Function configuration settings.
+  * `deterministic` {boolean} If `true`, the [`SQLITE_DETERMINISTIC`][] flag is
+    set on the created function. **Default:** `false`.
+  * `directOnly` {boolean} If `true`, the [`SQLITE_DIRECTONLY`][] flag is set on
+    the created function. **Default:** `false`.
+  * `useBigIntArguments` {boolean} If `true`, integer arguments to `options.step` and `options.inverse`
+    are converted to `BigInt`s. If `false`, integer arguments are passed as
+    JavaScript numbers. **Default:** `false`.
+  * `varargs` {boolean} If `true`, `options.step` and `options.inverse` may be invoked with any number of
+    arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
+    `inverse` and `step` must be invoked with exactly `length` arguments.
+    **Default:** `false`.
+  * `start` {number | string | null | Array | Object | Function} The identity
+    value for the aggregation function. This value is used when the aggregation
+    function is initialized. When a {Function} is passed the identity will be its return value.
+  * `step` {Function} The function to call for each row in the aggregation. The
+    function receives the current state and the row value. The return value of
+    this function should be the new state.
+  * `result` {Function} The function to call to get the result of the
+    aggregation. The function receives the final state and should return the
+    result of the aggregation.
+  * `inverse` {Function} When this function is provided, the `aggregate` method will work as a window function.
+    The function receives the current state and the dropped row value. The return value of this function should be the
+    new state.
+
+When used as a window function, the `result` function will be called multiple times.
+
+```cjs
+const { DatabaseSync } = require('node:sqlite');
+
+const db = new DatabaseSync(':memory:');
+db.exec(`
+  CREATE TABLE t3(x, y);
+  INSERT INTO t3 VALUES ('a', 4),
+                        ('b', 5),
+                        ('c', 3),
+                        ('d', 8),
+                        ('e', 1);
+`);
+
+db.aggregate('sumint', {
+  start: 0,
+  step: (acc, value) => acc + value,
+});
+
+db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+```
+
+```mjs
+import { DatabaseSync } from 'node:sqlite';
+
+const db = new DatabaseSync(':memory:');
+db.exec(`
+  CREATE TABLE t3(x, y);
+  INSERT INTO t3 VALUES ('a', 4),
+                        ('b', 5),
+                        ('c', 3),
+                        ('d', 8),
+                        ('e', 1);
+`);
+
+db.aggregate('sumint', {
+  start: 0,
+  step: (acc, value) => acc + value,
+});
+
+db.prepare('SELECT sumint(y) as total FROM t3').get(); // { total: 21 }
+```
+
 ### `database.close()`
 
 <!-- YAML
@@ -728,6 +807,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_column_origin_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
+[`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
