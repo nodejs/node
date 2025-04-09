@@ -762,7 +762,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::coverage_exclude_pattern,
             kAllowedInEnvvar);
   AddOption("--test-global-setup", 
-            "run this script before running tests",
+            "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
