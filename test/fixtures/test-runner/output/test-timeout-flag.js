@@ -12,7 +12,7 @@ describe('--test-timeout is set to 20ms', () => {
   });
 
   test('should not timeout', { timeout: 50000 }, async () => {
-    await  setTimeout(1);
+    await setTimeout(1);
   });
 
   test('should pass', async () => {});
