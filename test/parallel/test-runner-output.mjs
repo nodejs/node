@@ -133,6 +133,15 @@ const tests = [
     flags: ['--test-reporter=tap'],
   },
   {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: ['--test-reporter=tap'],
+  },
+  // --test-timeout should work with or without --test flag
+  {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: ['--test-reporter=tap', '--test'],
+  },
+  {
     name: 'test-runner/output/hooks-with-no-global-test.js',
     flags: ['--test-reporter=tap'],
   },
