@@ -176,6 +176,7 @@ static int compareAddresses(const void *arg1, const void *arg2)
   return 0;
 }
 
+#if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
 /* There can be multiple routes to "the Internet".  And there can be different
  * DNS servers associated with each of the interfaces that offer those routes.
  * We have to assume that any DNS server can serve any request.  But, some DNS
@@ -213,18 +214,6 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
                                 const SOCKADDR_INET * const dest,
                                 const ULONG                 interfaceMetric)
 {
-  /* On this interface, get the best route to that destination. */
-#  if defined(__WATCOMC__)
-  /* OpenWatcom's builtin Windows SDK does not have a definition for
-   * MIB_IPFORWARD_ROW2, and also does not allow the usage of SOCKADDR_INET
-   * as a variable. Let's work around this by returning the worst possible
-   * metric, but only when using the OpenWatcom compiler.
-   * It may be worth investigating using a different version of the Windows
-   * SDK with OpenWatcom in the future, though this may be fixed in OpenWatcom
-   * 2.0.
-   */
-  return (ULONG)-1;
-#  else
   MIB_IPFORWARD_ROW2 row;
   SOCKADDR_INET      ignored;
   if (GetBestRoute2(/* The interface to use.  The index is ignored since we are
@@ -257,8 +246,8 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
    * which describes the combination as a "sum".
    */
   return row.Metric + interfaceMetric;
-#  endif /* __WATCOMC__ */
 }
+#endif
 
 /*
  * get_DNS_Windows()
@@ -379,9 +368,21 @@ static ares_bool_t get_DNS_Windows(char **outptr)
           addressesSize = newSize;
         }
 
+#  if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
+        /* OpenWatcom's builtin Windows SDK does not have a definition for
+         * MIB_IPFORWARD_ROW2, and also does not allow the usage of SOCKADDR_INET
+         * as a variable. Let's work around this by returning the worst possible
+         * metric, but only when using the OpenWatcom compiler.
+         * It may be worth investigating using a different version of the Windows
+         * SDK with OpenWatcom in the future, though this may be fixed in OpenWatcom
+         * 2.0.
+         */
         addresses[addressesIndex].metric = getBestRouteMetric(
           &ipaaEntry->Luid, (SOCKADDR_INET *)((void *)(namesrvr.sa)),
           ipaaEntry->Ipv4Metric);
+#  else
+        addresses[addressesIndex].metric = (ULONG)-1;
+#  endif
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
@@ -423,9 +424,13 @@ static ares_bool_t get_DNS_Windows(char **outptr)
           ll_scope = ipaaEntry->Ipv6IfIndex;
         }
 
+#  if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
         addresses[addressesIndex].metric = getBestRouteMetric(
           &ipaaEntry->Luid, (SOCKADDR_INET *)((void *)(namesrvr.sa)),
           ipaaEntry->Ipv6Metric);
+#  else
+        addresses[addressesIndex].metric = (ULONG)-1;
+#  endif
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
