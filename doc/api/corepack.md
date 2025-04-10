@@ -10,7 +10,7 @@ added:
   - v14.19.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 0 - Deprecated
 
 Corepack is no longer distributed with Node.js 25+.
 Please refer to the [Corepack repository][] for documentation.
