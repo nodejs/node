@@ -328,9 +328,7 @@ MaybeLocal<Object> New(Isolate* isolate,
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
         store = ArrayBuffer::NewBackingStore(isolate, actual);
-        memcpy(static_cast<char*>(store->Data()),
-               static_cast<char*>(old_store->Data()),
-               actual);
+        memcpy(store->Data(), old_store->Data(), actual);
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
       Local<Object> obj;

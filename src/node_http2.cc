@@ -2107,9 +2107,7 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
     // Shrink to the actual amount of used data.
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
     bs = ArrayBuffer::NewBackingStore(env()->isolate(), nread);
-    memcpy(static_cast<char*>(bs->Data()),
-           static_cast<char*>(old_bs->Data()),
-           nread);
+    memcpy(bs->Data(), old_bs->Data(), nread);
   } else {
     // This is a very unlikely case, and should only happen if the ReadStart()
     // call in OnStreamAfterWrite() immediately provides data. If that does
