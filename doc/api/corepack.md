@@ -12,10 +12,8 @@ added:
 
 > Stability: 1 - Experimental
 
-Documentation for this tool can be found on the [Corepack repository][].
+**Corepack will no longer be distributed with Node.js 25+.**
+Users currently depending on the `corepack` from Node.js should switch
+to using the userland-provided [corepack][] module instead.
 
-Despite Corepack being distributed with default installs of Node.js, the package
-managers managed by Corepack are not part of the Node.js distribution, and
-Corepack itself will no longer be distributed with Node.js 25+.
-
-[Corepack repository]: https://github.com/nodejs/corepack
+[corepack]: https://github.com/nodejs/corepack
