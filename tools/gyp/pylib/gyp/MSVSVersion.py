@@ -5,11 +5,11 @@
 """Handle version information related to Visual Stuio."""
 
 import errno
+import glob
 import os
 import re
 import subprocess
 import sys
-import glob
 
 
 def JoinPath(*args):
