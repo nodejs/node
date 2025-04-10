@@ -13,10 +13,9 @@ void GetExecutionAsyncId(const FunctionCallbackInfo<Value>& args) {
 }
 
 void GetExecutionAsyncIdWithContext(const FunctionCallbackInfo<Value>& args) {
-  args.GetReturnValue().Set(
-    node::AsyncHooksGetExecutionAsyncId(args.GetIsolate()->GetCurrentContext()));
+  args.GetReturnValue().Set(node::AsyncHooksGetExecutionAsyncId(
+      args.GetIsolate()->GetCurrentContext()));
 }
-
 
 void GetTriggerAsyncId(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(
@@ -25,7 +24,9 @@ void GetTriggerAsyncId(const FunctionCallbackInfo<Value>& args) {
 
 void Initialize(Local<Object> exports) {
   NODE_SET_METHOD(exports, "getExecutionAsyncId", GetExecutionAsyncId);
-  NODE_SET_METHOD(exports, "getExecutionAsyncIdWithContext", GetExecutionAsyncIdWithContext);
+  NODE_SET_METHOD(exports,
+                  "getExecutionAsyncIdWithContext",
+                  GetExecutionAsyncIdWithContext);
   NODE_SET_METHOD(exports, "getTriggerAsyncId", GetTriggerAsyncId);
 }
 
