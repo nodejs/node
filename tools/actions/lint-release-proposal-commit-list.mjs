@@ -18,15 +18,34 @@ import { createInterface } from 'node:readline';
 const stdinLineByLine = createInterface(process.stdin)[Symbol.asyncIterator]();
 
 const changelog = await readFile(CHANGELOG_PATH, 'utf-8');
-const commitListingStart = changelog.indexOf('\n### Commits\n');
-const commitListingEnd = changelog.indexOf('\n\n<a', commitListingStart);
-const commitList = changelog.slice(commitListingStart, commitListingEnd === -1 ? undefined : commitListingEnd + 1)
-  // Checking for semverness is too expansive, it is left as a exercice for human reviewers.
+const sectionTitles = [
+  '### Commits',
+  '### Semver-Major Commits',
+  '### Semver-Minor Commits',
+  '### Semver-Patch Commits'
+];
+
+let commitList = '';
+
+for (const title of sectionTitles) {
+  const start = changelog.indexOf(`\n${title}\n`);
+  if (start === -1) continue;
+
+  const end = changelog.indexOf('\n\n', start + 1);
+  const section = changelog.slice(start, end === -1 ? undefined : end + 1);
+  commitList += section;
+}
+
+assert(commitList, 'No recognized commit section found in changelog');
+
+// Normalize for consistent comparison
+commitList = commitList
   .replaceAll('**(SEMVER-MINOR)** ', '')
-  // Correct Markdown escaping is validated by the linter, getting rid of it here helps.
+  .replaceAll('**(SEMVER-MAJOR)** ', '')
   .replaceAll('\\', '');
 
-let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g).length;
+let expectedNumberOfCommitsLeft = (commitList.match(/\n\* \[/g) || []).length;
+
 for await (const line of stdinLineByLine) {
   const { smallSha, title, prURL } = JSON.parse(line);
 
