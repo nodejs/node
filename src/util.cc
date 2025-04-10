@@ -726,6 +726,8 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap =
+      v8::CppHeap::Create(per_process::v8_platform.Platform(), v8::CppHeapCreateParams{{}}).release();
   Isolate::Initialize(isolate_, params);
 }
 
