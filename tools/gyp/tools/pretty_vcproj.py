@@ -15,9 +15,7 @@
 
 import os
 import sys
-
-from xml.dom.minidom import parse
-from xml.dom.minidom import Node
+from xml.dom.minidom import Node, parse
 
 __author__ = "nsylvain (Nicolas Sylvain)"
 ARGUMENTS = None

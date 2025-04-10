@@ -17,14 +17,15 @@ still result in a few indexer issues here and there.
 This generator has no automated tests, so expect it to be broken.
 """
 
-from xml.sax.saxutils import escape
 import os.path
+import shlex
 import subprocess
+import xml.etree.ElementTree as ET
+from xml.sax.saxutils import escape
+
 import gyp
 import gyp.common
 import gyp.msvs_emulation
-import shlex
-import xml.etree.ElementTree as ET
 
 generator_wants_static_library_dependencies_adjusted = False
 
