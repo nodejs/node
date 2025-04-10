@@ -1,4 +1,4 @@
-name: CodeQL
+name: Run CodeQL
 
 on:
   schedule:
@@ -33,16 +33,6 @@ jobs:
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
-
-      # ℹ️ Command-line programs to run using the OS shell.
-      # 📚 See https://docs.github.com/en/actions/using-workflows/workflow-syntax-for-github-actions#jobsjob_idstepsrun
-
-      #   If the Autobuild fails above, remove it and uncomment the following three lines.
-      #   modify them (or add more) to build your code if your project, please refer to the EXAMPLE below for guidance.
-
-      # - run: |
-      #   echo "Run, Build Application using script"
-      #   ./location_of_script_within_repo/buildscript.sh
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
