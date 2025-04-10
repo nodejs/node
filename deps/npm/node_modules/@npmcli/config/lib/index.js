@@ -15,12 +15,11 @@ const {
   mkdir,
 } = require('node:fs/promises')
 
-// TODO these need to be either be ignored when parsing env, formalized as config, or not exported to the env in the first place. For now this list is just to suppress warnings till we can pay off this tech debt.
+// TODO global-prefix and local-prefix are set by lib/set-envs.js.  This may not be the best way to persist those, if we even want to persist them (see set-envs.js)
 const internalEnv = [
+  'npm-version',
   'global-prefix',
   'local-prefix',
-  'npm-version',
-  'node-gyp',
 ]
 
 const fileExists = (...p) => stat(resolve(...p))
@@ -282,7 +281,7 @@ class Config {
     }
 
     try {
-      // This does not have an actual definition
+      // This does not have an actual definition because this is not user defineable
       defaultsObject['npm-version'] = require(join(this.npmPath, 'package.json')).version
     } catch {
       // in some weird state where the passed in npmPath does not have a package.json
@@ -364,8 +363,11 @@ class Config {
     }
     nopt.invalidHandler = (k, val, type) =>
       this.invalidHandler(k, val, type, 'command line options', 'cli')
+    nopt.unknownHandler = this.unknownHandler
+    nopt.abbrevHandler = this.abbrevHandler
     const conf = nopt(this.types, this.shorthands, this.argv)
     nopt.invalidHandler = null
+    nopt.unknownHandler = null
     this.parsedArgv = conf.argv
     delete conf.argv
     this.#loadObject(conf, 'cli', 'command line options')
@@ -531,6 +533,16 @@ class Config {
     log.warn('invalid config', msg, desc)
   }
 
+  abbrevHandler (short, long) {
+    log.warn(`Expanding --${short} to --${long}. This will stop working in the next major version of npm.`)
+  }
+
+  unknownHandler (key, next) {
+    if (next) {
+      log.warn(`"${next}" is being parsed as a normal command line argument.`)
+    }
+  }
+
   #getOneOfKeywords (mustBe, typeDesc) {
     let keyword
     if (mustBe.length === 1 && typeDesc.includes(Array)) {
@@ -582,8 +594,7 @@ class Config {
             }
           }
         }
-        // Some defaults like npm-version are not user-definable and thus don't have definitions
-        if (where !== 'default') {
+        if (where !== 'default' || key === 'npm-version') {
           this.checkUnknown(where, key)
         }
         conf.data[k] = v
