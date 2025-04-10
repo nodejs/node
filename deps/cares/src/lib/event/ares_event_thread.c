@@ -26,6 +26,7 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
+#ifdef CARES_THREADS
 static void ares_event_destroy_cb(void *arg)
 {
   ares_event_t *event = arg;
@@ -549,3 +550,18 @@ ares_status_t ares_event_thread_init(ares_channel_t *channel)
 
   return ARES_SUCCESS;
 }
+
+#else
+
+ares_status_t ares_event_thread_init(ares_channel_t *channel)
+{
+  (void)channel;
+  return ARES_ENOTIMP;
+}
+
+void ares_event_thread_destroy(ares_channel_t *channel)
+{
+  (void)channel;
+}
+
+#endif
