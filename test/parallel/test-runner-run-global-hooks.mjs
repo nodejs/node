@@ -38,6 +38,7 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
         stdio: 'pipe',
         env: {
           ...runnerEnv,
+          ...process.env,
           AVOID_PRINT_LOGS: 'true',
           NODE_OPTIONS: '--no-warnings',
         }
