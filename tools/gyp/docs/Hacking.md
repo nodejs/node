@@ -24,7 +24,7 @@ to make sure your changes aren't breaking anything important.
 You run the test driver with e.g.
 
 ``` sh
-$ python -m pip install --upgrade pip setuptools
+$ python -m pip install --upgrade pip
 $ pip install --editable ".[dev]"
 $ python -m pytest
 ```

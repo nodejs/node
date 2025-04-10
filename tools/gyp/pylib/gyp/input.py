@@ -4,9 +4,6 @@
 
 
 import ast
-
-import gyp.common
-import gyp.simple_copy
 import multiprocessing
 import os.path
 import re
@@ -16,9 +13,12 @@ import subprocess
 import sys
 import threading
 import traceback
-from gyp.common import GypError
-from gyp.common import OrderedSet
+
 from packaging.version import Version
+
+import gyp.common
+import gyp.simple_copy
+from gyp.common import GypError, OrderedSet
 
 # A list of types that are treated as linkable.
 linkable_types = [
@@ -990,25 +990,24 @@ def ExpandVariables(input, phase, variables, build_file):
                 )
                 replacement = cached_value
 
-        else:
-            if contents not in variables:
-                if contents[-1] in ["!", "/"]:
-                    # In order to allow cross-compiles (nacl) to happen more naturally,
-                    # we will allow references to >(sources/) etc. to resolve to
-                    # and empty list if undefined. This allows actions to:
-                    # 'action!': [
-                    #   '>@(_sources!)',
-                    # ],
-                    # 'action/': [
-                    #   '>@(_sources/)',
-                    # ],
-                    replacement = []
-                else:
-                    raise GypError(
-                        "Undefined variable " + contents + " in " + build_file
-                    )
+        elif contents not in variables:
+            if contents[-1] in ["!", "/"]:
+                # In order to allow cross-compiles (nacl) to happen more naturally,
+                # we will allow references to >(sources/) etc. to resolve to
+                # and empty list if undefined. This allows actions to:
+                # 'action!': [
+                #   '>@(_sources!)',
+                # ],
+                # 'action/': [
+                #   '>@(_sources/)',
+                # ],
+                replacement = []
             else:
-                replacement = variables[contents]
+                raise GypError(
+                    "Undefined variable " + contents + " in " + build_file
+                )
+        else:
+            replacement = variables[contents]
 
         if isinstance(replacement, bytes) and not isinstance(replacement, str):
             replacement = replacement.decode("utf-8")  # done on Python 3 only
@@ -1074,7 +1073,7 @@ def ExpandVariables(input, phase, variables, build_file):
     if output == input:
         gyp.DebugOutput(
             gyp.DEBUG_VARIABLES,
-            "Found only identity matches on %r, avoiding infinite " "recursion.",
+            "Found only identity matches on %r, avoiding infinite recursion.",
             output,
         )
     else:

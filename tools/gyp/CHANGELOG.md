@@ -1,5 +1,18 @@
 # Changelog
 
+## [0.20.0](https://github.com/nodejs/gyp-next/compare/v0.19.1...v0.20.0) (2025-03-27)
+
+
+### ⚠ BREAKING CHANGES
+
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284))
+
+### Bug Fixes
+
+* python lint  more ruff rules ([#291](https://github.com/nodejs/gyp-next/issues/291)) ([fabc78c](https://github.com/nodejs/gyp-next/commit/fabc78caffcf988365d970ced5a151f40525077e))
+* remove explicit installation of setuptools ([#278](https://github.com/nodejs/gyp-next/issues/278)) ([e476778](https://github.com/nodejs/gyp-next/commit/e4767782c70ca8427184694589d9f0ded5eeed22))
+* resolve issue with relative paths during linking ([#284](https://github.com/nodejs/gyp-next/issues/284)) ([a2d7439](https://github.com/nodejs/gyp-next/commit/a2d7439fbd3c03f01e1149fdbe682f754bc6cc7f))
+
 ## [0.19.1](https://github.com/nodejs/gyp-next/compare/v0.19.0...v0.19.1) (2024-12-09)
 
 
