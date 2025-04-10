@@ -335,7 +335,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (context != kKeyContextInput) {
       if (args[*offset]->IsString()) {
         Utf8Value cipher_name(env->isolate(), args[*offset]);
-        config.cipher = ncrypto::getCipherByName(cipher_name.ToStringView());
+        config.cipher = ncrypto::getCipherByName(*cipher_name);
         if (config.cipher == nullptr) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();

@@ -43,18 +43,18 @@ class CipherBase : public BaseObject {
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
-  void CommonInit(std::string_view cipher_type,
+  void CommonInit(const char* cipher_type,
                   const ncrypto::Cipher& cipher,
                   const unsigned char* key,
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
                   unsigned int auth_tag_len);
-  void InitIv(std::string_view cipher_type,
+  void InitIv(const char* cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(std::string_view cipher_type,
+  bool InitAuthenticated(const char* cipher_type,
                          int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
