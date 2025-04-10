@@ -31,13 +31,14 @@
 
 #include "ares_private.h"
 #include "ares_event.h"
-#ifdef HAVE_SYS_SELECT_H
-#  include <sys/select.h>
-#endif
 
 /* All systems have select(), but not all have a way to wake, so we require
  * pipe() to wake the select() */
-#if defined(HAVE_PIPE)
+#if defined(HAVE_PIPE) && defined(CARES_THREADS)
+
+#ifdef HAVE_SYS_SELECT_H
+#  include <sys/select.h>
+#endif
 
 static ares_bool_t ares_evsys_select_init(ares_event_thread_t *e)
 {
