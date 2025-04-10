@@ -113,9 +113,7 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     } else if (sig_len != sig->ByteLength()) {
       std::unique_ptr<BackingStore> old_sig = std::move(sig);
       sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_len);
-      memcpy(static_cast<char*>(sig->Data()),
-             static_cast<char*>(old_sig->Data()),
-             sig_len);
+      memcpy(sig->Data(), old_sig->Data(), sig_len);
     }
     return sig;
   }
