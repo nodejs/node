@@ -224,7 +224,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<HistogramBase>();
+    return nullptr;
   }
 
   return MakeBaseObject<HistogramBase>(env, obj, options);
@@ -238,7 +238,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<HistogramBase>();
+    return nullptr;
   }
   return MakeBaseObject<HistogramBase>(env, obj, std::move(histogram));
 }
@@ -392,7 +392,7 @@ BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
   if (!GetConstructorTemplate(env)
           ->InstanceTemplate()
           ->NewInstance(env->context()).ToLocal(&obj)) {
-    return BaseObjectPtr<IntervalHistogram>();
+    return nullptr;
   }
 
   return MakeBaseObject<IntervalHistogram>(
