@@ -61,8 +61,7 @@ static void GetOwnNonIndexProperties(
 
   Local<Array> properties;
 
-  PropertyFilter filter =
-    static_cast<PropertyFilter>(args[1].As<Uint32>()->Value());
+  PropertyFilter filter = FromV8Value<PropertyFilter>(args[1]);
 
   if (!object->GetPropertyNames(
         context, KeyCollectionMode::kOwnOnly,

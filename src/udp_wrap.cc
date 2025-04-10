@@ -354,7 +354,7 @@ void UDPWrap::Open(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
   CHECK(args[0]->IsNumber());
-  int fd = static_cast<int>(args[0].As<Integer>()->Value());
+  int fd = FromV8Value<int>(args[0]);
   int err = uv_udp_open(&wrap->handle_, fd);
 
   args.GetReturnValue().Set(err);
