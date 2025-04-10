@@ -12,7 +12,7 @@ added:
 
 > Stability: 1 - Experimental
 
-Corepack is no longer be distributed with Node.js.
+Corepack is no longer be distributed with Node.js 25+.
 Please refer to [Corepack repository][] for documentation.
 
 [Corepack repository]: https://github.com/nodejs/corepack
