@@ -90,6 +90,7 @@ const setEnvs = (config) => {
 
   // also set some other common nice envs that we want to rely on
   env.HOME = config.home
+  // TODO this may not be the best away to persist these
   env.npm_config_global_prefix = config.globalPrefix
   env.npm_config_local_prefix = config.localPrefix
   if (cliConf.editor) {
@@ -101,6 +102,10 @@ const setEnvs = (config) => {
   if (cliConf['node-options']) {
     env.NODE_OPTIONS = cliConf['node-options']
   }
+  // the node-gyp bin uses this so we always set it
+  env.npm_config_node_gyp = cliConf['node-gyp']
+  // this doesn't have a full definition so we manually export it here
+  env.npm_config_npm_version = cliConf['npm-version'] || 'unknown'
   env.npm_execpath = config.npmBin
   env.NODE = env.npm_node_execpath = config.execPath
 }

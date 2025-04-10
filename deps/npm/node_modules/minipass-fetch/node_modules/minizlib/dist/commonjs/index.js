@@ -1,4 +1,37 @@
 "use strict";
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -7,11 +40,18 @@ exports.BrotliDecompress = exports.BrotliCompress = exports.Brotli = exports.Unz
 const assert_1 = __importDefault(require("assert"));
 const buffer_1 = require("buffer");
 const minipass_1 = require("minipass");
-const zlib_1 = __importDefault(require("zlib"));
+const realZlib = __importStar(require("zlib"));
 const constants_js_1 = require("./constants.js");
 var constants_js_2 = require("./constants.js");
 Object.defineProperty(exports, "constants", { enumerable: true, get: function () { return constants_js_2.constants; } });
 const OriginalBufferConcat = buffer_1.Buffer.concat;
+const desc = Object.getOwnPropertyDescriptor(buffer_1.Buffer, 'concat');
+const noop = (args) => args;
+const passthroughBufferConcat = desc?.writable === true || desc?.set !== undefined
+    ? (makeNoOp) => {
+        buffer_1.Buffer.concat = makeNoOp ? noop : OriginalBufferConcat;
+    }
+    : (_) => { };
 const _superWrite = Symbol('_superWrite');
 class ZlibError extends Error {
     code;
@@ -69,7 +109,7 @@ class ZlibBase extends minipass_1.Minipass {
         try {
             // @types/node doesn't know that it exports the classes, but they're there
             //@ts-ignore
-            this.#handle = new zlib_1.default[mode](opts);
+            this.#handle = new realZlib[mode](opts);
         }
         catch (er) {
             // make sure that all errors get decorated properly
@@ -159,7 +199,7 @@ class ZlibBase extends minipass_1.Minipass {
         this.#handle.close = () => { };
         // It also calls `Buffer.concat()` at the end, which may be convenient
         // for some, but which we are not interested in as it slows us down.
-        buffer_1.Buffer.concat = args => args;
+        passthroughBufferConcat(true);
         let result = undefined;
         try {
             const flushFlag = typeof chunk[_flushFlag] === 'number'
@@ -167,12 +207,12 @@ class ZlibBase extends minipass_1.Minipass {
                 : this.#flushFlag;
             result = this.#handle._processChunk(chunk, flushFlag);
             // if we don't throw, reset it back how it was
-            buffer_1.Buffer.concat = OriginalBufferConcat;
+            passthroughBufferConcat(false);
         }
         catch (err) {
             // or if we do, put Buffer.concat() back before we emit error
             // Error events call into user code, which may call Buffer.concat()
-            buffer_1.Buffer.concat = OriginalBufferConcat;
+            passthroughBufferConcat(false);
             this.#onError(new ZlibError(err));
         }
         finally {

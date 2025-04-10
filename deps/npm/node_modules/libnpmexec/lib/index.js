@@ -292,6 +292,7 @@ const exec = async (opts) => {
       }
       await npxArb.reify({
         ...flatOptions,
+        save: true,
         add,
       })
     }

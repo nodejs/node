@@ -81,7 +81,7 @@ module.exports = cls => class IsolatedReifier extends cls {
         }
         queue.push(e.to)
       })
-      if (!next.isProjectRoot && !next.isWorkspace) {
+      if (!next.isProjectRoot && !next.isWorkspace && !next.ideallyInert) {
         root.external.push(await this.externalProxyMemo(next))
       }
     }
@@ -147,8 +147,8 @@ module.exports = cls => class IsolatedReifier extends cls {
     const nonOptionalDeps = edges.filter(e => !e.optional).map(e => e.to.target)
 
     result.localDependencies = await Promise.all(nonOptionalDeps.filter(n => n.isWorkspace).map(this.workspaceProxyMemo))
-    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace).map(this.externalProxyMemo))
-    result.externalOptionalDependencies = await Promise.all(optionalDeps.map(this.externalProxyMemo))
+    result.externalDependencies = await Promise.all(nonOptionalDeps.filter(n => !n.isWorkspace && !n.ideallyInert).map(this.externalProxyMemo))
+    result.externalOptionalDependencies = await Promise.all(optionalDeps.filter(n => !n.ideallyInert).map(this.externalProxyMemo))
     result.dependencies = [
       ...result.externalDependencies,
       ...result.localDependencies,
