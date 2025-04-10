@@ -44,7 +44,7 @@ commitList = commitList
   .replaceAll('**(SEMVER-MAJOR)** ', '')
   .replaceAll('\\', '');
 
-let expectedNumberOfCommitsLeft = (commitList.match(/\n\* \[/g) || []).length;
+let expectedNumberOfCommitsLeft = commitList.match(/\n\* \[/g)?.length ?? 0;
 
 for await (const line of stdinLineByLine) {
   const { smallSha, title, prURL } = JSON.parse(line);
