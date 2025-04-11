@@ -822,43 +822,52 @@ For example, the following can be added to a `.bashrc` file:
 alias node="env NODE_NO_READLINE=1 rlwrap node"
 ```
 
-### Starting multiple REPL instances against a single running instance
+### Starting multiple REPL instances in the same process
 
 It is possible to create and run multiple REPL instances against a single
-running instance of Node.js that share a single `global` object but have
-separate I/O interfaces.
+running instance of Node.js that share a single `global` object (by setting
+the `useGlobal` option to `true`) but have separate I/O interfaces.
 
 The following example, for instance, provides separate REPLs on `stdin`, a Unix
-socket, and a TCP socket:
+socket, and a TCP socket, all sharing the same `global` object:
 
 ```mjs
 import net from 'node:net';
 import repl from 'node:repl';
 import process from 'node:process';
+import fs from 'node:fs';
 
 let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
+  useGlobal: true,
   input: process.stdin,
   output: process.stdout,
 });
+
+const unixSocketPath = '/tmp/node-repl-sock';
+
+// If the socket file already exists let's remove it
+fs.rmSync(unixSocketPath, { force: true });
 
 net.createServer((socket) => {
   connections += 1;
   repl.start({
     prompt: 'Node.js via Unix socket> ',
+    useGlobal: true,
     input: socket,
     output: socket,
   }).on('exit', () => {
     socket.end();
   });
-}).listen('/tmp/node-repl-sock');
+}).listen(unixSocketPath);
 
 net.createServer((socket) => {
   connections += 1;
   repl.start({
     prompt: 'Node.js via TCP socket> ',
+    useGlobal: true,
     input: socket,
     output: socket,
   }).on('exit', () => {
@@ -870,29 +879,39 @@ net.createServer((socket) => {
 ```cjs
 const net = require('node:net');
 const repl = require('node:repl');
+const fs = require('node:fs');
+
 let connections = 0;
 
 repl.start({
   prompt: 'Node.js via stdin> ',
+  useGlobal: true,
   input: process.stdin,
   output: process.stdout,
 });
+
+const unixSocketPath = '/tmp/node-repl-sock';
+
+// If the socket file already exists let's remove it
+fs.rmSync(unixSocketPath, { force: true });
 
 net.createServer((socket) => {
   connections += 1;
   repl.start({
     prompt: 'Node.js via Unix socket> ',
+    useGlobal: true,
     input: socket,
     output: socket,
   }).on('exit', () => {
     socket.end();
   });
-}).listen('/tmp/node-repl-sock');
+}).listen(unixSocketPath);
 
 net.createServer((socket) => {
   connections += 1;
   repl.start({
     prompt: 'Node.js via TCP socket> ',
+    useGlobal: true,
     input: socket,
     output: socket,
   }).on('exit', () => {
