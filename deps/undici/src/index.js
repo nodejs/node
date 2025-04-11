@@ -8,6 +8,7 @@ const Agent = require('./lib/dispatcher/agent')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const RetryAgent = require('./lib/dispatcher/retry-agent')
+const H2CClient = require('./lib/dispatcher/h2c-client')
 const errors = require('./lib/core/errors')
 const util = require('./lib/core/util')
 const { InvalidArgumentError } = errors
@@ -33,6 +34,7 @@ module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.RetryAgent = RetryAgent
+module.exports.H2CClient = H2CClient
 module.exports.RetryHandler = RetryHandler
 
 module.exports.DecoratorHandler = DecoratorHandler

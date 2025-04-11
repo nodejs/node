@@ -208,6 +208,7 @@ function onHttp2SessionGoAway (errorCode) {
   assert(client[kRunning] === 0)
 
   client.emit('disconnect', client[kUrl], [client], err)
+  client.emit('connectionError', client[kUrl], [client], err)
 
   client[kResume]()
 }

@@ -6,6 +6,7 @@ import { RedirectHandler, DecoratorHandler } from './handlers'
 
 import BalancedPool from './balanced-pool'
 import Client from './client'
+import H2CClient from './h2c-client'
 import buildConnector from './connector'
 import errors from './errors'
 import Agent from './agent'
@@ -32,7 +33,7 @@ export * from './content-type'
 export * from './cache'
 export { Interceptable } from './mock-interceptor'
 
-export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent }
+export { Dispatcher, BalancedPool, Pool, Client, buildConnector, errors, Agent, request, stream, pipeline, connect, upgrade, setGlobalDispatcher, getGlobalDispatcher, setGlobalOrigin, getGlobalOrigin, interceptors, MockClient, MockPool, MockAgent, MockCallHistory, MockCallHistoryLog, mockErrors, ProxyAgent, EnvHttpProxyAgent, RedirectHandler, DecoratorHandler, RetryHandler, RetryAgent, H2CClient }
 export default Undici
 
 declare namespace Undici {
@@ -43,6 +44,7 @@ declare namespace Undici {
   const RetryHandler: typeof import ('./retry-handler').default
   const BalancedPool: typeof import('./balanced-pool').default
   const Client: typeof import('./client').default
+  const H2CClient: typeof import('./h2c-client').default
   const buildConnector: typeof import('./connector').default
   const errors: typeof import('./errors').default
   const Agent: typeof import('./agent').default
