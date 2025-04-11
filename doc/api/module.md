@@ -227,9 +227,9 @@ added: REPLACEME
 * `specifier` {string|URL} Module to resolve and load; this should be
   the same string that would be passed to `import()`, except that if it is
   relative, it is resolved relative to `parentURL`.
-* `parentURL` {string|URL} If you want to resolve `specifier` relative to a base
-  URL, such as `import.meta.url`, you can pass that URL here. **Default:**
-  `'data:'`.
+* `parentURL` {string|URL|undefined} If you want to resolve `specifier` relative to a base
+  URL, such as `import.meta.url`, you can pass that URL here. If not provided,
+  the `resolve` step will be skipped. **Default:** {undefined}.
 * `importAttributes` {object}
 * `conditions` {Array}
 * Returns: {Promise} fulfills with an object with the following properties:
