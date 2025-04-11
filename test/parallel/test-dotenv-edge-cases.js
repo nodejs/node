@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('node:assert');
 const path = require('node:path');
 const { describe, it } = require('node:test');
+const { parseEnv } = require('node:util');
 const fixtures = require('../common/fixtures');
 
 const validEnvFilePath = '../fixtures/dotenv/valid.env';
@@ -199,5 +200,62 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 9);
     assert.match(child.stderr, /bad option: --env-file-ABCD/);
+  });
+
+  it('should handle invalid multiline syntax', () => {
+    const result = parseEnv([
+      'foo',
+      '',
+      'bar',
+      'baz=whatever',
+      'VALID_AFTER_INVALID=test',
+      'multiple_invalid',
+      'lines_without_equals',
+      'ANOTHER_VALID=value',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      baz: 'whatever',
+      VALID_AFTER_INVALID: 'test',
+      ANOTHER_VALID: 'value',
+    });
+  });
+
+  it('should handle trimming of keys and values correctly', () => {
+    const result = parseEnv([
+      '   KEY_WITH_SPACES_BEFORE=   value_with_spaces_before_and_after   ',
+      'KEY_WITH_TABS_BEFORE\t=\tvalue_with_tabs_before_and_after\t',
+      'KEY_WITH_SPACES_AND_TABS\t = \t value_with_spaces_and_tabs \t',
+      '   KEY_WITH_SPACES_ONLY   =value',
+      'KEY_WITH_NO_VALUE=',
+      'KEY_WITH_SPACES_AFTER=   value   ',
+      'KEY_WITH_SPACES_AND_COMMENT=value   # this is a comment',
+      'KEY_WITH_ONLY_COMMENT=# this is a comment',
+      'KEY_WITH_EXPORT=export value',
+      '   export   KEY_WITH_EXPORT_AND_SPACES   =   value   ',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_SPACES_BEFORE: 'value_with_spaces_before_and_after',
+      KEY_WITH_TABS_BEFORE: 'value_with_tabs_before_and_after',
+      KEY_WITH_SPACES_AND_TABS: 'value_with_spaces_and_tabs',
+      KEY_WITH_SPACES_ONLY: 'value',
+      KEY_WITH_NO_VALUE: '',
+      KEY_WITH_ONLY_COMMENT: '',
+      KEY_WITH_SPACES_AFTER: 'value',
+      KEY_WITH_SPACES_AND_COMMENT: 'value',
+      KEY_WITH_EXPORT: 'export value',
+      KEY_WITH_EXPORT_AND_SPACES: 'value',
+    });
+  });
+
+  it('should handle a comment in a valid value', () => {
+    const result = parseEnv([
+      'KEY_WITH_COMMENT_IN_VALUE="value # this is a comment"',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_COMMENT_IN_VALUE: 'value # this is a comment',
+    });
   });
 });
