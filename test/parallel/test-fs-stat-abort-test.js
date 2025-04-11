@@ -6,12 +6,11 @@ const assert = require('node:assert');
 const fs = require('node:fs');
 const tmpdir = require('../common/tmpdir');
 
-tmpdir.refresh();
-
-const filePath = tmpdir.resolve('temp.txt');
-fs.writeFileSync(filePath, 'Test');
-
 test('fs.stat should throw AbortError when abort signal is triggered', async () => {
+  tmpdir.refresh();
+
+  const filePath = tmpdir.resolve('temp.txt');
+  fs.writeFileSync(filePath, 'Test');
   const signal = AbortSignal.abort();
 
   const { promise, resolve, reject } = Promise.withResolvers();
