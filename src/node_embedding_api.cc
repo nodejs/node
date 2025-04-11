@@ -2,10 +2,7 @@
 
 #include "node_embedding_api.h"
 
-#include "env-inl.h"
-#include "js_native_api_v8.h"
 #include "node_api_internals.h"
-#include "util-inl.h"
 #include "uv.h"
 
 #include <mutex>
@@ -73,15 +70,6 @@
       return status;                                                           \
     }                                                                          \
   } while (false)
-
-namespace v8impl {
-
-// Creates new Node-API environment. It is defined in node_api.cc.
-napi_env NewEnv(v8::Local<v8::Context> context,
-                const std::string& module_filename,
-                int32_t module_api_version);
-
-}  // namespace v8impl
 
 namespace node {
 
@@ -1299,8 +1287,8 @@ NodeStatus EmbeddedRuntime::Initialize(
   V8ScopeLocker v8_scope_locker(*this);
 
   std::string filename = args_.size() > 1 ? args_[1] : "<internal>";
-  node_api_env_ =
-      v8impl::NewEnv(env_setup_->env()->context(), filename, node_api_version_);
+  node_api_env_ = node_napi_env__::New(
+      env_setup_->env()->context(), filename, node_api_version_);
 
   node::Environment* node_env = env_setup_->env();
 
@@ -1689,8 +1677,8 @@ napi_env EmbeddedRuntime::GetOrCreateNodeApiEnv(
   }
 
   // Create new Node-API env. We avoid creating the environment under the lock.
-  napi_env env =
-      v8impl::NewEnv(node_env->context(), module_filename, node_api_version_);
+  napi_env env = node_napi_env__::New(
+      node_env->context(), module_filename, node_api_version_);
 
   // In case if we cannot insert the new env, we are just going to have an
   // unused env which will be deleted in the end with other environments.
@@ -1786,7 +1774,7 @@ void EmbeddedRuntime::RegisterModules() {
   ModuleInfo* module_info = static_cast<ModuleInfo*>(priv);
 
   // Create a new napi_env for this specific module.
-  napi_env env = v8impl::NewEnv(
+  napi_env env = node_napi_env__::New(
       context, module_info->module_name, module_info->module_node_api_version);
 
   napi_value node_api_exports = nullptr;
