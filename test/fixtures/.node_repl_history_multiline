@@ -1,4 +1,4 @@
-var d = [  {    a: 1,    b: 2,  },  {    a: 3,    b: 4,    c: [{ a: 1, b: 2 },      {        a: 3,        b: 4,      }    ]  }]
-const c = [  {    a: 1,    b: 2,  }]
-`const b = [  1,  2,  3,  4,]`
-a = `I am a multiline stringI can be as long as I want`
+]  }    ]      }        b: 4,        a: 3,      {    c: [{ a: 1, b: 2 },    b: 4,    a: 3,  {  },    b: 2,    a: 1,  {var d = [
+]  }    b: 2,    a: 1,  {const c = [
+]`  4,  3,  2,  1,`const b = [
+I can be as long as I want`I am a multiline stringa = `
