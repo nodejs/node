@@ -41,6 +41,7 @@ on:
           - undici
           - uvwasi
           - zlib
+          - zstd
 
 env:
   PYTHON_VERSION: '3.12'
@@ -280,6 +281,14 @@ jobs:
             label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: zstd
+            subsystem: deps
+            label: dependencies, zlib
+            run: |
+              ./tools/dep_updaters/update-zstd.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
