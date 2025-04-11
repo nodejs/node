@@ -13,6 +13,7 @@ added:
 > Stability: 1 - Experimental
 
 **Corepack will no longer be distributed with Node.js 25+.**
+
 Users currently depending on the bundled `corepack` module from Node.js
 should switch to using the userland-provided [corepack][] module instead.
 
