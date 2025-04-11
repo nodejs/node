@@ -724,6 +724,7 @@ class Http2Session : public AsyncWrap,
   static void Ping(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void AltSvc(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Origin(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetGracefulClose(const v8::FunctionCallbackInfo<v8::Value>& args);
 
   template <get_setting fn, bool local>
   static void RefreshSettings(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -786,6 +787,11 @@ class Http2Session : public AsyncWrap,
   };
 
   Statistics statistics_ = {};
+
+  bool IsGracefulCloseInitiated() const { return graceful_close_initiated_; }
+  void SetGracefulCloseInitiated(bool value) {
+    graceful_close_initiated_ = value;
+  }
 
  private:
   void EmitStatistics();
@@ -953,8 +959,13 @@ class Http2Session : public AsyncWrap,
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
 
+  bool CheckAndNotifyJSAfterWrite();
+
   friend class Http2Scope;
   friend class Http2StreamListener;
+
+  // Flag to indicate that JavaScript has initiated a graceful closure
+  bool graceful_close_initiated_ = false;
 };
 
 struct Http2SessionPerformanceEntryTraits {
