@@ -230,7 +230,7 @@ added: REPLACEME
 * `parentURL` {string|URL|undefined} If you want to resolve `specifier` relative to a base
   URL, such as `import.meta.url`, you can pass that URL here. If not provided,
   the `resolve` step will be skipped. **Default:** {undefined}.
-* `importAttributes` {object}
+* `importAttributes` {Object}
 * `conditions` {Array}
 * Returns: {Promise} fulfills with an object with the following properties:
   * `url` {string} The absolute URL for that module
