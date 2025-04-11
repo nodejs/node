@@ -328,7 +328,9 @@ property take precedence over `--trace-deprecation` and
 ## `util.diff(actual, expected)`
 
 <!-- YAML
-added: v23.11.0
+added: 
+  - v23.11.0
+  - v22.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -1562,7 +1564,9 @@ added:
   - v19.1.0
   - v18.13.0
 changes:
- - version: v23.11.0
+ - version: 
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -2694,7 +2698,9 @@ Unicode "replacement character" U+FFFD.
 <!-- YAML
 added: v18.11.0
 changes:
- - version: v23.11.0
+ - version: 
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -2707,7 +2713,9 @@ as transferable and can be used with `structuredClone()` or `postMessage()`.
 <!-- YAML
 added: v18.11.0
 changes:
- - version: v23.11.0
+ - version: 
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->

@@ -3870,6 +3870,7 @@ changes:
     description: Runtime deprecation.
   - version:
     - v23.11.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->
