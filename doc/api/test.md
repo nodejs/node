@@ -3439,6 +3439,7 @@ added:
 changes:
   - version:
     - v23.9.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/56765
     description: Add the `options` parameter.
   - version:

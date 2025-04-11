@@ -81,7 +81,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57752
     description: Add `timeout` option.
-  - version: v23.10.0
+  - version: 
+    - v23.10.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->
@@ -299,7 +301,9 @@ wrapper around [`sqlite3_create_function_v2()`][].
 ### `database.isOpen`
 
 <!-- YAML
-added: v23.11.0
+added: 
+  - v23.11.0
+  - v22.15.0
 -->
 
 * {boolean} Whether the database is currently open or not.
@@ -409,7 +413,9 @@ targetDb.applyChangeset(changeset);
 ### `database[Symbol.dispose]()`
 
 <!-- YAML
-added: v23.11.0
+added: 
+  - v23.11.0
+  - v22.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -652,7 +658,9 @@ are several caveats to be aware of when enabling bare named parameters:
 ### `statement.setAllowUnknownNamedParameters(enabled)`
 
 <!-- YAML
-added: v23.11.0
+added: 
+  - v23.11.0
+  - v22.15.0
 -->
 
 * `enabled` {boolean} Enables or disables support for unknown named parameters.

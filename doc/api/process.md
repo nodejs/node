@@ -3357,7 +3357,9 @@ relied upon to exist.
 ## `process.execve(file[, args[, env]])`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
 -->
 
 > Stability: 1 - Experimental

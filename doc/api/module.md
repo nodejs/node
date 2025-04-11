@@ -219,7 +219,9 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `module.registerHooks(options)`
 
 <!-- YAML
-added: v23.5.0
+added: 
+  - v23.5.0
+  - v22.15.0
 -->
 
 > Stability: 1.1 - Active development
@@ -547,7 +549,9 @@ added: v22.8.0
 <!-- YAML
 added: v8.8.0
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -880,7 +884,9 @@ child workers by default.
 #### Synchronous hooks accepted by `module.registerHooks()`
 
 <!-- YAML
-added: v23.5.0
+added:
+  - v23.5.0
+  - v22.15.0
 -->
 
 > Stability: 1.1 - Active development
@@ -1009,7 +1015,9 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: v23.5.0
+  - version: 
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread hooks.
   - version:
@@ -1132,7 +1140,9 @@ function resolve(specifier, context, nextResolve) {
 
 <!-- YAML
 changes:
-  - version: v23.5.0
+  - version:
+    - v23.5.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
     description: Add support for synchronous and in-thread version.
   - version: v20.6.0
