@@ -1556,6 +1556,56 @@ Running `node --import 'data:text/javascript,import { register } from "node:modu
 or `node --import ./import-map-sync-hooks.js main.js`
 should print `some module!`.
 
+## Module Hooks Reflection
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+### `module.loadModule(specifier, parentURL[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `specifier` {string} The URL of the module to load.
+* `parentURL` {string} The module importing this one.
+* `options` {Object} Optional
+  * `importAttributes` {Object} An object whose key-value pairs represent the
+    attributes for the module to import.
+* Returns: {Object}
+  * `format` {string} The resolved format of the module.
+  * `source` {string|ArrayBuffer|TypedArray|null} The source for Node.js to evaluate.
+  * `url` {string} The resolved URL of the module.
+
+Request to load a module using the current module hooks. This does not
+evaluate the module, it only returns the resolved URL and source code.
+This is useful for determining the format of a module and its source code.
+
+This is the recommended way to detect a module format rather than referring
+to the `package.json` file or the file extension. The `format` property
+is one of the values listed in the [`module.kModuleFormats`][].
+
+### `module.kModuleFormats`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Object} An object with the following properties:
+  * `addon` {string} Only present when the `--experimental-addon-modules` flag is enabled.
+  * `builtin` {string}
+  * `commonjs` {string}
+  * `json` {string}
+  * `module` {string}
+  * `wasm` {string} Only present when the `--experimental-wasm-modules` flag is
+    enabled.
+
+The `kModuleFormats` property is an object that enumerates the module formats
+supported as a final format returned by the `load` hook.
+
 ## Source map v3 support
 
 <!-- YAML
@@ -1778,6 +1828,7 @@ returned object contains the following keys:
 [`module.enableCompileCache()`]: #moduleenablecompilecachecachedir
 [`module.flushCompileCache()`]: #moduleflushcompilecache
 [`module.getCompileCacheDir()`]: #modulegetcompilecachedir
+[`module.kModuleFormats`]: #modulekmoduleformats
 [`module`]: #the-module-object
 [`os.tmpdir()`]: os.md#ostmpdir
 [`registerHooks`]: #moduleregisterhooksoptions
