@@ -15,10 +15,12 @@
 #include <cstddef>
 #include <functional>
 #include <list>
+#include <map>
 #include <memory>
 #include <optional>
 #include <string>
 #include <string_view>
+#include <variant>
 #ifndef OPENSSL_NO_ENGINE
 #include <openssl/engine.h>
 #endif  // !OPENSSL_NO_ENGINE
@@ -727,6 +729,28 @@ class CipherCtxPointer final {
 
  private:
   DeleteFnPtr<EVP_CIPHER_CTX, EVP_CIPHER_CTX_free> ctx_;
+};
+
+class KdfCtxPointer final {
+ public:
+  using ParamType =
+      std::variant<uint32_t, double, std::string, std::vector<char>>;
+  using Params = std::map<std::string, ParamType>;
+
+  static KdfCtxPointer FromName(std::string_view name);
+
+  KdfCtxPointer() = default;
+  KdfCtxPointer(EVP_KDF_CTX* ctx);
+  KdfCtxPointer(KdfCtxPointer&& other) noexcept = default;
+  KdfCtxPointer& operator=(KdfCtxPointer&& other) noexcept = default;
+  NCRYPTO_DISALLOW_COPY(KdfCtxPointer)
+
+  size_t getSize() const;
+  bool setParams(const Params& params);
+  DataPointer derive(size_t keylen) const;
+
+ private:
+  DeleteFnPtr<EVP_KDF_CTX, EVP_KDF_CTX_free> ctx_ = nullptr;
 };
 
 class EVPKeyCtxPointer final {

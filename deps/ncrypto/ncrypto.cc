@@ -3080,6 +3080,69 @@ bool CipherCtxPointer::getAeadTag(size_t len, unsigned char* out) {
 
 // ============================================================================
 
+KdfCtxPointer KdfCtxPointer::FromName(std::string_view name) {
+  auto kdf = EVP_KDF_fetch(nullptr, name.data(), nullptr);
+  auto ctx = EVP_KDF_CTX_new(kdf);
+  return KdfCtxPointer{ctx};
+}
+
+KdfCtxPointer::KdfCtxPointer(EVP_KDF_CTX* ctx) : ctx_{ctx} {}
+
+size_t KdfCtxPointer::getSize() const {
+  return EVP_KDF_CTX_get_kdf_size(ctx_.get());
+}
+
+// helper type for the visitor
+template <class... Ts>
+struct overloads : Ts... {
+  using Ts::operator()...;
+};
+
+bool KdfCtxPointer::setParams(const Params& params) {
+  std::vector<OSSL_PARAM> p;
+  p.reserve(params.size() + 1);
+
+  for (auto&& [key, value] : params) {
+    p.push_back(std::visit(
+        overloads{
+            [&key](const uint32_t& value) {
+              return OSSL_PARAM_construct_uint32(key.data(),
+                                                 const_cast<uint32_t*>(&value));
+            },
+            [&key](const double& value) {
+              return OSSL_PARAM_construct_double(key.data(),
+                                                 const_cast<double*>(&value));
+            },
+            [&key](const std::string& value) {
+              return OSSL_PARAM_construct_utf8_string(
+                  key.data(), const_cast<char*>(value.data()), value.size());
+            },
+            [&key](const std::vector<char>& value) {
+              return OSSL_PARAM_construct_octet_string(
+                  key.data(), const_cast<char*>(value.data()), value.size());
+            },
+        },
+        value));
+  }
+  p.push_back(OSSL_PARAM_construct_end());
+
+  return EVP_KDF_CTX_set_params(ctx_.get(), p.data()) == 1;
+}
+
+DataPointer KdfCtxPointer::derive(size_t keylen) const {
+  if (!ctx_) return {};
+  auto data = DataPointer::Alloc(keylen);
+  if (EVP_KDF_derive(ctx_.get(),
+                     reinterpret_cast<unsigned char*>(data.get()),
+                     keylen,
+                     nullptr) != 1)
+    return {};
+  if (!data) return {};
+  return data;
+}
+
+// ============================================================================
+
 ECDSASigPointer::ECDSASigPointer() : sig_(nullptr) {}
 ECDSASigPointer::ECDSASigPointer(ECDSA_SIG* sig) : sig_(sig) {
   if (sig_) {

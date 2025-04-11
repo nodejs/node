@@ -38,6 +38,7 @@
 #include "crypto/crypto_hash.h"
 #include "crypto/crypto_hkdf.h"
 #include "crypto/crypto_hmac.h"
+#include "crypto/crypto_kdf.h"
 #include "crypto/crypto_keygen.h"
 #include "crypto/crypto_keys.h"
 #include "crypto/crypto_pbkdf2.h"
