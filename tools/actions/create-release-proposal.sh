@@ -34,6 +34,10 @@ TITLE="$(git log -1 --format=%s)"
 # Use a temporary file for the PR body
 TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")"
 
+if [ "$(printf "%s" "$TEMP_BODY" | wc -c)" -gt 65536 ]; then
+  TEMP_BODY="## ${RELEASE_DATE}"
+fi
+
 # Create the proposal branch
 gh api \
   --method POST \
