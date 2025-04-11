@@ -80,7 +80,7 @@ added: v22.5.0
 changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57752
-    description: Add `timeout` option
+    description: Add `timeout` option.
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
@@ -814,7 +814,6 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
   </tr>
 </table>
 
-[busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
@@ -850,6 +849,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3session_create()`]: https://www.sqlite.org/session/sqlite3session_create.html
 [`sqlite3session_delete()`]: https://www.sqlite.org/session/sqlite3session_delete.html
 [`sqlite3session_patchset()`]: https://www.sqlite.org/session/sqlite3session_patchset.html
+[busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [connection]: https://www.sqlite.org/c3ref/sqlite3.html
 [data types]: https://www.sqlite.org/datatype3.html
 [double-quoted string literals]: https://www.sqlite.org/quirks.html#dblquote
