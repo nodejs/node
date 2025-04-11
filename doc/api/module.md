@@ -1181,10 +1181,11 @@ The final value of `format` must be one of the following:
 | ----------------------- | ----------------------------------------------------- | -------------------------------------------------- |
 | `'addon'`               | Load a Node.js addon                                  | {null}                                             |
 | `'builtin'`             | Load a Node.js builtin module                         | {null}                                             |
-| `'commonjs'`            | Load a Node.js CommonJS module                        | {string\|ArrayBuffer\|TypedArray\|null\|undefined} |
 | `'commonjs-typescript'` | Load a Node.js CommonJS module with TypeScript syntax | {string\|ArrayBuffer\|TypedArray\|null\|undefined} |
+| `'commonjs'`            | Load a Node.js CommonJS module                        | {string\|ArrayBuffer\|TypedArray\|null\|undefined} |
 | `'json'`                | Load a JSON file                                      | {string\|ArrayBuffer\|TypedArray}                  |
 | `'module-typescript'`   | Load an ES module with TypeScript syntax              | {string\|ArrayBuffer\|TypedArray}                  |
+| `'module'`              | Load an ES module with TypeScript syntax              | {string\|ArrayBuffer\|TypedArray}                  |
 | `'wasm'`                | Load a WebAssembly module                             | {ArrayBuffer\|TypedArray}                          |
 
 The value of `source` is ignored for type `'builtin'` because currently it is
