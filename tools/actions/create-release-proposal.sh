@@ -32,7 +32,7 @@ HEAD_SHA="$(git rev-parse HEAD^)"
 TITLE="$(git log -1 --format=%s)"
 
 # Use a temporary file for the PR body
-TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")"
+TEMP_BODY="## ${RELEASE_DATE}"
 
 # Create the proposal branch
 gh api \

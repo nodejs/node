@@ -11,6 +11,7 @@ const methods = [
   'resolveCname',
   'resolveMx',
   'resolveNs',
+  'resolveTlsa',
   'resolveTxt',
   'resolveSrv',
   'resolvePtr',

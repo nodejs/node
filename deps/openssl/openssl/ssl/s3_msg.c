@@ -81,16 +81,6 @@ int ssl3_dispatch_alert(SSL *s)
 
     s->s3.alert_dispatch = 0;
     alertlen = 2;
-#ifndef OPENSSL_NO_QUIC
-    if (SSL_IS_QUIC(s)) {
-        if (!s->quic_method->send_alert(s, s->quic_write_level,
-                                        s->s3.send_alert[1])) {
-            ERR_raise(ERR_LIB_SSL, ERR_R_INTERNAL_ERROR);
-            return 0;
-        }
-        i = 1;
-    } else
-#endif
     i = do_ssl3_write(s, SSL3_RT_ALERT, &s->s3.send_alert[0], &alertlen, 1, 0,
                       &written);
     if (i <= 0) {

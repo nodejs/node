@@ -112,16 +112,17 @@ class ExternString: public ResourceType {
     ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                    data,
                                                                    length);
-    MaybeLocal<Value> str = NewExternal(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+    Local<Value> str;
 
-    if (str.IsEmpty()) {
+    if (!NewExternal(isolate, h_str).ToLocal(&str)) {
       delete h_str;
       *error = node::ERR_STRING_TOO_LONG(isolate);
       return MaybeLocal<Value>();
     }
 
-    return str.ToLocalChecked();
+    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+
+    return str;
   }
 
   inline Isolate* isolate() const { return isolate_; }
@@ -168,16 +169,16 @@ MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const char* data,
                                                          size_t length,
                                                          Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromOneByte(isolate,
-                             reinterpret_cast<const uint8_t*>(data),
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
+  Local<String> str;
+  if (!String::NewFromOneByte(isolate,
+                              reinterpret_cast<const uint8_t*>(data),
+                              v8::NewStringType::kNormal,
+                              length)
+           .ToLocal(&str)) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
 
 
@@ -186,16 +187,13 @@ MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const uint16_t* data,
                                                          size_t length,
                                                          Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromTwoByte(isolate,
-                             data,
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
+  Local<String> str;
+  if (!String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal, length)
+           .ToLocal(&str)) {
     *error = node::ERR_STRING_TOO_LONG(isolate);
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
 
 }  // anonymous namespace

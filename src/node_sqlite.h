@@ -54,6 +54,7 @@ class DatabaseSync : public BaseObject {
   void MemoryInfo(MemoryTracker* tracker) const override;
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -103,10 +104,13 @@ class StatementSync : public BaseObject {
   static void Iterate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Get(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Run(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Columns(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SourceSQLGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ExpandedSQLGetter(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAllowBareNamedParameters(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void SetAllowUnknownNamedParameters(
       const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetReadBigInts(const v8::FunctionCallbackInfo<v8::Value>& args);
   void Finalize();
@@ -121,6 +125,7 @@ class StatementSync : public BaseObject {
   sqlite3_stmt* statement_;
   bool use_big_ints_;
   bool allow_bare_named_params_;
+  bool allow_unknown_named_params_;
   std::optional<std::map<std::string, std::string>> bare_named_params_;
   bool BindParams(const v8::FunctionCallbackInfo<v8::Value>& args);
   bool BindValue(const v8::Local<v8::Value>& value, const int index);

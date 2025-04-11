@@ -52,7 +52,7 @@ size use L<EVP_PKEY_sign(3)> with a NULL I<sig> parameter.
 
 ECDSA_sign() computes a digital signature of the I<dgstlen> bytes hash value
 I<dgst> using the private EC key I<eckey>. The DER encoded signatures is
-stored in I<sig> and its length is returned in I<sig_len>. Note: I<sig> must
+stored in I<sig> and its length is returned in I<siglen>. Note: I<sig> must
 point to ECDSA_size(eckey) bytes of memory. The parameter I<type> is currently
 ignored. ECDSA_sign() is wrapper function for ECDSA_sign_ex() with I<kinv>
 and I<rp> set to NULL.
@@ -82,7 +82,7 @@ used in a later call to ECDSA_sign_ex() or ECDSA_do_sign_ex().
 ECDSA_sign_ex() computes a digital signature of the I<dgstlen> bytes hash value
 I<dgst> using the private EC key I<eckey> and the optional pre-computed values
 I<kinv> and I<rp>. The DER encoded signature is stored in I<sig> and its
-length is returned in I<sig_len>. Note: I<sig> must point to ECDSA_size(eckey)
+length is returned in I<siglen>. Note: I<sig> must point to ECDSA_size(eckey)
 bytes of memory. The parameter I<type> is ignored.
 
 ECDSA_do_sign_ex() is similar to ECDSA_sign_ex() except the signature is

@@ -81,10 +81,11 @@ const OPTIONS pkeyutl_options[] = {
 
     OPT_SECTION("Output"),
     {"out", OPT_OUT, '>', "Output file - default stdout"},
-    {"asn1parse", OPT_ASN1PARSE, '-', "asn1parse the output data"},
+    {"asn1parse", OPT_ASN1PARSE, '-',
+     "parse the output as ASN.1 data to check its DER encoding and print errors"},
     {"hexdump", OPT_HEXDUMP, '-', "Hex dump output"},
     {"verifyrecover", OPT_VERIFYRECOVER, '-',
-     "Verify with public key, recover original data"},
+     "Verify RSA signature, recovering original signature input data"},
 
     OPT_SECTION("Signing/Derivation"),
     {"digest", OPT_DIGEST, 's',

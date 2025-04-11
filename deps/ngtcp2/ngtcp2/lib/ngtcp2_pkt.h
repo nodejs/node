@@ -57,6 +57,10 @@
 #define NGTCP2_STREAM_LEN_BIT 0x02
 #define NGTCP2_STREAM_OFF_BIT 0x04
 
+/* NGTCP2_MIN_QUIC_PKTLEN is the minimum length of a valid QUIC
+   packet. */
+#define NGTCP2_MIN_QUIC_PKTLEN 21
+
 /* NGTCP2_STREAM_OVERHEAD is the maximum number of bytes required
    other than payload for STREAM frame.  That is from type field to
    the beginning of the payload. */
@@ -407,13 +411,11 @@ void ngtcp2_pkt_chain_del(ngtcp2_pkt_chain *pc, const ngtcp2_mem *mem);
  * |dcid| and/or |scid| is NULL, Destination Connection ID and/or
  * Source Connection ID of |hd| is empty respectively.  |pkt_numlen|
  * is the number of bytes used to encode |pkt_num| and either 1, 2, or
- * 4.  |version| is QUIC version for long header.  |len| is the length
- * field of Initial, 0RTT, and Handshake packets.
+ * 4.  |version| is QUIC version for long header.
  */
 void ngtcp2_pkt_hd_init(ngtcp2_pkt_hd *hd, uint8_t flags, uint8_t type,
                         const ngtcp2_cid *dcid, const ngtcp2_cid *scid,
-                        int64_t pkt_num, size_t pkt_numlen, uint32_t version,
-                        size_t len);
+                        int64_t pkt_num, size_t pkt_numlen, uint32_t version);
 
 /*
  * ngtcp2_pkt_encode_hd_long encodes |hd| as QUIC long header into

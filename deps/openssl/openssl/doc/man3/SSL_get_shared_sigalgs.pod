@@ -64,7 +64,7 @@ ordered according to configuration and peer preferences.
 The raw values correspond to the on the wire form as defined by RFC5246 et al.
 The NIDs are OpenSSL equivalents. For example if the peer sent sha256(4) and
 rsa(1) then B<*rhash> would be 4, B<*rsign> 1, B<*phash> NID_sha256, B<*psig>
-NID_rsaEncryption and B<*psighash> NID_sha256WithRSAEncryption.
+NID_rsaEncryption and B<*psignhash> NID_sha256WithRSAEncryption.
 
 If a signature algorithm is not recognised the corresponding NIDs
 will be set to B<NID_undef>. This may be because the value is not supported,

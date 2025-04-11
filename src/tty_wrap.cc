@@ -100,8 +100,12 @@ void TTYWrap::GetWindowSize(const FunctionCallbackInfo<Value>& args) {
 
   if (err == 0) {
     Local<Array> a = args[0].As<Array>();
-    a->Set(env->context(), 0, Integer::New(env->isolate(), width)).Check();
-    a->Set(env->context(), 1, Integer::New(env->isolate(), height)).Check();
+    if (a->Set(env->context(), 0, Integer::New(env->isolate(), width))
+            .IsNothing() ||
+        a->Set(env->context(), 1, Integer::New(env->isolate(), height))
+            .IsNothing()) {
+      return;
+    }
   }
 
   args.GetReturnValue().Set(err);
@@ -132,8 +136,7 @@ void TTYWrap::New(const FunctionCallbackInfo<Value>& args) {
   int err = 0;
   new TTYWrap(env, args.This(), fd, &err);
   if (err != 0) {
-    env->CollectUVExceptionInfo(args[1], err, "uv_tty_init");
-    args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[1], err, "uv_tty_init"));
   }
 }
 

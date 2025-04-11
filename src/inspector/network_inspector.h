@@ -11,16 +11,18 @@ namespace inspector {
 
 class NetworkInspector {
  public:
-  explicit NetworkInspector(Environment* env);
+  explicit NetworkInspector(Environment* env,
+                            v8_inspector::V8Inspector* v8_inspector);
   ~NetworkInspector();
 
   void Wire(protocol::UberDispatcher* dispatcher);
 
   bool canEmit(const std::string& domain);
 
-  void emitNotification(const std::string& domain,
+  void emitNotification(v8::Local<v8::Context> context,
+                        const std::string& domain,
                         const std::string& method,
-                        std::unique_ptr<protocol::DictionaryValue> params);
+                        v8::Local<v8::Object> params);
 
   void Enable();
   void Disable();
@@ -29,7 +31,7 @@ class NetworkInspector {
  private:
   bool enabled_;
   Environment* env_;
-  std::unique_ptr<protocol::NetworkAgent> network_agent_;
+  std::unique_ptr<NetworkAgent> network_agent_;
 };
 
 }  // namespace inspector

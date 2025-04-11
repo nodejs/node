@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -84,9 +84,11 @@ bn_mul_mont:
 	cmp	$num,#32
 	b.le	.Lscalar_impl
 #ifndef	__KERNEL__
+#ifndef	__AARCH64EB__
 	adrp	x17,OPENSSL_armv8_rsa_neonized
 	ldr	w17,[x17,#:lo12:OPENSSL_armv8_rsa_neonized]
 	cbnz	w17, bn_mul8x_mont_neon
+#endif
 #endif
 
 .Lscalar_impl:

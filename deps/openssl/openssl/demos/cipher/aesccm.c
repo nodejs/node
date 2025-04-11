@@ -94,7 +94,7 @@ int aes_ccm_encrypt(void)
     if ((cipher = EVP_CIPHER_fetch(libctx, "AES-192-CCM", propq)) == NULL)
         goto err;
 
-    /* Set nonce length if default 96 bits is not appropriate */
+    /* Default nonce length for AES-CCM is 7 bytes (56 bits). */
     params[0] = OSSL_PARAM_construct_size_t(OSSL_CIPHER_PARAM_AEAD_IVLEN,
                                             &ccm_nonce_len);
     /* Set tag length */

@@ -77,12 +77,14 @@ If TLS is not used this defaults to the environment variable C<http_proxy>
 if set, else C<HTTP_PROXY>.
 If I<use_ssl> != 0 it defaults to C<https_proxy> if set, else C<HTTPS_PROXY>.
 An empty proxy string C<""> forbids using a proxy.
-Else the format is
+Otherwise, the format is
 C<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>,
 where any userinfo, path, query, and fragment given is ignored.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The default proxy port number is 80, or 443 in case "https:" is given.
 The HTTP client functions connect via the given proxy unless the I<server>
-is found in the optional list I<no_proxy> of proxy hostnames (if not NULL;
+is found in the optional list I<no_proxy> of proxy hostnames or IP addresses
+separated by C<,> and/or whitespace (if not NULL;
 default is the environment variable C<no_proxy> if set, else C<NO_PROXY>).
 Proxying plain HTTP is supported directly,
 while using a proxy for HTTPS connections requires a suitable callback function

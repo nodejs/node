@@ -77,20 +77,24 @@ console.log(query.all());
 
 <!-- YAML
 added: v22.5.0
+changes:
+  - version: v22.15.0
+    pr-url: https://github.com/nodejs/node/pull/56991
+    description: The `path` argument now supports Buffer and URL objects.
 -->
 
 This class represents a single [connection][] to a SQLite database. All APIs
 exposed by this class execute synchronously.
 
-### `new DatabaseSync(location[, options])`
+### `new DatabaseSync(path[, options])`
 
 <!-- YAML
 added: v22.5.0
 -->
 
-* `location` {string} The location of the database. A SQLite database can be
+* `path` {string | Buffer | URL} The path of the database. A SQLite database can be
   stored in a file or completely [in memory][]. To use a file-backed database,
-  the location should be a file path. To use an in-memory database, the location
+  the path should be a file path. To use an in-memory database, the path
   should be the special name `':memory:'`.
 * `options` {Object} Configuration options for the database connection. The
   following options are supported:
@@ -176,14 +180,25 @@ added: v22.13.0
   * `useBigIntArguments` {boolean} If `true`, integer arguments to `function`
     are converted to `BigInt`s. If `false`, integer arguments are passed as
     JavaScript numbers. **Default:** `false`.
-  * `varargs` {boolean} If `true`, `function` can accept a variable number of
-    arguments. If `false`, `function` must be invoked with exactly
-    `function.length` arguments. **Default:** `false`.
+  * `varargs` {boolean} If `true`, `function` may be invoked with any number of
+    arguments (between zero and [`SQLITE_MAX_FUNCTION_ARG`][]). If `false`,
+    `function` must be invoked with exactly `function.length` arguments.
+    **Default:** `false`.
 * `function` {Function} The JavaScript function to call when the SQLite
-  function is invoked.
+  function is invoked. The return value of this function should be a valid
+  SQLite data type: see [Type conversion between JavaScript and SQLite][].
+  The result defaults to `NULL` if the return value is `undefined`.
 
 This method is used to create SQLite user-defined functions. This method is a
 wrapper around [`sqlite3_create_function_v2()`][].
+
+### `database.isOpen`
+
+<!-- YAML
+added: v22.15.0
+-->
+
+* {boolean} Whether the database is currently open or not.
 
 ### `database.open()`
 
@@ -191,7 +206,7 @@ wrapper around [`sqlite3_create_function_v2()`][].
 added: v22.5.0
 -->
 
-Opens the database specified in the `location` argument of the `DatabaseSync`
+Opens the database specified in the `path` argument of the `DatabaseSync`
 constructor. This method should only be used when the database is not opened via
 the constructor. An exception is thrown if the database is already open.
 
@@ -251,7 +266,7 @@ added: v22.12.0
     applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
-* Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
+* Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
@@ -273,6 +288,17 @@ const changeset = session.changeset();
 targetDb.applyChangeset(changeset);
 // Now that the changeset has been applied, targetDb contains the same data as sourceDb.
 ```
+
+### `database[Symbol.dispose]()`
+
+<!-- YAML
+added: v22.15.0
+-->
+
+> Stability: 1 - Experimental
+
+Closes the database connection. If the database connection is already closed
+then this is a no-op.
 
 ## Class: `Session`
 
@@ -347,6 +373,34 @@ This method executes a prepared statement and returns all results as an array of
 objects. If the prepared statement does not return any results, this method
 returns an empty array. The prepared statement [parameters are bound][] using
 the values in `namedParameters` and `anonymousParameters`.
+
+### `statement.columns()`
+
+<!-- YAML
+added: v22.15.0
+-->
+
+* Returns: {Array} An array of objects. Each object corresponds to a column
+  in the prepared statement, and contains the following properties:
+
+  * `column`: {string|null} The unaliased name of the column in the origin
+    table, or `null` if the column is the result of an expression or subquery.
+    This property is the result of [`sqlite3_column_origin_name()`][].
+  * `database`: {string|null} The unaliased name of the origin database, or
+    `null` if the column is the result of an expression or subquery. This
+    property is the result of [`sqlite3_column_database_name()`][].
+  * `name`: {string} The name assigned to the column in the result set of a
+    `SELECT` statement. This property is the result of
+    [`sqlite3_column_name()`][].
+  * `table`: {string|null} The unaliased name of the origin table, or `null` if
+    the column is the result of an expression or subquery. This property is the
+    result of [`sqlite3_column_table_name()`][].
+  * `type`: {string|null} The declared data type of the column, or `null` if the
+    column is the result of an expression or subquery. This property is the
+    result of [`sqlite3_column_decltype()`][].
+
+This method is used to retrieve information about the columns returned by the
+prepared statement.
 
 ### `statement.expandedSQL`
 
@@ -462,6 +516,17 @@ are several caveats to be aware of when enabling bare named parameters:
   statement will result in an exception as it cannot be determined how to bind
   a bare name.
 
+### `statement.setAllowUnknownNamedParameters(enabled)`
+
+<!-- YAML
+added: v22.15.0
+-->
+
+* `enabled` {boolean} Enables or disables support for unknown named parameters.
+
+By default, if an unknown name is encountered while binding parameters, an
+exception is thrown. This method allows unknown named parameters to be ignored.
+
 ### `statement.setReadBigInts(enabled)`
 
 <!-- YAML
@@ -497,13 +562,13 @@ more data types than SQLite, only a subset of JavaScript types are supported.
 Attempting to write an unsupported data type to SQLite will result in an
 exception.
 
-| SQLite    | JavaScript           |
-| --------- | -------------------- |
-| `NULL`    | {null}               |
-| `INTEGER` | {number} or {bigint} |
-| `REAL`    | {number}             |
-| `TEXT`    | {string}             |
-| `BLOB`    | {Uint8Array}         |
+| SQLite    | JavaScript                 |
+| --------- | -------------------------- |
+| `NULL`    | {null}                     |
+| `INTEGER` | {number} or {bigint}       |
+| `REAL`    | {number}                   |
+| `TEXT`    | {string}                   |
+| `BLOB`    | {TypedArray} or {DataView} |
 
 ## `sqlite.constants`
 
@@ -579,13 +644,20 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
 [SQL injection]: https://en.wikipedia.org/wiki/SQL_injection
+[Type conversion between JavaScript and SQLite]: #type-conversion-between-javascript-and-sqlite
 [`ATTACH DATABASE`]: https://www.sqlite.org/lang_attach.html
 [`PRAGMA foreign_keys`]: https://www.sqlite.org/pragma.html#pragma_foreign_keys
 [`SQLITE_DETERMINISTIC`]: https://www.sqlite.org/c3ref/c_deterministic.html
 [`SQLITE_DIRECTONLY`]: https://www.sqlite.org/c3ref/c_deterministic.html
+[`SQLITE_MAX_FUNCTION_ARG`]: https://www.sqlite.org/limits.html#max_function_arg
 [`database.applyChangeset()`]: #databaseapplychangesetchangeset-options
 [`sqlite3_changes64()`]: https://www.sqlite.org/c3ref/changes.html
 [`sqlite3_close_v2()`]: https://www.sqlite.org/c3ref/close.html
+[`sqlite3_column_database_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
+[`sqlite3_column_decltype()`]: https://www.sqlite.org/c3ref/column_decltype.html
+[`sqlite3_column_name()`]: https://www.sqlite.org/c3ref/column_name.html
+[`sqlite3_column_origin_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
+[`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html

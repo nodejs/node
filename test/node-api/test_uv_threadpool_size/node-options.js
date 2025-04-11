@@ -16,7 +16,7 @@ const filePath = path.join(__dirname, `./build/${common.buildType}/test_uv_threa
 const code = `
    const { test } = require(${JSON.stringify(filePath)});
    const size = parseInt(process.env.UV_THREADPOOL_SIZE, 10);
-   require('assert').strictEqual(size, 4);
+   assert.strictEqual(size, 4);
    test(size);
  `.trim();
 const child = spawnSync(

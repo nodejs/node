@@ -172,3 +172,17 @@ const assert = require('node:assert');
   assert.match(output, /test-get-callsite-explicit\.ts/);
   assert.strictEqual(status, 0);
 }
+
+{
+  // sourceMap must be a boolean
+  assert.throws(() => getCallSites({ sourceMap: 1 }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+  assert.throws(() => getCallSites(1, { sourceMap: 1 }), {
+    code: 'ERR_INVALID_ARG_TYPE'
+  });
+
+  // Not specifying the sourceMap option should not fail.
+  getCallSites({});
+  getCallSites(1, {});
+}

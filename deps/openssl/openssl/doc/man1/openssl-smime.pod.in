@@ -394,9 +394,9 @@ Verify a message and extract the signer's certificate if successful:
 
 Send encrypted mail using triple DES:
 
- openssl smime -encrypt -in in.txt -from steve@openssl.org \
+ openssl smime -encrypt -in in.txt -out mail.msg -from steve@openssl.org \
         -to someone@somewhere -subject "Encrypted message" \
-        -des3 user.pem -out mail.msg
+        -des3 user.pem
 
 Sign and encrypt mail:
 

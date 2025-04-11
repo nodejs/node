@@ -7,7 +7,7 @@ const bench = common.createBenchmark(main, {
   inputLen: [1024],
   duration: [5],
   type: ['string', 'buffer'],
-  algorithm: ['gzip', 'brotli'],
+  algorithm: ['gzip', 'brotli', 'zstd'],
 }, {
   test: {
     inputLen: 1024,
@@ -15,14 +15,19 @@ const bench = common.createBenchmark(main, {
   },
 });
 
+const algorithms = {
+  'gzip': [zlib.createGzip, zlib.createGunzip],
+  'brotli': [zlib.createBrotliCompress, zlib.createBrotliDecompress],
+  'zstd': [zlib.createZstdCompress, zlib.createZstdDecompress],
+};
+
 function main({ inputLen, duration, type, algorithm }) {
   const buffer = Buffer.alloc(inputLen, fs.readFileSync(__filename));
   const chunk = type === 'buffer' ? buffer : buffer.toString('utf8');
 
-  const input = algorithm === 'gzip' ?
-    zlib.createGzip() : zlib.createBrotliCompress();
-  const output = algorithm === 'gzip' ?
-    zlib.createGunzip() : zlib.createBrotliDecompress();
+  const [createCompress, createUncompress] = algorithms[algorithm];
+  const input = createCompress();
+  const output = createUncompress();
 
   let readFromOutput = 0;
   input.pipe(output);

@@ -254,7 +254,7 @@ class Win32SymbolDebuggingContext final : public NativeSymbolDebuggingContext {
       USE(GetLastError());
 #endif  // DEBUG
     }
-    return nullptr;
+    return {};
   }
 
   SymbolInfo LookupSymbol(void* address) override {

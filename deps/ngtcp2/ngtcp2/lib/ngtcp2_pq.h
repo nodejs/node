@@ -109,17 +109,6 @@ int ngtcp2_pq_empty(const ngtcp2_pq *pq);
  */
 size_t ngtcp2_pq_size(const ngtcp2_pq *pq);
 
-typedef int (*ngtcp2_pq_item_cb)(ngtcp2_pq_entry *item, void *arg);
-
-/*
- * ngtcp2_pq_each applies |fun| to each item in |pq|.  The |arg| is
- * passed as arg parameter to callback function.  This function must
- * not change the ordering key.  If the return value from callback is
- * nonzero, this function returns 1 immediately without iterating
- * remaining items.  Otherwise this function returns 0.
- */
-int ngtcp2_pq_each(const ngtcp2_pq *pq, ngtcp2_pq_item_cb fun, void *arg);
-
 /*
  * ngtcp2_pq_remove removes |item| from |pq|.  |pq| must contain
  * |item| otherwise the behavior is undefined.

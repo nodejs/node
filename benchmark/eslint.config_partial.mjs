@@ -1,6 +1,4 @@
-import { requireEslintTool } from '../tools/eslint/eslint.config_utils.mjs';
-
-const globals = requireEslintTool('globals');
+import { globals } from '../tools/eslint/eslint.config_utils.mjs';
 
 export default [
   {

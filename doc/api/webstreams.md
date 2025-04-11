@@ -91,6 +91,19 @@ const stream = new ReadableStream({
 })();
 ```
 
+### Node.js streams interoperability
+
+Node.js streams can be converted to web streams and vice versa via the `toWeb` and `fromWeb` methods present on [`stream.Readable`][], [`stream.Writable`][] and [`stream.Duplex`][] objects.
+
+For more details refer to the relevant documentation:
+
+* [`stream.Readable.toWeb`][]
+* [`stream.Readable.fromWeb`][]
+* [`stream.Writable.toWeb`][]
+* [`stream.Writable.fromWeb`][]
+* [`stream.Duplex.toWeb`][]
+* [`stream.Duplex.fromWeb`][]
+
 ## API
 
 ### Class: `ReadableStream`
@@ -1751,3 +1764,12 @@ text(readable).then((data) => {
 
 [Streams]: stream.md
 [WHATWG Streams Standard]: https://streams.spec.whatwg.org/
+[`stream.Duplex.fromWeb`]: stream.md#streamduplexfromwebpair-options
+[`stream.Duplex.toWeb`]: stream.md#streamduplextowebstreamduplex
+[`stream.Duplex`]: stream.md#class-streamduplex
+[`stream.Readable.fromWeb`]: stream.md#streamreadablefromwebreadablestream-options
+[`stream.Readable.toWeb`]: stream.md#streamreadabletowebstreamreadable-options
+[`stream.Readable`]: stream.md#class-streamreadable
+[`stream.Writable.fromWeb`]: stream.md#streamwritablefromwebwritablestream-options
+[`stream.Writable.toWeb`]: stream.md#streamwritabletowebstreamwritable
+[`stream.Writable`]: stream.md#class-streamwritable

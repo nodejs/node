@@ -74,7 +74,7 @@ B<openssl> B<s_server>
 [B<-status>]
 [B<-status_verbose>]
 [B<-status_timeout> I<int>]
-[B<-proxy> I<[http[s]://][userinfo@]host[:port][/path]>]
+[B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>]
 [B<-no_proxy> I<addresses>]
 [B<-status_url> I<val>]
 [B<-status_file> I<infile>]
@@ -201,6 +201,10 @@ must supply a certificate or an error occurs.
 
 If the cipher suite cannot request a client certificate (for example an
 anonymous cipher suite or PSK) this option has no effect.
+
+By default, validation of any supplied client certificate and its chain
+is done w.r.t. the (D)TLS Client (C<sslclient>) purpose.
+For details see L<openssl-verification-options(1)/Certificate Extensions>.
 
 =item B<-cert> I<infile>
 
@@ -504,13 +508,14 @@ a verbose printout of the OCSP response.
 
 Sets the timeout for OCSP response to I<int> seconds.
 
-=item B<-proxy> I<[http[s]://][userinfo@]host[:port][/path]>
+=item B<-proxy> I<[http[s]://][userinfo@]host[:port][/path][?query][#fragment]>
 
 The HTTP(S) proxy server to use for reaching the OCSP server unless B<-no_proxy>
 applies, see below.
+If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The proxy port defaults to 80 or 443 if the scheme is C<https>; apart from that
 the optional C<http://> or C<https://> prefix is ignored,
-as well as any userinfo and path components.
+as well as any userinfo, path, query, and fragment components.
 Defaults to the environment variable C<http_proxy> if set, else C<HTTP_PROXY>
 in case no TLS is used, otherwise C<https_proxy> if set, else C<HTTPS_PROXY>.
 

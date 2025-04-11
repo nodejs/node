@@ -186,9 +186,13 @@ encoder_construct_pkey(OSSL_ENCODER_INSTANCE *encoder_inst, void *arg)
         const OSSL_PROVIDER *e_prov = OSSL_ENCODER_get0_provider(encoder);
 
         if (k_prov != e_prov) {
+            int selection = data->selection;
+
+            if ((selection & OSSL_KEYMGMT_SELECT_PRIVATE_KEY) != 0)
+                selection |= OSSL_KEYMGMT_SELECT_PUBLIC_KEY;
             data->encoder_inst = encoder_inst;
 
-            if (!evp_keymgmt_export(pk->keymgmt, pk->keydata, data->selection,
+            if (!evp_keymgmt_export(pk->keymgmt, pk->keydata, selection,
                                     &encoder_import_cb, data))
                 return NULL;
             data->obj = data->constructed_obj;

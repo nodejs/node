@@ -12,6 +12,8 @@ the B<EVP_KDF> API.
 The EVP_KDF-TLS13_KDF algorithm implements the HKDF key derivation function
 as used by TLS 1.3.
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "TLS13-KDF" is the name for this implementation; it

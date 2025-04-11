@@ -4,6 +4,7 @@
 #include "node_builtins.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
+#include "node_url_pattern.h"
 #include "util.h"
 
 #include <string>
@@ -87,6 +88,7 @@
   V(types)                                                                     \
   V(udp_wrap)                                                                  \
   V(url)                                                                       \
+  V(url_pattern)                                                               \
   V(util)                                                                      \
   V(uv)                                                                        \
   V(v8)                                                                        \
@@ -683,9 +685,9 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
 
   Local<Object> module = Object::New(env->isolate());
   Local<Object> exports = Object::New(env->isolate());
-  Local<String> exports_prop =
-      String::NewFromUtf8Literal(env->isolate(), "exports");
-  module->Set(env->context(), exports_prop, exports).Check();
+  if (module->Set(env->context(), env->exports_string(), exports).IsNothing()) {
+    return;
+  }
 
   if (mod->nm_context_register_func != nullptr) {
     mod->nm_context_register_func(
@@ -697,10 +699,11 @@ void GetLinkedBinding(const FunctionCallbackInfo<Value>& args) {
         env, "Linked binding has no declared entry point.");
   }
 
-  auto effective_exports =
-      module->Get(env->context(), exports_prop).ToLocalChecked();
-
-  args.GetReturnValue().Set(effective_exports);
+  Local<Value> effective_exports;
+  if (module->Get(env->context(), env->exports_string())
+          .ToLocal(&effective_exports)) {
+    args.GetReturnValue().Set(effective_exports);
+  }
 }
 
 // Call built-in bindings' _register_<module name> function to

@@ -56,6 +56,9 @@ The current security stewards are documented in the main Node.js
     * Use the "summary" feature in HackerOne. Example [2038134](https://hackerone.com/reports/2038134)
     * `git node security --add-report=report_id`
     * `git node security --remove-report=report_id`
+  * Ensure to ping the Node.js TSC team for review of the PRs prior to the release date.
+    * Adding individuals with expertise in the report topic is also a viable option if
+      communicated properly with nodejs/security and TSC.
 
 * [ ] 3\. **Assigning Severity and Writing Team Summary:**
   * [ ] Assign a severity and write a team summary on HackerOne for the reports
@@ -78,6 +81,7 @@ The current security stewards are documented in the main Node.js
 * [ ] 6\. **Get release volunteers:**
   * Get volunteers for the upcoming security release on the affected release
     lines.
+  * Make sure to sync nodejs-private (vN.x) branches with nodejs/node.
 
 * [ ] 7\. **Preparing Pre and Post Release Blog Posts:**
   * [ ] Create a pre-release blog post using `git node security --pre-release`.
@@ -156,14 +160,10 @@ security announcements for more information.
 
 ## Post-Release
 
-* [ ] 1\. **Merge the Next Security Release PR:**
-  * This involves moving the `vulnerabilities.json` file from
-    `security-release/next-security-release` to the `security-release/YYYY-MM-DD`
-    folder and merging the PR.
-
-* [ ] 2\. **Cleanup:**
+* [ ] 1\. **Cleanup:**
   * [ ] `git node security --cleanup`. This command will:
-  * Close PRs and backports.
+  * Update next-security-release folder
+  * Close all PRs and backports labeled with `Security Release`.
   * Close HackerOne reports:
     * Close Resolved
     * Request Disclosure
@@ -174,7 +174,7 @@ security announcements for more information.
       Then uncheck the Public Disclosure on HackerOne box at the bottom of the
       page.
       ![screenshot of HackerOne CVE form](https://github.com/nodejs/node/assets/26234614/e22e4f33-7948-4dd2-952e-2f9166f5568d)
-  * [ ] PR machine-readable JSON descriptions of the vulnerabilities to the [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
+  * PR machine-readable JSON descriptions of the vulnerabilities to the [core](https://github.com/nodejs/security-wg/tree/HEAD/vuln/core)
     vulnerability DB.
   * [ ] Add yourself as a steward in the [Security Release Stewards](https://github.com/nodejs/node/blob/HEAD/doc/contributing/security-release-process.md#security-release-stewards)
 

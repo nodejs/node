@@ -3,7 +3,7 @@
 // Check that spawn child doesn't create duplicated entries
 const common = require('../common');
 
-if (common.isPi) {
+if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 

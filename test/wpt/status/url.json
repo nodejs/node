@@ -1,7 +1,4 @@
 {
-  "idlharness-shadowrealm.window.js": {
-    "skip": "ShadowRealm support is not enabled"
-  },
   "percent-encoding.window.js": {
     "skip": "TODO: port from .window.js"
   },
@@ -13,22 +10,7 @@
       ]
     }
   },
-  "toascii.window.js": {
-    "fail": {
-      "note": "Unicode 15.1",
-      "expected": [
-        "\uD87E\uDC68.com (using URL)",
-        "\uD87E\uDC68.com (using URL.host)",
-        "\uD87E\uDC68.com (using URL.hostname)",
-        "\u1E9E.com (using URL)",
-        "\u1E9E.com (using URL.host)",
-        "\u1E9E.com (using URL.hostname)",
-        "\u1E9E.foo.com (using URL)",
-        "\u1E9E.foo.com (using URL.host)",
-        "\u1E9E.foo.com (using URL.hostname)"
-      ]
-    }
-  },
+  "toascii.window.js": {},
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
   },

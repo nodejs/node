@@ -14,7 +14,6 @@
 #include "internal/cryptlib.h"
 #include "e_os.h"
 #include "buildinf.h"
-#include <openssl/quic.h>
 
 #if defined(__arm__) || defined(__arm) || defined(__aarch64__)
 # include "arm_arch.h"
@@ -200,10 +199,6 @@ const char *OPENSSL_info(int t)
         if (ossl_cpu_info_str[0] != '\0')
             return ossl_cpu_info_str + strlen(CPUINFO_PREFIX);
         break;
-#ifndef OPENSSL_NO_QUIC
-    case OPENSSL_INFO_QUIC:
-        return "QUIC";
-#endif
     default:
         break;
     }

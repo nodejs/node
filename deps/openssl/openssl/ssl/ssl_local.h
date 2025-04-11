@@ -337,13 +337,6 @@
 /* Flag used on OpenSSL ciphersuite ids to indicate they are for SSLv3+ */
 # define SSL3_CK_CIPHERSUITE_FLAG                0x03000000
 
-/* Check if an SSL structure is using QUIC (which uses TLSv1.3) */
-# ifndef OPENSSL_NO_QUIC
-#  define SSL_IS_QUIC(s)  (s->quic_method != NULL)
-# else
-#  define SSL_IS_QUIC(s) 0
-# endif
-
 /* Check if an SSL structure is using DTLS */
 # define SSL_IS_DTLS(s)  (s->method->ssl3_enc->enc_flags & SSL_ENC_FLAG_DTLS)
 
@@ -773,8 +766,6 @@ typedef enum tlsext_index_en {
     TLSEXT_IDX_cryptopro_bug,
     TLSEXT_IDX_early_data,
     TLSEXT_IDX_certificate_authorities,
-    TLSEXT_IDX_quic_transport_parameters_draft,
-    TLSEXT_IDX_quic_transport_parameters,
     TLSEXT_IDX_padding,
     TLSEXT_IDX_psk,
     /* Dummy index - must always be the last entry */
@@ -1214,24 +1205,9 @@ struct ssl_ctx_st {
     uint32_t disabled_mac_mask;
     uint32_t disabled_mkey_mask;
     uint32_t disabled_auth_mask;
-
-#ifndef OPENSSL_NO_QUIC
-    const SSL_QUIC_METHOD *quic_method;
-#endif
 };
 
 typedef struct cert_pkey_st CERT_PKEY;
-
-#ifndef OPENSSL_NO_QUIC
-struct quic_data_st {
-    struct quic_data_st *next;
-    OSSL_ENCRYPTION_LEVEL level;
-    size_t start;       /* offset into quic_buf->data */
-    size_t length;
-};
-typedef struct quic_data_st QUIC_DATA;
-int quic_set_encryption_secrets(SSL *ssl, OSSL_ENCRYPTION_LEVEL level);
-#endif
 
 struct ssl_st {
     /*
@@ -1492,11 +1468,6 @@ struct ssl_st {
     unsigned char handshake_traffic_hash[EVP_MAX_MD_SIZE];
     unsigned char client_app_traffic_secret[EVP_MAX_MD_SIZE];
     unsigned char server_app_traffic_secret[EVP_MAX_MD_SIZE];
-# ifndef OPENSSL_NO_QUIC
-    unsigned char client_hand_traffic_secret[EVP_MAX_MD_SIZE];
-    unsigned char server_hand_traffic_secret[EVP_MAX_MD_SIZE];
-    unsigned char client_early_traffic_secret[EVP_MAX_MD_SIZE];
-# endif
     unsigned char exporter_master_secret[EVP_MAX_MD_SIZE];
     unsigned char early_exporter_master_secret[EVP_MAX_MD_SIZE];
     EVP_CIPHER_CTX *enc_read_ctx; /* cryptographic state */
@@ -1709,35 +1680,8 @@ struct ssl_st {
          * selected.
          */
         int tick_identity;
-
-#ifndef OPENSSL_NO_QUIC
-        uint8_t *quic_transport_params;
-        size_t quic_transport_params_len;
-        uint8_t *peer_quic_transport_params_draft;
-        size_t peer_quic_transport_params_draft_len;
-        uint8_t *peer_quic_transport_params;
-        size_t peer_quic_transport_params_len;
-#endif
     } ext;
 
-#ifndef OPENSSL_NO_QUIC
-    OSSL_ENCRYPTION_LEVEL quic_read_level;
-    OSSL_ENCRYPTION_LEVEL quic_write_level;
-    OSSL_ENCRYPTION_LEVEL quic_latest_level_received;
-    BUF_MEM *quic_buf;          /* buffer incoming handshake messages */
-    /*
-     * defaults to 0, but can be set to:
-     * - TLSEXT_TYPE_quic_transport_parameters_draft
-     * - TLSEXT_TYPE_quic_transport_parameters
-     * Client: if 0, send both
-     * Server: if 0, use same version as client sent
-     */
-    int quic_transport_version;
-    QUIC_DATA *quic_input_data_head;
-    QUIC_DATA *quic_input_data_tail;
-    size_t quic_next_record_start;
-    const SSL_QUIC_METHOD *quic_method;
-#endif
     /*
      * Parsed form of the ClientHello, kept around across client_hello_cb
      * calls.
@@ -2866,11 +2810,6 @@ __owur int custom_exts_copy_flags(custom_ext_methods *dst,
 void custom_exts_free(custom_ext_methods *exts);
 
 void ssl_comp_free_compression_methods_int(void);
-
-#ifndef OPENSSL_NO_QUIC
-__owur int SSL_clear_not_quic(SSL *s);
-__owur int SSL_clear_quic(SSL *s);
-#endif
 
 /* ssl_mcnf.c */
 void ssl_ctx_system_config(SSL_CTX *ctx);
