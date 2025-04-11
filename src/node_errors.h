@@ -61,6 +61,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CRYPTO_INVALID_KEYPAIR, RangeError)                                    \
   V(ERR_CRYPTO_INVALID_KEYTYPE, RangeError)                                    \
   V(ERR_CRYPTO_INVALID_MESSAGELEN, RangeError)                                 \
+  V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, RangeError)                              \
   V(ERR_CRYPTO_INVALID_STATE, Error)                                           \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, RangeError)                                 \
   V(ERR_CRYPTO_JWK_UNSUPPORTED_CURVE, Error)                                   \
@@ -188,11 +189,12 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INVALID_DIGEST, "Invalid digest")                               \
   V(ERR_CRYPTO_INVALID_IV, "Invalid initialization vector")                    \
   V(ERR_CRYPTO_INVALID_JWK, "Invalid JWK format")                              \
+  V(ERR_CRYPTO_INVALID_KDF_PARAMS, "Invalid kdf params")                       \
   V(ERR_CRYPTO_INVALID_KEYLEN, "Invalid key length")                           \
   V(ERR_CRYPTO_INVALID_KEYPAIR, "Invalid key pair")                            \
   V(ERR_CRYPTO_INVALID_KEYTYPE, "Invalid key type")                            \
   V(ERR_CRYPTO_INVALID_MESSAGELEN, "Invalid message length")                   \
-  V(ERR_CRYPTO_INVALID_KDF_PARAMS, "Invalid kdf params")                       \
+  V(ERR_CRYPTO_INVALID_SCRYPT_PARAMS, "Invalid scrypt params")                 \
   V(ERR_CRYPTO_INVALID_STATE, "Invalid state")                                 \
   V(ERR_CRYPTO_INVALID_TAG_LENGTH, "Invalid taglength")                        \
   V(ERR_CRYPTO_JWK_UNSUPPORTED_KEY_TYPE, "Unsupported JWK Key Type.")          \

@@ -91,9 +91,13 @@ const { hasOpenSSL3 } = require('../common/crypto');
     code: 'ERR_OUT_OF_RANGE'
   });
 
-  assert.throws(() => hkdfSync('unknown', 'a', '', '', 10));
+  assert.throws(() => hkdfSync('unknown', 'a', '', '', 10), {
+    code: 'ERR_CRYPTO_INVALID_DIGEST'
+  });
 
-  assert.throws(() => hkdf('unknown', 'a', '', '', 10, common.mustNotCall()));
+  assert.throws(() => hkdf('unknown', 'a', '', '', 10, common.mustNotCall()), {
+    code: 'ERR_CRYPTO_INVALID_DIGEST'
+  });
 
   assert.throws(() => hkdf('unknown', 'a', '', Buffer.alloc(1025), 10,
                            common.mustNotCall()), {
@@ -104,32 +108,32 @@ const { hasOpenSSL3 } = require('../common/crypto');
     code: 'ERR_OUT_OF_RANGE'
   });
 
-  // assert.throws(
-  //   () => hkdf('sha512', 'a', '', '', 64 * 255 + 1, common.mustNotCall()), {
-  //     code: 'ERR_CRYPTO_INVALID_KEYLEN'
-  //   });
+  assert.throws(
+    () => hkdf('sha512', 'a', '', '', 64 * 255 + 1, common.mustNotCall()), {
+      code: 'ERR_CRYPTO_INVALID_KEYLEN'
+    });
 
-  // assert.throws(
-  //   () => hkdfSync('sha512', 'a', '', '', 64 * 255 + 1), {
-  //     code: 'ERR_CRYPTO_INVALID_KEYLEN'
-  //   });
+  assert.throws(
+    () => hkdfSync('sha512', 'a', '', '', 64 * 255 + 1), {
+      code: 'ERR_CRYPTO_INVALID_KEYLEN'
+    });
 }
 
 const algorithms = [
-  ['sha256', 'salt', 'info', 10],
-  ['sha256', '', '', 10],
-  ['sha256', 'salt', '', 10],
-  ['sha512', 'salt', '', 15],
+  ['sha256', 'secret', 'salt', 'info', 10],
+  ['sha256', '', '', '', 10],
+  ['sha256', '', 'salt', '', 10],
+  ['sha512', 'secret', 'salt', '', 15],
 ];
 if (!hasOpenSSL3)
   algorithms.push(['whirlpool', 'secret', '', 'info', 20]);
 
-algorithms.forEach(([ hash, salt, info, length ]) => {
+algorithms.forEach(([ hash, secret, salt, info, length ]) => {
   {
-    const syncResult = hkdfSync(hash, 'secret', salt, info, length);
+    const syncResult = hkdfSync(hash, secret, salt, info, length);
     assert(syncResult instanceof ArrayBuffer);
     let is_async = false;
-    hkdf(hash, 'secret', salt, info, length,
+    hkdf(hash, secret, salt, info, length,
          common.mustSucceed((asyncResult) => {
            assert(is_async);
            assert(asyncResult instanceof ArrayBuffer);
@@ -141,7 +145,7 @@ algorithms.forEach(([ hash, salt, info, length ]) => {
   }
 
   {
-    const buf_secret = Buffer.from('secret');
+    const buf_secret = Buffer.from(secret);
     const buf_salt = Buffer.from(salt);
     const buf_info = Buffer.from(info);
 
@@ -153,7 +157,7 @@ algorithms.forEach(([ hash, salt, info, length ]) => {
   }
 
   {
-    const key_secret = createSecretKey(Buffer.from('secret'));
+    const key_secret = createSecretKey(Buffer.from(secret));
     const buf_salt = Buffer.from(salt);
     const buf_info = Buffer.from(info);
 
@@ -165,7 +169,7 @@ algorithms.forEach(([ hash, salt, info, length ]) => {
   }
 
   {
-    const ta_secret = new Uint8Array(Buffer.from('secret'));
+    const ta_secret = new Uint8Array(Buffer.from(secret));
     const ta_salt = new Uint16Array(Buffer.from(salt));
     const ta_info = new Uint32Array(Buffer.from(info));
 
@@ -177,7 +181,7 @@ algorithms.forEach(([ hash, salt, info, length ]) => {
   }
 
   {
-    const ta_secret = new Uint8Array(Buffer.from('secret'));
+    const ta_secret = new Uint8Array(Buffer.from(secret));
     const ta_salt = new Uint16Array(Buffer.from(salt));
     const ta_info = new Uint32Array(Buffer.from(info));
 
@@ -194,7 +198,7 @@ algorithms.forEach(([ hash, salt, info, length ]) => {
   }
 
   {
-    const ta_secret = new Uint8Array(Buffer.from('secret'));
+    const ta_secret = new Uint8Array(Buffer.from(secret));
     const sa_salt = new SharedArrayBuffer(0);
     const sa_info = new SharedArrayBuffer(1);
 

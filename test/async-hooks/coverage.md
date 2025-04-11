@@ -13,7 +13,7 @@ Showing which kind of async resource is covered by which test:
 | HTTPCLIENTREQUEST   | test-httpparser.response.js             |
 | Immediate           | test-immediate.js                       |
 | JSSTREAM            | TODO (crashes when accessing directly)  |
-| KDFREQUEST          | test-crypto-pbkdf2.js                   |
+| PBKDF2REQUEST       | test-crypto-pbkdf2.js                   |
 | PIPECONNECTWRAP     | test-pipeconnectwrap.js                 |
 | PIPEWRAP            | test-pipewrap.js                        |
 | PROCESSWRAP         | test-pipewrap.js                        |
