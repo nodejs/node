@@ -3520,10 +3520,7 @@ void Initialize(Local<Object> target,
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings,
                                     false>);
   SetProtoMethod(
-      isolate,
-      session,
-      "setGracefulClose",
-      Http2Session::SetGracefulClose);
+      isolate, session, "setGracefulClose", Http2Session::SetGracefulClose);
   SetConstructorFunction(context, target, "Http2Session", session);
 
   Local<Object> constants = Object::New(isolate);

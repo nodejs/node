@@ -788,7 +788,9 @@ class Http2Session : public AsyncWrap,
 
   Statistics statistics_ = {};
 
-  bool IsGracefulCloseInitiated() const { return graceful_close_initiated_; }
+  bool IsGracefulCloseInitiated() const {
+    return graceful_close_initiated_;
+  }
   void SetGracefulCloseInitiated(bool value) {
     graceful_close_initiated_ = value;
   }
