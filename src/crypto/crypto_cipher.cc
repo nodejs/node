@@ -459,7 +459,7 @@ bool CipherBase::InitAuthenticated(std::string_view cipher_type,
       // authentication tag length also defaults to 16 bytes when decrypting,
       // whereas GCM would accept any valid authentication tag length.
       if (ctx_.isChaCha20Poly1305()) {
-        auth_tag_len = 16;
+        auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
       } else {
         THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
           env(), "authTagLength required for %s", cipher_type);
@@ -572,7 +572,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (cipher->ctx_.isGcmMode() && cipher->auth_tag_len_ == kNoAuthTagLength &&
-      tag_len != 16 && env->EmitProcessEnvWarning()) {
+      tag_len != EVP_GCM_TLS_TAG_LEN && env->EmitProcessEnvWarning()) {
     if (ProcessEmitDeprecationWarning(
             env,
             "Using AES-GCM authentication tags of less than 128 bits without "
@@ -821,7 +821,7 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       // always be given by the user.
       if (auth_tag_len_ == kNoAuthTagLength) {
         CHECK(ctx_.isGcmMode());
-        auth_tag_len_ = sizeof(auth_tag_);
+        auth_tag_len_ = EVP_GCM_TLS_TAG_LEN;
       }
       ok = ctx_.getAeadTag(auth_tag_len_,
                            reinterpret_cast<unsigned char*>(auth_tag_));
