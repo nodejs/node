@@ -1,5 +1,0 @@
-#
-# Example configuration file using includes.
-#
-
-.include includes.cnf

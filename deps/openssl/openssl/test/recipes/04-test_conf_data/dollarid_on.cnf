@@ -1,5 +1,0 @@
-.pragma dollarid:on
-
-bar = 0
-foo$bar = 1
-cookie = ${foo$bar}
