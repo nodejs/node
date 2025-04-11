@@ -1,0 +1,75 @@
+=pod
+
+=head1 NAME
+
+SSL_set_blocking_mode, SSL_get_blocking_mode - configure blocking mode for a
+QUIC SSL object
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_set_blocking_mode(SSL *s, int blocking);
+ int SSL_get_blocking_mode(SSL *s);
+
+=head1 DESCRIPTION
+
+SSL_set_blocking_mode() can be used to enable or disable blocking mode on a QUIC
+connection SSL object. By default, blocking is enabled, unless the SSL object is
+configured to use an underlying read or write BIO which cannot provide a poll
+descriptor (see L<BIO_get_rpoll_descriptor(3)>), as blocking mode cannot be
+supported in this case.
+
+To enable blocking mode, call SSL_set_blocking_mode() with I<blocking> set to 1;
+to disable it, call SSL_set_blocking_mode() with I<blocking> set to 0.
+
+To retrieve the current blocking mode, call SSL_get_blocking_mode().
+
+Blocking mode means that calls such as SSL_read() and SSL_write() will block
+until the requested operation can be performed. In nonblocking mode, these
+calls will fail if the requested operation cannot be performed immediately; see
+L<SSL_get_error(3)>.
+
+These functions are only applicable to QUIC connection SSL objects. Other kinds
+of SSL object, such as those for TLS, automatically function in blocking or
+nonblocking mode based on whether the underlying network read and write BIOs
+provided to the SSL object are themselves configured in nonblocking mode.
+
+Where a QUIC connection SSL object is used in nonblocking mode, an application
+is responsible for ensuring that the SSL object is ticked regularly; see
+L<SSL_handle_events(3)>.
+
+Blocking mode is disabled automatically if the application provides a QUIC
+connection SSL object with a network BIO which cannot support blocking mode. To
+re-enable blocking mode in this case, an application must set a network BIO
+which can support blocking mode and explicitly call SSL_set_blocking_mode().
+
+=head1 RETURN VALUES
+
+SSL_set_blocking_mode() returns 1 on success and 0 on failure. The function
+fails if called on an SSL object which does not represent a QUIC connection,
+or if blocking mode cannot be used for the given connection.
+
+SSL_get_blocking_mode() returns 1 if blocking is currently enabled. It returns
+-1 if called on an unsupported SSL object.
+
+=head1 SEE ALSO
+
+L<SSL_handle_events(3)>, L<SSL_poll(3)>, L<openssl-quic(7)>,
+L<openssl-quic-concurrency(7)>, L<ssl(7)>
+
+=head1 HISTORY
+
+The SSL_set_blocking_mode() and SSL_get_blocking_mode() functions were added in
+OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2022-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

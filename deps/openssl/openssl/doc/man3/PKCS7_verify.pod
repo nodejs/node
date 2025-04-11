@@ -19,6 +19,8 @@ PKCS7_verify() is very similar to L<CMS_verify(3)>.
 It verifies a PKCS#7 signedData structure given in I<p7>.
 The optional I<certs> parameter refers to a set of certificates
 in which to search for signer's certificates.
+It is also used
+as a source of untrusted intermediate CA certificates for chain building.
 I<p7> may contain extra untrusted CA certificates that may be used for
 chain building as well as CRLs that may be used for certificate validation.
 I<store> may be NULL or point to
@@ -131,7 +133,7 @@ L<ERR_get_error(3)>, L<PKCS7_sign(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -79,6 +79,28 @@ Valid values are "AES-128-WRAP", "AES-192-WRAP", "AES-256-WRAP" and "DES3-WRAP".
 
 =back
 
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling EVP_KDF_derive. It returns 0 if "key-check"
+parameter is set to 0 and the check fails.
+
+=item "key-check" (B<OSSL_KDF_PARAM_FIPS_KEY_CHECK>) <integer>
+
+The default value of 1 causes an error during EVP_KDF_CTX_set_params() if the
+length of used key-derivation key (B<OSSL_KDF_PARAM_KEY>) is shorter than 112
+bits.
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
 =head1 NOTES
 
 A context for X942KDF can be obtained by calling:
@@ -143,7 +165,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -42,35 +42,42 @@ L<CMS_add0_recipient_key(3)>.
 The B<CMS_ContentInfo> structure needs to be finalized using L<CMS_final(3)>
 and then freed using L<CMS_ContentInfo_free(3)>.
 
-CMS_EnvelopedData_create() and  CMS_AuthEnvelopedData_create are similar to
-CMS_EnvelopedData_create_ex() and
-CMS_AuthEnvelopedData_create_ex() but use default values of NULL for
+CMS_EnvelopedData_create() and CMS_AuthEnvelopedData_create() are similar to
+CMS_EnvelopedData_create_ex() and CMS_AuthEnvelopedData_create_ex()
+but use default values of NULL for
 the library context I<libctx> and the property query I<propq>.
 
 =head1 NOTES
 
-Although CMS_EnvelopedData_create() and CMS_AuthEnvelopedData_create() allocate
+Although CMS_EnvelopedData_create_ex(), and CMS_EnvelopedData_create(),
+CMS_AuthEnvelopedData_create_ex(), and CMS_AuthEnvelopedData_create() allocate
 a new B<CMS_ContentInfo> structure, they are not usually used in applications.
 The wrappers L<CMS_encrypt(3)> and L<CMS_decrypt(3)> are often used instead.
 
 =head1 RETURN VALUES
 
-If the allocation fails, CMS_EnvelopedData_create() and
-CMS_AuthEnvelopedData_create() return NULL and set an error code that can be
-obtained by L<ERR_get_error(3)>. Otherwise they return a pointer to the newly
-allocated structure.
+If the allocation fails, CMS_EnvelopedData_create_ex(),
+CMS_EnvelopedData_create(), CMS_AuthEnvelopedData_create_ex(),
+CMS_AuthEnvelopedData_create(), CMS_AuthEnvelopedData_create(),
+and CMS_AuthEnvelopedData_create_ex() return NULL and set an
+error code that can be obtained by L<ERR_get_error(3)>.
+Otherwise, they return a pointer to the newly allocated structure.
 
 =head1 SEE ALSO
 
-L<ERR_get_error(3)>, L<CMS_encrypt(3)>, L<CMS_decrypt(3)>, L<CMS_final(3)>
+L<ERR_get_error(3)>, L<CMS_encrypt(3)>, L<CMS_decrypt(3)>, L<CMS_final(3)>,
+L<CMS_sign_ex(3)>, L<CMS_encrypt_ex(3)>
 
 =head1 HISTORY
 
 The CMS_EnvelopedData_create_ex() method was added in OpenSSL 3.0.
 
+CMS_AuthEnvelopedData_create() and CMS_AuthEnvelopedData_create_ex()
+were added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -162,6 +162,15 @@ The value has the same syntax as the environment variable.
 For x86 the string looks like C<CPUINFO: OPENSSL_ia32cap=0x123:0x456>
 or C<CPUINFO: N/A> if not available.
 
+=item OPENSSL_WINCTX
+
+The Windows install context.
+The Windows install context is used to compute the OpenSSL registry key name
+on Windows.  The full registry key is
+C<SOFTWARE\WOW6432Node\OpenSSL-{major}.{minor}-{context}>, where C<{major}>,
+C<{minor}> and C<{context}> are OpenSSL's major version number, minor version
+number and the Windows install context, respectively.
+
 =back
 
 For an unknown I<t>, the text C<not available> is returned.
@@ -210,6 +219,15 @@ This is the current setting of the cpu capability flags. It is usually
 automatically configured but may be set via an environment variable.
 The value has the same syntax as the environment variable.
 For x86 the string looks like C<OPENSSL_ia32cap=0x123:0x456>.
+
+=item OPENSSL_INFO_WINDOWS_CONTEXT
+
+The Windows install context.
+The Windows install context is used to compute the OpenSSL registry key name
+on Windows.  The full registry key is
+C<SOFTWARE\WOW6432Node\OpenSSL-{major}.{minor}-{context}>, where C<{major}>,
+C<{minor}> and C<{context}> are OpenSSL's major version number, minor version
+number and the Windows install context, respectively.
 
 =back
 

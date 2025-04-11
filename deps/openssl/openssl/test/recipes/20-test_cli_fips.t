@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -26,7 +26,7 @@ use platform;
 my $no_check = disabled("fips") || disabled('fips-securitychecks');
 plan skip_all => "Test only supported in a fips build with security checks"
     if $no_check;
-plan tests => 11;
+plan tests => 12;
 
 my $fipsmodule = bldtop_file('providers', platform->dso('fips'));
 my $fipsconf = srctop_file("test", "fips-and-base.cnf");
@@ -35,6 +35,9 @@ my $tbs_data = $fipsmodule;
 my $bogus_data = $fipsconf;
 
 $ENV{OPENSSL_CONF} = $fipsconf;
+
+run(test(["fips_version_test", "-config", $fipsconf, "<3.4.0"]),
+          capture => 1, statusvar => \my $dsasignpass);
 
 ok(run(app(['openssl', 'list', '-public-key-methods', '-verbose'])),
    "provider listing of public key methods");
@@ -48,6 +51,8 @@ ok(run(app(['openssl', 'list', '-kem-algorithms', '-verbose'])),
    "provider listing of key encapsulation algorithms");
 ok(run(app(['openssl', 'list', '-signature-algorithms', '-verbose'])),
    "provider listing of signature algorithms");
+ok(run(app(['openssl', 'list', '-tls-signature-algorithms', '-verbose'])),
+   "provider listing of TLS signature algorithms");
 ok(run(app(['openssl', 'list', '-asymcipher-algorithms', '-verbose'])),
    "provider listing of encryption algorithms");
 ok(run(app(['openssl', 'list', '-key-managers', '-verbose', '-select', 'DSA' ])),
@@ -279,7 +284,7 @@ SKIP: {
 
 SKIP : {
     skip "FIPS DSA tests because of no dsa in this build", 1
-        if disabled("dsa");
+        if disabled("dsa") || $dsasignpass == '0';
 
     subtest DSA => sub {
         my $testtext_prefix = 'DSA';

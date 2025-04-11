@@ -9,6 +9,7 @@ openssl-req - PKCS#10 certificate request and certificate generating command
 
 B<openssl> B<req>
 [B<-help>]
+[B<-cipher>]
 [B<-inform> B<DER>|B<PEM>]
 [B<-outform> B<DER>|B<PEM>]
 [B<-in> I<filename>]
@@ -33,15 +34,18 @@ B<openssl> B<req>
 [B<-config> I<filename>]
 [B<-section> I<name>]
 [B<-x509>]
+[B<-x509v1>]
 [B<-CA> I<filename>|I<uri>]
 [B<-CAkey> I<filename>|I<uri>]
+[B<-not_before> I<date>]
+[B<-not_after> I<date>]
 [B<-days> I<n>]
 [B<-set_serial> I<n>]
 [B<-newhdr>]
 [B<-copy_extensions> I<arg>]
-[B<-addext> I<ext>]
 [B<-extensions> I<section>]
 [B<-reqexts> I<section>]
+[B<-addext> I<ext>]
 [B<-precert>]
 [B<-utf8>]
 [B<-reqopt>]
@@ -52,6 +56,7 @@ B<openssl> B<req>
 [B<-vfyopt> I<nm>:I<v>]
 [B<-batch>]
 [B<-verbose>]
+[B<-quiet>]
 {- $OpenSSL::safe::opt_name_synopsis -}
 {- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
@@ -70,12 +75,23 @@ for use as root CAs for example.
 
 Print out a usage message.
 
-=item B<-inform> B<DER>|B<PEM>, B<-outform> B<DER>|B<PEM>
+=item B<-inform> B<DER>|B<PEM>
 
-The input and output formats; unspecified by default.
+The CSR input file format to use; by default PEM is tried first.
+See L<openssl-format-options(1)> for details.
+
+=item B<-outform> B<DER>|B<PEM>
+
+The output format; unspecified by default.
 See L<openssl-format-options(1)> for details.
 
 The data is a PKCS#10 object.
+
+=item B<-cipher> I<name>
+
+Specify the cipher to be used for encrypting the private key.
+If no cipher is specified, AES-256-CBC will be used by default.
+You can override this by providing any valid OpenSSL cipher name.
 
 =item B<-in> I<filename>
 
@@ -141,7 +157,9 @@ Prints out the value of the modulus of the public key contained in the request.
 
 =item B<-verify>
 
-Verifies the self-signature on the request.
+Verifies the self-signature on the request. If the verification fails,
+the program will immediately exit, i.e. further option processing
+(e.g. B<-text>) is skipped.
 
 =item B<-new>
 
@@ -161,7 +179,7 @@ This option is used to generate a new private key unless B<-key> is given.
 It is subsequently used as if it was given using the B<-key> option.
 
 This option implies the B<-new> flag to create a new certificate request
-or a new certificate in case B<-x509> is given.
+or a new certificate in case B<-x509> is used.
 
 The argument takes one of several forms.
 
@@ -290,8 +308,19 @@ a large random number will be used for the serial number.
 Unless the B<-copy_extensions> option is used,
 X.509 extensions are not copied from any provided request input file.
 
-X.509 extensions to be added can be specified in the configuration file
-or using the B<-addext> option.
+X.509 extensions to be added can be specified in the configuration file,
+possibly using the B<-config> and B<-extensions> options,
+and/or using the B<-addext> option.
+
+Unless B<-x509v1> is given, generated certificates bear X.509 version 3.
+Unless specified otherwise,
+key identifier extensions are included as described in L<x509v3_config(5)>.
+
+=item B<-x509v1>
+
+Request generation of certificates with X.509 version 1.
+This implies B<-x509>.
+If X.509 extensions are given, anyway X.509 version 3 is set.
 
 =item B<-CA> I<filename>|I<uri>
 
@@ -307,11 +336,36 @@ Sets the "CA" private key to sign a certificate with.
 The private key must match the public key of the certificate given with B<-CA>.
 If this option is not provided then the key must be present in the B<-CA> input.
 
+=item B<-not_before> I<date>
+
+When B<-x509> is in use this allows the start date to be explicitly set,
+otherwise it is ignored. The format of I<date> is YYMMDDHHMMSSZ (the
+same as an ASN1 UTCTime structure), or YYYYMMDDHHMMSSZ (the same as an
+ASN1 GeneralizedTime structure). In both formats, seconds SS and
+timezone Z must be present.
+Alternatively, you can also use "today".
+
+=item B<-not_after> I<date>
+
+When B<-x509> is in use this allows the expiry date to be explicitly
+set, otherwise it is ignored. The format of I<date> is YYMMDDHHMMSSZ
+(the same as an ASN1 UTCTime structure), or YYYYMMDDHHMMSSZ (the same as
+an ASN1 GeneralizedTime structure). In both formats, seconds SS and
+timezone Z must be present.
+Alternatively, you can also use "today".
+
+This overrides the B<-days> option.
+
 =item B<-days> I<n>
 
-When B<-x509> is in use this specifies the number of
-days to certify the certificate for, otherwise it is ignored. I<n> should
+When B<-x509> is in use this specifies the number of days from today to
+certify the certificate for, otherwise it is ignored. I<n> should
 be a positive integer. The default is 30 days.
+
+Regardless of the option B<-not_before>, the days are always counted from
+today.
+When used together with the option B<-not_after>, the explicit expiry
+date takes precedence.
 
 =item B<-set_serial> I<n>
 
@@ -330,23 +384,26 @@ all extensions in the request are copied to the certificate.
 The main use of this option is to allow a certificate request to supply
 values for certain extensions such as subjectAltName.
 
+=item B<-extensions> I<section>,
+B<-reqexts> I<section>
+
+Can be used to override the name of the configuration file section
+from which X.509 extensions are included
+in the certificate (when B<-x509> is in use) or certificate request.
+This allows several different sections to be used in the same configuration
+file to specify requests for a variety of purposes.
+
 =item B<-addext> I<ext>
 
 Add a specific extension to the certificate (if B<-x509> is in use)
 or certificate request.  The argument must have the form of
-a key=value pair as it would appear in a config file.
+a C<key=value> pair as it would appear in a config file.
+
+If an extension is added using this option that has the same OID as one
+defined in the extension section of the config file, it overrides that one.
 
 This option can be given multiple times.
-
-=item B<-extensions> I<section>
-
-=item B<-reqexts> I<section>
-
-These options specify alternative sections to include certificate
-extensions (if B<-x509> is in use) or certificate request extensions.
-This allows several different sections to
-be used in the same configuration file to specify requests for
-a variety of purposes.
+Doing so, the same key most not be given more than once.
 
 =item B<-precert>
 
@@ -385,6 +442,12 @@ Non-interactive mode.
 =item B<-verbose>
 
 Print extra details about the operations being performed.
+
+=item B<-quiet>
+
+Print fewer details about the operations being performed, which may be
+handy during batch scripts or pipelines (specifically "progress dots"
+during key generation are suppressed).
 
 =item B<-keygen_engine> I<id>
 
@@ -500,7 +563,7 @@ BMPStrings and UTF8Strings.
 
 This specifies the configuration file section containing a list of
 extensions to add to the certificate request. It can be overridden
-by the B<-reqexts> command line switch. See the
+by the B<-reqexts> (or B<-extensions>) command line switch. See the
 L<x509v3_config(5)> manual page for details of the
 extension section format.
 
@@ -595,6 +658,10 @@ will be treated as though they were a DirectoryString.
 Examine and verify certificate request:
 
  openssl req -in req.pem -text -verify -noout
+
+Specify the cipher to be used for encrypting the private key:
+
+ openssl req -newkey rsa:2048 -keyout privatekey.pem -out request.csr -cipher aes-256-cbc
 
 Create a private key and then generate a certificate request from it:
 
@@ -768,6 +835,8 @@ L<x509v3_config(5)>
 
 =head1 HISTORY
 
+The default encryption cipher was changed from 3DES to AES-256 in OpenSSL 3.5.
+
 The B<-section> option was added in OpenSSL 3.0.0.
 
 The B<-multivalue-rdn> option has become obsolete in OpenSSL 3.0.0 and
@@ -775,6 +844,14 @@ has no effect.
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
 The <-nodes> option was deprecated in OpenSSL 3.0, too; use B<-noenc> instead.
+
+The B<-reqexts> option has been made an alias of B<-extensions> in OpenSSL 3.2.
+
+Since OpenSSL 3.2,
+generated certificates bear X.509 version 3 unless B<-x509v1> is given,
+and key identifier extensions are included by default.
+
+Since OpenSSL 3.3, the B<-verify> option will exit with 1 on failure.
 
 =head1 COPYRIGHT
 

@@ -119,7 +119,6 @@ static int test_ASN1_OCTET_STRING_set_tgt_is_src(void)
     return result;
 }
 
-
 void cleanup_tests(void)
 {
     return;

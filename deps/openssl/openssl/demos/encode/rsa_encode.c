@@ -1,5 +1,5 @@
 /*-
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@ static const char *propq = NULL;
  */
 static EVP_PKEY *load_key(OSSL_LIB_CTX *libctx, FILE *f, const char *passphrase)
 {
-    int rv = 0;
+    int ret = 0;
     EVP_PKEY *pkey = NULL;
     OSSL_DECODER_CTX *dctx = NULL;
     int selection = 0;
@@ -75,7 +75,7 @@ static EVP_PKEY *load_key(OSSL_LIB_CTX *libctx, FILE *f, const char *passphrase)
         goto cleanup;
     }
 
-    rv = 1;
+    ret = 1;
 cleanup:
     OSSL_DECODER_CTX_free(dctx);
 
@@ -84,7 +84,7 @@ cleanup:
      * might fail subsequently, so ensure it's properly freed
      * in this case.
      */
-    if (rv == 0) {
+    if (ret == 0) {
         EVP_PKEY_free(pkey);
         pkey = NULL;
     }
@@ -100,7 +100,7 @@ cleanup:
  */
 static int store_key(EVP_PKEY *pkey, FILE *f, const char *passphrase)
 {
-    int rv = 0;
+    int ret = 0;
     int selection;
     OSSL_ENCODER_CTX *ectx = NULL;
 
@@ -162,15 +162,15 @@ static int store_key(EVP_PKEY *pkey, FILE *f, const char *passphrase)
         goto cleanup;
     }
 
-    rv = 1;
+    ret = 1;
 cleanup:
     OSSL_ENCODER_CTX_free(ectx);
-    return rv;
+    return ret;
 }
 
 int main(int argc, char **argv)
 {
-    int rv = 1;
+    int ret = EXIT_FAILURE;
     OSSL_LIB_CTX *libctx = NULL;
     EVP_PKEY *pkey = NULL;
     const char *passphrase_in = NULL, *passphrase_out = NULL;
@@ -194,9 +194,9 @@ int main(int argc, char **argv)
         goto cleanup;
     }
 
-    rv = 0;
+    ret = EXIT_SUCCESS;
 cleanup:
     EVP_PKEY_free(pkey);
     OSSL_LIB_CTX_free(libctx);
-    return rv;
+    return ret;
 }

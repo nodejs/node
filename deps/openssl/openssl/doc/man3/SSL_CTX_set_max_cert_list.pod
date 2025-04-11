@@ -55,7 +55,7 @@ than the default, as the buffer is handled dynamically and only uses the
 memory actually required by the data sent by the peer.
 
 If the maximum certificate chain size allowed is exceeded, the handshake will
-fail with a SSL_R_EXCESSIVE_MESSAGE_SIZE error.
+fail with an SSL_R_EXCESSIVE_MESSAGE_SIZE error.
 
 =head1 RETURN VALUES
 

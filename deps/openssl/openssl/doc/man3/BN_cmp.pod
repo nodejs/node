@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_abs_is_word, BN_is_odd - BIGNUM comparison and test functions
+BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_abs_is_word, BN_is_odd, BN_are_coprime
+- BIGNUM comparison and test functions
 
 =head1 SYNOPSIS
 
@@ -17,6 +18,8 @@ BN_cmp, BN_ucmp, BN_is_zero, BN_is_one, BN_is_word, BN_abs_is_word, BN_is_odd - 
  int BN_abs_is_word(const BIGNUM *a, const BN_ULONG w);
  int BN_is_odd(const BIGNUM *a);
 
+ int BN_are_coprime(BIGNUM *a, const BIGNUM *b, BN_CTX *ctx);
+
 =head1 DESCRIPTION
 
 BN_cmp() compares the numbers I<a> and I<b>. BN_ucmp() compares their
@@ -25,6 +28,10 @@ absolute values.
 BN_is_zero(), BN_is_one(), BN_is_word() and BN_abs_is_word() test if
 I<a> equals 0, 1, I<w>, or E<verbar>I<w>E<verbar> respectively.
 BN_is_odd() tests if I<a> is odd.
+
+BN_are_coprime() determines if B<a> and B<b> are coprime.
+B<ctx> is used internally for storing temporary variables.
+The values of B<a> and B<b> and B<ctx> must not be NULL.
 
 =head1 RETURN VALUES
 
@@ -35,10 +42,15 @@ of I<a> and I<b>.
 BN_is_zero(), BN_is_one() BN_is_word(), BN_abs_is_word() and
 BN_is_odd() return 1 if the condition is true, 0 otherwise.
 
+BN_are_coprime() returns 1 if the B<BIGNUM>'s are coprime, otherwise it
+returns 0.
+
 =head1 HISTORY
 
 Prior to OpenSSL 1.1.0, BN_is_zero(), BN_is_one(), BN_is_word(),
 BN_abs_is_word() and BN_is_odd() were macros.
+
+The function BN_are_coprime() was added in OpenSSL 3.1.
 
 =head1 COPYRIGHT
 

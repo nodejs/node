@@ -1,0 +1,162 @@
+=pod
+
+=head1 NAME
+
+SSL_get_stream_read_state, SSL_get_stream_write_state,
+SSL_get_stream_read_error_code, SSL_get_stream_write_error_code,
+SSL_STREAM_STATE_NONE, SSL_STREAM_STATE_OK, SSL_STREAM_STATE_WRONG_DIR,
+SSL_STREAM_STATE_FINISHED, SSL_STREAM_STATE_RESET_LOCAL,
+SSL_STREAM_STATE_RESET_REMOTE, SSL_STREAM_STATE_CONN_CLOSED - get QUIC stream
+state
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ #define SSL_STREAM_STATE_NONE
+ #define SSL_STREAM_STATE_OK
+ #define SSL_STREAM_STATE_WRONG_DIR
+ #define SSL_STREAM_STATE_FINISHED
+ #define SSL_STREAM_STATE_RESET_LOCAL
+ #define SSL_STREAM_STATE_RESET_REMOTE
+ #define SSL_STREAM_STATE_CONN_CLOSED
+
+ int SSL_get_stream_read_state(SSL *ssl);
+ int SSL_get_stream_write_state(SSL *ssl);
+
+ int SSL_get_stream_read_error_code(SSL *ssl, uint64_t *app_error_code);
+ int SSL_get_stream_write_error_code(SSL *ssl, uint64_t *app_error_code);
+
+=head1 DESCRIPTION
+
+SSL_get_stream_read_state() and SSL_get_stream_write_state() retrieve the
+overall state of the receiving and sending parts of a QUIC stream, respectively.
+
+They both return one of the following values:
+
+=over 4
+
+=item B<SSL_STREAM_STATE_NONE>
+
+This value is returned if called on a non-QUIC SSL object, or on a QUIC
+connection SSL object without a default stream attached.
+
+=item B<SSL_STREAM_STATE_OK>
+
+This value is returned on a stream which has not been concluded and remains
+healthy.
+
+=item B<SSL_STREAM_STATE_WRONG_DIR>
+
+This value is returned if SSL_get_stream_read_state() is called on a
+locally-initiated (and thus send-only) unidirectional stream, or, conversely, if
+SSL_get_stream_write_state() is called on a remotely-initiated (and thus
+receive-only) unidirectional stream.
+
+=item B<SSL_STREAM_STATE_FINISHED>
+
+For SSL_get_stream_read_state(), this value is returned when the remote peer has
+signalled the end of the receiving part of the stream. Note that there may still
+be residual data available to read via L<SSL_read(3)> when this state is
+returned.
+
+For SSL_get_stream_write_state(), this value is returned when the local
+application has concluded the stream using L<SSL_stream_conclude(3)>. Future
+L<SSL_write(3)> calls will not succeed.
+
+=item B<SSL_STREAM_STATE_RESET_LOCAL>
+
+This value is returned when the applicable stream part was reset by the local
+application.
+
+For SSL_get_stream_read_state(), this means that the receiving part of the
+stream was aborted using a locally transmitted QUIC B<STOP_SENDING> frame. It
+may or may not still be possible to obtain any residual data which remains to be
+read by calling L<SSL_read(3)>.
+
+For SSL_get_stream_write_state(), this means that the sending part of the stream
+was aborted, for example because the application called L<SSL_stream_reset(3)>,
+or because a QUIC stream SSL object with an un-concluded sending part was freed
+using L<SSL_free(3)>. Calls to L<SSL_write(3)> will fail.
+
+When this value is returned, the application error code which was signalled can
+be obtained by calling SSL_get_stream_read_error_code() or
+SSL_get_stream_write_error_code() as appropriate.
+
+=item B<SSL_STREAM_STATE_RESET_REMOTE>
+
+This value is returned when the applicable stream part was reset by the remote
+peer.
+
+For SSL_get_stream_read_state(), this means that the peer sent a QUIC
+B<RESET_STREAM> frame for the receiving part of the stream; the receiving part
+of the stream was logically aborted by the peer.
+
+For SSL_get_stream_write_state(), this means that the peer sent a QUIC
+B<STOP_SENDING> frame for the sending part of the stream; the peer has indicated
+that it does not wish to receive further data on the sending part of the stream.
+Calls to L<SSL_write(3)> will fail.
+
+When this value is returned, the application error code which was signalled can
+be obtained by calling SSL_get_stream_read_error_code() or
+SSL_get_stream_write_error_code() as appropriate.
+
+=item B<SSL_STREAM_STATE_CONN_CLOSED>
+
+The QUIC connection to which the stream belongs was closed. You can obtain
+information about the circumstances of this closure using
+L<SSL_get_conn_close_info(3)>. There may still be residual data available to
+read via L<SSL_read(3)> when this state is returned. Calls to L<SSL_write(3)>
+will fail. SSL_get_stream_read_state() will return this state if and only if
+SSL_get_stream_write_state() will also return this state.
+
+=back
+
+SSL_get_stream_read_error_code() and SSL_get_stream_write_error_code() provide
+the application error code which was signalled during non-normal termination of
+the receiving or sending parts of a stream, respectively. On success, the
+application error code is written to I<*app_error_code>.
+
+=head1 NOTES
+
+If a QUIC connection is closed, the stream state for all streams transitions to
+B<SSL_STREAM_STATE_CONN_CLOSED>, but no application error code can be retrieved
+using SSL_get_stream_read_error_code() or SSL_get_stream_write_error_code(), as
+the QUIC connection closure process does not cause an application error code to
+be associated with each individual stream still existing at the time of
+connection closure. However, you can obtain the overall error code associated
+with the connection closure using L<SSL_get_conn_close_info(3)>.
+
+=head1 RETURN VALUES
+
+SSL_get_stream_read_state() and SSL_get_stream_write_state() return one of the
+B<SSL_STREAM_STATE> values. If called on a non-QUIC SSL object, or a QUIC
+connection SSL object without a default stream, B<SSL_STREAM_STATE_NONE> is
+returned.
+
+SSL_get_stream_read_error_code() and SSL_get_stream_write_error_code() return 1
+on success and 0 if the stream was terminated normally. They return -1 on error,
+for example if the stream is still healthy, was still healthy at the time of
+connection closure, if called on a stream for which the respective stream part
+does not exist (e.g. on a unidirectional stream), or if called on a non-QUIC
+object or a QUIC connection SSL object without a default stream attached.
+
+=head1 SEE ALSO
+
+L<SSL_stream_conclude(3)>, L<SSL_stream_reset(3)>, L<SSL_new_stream(3)>,
+L<SSL_accept_stream(3)>, L<SSL_get_conn_close_info(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,7 +45,7 @@ static int tmpmd_digest(void *provctx, const unsigned char *in, size_t inl,
 static const OSSL_DISPATCH testprovmd_functions[] = {
     { OSSL_FUNC_DIGEST_GET_PARAMS, (void (*)(void))tmpmd_get_params },
     { OSSL_FUNC_DIGEST_DIGEST, (void (*)(void))tmpmd_digest },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 static const OSSL_ALGORITHM testprov_digests[] = {
@@ -63,7 +63,7 @@ static const OSSL_ALGORITHM *testprov_query(void *provctx,
 
 static const OSSL_DISPATCH testprov_dispatch_table[] = {
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))testprov_query },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 static int testprov_provider_init(const OSSL_CORE_HANDLE *handle,

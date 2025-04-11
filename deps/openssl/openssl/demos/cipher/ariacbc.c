@@ -1,5 +1,5 @@
 /*
- * Copyright 2012-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2012-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -49,18 +49,16 @@ static const unsigned char cbc_ct[] = {
  * algorithm implementations. If they are NULL then the default library
  * context and properties are used.
  */
-OSSL_LIB_CTX *libctx = NULL;
-const char *propq = NULL;
+static OSSL_LIB_CTX *libctx = NULL;
+static const char *propq = NULL;
 
-int aria_cbc_encrypt(void)
+static int aria_cbc_encrypt(void)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx;
     EVP_CIPHER *cipher = NULL;
     int outlen, tmplen;
-    size_t cbc_ivlen = sizeof(cbc_iv);
     unsigned char outbuf[1024];
-    unsigned char outtag[16];
 
     printf("ARIA CBC Encrypt:\n");
     printf("Plaintext:\n");
@@ -110,13 +108,12 @@ err:
     return ret;
 }
 
-int aria_cbc_decrypt(void)
+static int aria_cbc_decrypt(void)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx;
     EVP_CIPHER *cipher = NULL;
-    int outlen, tmplen, rv;
-    size_t cbc_ivlen = sizeof(cbc_iv);
+    int outlen, tmplen;
     unsigned char outbuf[1024];
 
     printf("ARIA CBC Decrypt:\n");
@@ -169,10 +166,10 @@ err:
 int main(int argc, char **argv)
 {
     if (!aria_cbc_encrypt())
-       return 1;
+        return EXIT_FAILURE;
 
     if (!aria_cbc_decrypt())
-        return 1;
+        return EXIT_FAILURE;
 
-    return 0;
+    return EXIT_SUCCESS;
 }

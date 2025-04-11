@@ -7,7 +7,8 @@ BIO_set_conn_hostname, BIO_set_conn_port,
 BIO_set_conn_address, BIO_set_conn_ip_family,
 BIO_get_conn_hostname, BIO_get_conn_port,
 BIO_get_conn_address, BIO_get_conn_ip_family,
-BIO_set_nbio, BIO_do_connect - connect BIO
+BIO_set_nbio, BIO_set_sock_type, BIO_get_sock_type, BIO_get0_dgram_bio,
+BIO_do_connect - connect BIO
 
 =head1 SYNOPSIS
 
@@ -28,6 +29,10 @@ BIO_set_nbio, BIO_do_connect - connect BIO
 
  long BIO_set_nbio(BIO *b, long n);
 
+ int BIO_set_sock_type(BIO *b, int sock_type);
+ int BIO_get_sock_type(BIO *b);
+ int BIO_get0_dgram_bio(BIO *B, BIO **dgram_bio);
+
  long BIO_do_connect(BIO *b);
 
 =head1 DESCRIPTION
@@ -44,7 +49,7 @@ on the underlying connection. If no connection is established
 and the port and hostname (see below) is set up properly then
 a connection is established first.
 
-Connect BIOs support BIO_puts() but not BIO_gets().
+Connect BIOs support BIO_puts() and BIO_gets().
 
 If the close flag is set on a connect BIO then any active
 connection is shutdown and the socket closed when the BIO
@@ -100,6 +105,19 @@ A zero or negative value is returned if the connection could not be established.
 The call BIO_should_retry() should be used for non blocking connect BIOs
 to determine if the call should be retried.
 If a connection has already been established this call has no effect.
+
+BIO_set_sock_type() can be used to set a socket type value as would be passed in
+a call to socket(2). The only currently supported values are B<SOCK_STREAM> (the
+default) and B<SOCK_DGRAM>. If B<SOCK_DGRAM> is configured, the connection
+created is a UDP datagram socket handled via L<BIO_s_datagram(3)>.
+I/O calls such as L<BIO_read(3)> and L<BIO_write(3)> are forwarded transparently
+to an internal L<BIO_s_datagram(3)> instance. The created L<BIO_s_datagram(3)>
+instance can be retrieved using BIO_get0_dgram_bio() if desired, which writes
+a pointer to the L<BIO_s_datagram(3)> instance to I<*dgram_bio>. The lifetime
+of the internal L<BIO_s_datagram(3)> is managed by BIO_s_connect() and does not
+need to be freed by the caller.
+
+BIO_get_sock_type() retrieves the value set using BIO_set_sock_type().
 
 =head1 NOTES
 
@@ -161,6 +179,12 @@ BIO_set_nbio() returns 1 or <=0 if an error occurs.
 BIO_do_connect() returns 1 if the connection was successfully
 established and <=0 if the connection failed.
 
+BIO_set_sock_type() returns 1 on success or 0 on failure.
+
+BIO_get_sock_type() returns a socket type or 0 if the call is not supported.
+
+BIO_get0_dgram_bio() returns 1 on success or 0 on failure.
+
 =head1 EXAMPLES
 
 This is example connects to a webserver on the local host and attempts
@@ -198,6 +222,8 @@ L<BIO_ADDR(3)>, L<BIO_parse_hostserv(3)>
 BIO_set_conn_int_port(), BIO_get_conn_int_port(), BIO_set_conn_ip(), and BIO_get_conn_ip()
 were removed in OpenSSL 1.1.0.
 Use BIO_set_conn_address() and BIO_get_conn_address() instead.
+
+Connect BIOs support BIO_gets() since OpenSSL 3.2.
 
 =head1 COPYRIGHT
 

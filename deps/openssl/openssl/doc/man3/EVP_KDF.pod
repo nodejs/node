@@ -283,9 +283,7 @@ EVP_KDF_get0_name() returns the name of the KDF, or NULL on error.
 EVP_KDF_names_do_all() returns 1 if the callback was called for all names. A
 return value of 0 means that the callback was not called for any names.
 
-The remaining functions return 1 for success and 0 or a negative value for
-failure.  In particular, a return value of -2 indicates the operation is not
-supported by the KDF algorithm.
+The remaining functions return 1 for success and 0 for failure.
 
 =head1 NOTES
 

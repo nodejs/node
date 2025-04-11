@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -232,13 +232,15 @@ foreach my $curvename (@curve_list) {
 
         foreach my $outform (@output_formats) {
             my $outfile = "ecgen.${curvename}.${paramenc}." . lc $outform;
+            my $outpubfile = "ecgen.${curvename}.${paramenc}-pub." . lc $outform;
             $fn->("genpkey EC key on ${curvename} with ec_param_enc:'${paramenc}' (${outform})",
                   app([ 'openssl', 'genpkey',
                         '-algorithm', 'EC',
                         '-pkeyopt', 'ec_paramgen_curve:'.$curvename,
                         '-pkeyopt', 'ec_param_enc:'.$paramenc,
                         '-outform', $outform,
-                        '-out', $outfile]));
+                        '-out', $outfile,
+                        '-outpubkey', $outpubfile]));
         }
     }
 }

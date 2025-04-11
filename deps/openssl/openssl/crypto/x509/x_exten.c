@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -15,7 +15,7 @@
 
 ASN1_SEQUENCE(X509_EXTENSION) = {
         ASN1_SIMPLE(X509_EXTENSION, object, ASN1_OBJECT),
-        ASN1_OPT(X509_EXTENSION, critical, ASN1_BOOLEAN),
+        ASN1_OPT(X509_EXTENSION, critical, ASN1_FBOOLEAN),
         ASN1_EMBED(X509_EXTENSION, value, ASN1_OCTET_STRING)
 } ASN1_SEQUENCE_END(X509_EXTENSION)
 

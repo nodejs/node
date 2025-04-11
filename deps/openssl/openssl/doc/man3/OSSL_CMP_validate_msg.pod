@@ -30,13 +30,15 @@ is preferably the one provided by a call to L<OSSL_CMP_CTX_set1_srvCert(3)>.
 If no such sender cert has been pinned then candidate sender certificates are
 taken from the list of certificates received in the I<msg> extraCerts, then any
 certificates provided before via L<OSSL_CMP_CTX_set1_untrusted(3)>, and
-then all trusted certificates provided via L<OSSL_CMP_CTX_set0_trustedStore(3)>,
-where a candidate is acceptable only if has not expired, its subject DN matches
+then all trusted certificates provided via L<OSSL_CMP_CTX_set0_trusted(3)>.
+A candidate certificate is acceptable only if it is currently valid
+(or the trust store contains a verification callback that overrides the verdict
+that the certificate is expired or not yet valid), its subject DN matches
 the I<msg> sender DN (as far as present), and its subject key identifier
-is present and matches the senderKID (as far as the latter present).
+is present and matches the senderKID (as far as the latter is present).
 Each acceptable cert is tried in the given order to see if the message
 signature check succeeds and the cert and its path can be verified
-using any trust store set via L<OSSL_CMP_CTX_set0_trustedStore(3)>.
+using any trust store set via L<OSSL_CMP_CTX_set0_trusted(3)>.
 
 If the option OSSL_CMP_OPT_PERMIT_TA_IN_EXTRACERTS_FOR_IR was set by calling
 L<OSSL_CMP_CTX_set_option(3)>, for an Initialization Response (IP) message
@@ -69,7 +71,7 @@ return 1 on success, 0 on error or validation failed.
 
 L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_exec_certreq(3)>,
 L<OSSL_CMP_CTX_set1_secretValue(3)>, L<OSSL_CMP_CTX_set1_srvCert(3)>,
-L<OSSL_CMP_CTX_set1_untrusted(3)>, L<OSSL_CMP_CTX_set0_trustedStore(3)>
+L<OSSL_CMP_CTX_set1_untrusted(3)>, L<OSSL_CMP_CTX_set0_trusted(3)>
 
 =head1 HISTORY
 

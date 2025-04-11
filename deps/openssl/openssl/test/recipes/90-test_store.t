@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -15,6 +15,8 @@ use OpenSSL::Test::Utils;
 
 my $test_name = "test_store";
 setup($test_name);
+
+require(srctop_file("test", "recipes", "tconversion.pl")); # for test_file_contains()
 
 my $use_md5 = !disabled("md5");
 my $use_des = !(disabled("des") || disabled("legacy")); # also affects 3des and pkcs12 app
@@ -106,7 +108,7 @@ push @methods, [ @prov_method ];
 push @methods, [qw(-engine loader_attic)]
     unless disabled('loadereng');
 
-my $n = scalar @methods
+my $n = 4 + scalar @methods
     * ( (3 * scalar @noexist_files)
         + (6 * scalar @src_files)
         + (2 * scalar @data_files)
@@ -130,6 +132,14 @@ if ($do_test_ossltest_store) {
 plan skip_all => "No plan" if $n == 0;
 
 plan tests => $n;
+
+my $test_x509 = srctop_file('test', 'testx509.pem');
+
+ok(run(app(["openssl", "storeutl",  "-crls", $test_x509])),
+   "storeutil with -crls option");
+
+ok(!run(app(["openssl", "storeutl", $test_x509, "-crls"])),
+   "storeutil with extra parameter (at end) should fail");
 
 indir "store_$$" => sub {
     if ($do_test_ossltest_store) {
@@ -163,6 +173,11 @@ indir "store_$$" => sub {
         init() or die "init failed";
 
         my $rehash = init_rehash();
+
+        ok(run(app(["openssl", "storeutl", "-out", "cacert.pem", "cacert.pem"])),
+            "identical infile and outfile");
+        test_file_contains("storeutl output on same input",
+                           "cacert.pem", "Total found: 1");
 
         foreach my $method (@methods) {
             my @storeutl = ( qw(openssl storeutl), @$method );
@@ -402,7 +417,7 @@ sub init {
                       }, grep(/-key-pkcs8-pbes2-sha256\.pem$/, @generated_files))
             # *-cert.pem (intermediary for the .p12 inits)
             && run(app(["openssl", "req", "-x509", @std_args,
-                        "-config", $cnf, "-noenc",
+                        "-config", $cnf, "-reqexts", "v3_ca", "-noenc",
                         "-key", $cakey, "-out", "cacert.pem"]))
             && runall(sub {
                           my $srckey = shift;

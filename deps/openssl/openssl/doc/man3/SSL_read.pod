@@ -93,6 +93,14 @@ are buffered bytes available for immediate retrieval.
 In this case the read function can be called without blocking or actually
 receiving new data from the underlying socket.
 
+When used with a QUIC SSL object, calling an I/O function such as SSL_read()
+allows internal network event processing to be performed. It is important that
+this processing is performed regularly. If an application is not using thread
+assisted mode, an application should ensure that an I/O function such as
+SSL_read() is called regularly, or alternatively ensure that SSL_handle_events()
+is called regularly. See L<openssl-quic(7)> and L<SSL_handle_events(3)> for more
+information.
+
 =head1 RETURN VALUES
 
 SSL_read_ex() and SSL_peek_ex() will return 1 for success or 0 for failure.
@@ -142,7 +150,7 @@ The SSL_read_ex() and SSL_peek_ex() functions were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

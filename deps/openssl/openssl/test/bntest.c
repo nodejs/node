@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,9 @@
 #include <errno.h>
 #include <stdio.h>
 #include <string.h>
+#ifdef __TANDEM
+# include <strings.h> /* strcasecmp */
+#endif
 #include <ctype.h>
 
 #include <openssl/bn.h>
@@ -38,6 +41,7 @@ typedef struct mpitest_st {
 
 static const int NUM0 = 100;           /* number of tests */
 static const int NUM1 = 50;            /* additional tests for some functions */
+static const int NUM_PRIME_TESTS = 20;
 static BN_CTX *ctx;
 
 /*
@@ -168,6 +172,11 @@ static int test_swap(void)
             || !equalBN("swap", b, c))
         goto err;
 
+    /* regular swap: same pointer */
+    BN_swap(a, a);
+    if (!equalBN("swap with same pointer", a, d))
+        goto err;
+
     /* conditional swap: true */
     cond = 1;
     BN_consttime_swap(cond, a, b, top);
@@ -175,11 +184,21 @@ static int test_swap(void)
             || !equalBN("cswap true", b, d))
         goto err;
 
+    /* conditional swap: true, same pointer */
+    BN_consttime_swap(cond, a, a, top);
+    if (!equalBN("cswap true", a, c))
+        goto err;
+
     /* conditional swap: false */
     cond = 0;
     BN_consttime_swap(cond, a, b, top);
     if (!equalBN("cswap false", a, c)
             || !equalBN("cswap false", b, d))
+        goto err;
+
+    /* conditional swap: false, same pointer */
+    BN_consttime_swap(cond, a, a, top);
+    if (!equalBN("cswap false", a, c))
         goto err;
 
     /* same tests but checking flag swap */
@@ -749,7 +768,7 @@ static int test_gf2m_add(void)
 
 static int test_gf2m_mod(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL, *e = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL, *e = NULL;
     int i, j, st = 0;
 
     if (!TEST_ptr(a = BN_new())
@@ -842,7 +861,7 @@ static int test_gf2m_mul(void)
 
 static int test_gf2m_sqr(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     int i, j, st = 0;
 
     if (!TEST_ptr(a = BN_new())
@@ -881,7 +900,7 @@ static int test_gf2m_sqr(void)
 
 static int test_gf2m_modinv(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     int i, j, st = 0;
 
     if (!TEST_ptr(a = BN_new())
@@ -926,7 +945,7 @@ static int test_gf2m_modinv(void)
 
 static int test_gf2m_moddiv(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     BIGNUM *e = NULL, *f = NULL;
     int i, j, st = 0;
 
@@ -970,7 +989,7 @@ static int test_gf2m_moddiv(void)
 
 static int test_gf2m_modexp(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     BIGNUM *e = NULL, *f = NULL;
     int i, j, st = 0;
 
@@ -1018,7 +1037,7 @@ static int test_gf2m_modexp(void)
 
 static int test_gf2m_modsqrt(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     BIGNUM *e = NULL, *f = NULL;
     int i, j, st = 0;
 
@@ -1063,7 +1082,7 @@ static int test_gf2m_modsqrt(void)
 
 static int test_gf2m_modsolvequad(void)
 {
-    BIGNUM *a = NULL, *b[2] = {NULL,NULL}, *c = NULL, *d = NULL;
+    BIGNUM *a = NULL, *b[2] = {NULL, NULL}, *c = NULL, *d = NULL;
     BIGNUM *e = NULL;
     int i, j, s = 0, t, st = 0;
 
@@ -1844,6 +1863,137 @@ static int test_bn2padded(void)
     return st;
 }
 
+static const MPITEST kSignedTests_BE[] = {
+    {"-1", "\xff", 1},
+    {"0", "", 0},
+    {"1", "\x01", 1},
+    /*
+     * The above cover the basics, now let's go for possible bignum
+     * chunk edges and other word edges (for a broad definition of
+     * "word", i.e. 1 byte included).
+     */
+    /* 1 byte edge */
+    {"127", "\x7f", 1},
+    {"-127", "\x81", 1},
+    {"128", "\x00\x80", 2},
+    {"-128", "\x80", 1},
+    {"129", "\x00\x81", 2},
+    {"-129", "\xff\x7f", 2},
+    {"255", "\x00\xff", 2},
+    {"-255", "\xff\x01", 2},
+    {"256", "\x01\x00", 2},
+    {"-256", "\xff\x00", 2},
+    /* 2 byte edge */
+    {"32767", "\x7f\xff", 2},
+    {"-32767", "\x80\x01", 2},
+    {"32768", "\x00\x80\x00", 3},
+    {"-32768", "\x80\x00", 2},
+    {"32769", "\x00\x80\x01", 3},
+    {"-32769", "\xff\x7f\xff", 3},
+    {"65535", "\x00\xff\xff", 3},
+    {"-65535", "\xff\x00\x01", 3},
+    {"65536", "\x01\x00\x00", 3},
+    {"-65536", "\xff\x00\x00", 3},
+    /* 4 byte edge */
+    {"2147483647", "\x7f\xff\xff\xff", 4},
+    {"-2147483647", "\x80\x00\x00\x01", 4},
+    {"2147483648", "\x00\x80\x00\x00\x00", 5},
+    {"-2147483648", "\x80\x00\x00\x00", 4},
+    {"2147483649", "\x00\x80\x00\x00\x01", 5},
+    {"-2147483649", "\xff\x7f\xff\xff\xff", 5},
+    {"4294967295", "\x00\xff\xff\xff\xff", 5},
+    {"-4294967295", "\xff\x00\x00\x00\x01", 5},
+    {"4294967296", "\x01\x00\x00\x00\x00", 5},
+    {"-4294967296", "\xff\x00\x00\x00\x00", 5},
+    /* 8 byte edge */
+    {"9223372036854775807", "\x7f\xff\xff\xff\xff\xff\xff\xff", 8},
+    {"-9223372036854775807", "\x80\x00\x00\x00\x00\x00\x00\x01", 8},
+    {"9223372036854775808", "\x00\x80\x00\x00\x00\x00\x00\x00\x00", 9},
+    {"-9223372036854775808", "\x80\x00\x00\x00\x00\x00\x00\x00", 8},
+    {"9223372036854775809", "\x00\x80\x00\x00\x00\x00\x00\x00\x01", 9},
+    {"-9223372036854775809", "\xff\x7f\xff\xff\xff\xff\xff\xff\xff", 9},
+    {"18446744073709551615", "\x00\xff\xff\xff\xff\xff\xff\xff\xff", 9},
+    {"-18446744073709551615", "\xff\x00\x00\x00\x00\x00\x00\x00\x01", 9},
+    {"18446744073709551616", "\x01\x00\x00\x00\x00\x00\x00\x00\x00", 9},
+    {"-18446744073709551616", "\xff\x00\x00\x00\x00\x00\x00\x00\x00", 9},
+};
+
+static int copy_reversed(uint8_t *dst, uint8_t *src, size_t len)
+{
+    for (dst += len - 1; len > 0; src++, dst--, len--)
+        *dst = *src;
+    return 1;
+}
+
+static int test_bn2signed(int i)
+{
+    uint8_t scratch[10], reversed[10];
+    const MPITEST *test = &kSignedTests_BE[i];
+    BIGNUM *bn = NULL, *bn2 = NULL;
+    int st = 0;
+
+    if (!TEST_ptr(bn = BN_new())
+        || !TEST_true(BN_asc2bn(&bn, test->base10)))
+        goto err;
+
+    /*
+     * Check BN_signed_bn2bin() / BN_signed_bin2bn()
+     * The interesting stuff happens in the last bytes of the buffers,
+     * the beginning is just padding (i.e. sign extension).
+     */
+    i = sizeof(scratch) - test->mpi_len;
+    if (!TEST_int_eq(BN_signed_bn2bin(bn, scratch, sizeof(scratch)),
+                     sizeof(scratch))
+        || !TEST_true(copy_reversed(reversed, scratch, sizeof(scratch)))
+        || !TEST_mem_eq(test->mpi, test->mpi_len, scratch + i, test->mpi_len))
+        goto err;
+
+    if (!TEST_ptr(bn2 = BN_signed_bin2bn(scratch, sizeof(scratch), NULL))
+        || !TEST_BN_eq(bn, bn2))
+        goto err;
+
+    BN_free(bn2);
+    bn2 = NULL;
+
+    /* Check that a parse of the reversed buffer works too */
+    if (!TEST_ptr(bn2 = BN_signed_lebin2bn(reversed, sizeof(reversed), NULL))
+        || !TEST_BN_eq(bn, bn2))
+        goto err;
+
+    BN_free(bn2);
+    bn2 = NULL;
+
+    /*
+     * Check BN_signed_bn2lebin() / BN_signed_lebin2bn()
+     * The interesting stuff happens in the first bytes of the buffers,
+     * the end is just padding (i.e. sign extension).
+     */
+    i = sizeof(reversed) - test->mpi_len;
+    if (!TEST_int_eq(BN_signed_bn2lebin(bn, scratch, sizeof(scratch)),
+                     sizeof(scratch))
+        || !TEST_true(copy_reversed(reversed, scratch, sizeof(scratch)))
+        || !TEST_mem_eq(test->mpi, test->mpi_len, reversed + i, test->mpi_len))
+        goto err;
+
+    if (!TEST_ptr(bn2 = BN_signed_lebin2bn(scratch, sizeof(scratch), NULL))
+        || !TEST_BN_eq(bn, bn2))
+        goto err;
+
+    BN_free(bn2);
+    bn2 = NULL;
+
+    /* Check that a parse of the reversed buffer works too */
+    if (!TEST_ptr(bn2 = BN_signed_bin2bn(reversed, sizeof(reversed), NULL))
+        || !TEST_BN_eq(bn, bn2))
+        goto err;
+
+    st = 1;
+ err:
+    BN_free(bn2);
+    BN_free(bn);
+    return st;
+}
+
 static int test_dec2bn(void)
 {
     BIGNUM *bn = NULL;
@@ -2075,6 +2225,74 @@ static int test_mpi(int i)
  err:
     BN_free(bn);
     return st;
+}
+
+static int test_bin2zero(void)
+{
+    unsigned char input[] = { 0 };
+    BIGNUM *zbn = NULL;
+    int ret = 0;
+
+    if (!TEST_ptr(zbn = BN_new()))
+        goto err;
+
+#define zerotest(fn)                           \
+    if (!TEST_ptr(fn(input, 1, zbn))    \
+        || !TEST_true(BN_is_zero(zbn))   \
+        || !TEST_ptr(fn(input, 0, zbn)) \
+        || !TEST_true(BN_is_zero(zbn))   \
+        || !TEST_ptr(fn(NULL, 0, zbn))  \
+        || !TEST_true(BN_is_zero(zbn)))  \
+        goto err
+
+    zerotest(BN_bin2bn);
+    zerotest(BN_signed_bin2bn);
+    zerotest(BN_lebin2bn);
+    zerotest(BN_signed_lebin2bn);
+#undef zerotest
+
+    ret = 1;
+ err:
+    BN_free(zbn);
+    return ret;
+}
+
+static int test_bin2bn_lengths(void)
+{
+    unsigned char input[] = { 1, 2 };
+    BIGNUM *bn_be = NULL, *bn_expected_be = NULL;
+    BIGNUM *bn_le = NULL, *bn_expected_le = NULL;
+    int ret = 0;
+
+    if (!TEST_ptr(bn_be = BN_new())
+        || !TEST_ptr(bn_expected_be = BN_new())
+        || !TEST_true(BN_set_word(bn_expected_be, 0x102))
+        || !TEST_ptr(bn_le = BN_new())
+        || !TEST_ptr(bn_expected_le = BN_new())
+        || !TEST_true(BN_set_word(bn_expected_le, 0x201)))
+        goto err;
+
+#define lengthtest(fn, e)                                       \
+    if (!TEST_ptr_null(fn(input, -1, bn_##e))                   \
+        || !TEST_ptr(fn(input, 0, bn_##e))                      \
+        || !TEST_true(BN_is_zero(bn_##e))                       \
+        || !TEST_ptr(fn(input, 2, bn_##e))                      \
+        || !TEST_int_eq(BN_cmp(bn_##e, bn_expected_##e), 0))    \
+        goto err
+
+    lengthtest(BN_bin2bn, be);
+    lengthtest(BN_signed_bin2bn, be);
+    lengthtest(BN_lebin2bn, le);
+    lengthtest(BN_signed_lebin2bn, le);
+#undef lengthtest
+
+    ret = 1;
+ err:
+    BN_free(bn_be);
+    BN_free(bn_expected_be);
+    BN_free(bn_le);
+    BN_free(bn_expected_le);
+    return ret;
 }
 
 static int test_rand(void)
@@ -2485,7 +2703,7 @@ static int test_not_prime(int i)
 
     for (trial = 0; trial <= 1; ++trial) {
         if (!TEST_true(BN_set_word(r, not_primes[i]))
-                || !TEST_false(BN_check_prime(r, ctx, NULL)))
+                || !TEST_int_eq(BN_check_prime(r, ctx, NULL), 0))
             goto err;
     }
 
@@ -2581,6 +2799,25 @@ static int test_ctx_consttime_flag(void)
     return st;
 }
 
+static int test_coprime(void)
+{
+    BIGNUM *a = NULL, *b = NULL;
+    int ret = 0;
+
+    ret = TEST_ptr(a = BN_new())
+          && TEST_ptr(b = BN_new())
+          && TEST_true(BN_set_word(a, 66))
+          && TEST_true(BN_set_word(b, 99))
+          && TEST_int_eq(BN_are_coprime(a, b, ctx), 0)
+          && TEST_int_eq(BN_are_coprime(b, a, ctx), 0)
+          && TEST_true(BN_set_word(a, 67))
+          && TEST_int_eq(BN_are_coprime(a, b, ctx), 1)
+          && TEST_int_eq(BN_are_coprime(b, a, ctx), 1);
+    BN_free(a);
+    BN_free(b);
+    return ret;
+}
+
 static int test_gcd_prime(void)
 {
     BIGNUM *a = NULL, *b = NULL, *gcd = NULL;
@@ -2593,11 +2830,12 @@ static int test_gcd_prime(void)
 
     if (!TEST_true(BN_generate_prime_ex(a, 1024, 0, NULL, NULL, NULL)))
             goto err;
-    for (i = 0; i < NUM0; i++) {
+    for (i = 0; i < NUM_PRIME_TESTS; i++) {
         if (!TEST_true(BN_generate_prime_ex(b, 1024, 0,
                                             NULL, NULL, NULL))
                 || !TEST_true(BN_gcd(gcd, a, b, ctx))
-                || !TEST_true(BN_is_one(gcd)))
+                || !TEST_true(BN_is_one(gcd))
+                || !TEST_true(BN_are_coprime(a, b, ctx)))
             goto err;
     }
 
@@ -2609,12 +2847,11 @@ static int test_gcd_prime(void)
     return st;
 }
 
-typedef struct mod_exp_test_st
-{
-  const char *base;
-  const char *exp;
-  const char *mod;
-  const char *res;
+typedef struct mod_exp_test_st {
+    const char *base;
+    const char *exp;
+    const char *mod;
+    const char *res;
 } MOD_EXP_TEST;
 
 static const MOD_EXP_TEST ModExpTests[] = {
@@ -3155,7 +3392,10 @@ int setup_tests(void)
         ADD_TEST(test_dec2bn);
         ADD_TEST(test_hex2bn);
         ADD_TEST(test_asc2bn);
+        ADD_TEST(test_bin2zero);
+        ADD_TEST(test_bin2bn_lengths);
         ADD_ALL_TESTS(test_mpi, (int)OSSL_NELEM(kMPITests));
+        ADD_ALL_TESTS(test_bn2signed, (int)OSSL_NELEM(kSignedTests_BE));
         ADD_TEST(test_negzero);
         ADD_TEST(test_badmod);
         ADD_TEST(test_expmodzero);
@@ -3178,6 +3418,7 @@ int setup_tests(void)
         ADD_ALL_TESTS(test_is_prime, (int)OSSL_NELEM(primes));
         ADD_ALL_TESTS(test_not_prime, (int)OSSL_NELEM(not_primes));
         ADD_TEST(test_gcd_prime);
+        ADD_TEST(test_coprime);
         ADD_ALL_TESTS(test_mod_exp, (int)OSSL_NELEM(ModExpTests));
         ADD_ALL_TESTS(test_mod_exp_consttime, (int)OSSL_NELEM(ModExpTests));
         ADD_TEST(test_mod_exp2_mont);

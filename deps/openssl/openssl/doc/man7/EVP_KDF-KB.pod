@@ -31,7 +31,7 @@ used if unspecified.
 
 =item "mac" (B<OSSL_KDF_PARAM_MAC>) <UTF8 string>
 
-The value is either CMAC or HMAC.
+The value is either CMAC, HMAC, KMAC128 or KMAC256.
 
 =item "digest" (B<OSSL_KDF_PARAM_DIGEST>) <UTF8 string>
 
@@ -60,10 +60,39 @@ Set to B<0> to disable use of the optional Fixed Input data 'zero separator'
 (see SP800-108) that is placed between the Label and Context.
 The default value of B<1> will be used if unspecified.
 
+=item "r" (B<OSSL_KDF_PARAM_KBKDF_R>) <integer>
+
+Set the fixed value 'r', indicating the length of the counter in bits.
+
+Supported values are B<8>, B<16>, B<24>, and B<32>.
+The default value of B<32> will be used if unspecified.
+
+=back
+
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_KDF_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling EVP_KDF_derive. It returns 0 if "key-check"
+is set to 0 and the check fails.
+
+=item "key-check" (B<OSSL_KDF_PARAM_FIPS_KEY_CHECK>) <integer>
+
+The default value of 1 causes an error during EVP_KDF_CTX_set_params() if the
+length of used key-derivation key (B<OSSL_KDF_PARAM_KEY>) is shorter than 112
+bits.
+Setting this to zero will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
 =back
 
 Depending on whether mac is CMAC or HMAC, either digest or cipher is required
-(respectively) and the other is unused.
+(respectively) and the other is unused. They are unused for KMAC128 and KMAC256.
 
 The parameters key, salt, info, and seed correspond to KI, Label, Context, and
 IV (respectively) in SP800-108.  As in that document, salt, info, and seed are
@@ -161,9 +190,11 @@ L<EVP_KDF(3)/PARAMETERS>
 
 This functionality was added in OpenSSL 3.0.
 
+Support for KMAC was added in OpenSSL 3.1.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
 Copyright 2019 Red Hat, Inc.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use

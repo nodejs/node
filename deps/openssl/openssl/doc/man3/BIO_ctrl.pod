@@ -6,7 +6,7 @@ BIO_ctrl, BIO_callback_ctrl, BIO_ptr_ctrl, BIO_int_ctrl, BIO_reset,
 BIO_seek, BIO_tell, BIO_flush, BIO_eof, BIO_set_close, BIO_get_close,
 BIO_pending, BIO_wpending, BIO_ctrl_pending, BIO_ctrl_wpending,
 BIO_get_info_callback, BIO_set_info_callback, BIO_info_cb, BIO_get_ktls_send,
-BIO_get_ktls_recv
+BIO_get_ktls_recv, BIO_set_conn_mode, BIO_get_conn_mode, BIO_set_tfo
 - BIO control operations
 
 =head1 SYNOPSIS
@@ -37,6 +37,11 @@ BIO_get_ktls_recv
 
  int BIO_get_ktls_send(BIO *b);
  int BIO_get_ktls_recv(BIO *b);
+
+ int BIO_set_conn_mode(BIO *b, int mode);
+ int BIO_get_conn_mode(BIO *b);
+
+ int BIO_set_tfo(BIO *b, int onoff);
 
 =head1 DESCRIPTION
 
@@ -81,6 +86,13 @@ sending. Otherwise, it returns zero.
 BIO_get_ktls_recv() returns 1 if the BIO is using the Kernel TLS data-path for
 receiving. Otherwise, it returns zero.
 
+BIO_get_conn_mode() returns the BIO connection mode. BIO_set_conn_mode() sets
+the BIO connection mode.
+
+BIO_set_tfo() disables TCP Fast Open when B<onoff> is 0, and enables TCP Fast
+Open when B<onoff> is nonzero. Setting the value to 1 is equivalent to setting
+B<BIO_SOCK_TFO> in BIO_set_conn_mode().
+
 =head1 RETURN VALUES
 
 BIO_reset() normally returns 1 for success and <=0 for failure. File
@@ -108,6 +120,19 @@ BIO_get_ktls_send() returns 1 if the BIO is using the Kernel TLS data-path for
 sending. Otherwise, it returns zero.
 BIO_get_ktls_recv() returns 1 if the BIO is using the Kernel TLS data-path for
 receiving. Otherwise, it returns zero.
+
+BIO_set_conn_mode() returns 1 for success and 0 for failure. BIO_get_conn_mode()
+returns the current connection mode. Which may contain the bitwise-or of the
+following flags:
+
+ BIO_SOCK_REUSEADDR
+ BIO_SOCK_V6_ONLY
+ BIO_SOCK_KEEPALIVE
+ BIO_SOCK_NONBLOCK
+ BIO_SOCK_NODELAY
+ BIO_SOCK_TFO
+
+BIO_set_tfo() returns 1 for success, and 0 for failure.
 
 =head1 NOTES
 
@@ -148,6 +173,9 @@ BIO_ctrl_wpending() could return values greater than INT_MAX on error.
 
 The BIO_get_ktls_send() and BIO_get_ktls_recv() macros were added in
 OpenSSL 3.0. They were modified to never return -1 in OpenSSL 3.0.4.
+
+The BIO_get_conn_mode(), BIO_set_conn_mode() and BIO_set_tfo() functions
+were added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 

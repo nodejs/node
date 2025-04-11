@@ -35,7 +35,6 @@ The length of the "size" parameter should not exceed that of a B<size_t>.
 Likewise, the "block-size" parameter can be retrieved with
 EVP_MAC_CTX_get_params(), or with EVP_MAC_CTX_get_block_size().
 
-
 =over 4
 
 =item "key" (B<OSSL_MAC_PARAM_KEY>) <octet string>
@@ -65,9 +64,24 @@ It is 168 for C<KMAC-128> and 136 for C<KMAC-256>.
 The "xof" parameter value is expected to be 1 or 0. Use 1 to enable XOF mode.
 The default value is 0.
 
+=item "fips-indicator" (B<OSSL_MAC_PARAM_FIPS_APPROVED_INDICATOR>) <int>
+
+This settable parameter is described in L<provider-mac(7)>.
+
+=item "no-short-mac" (B<OSSL_MAC_PARAM_FIPS_NO_SHORT_MAC>) <integer>
+
+This settable parameter is described in L<provider-mac(7)>.  It is used by
+the OpenSSL FIPS provider and the minimum length output for KMAC
+is defined by NIST's SP 800-185 8.4.2.
+
+=item "key-check" (B<OSSL_MAC_PARAM_FIPS_KEY_CHECK>) <integer>
+
+This settable parameter is described in L<provider-mac(7)>.
+
 =back
 
-The "custom" parameter must be set as part of or before the EVP_MAC_init() call.
+The "custom" and "no-short-mac" parameters must be set as part of or before
+the EVP_MAC_init() call.
 The "xof" and "size" parameters can be set at any time before EVP_MAC_final().
 The "key" parameter is set as part of the EVP_MAC_init() call, but can be
 set before it instead.
@@ -140,11 +154,12 @@ set before it instead.
 =head1 SEE ALSO
 
 L<EVP_MAC_CTX_get_params(3)>, L<EVP_MAC_CTX_set_params(3)>,
-L<EVP_MAC(3)/PARAMETERS>, L<OSSL_PARAM(3)>
+L<EVP_MAC(3)/PARAMETERS>, L<OSSL_PARAM(3)>,
+L<SP 800-185 8.4.2|https://nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-185.pdf>
 
 =head1 COPYRIGHT
 
-Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

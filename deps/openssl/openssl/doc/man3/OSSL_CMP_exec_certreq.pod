@@ -13,7 +13,11 @@ OSSL_CMP_P10CR,
 OSSL_CMP_KUR,
 OSSL_CMP_try_certreq,
 OSSL_CMP_exec_RR_ses,
-OSSL_CMP_exec_GENM_ses
+OSSL_CMP_exec_GENM_ses,
+OSSL_CMP_get1_caCerts,
+OSSL_CMP_get1_rootCaKeyUpdate,
+OSSL_CMP_get1_crlUpdate,
+OSSL_CMP_get1_certReqTemplate
 - functions implementing CMP client transactions
 
 =head1 SYNOPSIS
@@ -33,8 +37,18 @@ OSSL_CMP_exec_GENM_ses
  int OSSL_CMP_try_certreq(OSSL_CMP_CTX *ctx, int req_type,
                           const OSSL_CRMF_MSG *crm, int *checkAfter);
  int OSSL_CMP_exec_RR_ses(OSSL_CMP_CTX *ctx);
- STACK_OF(OSSL_CMP_ITAV) *OSSL_CMP_exec_GENM_ses(OSSL_CMP_CTX *ctx);
 
+ STACK_OF(OSSL_CMP_ITAV) *OSSL_CMP_exec_GENM_ses(OSSL_CMP_CTX *ctx);
+ int OSSL_CMP_get1_caCerts(OSSL_CMP_CTX *ctx, STACK_OF(X509) **out);
+ int OSSL_CMP_get1_rootCaKeyUpdate(OSSL_CMP_CTX *ctx,
+                                   const X509 *oldWithOld, X509 **newWithNew,
+                                   X509 **newWithOld, X509 **oldWithNew);
+ int OSSL_CMP_get1_crlUpdate(OSSL_CMP_CTX *ctx, const X509 *crlcert,
+                             const X509_CRL *last_crl,
+                             X509_CRL **crl);
+ int OSSL_CMP_get1_certReqTemplate(OSSL_CMP_CTX *ctx,
+                                   OSSL_CRMF_CERTTEMPLATE **certTemplate,
+                                   OSSL_CMP_ATAVS **keySpec);
 =head1 DESCRIPTION
 
 This is the OpenSSL API for doing CMP (Certificate Management Protocol)
@@ -71,8 +85,8 @@ Typically I<crm> is NULL, then the template ingredients are taken from I<ctx>
 and need to be filled in using L<OSSL_CMP_CTX_set1_subjectName(3)>,
 L<OSSL_CMP_CTX_set0_newPkey(3)>, L<OSSL_CMP_CTX_set1_oldCert(3)>, etc.
 For P10CR, L<OSSL_CMP_CTX_set1_p10CSR(3)> needs to be used instead.
-The enrollment session may be blocked by sleeping until the addressed
-CA (or an intermediate PKI component) can fully process and answer the request.
+The enrollment session may be blocked (with polling and sleeping in between)
+until the server side can fully process and ultimately answer the request.
 
 OSSL_CMP_try_certreq() is an alternative to the above functions that is
 more flexible regarding what to do after receiving a checkAfter value.
@@ -99,21 +113,73 @@ a negative value as the I<req_type> argument then OSSL_CMP_try_certreq()
 aborts the CMP transaction by sending an error message to the server.
 
 OSSL_CMP_exec_RR_ses() requests the revocation of the certificate
-specified in the I<ctx> using L<OSSL_CMP_CTX_set1_oldCert(3)>.
+specified in the I<ctx> using the issuer DN and serial number set by
+OSSL_CMP_CTX_set1_issuer(3) and OSSL_CMP_CTX_set1_serialNumber(3), respectively,
+otherwise the issuer DN and serial number
+of the certificate set by L<OSSL_CMP_CTX_set1_oldCert(3)>,
+otherwise the subject DN and public key
+of the certificate signing request set by L<OSSL_CMP_CTX_set1_p10CSR(3)>.
 RFC 4210 is vague in which PKIStatus should be returned by the server.
 We take "accepted" and "grantedWithMods" as clear success and handle
 "revocationWarning" and "revocationNotification" just as warnings because CAs
 typically return them as an indication that the certificate was already revoked.
 "rejection" is a clear error. The values "waiting" and "keyUpdateWarning"
 make no sense for revocation and thus are treated as an error as well.
+The revocation session may be blocked (with polling and sleeping in between)
+until the server can fully process and ultimately answer the request.
 
-OSSL_CMP_exec_GENM_ses() sends a general message containing the sequence of
+OSSL_CMP_exec_GENM_ses() sends a genm general message containing the sequence of
 infoType and infoValue pairs (InfoTypeAndValue; short: B<ITAV>)
 optionally provided in the I<ctx> using L<OSSL_CMP_CTX_push0_genm_ITAV(3)>.
-On success it records in I<ctx> the status B<OSSL_CMP_PKISTATUS_accepted>
-and returns the list of B<ITAV>s received in the GENP message.
-This can be used, for instance, to poll for CRLs or CA Key Updates.
+The message exchange may be blocked (with polling and sleeping in between)
+until the server can fully process and ultimately answer the request.
+On success the function records in I<ctx> status B<OSSL_CMP_PKISTATUS_accepted>
+and returns the list of B<ITAV>s received in a genp response message.
+This can be used, for instance,
+with infoType C<signKeyPairTypes> to obtain the set of signature
+algorithm identifiers that the CA will certify for subject public keys.
 See RFC 4210 section 5.3.19 and appendix E.5 for details.
+Functions implementing more specific genm/genp exchanges are described next.
+
+OSSL_CMP_get1_caCerts() uses a genm/genp message exchange with infoType caCerts
+to obtain a list of CA certificates from the CMP server referenced by I<ctx>.
+On success it assigns to I<*out> the list of certificates received,
+which must be freed by the caller.
+NULL output means that no CA certificates were provided by the server.
+
+OSSL_CMP_get1_rootCaKeyUpdate() uses a genm request message
+with infoType rootCaCert to obtain from the CMP server referenced by I<ctx>
+in a genp response message with infoType rootCaKeyUpdate any update of the
+given root CA certificate I<oldWithOld> and verifies it as far as possible.
+See RFC 4210 section 4.4 for details.
+On success it assigns to I<*newWithNew> the root certificate received.
+When the I<newWithOld> and I<oldWithNew> output parameters are not NULL,
+it assigns to them the corresponding transition certificates.
+NULL means that the respective certificate was not provided by the server.
+All certificates obtained this way must be freed by the caller.
+
+B<WARNING:>
+The I<newWithNew> certificate is meant to be a certificate that will be trusted.
+The trust placed in it cannot be stronger than the trust placed in
+the I<oldwithold> certificate if present, otherwise it cannot be stronger than
+the weakest trust in any of the certificates in the trust store of I<ctx>.
+
+OSSL_CMP_get1_crlUpdate() uses a genm request message with infoType crlStatusList
+to obtain CRL from the CMP server referenced by I<ctx> in a genp response message
+with infoType crls. It uses I<last_crl> and I<crlcert> to create  
+a request with a status field as described for L<OSSL_CMP_CRLSTATUS_create(3)>. 
+On success it assigns to I<*crl> the CRL received.
+NULL means that no CRL was provided by the server.
+The CRL obtained this way must be freed by the caller.
+
+OSSL_CMP_get1_certReqTemplate() uses a genm request message with
+infoType certReqTemplate to obtain a certificate request template from the
+CMP server referenced by I<ctx>. On success it assigns to I<*certTemplate>
+the certificate template received. NULL output means that no certificate
+request template was provided by the server.
+The optional I<keySpec> output parameter is assigned the key specification
+if received, otherwise it set to NULL.
+Both must be freed by the caller.
 
 =head1 NOTES
 
@@ -123,12 +189,16 @@ The CMP client implementation is limited to one request per CMP message
 (and consequently to at most one response component per CMP message).
 
 When a client obtains from a CMP server CA certificates that it is going to
-trust, for instance via the caPubs field of a certificate response,
+trust, for instance via the caPubs field of a certificate response or using
+functions like OSSL_CMP_get1_caCerts() and OSSL_CMP_get1_rootCaKeyUpdate(),
 authentication of the CMP server is particularly critical.
 So special care must be taken setting up server authentication in I<ctx>
 using functions such as
-L<OSSL_CMP_CTX_set0_trustedStore(3)> (for certificate-based authentication) or
+L<OSSL_CMP_CTX_set0_trusted(3)> (for certificate-based authentication) or
 L<OSSL_CMP_CTX_set1_secretValue(3)> (for MAC-based protection).
+If authentication is certificate-based, L<OSSL_CMP_CTX_get0_validatedSrvCert(3)>
+should be used to obtain the server validated certificate
+and perform an authorization check based on it.
 
 =head1 RETURN VALUES
 
@@ -146,7 +216,10 @@ In the latter case L<OSSL_CMP_CTX_get0_newCert(3)> yields NULL
 and the output parameter I<checkAfter> has been used to
 assign the received value unless I<checkAfter> is NULL.
 
-OSSL_CMP_exec_RR_ses() returns 1 on success, 0 on error.
+OSSL_CMP_exec_RR_ses(), OSSL_CMP_get1_caCerts(),
+OSSL_CMP_get1_rootCaKeyUpdate(), OSSL_CMP_get1_crlUpdate()
+and OSSL_CMP_get1_certReqTemplate()
+return 1 on success, 0 on error.
 
 OSSL_CMP_exec_GENM_ses() returns NULL on error,
 otherwise a pointer to the sequence of B<ITAV> received, which may be empty.
@@ -163,15 +236,24 @@ L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_CTX_free(3)>,
 L<OSSL_CMP_CTX_set1_subjectName(3)>, L<OSSL_CMP_CTX_set0_newPkey(3)>,
 L<OSSL_CMP_CTX_set1_p10CSR(3)>, L<OSSL_CMP_CTX_set1_oldCert(3)>,
 L<OSSL_CMP_CTX_get0_newCert(3)>, L<OSSL_CMP_CTX_push0_genm_ITAV(3)>,
-L<OSSL_CMP_MSG_http_perform(3)>
+L<OSSL_CMP_MSG_http_perform(3)>, L<OSSL_CMP_CRLSTATUS_create(3)>
 
 =head1 HISTORY
 
 The OpenSSL CMP support was added in OpenSSL 3.0.
 
+OSSL_CMP_get1_caCerts() and OSSL_CMP_get1_rootCaKeyUpdate()
+were added in OpenSSL 3.2.
+
+Support for delayed delivery of all types of response messages
+was added in OpenSSL 3.3.
+
+OSSL_CMP_get1_crlUpdate() and OSSL_CMP_get1_certReqTemplate()
+were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

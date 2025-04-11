@@ -373,6 +373,7 @@ static int test_sm2_sign(const EC_GROUP *group,
 static int sm2_sig_test(void)
 {
     int testresult = 0;
+    EC_GROUP *gm_group = NULL;
     /* From draft-shen-sm2-ecdsa-02 */
     EC_GROUP *test_group =
         create_EC_group
@@ -398,9 +399,41 @@ static int sm2_sig_test(void)
                         "6FC6DAC32C5D5CF10C77DFB20F7C2EB667A457872FB09EC56327A67EC7DEEBE7", 0)))
         goto done;
 
+    /* From Annex A in both GM/T0003.5-2012 and GB/T 32918.5-2016.*/
+    gm_group = create_EC_group(
+        "fffffffeffffffffffffffffffffffffffffffff00000000ffffffffffffffff",
+        "fffffffeffffffffffffffffffffffffffffffff00000000fffffffffffffffc",
+        "28e9fa9e9d9f5e344d5a9e4bcf6509a7f39789f515ab8f92ddbcbd414d940e93",
+        "32c4ae2c1f1981195f9904466a39c9948fe30bbff2660be1715a4589334c74c7",
+        "bc3736a2f4f6779c59bdcee36b692153d0a9877cc62a474002df32e52139f0a0",
+        "fffffffeffffffffffffffffffffffff7203df6b21c6052b53bbf40939d54123",
+        "1");
+
+    if (!TEST_ptr(gm_group))
+        goto done;
+
+    if (!TEST_true(test_sm2_sign(
+                    gm_group,
+                    /* the default ID specified in GM/T 0009-2012 (Sec. 10).*/
+                    SM2_DEFAULT_USERID,
+                    /* privkey */
+                    "3945208F7B2144B13F36E38AC6D39F95889393692860B51A42FB81EF4DF7C5B8",
+                    /* plaintext message */
+                    "message digest",
+                    /* ephemeral nonce k */
+                    "59276E27D506861A16680F3AD9C02DCCEF3CC1FA3CDBE4CE6D54B80DEAC1BC21",
+                    /* expected signature, the field values are from GM/T 0003.5-2012,
+                       Annex A. */
+                    /* signature R, 0x20 bytes */
+                    "F5A03B0648D2C4630EEAC513E1BB81A15944DA3827D5B74143AC7EACEEE720B3",
+                    /* signature S, 0x20 bytes */
+                    "B1B6AA29DF212FD8763182BC0D421CA1BB9038FD1F7F42D4840B69C485BBC1AA", 0)))
+        goto done;
+
+
     /* Make sure we fail if we omit the public portion of the key */
     if (!TEST_false(test_sm2_sign(
-                     test_group,
+                     gm_group,
                      /* the default ID specified in GM/T 0009-2012 (Sec. 10).*/
                      SM2_DEFAULT_USERID,
                      /* privkey */
@@ -409,7 +442,8 @@ static int sm2_sig_test(void)
                      "message digest",
                      /* ephemeral nonce k */
                      "59276E27D506861A16680F3AD9C02DCCEF3CC1FA3CDBE4CE6D54B80DEAC1BC21",
-                     /* expected signature, */
+                     /* expected signature, the field values are from GM/T 0003.5-2012,
+                        Annex A. */
                      /* signature R, 0x20 bytes */
                      "F5A03B0648D2C4630EEAC513E1BB81A15944DA3827D5B74143AC7EACEEE720B3",
                      /* signature S, 0x20 bytes */
@@ -420,6 +454,7 @@ static int sm2_sig_test(void)
 
  done:
     EC_GROUP_free(test_group);
+    EC_GROUP_free(gm_group);
 
     return testresult;
 }

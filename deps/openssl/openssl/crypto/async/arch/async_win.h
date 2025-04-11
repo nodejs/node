@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,6 +37,8 @@ typedef struct async_fibre_st {
 # endif
 
 # define async_fibre_free(f)             (DeleteFiber((f)->fibre))
+# define async_local_init()              1
+# define async_local_deinit()
 
 int async_fibre_init_dispatcher(async_fibre *fibre);
 VOID CALLBACK async_start_func_win(PVOID unused);

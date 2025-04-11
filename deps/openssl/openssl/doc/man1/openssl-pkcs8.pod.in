@@ -27,6 +27,7 @@ B<openssl> B<pkcs8>
 [B<-scrypt_N> I<N>]
 [B<-scrypt_r> I<r>]
 [B<-scrypt_p> I<p>]
+[B<-saltlen> I<size>]
 {- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
 
@@ -78,9 +79,9 @@ key is written.
 
 =item B<-in> I<filename>
 
-This specifies the input filename to read a key from or standard input if this
+This specifies the input file to read a key from or standard input if this
 option is not specified. If the key is encrypted a pass phrase will be
-prompted for.
+prompted for unless B<-passin> is given.
 
 =item B<-passin> I<arg>, B<-passout> I<arg>
 
@@ -90,10 +91,14 @@ see L<openssl-passphrase-options(1)>.
 
 =item B<-out> I<filename>
 
-This specifies the output filename to write a key to or standard output by
-default. If any encryption options are set then a pass phrase will be
-prompted for. The output filename should B<not> be the same as the input
-filename.
+This specifies the output file to write a key to or standard output by default.
+The output filename can be the same as the input filename,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
+
+If any encryption options are set and B<-passout> is not given
+then a pass phrase will be prompted for.
+When password input is interrupted, the output file is not touched.
 
 =item B<-iter> I<count>
 
@@ -147,6 +152,12 @@ B<-scrypt_p> and B<-v2> options.
 =item B<-scrypt_N> I<N>, B<-scrypt_r> I<r>, B<-scrypt_p> I<p>
 
 Sets the scrypt I<N>, I<r> or I<p> parameters.
+
+=item B<-saltlen>
+
+Sets the length (in bytes) of the salt to use for the PBE algorithm.
+If this value is not specified, the default for PBES2 is 16 (128 bits)
+and 8 (64 bits) for PBES1.
 
 {- $OpenSSL::safe::opt_r_item -}
 
@@ -278,7 +289,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

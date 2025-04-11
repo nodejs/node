@@ -32,11 +32,11 @@ peer to additionally update its sending keys. It is an error if B<updatetype> is
 set to B<SSL_KEY_UPDATE_NONE>.
 
 SSL_key_update() must only be called after the initial handshake has been
-completed and TLSv1.3 has been negotiated, at the same time, the application
-needs to ensure that the writing of data has been completed. The key update
-will not take place until the next time an IO operation such as SSL_read_ex()
-or SSL_write_ex() takes place on the connection. Alternatively SSL_do_handshake()
-can be called to force the update to take place immediately.
+completed and TLSv1.3 or QUIC has been negotiated, at the same time, the
+application needs to ensure that the writing of data has been completed. The key
+update will not take place until the next time an IO operation such as
+SSL_read_ex() or SSL_write_ex() takes place on the connection. Alternatively
+SSL_do_handshake() can be called to force the update to take place immediately.
 
 SSL_get_key_update_type() can be used to determine whether a key update
 operation has been scheduled but not yet performed. The type of the pending key
@@ -77,6 +77,23 @@ the session in the new handshake.
 The SSL_renegotiate_pending() function returns 1 if a renegotiation or
 renegotiation request has been scheduled but not yet acted on, or 0 otherwise.
 
+=head1 USAGE WITH QUIC
+
+SSL_key_update() can also be used to perform a key update when using QUIC. The
+function must be called on a QUIC connection SSL object. This is normally done
+automatically when needed. Since a locally initiated QUIC key update always
+causes a peer to also trigger a key update, passing
+B<SSL_KEY_UPDATE_NOT_REQUESTED> as B<updatetype> has the same effect as passing
+B<SSL_KEY_UPDATE_REQUESTED>.
+
+The QUIC connection must have been fully established before a key update can be
+performed, and other QUIC protocol rules govern how frequently QUIC key update
+can be performed. SSL_key_update() will fail if these requirements are not met.
+
+Because QUIC key updates are always handled immediately,
+SSL_get_key_update_type() always returns SSL_KEY_UPDATE_NONE when called on a
+QUIC connection SSL object.
+
 =head1 RETURN VALUES
 
 SSL_key_update(), SSL_renegotiate() and SSL_renegotiate_abbreviated() return 1
@@ -101,7 +118,7 @@ OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

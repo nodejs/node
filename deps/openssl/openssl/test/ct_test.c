@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -463,7 +463,11 @@ static int test_encode_tls_sct(void)
         return 0;
     }
 
-    sk_SCT_push(fixture->sct_list, sct);
+    if (!sk_SCT_push(fixture->sct_list, sct)) {
+        tear_down(fixture);
+        return 0;
+    }
+
     fixture->sct_dir = ct_dir;
     fixture->sct_text_file = "tls1.sct";
     EXECUTE_CT_TEST();

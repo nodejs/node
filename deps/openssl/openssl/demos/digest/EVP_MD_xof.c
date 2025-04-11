@@ -1,5 +1,5 @@
 /*-
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -27,10 +27,10 @@
  */
 
 /* Our input to the XOF hash function. */
-const char message[] = "This is a test message.";
+static const char message[] = "This is a test message.";
 
 /* Expected output when an output length of 20 bytes is used. */
-static const char known_answer[] = {
+static const unsigned char known_answer[] = {
   0x52, 0x97, 0x93, 0x78, 0x27, 0x58, 0x7d, 0x62,
   0x8b, 0x00, 0x25, 0xb5, 0xec, 0x39, 0x5e, 0x2d,
   0x7f, 0x3e, 0xd4, 0x19
@@ -43,7 +43,7 @@ static const char *propq = NULL;
 
 int main(int argc, char **argv)
 {
-    int rv = 1;
+    int ret = EXIT_FAILURE;
     OSSL_LIB_CTX *libctx = NULL;
     EVP_MD *md = NULL;
     EVP_MD_CTX *ctx = NULL;
@@ -122,11 +122,11 @@ int main(int argc, char **argv)
         }
     }
 
-    rv = 0;
+    ret = EXIT_SUCCESS;
 end:
     OPENSSL_free(digest);
     EVP_MD_CTX_free(ctx);
     EVP_MD_free(md);
     OSSL_LIB_CTX_free(libctx);
-    return rv;
+    return ret;
 }

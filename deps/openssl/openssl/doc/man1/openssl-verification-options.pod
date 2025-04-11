@@ -204,8 +204,8 @@ can be specified using following options.
 
 =item B<-CAfile> I<file>
 
-Load the specified file which contains a certificate
-or several of them in case the input is in PEM or PKCS#12 format.
+Load the specified file which contains a trusted certificate in DER format
+or potentially several of them in case the input is in PEM format.
 PEM-encoded certificates may also have trust attributes set.
 
 =item B<-no-CAfile>
@@ -460,7 +460,7 @@ Set policy variable inhibit-policy-mapping (see RFC5280).
 A high-level specification of the intended use of the target certificate.
 Currently predefined purposes are C<sslclient>, C<sslserver>, C<nssslserver>,
 C<smimesign>, C<smimeencrypt>, C<crlsign>, C<ocsphelper>, C<timestampsign>,
-and C<any>.
+C<codesign> and C<any>.
 If peer certificate verification is enabled, by default the TLS implementation
 and thus the commands L<openssl-s_client(1)> and L<openssl-s_server(1)>
 check for consistency with
@@ -498,9 +498,9 @@ the subject certificate.
 
 Use a set of verification parameters, also known as verification method,
 identified by I<name>. The currently predefined methods are named C<ssl_client>,
-C<ssl_server>, C<smime_sign> with alias C<pkcs7>, and C<default>.
+C<ssl_server>, C<smime_sign> with alias C<pkcs7>, C<code_sign>, and C<default>.
 These mimic the combinations of purpose and trust settings used in SSL/(D)TLS,
-and CMS/PKCS7 (including S/MIME).
+CMS/PKCS7 (including S/MIME), and code signing.
 
 The verification parameters include the trust model, various flags that can
 partly be set also via other command-line options, and the verification purpose,
@@ -688,6 +688,16 @@ For target certificates, if the key usage extension is present, it must include
 C<digitalSignature> and/or C<nonRepudiation> and must not include other bits.
 The EKU extension must be present and contain C<timeStamping> only.
 Moreover, it must be marked as critical.
+
+For all other certifcates the normal CA checks apply.
+
+=item B<Code Signing> (C<codesign>)
+
+For target certificates,
+the key usage extension must be present and marked critical and
+include <digitalSignature>, but must not include C<keyCertSign> nor C<cRLSign>.
+The EKU extension must be present and contain C<codeSign>,
+but must not include C<anyExtendedKeyUsage> nor C<serverAuth>.
 
 For all other certifcates the normal CA checks apply.
 

@@ -89,7 +89,8 @@ OBJ_dup() returns a copy of I<o>.
 OBJ_create() adds a new object to the internal table. I<oid> is the
 numerical form of the object, I<sn> the short name and I<ln> the
 long name. A new NID is returned for the created object in case of
-success and NID_undef in case of failure.
+success and NID_undef in case of failure.  Any of I<oid>, I<sn> and
+I<ln> may be NULL, but not all at once.
 
 OBJ_length() returns the size of the content octets of I<obj>.
 
@@ -142,6 +143,8 @@ These functions cannot return B<const> because an B<ASN1_OBJECT> can
 represent both an internal, constant, OID and a dynamically-created one.
 The latter cannot be constant because it needs to be freed after use.
 
+These functions were not thread safe in OpenSSL 3.0 and before.
+
 =head1 RETURN VALUES
 
 OBJ_nid2obj() returns an B<ASN1_OBJECT> structure or B<NULL> is an
@@ -179,12 +182,6 @@ Create a new NID and initialize an object from it:
 Create a new object directly:
 
  obj = OBJ_txt2obj("1.2.3.4", 1);
-
-=head1 BUGS
-
-Neither OBJ_create() nor OBJ_add_sigid() do any locking and are thus not
-thread safe.  Moreover, none of the other functions should be called while
-concurrent calls to these two functions are possible.
 
 =head1 SEE ALSO
 

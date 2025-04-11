@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -10,6 +10,8 @@ use strict;
 use warnings;
 
 use File::Spec;
+use File::Copy;
+use File::Compare qw/compare_text/;
 use OpenSSL::Glob;
 use OpenSSL::Test qw/:DEFAULT data_file/;
 use OpenSSL::Test::Utils;
@@ -66,7 +68,7 @@ plan skip_all => "DSA isn't supported in this build"
 my @valid = glob(data_file("valid", "*.pem"));
 my @invalid = glob(data_file("invalid", "*.pem"));
 
-my $num_tests = scalar @valid + scalar @invalid;
+my $num_tests = scalar @valid + scalar @invalid + 2;
 plan tests => $num_tests;
 
 foreach (@valid) {
@@ -76,3 +78,10 @@ foreach (@valid) {
 foreach (@invalid) {
     ok(!run(app([qw{openssl pkeyparam -noout -check -in}, $_])));
 }
+
+my $input = data_file("valid", "p3072_q256_t1864.pem");
+my $inout = "inout.pem";
+copy($input, $inout);
+ok(run(app(['openssl', 'dsaparam', '-in', $inout, '-out', $inout])),
+    "identical infile and outfile");
+ok(!compare_text($input, $inout), "converted file $inout did not change");

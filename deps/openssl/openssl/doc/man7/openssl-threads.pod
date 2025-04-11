@@ -73,8 +73,8 @@ For implicit global state or singletons, thread-safety depends on the facility.
 The L<CRYPTO_secure_malloc(3)> and related API's have their own lock,
 while L<CRYPTO_malloc(3)> assumes the underlying platform allocation
 will do any necessary locking.
-Some API's, such as L<NCONF_load(3)> and related, or L<OBJ_create(3)>
-do no locking at all; this can be considered a bug.
+Some API's, such as L<NCONF_load(3)> and related do no locking at all;
+this can be considered a bug.
 
 A separate, although related, issue is modifying "factory" objects
 when other objects have been created from that.

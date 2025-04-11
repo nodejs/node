@@ -52,8 +52,8 @@ Encrypting user data directly with RSA is insecure.
 
 =back
 
-B<flen> must not be more than RSA_size(B<rsa>) - 11 for the PKCS #1 v1.5
-based padding modes, not more than RSA_size(B<rsa>) - 42 for
+When encrypting B<flen> must not be more than RSA_size(B<rsa>) - 11 for the
+PKCS #1 v1.5 based padding modes, not more than RSA_size(B<rsa>) - 42 for
 RSA_PKCS1_OAEP_PADDING and exactly RSA_size(B<rsa>) for RSA_NO_PADDING.
 When a padding mode other than RSA_NO_PADDING is in use, then
 RSA_public_encrypt() will include some random bytes into the ciphertext
@@ -92,6 +92,20 @@ which can potentially be used to mount a Bleichenbacher padding oracle
 attack. This is an inherent weakness in the PKCS #1 v1.5 padding
 design. Prefer RSA_PKCS1_OAEP_PADDING.
 
+In OpenSSL before version 3.2.0, both the return value and the length of
+returned value could be used to mount the Bleichenbacher attack.
+Since version 3.2.0, the default provider in OpenSSL does not return an
+error when padding checks fail. Instead it generates a random
+message based on used private
+key and provided ciphertext so that application code doesn't have to implement
+a side-channel secure error handling.
+Applications that want to be secure against side-channel attacks with
+providers that don't implement implicit rejection, still need to
+handle the returned values using side-channel free code.
+Side-channel free handling of the error stack can be performed using
+either a pair of unconditional L<ERR_set_mark(3)> and L<ERR_pop_to_mark(3)>
+calls or by using the L<ERR_clear_error(3)> call.
+
 =head1 CONFORMING TO
 
 SSL, PKCS #1 v2.0
@@ -99,7 +113,7 @@ SSL, PKCS #1 v2.0
 =head1 SEE ALSO
 
 L<ERR_get_error(3)>, L<RAND_bytes(3)>,
-L<RSA_size(3)>
+L<RSA_size(3)>, L<EVP_PKEY_decrypt(3)>, L<EVP_PKEY_encrypt(3)>
 
 =head1 HISTORY
 
@@ -107,7 +121,7 @@ Both of these functions were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

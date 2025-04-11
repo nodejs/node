@@ -42,6 +42,8 @@ The OpenSSL legacy provider supports these operations and algorithms:
 
 =item MD2, see L<EVP_MD-MD2(7)>
 
+Disabled by default. Use I<enable-md2> config option to enable.
+
 =item MD4, see L<EVP_MD-MD4(7)>
 
 =item MDC2, see L<EVP_MD-MDC2(7)>
@@ -86,6 +88,8 @@ Disabled by default. Use I<enable-rc5> config option to enable.
 =over 4
 
 =item PBKDF1
+
+=item PVKKDF
 
 =back
 

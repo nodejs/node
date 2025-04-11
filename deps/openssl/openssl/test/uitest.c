@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,7 +37,7 @@ static int test_old(void)
     int ok = 0;
 
     if (!TEST_ptr(ui_method =
-                  UI_UTIL_wrap_read_pem_callback( test_pem_password_cb, 0))
+                  UI_UTIL_wrap_read_pem_callback(test_pem_password_cb, 0))
             || !TEST_ptr(ui = UI_new_method(ui_method)))
         goto err;
 

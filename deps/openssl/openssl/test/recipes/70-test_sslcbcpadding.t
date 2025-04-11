@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLSv1.2 enabled"
     if disabled("tls1_2");
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 my $proxy = TLSProxy::Proxy->new(
     \&add_maximal_padding_filter,
     cmdstr(app(["openssl"]), display => 1),
@@ -128,6 +127,6 @@ sub add_maximal_padding_filter
     } elsif ($sent_corrupted_payload) {
         # Check for bad_record_mac from client
         my $last_record = @{$proxy->record_list}[-1];
-        $fatal_alert = 1 if $last_record->is_fatal_alert(0) == 20;
+        $fatal_alert = 1 if $last_record->is_fatal_alert(0) == TLSProxy::Message::AL_DESC_BAD_RECORD_MAC;
     }
 }

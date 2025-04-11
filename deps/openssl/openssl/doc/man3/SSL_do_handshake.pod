@@ -12,7 +12,7 @@ SSL_do_handshake - perform a TLS/SSL handshake
 
 =head1 DESCRIPTION
 
-SSL_do_handshake() will wait for a SSL/TLS handshake to take place. If the
+SSL_do_handshake() will wait for an SSL/TLS handshake to take place. If the
 connection is in client mode, the handshake will be started. The handshake
 routines may have to be explicitly set in advance using either
 L<SSL_set_connect_state(3)> or

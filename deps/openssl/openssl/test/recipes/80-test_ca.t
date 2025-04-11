@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -25,18 +25,25 @@ my $std_openssl_cnf = '"'
     . srctop_file("apps", $^O eq "VMS" ? "openssl-vms.cnf" : "openssl.cnf")
     . '"';
 
+sub src_file {
+    return srctop_file("test", "certs", shift);
+}
+
 rmtree("demoCA", { safe => 0 });
 
-plan tests => 15;
+plan tests => 20;
+
+require_ok(srctop_file("test", "recipes", "tconversion.pl"));
+
  SKIP: {
-     my $cakey = srctop_file("test", "certs", "ca-key.pem");
+     my $cakey = src_file("ca-key.pem");
      $ENV{OPENSSL_CONFIG} = qq(-config "$cnf");
      skip "failed creating CA structure", 4
          if !ok(run(perlapp(["CA.pl","-newca",
                              "-extra-req", "-key $cakey"], stdin => undef)),
                 'creating CA structure');
 
-     my $eekey = srctop_file("test", "certs", "ee-key.pem");
+     my $eekey = src_file("ee-key.pem");
      $ENV{OPENSSL_CONFIG} = qq(-config "$cnf");
      skip "failed creating new certificate request", 3
          if !ok(run(perlapp(["CA.pl","-newreq",
@@ -53,7 +60,7 @@ plan tests => 15;
      skip "CT not configured, can't use -precert", 1
          if disabled("ct");
 
-     my $eekey2 = srctop_file("test", "certs", "ee-key-3072.pem");
+     my $eekey2 = src_file("ee-key-3072.pem");
      $ENV{OPENSSL_CONFIG} = qq(-config "$cnf");
      ok(run(perlapp(["CA.pl", "-precert", '-extra-req', "-section userreq -key $eekey2"], stderr => undef)),
         'creating new pre-certificate');
@@ -65,16 +72,24 @@ SKIP: {
 
     is(yes(cmdstr(app(["openssl", "ca", "-config",
                        $cnf,
-                       "-in", srctop_file("test", "certs", "sm2-csr.pem"),
+                       "-in", src_file("sm2-csr.pem"),
                        "-out", "sm2-test.crt",
                        "-sigopt", "distid:1234567812345678",
                        "-vfyopt", "distid:1234567812345678",
                        "-md", "sm3",
-                       "-cert", srctop_file("test", "certs", "sm2-root.crt"),
-                       "-keyfile", srctop_file("test", "certs", "sm2-root.key")]))),
+                       "-cert", src_file("sm2-root.crt"),
+                       "-keyfile", src_file("sm2-root.key")]))),
        0,
        "Signing SM2 certificate request");
 }
+
+my $v3_cert = "v3-test.crt";
+ok(run(app(["openssl", "ca", "-batch", "-config", $cnf, "-extensions", "empty",
+            "-in", src_file("x509-check.csr"), "-out", $v3_cert])));
+# although no explicit extensions given:
+has_version($v3_cert, 3);
+has_SKID($v3_cert, 1);
+has_AKID($v3_cert, 1);
 
 test_revoke('notimes', {
     should_succeed => 1,

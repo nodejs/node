@@ -2,14 +2,20 @@
 
 =head1 NAME
 
-CMS_verify, CMS_get0_signers - verify a CMS SignedData structure
+CMS_verify, CMS_SignedData_verify,
+CMS_get0_signers - verify a CMS SignedData structure
 
 =head1 SYNOPSIS
 
  #include <openssl/cms.h>
 
  int CMS_verify(CMS_ContentInfo *cms, STACK_OF(X509) *certs, X509_STORE *store,
-                BIO *indata, BIO *out, unsigned int flags);
+                BIO *detached_data, BIO *out, unsigned int flags);
+ BIO *CMS_SignedData_verify(CMS_SignedData *sd, BIO *detached_data,
+                            STACK_OF(X509) *scerts, X509_STORE *store,
+                            STACK_OF(X509) *extra, STACK_OF(X509_CRL) *crls,
+                            unsigned int flags,
+                            OSSL_LIB_CTX *libctx, const char *propq);
 
  STACK_OF(X509) *CMS_get0_signers(CMS_ContentInfo *cms);
 
@@ -20,17 +26,31 @@ B<CMS SignedData> structure contained in a structure of type B<CMS_ContentInfo>.
 I<cms> points to the B<CMS_ContentInfo> structure to verify.
 The optional I<certs> parameter refers to a set of certificates
 in which to search for signing certificates.
+It is also used
+as a source of untrusted intermediate CA certificates for chain building.
 I<cms> may contain extra untrusted CA certificates that may be used for
 chain building as well as CRLs that may be used for certificate validation.
 I<store> may be NULL or point to
 the trusted certificate store to use for chain verification.
-I<indata> refers to the signed data if the content is detached from I<cms>.
-Otherwise I<indata> should be NULL and the signed data must be in I<cms>.
+I<detached_data> refers to the signed data if the content is detached from I<cms>.
+Otherwise I<detached_data> should be NULL and the signed data must be in I<cms>.
 The content is written to the BIO I<out> unless it is NULL.
 I<flags> is an optional set of flags, which can be used to modify the operation.
 
-CMS_get0_signers() retrieves the signing certificate(s) from I<cms>, it may only
-be called after a successful CMS_verify() operation.
+CMS_SignedData_verify() is like CMS_verify() except that
+it operates on B<CMS SignedData> input in the I<sd> argument,
+it has some additional parameters described next,
+and on success it returns the verified content as a memory BIO.
+The optional I<extra> parameter may be used to provide untrusted CA
+certificates that may be helpful for chain building in certificate validation.
+This list of certificates must not contain duplicates.
+The optional I<crls> parameter may be used to provide extra CRLs.
+Also the list of CRLs must not contain duplicates.
+The optional parameters library context I<libctx> and property query I<propq>
+are used when retrieving algorithms from providers.
+
+CMS_get0_signers() retrieves the signing certificate(s) from I<cms>; it may only
+be called after a successful CMS_verify() or CMS_SignedData_verify() operation.
 
 =head1 VERIFY PROCESS
 
@@ -38,7 +58,7 @@ Normally the verify process proceeds as follows.
 
 Initially some sanity checks are performed on I<cms>. The type of I<cms> must
 be SignedData. There must be at least one signature on the data and if
-the content is detached I<indata> cannot be NULL.
+the content is detached I<detached_data> cannot be NULL.
 
 An attempt is made to locate all the signing certificate(s), first looking in
 the I<certs> parameter (if it is not NULL) and then looking in any
@@ -67,10 +87,10 @@ searched when locating the signing certificate(s).
 This means that all the signing certificates must be in the I<certs> parameter.
 
 If B<CMS_NOCRL> is set and CRL checking is enabled in I<store> then any
-CRLs in the message itself are ignored.
+CRLs in the message itself and provided via the I<crls> parameter are ignored.
 
-If the B<CMS_TEXT> flag is set MIME headers for type B<text/plain> are deleted
-from the content. If the content is not of type B<text/plain> then an error is
+If the B<CMS_TEXT> flag is set MIME headers for type C<text/plain> are deleted
+from the content. If the content is not of type C<text/plain> then an error is
 returned.
 
 If B<CMS_NO_SIGNER_CERT_VERIFY> is set the signing certificates are not
@@ -114,9 +134,12 @@ timestamp).
 
 CMS_verify() returns 1 for a successful verification and 0 if an error occurred.
 
+CMS_SignedData_verify() returns a memory BIO containing the verified content,
+or NULL on error.
+
 CMS_get0_signers() returns all signers or NULL if an error occurred.
 
-The error can be obtained from L<ERR_get_error(3)>
+The error can be obtained from L<ERR_get_error(3)>.
 
 =head1 BUGS
 
@@ -133,9 +156,13 @@ L<PKCS7_verify(3)>, L<CMS_add1_cert(3)>, L<CMS_add1_crl(3)>,
 L<OSSL_ESS_check_signing_certs(3)>,
 L<ERR_get_error(3)>, L<CMS_sign(3)>
 
+=head1 HISTORY
+
+CMS_SignedData_verify() was added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2008-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

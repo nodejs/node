@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -13,17 +13,6 @@
 
 
 # Public / Private keys from other tests used for keypair testing.
-
-PrivateKey=Alice-25519
------BEGIN PRIVATE KEY-----
-MC4CAQAwBQYDK2VuBCIEIHcHbQpzGKV9PBbBclGyZkXfTC+H68CZKrF3+6UduSwq
------END PRIVATE KEY-----
-
-PrivateKey=Alice-448
------BEGIN PRIVATE KEY-----
-MEYCAQAwBQYDK2VvBDoEOJqPSSXRUZ9Xdc9GsEtYANTunui66LxVZdSYwo3Zybr1
-dKlBl0SJc5EAY4Km8SerHZrC2MClmHJr
------END PRIVATE KEY-----
 
 PublicKey=P-256-PUBLIC
 -----BEGIN PUBLIC KEY-----
@@ -69,17 +58,8 @@ fMkTd7GabVourqIZdgvu1Q==
 
 Title = Test keypair mismatches
 
-PrivPubKeyPair = Alice-25519:P-256-PUBLIC
-Result = KEYPAIR_TYPE_MISMATCH
-
-PrivPubKeyPair = Alice-448:P-256-PUBLIC
-Result = KEYPAIR_TYPE_MISMATCH
-
 PrivPubKeyPair = RSA-2048:P-256-PUBLIC
 Result = KEYPAIR_TYPE_MISMATCH
 
 PrivPubKeyPair = RSA-2048:KAS-ECC-CDH_K-163_C0-PUBLIC
-Result = KEYPAIR_TYPE_MISMATCH
-
-PrivPubKeyPair = Alice-25519:KAS-ECC-CDH_K-163_C0-PUBLIC
 Result = KEYPAIR_TYPE_MISMATCH

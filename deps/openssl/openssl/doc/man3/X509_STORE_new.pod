@@ -11,10 +11,10 @@ X509_STORE_lock,X509_STORE_unlock
  #include <openssl/x509_vfy.h>
 
  X509_STORE *X509_STORE_new(void);
- void X509_STORE_free(X509_STORE *v);
- int X509_STORE_lock(X509_STORE *v);
- int X509_STORE_unlock(X509_STORE *v);
- int X509_STORE_up_ref(X509_STORE *v);
+ void X509_STORE_free(X509_STORE *xs);
+ int X509_STORE_lock(X509_STORE *xs);
+ int X509_STORE_unlock(X509_STORE *xs);
+ int X509_STORE_up_ref(X509_STORE *xs);
 
 =head1 DESCRIPTION
 

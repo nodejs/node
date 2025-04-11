@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -19,6 +19,7 @@
 
 /* for SSL_READ_ETM() */
 #include "../ssl/ssl_local.h"
+#include "internal/ssl_unwrap.h"
 
 static int debug = 0;
 
@@ -55,6 +56,7 @@ static int mtu_test(SSL_CTX *ctx, const char *cs, int no_etm)
     size_t mtus[30];
     unsigned char buf[600];
     int rv = 0;
+    SSL_CONNECTION *clnt_sc;
 
     memset(buf, 0x5a, sizeof(buf));
 
@@ -132,8 +134,10 @@ static int mtu_test(SSL_CTX *ctx, const char *cs, int no_etm)
             }
         }
     }
+    if (!TEST_ptr(clnt_sc = SSL_CONNECTION_FROM_SSL_ONLY(clnt_ssl)))
+        goto end;
     rv = 1;
-    if (SSL_READ_ETM(clnt_ssl))
+    if (SSL_READ_ETM(clnt_sc))
         rv = 2;
  end:
     SSL_free(clnt_ssl);
@@ -168,7 +172,7 @@ static int run_mtu_tests(void)
         const char *cipher_name = SSL_CIPHER_get_name(cipher);
 
         /* As noted above, only one test for each enc/mac variant. */
-        if (strncmp(cipher_name, "PSK-", 4) != 0)
+        if (!HAS_PREFIX(cipher_name, "PSK-"))
             continue;
 
         if (!TEST_int_gt(ret = mtu_test(ctx, cipher_name, 0), 0))

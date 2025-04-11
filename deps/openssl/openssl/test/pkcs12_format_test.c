@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -10,8 +10,6 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
-#include "internal/nelem.h"
 
 #include <openssl/pkcs12.h>
 #include <openssl/x509.h>
@@ -32,8 +30,7 @@ static OSSL_PROVIDER *lgcyprov = NULL;
  * PKCS12 component test data
  */
 
-static const unsigned char CERT1[] =
-{
+static const unsigned char CERT1[] = {
     0x30, 0x82, 0x01, 0xed, 0x30, 0x82, 0x01, 0x56, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x09, 0x00,
     0x8b, 0x4b, 0x5e, 0x6c, 0x03, 0x28, 0x4e, 0xe6, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
     0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x19, 0x31, 0x17, 0x30, 0x15, 0x06, 0x03, 0x55,
@@ -65,11 +62,10 @@ static const unsigned char CERT1[] =
     0x09, 0xc0, 0xca, 0xe0, 0xaa, 0x9f, 0x07, 0xb2, 0xc2, 0xbb, 0x31, 0x96, 0xa2, 0x04, 0x62, 0xd3,
     0x13, 0x32, 0x29, 0x67, 0x6e, 0xad, 0x2e, 0x0b, 0xea, 0x04, 0x7c, 0x8c, 0x5a, 0x5d, 0xac, 0x14,
     0xaa, 0x61, 0x7f, 0x28, 0x6c, 0x2d, 0x64, 0x2d, 0xc3, 0xaf, 0x77, 0x52, 0x90, 0xb4, 0x37, 0xc0,
-    0x30, 
+    0x30,
 };
 
-static const unsigned char CERT2[] =
-{
+static const unsigned char CERT2[] = {
     0x30, 0x82, 0x01, 0xed, 0x30, 0x82, 0x01, 0x56, 0xa0, 0x03, 0x02, 0x01, 0x02, 0x02, 0x09, 0x00,
     0x8b, 0x4b, 0x5e, 0x6c, 0x03, 0x28, 0x4e, 0xe7, 0x30, 0x0d, 0x06, 0x09, 0x2a, 0x86, 0x48, 0x86,
     0xf7, 0x0d, 0x01, 0x01, 0x0b, 0x05, 0x00, 0x30, 0x19, 0x31, 0x17, 0x30, 0x15, 0x06, 0x03, 0x55,
@@ -101,11 +97,10 @@ static const unsigned char CERT2[] =
     0x2a, 0x67, 0xff, 0x16, 0x78, 0xa8, 0x2c, 0x10, 0xe0, 0x52, 0x8c, 0xe6, 0xe9, 0x90, 0x8d, 0xe0,
     0x62, 0x04, 0x9a, 0x0f, 0x44, 0x01, 0x82, 0x14, 0x92, 0x44, 0x25, 0x69, 0x22, 0xb7, 0xb8, 0xc5,
     0x94, 0x4c, 0x4b, 0x1c, 0x9b, 0x92, 0x60, 0x66, 0x90, 0x4e, 0xb9, 0xa8, 0x4c, 0x89, 0xbb, 0x0f,
-    0x0b, 
+    0x0b,
 };
 
-static const unsigned char KEY1[] =
-{
+static const unsigned char KEY1[] = {
     0x30, 0x82, 0x02, 0x5d, 0x02, 0x01, 0x00, 0x02, 0x81, 0x81, 0x00, 0xbc, 0xdc, 0x6f, 0x8c, 0x7a,
     0x2a, 0x4b, 0xea, 0x66, 0x66, 0x04, 0xa9, 0x05, 0x92, 0x53, 0xd7, 0x13, 0x3c, 0x49, 0xe1, 0xc8,
     0xbb, 0xdf, 0x3d, 0xcb, 0x88, 0x31, 0x07, 0x20, 0x59, 0x93, 0x24, 0x7f, 0x7d, 0xc6, 0x84, 0x81,
@@ -144,12 +139,11 @@ static const unsigned char KEY1[] =
     0x13, 0xbd, 0x83, 0xff, 0xb4, 0xbc, 0xf4, 0xdd, 0xa1, 0xbb, 0x1c, 0x96, 0x37, 0x35, 0xf4, 0xbf,
     0xed, 0x4c, 0xed, 0x92, 0xe8, 0xac, 0xc9, 0xc1, 0xa5, 0xa3, 0x23, 0x66, 0x40, 0x8a, 0xa1, 0xe6,
     0xe3, 0x95, 0xfe, 0xc4, 0x53, 0xf5, 0x7d, 0x6e, 0xca, 0x45, 0x42, 0xe4, 0xc2, 0x9f, 0xe5, 0x1e,
-    0xb5, 
+    0xb5,
 };
 
 
-static const unsigned char KEY2[] =
-{
+static const unsigned char KEY2[] = {
     0x30, 0x82, 0x02, 0x5c, 0x02, 0x01, 0x00, 0x02, 0x81, 0x81, 0x00, 0xa8, 0x6e, 0x40, 0x86, 0x9f,
     0x98, 0x59, 0xfb, 0x57, 0xbf, 0xc1, 0x55, 0x12, 0x38, 0xeb, 0xb3, 0x46, 0x34, 0xc9, 0x35, 0x4d,
     0xfd, 0x03, 0xe9, 0x3a, 0x88, 0x9e, 0x97, 0x8f, 0xf4, 0xec, 0x36, 0x7b, 0x3f, 0xba, 0xb8, 0xa5,
@@ -202,6 +196,19 @@ static const PKCS12_ATTR ATTRS2[] = {
     { "friendlyName", "janet" },
     { "localKeyID", "987654321" },
     { "1.2.3.5.8.13", "AnotherCustomAttribute" },
+    { NULL, NULL }
+};
+
+static const PKCS12_ATTR ATTRS3[] = {
+    { "friendlyName", "wildduk" },
+    { "localKeyID", "1122334455" },
+    { "oracle-jdk-trustedkeyusage", "anyExtendedKeyUsage" },
+    { NULL, NULL }
+};
+
+static const PKCS12_ATTR ATTRS4[] = {
+    { "friendlyName", "wildduk" },
+    { "localKeyID", "1122334455" },
     { NULL, NULL }
 };
 
@@ -306,7 +313,7 @@ static const char *passwords[] = {
 
 /* --------------------------------------------------------------------------
  * Local functions
- */ 
+ */
 
 static int get_custom_oid(void)
 {
@@ -427,7 +434,7 @@ static int test_single_key_enc_iter(int z)
 static int test_single_key_with_attrs(void)
 {
     PKCS12_BUILDER *pb = new_pkcs12_builder("1keyattrs.p12");
-    
+
     /* Generate/encode */
     start_pkcs12(pb);
 
@@ -524,7 +531,7 @@ static int test_single_cert_mac_iter(int z)
 static int test_cert_key_with_attrs_and_mac(void)
 {
     PKCS12_BUILDER *pb = new_pkcs12_builder("1cert1key.p12");
-    
+
     /* Generate/encode */
     start_pkcs12(pb);
 
@@ -555,7 +562,7 @@ static int test_cert_key_with_attrs_and_mac(void)
 static int test_cert_key_encrypted_content(void)
 {
     PKCS12_BUILDER *pb = new_pkcs12_builder("1cert1key_enc.p12");
-    
+
     /* Generate/encode */
     start_pkcs12(pb);
 
@@ -587,7 +594,7 @@ static int test_single_secret_encrypted_content(void)
 {
     PKCS12_BUILDER *pb = new_pkcs12_builder("1secret.p12");
     int custom_nid = get_custom_oid();
-    
+
     /* Generate/encode */
     start_pkcs12(pb);
 
@@ -667,7 +674,7 @@ static int test_multiple_contents(void)
 {
     PKCS12_BUILDER *pb = new_pkcs12_builder("multi_contents.p12");
     int custom_nid = get_custom_oid();
-    
+
     /* Generate/encode */
     start_pkcs12(pb);
 
@@ -709,6 +716,85 @@ static int test_multiple_contents(void)
     end_check_pkcs12(pb);
 
     return end_pkcs12_builder(pb);
+}
+
+static int test_jdk_trusted_attr(void)
+{
+    PKCS12_BUILDER *pb = new_pkcs12_builder("jdk_trusted.p12");
+
+    /* Generate/encode */
+    start_pkcs12(pb);
+
+        start_contentinfo(pb);
+
+            add_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+        end_contentinfo(pb);
+
+    end_pkcs12_with_mac(pb, &mac_default);
+
+    /* Read/decode */
+    start_check_pkcs12_with_mac(pb, &mac_default);
+
+        start_check_contentinfo(pb);
+
+            check_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+        end_check_contentinfo(pb);
+
+    end_check_pkcs12(pb);
+
+    return end_pkcs12_builder(pb);
+}
+
+static int test_set0_attrs(void)
+{
+    PKCS12_BUILDER *pb = new_pkcs12_builder("attrs.p12");
+    PKCS12_SAFEBAG *bag = NULL;
+    STACK_OF(X509_ATTRIBUTE) *attrs = NULL;
+    X509_ATTRIBUTE *attr = NULL;
+
+    start_pkcs12(pb);
+
+        start_contentinfo(pb);
+
+            /* Add cert and attrs (name/locakkey only) */
+            add_certbag(pb, CERT1, sizeof(CERT1), ATTRS4);
+
+            bag = sk_PKCS12_SAFEBAG_value(pb->bags, 0);
+            attrs = (STACK_OF(X509_ATTRIBUTE)*)PKCS12_SAFEBAG_get0_attrs(bag);
+
+            /* Create new attr, add to list and confirm return attrs is not NULL */
+            attr = X509_ATTRIBUTE_create(NID_oracle_jdk_trustedkeyusage, V_ASN1_OBJECT, OBJ_txt2obj("anyExtendedKeyUsage", 0));
+            X509at_add1_attr(&attrs, attr);
+            PKCS12_SAFEBAG_set0_attrs(bag, attrs);
+            attrs = (STACK_OF(X509_ATTRIBUTE)*)PKCS12_SAFEBAG_get0_attrs(bag);
+            X509_ATTRIBUTE_free(attr);
+            if(!TEST_ptr(attrs)) {
+                goto err;
+            }
+
+        end_contentinfo(pb);
+
+    end_pkcs12(pb);
+
+    /* Read/decode */
+    start_check_pkcs12(pb);
+
+        start_check_contentinfo(pb);
+
+            /* Use existing check functionality to confirm cert bag attrs identical to ATTRS3 */
+            check_certbag(pb, CERT1, sizeof(CERT1), ATTRS3);
+
+        end_check_contentinfo(pb);
+
+    end_check_pkcs12(pb);
+
+    return end_pkcs12_builder(pb);
+
+err:
+    (void)end_pkcs12_builder(pb);
+    return 0;
 }
 
 #ifndef OPENSSL_NO_DES
@@ -952,6 +1038,8 @@ int setup_tests(void)
     ADD_TEST(test_cert_key_encrypted_content);
     ADD_TEST(test_single_secret_encrypted_content);
     ADD_TEST(test_multiple_contents);
+    ADD_TEST(test_jdk_trusted_attr);
+    ADD_TEST(test_set0_attrs);
     return 1;
 }
 

@@ -20,6 +20,7 @@ provider-digest - The digest library E<lt>-E<gt> provider functions
  void *OSSL_FUNC_digest_newctx(void *provctx);
  void OSSL_FUNC_digest_freectx(void *dctx);
  void *OSSL_FUNC_digest_dupctx(void *dctx);
+ void OSSL_FUNC_digest_copyctx(void *voutctx, void *vinctx);
 
  /* Digest generation */
  int OSSL_FUNC_digest_init(void *dctx, const OSSL_PARAM params[]);
@@ -76,6 +77,7 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
  OSSL_FUNC_digest_newctx               OSSL_FUNC_DIGEST_NEWCTX
  OSSL_FUNC_digest_freectx              OSSL_FUNC_DIGEST_FREECTX
  OSSL_FUNC_digest_dupctx               OSSL_FUNC_DIGEST_DUPCTX
+ OSSL_FUNC_digest_copyctx              OSSL_FUNC_DIGEST_COPYCTX
 
  OSSL_FUNC_digest_init                 OSSL_FUNC_DIGEST_INIT
  OSSL_FUNC_digest_update               OSSL_FUNC_DIGEST_UPDATE
@@ -92,7 +94,8 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
 
 A digest algorithm implementation may not implement all of these functions.
 In order to be usable all or none of OSSL_FUNC_digest_newctx, OSSL_FUNC_digest_freectx,
-OSSL_FUNC_digest_init, OSSL_FUNC_digest_update and OSSL_FUNC_digest_final should be implemented.
+OSSL_FUNC_digest_init, OSSL_FUNC_digest_update, OSSL_FUNC_digest_final
+and OSSL_FUNC_digest_get_params should be implemented.
 All other functions are optional.
 
 =head2 Context Management Functions
@@ -110,6 +113,14 @@ This function should free any resources associated with that context.
 
 OSSL_FUNC_digest_dupctx() should duplicate the provider side digest context in the
 I<dctx> parameter and return the duplicate copy.
+
+OSSL_FUNC_digest_copyctx() should copy the provider side digest context in the
+I<vinctx> parameter to the I<voutctx> parameter which is the another provider side
+context.
+The OSSL_FUNC_digest_copyctx function is used in the EVP_MD_CTX_copy_ex function to
+speed up HMAC operations in the PBKDF2.
+This function is optional, and dupctx will be used if there is no EVP_MD_CTX_copy_ex
+function.
 
 =head2 Digest Generation Functions
 
@@ -198,8 +209,7 @@ This digest method can only handle one block of input.
 
 =item B<EVP_MD_FLAG_XOF>
 
-This digest method is an extensible-output function (XOF) and supports
-setting the B<OSSL_DIGEST_PARAM_XOFLEN> parameter.
+This digest method is an extensible-output function (XOF).
 
 =item B<EVP_MD_FLAG_DIGALGID_NULL>
 
@@ -266,18 +276,19 @@ L<OSSL_PROVIDER-legacy(7)>,
 L<EVP_MD-common(7)>, L<EVP_MD-BLAKE2(7)>, L<EVP_MD-MD2(7)>,
 L<EVP_MD-MD4(7)>, L<EVP_MD-MD5(7)>, L<EVP_MD-MD5-SHA1(7)>,
 L<EVP_MD-MDC2(7)>, L<EVP_MD-RIPEMD160(7)>, L<EVP_MD-SHA1(7)>,
-L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>, L<EVP_MD-SHAKE(7)>,
-L<EVP_MD-SM3(7)>, L<EVP_MD-WHIRLPOOL(7)>,
+L<EVP_MD-SHA2(7)>, L<EVP_MD-SHA3(7)>, L<EVP_MD-KECCAK(7)>
+L<EVP_MD-SHAKE(7)>, L<EVP_MD-SM3(7)>, L<EVP_MD-WHIRLPOOL(7)>,
 L<EVP_MD-NULL(7)>,
 L<life_cycle-digest(7)>, L<EVP_DigestInit(3)>
 
 =head1 HISTORY
 
 The provider DIGEST interface was introduced in OpenSSL 3.0.
+OSSL_FUNC_digest_copyctx() was added in 3.5 version.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -10,13 +10,18 @@ OPENSSL_LH_node_stats_bio, OPENSSL_LH_node_usage_stats_bio - LHASH statistics
 
  #include <openssl/lhash.h>
 
- void OPENSSL_LH_stats(LHASH *table, FILE *out);
+The following functions have been deprecated since OpenSSL 3.1, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
  void OPENSSL_LH_node_stats(LHASH *table, FILE *out);
  void OPENSSL_LH_node_usage_stats(LHASH *table, FILE *out);
 
- void OPENSSL_LH_stats_bio(LHASH *table, BIO *out);
  void OPENSSL_LH_node_stats_bio(LHASH *table, BIO *out);
  void OPENSSL_LH_node_usage_stats_bio(LHASH *table, BIO *out);
+
+ void OPENSSL_LH_stats(LHASH *table, FILE *out);
+ void OPENSSL_LH_stats_bio(LHASH *table, BIO *out);
 
 =head1 DESCRIPTION
 
@@ -43,6 +48,8 @@ record a miss.
 OPENSSL_LH_stats_bio(), OPENSSL_LH_node_stats_bio() and OPENSSL_LH_node_usage_stats_bio()
 are the same as the above, except that the output goes to a B<BIO>.
 
+These functions are deprecated and should no longer be used.
+
 =head1 RETURN VALUES
 
 These functions do not return values.
@@ -56,6 +63,10 @@ when using the LHASH data structure.
 =head1 SEE ALSO
 
 L<bio(7)>, L<OPENSSL_LH_COMPFUNC(3)>
+
+=head1 HISTORY
+
+These functions were deprecated in version 3.1.
 
 =head1 COPYRIGHT
 

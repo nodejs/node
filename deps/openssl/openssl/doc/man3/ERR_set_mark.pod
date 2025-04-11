@@ -2,8 +2,8 @@
 
 =head1 NAME
 
-ERR_set_mark, ERR_clear_last_mark, ERR_pop_to_mark
-- set mark, clear mark and pop errors until mark
+ERR_set_mark, ERR_clear_last_mark, ERR_pop_to_mark, ERR_count_to_mark, ERR_pop -
+set mark, clear mark, pop errors until mark and pop last error
 
 =head1 SYNOPSIS
 
@@ -12,6 +12,8 @@ ERR_set_mark, ERR_clear_last_mark, ERR_pop_to_mark
  int ERR_set_mark(void);
  int ERR_pop_to_mark(void);
  int ERR_clear_last_mark(void);
+ int ERR_count_to_mark(void);
+ int ERR_pop(void);
 
 =head1 DESCRIPTION
 
@@ -23,6 +25,13 @@ The mark is then removed.  If there is no mark, the whole stack is removed.
 
 ERR_clear_last_mark() removes the last mark added if there is one.
 
+ERR_count_to_mark() returns the number of entries on the error stack above the
+most recently marked entry, not including that entry. If there is no mark in the
+error stack, the number of entries in the error stack is returned.
+
+ERR_pop() unconditionally pops a single error entry from the top of the error
+stack (which is the entry obtainable via L<ERR_peek_last_error(3)>).
+
 =head1 RETURN VALUES
 
 ERR_set_mark() returns 0 if the error stack is empty, otherwise 1.
@@ -30,9 +39,19 @@ ERR_set_mark() returns 0 if the error stack is empty, otherwise 1.
 ERR_clear_last_mark() and ERR_pop_to_mark() return 0 if there was no mark in the
 error stack, which implies that the stack became empty, otherwise 1.
 
+ERR_count_to_mark() returns the number of error stack entries found above the
+most recent mark, if any, or the total number of error stack entries.
+
+ERR_pop() returns 1 if an error was popped or 0 if the error stack was empty.
+
+=head1 HISTORY
+
+ERR_count_to_mark() was added in OpenSSL 3.2.
+ERR_pop() was added in OpenSSL 3.3.
+
 =head1 COPYRIGHT
 
-Copyright 2003-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2003-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

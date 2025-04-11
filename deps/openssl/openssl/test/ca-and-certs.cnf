@@ -31,6 +31,8 @@ organizationName	= Dodgy Brothers
 0.commonName		= Brother 1
 1.commonName		= $ENV::CN2
 
+[ empty ]
+
 [ v3_ee ]
 subjectKeyIdentifier	= hash
 authorityKeyIdentifier	= keyid,issuer:always

@@ -15,6 +15,7 @@ OSSL_HTTP_REQ_CTX_exchange,
 OSSL_HTTP_REQ_CTX_get0_mem_bio,
 OSSL_HTTP_REQ_CTX_get_resp_len,
 OSSL_HTTP_REQ_CTX_set_max_response_length,
+OSSL_HTTP_REQ_CTX_set_max_response_hdr_lines,
 OSSL_HTTP_is_alive
 - HTTP client low-level functions
 
@@ -34,7 +35,7 @@ OSSL_HTTP_is_alive
                                    const char *name, const char *value);
 
  int OSSL_HTTP_REQ_CTX_set_expected(OSSL_HTTP_REQ_CTX *rctx,
-                                    const char *content_type, int asn1,
+                                    const char *expected_content_type, int expect_asn1,
                                     int timeout, int keep_alive);
  int OSSL_HTTP_REQ_CTX_set1_req(OSSL_HTTP_REQ_CTX *rctx, const char *content_type,
                                 const ASN1_ITEM *it, const ASN1_VALUE *req);
@@ -47,6 +48,8 @@ OSSL_HTTP_is_alive
  size_t OSSL_HTTP_REQ_CTX_get_resp_len(const OSSL_HTTP_REQ_CTX *rctx);
  void OSSL_HTTP_REQ_CTX_set_max_response_length(OSSL_HTTP_REQ_CTX *rctx,
                                                 unsigned long len);
+ void OSSL_HTTP_REQ_CTX_set_max_response_hdr_lines(OSSL_HTTP_REQ_CTX *rctx,
+                                                   size_t count);
 
  int OSSL_HTTP_is_alive(const OSSL_HTTP_REQ_CTX *rctx);
 
@@ -94,16 +97,26 @@ OSSL_HTTP_REQ_CTX_set_expected() optionally sets in I<rctx> some expectations
 of the HTTP client on the response.
 Due to the structure of an HTTP request, if the I<keep_alive> argument is
 nonzero the function must be used before calling OSSL_HTTP_REQ_CTX_set1_req().
-If the I<content_type> parameter
-is not NULL then the client will check that the given content type string
+
+If the I<expected_content_type> argument is not NULL, the client will
+check in a case-insensitive way that the specified C<Content-Type> string value
 is included in the HTTP header of the response and return an error if not.
-If the I<asn1> parameter is nonzero a structure in ASN.1 encoding will be
+In the C<Content-Type> header line the specified string should be present either
+as a whole, or in case the specified string does not include a C<;> character,
+it is sufficient that the specified string appears as a prefix
+in the header line, followed by a C<;> character and any further text.
+For instance, if the I<expected_content_type> argument specifies C<text/html>,
+this is matched by C<Text/HTML>, C<text/html; charset=UTF-8>, etc.
+
+If the I<expect_asn1> parameter is nonzero a structure in ASN.1 encoding will be
 expected as the response content and input streaming is disabled.  This means
 that an ASN.1 sequence header is required, its length field is checked, and
 OSSL_HTTP_REQ_CTX_get0_mem_bio() should be used to get the buffered response.
-Otherwise (by default) any input format is allowed without length checks.
+Otherwise (by default) any input format is allowed,
+with body length checks being performed on error messages only.
 In this case the BIO given as I<rbio> argument to OSSL_HTTP_REQ_CTX_new() should
 be used directly to read the response contents, which may support streaming.
+
 If the I<timeout> parameter is > 0 this indicates the maximum number of seconds
 the subsequent HTTP transfer (sending the request and receiving a response)
 is allowed to take.
@@ -111,6 +124,7 @@ I<timeout> == 0 enables waiting indefinitely, i.e., no timeout can occur.
 This is the default.
 I<timeout> < 0 takes over any value set via the I<overall_timeout> argument of
 L<OSSL_HTTP_open(3)> with the default being 0, which means no timeout.
+
 If the I<keep_alive> parameter is 0, which is the default, the connection is not
 kept open after receiving a response. This is the default behavior for HTTP 1.0.
 If the value is 1 or 2 then a persistent connection is requested.
@@ -137,6 +151,16 @@ that were given when calling OSSL_HTTP_REQ_CTX_new().
 The function may need to be called again if its result is -1, which indicates
 L<BIO_should_retry(3)>.  In such a case it is advisable to sleep a little in
 between, using L<BIO_wait(3)> on the read BIO to prevent a busy loop.
+See OSSL_HTTP_REQ_CTX_set_expected() how the response content type,
+the response body, the HTTP transfer timeout, and "keep-alive" are treated.
+Any error message body is consumed
+if a C<Content-Type> header is not included or its value starts with C<text/>.
+This is used for tracing the body contents if HTTP tracing is enabled.
+If the C<Content-Length> header is present in the response
+and its value exceeds the maximum allowed response content length
+or the response is an error message with its body length exceeding this value
+or the content is an ASN.1-encoded structure with a length exceeding this value
+or both length indications are present but disagree then an error occurs.
 
 OSSL_HTTP_REQ_CTX_nbio_d2i() is like OSSL_HTTP_REQ_CTX_nbio() but on success
 in addition parses the response, which must be a DER-encoded ASN.1 structure,
@@ -163,14 +187,18 @@ its contents can be read via this BIO, which does not support streaming.
 The returned BIO pointer must not be freed by the caller.
 
 OSSL_HTTP_REQ_CTX_get_resp_len() returns the size of the response contents
-in I<rctx> if provided by the server as <Content-Length> header field, else 0.
+in I<rctx> if provided by the server as C<Content-Length> header field, else 0.
 
 OSSL_HTTP_REQ_CTX_set_max_response_length() sets the maximum allowed
 response content length for I<rctx> to I<len>. If not set or I<len> is 0
 then the B<OSSL_HTTP_DEFAULT_MAX_RESP_LEN> is used, which currently is 100 KiB.
-If the C<Content-Length> header is present and exceeds this value or
-the content is an ASN.1 encoded structure with a length exceeding this value
-or both length indications are present but disagree then an error occurs.
+
+OSSL_HTTP_REQ_CTX_set_max_response_hdr_lines() changes the limit for
+the number of HTTP header lines allowed to be received in a response.
+The default limit is B<OSSL_HTTP_DEFAULT_MAX_RESP_HDR_LINES>, currently 256.
+If the limit is not 0 and the number of lines exceeds the limit,
+then the HTTP_R_RESPONSE_TOO_MANY_HDRLINES error is indicated.
+Setting the limit to 0 disables the check.
 
 OSSL_HTTP_is_alive() can be used to query if the HTTP connection
 given by I<rctx> is still alive, i.e., has not been closed.
@@ -218,13 +246,20 @@ This may be omitted if the GET method is used and "keep-alive" is not requested.
 When the request context is fully prepared, the HTTP exchange may be performed
 with OSSL_HTTP_REQ_CTX_nbio() or OSSL_HTTP_REQ_CTX_exchange().
 
+=head1 NOTES
+
+When built with tracing enabled, OSSL_HTTP_REQ_CTX_nbio() and all functions
+using it, such as OSSL_HTTP_REQ_CTX_exchange() and L<OSSL_HTTP_transfer(3)>,
+may be traced using B<OSSL_TRACE_CATEGORY_HTTP>.
+See also L<OSSL_trace_enabled(3)> and L<openssl-env(7)>.
+
 =head1 RETURN VALUES
 
 OSSL_HTTP_REQ_CTX_new() returns a pointer to a B<OSSL_HTTP_REQ_CTX>, or NULL
 on error.
 
-OSSL_HTTP_REQ_CTX_free() and OSSL_HTTP_REQ_CTX_set_max_response_length()
-do not return values.
+OSSL_HTTP_REQ_CTX_free(), OSSL_HTTP_REQ_CTX_set_max_response_length(), and
+OSSL_HTTP_REQ_CTX_set_max_response_hdr_lines() do not return values.
 
 OSSL_HTTP_REQ_CTX_set_request_line(), OSSL_HTTP_REQ_CTX_add1_header(),
 OSSL_HTTP_REQ_CTX_set1_req(), and OSSL_HTTP_REQ_CTX_set_expected()
@@ -253,15 +288,18 @@ L<ASN1_item_i2d_mem_bio(3)>,
 L<OSSL_HTTP_open(3)>,
 L<OSSL_HTTP_get(3)>,
 L<OSSL_HTTP_transfer(3)>,
-L<OSSL_HTTP_close(3)>
+L<OSSL_HTTP_close(3)>,
+L<OSSL_trace_enabled(3)>, and L<openssl-env(7)>.
 
 =head1 HISTORY
 
-The functions described here were added in OpenSSL 3.0.
+OSSL_HTTP_REQ_CTX_set_max_response_hdr_lines() was added in OpenSSL 3.3.
+
+All other functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

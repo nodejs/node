@@ -1,0 +1,151 @@
+=pod
+
+=head1 NAME
+
+EVP_SKEYMGMT,
+EVP_SKEYMGMT_fetch,
+EVP_SKEYMGMT_up_ref,
+EVP_SKEYMGMT_free,
+EVP_SKEYMGMT_get0_provider,
+EVP_SKEYMGMT_is_a,
+EVP_SKEYMGMT_get0_description,
+EVP_SKEYMGMT_get0_name,
+EVP_SKEYMGMT_do_all_provided,
+EVP_SKEYMGMT_names_do_all,
+EVP_SKEYMGMT_get0_gen_settable_params,
+EVP_SKEYMGMT_get0_imp_settable_params
+- EVP key management routines for opaque symmetric keys
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ typedef struct evp_sskeymgmt_st EVP_SKEYMGMT;
+
+ EVP_SKEYMGMT *EVP_SKEYMGMT_fetch(OSSL_LIB_CTX *ctx, const char *algorithm,
+                                  const char *properties);
+ int EVP_SKEYMGMT_up_ref(EVP_SKEYMGMT *skeymgmt);
+ void EVP_SKEYMGMT_free(EVP_SKEYMGMT *skeymgmt);
+ const OSSL_PROVIDER *EVP_SKEYMGMT_get0_provider(const EVP_SKEYMGMT *skeymgmt);
+ int EVP_SKEYMGMT_is_a(const EVP_SKEYMGMT *skeymgmt, const char *name);
+ const char *EVP_SKEYMGMT_get0_name(const EVP_SKEYMGMT *skeymgmt);
+ const char *EVP_SKEYMGMT_get0_description(const EVP_SKEYMGMT *skeymgmt);
+
+ void EVP_SKEYMGMT_do_all_provided(OSSL_LIB_CTX *libctx,
+                                   void (*fn)(EVP_SKEYMGMT *skeymgmt, void *arg),
+                                   void *arg);
+ int EVP_SKEYMGMT_names_do_all(const EVP_SKEYMGMT *skeymgmt,
+                               void (*fn)(const char *name, void *data),
+                               void *data);
+ const OSSL_PARAM *EVP_SKEYMGMT_get0_gen_settable_params(const EVP_SKEYMGMT *skeymgmt);
+ const OSSL_PARAM *EVP_SKEYMGMT_get0_imp_settable_params(const EVP_SKEYMGMT *skeymgmt);
+
+=head1 DESCRIPTION
+
+B<EVP_SKEYMGMT> is a method object that represents symmetric key management
+implementations for different cryptographic algorithms.  This method object
+provides functionality to allow providers to import key material from the
+outside, as well as export key material to the outside.
+
+Most of the functionality can only be used internally and has no public
+interface, this opaque object is simply passed into other functions when
+needed.
+
+EVP_SKEYMGMT_fetch() looks for an algorithm within a provider that
+has been loaded into the B<OSSL_LIB_CTX> given by I<ctx>, having the
+name given by I<algorithm> and the properties given by I<properties>.
+
+EVP_SKEYMGMT_up_ref() increments the reference count for the given
+B<EVP_SKEYMGMT> I<skeymgmt>.
+
+EVP_SKEYMGMT_free() decrements the reference count for the given
+B<EVP_SKEYMGMT> I<skeymgmt>, and when the count reaches zero, frees it.
+If the argument is NULL, nothing is done.
+
+EVP_SKEYMGMT_get0_provider() returns the provider that has this particular
+implementation.
+
+EVP_SKEYMGMT_is_a() checks if I<skeymgmt> is an implementation of an
+algorithm that's identified by I<name>.
+
+EVP_SKEYMGMT_get0_name() returns the algorithm name from the provided
+implementation for the given I<skeymgmt>. Note that the I<skeymgmt> may have
+multiple synonyms associated with it. In this case the first name from the
+algorithm definition is returned. Ownership of the returned string is
+retained by the I<skeymgmt> object and should not be freed by the caller.
+
+EVP_SKEYMGMT_names_do_all() traverses all names for the I<skeymgmt>, and
+calls I<fn> with each name and I<data>.
+
+EVP_SKEYMGMT_get0_description() returns a description of the I<skeymgmt>, meant
+for display and human consumption.  The description is at the discretion
+of the I<skeymgmt> implementation.
+
+EVP_SKEYMGMT_do_all_provided() traverses all key I<skeymgmt> implementations by
+all activated providers in the library context I<libctx>, and for each
+of the implementations, calls I<fn> with the implementation method and
+I<data> as arguments.
+
+EVP_SKEYMGMT_get0_gen_settable_params() and EVP_SKEYMGMT_get0_imp_settable_params()
+get a constant L<OSSL_PARAM(3)> array that describes the settable parameters
+that can be used with EVP_SKEY_generate() and EVP_SKEY_import() correspondingly.
+
+=head1 NOTES
+
+EVP_SKEYMGMT_fetch() may be called implicitly by other fetching
+functions, using the same library context and properties.
+Any other API that uses symmetric keys will typically do this.
+
+=head1 RETURN VALUES
+
+EVP_SKEYMGMT_fetch() returns a pointer to the key management
+implementation represented by an EVP_SKEYMGMT object, or NULL on
+error.
+
+EVP_SKEYMGMT_up_ref() returns 1 on success, or 0 on error.
+
+EVP_SKEYMGMT_names_do_all() returns 1 if the callback was called for all
+names. A return value of 0 means that the callback was not called for any names.
+
+EVP_SKEYMGMT_free() doesn't return any value.
+
+EVP_SKEYMGMT_get0_provider() returns a pointer to a provider object, or NULL
+on error.
+
+EVP_SKEYMGMT_is_a() returns 1 if I<skeymgmt> was identifiable, otherwise 0.
+
+EVP_SKEYMGMT_get0_name() returns the algorithm name, or NULL on error.
+
+EVP_SKEYMGMT_get0_description() returns a pointer to a description, or NULL if
+there isn't one.
+
+=head1 SEE ALSO
+
+L<EVP_SKEY(3)>, L<EVP_MD_fetch(3)>, L<OSSL_LIB_CTX(3)>
+
+=head1 HISTORY
+
+B<EVP_SKEYMGMT> structure and functions
+EVP_SKEYMGMT_fetch(),
+EVP_SKEYMGMT_up_ref(),
+EVP_SKEYMGMT_free(),
+EVP_SKEYMGMT_get0_provider(),
+EVP_SKEYMGMT_is_a(),
+EVP_SKEYMGMT_get0_description(),
+EVP_SKEYMGMT_get0_name(),
+EVP_SKEYMGMT_do_all_provided(),
+EVP_SKEYMGMT_names_do_all(),
+EVP_SKEYMGMT_get0_gen_settable_params(),
+EVP_SKEYMGMT_get0_imp_settable_params()
+were added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -4,6 +4,7 @@
 
 OSSL_CMP_MSG_get0_header,
 OSSL_CMP_MSG_get_bodytype,
+OSSL_CMP_MSG_get0_certreq_publickey,
 OSSL_CMP_MSG_update_transactionID,
 OSSL_CMP_MSG_update_recipNonce,
 OSSL_CMP_CTX_setup_CRM,
@@ -19,6 +20,7 @@ i2d_OSSL_CMP_MSG_bio
 
   OSSL_CMP_PKIHEADER *OSSL_CMP_MSG_get0_header(const OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_get_bodytype(const OSSL_CMP_MSG *msg);
+  X509_PUBKEY *OSSL_CMP_MSG_get0_certreq_publickey(const OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_update_transactionID(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
   int OSSL_CMP_MSG_update_recipNonce(OSSL_CMP_CTX *ctx, OSSL_CMP_MSG *msg);
   OSSL_CRMF_MSG *OSSL_CMP_CTX_setup_CRM(OSSL_CMP_CTX *ctx, int for_KUR, int rid);
@@ -32,6 +34,9 @@ i2d_OSSL_CMP_MSG_bio
 OSSL_CMP_MSG_get0_header() returns the header of the given CMP message.
 
 OSSL_CMP_MSG_get_bodytype() returns the body type of the given CMP message.
+
+OSSL_CMP_MSG_get0_certreq_publickey() expects that I<msg> is a certificate request
+message and returns the public key in its certificate template if present.
 
 OSSL_CMP_MSG_update_transactionID() updates the transactionID field
 in the header of the given message according to the CMP_CTX.
@@ -118,6 +123,8 @@ or NULL if the respective entry does not exist and on error.
 
 OSSL_CMP_MSG_get_bodytype() returns the body type or -1 on error.
 
+OSSL_CMP_MSG_get0_certreq_publickey() returns a public key or NULL on error.
+
 OSSL_CMP_CTX_setup_CRM() returns a pointer to a B<OSSL_CRMF_MSG> on success,
 NULL on error.
 
@@ -146,9 +153,11 @@ The OpenSSL CMP support was added in OpenSSL 3.0.
 
 OSSL_CMP_MSG_update_recipNonce() was added in OpenSSL 3.0.9.
 
+OSSL_CMP_MSG_get0_certreq_publickey() was added in OpenSSL 3.3.
+
 =head1 COPYRIGHT
 
-Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

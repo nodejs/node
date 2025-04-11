@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -26,8 +26,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 
 plan skip_all => "$test_name needs TLSv1.3 enabled"
     if disabled("tls1_3") || (disabled("ec") && disabled("dh"));
-
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 
 my $proxy = TLSProxy::Proxy->new(
     undef,
@@ -68,7 +66,7 @@ $proxy->clientflags("-sess_in ".$session);
 if (disabled("ec")) {
     $proxy->serverflags("-curves ffdhe3072");
 } else {
-    $proxy->serverflags("-curves P-256");
+    $proxy->serverflags("-curves P-384");
 }
 $proxy->filter(undef);
 $proxy->start();
@@ -87,7 +85,7 @@ $proxy->filter(\&modify_psk_filter);
 if (disabled("ec")) {
     $proxy->serverflags("-curves ffdhe3072");
 } else {
-    $proxy->serverflags("-curves P-256");
+    $proxy->serverflags("-curves P-384");
 }
 $proxy->ciphersuitesc("TLS_AES_128_GCM_SHA256:TLS_AES_256_GCM_SHA384");
 $proxy->ciphersuitess("TLS_AES_256_GCM_SHA384");

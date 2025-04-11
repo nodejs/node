@@ -1,5 +1,5 @@
 /*
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,7 +65,7 @@ static int keyexch_x25519_before(
     const unsigned char *kat_privk_data,
     PEER_DATA *local_peer)
 {
-    int rv = 0;
+    int ret = 0;
     size_t pubk_data_len = 0;
 
     /* Generate or load X25519 key for the peer */
@@ -99,14 +99,14 @@ static int keyexch_x25519_before(
         goto end;
     }
 
-    rv = 1;
+    ret = 1;
 end:
-    if (rv == 0) {
+    if (ret == 0) {
         EVP_PKEY_free(local_peer->privk);
         local_peer->privk = NULL;
     }
 
-    return rv;
+    return ret;
 }
 
 /*
@@ -120,7 +120,7 @@ static int keyexch_x25519_after(
     PEER_DATA *local_peer,
     const unsigned char *remote_peer_pubk_data)
 {
-    int rv = 0;
+    int ret = 0;
     EVP_PKEY *remote_peer_pubk = NULL;
     EVP_PKEY_CTX *ctx = NULL;
 
@@ -188,21 +188,21 @@ static int keyexch_x25519_after(
     BIO_dump_indent_fp(stdout, local_peer->secret, local_peer->secret_len, 2);
     putchar('\n');
 
-    rv = 1;
+    ret = 1;
 end:
     EVP_PKEY_CTX_free(ctx);
     EVP_PKEY_free(remote_peer_pubk);
-    if (rv == 0) {
+    if (ret == 0) {
         OPENSSL_clear_free(local_peer->secret, local_peer->secret_len);
         local_peer->secret = NULL;
     }
 
-    return rv;
+    return ret;
 }
 
 static int keyexch_x25519(int use_kat)
 {
-    int rv = 0;
+    int ret = 0;
     OSSL_LIB_CTX *libctx = NULL;
     PEER_DATA peer1 = {"peer 1"}, peer2 = {"peer 2"};
 
@@ -250,7 +250,7 @@ static int keyexch_x25519(int use_kat)
         goto end;
     }
 
-    rv = 1;
+    ret = 1;
 end:
     /* The secrets are sensitive, so ensure they are erased before freeing. */
     OPENSSL_clear_free(peer1.secret, peer1.secret_len);
@@ -259,7 +259,7 @@ end:
     EVP_PKEY_free(peer1.privk);
     EVP_PKEY_free(peer2.privk);
     OSSL_LIB_CTX_free(libctx);
-    return rv;
+    return ret;
 }
 
 int main(int argc, char **argv)
@@ -267,12 +267,12 @@ int main(int argc, char **argv)
     /* Test X25519 key exchange with known result. */
     printf("Key exchange using known answer (deterministic):\n");
     if (keyexch_x25519(1) == 0)
-        return 1;
+        return EXIT_FAILURE;
 
     /* Test X25519 key exchange with random keys. */
     printf("Key exchange using random keys:\n");
     if (keyexch_x25519(0) == 0)
-        return 1;
+        return EXIT_FAILURE;
 
-    return 0;
+    return EXIT_SUCCESS;
 }

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -61,7 +61,7 @@ static const OSSL_DISPATCH biocbs[] = {
     { OSSL_FUNC_BIO_CTRL, (void (*)(void))tst_bio_core_ctrl },
     { OSSL_FUNC_BIO_UP_REF, (void (*)(void))tst_bio_core_up_ref },
     { OSSL_FUNC_BIO_FREE, (void (*)(void))tst_bio_core_free },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 static int test_bio_core(void)

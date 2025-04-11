@@ -22,17 +22,36 @@ provider-signature - The signature library E<lt>-E<gt> provider functions
  void OSSL_FUNC_signature_freectx(void *ctx);
  void *OSSL_FUNC_signature_dupctx(void *ctx);
 
+ /* Get the key types that a signature algorithm supports */
+ const char **OSSL_FUNC_signature_query_key_types(void);
+
  /* Signing */
  int OSSL_FUNC_signature_sign_init(void *ctx, void *provkey,
                                    const OSSL_PARAM params[]);
  int OSSL_FUNC_signature_sign(void *ctx, unsigned char *sig, size_t *siglen,
                               size_t sigsize, const unsigned char *tbs, size_t tbslen);
+ int OSSL_FUNC_signature_sign_message_init(void *ctx, void *provkey,
+                                           const OSSL_PARAM params[]);
+ int OSSL_FUNC_signature_sign_message_update(void *ctx, const unsigned char *in,
+                                             size_t inlen);
+ int OSSL_FUNC_signature_sign_message_final(void *ctx, unsigned char *sig,
+                                            size_t *siglen, size_t sigsize);
 
  /* Verifying */
  int OSSL_FUNC_signature_verify_init(void *ctx, void *provkey,
                                      const OSSL_PARAM params[]);
  int OSSL_FUNC_signature_verify(void *ctx, const unsigned char *sig, size_t siglen,
                                 const unsigned char *tbs, size_t tbslen);
+ int OSSL_FUNC_signature_verify_message_init(void *ctx, void *provkey,
+                                             const OSSL_PARAM params[]);
+ int OSSL_FUNC_signature_verify_message_update(void *ctx, const unsigned char *in,
+                                               size_t inlen);
+ /*
+  * OSSL_FUNC_signature_verify_message_final requires that the signature to be
+  * verified is specified via a "signature" OSSL_PARAM, which is given with a
+  * previous call of OSSL_FUNC_signature_set_ctx_params().
+  */
+ int OSSL_FUNC_signature_verify_message_final(void *ctx);
 
  /* Verify Recover */
  int OSSL_FUNC_signature_verify_recover_init(void *ctx, void *provkey,
@@ -50,7 +69,7 @@ provider-signature - The signature library E<lt>-E<gt> provider functions
  int OSSL_FUNC_signature_digest_sign_final(void *ctx, unsigned char *sig,
                                            size_t *siglen, size_t sigsize);
  int OSSL_FUNC_signature_digest_sign(void *ctx,
-                              unsigned char *sigret, size_t *siglen,
+                              unsigned char *sig, size_t *siglen,
                               size_t sigsize, const unsigned char *tbs,
                               size_t tbslen);
 
@@ -87,8 +106,7 @@ for further information.
 
 The signature (OSSL_OP_SIGNATURE) operation enables providers to implement
 signature algorithms and make them available to applications via the API
-functions L<EVP_PKEY_sign(3)>,
-L<EVP_PKEY_verify(3)>,
+functions L<EVP_PKEY_sign(3)>, L<EVP_PKEY_verify(3)>,
 and L<EVP_PKEY_verify_recover(3)> (as well
 as other related functions).
 
@@ -115,11 +133,19 @@ macros in L<openssl-core_dispatch.h(7)>, as follows:
  OSSL_FUNC_signature_freectx                OSSL_FUNC_SIGNATURE_FREECTX
  OSSL_FUNC_signature_dupctx                 OSSL_FUNC_SIGNATURE_DUPCTX
 
+ OSSL_FUNC_signature_query_key_types        OSSL_FUNC_SIGNATURE_QUERY_KEY_TYPES
+
  OSSL_FUNC_signature_sign_init              OSSL_FUNC_SIGNATURE_SIGN_INIT
  OSSL_FUNC_signature_sign                   OSSL_FUNC_SIGNATURE_SIGN
+ OSSL_FUNC_signature_sign_message_init      OSSL_FUNC_SIGNATURE_SIGN_MESSAGE_INIT
+ OSSL_FUNC_signature_sign_message_update    OSSL_FUNC_SIGNATURE_SIGN_MESSAGE_UPDATE
+ OSSL_FUNC_signature_sign_message_final     OSSL_FUNC_SIGNATURE_SIGN_MESSAGE_FINAL
 
  OSSL_FUNC_signature_verify_init            OSSL_FUNC_SIGNATURE_VERIFY_INIT
  OSSL_FUNC_signature_verify                 OSSL_FUNC_SIGNATURE_VERIFY
+ OSSL_FUNC_signature_verify_message_init    OSSL_FUNC_SIGNATURE_VERIFY_MESSAGE_INIT
+ OSSL_FUNC_signature_verify_message_update  OSSL_FUNC_SIGNATURE_VERIFY_MESSAGE_UPDATE
+ OSSL_FUNC_signature_verify_message_final   OSSL_FUNC_SIGNATURE_VERIFY_MESSAGE_FINAL
 
  OSSL_FUNC_signature_verify_recover_init    OSSL_FUNC_SIGNATURE_VERIFY_RECOVER_INIT
  OSSL_FUNC_signature_verify_recover         OSSL_FUNC_SIGNATURE_VERIFY_RECOVER
@@ -153,7 +179,15 @@ set of "signature" functions, i.e. at least one of:
 
 =item OSSL_FUNC_signature_sign_init and OSSL_FUNC_signature_sign
 
+=item OSSL_FUNC_signature_sign_message_init and OSSL_FUNC_signature_sign
+
+=item OSSL_FUNC_signature_sign_message_init, OSSL_FUNC_signature_sign_message_update and OSSL_FUNC_signature_sign_message_final
+
 =item OSSL_FUNC_signature_verify_init and OSSL_FUNC_signature_verify
+
+=item OSSL_FUNC_signature_verify_message_init and OSSL_FUNC_signature_verify
+
+=item OSSL_FUNC_signature_verify_message_init, OSSL_FUNC_signature_verify_message_update and OSSL_FUNC_signature_verify_message_final
 
 =item OSSL_FUNC_signature_verify_recover_init and OSSL_FUNC_signature_verify_recover
 
@@ -203,7 +237,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_signature_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
 the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+L<provider-keymgmt(7)>).
 
 OSSL_FUNC_signature_sign() performs the actual signing itself.
 A previously initialised signature context is passed in the I<ctx>
@@ -212,6 +246,38 @@ The data to be signed is pointed to be the I<tbs> parameter which is I<tbslen>
 bytes long.
 Unless I<sig> is NULL, the signature should be written to the location pointed
 to by the I<sig> parameter and it should not exceed I<sigsize> bytes in length.
+The length of the signature should be written to I<*siglen>.
+If I<sig> is NULL then the maximum length of the signature should be written to
+I<*siglen>.
+
+=head2 Message Signing Functions
+
+These functions are suitable for providers that implement algorithms that
+accumulate a full message and sign the result of that accumulation, such as
+RSA-SHA256.
+
+OSSL_FUNC_signature_sign_message_init() initialises a context for signing a
+message given a provider side signature context in the I<ctx> parameter, and a
+pointer to a provider key object in the I<provkey> parameter.
+The I<params>, if not NULL, should be set on the context in a manner similar to
+using OSSL_FUNC_signature_set_ctx_params().
+The key object should have been previously generated, loaded or imported into
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+L<provider-keymgmt(7)>).
+
+OSSL_FUNC_signature_sign_message_update() gathers the data pointed at by
+I<in>, which is I<inlen> bytes long.
+
+OSSL_FUNC_signature_sign_message_final() performs the actual signing on the
+data that was gathered with OSSL_FUNC_signature_sign_message_update().
+
+OSSL_FUNC_signature_sign() can be used for one-shot signature calls.  In that
+case, I<tbs> is expected to be the whole message to be signed, I<tbslen> bytes
+long.
+
+For both OSSL_FUNC_signature_sign_message_final() and OSSL_FUNC_signature_sign(),
+if I<sig> is not NULL, the signature should be written to the location pointed
+to by I<sig>, and it should not exceed I<sigsize> bytes in length.
 The length of the signature should be written to I<*siglen>.
 If I<sig> is NULL then the maximum length of the signature should be written to
 I<*siglen>.
@@ -225,7 +291,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_signature_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
 the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+L<provider-keymgmt(7)>).
 
 OSSL_FUNC_signature_verify() performs the actual verification itself.
 A previously initialised signature context is passed in the I<ctx> parameter.
@@ -233,6 +299,34 @@ The data that the signature covers is pointed to be the I<tbs> parameter which
 is I<tbslen> bytes long.
 The signature is pointed to by the I<sig> parameter which is I<siglen> bytes
 long.
+
+=head2 Message Verify Functions
+
+These functions are suitable for providers that implement algorithms that
+accumulate a full message and verify a signature on the result of that
+accumulation, such as RSA-SHA256.
+
+OSSL_FUNC_signature_verify_message_init() initialises a context for verifying
+a signature on a message given a provider side signature context in the I<ctx>
+parameter, and a pointer to a provider key object in the I<provkey> parameter.
+The I<params>, if not NULL, should be set on the context in a manner similar to
+using OSSL_FUNC_signature_set_ctx_params().
+The key object should have been previously generated, loaded or imported into
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+L<provider-keymgmt(7)>).
+
+OSSL_FUNC_signature_verify_message_update() gathers the data pointed at by
+I<in>, which is I<inlen> bytes long.
+
+OSSL_FUNC_signature_verify_message_final() performs the actual verification on
+the data that was gathered with OSSL_FUNC_signature_verify_message_update().
+The signature itself must have been passed through the "signature"
+(B<OSSL_SIGNATURE_PARAM_SIGNATURE>) L<Signature parameter|/Signature parameters>
+before this function is called.
+
+OSSL_FUNC_signature_verify() can be used for one-shot verification calls.  In
+that case, I<tbs> is expected to be the whole message to be verified on,
+I<tbslen> bytes long.
 
 =head2 Verify Recover Functions
 
@@ -243,7 +337,7 @@ The I<params>, if not NULL, should be set on the context in a manner similar to
 using OSSL_FUNC_signature_set_ctx_params().
 The key object should have been previously generated, loaded or imported into
 the provider using the key management (OSSL_OP_KEYMGMT) operation (see
-provider-keymgmt(7)>.
+L<provider-keymgmt(7)>).
 
 OSSL_FUNC_signature_verify_recover() performs the actual verify recover itself.
 A previously initialised signature context is passed in the I<ctx> parameter.
@@ -257,7 +351,7 @@ the I<routlen> parameter.
 
 =head2 Digest Sign Functions
 
-OSSL_FUNC_signature_digeset_sign_init() initialises a context for signing given a
+OSSL_FUNC_signature_digest_sign_init() initialises a context for signing given a
 provider side signature context in the I<ctx> parameter, and a pointer to a
 provider key object in the I<provkey> parameter.
 The I<params>, if not NULL, should be set on the context in a manner similar to
@@ -265,7 +359,7 @@ using OSSL_FUNC_signature_set_ctx_params() and
 OSSL_FUNC_signature_set_ctx_md_params().
 The key object should have been
 previously generated, loaded or imported into the provider using the
-key management (OSSL_OP_KEYMGMT) operation (see provider-keymgmt(7)>.
+key management (OSSL_OP_KEYMGMT) operation (see L<provider-keymgmt(7)>).
 The name of the digest to be used will be in the I<mdname> parameter.
 
 OSSL_FUNC_signature_digest_sign_update() provides data to be signed in the I<data>
@@ -302,7 +396,7 @@ OSSL_FUNC_signature_set_ctx_params() and
 OSSL_FUNC_signature_set_ctx_md_params().
 The key object should have been
 previously generated, loaded or imported into the provider using the
-key management (OSSL_OP_KEYMGMT) operation (see provider-keymgmt(7)>.
+key management (OSSL_OP_KEYMGMT) operation (see L<provider-keymgmt(7)>).
 The name of the digest to be used will be in the I<mdname> parameter.
 
 OSSL_FUNC_signature_digest_verify_update() provides data to be verified in the I<data>
@@ -352,6 +446,22 @@ signature functions. It is required in order to calculate the "algorithm-id".
 Sets the name of the property query associated with the "digest" algorithm.
 NULL is used if this optional value is not set.
 
+=back
+
+Note that when implementing a signature algorithm that gathers a full message,
+like RSA-SHA256, the "digest" and "properties" parameters should not be used.
+For such implementations, it's acceptable to simply ignore them if they happen
+to be passed in a call to OSSL_FUNC_signature_set_ctx_params().  For such
+implementations, however, it is not acceptable to have them in the B<OSSL_PARAM>
+array that's returned by OSSL_FUNC_signature_settable_ctx_params().
+
+=over 4
+
+=item "signature" (B<OSSL_SIGNATURE_PARAM_SIGNATURE>) <octet string>
+
+Sets the signature to verify, specifically when
+OSSL_FUNC_signature_verify_message_final() is used.
+
 =item "digest-size" (B<OSSL_SIGNATURE_PARAM_DIGEST_SIZE>) <unsigned integer>
 
 Gets or sets the output size of the digest algorithm used for the input to the
@@ -362,6 +472,20 @@ The length of the "digest-size" parameter should not exceed that of a B<size_t>.
 
 Gets the DER encoded AlgorithmIdentifier that corresponds to the combination of
 signature algorithm and digest algorithm for the signature operation.
+
+=item "nonce-type" (B<OSSL_SIGNATURE_PARAM_NONCE_TYPE>) <unsigned integer>
+
+Set this to 1 to use deterministic digital signature generation with
+ECDSA or DSA, as defined in RFC 6979 (see Section 3.2 "Generation of
+k").  In this case, the "digest" parameter must be explicitly set
+(otherwise, deterministic nonce generation will fail).  Before using
+deterministic digital signature generation, please read RFC 6979
+Section 4 "Security Considerations".  The default value for
+"nonce-type" is 0 and results in a random value being used for the
+nonce B<k> as defined in FIPS 186-4 Section 6.3 "Secret Number
+Generation".
+
+The FIPS provider does not support deterministic digital signature generation.
 
 =item "kat" (B<OSSL_SIGNATURE_PARAM_KAT>) <unsigned integer>
 
@@ -375,6 +499,64 @@ otherwise the sign operation is only tried once and returns whether or not it
 was successful.
 Known answer tests can be performed if the random generator is overridden to
 supply known values that either pass or fail.
+
+=back
+
+The following parameters are used by the OpenSSL FIPS provider:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_SIGNATURE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling either the sign or verify final functions. It may
+return 0 if either the "digest-check", "key-check", or "sign-check" are set to 0.
+
+=item "verify-message" (B<OSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE> <integer>
+
+A getter that returns 1 if a signature verification operation acted on
+a raw message, or 0 if it verified a predigested message.  A value of 0
+indicates likely non-approved usage of the FIPS provider.  This flag is
+set when any signature verification initialisation function is called.
+It is also set to 1 when any signing operation is performed to signify
+compliance.  See FIPS 140-3 IG 2.4.B for further information.
+
+=item "key-check" (B<OSSL_SIGNATURE_PARAM_FIPS_KEY_CHECK>) <integer>
+
+If required this parameter should be set early via an init function
+(e.g. OSSL_FUNC_signature_sign_init() or OSSL_FUNC_signature_verify_init()).
+The default value of 1 causes an error during the init if the key is not FIPS
+approved (e.g. The key has a security strength of less than 112 bits).
+Setting this to 0 will ignore the error and set the approved "indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=item "digest-check" (B<OSSL_SIGNATURE_PARAM_FIPS_DIGEST_CHECK>) <integer>
+
+If required this parameter should be set before the signature digest is set.
+The default value of 1 causes an error when the digest is set if the digest is
+not FIPS approved (e.g. SHA1 is used for signing). Setting this to 0 will ignore
+the error and set the approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=item "sign-check" (B<OSSL_SIGNATURE_PARAM_FIPS_SIGN_CHECK>) <integer>
+
+If required this parameter should be set early via an init function.
+The default value of 1 causes an error when a signing algorithm is used. (This
+is triggered by deprecated signing algorithms).
+Setting this to 0 will ignore the error and set the approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator" to
+return 0.
+
+=item "sign-x931-pad-check" (B<OSSL_SIGNATURE_PARAM_FIPS_SIGN_X931_PAD_CHECK>) <integer>
+
+If required this parameter should be set before the padding mode is set.
+The default value of 1 causes an error if the padding mode is set to X9.31 padding
+for a RSA signing operation. Setting this to 0 will ignore the error and set the
+approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
 
 =back
 
@@ -426,10 +608,12 @@ L<provider(7)>
 =head1 HISTORY
 
 The provider SIGNATURE interface was introduced in OpenSSL 3.0.
+The Signature Parameters "fips-indicator", "key-check" and "digest-check"
+were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

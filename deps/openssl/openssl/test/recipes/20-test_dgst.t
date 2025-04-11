@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@ use OpenSSL::Test::Utils;
 
 setup("test_dgst");
 
-plan tests => 13;
+plan tests => 17;
 
 sub tsignverify {
     my $testtext = shift;
@@ -129,9 +129,7 @@ SKIP: {
 
 SKIP: {
     skip "EdDSA is not supported by this OpenSSL build", 2
-        if disabled("ec");
-
-    skip "EdDSA is not supported with `dgst` CLI", 2;
+        if disabled("ecx");
 
     subtest "Ed25519 signature generation and verification with `dgst` CLI" => sub {
         tsignverify("Ed25519",
@@ -143,6 +141,27 @@ SKIP: {
         tsignverify("Ed448",
                     srctop_file("test","tested448.pem"),
                     srctop_file("test","tested448pub.pem"));
+    };
+}
+
+SKIP: {
+    skip "ML-DSA is not supported by this OpenSSL build", 3
+        if disabled("ml-dsa");
+
+    subtest "ML-DSA-44 signature generation and verification with `dgst` CLI" => sub {
+        tsignverify("Ml-DSA-44",
+                    srctop_file("test","testmldsa44.pem"),
+                    srctop_file("test","testmldsa44pub.pem"));
+    };
+    subtest "ML-DSA-65 signature generation and verification with `dgst` CLI" => sub {
+        tsignverify("Ml-DSA-65",
+                    srctop_file("test","testmldsa65.pem"),
+                    srctop_file("test","testmldsa65pub.pem"));
+    };
+    subtest "ML-DSA-87 signature generation and verification with `dgst` CLI" => sub {
+        tsignverify("Ml-DSA-87",
+                    srctop_file("test","testmldsa87.pem"),
+                    srctop_file("test","testmldsa87pub.pem"));
     };
 }
 
@@ -198,11 +217,11 @@ subtest "HMAC generation with `dgst` CLI, key via option" => sub {
 
     my $testdata = srctop_file('test', 'data.bin');
     #HMAC the data twice to check consistency
-    my @hmacdata = run(app(['openssl', 'dgst', '-sha256', '-hmac',
+    my @hmacdata = run(app(['openssl', 'dgst', '-sha256', '-mac', 'HMAC',
                             '-macopt', 'hexkey:FFFF',
                             $testdata, $testdata]), capture => 1);
     chomp(@hmacdata);
-    my $expected = qr/HMAC-SHA2-256\(\Q$testdata\E\)= b6727b7bb251dfa65846e0a8223bdd57d244aa6d7e312cb906d8e21f2dee3a57/;
+    my $expected = qr/HMAC-SHA2-256\(\Q$testdata\E\)= 7c02d4a17d2560a5bb6763edbf33f3a34f415398f8f2e07f04b83ffd7c087dae/;
     ok($hmacdata[0] =~ $expected, "HMAC: Check HMAC value is as expected ($hmacdata[0]) vs ($expected)");
     ok($hmacdata[1] =~ $expected,
        "HMAC: Check second HMAC value is consistent with the first ($hmacdata[1]) vs ($expected)");
@@ -223,17 +242,15 @@ subtest "Custom length XOF digest generation with `dgst` CLI" => sub {
 };
 
 subtest "SHAKE digest generation with no xoflen set `dgst` CLI" => sub {
-    plan tests => 1;
+    plan tests => 2;
 
     my $testdata = srctop_file('test', 'data.bin');
-    my @xofdata = run(app(['openssl', 'dgst', '-shake128', $testdata], stderr => "outerr.txt"), capture => 1);
-    chomp(@xofdata);
-    my $expected = qr/SHAKE-128\(\Q$testdata\E\)= bb565dac72640109e1c926ef441d3fa6/;
-    ok($xofdata[0] =~ $expected, "Check short digest is output");
+    ok(!run(app(['openssl', 'dgst', '-shake128', $testdata])), "SHAKE128 must fail without xoflen");
+    ok(!run(app(['openssl', 'dgst', '-shake256', $testdata])), "SHAKE256 must fail without xoflen");
 };
 
 SKIP: {
-    skip "ECDSA is not supported by this OpenSSL build", 1
+    skip "ECDSA is not supported by this OpenSSL build", 2
         if disabled("ec");
 
     subtest "signing with xoflen is not supported `dgst` CLI" => sub {
@@ -245,5 +262,17 @@ SKIP: {
                      '-out', 'test.sig',
                      srctop_file('test', 'data.bin')])),
                      "Generating signature with xoflen should fail");
+    };
+
+    subtest "signing using the nonce-type sigopt" => sub {
+        plan tests => 1;
+        my $data_to_sign = srctop_file('test', 'data.bin');
+
+        ok(run(app(['openssl', 'dgst', '-sha256',
+                     '-sign', srctop_file("test","testec-p256.pem"),
+                     '-out', 'test.sig',
+                     '-sigopt', 'nonce-type:1',
+                     srctop_file('test', 'data.bin')])),
+                     "Sign using the nonce-type sigopt");
     }
 }

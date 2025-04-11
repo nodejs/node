@@ -16,29 +16,32 @@ X509V3_set_issuer_pkey - X.509 v3 extension generation utilities
 =head1 DESCRIPTION
 
 X509V3_set_ctx() fills in the basic fields of I<ctx> of type B<X509V3_CTX>,
-providing details potentially needed by functions producing X509 v3 extensions,
-e.g., to look up values for filling in authority key identifiers.
-Any of I<subject>, I<req>, or I<crl> may be provided, pointing to a certificate,
-certification request, or certificate revocation list, respectively.
+providing details potentially needed by functions producing X509 v3 extensions.
+These may make use of fields of the certificate I<subject>, the certification
+request I<req>, or the certificate revocation list I<crl>.
+At most one of these three parameters can be non-NULL.
 When constructing the subject key identifier of a certificate by computing a
 hash value of its public key, the public key is taken from I<subject> or I<req>.
 Similarly, when constructing subject alternative names from any email addresses
 contained in a subject DN, the subject DN is taken from I<subject> or I<req>.
-If I<subject> or I<crl> is provided, I<issuer> should point to its issuer,
-for instance to help generating an authority key identifier extension.
-Note that if I<subject> is provided, I<issuer> may be the same as I<subject>,
-which means that I<subject> is self-issued (or even self-signed).
+If I<subject> or I<crl> is provided, I<issuer> should point to its issuer, for
+instance as a reference for generating the authority key identifier extension.
+I<issuer> may be the same pointer value as I<subject> (which usually is an
+indication that the I<subject> certificate is self-issued or even self-signed).
+In this case the fallback source for generating the authority key identifier
+extension will be taken from any value provided using X509V3_set_issuer_pkey().
 I<flags> may be 0
 or contain B<X509V3_CTX_TEST>, which means that just the syntax of
-extension definitions is to be checked without actually producing an extension,
+extension definitions is to be checked without actually producing any extension,
 or B<X509V3_CTX_REPLACE>, which means that each X.509v3 extension added as
 defined in some configuration section shall replace any already existing
 extension with the same OID.
 
 X509V3_set_issuer_pkey() explicitly sets the issuer private key of
-the certificate that has been provided in I<ctx>.
-This should be done for self-issued certificates (which may be self-signed
-or not) to provide fallback data for the authority key identifier extension.
+the subject certificate that has been provided in I<ctx>.
+This should be done in case the I<issuer> and I<subject> arguments to
+X509V3_set_ctx() have the same pointer value
+to provide fallback data for the authority key identifier extension.
 
 =head1 RETURN VALUES
 

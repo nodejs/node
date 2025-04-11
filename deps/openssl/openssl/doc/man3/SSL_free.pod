@@ -34,6 +34,38 @@ and L<SSL_set_shutdown(3)> was not used to set the
 SSL_SENT_SHUTDOWN state, the session will also be removed
 from the session cache as required by RFC2246.
 
+When used to free a QUIC stream SSL object, the respective sending and receiving
+parts of the stream are reset unless those parts have already been concluded
+normally:
+
+=over 4
+
+=item
+
+If the stream has a sending part (in other words, if it is bidirectional or a
+locally-initiated unidirectional stream) and that part has not been concluded
+via a call to L<SSL_stream_conclude(3)> or L<SSL_stream_reset(3)> on the QUIC
+stream SSL object, a call to SSL_free() automatically resets the sending part of
+the stream as though L<SSL_stream_reset(3)> were called with a QUIC application
+error code of 0.
+
+=item
+
+If the stream has a receiving part (in other words, if it is bidirectional or a
+remotely-initiated unidirectional stream), and the peer has not yet concluded
+that part of the stream normally (such as via a call to
+L<SSL_stream_conclude(3)> on its own end), a call to SSL_free() automatically
+requests the reset of the receiving part of the stream using a QUIC STOP_SENDING
+frame with a QUIC application error code of 0. Note that as per the QUIC
+protocol, this will automatically cause the peer to reset that part of the
+stream in turn (which is its sending part).
+
+=back
+
+A QUIC stream SSL object maintains a reference to a QUIC connection SSL object
+internally, therefore a QUIC stream SSL object and its parent QUIC connection
+SSL object can be freed in either order.
+
 =head1 RETURN VALUES
 
 SSL_free() does not provide diagnostic information.
@@ -44,7 +76,7 @@ L<ssl(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2016 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

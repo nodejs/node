@@ -48,7 +48,7 @@ give you the result back, thus making it authentic according to their
 policies).  A certificate request is sent to a certificate authority
 to get it signed into a certificate. You can also sign the certificate
 yourself if you have your own certificate authority or create a
-self-signed certificate (typically for testing purpose).
+self-signed certificate (typically for testing purposes).
 
 The certificate request is created like this:
 

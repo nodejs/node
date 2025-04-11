@@ -33,27 +33,43 @@ per-key basis.
 
 =item "kdf-type" (B<OSSL_EXCHANGE_PARAM_KDF_TYPE>) <UTF8 string>
 
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
-
 =item "kdf-digest" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST>) <UTF8 string>
-
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-digest-props" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS>) <UTF8 string>
 
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
-
 =item "kdf-outlen" (B<OSSL_EXCHANGE_PARAM_KDF_OUTLEN>) <unsigned integer>
-
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string>
 
+=back
+
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_EXCHANGE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+=item "key-check" (B<OSSL_EXCHANGE_PARAM_FIPS_KEY_CHECK>) <integer>
+
+=item "digest-check" (B<OSSL_EXCHANGE_PARAM_FIPS_DIGEST_CHECK>) <integer>
+
 See L<provider-keyexch(7)/Common Key Exchange parameters>.
+
+=item "ecdh-cofactor-check" (B<OSSL_EXCHANGE_PARAM_FIPS_ECDH_COFACTOR_CHECK>) <integer>
+
+If required this parameter should before OSSL_FUNC_keyexch_derive().
+The default value of 1 causes an error during the OSSL_FUNC_keyexch_derive if
+the EC curve has a cofactor that is not 1, and the cofactor is not used.
+Setting this to 0 will ignore the error and set the approved
+"fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
 
 =back
 
 =head1 EXAMPLES
+
+Examples of key agreement can be found in demos/keyexch.
 
 Keys for the host and peer must be generated as shown in
 L<EVP_PKEY-EC(7)/Examples> using the same curve name.
@@ -107,7 +123,7 @@ L<OSSL_PROVIDER-FIPS(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

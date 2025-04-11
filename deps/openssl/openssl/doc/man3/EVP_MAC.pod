@@ -8,7 +8,7 @@ EVP_MAC_get0_provider, EVP_MAC_get_params, EVP_MAC_gettable_params,
 EVP_MAC_CTX, EVP_MAC_CTX_new, EVP_MAC_CTX_free, EVP_MAC_CTX_dup,
 EVP_MAC_CTX_get0_mac, EVP_MAC_CTX_get_params, EVP_MAC_CTX_set_params,
 EVP_MAC_CTX_get_mac_size, EVP_MAC_CTX_get_block_size, EVP_Q_mac,
-EVP_MAC_init, EVP_MAC_update, EVP_MAC_final, EVP_MAC_finalXOF,
+EVP_MAC_init, EVP_MAC_init_SKEY, EVP_MAC_update, EVP_MAC_final, EVP_MAC_finalXOF,
 EVP_MAC_gettable_ctx_params, EVP_MAC_settable_ctx_params,
 EVP_MAC_CTX_gettable_params, EVP_MAC_CTX_settable_params,
 EVP_MAC_do_all_provided - EVP MAC routines
@@ -49,6 +49,7 @@ EVP_MAC_do_all_provided - EVP MAC routines
                           unsigned char *out, size_t outsize, size_t *outlen);
  int EVP_MAC_init(EVP_MAC_CTX *ctx, const unsigned char *key, size_t keylen,
                   const OSSL_PARAM params[]);
+ int EVP_MAC_init_SKEY(EVP_MAC_CTX *ctx, EVP_SKEY *skey, const OSSL_PARAM params[]);
  int EVP_MAC_update(EVP_MAC_CTX *ctx, const unsigned char *data, size_t datalen);
  int EVP_MAC_final(EVP_MAC_CTX *ctx,
                    unsigned char *out, size_t *outl, size_t outsize);
@@ -150,6 +151,9 @@ re-initalization (i.e. calling EVP_MAC_init() on an EVP_MAC after EVP_MAC_final(
 has been called on the same object).  See the NOTES section below.
 
 EVP_MAC_init() should be called before EVP_MAC_update() and EVP_MAC_final().
+
+EVP_MAC_init_SKEY() is similar to EVP_MAC_init() but it accepts an opaque
+B<EVP_SKEY> object as a key.
 
 EVP_MAC_update() adds I<datalen> bytes from I<data> to the MAC input.
 
@@ -282,14 +286,16 @@ This option is used by KMAC.
 A simple flag to set the MAC digest to not initialise the
 implementation specific data. The value 0 or 1 is expected.
 
-This option is used by HMAC.
+This option is deprecated and will be removed in a future release.
+The option may be set, but is ignored.
 
 =item "digest-oneshot" (B<OSSL_MAC_PARAM_DIGEST_ONESHOT>) <integer>
 
 A simple flag to set the MAC digest to be a oneshot operation.
 The value 0 or 1 is expected.
 
-This option is used by HMAC.
+This option is deprecated and will be removed in a future release.
+The option may be set, but is ignored.
 
 =item "properties" (B<OSSL_MAC_PARAM_PROPERTIES>) <UTF8 string>
 
@@ -382,8 +388,8 @@ success, 0 on error.
 
 EVP_Q_mac() returns a pointer to the computed MAC value, or NULL on error.
 
-EVP_MAC_init(), EVP_MAC_update(), EVP_MAC_final(), and EVP_MAC_finalXOF()
-return 1 on success, 0 on error.
+EVP_MAC_init(), EVP_MAC_init_SKEY(), EVP_MAC_update(), EVP_MAC_final(), and
+EVP_MAC_finalXOF() return 1 on success, 0 on error.
 
 EVP_MAC_CTX_get_mac_size() returns the expected output size, or 0 if it isn't
 set.  If it isn't set, a call to EVP_MAC_init() will set it.
@@ -489,9 +495,11 @@ L<life_cycle-mac(7)>
 
 These functions were added in OpenSSL 3.0.
 
+The EVP_MAC_init_SKEY() function was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

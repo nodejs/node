@@ -31,19 +31,20 @@ These functions are typically called after certificate or chain verification
 using L<X509_verify_cert(3)> or L<X509_STORE_CTX_verify(3)> has indicated
 an error or in a verification callback to determine the nature of an error.
 
-X509_STORE_CTX_get_error() returns the error code of I<ctx>.
+X509_STORE_CTX_get_error() returns the error code of I<ctx>. I<ctx> B<MUST NOT> be NULL.
 See the L</ERROR CODES> section for a full description of all error codes.
 It may return a code != X509_V_OK even if X509_verify_cert() did not indicate
 an error, likely because a verification callback function has waived the error.
 
 X509_STORE_CTX_set_error() sets the error code of I<ctx> to I<s>. For example
 it might be used in a verification callback to set an error based on additional
-checks.
+checks. I<ctx> B<MUST NOT> be NULL.
 
 X509_STORE_CTX_get_error_depth() returns the I<depth> of the error. This is a
 nonnegative integer representing where in the certificate chain the error
 occurred. If it is zero it occurred in the end entity certificate, one if
 it is the certificate which signed the end entity certificate and so on.
+I<ctx> B<MUST NOT> be NULL.
 
 X509_STORE_CTX_set_error_depth() sets the error I<depth>.
 This can be used in combination with X509_STORE_CTX_set_error() to set the
@@ -67,14 +68,15 @@ Once such a I<saved> certificate is no longer needed it can be freed with
 L<X509_free(3)>.
 
 X509_STORE_CTX_get0_cert() retrieves an internal pointer to the
-certificate being verified by the I<ctx>.
+certificate being verified by the I<ctx>. It may be NULL if a raw public
+key is being verified.
 
 X509_STORE_CTX_get1_chain() returns a complete validate chain if a previous
 verification is successful. Otherwise the returned chain may be incomplete or
 invalid.  The returned chain persists after the I<ctx> structure is freed.
 When it is no longer needed it should be free up using:
 
- sk_X509_pop_free(chain, X509_free);
+ OSSL_STACK_OF_X509_free(chain);
 
 X509_verify_cert_error_string() returns a human readable error string for
 verification error I<n>.
@@ -459,6 +461,11 @@ The algorithm given in the certificate info is inconsistent
 
 A CA certificate is invalid. Either it is not a CA or its extensions are not
 consistent with the supplied purpose.
+
+=item B<X509_V_ERR_RPK_UNTRUSTED: raw public key untrusted, no trusted keys configured>
+
+No TLS records were configured to validate the raw public key, or DANE was not
+enabled on the connection.
 
 =back
 

@@ -9,12 +9,15 @@ openssl-speed - test library performance
 
 B<openssl speed>
 [B<-help>]
+[B<-config> I<filename>]
 [B<-elapsed>]
 [B<-evp> I<algo>]
 [B<-hmac> I<algo>]
 [B<-cmac> I<algo>]
 [B<-mb>]
 [B<-aead>]
+[B<-kem-algorithms>]
+[B<-signature-algorithms>]
 [B<-multi> I<num>]
 [B<-async_jobs> I<num>]
 [B<-misalign> I<num>]
@@ -23,6 +26,8 @@ B<openssl speed>
 [B<-seconds> I<num>]
 [B<-bytes> I<num>]
 [B<-mr>]
+[B<-mlock>]
+[B<-testmode>]
 {- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
 [I<algorithm> ...]
@@ -38,6 +43,12 @@ This command is used to test the performance of cryptographic algorithms.
 =item B<-help>
 
 Print out a usage message.
+
+=item B<-config> I<filename>
+
+Specifies the configuration file to use.
+Optional; for a description of the default value,
+see L<openssl(1)/COMMAND SUMMARY>.
 
 =item B<-elapsed>
 
@@ -89,6 +100,14 @@ Enable multi-block mode on EVP-named cipher.
 
 Benchmark EVP-named AEAD cipher in TLS-like sequence.
 
+=item B<-kem-algorithms>
+
+Benchmark KEM algorithms: key generation, encapsulation, decapsulation.
+
+=item B<-signature-algorithms>
+
+Benchmark signature algorithms: key generation, signature, verification.
+
 =item B<-primes> I<num>
 
 Generate a I<num>-prime RSA key and use it to run the benchmarks. This option
@@ -101,12 +120,22 @@ Run benchmarks for I<num> seconds.
 =item B<-bytes> I<num>
 
 Run benchmarks on I<num>-byte buffers. Affects ciphers, digests and the CSPRNG.
-The limit on the size of the buffer is INT_MAX - 64 bytes, which for a 32-bit 
+The limit on the size of the buffer is INT_MAX - 64 bytes, which for a 32-bit
 int would be 2147483583 bytes.
 
 =item B<-mr>
 
 Produce the summary in a mechanical, machine-readable, format.
+
+=item B<-mlock>
+
+Lock memory into RAM for more deterministic measurements.
+
+=item B<-testmode>
+
+Runs the speed command in testmode. Runs only 1 iteration of each algorithm test
+regardless of any B<-seconds> value. In the event that any operation fails then
+the speed command will return with a failure result.
 
 {- $OpenSSL::safe::opt_r_item -}
 
@@ -134,9 +163,13 @@ supported by third party providers with the C<openssl speed> command.
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
 
+DSA512 was removed in OpenSSL 3.2.
+
+The B<-testmode> option was added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

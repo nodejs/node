@@ -252,11 +252,12 @@ static int test_mod_exp_x2(int idx)
     BIGNUM *m2 = NULL;
     int factor_size = 0;
 
-    /*
-     * Currently only 1024-bit factor size is supported.
-     */
     if (idx <= 100)
         factor_size = 1024;
+    else if (idx <= 200)
+        factor_size = 1536;
+    else if (idx <= 300)
+        factor_size = 2048;
 
     if (!TEST_ptr(ctx = BN_CTX_new()))
         goto err;
@@ -332,6 +333,6 @@ int setup_tests(void)
 {
     ADD_TEST(test_mod_exp_zero);
     ADD_ALL_TESTS(test_mod_exp, 200);
-    ADD_ALL_TESTS(test_mod_exp_x2, 100);
+    ADD_ALL_TESTS(test_mod_exp_x2, 300);
     return 1;
 }

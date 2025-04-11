@@ -41,12 +41,12 @@ client = 1-Server signature algorithms bug-client
 [1-Server signature algorithms bug-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
-ClientSignatureAlgorithms = PSS+SHA512:RSA+SHA512
+ClientSignatureAlgorithms = PSs+SHA512:RsA+SHA512
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [1-Server signature algorithms bug-client]
 CipherString = DEFAULT
-SignatureAlgorithms = PSS+SHA256:RSA+SHA256
+SignatureAlgorithms = Pss+SHA256:RSa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 

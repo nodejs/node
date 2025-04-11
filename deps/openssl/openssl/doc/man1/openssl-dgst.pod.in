@@ -89,17 +89,19 @@ Output the digest or signature in binary form.
 Set the output length for XOF algorithms, such as B<shake128> and B<shake256>.
 This option is not supported for signing operations.
 
-For OpenSSL providers it is recommended to set this value for shake algorithms,
-since the default values are set to only supply half of the maximum security
-strength.
+For OpenSSL providers it is required to set this value for shake algorithms,
+since the previous default values were only set to supply half of the maximum
+security strength.
 
-For backwards compatibility reasons the default xoflen length for B<shake128> is
-16 (bytes) which results in a security strength of only 64 bits. To ensure the
-maximum security strength of 128 bits, the xoflen should be set to at least 32.
+To ensure the maximum security strength of 128 bits, the xoflen for B<shake128>
+should be set to at least 32 (bytes). For compatibility with previous versions
+of OpenSSL, it may be set to 16, resulting in a security strength of only 64
+bits.
 
-For backwards compatibility reasons the default xoflen length for B<shake256> is
-32 (bytes) which results in a security strength of only 128 bits. To ensure the
-maximum security strength of 256 bits, the xoflen should be set to at least 64.
+To ensure the maximum security strength of 256 bits, the xoflen for B<shake256>
+should be set to at least 64 (bytes). For compatibility with previous versions
+of OpenSSL, it may be set to 32, resulting in a security strength of only 128
+bits.
 
 =item B<-r>
 
@@ -114,9 +116,13 @@ Filename to output to, or standard output by default.
 
 =item B<-sign> I<filename>|I<uri>
 
-Digitally sign the digest using the given private key. Note this option
-does not support Ed25519 or Ed448 private keys. Use the L<openssl-pkeyutl(1)>
-command instead for this.
+Digitally sign the digest using the given private key.
+
+Note that for algorithms that only support one-shot signing
+(such as Ed25519, ED448, ML-DSA-44, ML-DSA-65 andML-DSA-87) the digest must not
+be set. For these algorithms the input is buffered (and not digested) before
+signing. For these algorithms, if the input is larger than 16MB an error
+will occur.
 
 =item B<-keyform> B<DER>|B<PEM>|B<P12>|B<ENGINE>
 
@@ -126,7 +132,8 @@ See L<openssl-format-options(1)> for details.
 =item B<-sigopt> I<nm>:I<v>
 
 Pass options to the signature algorithm during sign or verify operations.
-Names and values of these options are algorithm-specific.
+Names and values of these options are algorithm-specific and documented
+in L<provider-signature(7)/Signature parameters>.
 
 =item B<-passin> I<arg>
 
@@ -278,7 +285,7 @@ The B<-engine> and B<-engine_impl> options were deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

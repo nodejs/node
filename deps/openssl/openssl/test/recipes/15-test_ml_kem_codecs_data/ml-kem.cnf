@@ -1,0 +1,18 @@
+openssl_conf = openssl_init
+
+[openssl_init]
+providers = providers_sect
+
+# Can be referenced in one or more provider sections
+[ml_kem_sect]
+retain_seed = $ENV::RETAIN_SEED
+
+[providers_sect]
+default = default_sect
+base = base_sect
+
+[default_sect]
+ml-kem = ml_kem_sect
+
+[base_sect]
+ml-kem = ml_kem_sect

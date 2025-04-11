@@ -7,6 +7,7 @@
 .type	gcm_init_v8,%function
 .align	4
 gcm_init_v8:
+	AARCH64_VALID_CALL_TARGET
 	ld1	{v17.2d},[x1]		//load input H
 	movi	v19.16b,#0xe1
 	shl	v19.2d,v19.2d,#57		//0xc2.0
@@ -82,21 +83,110 @@ gcm_init_v8:
 	pmull	v5.1q,v5.1d,v19.1d
 	eor	v18.16b,v18.16b,v2.16b
 	eor	v4.16b,v4.16b,v7.16b
-	eor	v20.16b, v0.16b,v18.16b		//H^3
-	eor	v22.16b,v5.16b,v4.16b		//H^4
+	eor	v23.16b, v0.16b,v18.16b		//H^3
+	eor	v25.16b,v5.16b,v4.16b		//H^4
 
-	ext	v16.16b,v20.16b, v20.16b,#8		//Karatsuba pre-processing
-	ext	v17.16b,v22.16b,v22.16b,#8
-	eor	v16.16b,v16.16b,v20.16b
-	eor	v17.16b,v17.16b,v22.16b
-	ext	v21.16b,v16.16b,v17.16b,#8		//pack Karatsuba pre-processed
-	st1	{v20.2d,v21.2d,v22.2d},[x0]		//store Htable[3..5]
+	ext	v16.16b,v23.16b, v23.16b,#8		//Karatsuba pre-processing
+	ext	v17.16b,v25.16b,v25.16b,#8
+	ext	v18.16b,v22.16b,v22.16b,#8
+	eor	v16.16b,v16.16b,v23.16b
+	eor	v17.16b,v17.16b,v25.16b
+	eor	v18.16b,v18.16b,v22.16b
+	ext	v24.16b,v16.16b,v17.16b,#8		//pack Karatsuba pre-processed
+	st1	{v23.2d,v24.2d,v25.2d},[x0],#48		//store Htable[3..5]
+
+	//calculate H^5 and H^6
+	pmull	v0.1q,v22.1d, v23.1d
+	pmull	v5.1q,v23.1d,v23.1d
+	pmull2	v2.1q,v22.2d, v23.2d
+	pmull2	v7.1q,v23.2d,v23.2d
+	pmull	v1.1q,v16.1d,v18.1d
+	pmull	v6.1q,v16.1d,v16.1d
+
+	ext	v16.16b,v0.16b,v2.16b,#8		//Karatsuba post-processing
+	ext	v17.16b,v5.16b,v7.16b,#8
+	eor	v18.16b,v0.16b,v2.16b
+	eor	v1.16b,v1.16b,v16.16b
+	eor	v4.16b,v5.16b,v7.16b
+	eor	v6.16b,v6.16b,v17.16b
+	eor	v1.16b,v1.16b,v18.16b
+	pmull	v18.1q,v0.1d,v19.1d		//1st phase
+	eor	v6.16b,v6.16b,v4.16b
+	pmull	v4.1q,v5.1d,v19.1d
+
+	ins	v2.d[0],v1.d[1]
+	ins	v7.d[0],v6.d[1]
+	ins	v1.d[1],v0.d[0]
+	ins	v6.d[1],v5.d[0]
+	eor	v0.16b,v1.16b,v18.16b
+	eor	v5.16b,v6.16b,v4.16b
+
+	ext	v18.16b,v0.16b,v0.16b,#8		//2nd phase
+	ext	v4.16b,v5.16b,v5.16b,#8
+	pmull	v0.1q,v0.1d,v19.1d
+	pmull	v5.1q,v5.1d,v19.1d
+	eor	v18.16b,v18.16b,v2.16b
+	eor	v4.16b,v4.16b,v7.16b
+	eor	v26.16b,v0.16b,v18.16b		//H^5
+	eor	v28.16b,v5.16b,v4.16b		//H^6
+
+	ext	v16.16b,v26.16b, v26.16b,#8		//Karatsuba pre-processing
+	ext	v17.16b,v28.16b,v28.16b,#8
+	ext	v18.16b,v22.16b,v22.16b,#8
+	eor	v16.16b,v16.16b,v26.16b
+	eor	v17.16b,v17.16b,v28.16b
+	eor	v18.16b,v18.16b,v22.16b
+	ext	v27.16b,v16.16b,v17.16b,#8		//pack Karatsuba pre-processed
+	st1	{v26.2d,v27.2d,v28.2d},[x0],#48		//store Htable[6..8]
+
+	//calculate H^7 and H^8
+	pmull	v0.1q,v22.1d,v26.1d
+	pmull	v5.1q,v22.1d,v28.1d
+	pmull2	v2.1q,v22.2d,v26.2d
+	pmull2	v7.1q,v22.2d,v28.2d
+	pmull	v1.1q,v16.1d,v18.1d
+	pmull	v6.1q,v17.1d,v18.1d
+
+	ext	v16.16b,v0.16b,v2.16b,#8		//Karatsuba post-processing
+	ext	v17.16b,v5.16b,v7.16b,#8
+	eor	v18.16b,v0.16b,v2.16b
+	eor	v1.16b,v1.16b,v16.16b
+	eor	v4.16b,v5.16b,v7.16b
+	eor	v6.16b,v6.16b,v17.16b
+	eor	v1.16b,v1.16b,v18.16b
+	pmull	v18.1q,v0.1d,v19.1d		//1st phase
+	eor	v6.16b,v6.16b,v4.16b
+	pmull	v4.1q,v5.1d,v19.1d
+
+	ins	v2.d[0],v1.d[1]
+	ins	v7.d[0],v6.d[1]
+	ins	v1.d[1],v0.d[0]
+	ins	v6.d[1],v5.d[0]
+	eor	v0.16b,v1.16b,v18.16b
+	eor	v5.16b,v6.16b,v4.16b
+
+	ext	v18.16b,v0.16b,v0.16b,#8		//2nd phase
+	ext	v4.16b,v5.16b,v5.16b,#8
+	pmull	v0.1q,v0.1d,v19.1d
+	pmull	v5.1q,v5.1d,v19.1d
+	eor	v18.16b,v18.16b,v2.16b
+	eor	v4.16b,v4.16b,v7.16b
+	eor	v29.16b,v0.16b,v18.16b		//H^7
+	eor	v31.16b,v5.16b,v4.16b		//H^8
+
+	ext	v16.16b,v29.16b,v29.16b,#8		//Karatsuba pre-processing
+	ext	v17.16b,v31.16b,v31.16b,#8
+	eor	v16.16b,v16.16b,v29.16b
+	eor	v17.16b,v17.16b,v31.16b
+	ext	v30.16b,v16.16b,v17.16b,#8		//pack Karatsuba pre-processed
+	st1	{v29.2d,v30.2d,v31.2d},[x0]		//store Htable[9..11]
 	ret
 .size	gcm_init_v8,.-gcm_init_v8
 .globl	gcm_gmult_v8
 .type	gcm_gmult_v8,%function
 .align	4
 gcm_gmult_v8:
+	AARCH64_VALID_CALL_TARGET
 	ld1	{v17.2d},[x0]		//load Xi
 	movi	v19.16b,#0xe1
 	ld1	{v20.2d,v21.2d},[x1]	//load twisted H, ...
@@ -138,6 +228,7 @@ gcm_gmult_v8:
 .type	gcm_ghash_v8,%function
 .align	4
 gcm_ghash_v8:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x3,#64
 	b.hs	.Lgcm_ghash_v8_4x
 	ld1	{v0.2d},[x0]		//load [rotated] Xi
@@ -546,6 +637,7 @@ gcm_ghash_v8_4x:
 
 	ret
 .size	gcm_ghash_v8_4x,.-gcm_ghash_v8_4x
+.section	.rodata
 .byte	71,72,65,83,72,32,102,111,114,32,65,82,77,118,56,44,32,67,82,89,80,84,79,71,65,77,83,32,98,121,32,60,97,112,112,114,111,64,111,112,101,110,115,115,108,46,111,114,103,62,0
 .align	2
 .align	2

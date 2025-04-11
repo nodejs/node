@@ -94,8 +94,19 @@ EVP_PKEY_new_raw_private_key_ex() allocates a new B<EVP_PKEY>. Unless an
 engine should be used for the key type, a provider for the key is found using
 the library context I<libctx> and the property query string I<propq>. The
 I<keytype> argument indicates what kind of key this is. The value should be a
-string for a public key algorithm that supports raw private keys, i.e one of
-"X25519", "ED25519", "X448" or "ED448". I<key> points to the raw private key
+string for a public key algorithm that supports raw private keys, e.g., one of:
+C<ED25519>,
+C<ED448>,
+C<X25519>,
+C<X448>,
+C<ML-DSA-44>,
+C<ML-DSA-65>,
+C<ML-DSA-87>,
+C<ML-KEM-512>,
+C<ML-KEM-768>,
+or
+C<ML-KEM-1024>.
+I<key> points to the raw private key
 data for this B<EVP_PKEY> which should be of length I<keylen>. The length
 should be appropriate for the type of the key. The public key data will be
 automatically derived from the given private key data (if appropriate for the
@@ -119,13 +130,23 @@ EVP_PKEY_new_raw_public_key_ex() works in the same way as
 EVP_PKEY_new_raw_private_key_ex() except that I<key> points to the raw
 public key data. The B<EVP_PKEY> structure will be initialised without any
 private key information. Algorithm types that support raw public keys are
-"X25519", "ED25519", "X448" or "ED448".
+B<ED25519>,
+B<ED448>,
+B<X25519>,
+B<X448>,
+C<ML-DSA-44>,
+C<ML-DSA-65>,
+C<ML-DSA-87>,
+B<ML-KEM-512>,
+B<ML-KEM-768>,
+and
+B<ML-KEM-1024>.
 
 EVP_PKEY_new_raw_public_key() works in the same way as
-EVP_PKEY_new_raw_private_key() except that I<key> points to the raw public key
-data. The B<EVP_PKEY> structure will be initialised without any private key
-information. Algorithm types that support raw public keys are
-B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
+EVP_PKEY_new_raw_private_key_ex() except that I<key> points to the raw public
+key data.
+The B<EVP_PKEY> structure will be initialised without any private key
+information.
 
 EVP_PKEY_new_mac_key() works in the same way as EVP_PKEY_new_raw_private_key().
 New applications should use EVP_PKEY_new_raw_private_key() instead.
@@ -137,8 +158,25 @@ actually written. If the buffer I<priv> is NULL then I<*len> is populated with
 the number of bytes required to hold the key. The calling application is
 responsible for ensuring that the buffer is large enough to receive the private
 key data. This function only works for algorithms that support raw private keys.
-Currently this is: B<EVP_PKEY_HMAC>, B<EVP_PKEY_POLY1305>, B<EVP_PKEY_SIPHASH>,
-B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or B<EVP_PKEY_ED448>.
+These include:
+B<ED25519>,
+B<ED448>,
+B<X25519>,
+B<X448>,
+B<HMAC>,
+B<POLY1305>,
+and
+B<SIPHASH>.
+EVP_PKEY_get_raw_private_key() also works with
+C<ML-DSA-44>,
+C<ML-DSA-65>,
+C<ML-DSA-87>,
+B<ML-KEM-512>,
+B<ML-KEM-768> and
+B<ML-KEM-1024>
+keys, which don't have legacy numeric I<NID> assigments, but their raw form is
+nevertheless available.
+
 
 EVP_PKEY_get_raw_public_key() fills the buffer provided by I<pub> with raw
 public key data. The size of the I<pub> buffer should be in I<*len> on entry
@@ -147,8 +185,21 @@ actually written. If the buffer I<pub> is NULL then I<*len> is populated with
 the number of bytes required to hold the key. The calling application is
 responsible for ensuring that the buffer is large enough to receive the public
 key data. This function only works for algorithms that support raw public  keys.
-Currently this is: B<EVP_PKEY_X25519>, B<EVP_PKEY_ED25519>, B<EVP_PKEY_X448> or
-B<EVP_PKEY_ED448>.
+These include:
+B<ED25519>,
+B<ED448>,
+B<X25519>,
+and
+B<X448>
+EVP_PKEY_get_raw_public_key() also works with
+C<ML-DSA-44>,
+C<ML-DSA-65>,
+C<ML-DSA-87>,
+B<ML-KEM-512>,
+B<ML-KEM-768> and
+B<ML-KEM-1024>
+keys, which don't have legacy numeric I<NID> assigments, but their raw form is
+nevertheless available.
 
 EVP_PKEY_new_CMAC_key() works in the same way as EVP_PKEY_new_raw_private_key()
 except it is only for the B<EVP_PKEY_CMAC> algorithm type. In addition to the
@@ -183,8 +234,19 @@ EVP_PKEY_get_raw_public_key() return 1 for success and 0 for failure.
 
 =head1 SEE ALSO
 
-L<EVP_PKEY_set1_RSA(3)>, L<EVP_PKEY_set1_DSA(3)>, L<EVP_PKEY_set1_DH(3)> or
-L<EVP_PKEY_set1_EC_KEY(3)>
+L<EVP_PKEY_set1_RSA(3)>,
+L<EVP_PKEY_set1_DSA(3)>,
+L<EVP_PKEY_set1_DH(3)>,
+L<EVP_PKEY_set1_EC_KEY(3)>,
+L<EVP_PKEY-ED25519(7)>,
+L<EVP_PKEY-ED448(7)>.
+L<EVP_PKEY-HMAC(7)>,
+L<EVP_PKEY-Poly1305(7)>,
+L<EVP_PKEY-Siphash(7)>,
+L<EVP_PKEY-X25519(7)>,
+L<EVP_PKEY-X448(7)>,
+L<EVP_PKEY-ML-DSA(7)>,
+L<EVP_PKEY-ML-KEM(7)>.
 
 =head1 HISTORY
 
@@ -208,9 +270,11 @@ The documentation of B<EVP_PKEY> was amended in OpenSSL 3.0 to allow there to
 be the private part of the keypair without the public part, where this was
 previously implied to be disallowed.
 
+Support for B<ML-DSA> and B<ML-KEM> was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
