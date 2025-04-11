@@ -1,4 +1,4 @@
-// Flags: --experimental-vm-modules --expose-internals
+// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -290,4 +290,58 @@ for (const [ value, _method ] of [
   }
   assert.ok(!types.isCryptoKey());
   assert.ok(!types.isKeyObject());
+}
+
+const values = [
+  new String(),
+  new Boolean(),
+  new Number(),
+  new Date(),
+  new Error(),
+  new RegExp(),
+  new Map(),
+  new Set(),
+  new WeakMap(),
+  new WeakSet(),
+  new ArrayBuffer(),
+  new SharedArrayBuffer(),
+  new DataView(new ArrayBuffer()),
+];
+
+function getValue() {
+  return values[Math.floor(Math.random() * values.length)];
+}
+
+for (const method of Object.values(types)) {
+  // The function that will be optimized. It has to be a function written in
+  // JavaScript, so the tested method is wrapped.
+  function testFastPath(input) {
+    return method(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testFastPath)');
+  // This call will let V8 know about the argument types that the function expects.
+  testFastPath(getValue());
+
+  eval('%OptimizeFunctionOnNextCall(testFastPath)');
+  for (let i = 0; i < 1000; i++) {
+    // Trigger other code that also calls type methods
+    inspect(getValue());
+    // Call the function again to check that the fast path is taken.
+    assert.strictEqual(typeof testFastPath(getValue()), 'boolean');
+  }
+}
+
+if (common.isDebug) {
+  const { getV8FastApiCallCount } = internalBinding('debug');
+  console.log(
+    getV8FastApiCallCount(`types.isBoxedPrimitive`),
+    getV8FastApiCallCount(`types.isMethod.macro`),
+    getV8FastApiCallCount(`types.isAnyArrayBuffer`)
+  );
+  assert(
+    getV8FastApiCallCount(`types.isBoxedPrimitive`) +
+    getV8FastApiCallCount(`types.isMethod.macro`) +
+    getV8FastApiCallCount(`types.isAnyArrayBuffer`) > 1
+  );
 }
