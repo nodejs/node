@@ -1,11 +1,11 @@
 'use strict';
 require('../common');
 const tmpdir = require('../common/tmpdir');
-const { path: fixturesPath } = require('../common/fixtures');
-const { spawn } = require('node:child_process');
 const { join } = require('node:path');
 const { DatabaseSync } = require('node:sqlite');
 const { test } = require('node:test');
+const { once } = require('node:events');
+const { Worker } = require('node:worker_threads');
 let cnt = 0;
 
 tmpdir.refresh();
@@ -14,55 +14,59 @@ function nextDb() {
   return join(tmpdir.path, `database-${cnt++}.db`);
 }
 
-test('connection can perform queries when lock is released before the timeout', (t, done) => {
-  const databasePath = nextDb();
-  const conn = new DatabaseSync(databasePath, { timeout: 1100 });
-  t.after(() => { conn.close(); });
-
-  conn.exec('CREATE TABLE data (key INTEGER PRIMARY KEY, value TEXT)');
-
-  // Spawns a child process to locks the database for 1 second
-  const child = spawn('./node', [fixturesPath('sqlite/lock-db.js'), databasePath], {
-    stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
-  });
-
-  child.on('message', (msg) => {
-    if (msg === 'locked') {
-      conn.exec('INSERT INTO data (key, value) VALUES (?, ?)', [1, 'value-1']);
-
-      setTimeout(() => {
-        done();
-      }, 1100);
+test('waits to acquire lock', async (t) => {
+  const DB_PATH = nextDb();
+  const conn = new DatabaseSync(DB_PATH);
+  t.after(() => {
+    try {
+      conn.close();
+    } catch {
+      // Ignore.
     }
   });
+
+  conn.exec('CREATE TABLE IF NOT EXISTS data (value TEXT)');
+  conn.exec('BEGIN EXCLUSIVE;');
+  const worker = new Worker(`
+    'use strict';
+    const { DatabaseSync } = require('node:sqlite');
+    const { workerData } = require('node:worker_threads');
+    const conn = new DatabaseSync(workerData.database, { timeout: 30000 });
+    conn.exec('SELECT * FROM data');
+    conn.close();
+  `, {
+    eval: true,
+    workerData: {
+      database: DB_PATH,
+    }
+  });
+  await once(worker, 'online');
+  conn.exec('COMMIT;');
+  await once(worker, 'exit');
 });
 
-test('trhows if lock is holden longer than the provided timeout', (t, done) => {
-  const databasePath = nextDb();
-  const conn = new DatabaseSync(databasePath, { timeout: 800 });
-  t.after(() => { conn.close(); });
-
-  conn.exec('CREATE TABLE data (key INTEGER PRIMARY KEY, value TEXT)');
-
-  // Spawns a child process to locks the database for 1 second
-  const child = spawn('./node', [fixturesPath('sqlite/lock-db.js'), databasePath], {
-    stdio: ['inherit', 'inherit', 'inherit', 'ipc'],
+test('throws if the lock cannot be acquired before timeout', (t) => {
+  const DB_PATH = nextDb();
+  const conn1 = new DatabaseSync(DB_PATH);
+  t.after(() => {
+    try {
+      conn1.close();
+    } catch {
+      // Ignore.
+    }
   });
-
-  child.on('message', (msg) => {
-    if (msg === 'locked') {
-      t.assert.throws(() => {
-        conn.exec('INSERT INTO data (key, value) VALUES (?, ?)', [1, 'value-1']);
-      }, {
-        code: 'ERR_SQLITE_ERROR',
-        message: 'database is locked',
-      });
+  const conn2 = new DatabaseSync(DB_PATH, { timeout: 1 });
+  t.after(() => {
+    try {
+      conn2.close();
+    } catch {
+      // Ignore.
     }
   });
 
-  child.on('exit', (code) => {
-    if (code === 0) {
-      done();
-    }
-  });
+  conn1.exec('CREATE TABLE IF NOT EXISTS data (value TEXT)');
+  conn1.exec('PRAGMA locking_mode = EXCLUSIVE; BEGIN EXCLUSIVE;');
+  t.assert.throws(() => {
+    conn2.exec('SELECT * FROM data');
+  }, /database is locked/);
 });

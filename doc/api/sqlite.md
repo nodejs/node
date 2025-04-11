@@ -78,6 +78,9 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57752
+    description: Add `timeout` option
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
@@ -116,8 +119,9 @@ added: v22.5.0
     and the `loadExtension()` method are enabled.
     You can call `enableLoadExtension(false)` later to disable this feature.
     **Default:** `false`.
-  * `timeout` {number} Number of milliseconds to wait for the database to
-    become available when it is locked. **Default:** `0`.
+  * `timeout` {number} The [busy timeout][] in milliseconds. This is the maximum amount of
+    time that SQLite will wait for a database lock to be released before
+    returning an error. **Default:** `0`.
 
 Constructs a new `DatabaseSync` instance.
 
@@ -810,6 +814,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
   </tr>
 </table>
 
+[busy timeout]: https://sqlite.org/c3ref/busy_timeout.html
 [Changesets and Patchsets]: https://www.sqlite.org/sessionintro.html#changesets_and_patchsets
 [Constants Passed To The Conflict Handler]: https://www.sqlite.org/session/c_changeset_conflict.html
 [Constants Returned From The Conflict Handler]: https://www.sqlite.org/session/c_changeset_abort.html
