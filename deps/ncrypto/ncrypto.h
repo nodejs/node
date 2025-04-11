@@ -278,8 +278,13 @@ class Digest final {
   const EVP_MD* md_ = nullptr;
 };
 
+// Computes a fixed-length digest.
 DataPointer hashDigest(const Buffer<const unsigned char>& data,
                        const EVP_MD* md);
+// Computes a variable-length digest for XOF algorithms (e.g. SHAKE128).
+DataPointer xofHashDigest(const Buffer<const unsigned char>& data,
+                          const EVP_MD* md,
+                          size_t length);
 
 class Cipher final {
  public:
