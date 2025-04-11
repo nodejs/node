@@ -55,7 +55,7 @@ Maybe<void> HKDFTraits::AdditionalConfig(
   CHECK(args[offset + 4]->IsUint32());  // Length
 
   Utf8Value hash(env->isolate(), args[offset]);
-  params->digest = Digest::FromName(hash.ToStringView());
+  params->digest = Digest::FromName(*hash);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *hash);
     return Nothing<void>();

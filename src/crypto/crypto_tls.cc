@@ -1868,7 +1868,7 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
                             .FromMaybe(Local<Object>());
 
   auto code = X509Pointer::ErrorCode(x509_verify_error);
-  if (Set(env, error, env->code_string(), code.data()))
+  if (Set(env, error, env->code_string(), code))
     args.GetReturnValue().Set(error);
 }
 

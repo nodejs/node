@@ -101,7 +101,7 @@ Maybe<void> PBKDF2Traits::AdditionalConfig(
   }
 
   Utf8Value name(args.GetIsolate(), args[offset + 4]);
-  params->digest = Digest::FromName(name.ToStringView());
+  params->digest = Digest::FromName(*name);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *name);
     return Nothing<void>();
