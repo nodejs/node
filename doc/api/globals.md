@@ -251,7 +251,7 @@ Used to handle binary data. See the [buffer section][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -329,7 +329,7 @@ added: v0.0.1
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -353,7 +353,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -444,7 +444,7 @@ A browser-compatible implementation of the [`CustomEvent` Web API][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -870,7 +870,7 @@ DataHandler.prototype.load = async function load(key) {
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -882,7 +882,7 @@ A browser-compatible implementation of [`ReadableByteStreamController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -894,7 +894,7 @@ A browser-compatible implementation of [`ReadableStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -906,7 +906,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -918,7 +918,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -930,7 +930,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1088,7 +1088,7 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1110,7 +1110,7 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1122,7 +1122,7 @@ A browser-compatible implementation of [`TextEncoderStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1134,7 +1134,7 @@ A browser-compatible implementation of [`TransformStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1200,7 +1200,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1212,7 +1212,7 @@ A browser-compatible implementation of [`WritableStream`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -1224,7 +1224,7 @@ A browser-compatible implementation of [`WritableStreamDefaultController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->

@@ -349,7 +349,7 @@ controller.abort();
 added: v0.1.91
 changes:
   - version:
-      - REPLACEME
+      - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Passing `args` when `shell` is set to `true` is deprecated.
   - version:
@@ -646,7 +646,7 @@ if (process.argv[2] === 'child') {
 added: v0.1.90
 changes:
   - version:
-      - REPLACEME
+      - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Passing `args` when `shell` is set to `true` is deprecated.
   - version:

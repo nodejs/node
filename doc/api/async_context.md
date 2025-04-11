@@ -145,7 +145,7 @@ added:
  - v19.8.0
  - v18.16.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -163,7 +163,7 @@ added:
  - v19.8.0
  - v18.16.0
 changes:
- - version: REPLACEME
+ - version: v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->

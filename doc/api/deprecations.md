@@ -3739,7 +3739,7 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 <!-- YAML
 changes:
   - version:
-    - REPLACEME
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->

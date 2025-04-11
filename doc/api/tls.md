@@ -2345,7 +2345,7 @@ The server can be tested by connecting to it using the example client from
 ## `tls.getCACertificates([type])`
 
 <!-- YAML
-added: REPLACEME
+added: v22.15.0
 -->
 
 * `type` {string|undefined} The type of CA certificates that will be returned. Valid values
