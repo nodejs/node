@@ -1401,7 +1401,7 @@ added:
   - v20.13.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
 -->
@@ -1458,7 +1458,7 @@ added:
   - v16.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
   - version:
@@ -3556,7 +3556,7 @@ added:
   - v16.17.0
 changes:
   - version:
-    - REPLACEME
+    - v24.0.0
     pr-url: https://github.com/nodejs/node/pull/56664
     description: This function no longer returns a `Promise`.
   - version:

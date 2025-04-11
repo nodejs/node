@@ -2595,7 +2595,7 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57370
    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->

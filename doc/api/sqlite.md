@@ -201,7 +201,7 @@ wrapper around [`sqlite3_create_function_v2()`][].
 ### `database.isOpen`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * {boolean} Whether the database is currently open or not.
@@ -302,7 +302,7 @@ targetDb.applyChangeset(changeset);
 ### `database[Symbol.dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 > Stability: 1 - Experimental
@@ -395,7 +395,7 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.columns()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
@@ -545,7 +545,7 @@ are several caveats to be aware of when enabling bare named parameters:
 ### `statement.setAllowUnknownNamedParameters(enabled)`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * `enabled` {boolean} Enables or disables support for unknown named parameters.

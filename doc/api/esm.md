@@ -692,7 +692,7 @@ would provide the exports interface for the instantiation of `library.wasm`.
 ### Wasm Source Phase Imports
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 The [Source Phase Imports][] proposal allows the `import source` keyword
