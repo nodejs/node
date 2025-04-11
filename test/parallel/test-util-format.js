@@ -290,6 +290,15 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', objectWithToPrimitive + ''), 'default context');
 }
 
+// built-in toPrimitive is the same behavior as inspect
+{
+  const date = new Date('2023-10-01T00:00:00Z');
+  assert.strictEqual(util.format('%s', date), util.inspect(date));
+
+  const symbol = Symbol('foo');
+  assert.strictEqual(util.format('%s', symbol), util.inspect(symbol));
+}
+
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
 assert.strictEqual(util.format('%j', 42), '42');
