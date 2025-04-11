@@ -19,6 +19,8 @@ std::ostream& operator<<(std::ostream& os, BinaryOperationHint hint) {
       return os << "SignedSmall";
     case BinaryOperationHint::kSignedSmallInputs:
       return os << "SignedSmallInputs";
+    case BinaryOperationHint::kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case BinaryOperationHint::kNumber:
       return os << "Number";
     case BinaryOperationHint::kNumberOrOddball:

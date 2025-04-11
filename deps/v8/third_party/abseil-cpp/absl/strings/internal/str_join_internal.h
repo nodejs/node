@@ -43,6 +43,7 @@
 #include <utility>
 
 #include "absl/base/config.h"
+#include "absl/base/internal/iterator_traits.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/strings/internal/ostringstream.h"
 #include "absl/strings/internal/resize_uninitialized.h"
@@ -228,9 +229,8 @@ std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
 // range will be traversed twice: once to calculate the total needed size, and
 // then again to copy the elements and delimiters to the output string.
 template <typename Iterator,
-          typename = typename std::enable_if<std::is_convertible<
-              typename std::iterator_traits<Iterator>::iterator_category,
-              std::forward_iterator_tag>::value>::type>
+          typename = std::enable_if_t<
+              base_internal::IsAtLeastForwardIterator<Iterator>::value>>
 std::string JoinAlgorithm(Iterator start, Iterator end, absl::string_view s,
                           NoFormatter) {
   std::string result;

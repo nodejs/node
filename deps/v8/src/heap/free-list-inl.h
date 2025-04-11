@@ -6,6 +6,8 @@
 #define V8_HEAP_FREE_LIST_INL_H_
 
 #include "src/heap/free-list.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/spaces.h"
 

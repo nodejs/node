@@ -26,7 +26,7 @@ class ValueUnwrapContext {
 
 TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
                                             TNode<JSGeneratorObject> generator,
-                                            TNode<Object> value,
+                                            TNode<JSAny> value,
                                             TNode<JSPromise> outer_promise,
                                             RootIndex on_resolve_sfi,
                                             RootIndex on_reject_sfi) {
@@ -43,7 +43,7 @@ TNode<Object> AsyncBuiltinsAssembler::Await(TNode<Context> context,
 
 TNode<Object> AsyncBuiltinsAssembler::Await(
     TNode<Context> context, TNode<JSGeneratorObject> generator,
-    TNode<Object> value, TNode<JSPromise> outer_promise,
+    TNode<JSAny> value, TNode<JSPromise> outer_promise,
     const CreateClosures& CreateClosures) {
   const TNode<NativeContext> native_context = LoadNativeContext(context);
 
@@ -52,11 +52,11 @@ TNode<Object> AsyncBuiltinsAssembler::Await(
   // intrinsics %Promise% constructor as its "constructor", we don't need
   // to allocate the wrapper promise.
   {
-    TVARIABLE(Object, var_value, value);
+    TVARIABLE(JSAny, var_value, value);
     Label if_slow_path(this, Label::kDeferred), if_done(this),
         if_slow_constructor(this, Label::kDeferred);
     GotoIf(TaggedIsSmi(value), &if_slow_path);
-    TNode<HeapObject> value_object = CAST(value);
+    TNode<JSAnyNotSmi> value_object = CAST(value);
     const TNode<Map> value_map = LoadMap(value_object);
     GotoIfNot(IsJSPromiseMap(value_map), &if_slow_path);
     // We can skip the "constructor" lookup on {value} if it's [[Prototype]]

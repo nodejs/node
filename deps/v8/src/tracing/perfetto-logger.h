@@ -25,27 +25,31 @@ class PerfettoLogger : public LogEventListener {
 
   void LogExistingCode();
 
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
                        const char* name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<Name> name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name) override;
-  void CodeCreateEvent(CodeTag tag, Handle<AbstractCode> code,
-                       Handle<SharedFunctionInfo> shared,
-                       Handle<Name> script_name, int line, int column) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<Name> name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name) override;
+  void CodeCreateEvent(CodeTag tag, DirectHandle<AbstractCode> code,
+                       DirectHandle<SharedFunctionInfo> shared,
+                       DirectHandle<Name> script_name, int line,
+                       int column) override;
 #if V8_ENABLE_WEBASSEMBLY
   void CodeCreateEvent(CodeTag tag, const wasm::WasmCode* code,
                        wasm::WasmName name, const char* source_url,
                        int code_offset, int script_id) override;
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-  void CallbackEvent(Handle<Name> name, Address entry_point) override;
-  void GetterCallbackEvent(Handle<Name> name, Address entry_point) override;
-  void SetterCallbackEvent(Handle<Name> name, Address entry_point) override;
-  void RegExpCodeCreateEvent(Handle<AbstractCode> code,
-                             Handle<String> source) override;
+  void CallbackEvent(DirectHandle<Name> name, Address entry_point) override;
+  void GetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override;
+  void SetterCallbackEvent(DirectHandle<Name> name,
+                           Address entry_point) override;
+  void RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
+                             DirectHandle<String> source,
+                             RegExpFlags flags) override;
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override;
   void BytecodeMoveEvent(Tagged<BytecodeArray> from,
@@ -53,12 +57,12 @@ class PerfettoLogger : public LogEventListener {
   void SharedFunctionInfoMoveEvent(Address from, Address to) override;
   void NativeContextMoveEvent(Address from, Address to) override;
   void CodeMovingGCEvent() override;
-  void CodeDisableOptEvent(Handle<AbstractCode> code,
-                           Handle<SharedFunctionInfo> shared) override;
-  void CodeDeoptEvent(Handle<Code> code, DeoptimizeKind kind, Address pc,
+  void CodeDisableOptEvent(DirectHandle<AbstractCode> code,
+                           DirectHandle<SharedFunctionInfo> shared) override;
+  void CodeDeoptEvent(DirectHandle<Code> code, DeoptimizeKind kind, Address pc,
                       int fp_to_sp_delta) override;
-  void CodeDependencyChangeEvent(Handle<Code> code,
-                                 Handle<SharedFunctionInfo> shared,
+  void CodeDependencyChangeEvent(DirectHandle<Code> code,
+                                 DirectHandle<SharedFunctionInfo> shared,
                                  const char* reason) override;
   void WeakCodeClearEvent() override;
   bool is_listening_to_code_events() override;

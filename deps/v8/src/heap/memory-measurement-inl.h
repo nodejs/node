@@ -6,6 +6,8 @@
 #define V8_HEAP_MEMORY_MEASUREMENT_INL_H_
 
 #include "src/heap/memory-measurement.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/contexts-inl.h"
 #include "src/objects/contexts.h"
 #include "src/objects/instance-type-inl.h"

@@ -44,8 +44,7 @@ class AllocationHandle;
 
 namespace internal {
 
-// Similar to C++17 std::align_val_t;
-enum class AlignVal : size_t {};
+using AlignVal = std::align_val_t;
 
 class MakeGarbageCollectedTraitInternal {
  protected:

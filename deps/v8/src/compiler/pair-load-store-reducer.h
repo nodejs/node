@@ -1,9 +1,9 @@
-#ifndef V8_COMPILER_PAIR_LOAD_STORE_REDUCER_H_
-#define V8_COMPILER_PAIR_LOAD_STORE_REDUCER_H_
-
 // Copyright 2023 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
+#ifndef V8_COMPILER_PAIR_LOAD_STORE_REDUCER_H_
+#define V8_COMPILER_PAIR_LOAD_STORE_REDUCER_H_
 
 #include "src/base/compiler-specific.h"
 #include "src/common/globals.h"

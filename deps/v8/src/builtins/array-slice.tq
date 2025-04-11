@@ -157,11 +157,13 @@ transitioning javascript builtin ArrayPrototypeSlice(
   // CloneFastJSArray here is safe only if we know ToInteger didn't call user
   // code.
 
-  // This logic should be in sync with ArrayPrototypeSlice (to a reasonable
-  // degree). This is because CloneFastJSArray produces arrays which are
-  // potentially COW. If there's a discrepancy, TF generates code which produces
-  // a COW array and then expects it to be non-COW (or the other way around) ->
-  // immediate deopt.
+  // This logic should be in sync with ReduceArrayPrototypeSlice (to a
+  // reasonable degree). This is because CloneFastJSArray produces arrays which
+  // are potentially COW. If there's a discrepancy, TF generates code which
+  // produces a COW array and then expects it to be non-COW (or the other way
+  // around) -> immediate deopt.
+
+  // LINT.IfChange(ArrayPrototypeSlice)
   if ((start == Undefined || TaggedEqual(start, SmiConstant(0))) &&
       end == Undefined) {
     typeswitch (receiver) {
@@ -172,6 +174,7 @@ transitioning javascript builtin ArrayPrototypeSlice(
       }
     }
   }
+  // LINT.ThenChange(/src/compiler/js-call-reducer.cc:ArrayPrototypeSlice)
 
   // 6. If relativeEnd < 0, let final be max((len + relativeEnd), 0);
   //    else let final be min(relativeEnd, len).

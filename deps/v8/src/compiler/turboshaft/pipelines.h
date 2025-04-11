@@ -10,8 +10,8 @@
 #include "src/codegen/optimized-compilation-info.h"
 #include "src/compiler/backend/register-allocator-verifier.h"
 #include "src/compiler/basic-block-instrumentor.h"
-#include "src/compiler/graph-visualizer.h"
 #include "src/compiler/pipeline-statistics.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
 #include "src/compiler/turboshaft/block-instrumentation-phase.h"
 #include "src/compiler/turboshaft/build-graph-phase.h"
 #include "src/compiler/turboshaft/code-elimination-and-simplification-phase.h"
@@ -21,14 +21,13 @@
 #include "src/compiler/turboshaft/loop-peeling-phase.h"
 #include "src/compiler/turboshaft/loop-unrolling-phase.h"
 #include "src/compiler/turboshaft/machine-lowering-phase.h"
-#include "src/compiler/turboshaft/maglev-graph-building-phase.h"
 #include "src/compiler/turboshaft/optimize-phase.h"
 #include "src/compiler/turboshaft/phase.h"
 #include "src/compiler/turboshaft/register-allocation-phase.h"
 #include "src/compiler/turboshaft/sidetable.h"
-#include "src/compiler/turboshaft/simplified-lowering-phase.h"
 #include "src/compiler/turboshaft/store-store-elimination-phase.h"
 #include "src/compiler/turboshaft/tracing.h"
+#include "src/compiler/turboshaft/turbolev-graph-builder.h"
 #include "src/compiler/turboshaft/type-assertions-phase.h"
 #include "src/compiler/turboshaft/typed-optimizations-phase.h"
 
@@ -40,7 +39,13 @@ namespace v8::internal::compiler::turboshaft {
 
 inline constexpr char kTempZoneName[] = "temp-zone";
 
-class Pipeline {
+struct SimplificationAndNormalizationPhase {
+  DECL_TURBOSHAFT_PHASE_CONSTANTS(SimplificationAndNormalization)
+
+  void Run(PipelineData* data, Zone* temp_zone);
+};
+
+class V8_EXPORT_PRIVATE Pipeline {
  public:
   explicit Pipeline(PipelineData* data) : data_(data) {}
 
@@ -56,7 +61,7 @@ class Pipeline {
     }
   }
 
-  template <CONCEPT(TurboshaftPhase) Phase, typename... Args>
+  template <TurboshaftPhase Phase, typename... Args>
   auto Run(Args&&... args) {
     // Setup run scope.
     PhaseScope phase_scope(data_->pipeline_statistics(), Phase::phase_name());
@@ -124,13 +129,13 @@ class Pipeline {
     }
   }
 
-  bool CreateGraphWithMaglev() {
+  bool CreateGraphWithMaglev(Linkage* linkage) {
     UnparkedScopeIfNeeded unparked_scope(data_->broker());
 
     BeginPhaseKind("V8.TFGraphCreation");
     turboshaft::Tracing::Scope tracing_scope(data_->info());
     std::optional<BailoutReason> bailout =
-        Run<turboshaft::MaglevGraphBuildingPhase>();
+        Run<turboshaft::MaglevGraphBuildingPhase>(linkage);
     EndPhaseKind();
 
     if (bailout.has_value()) {
@@ -151,7 +156,6 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
-    DCHECK(!v8_flags.turboshaft_from_maglev);
     if (std::optional<BailoutReason> bailout =
             Run<turboshaft::BuildGraphPhase>(turbofan_data, linkage)) {
       info()->AbortOptimization(*bailout);
@@ -168,9 +172,7 @@ class Pipeline {
 
     turboshaft::Tracing::Scope tracing_scope(data_->info());
 
-    if (v8_flags.turboshaft_frontend) {
-      Run<turboshaft::SimplifiedLoweringPhase>();
-    }
+    BeginPhaseKind("V8.TurboshaftOptimize");
 
 #ifdef V8_ENABLE_WEBASSEMBLY
     // TODO(dlehmann,353475584): Once the Wasm-in-JS TS inlining MVP is feature-
@@ -183,20 +185,6 @@ class Pipeline {
 #endif  // !V8_ENABLE_WEBASSEMBLY
 
     Run<turboshaft::MachineLoweringPhase>();
-
-    // TODO(dmercadier): find a way to merge LoopPeeling and LoopUnrolling. It's
-    // not currently possible for 2 reasons. First, LoopPeeling reduces the
-    // number of iteration of a loop, thus invalidating LoopUnrolling's
-    // analysis. This could probably be worked around fairly easily though.
-    // Second, LoopPeeling has to emit the non-peeled header of peeled loops, in
-    // order to fix their loop phis (because their 1st input should be replace
-    // by their 2nd input coming from the peeled iteration), but LoopUnrolling
-    // has to be triggered before emitting the loop header. This could be fixed
-    // by changing LoopUnrolling start unrolling after the 1st header has been
-    // emitted, but this would also require updating CloneSubgraph.
-    if (v8_flags.turboshaft_loop_peeling) {
-      Run<turboshaft::LoopPeelingPhase>();
-    }
 
     if (v8_flags.turboshaft_loop_unrolling) {
       Run<turboshaft::LoopUnrollingPhase>();
@@ -229,6 +217,10 @@ class Pipeline {
 #endif  // V8_ENABLE_DEBUG_CODE
 
     return true;
+  }
+
+  void RunSimplificationAndNormalizationPhase() {
+    Run<SimplificationAndNormalizationPhase>();
   }
 
   void PrepareForInstructionSelection(
@@ -398,92 +390,7 @@ class Pipeline {
   }
 
   void AllocateRegisters(const RegisterConfiguration* config,
-                         CallDescriptor* call_descriptor, bool run_verifier) {
-    // Don't track usage for this zone in compiler stats.
-    std::unique_ptr<Zone> verifier_zone;
-    RegisterAllocatorVerifier* verifier = nullptr;
-    if (run_verifier) {
-      AccountingAllocator* allocator = data()->allocator();
-      DCHECK_NOT_NULL(allocator);
-      verifier_zone.reset(
-          new Zone(allocator, kRegisterAllocatorVerifierZoneName));
-      verifier = verifier_zone->New<RegisterAllocatorVerifier>(
-          verifier_zone.get(), config, data()->sequence(), data()->frame());
-    }
-
-#ifdef DEBUG
-    data_->sequence()->ValidateEdgeSplitForm();
-    data_->sequence()->ValidateDeferredBlockEntryPaths();
-    data_->sequence()->ValidateDeferredBlockExitPaths();
-#endif
-
-    data_->InitializeRegisterComponent(config, call_descriptor);
-
-    Run<MeetRegisterConstraintsPhase>();
-    Run<ResolvePhisPhase>();
-    Run<BuildLiveRangesPhase>();
-    Run<BuildLiveRangeBundlesPhase>();
-
-    TraceSequence("before register allocation");
-    if (verifier != nullptr) {
-      CHECK(!data_->register_allocation_data()->ExistsUseWithoutDefinition());
-      CHECK(data_->register_allocation_data()
-                ->RangesDefinedInDeferredStayInDeferred());
-    }
-
-    if (data_->info()->trace_turbo_json() && !MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(data_->isolate());
-      tcf << AsC1VRegisterAllocationData("PreAllocation",
-                                         data_->register_allocation_data());
-    }
-
-    Run<AllocateGeneralRegistersPhase<LinearScanAllocator>>();
-
-    if (data_->sequence()->HasFPVirtualRegisters()) {
-      Run<AllocateFPRegistersPhase<LinearScanAllocator>>();
-    }
-
-    if (data_->sequence()->HasSimd128VirtualRegisters() &&
-        (kFPAliasing == AliasingKind::kIndependent)) {
-      Run<AllocateSimd128RegistersPhase<LinearScanAllocator>>();
-    }
-
-    Run<DecideSpillingModePhase>();
-    Run<AssignSpillSlotsPhase>();
-    Run<CommitAssignmentPhase>();
-
-    // TODO(chromium:725559): remove this check once
-    // we understand the cause of the bug. We keep just the
-    // check at the end of the allocation.
-    if (verifier != nullptr) {
-      verifier->VerifyAssignment("Immediately after CommitAssignmentPhase.");
-    }
-
-    Run<ConnectRangesPhase>();
-
-    Run<ResolveControlFlowPhase>();
-
-    Run<PopulateReferenceMapsPhase>();
-
-    if (v8_flags.turbo_move_optimization) {
-      Run<OptimizeMovesPhase>();
-    }
-
-    TraceSequence("after register allocation");
-
-    if (verifier != nullptr) {
-      verifier->VerifyAssignment("End of regalloc pipeline.");
-      verifier->VerifyGapMoves();
-    }
-
-    if (data_->info()->trace_turbo_json() && !MayHaveUnverifiableGraph()) {
-      TurboCfgFile tcf(data_->isolate());
-      tcf << AsC1VRegisterAllocationData("CodeGen",
-                                         data_->register_allocation_data());
-    }
-
-    data()->ClearRegisterComponent();
-  }
+                         CallDescriptor* call_descriptor, bool run_verifier);
 
   void AssembleCode(Linkage* linkage) {
     BeginPhaseKind("V8.TFCodeGeneration");
@@ -517,25 +424,22 @@ class Pipeline {
     return FinalizeCode();
   }
 
-  MaybeHandle<Code> GenerateCode(
+  [[nodiscard]] bool GenerateCode(
       Linkage* linkage, std::shared_ptr<OsrHelper> osr_helper = {},
       JumpOptimizationInfo* jump_optimization_info = nullptr,
       const ProfileDataFromFile* profile = nullptr, int initial_graph_hash = 0);
 
-  void RecreateTurbofanGraph(compiler::TFPipelineData* turbofan_data,
-                             Linkage* linkage);
-
   OptimizedCompilationInfo* info() { return data_->info(); }
 
-  MaybeHandle<Code> FinalizeCode(bool retire_broker = true) {
+  MaybeIndirectHandle<Code> FinalizeCode(bool retire_broker = true) {
     BeginPhaseKind("V8.TFFinalizeCode");
     if (data_->broker() && retire_broker) {
       data_->broker()->Retire();
     }
     Run<FinalizeCodePhase>();
 
-    MaybeHandle<Code> maybe_code = data_->code();
-    Handle<Code> code;
+    MaybeIndirectHandle<Code> maybe_code = data_->code();
+    IndirectHandle<Code> code;
     if (!maybe_code.ToHandle(&code)) {
       return maybe_code;
     }
@@ -546,7 +450,9 @@ class Pipeline {
     // Functions with many inline candidates are sensitive to correct call
     // frequency feedback and should therefore not be tiered up early.
     if (v8_flags.profile_guided_optimization &&
-        info()->could_not_inline_all_candidates()) {
+        info()->could_not_inline_all_candidates() &&
+        info()->shared_info()->cached_tiering_decision() !=
+            CachedTieringDecision::kDelayMaglev) {
       info()->shared_info()->set_cached_tiering_decision(
           CachedTieringDecision::kNormal);
     }
@@ -596,6 +502,10 @@ class Pipeline {
   }
 
  private:
+#ifdef DEBUG
+  virtual bool IsBuiltinPipeline() const { return false; }
+#endif
+
   PipelineData* data_;
 };
 
@@ -604,6 +514,10 @@ class BuiltinPipeline : public Pipeline {
   explicit BuiltinPipeline(PipelineData* data) : Pipeline(data) {}
 
   void OptimizeBuiltin();
+
+#ifdef DEBUG
+  bool IsBuiltinPipeline() const override { return true; }
+#endif
 };
 
 }  // namespace v8::internal::compiler::turboshaft

@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 #define V8_OBJECTS_JS_SEGMENT_ITERATOR_H_
 
@@ -33,13 +34,13 @@ class JSSegmentIterator
     : public TorqueGeneratedJSSegmentIterator<JSSegmentIterator, JSObject> {
  public:
   // ecma402 #sec-CreateSegmentIterator
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmentIterator> Create(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmentIterator> Create(
       Isolate* isolate, DirectHandle<String> input_string,
       icu::BreakIterator* icu_break_iterator,
       JSSegmenter::Granularity granularity);
 
   // ecma402 #sec-segment-iterator-prototype-next
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSReceiver> Next(
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSReceiver> Next(
       Isolate* isolate,
       DirectHandle<JSSegmentIterator> segment_iterator_holder);
 

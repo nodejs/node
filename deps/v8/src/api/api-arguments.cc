@@ -42,17 +42,15 @@ PropertyCallbackArguments::PropertyCallbackArguments(
 
 FunctionCallbackArguments::FunctionCallbackArguments(
     Isolate* isolate, Tagged<FunctionTemplateInfo> target,
-    Tagged<Object> holder, Tagged<HeapObject> new_target, Address* argv,
-    int argc)
+    Tagged<HeapObject> new_target, Address* argv, int argc)
     : Super(isolate), argv_(argv), argc_(argc) {
   slot_at(T::kTargetIndex).store(target);
-  slot_at(T::kHolderIndex).store(holder);
+  slot_at(T::kUnusedIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kNewTargetIndex).store(new_target);
   slot_at(T::kIsolateIndex)
       .store(Tagged<Object>(reinterpret_cast<Address>(isolate)));
   slot_at(T::kReturnValueIndex).store(ReadOnlyRoots(isolate).undefined_value());
   slot_at(T::kContextIndex).store(isolate->context());
-  DCHECK(IsHeapObject(*slot_at(T::kHolderIndex)));
   DCHECK(IsSmi(*slot_at(T::kIsolateIndex)));
 }
 

@@ -146,8 +146,6 @@ absl_source_set("base_internal") {
   public = [
     "internal/hide_ptr.h",
     "internal/identity.h",
-    "internal/inline_variable.h",
-    "internal/invoke.h",
     "internal/scheduling_mode.h",
   ]
   deps = [
@@ -196,15 +194,24 @@ absl_source_set("base") {
   ]
 }
 
-# This should be an executable() more than a test.
-# It cannot be enabled because it defines its own main() function.
-# absl_test("c_header_test") {
-#   sources = ["c_header_test.c"]
-#   deps = [
-#     ":config",
-#     ":core_headers",
-#   ]
-# }
+absl_test("attributes_test") {
+  sources = [ "attributes_test.cc" ]
+  deps = [
+    ":config",
+    ":core_headers",
+  ]
+}
+
+if (absl_build_tests) {
+  import("//testing/test.gni")
+  test("absl_c_header_test") {
+    sources = [ "c_header_test.c" ]
+    deps = [
+      ":config",
+      ":core_headers",
+    ]
+  }
+}
 
 absl_source_set("throw_delegate") {
   sources = [ "internal/throw_delegate.cc" ]
@@ -227,33 +234,6 @@ absl_source_set("pretty_function") {
   public = [ "internal/pretty_function.h" ]
   visibility = [ "//third_party/abseil-cpp/absl/*" ]
 }
-
-# TODO(mbonadei): This target throws by design. We should probably
-# just remove it.
-# source_set("exception_safety_testing") {
-#   testonly = true
-#   configs -= [ "//build/config/compiler:chromium_code" ]
-#   configs += [
-#     "//build/config/compiler:no_chromium_code",
-#     "//third_party/abseil-cpp:absl_test_cflags_cc",
-#   ]
-#   public_configs = [ "//third_party/abseil-cpp:absl_include_config" ]
-#   sources = [
-#     "internal/exception_safety_testing.cc",
-#   ]
-#   public = [
-#     "internal/exception_safety_testing.h",
-#   ]
-#   deps = [
-#     ":config",
-#     ":pretty_function",
-#     "//third_party/abseil-cpp/absl/memory",
-#     "//third_party/abseil-cpp/absl/meta:type_traits",
-#     "//third_party/abseil-cpp/absl/strings",
-#     "//third_party/abseil-cpp/absl/utility",
-#     "//third_party/googletest:gtest",
-#   ]
-# }
 
 absl_source_set("spinlock_test_common") {
   testonly = true
@@ -340,6 +320,23 @@ absl_test("poison_test") {
   ]
 }
 
+absl_source_set("iterator_traits_internal") {
+  public = [ "internal/iterator_traits.h" ]
+  deps = [
+    ":config",
+    "//third_party/abseil-cpp/absl/meta:type_traits",
+  ]
+}
+
+absl_test("iterator_traits_test") {
+  sources = [ "internal/iterator_traits_test.cc" ]
+  deps = [
+    ":config",
+    ":iterator_traits_internal",
+    ":iterator_traits_test_helper",
+  ]
+}
+
 absl_source_set("tracing_internal") {
   public = [ "internal/tracing.h" ]
   sources = [ "internal/tracing.cc" ]
@@ -347,6 +344,11 @@ absl_source_set("tracing_internal") {
     ":config",
     ":core_headers",
   ]
+}
+
+absl_source_set("iterator_traits_test_helper") {
+  public = [ "internal/iterator_traits_test_helper.h" ]
+  deps = [ ":config" ]
 }
 
 absl_test("tracing_internal_weak_test") {

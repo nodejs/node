@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_HASHMAP_H_
+#define V8_BASE_HASHMAP_H_
+
 // The reason we write our own hash map instead of using unordered_map in STL,
 // is that STL containers use a mutex pool on debug build, which will lead to
 // deadlock when we are using async signal handler.
-
-#ifndef V8_BASE_HASHMAP_H_
-#define V8_BASE_HASHMAP_H_
 
 #include <stdlib.h>
 

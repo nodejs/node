@@ -61,8 +61,9 @@ static RtlCaptureStackBackTrace_Function* const RtlCaptureStackBackTrace_fn =
 #endif  // WINAPI_PARTITION_APP && !WINAPI_PARTITION_DESKTOP
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
-                      const void*, int* min_dropped_frames) {
+static int UnwindImpl(void** result, uintptr_t* frames, int* sizes,
+                      int max_depth, int skip_count, const void*,
+                      int* min_dropped_frames) {
   USHORT n = 0;
   if (!RtlCaptureStackBackTrace_fn || skip_count < 0 || max_depth < 0) {
     // can't get a stacktrace with no function/invalid args
@@ -71,8 +72,13 @@ static int UnwindImpl(void** result, int* sizes, int max_depth, int skip_count,
                                     static_cast<ULONG>(max_depth), result, 0);
   }
   if (IS_STACK_FRAMES) {
-    // No implementation for finding out the stack frame sizes yet.
-    memset(sizes, 0, sizeof(*sizes) * n);
+    // No implementation for finding out the stack frames yet.
+    if (frames != nullptr) {
+      memset(frames, 0, sizeof(*frames) * n);
+    }
+    if (sizes != nullptr) {
+      memset(sizes, 0, sizeof(*sizes) * n);
+    }
   }
   if (min_dropped_frames != nullptr) {
     // Not implemented.

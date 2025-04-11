@@ -447,7 +447,7 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
-  // This needs to be called right before calling `Isolate::Dispose()`.
+  // This needs to be called right after calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
 
   // The platform should call the passed function once all state associated
@@ -543,8 +543,8 @@ class EmbedderSnapshotData {
   void ToFile(FILE* out) const;
   std::vector<char> ToBlob() const;
 
-  // Returns whether custom snapshots can be used. Currently, this means
-  // that V8 was configured without the shared-readonly-heap feature.
+  // Returns whether custom snapshots can be used. Currently, this always
+  // returns false since V8 enforces shared readonly-heap.
   static bool CanUseCustomSnapshotPerIsolate();
 
   EmbedderSnapshotData(const EmbedderSnapshotData&) = delete;
@@ -580,13 +580,15 @@ NODE_EXTERN v8::Isolate* NewIsolate(
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
     const EmbedderSnapshotData* snapshot_data = nullptr,
-    const IsolateSettings& settings = {});
+    const IsolateSettings& settings = {},
+    std::unique_ptr<v8::CppHeap> cpp_heap = {});
 NODE_EXTERN v8::Isolate* NewIsolate(
     std::shared_ptr<ArrayBufferAllocator> allocator,
     struct uv_loop_s* event_loop,
     MultiIsolatePlatform* platform,
     const EmbedderSnapshotData* snapshot_data = nullptr,
-    const IsolateSettings& settings = {});
+    const IsolateSettings& settings = {},
+    std::unique_ptr<v8::CppHeap> cpp_heap = {});
 
 // Creates a new context with Node.js-specific tweaks.
 NODE_EXTERN v8::Local<v8::Context> NewContext(

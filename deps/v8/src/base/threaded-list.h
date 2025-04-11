@@ -105,6 +105,35 @@ class ThreadedListBase final : public BaseClass {
     list.Clear();
   }
 
+  // This is only valid if {v} is in the current list.
+  void TruncateAt(ThreadedListBase* rem, T* v) {
+    CHECK_NOT_NULL(rem);
+    CHECK_NOT_NULL(v);
+    CHECK(rem->is_empty());
+    Iterator it = begin();
+    T* last = nullptr;
+    for (; it != end(); ++it) {
+      if (*it == v) {
+        break;
+      }
+      last = *it;
+    }
+    CHECK_EQ(v, *it);
+
+    // Remaining list.
+    rem->head_ = v;
+    rem->tail_ = tail_;
+
+    if (last == nullptr) {
+      // The head must point to v, so we return the empty list.
+      CHECK_EQ(head_, v);
+      Clear();
+    } else {
+      tail_ = TLTraits::next(last);
+      *tail_ = nullptr;
+    }
+  }
+
   void Clear() {
     head_ = nullptr;
     tail_ = &head_;

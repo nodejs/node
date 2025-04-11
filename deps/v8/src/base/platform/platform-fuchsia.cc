@@ -104,12 +104,18 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
 
   zx_vm_option_t options = GetProtectionFromMemoryPermission(access);
 
-  zx_vm_option_t alignment_option = GetAlignmentOptionFromAlignment(alignment);
-  CHECK_NE(0, alignment_option);  // Invalid alignment specified
-  options |= alignment_option;
-
   size_t vmar_offset = 0;
-  if (placement != PlacementMode::kAnywhere) {
+  if (placement == PlacementMode::kAnywhere) {
+    zx_vm_option_t alignment_option =
+        GetAlignmentOptionFromAlignment(alignment);
+    if (alignment_option == 0) {
+      // Invalid alignment specified, it is not possible to provide an
+      // allocation with correct alignment.
+      return nullptr;
+    }
+    options |= alignment_option;
+  } else {
+    CHECK_EQ(reinterpret_cast<intptr_t>(address) % alignment, 0);
     // Try placing the mapping at the specified address.
     uintptr_t target_addr = reinterpret_cast<uintptr_t>(address);
     uintptr_t base = reinterpret_cast<uintptr_t>(vmar_base);
@@ -121,19 +127,22 @@ void* MapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,
   zx_vaddr_t result;
   zx_status_t status = vmar.map(options, vmar_offset, vmo, 0, size, &result);
 
-  if (status != ZX_OK && placement == PlacementMode::kUseHint) {
-    // If a placement hint was specified but couldn't be used (for example,
-    // because the offset overlapped another mapping), then retry again without
-    // a vmar_offset to let the kernel pick another location.
-    options &= ~(ZX_VM_SPECIFIC);
-    status = vmar.map(options, 0, vmo, 0, size, &result);
+  if (status == ZX_OK) {
+    DCHECK_EQ(result % alignment, 0);
+    return reinterpret_cast<void*>(result);
   }
 
-  if (status != ZX_OK) {
+  if (placement != PlacementMode::kUseHint) {
     return nullptr;
   }
-
-  return reinterpret_cast<void*>(result);
+  // The hint failed, so we try again without the hint but with alignment
+  // options.
+  // TODO(404563927): Support alignment > 4GB. CppGC's HeapCage allocates with a
+  // 32GB alignment, and the allocation fails on Fuchsia at the moment if the
+  // provided placement hint is not available. PartitionAlloc already solved
+  // this issue, so maybe that solution could be used here as well.
+  return MapVmo(vmar, vmar_base, page_size, nullptr, vmo, offset,
+                PlacementMode::kAnywhere, size, alignment, access);
 }
 
 void* CreateAndMapVmo(const zx::vmar& vmar, void* vmar_base, size_t page_size,

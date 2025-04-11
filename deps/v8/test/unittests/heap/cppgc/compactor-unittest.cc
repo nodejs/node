@@ -6,6 +6,7 @@
 
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/custom-space.h"
+#include "include/cppgc/member.h"
 #include "include/cppgc/persistent.h"
 #include "src/heap/cppgc/garbage-collector.h"
 #include "src/heap/cppgc/heap-object-header.h"
@@ -31,13 +32,11 @@ struct CompactableGCed : public GarbageCollected<CompactableGCed> {
  public:
   ~CompactableGCed() { ++g_destructor_callcount; }
   void Trace(Visitor* visitor) const {
-    VisitorBase::TraceRawForTesting(visitor,
-                                    const_cast<const CompactableGCed*>(other));
-    visitor->RegisterMovableReference(
-        const_cast<const CompactableGCed**>(&other));
+    visitor->Trace(other);
+    visitor->RegisterMovableReference(other.GetSlotForTesting());
   }
   static size_t g_destructor_callcount;
-  CompactableGCed* other = nullptr;
+  subtle::UncompressedMember<CompactableGCed> other = nullptr;
   size_t id = 0;
 };
 // static
@@ -54,13 +53,11 @@ struct CompactableHolder
 
   void Trace(Visitor* visitor) const {
     for (int i = 0; i < kNumObjects; ++i) {
-      VisitorBase::TraceRawForTesting(
-          visitor, const_cast<const CompactableGCed*>(objects[i]));
-      visitor->RegisterMovableReference(
-          const_cast<const CompactableGCed**>(&objects[i]));
+      visitor->Trace(objects[i]);
+      visitor->RegisterMovableReference(objects[i].GetSlotForTesting());
     }
   }
-  CompactableGCed* objects[kNumObjects]{};
+  subtle::UncompressedMember<CompactableGCed> objects[kNumObjects]{};
 };
 
 class CompactorTest : public testing::TestWithPlatform {
