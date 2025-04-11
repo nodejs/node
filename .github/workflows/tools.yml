@@ -286,7 +286,7 @@ jobs:
               rm temp-output
           - id: zstd
             subsystem: deps
-            label: dependencies, zstd
+            label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zstd.sh > temp-output
               cat temp-output
