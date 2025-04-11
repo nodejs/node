@@ -294,6 +294,9 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
 {
   const date = new Date('2023-10-01T00:00:00Z');
   assert.strictEqual(util.format('%s', date), util.inspect(date));
+
+  const symbol = Symbol('foo');
+  assert.strictEqual(util.format('%s', symbol), util.inspect(symbol));
 }
 
 // JSON format specifier
