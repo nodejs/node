@@ -8,20 +8,24 @@ const args = ['--interactive'];
 const opts = { cwd: fixtures.path('es-modules') };
 const child = cp.spawn(process.execPath, args, opts);
 
-let output = '';
+const outputs = [];
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (data) => {
-  output += data;
+  outputs.push(data);
+  if (outputs.length === 3) {
+    // All the expected outputs have been received
+    // so we can close the child process's stdin
+    child.stdin.end();
+  }
 });
 
 child.on('exit', common.mustCall(() => {
-  const results = output.replace(/^> /mg, '').split('\n').slice(2);
-  assert.deepStrictEqual(
+  const results = outputs[2].split('\n')[0];
+  assert.strictEqual(
     results,
-    ['[Module: null prototype] { message: \'A message\' }', '']
+    '[Module: null prototype] { message: \'A message\' }'
   );
 }));
 
 child.stdin.write('await import(\'./message.mjs\');\n');
 child.stdin.write('.exit');
-child.stdin.end();
