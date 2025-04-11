@@ -10,10 +10,10 @@ const server = h2.createServer();
 let session;
 
 server.on('session', common.mustCall(function(s) {
-    session = s;
-    session.on('close', common.mustCall(function() {
-        server.close();
-    }));
+  session = s;
+  session.on('close', common.mustCall(function() {
+    server.close();
+  }));
 }));
 
 server.listen(0, common.mustCall(function() {
@@ -41,8 +41,8 @@ server.listen(0, common.mustCall(function() {
 }));
 
 server.once('request', common.mustCall(function(request, response) {
-    response.on('finish', common.mustCall(function() {
-        session.close();
-    }));
-    response.end();
+  response.on('finish', common.mustCall(function() {
+    session.close();
+  }));
+  response.end();
 }));
