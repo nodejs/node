@@ -20,6 +20,52 @@
 #include <cstring>
 #include <memory>
 
+namespace v8impl {
+static void ThrowNodeApiVersionError(node::Environment* node_env,
+                                     const char* module_name,
+                                     int32_t module_api_version) {
+  std::string error_message;
+  error_message += module_name;
+  error_message += " requires Node-API version ";
+  error_message += std::to_string(module_api_version);
+  error_message += ", but this version of Node.js only supports version ";
+  error_message += NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX) " add-ons.";
+  node_env->ThrowError(error_message.c_str());
+}
+}  // namespace v8impl
+
+/*static*/ napi_env node_napi_env__::New(v8::Local<v8::Context> context,
+                                         const std::string& module_filename,
+                                         int32_t module_api_version) {
+  node_napi_env result;
+
+  // Validate module_api_version.
+  if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
+    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
+  } else if (module_api_version > NODE_API_SUPPORTED_VERSION_MAX &&
+             module_api_version != NAPI_VERSION_EXPERIMENTAL) {
+    node::Environment* node_env = node::Environment::GetCurrent(context);
+    CHECK_NOT_NULL(node_env);
+    v8impl::ThrowNodeApiVersionError(
+        node_env, module_filename.c_str(), module_api_version);
+    return nullptr;
+  }
+
+  result = new node_napi_env__(context, module_filename, module_api_version);
+  // TODO(addaleax): There was previously code that tried to delete the
+  // napi_env when its v8::Context was garbage collected;
+  // However, as long as N-API addons using this napi_env are in place,
+  // the Context needs to be accessible and alive.
+  // Ideally, we'd want an on-addon-unload hook that takes care of this
+  // once all N-API addons using this napi_env are unloaded.
+  // For now, a per-Environment cleanup hook is the best we can do.
+  result->node_env()->AddCleanupHook(
+      [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
+      static_cast<void*>(result));
+
+  return result;
+}
+
 node_napi_env__::node_napi_env__(v8::Local<v8::Context> context,
                                  const std::string& module_filename,
                                  int32_t module_api_version)
@@ -151,50 +197,6 @@ class BufferFinalizer : private Finalizer {
 
   ~BufferFinalizer() { env()->Unref(); }
 };
-
-void ThrowNodeApiVersionError(node::Environment* node_env,
-                              const char* module_name,
-                              int32_t module_api_version) {
-  std::string error_message;
-  error_message += module_name;
-  error_message += " requires Node-API version ";
-  error_message += std::to_string(module_api_version);
-  error_message += ", but this version of Node.js only supports version ";
-  error_message += NODE_STRINGIFY(NODE_API_SUPPORTED_VERSION_MAX) " add-ons.";
-  node_env->ThrowError(error_message.c_str());
-}
-
-inline napi_env NewEnv(v8::Local<v8::Context> context,
-                       const std::string& module_filename,
-                       int32_t module_api_version) {
-  node_napi_env result;
-
-  // Validate module_api_version.
-  if (module_api_version < NODE_API_DEFAULT_MODULE_API_VERSION) {
-    module_api_version = NODE_API_DEFAULT_MODULE_API_VERSION;
-  } else if (module_api_version > NODE_API_SUPPORTED_VERSION_MAX &&
-             module_api_version != NAPI_VERSION_EXPERIMENTAL) {
-    node::Environment* node_env = node::Environment::GetCurrent(context);
-    CHECK_NOT_NULL(node_env);
-    ThrowNodeApiVersionError(
-        node_env, module_filename.c_str(), module_api_version);
-    return nullptr;
-  }
-
-  result = new node_napi_env__(context, module_filename, module_api_version);
-  // TODO(addaleax): There was previously code that tried to delete the
-  // napi_env when its v8::Context was garbage collected;
-  // However, as long as N-API addons using this napi_env are in place,
-  // the Context needs to be accessible and alive.
-  // Ideally, we'd want an on-addon-unload hook that takes care of this
-  // once all N-API addons using this napi_env are unloaded.
-  // For now, a per-Environment cleanup hook is the best we can do.
-  result->node_env()->AddCleanupHook(
-      [](void* arg) { static_cast<napi_env>(arg)->Unref(); },
-      static_cast<void*>(result));
-
-  return result;
-}
 
 class ThreadSafeFunction : public node::AsyncResource {
  public:
@@ -728,7 +730,8 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
   }
 
   // Create a new napi_env for this specific module.
-  napi_env env = v8impl::NewEnv(context, module_filename, module_api_version);
+  napi_env env =
+      node_napi_env__::New(context, module_filename, module_api_version);
 
   napi_value _exports = nullptr;
   env->CallIntoModule([&](napi_env env) {
