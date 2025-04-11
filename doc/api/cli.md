@@ -2452,6 +2452,19 @@ added:
 Configures the test runner to exit the process once all known tests have
 finished executing even if the event loop would otherwise remain active.
 
+### `--test-global-setup=module`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+Specify a module that will be evaluated before all tests are executed and
+can be used to setup global state or fixtures for tests.
+
+See the documentation on [global setup and teardown][] for more details.
+
 ### `--test-isolation=mode`
 
 <!-- YAML
@@ -3347,6 +3360,7 @@ one is included in the list below.
 * `--test-coverage-functions`
 * `--test-coverage-include`
 * `--test-coverage-lines`
+* `--test-global-setup`
 * `--test-isolation`
 * `--test-name-pattern`
 * `--test-only`
@@ -3898,6 +3912,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [emit_warning]: process.md#processemitwarningwarning-options
 [environment_variables]: #environment-variables
 [filtering tests by name]: test.md#filtering-tests-by-name
+[global setup and teardown]: test.md#global-setup-and-teardown
 [jitless]: https://v8.dev/blog/jitless
 [libuv threadpool documentation]: https://docs.libuv.org/en/latest/threadpool.html
 [module compile cache]: module.md#module-compile-cache
