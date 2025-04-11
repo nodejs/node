@@ -280,6 +280,9 @@ class Digest final {
 
 DataPointer hashDigest(const Buffer<const unsigned char>& data,
                        const EVP_MD* md);
+DataPointer xofHashDigest(const Buffer<const unsigned char>& data,
+                          const EVP_MD* md,
+                          size_t length);
 
 class Cipher final {
  public:
