@@ -23,6 +23,6 @@ test('fs.stat should throw AbortError when abort signal is triggered', async () 
   });
 
   await assert.rejects(promise, { name: 'AbortError' });
-  
+
   tmpdir.refresh();
 });
