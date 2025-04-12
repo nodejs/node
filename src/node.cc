@@ -1557,3 +1557,7 @@ void Initialize() {}
 
 NODE_BINDING_CONTEXT_AWARE_INTERNAL(inspector, Initialize)
 #endif  // !HAVE_INSPECTOR
+
+extern "C" int node_start(int argc, char** argv) {
+  return node::Start(argc, argv); 
+}
