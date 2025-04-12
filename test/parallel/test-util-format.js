@@ -306,7 +306,13 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
     return 'hasToStringButNoToPrimitive';
   };
 
-  const obj = new hasToStringButNoToPrimitive();
+  let obj = new hasToStringButNoToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
+
+  function inheritsFromHasToStringButNoToPrimitive() {}
+  Object.setPrototypeOf(inheritsFromHasToStringButNoToPrimitive.prototype,
+                        hasToStringButNoToPrimitive.prototype);
+  obj = new inheritsFromHasToStringButNoToPrimitive();
   assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
 }
 
@@ -317,8 +323,30 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
     return 'hasToPrimitiveButNoToString';
   };
 
-  const obj = new hasToPrimitiveButNoToString();
+  let obj = new hasToPrimitiveButNoToString();
   assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
+  function inheritsFromHasToPrimitiveButNoToString() {}
+  Object.setPrototypeOf(inheritsFromHasToPrimitiveButNoToString.prototype,
+                        hasToPrimitiveButNoToString.prototype);
+  obj = new inheritsFromHasToPrimitiveButNoToString();
+  assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
+}
+
+{
+  function hasBothToStringAndToPrimitive() {}
+  hasBothToStringAndToPrimitive.prototype.toString = function() {
+    return 'toString';
+  };
+  hasBothToStringAndToPrimitive.prototype[Symbol.toPrimitive] = function() {
+    return 'toPrimitive';
+  };
+  let obj = new hasBothToStringAndToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'toString');
+  function inheritsFromHasBothToStringAndToPrimitive() {}
+  Object.setPrototypeOf(inheritsFromHasBothToStringAndToPrimitive.prototype,
+                        hasBothToStringAndToPrimitive.prototype);
+  obj = new inheritsFromHasBothToStringAndToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'toString');
 }
 
 // JSON format specifier
