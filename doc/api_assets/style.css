@@ -220,7 +220,6 @@ li.picker-header.expanded > .picker,
 :root:not(.has-js) li.picker-header:focus-within > .picker,
 :root:not(.has-js) li.picker-header:hover > .picker {
   display: block;
-  z-index: 1;
 }
 
 li.picker-header a span {
@@ -817,7 +816,7 @@ kbd {
 .header {
   position: sticky;
   top: -1px;
-  z-index: 1;
+  z-index: 10;
   padding-top: 1rem;
   background-color: var(--color-fill-app);
 }
