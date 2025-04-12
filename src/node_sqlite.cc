@@ -731,6 +731,8 @@ bool DatabaseSync::Open() {
   CHECK_ERROR_OR_THROW(env()->isolate(), this, r, SQLITE_OK, false);
   CHECK_EQ(foreign_keys_enabled, open_config_.get_enable_foreign_keys());
 
+  sqlite3_busy_timeout(connection_, open_config_.get_timeout());
+
   if (allow_load_extension_) {
     if (env()->permission()->enabled()) [[unlikely]] {
       THROW_ERR_LOAD_SQLITE_EXTENSION(env(),
@@ -939,6 +941,23 @@ void DatabaseSync::New(const FunctionCallbackInfo<Value>& args) {
         return;
       }
       allow_load_extension = allow_extension_v.As<Boolean>()->Value();
+    }
+
+    Local<Value> timeout_v;
+    if (!options->Get(env->context(), env->timeout_string())
+             .ToLocal(&timeout_v)) {
+      return;
+    }
+
+    if (!timeout_v->IsUndefined()) {
+      if (!timeout_v->IsInt32()) {
+        THROW_ERR_INVALID_ARG_TYPE(
+            env->isolate(),
+            "The \"options.timeout\" argument must be an integer.");
+        return;
+      }
+
+      open_config.set_timeout(timeout_v.As<Int32>()->Value());
     }
   }
 
