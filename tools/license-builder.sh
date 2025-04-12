@@ -67,8 +67,6 @@ licenseText="$(cat "${rootdir}/deps/uv/LICENSE" "${rootdir}/deps/uv/LICENSE-extr
 addlicense "libuv" "deps/uv" "$licenseText"
 licenseText="$(cat deps/llhttp/LICENSE-MIT)"
 addlicense "llhttp" "deps/llhttp" "$licenseText"
-licenseText="$(cat "${rootdir}/deps/corepack/LICENSE.md")"
-addlicense "corepack" "deps/corepack" "$licenseText"
 licenseText="$(cat "${rootdir}/deps/undici/LICENSE")"
 addlicense "undici" "deps/undici" "$licenseText"
 licenseText="$(cat "${rootdir}/test/fixtures/postject-copy/node_modules/postject/LICENSE")"
