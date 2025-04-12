@@ -116,6 +116,10 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   Isolate::CreateParams params;
   params.array_buffer_allocator = impl_->allocator.get();
   params.external_references = external_references.data();
+  params.external_references = external_references.data();
+  params.cpp_heap =
+      v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
+
   Isolate* isolate;
 
   // Isolates created for snapshotting should be set up differently since
@@ -234,10 +238,10 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
       *static_cast<bool*>(data) = true;
     }, &platform_finished);
     impl_->platform->UnregisterIsolate(isolate);
-    if (impl_->snapshot_creator.has_value())
+    if (impl_->snapshot_creator.has_value()) {
       impl_->snapshot_creator.reset();
-    else
-      isolate->Dispose();
+    }
+    isolate->Dispose();
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)

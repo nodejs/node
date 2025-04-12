@@ -1222,18 +1222,20 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab;
   // It can be a nullptr when running inside an isolate where we
   // do not own the ArrayBuffer allocator.
-  if (allocator == nullptr) {
+  if (allocator == nullptr || env->isolate_data()->is_building_snapshot()) {
     // Create a dummy Uint32Array - the JS land can only toggle the C++ land
     // setting when the allocator uses our toggle. With this the toggle in JS
     // land results in no-ops.
+    // When building a snapshot, just use a dummy toggle as well to avoid
+    // introducing the dynamic external reference. We'll re-initialize the
+    // toggle with a real one connected to the C++ allocator after snapshot
+    // deserialization.
 
     ab = ArrayBuffer::New(env->isolate(), sizeof(uint32_t));
-  } else if (env->isolate_data()->is_building_snapshot()) {
-    ab = ArrayBuffer::New(env->isolate(), sizeof(uint32_t));
+  } else {
     // TODO(joyeecheung): save ab->GetBackingStore()->Data() in the Node.js
     // array buffer allocator and include it into the C++ toggle while the
     // Environment is still alive.
-  } else {
     uint32_t* zero_fill_field = allocator->zero_fill_field();
     std::unique_ptr<BackingStore> backing =
         ArrayBuffer::NewBackingStore(zero_fill_field,
