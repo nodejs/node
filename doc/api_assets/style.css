@@ -821,7 +821,7 @@ kbd {
 .header {
   position: sticky;
   top: -1px;
-  z-index: 1;
+  z-index: 2;
   padding-top: 1rem;
   background-color: var(--color-fill-app);
 }
