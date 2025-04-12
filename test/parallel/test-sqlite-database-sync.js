@@ -77,6 +77,15 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
+  test('throws if options.timeout is provided but is not an integer', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { timeout: .99 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.timeout" argument must be an integer/,
+    });
+  });
+
   test('is not read-only by default', (t) => {
     const dbPath = nextDb();
     const db = new DatabaseSync(dbPath);
