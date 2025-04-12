@@ -299,6 +299,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', symbol), util.inspect(symbol));
 }
 
+// Prototype chain handling for toString
 {
   function hasToStringButNoToPrimitive() {}
 
@@ -316,6 +317,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
 }
 
+// Prototype chain handling for Symbol.toPrimitive
 {
   function hasToPrimitiveButNoToString() {}
 
@@ -332,6 +334,7 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
 }
 
+// Prototype chain handling for both toString and Symbol.toPrimitive
 {
   function hasBothToStringAndToPrimitive() {}
   hasBothToStringAndToPrimitive.prototype.toString = function() {
