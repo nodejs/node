@@ -220,7 +220,6 @@ li.picker-header.expanded > .picker,
 :root:not(.has-js) li.picker-header:focus-within > .picker,
 :root:not(.has-js) li.picker-header:hover > .picker {
   display: block;
-  z-index: 1;
 }
 
 li.picker-header a span {
