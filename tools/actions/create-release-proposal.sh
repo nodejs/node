@@ -31,15 +31,9 @@ HEAD_SHA="$(git rev-parse HEAD^)"
 
 TITLE="$(git log -1 --format=%s)"
 
-# Use a temporary file for the PR body
-TEMP_BODY="$(awk "/## ${RELEASE_DATE}/,/^<a id=/{ if (!/^<a id=/) print }" "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md")"
-
-# Handle temporary file length
-MAX_BODY_LENGTH=65536
-if [ ${#TEMP_BODY} -gt $MAX_BODY_LENGTH ]; then
-  echo "TEMP_BODY too long"
-  TEMP_BODY="${RELEASE_DATE}"
-fi
+TEMP_BODY="$(awk -v MAX_BODY_LENGTH="65536" \
+    "/^## ${RELEASE_DATE}/,/^<a id=/{ if (/^<a id=/) {exit;} if (output_length += length(\$0) > MAX_BODY_LENGTH) {exit 1;} print }" \
+    "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md" || echo "…")"
 
 # Create the proposal branch
 gh api \
