@@ -32,7 +32,7 @@ HEAD_SHA="$(git rev-parse HEAD^)"
 TITLE="$(git log -1 --format=%s)"
 
 TEMP_BODY="$(awk -v MAX_BODY_LENGTH="65536" \
-    "/^## ${RELEASE_DATE}/,/^<a id=/{ if (/^<a id=/) {exit;} if (output_length += length(\$0) > MAX_BODY_LENGTH) {exit 1;} print }" \
+    "/^## ${RELEASE_DATE}/,/^<a id=/{ if (/^<a id=/) {exit;} if ((output_length += length(\$0)) > MAX_BODY_LENGTH) {exit 1;} print }" \
     "doc/changelogs/CHANGELOG_V${RELEASE_LINE}.md" || echo "…")"
 
 # Create the proposal branch
