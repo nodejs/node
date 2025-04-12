@@ -299,6 +299,28 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', symbol), util.inspect(symbol));
 }
 
+{
+  function hasToStringButNoToPrimitive() {}
+
+  hasToStringButNoToPrimitive.prototype.toString = function() {
+    return 'hasToStringButNoToPrimitive';
+  };
+
+  const obj = new hasToStringButNoToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
+}
+
+{
+  function hasToPrimitiveButNoToString() {}
+
+  hasToPrimitiveButNoToString.prototype[Symbol.toPrimitive] = function() {
+    return 'hasToPrimitiveButNoToString';
+  };
+
+  const obj = new hasToPrimitiveButNoToString();
+  assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
+}
+
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
 assert.strictEqual(util.format('%j', 42), '42');
