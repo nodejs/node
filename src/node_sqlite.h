@@ -35,11 +35,16 @@ class DatabaseOpenConfiguration {
 
   inline void set_enable_dqs(bool flag) { enable_dqs_ = flag; }
 
+  inline void set_timeout(int timeout) { timeout_ = timeout; }
+
+  inline int get_timeout() { return timeout_; }
+
  private:
   std::string location_;
   bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
+  int timeout_ = 0;
 };
 
 class StatementSync;
