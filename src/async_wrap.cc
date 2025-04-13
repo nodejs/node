@@ -107,6 +107,18 @@ void AsyncWrap::EmitPromiseResolve(Environment* env, double async_id) {
        env->async_hooks_promise_resolve_function());
 }
 
+void AsyncWrap::EmitTraceAsyncStart() const {
+  if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(
+          TRACING_CATEGORY_NODE1(async_hooks))) {
+    tracing::AsyncWrapArgs data(env()->execution_async_id(),
+                                get_trigger_async_id());
+    TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(TRACING_CATEGORY_NODE1(async_hooks),
+                                      provider_names[provider_type()],
+                                      static_cast<int64_t>(get_async_id()),
+                                      "data",
+                                      tracing::CastTracedValue(data));
+  }
+}
 
 void AsyncWrap::EmitTraceEventBefore() {
   switch (provider_type()) {
@@ -601,27 +613,7 @@ void AsyncWrap::AsyncReset(Local<Object> resource, double execution_async_id) {
     }
   }
 
-  switch (provider_type()) {
-#define V(PROVIDER)                                                           \
-    case PROVIDER_ ## PROVIDER:                                               \
-      if (*TRACE_EVENT_API_GET_CATEGORY_GROUP_ENABLED(                        \
-          TRACING_CATEGORY_NODE1(async_hooks))) {                             \
-        auto data = tracing::TracedValue::Create();                           \
-        data->SetInteger("executionAsyncId",                                  \
-                         static_cast<int64_t>(env()->execution_async_id()));  \
-        data->SetInteger("triggerAsyncId",                                    \
-                         static_cast<int64_t>(get_trigger_async_id()));       \
-        TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(                                    \
-          TRACING_CATEGORY_NODE1(async_hooks),                                \
-          #PROVIDER, static_cast<int64_t>(get_async_id()),                    \
-          "data", std::move(data));                                           \
-        }                                                                     \
-      break;
-    NODE_ASYNC_PROVIDER_TYPES(V)
-#undef V
-    default:
-      UNREACHABLE();
-  }
+  EmitTraceAsyncStart();
 
   context_frame_.Reset(isolate, async_context_frame::current(isolate));
 
