@@ -177,6 +177,7 @@ class AsyncWrap : public BaseObject {
 
   void EmitDestroy(bool from_gc = false);
 
+  void EmitTraceAsyncStart() const;
   void EmitTraceEventBefore();
   static void EmitTraceEventAfter(ProviderType type, double async_id);
   void EmitTraceEventDestroy();
