@@ -361,3 +361,52 @@ suite('DatabaseSync.prototype.isTransaction', () => {
     });
   });
 });
+
+suite('DatabaseSync.prototype.location()', () => {
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      db.location();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  test('throws if provided dbName is not string', (t) => {
+    const db = new DatabaseSync(nextDb());
+
+    t.assert.throws(() => {
+      db.location(null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "dbName" argument must be a string/,
+    });
+  });
+
+  test('returns empty string when connected to in-memory database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.equal(db.location(), '');
+  });
+
+  test('returns db path when connected to a persistent database', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.equal(db.location(), dbPath);
+  });
+
+  test('returns that specific db path when attached', (t) => {
+    const dbPath = nextDb();
+    const otherPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    const other = new DatabaseSync(dbPath);
+    t.after(() => { other.close(); });
+
+    db.exec(`ATTACH DATABASE '${otherPath}' AS other`);
+
+    t.assert.equal(db.location('other'), otherPath);
+  });
+});
