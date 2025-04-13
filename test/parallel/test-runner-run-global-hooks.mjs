@@ -136,29 +136,8 @@ describe('require(\'node:test\').run with global hooks', { concurrency: false },
         assert.strictEqual(content, 'Teardown-only was executed');
       });
 
-      it('should share context between setup and teardown', async () => {
-        const contextFlagPath = tmpdir.resolve('context-shared.tmp');
-        const setupFlagPath = tmpdir.resolve('setup-for-context.tmp');
-
-        // Create a setup file for test-file.js to find
-        fs.writeFileSync(setupFlagPath, 'Setup was executed');
-
-        await runTestWithGlobalHooks({
-          globalSetupFile: 'context-sharing.js',
-          runnerEnv: {
-            CONTEXT_FLAG_PATH: contextFlagPath,
-            SETUP_FLAG_PATH: setupFlagPath
-          },
-          isolation
-        });
-
-        assert.ok(fs.existsSync(contextFlagPath), 'Context sharing flag file should exist');
-        const contextData = JSON.parse(fs.readFileSync(contextFlagPath, 'utf8'));
-
-        assert.strictEqual(typeof contextData.timestamp, 'number');
-        assert.strictEqual(contextData.message, 'Hello from setup');
-        assert.deepStrictEqual(contextData.complexData, { key: 'value', nested: { data: true } });
-      });
+      // TODO(pmarchini): We should be able to share context between setup and teardown
+      it.todo('should share context between setup and teardown');
 
       it('should handle async setup and teardown', async () => {
         const asyncFlagPath = tmpdir.resolve('async-executed.tmp');

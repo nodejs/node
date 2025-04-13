@@ -24,7 +24,7 @@ test('test with global hooks', (t) => {
 });
 `,
   'global-setup-teardown.js': `
-async function globalSetup({ context }) {
+async function globalSetup() {
   console.log('Global setup executed');
   process.on('message', (message) => {
     if (message === 'exit') {
@@ -33,7 +33,7 @@ async function globalSetup({ context }) {
   });
 }
 
-async function globalTeardown({ context }) {
+async function globalTeardown() {
   console.log('Global teardown executed');
 }
 
@@ -57,7 +57,7 @@ describe('test runner watch mode with global setup hooks', () => {
         // TODO(pmarchini): Skip test on Windows as the VS2022 build
         // has issues handling SIGTERM and SIGINT signals correctly.
         // See: https://github.com/nodejs/node/issues/46097
-         { todo: common.isWindows() },
+         { todo: common.isWindows },
          async () => {
            const globalSetupFileFixture = fixturePaths['global-setup-teardown.js'];
            const ran1 = Promise.withResolvers();
