@@ -15,6 +15,6 @@ added:
 **Corepack will no longer be distributed starting with Node.js v25.**
 
 Users currently depending on the bundled `corepack` module from Node.js
-should switch to using the userland-provided [corepack][] module instead.
+can switch to using the userland-provided [corepack][] module.
 
 [corepack]: https://github.com/nodejs/corepack
