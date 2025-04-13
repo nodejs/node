@@ -376,6 +376,7 @@ suite('DatabaseSync.prototype.location()', () => {
 
   test('throws if provided dbName is not string', (t) => {
     const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
 
     t.assert.throws(() => {
       db.location(null);
@@ -385,16 +386,16 @@ suite('DatabaseSync.prototype.location()', () => {
     });
   });
 
-  test('returns empty string when connected to in-memory database', (t) => {
+  test('returns null when connected to in-memory database', (t) => {
     const db = new DatabaseSync(':memory:');
-    t.assert.equal(db.location(), '');
+    t.assert.strictEqual(db.location(), null);
   });
 
   test('returns db path when connected to a persistent database', (t) => {
     const dbPath = nextDb();
     const db = new DatabaseSync(dbPath);
     t.after(() => { db.close(); });
-    t.assert.equal(db.location(), dbPath);
+    t.assert.strictEqual(db.location(), dbPath);
   });
 
   test('returns that specific db path when attached', (t) => {
@@ -409,6 +410,6 @@ suite('DatabaseSync.prototype.location()', () => {
     const escapedPath = otherPath.replace("'", "''");
     db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
 
-    t.assert.equal(db.location('other'), otherPath);
+    t.assert.strictEqual(db.location('other'), otherPath);
   });
 });

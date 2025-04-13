@@ -248,9 +248,9 @@ added: REPLACEME
 -->
 
 * `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
-  database that have been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
-* Returns: {string} The location of the database file. When using an `in-memory` database,
-  this method returns an empty string.
+  database that has been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
+* Returns: {string | null} The location of the database file. When using an in-memory database,
+  this method returns null.
 
 This method is a wrapper around [`sqlite3_db_filename()`][]
 
