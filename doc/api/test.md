@@ -409,7 +409,7 @@ The test runner supports specifying a module that will be evaluated before all t
 can be used to setup global state or fixtures for tests. This is useful for preparing resources or setting up
 shared state that is required by multiple tests.
 
-This module should export either:
+This module can export any of the following:
 
 * A `globalSetup` function which runs once before all tests start
 * A `globalTeardown` function which runs once after all tests complete
