@@ -405,7 +405,9 @@ suite('DatabaseSync.prototype.location()', () => {
     const other = new DatabaseSync(dbPath);
     t.after(() => { other.close(); });
 
-    db.exec(`ATTACH DATABASE '${otherPath}' AS other`);
+    // Adding this escape because the test with unusual chars have a single quote which breaks the query
+    const escapedPath = otherPath.replace("'", "''");
+    db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
 
     t.assert.equal(db.location('other'), otherPath);
   });
