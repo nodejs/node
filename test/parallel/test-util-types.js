@@ -1,4 +1,4 @@
-// Flags: --experimental-vm-modules --expose-internals
+// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -290,4 +290,448 @@ for (const [ value, _method ] of [
   }
   assert.ok(!types.isCryptoKey());
   assert.ok(!types.isKeyObject());
+}
+
+// Fast path tests for the types module.
+
+{
+  function testIsDate(input) {
+    return types.isDate(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsDate)');
+  testIsDate(new Date());
+  eval('%OptimizeFunctionOnNextCall(testIsDate)');
+  assert.strictEqual(testIsDate(new Date()), true);
+  assert.strictEqual(testIsDate(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isDate'), 2);
+  }
+}
+
+{
+  function testIsArgumentsObject(input) {
+    return types.isArgumentsObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsArgumentsObject)');
+  testIsArgumentsObject((function() { return arguments; })());
+  eval('%OptimizeFunctionOnNextCall(testIsArgumentsObject)');
+  assert.strictEqual(testIsArgumentsObject((function() { return arguments; })()), true);
+  assert.strictEqual(testIsArgumentsObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isArgumentsObject'), 2);
+  }
+}
+
+{
+  function testIsBigIntObject(input) {
+    return types.isBigIntObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsBigIntObject)');
+  testIsBigIntObject(Object(BigInt(0)));
+  eval('%OptimizeFunctionOnNextCall(testIsBigIntObject)');
+  assert.strictEqual(testIsBigIntObject(Object(BigInt(0))), true);
+  assert.strictEqual(testIsBigIntObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isBigIntObject'), 2);
+  }
+}
+
+{
+  function testIsBooleanObject(input) {
+    return types.isBooleanObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsBooleanObject)');
+  testIsBooleanObject(new Boolean());
+  eval('%OptimizeFunctionOnNextCall(testIsBooleanObject)');
+  assert.strictEqual(testIsBooleanObject(new Boolean()), true);
+  assert.strictEqual(testIsBooleanObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isBooleanObject'), 2);
+  }
+}
+
+{
+  function testIsNumberObject(input) {
+    return types.isNumberObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsNumberObject)');
+  testIsNumberObject(new Number());
+  eval('%OptimizeFunctionOnNextCall(testIsNumberObject)');
+  assert.strictEqual(testIsNumberObject(new Number()), true);
+  assert.strictEqual(testIsNumberObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isNumberObject'), 2);
+  }
+}
+
+{
+  function testIsStringObject(input) {
+    return types.isStringObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsStringObject)');
+  testIsStringObject(new String());
+  eval('%OptimizeFunctionOnNextCall(testIsStringObject)');
+  assert.strictEqual(testIsStringObject(new String()), true);
+  assert.strictEqual(testIsStringObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isStringObject'), 2);
+  }
+}
+
+{
+  function testIsSymbolObject(input) {
+    return types.isSymbolObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsSymbolObject)');
+  testIsSymbolObject(Object(Symbol()));
+  eval('%OptimizeFunctionOnNextCall(testIsSymbolObject)');
+  assert.strictEqual(testIsSymbolObject(Object(Symbol())), true);
+  assert.strictEqual(testIsSymbolObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isSymbolObject'), 2);
+  }
+}
+
+{
+  function testIsNativeError(input) {
+    return types.isNativeError(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsNativeError)');
+  testIsNativeError(new Error());
+  eval('%OptimizeFunctionOnNextCall(testIsNativeError)');
+  assert.strictEqual(testIsNativeError(new Error()), true);
+  assert.strictEqual(testIsNativeError(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isNativeError'), 2);
+  }
+}
+
+{
+  function testIsRegExp(input) {
+    return types.isRegExp(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsRegExp)');
+  testIsRegExp(new RegExp());
+  eval('%OptimizeFunctionOnNextCall(testIsRegExp)');
+  assert.strictEqual(testIsRegExp(new RegExp()), true);
+  assert.strictEqual(testIsRegExp(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isRegExp'), 2);
+  }
+}
+
+{
+  function testIsAsyncFunction(input) {
+    return types.isAsyncFunction(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsAsyncFunction)');
+  testIsAsyncFunction(async function() {});
+  eval('%OptimizeFunctionOnNextCall(testIsAsyncFunction)');
+  assert.strictEqual(testIsAsyncFunction(async function() {}), true);
+  assert.strictEqual(testIsAsyncFunction(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isAsyncFunction'), 2);
+  }
+}
+
+{
+  function testIsGeneratorFunction(input) {
+    return types.isGeneratorFunction(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsGeneratorFunction)');
+  testIsGeneratorFunction(function*() {});
+  eval('%OptimizeFunctionOnNextCall(testIsGeneratorFunction)');
+  assert.strictEqual(testIsGeneratorFunction(function*() {}), true);
+  assert.strictEqual(testIsGeneratorFunction(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isGeneratorFunction'), 2);
+  }
+}
+
+{
+  function testIsGeneratorObject(input) {
+    return types.isGeneratorObject(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsGeneratorObject)');
+  testIsGeneratorObject((function*() {})());
+  eval('%OptimizeFunctionOnNextCall(testIsGeneratorObject)');
+  assert.strictEqual(testIsGeneratorObject((function*() {})()), true);
+  assert.strictEqual(testIsGeneratorObject(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isGeneratorObject'), 2);
+  }
+}
+
+{
+  function testIsPromise(input) {
+    return types.isPromise(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsPromise)');
+  testIsPromise(Promise.resolve());
+  eval('%OptimizeFunctionOnNextCall(testIsPromise)');
+  assert.strictEqual(testIsPromise(Promise.resolve()), true);
+  assert.strictEqual(testIsPromise(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isPromise'), 2);
+  }
+}
+
+{
+  function testIsMap(input) {
+    return types.isMap(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsMap)');
+  testIsMap(new Map());
+  eval('%OptimizeFunctionOnNextCall(testIsMap)');
+  assert.strictEqual(testIsMap(new Map()), true);
+  assert.strictEqual(testIsMap(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isMap'), 2);
+  }
+}
+
+{
+  function testIsSet(input) {
+    return types.isSet(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsSet)');
+  testIsSet(new Set());
+  eval('%OptimizeFunctionOnNextCall(testIsSet)');
+  assert.strictEqual(testIsSet(new Set()), true);
+  assert.strictEqual(testIsSet(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isSet'), 2);
+  }
+}
+
+{
+  function testIsMapIterator(input) {
+    return types.isMapIterator(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsMapIterator)');
+  testIsMapIterator((new Map())[Symbol.iterator]());
+  eval('%OptimizeFunctionOnNextCall(testIsMapIterator)');
+  assert.strictEqual(testIsMapIterator((new Map())[Symbol.iterator]()), true);
+  assert.strictEqual(testIsMapIterator(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isMapIterator'), 2);
+  }
+}
+
+{
+  function testIsSetIterator(input) {
+    return types.isSetIterator(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsSetIterator)');
+  testIsSetIterator((new Set())[Symbol.iterator]());
+  eval('%OptimizeFunctionOnNextCall(testIsSetIterator)');
+  assert.strictEqual(testIsSetIterator((new Set())[Symbol.iterator]()), true);
+  assert.strictEqual(testIsSetIterator(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isSetIterator'), 2);
+  }
+}
+
+{
+  function testIsWeakMap(input) {
+    return types.isWeakMap(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsWeakMap)');
+  testIsWeakMap(new WeakMap());
+  eval('%OptimizeFunctionOnNextCall(testIsWeakMap)');
+  assert.strictEqual(testIsWeakMap(new WeakMap()), true);
+  assert.strictEqual(testIsWeakMap(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isWeakMap'), 2);
+  }
+}
+
+{
+  function testIsWeakSet(input) {
+    return types.isWeakSet(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsWeakSet)');
+  testIsWeakSet(new WeakSet());
+  eval('%OptimizeFunctionOnNextCall(testIsWeakSet)');
+  assert.strictEqual(testIsWeakSet(new WeakSet()), true);
+  assert.strictEqual(testIsWeakSet(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isWeakSet'), 2);
+  }
+}
+
+{
+  function testIsArrayBuffer(input) {
+    return types.isArrayBuffer(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsArrayBuffer)');
+  testIsArrayBuffer(new ArrayBuffer());
+  eval('%OptimizeFunctionOnNextCall(testIsArrayBuffer)');
+  assert.strictEqual(testIsArrayBuffer(new ArrayBuffer()), true);
+  assert.strictEqual(testIsArrayBuffer(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isArrayBuffer'), 2);
+  }
+}
+
+{
+  function testIsDataView(input) {
+    return types.isDataView(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsDataView)');
+  testIsDataView(new DataView(new ArrayBuffer()));
+  eval('%OptimizeFunctionOnNextCall(testIsDataView)');
+  assert.strictEqual(testIsDataView(new DataView(new ArrayBuffer())), true);
+  assert.strictEqual(testIsDataView(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isDataView'), 2);
+  }
+}
+
+{
+  function testIsSharedArrayBuffer(input) {
+    return types.isSharedArrayBuffer(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsSharedArrayBuffer)');
+  testIsSharedArrayBuffer(new SharedArrayBuffer());
+  eval('%OptimizeFunctionOnNextCall(testIsSharedArrayBuffer)');
+  assert.strictEqual(testIsSharedArrayBuffer(new SharedArrayBuffer()), true);
+  assert.strictEqual(testIsSharedArrayBuffer(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isSharedArrayBuffer'), 2);
+  }
+}
+
+{
+  function testIsProxy(input) {
+    return types.isProxy(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsProxy)');
+  testIsProxy(new Proxy({}, {}));
+  eval('%OptimizeFunctionOnNextCall(testIsProxy)');
+  assert.strictEqual(testIsProxy(new Proxy({}, {})), true);
+  assert.strictEqual(testIsProxy(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isProxy'), 2);
+  }
+}
+
+{
+  function testIsExternal(input) {
+    return types.isExternal(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsExternal)');
+  testIsExternal(external);
+  eval('%OptimizeFunctionOnNextCall(testIsExternal)');
+  assert.strictEqual(testIsExternal(external), true);
+  assert.strictEqual(testIsExternal(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isExternal'), 2);
+  }
+}
+
+{
+  function testIsAnyArrayBuffer(input) {
+    return types.isAnyArrayBuffer(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsAnyArrayBuffer)');
+  testIsAnyArrayBuffer(new ArrayBuffer());
+  eval('%OptimizeFunctionOnNextCall(testIsAnyArrayBuffer)');
+  assert.strictEqual(testIsAnyArrayBuffer(new ArrayBuffer()), true);
+  assert.strictEqual(testIsAnyArrayBuffer(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isAnyArrayBuffer'), 2);
+  }
+}
+
+{
+  function testIsBoxedPrimitive(input) {
+    return types.isBoxedPrimitive(input);
+  }
+
+  eval('%PrepareFunctionForOptimization(testIsBoxedPrimitive)');
+  testIsBoxedPrimitive(new String());
+  eval('%OptimizeFunctionOnNextCall(testIsBoxedPrimitive)');
+  assert.strictEqual(testIsBoxedPrimitive(new String()), true);
+  assert.strictEqual(testIsBoxedPrimitive(Math.random()), false);
+
+  if (common.isDebug) {
+    const { getV8FastApiCallCount } = internalBinding('debug');
+    assert.strictEqual(getV8FastApiCallCount('types.isBoxedPrimitive'), 2);
+  }
 }
