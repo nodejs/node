@@ -28,7 +28,9 @@ class ActionStream extends stream.Stream {
       const next = _iter.next();
       if (next.done) {
         // Close the repl. Note that it must have a clean prompt to do so.
-        this.emit('keypress', '', { ctrl: true, name: 'd' });
+        setImmediate(() => {
+          this.emit('keypress', '', { ctrl: true, name: 'd' });
+        });
         return;
       }
       const action = next.value;
@@ -36,7 +38,7 @@ class ActionStream extends stream.Stream {
       if (typeof action === 'object') {
         this.emit('keypress', '', action);
       } else {
-        this.emit('data', `${action}`);
+        this.emit('data', action);
       }
       setImmediate(doAction);
     };

@@ -96,7 +96,7 @@ async function ordinaryTests() {
     ['const m = foo(await koo());'],
     ['m', '4'],
     ['const n = foo(await\nkoo());',
-     ['const n = foo(await\r', '... koo());\r', 'undefined']],
+     ['const n = foo(await\r', '| koo());\r', 'undefined']],
     ['n', '4'],
     // eslint-disable-next-line no-template-curly-in-string
     ['`status: ${(await Promise.resolve({ status: 200 })).status}`',
@@ -145,20 +145,20 @@ async function ordinaryTests() {
     ],
     ['for (const x of [1,2,3]) {\nawait x\n}', [
       'for (const x of [1,2,3]) {\r',
-      '... await x\r',
-      '... }\r',
+      '| await x\r',
+      '| }\r',
       'undefined',
     ]],
     ['for (const x of [1,2,3]) {\nawait x;\n}', [
       'for (const x of [1,2,3]) {\r',
-      '... await x;\r',
-      '... }\r',
+      '| await x;\r',
+      '| }\r',
       'undefined',
     ]],
     ['for await (const x of [1,2,3]) {\nconsole.log(x)\n}', [
       'for await (const x of [1,2,3]) {\r',
-      '... console.log(x)\r',
-      '... }\r',
+      '| console.log(x)\r',
+      '| }\r',
       '1',
       '2',
       '3',
@@ -166,8 +166,8 @@ async function ordinaryTests() {
     ]],
     ['for await (const x of [1,2,3]) {\nconsole.log(x);\n}', [
       'for await (const x of [1,2,3]) {\r',
-      '... console.log(x);\r',
-      '... }\r',
+      '| console.log(x);\r',
+      '| }\r',
       '1',
       '2',
       '3',
@@ -198,7 +198,7 @@ async function ordinaryTests() {
     } else if ('line' in options) {
       assert.strictEqual(lines[toBeRun.length + options.line], expected);
     } else {
-      const echoed = toBeRun.map((a, i) => `${i > 0 ? '... ' : ''}${a}\r`);
+      const echoed = toBeRun.map((a, i) => `${i > 0 ? '| ' : ''}${a}\r`);
       assert.deepStrictEqual(lines, [...echoed, expected, PROMPT]);
     }
   }
