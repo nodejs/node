@@ -67,13 +67,15 @@ void node_napi_env__::EnqueueFinalizer(v8impl::RefTracker* finalizer) {
 }
 
 void node_napi_env__::DrainFinalizerQueue() {
-  // As userland code can delete additional references in one finalizer,
-  // the list of pending finalizers may be mutated as we execute them, so
-  // we keep iterating it until it is empty.
-  while (!pending_finalizers.empty()) {
-    v8impl::RefTracker* ref_tracker = *pending_finalizers.begin();
-    pending_finalizers.erase(ref_tracker);
+  decltype(pending_finalizers) current_finalizers;
+  current_finalizers.swap(pending_finalizers);
+  
+  for (auto* ref_tracker : current_finalizers) {
     ref_tracker->Finalize();
+  }
+
+  if (!pending_finalizers.empty()) {
+    DrainFinalizerQueue();
   }
 }
 
