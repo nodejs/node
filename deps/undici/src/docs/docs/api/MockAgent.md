@@ -477,7 +477,7 @@ This method returns any pending interceptors registered on a mock agent. A pendi
 
 Returns: `PendingInterceptor[]` (where `PendingInterceptor` is a `MockDispatch` with an additional `origin: string`)
 
-#### Example - List all pending inteceptors
+#### Example - List all pending interceptors
 
 ```js
 const agent = new MockAgent()
