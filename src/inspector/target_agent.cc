@@ -28,10 +28,11 @@ class WorkerTargetDelegate : public WorkerDelegate {
   const std::shared_ptr<TargetAgent> target_agent_;
 };
 
-std::unique_ptr<Target::TargetInfo> createTargetInfo(const std::string_view target_id,
-                                                     const std::string_view type,
-                                                     const std::string_view title,
-                                                     const std::string_view url) {
+std::unique_ptr<Target::TargetInfo> createTargetInfo(
+  const std::string_view target_id,
+  const std::string_view type,
+  const std::string_view title,
+  const std::string_view url) {
   return Target::TargetInfo::create()
       .setTargetId(std::string(target_id))
       .setType(std::string(type))
