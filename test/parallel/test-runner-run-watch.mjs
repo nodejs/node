@@ -242,9 +242,9 @@ describe('test runner watch mode', () => {
     async () => {
       await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
     });
-  
+
   // This test is flaky by its nature as it relies on the timing of 2 different runs
-  // considering the number of digits in the duration_ms is 9 
+  // considering the number of digits in the duration_ms is 9
   // the chances of having the same duration_ms are very low
   // but not impossible
   // In case of costant failures, consider increasing the number of tests
@@ -252,9 +252,9 @@ describe('test runner watch mode', () => {
     const testRuns = await testWatch({ file: 'test.js', fileToUpdate: 'test.js' });
     const durations = testRuns.map((run) => {
       const runDuration = run.match(/# duration_ms\s([\d.]+)/);
-      return runDuration
+      return runDuration;
     });
-    assert.notDeepStrictEqual(durations[0][1] , durations[1][1]);
+    assert.notDeepStrictEqual(durations[0][1], durations[1][1]);
   });
 
   describe('test runner watch mode with different cwd', () => {
