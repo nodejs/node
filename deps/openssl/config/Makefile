@@ -37,9 +37,9 @@ OPSSL_SRC = ../openssl
 # Header files generated with Configure
 #INT_CFGS = bn_conf.h dso_conf.h
 INT_CFG_DIR = $(OPSSL_SRC)/include/crypto
-GEN_HEADERS = asn1 asn1t bio cmp cms configuration conf crmf crypto ct err    \
-              ess fipskey lhash ocsp opensslv pkcs12 pkcs7 safestack srp ssl  \
-	      ui x509 x509v3 x509_vfy conf
+GEN_HEADERS = asn1 asn1t bio comp cmp cms conf configuration core_names crmf \
+              crypto ct err ess fipskey lhash ocsp opensslv pkcs12 pkcs7 \
+              safestack srp ssl ui x509_acert x509 x509v3 x509_vfy
 
 CRYPTO_GEN_HEADERS = bn_conf dso_conf
 
