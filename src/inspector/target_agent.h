@@ -53,6 +53,7 @@ class TargetAgent : public Target::Backend,
                         const std::string& type,
                         const std::string& title,
                         const std::string& url);
+
   std::shared_ptr<Target::Frontend> frontend_;
   std::weak_ptr<WorkerManager> worker_manager_;
   static int next_session_id_;
