@@ -1,0 +1,152 @@
+=pod
+
+=head1 NAME
+
+DECLARE_PEM_rw,
+PEM_read_CMS,
+PEM_read_bio_CMS,
+PEM_write_CMS,
+PEM_write_bio_CMS,
+PEM_write_DHxparams,
+PEM_write_bio_DHxparams,
+PEM_read_ECPKParameters,
+PEM_read_bio_ECPKParameters,
+PEM_write_ECPKParameters,
+PEM_write_bio_ECPKParameters,
+PEM_read_ECPrivateKey,
+PEM_write_ECPrivateKey,
+PEM_write_bio_ECPrivateKey,
+PEM_read_EC_PUBKEY,
+PEM_read_bio_EC_PUBKEY,
+PEM_write_EC_PUBKEY,
+PEM_write_bio_EC_PUBKEY,
+PEM_read_NETSCAPE_CERT_SEQUENCE,
+PEM_read_bio_NETSCAPE_CERT_SEQUENCE,
+PEM_write_NETSCAPE_CERT_SEQUENCE,
+PEM_write_bio_NETSCAPE_CERT_SEQUENCE,
+PEM_read_PKCS8,
+PEM_read_bio_PKCS8,
+PEM_write_PKCS8,
+PEM_write_bio_PKCS8,
+PEM_write_PKCS8_PRIV_KEY_INFO,
+PEM_read_bio_PKCS8_PRIV_KEY_INFO,
+PEM_read_PKCS8_PRIV_KEY_INFO,
+PEM_write_bio_PKCS8_PRIV_KEY_INFO,
+PEM_read_SSL_SESSION,
+PEM_read_bio_SSL_SESSION,
+PEM_write_SSL_SESSION,
+PEM_write_bio_SSL_SESSION,
+PEM_read_X509_PUBKEY,
+PEM_read_bio_X509_PUBKEY,
+PEM_write_X509_PUBKEY,
+PEM_write_bio_X509_PUBKEY
+- PEM object encoding routines
+
+=head1 SYNOPSIS
+
+=for openssl generic
+
+ #include <openssl/pem.h>
+
+ DECLARE_PEM_rw(name, TYPE)
+
+ TYPE *PEM_read_TYPE(FILE *fp, TYPE **a, pem_password_cb *cb, void *u);
+ TYPE *PEM_read_bio_TYPE(BIO *bp, TYPE **a, pem_password_cb *cb, void *u);
+ int PEM_write_TYPE(FILE *fp, const TYPE *a);
+ int PEM_write_bio_TYPE(BIO *bp, const TYPE *a);
+
+The following functions have been deprecated since OpenSSL 3.0, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ #include <openssl/pem.h>
+
+ int PEM_write_DHxparams(FILE *out, const DH *dh);
+ int PEM_write_bio_DHxparams(BIO *out, const DH *dh);
+ EC_GROUP *PEM_read_ECPKParameters(FILE *fp, EC_GROUP **x, pem_password_cb *cb, void *u);
+ EC_GROUP *PEM_read_bio_ECPKParameters(BIO *bp, EC_GROUP **x, pem_password_cb *cb, void *u);
+ int PEM_write_ECPKParameters(FILE *out, const EC_GROUP *x);
+ int PEM_write_bio_ECPKParameters(BIO *out, const EC_GROUP *x),
+
+ EC_KEY *PEM_read_EC_PUBKEY(FILE *fp, EC_KEY **x, pem_password_cb *cb, void *u);
+ EC_KEY *PEM_read_bio_EC_PUBKEY(BIO *bp, EC_KEY **x, pem_password_cb *cb, void *u);
+ int PEM_write_EC_PUBKEY(FILE *out, const EC_KEY *x);
+ int PEM_write_bio_EC_PUBKEY(BIO *out, const EC_KEY *x);
+
+ EC_KEY *PEM_read_ECPrivateKey(FILE *out, EC_KEY **x, pem_password_cb *cb, void *u);
+ EC_KEY *PEM_read_bio_ECPrivateKey(BIO *out, EC_KEY **x, pem_password_cb *cb, void *u);
+ int PEM_write_ECPrivateKey(FILE *out, const EC_KEY *x, const EVP_CIPHER *enc,
+                            const unsigned char *kstr, int klen,
+                            pem_password_cb *cb, void *u);
+ int PEM_write_bio_ECPrivateKey(BIO *out, const EC_KEY *x, const EVP_CIPHER *enc,
+                                const unsigned char *kstr, int klen,
+                                pem_password_cb *cb, void *u);
+
+=head1 DESCRIPTION
+
+All of the functions described on this page are deprecated.
+Applications should use OSSL_ENCODER_to_bio() and OSSL_DECODER_from_bio()
+instead.
+
+In the description below, B<I<TYPE>> is used
+as a placeholder for any of the OpenSSL datatypes, such as B<X509>.
+The macro B<DECLARE_PEM_rw> expands to the set of declarations shown in
+the next four lines of the synopsis.
+
+These routines convert between local instances of ASN1 datatypes and
+the PEM encoding.  For more information on the templates, see
+L<ASN1_ITEM(3)>.  For more information on the lower-level routines used
+by the functions here, see L<PEM_read(3)>.
+
+B<PEM_read_I<TYPE>>() reads a PEM-encoded object of B<I<TYPE>> from the file
+I<fp> and returns it.  The I<cb> and I<u> parameters are as described in
+L<pem_password_cb(3)>.
+
+B<PEM_read_bio_I<TYPE>>() is similar to B<PEM_read_I<TYPE>>() but reads from
+the BIO I<bp>.
+
+B<PEM_write_I<TYPE>>() writes the PEM encoding of the object I<a> to the file
+I<fp>.
+
+B<PEM_write_bio_I<TYPE>>() similarly writes to the BIO I<bp>.
+
+=head1 NOTES
+
+These functions make no assumption regarding the pass phrase received from the
+password callback.
+It will simply be treated as a byte sequence.
+
+=head1 RETURN VALUES
+
+B<PEM_read_I<TYPE>>() and B<PEM_read_bio_I<TYPE>>() return a pointer to an
+allocated object, which should be released by calling B<I<TYPE>_free>(), or
+NULL on error.
+
+B<PEM_write_I<TYPE>>() and B<PEM_write_bio_I<TYPE>>() return 1 for success or 0 for failure.
+
+=head1 SEE ALSO
+
+L<PEM_read(3)>,
+L<passphrase-encoding(7)>
+
+=head1 HISTORY
+
+The functions PEM_write_DHxparams(), PEM_write_bio_DHxparams(),
+PEM_read_ECPKParameters(), PEM_read_bio_ECPKParameters(),
+PEM_write_ECPKParameters(), PEM_write_bio_ECPKParameters(),
+PEM_read_EC_PUBKEY(), PEM_read_bio_EC_PUBKEY(),
+PEM_write_EC_PUBKEY(), PEM_write_bio_EC_PUBKEY(),
+PEM_read_ECPrivateKey(), PEM_read_bio_ECPrivateKey(),
+PEM_write_ECPrivateKey() and PEM_write_bio_ECPrivateKey()
+were deprecated in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 1998-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

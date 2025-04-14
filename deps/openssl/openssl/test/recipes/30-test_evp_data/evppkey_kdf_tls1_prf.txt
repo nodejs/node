@@ -1,0 +1,71 @@
+#
+# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = TLS1 PRF tests (from NIST test vectors)
+
+PKEYKDF = TLS1-PRF
+Ctrl.md = md:MD5-SHA1
+Ctrl.Secret = hexsecret:bded7fa5c1699c010be23dd06ada3a48349f21e5f86263d512c0c5cc379f0e780ec55d9844b2f1db02a96453513568d0
+Ctrl.label = seed:master secret
+Ctrl.client_random = hexseed:e5acaf549cd25c22d964c0d930fa4b5261d2507fad84c33715b7b9a864020693
+Ctrl.server_random = hexseed:135e4d557fdf3aa6406d82975d5c606a9734c9334b42136e96990fbd5358cdb2
+Output = 2f6962dfbc744c4b2138bb6b3d33054c5ecc14f24851d9896395a44ab3964efc2090c5bf51a0891209f46c1e1e998f62
+
+PKEYKDF = TLS1-PRF
+Ctrl.md = md:MD5-SHA1
+Ctrl.Secret = hexsecret:2f6962dfbc744c4b2138bb6b3d33054c5ecc14f24851d9896395a44ab3964efc2090c5bf51a0891209f46c1e1e998f62
+Ctrl.label = seed:key expansion
+Ctrl.server_random = hexseed:67267e650eb32444119d222a368c191af3082888dc35afe8368e638c828874be
+Ctrl.client_random = hexseed:d58a7b1cd4fedaa232159df652ce188f9d997e061b9bf48e83b62990440931f6
+Output = 3088825988e77fce68d19f756e18e43eb7fe672433504feaf99b3c503d9091b164f166db301d70c9fc0870b4a94563907bee1a61fb786cb717576890bcc51cb9ead97e01d0a2fea99c953377b195205ff07b369589178796edc963fd80fdbe518a2fc1c35c18ae8d
+
+# Missing secret.
+PKEYKDF = TLS1-PRF
+Ctrl.md = md:MD5-SHA1
+Ctrl.Seed = hexseed:02
+Output = 03
+Result = KDF_DERIVE_ERROR
+
+# PKEYKDF variants.
+
+PKEYKDF = TLS1-PRF
+Ctrl.md = md:SHA256
+Ctrl.Secret = hexsecret:f8938ecc9edebc5030c0c6a441e213cd24e6f770a50dda07876f8d55da062bcadb386b411fd4fe4313a604fce6c17fbc
+Ctrl.label = seed:master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Output = 202c88c00f84a17a20027079604787461176455539e705be730890602c289a5001e34eeb3a043e5d52a65e66125188bf
+
+PKEYKDF = TLS1-PRF
+Ctrl.md = md:SHA256
+Ctrl.Secret = hexsecret:202c88c00f84a17a20027079604787461176455539e705be730890602c289a5001e34eeb3a043e5d52a65e66125188bf
+Ctrl.label = seed:key expansion
+Ctrl.server_random = hexseed:ae6c806f8ad4d80784549dff28a4b58fd837681a51d928c3e30ee5ff14f39868
+Ctrl.client_random = hexseed:62e1fd91f23f558a605f28478c58cf72637b89784d959df7e946d3f07bd1b616
+Output = d06139889fffac1e3a71865f504aa5d0d2a2e89506c6f2279b670c3e1b74f531016a2530c51a3a0f7e1d6590d0f0566b2f387f8d11fd4f731cdd572d2eae927f6f2f81410b25e6960be68985add6c38445ad9f8c64bf8068bf9a6679485d966f1ad6f68b43495b10a683755ea2b858d70ccac7ec8b053c6bd41ca299d4e51928
+
+# As above but use long name for KDF
+PKEYKDF = tls1-prf
+Ctrl.md = md:SHA256
+Ctrl.Secret = hexsecret:202c88c00f84a17a20027079604787461176455539e705be730890602c289a5001e34eeb3a043e5d52a65e66125188bf
+Ctrl.label = seed:key expansion
+Ctrl.server_random = hexseed:ae6c806f8ad4d80784549dff28a4b58fd837681a51d928c3e30ee5ff14f39868
+Ctrl.client_random = hexseed:62e1fd91f23f558a605f28478c58cf72637b89784d959df7e946d3f07bd1b616
+Output = d06139889fffac1e3a71865f504aa5d0d2a2e89506c6f2279b670c3e1b74f531016a2530c51a3a0f7e1d6590d0f0566b2f387f8d11fd4f731cdd572d2eae927f6f2f81410b25e6960be68985add6c38445ad9f8c64bf8068bf9a6679485d966f1ad6f68b43495b10a683755ea2b858d70ccac7ec8b053c6bd41ca299d4e51928
+
+# Missing digest.
+PKEYKDF = TLS1-PRF
+Ctrl.Secret = hexsecret:01
+Ctrl.Seed = hexseed:02
+Output = 03
+Result = KDF_DERIVE_ERROR
