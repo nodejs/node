@@ -82,6 +82,7 @@ NODE_EXE = node$(EXEEXT)
 NODE ?= "$(PWD)/$(NODE_EXE)"
 NODE_G_EXE = node_g$(EXEEXT)
 NPM ?= ./deps/npm/bin/npm-cli.js
+NPX ?= ./deps/npm/bin/npx-cli.js
 
 # Flags for packaging.
 BUILD_DOWNLOAD_FLAGS ?= --download=all
@@ -333,7 +334,6 @@ coverage-run-js: ## Run JavaScript tests with coverage.
 # This does not run tests of third-party libraries inside deps.
 test: all ## Run default tests, linters, and build docs.
 	$(MAKE) -s tooltest
-	$(MAKE) -s test-doc
 	$(MAKE) -s build-addons
 	$(MAKE) -s build-js-native-api-tests
 	$(MAKE) -s build-node-api-tests
@@ -369,7 +369,7 @@ test-valgrind: all ## Run tests using valgrind.
 test-check-deopts: all
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) --check-deopts parallel sequential
 
-DOCBUILDSTAMP_PREREQS = tools/doc/addon-verify.mjs doc/api/addons.md
+DOCBUILDSTAMP_PREREQS = doc/api/addons.md
 
 ifeq ($(OSTYPE),aix)
 DOCBUILDSTAMP_PREREQS := $(DOCBUILDSTAMP_PREREQS) out/$(BUILDTYPE)/node.exp
@@ -385,7 +385,7 @@ test/addons/.docbuildstamp: $(DOCBUILDSTAMP_PREREQS) tools/doc/node_modules
 		echo "Skipping .docbuildstamp (no crypto and/or no ICU)"; \
 	else \
 		$(RM) -r test/addons/??_*/; \
-		[ -x $(NODE) ] && $(NODE) $< || node $< ; \
+		$(call available-node, $(NPX) --prefix tools/doc api-docs-tooling -t addon-verify -i doc/api/addons.md -o test/addons/ --lint-dry-run) \
 		[ $$? -eq 0 ] && touch $@; \
 	fi
 
@@ -779,14 +779,10 @@ test-v8 test-v8-intl test-v8-benchmarks test-v8-all:
 	$(warning Use the git repo instead: $$ git clone https://github.com/nodejs/node.git)
 endif
 
-apidoc_dirs = out/doc out/doc/api out/doc/api/assets
+apidoc_dirs = out/doc out/doc/api
 skip_apidoc_files = doc/api/quic.md
 
-apidoc_sources = $(filter-out $(skip_apidoc_files), $(wildcard doc/api/*.md))
-apidocs_html = $(addprefix out/,$(apidoc_sources:.md=.html))
-apidocs_json = $(addprefix out/,$(apidoc_sources:.md=.json))
-
-apiassets = $(subst api_assets,api/assets,$(addprefix out/,$(wildcard doc/api_assets/*)))
+run-npm-ci = $(PWD)/$(NPM) ci
 
 tools/doc/node_modules: tools/doc/package.json
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -797,11 +793,11 @@ tools/doc/node_modules: tools/doc/package.json
 
 .PHONY: doc-only
 doc-only: tools/doc/node_modules \
-	$(apidoc_dirs) $(apiassets) ## Build the docs with the local or the global Node.js binary.
+	$(apidoc_dirs)  ## Builds the docs with the local or the global Node.js binary.
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
-		echo "Skipping doc-only (no crypto and/or no ICU)"; \
+		echo "Skipping doc-only (no crypto or no icu)"; \
 	else \
-		$(MAKE) out/doc/api/all.html out/doc/api/all.json out/doc/api/stability; \
+		$(call available-node, $(NPX) --prefix tools/doc api-docs-tooling -t legacy-html-all legacy-json-all api-links -i doc/api/\*.md -i lib/\*.js --ignore $(skip_apidoc_files) -o out/doc/api/ --lint-dry-run -c file://$(PWD)/CHANGELOG.md) \
 	fi
 
 .PHONY: doc
@@ -817,79 +813,24 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-# If it's a source tarball, assets are already in doc/api/assets
-out/doc/api/assets:
-	mkdir -p $@
-	if [ -d doc/api/assets ]; then cp -r doc/api/assets out/doc/api; fi;
+out/doc/api/%.json out/doc/api/%.html: doc-only
 
-# If it's not a source tarball, we need to copy assets from doc/api_assets
-out/doc/api/assets/%: doc/api_assets/% | out/doc/api/assets
-	@cp $< $@ ; $(RM) out/doc/api/assets/README.md
+out/doc/api/all.html: doc-only
 
-
-run-npm-ci = $(PWD)/$(NPM) ci
-
-LINK_DATA = out/doc/apilinks.json
-VERSIONS_DATA = out/previous-doc-versions.json
-gen-api = tools/doc/generate.mjs --node-version=$(FULLVERSION) \
-		--apilinks=$(LINK_DATA) $< --output-directory=out/doc/api \
-		--versions-file=$(VERSIONS_DATA)
-gen-apilink = tools/doc/apilinks.mjs $(LINK_DATA) $(wildcard lib/*.js)
-
-$(LINK_DATA): $(wildcard lib/*.js) tools/doc/apilinks.mjs | out/doc
-	$(call available-node, $(gen-apilink))
-
-# Regenerate previous versions data if the current version changes
-$(VERSIONS_DATA): CHANGELOG.md src/node_version.h tools/doc/versions.mjs
-	$(call available-node, tools/doc/versions.mjs $@)
-
-node_use_icu = $(call available-node,"-p" "typeof Intl === 'object'")
-
-out/doc/api/%.json out/doc/api/%.html: doc/api/%.md tools/doc/generate.mjs \
-	tools/doc/markdown.mjs tools/doc/html.mjs tools/doc/json.mjs \
-	tools/doc/apilinks.mjs $(VERSIONS_DATA) | $(LINK_DATA) out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping documentation generation (no ICU)"; \
-	else \
-		$(call available-node, $(gen-api)) \
-	fi
-
-out/doc/api/all.html: $(apidocs_html) tools/doc/allhtml.mjs \
-	tools/doc/apilinks.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping HTML single-page doc generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/allhtml.mjs) \
-	fi
-
-out/doc/api/all.json: $(apidocs_json) tools/doc/alljson.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping JSON single-file generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/alljson.mjs) \
-	fi
-
-.PHONY: out/doc/api/stability
-out/doc/api/stability: out/doc/api/all.json tools/doc/stability.mjs | out/doc/api
-	@if [ "$(shell $(node_use_icu))" != "true" ]; then \
-		echo "Skipping stability indicator generation (no ICU)"; \
-	else \
-		$(call available-node, tools/doc/stability.mjs) \
-	fi
+out/doc/api/all.json: doc-only
 
 .PHONY: docopen
-docopen: out/doc/api/all.html ## Open the documentation in a web browser.
+docopen: doc-only ## Open the documentation in a web browser.
 	@$(PYTHON) -mwebbrowser file://$(abspath $<)
 
 .PHONY: docserve
-docserve: $(apidocs_html) $(apiassets) ## Serve the documentation on localhost:8000.
+docserve: doc-only ## Serve the documentation on localhost:8000.
 	@$(PYTHON) -m http.server 8000 --bind 127.0.0.1 --directory out/doc/api
 
 .PHONY: docclean
 .NOTPARALLEL: docclean
 docclean: ## Remove the generated documentation.
 	$(RM) -r out/doc
-	$(RM) "$(VERSIONS_DATA)"
 
 RAWVER=$(shell $(PYTHON) tools/getnodeversion.py)
 VERSION=v$(RAWVER)
@@ -1396,7 +1337,12 @@ tools/.mdlintstamp: tools/lint-md/node_modules/remark-parse/package.json $(LINT_
 	@touch $@
 
 .PHONY: lint-md
-lint-md: lint-js-doc | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+lint-md: lint-js-doc lint-docs | tools/.mdlintstamp ## Lint the markdown documents maintained by us in the codebase.
+
+.PHONY: lint-docs
+lint-docs: tools/doc/node_modules
+	$(info Running API Doc linter...)
+	$(call available-node, $(NPX) --prefix tools/doc api-docs-tooling -i doc/api/*.md -r github)
 
 run-format-md = tools/lint-md/lint-md.mjs --format $(LINT_MD_FILES)
 .PHONY: format-md
