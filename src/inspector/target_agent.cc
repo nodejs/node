@@ -1,4 +1,5 @@
 #include "target_agent.h"
+#include <string_view>
 #include "crdtp/dispatch.h"
 #include "inspector/worker_inspector.h"
 #include "main_thread_interface.h"
@@ -27,15 +28,15 @@ class WorkerTargetDelegate : public WorkerDelegate {
   const std::shared_ptr<TargetAgent> target_agent_;
 };
 
-std::unique_ptr<Target::TargetInfo> createTargetInfo(const String& target_id,
-                                                     const String& type,
-                                                     const String& title,
-                                                     const String& url) {
+std::unique_ptr<Target::TargetInfo> createTargetInfo(const std::string_view target_id,
+                                                     const std::string_view type,
+                                                     const std::string_view title,
+                                                     const std::string_view url) {
   return Target::TargetInfo::create()
-      .setTargetId(target_id)
-      .setType(type)
-      .setTitle(title)
-      .setUrl(url)
+      .setTargetId(std::string(target_id))
+      .setType(std::string(type))
+      .setTitle(std::string(title))
+      .setUrl(std::string(url))
       .setAttached(false)
       .setCanAccessOpener(true)
       .build();
@@ -78,10 +79,10 @@ void TargetAgent::reset() {
   }
 }
 
-void TargetAgent::targetCreated(const std::string& target_id,
-                                const std::string& type,
-                                const std::string& title,
-                                const std::string& url) {
+void TargetAgent::targetCreated(const std::string_view target_id,
+                                const std::string_view type,
+                                const std::string_view title,
+                                const std::string_view url) {
   frontend_->targetCreated(createTargetInfo(target_id, type, title, url));
 }
 

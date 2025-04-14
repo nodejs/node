@@ -53,8 +53,8 @@ async function test(isSetAutoAttachBeforeExecution) {
   await session.waitForDisconnect();
 }
 
-test(true);
-test(false);
+test(true).then(common.mustCall());
+test(false).then(common.mustCall());
 
 function withPermissionOptionTest() {
   const permissionErrorThrow = common.mustCall();

@@ -352,7 +352,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
     std::vector<uint8_t> cbor = message->Serialize();
     std::string json;
     crdtp::Status status = ConvertCBORToJSON(crdtp::SpanFrom(cbor), &json);
-    DCHECK(status.ok());
+    CHECK(status.ok());
     USE(status);
     return json;
   }

@@ -1,6 +1,7 @@
 #ifndef SRC_INSPECTOR_TARGET_AGENT_H_
 #define SRC_INSPECTOR_TARGET_AGENT_H_
 
+#include <string_view>
 #include <unordered_map>
 #include <vector>
 #include "inspector/worker_inspector.h"
@@ -44,10 +45,10 @@ class TargetAgent : public Target::Backend,
  private:
   int getNextTargetId();
   int getNextSessionId();
-  void targetCreated(const std::string& target_id,
-                     const std::string& type,
-                     const std::string& title,
-                     const std::string& url);
+  void targetCreated(const std::string_view target_id,
+                     const std::string_view type,
+                     const std::string_view title,
+                     const std::string_view url);
   void attachedToTarget(std::shared_ptr<MainThreadHandle> worker,
                         const std::string& target_id,
                         const std::string& type,
