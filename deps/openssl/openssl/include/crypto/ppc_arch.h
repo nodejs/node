@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2022 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,5 +24,6 @@ extern unsigned int OPENSSL_ppccap_P;
 # define PPC_MADD300     (1<<4)
 # define PPC_MFTB        (1<<5)
 # define PPC_MFSPR268    (1<<6)
+# define PPC_BRD31       (1<<7)
 
 #endif

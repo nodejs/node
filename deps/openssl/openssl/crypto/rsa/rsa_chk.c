@@ -51,7 +51,7 @@ static int rsa_validate_keypair_multiprime(const RSA *key, BN_GENCB *cb)
     if (i == NULL || j == NULL || k == NULL || l == NULL
             || m == NULL || ctx == NULL) {
         ret = -1;
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_RSA, ERR_R_BN_LIB);
         goto err;
     }
 

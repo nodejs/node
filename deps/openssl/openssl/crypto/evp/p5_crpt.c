@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -78,7 +78,7 @@ int PKCS5_PBE_keyivgen_ex(EVP_CIPHER_CTX *cctx, const char *pass, int passlen,
         passlen = strlen(pass);
 
     mdsize = EVP_MD_get_size(md);
-    if (mdsize < 0)
+    if (mdsize <= 0)
         goto err;
 
     kdf = EVP_KDF_fetch(libctx, OSSL_KDF_NAME_PBKDF1, propq);

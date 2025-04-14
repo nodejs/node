@@ -8,7 +8,7 @@ The ENGINE API was introduced in OpenSSL version 0.9.6 as a low level
 interface for adding alternative implementations of cryptographic
 primitives, most notably for integrating hardware crypto devices.
 
-The ENGINE interface has its limitations and it has been superseeded
+The ENGINE interface has its limitations and it has been superseded
 by the [PROVIDER API](README-PROVIDERS.md), it is deprecated in OpenSSL
 version 3.0. The following documentation is retained as an aid for
 users who need to maintain or support existing ENGINE implementations.
@@ -22,9 +22,9 @@ Built-in ENGINE implementations
 There are currently built-in ENGINE implementations for the following
 crypto devices:
 
-  * Microsoft CryptoAPI
-  * VIA Padlock
-  * nCipher CHIL
+- Microsoft CryptoAPI
+- VIA Padlock
+- nCipher CHIL
 
 In addition, dynamic binding to external ENGINE implementations is now
 provided by a special ENGINE called "dynamic". See the "DYNAMIC ENGINE"
@@ -32,9 +32,9 @@ section below for details.
 
 At this stage, a number of things are still needed and are being worked on:
 
-  1. Integration of EVP support.
-  2. Configuration support.
-  3. Documentation!
+1. Integration of EVP support.
+2. Configuration support.
+3. Documentation!
 
 Integration of EVP support
 --------------------------
@@ -87,17 +87,17 @@ devices from common OpenSSL-based applications. Bugs and/or inexplicable
 behaviour in using a specific ENGINE implementation should be sent to the
 author of that implementation (if it is mentioned in the corresponding C
 file), and in the case of implementations for commercial hardware
-devices, also through whatever vendor support channels are available.  If
+devices, also through whatever vendor support channels are available. If
 none of this is possible, or the problem seems to be something about the
 ENGINE API itself (ie. not necessarily specific to a particular ENGINE
 implementation) then you should mail complete details to the relevant
 OpenSSL mailing list. For a definition of "complete details", refer to
 the OpenSSL "README" file. As for which list to send it to:
 
-  * openssl-users: if you are *using* the ENGINE abstraction, either in an
-    pre-compiled application or in your own application code.
+- openssl-users: if you are *using* the ENGINE abstraction, either in an
+  pre-compiled application or in your own application code.
 
-  * openssl-dev: if you are discussing problems with OpenSSL source code.
+- openssl-dev: if you are discussing problems with OpenSSL source code.
 
 USAGE
 =====
@@ -185,7 +185,7 @@ the shared-library ENGINE implementation. If this command succeeds, the
 (copy of the) 'dynamic' ENGINE will magically morph into the ENGINE
 that has been loaded from the shared-library. As such, any control
 commands supported by the loaded ENGINE could then be executed as per
-normal. Eg. if ENGINE "foo" is implemented in the shared-library
+normal. For instance, if ENGINE "foo" is implemented in the shared-library
 "libfoo.so" and it supports some special control command "CMD_FOO", the
 following code would load and use it (NB: obviously this code has no
 error checking);
@@ -270,35 +270,36 @@ This example will show building the "atalla" ENGINE in the
 crypto/engine/ directory as a shared-library for use via the "dynamic"
 ENGINE.
 
-  1. "cd" to the crypto/engine/ directory of a pre-compiled OpenSSL
-     source tree.
+1.  "cd" to the crypto/engine/ directory of a pre-compiled OpenSSL
+    source tree.
 
-  2. Recompile at least one source file so you can see all the compiler
-     flags (and syntax) being used to build normally. Eg;
+2.  Recompile at least one source file so you can see all the compiler
+    flags (and syntax) being used to build normally. Eg;
 
-         touch hw_atalla.c ; make
+        touch hw_atalla.c ; make
 
-     will rebuild "hw_atalla.o" using all such flags.
+    will rebuild "hw_atalla.o" using all such flags.
 
-  3. Manually enter the same compilation line to compile the
-     "hw_atalla.c" file but with the following two changes;
-      * add "-DENGINE_DYNAMIC_SUPPORT" to the command line switches,
-      * change the output file from "hw_atalla.o" to something new,
-        eg. "tmp_atalla.o"
+3.  Manually enter the same compilation line to compile the
+    "hw_atalla.c" file but with the following two changes;
 
-  4. Link "tmp_atalla.o" into a shared-library using the top-level
-     OpenSSL libraries to resolve any dependencies. The syntax for doing
-     this depends heavily on your system/compiler and is a nightmare
-     known well to anyone who has worked with shared-library portability
-     before. 'gcc' on Linux, for example, would use the following syntax;
+    - add "-DENGINE_DYNAMIC_SUPPORT" to the command line switches,
+    - change the output file from "hw_atalla.o" to something new,
+      eg. "tmp_atalla.o"
 
-         gcc -shared -o dyn_atalla.so tmp_atalla.o -L../.. -lcrypto
+4.  Link "tmp_atalla.o" into a shared-library using the top-level
+    OpenSSL libraries to resolve any dependencies. The syntax for doing
+    this depends heavily on your system/compiler and is a nightmare
+    known well to anyone who has worked with shared-library portability
+    before. 'gcc' on Linux, for example, would use the following syntax;
 
-  5. Test your shared library using "openssl engine" as explained in the
-     previous section. Eg. from the top-level directory, you might try
+        gcc -shared -o dyn_atalla.so tmp_atalla.o -L../.. -lcrypto
 
-         apps/openssl engine -vvvv dynamic \
-               -pre SO_PATH:./crypto/engine/dyn_atalla.so -pre LOAD
+5.  Test your shared library using "openssl engine" as explained in the
+    previous section. Eg. from the top-level directory, you might try
+
+        apps/openssl engine -vvvv dynamic \
+              -pre SO_PATH:./crypto/engine/dyn_atalla.so -pre LOAD
 
 If the shared-library loads successfully, you will see both "-pre"
 commands marked as "SUCCESS" and the list of control commands

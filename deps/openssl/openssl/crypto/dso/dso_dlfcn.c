@@ -1,5 +1,5 @@
 /*
- * Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,7 +17,7 @@
 #endif
 
 #include "dso_local.h"
-#include "e_os.h"
+#include "internal/e_os.h"
 
 #ifdef DSO_DLFCN
 
@@ -207,20 +207,16 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
      */
     if (!filespec2 || (filespec1 != NULL && filespec1[0] == '/')) {
         merged = OPENSSL_strdup(filespec1);
-        if (merged == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (merged == NULL)
             return NULL;
-        }
     }
     /*
      * If the first file specification is missing, the second one rules.
      */
     else if (!filespec1) {
         merged = OPENSSL_strdup(filespec2);
-        if (merged == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (merged == NULL)
             return NULL;
-        }
     } else {
         /*
          * This part isn't as trivial as it looks.  It assumes that the
@@ -239,10 +235,8 @@ static char *dlfcn_merger(DSO *dso, const char *filespec1,
             len--;
         }
         merged = OPENSSL_malloc(len + 2);
-        if (merged == NULL) {
-            ERR_raise(ERR_LIB_DSO, ERR_R_MALLOC_FAILURE);
+        if (merged == NULL)
             return NULL;
-        }
         strcpy(merged, filespec2);
         merged[spec2len] = '/';
         strcpy(&merged[spec2len + 1], filespec1);
@@ -257,7 +251,7 @@ static char *dlfcn_name_converter(DSO *dso, const char *filename)
 
     len = strlen(filename);
     rsize = len + 1;
-    transform = (strstr(filename, "/") == NULL);
+    transform = (strchr(filename, '/') == NULL);
     if (transform) {
         /* We will convert this to "%s.so" or "lib%s.so" etc */
         rsize += strlen(DSO_EXTENSION);    /* The length of ".so" */

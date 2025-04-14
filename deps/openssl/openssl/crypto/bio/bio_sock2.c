@@ -13,6 +13,7 @@
 
 #include "bio_local.h"
 #include "internal/ktls.h"
+#include "internal/bio_tfo.h"
 
 #include <openssl/err.h>
 
@@ -68,6 +69,7 @@ int BIO_socket(int domain, int socktype, int protocol, int options)
  * - BIO_SOCK_KEEPALIVE: enable regularly sending keep-alive messages.
  * - BIO_SOCK_NONBLOCK: Make the socket non-blocking.
  * - BIO_SOCK_NODELAY: don't delay small messages.
+ * - BIO_SOCK_TFO: use TCP Fast Open
  *
  * options holds BIO socket options that can be used
  * You should call this for every address returned by BIO_lookup
@@ -106,6 +108,68 @@ int BIO_connect(int sock, const BIO_ADDR *addr, int options)
             ERR_raise(ERR_LIB_BIO, BIO_R_UNABLE_TO_NODELAY);
             return 0;
         }
+    }
+    if (options & BIO_SOCK_TFO) {
+# if defined(OSSL_TFO_CLIENT_FLAG)
+#  if defined(OSSL_TFO_SYSCTL_CLIENT)
+        int enabled = 0;
+        size_t enabledlen = sizeof(enabled);
+
+        /* Later FreeBSD */
+        if (sysctlbyname(OSSL_TFO_SYSCTL_CLIENT, &enabled, &enabledlen, NULL, 0) < 0) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_NO_KERNEL_SUPPORT);
+            return 0;
+        }
+        /* Need to check for client flag */
+        if (!(enabled & OSSL_TFO_CLIENT_FLAG)) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_DISABLED);
+            return 0;
+        }
+#  elif defined(OSSL_TFO_SYSCTL)
+        int enabled = 0;
+        size_t enabledlen = sizeof(enabled);
+
+        /* macOS */
+        if (sysctlbyname(OSSL_TFO_SYSCTL, &enabled, &enabledlen, NULL, 0) < 0) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_NO_KERNEL_SUPPORT);
+            return 0;
+        }
+        /* Need to check for client flag */
+        if (!(enabled & OSSL_TFO_CLIENT_FLAG)) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_DISABLED);
+            return 0;
+        }
+#  endif
+# endif
+# if defined(OSSL_TFO_CONNECTX)
+        sa_endpoints_t sae;
+
+        memset(&sae, 0, sizeof(sae));
+        sae.sae_dstaddr = BIO_ADDR_sockaddr(addr);
+        sae.sae_dstaddrlen = BIO_ADDR_sockaddr_size(addr);
+        if (connectx(sock, &sae, SAE_ASSOCID_ANY,
+                     CONNECT_DATA_IDEMPOTENT | CONNECT_RESUME_ON_READ_WRITE,
+                     NULL, 0, NULL, NULL) == -1) {
+            if (!BIO_sock_should_retry(-1)) {
+                ERR_raise_data(ERR_LIB_SYS, get_last_socket_error(),
+                               "calling connectx()");
+                ERR_raise(ERR_LIB_BIO, BIO_R_CONNECT_ERROR);
+            }
+            return 0;
+        }
+# endif
+# if defined(OSSL_TFO_CLIENT_SOCKOPT)
+        if (setsockopt(sock, IPPROTO_TCP, OSSL_TFO_CLIENT_SOCKOPT,
+                       (const void *)&on, sizeof(on)) != 0) {
+            ERR_raise_data(ERR_LIB_SYS, get_last_socket_error(),
+                           "calling setsockopt()");
+            ERR_raise(ERR_LIB_BIO, BIO_R_UNABLE_TO_TFO);
+            return 0;
+        }
+# endif
+# if defined(OSSL_TFO_DO_NOT_CONNECT)
+        return 1;
+# endif
     }
 
     if (connect(sock, BIO_ADDR_sockaddr(addr),
@@ -199,6 +263,7 @@ int BIO_bind(int sock, const BIO_ADDR *addr, int options)
  *   for a recently closed port.
  * - BIO_SOCK_V6_ONLY: When creating an IPv6 socket, make it listen only
  *   for IPv6 addresses and not IPv4 addresses mapped to IPv6.
+ * - BIO_SOCK_TFO: accept TCP fast open (set TCP_FASTOPEN)
  *
  * It's recommended that you set up both an IPv6 and IPv4 listen socket, and
  * then check both for new clients that connect to it.  You want to set up
@@ -262,7 +327,7 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
         }
     }
 
-  /* On OpenBSD it is always ipv6 only with ipv6 sockets thus read-only */
+  /* On OpenBSD it is always IPv6 only with IPv6 sockets thus read-only */
 # if defined(IPV6_V6ONLY) && !defined(__OpenBSD__)
     if (BIO_ADDR_family(addr) == AF_INET6) {
         /*
@@ -289,6 +354,54 @@ int BIO_listen(int sock, const BIO_ADDR *addr, int options)
         ERR_raise(ERR_LIB_BIO, BIO_R_UNABLE_TO_LISTEN_SOCKET);
         return 0;
     }
+
+# if defined(OSSL_TFO_SERVER_SOCKOPT)
+    /*
+     * Must do it explicitly after listen() for macOS, still
+     * works fine on other OS's
+     */
+    if ((options & BIO_SOCK_TFO) && socktype != SOCK_DGRAM) {
+        int q = OSSL_TFO_SERVER_SOCKOPT_VALUE;
+#  if defined(OSSL_TFO_CLIENT_FLAG)
+#   if defined(OSSL_TFO_SYSCTL_SERVER)
+        int enabled = 0;
+        size_t enabledlen = sizeof(enabled);
+
+        /* Later FreeBSD */
+        if (sysctlbyname(OSSL_TFO_SYSCTL_SERVER, &enabled, &enabledlen, NULL, 0) < 0) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_NO_KERNEL_SUPPORT);
+            return 0;
+        }
+        /* Need to check for server flag */
+        if (!(enabled & OSSL_TFO_SERVER_FLAG)) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_DISABLED);
+            return 0;
+        }
+#   elif defined(OSSL_TFO_SYSCTL)
+        int enabled = 0;
+        size_t enabledlen = sizeof(enabled);
+
+        /* Early FreeBSD, macOS */
+        if (sysctlbyname(OSSL_TFO_SYSCTL, &enabled, &enabledlen, NULL, 0) < 0) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_NO_KERNEL_SUPPORT);
+            return 0;
+        }
+        /* Need to check for server flag */
+        if (!(enabled & OSSL_TFO_SERVER_FLAG)) {
+            ERR_raise(ERR_LIB_BIO, BIO_R_TFO_DISABLED);
+            return 0;
+        }
+#   endif
+#  endif
+        if (setsockopt(sock, IPPROTO_TCP, OSSL_TFO_SERVER_SOCKOPT,
+                       (void *)&q, sizeof(q)) < 0) {
+            ERR_raise_data(ERR_LIB_SYS, get_last_socket_error(),
+                           "calling setsockopt()");
+            ERR_raise(ERR_LIB_BIO, BIO_R_UNABLE_TO_TFO);
+            return 0;
+        }
+    }
+# endif
 
     return 1;
 }

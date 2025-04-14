@@ -20,7 +20,7 @@
          # Unix form /VOLUME/DIR1/DIR2/FILE, which is what VMS perl supports
          # for 'use lib'.
 
-         # Start with spliting the native path
+         # Start with splitting the native path
          (my $vol, my $dirs, my $file) = File::Spec->splitpath($path);
          my @dirs = File::Spec->splitdir($dirs);
 
@@ -89,7 +89,7 @@ unless (caller) {
     if (scalar @ARGV == 0) {
         # With no arguments, re-create the build file
         # We do that in two steps, where the first step emits perl
-        # snipets.
+        # snippets.
 
         my $buildfile = $config{build_file};
         my $buildfile_template = "$buildfile.in";

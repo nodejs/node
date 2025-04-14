@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,10 +42,8 @@ int ASN1_i2d_bio(i2d_of_void *i2d, BIO *out, const void *x)
         return 0;
 
     b = OPENSSL_malloc(n);
-    if (b == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+    if (b == NULL)
         return 0;
-    }
 
     p = (unsigned char *)b;
     i2d(x, &p);
@@ -90,8 +88,8 @@ int ASN1_item_i2d_bio(const ASN1_ITEM *it, BIO *out, const void *x)
     int i, j = 0, n, ret = 1;
 
     n = ASN1_item_i2d(x, &b, it);
-    if (b == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+    if (n < 0 || b == NULL) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         return 0;
     }
 

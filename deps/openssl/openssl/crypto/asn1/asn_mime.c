@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -76,7 +76,7 @@ int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
         BIO *bio, *tbio;
         bio = BIO_new_NDEF(out, val, it);
         if (!bio) {
-            ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+            ERR_raise(ERR_LIB_ASN1, ERR_R_BUF_LIB);
             return 0;
         }
         if (!SMIME_crlf_copy(in, bio, flags)) {
@@ -96,7 +96,7 @@ int i2d_ASN1_bio_stream(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
      * internally
      */
     else
-        ASN1_item_i2d_bio(it, out, val);
+        rv = ASN1_item_i2d_bio(it, out, val);
     return rv;
 }
 
@@ -109,7 +109,7 @@ static int B64_write_ASN1(BIO *out, ASN1_VALUE *val, BIO *in, int flags,
     int r;
     b64 = BIO_new(BIO_f_base64());
     if (b64 == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BIO_LIB);
         return 0;
     }
     /*
@@ -142,7 +142,7 @@ static ASN1_VALUE *b64_read_asn1(BIO *bio, const ASN1_ITEM *it, ASN1_VALUE **x,
     ASN1_VALUE *val;
 
     if ((b64 = BIO_new(BIO_f_base64())) == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BIO_LIB);
         return 0;
     }
     bio = BIO_push(b64, bio);
@@ -530,7 +530,7 @@ int SMIME_crlf_copy(BIO *in, BIO *out, int flags)
      */
     bf = BIO_new(BIO_f_buffer());
     if (bf == NULL) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_BIO_LIB);
         return 0;
     }
     out = BIO_push(bf, out);
@@ -687,7 +687,7 @@ static STACK_OF(MIME_HEADER) *mime_parse_hdr(BIO *bio)
     char linebuf[MAX_SMLEN];
     MIME_HEADER *mhdr = NULL, *new_hdr = NULL;
     STACK_OF(MIME_HEADER) *headers;
-    int len, state, save_state = 0;
+    int i, len, state, save_state = 0;
 
     headers = sk_MIME_HEADER_new(mime_hdr_cmp);
     if (headers == NULL)
@@ -793,6 +793,12 @@ static STACK_OF(MIME_HEADER) *mime_parse_hdr(BIO *bio)
             break;              /* Blank line means end of headers */
     }
 
+    /* Sort the headers and their params for faster searching */
+    sk_MIME_HEADER_sort(headers);
+    for (i = 0; i < sk_MIME_HEADER_num(headers); i++)
+        if ((mhdr = sk_MIME_HEADER_value(headers, i)) != NULL
+                && mhdr->params != NULL)
+            sk_MIME_PARAM_sort(mhdr->params);
     return headers;
 
  err:
@@ -991,13 +997,8 @@ static int mime_bound_check(char *line, int linelen, const char *bound, int blen
     if (blen + 2 > linelen)
         return 0;
     /* Check for part boundary */
-    if ((strncmp(line, "--", 2) == 0)
-        && strncmp(line + 2, bound, blen) == 0) {
-        if (strncmp(line + blen + 2, "--", 2) == 0)
-            return 2;
-        else
-            return 1;
-    }
+    if ((CHECK_AND_SKIP_PREFIX(line, "--")) && strncmp(line, bound, blen) == 0)
+        return HAS_PREFIX(line + blen, "--") ? 2 : 1;
     return 0;
 }
 

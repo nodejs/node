@@ -40,7 +40,7 @@ int ASN1_INTEGER_cmp(const ASN1_INTEGER *x, const ASN1_INTEGER *y)
         return ret;
 }
 
-/*-
+/*
  * This converts a big endian buffer and sign into its content encoding.
  * This is used for INTEGER and ENUMERATED types.
  * The internal representation is an ASN1_STRING whose data is a big endian
@@ -260,12 +260,16 @@ static int asn1_get_int64(int64_t *pr, const unsigned char *b, size_t blen,
         return 0;
     if (neg) {
         if (r <= INT64_MAX) {
-            /* Most significant bit is guaranteed to be clear, negation
-             * is guaranteed to be meaningful in platform-neutral sense. */
+            /*
+             * Most significant bit is guaranteed to be clear, negation
+             * is guaranteed to be meaningful in platform-neutral sense.
+             */
             *pr = -(int64_t)r;
         } else if (r == ABS_INT64_MIN) {
-            /* This never happens if INT64_MAX == ABS_INT64_MIN, e.g.
-             * on ones'-complement system. */
+            /*
+             * This never happens if INT64_MAX == ABS_INT64_MIN, e.g.
+             * on ones'-complement system.
+             */
             *pr = (int64_t)(0 - r);
         } else {
             ERR_raise(ERR_LIB_ASN1, ASN1_R_TOO_SMALL);
@@ -303,8 +307,10 @@ ASN1_INTEGER *ossl_c2i_ASN1_INTEGER(ASN1_INTEGER **a, const unsigned char **pp,
     } else
         ret = *a;
 
-    if (ASN1_STRING_set(ret, NULL, r) == 0)
+    if (ASN1_STRING_set(ret, NULL, r) == 0) {
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         goto err;
+    }
 
     c2i_ibuf(ret->data, &neg, *pp, len);
 
@@ -318,7 +324,6 @@ ASN1_INTEGER *ossl_c2i_ASN1_INTEGER(ASN1_INTEGER **a, const unsigned char **pp,
         (*a) = ret;
     return ret;
  err:
-    ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
     if (a == NULL || *a != ret)
         ASN1_INTEGER_free(ret);
     return NULL;
@@ -344,11 +349,13 @@ static int asn1_string_set_int64(ASN1_STRING *a, int64_t r, int itype)
 
     a->type = itype;
     if (r < 0) {
-        /* Most obvious '-r' triggers undefined behaviour for most
+        /*
+         * Most obvious '-r' triggers undefined behaviour for most
          * common INT64_MIN. Even though below '0 - (uint64_t)r' can
          * appear two's-complement centric, it does produce correct/
-         * expected result even on one's-complement. This is because
-         * cast to unsigned has to change bit pattern... */
+         * expected result even on ones' complement. This is because
+         * cast to unsigned has to change bit pattern...
+         */
         off = asn1_put_uint64(tbuf, 0 - (uint64_t)r);
         a->type |= V_ASN1_NEG;
     } else {
@@ -400,7 +407,7 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
     unsigned char *s;
     long len = 0;
     int inf, tag, xclass;
-    int i;
+    int i = 0;
 
     if ((a == NULL) || ((*a) == NULL)) {
         if ((ret = ASN1_INTEGER_new()) == NULL)
@@ -430,10 +437,8 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
      * a missing NULL parameter.
      */
     s = OPENSSL_malloc((int)len + 1);
-    if (s == NULL) {
-        i = ERR_R_MALLOC_FAILURE;
+    if (s == NULL)
         goto err;
-    }
     ret->type = V_ASN1_INTEGER;
     if (len) {
         if ((*p == 0) && (len != 1)) {
@@ -444,15 +449,14 @@ ASN1_INTEGER *d2i_ASN1_UINTEGER(ASN1_INTEGER **a, const unsigned char **pp,
         p += len;
     }
 
-    OPENSSL_free(ret->data);
-    ret->data = s;
-    ret->length = (int)len;
+    ASN1_STRING_set0(ret, s, (int)len);
     if (a != NULL)
         (*a) = ret;
     *pp = p;
     return ret;
  err:
-    ERR_raise(ERR_LIB_ASN1, i);
+    if (i != 0)
+        ERR_raise(ERR_LIB_ASN1, i);
     if ((a == NULL) || (*a != ret))
         ASN1_INTEGER_free(ret);
     return NULL;
@@ -485,7 +489,7 @@ static ASN1_STRING *bn_to_asn1_string(const BIGNUM *bn, ASN1_STRING *ai,
         len = 1;
 
     if (ASN1_STRING_set(ret, NULL, len) == 0) {
-        ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_ASN1, ERR_R_ASN1_LIB);
         goto err;
     }
 

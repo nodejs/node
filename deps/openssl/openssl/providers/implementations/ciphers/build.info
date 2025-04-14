@@ -25,6 +25,64 @@ $SM4_GOAL=../../libdefault.a
 $CHACHA_GOAL=../../libdefault.a
 $CHACHAPOLY_GOAL=../../libdefault.a
 $SIV_GOAL=../../libdefault.a
+$SIV_GCM_GOAL=../../libdefault.a
+
+IF[{- !$disabled{asm} -}]
+  $GHASHDEF_x86=GHASH_ASM
+  $GHASHDEF_x86_sse2=OPENSSL_IA32_SSE2
+
+  $GHASHDEF_x86_64=GHASH_ASM
+  $GHASHDEF_x86_64_sse2=OPENSSL_IA32_SSE2
+
+  # ghash-ia64.s doesn't work on VMS
+  IF[{- $config{target} !~ /^vms-/ -}]
+    $GHASHDEF_ia64=GHASH_ASM
+  ENDIF
+
+  $GHASHDEF_sparcv9=GHASH_ASM
+
+  $GHASHDEF_alpha=GHASH_ASM
+
+  $GHASHDEF_s390x=GHASH_ASM
+
+  $GHASHDEF_armv4=GHASH_ASM
+  $GHASHDEF_aarch64=
+
+  $GHASHDEF_parisc11=GHASH_ASM
+  $GHASHDEF_parisc20_64=$GHASHDEF_parisc11
+
+  $GHASHDEF_ppc32=
+  $GHASHDEF_ppc64=$GHASHDEF_ppc32
+
+  $GHASHDEF_c64xplus=GHASH_ASM
+
+  $GHASHDEF_riscv64=GHASH_ASM
+
+  # Now that we have defined all the arch specific variables, use the
+  # appropriate one, and define the appropriate macros
+
+  IF[$GHASHDEF_{- $target{asm_arch} -}]
+    $GHASHDEF=$GHASHDEF_{- $target{asm_arch} -}
+    IF[{- !$disabled{sse2} -}]
+      IF[$GHASHDEF_{- $target{asm_arch} -}_sse2]
+        $GHASHDEF=$GHASHDEF_{- $target{asm_arch} -}_sse2
+      ENDIF
+    ENDIF
+  ENDIF
+ENDIF
+
+IF[{- !$disabled{asm} -}]
+  IF[{- ($target{perlasm_scheme} // '') ne '31' -}]
+    $AESXTSDEF_s390x=AES_XTS_S390X
+  ENDIF
+
+  # Now that we have defined all the arch specific variables, use the
+  # appropriate one, and define the appropriate macros
+
+  IF[$AESXTSDEF_{- $target{asm_arch} -}]
+    $AESXTSDEF=$AESXTSDEF_{- $target{asm_arch} -}
+  ENDIF
+ENDIF
 
 # This source is common building blocks for all ciphers in all our providers.
 SOURCE[$COMMON_GOAL]=\
@@ -48,14 +106,18 @@ SOURCE[$AES_GOAL]=\
         cipher_aes_cbc_hmac_sha.c \
         cipher_aes_cbc_hmac_sha256_hw.c cipher_aes_cbc_hmac_sha1_hw.c \
         cipher_cts.c
+DEFINE[$AES_GOAL]=$AESXTSDEF
 
 # Extra code to satisfy the FIPS and non-FIPS separation.
 # When the AES-xxx-XTS moves to legacy, cipher_aes_xts_fips.c can be removed.
 SOURCE[$AES_GOAL]=cipher_aes_xts_fips.c
 
 IF[{- !$disabled{siv} -}]
-  SOURCE[$SIV_GOAL]=\
-      cipher_aes_siv.c cipher_aes_siv_hw.c
+  DEFINE[$SIV_GCM_GOAL]=$GHASHDEF
+  SOURCE[$SIV_GCM_GOAL]=\
+        cipher_aes_gcm_siv.c cipher_aes_gcm_siv_hw.c \
+        cipher_aes_gcm_siv_polyval.c
+  SOURCE[$SIV_GOAL]=cipher_aes_siv.c cipher_aes_siv_hw.c
 ENDIF
 
 IF[{- !$disabled{des} -}]
@@ -105,7 +167,11 @@ ENDIF
 
 IF[{- !$disabled{sm4} -}]
   SOURCE[$SM4_GOAL]=\
-      cipher_sm4.c cipher_sm4_hw.c
+      cipher_sm4.c cipher_sm4_hw.c \
+      cipher_sm4_gcm.c cipher_sm4_gcm_hw.c \
+      cipher_sm4_ccm.c cipher_sm4_ccm_hw.c \
+      cipher_sm4_xts.c cipher_sm4_xts_hw.c
+
 ENDIF
 
 IF[{- !$disabled{ocb} -}]

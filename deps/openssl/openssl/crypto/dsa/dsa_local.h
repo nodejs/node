@@ -14,7 +14,7 @@
 struct dsa_st {
     /*
      * This first variable is used to pick up errors where a DSA is passed
-     * instead of of a EVP_PKEY
+     * instead of an EVP_PKEY
      */
     int pad;
     int32_t version;
@@ -69,4 +69,6 @@ struct dsa_method {
     int (*dsa_keygen) (DSA *dsa);
 };
 
-DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa);
+DSA_SIG *ossl_dsa_do_sign_int(const unsigned char *dgst, int dlen, DSA *dsa,
+                              unsigned int nonce_type, const char *digestname,
+                              OSSL_LIB_CTX *libctx, const char *propq);

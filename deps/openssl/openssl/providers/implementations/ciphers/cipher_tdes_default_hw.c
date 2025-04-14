@@ -99,7 +99,8 @@ static int ossl_cipher_hw_tdes_cfb1(PROV_CIPHER_CTX *ctx, unsigned char *out,
 {
     PROV_TDES_CTX *tctx = (PROV_TDES_CTX *)ctx;
     size_t n;
-    unsigned char c[1], d[1];
+    unsigned char c[1];
+    unsigned char d[1] = { 0 };
 
     if (ctx->use_bits == 0)
         inl *= 8;

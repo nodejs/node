@@ -9,14 +9,14 @@
 
 #include <stdio.h>       /* for sscanf() */
 #include <string.h>
-#ifndef OPENSSL_NO_SOCK
-# include "../bio/bio_local.h" /* for NI_MAXHOST */
-#endif
 #include <openssl/http.h>
 #include <openssl/httperr.h>
 #include <openssl/bio.h> /* for BIO_snprintf() */
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
+#ifndef OPENSSL_NO_SOCK
+# include "internal/bio_addr.h" /* for NI_MAXHOST */
+#endif
 #ifndef NI_MAXHOST
 # define NI_MAXHOST 255
 #endif
@@ -98,9 +98,9 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     else
         host = p;
 
-    /* parse host name/address as far as needed here */
+    /* parse hostname/address as far as needed here */
     if (host[0] == '[') {
-        /* ipv6 literal, which may include ':' */
+        /* IPv6 literal, which may include ':' */
         host_end = strchr(host + 1, ']');
         if (host_end == NULL)
             goto parse_err;
@@ -195,6 +195,8 @@ int OSSL_parse_url(const char *url, char **pscheme, char **puser, char **phost,
     free_pstring(pfrag);
     return 0;
 }
+
+#ifndef OPENSSL_NO_HTTP
 
 int OSSL_HTTP_parse_url(const char *url, int *pssl, char **puser, char **phost,
                         char **pport, int *pport_num,
@@ -305,3 +307,5 @@ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
         return NULL;
     return proxy;
 }
+
+#endif /* !defined(OPENSSL_NO_HTTP) */

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -53,7 +53,9 @@ open OUT,"| \"$^X\" $xlate $flavour \"$output\""
 *STDOUT=*OUT;
 
 $code.=<<___;
-.text
+#include "arm_arch.h"
+
+.rodata
 
 .type	_vpaes_consts,%object
 .align	7	// totally strategic alignment
@@ -144,6 +146,9 @@ _vpaes_consts:
 .asciz  "Vector Permutation AES for ARMv8, Mike Hamburg (Stanford University)"
 .size	_vpaes_consts,.-_vpaes_consts
 .align	6
+
+.text
+
 ___
 
 {
@@ -163,7 +168,8 @@ $code.=<<___;
 .type	_vpaes_encrypt_preheat,%function
 .align	4
 _vpaes_encrypt_preheat:
-	adr	x10, .Lk_inv
+	adrp	x10, .Lk_inv
+	add	x10, x10, :lo12:.Lk_inv
 	movi	v17.16b, #0x0f
 	ld1	{v18.2d-v19.2d}, [x10],#32	// .Lk_inv
 	ld1	{v20.2d-v23.2d}, [x10],#64	// .Lk_ipt, .Lk_sbo
@@ -191,7 +197,8 @@ _vpaes_encrypt_preheat:
 _vpaes_encrypt_core:
 	mov	x9, $key
 	ldr	w8, [$key,#240]			// pull rounds
-	adr	x11, .Lk_mc_forward+16
+	adrp	x11, .Lk_mc_forward+16
+	add	x11, x11, :lo12:.Lk_mc_forward+16
 						// vmovdqa	.Lk_ipt(%rip),	%xmm2	# iptlo
 	ld1	{v16.2d}, [x9], #16		// vmovdqu	(%r9),	%xmm5		# round0 key
 	and	v1.16b, v7.16b, v17.16b		// vpand	%xmm9,	%xmm0,	%xmm1
@@ -259,7 +266,7 @@ _vpaes_encrypt_core:
 .type	vpaes_encrypt,%function
 .align	4
 vpaes_encrypt:
-	.inst	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -269,7 +276,7 @@ vpaes_encrypt:
 	st1	{v0.16b}, [$out]
 
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_encrypt,.-vpaes_encrypt
 
@@ -278,7 +285,8 @@ vpaes_encrypt:
 _vpaes_encrypt_2x:
 	mov	x9, $key
 	ldr	w8, [$key,#240]			// pull rounds
-	adr	x11, .Lk_mc_forward+16
+	adrp	x11, .Lk_mc_forward+16
+	add	x11, x11, :lo12:.Lk_mc_forward+16
 						// vmovdqa	.Lk_ipt(%rip),	%xmm2	# iptlo
 	ld1	{v16.2d}, [x9], #16		// vmovdqu	(%r9),	%xmm5		# round0 key
 	and	v1.16b,  v14.16b,  v17.16b	// vpand	%xmm9,	%xmm0,	%xmm1
@@ -381,9 +389,11 @@ _vpaes_encrypt_2x:
 .type	_vpaes_decrypt_preheat,%function
 .align	4
 _vpaes_decrypt_preheat:
-	adr	x10, .Lk_inv
+	adrp	x10, .Lk_inv
+	add	x10, x10, :lo12:.Lk_inv
 	movi	v17.16b, #0x0f
-	adr	x11, .Lk_dipt
+	adrp	x11, .Lk_dipt
+	add	x11, x11, :lo12:.Lk_dipt
 	ld1	{v18.2d-v19.2d}, [x10],#32	// .Lk_inv
 	ld1	{v20.2d-v23.2d}, [x11],#64	// .Lk_dipt, .Lk_dsbo
 	ld1	{v24.2d-v27.2d}, [x11],#64	// .Lk_dsb9, .Lk_dsbd
@@ -405,10 +415,12 @@ _vpaes_decrypt_core:
 						// vmovdqa	.Lk_dipt(%rip), %xmm2	# iptlo
 	lsl	x11, x8, #4			// mov	%rax,	%r11;	shl	\$4, %r11
 	eor	x11, x11, #0x30			// xor		\$0x30,	%r11
-	adr	x10, .Lk_sr
+	adrp	x10, .Lk_sr
+	add	x10, x10, :lo12:.Lk_sr
 	and	x11, x11, #0x30			// and		\$0x30,	%r11
 	add	x11, x11, x10
-	adr	x10, .Lk_mc_forward+48
+	adrp	x10, .Lk_mc_forward+48
+	add	x10, x10, :lo12:.Lk_mc_forward+48
 
 	ld1	{v16.2d}, [x9],#16		// vmovdqu	(%r9),	%xmm4		# round0 key
 	and	v1.16b, v7.16b, v17.16b		// vpand	%xmm9,	%xmm0,	%xmm1
@@ -492,7 +504,7 @@ _vpaes_decrypt_core:
 .type	vpaes_decrypt,%function
 .align	4
 vpaes_decrypt:
-	.inst	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -502,7 +514,7 @@ vpaes_decrypt:
 	st1	{v0.16b}, [$out]
 
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_decrypt,.-vpaes_decrypt
 
@@ -516,10 +528,12 @@ _vpaes_decrypt_2x:
 						// vmovdqa	.Lk_dipt(%rip), %xmm2	# iptlo
 	lsl	x11, x8, #4			// mov	%rax,	%r11;	shl	\$4, %r11
 	eor	x11, x11, #0x30			// xor		\$0x30,	%r11
-	adr	x10, .Lk_sr
+	adrp	x10, .Lk_sr
+	add	x10, x10, :lo12:.Lk_sr
 	and	x11, x11, #0x30			// and		\$0x30,	%r11
 	add	x11, x11, x10
-	adr	x10, .Lk_mc_forward+48
+	adrp	x10, .Lk_mc_forward+48
+	add	x10, x10, :lo12:.Lk_mc_forward+48
 
 	ld1	{v16.2d}, [x9],#16		// vmovdqu	(%r9),	%xmm4		# round0 key
 	and	v1.16b,  v14.16b, v17.16b	// vpand	%xmm9,	%xmm0,	%xmm1
@@ -655,14 +669,18 @@ $code.=<<___;
 .type	_vpaes_key_preheat,%function
 .align	4
 _vpaes_key_preheat:
-	adr	x10, .Lk_inv
+	adrp	x10, .Lk_inv
+	add	x10, x10, :lo12:.Lk_inv
 	movi	v16.16b, #0x5b			// .Lk_s63
-	adr	x11, .Lk_sb1
+	adrp	x11, .Lk_sb1
+	add	x11, x11, :lo12:.Lk_sb1
 	movi	v17.16b, #0x0f			// .Lk_s0F
 	ld1	{v18.2d-v21.2d}, [x10]		// .Lk_inv, .Lk_ipt
-	adr	x10, .Lk_dksd
+	adrp	x10, .Lk_dksd
+	add	x10, x10, :lo12:.Lk_dksd
 	ld1	{v22.2d-v23.2d}, [x11]		// .Lk_sb1
-	adr	x11, .Lk_mc_forward
+	adrp	x11, .Lk_mc_forward
+	add	x11, x11, :lo12:.Lk_mc_forward
 	ld1	{v24.2d-v27.2d}, [x10],#64	// .Lk_dksd, .Lk_dksb
 	ld1	{v28.2d-v31.2d}, [x10],#64	// .Lk_dkse, .Lk_dks9
 	ld1	{v8.2d}, [x10]			// .Lk_rcon
@@ -673,7 +691,7 @@ _vpaes_key_preheat:
 .type	_vpaes_schedule_core,%function
 .align	4
 _vpaes_schedule_core:
-	.inst	0xd503233f			// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29, x30, [sp,#-16]!
 	add	x29,sp,#0
 
@@ -686,7 +704,8 @@ _vpaes_schedule_core:
 	bl	_vpaes_schedule_transform
 	mov	v7.16b, v0.16b			// vmovdqa	%xmm0,	%xmm7
 
-	adr	x10, .Lk_sr			// lea	.Lk_sr(%rip),%r10
+	adrp	x10, .Lk_sr			// lea	.Lk_sr(%rip),%r10
+	add	x10, x10, :lo12:.Lk_sr
 	add	x8, x8, x10
 	cbnz	$dir, .Lschedule_am_decrypting
 
@@ -812,12 +831,14 @@ _vpaes_schedule_core:
 .align	4
 .Lschedule_mangle_last:
 	// schedule last round key from xmm0
-	adr	x11, .Lk_deskew			// lea	.Lk_deskew(%rip),%r11	# prepare to deskew
+	adrp	x11, .Lk_deskew			// lea	.Lk_deskew(%rip),%r11	# prepare to deskew
+	add	x11, x11, :lo12:.Lk_deskew
 	cbnz	$dir, .Lschedule_mangle_last_dec
 
 	// encrypting
 	ld1	{v1.2d}, [x8]			// vmovdqa	(%r8,%r10),%xmm1
-	adr	x11, .Lk_opt			// lea	.Lk_opt(%rip),	%r11		# prepare to output transform
+	adrp	x11, .Lk_opt			// lea	.Lk_opt(%rip),	%r11		# prepare to output transform
+	add	x11, x11, :lo12:.Lk_opt
 	add	$out, $out, #32			// add	\$32,	%rdx
 	tbl	v0.16b, {v0.16b}, v1.16b	// vpshufb	%xmm1,	%xmm0,	%xmm0		# output permute
 
@@ -838,7 +859,7 @@ _vpaes_schedule_core:
 	eor	v6.16b, v6.16b, v6.16b		// vpxor	%xmm6,	%xmm6,	%xmm6
 	eor	v7.16b, v7.16b, v7.16b		// vpxor	%xmm7,	%xmm7,	%xmm7
 	ldp	x29, x30, [sp],#16
-	.inst	0xd50323bf			// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	_vpaes_schedule_core,.-_vpaes_schedule_core
 
@@ -1051,7 +1072,7 @@ _vpaes_schedule_mangle:
 .type	vpaes_set_encrypt_key,%function
 .align	4
 vpaes_set_encrypt_key:
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1067,7 +1088,7 @@ vpaes_set_encrypt_key:
 
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_set_encrypt_key,.-vpaes_set_encrypt_key
 
@@ -1075,7 +1096,7 @@ vpaes_set_encrypt_key:
 .type	vpaes_set_decrypt_key,%function
 .align	4
 vpaes_set_decrypt_key:
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1095,7 +1116,7 @@ vpaes_set_decrypt_key:
 
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_set_decrypt_key,.-vpaes_set_decrypt_key
 ___
@@ -1108,11 +1129,11 @@ $code.=<<___;
 .type	vpaes_cbc_encrypt,%function
 .align	4
 vpaes_cbc_encrypt:
+	AARCH64_SIGN_LINK_REGISTER
 	cbz	$len, .Lcbc_abort
 	cmp	w5, #0			// check direction
 	b.eq	vpaes_cbc_decrypt
 
-	.inst	0xd503233f		// paciasp
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
@@ -1135,15 +1156,16 @@ vpaes_cbc_encrypt:
 	st1	{v0.16b}, [$ivec]	// write ivec
 
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
 .Lcbc_abort:
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_cbc_encrypt,.-vpaes_cbc_encrypt
 
 .type	vpaes_cbc_decrypt,%function
 .align	4
 vpaes_cbc_decrypt:
-	.inst	0xd503233f		// paciasp
+	// Not adding AARCH64_SIGN_LINK_REGISTER here because vpaes_cbc_decrypt is jumped to
+	// only from vpaes_cbc_encrypt which has already signed the return address.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1185,7 +1207,7 @@ vpaes_cbc_decrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_cbc_decrypt,.-vpaes_cbc_decrypt
 ___
@@ -1195,7 +1217,7 @@ $code.=<<___;
 .type	vpaes_ecb_encrypt,%function
 .align	4
 vpaes_ecb_encrypt:
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1229,7 +1251,7 @@ vpaes_ecb_encrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_ecb_encrypt,.-vpaes_ecb_encrypt
 
@@ -1237,7 +1259,7 @@ vpaes_ecb_encrypt:
 .type	vpaes_ecb_decrypt,%function
 .align	4
 vpaes_ecb_decrypt:
-	.inst	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 	stp	d8,d9,[sp,#-16]!	// ABI spec says so
@@ -1271,7 +1293,7 @@ vpaes_ecb_decrypt:
 	ldp	d10,d11,[sp],#16
 	ldp	d8,d9,[sp],#16
 	ldp	x29,x30,[sp],#16
-	.inst	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 .size	vpaes_ecb_decrypt,.-vpaes_ecb_decrypt
 ___

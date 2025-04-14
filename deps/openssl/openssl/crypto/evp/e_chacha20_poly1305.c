@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -55,7 +55,7 @@ static int chacha_init_key(EVP_CIPHER_CTX *ctx,
     return 1;
 }
 
-static int chacha_cipher(EVP_CIPHER_CTX * ctx, unsigned char *out,
+static int chacha_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                          const unsigned char *inp, size_t len)
 {
     EVP_CHACHA_KEY *key = data(ctx);
@@ -239,7 +239,7 @@ static int chacha20_poly1305_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         actx->len.text = plen;
 
         if (plen) {
-            if (ctx->encrypt)
+            if (EVP_CIPHER_CTX_is_encrypting(ctx))
                 ctr = xor128_encrypt_n_pad(out, in, ctr, plen);
             else
                 ctr = xor128_decrypt_n_pad(out, in, ctr, plen);
@@ -263,7 +263,7 @@ static int chacha20_poly1305_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         actx->len.aad = EVP_AEAD_TLS1_AAD_LEN;
         actx->len.text = plen;
 
-        if (ctx->encrypt) {
+        if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
             for (i = 0; i < plen; i++) {
                 out[i] = ctr[i] ^= in[i];
             }
@@ -297,7 +297,7 @@ static int chacha20_poly1305_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
         actx->len.aad = EVP_AEAD_TLS1_AAD_LEN;
         actx->len.text = plen;
 
-        if (ctx->encrypt) {
+        if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
             ChaCha20_ctr32(out, in, plen, actx->key.key.d, actx->key.counter);
             Poly1305_Update(POLY1305_ctx(actx), out, plen);
         } else {
@@ -340,12 +340,12 @@ static int chacha20_poly1305_tls_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
     Poly1305_Update(POLY1305_ctx(actx), tohash, tohash_len);
     OPENSSL_cleanse(buf, buf_len);
-    Poly1305_Final(POLY1305_ctx(actx), ctx->encrypt ? actx->tag
-                                                    : tohash);
+    Poly1305_Final(POLY1305_ctx(actx),
+                   EVP_CIPHER_CTX_is_encrypting(ctx) ? actx->tag : tohash);
 
     actx->tls_payload_length = NO_TLS_PAYLOAD_LENGTH;
 
-    if (ctx->encrypt) {
+    if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
         memcpy(out, actx->tag, POLY1305_BLOCK_SIZE);
     } else {
         if (CRYPTO_memcmp(tohash, in, POLY1305_BLOCK_SIZE)) {
@@ -408,7 +408,7 @@ static int chacha20_poly1305_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
             else if (len != plen + POLY1305_BLOCK_SIZE)
                 return -1;
 
-            if (ctx->encrypt) {                 /* plaintext */
+            if (EVP_CIPHER_CTX_is_encrypting(ctx)) {    /* plaintext */
                 chacha_cipher(ctx, out, in, plen);
                 Poly1305_Update(POLY1305_ctx(actx), out, plen);
                 in += plen;
@@ -463,12 +463,12 @@ static int chacha20_poly1305_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
 
             Poly1305_Update(POLY1305_ctx(actx), temp, POLY1305_BLOCK_SIZE);
         }
-        Poly1305_Final(POLY1305_ctx(actx), ctx->encrypt ? actx->tag
-                                                        : temp);
+        Poly1305_Final(POLY1305_ctx(actx),
+                       EVP_CIPHER_CTX_is_encrypting(ctx) ? actx->tag : temp);
         actx->mac_inited = 0;
 
         if (in != NULL && len != plen) {        /* tls mode */
-            if (ctx->encrypt) {
+            if (EVP_CIPHER_CTX_is_encrypting(ctx)) {
                 memcpy(out, actx->tag, POLY1305_BLOCK_SIZE);
             } else {
                 if (CRYPTO_memcmp(temp, in, POLY1305_BLOCK_SIZE)) {
@@ -477,7 +477,7 @@ static int chacha20_poly1305_cipher(EVP_CIPHER_CTX *ctx, unsigned char *out,
                 }
             }
         }
-        else if (!ctx->encrypt) {
+        else if (!EVP_CIPHER_CTX_is_encrypting(ctx)) {
             if (CRYPTO_memcmp(temp, actx->tag, actx->tag_len))
                 return -1;
         }
@@ -498,7 +498,7 @@ static int chacha20_poly1305_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
 {
     EVP_CHACHA_AEAD_CTX *actx = aead_data(ctx);
 
-    switch(type) {
+    switch (type) {
     case EVP_CTRL_INIT:
         if (actx == NULL)
             actx = ctx->cipher_data
@@ -561,7 +561,8 @@ static int chacha20_poly1305_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
         return 1;
 
     case EVP_CTRL_AEAD_GET_TAG:
-        if (arg <= 0 || arg > POLY1305_BLOCK_SIZE || !ctx->encrypt)
+        if (arg <= 0 || arg > POLY1305_BLOCK_SIZE ||
+                !EVP_CIPHER_CTX_is_encrypting(ctx))
             return 0;
         memcpy(ptr, actx->tag, arg);
         return 1;
@@ -577,7 +578,7 @@ static int chacha20_poly1305_ctrl(EVP_CIPHER_CTX *ctx, int type, int arg,
             len = aad[EVP_AEAD_TLS1_AAD_LEN - 2] << 8 |
                   aad[EVP_AEAD_TLS1_AAD_LEN - 1];
             aad = actx->tls_aad;
-            if (!ctx->encrypt) {
+            if (!EVP_CIPHER_CTX_is_encrypting(ctx)) {
                 if (len < POLY1305_BLOCK_SIZE)
                     return 0;
                 len -= POLY1305_BLOCK_SIZE;     /* discount attached tag */

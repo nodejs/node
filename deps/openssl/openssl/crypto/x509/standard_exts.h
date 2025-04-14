@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,6 +39,7 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
 #endif
     &ossl_v3_sxnet,
     &ossl_v3_info,
+    &ossl_v3_audit_identity,
 #ifndef OPENSSL_NO_RFC3779
     &ossl_v3_addr,
     &ossl_v3_asid,
@@ -53,6 +54,8 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
 #endif
     &ossl_v3_sinfo,
     &ossl_v3_policy_constraints,
+    &ossl_v3_targeting_information,
+    &ossl_v3_no_rev_avail,
 #ifndef OPENSSL_NO_OCSP
     &ossl_v3_crl_hold,
 #endif
@@ -60,6 +63,7 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
     &ossl_v3_name_constraints,
     &ossl_v3_policy_mappings,
     &ossl_v3_inhibit_anyp,
+    &ossl_v3_subj_dir_attrs,
     &ossl_v3_idp,
     &ossl_v3_alt[2],
     &ossl_v3_freshest_crl,
@@ -71,7 +75,27 @@ static const X509V3_EXT_METHOD *standard_exts[] = {
     &ossl_v3_utf8_list[0],
     &ossl_v3_issuer_sign_tool,
     &ossl_v3_tls_feature,
-    &ossl_v3_ext_admission
+    &ossl_v3_ext_admission,
+    &ossl_v3_authority_attribute_identifier,
+    &ossl_v3_role_spec_cert_identifier,
+    &ossl_v3_battcons,
+    &ossl_v3_delegated_name_constraints,
+    &ossl_v3_time_specification,
+    &ossl_v3_attribute_descriptor,
+    &ossl_v3_user_notice,
+    &ossl_v3_soa_identifier,
+    &ossl_v3_acc_cert_policies,
+    &ossl_v3_acc_priv_policies,
+    &ossl_v3_indirect_issuer,
+    &ossl_v3_no_assertion,
+    &ossl_v3_aa_issuing_dist_point,
+    &ossl_v3_issued_on_behalf_of,
+    &ossl_v3_single_use,
+    &ossl_v3_group_ac,
+    &ossl_v3_allowed_attribute_assignments,
+    &ossl_v3_attribute_mappings,
+    &ossl_v3_holder_name_constraints,
+    &ossl_v3_associated_info,
 };
 
 /* Number of standard extensions */

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -139,6 +139,7 @@ int rsa_main(int argc, char **argv)
     int selection = 0;
     OSSL_ENCODER_CTX *ectx = NULL;
 
+    opt_set_unknown_name("cipher");
     prog = opt_init(argc, argv, rsa_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
@@ -217,15 +218,12 @@ int rsa_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
-    if (ciphername != NULL) {
-        if (!opt_cipher(ciphername, &enc))
-            goto opthelp;
-    }
-    private = (text && !pubin) || (!pubout && !noout) ? 1 : 0;
+    if (!opt_cipher(ciphername, &enc))
+        goto opthelp;
+    private = (text && !pubin) || (!pubout && !noout);
 
     if (!app_passwd(passinarg, passoutarg, &passin, &passout)) {
         BIO_printf(bio_err, "Error getting passwords\n");

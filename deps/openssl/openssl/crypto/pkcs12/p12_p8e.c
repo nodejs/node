@@ -84,7 +84,6 @@ X509_SIG *PKCS8_set0_pbe_ex(const char *pass, int passlen,
     p8 = OPENSSL_zalloc(sizeof(*p8));
 
     if (p8 == NULL) {
-        ERR_raise(ERR_LIB_PKCS12, ERR_R_MALLOC_FAILURE);
         ASN1_OCTET_STRING_free(enckey);
         return NULL;
     }

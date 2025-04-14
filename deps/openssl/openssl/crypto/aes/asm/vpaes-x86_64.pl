@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2011-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2011-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -1006,6 +1006,7 @@ _vpaes_preheat:
 ##                                                    ##
 ########################################################
 .type	_vpaes_consts,\@object
+.section .rodata align=64
 .align	64
 _vpaes_consts:
 .Lk_inv:	# inv, inva
@@ -1101,9 +1102,9 @@ _vpaes_consts:
 .Lk_dsbo:	# decryption sbox final output
 	.quad	0x1387EA537EF94000, 0xC7AA6DB9D4943E2D
 	.quad	0x12D7560F93441D00, 0xCA4B8159D8C58E9C
-.asciz	"Vector Permutation AES for x86_64/SSSE3, Mike Hamburg (Stanford University)"
 .align	64
 .size	_vpaes_consts,.-_vpaes_consts
+.asciz	"Vector Permutation AES for x86_64/SSSE3, Mike Hamburg (Stanford University)"
 ___
 
 if ($win64) {

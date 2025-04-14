@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -17,6 +17,7 @@
 #include <openssl/core_names.h>
 #include <openssl/bn.h>
 #include <openssl/err.h>
+#include "prov/securitycheck.h"
 #include "prov/providercommon.h"
 #include "prov/implementations.h"
 #include "prov/provider_ctx.h"
@@ -31,6 +32,8 @@ static OSSL_FUNC_keymgmt_gen_init_fn dsa_gen_init;
 static OSSL_FUNC_keymgmt_gen_set_template_fn dsa_gen_set_template;
 static OSSL_FUNC_keymgmt_gen_set_params_fn dsa_gen_set_params;
 static OSSL_FUNC_keymgmt_gen_settable_params_fn dsa_gen_settable_params;
+static OSSL_FUNC_keymgmt_gen_get_params_fn dsa_gen_get_params;
+static OSSL_FUNC_keymgmt_gen_gettable_params_fn dsa_gen_gettable_params;
 static OSSL_FUNC_keymgmt_gen_fn dsa_gen;
 static OSSL_FUNC_keymgmt_gen_cleanup_fn dsa_gen_cleanup;
 static OSSL_FUNC_keymgmt_load_fn dsa_load;
@@ -67,14 +70,14 @@ struct dsa_gen_ctx {
     char *mdprops;
     OSSL_CALLBACK *cb;
     void *cbarg;
+    OSSL_FIPS_IND_DECLARE
 };
 typedef struct dh_name2id_st{
     const char *name;
     int id;
 } DSA_GENTYPE_NAME2ID;
 
-static const DSA_GENTYPE_NAME2ID dsatype2id[]=
-{
+static const DSA_GENTYPE_NAME2ID dsatype2id[] = {
 #ifdef FIPS_MODULE
     { "default", DSA_PARAMGEN_TYPE_FIPS_186_4 },
 #else
@@ -424,6 +427,7 @@ static void *dsa_gen_init(void *provctx, int selection,
         gctx->gindex = -1;
         gctx->pcounter = -1;
         gctx->hindex = 0;
+        OSSL_FIPS_IND_INIT(gctx)
     }
     if (!dsa_gen_set_params(gctx, params)) {
         dsa_gen_cleanup(gctx);
@@ -462,20 +466,32 @@ static int dsa_gen_set_params(void *genctx, const OSSL_PARAM params[])
 {
     struct dsa_gen_ctx *gctx = genctx;
     const OSSL_PARAM *p;
+    int gen_type = -1;
 
     if (gctx == NULL)
         return 0;
-    if (params == NULL)
+    if (ossl_param_is_empty(params))
         return 1;
 
+    if (!OSSL_FIPS_IND_SET_CTX_PARAM(gctx, OSSL_FIPS_IND_SETTABLE0, params,
+                                     OSSL_PKEY_PARAM_FIPS_SIGN_CHECK))
+        return 0;
 
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_FFC_TYPE);
     if (p != NULL) {
         if (p->data_type != OSSL_PARAM_UTF8_STRING
-            || ((gctx->gen_type = dsa_gen_type_name2id(p->data)) == -1)) {
+            || ((gen_type = dsa_gen_type_name2id(p->data)) == -1)) {
             ERR_raise(ERR_LIB_PROV, ERR_R_PASSED_INVALID_ARGUMENT);
             return 0;
         }
+
+        /*
+         * Only assign context gen_type if it was set by dsa_gen_type_name2id
+         * must be in range:
+         * DSA_PARAMGEN_TYPE_FIPS_186_4 <= gen_type <= DSA_PARAMGEN_TYPE_FIPS_DEFAULT
+         */
+        if (gen_type != -1)
+            gctx->gen_type = gen_type;
     }
     p = OSSL_PARAM_locate_const(params, OSSL_PKEY_PARAM_FFC_GINDEX);
     if (p != NULL
@@ -534,9 +550,34 @@ static const OSSL_PARAM *dsa_gen_settable_params(ossl_unused void *genctx,
         OSSL_PARAM_octet_string(OSSL_PKEY_PARAM_FFC_SEED, NULL, 0),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_FFC_PCOUNTER, NULL),
         OSSL_PARAM_int(OSSL_PKEY_PARAM_FFC_H, NULL),
+        OSSL_FIPS_IND_SETTABLE_CTX_PARAM(OSSL_PKEY_PARAM_FIPS_SIGN_CHECK)
         OSSL_PARAM_END
     };
     return settable;
+}
+
+static int dsa_gen_get_params(void *genctx, OSSL_PARAM *params)
+{
+    struct dsa_gen_ctx *gctx = genctx;
+
+    if (gctx == NULL)
+        return 0;
+    if (ossl_param_is_empty(params))
+        return 1;
+    if (!OSSL_FIPS_IND_GET_CTX_PARAM(gctx, params))
+        return 0;
+    return 1;
+}
+
+static const OSSL_PARAM *dsa_gen_gettable_params(ossl_unused void *ctx,
+                                                 ossl_unused void *provctx)
+{
+    static const OSSL_PARAM dsa_gen_gettable_params_table[] = {
+        OSSL_FIPS_IND_GETTABLE_CTX_PARAM()
+        OSSL_PARAM_END
+    };
+
+    return dsa_gen_gettable_params_table;
 }
 
 static int dsa_gencb(int p, int n, BN_GENCB *cb)
@@ -560,6 +601,18 @@ static void *dsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
 
     if (!ossl_prov_is_running() || gctx == NULL)
         return NULL;
+
+#ifdef FIPS_MODULE
+    /*
+     * DSA signing is not approved in FIPS 140-3, so there is no
+     * need for DSA keygen either.
+     */
+    if (!OSSL_FIPS_IND_ON_UNAPPROVED(gctx, OSSL_FIPS_IND_SETTABLE0,
+                                     gctx->libctx, "DSA", "Keygen",
+                                     ossl_fips_config_dsa_sign_disallowed))
+        return 0;
+#endif
+
     dsa = ossl_dsa_new(gctx->libctx);
     if (dsa == NULL)
         return NULL;
@@ -567,6 +620,19 @@ static void *dsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     if (gctx->gen_type == DSA_PARAMGEN_TYPE_FIPS_DEFAULT)
         gctx->gen_type = (gctx->pbits >= 2048 ? DSA_PARAMGEN_TYPE_FIPS_186_4 :
                                                 DSA_PARAMGEN_TYPE_FIPS_186_2);
+
+    /*
+     * Do a bounds check on context gen_type. Must be in range:
+     * DSA_PARAMGEN_TYPE_FIPS_186_4 <= gen_type <= DSA_PARAMGEN_TYPE_FIPS_DEFAULT
+     * Noted here as this needs to be adjusted if a new type is
+     * added.
+     */
+    if (!ossl_assert((gctx->gen_type >= DSA_PARAMGEN_TYPE_FIPS_186_4)
+                    && (gctx->gen_type <= DSA_PARAMGEN_TYPE_FIPS_DEFAULT))) {
+        ERR_raise_data(ERR_LIB_PROV, ERR_R_INTERNAL_ERROR,
+                       "gen_type set to unsupported value %d", gctx->gen_type);
+        goto end;
+    }
 
     gctx->cb = osslcb;
     gctx->cbarg = cbarg;
@@ -590,10 +656,9 @@ static void *dsa_gen(void *genctx, OSSL_CALLBACK *osslcb, void *cbarg)
     } else if (gctx->hindex != 0) {
         ossl_ffc_params_set_h(ffc, gctx->hindex);
     }
-    if (gctx->mdname != NULL) {
-        if (!ossl_ffc_set_digest(ffc, gctx->mdname, gctx->mdprops))
-            goto end;
-    }
+    if (gctx->mdname != NULL)
+        ossl_ffc_set_digest(ffc, gctx->mdname, gctx->mdprops);
+
     if ((gctx->selection & OSSL_KEYMGMT_SELECT_DOMAIN_PARAMETERS) != 0) {
 
          if (ossl_dsa_generate_ffc_parameters(dsa, gctx->gen_type,
@@ -662,6 +727,9 @@ const OSSL_DISPATCH ossl_dsa_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_GEN_SET_PARAMS, (void (*)(void))dsa_gen_set_params },
     { OSSL_FUNC_KEYMGMT_GEN_SETTABLE_PARAMS,
       (void (*)(void))dsa_gen_settable_params },
+    { OSSL_FUNC_KEYMGMT_GEN_GET_PARAMS, (void (*)(void))dsa_gen_get_params },
+    { OSSL_FUNC_KEYMGMT_GEN_GETTABLE_PARAMS,
+      (void (*)(void))dsa_gen_gettable_params },
     { OSSL_FUNC_KEYMGMT_GEN, (void (*)(void))dsa_gen },
     { OSSL_FUNC_KEYMGMT_GEN_CLEANUP, (void (*)(void))dsa_gen_cleanup },
     { OSSL_FUNC_KEYMGMT_LOAD, (void (*)(void))dsa_load },
@@ -676,5 +744,5 @@ const OSSL_DISPATCH ossl_dsa_keymgmt_functions[] = {
     { OSSL_FUNC_KEYMGMT_EXPORT, (void (*)(void))dsa_export },
     { OSSL_FUNC_KEYMGMT_EXPORT_TYPES, (void (*)(void))dsa_export_types },
     { OSSL_FUNC_KEYMGMT_DUP, (void (*)(void))dsa_dup },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };

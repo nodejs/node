@@ -28,6 +28,7 @@
 #include <openssl/bn.h>
 #include <openssl/sha.h>
 #include "crypto/dh.h"
+#include "crypto/security_bits.h"
 #include "dh_local.h"
 
 #ifndef FIPS_MODULE
@@ -219,6 +220,9 @@ static int dh_builtin_genparams(DH *ret, int prime_len, int generator,
         goto err;
     if (!BN_set_word(ret->params.g, g))
         goto err;
+    /* We are using safe prime p, set key length equivalent to RFC 7919 */
+    ret->length = (2 * ossl_ifc_ffc_compute_security_bits(prime_len)
+                   + 24) / 25 * 25;
     ret->dirty_cnt++;
     ok = 1;
  err:

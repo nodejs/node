@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,9 @@
 # include <openssl/evp.h>
 # include <openssl/x509.h>
 # include <openssl/pemerr.h>
+# ifndef OPENSSL_NO_STDIO
+#  include <stdio.h>
+# endif
 
 #ifdef  __cplusplus
 extern "C" {
@@ -54,6 +57,8 @@ extern "C" {
 # define PEM_STRING_ECPRIVATEKEY "EC PRIVATE KEY"
 # define PEM_STRING_PARAMETERS   "PARAMETERS"
 # define PEM_STRING_CMS          "CMS"
+# define PEM_STRING_SM2PARAMETERS "SM2 PARAMETERS"
+# define PEM_STRING_ACERT        "ATTRIBUTE CERTIFICATE"
 
 # define PEM_TYPE_ENCRYPTED      10
 # define PEM_TYPE_MIC_ONLY       20
@@ -391,6 +396,10 @@ int PEM_ASN1_write_bio(i2d_of_void *i2d, const char *name, BIO *bp,
                        const void *x, const EVP_CIPHER *enc,
                        const unsigned char *kstr, int klen,
                        pem_password_cb *cb, void *u);
+int PEM_ASN1_write_bio_ctx(OSSL_i2d_of_void_ctx *i2d, void *vctx,
+                           const char *name, BIO *bp, const void *x,
+                           const EVP_CIPHER *enc, const unsigned char *kstr,
+                           int klen, pem_password_cb *cb, void *u);
 
 STACK_OF(X509_INFO) *PEM_X509_INFO_read_bio(BIO *bp, STACK_OF(X509_INFO) *sk,
                                             pem_password_cb *cb, void *u);

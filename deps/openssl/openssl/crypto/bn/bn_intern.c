@@ -29,10 +29,8 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
 
     if (BN_is_zero(scalar)) {
         r = OPENSSL_malloc(1);
-        if (r == NULL) {
-            ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+        if (r == NULL)
             goto err;
-        }
         r[0] = 0;
         *ret_len = 1;
         return r;
@@ -62,10 +60,8 @@ signed char *bn_compute_wNAF(const BIGNUM *scalar, int w, size_t *ret_len)
                                   * (*ret_len will be set to the actual length, i.e. at most
                                   * BN_num_bits(scalar) + 1)
                                   */
-    if (r == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+    if (r == NULL)
         goto err;
-    }
     window_val = scalar->d[0] & mask;
     j = 0;
     while ((window_val != 0) || (j + w + 1 < len)) { /* if j+w+1 >= len,
@@ -188,7 +184,7 @@ void bn_set_static_words(BIGNUM *a, const BN_ULONG *words, int size)
 int bn_set_words(BIGNUM *a, const BN_ULONG *words, int num_words)
 {
     if (bn_wexpand(a, num_words) == NULL) {
-        ERR_raise(ERR_LIB_BN, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_BN, ERR_R_BN_LIB);
         return 0;
     }
 
