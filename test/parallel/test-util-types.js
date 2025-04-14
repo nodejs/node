@@ -10,6 +10,9 @@ const { JSStream } = internalBinding('js_stream');
 
 const external = (new JSStream())._externalStream;
 
+// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
+const { Float16Array } = globalThis;
+
 for (const [ value, _method ] of [
   [ external, 'isExternal' ],
   [ new Date() ],
