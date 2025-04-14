@@ -1334,7 +1334,7 @@ The final value of `format` must be one of the following:
 | `'commonjs'`            | Load a Node.js CommonJS module                        | {string\|ArrayBuffer\|TypedArray\|null\|undefined} |
 | `'json'`                | Load a JSON file                                      | {string\|ArrayBuffer\|TypedArray}                  |
 | `'module-typescript'`   | Load an ES module with TypeScript syntax              | {string\|ArrayBuffer\|TypedArray}                  |
-| `'module'`              | Load an ES module with TypeScript syntax              | {string\|ArrayBuffer\|TypedArray}                  |
+| `'module'`              | Load an ES module                                     | {string\|ArrayBuffer\|TypedArray}                  |
 | `'wasm'`                | Load a WebAssembly module                             | {ArrayBuffer\|TypedArray}                          |
 
 The value of `source` is ignored for type `'builtin'` because currently it is
