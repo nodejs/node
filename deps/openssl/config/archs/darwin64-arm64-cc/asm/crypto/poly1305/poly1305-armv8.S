@@ -15,6 +15,7 @@
 
 .align	5
 _poly1305_init:
+	AARCH64_VALID_CALL_TARGET
 	cmp	x1,xzr
 	stp	xzr,xzr,[x0]		// zero hash value
 	stp	xzr,xzr,[x0,#16]	// [along with is_base2_26]
@@ -39,10 +40,14 @@ _poly1305_init:
 
 	tst	w17,#ARMV7_NEON
 
-	adr	x12,Lpoly1305_blocks
-	adr	x7,Lpoly1305_blocks_neon
-	adr	x13,Lpoly1305_emit
-	adr	x8,Lpoly1305_emit_neon
+	adrp	x12,_poly1305_blocks@PAGE
+	add	x12,x12,Lpoly1305_blocks@PAGEOFF
+	adrp	x7,poly1305_blocks_neon@PAGE
+	add	x7,x7,Lpoly1305_blocks_neon@PAGEOFF
+	adrp	x13,_poly1305_emit@PAGE
+	add	x13,x13,Lpoly1305_emit@PAGEOFF
+	adrp	x8,poly1305_emit_neon@PAGE
+	add	x8,x8,Lpoly1305_emit_neon@PAGEOFF
 
 	csel	x12,x12,x7,eq
 	csel	x13,x13,x8,eq
@@ -62,6 +67,9 @@ Lno_key:
 .align	5
 _poly1305_blocks:
 Lpoly1305_blocks:
+	// The symbol .Lpoly1305_blocks is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ands	x2,x2,#-16
 	b.eq	Lno_data
 
@@ -127,6 +135,9 @@ Lno_data:
 .align	5
 _poly1305_emit:
 Lpoly1305_emit:
+	// The symbol .poly1305_emit is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldp	x4,x5,[x0]		// load hash base 2^64
 	ldr	x6,[x0,#16]
 	ldp	x10,x11,[x2]	// load nonce
@@ -222,13 +233,16 @@ poly1305_splat:
 .align	5
 poly1305_blocks_neon:
 Lpoly1305_blocks_neon:
+	// The symbol .Lpoly1305_blocks_neon is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldr	x17,[x0,#24]
 	cmp	x2,#128
 	b.hs	Lblocks_neon
 	cbz	x17,Lpoly1305_blocks
 
 Lblocks_neon:
-.long	0xd503233f		// paciasp
+	AARCH64_SIGN_LINK_REGISTER
 	stp	x29,x30,[sp,#-80]!
 	add	x29,sp,#0
 
@@ -363,7 +377,8 @@ Linit_neon:
 	ldr	x30,[sp,#8]
 
 	add	x16,x1,#32
-	adr	x17,Lzeros
+	adrp	x17,Lzeros@PAGE
+	add	x17,x17,Lzeros@PAGEOFF
 	subs	x2,x2,#64
 	csel	x16,x17,x16,lo
 
@@ -375,7 +390,8 @@ Linit_neon:
 .align	4
 Leven_neon:
 	add	x16,x1,#32
-	adr	x17,Lzeros
+	adrp	x17,Lzeros@PAGE
+	add	x17,x17,Lzeros@PAGEOFF
 	subs	x2,x2,#64
 	csel	x16,x17,x16,lo
 
@@ -798,7 +814,7 @@ Lshort_tail:
 
 Lno_data_neon:
 	ldr	x29,[sp],#80
-.long	0xd50323bf		// autiasp
+	AARCH64_VALIDATE_LINK_REGISTER
 	ret
 
 
@@ -806,6 +822,9 @@ Lno_data_neon:
 .align	5
 poly1305_emit_neon:
 Lpoly1305_emit_neon:
+	// The symbol .Lpoly1305_emit_neon is not a .globl symbol
+	// but a pointer to it is returned by poly1305_init
+	AARCH64_VALID_CALL_TARGET
 	ldr	x17,[x0,#24]
 	cbz	x17,_poly1305_emit
 
@@ -854,6 +873,8 @@ Lpoly1305_emit_neon:
 
 	ret
 
+
+.section	__TEXT,__const
 
 .align	5
 Lzeros:

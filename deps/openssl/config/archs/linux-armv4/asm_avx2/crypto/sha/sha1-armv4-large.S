@@ -1494,5 +1494,6 @@ sha1_block_data_order_armv8:
 .size	sha1_block_data_order_armv8,.-sha1_block_data_order_armv8
 #endif
 #if __ARM_MAX_ARCH__>=7
-.comm	OPENSSL_armcap_P,4,4
+
+.hidden	OPENSSL_armcap_P
 #endif
