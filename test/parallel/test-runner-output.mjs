@@ -297,12 +297,17 @@ const tests = [
     name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs',
     flags: ['--test-reporter=tap'],
   } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-short-filename.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
+    cwd: fixtures.path('test-runner/coverage-snap'),
+  } : false,
 ]
 .filter(Boolean)
-.map(({ flags, name, tty, transform }) => ({
+.map(({ flags, name, tty, transform, cwd }) => ({
   name,
   fn: common.mustCall(async () => {
-    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags });
+    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags, cwd });
   }),
 }));
 
