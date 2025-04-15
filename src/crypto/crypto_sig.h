@@ -30,7 +30,7 @@ class SignBase : public BaseObject {
 
   SignBase(Environment* env, v8::Local<v8::Object> wrap);
 
-  Error Init(std::string_view digest);
+  Error Init(const char* digest);
   Error Update(const char* data, size_t len);
 
   // TODO(joyeecheung): track the memory used by OpenSSL types

@@ -48,7 +48,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
   const auto cipher = ([&] {
     if (args[1]->IsString()) {
       Utf8Value name(env->isolate(), args[1]);
-      return Cipher::FromName(name.ToStringView());
+      return Cipher::FromName(*name);
     } else {
       int nid = args[1].As<Int32>()->Value();
       return Cipher::FromNid(nid);
@@ -117,7 +117,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (info->Set(env->context(),
                 env->name_string(),
-                OneByteString(env->isolate(), name.data(), name.length()))
+                OneByteString(env->isolate(), name))
           .IsNothing()) {
     return;
   }
@@ -303,7 +303,7 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
 }
 
-void CipherBase::CommonInit(std::string_view cipher_type,
+void CipherBase::CommonInit(const char* cipher_type,
                             const ncrypto::Cipher& cipher,
                             const unsigned char* key,
                             int key_len,
@@ -345,7 +345,7 @@ void CipherBase::CommonInit(std::string_view cipher_type,
   }
 }
 
-void CipherBase::InitIv(std::string_view cipher_type,
+void CipherBase::InitIv(const char* cipher_type,
                         const ByteSource& key_buf,
                         const ArrayBufferOrViewContents<unsigned char>& iv_buf,
                         unsigned int auth_tag_len) {
@@ -425,10 +425,10 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
     auth_tag_len = kNoAuthTagLength;
   }
 
-  cipher->InitIv(cipher_type.ToStringView(), key_buf, iv_buf, auth_tag_len);
+  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
-bool CipherBase::InitAuthenticated(std::string_view cipher_type,
+bool CipherBase::InitAuthenticated(const char* cipher_type,
                                    int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
@@ -933,7 +933,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Digest digest;
   if (args[offset + 2]->IsString()) {
     Utf8Value oaep_str(env->isolate(), args[offset + 2]);
-    digest = Digest::FromName(oaep_str.ToStringView());
+    digest = Digest::FromName(*oaep_str);
     if (!digest) return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
 
