@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/codegen/machine-type.h"
+#include "src/compiler/feedback-source.h"
 #include "src/compiler/js-heap-broker.h"
 #include "src/compiler/node.h"
 #include "src/handles/handles.h"
@@ -19,7 +20,7 @@ namespace compiler {
 
 class CommonOperatorBuilder;
 class CompilationDependencies;
-class Graph;
+class TFGraph;
 class JSGraph;
 class JSHeapBroker;
 class PropertyAccessInfo;
@@ -40,10 +41,21 @@ class PropertyAccessBuilder {
                            Node** receiver, Effect* effect, Control control);
 
   void BuildCheckMaps(Node* object, Effect* effect, Control control,
-                      ZoneVector<MapRef> const& maps);
+                      ZoneVector<MapRef> const& maps,
+                      bool has_deprecated_map_without_migration_target = false);
 
   Node* BuildCheckValue(Node* receiver, Effect* effect, Control control,
-                        Handle<HeapObject> value);
+                        ObjectRef value);
+
+  Node* BuildCheckSmi(Node* value, Effect* effect, Control control,
+                      FeedbackSource feedback_source = FeedbackSource());
+
+  Node* BuildCheckNumber(Node* value, Effect* effect, Control control,
+                         FeedbackSource feedback_source = FeedbackSource());
+
+  Node* BuildCheckNumberFitsInt32(
+      Node* value, Effect* effect, Control control,
+      FeedbackSource feedback_source = FeedbackSource());
 
   // Builds the actual load for data-field and data-constant-field
   // properties (without heap-object or map checks).
@@ -66,7 +78,7 @@ class PropertyAccessBuilder {
   CompilationDependencies* dependencies() const {
     return broker_->dependencies();
   }
-  Graph* graph() const;
+  TFGraph* graph() const;
   Isolate* isolate() const;
   CommonOperatorBuilder* common() const;
   SimplifiedOperatorBuilder* simplified() const;
@@ -88,6 +100,10 @@ class PropertyAccessBuilder {
 };
 
 bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps);
+bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
+                              ZoneVector<MapRef> const& maps);
+bool HasOnlyNonResizableTypedArrayMaps(JSHeapBroker* broker,
+                                       ZoneVector<MapRef> const& maps);
 
 }  // namespace compiler
 }  // namespace internal

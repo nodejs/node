@@ -6,6 +6,8 @@
 #define V8_OBJECTS_MODULE_INL_H_
 
 #include "src/objects/module.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/scope-info.h"
 #include "src/objects/source-text-module.h"
@@ -59,8 +61,6 @@ Tagged<SourceTextModuleInfo> SourceTextModule::info() const {
   return GetSharedFunctionInfo()->scope_info()->ModuleDescriptorInfo();
 }
 
-OBJECT_CONSTRUCTORS_IMPL(SourceTextModuleInfo, FixedArray)
-
 Tagged<FixedArray> SourceTextModuleInfo::module_requests() const {
   return Cast<FixedArray>(get(kModuleRequestsIndex));
 }
@@ -81,7 +81,7 @@ Tagged<FixedArray> SourceTextModuleInfo::namespace_imports() const {
   return Cast<FixedArray>(get(kNamespaceImportsIndex));
 }
 
-#ifdef DEBUG
+// TODO(crbug.com/401059828): make it DEBUG only, once investigation is over.
 bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
   return regular_exports() == other->regular_exports() &&
          regular_imports() == other->regular_imports() &&
@@ -89,7 +89,6 @@ bool SourceTextModuleInfo::Equals(Tagged<SourceTextModuleInfo> other) const {
          namespace_imports() == other->namespace_imports() &&
          module_requests() == other->module_requests();
 }
-#endif
 
 struct ModuleHandleHash {
   V8_INLINE size_t operator()(DirectHandle<Module> module) const {
@@ -127,8 +126,8 @@ Handle<SourceTextModule> SourceTextModule::GetCycleRoot(
 void SourceTextModule::AddAsyncParentModule(
     Isolate* isolate, DirectHandle<SourceTextModule> module,
     DirectHandle<SourceTextModule> parent) {
-  Handle<ArrayList> async_parent_modules(module->async_parent_modules(),
-                                         isolate);
+  DirectHandle<ArrayList> async_parent_modules(module->async_parent_modules(),
+                                               isolate);
   DirectHandle<ArrayList> new_array_list =
       ArrayList::Add(isolate, async_parent_modules, parent);
   module->set_async_parent_modules(*new_array_list);

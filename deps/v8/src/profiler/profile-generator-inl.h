@@ -6,6 +6,7 @@
 #define V8_PROFILER_PROFILE_GENERATOR_INL_H_
 
 #include "src/profiler/profile-generator.h"
+// Include the non-inl header before the rest of the headers.
 
 #include <memory>
 

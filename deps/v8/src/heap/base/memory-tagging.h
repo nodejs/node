@@ -2,10 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Helper functions for Arm's Memory Tagging Extension (MTE).
-
 #ifndef V8_HEAP_BASE_MEMORY_TAGGING_H_
 #define V8_HEAP_BASE_MEMORY_TAGGING_H_
+
+// Helper functions for Arm's Memory Tagging Extension (MTE).
 
 #include "src/base/macros.h"
 

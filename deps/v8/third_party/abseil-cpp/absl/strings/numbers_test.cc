@@ -34,6 +34,7 @@
 #include <random>
 #include <set>
 #include <string>
+#include <type_traits>
 #include <vector>
 
 #include "gmock/gmock.h"
@@ -53,10 +54,14 @@ namespace {
 using absl::SimpleAtoi;
 using absl::SimpleHexAtoi;
 using absl::numbers_internal::kSixDigitsToBufferSize;
+using absl::numbers_internal::safe_strto16_base;
 using absl::numbers_internal::safe_strto32_base;
 using absl::numbers_internal::safe_strto64_base;
+using absl::numbers_internal::safe_strto8_base;
+using absl::numbers_internal::safe_strtou16_base;
 using absl::numbers_internal::safe_strtou32_base;
 using absl::numbers_internal::safe_strtou64_base;
+using absl::numbers_internal::safe_strtou8_base;
 using absl::numbers_internal::SixDigitsToBuffer;
 using absl::strings_internal::Itoa;
 using absl::strings_internal::strtouint32_test_cases;
@@ -256,9 +261,7 @@ TEST(Numbers, TestFastPrints) {
 
 template <typename int_type, typename in_val_type>
 void VerifySimpleAtoiGood(in_val_type in_value, int_type exp_value) {
-  std::string s;
-  // (u)int128 can be streamed but not StrCat'd.
-  absl::strings_internal::OStringStream(&s) << in_value;
+  std::string s = absl::StrCat(in_value);
   int_type x = static_cast<int_type>(~exp_value);
   EXPECT_TRUE(SimpleAtoi(s, &x))
       << "in_value=" << in_value << " s=" << s << " x=" << x;
@@ -270,15 +273,71 @@ void VerifySimpleAtoiGood(in_val_type in_value, int_type exp_value) {
 
 template <typename int_type, typename in_val_type>
 void VerifySimpleAtoiBad(in_val_type in_value) {
-  std::string s;
-  // (u)int128 can be streamed but not StrCat'd.
-  absl::strings_internal::OStringStream(&s) << in_value;
+  std::string s = absl::StrCat(in_value);
   int_type x;
   EXPECT_FALSE(SimpleAtoi(s, &x));
   EXPECT_FALSE(SimpleAtoi(s.c_str(), &x));
 }
 
 TEST(NumbersTest, Atoi) {
+  // SimpleAtoi(absl::string_view, int8_t)
+  VerifySimpleAtoiGood<int8_t>(0, 0);
+  VerifySimpleAtoiGood<int8_t>(42, 42);
+  VerifySimpleAtoiGood<int8_t>(-42, -42);
+
+  VerifySimpleAtoiGood<int8_t>(std::numeric_limits<int8_t>::min(),
+                               std::numeric_limits<int8_t>::min());
+  VerifySimpleAtoiGood<int8_t>(std::numeric_limits<int8_t>::max(),
+                               std::numeric_limits<int8_t>::max());
+
+  VerifySimpleAtoiBad<int8_t>(std::numeric_limits<uint8_t>::max());
+  VerifySimpleAtoiBad<int8_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiBad<int8_t>(std::numeric_limits<int16_t>::max());
+
+  // SimpleAtoi(absl::string_view, uint8_t)
+  VerifySimpleAtoiGood<uint8_t>(0, 0);
+  VerifySimpleAtoiGood<uint8_t>(42, 42);
+  VerifySimpleAtoiBad<uint8_t>(-42);
+
+  VerifySimpleAtoiBad<uint8_t>(std::numeric_limits<int8_t>::min());
+  VerifySimpleAtoiGood<uint8_t>(std::numeric_limits<int8_t>::max(),
+                                std::numeric_limits<int8_t>::max());
+  VerifySimpleAtoiGood<uint8_t>(std::numeric_limits<uint8_t>::max(),
+                                std::numeric_limits<uint8_t>::max());
+
+  VerifySimpleAtoiBad<uint8_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiBad<uint8_t>(std::numeric_limits<int16_t>::max());
+  VerifySimpleAtoiBad<uint8_t>(std::numeric_limits<uint16_t>::max());
+
+  // SimpleAtoi(absl::string_view, uint16_t)
+  VerifySimpleAtoiGood<int16_t>(0, 0);
+  VerifySimpleAtoiGood<int16_t>(42, 42);
+  VerifySimpleAtoiGood<int16_t>(-42, -42);
+
+  VerifySimpleAtoiGood<int16_t>(std::numeric_limits<int16_t>::min(),
+                                std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiGood<int16_t>(std::numeric_limits<int16_t>::max(),
+                                std::numeric_limits<int16_t>::max());
+
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<uint16_t>::max());
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<int32_t>::min());
+  VerifySimpleAtoiBad<int16_t>(std::numeric_limits<int32_t>::max());
+
+  // SimpleAtoi(absl::string_view, uint16_t)
+  VerifySimpleAtoiGood<uint16_t>(0, 0);
+  VerifySimpleAtoiGood<uint16_t>(42, 42);
+  VerifySimpleAtoiBad<uint16_t>(-42);
+
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiGood<uint16_t>(std::numeric_limits<int16_t>::max(),
+                                 std::numeric_limits<int16_t>::max());
+  VerifySimpleAtoiGood<uint16_t>(std::numeric_limits<uint16_t>::max(),
+                                 std::numeric_limits<uint16_t>::max());
+
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<int32_t>::max());
+  VerifySimpleAtoiBad<uint16_t>(std::numeric_limits<uint32_t>::max());
+
   // SimpleAtoi(absl::string_view, int32_t)
   VerifySimpleAtoiGood<int32_t>(0, 0);
   VerifySimpleAtoiGood<int32_t>(42, 42);
@@ -381,6 +440,7 @@ TEST(NumbersTest, Atoi) {
   VerifySimpleAtoiBad<absl::int128>(std::numeric_limits<absl::uint128>::max());
 
   // Some other types
+  VerifySimpleAtoiGood<short>(-42, -42);  // NOLINT: runtime-int
   VerifySimpleAtoiGood<int>(-42, -42);
   VerifySimpleAtoiGood<int32_t>(-42, -42);
   VerifySimpleAtoiGood<uint32_t>(42, 42);
@@ -677,10 +737,14 @@ TEST(NumbersTest, Atoenum) {
 template <typename int_type, typename in_val_type>
 void VerifySimpleHexAtoiGood(in_val_type in_value, int_type exp_value) {
   std::string s;
-  // uint128 can be streamed but not StrCat'd
   absl::strings_internal::OStringStream strm(&s);
   if (in_value >= 0) {
-    strm << std::hex << in_value;
+    if constexpr (std::is_arithmetic<in_val_type>::value) {
+      absl::StrAppend(&s, absl::Hex(in_value));
+    } else {
+      // absl::Hex doesn't work with absl::(u)int128.
+      strm << std::hex << in_value;
+    }
   } else {
     // Inefficient for small integers, but works with all integral types.
     strm << "-" << std::hex << -absl::uint128(in_value);
@@ -698,10 +762,14 @@ void VerifySimpleHexAtoiGood(in_val_type in_value, int_type exp_value) {
 template <typename int_type, typename in_val_type>
 void VerifySimpleHexAtoiBad(in_val_type in_value) {
   std::string s;
-  // uint128 can be streamed but not StrCat'd
   absl::strings_internal::OStringStream strm(&s);
   if (in_value >= 0) {
-    strm << std::hex << in_value;
+    if constexpr (std::is_arithmetic<in_val_type>::value) {
+      absl::StrAppend(&s, absl::Hex(in_value));
+    } else {
+      // absl::Hex doesn't work with absl::(u)int128.
+      strm << std::hex << in_value;
+    }
   } else {
     // Inefficient for small integers, but works with all integral types.
     strm << "-" << std::hex << -absl::uint128(in_value);
@@ -713,6 +781,54 @@ void VerifySimpleHexAtoiBad(in_val_type in_value) {
 }
 
 TEST(NumbersTest, HexAtoi) {
+  // SimpleHexAtoi(absl::string_view, int8_t)
+  VerifySimpleHexAtoiGood<int8_t>(0, 0);
+  VerifySimpleHexAtoiGood<int8_t>(0x42, 0x42);
+  VerifySimpleHexAtoiGood<int8_t>(-0x42, -0x42);
+
+  VerifySimpleHexAtoiGood<int8_t>(std::numeric_limits<int8_t>::min(),
+                                  std::numeric_limits<int8_t>::min());
+  VerifySimpleHexAtoiGood<int8_t>(std::numeric_limits<int8_t>::max(),
+                                  std::numeric_limits<int8_t>::max());
+
+  // SimpleHexAtoi(absl::string_view, uint8_t)
+  VerifySimpleHexAtoiGood<uint8_t>(0, 0);
+  VerifySimpleHexAtoiGood<uint8_t>(0x42, 0x42);
+  VerifySimpleHexAtoiBad<uint8_t>(-0x42);
+
+  VerifySimpleHexAtoiBad<uint8_t>(std::numeric_limits<int8_t>::min());
+  VerifySimpleHexAtoiGood<uint8_t>(std::numeric_limits<int8_t>::max(),
+                                   std::numeric_limits<int8_t>::max());
+  VerifySimpleHexAtoiGood<uint8_t>(std::numeric_limits<uint8_t>::max(),
+                                   std::numeric_limits<uint8_t>::max());
+  VerifySimpleHexAtoiBad<uint8_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleHexAtoiBad<uint8_t>(std::numeric_limits<int16_t>::max());
+  VerifySimpleHexAtoiBad<uint8_t>(std::numeric_limits<uint16_t>::max());
+
+  // SimpleHexAtoi(absl::string_view, int16_t)
+  VerifySimpleHexAtoiGood<int16_t>(0, 0);
+  VerifySimpleHexAtoiGood<int16_t>(0x42, 0x42);
+  VerifySimpleHexAtoiGood<int16_t>(-0x42, -0x42);
+
+  VerifySimpleHexAtoiGood<int16_t>(std::numeric_limits<int16_t>::min(),
+                                   std::numeric_limits<int16_t>::min());
+  VerifySimpleHexAtoiGood<int16_t>(std::numeric_limits<int16_t>::max(),
+                                   std::numeric_limits<int16_t>::max());
+
+  // SimpleHexAtoi(absl::string_view, uint16_t)
+  VerifySimpleHexAtoiGood<uint16_t>(0, 0);
+  VerifySimpleHexAtoiGood<uint16_t>(0x42, 0x42);
+  VerifySimpleHexAtoiBad<uint16_t>(-0x42);
+
+  VerifySimpleHexAtoiBad<uint16_t>(std::numeric_limits<int16_t>::min());
+  VerifySimpleHexAtoiGood<uint16_t>(std::numeric_limits<int16_t>::max(),
+                                    std::numeric_limits<int16_t>::max());
+  VerifySimpleHexAtoiGood<uint16_t>(std::numeric_limits<uint16_t>::max(),
+                                    std::numeric_limits<uint16_t>::max());
+  VerifySimpleHexAtoiBad<uint16_t>(std::numeric_limits<int32_t>::min());
+  VerifySimpleHexAtoiBad<uint16_t>(std::numeric_limits<int32_t>::max());
+  VerifySimpleHexAtoiBad<uint16_t>(std::numeric_limits<uint32_t>::max());
+
   // SimpleHexAtoi(absl::string_view, int32_t)
   VerifySimpleHexAtoiGood<int32_t>(0, 0);
   VerifySimpleHexAtoiGood<int32_t>(0x42, 0x42);
@@ -790,6 +906,7 @@ TEST(NumbersTest, HexAtoi) {
       std::numeric_limits<absl::uint128>::max());
 
   // Some other types
+  VerifySimpleHexAtoiGood<short>(-0x42, -0x42);  // NOLINT: runtime-int
   VerifySimpleHexAtoiGood<int>(-0x42, -0x42);
   VerifySimpleHexAtoiGood<int32_t>(-0x42, -0x42);
   VerifySimpleHexAtoiGood<uint32_t>(0x42, 0x42);
@@ -814,6 +931,154 @@ TEST(NumbersTest, HexAtoi) {
 
   EXPECT_TRUE(safe_strto32_base("34234324 \t\n ", &value, 16));
   EXPECT_EQ(0x34234324, value);
+}
+
+TEST(stringtest, safe_strto8_base) {
+  int8_t value;
+  EXPECT_TRUE(safe_strto8_base("0x34", &value, 16));
+  EXPECT_EQ(0x34, value);
+
+  EXPECT_TRUE(safe_strto8_base("0X34", &value, 16));
+  EXPECT_EQ(0x34, value);
+
+  EXPECT_TRUE(safe_strto8_base("34", &value, 16));
+  EXPECT_EQ(0x34, value);
+
+  EXPECT_TRUE(safe_strto8_base("0", &value, 16));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto8_base(" \t\n -0x34", &value, 16));
+  EXPECT_EQ(-0x34, value);
+
+  EXPECT_TRUE(safe_strto8_base(" \t\n -34", &value, 16));
+  EXPECT_EQ(-0x34, value);
+
+  EXPECT_TRUE(safe_strto8_base("76", &value, 8));
+  EXPECT_EQ(076, value);
+
+  EXPECT_TRUE(safe_strto8_base("-0123", &value, 8));
+  EXPECT_EQ(-0123, value);
+
+  EXPECT_FALSE(safe_strto8_base("183", &value, 8));
+
+  // Autodetect base.
+  EXPECT_TRUE(safe_strto8_base("0", &value, 0));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto8_base("077", &value, 0));
+  EXPECT_EQ(077, value);  // Octal interpretation
+
+  // Leading zero indicates octal, but then followed by invalid digit.
+  EXPECT_FALSE(safe_strto8_base("088", &value, 0));
+
+  // Leading 0x indicated hex, but then followed by invalid digit.
+  EXPECT_FALSE(safe_strto8_base("0xG", &value, 0));
+
+  // Base-10 version.
+  EXPECT_TRUE(safe_strto8_base("124", &value, 10));
+  EXPECT_EQ(124, value);
+
+  EXPECT_TRUE(safe_strto8_base("0", &value, 10));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto8_base(" \t\n -124", &value, 10));
+  EXPECT_EQ(-124, value);
+
+  EXPECT_TRUE(safe_strto8_base("124 \n\t ", &value, 10));
+  EXPECT_EQ(124, value);
+
+  // Invalid ints.
+  EXPECT_FALSE(safe_strto8_base("", &value, 10));
+  EXPECT_FALSE(safe_strto8_base("  ", &value, 10));
+  EXPECT_FALSE(safe_strto8_base("abc", &value, 10));
+  EXPECT_FALSE(safe_strto8_base("34a", &value, 10));
+  EXPECT_FALSE(safe_strto8_base("34.3", &value, 10));
+
+  // Out of bounds.
+  EXPECT_FALSE(safe_strto8_base("128", &value, 10));
+  EXPECT_FALSE(safe_strto8_base("-129", &value, 10));
+
+  // String version.
+  EXPECT_TRUE(safe_strto8_base(std::string("0x12"), &value, 16));
+  EXPECT_EQ(0x12, value);
+
+  // Base-10 string version.
+  EXPECT_TRUE(safe_strto8_base("123", &value, 10));
+  EXPECT_EQ(123, value);
+}
+
+TEST(stringtest, safe_strto16_base) {
+  int16_t value;
+  EXPECT_TRUE(safe_strto16_base("0x3423", &value, 16));
+  EXPECT_EQ(0x3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("0X3423", &value, 16));
+  EXPECT_EQ(0x3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("3423", &value, 16));
+  EXPECT_EQ(0x3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("0", &value, 16));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto16_base(" \t\n -0x3423", &value, 16));
+  EXPECT_EQ(-0x3423, value);
+
+  EXPECT_TRUE(safe_strto16_base(" \t\n -3423", &value, 16));
+  EXPECT_EQ(-0x3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("34567", &value, 8));
+  EXPECT_EQ(034567, value);
+
+  EXPECT_TRUE(safe_strto16_base("-01234", &value, 8));
+  EXPECT_EQ(-01234, value);
+
+  EXPECT_FALSE(safe_strto16_base("1834", &value, 8));
+
+  // Autodetect base.
+  EXPECT_TRUE(safe_strto16_base("0", &value, 0));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto16_base("077", &value, 0));
+  EXPECT_EQ(077, value);  // Octal interpretation
+
+  // Leading zero indicates octal, but then followed by invalid digit.
+  EXPECT_FALSE(safe_strto16_base("088", &value, 0));
+
+  // Leading 0x indicated hex, but then followed by invalid digit.
+  EXPECT_FALSE(safe_strto16_base("0xG", &value, 0));
+
+  // Base-10 version.
+  EXPECT_TRUE(safe_strto16_base("3423", &value, 10));
+  EXPECT_EQ(3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("0", &value, 10));
+  EXPECT_EQ(0, value);
+
+  EXPECT_TRUE(safe_strto16_base(" \t\n -3423", &value, 10));
+  EXPECT_EQ(-3423, value);
+
+  EXPECT_TRUE(safe_strto16_base("3423 \n\t ", &value, 10));
+  EXPECT_EQ(3423, value);
+
+  // Invalid ints.
+  EXPECT_FALSE(safe_strto16_base("", &value, 10));
+  EXPECT_FALSE(safe_strto16_base("  ", &value, 10));
+  EXPECT_FALSE(safe_strto16_base("abc", &value, 10));
+  EXPECT_FALSE(safe_strto16_base("324a", &value, 10));
+  EXPECT_FALSE(safe_strto16_base("4234.3", &value, 10));
+
+  // Out of bounds.
+  EXPECT_FALSE(safe_strto16_base("32768", &value, 10));
+  EXPECT_FALSE(safe_strto16_base("-32769", &value, 10));
+
+  // String version.
+  EXPECT_TRUE(safe_strto16_base(std::string("0x1234"), &value, 16));
+  EXPECT_EQ(0x1234, value);
+
+  // Base-10 string version.
+  EXPECT_TRUE(safe_strto16_base("1234", &value, 10));
+  EXPECT_EQ(1234, value);
 }
 
 TEST(stringtest, safe_strto32_base) {
@@ -890,76 +1155,6 @@ TEST(stringtest, safe_strto32_base) {
   EXPECT_EQ(1234, value);
 }
 
-TEST(stringtest, safe_strto32_range) {
-  // These tests verify underflow/overflow behaviour.
-  int32_t value;
-  EXPECT_FALSE(safe_strto32_base("2147483648", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int32_t>::max(), value);
-
-  EXPECT_TRUE(safe_strto32_base("-2147483648", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
-
-  EXPECT_FALSE(safe_strto32_base("-2147483649", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
-}
-
-TEST(stringtest, safe_strto64_range) {
-  // These tests verify underflow/overflow behaviour.
-  int64_t value;
-  EXPECT_FALSE(safe_strto64_base("9223372036854775808", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int64_t>::max(), value);
-
-  EXPECT_TRUE(safe_strto64_base("-9223372036854775808", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
-
-  EXPECT_FALSE(safe_strto64_base("-9223372036854775809", &value, 10));
-  EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
-}
-
-TEST(stringtest, safe_strto32_leading_substring) {
-  // These tests verify this comment in numbers.h:
-  // On error, returns false, and sets *value to: [...]
-  //   conversion of leading substring if available ("123@@@" -> 123)
-  //   0 if no leading substring available
-  int32_t value;
-  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 10));
-  EXPECT_EQ(4069, value);
-
-  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 8));
-  EXPECT_EQ(0406, value);
-
-  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 10));
-  EXPECT_EQ(4069, value);
-
-  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 16));
-  EXPECT_EQ(0x4069ba, value);
-
-  EXPECT_FALSE(safe_strto32_base("@@@", &value, 10));
-  EXPECT_EQ(0, value);  // there was no leading substring
-}
-
-TEST(stringtest, safe_strto64_leading_substring) {
-  // These tests verify this comment in numbers.h:
-  // On error, returns false, and sets *value to: [...]
-  //   conversion of leading substring if available ("123@@@" -> 123)
-  //   0 if no leading substring available
-  int64_t value;
-  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 10));
-  EXPECT_EQ(4069, value);
-
-  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 8));
-  EXPECT_EQ(0406, value);
-
-  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 10));
-  EXPECT_EQ(4069, value);
-
-  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 16));
-  EXPECT_EQ(0x4069ba, value);
-
-  EXPECT_FALSE(safe_strto64_base("@@@", &value, 10));
-  EXPECT_EQ(0, value);  // there was no leading substring
-}
-
 TEST(stringtest, safe_strto64_base) {
   int64_t value;
   EXPECT_TRUE(safe_strto64_base("0x3423432448783446", &value, 16));
@@ -1031,6 +1226,146 @@ TEST(stringtest, safe_strto64_base) {
   EXPECT_EQ(1234, value);
 }
 
+TEST(stringtest, safe_strto8_range) {
+  // These tests verify underflow/overflow behaviour.
+  int8_t value;
+  EXPECT_FALSE(safe_strto8_base("128", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int8_t>::max(), value);
+
+  EXPECT_TRUE(safe_strto8_base("-128", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int8_t>::min(), value);
+
+  EXPECT_FALSE(safe_strto8_base("-129", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int8_t>::min(), value);
+}
+
+TEST(stringtest, safe_strto16_range) {
+  // These tests verify underflow/overflow behaviour.
+  int16_t value;
+  EXPECT_FALSE(safe_strto16_base("32768", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int16_t>::max(), value);
+
+  EXPECT_TRUE(safe_strto16_base("-32768", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int16_t>::min(), value);
+
+  EXPECT_FALSE(safe_strto16_base("-32769", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int16_t>::min(), value);
+}
+
+TEST(stringtest, safe_strto32_range) {
+  // These tests verify underflow/overflow behaviour.
+  int32_t value;
+  EXPECT_FALSE(safe_strto32_base("2147483648", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int32_t>::max(), value);
+
+  EXPECT_TRUE(safe_strto32_base("-2147483648", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
+
+  EXPECT_FALSE(safe_strto32_base("-2147483649", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int32_t>::min(), value);
+}
+
+TEST(stringtest, safe_strto64_range) {
+  // These tests verify underflow/overflow behaviour.
+  int64_t value;
+  EXPECT_FALSE(safe_strto64_base("9223372036854775808", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int64_t>::max(), value);
+
+  EXPECT_TRUE(safe_strto64_base("-9223372036854775808", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
+
+  EXPECT_FALSE(safe_strto64_base("-9223372036854775809", &value, 10));
+  EXPECT_EQ(std::numeric_limits<int64_t>::min(), value);
+}
+
+TEST(stringtest, safe_strto8_leading_substring) {
+  // These tests verify this comment in numbers.h:
+  // On error, returns false, and sets *value to: [...]
+  //   conversion of leading substring if available ("123@@@" -> 123)
+  //   0 if no leading substring available
+  int8_t value;
+  EXPECT_FALSE(safe_strto8_base("069@@@", &value, 10));
+  EXPECT_EQ(69, value);
+
+  EXPECT_FALSE(safe_strto8_base("01769@@@", &value, 8));
+  EXPECT_EQ(0176, value);
+
+  EXPECT_FALSE(safe_strto8_base("069balloons", &value, 10));
+  EXPECT_EQ(69, value);
+
+  EXPECT_FALSE(safe_strto8_base("07bland", &value, 16));
+  EXPECT_EQ(0x7b, value);
+
+  EXPECT_FALSE(safe_strto8_base("@@@", &value, 10));
+  EXPECT_EQ(0, value);  // there was no leading substring
+}
+
+TEST(stringtest, safe_strto16_leading_substring) {
+  // These tests verify this comment in numbers.h:
+  // On error, returns false, and sets *value to: [...]
+  //   conversion of leading substring if available ("123@@@" -> 123)
+  //   0 if no leading substring available
+  int16_t value;
+  EXPECT_FALSE(safe_strto16_base("04069@@@", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto16_base("04069@@@", &value, 8));
+  EXPECT_EQ(0406, value);
+
+  EXPECT_FALSE(safe_strto16_base("04069balloons", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto16_base("069balloons", &value, 16));
+  EXPECT_EQ(0x69ba, value);
+
+  EXPECT_FALSE(safe_strto16_base("@@@", &value, 10));
+  EXPECT_EQ(0, value);  // there was no leading substring
+}
+
+TEST(stringtest, safe_strto32_leading_substring) {
+  // These tests verify this comment in numbers.h:
+  // On error, returns false, and sets *value to: [...]
+  //   conversion of leading substring if available ("123@@@" -> 123)
+  //   0 if no leading substring available
+  int32_t value;
+  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto32_base("04069@@@", &value, 8));
+  EXPECT_EQ(0406, value);
+
+  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto32_base("04069balloons", &value, 16));
+  EXPECT_EQ(0x4069ba, value);
+
+  EXPECT_FALSE(safe_strto32_base("@@@", &value, 10));
+  EXPECT_EQ(0, value);  // there was no leading substring
+}
+
+TEST(stringtest, safe_strto64_leading_substring) {
+  // These tests verify this comment in numbers.h:
+  // On error, returns false, and sets *value to: [...]
+  //   conversion of leading substring if available ("123@@@" -> 123)
+  //   0 if no leading substring available
+  int64_t value;
+  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto64_base("04069@@@", &value, 8));
+  EXPECT_EQ(0406, value);
+
+  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 10));
+  EXPECT_EQ(4069, value);
+
+  EXPECT_FALSE(safe_strto64_base("04069balloons", &value, 16));
+  EXPECT_EQ(0x4069ba, value);
+
+  EXPECT_FALSE(safe_strto64_base("@@@", &value, 10));
+  EXPECT_EQ(0, value);  // there was no leading substring
+}
+
 const size_t kNumRandomTests = 10000;
 
 template <typename IntType>
@@ -1042,7 +1377,7 @@ void test_random_integer_parse_base(bool (*parse_func)(absl::string_view,
   RandomEngine rng(rd());
   std::uniform_int_distribution<IntType> random_int(
       std::numeric_limits<IntType>::min());
-  std::uniform_int_distribution<int> random_base(2, 35);
+  std::uniform_int_distribution<int> random_base(2, 36);
   for (size_t i = 0; i < kNumRandomTests; i++) {
     IntType value = random_int(rng);
     int base = random_base(rng);
@@ -1070,11 +1405,17 @@ void test_random_integer_parse_base(bool (*parse_func)(absl::string_view,
   }
 }
 
+TEST(stringtest, safe_strto16_random) {
+  test_random_integer_parse_base<int16_t>(&safe_strto16_base);
+}
 TEST(stringtest, safe_strto32_random) {
   test_random_integer_parse_base<int32_t>(&safe_strto32_base);
 }
 TEST(stringtest, safe_strto64_random) {
   test_random_integer_parse_base<int64_t>(&safe_strto64_base);
+}
+TEST(stringtest, safe_strtou16_random) {
+  test_random_integer_parse_base<uint16_t>(&safe_strtou16_base);
 }
 TEST(stringtest, safe_strtou32_random) {
   test_random_integer_parse_base<uint32_t>(&safe_strtou32_base);
@@ -1083,8 +1424,7 @@ TEST(stringtest, safe_strtou64_random) {
   test_random_integer_parse_base<uint64_t>(&safe_strtou64_base);
 }
 TEST(stringtest, safe_strtou128_random) {
-  // random number generators don't work for uint128, and
-  // uint128 can be streamed but not StrCat'd, so this code must be custom
+  // random number generators don't work for uint128 so this code must be custom
   // implemented for uint128, but is generally the same as what's above.
   // test_random_integer_parse_base<absl::uint128>(
   //     &absl::numbers_internal::safe_strtou128_base);
@@ -1096,7 +1436,7 @@ TEST(stringtest, safe_strtou128_random) {
   RandomEngine rng(rd());
   std::uniform_int_distribution<uint64_t> random_uint64(
       std::numeric_limits<uint64_t>::min());
-  std::uniform_int_distribution<int> random_base(2, 35);
+  std::uniform_int_distribution<int> random_base(2, 36);
 
   for (size_t i = 0; i < kNumRandomTests; i++) {
     IntType value = random_uint64(rng);
@@ -1111,20 +1451,16 @@ TEST(stringtest, safe_strtou128_random) {
     EXPECT_EQ(parsed_value, value);
 
     // Test overflow
-    std::string s;
-    absl::strings_internal::OStringStream(&s)
-        << std::numeric_limits<IntType>::max() << value;
-    EXPECT_FALSE(parse_func(s, &parsed_value, base));
+    EXPECT_FALSE(
+        parse_func(absl::StrCat(std::numeric_limits<IntType>::max(), value),
+                   &parsed_value, base));
 
     // Test underflow
-    s.clear();
-    absl::strings_internal::OStringStream(&s) << "-" << value;
-    EXPECT_FALSE(parse_func(s, &parsed_value, base));
+    EXPECT_FALSE(parse_func(absl::StrCat("-", value), &parsed_value, base));
   }
 }
 TEST(stringtest, safe_strto128_random) {
-  // random number generators don't work for int128, and
-  // int128 can be streamed but not StrCat'd, so this code must be custom
+  // random number generators don't work for int128 so this code must be custom
   // implemented for int128, but is generally the same as what's above.
   // test_random_integer_parse_base<absl::int128>(
   //     &absl::numbers_internal::safe_strto128_base);
@@ -1138,7 +1474,7 @@ TEST(stringtest, safe_strto128_random) {
       std::numeric_limits<int64_t>::min());
   std::uniform_int_distribution<uint64_t> random_uint64(
       std::numeric_limits<uint64_t>::min());
-  std::uniform_int_distribution<int> random_base(2, 35);
+  std::uniform_int_distribution<int> random_base(2, 36);
 
   for (size_t i = 0; i < kNumRandomTests; ++i) {
     int64_t high = random_int64(rng);
@@ -1155,16 +1491,70 @@ TEST(stringtest, safe_strto128_random) {
     EXPECT_EQ(parsed_value, value);
 
     // Test overflow
-    std::string s;
-    absl::strings_internal::OStringStream(&s)
-        << std::numeric_limits<IntType>::max() << value;
-    EXPECT_FALSE(parse_func(s, &parsed_value, base));
+    EXPECT_FALSE(
+        parse_func(absl::StrCat(std::numeric_limits<IntType>::max(), value),
+                   &parsed_value, base));
 
     // Test underflow
-    s.clear();
-    absl::strings_internal::OStringStream(&s)
-        << std::numeric_limits<IntType>::min() << value;
-    EXPECT_FALSE(parse_func(s, &parsed_value, base));
+    EXPECT_FALSE(
+        parse_func(absl::StrCat(std::numeric_limits<IntType>::min(), value),
+                   &parsed_value, base));
+  }
+}
+
+TEST(stringtest, safe_strtou8_exhaustive) {
+  // Testing the entire space for uint8_t since it is small.
+  using IntType = uint8_t;
+  constexpr auto parse_func = &absl::numbers_internal::safe_strtou8_base;
+
+  for (int i = std::numeric_limits<IntType>::min();
+       i <= std::numeric_limits<IntType>::max(); i++) {
+    IntType value = static_cast<IntType>(i);
+    for (int base = 2; base <= 36; base++) {
+      std::string str_value;
+      EXPECT_TRUE(Itoa<IntType>(value, base, &str_value));
+      IntType parsed_value;
+
+      // Test successful parse
+      EXPECT_TRUE(parse_func(str_value, &parsed_value, base));
+      EXPECT_EQ(parsed_value, value);
+
+      // Test overflow
+      EXPECT_FALSE(
+          parse_func(absl::StrCat(std::numeric_limits<IntType>::max(), value),
+                     &parsed_value, base));
+      // Test underflow
+      EXPECT_FALSE(parse_func(absl::StrCat("-", value), &parsed_value, base));
+    }
+  }
+}
+
+TEST(stringtest, safe_strto8_exhaustive) {
+  // Testing the entire space for int8_t since it is small.
+  using IntType = int8_t;
+  constexpr auto parse_func = &absl::numbers_internal::safe_strto8_base;
+
+  for (int i = std::numeric_limits<IntType>::min();
+       i <= std::numeric_limits<IntType>::max(); i++) {
+    IntType value = static_cast<IntType>(i);
+    for (int base = 2; base <= 36; base++) {
+      std::string str_value;
+      EXPECT_TRUE(Itoa<IntType>(value, base, &str_value));
+      IntType parsed_value;
+
+      // Test successful parse
+      EXPECT_TRUE(parse_func(str_value, &parsed_value, base));
+      EXPECT_EQ(parsed_value, value);
+
+      // Test overflow
+      EXPECT_FALSE(
+          parse_func(absl::StrCat(std::numeric_limits<IntType>::max(), value),
+                     &parsed_value, base));
+      // Test underflow
+      EXPECT_FALSE(
+          parse_func(absl::StrCat(std::numeric_limits<IntType>::min(), value),
+                     &parsed_value, base));
+    }
   }
 }
 
@@ -1431,6 +1821,134 @@ TEST_F(SimpleDtoaTest, ExhaustiveDoubleToSixDigits) {
                  << (SixDigitsToBuffer(after, b2), b2) << " vs snprintf="
                  << (snprintf(b1, sizeof(b1), "%g", after), b1);
     }
+  }
+}
+
+TEST(StrToInt8, Partial) {
+  struct Int8TestLine {
+    std::string input;
+    bool status;
+    int8_t value;
+  };
+  const int8_t int8_min = std::numeric_limits<int8_t>::min();
+  const int8_t int8_max = std::numeric_limits<int8_t>::max();
+  Int8TestLine int8_test_line[] = {
+      {"", false, 0},
+      {" ", false, 0},
+      {"-", false, 0},
+      {"123@@@", false, 123},
+      {absl::StrCat(int8_min, int8_max), false, int8_min},
+      {absl::StrCat(int8_max, int8_max), false, int8_max},
+  };
+
+  for (const Int8TestLine& test_line : int8_test_line) {
+    int8_t value = -2;
+    bool status = safe_strto8_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = -2;
+    status = safe_strto8_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = -2;
+    status = safe_strto8_base(absl::string_view(test_line.input), &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+  }
+}
+
+TEST(StrToUint8, Partial) {
+  struct Uint8TestLine {
+    std::string input;
+    bool status;
+    uint8_t value;
+  };
+  const uint8_t uint8_max = std::numeric_limits<uint8_t>::max();
+  Uint8TestLine uint8_test_line[] = {
+      {"", false, 0},
+      {" ", false, 0},
+      {"-", false, 0},
+      {"123@@@", false, 123},
+      {absl::StrCat(uint8_max, uint8_max), false, uint8_max},
+  };
+
+  for (const Uint8TestLine& test_line : uint8_test_line) {
+    uint8_t value = 2;
+    bool status = safe_strtou8_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = 2;
+    status = safe_strtou8_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = 2;
+    status = safe_strtou8_base(absl::string_view(test_line.input), &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+  }
+}
+
+TEST(StrToInt16, Partial) {
+  struct Int16TestLine {
+    std::string input;
+    bool status;
+    int16_t value;
+  };
+  const int16_t int16_min = std::numeric_limits<int16_t>::min();
+  const int16_t int16_max = std::numeric_limits<int16_t>::max();
+  Int16TestLine int16_test_line[] = {
+      {"", false, 0},
+      {" ", false, 0},
+      {"-", false, 0},
+      {"123@@@", false, 123},
+      {absl::StrCat(int16_min, int16_max), false, int16_min},
+      {absl::StrCat(int16_max, int16_max), false, int16_max},
+  };
+
+  for (const Int16TestLine& test_line : int16_test_line) {
+    int16_t value = -2;
+    bool status = safe_strto16_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = -2;
+    status = safe_strto16_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = -2;
+    status = safe_strto16_base(absl::string_view(test_line.input), &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+  }
+}
+
+TEST(StrToUint16, Partial) {
+  struct Uint16TestLine {
+    std::string input;
+    bool status;
+    uint16_t value;
+  };
+  const uint16_t uint16_max = std::numeric_limits<uint16_t>::max();
+  Uint16TestLine uint16_test_line[] = {
+      {"", false, 0},
+      {" ", false, 0},
+      {"-", false, 0},
+      {"123@@@", false, 123},
+      {absl::StrCat(uint16_max, uint16_max), false, uint16_max},
+  };
+
+  for (const Uint16TestLine& test_line : uint16_test_line) {
+    uint16_t value = 2;
+    bool status = safe_strtou16_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = 2;
+    status = safe_strtou16_base(test_line.input, &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
+    value = 2;
+    status = safe_strtou16_base(absl::string_view(test_line.input), &value, 10);
+    EXPECT_EQ(test_line.status, status) << test_line.input;
+    EXPECT_EQ(test_line.value, value) << test_line.input;
   }
 }
 
@@ -1731,6 +2249,10 @@ void ExpectWritesNull() {
 }
 
 TEST(FastIntToBuffer, WritesNull) {
+  ExpectWritesNull<int8_t>();
+  ExpectWritesNull<uint8_t>();
+  ExpectWritesNull<int16_t>();
+  ExpectWritesNull<uint16_t>();
   ExpectWritesNull<int32_t>();
   ExpectWritesNull<uint32_t>();
   ExpectWritesNull<int64_t>();

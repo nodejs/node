@@ -6,12 +6,12 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/diamond.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/linkage.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-matchers.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/wasm-call-descriptors.h"
 #include "src/compiler/wasm-compiler.h"
 #include "src/wasm/wasm-engine.h"
@@ -26,7 +26,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Int64Lowering::Int64Lowering(Graph* graph, MachineOperatorBuilder* machine,
+Int64Lowering::Int64Lowering(TFGraph* graph, MachineOperatorBuilder* machine,
                              CommonOperatorBuilder* common,
                              SimplifiedOperatorBuilder* simplified, Zone* zone,
                              Signature<MachineRepresentation>* signature)

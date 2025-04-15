@@ -15,7 +15,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class Graph;
+class TFGraph;
 class JSGraph;
 class MachineOperatorBuilder;
 class Node;
@@ -71,7 +71,7 @@ class V8_EXPORT_PRIVATE WasmAddressReassociation final {
                     int64_t imm_offset, NodeId effect_chain);
   void ReplaceInputs(Node* mem_op, Node* object, Node* index);
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   ZoneMap<CandidateAddressKey, CandidateBaseAddr> candidate_base_addrs_;

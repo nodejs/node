@@ -8,7 +8,6 @@
 #include "include/v8config.h"
 #include "src/base/atomicops.h"
 #include "src/base/memory.h"
-#include "src/base/platform/mutex.h"
 #include "src/common/globals.h"
 #include "src/sandbox/external-entity-table.h"
 #include "src/sandbox/indirect-pointer-tag.h"
@@ -19,8 +18,9 @@
 namespace v8 {
 namespace internal {
 
-class Isolate;
 class Counters;
+class Isolate;
+class TrustedPointerPublishingScope;
 
 /**
  * The entries of a TrustedPointerTable.
@@ -51,6 +51,9 @@ struct TrustedPointerTableEntry {
 
   // Returns true if this entry contains a pointer with the given tag.
   inline bool HasPointer(IndirectPointerTag tag) const;
+
+  // Overwrites the existing type tag. Be careful.
+  inline void OverwriteTag(IndirectPointerTag tag);
 
   // Returns true if this entry is a freelist entry.
   inline bool IsFreelistEntry() const;
@@ -83,6 +86,7 @@ struct TrustedPointerTableEntry {
     static constexpr uint64_t kTagMask = kIndirectPointerTagMask;
     static constexpr TagType kFreeEntryTag = kFreeTrustedPointerTableEntryTag;
     static constexpr bool kSupportsEvacuation = false;
+    static constexpr bool kSupportsZapping = false;
   };
 
   struct Payload : TaggedPayload<TrustedPointerTaggingScheme> {
@@ -133,9 +137,6 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
     : public ExternalEntityTable<TrustedPointerTableEntry,
                                  kTrustedPointerTableReservationSize> {
  public:
-  // Size of a TrustedPointerTable, for layout computation in IsolateData.
-  static constexpr int kSize = 2 * kSystemPointerSize;
-
   static_assert(kMaxTrustedPointers == kMaxCapacity);
   static_assert(!kSupportsCompaction);
 
@@ -152,6 +153,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline Address Get(TrustedPointerHandle handle, IndirectPointerTag tag) const;
+  // Allows kUnpublishedIndirectPointerTag in addition to the specified {tag}.
+  inline Address GetMaybeUnpublished(TrustedPointerHandle handle,
+                                     IndirectPointerTag tag) const;
 
   // Sets the content of the entry referenced by the given handle.
   //
@@ -163,7 +167,8 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   //
   // This method is atomic and can be called from background threads.
   inline TrustedPointerHandle AllocateAndInitializeEntry(
-      Space* space, Address pointer, IndirectPointerTag tag);
+      Space* space, Address pointer, IndirectPointerTag tag,
+      TrustedPointerPublishingScope* scope);
 
   // Marks the specified entry as alive.
   //
@@ -183,6 +188,9 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Accessing a zapped entry will return an invalid pointer.
   inline void Zap(TrustedPointerHandle handle);
 
+  // Checks whether the given entry currently has the "unpublished" tag.
+  inline bool IsUnpublished(TrustedPointerHandle handle) const;
+
   // Iterate over all active entries in the given space.
   //
   // The callback function will be invoked once for every entry that is
@@ -201,8 +209,6 @@ class V8_EXPORT_PRIVATE TrustedPointerTable
   // Ensure that the value is valid before storing it into this table.
   inline void Validate(Address pointer, IndirectPointerTag tag);
 };
-
-static_assert(sizeof(TrustedPointerTable) == TrustedPointerTable::kSize);
 
 }  // namespace internal
 }  // namespace v8

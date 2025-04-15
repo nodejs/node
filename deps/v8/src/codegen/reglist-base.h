@@ -110,13 +110,13 @@ class RegListBase {
   }
 
   constexpr RegisterT first() const {
-    DCHECK(!is_empty());
+    CHECK(!is_empty());
     int first_code = base::bits::CountTrailingZerosNonZero(regs_);
     return RegisterT::from_code(first_code);
   }
 
   constexpr RegisterT last() const {
-    DCHECK(!is_empty());
+    CHECK(!is_empty());
     int last_code =
         8 * sizeof(regs_) - 1 - base::bits::CountLeadingZeros(regs_);
     return RegisterT::from_code(last_code);

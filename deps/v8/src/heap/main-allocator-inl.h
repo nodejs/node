@@ -5,10 +5,12 @@
 #ifndef V8_HEAP_MAIN_ALLOCATOR_INL_H_
 #define V8_HEAP_MAIN_ALLOCATOR_INL_H_
 
-#include "src/base/sanitizer/msan.h"
+#include "src/heap/main-allocator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/flags/flags.h"
 #include "src/heap/heap-inl.h"
-#include "src/heap/main-allocator.h"
+#include "src/heap/marking-state-inl.h"
 
 namespace v8 {
 namespace internal {

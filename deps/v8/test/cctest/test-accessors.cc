@@ -209,8 +209,7 @@ static void XGetter(Local<Name> name,
 static void XGetter(const v8::FunctionCallbackInfo<v8::Value>& info) {
   v8::Isolate* isolate = info.GetIsolate();
   CHECK(x_receiver_global.Get(isolate)
-            ->Equals(isolate->GetCurrentContext(),
-                     info.HolderSoonToBeDeprecated())
+            ->Equals(isolate->GetCurrentContext(), info.This())
             .FromJust());
   XGetter(info, 1);
 }
@@ -227,7 +226,7 @@ Local<v8::Object> GetHolder<v8::PropertyCallbackInfo<void>>(
 template <>
 Local<v8::Object> GetHolder<v8::FunctionCallbackInfo<v8::Value>>(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  return info.HolderSoonToBeDeprecated();
+  return info.This();
 }
 
 template<class Info>

@@ -31,12 +31,13 @@
 #ifndef ABSL_RANDOM_RANDOM_H_
 #define ABSL_RANDOM_RANDOM_H_
 
+#include <cstdint>
 #include <random>
 
+#include "absl/base/config.h"
 #include "absl/random/distributions.h"  // IWYU pragma: export
-#include "absl/random/internal/nonsecure_base.h"  // IWYU pragma: export
-#include "absl/random/internal/pcg_engine.h"  // IWYU pragma: export
-#include "absl/random/internal/pool_urbg.h"
+#include "absl/random/internal/nonsecure_base.h"
+#include "absl/random/internal/pcg_engine.h"
 #include "absl/random/internal/randen_engine.h"
 #include "absl/random/seed_sequences.h"  // IWYU pragma: export
 
@@ -94,31 +95,46 @@ ABSL_NAMESPACE_BEGIN
 // types on modern x86, ARM, and PPC architectures.
 //
 // This type is thread-compatible, but not thread-safe.
+class BitGen : private random_internal::NonsecureURBGBase<
+                   random_internal::randen_engine<uint64_t>> {
+  using Base = random_internal::NonsecureURBGBase<
+      random_internal::randen_engine<uint64_t>>;
 
-// ---------------------------------------------------------------------------
-// absl::BitGen member functions
-// ---------------------------------------------------------------------------
+ public:
+  using result_type = typename Base::result_type;
 
-// absl::BitGen::operator()()
-//
-// Calls the BitGen, returning a generated value.
+  // BitGen()
+  // BitGen(SeedSequence seed_seq)
+  //
+  // Copy disallowed.
+  // Move allowed.
+  using Base::Base;
+  using Base::operator=;
 
-// absl::BitGen::min()
-//
-// Returns the smallest possible value from this bit generator.
+  // BitGen::min()
+  //
+  // Returns the smallest possible value from this bit generator.
+  using Base::min;
 
-// absl::BitGen::max()
-//
-// Returns the largest possible value from this bit generator.
+  // BitGen::max()
+  //
+  // Returns the largest possible value from this bit generator.
+  using Base::max;
 
-// absl::BitGen::discard(num)
-//
-// Advances the internal state of this bit generator by `num` times, and
-// discards the intermediate results.
-// ---------------------------------------------------------------------------
+  // BitGen::discard(num)
+  //
+  // Advances the internal state of this bit generator by `num` times, and
+  // discards the intermediate results.
+  using Base::discard;
 
-using BitGen = random_internal::NonsecureURBGBase<
-    random_internal::randen_engine<uint64_t>>;
+  // BitGen::operator()()
+  //
+  // Invoke the URBG, returning a generated value.
+  using Base::operator();
+
+  using Base::operator==;
+  using Base::operator!=;
+};
 
 // -----------------------------------------------------------------------------
 // absl::InsecureBitGen
@@ -156,32 +172,51 @@ using BitGen = random_internal::NonsecureURBGBase<
 // `absl::InsecureBitGen` is not cryptographically secure.
 //
 // Prefer `absl::BitGen` over `absl::InsecureBitGen` as the general type is
-// often fast enough for the vast majority of applications.
-
-using InsecureBitGen =
-    random_internal::NonsecureURBGBase<random_internal::pcg64_2018_engine>;
-
-// ---------------------------------------------------------------------------
-// absl::InsecureBitGen member functions
-// ---------------------------------------------------------------------------
-
-// absl::InsecureBitGen::operator()()
+// often fast enough for the vast majority of applications. However, it is
+// reasonable to use `absl::InsecureBitGen` in tests or when using a URBG
+// in small isolated tasks such as in `std::shuffle`.
 //
-// Calls the InsecureBitGen, returning a generated value.
+// This type is thread-compatible, but not thread-safe.
+class InsecureBitGen : private random_internal::NonsecureURBGBase<
+                           random_internal::pcg64_2018_engine> {
+  using Base =
+      random_internal::NonsecureURBGBase<random_internal::pcg64_2018_engine>;
 
-// absl::InsecureBitGen::min()
-//
-// Returns the smallest possible value from this bit generator.
+ public:
+  using result_type = typename Base::result_type;
 
-// absl::InsecureBitGen::max()
-//
-// Returns the largest possible value from this bit generator.
+  // InsecureBitGen()
+  // InsecureBitGen(SeedSequence seed_seq)
+  //
+  // Copy disallowed.
+  // Move allowed.
+  using Base::Base;
+  using Base::operator=;
 
-// absl::InsecureBitGen::discard(num)
-//
-// Advances the internal state of this bit generator by `num` times, and
-// discards the intermediate results.
-// ---------------------------------------------------------------------------
+  // InsecureBitGen::min()
+  //
+  // Returns the smallest possible value from this bit generator.
+  using Base::min;
+
+  // InsecureBitGen::max()
+  //
+  // Returns the largest possible value from this bit generator.
+  using Base::max;
+
+  // InsecureBitGen::discard(num)
+  //
+  // Advances the internal state of this bit generator by `num` times, and
+  // discards the intermediate results.
+  using Base::discard;
+
+  // InsecureBitGen::operator()()
+  //
+  // Invoke the URBG, returning a generated value.
+  using Base::operator();
+
+  using Base::operator==;
+  using Base::operator!=;
+};
 
 ABSL_NAMESPACE_END
 }  // namespace absl

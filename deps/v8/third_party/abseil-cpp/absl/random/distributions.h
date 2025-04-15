@@ -50,7 +50,6 @@
 #include <type_traits>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/inline_variable.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/bernoulli_distribution.h"
 #include "absl/random/beta_distribution.h"
@@ -68,13 +67,12 @@
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalClosedClosedTag, IntervalClosedClosed,
-                               {});
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalClosedClosedTag, IntervalClosed, {});
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalClosedOpenTag, IntervalClosedOpen, {});
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalOpenOpenTag, IntervalOpenOpen, {});
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalOpenOpenTag, IntervalOpen, {});
-ABSL_INTERNAL_INLINE_CONSTEXPR(IntervalOpenClosedTag, IntervalOpenClosed, {});
+inline constexpr IntervalClosedClosedTag IntervalClosedClosed = {};
+inline constexpr IntervalClosedClosedTag IntervalClosed = {};
+inline constexpr IntervalClosedOpenTag IntervalClosedOpen = {};
+inline constexpr IntervalOpenOpenTag IntervalOpenOpen = {};
+inline constexpr IntervalOpenOpenTag IntervalOpen = {};
+inline constexpr IntervalOpenClosedTag IntervalOpenClosed = {};
 
 // -----------------------------------------------------------------------------
 // absl::Uniform<T>(tag, bitgen, lo, hi)

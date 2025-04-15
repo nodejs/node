@@ -15,7 +15,8 @@
 // -----------------------------------------------------------------------------
 // File: log/internal/strip.h
 // -----------------------------------------------------------------------------
-//
+
+// SKIP_ABSL_INLINE_NAMESPACE_CHECK
 
 #ifndef ABSL_LOG_INTERNAL_STRIP_H_
 #define ABSL_LOG_INTERNAL_STRIP_H_
@@ -30,15 +31,6 @@
 // of defines comes in three flavors: vanilla, plus two variants that strip some
 // logging in subtly different ways for subtly different reasons (see below).
 #if defined(STRIP_LOG) && STRIP_LOG
-
-// Attribute for marking variables used in implementation details of logging
-// macros as unused, but only when `STRIP_LOG` is defined.
-// With `STRIP_LOG` on, not marking them triggers `-Wunused-but-set-variable`,
-// With `STRIP_LOG` off, marking them triggers `-Wused-but-marked-unused`.
-//
-// TODO(b/290784225): Replace this macro with attribute [[maybe_unused]] when
-// Abseil stops supporting C++14.
-#define ABSL_LOG_INTERNAL_ATTRIBUTE_UNUSED_IF_STRIP_LOG ABSL_ATTRIBUTE_UNUSED
 
 #define ABSL_LOGGING_INTERNAL_LOG_INFO ::absl::log_internal::NullStream()
 #define ABSL_LOGGING_INTERNAL_LOG_WARNING ::absl::log_internal::NullStream()
@@ -61,8 +53,6 @@
   ABSL_LOGGING_INTERNAL_LOG_QFATAL
 
 #else  // !defined(STRIP_LOG) || !STRIP_LOG
-
-#define ABSL_LOG_INTERNAL_ATTRIBUTE_UNUSED_IF_STRIP_LOG
 
 #define ABSL_LOGGING_INTERNAL_LOG_INFO \
   ::absl::log_internal::LogMessage(    \
@@ -104,5 +94,7 @@
 #define ABSL_LOGGING_INTERNAL_DLOG_ERROR ABSL_LOGGING_INTERNAL_LOG_ERROR
 #define ABSL_LOGGING_INTERNAL_DLOG_DFATAL ABSL_LOGGING_INTERNAL_LOG_DFATAL
 #define ABSL_LOGGING_INTERNAL_DLOG_LEVEL ABSL_LOGGING_INTERNAL_LOG_LEVEL
+
+#define ABSL_LOGGING_INTERNAL_LOG_DO_NOT_SUBMIT ABSL_LOGGING_INTERNAL_LOG_ERROR
 
 #endif  // ABSL_LOG_INTERNAL_STRIP_H_

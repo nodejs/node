@@ -5,8 +5,8 @@
 namespace string {
 const kBuiltinName: constexpr string = 'String.prototype.repeat';
 
-builtin StringRepeat(implicit context: Context)(string: String, count: Smi):
-    String {
+builtin StringRepeat(implicit context: Context)(string: String,
+                      count: Smi): String {
   dcheck(count >= 0);
   dcheck(string != kEmptyString);
 

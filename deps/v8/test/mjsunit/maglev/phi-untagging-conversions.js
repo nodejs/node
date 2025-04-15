@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --maglev --allow-natives-syntax --no-always-turbofan
+// Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 
 // In this example, the final block of the graph will be something like:

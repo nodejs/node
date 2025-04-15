@@ -6,6 +6,7 @@
 #define V8_OBJECTS_SMI_INL_H_
 
 #include "src/objects/smi.h"
+// Include the non-inl header before the rest of the headers.
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

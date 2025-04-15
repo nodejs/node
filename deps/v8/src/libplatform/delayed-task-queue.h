@@ -11,7 +11,6 @@
 
 #include "include/libplatform/libplatform-export.h"
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
 
 namespace v8 {

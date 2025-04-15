@@ -81,6 +81,10 @@ typedef unsigned __uint128_t __attribute__((__mode__(__TI__)));
 #include "src/utils/allocation.h"
 #include "src/utils/boxed-float.h"
 
+namespace heap::base {
+class StackVisitor;
+}
+
 namespace v8 {
 namespace internal {
 
@@ -530,9 +534,15 @@ class Simulator : public SimulatorBase {
   // Accessor to the internal simulator stack area. Adds a safety
   // margin to prevent overflows (kAdditionalStackMargin).
   uintptr_t StackLimit(uintptr_t c_limit) const;
-  // Return current stack view, without additional safety margins.
+  uintptr_t StackBase() const;
+  // Return central stack view, without additional safety margins.
   // Users, for example wasm::StackMemory, can add their own.
-  base::Vector<uint8_t> GetCurrentStackView() const;
+  base::Vector<uint8_t> GetCentralStackView() const;
+
+  void IterateRegistersAndStack(::heap::base::StackVisitor* visitor);
+
+  // Pseudo instruction for switching stack limit
+  void DoSwitchStackLimit(Instruction* instr);
 
   // Executes RISC-V instructions until the PC reaches end_sim_pc.
   void Execute();
@@ -588,10 +598,10 @@ class Simulator : public SimulatorBase {
   double CallFP(Address entry, double d0, double d1);
 
   // Push an address onto the JS stack.
-  uintptr_t PushAddress(uintptr_t address);
+  V8_EXPORT_PRIVATE uintptr_t PushAddress(uintptr_t address);
 
   // Pop an address from the JS stack.
-  uintptr_t PopAddress();
+  V8_EXPORT_PRIVATE uintptr_t PopAddress();
 
   // Debugger input.
   void set_last_debugger_input(char* input);
@@ -1113,6 +1123,7 @@ class Simulator : public SimulatorBase {
   // Stop helper functions.
   bool IsWatchpoint(reg_t code);
   bool IsTracepoint(reg_t code);
+  bool IsSwitchStackLimit(reg_t code);
   void PrintWatchpoint(reg_t code);
   void HandleStop(reg_t code);
   bool IsStopInstruction(Instruction* instr);
@@ -1168,7 +1179,7 @@ class Simulator : public SimulatorBase {
 #endif
   // Simulator support.
   // Allocate 1MB for stack.
-  uint8_t* stack_;
+  uintptr_t stack_;
   static const size_t kStackProtectionSize = 256 * kSystemPointerSize;
   // This includes a protection margin at each end of the stack area.
   static size_t AllocatedStackSize() {
@@ -1182,6 +1193,10 @@ class Simulator : public SimulatorBase {
   static size_t UsableStackSize() {
     return AllocatedStackSize() - kStackProtectionSize;
   }
+
+  uintptr_t stack_limit_;
+  // Added in Simulator::StackLimit()
+  static const int kAdditionalStackMargin = 4 * KB;
 
   bool pc_modified_;
   int64_t icount_;

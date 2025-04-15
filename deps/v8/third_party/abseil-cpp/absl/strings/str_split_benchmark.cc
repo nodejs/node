@@ -12,8 +12,6 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#include "absl/strings/str_split.h"
-
 #include <cstddef>
 #include <iterator>
 #include <string>
@@ -21,9 +19,10 @@
 #include <unordered_set>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/internal/raw_logging.h"
+#include "absl/strings/str_split.h"
 #include "absl/strings/string_view.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 

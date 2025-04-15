@@ -6,6 +6,7 @@
 #define V8_OBJECTS_JS_PROMISE_INL_H_
 
 #include "src/objects/js-promise.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 #include "src/objects/objects.h"

@@ -20,6 +20,9 @@ extern runtime ThrowInvalidTypedArrayAlignment(
 extern runtime GrowableSharedArrayBufferByteLength(
     implicit context: Context)(Object): JSAny;
 
+const kFloat16ArrayFeature: constexpr UseCounterFeature
+    generates 'v8::Isolate::kFloat16Array';
+
 transitioning macro AllocateTypedArray(
     implicit context: Context)(isOnHeap: constexpr bool, map: Map,
     buffer: JSArrayBuffer, byteOffset: uintptr, byteLength: uintptr,
@@ -78,6 +81,10 @@ transitioning macro AllocateTypedArray(
         (buffer.backing_store_ptr + Convert<intptr>(byteOffset)));
   }
   SetupTypedArrayEmbedderFields(typedArray);
+  if (typedArray.elements_kind == ElementsKind::FLOAT16_ELEMENTS ||
+      typedArray.elements_kind == ElementsKind::RAB_GSAB_FLOAT16_ELEMENTS) {
+    IncrementUseCounter(context, SmiConstant(kFloat16ArrayFeature));
+  }
   return typedArray;
 }
 
@@ -92,7 +99,8 @@ transitioning macro TypedArrayInitialize(
   const byteOffset: uintptr = 0;
 
   try {
-    if (byteLength > kMaxTypedArrayInHeap) goto AllocateOffHeap;
+    if (byteLength > kMaxTypedArrayInHeap || kMaxTypedArrayInHeap == 0)
+      goto AllocateOffHeap;
 
     const buffer = AllocateEmptyOnHeapBuffer();
 
@@ -301,6 +309,9 @@ transitioning macro ConstructByArrayBuffer(
       } else {
         // b. Else,
         //   i. Let newByteLength be newLength × elementSize.
+        // Since the ArrayBuffer already exists, the typed array view on top
+        // of it can't be too big to allocate, but it could still exceed the
+        // limit.
         newByteLength = elementsInfo.CalculateByteLength(newLength)
             otherwise IfInvalidLength;
 

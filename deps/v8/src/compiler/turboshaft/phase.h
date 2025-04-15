@@ -28,18 +28,12 @@
 #include "src/zone/accounting-allocator.h"
 #include "src/zone/zone.h"
 
-#ifdef HAS_CPP_CONCEPTS
-#define STATIC_ASSERT_IF_CONCEPTS(cond) static_assert(cond)
-#else
-#define STATIC_ASSERT_IF_CONCEPTS(cond)
-#endif  // HAS_CPP_CONCEPTS
-
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS_IMPL(Name, CallStatsName)             \
   DECL_PIPELINE_PHASE_CONSTANTS_HELPER(CallStatsName, PhaseKind::kTurboshaft, \
                                        RuntimeCallStats::kThreadSpecific)     \
   static constexpr char kPhaseName[] = "V8.TF" #CallStatsName;                \
   static void AssertTurboshaftPhase() {                                       \
-    STATIC_ASSERT_IF_CONCEPTS(TurboshaftPhase<Name##Phase>);                  \
+    static_assert(TurboshaftPhase<Name##Phase>);                              \
   }
 
 #define DECL_TURBOSHAFT_PHASE_CONSTANTS(Name) \
@@ -53,7 +47,7 @@
                                        RuntimeCallStats::kExact)               \
   static constexpr char kPhaseName[] = "V8.TF" #Name;                          \
   static void AssertTurboshaftPhase() {                                        \
-    STATIC_ASSERT_IF_CONCEPTS(TurboshaftPhase<Name##Phase>);                   \
+    static_assert(TurboshaftPhase<Name##Phase>);                               \
   }
 
 namespace v8::internal::compiler {
@@ -66,7 +60,6 @@ namespace v8::internal::compiler::turboshaft {
 
 class PipelineData;
 
-#ifdef HAS_CPP_CONCEPTS
 template <typename Phase>
 struct HasProperRunMethod {
   using parameters = base::tmp::call_parameters_t<decltype(&Phase::Run)>;
@@ -89,11 +82,6 @@ concept TurbofanPhase = requires(Phase p) { p.kKind == PhaseKind::kTurbofan; };
 
 template <typename Phase>
 concept CompilerPhase = TurboshaftPhase<Phase> || TurbofanPhase<Phase>;
-
-#define CONCEPT(name) name
-#else  // HAS_CPP_CONCEPTS
-#define CONCEPT(name) typename
-#endif  // HAS_CPP_CONCEPTS
 
 namespace detail {
 template <typename, typename = void>
@@ -145,6 +133,7 @@ struct GraphComponent : public ComponentWithZone<kGraphZoneName> {
   Pointer<SourcePositionTable> source_positions = nullptr;
   Pointer<NodeOriginTable> node_origins = nullptr;
   bool graph_has_special_rpo = false;
+  bool graph_has_lowered_fast_api_calls = false;
 };
 
 struct CodegenComponent : public ComponentWithZone<kCodegenZoneName> {
@@ -183,6 +172,7 @@ enum class TurboshaftPipelineKind { kJS, kWasm, kCSA, kTSABuiltin, kJSToWasm };
 
 class LoopUnrollingAnalyzer;
 class WasmRevecAnalyzer;
+class WasmShuffleAnalyzer;
 
 class V8_EXPORT_PRIVATE PipelineData {
   using BuiltinComponent = detail::BuiltinComponent;
@@ -311,6 +301,14 @@ class V8_EXPORT_PRIVATE PipelineData {
     }
   }
 
+  void InitializeInstructionComponentWithSequence(
+      InstructionSequence* sequence) {
+    DCHECK(!instruction_component_.has_value());
+    instruction_component_.emplace(zone_stats());
+    instruction_component_->sequence =
+        InstructionComponent::Pointer<InstructionSequence>(sequence);
+  }
+
   void ClearInstructionComponent() {
     DCHECK(instruction_component_.has_value());
     instruction_component_.reset();
@@ -371,11 +369,11 @@ class V8_EXPORT_PRIVATE PipelineData {
   CodeGenerator* code_generator() const {
     return codegen_component_->code_generator.get();
   }
-  void set_code(MaybeHandle<Code> code) {
+  void set_code(MaybeIndirectHandle<Code> code) {
     DCHECK(code_.is_null());
     code_ = code;
   }
-  MaybeHandle<Code> code() const { return code_; }
+  MaybeIndirectHandle<Code> code() const { return code_; }
   InstructionSequence* sequence() const {
     return instruction_component_->sequence;
   }
@@ -408,23 +406,34 @@ class V8_EXPORT_PRIVATE PipelineData {
   }
 
 #if V8_ENABLE_WEBASSEMBLY
-  const wasm::FunctionSig* wasm_sig() const {
-    DCHECK(wasm_sig_ != nullptr);
-    return wasm_sig_;
+  // Module-specific signature: type indices are only valid in the WasmModule*
+  // they belong to.
+  const wasm::FunctionSig* wasm_module_sig() const { return wasm_module_sig_; }
+
+  // Canonicalized (module-independent) signature.
+  const wasm::CanonicalSig* wasm_canonical_sig() const {
+    return wasm_canonical_sig_;
   }
 
   const wasm::WasmModule* wasm_module() const { return wasm_module_; }
 
   bool wasm_shared() const { return wasm_shared_; }
 
-  void SetIsWasm(const wasm::WasmModule* module, const wasm::FunctionSig* sig,
-                 bool shared) {
+  void SetIsWasmFunction(const wasm::WasmModule* module,
+                         const wasm::FunctionSig* sig, bool shared) {
     wasm_module_ = module;
-    wasm_sig_ = sig;
+    wasm_module_sig_ = sig;
     wasm_shared_ = shared;
     DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
            pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
   }
+
+  void SetIsWasmWrapper(const wasm::CanonicalSig* sig) {
+    wasm_canonical_sig_ = sig;
+    DCHECK(pipeline_kind() == TurboshaftPipelineKind::kWasm ||
+           pipeline_kind() == TurboshaftPipelineKind::kJSToWasm);
+  }
+
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
   WasmRevecAnalyzer* wasm_revec_analyzer() const {
     DCHECK_NOT_NULL(wasm_revec_analyzer_);
@@ -438,6 +447,18 @@ class V8_EXPORT_PRIVATE PipelineData {
 
   void clear_wasm_revec_analyzer() { wasm_revec_analyzer_ = nullptr; }
 #endif  // V8_ENABLE_WASM_SIMD256_REVEC
+
+  WasmShuffleAnalyzer* wasm_shuffle_analyzer() const {
+    DCHECK_NOT_NULL(wasm_shuffle_analyzer_);
+    return wasm_shuffle_analyzer_;
+  }
+
+  void set_wasm_shuffle_analyzer(WasmShuffleAnalyzer* wasm_shuffle_analyzer) {
+    DCHECK_NULL(wasm_shuffle_analyzer_);
+    wasm_shuffle_analyzer_ = wasm_shuffle_analyzer;
+  }
+
+  void clear_wasm_shuffle_analyzer() { wasm_shuffle_analyzer_ = nullptr; }
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   bool is_wasm() const {
@@ -474,6 +495,12 @@ class V8_EXPORT_PRIVATE PipelineData {
   void set_graph_has_special_rpo() {
     graph_component_->graph_has_special_rpo = true;
   }
+  bool graph_has_lowered_fast_api_calls() const {
+    return graph_component_->graph_has_lowered_fast_api_calls;
+  }
+  void set_graph_has_lowered_fast_api_calls() {
+    graph_component_->graph_has_lowered_fast_api_calls = true;
+  }
 
  private:
   ZoneStats* zone_stats_;
@@ -491,7 +518,7 @@ class V8_EXPORT_PRIVATE PipelineData {
   CompilationDependencies* dependencies_ = nullptr;
   int start_source_position_ = kNoSourcePosition;
   const AssemblerOptions assembler_options_;
-  MaybeHandle<Code> code_;
+  MaybeIndirectHandle<Code> code_;
   std::string source_position_output_;
   RuntimeCallStats* runtime_call_stats_ = nullptr;
   // Components
@@ -504,9 +531,11 @@ class V8_EXPORT_PRIVATE PipelineData {
 #if V8_ENABLE_WEBASSEMBLY
   // TODO(14108): Consider splitting wasm members into its own WasmPipelineData
   // if we need many of them.
-  const wasm::FunctionSig* wasm_sig_ = nullptr;
+  const wasm::FunctionSig* wasm_module_sig_ = nullptr;
+  const wasm::CanonicalSig* wasm_canonical_sig_ = nullptr;
   const wasm::WasmModule* wasm_module_ = nullptr;
   bool wasm_shared_ = false;
+  WasmShuffleAnalyzer* wasm_shuffle_analyzer_ = nullptr;
 #ifdef V8_ENABLE_WASM_SIMD256_REVEC
 
   WasmRevecAnalyzer* wasm_revec_analyzer_ = nullptr;

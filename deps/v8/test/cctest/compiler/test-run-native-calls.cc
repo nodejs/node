@@ -84,14 +84,6 @@ class RegisterPairs : public Pairs {
               GetRegConfig()->allocatable_general_codes()) {}
 };
 
-// Pairs of float registers.
-class Float32RegisterPairs : public Pairs {
- public:
-  Float32RegisterPairs()
-      : Pairs(100, GetRegConfig()->num_allocatable_float_registers(),
-              GetRegConfig()->allocatable_float_codes()) {}
-};
-
 
 // Pairs of double registers.
 class Float64RegisterPairs : public Pairs {
@@ -192,7 +184,7 @@ class RegisterConfig {
         kDefaultCodeEntrypointTag,          // tag
         target_type,                        // target MachineType
         target_loc,                         // target location
-        locations.Build(),                  // location_sig
+        locations.Get(),                    // location_sig
         stack_param_count,                  // stack_parameter_count
         compiler::Operator::kNoProperties,  // properties
         kCalleeSaveRegisters,               // callee-saved registers
@@ -243,7 +235,7 @@ class Int32Signature : public MachineSignature {
 };
 
 Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
-                          Graph* graph, Schedule* schedule = nullptr) {
+                          TFGraph* graph, Schedule* schedule = nullptr) {
   Isolate* isolate = CcTest::InitIsolateOnce();
   OptimizedCompilationInfo info(base::ArrayVector("testing"), graph->zone(),
                                 CodeKind::FOR_TESTING);
@@ -260,8 +252,8 @@ Handle<Code> CompileGraph(const char* name, CallDescriptor* call_descriptor,
   return code;
 }
 
-Handle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
-                               CallDescriptor* call_descriptor) {
+DirectHandle<Code> WrapWithCFunction(Isolate* isolate, Handle<Code> inner,
+                                     CallDescriptor* call_descriptor) {
   Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
   int param_count = static_cast<int>(call_descriptor->ParameterCount());
   GraphAndBuilders caller(&zone);
@@ -429,7 +421,7 @@ class Computer {
     {
       // Build the graph for the computation.
       Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-      Graph graph(&zone);
+      TFGraph graph(&zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       build(desc, &raw);
       inner = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
@@ -444,7 +436,7 @@ class Computer {
       {
         // Wrap the above code with a callable function that passes constants.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-        Graph graph(&zone);
+        TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* target = raw.HeapConstant(inner);
@@ -478,7 +470,7 @@ class Computer {
       {
         // Wrap the above code with a callable function that loads from {input}.
         Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-        Graph graph(&zone);
+        TFGraph graph(&zone);
         CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
         Node* base = raw.PointerConstant(io.input);
@@ -561,7 +553,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   {
     // Writes all parameters into the output buffer.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     RawMachineAssembler raw(isolate, &graph, desc);
     Node* base = raw.PointerConstant(output);
     for (int i = 0; i < kNumParams; i++) {
@@ -578,7 +570,7 @@ static void CopyTwentyInt32(CallDescriptor* desc) {
   {
     // Loads parameters from the input buffer and calls the above code.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     CallDescriptor* cdesc = Linkage::GetSimplifiedCDescriptor(&zone, &csig);
     RawMachineAssembler raw(isolate, &graph, cdesc);
     Node* base = raw.PointerConstant(input);
@@ -856,7 +848,12 @@ TEST(Float32Select_registers) {
   int rarray[] = {GetRegConfig()->GetAllocatableFloatCode(0)};
   ArgsBuffer<float32>::Sig sig(2);
 
-  Float32RegisterPairs pairs;
+  // Although we want to create 32-bit float register parameters for this test,
+  // wasm::LinkageAllocator (used by RegisterConfig below) expects an array of
+  // double registers. On arm, it uses this array to allocate a D register
+  // first, and remaps it to an (even-numbered) S register if a Float32 was
+  // requested (see wasm::LinkageAllocator::NextFpReg).
+  Float64RegisterPairs pairs;
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME);
   while (pairs.More()) {
@@ -947,7 +944,7 @@ static void Build_Select_With_Call(CallDescriptor* desc,
     Isolate* isolate = CcTest::InitIsolateOnce();
     // Build the actual select.
     Zone zone(isolate->allocator(), ZONE_NAME, kCompressGraphZone);
-    Graph graph(&zone);
+    TFGraph graph(&zone);
     RawMachineAssembler r(isolate, &graph, desc);
     r.Return(r.Parameter(which));
     inner = CompileGraph("Select-indirection", desc, &graph, r.ExportForTest());
@@ -1036,14 +1033,14 @@ void MixedParamTest(int start) {
     MachineSignature::Builder builder(&zone, 1, num_params);
     builder.AddReturn(params[which]);
     for (int j = 0; j < num_params; j++) builder.AddParam(params[j]);
-    MachineSignature* sig = builder.Build();
+    MachineSignature* sig = builder.Get();
     CallDescriptor* desc = config.Create(&zone, sig);
 
     Handle<Code> select;
     {
       // build the select.
       Zone select_zone(&allocator, ZONE_NAME, kCompressGraphZone);
-      Graph graph(&select_zone);
+      TFGraph graph(&select_zone);
       RawMachineAssembler raw(isolate, &graph, desc);
       raw.Return(raw.Parameter(which));
       select = CompileGraph("Compute", desc, &graph, raw.ExportForTest());
@@ -1060,7 +1057,7 @@ void MixedParamTest(int start) {
       {
         // Wrap the select code with a callable function that passes constants.
         Zone wrap_zone(&allocator, ZONE_NAME, kCompressGraphZone);
-        Graph graph(&wrap_zone);
+        TFGraph graph(&wrap_zone);
         CallDescriptor* cdesc =
             Linkage::GetSimplifiedCDescriptor(&wrap_zone, &csig);
         RawMachineAssembler raw(isolate, &graph, cdesc);
@@ -1153,13 +1150,13 @@ void TestStackSlot(MachineType slot_type, T expected) {
   }
   builder.AddParam(slot_type);
   builder.AddParam(MachineType::Pointer());
-  MachineSignature* sig = builder.Build();
+  MachineSignature* sig = builder.Get();
   CallDescriptor* desc = config.Create(&zone, sig);
 
   // Create inner function g. g has lots of parameters so that they are passed
   // over the stack.
   Handle<Code> inner;
-  Graph graph(&zone);
+  TFGraph graph(&zone);
   RawMachineAssembler g(isolate, &graph, desc);
 
   g.Store(slot_type.representation(), g.Parameter(11), g.Parameter(10),

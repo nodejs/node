@@ -2,11 +2,10 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "include/cppgc/ephemeron-pair.h"
-
 #include "include/cppgc/allocation.h"
 #include "include/cppgc/garbage-collected.h"
 #include "include/cppgc/persistent.h"
+#include "include/cppgc/visitor.h"
 #include "src/heap/cppgc/heap-object-header.h"
 #include "src/heap/cppgc/marking-visitor.h"
 #include "src/heap/cppgc/stats-collector.h"
@@ -29,19 +28,6 @@ class EphemeronHolder : public GarbageCollected<EphemeronHolder> {
 
   const EphemeronPair<GCed, GCed>& ephemeron_pair() const {
     return ephemeron_pair_;
-  }
-
- private:
-  EphemeronPair<GCed, GCed> ephemeron_pair_;
-};
-
-class EphemeronHolderTraceEphemeron
-    : public GarbageCollected<EphemeronHolderTraceEphemeron> {
- public:
-  EphemeronHolderTraceEphemeron(GCed* key, GCed* value)
-      : ephemeron_pair_(key, value) {}
-  void Trace(cppgc::Visitor* visitor) const {
-    visitor->TraceEphemeron(ephemeron_pair_.key, &ephemeron_pair_.value);
   }
 
  private:
@@ -127,9 +113,8 @@ TEST_F(EphemeronPairTest, ValueNotMarkedBeforeKey) {
 TEST_F(EphemeronPairTest, TraceEphemeronDispatch) {
   GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  Persistent<EphemeronHolderTraceEphemeron> holder =
-      MakeGarbageCollected<EphemeronHolderTraceEphemeron>(GetAllocationHandle(),
-                                                          key, value);
+  Persistent<EphemeronHolder> holder =
+      MakeGarbageCollected<EphemeronHolder>(GetAllocationHandle(), key, value);
   HeapObjectHeader::FromObject(key).TryMarkAtomic();
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
   FinishMarking();
@@ -138,9 +123,8 @@ TEST_F(EphemeronPairTest, TraceEphemeronDispatch) {
 
 TEST_F(EphemeronPairTest, EmptyValue) {
   GCed* key = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  Persistent<EphemeronHolderTraceEphemeron> holder =
-      MakeGarbageCollected<EphemeronHolderTraceEphemeron>(GetAllocationHandle(),
-                                                          key, nullptr);
+  Persistent<EphemeronHolder> holder = MakeGarbageCollected<EphemeronHolder>(
+      GetAllocationHandle(), key, nullptr);
   HeapObjectHeader::FromObject(key).TryMarkAtomic();
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
   FinishMarking();
@@ -148,9 +132,8 @@ TEST_F(EphemeronPairTest, EmptyValue) {
 
 TEST_F(EphemeronPairTest, EmptyKey) {
   GCed* value = MakeGarbageCollected<GCed>(GetAllocationHandle());
-  Persistent<EphemeronHolderTraceEphemeron> holder =
-      MakeGarbageCollected<EphemeronHolderTraceEphemeron>(GetAllocationHandle(),
-                                                          nullptr, value);
+  Persistent<EphemeronHolder> holder = MakeGarbageCollected<EphemeronHolder>(
+      GetAllocationHandle(), nullptr, value);
   InitializeMarker(*Heap::From(GetHeap()), GetPlatformHandle().get());
   FinishMarking();
   // Key is not alive and value should thus not be held alive.

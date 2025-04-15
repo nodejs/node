@@ -36,13 +36,56 @@ a = {
 a =
 /* ObjectMutator: Swap properties */
 {
+  1: "a",
+  2: "c",
+  3: "b"
+};
+a =
+/* ObjectMutator: Swap properties */
+{
+  1: "a",
+  2: "c",
+  3: "b"
+};
+a =
+/* ObjectMutator: Duplicate a property value */
+{
+  1: "c",
+  2: "b",
+  3: "c"
+};
+a =
+/* ObjectMutator: Insert a random value */
+{
+  1: "a",
+  2: "b",
+  3: ""
+};
+a =
+/* ObjectMutator: Swap properties */
+{
   1: "c",
   2: "b",
   3: "a"
 };
 a =
-/* ObjectMutator: Remove a property */
+/* ObjectMutator: Swap properties */
 {
+  1: "c",
+  2: "b",
+  3: "a"
+};
+a =
+/* ObjectMutator: Duplicate a property value */
+{
+  1: "a",
+  2: "a",
+  3: "c"
+};
+a =
+/* ObjectMutator: Duplicate a property value */
+{
+  1: "b",
   2: "b",
   3: "c"
 };
@@ -54,62 +97,24 @@ a =
   3: "c"
 };
 a =
-/* ObjectMutator: Swap properties */
-{
-  1: "b",
-  2: "a",
-  3: "c"
-};
-a =
-/* ObjectMutator: Swap properties */
-{
-  1: "c",
-  2: "b",
-  3: "a"
-};
-a =
-/* ObjectMutator: Stringify a property key */
-{
-  "1": "a",
-  2: "b",
-  3: "c"
-};
-a =
 /* ObjectMutator: Remove a property */
 {
   2: "b",
   3: "c"
 };
-a =
-/* ObjectMutator: Swap properties */
-{
-  1: "b",
-  2: "a",
-  3: "c"
-};
-a =
-/* ObjectMutator: Duplicate a property value */
-{
-  1: "c",
-  2: "b",
-  3: "c"
-};
-a =
-/* ObjectMutator: Duplicate a property value */
-{
-  1: "a",
-  2: "b",
-  3: "b"
+a = {
+  get bar() {
+    return 0;
+  },
+  1: 0,
+  set bar(t) {}
 };
 a = {
   get bar() {
     return 0;
   },
-
   1: 0,
-
   set bar(t) {}
-
 };
 a =
 /* ObjectMutator: Insert a random value */
@@ -117,66 +122,42 @@ a =
   get bar() {
     return 0;
   },
-
   1: "",
-
   set bar(t) {}
-
 };
 a =
-/* ObjectMutator: Remove a property */
+/* ObjectMutator: Insert a random value */
 {
-  get bar() {
-    return 0;
+  1: "",
+  2:
+  /* ObjectMutator: Insert a random value */
+  {
+    3: ""
+  }
+};
+a =
+/* ObjectMutator: Swap properties */
+{
+  1: {
+    3: "3"
   },
-
-  set bar(t) {}
-
+  2:
+  /* ObjectMutator: Insert a random value */
+  {
+    4: "4",
+    5: "5",
+    6: ""
+  }
 };
 a =
 /* ObjectMutator: Duplicate a property value */
 {
   1:
-  /* ObjectMutator: Remove a property */
-  {},
-  2:
   /* ObjectMutator: Stringify a property key */
   {
     "3": "3"
-  }
-};
-a =
-/* ObjectMutator: Duplicate a property value */
-{
-  1:
-  /* ObjectMutator: Swap properties */
-  {
-    4: "4",
-    5: "6",
-    6: "5"
   },
-  2:
-  /* ObjectMutator: Remove a property */
-  {
-    5: "5",
-    6: "6"
-  }
-};
-a =
-/* ObjectMutator: Duplicate a property value */
-{
-  1:
-  /* ObjectMutator: Swap properties */
-  {
-    4: "6",
-    5: "5",
-    6: "4"
-  },
-  2:
-  /* ObjectMutator: Stringify a property key */
-  {
-    4: "4",
-    5: "5",
-    "6": "6"
+  2: {
+    3: "3"
   }
 };

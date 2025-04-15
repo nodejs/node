@@ -4,7 +4,7 @@
 //
 // Flags: --maglev --allow-natives-syntax --maglev-cse
 
-// CheckValueEqualsFloat64 with NaN
+// CheckFloat64SameValue with NaN
 const o22 = {
 };
 let v34 = o22.__proto__;

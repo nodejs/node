@@ -4,9 +4,9 @@
 
 #include <functional>
 
-#include "src/compiler/graph.h"
 #include "src/compiler/node.h"
 #include "src/compiler/operator.h"
+#include "src/compiler/turbofan-graph.h"
 #include "test/cctest/cctest.h"
 
 namespace v8 {
@@ -157,7 +157,7 @@ void CheckInputs(Node* node, Node** inputs, int input_count) {
 TEST(NodeUseIteratorReplaceUses) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
   Node* n2 = graph.NewNode(&dummy_operator1, n0);
@@ -183,7 +183,7 @@ TEST(NodeUseIteratorReplaceUses) {
 TEST(NodeUseIteratorReplaceUsesSelf) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
 
@@ -208,7 +208,7 @@ TEST(NodeUseIteratorReplaceUsesSelf) {
 TEST(ReplaceInput) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator0);
   Node* n2 = graph.NewNode(&dummy_operator0);
@@ -235,7 +235,7 @@ TEST(ReplaceInput) {
 TEST(OwnedBy) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator0);
@@ -286,7 +286,7 @@ TEST(OwnedBy) {
 TEST(Uses) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -309,7 +309,7 @@ TEST(Uses) {
 TEST(Inputs) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -337,7 +337,7 @@ TEST(Inputs) {
 TEST(InsertInputs) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -412,7 +412,7 @@ TEST(InsertInputs) {
 TEST(RemoveInput) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -443,7 +443,7 @@ TEST(RemoveInput) {
 TEST(AppendInputsAndIterator) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -466,7 +466,7 @@ TEST(AppendInputsAndIterator) {
 TEST(NullInputsSimple) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -494,7 +494,7 @@ TEST(NullInputsSimple) {
 TEST(NullInputsAppended) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -518,7 +518,7 @@ TEST(NullInputsAppended) {
 TEST(ReplaceUsesFromAppendedInputs) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator1, n0);
@@ -547,7 +547,7 @@ TEST(ReplaceUsesFromAppendedInputs) {
 TEST(ReplaceInputMultipleUses) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* n0 = graph.NewNode(&dummy_operator0);
   Node* n1 = graph.NewNode(&dummy_operator0);
@@ -566,7 +566,7 @@ TEST(ReplaceInputMultipleUses) {
 TEST(TrimInputCountInline) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator0);
@@ -635,7 +635,7 @@ TEST(TrimInputCountInline) {
 TEST(TrimInputCountOutOfLine1) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator0);
@@ -730,7 +730,7 @@ TEST(TrimInputCountOutOfLine1) {
 TEST(TrimInputCountOutOfLine2) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   {
     Node* n0 = graph.NewNode(&dummy_operator0);
@@ -800,7 +800,7 @@ TEST(TrimInputCountOutOfLine2) {
 TEST(NullAllInputs) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   for (int i = 0; i < 2; i++) {
     Node* n0 = graph.NewNode(&dummy_operator0);
@@ -853,7 +853,7 @@ TEST(NullAllInputs) {
 TEST(AppendAndTrim) {
   v8::internal::AccountingAllocator allocator;
   Zone zone(&allocator, ZONE_NAME, kCompressGraphZone);
-  Graph graph(&zone);
+  TFGraph graph(&zone);
 
   Node* nodes[] = {
       graph.NewNode(&dummy_operator0), graph.NewNode(&dummy_operator0),

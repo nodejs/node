@@ -6,6 +6,7 @@
 #define V8_HEAP_CPPGC_JS_CPP_MARKING_STATE_INL_H_
 
 #include "src/heap/cppgc-js/cpp-marking-state.h"
+// Include the non-inl header before the rest of the headers.
 
 namespace v8 {
 namespace internal {
