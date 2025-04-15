@@ -213,7 +213,7 @@ function run_test(algorithmNames) {
         allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
             getValidKeyData(algorithm).forEach(function(test) {
                 if (test.format === "jwk") {
-                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, y: test.data.y};
                     data.kty = getMismatchedKtyField(algorithm);
                     var usages =  validUsages(vector, 'jwk', test.data);
                     testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'kty' field");
@@ -228,7 +228,7 @@ function run_test(algorithmNames) {
         allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
             getValidKeyData(algorithm).forEach(function(test) {
                 if (test.format === "jwk") {
-                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, y: test.data.y};
                     data.ext = false;
                     var usages =  validUsages(vector, 'jwk', test.data);
                     testError('jwk', algorithm, data, name, usages, true, "DataError", "Import from a non-extractable");
@@ -259,7 +259,7 @@ function run_test(algorithmNames) {
         allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
             getValidKeyData(algorithm).forEach(function(test) {
                 if (test.format === "jwk") {
-                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, d: test.data.d};
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, y: test.data.y};
                     data.crv = getMismatchedCrvField(algorithm)
                     var usages =  validUsages(vector, 'jwk', test.data);
                     testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'crv' field");
