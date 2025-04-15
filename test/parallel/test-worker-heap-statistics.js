@@ -55,9 +55,9 @@ if (isMainThread) {
     worker.postMessage('done');
   }));
 
-  worker.once('exit', common.mustCall((code) => {
+  worker.once('exit', common.mustCall(async (code) => {
     assert.strictEqual(code, 0);
-    assert.rejects(worker.getHeapStatistics(), {
+    await assert.rejects(worker.getHeapStatistics(), {
       code: 'ERR_WORKER_NOT_RUNNING'
     });
   }));
