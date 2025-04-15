@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
@@ -5,14 +6,13 @@ import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
 import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
+import internalTTy from 'internal/tty';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = process.stderr?.isTTY && (
-  typeof process.stderr?.getColorDepth === 'function' ?
-    process.stderr?.getColorDepth() > 2 : true);
+const canColorize = internalTTy.getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
