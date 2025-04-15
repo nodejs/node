@@ -816,6 +816,68 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  v8::HeapStatistics heap_stats;
+  w->isolate_->GetHeapStatistics(&heap_stats);
+
+  auto* isolate = args.GetIsolate();
+  Local<Context> currentContext = isolate->GetCurrentContext();
+
+  Local<Object> stats = Object::New(isolate);
+
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "total_heap_size").ToLocalChecked(),
+      Number::New(isolate, heap_stats.total_heap_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "total_heap_size_executable")
+        .ToLocalChecked(),
+      Number::New(isolate, heap_stats.total_heap_size_executable()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "total_physical_size").ToLocalChecked(),
+      Number::New(isolate, heap_stats.total_physical_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "total_available_size").ToLocalChecked(),
+      Number::New(isolate, heap_stats.total_available_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "used_heap_size").ToLocalChecked(),
+      Number::New(isolate, heap_stats.used_heap_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "heap_size_limit").ToLocalChecked(),
+      Number::New(isolate, heap_stats.heap_size_limit()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "malloced_memory").ToLocalChecked(),
+      Number::New(isolate, heap_stats.malloced_memory()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "peak_malloced_memory").ToLocalChecked(),
+      Number::New(isolate, heap_stats.peak_malloced_memory()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "does_zap_garbage").ToLocalChecked(),
+      Boolean::New(isolate, heap_stats.does_zap_garbage()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "number_of_native_contexts")
+        .ToLocalChecked(),
+      Number::New(isolate, heap_stats.number_of_native_contexts()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "number_of_detached_contexts")
+        .ToLocalChecked(),
+      Number::New(isolate, heap_stats.number_of_detached_contexts()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "total_global_handles_size")
+        .ToLocalChecked(),
+      Number::New(isolate, heap_stats.total_global_handles_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "used_global_handles_size").ToLocalChecked(),
+      Number::New(isolate, heap_stats.used_global_handles_size()));
+  stats->Set(currentContext,
+      String::NewFromUtf8(isolate, "external_memory").ToLocalChecked(),
+      Number::New(isolate, heap_stats.external_memory()));
+
+  args.GetReturnValue().Set(stats);
+}
+
 void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -996,6 +1058,8 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
+    SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
+
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }

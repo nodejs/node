@@ -1337,6 +1337,31 @@ If the Worker thread is no longer running, which may occur before the
 [`'exit'` event][] is emitted, the returned `Promise` is rejected
 immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 
+### `worker.getHeapStatistics()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* returns: {object}
+  * `total_heap_size` {number}
+  * `total_heap_size_executable` {number}
+  * `total_physical_size` {number}
+  * `total_available_size` {number}
+  * `used_heap_size` {number}
+  * `heap_size_limit` {number}
+  * `malloced_memory` {number}
+  * `peak_malloced_memory` {number}
+  * `does_zap_garbage` {number}
+  * `number_of_native_contexts` {number}
+  * `number_of_detached_contexts` {number}
+  * `total_global_handles_size` {number}
+  * `used_global_handles_size` {number}
+  * `external_memory` {number}
+
+This method is identical to [`v8.getHeapStatistics()`][] but it allows the
+statistics to be observed from outside the actual thread.
+
 ### `worker.performance`
 
 <!-- YAML
@@ -1362,7 +1387,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* Returns: {Object}
+* returns: {object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
@@ -1631,6 +1656,7 @@ thread spawned will spawn another until the application crashes.
 [`require('node:worker_threads').workerData`]: #workerworkerdata
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
+[`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
 [`worker.on('message')`]: #event-message_1
