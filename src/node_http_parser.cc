@@ -287,10 +287,7 @@ class Parser : public BaseObject, public StreamListener {
     Local<Value> cb = object()->Get(env()->context(), kOnMessageBegin)
                               .ToLocalChecked();
     if (cb->IsFunction()) {
-      MaybeLocal<Value> r =
-          cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
-
-      // if (r.IsEmpty()) got_exception_ = true;
+       USE(cb.As<Function>()->Call(env()->context(), object(), 0, nullptr));
     }
 
     return 0;
@@ -553,12 +550,6 @@ class Parser : public BaseObject, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     delete parser;
-  }
-
-
-  static void Free(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
   }
 
   static void Remove(const FunctionCallbackInfo<Value>& args) {
@@ -1269,7 +1260,6 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
          Integer::NewFromUnsigned(isolate, kLenientAll));
 
   SetProtoMethod(isolate, t, "close", Parser::Close);
-  SetProtoMethod(isolate, t, "free", Parser::Free);
   SetProtoMethod(isolate, t, "remove", Parser::Remove);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
@@ -1340,7 +1330,6 @@ void CreatePerContextProperties(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::New);
   registry->Register(Parser::Close);
-  registry->Register(Parser::Free);
   registry->Register(Parser::Remove);
   registry->Register(Parser::Execute);
   registry->Register(Parser::Finish);

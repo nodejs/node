@@ -10,7 +10,6 @@ const server = http.createServer(common.mustCall(function(req, res) {
     res.writeHead(200);
     res.end();
     res.on('finish', common.mustCall(() => {
-      console.log(req)
       assert(!req._dumped);
     }));
   }));
