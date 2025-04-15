@@ -775,6 +775,8 @@ void Http2Session::HasPendingData(const FunctionCallbackInfo<Value>& args) {
 bool Http2Session::HasPendingData() const {
   nghttp2_session* session = session_.get();
   int want_write = nghttp2_session_want_write(session);
+  // It is expected that want_read will alway be 0 if graceful
+  // session close is initiated and goaway frame is sent.
   int want_read = nghttp2_session_want_read(session);
   if (want_write == 0 && want_read == 0) {
     return false;
@@ -1760,7 +1762,7 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
 void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   Debug(this, "write finished with status %d", status);
 
-  CheckAndNotifyJSAfterWrite();
+  MaybeNotifyGracefulCloseComplete();
   CHECK(is_write_in_progress());
   set_write_in_progress(false);
 
@@ -1983,7 +1985,7 @@ uint8_t Http2Session::SendPendingData() {
   if (!res.async) {
     set_write_in_progress(false);
     ClearOutgoing(res.err);
-    CheckAndNotifyJSAfterWrite();
+    MaybeNotifyGracefulCloseComplete();
   }
 
   MaybeStopReading();
@@ -3586,11 +3588,11 @@ void Http2Session::SetGracefulClose(const FunctionCallbackInfo<Value>& args) {
   Debug(session, "Setting graceful close initiated flag");
 }
 
-bool Http2Session::CheckAndNotifyJSAfterWrite() {
+void Http2Session::MaybeNotifyGracefulCloseComplete() {
   nghttp2_session* session = session_.get();
 
   if (!IsGracefulCloseInitiated()) {
-    return false;
+    return;
   }
 
   int want_write = nghttp2_session_want_write(session);
@@ -3602,11 +3604,10 @@ bool Http2Session::CheckAndNotifyJSAfterWrite() {
 
     // Make the callback to JavaScript
     HandleScope scope(env()->isolate());
-    MakeCallback(env()->onstreamafterwrite_string(), 0, nullptr);
-    return true;
+    MakeCallback(env()->ongracefulclosecomplete_string(), 0, nullptr);
   }
 
-  return false;
+  return;
 }
 }  // namespace http2
 }  // namespace node

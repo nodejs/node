@@ -961,7 +961,7 @@ class Http2Session : public AsyncWrap,
   void CopyDataIntoOutgoing(const uint8_t* src, size_t src_length);
   void ClearOutgoing(int status);
 
-  bool CheckAndNotifyJSAfterWrite();
+  void MaybeNotifyGracefulCloseComplete();
 
   friend class Http2Scope;
   friend class Http2StreamListener;
