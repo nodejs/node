@@ -203,7 +203,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
   return result.explicit_md ? result.explicit_md : result.implicit_md;
 #else
   Utf8Value utf8(env->isolate(), algorithm);
-  return ncrypto::getDigestByName(utf8.ToStringView());
+  return ncrypto::getDigestByName(*utf8);
 #endif
 }
 
@@ -448,7 +448,7 @@ Maybe<void> HashTraits::AdditionalConfig(
 
   CHECK(args[offset]->IsString());  // Hash algorithm
   Utf8Value digest(env->isolate(), args[offset]);
-  params->digest = ncrypto::getDigestByName(digest.ToStringView());
+  params->digest = ncrypto::getDigestByName(*digest);
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
@@ -518,7 +518,7 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[2]->IsArrayBufferView());
   ArrayBufferOrViewContents<unsigned char> expected(args[2]);
 
-  const EVP_MD* md_type = ncrypto::getDigestByName(algorithm.ToStringView());
+  const EVP_MD* md_type = ncrypto::getDigestByName(*algorithm);
   unsigned char digest[EVP_MAX_MD_SIZE];
   unsigned int digest_size;
   if (md_type == nullptr || EVP_Digest(content.data(),

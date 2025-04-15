@@ -195,7 +195,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
   CHECK(args[offset + 2]->IsObject());  // Key
 
   Utf8Value digest(env->isolate(), args[offset + 1]);
-  params->digest = Digest::FromName(digest.ToStringView());
+  params->digest = Digest::FromName(*digest);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
