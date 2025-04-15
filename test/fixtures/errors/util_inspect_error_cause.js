@@ -1,12 +1,14 @@
 'use strict';
 
-require('../common');
+require('../../common');
 
 const { inspect } = require('util');
 
 class FoobarError extends Error {
   status = 'Feeling good';
 }
+
+Error.stackTraceLimit = 1
 
 const cause1 = new TypeError('Inner error');
 const cause2 = new FoobarError('Individual message', { cause: cause1 });
