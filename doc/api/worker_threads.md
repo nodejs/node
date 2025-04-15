@@ -1343,10 +1343,11 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 added: REPLACEME
 -->
 
-* Returns: {Object}
+* Returns: {Promise}
 
-This method is identical to [`v8.getHeapStatistics()`][] but it allows the
-statistics to be observed from outside the actual thread.
+This method returns a `Promise` that will resolve to an object identical to [`v8.getHeapStatistics()`][],
+or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
+This methods allows the statistics to be observed from outside the actual thread.
 
 ### `worker.performance`
 

@@ -23,8 +23,8 @@ if (isMainThread) {
   const worker = new Worker(fixtures.path('worker-name.js'), {
     name,
   });
-  worker.once('message', common.mustCall((message) => {
-    const stats = worker.getHeapStatistics();
+  worker.once('message', common.mustCall(async (message) => {
+    const stats = await worker.getHeapStatistics();
     const keys = [
       `total_heap_size`,
       `total_heap_size_executable`,
@@ -53,5 +53,12 @@ if (isMainThread) {
     }
 
     worker.postMessage('done');
+  }));
+
+  worker.once('exit', common.mustCall((code) => {
+    assert.strictEqual(code, 0);
+    assert.rejects(worker.getHeapStatistics(), {
+      code: 'ERR_WORKER_NOT_RUNNING'
+    });
   }));
 }
