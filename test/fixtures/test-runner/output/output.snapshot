@@ -530,6 +530,7 @@ ok 48 - callback async throw after done
     ok 2 - running subtest 2
       ---
       duration_ms: *
+      type: 'test'
       ...
     # 'only' and 'runOnly' require the --test-only command-line option.
     # Subtest: running subtest 3
