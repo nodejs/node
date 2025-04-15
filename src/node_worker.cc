@@ -914,7 +914,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
         CallbackFlags::kUnrefed);
 
     // Now, the lambda is delivered to the main thread, as a result, the
-    // WorkerHeapSnapshotTaker object is delivered to the main thread, too.
+    // WorkerHeapStatisticsTaker object is delivered to the main thread, too.
   });
 
   if (scheduled) {
