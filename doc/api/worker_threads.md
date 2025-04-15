@@ -1373,7 +1373,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* returns: {Object}
+* Returns: {Object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
