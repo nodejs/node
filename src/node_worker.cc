@@ -1142,6 +1142,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::GetHeapStatistics);
 }
 
 }  // anonymous namespace
