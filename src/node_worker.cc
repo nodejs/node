@@ -826,40 +826,48 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   auto* isolate = args.GetIsolate();
   Local<Context> currentContext = isolate->GetCurrentContext();
 
-  Local<Object> stats = Object::New(isolate);
+  // Define an array of property names
+  Local<v8::Name> heap_stats_names[] = {
+      FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
+      FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
+      FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
+      FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
+      FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
+      FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
+      FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
+      FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
+      FIXED_ONE_BYTE_STRING(isolate, "external_memory")
+  };
 
-  #define SET_HEAP_STAT_NUMBER(name)                                   \
-  stats->Set(currentContext,                                           \
-             String::NewFromUtf8(isolate, #name).ToLocalChecked(),     \
-             Number::New(isolate, heap_stats.name()))                  \
-      .Check();
+  // Define an array of property values
+  Local<Value> heap_stats_values[] = {
+      Number::New(isolate, heap_stats.total_heap_size()),
+      Number::New(isolate, heap_stats.total_heap_size_executable()),
+      Number::New(isolate, heap_stats.total_physical_size()),
+      Number::New(isolate, heap_stats.total_available_size()),
+      Number::New(isolate, heap_stats.used_heap_size()),
+      Number::New(isolate, heap_stats.heap_size_limit()),
+      Number::New(isolate, heap_stats.malloced_memory()),
+      Number::New(isolate, heap_stats.peak_malloced_memory()),
+      Boolean::New(isolate, heap_stats.does_zap_garbage()),
+      Number::New(isolate, heap_stats.number_of_native_contexts()),
+      Number::New(isolate, heap_stats.number_of_detached_contexts()),
+      Number::New(isolate, heap_stats.total_global_handles_size()),
+      Number::New(isolate, heap_stats.used_global_handles_size()),
+      Number::New(isolate, heap_stats.external_memory())
+  };
 
-  #define SET_HEAP_STAT_BOOLEAN(name)                                  \
-  stats->Set(currentContext,                                           \
-             String::NewFromUtf8(isolate, #name).ToLocalChecked(),     \
-             Boolean::New(isolate, heap_stats.name()))                 \
-      .Check();
-
-  // Numeric stats
-  SET_HEAP_STAT_NUMBER(total_heap_size)
-  SET_HEAP_STAT_NUMBER(total_heap_size_executable)
-  SET_HEAP_STAT_NUMBER(total_physical_size)
-  SET_HEAP_STAT_NUMBER(total_available_size)
-  SET_HEAP_STAT_NUMBER(used_heap_size)
-  SET_HEAP_STAT_NUMBER(heap_size_limit)
-  SET_HEAP_STAT_NUMBER(malloced_memory)
-  SET_HEAP_STAT_NUMBER(peak_malloced_memory)
-  SET_HEAP_STAT_NUMBER(number_of_native_contexts)
-  SET_HEAP_STAT_NUMBER(number_of_detached_contexts)
-  SET_HEAP_STAT_NUMBER(total_global_handles_size)
-  SET_HEAP_STAT_NUMBER(used_global_handles_size)
-  SET_HEAP_STAT_NUMBER(external_memory)
-
-  // Boolean stat
-  SET_HEAP_STAT_BOOLEAN(does_zap_garbage)
-
-  #undef SET_HEAP_STAT_NUMBER
-  #undef SET_HEAP_STAT_BOOLEAN
+  // Create the object with the property names and values
+  Local<Object> stats = Object::New(isolate,
+                                   Null(isolate),
+                                   heap_stats_names,
+                                   heap_stats_values,
+                                   arraysize(heap_stats_names));
 
   args.GetReturnValue().Set(stats);
 }
