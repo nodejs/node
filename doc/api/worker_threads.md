@@ -1343,21 +1343,7 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 added: REPLACEME
 -->
 
-* returns: {object}
-  * `total_heap_size` {number}
-  * `total_heap_size_executable` {number}
-  * `total_physical_size` {number}
-  * `total_available_size` {number}
-  * `used_heap_size` {number}
-  * `heap_size_limit` {number}
-  * `malloced_memory` {number}
-  * `peak_malloced_memory` {number}
-  * `does_zap_garbage` {number}
-  * `number_of_native_contexts` {number}
-  * `number_of_detached_contexts` {number}
-  * `total_global_handles_size` {number}
-  * `used_global_handles_size` {number}
-  * `external_memory` {number}
+* Returns: {Object}
 
 This method is identical to [`v8.getHeapStatistics()`][] but it allows the
 statistics to be observed from outside the actual thread.
@@ -1387,7 +1373,7 @@ added:
   `eventLoopUtilization()`.
 * `utilization2` {Object} The result of a previous call to
   `eventLoopUtilization()` prior to `utilization1`.
-* returns: {object}
+* returns: {Object}
   * `idle` {number}
   * `active` {number}
   * `utilization` {number}
