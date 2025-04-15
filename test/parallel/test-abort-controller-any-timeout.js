@@ -13,7 +13,7 @@ describe('AbortSignal.any() with timeout signals', () => {
       once(signal, 'abort').then(() => {
         throw signal.reason;
       }),
-      new Promise(resolve => setTimeout(resolve, 10000))
+      new Promise((resolve) => setTimeout(resolve, 10000)),
     ]);
 
     // The promise should be aborted by the 9000ms timeout
