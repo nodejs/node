@@ -877,7 +877,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 class WorkerHeapStatisticsTaker : public AsyncWrap {
  public:
   WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
-    : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSTATISTICS) {}
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSTATISTICS) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(WorkerHeapStatisticsTaker)
@@ -894,7 +894,8 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
   if (!env->worker_heap_statistics_taker_template()
-      ->NewInstance(env->context()).ToLocal(&wrap)) {
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
     return;
   }
 
@@ -906,8 +907,8 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
   // Interrupt the worker thread and take a snapshot, then schedule a call
   // on the parent thread that turns that snapshot into a readable stream.
-  bool scheduled = w->RequestInterrupt([taker = std::move(taker), env](
-                                           Environment* worker_env) mutable {
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
     v8::HeapStatistics heap_stats;
     worker_env->isolate()->GetHeapStatistics(&heap_stats);
 
@@ -937,8 +938,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
               FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
               FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
-              FIXED_ONE_BYTE_STRING(isolate, "external_memory")
-          };
+              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
 
           // Define an array of property values
           Local<Value> heap_stats_values[] = {
@@ -955,16 +955,14 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats.number_of_detached_contexts()),
               Number::New(isolate, heap_stats.total_global_handles_size()),
               Number::New(isolate, heap_stats.used_global_handles_size()),
-              Number::New(isolate, heap_stats.external_memory())
-          };
+              Number::New(isolate, heap_stats.external_memory())};
 
           // Create the object with the property names and values
           Local<Object> stats = Object::New(isolate,
-                                           Null(isolate),
-                                           heap_stats_names,
-                                           heap_stats_values,
-                                           arraysize(heap_stats_names));
-
+                                            Null(isolate),
+                                            heap_stats_names,
+                                            heap_stats_values,
+                                            arraysize(heap_stats_names));
 
           Local<Value> args[] = {stats};
           taker->get()->MakeCallback(
