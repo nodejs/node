@@ -1,4 +1,4 @@
-/* auto-generated on 2025-03-17 16:12:36 -0400. Do not edit! */
+/* auto-generated on 2025-04-03 18:47:20 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -652,7 +652,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "6.4.0"
+#define SIMDUTF_VERSION "6.4.2"
 
 namespace simdutf {
 enum {
@@ -667,7 +667,7 @@ enum {
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 0
+  SIMDUTF_VERSION_REVISION = 2
 };
 } // namespace simdutf
 
@@ -3966,7 +3966,7 @@ atomic_binary_to_base64(const detail::input_span_of_byte_like auto &input,
  * characters) must be divisible by four.
  *
  * You should call this function with a buffer that is at least
- * maximal_binary_length_from_utf6_base64(input, length) bytes long. If you fail
+ * maximal_binary_length_from_base64(input, length) bytes long. If you fail
  * to provide that much space, the function may cause a buffer overflow.
  *
  * Advanced users may want to taylor how the last chunk is handled. By default,
@@ -5715,7 +5715,7 @@ public:
    * character that is not a valid base64 character (INVALID_BASE64_CHARACTER).
    *
    * You should call this function with a buffer that is at least
-   * maximal_binary_length_from_utf6_base64(input, length) bytes long. If you
+   * maximal_binary_length_from_base64(input, length) bytes long. If you
    * fail to provide that much space, the function may cause a buffer overflow.
    *
    * @param input         the base64 string to process, in ASCII stored as
