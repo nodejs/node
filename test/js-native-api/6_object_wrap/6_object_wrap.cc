@@ -10,7 +10,10 @@ napi_ref MyObject::constructor;
 MyObject::MyObject(double value)
     : value_(value), env_(nullptr), wrapper_(nullptr) {}
 
-MyObject::~MyObject() { napi_delete_reference(env_, wrapper_); }
+MyObject::~MyObject() {
+  napi_delete_reference(env_, nested_);
+  napi_delete_reference(env_, wrapper_);
+}
 
 void MyObject::Destructor(node_api_basic_env env,
                           void* nativeObject,

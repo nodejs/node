@@ -23,6 +23,7 @@ class MyObject {
   double value_;
   napi_env env_;
   napi_ref wrapper_;
+  napi_ref nested_;
 };
 
 #endif  // TEST_JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
