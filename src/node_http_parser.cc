@@ -464,10 +464,10 @@ class Parser : public BaseObject, public StreamListener {
 
     Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
 
-    MaybeLocal<Value> r =
-        cb.As<Function>()->Call(env->context(), object(), 1, &buffer);
+    v8::TryCatch try_catch(env->isolate());
+    USE(cb.As<Function>()->Call(env->context(), object(), 1, &buffer));
 
-    if (r.IsEmpty()) {
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
       llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
       return HPE_USER;
@@ -503,9 +503,11 @@ class Parser : public BaseObject, public StreamListener {
     if (!cb->IsFunction())
       return 0;
 
-    MaybeLocal<Value> r =
-        cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
-    if (r.IsEmpty()) {
+
+    v8::TryCatch try_catch(env()->isolate());
+    USE(cb.As<Function>()->Call(env()->context(), object(), 0, nullptr));
+
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
       return -1;
     }
@@ -782,7 +784,13 @@ class Parser : public BaseObject, public StreamListener {
     current_buffer_len_ = nread;
     current_buffer_data_ = buf.base;
 
+    v8::TryCatch try_catch(env()->isolate());
     USE(cb.As<Function>()->Call(env()->context(), object(), 1, &ret));
+
+    if (try_catch.HasCaught()) {
+      got_exception_ = true;
+      return;
+    }
 
     current_buffer_len_ = 0;
     current_buffer_data_ = nullptr;
@@ -897,10 +905,12 @@ class Parser : public BaseObject, public StreamListener {
       url_.ToString(env())
     };
 
-    if (cb.As<Function>()
-            ->Call(env()->context(), object(), arraysize(argv), argv)
-            .IsEmpty())
+    v8::TryCatch try_catch(env()->isolate());
+    USE(cb.As<Function>()->Call(env()->context(), object(), arraysize(argv), argv));
+
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
+    }
 
     url_.Reset();
     have_flushed_ = true;
