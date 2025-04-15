@@ -908,7 +908,6 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   // on the parent thread that turns that snapshot into a readable stream.
   bool scheduled = w->RequestInterrupt([taker = std::move(taker), env](
                                            Environment* worker_env) mutable {
-
     v8::HeapStatistics heap_stats;
     worker_env->isolate()->GetHeapStatistics(&heap_stats);
 

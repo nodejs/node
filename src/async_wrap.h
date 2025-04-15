@@ -79,7 +79,7 @@ namespace node {
   V(SIGINTWATCHDOG)                                                            \
   V(WORKER)                                                                    \
   V(WORKERHEAPSNAPSHOT)                                                        \
-  V(WORKERHEAPSTATISTICS)                                                        \
+  V(WORKERHEAPSTATISTICS)                                                      \
   V(WRITEWRAP)                                                                 \
   V(ZLIB)
 
