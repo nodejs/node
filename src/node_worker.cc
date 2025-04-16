@@ -830,7 +830,6 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
-
   Environment* env = w->env();
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
   Local<Object> wrap;
@@ -900,8 +899,7 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
               Number::New(isolate, heap_stats->used_global_handles_size()),
               Number::New(isolate, heap_stats->external_memory())};
 
-          DCHECK_EQ(
-              arraysize(heap_stats_names), arraysize(heap_stats_values));
+          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
 
           // Create the object with the property names and values
           Local<Object> stats = Object::New(isolate,
