@@ -17,6 +17,7 @@ using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
 using v8::None;
@@ -268,7 +269,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -392,8 +393,8 @@ void BuiltinLoader::SaveCodeCache(const char* id, Local<Function> fun) {
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
-  std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
+  LocalVector<String> parameters(isolate);
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
@@ -507,7 +508,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   return LookupAndCompileInternal(context, id, parameters, optional_realm);
 }
