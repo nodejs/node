@@ -7,7 +7,6 @@ const common = require('../common');
 const assert = require('assert');
 const repl = require('internal/repl');
 const stream = require('stream');
-const fs = require('fs');
 
 class ActionStream extends stream.Stream {
   run(data) {
@@ -42,23 +41,11 @@ class ActionStream extends stream.Stream {
 }
 ActionStream.prototype.readable = true;
 
-function cleanupTmpFile() {
-  try {
-    // Write over the file, clearing any history
-    fs.writeFileSync(defaultHistoryPath, '');
-  } catch (err) {
-    if (err.code === 'ENOENT') return true;
-    throw err;
-  }
-  return true;
-}
-
 const tmpdir = require('../common/tmpdir');
 tmpdir.refresh();
-const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 
 {
-  cleanupTmpFile();
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
   // Make sure the cursor is at the right places.
   // If the cursor is at the end of a long line and the down key is pressed,
   // Move the cursor to the end of the next line, if shorter.
@@ -97,7 +84,7 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
   });
 
   repl.createInternalRepl(
-    { NODE_REPL_HISTORY: defaultHistoryPath },
+    { NODE_REPL_HISTORY: historyPath },
     {
       terminal: true,
       input: new ActionStream(),
@@ -112,7 +99,7 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 }
 
 {
-  cleanupTmpFile();
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
   // If the last command errored and the user is trying to edit it,
   // The errored line should be removed from history
   const checkResults = common.mustSucceed((r) => {
@@ -130,12 +117,17 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
     r.input.run([{ name: 'enter' }]);
 
     assert.strictEqual(r.history.length, 1);
-    assert.strictEqual(r.history[0], 'let lineWithMistake = `I have some\rproblem with my syntax`');
+    // Check that the line is properly set in the history structure
+    assert.strictEqual(r.history[0], 'problem with my syntax`\rlet lineWithMistake = `I have some');
     assert.strictEqual(r.line, '');
+
+    r.input.run([{ name: 'up' }]);
+    // Check that the line is properly displayed
+    assert.strictEqual(r.line, 'let lineWithMistake = `I have some\nproblem with my syntax`');
   });
 
   repl.createInternalRepl(
-    { NODE_REPL_HISTORY: defaultHistoryPath },
+    { NODE_REPL_HISTORY: historyPath },
     {
       terminal: true,
       input: new ActionStream(),
@@ -150,7 +142,7 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
 }
 
 {
-  cleanupTmpFile();
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
   const outputBuffer = [];
 
   // Test that the REPL preview is properly shown on multiline commands
@@ -182,7 +174,7 @@ const defaultHistoryPath = tmpdir.resolve('.node_repl_history');
   });
 
   repl.createInternalRepl(
-    { NODE_REPL_HISTORY: defaultHistoryPath },
+    { NODE_REPL_HISTORY: historyPath },
     {
       preview: true,
       terminal: true,
