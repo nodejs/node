@@ -3090,6 +3090,23 @@ types.isExternal(new String('foo')); // returns false
 For further information on `napi_create_external`, refer to
 [`napi_create_external()`][].
 
+### `util.types.isFloat16Array(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any}
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in {Float16Array} instance.
+
+```js
+util.types.isFloat16Array(new ArrayBuffer());  // Returns false
+util.types.isFloat16Array(new Float16Array());  // Returns true
+util.types.isFloat16Array(new Float32Array());  // Returns false
+```
+
 ### `util.types.isFloat32Array(value)`
 
 <!-- YAML
