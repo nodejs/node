@@ -27,6 +27,7 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const tls = require('tls');
 const fixtures = require('../common/fixtures');
+const { mock } = require('node:test');
 
 const options = {
   key: fixtures.readKey('agent2-key.pem'),
@@ -57,13 +58,12 @@ server.listen(0, function() {
 
   client.on('data', function(d) {
     console.log('client: on data', d);
-    assert.ok(typeof d === 'string');
+    assert.strictEqual(typeof d, 'string');
     buffer += d;
   });
 
-  client.on('secureConnect', common.mustCall(() => {
-    console.log('client: on secureConnect');
-  }));
+  const secureConnectFn = mock.fn();
+  client.on('secureConnect', secureConnectFn);
 
   client.on('close', common.mustCall(function() {
     console.log('client: on close');
@@ -80,6 +80,9 @@ server.listen(0, function() {
     // Confirming the buffer string is encoded in ASCII
     // and thus does equal the ASCII string representation
     assert.strictEqual(messageAscii, buffer);
+
+    // Ensure that secureConnect is only emitted once.
+    assert.strictEqual(secureConnectFn.mock.callCount(), 1);
 
     server.close();
   }));
