@@ -392,6 +392,9 @@
         "test-coverage-lines": {
           "type": "number"
         },
+        "test-global-setup": {
+          "type": "string"
+        },
         "test-isolation": {
           "type": "string"
         },

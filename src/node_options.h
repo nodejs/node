@@ -197,6 +197,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
+  std::string test_global_setup_path;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   std::string test_isolation = "process";
