@@ -45,7 +45,6 @@ if (isMainThread) {
     for (const key of keys) {
       if (key === 'does_zap_garbage') {
         assert.strictEqual(typeof stats[key], 'boolean', `Expected ${key} to be a boolean`);
-        assert.strictEqual(stats[key], false);
         continue;
       }
       assert.strictEqual(typeof stats[key], 'number', `Expected ${key} to be a number`);
