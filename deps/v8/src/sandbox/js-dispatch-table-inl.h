@@ -23,6 +23,7 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
                                           uint16_t parameter_count,
                                           bool mark_as_alive) {
   DCHECK_EQ(object & kHeapObjectTag, 0);
+#if !defined(__illumos__) || !defined(V8_TARGET_ARCH_64_BIT)
   DCHECK_EQ((((object - kObjectPointerOffset) << kObjectPointerShift) >>
              kObjectPointerShift) +
                 kObjectPointerOffset,
@@ -30,6 +31,7 @@ void JSDispatchEntry::MakeJSDispatchEntry(Address object, Address entrypoint,
   DCHECK_EQ((object - kObjectPointerOffset) + kObjectPointerOffset, object);
   DCHECK_LT((object - kObjectPointerOffset),
             1ULL << ((sizeof(encoded_word_) * 8) - kObjectPointerShift));
+#endif /* __illumos__ & 64-bit */
 
   Address payload = ((object - kObjectPointerOffset) << kObjectPointerShift) |
                     (parameter_count & kParameterCountMask);
@@ -55,8 +57,16 @@ Address JSDispatchEntry::GetCodePointer() const {
   // and so may be 0 or 1 here. As the return value is a tagged pointer, the
   // bit must be 1 when returned, so we need to set it here.
   Address payload = encoded_word_.load(std::memory_order_relaxed);
+#if defined(__illumos__) && defined(V8_TARGET_ARCH_64_BIT)
+  // Unsigned types won't sign-extend on shift-right, but we need to do
+  // this with illumos VA48 addressing.
+  DCHECK_EQ(kObjectPointerOffset, 0);
+  return (Address)((intptr_t)payload >> (int)kObjectPointerShift) |
+    kHeapObjectTag;
+#else
   return ((payload >> kObjectPointerShift) + kObjectPointerOffset) |
          kHeapObjectTag;
+#endif /* __illumos__ & 64-bit */
 }
 
 Tagged<Code> JSDispatchEntry::GetCode() const {
@@ -214,7 +224,12 @@ void JSDispatchEntry::MakeFreelistEntry(uint32_t next_entry_index) {
 bool JSDispatchEntry::IsFreelistEntry() const {
 #ifdef V8_TARGET_ARCH_64_BIT
   auto entrypoint = entrypoint_.load(std::memory_order_relaxed);
+#ifdef __illumos__
+  // See the illumos definition of kFreeEntryTag for why we have to do this.
+  return (entrypoint & 0xffff000000000000ull) == kFreeEntryTag;
+#else
   return (entrypoint & kFreeEntryTag) == kFreeEntryTag;
+#endif /* __illumos__ */
 #else
   return next_free_entry_.load(std::memory_order_relaxed) != 0;
 #endif
