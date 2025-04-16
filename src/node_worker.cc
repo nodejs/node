@@ -850,8 +850,10 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   // on the parent thread that turns that snapshot into a readable stream.
   bool scheduled = w->RequestInterrupt([taker = std::move(taker),
                                         env](Environment* worker_env) mutable {
-    v8::HeapStatistics heap_stats;
-    worker_env->isolate()->GetHeapStatistics(&heap_stats);
+    // We create a unique pointer to HeapStatistics so that the actual object
+    // it's not copied in the lambda, but only the pointer is.
+    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    worker_env->isolate()->GetHeapStatistics(heap_stats.get());
 
     // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
     // object.
@@ -883,20 +885,23 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
 
           // Define an array of property values
           Local<Value> heap_stats_values[] = {
-              Number::New(isolate, heap_stats.total_heap_size()),
-              Number::New(isolate, heap_stats.total_heap_size_executable()),
-              Number::New(isolate, heap_stats.total_physical_size()),
-              Number::New(isolate, heap_stats.total_available_size()),
-              Number::New(isolate, heap_stats.used_heap_size()),
-              Number::New(isolate, heap_stats.heap_size_limit()),
-              Number::New(isolate, heap_stats.malloced_memory()),
-              Number::New(isolate, heap_stats.peak_malloced_memory()),
-              Boolean::New(isolate, heap_stats.does_zap_garbage()),
-              Number::New(isolate, heap_stats.number_of_native_contexts()),
-              Number::New(isolate, heap_stats.number_of_detached_contexts()),
-              Number::New(isolate, heap_stats.total_global_handles_size()),
-              Number::New(isolate, heap_stats.used_global_handles_size()),
-              Number::New(isolate, heap_stats.external_memory())};
+              Number::New(isolate, heap_stats->total_heap_size()),
+              Number::New(isolate, heap_stats->total_heap_size_executable()),
+              Number::New(isolate, heap_stats->total_physical_size()),
+              Number::New(isolate, heap_stats->total_available_size()),
+              Number::New(isolate, heap_stats->used_heap_size()),
+              Number::New(isolate, heap_stats->heap_size_limit()),
+              Number::New(isolate, heap_stats->malloced_memory()),
+              Number::New(isolate, heap_stats->peak_malloced_memory()),
+              Boolean::New(isolate, heap_stats->does_zap_garbage()),
+              Number::New(isolate, heap_stats->number_of_native_contexts()),
+              Number::New(isolate, heap_stats->number_of_detached_contexts()),
+              Number::New(isolate, heap_stats->total_global_handles_size()),
+              Number::New(isolate, heap_stats->used_global_handles_size()),
+              Number::New(isolate, heap_stats->external_memory())};
+
+          DCHECK_EQ(
+              arraysize(heap_stats_names), arraysize(heap_stats_values));
 
           // Create the object with the property names and values
           Local<Object> stats = Object::New(isolate,
