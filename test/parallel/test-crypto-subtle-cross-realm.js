@@ -1,11 +1,11 @@
 'use strict';
-
+// Flags: --expose-internals
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
-const { subtle } = crypto;
+const { subtle } = globalThis.crypto;
 const vm = require('vm');
 const { isArrayBuffer } = require('internal/util/types');
 
