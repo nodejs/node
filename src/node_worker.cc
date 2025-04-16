@@ -830,7 +830,6 @@ void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
 
-  Debug(w, "Worker %llu getting heap statistics", w->thread_id_.id);
 
   Environment* env = w->env();
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
