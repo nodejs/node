@@ -387,7 +387,8 @@ SafePromiseAllReturnVoid([]); // safe
 SafePromiseAllReturnArrayLike([]); // safe
 
 const array = [promise];
-const set = new SafeSet().add(promise);
+const set = new SafeSet(array);
+
 // When running one of these functions on a non-empty iterable, it will also:
 // 1. Lookup `then` property on `promise` (user-mutable if user-provided).
 // 2. Lookup `then` property on `%Promise.prototype%` (user-mutable).
