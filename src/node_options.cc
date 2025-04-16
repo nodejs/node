@@ -761,6 +761,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
             kAllowedInEnvvar);
+  AddOption("--test-global-setup",
+            "specifies the path to the global setup file",
+            &EnvironmentOptions::test_global_setup_path,
+            kAllowedInEnvvar);
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",
