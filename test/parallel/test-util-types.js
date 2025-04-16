@@ -1,4 +1,5 @@
-// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax
+// Flags: --experimental-vm-modules --expose-internals --allow-natives-syntax --js-float16array
+// TODO(LiviaMedeiros): once `Float16Array` is unflagged in v8, remove `--js-float16array` above
 'use strict';
 const common = require('../common');
 const assert = require('assert');
@@ -8,6 +9,9 @@ const { internalBinding } = require('internal/test/binding');
 const { JSStream } = internalBinding('js_stream');
 
 const external = (new JSStream())._externalStream;
+
+// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
+const { Float16Array } = globalThis;
 
 for (const [ value, _method ] of [
   [ external, 'isExternal' ],
@@ -38,6 +42,7 @@ for (const [ value, _method ] of [
   [ new Int8Array() ],
   [ new Int16Array() ],
   [ new Int32Array() ],
+  [ new Float16Array() ],
   [ new Float32Array() ],
   [ new Float64Array() ],
   [ new BigInt64Array() ],
@@ -102,6 +107,9 @@ for (const [ value, _method ] of [
   assert(!types.isInt32Array({ [Symbol.toStringTag]: 'Int32Array' }));
   assert(types.isInt32Array(vm.runInNewContext('new Int32Array')));
 
+  assert(!types.isFloat16Array({ [Symbol.toStringTag]: 'Float16Array' }));
+  assert(types.isFloat16Array(vm.runInNewContext('new Float16Array')));
+
   assert(!types.isFloat32Array({ [Symbol.toStringTag]: 'Float32Array' }));
   assert(types.isFloat32Array(vm.runInNewContext('new Float32Array')));
 
@@ -127,6 +135,7 @@ for (const [ value, _method ] of [
   const int8Array = new Int8Array(arrayBuffer);
   const int16Array = new Int16Array(arrayBuffer);
   const int32Array = new Int32Array(arrayBuffer);
+  const float16Array = new Float16Array(arrayBuffer);
   const float32Array = new Float32Array(arrayBuffer);
   const float64Array = new Float64Array(arrayBuffer);
   const bigInt64Array = new BigInt64Array(arrayBuffer);
@@ -141,6 +150,7 @@ for (const [ value, _method ] of [
   const fakeInt8Array = { __proto__: Int8Array.prototype };
   const fakeInt16Array = { __proto__: Int16Array.prototype };
   const fakeInt32Array = { __proto__: Int32Array.prototype };
+  const fakeFloat16Array = { __proto__: Float16Array.prototype };
   const fakeFloat32Array = { __proto__: Float32Array.prototype };
   const fakeFloat64Array = { __proto__: Float64Array.prototype };
   const fakeBigInt64Array = { __proto__: BigInt64Array.prototype };
@@ -164,6 +174,10 @@ for (const [ value, _method ] of [
     Object.setPrototypeOf(new Int16Array(arrayBuffer), Int16Array.prototype);
   const stealthyInt32Array =
     Object.setPrototypeOf(new Int32Array(arrayBuffer), Int32Array.prototype);
+  const stealthyFloat16Array =
+    Object.setPrototypeOf(
+      new Float16Array(arrayBuffer), Float16Array.prototype
+    );
   const stealthyFloat32Array =
     Object.setPrototypeOf(
       new Float32Array(arrayBuffer), Float32Array.prototype
@@ -191,6 +205,7 @@ for (const [ value, _method ] of [
     int8Array, fakeInt8Array, stealthyInt8Array,
     int16Array, fakeInt16Array, stealthyInt16Array,
     int32Array, fakeInt32Array, stealthyInt32Array,
+    float16Array, fakeFloat16Array, stealthyFloat16Array,
     float32Array, fakeFloat32Array, stealthyFloat32Array,
     float64Array, fakeFloat64Array, stealthyFloat64Array,
     bigInt64Array, fakeBigInt64Array, stealthyBigInt64Array,
@@ -208,6 +223,7 @@ for (const [ value, _method ] of [
       int8Array, stealthyInt8Array,
       int16Array, stealthyInt16Array,
       int32Array, stealthyInt32Array,
+      float16Array, stealthyFloat16Array,
       float32Array, stealthyFloat32Array,
       float64Array, stealthyFloat64Array,
       bigInt64Array, stealthyBigInt64Array,
@@ -222,6 +238,7 @@ for (const [ value, _method ] of [
       int8Array, stealthyInt8Array,
       int16Array, stealthyInt16Array,
       int32Array, stealthyInt32Array,
+      float16Array, stealthyFloat16Array,
       float32Array, stealthyFloat32Array,
       float64Array, stealthyFloat64Array,
       bigInt64Array, stealthyBigInt64Array,
@@ -247,6 +264,9 @@ for (const [ value, _method ] of [
     ],
     isInt32Array: [
       int32Array, stealthyInt32Array,
+    ],
+    isFloat16Array: [
+      float16Array, stealthyFloat16Array,
     ],
     isFloat32Array: [
       float32Array, stealthyFloat32Array,
