@@ -70,15 +70,13 @@ void node_napi_env__::DrainFinalizerQueue() {
   // Process all pending finalizers. If new finalizers are added during
   // Finalize() calls,
   // they are handled in subsequent recursive calls.
-  decltype(pending_finalizers) current_finalizers;
-  current_finalizers.swap(pending_finalizers);
+  while (!pending_finalizers.empty()) {
+    decltype(pending_finalizers) current_finalizers;
+    current_finalizers.swap(pending_finalizers);
 
-  for (auto* ref_tracker : current_finalizers) {
-    ref_tracker->Finalize();
-  }
-
-  if (!pending_finalizers.empty()) {
-    DrainFinalizerQueue();
+    for (auto* ref_tracker : current_finalizers) {
+      ref_tracker->Finalize();
+    }
   }
 }
 
