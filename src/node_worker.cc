@@ -811,6 +811,116 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+class WorkerHeapStatisticsTaker : public AsyncWrap {
+ public:
+  WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSTATISTICS) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerHeapStatisticsTaker)
+  SET_SELF_SIZE(WorkerHeapStatisticsTaker)
+};
+
+void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_statistics_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  // The created WorkerHeapStatisticsTaker is an object owned by main
+  // thread's Isolate, it can not be accessed by worker thread
+  std::unique_ptr<BaseObjectPtr<WorkerHeapStatisticsTaker>> taker =
+      std::make_unique<BaseObjectPtr<WorkerHeapStatisticsTaker>>(
+          MakeDetachedBaseObject<WorkerHeapStatisticsTaker>(env, wrap));
+
+  // Interrupt the worker thread and take a snapshot, then schedule a call
+  // on the parent thread that turns that snapshot into a readable stream.
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    // We create a unique pointer to HeapStatistics so that the actual object
+    // it's not copied in the lambda, but only the pointer is.
+    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    worker_env->isolate()->GetHeapStatistics(heap_stats.get());
+
+    // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
+    // object.
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         heap_stats = std::move(heap_stats)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
+
+          Local<v8::Name> heap_stats_names[] = {
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
+              FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
+
+          // Define an array of property values
+          Local<Value> heap_stats_values[] = {
+              Number::New(isolate, heap_stats->total_heap_size()),
+              Number::New(isolate, heap_stats->total_heap_size_executable()),
+              Number::New(isolate, heap_stats->total_physical_size()),
+              Number::New(isolate, heap_stats->total_available_size()),
+              Number::New(isolate, heap_stats->used_heap_size()),
+              Number::New(isolate, heap_stats->heap_size_limit()),
+              Number::New(isolate, heap_stats->malloced_memory()),
+              Number::New(isolate, heap_stats->peak_malloced_memory()),
+              Boolean::New(isolate, heap_stats->does_zap_garbage()),
+              Number::New(isolate, heap_stats->number_of_native_contexts()),
+              Number::New(isolate, heap_stats->number_of_detached_contexts()),
+              Number::New(isolate, heap_stats->total_global_handles_size()),
+              Number::New(isolate, heap_stats->used_global_handles_size()),
+              Number::New(isolate, heap_stats->external_memory())};
+
+          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
+
+          // Create the object with the property names and values
+          Local<Object> stats = Object::New(isolate,
+                                            Null(isolate),
+                                            heap_stats_names,
+                                            heap_stats_values,
+                                            arraysize(heap_stats_names));
+
+          Local<Value> args[] = {stats};
+          taker->get()->MakeCallback(
+              env->ondone_string(), arraysize(args), args);
+          // implicitly delete `taker`
+        },
+        CallbackFlags::kUnrefed);
+
+    // Now, the lambda is delivered to the main thread, as a result, the
+    // WorkerHeapStatisticsTaker object is delivered to the main thread, too.
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  } else {
+    args.GetReturnValue().Set(Local<Object>());
+  }
+}
+
 void Worker::GetResourceLimits(const FunctionCallbackInfo<Value>& args) {
   Worker* w;
   ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
@@ -991,6 +1101,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
+    SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1006,6 +1117,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapSnapshotTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_heap_snapshot_taker_template(
+        wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapSnapshotTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapStatisticsTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_heap_statistics_taker_template(
         wst->InstanceTemplate());
   }
 
@@ -1074,6 +1199,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::GetHeapStatistics);
 }
 
 }  // anonymous namespace
