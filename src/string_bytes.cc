@@ -271,7 +271,8 @@ size_t StringBytes::Write(Isolate* isolate,
 
     case BUFFER:
     case UTF8:
-      nbytes = str->WriteUtf8(isolate, buf, buflen, nullptr, flags);
+      nbytes = str->WriteUtf8V2(
+          isolate, buf, buflen, String::WriteFlags::kReplaceInvalidUtf8);
       break;
 
     case UCS2: {
