@@ -11,7 +11,7 @@
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 
-#ifdef __SSE2__
+#if defined(__SSE2__) && defined(V8_HOST_ARCH_X64)
 #include <emmintrin.h>
 #elif defined(__ARM_NEON__)
 #include <arm_neon.h>
