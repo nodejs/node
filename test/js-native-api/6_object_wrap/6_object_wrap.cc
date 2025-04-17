@@ -8,10 +8,12 @@ typedef int32_t FinalizerData;
 napi_ref MyObject::constructor;
 
 MyObject::MyObject(double value)
-    : value_(value), env_(nullptr), wrapper_(nullptr) {}
+    : value_(value), env_(nullptr), wrapper_(nullptr), nested_(nullptr) {}
 
 MyObject::~MyObject() {
-  napi_delete_reference(env_, nested_);
+  if (nested_ != nullptr) {
+    napi_delete_reference(env_, nested_);
+  }
   napi_delete_reference(env_, wrapper_);
 }
 
