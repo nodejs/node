@@ -1,4 +1,4 @@
-import '../common/index.mjs';
+import { hasCrypto } from '../common/index.mjs';
 import assert from 'node:assert';
 import { promisify } from 'node:util';
 
@@ -48,3 +48,11 @@ assert.strictEqual(
   promisify(child_process.execFile).name,
   'execFile'
 );
+
+if (hasCrypto) {
+  const http2 = await import('node:http2');
+  assert.strictEqual(
+    promisify(http2.connect).name,
+    'connect'
+  );
+}
