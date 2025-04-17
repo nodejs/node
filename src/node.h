@@ -1387,6 +1387,12 @@ NODE_EXTERN void RequestInterrupt(Environment* env,
  * I/O from native code. */
 NODE_EXTERN async_id AsyncHooksGetExecutionAsyncId(v8::Isolate* isolate);
 
+/* Returns the id of the current execution context. If the return value is
+ * zero then no execution has been set. This will happen if the user handles
+ * I/O from native code. */
+NODE_EXTERN async_id
+AsyncHooksGetExecutionAsyncId(v8::Local<v8::Context> context);
+
 /* Return same value as async_hooks.triggerAsyncId(); */
 NODE_EXTERN async_id AsyncHooksGetTriggerAsyncId(v8::Isolate* isolate);
 
