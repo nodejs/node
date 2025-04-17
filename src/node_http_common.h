@@ -240,7 +240,7 @@ enum http_status_codes {
   V(VERSION_CONTROL, "VERSION-CONTROL")
 
 // NgHeaders takes as input a block of headers provided by the
-// JavaScript side (see http2's mapToHeaders function) and
+// JavaScript side (see http2's buildNgHeaderString function) and
 // converts it into a array of ng header structs. This is done
 // generically to handle both http/2 and (in the future) http/3,
 // which use nearly identical structs. The template parameter
