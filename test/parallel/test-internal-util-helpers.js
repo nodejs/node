@@ -4,7 +4,7 @@
 require('../common');
 const assert = require('assert');
 const { types } = require('util');
-const { isError } = require('internal/util');
+const { assignFunctionName, isError } = require('internal/util');
 const vm = require('vm');
 
 // Special cased errors. Test the internal function which is used in
@@ -34,4 +34,31 @@ const vm = require('vm');
   assert(types.isNativeError(differentRealmErr));
   assert(!(differentRealmErr instanceof Error));
   assert(isError(differentRealmErr));
+}
+
+{
+  const nameMap = new Map([
+    [ 'meaningfulName', 'meaningfulName' ],
+    [ '', '' ],
+    [ Symbol.asyncIterator, '[Symbol.asyncIterator]' ],
+    [ Symbol('notWellKnownSymbol'), '[notWellKnownSymbol]' ],
+  ]);
+  for (const fn of [
+    () => {},
+    function() {},
+    function value() {},
+    ({ value() {} }).value,
+    new Function(),
+    Function(),
+    function() {}.bind(null),
+    class {},
+    class value {},
+  ]) {
+    for (const [ stringOrSymbol, expectedName ] of nameMap) {
+      const namedFn = assignFunctionName(stringOrSymbol, fn);
+      assert.strictEqual(fn, namedFn);
+      assert.strictEqual(namedFn.name, expectedName);
+      assert.strictEqual(namedFn.bind(null).name, `bound ${expectedName}`);
+    }
+  }
 }
