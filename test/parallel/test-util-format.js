@@ -290,6 +290,68 @@ assert.strictEqual(util.format('%s', -Infinity), '-Infinity');
   assert.strictEqual(util.format('%s', objectWithToPrimitive + ''), 'default context');
 }
 
+// built-in toPrimitive is the same behavior as inspect
+{
+  const date = new Date('2023-10-01T00:00:00Z');
+  assert.strictEqual(util.format('%s', date), util.inspect(date));
+
+  const symbol = Symbol('foo');
+  assert.strictEqual(util.format('%s', symbol), util.inspect(symbol));
+}
+
+// Prototype chain handling for toString
+{
+  function hasToStringButNoToPrimitive() {}
+
+  hasToStringButNoToPrimitive.prototype.toString = function() {
+    return 'hasToStringButNoToPrimitive';
+  };
+
+  let obj = new hasToStringButNoToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
+
+  function inheritsFromHasToStringButNoToPrimitive() {}
+  Object.setPrototypeOf(inheritsFromHasToStringButNoToPrimitive.prototype,
+                        hasToStringButNoToPrimitive.prototype);
+  obj = new inheritsFromHasToStringButNoToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'hasToStringButNoToPrimitive');
+}
+
+// Prototype chain handling for Symbol.toPrimitive
+{
+  function hasToPrimitiveButNoToString() {}
+
+  hasToPrimitiveButNoToString.prototype[Symbol.toPrimitive] = function() {
+    return 'hasToPrimitiveButNoToString';
+  };
+
+  let obj = new hasToPrimitiveButNoToString();
+  assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
+  function inheritsFromHasToPrimitiveButNoToString() {}
+  Object.setPrototypeOf(inheritsFromHasToPrimitiveButNoToString.prototype,
+                        hasToPrimitiveButNoToString.prototype);
+  obj = new inheritsFromHasToPrimitiveButNoToString();
+  assert.strictEqual(util.format('%s', obj[Symbol.toPrimitive]()), 'hasToPrimitiveButNoToString');
+}
+
+// Prototype chain handling for both toString and Symbol.toPrimitive
+{
+  function hasBothToStringAndToPrimitive() {}
+  hasBothToStringAndToPrimitive.prototype.toString = function() {
+    return 'toString';
+  };
+  hasBothToStringAndToPrimitive.prototype[Symbol.toPrimitive] = function() {
+    return 'toPrimitive';
+  };
+  let obj = new hasBothToStringAndToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'toString');
+  function inheritsFromHasBothToStringAndToPrimitive() {}
+  Object.setPrototypeOf(inheritsFromHasBothToStringAndToPrimitive.prototype,
+                        hasBothToStringAndToPrimitive.prototype);
+  obj = new inheritsFromHasBothToStringAndToPrimitive();
+  assert.strictEqual(util.format('%s', obj.toString()), 'toString');
+}
+
 // JSON format specifier
 assert.strictEqual(util.format('%j'), '%j');
 assert.strictEqual(util.format('%j', 42), '42');
