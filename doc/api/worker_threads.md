@@ -1322,6 +1322,18 @@ If the Worker thread is no longer running, which may occur before the
 [`'exit'` event][] is emitted, the returned `Promise` is rejected
 immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 
+### `worker.getHeapStatistics()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+This method returns a `Promise` that will resolve to an object identical to [`v8.getHeapStatistics()`][],
+or reject with an [`ERR_WORKER_NOT_RUNNING`][] error if the worker is no longer running.
+This methods allows the statistics to be observed from outside the actual thread.
+
 ### `worker.performance`
 
 <!-- YAML
@@ -1616,6 +1628,7 @@ thread spawned will spawn another until the application crashes.
 [`require('node:worker_threads').workerData`]: #workerworkerdata
 [`trace_events`]: tracing.md
 [`v8.getHeapSnapshot()`]: v8.md#v8getheapsnapshotoptions
+[`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
 [`worker.on('message')`]: #event-message_1

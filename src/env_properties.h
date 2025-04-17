@@ -443,6 +443,7 @@
   V(tty_constructor_template, v8::FunctionTemplate)                            \
   V(write_wrap_template, v8::ObjectTemplate)                                   \
   V(worker_heap_snapshot_taker_template, v8::ObjectTemplate)                   \
+  V(worker_heap_statistics_taker_template, v8::ObjectTemplate)                 \
   V(x509_constructor_template, v8::FunctionTemplate)
 
 #define PER_REALM_STRONG_PERSISTENT_VALUES(V)                                  \
