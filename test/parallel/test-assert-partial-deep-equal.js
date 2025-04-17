@@ -7,6 +7,9 @@ const vm = require('node:vm');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
 
+// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
+const { Float16Array } = globalThis;
+
 const x = ['x'];
 
 function createCircularObject() {
