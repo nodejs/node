@@ -1,0 +1,67 @@
+name: Build Node
+
+on:
+  push:
+    branches:
+      - v20.18.3
+
+jobs:
+  build-node:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+            runner: ubuntu-latest
+          - platform: linux
+            arch: arm64
+            runner: ubuntu-latest
+
+    env:
+      NODE_VERSION: v20.12.0
+      S3_BUCKET: your-bucket-name
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Checkout Node fork
+        uses: actions/checkout@v3
+        with:
+          repository: Asana/node
+          path: node
+
+      - name: Set build metadata
+        id: meta
+        working-directory: node
+        run: |
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "BUILD_ID=${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "build_id=${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 g++ make curl tar xz-utils
+
+      - name: Build Node
+        working-directory: node
+        run: |
+          ./configure --experimental-enable-pointer-compression
+          make -j4 install DESTDIR=$GITHUB_WORKSPACE/node-install
+
+      - name: Archive Node
+        run: |
+          mkdir -p artifacts
+          FILENAME=node-${NODE_VERSION}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.meta.outputs.build_id }}.tar.xz
+          tar -C node-install -cJf artifacts/$FILENAME .
+          echo "NODE_ARCHIVE=$FILENAME" >> $GITHUB_ENV
+
+      - name: Upload Node archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.meta.outputs.build_id }}
+          path: artifacts/${{ env.NODE_ARCHIVE }}
+

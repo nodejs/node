@@ -1,0 +1,51 @@
+name: Build node-fibers with prebuilt Node
+
+on:
+  workflow_run:
+    workflows: ["Build Node"]
+    types:
+      - completed
+
+jobs:
+  build-fibers:
+    name: Build node-fibers with custom Node
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+          - platform: linux
+            arch: arm64
+
+    env:
+      NODE_VERSION: v20.12.0
+
+    steps:
+      - name: Download Node archive
+        uses: actions/download-artifact@v4
+        with:
+          # You must match the exact name used in build-node.yml
+          name: node-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-LATEST
+
+      - name: Extract Node archive
+        run: |
+          mkdir -p node-install
+          tar -C node-install -xJf node-*.tar.xz
+          echo "$GITHUB_WORKSPACE/node-install/usr/local/bin" >> $GITHUB_PATH
+
+      - name: Checkout node-fibers fork
+        uses: actions/checkout@v3
+        with:
+          repository: asana/node-fibers
+          ref: jackstrohm_node20_fibers
+          path: node-fibers
+
+      - name: Build node-fibers
+        working-directory: node-fibers
+        run: |
+          which node
+          node -v
+          npm install --nodedir="$GITHUB_WORKSPACE/node-install/usr/local"
+          npm test
+
