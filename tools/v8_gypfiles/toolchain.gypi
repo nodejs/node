@@ -97,33 +97,6 @@
     # Indicates if gcmole tools are downloaded by a hook.
     'gcmole%': 0,
   },
-
-  # [GYP] this needs to be outside of the top level 'variables'
-  'conditions': [
-    ['host_arch=="ia32" or host_arch=="x64" or \
-      host_arch=="ppc64" or \
-      host_arch=="s390x" or \
-      clang==1', {
-      'variables': {
-        'host_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'host_cxx_is_biarch%': 0,
-      },
-    }],
-    ['target_arch=="ia32" or target_arch=="x64" or \
-      target_arch=="ppc64" or \
-      target_arch=="s390x" or clang==1', {
-      'variables': {
-        'target_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'target_cxx_is_biarch%': 0,
-      },
-    }],
-  ],
   'target_defaults': {
     'include_dirs': [
       '<(V8_ROOT)',
