@@ -122,7 +122,7 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length(isolate);
+  size_t length = str->Utf8LengthV2(isolate);
 
   Local<ArrayBuffer> ab;
   {
