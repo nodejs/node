@@ -639,7 +639,7 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
   // Can't use StringBytes::Write() in all cases. For example if attempting
   // to write a two byte character into a one byte Buffer.
   if (enc == UTF8) {
-    str_length = str_obj->Utf8Length(env->isolate());
+    str_length = str_obj->Utf8LengthV2(env->isolate());
     node::Utf8Value str(env->isolate(), args[1]);
     memcpy(ts_obj_data + start, *str, std::min(str_length, fill_length));
 
@@ -727,8 +727,8 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   // Fast case: avoid StringBytes on UTF8 string. Jump to v8.
-  args.GetReturnValue().Set(
-      args[0].As<String>()->Utf8Length(args.GetIsolate()));
+  size_t result = args[0].As<String>()->Utf8LengthV2(args.GetIsolate());
+  args.GetReturnValue().Set(static_cast<uint64_t>(result));
 }
 
 uint32_t FastByteLengthUtf8(
