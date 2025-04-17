@@ -10,6 +10,7 @@ import readline from 'node:readline';
 import stream from 'node:stream';
 import timers from 'node:timers';
 import child_process from 'node:child_process';
+import http2 from 'node:http2';
 
 
 assert.strictEqual(
@@ -47,4 +48,9 @@ assert.strictEqual(
 assert.strictEqual(
   promisify(child_process.execFile).name,
   'execFile'
+);
+
+assert.strictEqual(
+  promisify(http2.connect).name,
+  'connect'
 );
