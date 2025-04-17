@@ -53,7 +53,7 @@ void TargetAgent::createAndAttachIfNecessary(
     const std::string& title,
     const std::string& url) {
   std::string target_id = std::to_string(getNextTargetId());
-  std::string type = "worker";
+  std::string type = "node_worker";
 
   targetCreated(target_id, type, title, url);
   bool attached = false;
