@@ -125,12 +125,8 @@ static void MakeUtf8String(Isolate* isolate,
   size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
 
-  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
-  // implemented
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
