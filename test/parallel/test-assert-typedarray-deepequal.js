@@ -78,7 +78,7 @@ suite('notEqualArrayPairs', () => {
     [new Int16Array([0]), new Uint16Array([256])],
     [new Int16Array([-256]), new Uint16Array([0xff00])], // same bits
     [new Int32Array([-256]), new Uint32Array([0xffffff00])], // ditto
-    [new Float16Array([Number.EPSILON]), new Float16Array([0.0])],
+    [new Float16Array([0.1]), new Float16Array([0.0])],
     [new Float16Array([0.1]), new Float16Array([0.1, 0.2])],
     [new Float32Array([0.1]), new Float32Array([0.0])],
     [new Float32Array([0.1]), new Float32Array([0.1, 0.2])],
