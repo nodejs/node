@@ -258,6 +258,8 @@ describe('test runner watch mode', () => {
   });
 
   it('should emits test:watch:restarted when file is updated', async () => {
+    let alreadyDrained = false;
+    const events = [];
     const testWatchRestarted = common.mustCall(1);
 
     const controller = new AbortController();
@@ -266,9 +268,15 @@ describe('test runner watch mode', () => {
       watch: true,
       signal: controller.signal,
     }).on('data', function({ type }) {
+      events.push(type);
       if (type === 'test:watch:restarted') {
         testWatchRestarted();
-        controller.abort();
+      }
+      if (type === 'test:watch:drained') {
+        if (alreadyDrained) {
+          controller.abort();
+        }
+        alreadyDrained = true;
       }
     });
 
@@ -278,6 +286,12 @@ describe('test runner watch mode', () => {
 
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
+
+    assert.partialDeepStrictEqual(events, [
+      'test:watch:drained',
+      'test:watch:restarted',
+      'test:watch:drained',
+    ]);
   });
 
   it('should not emit test:watch:restarted since watch mode is disabled', async () => {
