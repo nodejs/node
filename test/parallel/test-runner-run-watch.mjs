@@ -256,6 +256,40 @@ describe('test runner watch mode', () => {
     });
     assert.notDeepStrictEqual(durations[0][1], durations[1][1]);
   });
+  
+  it('should emits test:watch:restarted when file is updated', async () => {
+    const testWatchRestarted = common.mustCall(1);
+    
+    const controller = new AbortController();
+    const stream = run({
+      cwd: tmpdir.path,
+      watch: true,
+      signal: controller.signal,
+    }).on('data', function({ type }) {
+      if (type === 'test:watch:restarted') {
+        testWatchRestarted();
+        controller.abort();
+      }
+    })
+
+    writeFileSync(join(tmpdir.path, 'test.js'), fixtureContent['test.js']);
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  })
+  
+  it('should not emit test:watch:restarted since watch mode is disabled', async () => {
+    const stream = run({
+      cwd: tmpdir.path,
+      watch: false,
+    })
+
+    stream.on('test:watch:restarted', common.mustNotCall())
+    writeFileSync(join(tmpdir.path, 'test.js'), fixtureContent['test.js']);
+    
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
+  })
 
   describe('test runner watch mode with different cwd', () => {
     it(
