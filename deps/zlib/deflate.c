@@ -485,14 +485,7 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
     s->window = (Bytef *) ZALLOC(strm,
                                  s->w_size + WINDOW_PADDING,
                                  2*sizeof(Byte));
-    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
-     * crbug.com/1144420 */
-    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
     s->prev   = (Posf *)  ZALLOC(strm, s->w_size, sizeof(Pos));
-    /* Avoid use of uninitialized value, see:
-     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
-     */
-    zmemzero(s->prev, s->w_size * sizeof(Pos));
     s->head   = (Posf *)  ZALLOC(strm, s->hash_size, sizeof(Pos));
 
     s->high_water = 0;      /* nothing written to s->window yet */
@@ -551,6 +544,13 @@ int ZEXPORT deflateInit2_(z_streamp strm, int level, int method,
         deflateEnd (strm);
         return Z_MEM_ERROR;
     }
+    /* Avoid use of unitialized values in the window, see crbug.com/1137613 and
+     * crbug.com/1144420 */
+    zmemzero(s->window, (s->w_size + WINDOW_PADDING) * (2 * sizeof(Byte)));
+    /* Avoid use of uninitialized value, see:
+     * https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=11360
+     */
+    zmemzero(s->prev, s->w_size * sizeof(Pos));
 #ifdef LIT_MEM
     s->d_buf = (ushf *)(s->pending_buf + (s->lit_bufsize << 1));
     s->l_buf = s->pending_buf + (s->lit_bufsize << 2);
