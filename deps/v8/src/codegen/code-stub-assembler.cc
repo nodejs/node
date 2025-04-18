@@ -1985,7 +1985,16 @@ TNode<Code> CodeStubAssembler::LoadCodeObjectFromJSDispatchTable(
   // The LSB is used as marking bit by the js dispatch table, so here we have
   // to set it using a bitwise OR as it may or may not be set.
   value = UncheckedCast<UintPtrT>(WordOr(
+#if defined(__illumos__) && defined(V8_HOST_ARCH_64_BIT)
+  // Pointers in illumos span both the low 2^47 range and the high 2^47 range
+  // as well. Checking the high bit being set in illumos means all higher bits
+  // need to be set to 1 after shifting right.
+  // Try WordSar() so any high-bit check wouldn't be necessary.
+      WordSar(UncheckedCast<IntPtrT>(value),
+	IntPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+#else
       WordShr(value, UintPtrConstant(JSDispatchEntry::kObjectPointerShift)),
+#endif /* __illumos__ */
       UintPtrConstant(kHeapObjectTag)));
   return CAST(BitcastWordToTagged(value));
 }
