@@ -1175,6 +1175,36 @@ void DatabaseSync::CustomFunction(const FunctionCallbackInfo<Value>& args) {
   CHECK_ERROR_OR_THROW(env->isolate(), db, r, SQLITE_OK, void());
 }
 
+void DatabaseSync::Location(const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+
+  std::string db_name = "main";
+  if (!args[0]->IsUndefined()) {
+    if (!args[0]->IsString()) {
+      THROW_ERR_INVALID_ARG_TYPE(env->isolate(),
+                                 "The \"dbName\" argument must be a string.");
+      return;
+    }
+
+    db_name = Utf8Value(env->isolate(), args[0].As<String>()).ToString();
+  }
+
+  const char* db_filename =
+      sqlite3_db_filename(db->connection_, db_name.c_str());
+  if (!db_filename || db_filename[0] == '\0') {
+    args.GetReturnValue().Set(Null(env->isolate()));
+    return;
+  }
+
+  Local<String> ret;
+  if (String::NewFromUtf8(env->isolate(), db_filename).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
+}
+
 void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -1295,7 +1325,7 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    // Subract 1 because the first argument is the aggregate value.
+    // Sutract 1 because the first argument is the aggregate value.
     argc = js_len.As<Int32>()->Value() - 1;
     if (!inverseFunc.IsEmpty() &&
         !inverseFunc->Get(env->context(), env->length_string())
@@ -2607,6 +2637,8 @@ static void Initialize(Local<Object> target,
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
+  SetProtoMethodNoSideEffect(
+      isolate, db_tmpl, "location", DatabaseSync::Location);
   SetProtoMethod(
       isolate, db_tmpl, "aggregate", DatabaseSync::AggregateFunction);
   SetProtoMethod(
