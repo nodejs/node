@@ -115,7 +115,7 @@
  *     - If `cookie.unsupported_ts` evaluates less than
  *       `COOKIE_UNSUPPORTED_TIMEOUT`
  *        - Ensure there is no EDNS cookie opt (10) set (shouldn't be unless
- *          requestor had put this themselves), then **skip any remaining
+ *          requester had put this themselves), then **skip any remaining
  *          processing** as we don't want to try to send cookies.
  *     - Otherwise:
  *       - clear all cookie settings, set `cookie.state = INITIAL`.
@@ -369,7 +369,8 @@ ares_status_t ares_cookie_apply(ares_dns_record_t *dnsrec, ares_conn_t *conn,
 
 ares_status_t ares_cookie_validate(ares_query_t            *query,
                                    const ares_dns_record_t *dnsresp,
-                                   ares_conn_t *conn, const ares_timeval_t *now)
+                                   ares_conn_t *conn, const ares_timeval_t *now,
+                                   ares_array_t **requeue)
 {
   ares_server_t           *server = conn->server;
   ares_cookie_t           *cookie = &server->cookie;
@@ -427,7 +428,8 @@ ares_status_t ares_cookie_validate(ares_query_t            *query,
     /* Resend the request, hopefully it will work the next time as we should
      * have recorded a server cookie */
     ares_requeue_query(query, now, ARES_SUCCESS,
-                       ARES_FALSE /* Don't increment try count */, NULL);
+                       ARES_FALSE /* Don't increment try count */, NULL,
+                       requeue);
 
     /* Parent needs to drop this response */
     return ARES_EBADRESP;

@@ -342,7 +342,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
       delete req_wrap;
     } else {
       CHECK(args[2]->Uint32Value(env->context()).IsJust());
-      int port = args[2]->Uint32Value(env->context()).FromJust();
+      uint32_t port;
+      if (!args[2]->Uint32Value(env->context()).To(&port)) {
+        return;
+      }
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
                                         "connect",
                                         req_wrap,
@@ -390,8 +393,9 @@ MaybeLocal<Object> AddressToJS(Environment* env,
 
   int port;
 
-  if (info.IsEmpty())
+  if (info.IsEmpty()) {
     info = Object::New(env->isolate());
+  }
 
   switch (addr->sa_family) {
   case AF_INET6:
@@ -413,32 +417,45 @@ MaybeLocal<Object> AddressToJS(Environment* env,
       }
     }
     port = ntohs(a6->sin6_port);
-    info->Set(env->context(),
-              env->address_string(),
-              OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(), env->family_string(), env->ipv6_string()).Check();
-    info->Set(env->context(),
-              env->port_string(),
-              Integer::New(env->isolate(), port)).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  OneByteString(env->isolate(), ip))
+            .IsNothing() ||
+        info->Set(env->context(), env->family_string(), env->ipv6_string())
+            .IsNothing() ||
+        info->Set(env->context(),
+                  env->port_string(),
+                  Integer::New(env->isolate(), port))
+            .IsNothing()) {
+      return {};
+    }
     break;
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(env->context(),
-              env->address_string(),
-              OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(), env->family_string(), env->ipv4_string()).Check();
-    info->Set(env->context(),
-              env->port_string(),
-              Integer::New(env->isolate(), port)).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  OneByteString(env->isolate(), ip))
+            .IsNothing() ||
+        info->Set(env->context(), env->family_string(), env->ipv4_string())
+            .IsNothing() ||
+        info->Set(env->context(),
+                  env->port_string(),
+                  Integer::New(env->isolate(), port))
+            .IsNothing()) {
+      return {};
+    }
     break;
 
   default:
-    info->Set(env->context(),
-              env->address_string(),
-              String::Empty(env->isolate())).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  String::Empty(env->isolate()))
+            .IsNothing()) {
+      return {};
+    }
   }
 
   return scope.Escape(info);

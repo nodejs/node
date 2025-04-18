@@ -23,12 +23,21 @@ function, any existing B<rbio> that was previously set will also be freed via a
 call to L<BIO_free_all(3)> (this includes the case where the B<rbio> is set to
 the same value as previously).
 
+If using a custom BIO, B<rbio> must implement either
+L<BIO_meth_set_read_ex(3)> or L<BIO_meth_set_read(3)>.
+
 SSL_set0_wbio() works in the same as SSL_set0_rbio() except that it connects
 the BIO B<wbio> for the write operations of the B<ssl> object. Note that if the
 rbio and wbio are the same then SSL_set0_rbio() and SSL_set0_wbio() each take
 ownership of one reference. Therefore, it may be necessary to increment the
 number of references available using L<BIO_up_ref(3)> before calling the set0
 functions.
+
+If using a custom BIO, B<wbio> must implement
+L<BIO_meth_set_write_ex(3)> or L<BIO_meth_set_write(3)>. It additionally must
+implement L<BIO_flush(3)> using B<BIO_CTRL_FLUSH> and L<BIO_meth_set_ctrl(3)>.
+If flushing is unnecessary with B<wbio>, L<BIO_flush(3)> should return one and
+do nothing.
 
 SSL_set_bio() is similar to SSL_set0_rbio() and SSL_set0_wbio() except
 that it connects both the B<rbio> and the B<wbio> at the same time, and

@@ -8,12 +8,7 @@ if (!common.hasCrypto) {
 const {
   hasOpenSSL,
   hasOpenSSL3,
-  opensslCli,
 } = require('../common/crypto');
-
-if (!opensslCli) {
-  common.skip('node compiled without OpenSSL CLI');
-}
 
 const assert = require('assert');
 const net = require('net');

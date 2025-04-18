@@ -85,11 +85,12 @@ const uint8_t* StringUtil::CharactersUTF8(const std::string_view s) {
 }
 
 size_t StringUtil::CharacterCount(const std::string_view s) {
-  // The utf32_length_from_utf8 function calls count_utf8.
-  // The count_utf8 function counts the number of code points
-  // (characters) in the string, assuming that the string is valid Unicode.
-  // TODO(@anonrig): Test to make sure CharacterCount returns correctly.
-  return simdutf::utf32_length_from_utf8(s.data(), s.length());
+  // Return the length of underlying representation storage.
+  // E.g. for std::basic_string_view<char>, return its byte length.
+  // If we adopt a variant underlying store string type, like
+  // `v8_inspector::StringView`, for UTF16, return the length of the
+  // underlying uint16_t store.
+  return s.length();
 }
 
 }  // namespace protocol

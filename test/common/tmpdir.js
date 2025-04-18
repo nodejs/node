@@ -5,17 +5,28 @@ const fs = require('fs');
 const path = require('path');
 const { pathToFileURL } = require('url');
 const { isMainThread } = require('worker_threads');
+const isUnixLike = process.platform !== 'win32';
+let escapePOSIXShell;
 
 function rmSync(pathname, useSpawn) {
   if (useSpawn) {
-    const escapedPath = pathname.replaceAll('\\', '\\\\');
-    spawnSync(
-      process.execPath,
-      [
-        '-e',
-        `require("fs").rmSync("${escapedPath}", { maxRetries: 3, recursive: true, force: true });`,
-      ],
-    );
+    if (isUnixLike) {
+      escapePOSIXShell ??= require('./index.js').escapePOSIXShell;
+      for (let i = 0; i < 3; i++) {
+        const { status } = spawnSync(...escapePOSIXShell`rm -rf "${pathname}"`);
+        if (status === 0) {
+          break;
+        }
+      }
+    } else {
+      spawnSync(
+        process.execPath,
+        [
+          '-e',
+          `fs.rmSync(${JSON.stringify(pathname)}, { maxRetries: 3, recursive: true, force: true });`,
+        ],
+      );
+    }
   } else {
     fs.rmSync(pathname, { maxRetries: 3, recursive: true, force: true });
   }

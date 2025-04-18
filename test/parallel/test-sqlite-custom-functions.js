@@ -274,13 +274,18 @@ suite('DatabaseSync.prototype.function()', () => {
       db.function('retString', () => { return 'foo'; });
       db.function('retBigInt', () => { return 5n; });
       db.function('retUint8Array', () => { return new Uint8Array([1, 2, 3]); });
+      db.function('retArrayBufferView', () => {
+        const arrayBuffer = new Uint8Array([1, 2, 3]).buffer;
+        return new DataView(arrayBuffer);
+      });
       const stmt = db.prepare(`SELECT
         retUndefined() AS retUndefined,
         retNull() AS retNull,
         retNumber() AS retNumber,
         retString() AS retString,
         retBigInt() AS retBigInt,
-        retUint8Array() AS retUint8Array
+        retUint8Array() AS retUint8Array,
+        retArrayBufferView() AS retArrayBufferView
       `);
       assert.deepStrictEqual(stmt.get(), {
         __proto__: null,
@@ -290,6 +295,7 @@ suite('DatabaseSync.prototype.function()', () => {
         retString: 'foo',
         retBigInt: 5,
         retUint8Array: new Uint8Array([1, 2, 3]),
+        retArrayBufferView: new Uint8Array([1, 2, 3]),
       });
     });
 

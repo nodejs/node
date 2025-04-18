@@ -3,7 +3,7 @@ name: WPT update
 on:
   schedule:
     # Run once a week at 12:00 AM UTC on Sunday.
-    - cron: 0 0 * * *
+    - cron: 0 0 * * 0
   workflow_dispatch:
     inputs:
       subsystems:
@@ -32,7 +32,7 @@ jobs:
           persist-credentials: false
 
       - name: Install Node.js
-        uses: actions/setup-node@39370e3970a6d050c480ffad4ff0ed4d3fdee5af  # v4.1.0
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a  # v4.2.0
         with:
           node-version: ${{ env.NODE_VERSION }}
 
@@ -70,7 +70,11 @@ jobs:
       - name: Open or update PR for the subsystem update
         uses: gr2m/create-or-update-pull-request-action@77596e3166f328b24613f7082ab30bf2d93079d5
         with:
-          branch: actions/update-wpt-${{ matrix.subsystem }}
+          # The create-or-update-pull-request-action matches the branch name by prefix,
+          # which is why we need to add the -wpt suffix. If we dont do that, we risk matching wrong PRs,
+          # like for example "url" mistakenly matching and updating the "urlpattern" PR
+          # as seen in https://github.com/nodejs/node/pull/57368
+          branch: actions/update-${{ matrix.subsystem }}-wpt
           author: Node.js GitHub Bot <github-bot@iojs.org>
           title: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.short_version }}'
           commit-message: 'test: update WPT for ${{ matrix.subsystem }} to ${{ env.short_version }}'

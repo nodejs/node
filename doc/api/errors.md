@@ -3314,6 +3314,12 @@ The requested functionality is not supported in worker threads.
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
 
+<a id="ERR_ZSTD_INVALID_PARAM"></a>
+
+### `ERR_ZSTD_INVALID_PARAM`
+
+An invalid parameter key was passed during construction of a Zstd stream.
+
 <a id="HPE_CHUNK_EXTENSIONS_OVERFLOW"></a>
 
 ### `HPE_CHUNK_EXTENSIONS_OVERFLOW`

@@ -203,8 +203,8 @@ regarding which files are parsed as ECMAScript modules.
   3. The file has a `.js` extension, the closest `package.json` does not contain
      `"type": "commonjs"`, and the module contains ES module syntax.
 
-If the ES Module being loaded meet the requirements, `require()` can load it and
-return the module namespace object. In this case it is similar to dynamic
+If the ES Module being loaded meets the requirements, `require()` can load it and
+return the [module namespace object][]. In this case it is similar to dynamic
 `import()` but is run synchronously and returns the name space object
 directly.
 
@@ -212,7 +212,7 @@ With the following ES Modules:
 
 ```mjs
 // distance.mjs
-export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 ```
 
 ```mjs
@@ -248,8 +248,8 @@ This property is experimental and can change in the future. It should only be us
 by tools converting ES modules into CommonJS modules, following existing ecosystem
 conventions. Code authored directly in CommonJS should avoid depending on it.
 
-When a ES Module contains both named exports and a default export, the result returned by `require()`
-is the module namespace object, which places the default export in the `.default` property, similar to
+When an ES Module contains both named exports and a default export, the result returned by `require()`
+is the [module namespace object][], which places the default export in the `.default` property, similar to
 the results returned by `import()`.
 To customize what should be returned by `require(esm)` directly, the ES Module can export the
 desired value using the string name `"module.exports"`.
@@ -264,7 +264,7 @@ export default class Point {
 
 // `distance` is lost to CommonJS consumers of this module, unless it's
 // added to `Point` as a static property.
-export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 export { Point as 'module.exports' }
 ```
 
@@ -288,7 +288,7 @@ named exports attached to it as properties. For example with the example above,
 <!-- eslint-disable @stylistic/js/semi -->
 
 ```mjs
-export function distance(a, b) { return (b.x - a.x) ** 2 + (b.y - a.y) ** 2; }
+export function distance(a, b) { return Math.sqrt((b.x - a.x) ** 2 + (b.y - a.y) ** 2); }
 
 export default class Point {
   constructor(x, y) { this.x = x; this.y = y; }
@@ -341,8 +341,8 @@ require(X) from module at path Y
    a. return the core module
    b. STOP
 2. If X begins with '/'
-   a. set Y to be the file system root
-3. If X begins with './' or '/' or '../'
+   a. set Y to the file system root
+3. If X is equal to '.', or X begins with './', '/' or '../'
    a. LOAD_AS_FILE(Y + X)
    b. LOAD_AS_DIRECTORY(Y + X)
    c. THROW "not found"
@@ -368,7 +368,7 @@ LOAD_AS_FILE(X)
       1. MAYBE_DETECT_AND_LOAD(X.js)
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X.js as an ECMAScript module. STOP.
-      2. If the "type" field is "commonjs", load X.js as an CommonJS module. STOP.
+      2. If the "type" field is "commonjs", load X.js as a CommonJS module. STOP.
     d. MAYBE_DETECT_AND_LOAD(X.js)
 3. If X.json is a file, load X.json to a JavaScript Object. STOP
 4. If X.node is a file, load X.node as binary addon. STOP
@@ -379,7 +379,7 @@ LOAD_INDEX(X)
     b. If no scope was found, load X/index.js as a CommonJS module. STOP.
     c. If the SCOPE/package.json contains "type" field,
       1. If the "type" field is "module", load X/index.js as an ECMAScript module. STOP.
-      2. Else, load X/index.js as an CommonJS module. STOP.
+      2. Else, load X/index.js as a CommonJS module. STOP.
 2. If X/index.json is a file, parse X/index.json to a JavaScript object. STOP
 3. If X/index.node is a file, load X/index.node as binary addon. STOP
 
@@ -1262,9 +1262,9 @@ This section was moved to
 
 * <a id="modules_module_findsourcemap_path_error" href="module.html#modulefindsourcemappath">`module.findSourceMap(path)`</a>
 * <a id="modules_class_module_sourcemap" href="module.html#class-modulesourcemap">Class: `module.SourceMap`</a>
-  * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload">`new SourceMap(payload)`</a>
+  * <a id="modules_new_sourcemap_payload" href="module.html#new-sourcemappayload--linelengths-">`new SourceMap(payload)`</a>
   * <a id="modules_sourcemap_payload" href="module.html#sourcemappayload">`sourceMap.payload`</a>
-  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylinenumber-columnnumber">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
+  * <a id="modules_sourcemap_findentry_linenumber_columnnumber" href="module.html#sourcemapfindentrylineoffset-columnoffset">`sourceMap.findEntry(lineNumber, columnNumber)`</a>
 
 [Determining module system]: packages.md#determining-module-system
 [ECMAScript Modules]: esm.md
@@ -1292,6 +1292,7 @@ This section was moved to
 [`process.features.require_module`]: process.md#processfeaturesrequire_module
 [`require.main`]: #requiremain
 [exports shortcut]: #exports-shortcut
+[module namespace object]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import#module_namespace_object
 [module resolution]: #all-together
 [native addons]: addons.md
 [subpath exports]: packages.md#subpath-exports

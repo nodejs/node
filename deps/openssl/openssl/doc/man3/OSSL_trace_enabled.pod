@@ -88,9 +88,10 @@ but rather uses a set of convenience macros, see the L</Macros> section below.
 OSSL_trace_enabled() can be used to check if tracing for the given
 I<category> is enabled.
 
-OSSL_trace_begin() is used to starts a tracing section, and get the
-channel for the given I<category> in form of a BIO.
+OSSL_trace_begin() is used to start a tracing section,
+and get the channel for the given I<category> in form of a BIO.
 This BIO can only be used for output.
+The pointer returned is NULL if the category is invalid or not enabled.
 
 OSSL_trace_end() is used to end a tracing section.
 
@@ -186,6 +187,9 @@ expands to
  }
 
 =head1 NOTES
+
+It is not needed to guard trace output function calls like
+I<OSSL_TRACE(category, ...)> by I<OSSL_TRACE_ENABLED(category)>.
 
 If producing the trace output requires carrying out auxiliary calculations,
 this auxiliary code should be placed inside a conditional block which is

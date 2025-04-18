@@ -37,11 +37,13 @@
 #include "ares_private.h"
 #include "ares_event.h"
 #include "ares_event_win32.h"
+
+
+#if defined(USE_WINSOCK) && defined(CARES_THREADS)
+
 #ifdef HAVE_LIMITS_H
 #  include <limits.h>
 #endif
-
-#if defined(USE_WINSOCK)
 
 /* IMPLEMENTATION NOTES
  * ====================
@@ -667,7 +669,7 @@ static ares_bool_t ares_evsys_win32_afd_cancel(ares_evsys_win32_eventdata_t *ed)
 
   /* NtCancelIoFileEx() may return STATUS_NOT_FOUND if the operation completed
    * just before calling NtCancelIoFileEx(), but we have not yet received the
-   * notifiction (but it should be queued for the next IOCP event).  */
+   * notification (but it should be queued for the next IOCP event).  */
   if (status == STATUS_SUCCESS || status == STATUS_NOT_FOUND) {
     return ARES_TRUE;
   }

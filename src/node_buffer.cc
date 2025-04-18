@@ -71,7 +71,6 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
@@ -278,10 +277,10 @@ MaybeLocal<Uint8Array> New(Environment* env,
                            size_t length) {
   CHECK(!env->buffer_prototype_object().IsEmpty());
   Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.IsNothing())
+  if (ui->SetPrototype(env->context(), env->buffer_prototype_object())
+          .IsNothing()) {
     return MaybeLocal<Uint8Array>();
+  }
   return ui;
 }
 
@@ -572,9 +571,14 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> source(args[0]);
   SPREAD_BUFFER_ARG(args[1].As<Object>(), target);
 
-  const auto target_start = args[2]->Uint32Value(env->context()).ToChecked();
-  const auto source_start = args[3]->Uint32Value(env->context()).ToChecked();
-  const auto to_copy = args[4]->Uint32Value(env->context()).ToChecked();
+  uint32_t target_start;
+  uint32_t source_start;
+  uint32_t to_copy;
+  if (!args[2]->Uint32Value(env->context()).To(&target_start) ||
+      !args[3]->Uint32Value(env->context()).To(&source_start) ||
+      !args[4]->Uint32Value(env->context()).To(&to_copy)) {
+    return;
+  }
 
   memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
@@ -639,7 +643,9 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  str_obj = args[1]->ToString(env->context()).ToLocalChecked();
+  if (!args[1]->ToString(env->context()).ToLocal(&str_obj)) {
+    return;
+  }
   enc = ParseEncoding(env->isolate(), args[4], UTF8);
 
   // Can't use StringBytes::Write() in all cases. For example if attempting
@@ -702,7 +708,10 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
 
-  Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
+  Local<String> str;
+  if (!args[0]->ToString(env->context()).ToLocal(&str)) {
+    return;
+  }
 
   size_t offset = 0;
   size_t max_length = 0;
@@ -1242,10 +1251,12 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
     ab = ArrayBuffer::New(env->isolate(), std::move(backing));
   }
 
-  ab->SetPrivate(
-      env->context(),
-      env->untransferable_object_private_symbol(),
-      True(env->isolate())).Check();
+  if (ab->SetPrivate(env->context(),
+                     env->untransferable_object_private_symbol(),
+                     True(env->isolate()))
+          .IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
@@ -1256,7 +1267,9 @@ void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     Local<ArrayBuffer> buf = args[0].As<ArrayBuffer>();
     if (buf->IsDetachable()) {
       std::shared_ptr<BackingStore> store = buf->GetBackingStore();
-      buf->Detach(Local<Value>()).Check();
+      if (buf->Detach(Local<Value>()).IsNothing()) {
+        return;
+      }
       args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), store));
     }
   }
@@ -1310,12 +1323,9 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
     written = simdutf::binary_to_base64(*stack_buf, out_len, buffer.out());
   }
 
-  auto value =
-      String::NewFromOneByte(env->isolate(),
-                             reinterpret_cast<const uint8_t*>(buffer.out()),
-                             NewStringType::kNormal,
-                             written)
-          .ToLocalChecked();
+  auto value = OneByteString(
+      env->isolate(), reinterpret_cast<const uint8_t*>(buffer.out()), written);
+
   return args.GetReturnValue().Set(value);
 }
 
@@ -1365,12 +1375,9 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (result.error == simdutf::error_code::SUCCESS) {
-    auto value =
-        String::NewFromOneByte(env->isolate(),
+    auto value = OneByteString(env->isolate(),
                                reinterpret_cast<const uint8_t*>(buffer.out()),
-                               NewStringType::kNormal,
-                               result.count)
-            .ToLocalChecked();
+                               result.count);
     return args.GetReturnValue().Set(value);
   }
 
@@ -1471,7 +1478,10 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "argument");
 
-  Local<String> str = args[1]->ToString(env->context()).ToLocalChecked();
+  Local<String> str;
+  if (!args[1]->ToString(env->context()).ToLocal(&str)) {
+    return;
+  }
 
   size_t offset = 0;
   size_t max_length = 0;

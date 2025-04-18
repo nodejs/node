@@ -7,7 +7,9 @@ EVP_SIGNATURE-DSA
 
 =head1 DESCRIPTION
 
-Support for computing DSA signatures.
+Support for computing DSA signatures. The signature produced with
+L<EVP_PKEY_sign(3)> is DER encoded ASN.1 in the form described in
+RFC 3279, section 2.2.2.
 See L<EVP_PKEY-DSA(7)> for information related to DSA keys.
 
 =head2 Signature Parameters

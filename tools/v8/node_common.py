@@ -18,7 +18,7 @@ DEPOT_TOOLS_URL = \
 
 def EnsureDepotTools(v8_path, fetch_if_not_exist):
   def _Get(v8_path):
-    depot_tools = os.path.join(v8_path, "_depot_tools")
+    depot_tools = os.path.join(v8_path, "depot_tools")
     try:
       gclient_path = os.path.join(depot_tools, "gclient.py")
       if os.path.isfile(gclient_path):

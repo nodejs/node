@@ -189,4 +189,19 @@ describe('findPackageJSON', () => { // Throws when no arguments are provided
     assert.ok(stdout.includes(foundPjsonPath), stdout);
     assert.strictEqual(code, 0);
   });
+
+  it('should work when unrecognised keys are specified within the export', async () => {
+    const specifierBase = './packages/unrecognised-export-keys';
+    const target = fixtures.fileURL(specifierBase, 'index.js');
+    const foundPjsonPath = path.toNamespacedPath(fixtures.path(specifierBase, 'package.json'));
+
+    const { code, stderr, stdout } = await common.spawnPromisified(process.execPath, [
+      '--print',
+      `require("node:module").findPackageJSON(${JSON.stringify(target)})`,
+    ]);
+
+    assert.strictEqual(stderr, '');
+    assert.ok(stdout.includes(foundPjsonPath), stdout);
+    assert.strictEqual(code, 0);
+  });
 });

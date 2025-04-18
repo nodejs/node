@@ -12,11 +12,12 @@ release process.
   * [3. Update `NODE_API_SUPPORTED_VERSION_MAX`](#3-update-node_api_supported_version_max)
   * [4. Define `addon_context_register_func`](#4-define-addon_context_register_func)
   * [5. Update version guards](#5-update-version-guards)
-  * [6. Create release commit](#6-create-release-commit)
-  * [7. Propose release on GitHub](#7-propose-release-on-github)
-  * [8. Ensure that the release branch is stable](#8-ensure-that-the-release-branch-is-stable)
-  * [9. Land the release](#9-land-the-release)
-  * [10. Backport the release](#10-backport-the-release)
+  * [6. Update version matrix document](#6-update-version-matrix-document)
+  * [7. Create release commit](#7-create-release-commit)
+  * [8. Propose release on GitHub](#8-propose-release-on-github)
+  * [9. Ensure that the release branch is stable](#9-ensure-that-the-release-branch-is-stable)
+  * [10. Land the release](#10-land-the-release)
+  * [11. Backport the release](#11-backport-the-release)
 
 ## How to create a release
 
@@ -199,7 +200,22 @@ released version `x`:
 + * version 10:
 ```
 
-### 6. Create release commit
+### 6. Update version matrix document
+
+Add a new row in the [version matrix][] for
+the new version:
+
+```text
+<tr>
+  <th scope="row">10</th>
+  <td>vREPLACEME+ and all later versions</td>
+</tr>
+```
+
+In this case, use `REPLACEME` as a placeholder for the Node.js version to be released.
+It will be updated in a Node.js version release.
+
+### 7. Create release commit
 
 When committing these to git, use the following message format:
 
@@ -207,7 +223,7 @@ When committing these to git, use the following message format:
 node-api: define version x
 ```
 
-### 7. Propose release on GitHub
+### 8. Propose release on GitHub
 
 Create a pull request targeting the `main` branch. These PRs should be left
 open for at least 24 hours, and can be updated as new commits land.
@@ -218,22 +234,26 @@ good place to @-mention the relevant contributors.
 Tag the PR with the `notable-change` label, and @-mention the GitHub team
 @nodejs/node-api and @nodejs/node-api-implementer.
 
-### 8. Ensure that the release branch is stable
+### 9. Ensure that the release branch is stable
 
 Run a **[`node-test-pull-request`](https://ci.nodejs.org/job/node-test-pull-request/)**
 test run to ensure that the build is stable and the HEAD commit is ready for
 release.
 
-### 9. Land the release
+### 10. Land the release
 
 See the steps documented in [Collaborator Guide - Landing a PR][] to land the
 PR.
 
-### 10. Backport the release
+### 11. Backport the release
 
 Consider backporting the release to all LTS versions following the steps
 documented in the [backporting guide][].
 
+Additionally, update the [version matrix][] for the backported version if
+necessary.
+
 [Collaborator Guide - Landing a PR]: ./collaborator-guide.md#landing-pull-requests
 [abi-stable-node issue tracker]: https://github.com/nodejs/abi-stable-node/issues
 [backporting guide]: backporting-to-release-lines.md
+[version matrix]: ../api/n-api.md#node-api-version-matrix

@@ -227,6 +227,18 @@ MODE is only present where applicable.
 Other aliases may exist for example where standards bodies or common practice
 use alternative names or names that OpenSSL has used historically.
 
+=head3 Provider dependencies
+
+Providers may depend for their proper operation on the availability of
+(functionality implemented in) other providers. As there is no mechanism to
+express such dependencies towards the OpenSSL core, provider authors must
+take care that such dependencies are either completely avoided or made visible
+to users, e.g., by documentation and/or defensive programming, e.g.,
+outputting error messages if required external dependencies are not available,
+e.g., when no provider implementing the required functionality has been
+activated. In particular, provider initialization should not depend on other
+providers already having been initialized.
+
 =head1 OPENSSL PROVIDERS
 
 OpenSSL provides a number of its own providers. These are the default, base,

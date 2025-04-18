@@ -122,4 +122,6 @@ void *ngtcp2_ringbuf_get(const ngtcp2_ringbuf *rb, size_t offset) {
   return &rb->buf[offset * rb->size];
 }
 
-int ngtcp2_ringbuf_full(ngtcp2_ringbuf *rb) { return rb->len == rb->mask + 1; }
+int ngtcp2_ringbuf_full(const ngtcp2_ringbuf *rb) {
+  return rb->len == rb->mask + 1;
+}

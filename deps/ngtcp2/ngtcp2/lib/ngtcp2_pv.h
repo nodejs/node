@@ -71,11 +71,13 @@ void ngtcp2_pv_entry_init(ngtcp2_pv_entry *pvent, const uint8_t *data,
 /* NGTCP2_PV_FLAG_CANCEL_TIMER indicates that the expiry timer is
    cancelled. */
 #define NGTCP2_PV_FLAG_CANCEL_TIMER 0x02u
-/* NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE indicates that fallback DCID is
-   available in ngtcp2_pv.  If path validation fails, fallback to the
-   fallback DCID.  If path validation succeeds, fallback DCID is
-   retired if it does not equal to the current DCID. */
-#define NGTCP2_PV_FLAG_FALLBACK_ON_FAILURE 0x04u
+/* NGTCP2_PV_FLAG_FALLBACK_PRESENT indicates that a fallback
+   Destination Connection ID and PTO are available in ngtcp2_pv.  If
+   path validation fails, then fallback to them.  If path validation
+   succeeds, the fallback Destination Connection ID is retired if it
+   is not zero length, and does not equal to the current Destination
+   Connection ID. */
+#define NGTCP2_PV_FLAG_FALLBACK_PRESENT 0x04u
 /* NGTCP2_PV_FLAG_PREFERRED_ADDR indicates that client is migrating to
    server's preferred address.  This flag is only used by client. */
 #define NGTCP2_PV_FLAG_PREFERRED_ADDR 0x10u
@@ -190,5 +192,11 @@ ngtcp2_tstamp ngtcp2_pv_next_expiry(ngtcp2_pv *pv);
  * ngtcp2_pv_cancel_expired_timer cancels the expired timer.
  */
 void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts);
+
+/*
+ * ngtcp2_pv_set_fallback sets |dcid| and |pto| as fallback.
+ */
+void ngtcp2_pv_set_fallback(ngtcp2_pv *pv, const ngtcp2_dcid *dcid,
+                            ngtcp2_duration pto);
 
 #endif /* !defined(NGTCP2_PV_H) */

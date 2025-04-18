@@ -144,9 +144,11 @@ Creates a new instance of `AsyncLocalStorage`. Store is only provided within a
 added:
  - v19.8.0
  - v18.16.0
+changes:
+ - version: v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `fn` {Function} The function to bind to the current execution context.
 * Returns: {Function} A new function that calls `fn` within the captured
@@ -160,9 +162,11 @@ Binds the given function to the current execution context.
 added:
  - v19.8.0
  - v18.16.0
+changes:
+ - version: v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {Function} A new function with the signature
   `(fn: (...args) : R, ...args) : R`.

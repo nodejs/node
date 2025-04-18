@@ -107,9 +107,12 @@ static int save_statusInfo(OSSL_CMP_CTX *ctx, OSSL_CMP_PKISI *si)
     ss = si->statusString; /* may be NULL */
     for (i = 0; i < sk_ASN1_UTF8STRING_num(ss); i++) {
         ASN1_UTF8STRING *str = sk_ASN1_UTF8STRING_value(ss, i);
+        ASN1_UTF8STRING *dup = ASN1_STRING_dup(str);
 
-        if (!sk_ASN1_UTF8STRING_push(ctx->statusString, ASN1_STRING_dup(str)))
+        if (dup == NULL || !sk_ASN1_UTF8STRING_push(ctx->statusString, dup)) {
+            ASN1_UTF8STRING_free(dup);
             return 0;
+        }
     }
     return 1;
 }

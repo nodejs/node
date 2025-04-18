@@ -15,9 +15,11 @@ Lbn_mul_mont:
 	cmp	x5,#32
 	b.le	Lscalar_impl
 #ifndef	__KERNEL__
+#ifndef	__AARCH64EB__
 	adrp	x17,_OPENSSL_armv8_rsa_neonized@PAGE
 	ldr	w17,[x17,_OPENSSL_armv8_rsa_neonized@PAGEOFF]
 	cbnz	w17, bn_mul8x_mont_neon
+#endif
 #endif
 
 Lscalar_impl:

@@ -17,6 +17,7 @@
 #include "uv.h"
 #include "uvwasi.h"
 #include "v8.h"
+#include "zstd.h"
 
 #ifdef NODE_BUNDLED_ZLIB
 #include "zlib_version.h"
@@ -126,6 +127,7 @@ Metadata::Versions::Versions() {
   acorn = ACORN_VERSION;
   cjs_module_lexer = CJS_MODULE_LEXER_VERSION;
   uvwasi = UVWASI_VERSION_STRING;
+  zstd = ZSTD_VERSION_STRING;
 
 #ifndef NODE_SHARED_BUILTIN_AMARO_DIST_INDEX_PATH
 #if HAVE_AMARO

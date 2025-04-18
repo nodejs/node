@@ -26,6 +26,8 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
+#if defined(HAVE_KQUEUE) && defined(CARES_THREADS)
+
 #ifdef HAVE_SYS_TYPES_H
 #  include <sys/types.h>
 #endif
@@ -38,8 +40,6 @@
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
 #endif
-
-#ifdef HAVE_KQUEUE
 
 typedef struct {
   int            kqueue_fd;

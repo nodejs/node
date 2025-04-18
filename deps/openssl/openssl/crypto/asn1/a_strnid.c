@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -39,10 +39,10 @@ unsigned long ASN1_STRING_get_default_mask(void)
  * This function sets the default to various "flavours" of configuration.
  * based on an ASCII string. Currently this is:
  * MASK:XXXX : a numerical mask value.
- * nobmp : Don't use BMPStrings (just Printable, T61).
- * pkix : PKIX recommendation in RFC2459.
- * utf8only : only use UTF8Strings (RFC2459 recommendation for 2004).
- * default:   the default value, Printable, T61, BMP.
+ * default   : use Printable, IA5, T61, BMP, and UTF8 string types
+ * nombstr   : any string type except variable-sized BMPStrings or UTF8Strings
+ * pkix      : PKIX recommendation in RFC2459
+ * utf8only  : this is the default, use UTF8Strings
  */
 
 int ASN1_STRING_set_default_mask_asc(const char *p)

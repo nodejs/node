@@ -287,6 +287,8 @@ static ares_status_t ares_gethostbyname_file_int(ares_channel_t *channel,
     return ARES_ENOTFOUND;
   }
 
+  *host  = NULL;
+
   /* Per RFC 7686, reject queries for ".onion" domain names with NXDOMAIN. */
   if (ares_is_onion_domain(name)) {
     return ARES_ENOTFOUND;
@@ -307,9 +309,13 @@ done:
    * SHOULD recognize localhost names as special and SHOULD always return the
    * IP loopback address for address queries".
    * We will also ignore ALL errors when trying to resolve localhost, such
-   * as permissions errors reading /etc/hosts or a malformed /etc/hosts */
-  if (status != ARES_SUCCESS && status != ARES_ENOMEM &&
-      ares_is_localhost(name)) {
+   * as permissions errors reading /etc/hosts or a malformed /etc/hosts.
+   *
+   * Also, just because the query itself returned success from /etc/hosts
+   * lookup doesn't mean it returned everything it needed to for all requested
+   * address families. As long as we're not on a critical out of memory
+   * condition pass it through to fill in any other address classes. */
+  if (status != ARES_ENOMEM && ares_is_localhost(name)) {
     return ares_hostent_localhost(name, family, host);
   }
 

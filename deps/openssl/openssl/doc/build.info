@@ -2271,10 +2271,6 @@ DEPEND[html/man3/SSL_CTX_set_psk_client_callback.html]=man3/SSL_CTX_set_psk_clie
 GENERATE[html/man3/SSL_CTX_set_psk_client_callback.html]=man3/SSL_CTX_set_psk_client_callback.pod
 DEPEND[man/man3/SSL_CTX_set_psk_client_callback.3]=man3/SSL_CTX_set_psk_client_callback.pod
 GENERATE[man/man3/SSL_CTX_set_psk_client_callback.3]=man3/SSL_CTX_set_psk_client_callback.pod
-DEPEND[html/man3/SSL_CTX_set_quic_method.html]=man3/SSL_CTX_set_quic_method.pod
-GENERATE[html/man3/SSL_CTX_set_quic_method.html]=man3/SSL_CTX_set_quic_method.pod
-DEPEND[man/man3/SSL_CTX_set_quic_method.3]=man3/SSL_CTX_set_quic_method.pod
-GENERATE[man/man3/SSL_CTX_set_quic_method.3]=man3/SSL_CTX_set_quic_method.pod
 DEPEND[html/man3/SSL_CTX_set_quiet_shutdown.html]=man3/SSL_CTX_set_quiet_shutdown.pod
 GENERATE[html/man3/SSL_CTX_set_quiet_shutdown.html]=man3/SSL_CTX_set_quiet_shutdown.pod
 DEPEND[man/man3/SSL_CTX_set_quiet_shutdown.3]=man3/SSL_CTX_set_quiet_shutdown.pod
@@ -3355,7 +3351,6 @@ html/man3/SSL_CTX_set_msg_callback.html \
 html/man3/SSL_CTX_set_num_tickets.html \
 html/man3/SSL_CTX_set_options.html \
 html/man3/SSL_CTX_set_psk_client_callback.html \
-html/man3/SSL_CTX_set_quic_method.html \
 html/man3/SSL_CTX_set_quiet_shutdown.html \
 html/man3/SSL_CTX_set_read_ahead.html \
 html/man3/SSL_CTX_set_record_padding_callback.html \
@@ -3964,7 +3959,6 @@ man/man3/SSL_CTX_set_msg_callback.3 \
 man/man3/SSL_CTX_set_num_tickets.3 \
 man/man3/SSL_CTX_set_options.3 \
 man/man3/SSL_CTX_set_psk_client_callback.3 \
-man/man3/SSL_CTX_set_quic_method.3 \
 man/man3/SSL_CTX_set_quiet_shutdown.3 \
 man/man3/SSL_CTX_set_read_ahead.3 \
 man/man3/SSL_CTX_set_record_padding_callback.3 \

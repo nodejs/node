@@ -61,7 +61,7 @@
       'type': 'none',
       'toolsets': ['host', 'target'],
       'conditions': [
-        ['OS=="win"', {
+        ['OS == "win" and (clang != 1 or use_ccache_win != 1)', {
           'direct_dependent_settings': {
             'msvs_precompiled_header': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.h',
             'msvs_precompiled_source': '<(V8_ROOT)/../../tools/msvs/pch/v8_pch.cc',
@@ -1010,6 +1010,58 @@
       ],
     },  # v8_compiler_for_mksnapshot
     {
+      'target_name': 'v8_inspector_headers',
+      'type': 'none',
+      'toolsets': ['host', 'target'],
+      'hard_dependency': 1,
+      'includes': ['inspector.gypi'],
+      'direct_dependent_settings': {
+        'include_dirs': [
+          '<(inspector_generated_output_root)/include',
+        ],
+      },
+      'actions': [
+        {
+          'action_name': 'protocol_compatibility',
+          'inputs': [
+            '<(v8_inspector_js_protocol)',
+          ],
+          'outputs': [
+            '<@(inspector_generated_output_root)/src/js_protocol.stamp',
+          ],
+          'action': [
+            '<(python)',
+            '<(inspector_protocol_path)/check_protocol_compatibility.py',
+            '--stamp', '<@(_outputs)',
+            '<@(_inputs)',
+          ],
+          'message': 'Checking inspector protocol compatibility',
+        },
+        {
+          'action_name': 'protocol_generated_sources',
+          'inputs': [
+            '<(v8_inspector_js_protocol)',
+            '<(inspector_path)/inspector_protocol_config.json',
+            '<@(inspector_protocol_files)',
+          ],
+          'outputs': [
+            '<@(inspector_generated_sources)',
+          ],
+          'process_outputs_as_sources': 1,
+          'action': [
+            '<(python)',
+            '<(inspector_protocol_path)/code_generator.py',
+            '--jinja_dir', '<(V8_ROOT)/third_party',
+            '--output_base', '<(inspector_generated_output_root)/src/inspector',
+            '--config', '<(inspector_path)/inspector_protocol_config.json',
+            '--config_value', 'protocol.path=<(v8_inspector_js_protocol)',
+            '--inspector_protocol_dir', '<(inspector_protocol_path)',
+          ],
+          'message': 'Generating inspector protocol sources from protocol json',
+        },
+      ],
+    },  # v8_inspector_headers
+    {
       'target_name': 'v8_base_without_compiler',
       'type': 'static_library',
       'toolsets': ['host', 'target'],
@@ -1018,6 +1070,7 @@
         'v8_bigint',
         'v8_headers',
         'v8_heap_base',
+        'v8_inspector_headers',
         'v8_libbase',
         'v8_shared_internal_headers',
         'v8_version',

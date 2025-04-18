@@ -662,8 +662,12 @@ int EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret,
 {
     EVP_PKEY_CTX *pctx = ctx->pctx;
 
-    if (pctx != NULL
-            && pctx->operation == EVP_PKEY_OP_VERIFYCTX
+    if (pctx == NULL) {
+        ERR_raise(ERR_LIB_EVP, EVP_R_INITIALIZATION_ERROR);
+        return -1;
+    }
+
+    if (pctx->operation == EVP_PKEY_OP_VERIFYCTX
             && pctx->op.sig.algctx != NULL
             && pctx->op.sig.signature != NULL) {
         if (pctx->op.sig.signature->digest_verify != NULL)
@@ -672,8 +676,8 @@ int EVP_DigestVerify(EVP_MD_CTX *ctx, const unsigned char *sigret,
                                                          tbs, tbslen);
     } else {
         /* legacy */
-        if (ctx->pctx->pmeth != NULL && ctx->pctx->pmeth->digestverify != NULL)
-            return ctx->pctx->pmeth->digestverify(ctx, sigret, siglen, tbs, tbslen);
+        if (pctx->pmeth != NULL && pctx->pmeth->digestverify != NULL)
+            return pctx->pmeth->digestverify(ctx, sigret, siglen, tbs, tbslen);
     }
 
     if (EVP_DigestVerifyUpdate(ctx, tbs, tbslen) <= 0)

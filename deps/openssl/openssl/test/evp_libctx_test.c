@@ -501,7 +501,7 @@ static int rsa_keygen(int bits, EVP_PKEY **pub, EVP_PKEY **priv)
     size_t len = 0;
     OSSL_ENCODER_CTX *ectx = NULL;
 
-    if (!TEST_ptr(*priv = EVP_PKEY_Q_keygen(libctx, NULL, "RSA", bits))
+    if (!TEST_ptr(*priv = EVP_PKEY_Q_keygen(libctx, NULL, "RSA", (size_t)bits))
         || !TEST_ptr(ectx =
                      OSSL_ENCODER_CTX_new_for_pkey(*priv,
                                                    EVP_PKEY_PUBLIC_KEY,
@@ -536,6 +536,8 @@ static int kem_rsa_gen_recover(void)
           && TEST_int_eq(EVP_PKEY_encapsulate_init(sctx, NULL), 1)
           && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(sctx, "RSASVE"), 1)
           && TEST_ptr(dctx = EVP_PKEY_CTX_dup(sctx))
+          /* Test that providing a NULL wrappedlen fails */
+          && TEST_int_eq(EVP_PKEY_encapsulate(dctx, NULL, NULL, NULL, NULL), 0)
           && TEST_int_eq(EVP_PKEY_encapsulate(dctx, NULL, &ctlen, NULL,
                                               &secretlen), 1)
           && TEST_int_eq(ctlen, secretlen)
@@ -545,11 +547,26 @@ static int kem_rsa_gen_recover(void)
           && TEST_ptr(rctx = EVP_PKEY_CTX_new_from_pkey(libctx, priv, NULL))
           && TEST_int_eq(EVP_PKEY_decapsulate_init(rctx, NULL), 1)
           && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(rctx, "RSASVE"), 1)
+          /* Test that providing a NULL unwrappedlen fails */
+          && TEST_int_eq(EVP_PKEY_decapsulate(rctx, NULL, NULL, ct, ctlen), 0)
           && TEST_int_eq(EVP_PKEY_decapsulate(rctx, NULL, &unwraplen,
                                               ct, ctlen), 1)
           && TEST_int_eq(EVP_PKEY_decapsulate(rctx, unwrap, &unwraplen,
                                               ct, ctlen), 1)
           && TEST_mem_eq(unwrap, unwraplen, secret, secretlen);
+
+    /* Test that providing a too short unwrapped/ctlen fails */
+    if (fips_provider_version_match(libctx, ">=3.4.0")) {
+        ctlen = 1;
+        if (!TEST_int_eq(EVP_PKEY_encapsulate(dctx, ct, &ctlen, secret,
+                                              &secretlen), 0))
+            ret = 0;
+        unwraplen = 1;
+        if (!TEST_int_eq(EVP_PKEY_decapsulate(rctx, unwrap, &unwraplen, ct,
+                                              ctlen), 0))
+            ret = 0;
+    }
+
     EVP_PKEY_free(pub);
     EVP_PKEY_free(priv);
     EVP_PKEY_CTX_free(rctx);
@@ -596,59 +613,60 @@ static int kem_rsa_params(void)
     size_t ctlen = 0, secretlen = 0;
 
     ret = TEST_true(rsa_keygen(2048, &pub, &priv))
-          && TEST_ptr(pubctx = EVP_PKEY_CTX_new_from_pkey(libctx, pub, NULL))
-          && TEST_ptr(privctx = EVP_PKEY_CTX_new_from_pkey(libctx, priv, NULL))
-          /* Test setting kem op before the init fails */
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), -2)
-          /* Test NULL ctx passed */
-          && TEST_int_eq(EVP_PKEY_encapsulate_init(NULL, NULL), 0)
-          && TEST_int_eq(EVP_PKEY_encapsulate(NULL, NULL, NULL, NULL, NULL), 0)
-          && TEST_int_eq(EVP_PKEY_decapsulate_init(NULL, NULL), 0)
-          && TEST_int_eq(EVP_PKEY_decapsulate(NULL, NULL, NULL, NULL, 0), 0)
-          /* Test Invalid operation */
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, NULL), -1)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, NULL, NULL, 0), 0)
-          /* Wrong key component - no secret should be returned on failure */
-          && TEST_int_eq(EVP_PKEY_decapsulate_init(pubctx, NULL), 1)
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), 1)
-          && TEST_int_eq(EVP_PKEY_decapsulate(pubctx, secret, &secretlen, ct,
-                                              sizeof(ct)), 0)
-          && TEST_uchar_eq(secret[0], 0)
-          /* Test encapsulate fails if the mode is not set */
-          && TEST_int_eq(EVP_PKEY_encapsulate_init(pubctx, NULL), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, &secretlen), -2)
-          /* Test setting a bad kem ops fail */
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSA"), 0)
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx,  NULL), 0)
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(NULL,  "RSASVE"), 0)
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(NULL,  NULL), 0)
-          /* Test secretlen is optional */
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, NULL), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, NULL), 1)
-          /* Test outlen is optional */
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, &secretlen), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, NULL, secret, &secretlen), 1)
-          /* test that either len must be set if out is NULL */
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, NULL), 0)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, NULL), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, &secretlen), 1)
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, &secretlen), 1)
-          /* Secret buffer should be set if there is an output buffer */
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, NULL, NULL), 0)
-          /* Test that lengths are optional if ct is not NULL */
-          && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, NULL, secret, NULL), 1)
-          /* Pass if secret or secret length are not NULL */
-          && TEST_int_eq(EVP_PKEY_decapsulate_init(privctx, NULL), 1)
-          && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(privctx, "RSASVE"), 1)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, NULL, ct, sizeof(ct)), 1)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, &secretlen, ct, sizeof(ct)), 1)
-          && TEST_int_eq(secretlen, 256)
-          /* Fail if passed NULL arguments */
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, NULL, ct, sizeof(ct)), 0)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, NULL, 0), 0)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, NULL, sizeof(ct)), 0)
-          && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, ct, 0), 0);
+        && TEST_ptr(pubctx = EVP_PKEY_CTX_new_from_pkey(libctx, pub, NULL))
+        && TEST_ptr(privctx = EVP_PKEY_CTX_new_from_pkey(libctx, priv, NULL))
+        /* Test setting kem op before the init fails */
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), -2)
+        /* Test NULL ctx passed */
+        && TEST_int_eq(EVP_PKEY_encapsulate_init(NULL, NULL), 0)
+        && TEST_int_eq(EVP_PKEY_encapsulate(NULL, NULL, NULL, NULL, NULL), 0)
+        && TEST_int_eq(EVP_PKEY_decapsulate_init(NULL, NULL), 0)
+        && TEST_int_eq(EVP_PKEY_decapsulate(NULL, NULL, NULL, NULL, 0), 0)
+        /* Test Invalid operation */
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, NULL), -1)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, NULL, NULL, 0), 0)
+        /* Wrong key component - no secret should be returned on failure */
+        && TEST_int_eq(EVP_PKEY_decapsulate_init(pubctx, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), 1)
+        && TEST_int_eq(EVP_PKEY_decapsulate(pubctx, secret, &secretlen, ct,
+                                            sizeof(ct)), 0)
+        && TEST_uchar_eq(secret[0], 0)
+        /* Test encapsulate fails if the mode is not set */
+        && TEST_int_eq(EVP_PKEY_encapsulate_init(pubctx, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, &secretlen), -2)
+        /* Test setting a bad kem ops fail */
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSA"), 0)
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, NULL), 0)
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(NULL,  "RSASVE"), 0)
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(NULL,  NULL), 0)
+        /* Test secretlen is optional */
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSASVE"), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, NULL), 1)
+        /* Test outlen is optional */
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, &secretlen), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, NULL, secret, &secretlen), 1)
+        /* test that either len must be set if out is NULL */
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, NULL), 0)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, NULL, NULL, &secretlen), 1)
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, &secretlen), 1)
+        /* Secret buffer should be set if there is an output buffer */
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, NULL, NULL), 0)
+        /* Test that lengths are optional if ct is not NULL */
+        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, NULL, secret, NULL), 1)
+        /* Pass if secret or secret length are not NULL */
+        && TEST_int_eq(EVP_PKEY_decapsulate_init(privctx, NULL), 1)
+        && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(privctx, "RSASVE"), 1)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, NULL, ct, sizeof(ct)), 1)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, &secretlen, ct, sizeof(ct)), 1)
+        && TEST_int_eq(secretlen, 256)
+        /* Fail if passed NULL arguments */
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, NULL, NULL, ct, sizeof(ct)), 0)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, NULL, 0), 0)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, NULL, sizeof(ct)), 0)
+        && TEST_int_eq(EVP_PKEY_decapsulate(privctx, secret, &secretlen, ct, 0), 0);
 
     EVP_PKEY_free(pub);
     EVP_PKEY_free(priv);

@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -9,11 +9,18 @@
 
 #include <stdio.h>       /* for sscanf() */
 #include <string.h>
+#ifndef OPENSSL_NO_SOCK
+# include "../bio/bio_local.h" /* for NI_MAXHOST */
+#endif
 #include <openssl/http.h>
 #include <openssl/httperr.h>
 #include <openssl/bio.h> /* for BIO_snprintf() */
 #include <openssl/err.h>
 #include "internal/cryptlib.h" /* for ossl_assert() */
+#ifndef NI_MAXHOST
+# define NI_MAXHOST 255
+#endif
+#include "crypto/ctype.h" /* for ossl_isspace() */
 
 static void init_pstring(char **pstr)
 {
@@ -251,10 +258,17 @@ static int use_proxy(const char *no_proxy, const char *server)
 {
     size_t sl;
     const char *found = NULL;
+    char host[NI_MAXHOST];
 
     if (!ossl_assert(server != NULL))
         return 0;
     sl = strlen(server);
+    if (sl >= 2 && sl < sizeof(host) + 2 && server[0] == '[' && server[sl - 1] == ']') {
+        /* strip leading '[' and trailing ']' from escaped IPv6 address */
+        sl -= 2;
+        strncpy(host, server + 1, sl);
+        server = host;
+    }
 
     /*
      * using environment variable names, both lowercase and uppercase variants,
@@ -268,8 +282,8 @@ static int use_proxy(const char *no_proxy, const char *server)
     if (no_proxy != NULL)
         found = strstr(no_proxy, server);
     while (found != NULL
-           && ((found != no_proxy && found[-1] != ' ' && found[-1] != ',')
-               || (found[sl] != '\0' && found[sl] != ' ' && found[sl] != ',')))
+           && ((found != no_proxy && !ossl_isspace(found[-1]) && found[-1] != ',')
+               || (found[sl] != '\0' && !ossl_isspace(found[sl]) && found[sl] != ',')))
         found = strstr(found + 1, server);
     return found == NULL;
 }
@@ -285,7 +299,7 @@ const char *OSSL_HTTP_adapt_proxy(const char *proxy, const char *no_proxy,
     if (proxy == NULL)
         proxy = ossl_safe_getenv(use_ssl ? "https_proxy" : "http_proxy");
     if (proxy == NULL)
-        proxy = ossl_safe_getenv(use_ssl ? OPENSSL_HTTP_PROXY : OPENSSL_HTTPS_PROXY);
+        proxy = ossl_safe_getenv(use_ssl ? OPENSSL_HTTPS_PROXY : OPENSSL_HTTP_PROXY);
 
     if (proxy == NULL || *proxy == '\0' || !use_proxy(no_proxy, server))
         return NULL;

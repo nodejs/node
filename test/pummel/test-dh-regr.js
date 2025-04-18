@@ -26,7 +26,7 @@ if (!common.hasCrypto) {
   common.skip('missing crypto');
 }
 
-if (common.isPi) {
+if (common.isPi()) {
   common.skip('Too slow for Raspberry Pi devices');
 }
 

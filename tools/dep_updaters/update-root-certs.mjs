@@ -65,7 +65,7 @@ const getFirefoxRelease = async (version) => {
 
 const getNSSVersion = async (release) => {
   const latestFirefox = release.version;
-  const firefoxTag = `FIREFOX_${latestFirefox.replace('.', '_')}_RELEASE`;
+  const firefoxTag = `FIREFOX_${latestFirefox.replaceAll('.', '_')}_RELEASE`;
   const tagInfoURL = `https://hg.mozilla.org/releases/mozilla-release/raw-file/${firefoxTag}/security/nss/TAG-INFO`;
   if (values.verbose) {
     console.log(`Fetching NSS tag from ${tagInfoURL}.`);

@@ -20,6 +20,11 @@ Node.js *
 [eval]:1
 const foo;
       ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | const foo;
+   :       ^^^
+   `----
 
 SyntaxError: Missing initializer in const declaration
 
@@ -28,10 +33,15 @@ Node.js *
 undefined
 false
 [eval]:1
-               ;const foo;
-                      ^^^
+interface Foo{};const foo;
+          ^^^
+  x 'const' declarations must be initialized
+   ,----
+ 1 | interface Foo{};const foo;
+   :                       ^^^
+   `----
 
-SyntaxError: Missing initializer in const declaration
+SyntaxError: Unexpected identifier 'Foo'
 
 Node.js *
 [eval]:1

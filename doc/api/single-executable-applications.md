@@ -322,7 +322,7 @@ added:
   - v20.12.0
 -->
 
-Similar to [`sea.getAsset()`][], but returns the result in a [`Blob`][].
+Similar to [`sea.getAsset()`][], but returns the result in a {Blob}.
 An error is thrown when no matching asset can be found.
 
 * `key`  {string} the key for the asset in the dictionary specified by the
@@ -423,7 +423,6 @@ to help us document them.
 [Mach-O]: https://en.wikipedia.org/wiki/Mach-O
 [PE]: https://en.wikipedia.org/wiki/Portable_Executable
 [Windows SDK]: https://developer.microsoft.com/en-us/windows/downloads/windows-sdk/
-[`Blob`]: https://developer.mozilla.org/en-US/docs/Web/API/Blob
 [`process.execPath`]: process.md#processexecpath
 [`require()`]: modules.md#requireid
 [`require.main`]: modules.md#accessing-the-main-module

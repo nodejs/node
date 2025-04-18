@@ -10,18 +10,27 @@ using v8::Function;
 using v8::HandleScope;
 using v8::Isolate;
 using v8::Just;
+using v8::JustVoid;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
+using v8::NewStringType;
 using v8::Nothing;
 using v8::Object;
 using v8::String;
 using v8::Value;
 
-Maybe<bool> ProcessEmitWarningSync(Environment* env, std::string_view message) {
+Maybe<void> ProcessEmitWarningSync(Environment* env, std::string_view message) {
   Isolate* isolate = env->isolate();
   Local<Context> context = env->context();
-  Local<String> message_string = OneByteString(isolate, message);
+  Local<String> message_string;
+  if (!String::NewFromUtf8(isolate,
+                           message.data(),
+                           NewStringType::kNormal,
+                           static_cast<int>(message.size()))
+           .ToLocal(&message_string)) {
+    return Nothing<void>();
+  }
 
   Local<Value> argv[] = {message_string};
   Local<Function> emit_function = env->process_emit_warning_sync();
@@ -31,9 +40,9 @@ Maybe<bool> ProcessEmitWarningSync(Environment* env, std::string_view message) {
   if (emit_function.As<Function>()
           ->Call(context, v8::Undefined(isolate), arraysize(argv), argv)
           .IsEmpty()) {
-    return Nothing<bool>();
+    return Nothing<void>();
   }
-  return Just(true);
+  return JustVoid();
 }
 
 MaybeLocal<Value> ProcessEmit(Environment* env,
@@ -48,7 +57,8 @@ MaybeLocal<Value> ProcessEmit(Environment* env,
 
   Local<Object> process = env->process_object();
   Local<Value> argv[] = {event_string, message};
-  return MakeCallback(isolate, process, "emit", arraysize(argv), argv, {0, 0});
+  return MakeCallback(
+      isolate, process, env->emit_string(), arraysize(argv), argv, {0, 0});
 }
 
 Maybe<bool> ProcessEmitWarningGeneric(Environment* env,

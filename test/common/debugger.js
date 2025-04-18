@@ -7,7 +7,8 @@ const BREAK_MESSAGE = new RegExp('(?:' + [
   'exception', 'other', 'promiseRejection', 'step',
 ].join('|') + ') in', 'i');
 
-let TIMEOUT = common.platformTimeout(5000);
+// Some macOS machines require more time to receive the outputs from the client.
+let TIMEOUT = common.platformTimeout(10000);
 if (common.isWindows) {
   // Some of the windows machines in the CI need more time to receive
   // the outputs from the client.

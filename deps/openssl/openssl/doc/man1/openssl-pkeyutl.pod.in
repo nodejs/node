@@ -44,6 +44,8 @@ B<openssl> B<pkeyutl>
 This command can be used to perform low-level public key
 operations using any supported algorithm.
 
+By default the signing operation (see B<-sign> option) is assumed.
+
 =head1 OPTIONS
 
 =over 4
@@ -59,20 +61,29 @@ if this option is not specified.
 
 =item B<-rawin>
 
-This indicates that the input data is raw data, which is not hashed by any
-message digest algorithm. The user can specify a digest algorithm by using
-the B<-digest> option. This option can only be used with B<-sign> and
-B<-verify> and must be used with the Ed25519 and Ed448 algorithms.
+This indicates that the signature or verification input data is raw data,
+which is not hashed by any message digest algorithm.
+Except with EdDSA,
+the user can specify a digest algorithm by using the B<-digest> option.
+For signature algorithms like RSA, DSA and ECDSA,
+the default digest algorithm is SHA-256. For SM2, it is SM3.
+
+This option can only be used with B<-sign> and B<-verify>.
+For EdDSA (the Ed25519 and Ed448 algorithms) this option is required.
 
 =item B<-digest> I<algorithm>
 
-This specifies the digest algorithm which is used to hash the input data before
-signing or verifying it with the input key. This option could be omitted if the
-signature algorithm does not require one (for instance, EdDSA). If this option
-is omitted but the signature algorithm requires one, a default value will be
-used. For signature algorithms like RSA, DSA and ECDSA, SHA-256 will be the
-default digest algorithm. For SM2, it will be SM3. If this option is present,
-then the B<-rawin> option must be also specified.
+This option can only be used with B<-sign> and B<-verify>.
+It specifies the digest algorithm that is used to hash the input data
+before signing or verifying it with the input key. This option could be omitted
+if the signature algorithm does not require preprocessing the input through
+a pluggable hash function before signing (for instance, EdDSA). If this option
+is omitted but the signature algorithm requires one and the B<-rawin> option
+is given, a default value will be used (see B<-rawin> for details).
+If this option is present, then the B<-rawin> option is required.
+
+At this time, HashEdDSA (the ph or "prehash" variant of EdDSA) is not supported,
+so the B<-digest> option cannot be used with EdDSA.
 
 =item B<-out> I<filename>
 
@@ -81,7 +92,7 @@ default.
 
 =item B<-sigfile> I<file>
 
-Signature file, required for B<-verify> operations only
+Signature file, required and allowed for B<-verify> operations only
 
 =item B<-inkey> I<filename>|I<uri>
 
@@ -117,21 +128,42 @@ The input is a certificate containing a public key.
 =item B<-rev>
 
 Reverse the order of the input buffer. This is useful for some libraries
-(such as CryptoAPI) which represent the buffer in little endian format.
+(such as CryptoAPI) which represent the buffer in little-endian format.
+This cannot be used in conjunction with B<-rawin>.
 
 =item B<-sign>
 
-Sign the input data (which must be a hash) and output the signed result. This
-requires a private key.
+Sign the input data and output the signed result. This requires a private key.
+Using a message digest operation along with this is recommended,
+when applicable, see the B<-rawin> and B<-digest> options for details.
+Otherwise, the input data given with the B<-in> option is assumed to already
+be a digest, but this may then require an additional B<-pkeyopt> C<digest:>I<md>
+in some cases (e.g., RSA with the default PKCS#1 padding mode).
+Even for other algorithms like ECDSA, where the additional B<-pkeyopt> option
+does not affect signature output, it is recommended, as it enables
+checking that the input length is consistent with the intended digest.
 
 =item B<-verify>
 
-Verify the input data (which must be a hash) against the signature file and
-indicate if the verification succeeded or failed.
+Verify the input data against the signature given with the B<-sigfile> option
+and indicate if the verification succeeded or failed.
+The input data given with the B<-in> option is assumed to be a hash value
+unless the B<-rawin> option is specified or implied.
+With raw data, when a digest algorithm is applicable, though it may be inferred
+from the signature or take a default value, it should also be specified.
 
 =item B<-verifyrecover>
 
-Verify the input data (which must be a hash) and output the recovered data.
+Verify the given signature and output the recovered data (signature payload).
+For example, in case of RSA PKCS#1 the recovered data is the B<EMSA-PKCS-v1_5>
+DER encoding of the digest algorithm OID and value as specified in
+L<RFC8017 Section 9.2|https://datatracker.ietf.org/doc/html/rfc8017#section-9.2>.
+
+Note that here the input given with the B<-in> option is not a signature input
+(as with the B<-sign> and B<-verify> options) but a signature output value,
+typically produced using the B<-sign> option.
+
+This option is available only for use with RSA keys.
 
 =item B<-encrypt>
 
@@ -175,8 +207,9 @@ hex dump the output data.
 
 =item B<-asn1parse>
 
-Parse the ASN.1 output data, this is useful when combined with the
-B<-verifyrecover> option when an ASN1 structure is signed.
+Parse the ASN.1 output data to check its DER encoding and print any errors.
+When combined with the B<-verifyrecover> option, this may be useful only in case
+an ASN.1 DER-encoded structure had been signed directly (without hashing it).
 
 {- $OpenSSL::safe::opt_engine_item -}
 
@@ -200,8 +233,8 @@ engine I<id> for crypto operations.
 The operations and options supported vary according to the key algorithm
 and its implementation. The OpenSSL operations and options are indicated below.
 
-Unless otherwise mentioned all algorithms support the B<digest:>I<alg> option
-which specifies the digest in use for sign, verify and verifyrecover operations.
+Unless otherwise mentioned, all algorithms support the B<digest:>I<alg> option,
+which specifies the digest in use for the signing and verification operations.
 The value I<alg> should represent a digest name as used in the
 EVP_get_digestbyname() function for example B<sha1>. This value is not used to
 hash the input data. It is used (by some algorithms) for sanity-checking the
