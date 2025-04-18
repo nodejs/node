@@ -90,6 +90,16 @@ struct addrinfo {
 #  define NS_INT16SZ 2
 #endif
 
+/* Windows XP Compatibility with later MSVC/Mingw versions */
+#if defined(_WIN32)
+#  if !defined(IF_MAX_STRING_SIZE)
+#    define IF_MAX_STRING_SIZE 256 /* =256 in <ifdef.h> */
+#  endif
+#  if !defined(NDIS_IF_MAX_STRING_SIZE)
+#    define NDIS_IF_MAX_STRING_SIZE IF_MAX_STRING_SIZE   /* =256 in <ifdef.h> */
+#  endif
+#endif
+
 #ifndef IF_NAMESIZE
 #  ifdef IFNAMSIZ
 #    define IF_NAMESIZE IFNAMSIZ

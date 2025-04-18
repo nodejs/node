@@ -25,11 +25,12 @@
  */
 #include "ares_private.h"
 #include "ares_event.h"
+
+#if defined(HAVE_POLL) && defined(CARES_THREADS)
+
 #ifdef HAVE_POLL_H
 #  include <poll.h>
 #endif
-
-#if defined(HAVE_POLL)
 
 static ares_bool_t ares_evsys_poll_init(ares_event_thread_t *e)
 {
