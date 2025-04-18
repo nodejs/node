@@ -1,13 +1,13 @@
 'use strict';
 
-const { isWindows, skip } = require('../common');
+const { isWindows, isIBMi, skip } = require('../common');
 const { deepStrictEqual, fail, strictEqual } = require('assert');
 const { isMainThread } = require('worker_threads');
 
 if (!isMainThread) {
   skip('process.execve is not available in Workers');
-} else if (isWindows) {
-  skip('process.execve is not available in Windows');
+} else if (isWindows || isIBMi) {
+  skip('process.execve is not available in Windows or IBM i');
 }
 
 if (process.argv[2] === 'replaced') {

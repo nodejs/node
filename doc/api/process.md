@@ -3347,7 +3347,7 @@ any exit or close events and without running any cleanup handler.
 
 This function will never return, unless an error occurred.
 
-This function is not available on Windows.
+This function is not available on Windows or IBM i.
 
 ## `process.report`
 
