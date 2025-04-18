@@ -78,7 +78,22 @@ struct JSDispatchEntry {
 #if defined(V8_TARGET_ARCH_64_BIT)
   // Freelist entries contain the index of the next free entry in their lower 32
   // bits and are tagged with this tag.
+#ifdef __illumos__
+  // In illumos 64-bit apps, pointers are allocated both the bottom 2^47 range
+  // AND the top 2^47 range in the 64-bit space. Instead of 47 bits of VA space
+  // we have 48 bits. This means, however, the top 16-bits may be 0xffff. We
+  // therefore pick a different value for the kFreeEntryTag.  If/when we go to
+  // VA57, aka 5-level paging, we'll need to revisit this again, as will node
+  // by default, since the fixed-bits on the high end will shrink from top
+  // 16-bits to top 8-bits.
+  //
+  // Unless illumos ships an Oracle-Solaris-like VA47 link-time options to
+  // restrict pointers from allocating from above the Virtual Address hole,
+  // we need to be mindful of this.
+  static constexpr Address kFreeEntryTag = 0xfeed000000000000ull;
+#else
   static constexpr Address kFreeEntryTag = 0xffff000000000000ull;
+#endif /* __illumos__ */
 #ifdef V8_TARGET_BIG_ENDIAN
   // 2-byte parameter count is on the least significant side of encoded_word_.
   static constexpr int kBigEndianParamCountOffset =
