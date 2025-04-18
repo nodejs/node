@@ -501,7 +501,7 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   env->Exit(code);
 }
 
-#ifdef __POSIX__
+#if defined __POSIX__ && !defined(__PASE__)
 inline int persist_standard_stream(int fd) {
   int flags = fcntl(fd, F_GETFD, 0);
 
@@ -783,7 +783,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "dlopen", binding::DLOpen);
   SetMethod(isolate, target, "reallyExit", ReallyExit);
 
-#ifdef __POSIX__
+#if defined __POSIX__ && !defined(__PASE__)
   SetMethod(isolate, target, "execve", Execve);
 #endif
   SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
@@ -830,7 +830,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(binding::DLOpen);
   registry->Register(ReallyExit);
 
-#ifdef __POSIX__
+#if defined __POSIX__ && !defined(__PASE__)
   registry->Register(Execve);
 #endif
   registry->Register(Uptime);
