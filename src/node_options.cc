@@ -554,6 +554,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "set module type for string input",
             &EnvironmentOptions::input_type,
             kAllowedInEnvvar);
+  AddOption("--install",
+            "installs binaries defined in a lock file",
+            &EnvironmentOptions::install_from_lock_file);
   AddOption(
       "--experimental-specifier-resolution", "", NoOp{}, kAllowedInEnvvar);
   AddAlias("--es-module-specifier-resolution",
