@@ -94,6 +94,7 @@ for (const coverage of coverages) {
     const result = spawnSync(process.execPath, [
       '--test',
       '--experimental-test-coverage',
+      '--test-coverage-exclude=!test/**',
       `${coverage.flag}=99`,
       '--test-reporter', 'spec',
       fixture,
