@@ -12,6 +12,10 @@ test-shadow-realm-gc-module: SKIP
 # https://github.com/nodejs/node/issues/51862
 test-fs-read-stream-concurrent-reads: PASS, FLAKY
 
+# https://github.com/nodejs/node/issues/56883
+# Potentially caused by https://github.com/nodejs/node/issues/54918
+test-file-write-stream4: PASS, FLAKY
+
 # Until V8 provides a better way to check for flag mismatch without
 # making the code cache/snapshot unreproducible, disable the test
 # for a preemptive check now. It should ideally fail more gracefully
