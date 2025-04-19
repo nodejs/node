@@ -12,6 +12,8 @@ type AbortSignal = unknown
 
 export default Dispatcher
 
+export type UndiciHeaders = Record<string, string | string[]> | IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null
+
 /** Dispatcher is the core API used to dispatch requests. */
 declare class Dispatcher extends EventEmitter {
   /** Dispatches a request. This API is expected to evolve through semver-major versions and is less stable than the preceding higher level APIs. It is primarily intended for library developers who implement higher level APIs on top of this. */
@@ -103,7 +105,7 @@ declare namespace Dispatcher {
     /** Default: `null` */
     body?: string | Buffer | Uint8Array | Readable | null | FormData;
     /** Default: `null` */
-    headers?: Record<string, string | string[]> | IncomingHttpHeaders | string[] | Iterable<[string, string | string[] | undefined]> | null;
+    headers?: UndiciHeaders;
     /** Query string params to be embedded in the request URL. Default: `null` */
     query?: Record<string, any>;
     /** Whether the requests can be safely retried or not. If `false` the request won't be sent until all preceding requests in the pipeline have completed. Default: `true` if `method` is `HEAD` or `GET`. */
@@ -127,7 +129,7 @@ declare namespace Dispatcher {
     origin: string | URL;
     path: string;
     /** Default: `null` */
-    headers?: IncomingHttpHeaders | string[] | null;
+    headers?: UndiciHeaders;
     /** Default: `null` */
     signal?: AbortSignal | EventEmitter | null;
     /** This argument parameter is passed through to `ConnectData` */
@@ -164,7 +166,7 @@ declare namespace Dispatcher {
     /** Default: `'GET'` */
     method?: string;
     /** Default: `null` */
-    headers?: IncomingHttpHeaders | string[] | null;
+    headers?: UndiciHeaders;
     /** A string of comma separated protocols, in descending preference order. Default: `'Websocket'` */
     protocol?: string;
     /** Default: `null` */
