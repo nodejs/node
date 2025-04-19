@@ -10,6 +10,7 @@ const notCircular = {};
 notCircular.circular = {};
 
 const primValues = {
+  'null_prototype': { __proto__: null },
   'string': 'abcdef',
   'number': 1_000,
   'boolean': true,
@@ -24,6 +25,7 @@ const primValues = {
 };
 
 const primValues2 = {
+  'null_prototype': { __proto__: null },
   'object': { property: 'abcdef' },
   'array': [1, 2, 3],
   'set_object': new Set([[1]]),
@@ -35,6 +37,7 @@ const primValues2 = {
 };
 
 const primValuesUnequal = {
+  'null_prototype': { __proto__: { __proto__: null } },
   'string': 'abcdez',
   'number': 1_001,
   'boolean': false,
