@@ -99,8 +99,9 @@ ssize_t JSUDPWrap::Send(uv_buf_t* bufs,
 
   MaybeStackBuffer<Local<Value>, 16> buffers(nbufs);
   for (size_t i = 0; i < nbufs; i++) {
-    buffers[i] = Buffer::Copy(env(), bufs[i].base, bufs[i].len)
-        .ToLocalChecked();
+    if (!Buffer::Copy(env(), bufs[i].base, bufs[i].len).ToLocal(&buffers[i])) {
+      return value_int;
+    }
     total_len += bufs[i].len;
   }
 
