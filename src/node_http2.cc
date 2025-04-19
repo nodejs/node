@@ -561,7 +561,8 @@ Http2Session::Http2Session(Http2State* http2_state,
     : AsyncWrap(http2_state->env(), wrap, AsyncWrap::PROVIDER_HTTP2SESSION),
       js_fields_(http2_state->env()->isolate()),
       session_type_(type),
-      http2_state_(http2_state) {
+      http2_state_(http2_state),
+      graceful_close_initiated_(false) {
   MakeWeak();
   statistics_.session_type = type;
   statistics_.start_time = uv_hrtime();
@@ -765,6 +766,24 @@ void Http2Stream::EmitStatistics() {
     if (HasHttp2Observer(env))
       entry->Notify(env);
   });
+}
+
+void Http2Session::HasPendingData(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  args.GetReturnValue().Set(session->HasPendingData());
+}
+
+bool Http2Session::HasPendingData() const {
+  nghttp2_session* session = session_.get();
+  int want_write = nghttp2_session_want_write(session);
+  // It is expected that want_read will alway be 0 if graceful
+  // session close is initiated and goaway frame is sent.
+  int want_read = nghttp2_session_want_read(session);
+  if (want_write == 0 && want_read == 0) {
+    return false;
+  }
+  return true;
 }
 
 void Http2Session::EmitStatistics() {
@@ -1745,6 +1764,7 @@ void Http2Session::HandleSettingsFrame(const nghttp2_frame* frame) {
 void Http2Session::OnStreamAfterWrite(WriteWrap* w, int status) {
   Debug(this, "write finished with status %d", status);
 
+  MaybeNotifyGracefulCloseComplete();
   CHECK(is_write_in_progress());
   set_write_in_progress(false);
 
@@ -1967,6 +1987,7 @@ uint8_t Http2Session::SendPendingData() {
   if (!res.async) {
     set_write_in_progress(false);
     ClearOutgoing(res.err);
+    MaybeNotifyGracefulCloseComplete();
   }
 
   MaybeStopReading();
@@ -3478,6 +3499,8 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, session, "receive", Http2Session::Receive);
   SetProtoMethod(isolate, session, "destroy", Http2Session::Destroy);
   SetProtoMethod(isolate, session, "goaway", Http2Session::Goaway);
+  SetProtoMethod(
+      isolate, session, "hasPendingData", Http2Session::HasPendingData);
   SetProtoMethod(isolate, session, "settings", Http2Session::Settings);
   SetProtoMethod(isolate, session, "request", Http2Session::Request);
   SetProtoMethod(
@@ -3498,6 +3521,8 @@ void Initialize(Local<Object> target,
       "remoteSettings",
       Http2Session::RefreshSettings<nghttp2_session_get_remote_settings,
                                     false>);
+  SetProtoMethod(
+      isolate, session, "setGracefulClose", Http2Session::SetGracefulClose);
   SetConstructorFunction(context, target, "Http2Session", session);
 
   Local<Object> constants = Object::New(isolate);
@@ -3551,6 +3576,38 @@ void Initialize(Local<Object> target,
 #ifdef NODE_DEBUG_NGHTTP2
   nghttp2_set_debug_vprintf_callback(NgHttp2Debug);
 #endif
+}
+
+void Http2Session::SetGracefulClose(const FunctionCallbackInfo<Value>& args) {
+  Http2Session* session;
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  CHECK_NOT_NULL(session);
+  // Set the graceful close flag
+  session->SetGracefulCloseInitiated(true);
+
+  Debug(session, "Setting graceful close initiated flag");
+}
+
+void Http2Session::MaybeNotifyGracefulCloseComplete() {
+  nghttp2_session* session = session_.get();
+
+  if (!IsGracefulCloseInitiated()) {
+    return;
+  }
+
+  int want_write = nghttp2_session_want_write(session);
+  int want_read = nghttp2_session_want_read(session);
+  bool should_notify = (want_write == 0 && want_read == 0);
+
+  if (should_notify) {
+    Debug(this, "Notifying JS after write in graceful close mode");
+
+    // Make the callback to JavaScript
+    HandleScope scope(env()->isolate());
+    MakeCallback(env()->ongracefulclosecomplete_string(), 0, nullptr);
+  }
+
+  return;
 }
 }  // namespace http2
 }  // namespace node
