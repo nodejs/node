@@ -6,6 +6,7 @@ if (!common.hasCrypto)
   common.skip('missing crypto');
 
 const assert = require('assert');
+const { inspect } = require('util');
 const { subtle } = globalThis.crypto;
 
 (async () => {
@@ -16,6 +17,18 @@ const { subtle } = globalThis.crypto;
     false,
     [ 'encrypt', 'decrypt' ]);
   assert(k instanceof CryptoKey);
+
+  // Inspecting the prototype should work.
+  const inspected = inspect(Object.getPrototypeOf(k));
+  assert.strictEqual(
+    inspected,
+    'CryptoKey {\n' +
+    '  type: undefined,\n' +
+    '  extractable: undefined,\n' +
+    '  algorithm: undefined,\n' +
+    '  usages: undefined\n' +
+    '}'
+  );
 
   const e = await subtle.encrypt({
     name: 'AES-GCM',
