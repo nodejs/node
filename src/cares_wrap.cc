@@ -1612,7 +1612,7 @@ Maybe<int> SoaTraits::Parse(QuerySoaWrap* wrap,
   return Just<int>(ARES_SUCCESS);
 }
 
-int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
+int ReverseTraits::Send(QueryReverseWrap* wrap, const char* name) {
   int length, family;
   char address_buffer[sizeof(struct in6_addr)];
 
@@ -1631,17 +1631,16 @@ int ReverseTraits::Send(GetHostByAddrWrap* wrap, const char* name) {
       "name", TRACE_STR_COPY(name),
       "family", family == AF_INET ? "ipv4" : "ipv6");
 
-  ares_gethostbyaddr(
-      wrap->channel()->cares_channel(),
-      address_buffer,
-      length,
-      family,
-      GetHostByAddrWrap::Callback,
-      wrap->MakeCallbackPointer());
+  ares_gethostbyaddr(wrap->channel()->cares_channel(),
+                     address_buffer,
+                     length,
+                     family,
+                     QueryReverseWrap::Callback,
+                     wrap->MakeCallbackPointer());
   return ARES_SUCCESS;
 }
 
-Maybe<int> ReverseTraits::Parse(GetHostByAddrWrap* wrap,
+Maybe<int> ReverseTraits::Parse(QueryReverseWrap* wrap,
                                 const std::unique_ptr<ResponseData>& response) {
   if (!response->is_host) [[unlikely]] {
     return Just<int>(ARES_EBADRESP);
@@ -2220,21 +2219,10 @@ void Initialize(Local<Object> target,
       ChannelWrap::kInternalFieldCount);
   channel_wrap->Inherit(AsyncWrap::GetConstructorTemplate(env));
 
-  SetProtoMethod(isolate, channel_wrap, "queryAny", Query<QueryAnyWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryAaaa", Query<QueryAaaaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryCaa", Query<QueryCaaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryCname", Query<QueryCnameWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryMx", Query<QueryMxWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryNs", Query<QueryNsWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryTlsa", Query<QueryTlsaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryTxt", Query<QueryTxtWrap>);
-  SetProtoMethod(isolate, channel_wrap, "querySrv", Query<QuerySrvWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryPtr", Query<QueryPtrWrap>);
-  SetProtoMethod(isolate, channel_wrap, "queryNaptr", Query<QueryNaptrWrap>);
-  SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(
-      isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+#define V(Name, _, JS)                                                         \
+  SetProtoMethod(isolate, channel_wrap, #JS, Query<Query##Name##Wrap>);
+  QUERY_TYPES(V)
+#undef V
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
   SetProtoMethod(isolate, channel_wrap, "setServers", SetServers);
@@ -2252,20 +2240,9 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(StrError);
   registry->Register(ChannelWrap::New);
 
-  registry->Register(Query<QueryAnyWrap>);
-  registry->Register(Query<QueryAWrap>);
-  registry->Register(Query<QueryAaaaWrap>);
-  registry->Register(Query<QueryCaaWrap>);
-  registry->Register(Query<QueryCnameWrap>);
-  registry->Register(Query<QueryMxWrap>);
-  registry->Register(Query<QueryNsWrap>);
-  registry->Register(Query<QueryTlsaWrap>);
-  registry->Register(Query<QueryTxtWrap>);
-  registry->Register(Query<QuerySrvWrap>);
-  registry->Register(Query<QueryPtrWrap>);
-  registry->Register(Query<QueryNaptrWrap>);
-  registry->Register(Query<QuerySoaWrap>);
-  registry->Register(Query<GetHostByAddrWrap>);
+#define V(Name, _, __) registry->Register(Query<Query##Name##Wrap>);
+  QUERY_TYPES(V)
+#undef V
 
   registry->Register(GetServers);
   registry->Register(SetServers);
