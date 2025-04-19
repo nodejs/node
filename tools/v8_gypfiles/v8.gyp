@@ -1322,7 +1322,7 @@
         # Platforms that don't have Compare-And-Swap (CAS) support need to link atomic library
         # to implement atomic memory access.
         # Clang needs it for some atomic operations (https://clang.llvm.org/docs/Toolchain.html#atomics-library).
-        ['(OS=="linux" and clang==1) or (v8_current_cpu in ["mips64", "mips64el", "arm", "riscv64", "loong64"])', {
+        ['((OS=="linux" or OS=="android") and clang==1) or (v8_current_cpu in ["mips64", "mips64el", "ppc", "arm", "riscv64", "loong64"])', {
           'link_settings': {
             'libraries': ['-latomic', ],
           },
@@ -1466,6 +1466,7 @@
             '<(V8_ROOT)/src/base/platform/platform-posix.h',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.cc',
             '<(V8_ROOT)/src/base/platform/platform-posix-time.h',
+            '<(V8_ROOT)/src/base/platform/platform-linux.h',
           ],
           'link_settings': {
             'target_conditions': [
