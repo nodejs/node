@@ -97,33 +97,6 @@
     # Indicates if gcmole tools are downloaded by a hook.
     'gcmole%': 0,
   },
-
-  # [GYP] this needs to be outside of the top level 'variables'
-  'conditions': [
-    ['host_arch=="ia32" or host_arch=="x64" or \
-      host_arch=="ppc64" or \
-      host_arch=="s390x" or \
-      clang==1', {
-      'variables': {
-        'host_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'host_cxx_is_biarch%': 0,
-      },
-    }],
-    ['target_arch=="ia32" or target_arch=="x64" or \
-      target_arch=="ppc64" or \
-      target_arch=="s390x" or clang==1', {
-      'variables': {
-        'target_cxx_is_biarch%': 1,
-       },
-     }, {
-      'variables': {
-        'target_cxx_is_biarch%': 0,
-      },
-    }],
-  ],
   'target_defaults': {
     'include_dirs': [
       '<(V8_ROOT)',
@@ -573,70 +546,6 @@
           '-mfpmath=sse',
           '-mmmx',  # Allows mmintrin.h for MMX intrinsics.
         ],
-      }],
-      ['(OS=="linux" or OS=="freebsd" or OS=="openbsd" or OS=="solaris" \
-         or OS=="netbsd" or OS=="mac" or OS=="android" or OS=="qnx") and \
-        (v8_target_arch=="arm" or v8_target_arch=="ia32")', {
-        'target_conditions': [
-          ['_toolset=="host"', {
-            'conditions': [
-              ['host_cxx_is_biarch==1', {
-                'conditions': [
-                  ['host_arch=="s390x"', {
-                    'cflags': [ '-m31' ],
-                    'ldflags': [ '-m31' ]
-                  },{
-                   'cflags': [ '-m32' ],
-                   'ldflags': [ '-m32' ]
-                  }],
-                ],
-              }],
-            ],
-            'xcode_settings': {
-              'ARCHS': [ 'i386' ],
-            },
-          }],
-          ['_toolset=="target"', {
-            'conditions': [
-              ['target_cxx_is_biarch==1', {
-                'conditions': [
-                  ['host_arch=="s390x"', {
-                    'cflags': [ '-m31' ],
-                    'ldflags': [ '-m31' ]
-                  },{
-                   'cflags': [ '-m32' ],
-                   'ldflags': [ '-m32' ],
-                  }],
-                ],
-              }],
-            ],
-            'xcode_settings': {
-              'ARCHS': [ 'i386' ],
-            },
-          }],
-        ],
-      }],
-      ['(OS=="linux" or OS=="android") and \
-        (v8_target_arch=="x64" or v8_target_arch=="arm64" or \
-         v8_target_arch=="ppc64" or v8_target_arch=="s390x")', {
-        'target_conditions': [
-          ['_toolset=="host"', {
-            'conditions': [
-              ['host_cxx_is_biarch==1', {
-                'cflags': [ '-m64' ],
-                'ldflags': [ '-m64' ]
-              }],
-             ],
-           }],
-          ['_toolset=="target"', {
-             'conditions': [
-               ['target_cxx_is_biarch==1', {
-                 'cflags': [ '-m64' ],
-                 'ldflags': [ '-m64' ],
-               }],
-             ]
-           }],
-         ],
       }],
       ['OS=="android" and v8_android_log_stdout==1', {
         'defines': [
