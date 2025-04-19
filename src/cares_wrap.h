@@ -284,7 +284,9 @@ class QueryWrap final : public AsyncWrap {
     if (status != ARES_SUCCESS)
       return ParseError(status);
 
-    status = Traits::Parse(this, response_data_);
+    if (!Traits::Parse(this, response_data_).To(&status)) {
+      return ParseError(ARES_ECANCELLED);
+    }
 
     if (status != ARES_SUCCESS)
       ParseError(status);
@@ -407,112 +409,99 @@ class QueryWrap final : public AsyncWrap {
 struct AnyTraits final {
   static constexpr const char* name = "resolveAny";
   static int Send(QueryWrap<AnyTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<AnyTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<AnyTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct ATraits final {
   static constexpr const char* name = "resolve4";
   static int Send(QueryWrap<ATraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<ATraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<ATraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct AaaaTraits final {
   static constexpr const char* name = "resolve6";
   static int Send(QueryWrap<AaaaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<AaaaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<AaaaTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct CaaTraits final {
   static constexpr const char* name = "resolveCaa";
   static int Send(QueryWrap<CaaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<CaaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<CaaTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct CnameTraits final {
   static constexpr const char* name = "resolveCname";
   static int Send(QueryWrap<CnameTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<CnameTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<CnameTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct MxTraits final {
   static constexpr const char* name = "resolveMx";
   static int Send(QueryWrap<MxTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<MxTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<MxTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct NsTraits final {
   static constexpr const char* name = "resolveNs";
   static int Send(QueryWrap<NsTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<NsTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<NsTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct TlsaTraits final {
   static constexpr const char* name = "resolveTlsa";
   static int Send(QueryWrap<TlsaTraits>* wrap, const char* name);
-  static int Parse(QueryWrap<TlsaTraits>* wrap,
-                   const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<TlsaTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct TxtTraits final {
   static constexpr const char* name = "resolveTxt";
   static int Send(QueryWrap<TxtTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<TxtTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<TxtTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct SrvTraits final {
   static constexpr const char* name = "resolveSrv";
   static int Send(QueryWrap<SrvTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<SrvTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<SrvTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct PtrTraits final {
   static constexpr const char* name = "resolvePtr";
   static int Send(QueryWrap<PtrTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<PtrTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<PtrTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct NaptrTraits final {
   static constexpr const char* name = "resolveNaptr";
   static int Send(QueryWrap<NaptrTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<NaptrTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<NaptrTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct SoaTraits final {
   static constexpr const char* name = "resolveSoa";
   static int Send(QueryWrap<SoaTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<SoaTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<SoaTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 struct ReverseTraits final {
   static constexpr const char* name = "reverse";
   static int Send(QueryWrap<ReverseTraits>* wrap, const char* name);
-  static int Parse(
-      QueryWrap<ReverseTraits>* wrap,
-      const std::unique_ptr<ResponseData>& response);
+  static v8::Maybe<int> Parse(QueryWrap<ReverseTraits>* wrap,
+                              const std::unique_ptr<ResponseData>& response);
 };
 
 using QueryAnyWrap = QueryWrap<AnyTraits>;
