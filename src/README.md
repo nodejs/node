@@ -474,7 +474,7 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
   SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<QueryReverseWrap>);
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
