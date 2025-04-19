@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2014-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -175,8 +175,8 @@ ___
 }
 
 $code.=<<___;
+#include "arm_arch.h"
 #ifndef	__KERNEL__
-# include "arm_arch.h"
 .extern OPENSSL_armcap_P
 .hidden OPENSSL_armcap_P
 #endif
@@ -187,11 +187,13 @@ $code.=<<___;
 .type	sha1_block_data_order,%function
 .align	6
 sha1_block_data_order:
+	AARCH64_VALID_CALL_TARGET
 	adrp	x16,OPENSSL_armcap_P
 	ldr	w16,[x16,#:lo12:OPENSSL_armcap_P]
 	tst	w16,#ARMV8_SHA1
 	b.ne	.Lv8_entry
 
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-96]!
 	add	x29,sp,#0
 	stp	x19,x20,[sp,#16]
@@ -253,10 +255,12 @@ $code.=<<___;
 .align	6
 sha1_block_armv8:
 .Lv8_entry:
+	// Armv8.3-A PAuth: even though x30 is pushed to stack it is not popped later.
 	stp	x29,x30,[sp,#-16]!
 	add	x29,sp,#0
 
-	adr	x4,.Lconst
+	adrp	x4,.Lconst
+	add	x4,x4,:lo12:.Lconst
 	eor	$E,$E,$E
 	ld1.32	{$ABCD},[$ctx],#16
 	ld1.32	{$E}[0],[$ctx]
@@ -316,6 +320,9 @@ $code.=<<___;
 	ldr	x29,[sp],#16
 	ret
 .size	sha1_block_armv8,.-sha1_block_armv8
+
+.rodata
+
 .align	6
 .Lconst:
 .long	0x5a827999,0x5a827999,0x5a827999,0x5a827999	//K_00_19

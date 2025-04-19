@@ -1,5 +1,5 @@
 /*
- * Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1999-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -56,6 +56,35 @@ GENERAL_NAME *GENERAL_NAME_dup(const GENERAL_NAME *a)
     return (GENERAL_NAME *)ASN1_dup((i2d_of_void *)i2d_GENERAL_NAME,
                                     (d2i_of_void *)d2i_GENERAL_NAME,
                                     (char *)a);
+}
+
+int GENERAL_NAME_set1_X509_NAME(GENERAL_NAME **tgt, const X509_NAME *src)
+{
+    GENERAL_NAME *name;
+
+    if (tgt == NULL) {
+        ERR_raise(ERR_LIB_X509V3, X509V3_R_INVALID_NULL_ARGUMENT);
+        return 0;
+    }
+
+    if ((name = GENERAL_NAME_new()) == NULL)
+        return 0;
+    name->type = GEN_DIRNAME;
+
+    if (src == NULL) { /* NULL-DN */
+        if ((name->d.directoryName = X509_NAME_new()) == NULL)
+            goto err;
+    } else if (!X509_NAME_set(&name->d.directoryName, src)) {
+        goto err;
+    }
+
+    GENERAL_NAME_free(*tgt);
+    *tgt = name;
+    return 1;
+
+ err:
+    GENERAL_NAME_free(name);
+    return 0;
 }
 
 static int edipartyname_cmp(const EDIPARTYNAME *a, const EDIPARTYNAME *b)

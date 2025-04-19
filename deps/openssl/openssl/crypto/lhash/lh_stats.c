@@ -7,6 +7,8 @@
  * https://www.openssl.org/source/license.html
  */
 
+#define OPENSSL_SUPPRESS_DEPRECATED
+
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
@@ -21,6 +23,7 @@
 #include "lhash_local.h"
 
 # ifndef OPENSSL_NO_STDIO
+#  ifndef OPENSSL_NO_DEPRECATED_3_1
 void OPENSSL_LH_stats(const OPENSSL_LHASH *lh, FILE *fp)
 {
     BIO *bp;
@@ -56,9 +59,15 @@ void OPENSSL_LH_node_usage_stats(const OPENSSL_LHASH *lh, FILE *fp)
     OPENSSL_LH_node_usage_stats_bio(lh, bp);
     BIO_free(bp);
 }
-
+#  endif
 # endif
 
+# ifndef OPENSSL_NO_DEPRECATED_3_1
+/*
+ * These functions are implemented as separate static functions as they are
+ * called from the stdio functions above and calling deprecated functions will
+ * generate a warning.
+ */
 void OPENSSL_LH_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
 {
     BIO_printf(out, "num_items             = %lu\n", lh->num_items);
@@ -115,3 +124,4 @@ void OPENSSL_LH_node_usage_stats_bio(const OPENSSL_LHASH *lh, BIO *out)
                (int)((total % lh->num_nodes) * 100 / lh->num_nodes),
                (int)(total / n_used), (int)((total % n_used) * 100 / n_used));
 }
+# endif

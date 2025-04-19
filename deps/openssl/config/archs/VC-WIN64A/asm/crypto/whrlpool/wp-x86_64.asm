@@ -624,6 +624,7 @@ $L$epilogue:
 
 $L$SEH_end_whirlpool_block:
 
+section	.rdata rdata align=64
 ALIGN	64
 
 $L$table:

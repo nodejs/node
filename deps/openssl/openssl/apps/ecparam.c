@@ -1,5 +1,5 @@
 /*
- * Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2002-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2002, Oracle and/or its affiliates. All rights reserved
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -67,13 +67,11 @@ const OPTIONS ecparam_options[] = {
 
 static int list_builtin_curves(BIO *out)
 {
-    int ret = 0;
     EC_builtin_curve *curves = NULL;
     size_t n, crv_len = EC_get_builtin_curves(NULL, 0);
 
     curves = app_malloc((int)sizeof(*curves) * crv_len, "list curves");
-    if (!EC_get_builtin_curves(curves, crv_len))
-        goto end;
+    EC_get_builtin_curves(curves, crv_len);
 
     for (n = 0; n < crv_len; n++) {
         const char *comment = curves[n].comment;
@@ -87,10 +85,8 @@ static int list_builtin_curves(BIO *out)
         BIO_printf(out, "  %-10s: ", sname);
         BIO_printf(out, "%s\n", comment);
     }
-    ret = 1;
-end:
     OPENSSL_free(curves);
-    return ret;
+    return 1;
 }
 
 int ecparam_main(int argc, char **argv)
@@ -186,24 +182,23 @@ int ecparam_main(int argc, char **argv)
     }
 
     /* No extra args. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (!app_RAND_load())
         goto end;
 
-    private = genkey ? 1 : 0;
-
-    out = bio_open_owner(outfile, outformat, private);
-    if (out == NULL)
-        goto end;
-
     if (list_curves) {
+        out = bio_open_owner(outfile, outformat, private);
+        if (out == NULL)
+            goto end;
+
         if (list_builtin_curves(out))
             ret = 0;
         goto end;
     }
+
+    private = genkey ? 1 : 0;
 
     if (curve_name != NULL) {
         OSSL_PARAM params[4];
@@ -243,9 +238,17 @@ int ecparam_main(int argc, char **argv)
             goto end;
         }
     } else {
-        params_key = load_keyparams(infile, informat, 1, "EC", "EC parameters");
-        if (params_key == NULL || !EVP_PKEY_is_a(params_key, "EC"))
+        params_key = load_keyparams_suppress(infile, informat, 1, "EC",
+                                             "EC parameters", 1);
+        if (params_key == NULL)
+            params_key = load_keyparams_suppress(infile, informat, 1, "SM2",
+                                                 "SM2 parameters", 1);
+
+        if (params_key == NULL) {
+            BIO_printf(bio_err, "Unable to load parameters from %s\n", infile);
             goto end;
+        }
+
         if (point_format
             && !EVP_PKEY_set_utf8_string_param(
                     params_key, OSSL_PKEY_PARAM_EC_POINT_CONVERSION_FORMAT,
@@ -269,8 +272,12 @@ int ecparam_main(int argc, char **argv)
         goto end;
     }
 
+    out = bio_open_owner(outfile, outformat, private);
+    if (out == NULL)
+        goto end;
+
     if (text
-        && !EVP_PKEY_print_params(out, params_key, 0, NULL)) {
+        && EVP_PKEY_print_params(out, params_key, 0, NULL) <= 0) {
         BIO_printf(bio_err, "unable to print params\n");
         goto end;
     }
