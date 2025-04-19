@@ -1,9 +1,14 @@
+// Flags: --js-float16array
+// TODO(LiviaMedeiros): once `Float16Array` is unflagged in v8, remove the line above
 'use strict';
 
 const common = require('../common');
 const vm = require('node:vm');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
+
+// TODO(LiviaMedeiros): once linter recognizes `Float16Array`, remove next line
+const { Float16Array } = globalThis;
 
 const x = ['x'];
 
@@ -493,6 +498,11 @@ describe('Object Comparison Tests', () => {
           description: 'throws when comparing a TypedArray with a DataView',
           actual: { dataView: new Uint8Array(3) },
           expected: { dataView: new DataView(new ArrayBuffer(3)) },
+        },
+        {
+          description: 'throws when comparing Float16Array([+0.0]) with Float16Array([-0.0])',
+          actual: new Float16Array([+0.0]),
+          expected: new Float16Array([-0.0]),
         },
         {
           description: 'throws when comparing Float32Array([+0.0]) with Float32Array([-0.0])',
