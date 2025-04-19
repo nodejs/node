@@ -25,8 +25,30 @@ struct JumpBuffer {
   Address fp;
   Address pc;
   void* stack_limit;
-  enum StackState : int32_t { Active, Inactive, Retired };
+  // We track the state below to prevent stack corruptions under the sandbox
+  // security model.
+  // Assuming that the external pointer to the jump buffer has been corrupted
+  // and replaced with a different jump buffer, we check its state before
+  // resuming it to verify that it is not Active or Retired.
+  // The distinction between Suspended and Inactive may not be strictly
+  // necessary since we currently always pass a single JS value in the return
+  // register across stacks (either the Promise, the result of the Promise, or
+  // the result of the export). However adding a state does not cost anything
+  // and is more robust against potential changes in the calling conventions.
+  enum StackState : int32_t {
+    Active,     // The (unique) active stack. The jump buffer is invalid in that
+                // state.
+    Suspended,  // A stack suspended by WasmSuspend.
+    Inactive,   // A parent/ancestor of the active stack. In other words, a
+                // stack that either called or resumed a suspendable stack.
+    Retired     // A finished stack. The jump buffer is invalid in that state.
+  };
   StackState state;
+#if V8_ENABLE_SANDBOX
+  // Store a pointer to the parent jump buffer here, so that we can validate
+  // that it matches the continuation's parent when we return/suspend.
+  JumpBuffer* caller;
+#endif
 };
 
 constexpr int kJmpBufSpOffset = offsetof(JumpBuffer, sp);
@@ -34,27 +56,38 @@ constexpr int kJmpBufFpOffset = offsetof(JumpBuffer, fp);
 constexpr int kJmpBufPcOffset = offsetof(JumpBuffer, pc);
 constexpr int kJmpBufStackLimitOffset = offsetof(JumpBuffer, stack_limit);
 constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
+#if V8_ENABLE_SANDBOX
+constexpr int kJmpBufCaller = offsetof(JumpBuffer, caller);
+#endif
 
 class StackMemory {
  public:
-  static constexpr ExternalPointerTag kManagedTag = kWasmStackMemoryTag;
-
   static std::unique_ptr<StackMemory> New() {
     return std::unique_ptr<StackMemory>(new StackMemory());
   }
 
-  // Returns a non-owning view of the current (main) stack. This may be
+  // Returns a non-owning view of the central stack. This may be
   // the simulator's stack when running on the simulator.
-  static StackMemory* GetCurrentStackView(Isolate* isolate);
+  static StackMemory* GetCentralStackView(Isolate* isolate);
 
   ~StackMemory();
-  void* jslimit() const {
-    return (active_segment_ ? active_segment_->limit_ : limit_) +
-           kJSLimitOffsetKB * KB;
-  }
+  void* jslimit() const;
   Address base() const {
-    return active_segment_ ? active_segment_->base()
-                           : reinterpret_cast<Address>(limit_ + size_);
+    Address memory_limit = active_segment_
+                               ? active_segment_->base()
+                               : reinterpret_cast<Address>(limit_ + size_);
+#ifdef USE_SIMULATOR
+    // To perform runtime calls with different signatures, some simulators
+    // prepare a fixed number of arguments which is an upper bound of the actual
+    // parameter count. The extra stack slots contain arbitrary data and are
+    // never used, but with stack-switching this can happen close to the stack
+    // start, so we need to reserve a safety gap to ensure that the addresses
+    // are at least mapped to prevent a crash.
+    constexpr int kStackBaseSafetyOffset = 20 * kSystemPointerSize;
+#else
+    constexpr int kStackBaseSafetyOffset = 0;
+#endif
+    return memory_limit - kStackBaseSafetyOffset;
   }
   JumpBuffer* jmpbuf() { return &jmpbuf_; }
   bool Contains(Address addr) {
@@ -120,16 +153,19 @@ class StackMemory {
     // stack.
     // The stack cannot be suspended while it is on the central stack, so there
     // can be at most one switch for a given stack.
-    Address source_fp;
-    Address target_sp;
+    Address source_fp = kNullAddress;
+    Address target_sp = kNullAddress;
+    bool has_value() const { return source_fp != kNullAddress; }
   };
-  std::optional<StackSwitchInfo> stack_switch_info() {
+  const StackSwitchInfo& stack_switch_info() const {
     return stack_switch_info_;
   }
   void set_stack_switch_info(Address fp, Address sp) {
     stack_switch_info_ = {fp, sp};
   }
-  void clear_stack_switch_info() { stack_switch_info_.reset(); }
+  void clear_stack_switch_info() {
+    stack_switch_info_.source_fp = kNullAddress;
+  }
 
 #ifdef DEBUG
   static constexpr int kJSLimitOffsetKB = 80;
@@ -138,6 +174,18 @@ class StackMemory {
 #endif
 
   friend class StackPool;
+
+  constexpr static uint32_t stack_switch_source_fp_offset() {
+    return OFFSET_OF(StackMemory, stack_switch_info_) +
+           OFFSET_OF(StackMemory::StackSwitchInfo, source_fp);
+  }
+  constexpr static uint32_t stack_switch_target_sp_offset() {
+    return OFFSET_OF(StackMemory, stack_switch_info_) +
+           OFFSET_OF(StackMemory::StackSwitchInfo, target_sp);
+  }
+  constexpr static uint32_t jmpbuf_offset() {
+    return OFFSET_OF(StackMemory, jmpbuf_);
+  }
 
  private:
   // This constructor allocates a new stack segment.
@@ -156,7 +204,7 @@ class StackMemory {
   // allows us to add and remove from the vector in constant time (see
   // return_switch()).
   size_t index_;
-  std::optional<StackSwitchInfo> stack_switch_info_;
+  StackSwitchInfo stack_switch_info_;
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
 };

@@ -14,6 +14,7 @@
 
 #include "absl/numeric/bits.h"
 
+#include <cstdint>
 #include <limits>
 #include <type_traits>
 
@@ -635,6 +636,61 @@ static_assert(ABSL_INTERNAL_HAS_CONSTEXPR_POPCOUNT,
 static_assert(ABSL_INTERNAL_HAS_CONSTEXPR_CLZ, "clz should be constexpr");
 static_assert(ABSL_INTERNAL_HAS_CONSTEXPR_CTZ, "ctz should be constexpr");
 #endif
+
+TEST(Endian, Comparison) {
+#if defined(ABSL_IS_LITTLE_ENDIAN)
+  static_assert(absl::endian::native == absl::endian::little);
+  static_assert(absl::endian::native != absl::endian::big);
+#endif
+#if defined(ABSL_IS_BIG_ENDIAN)
+  static_assert(absl::endian::native != absl::endian::little);
+  static_assert(absl::endian::native == absl::endian::big);
+#endif
+}
+
+TEST(Byteswap, Constexpr) {
+  static_assert(absl::byteswap<int8_t>(0x12) == 0x12);
+  static_assert(absl::byteswap<int16_t>(0x1234) == 0x3412);
+  static_assert(absl::byteswap<int32_t>(0x12345678) == 0x78563412);
+  static_assert(absl::byteswap<int64_t>(0x123456789abcdef0) ==
+                static_cast<int64_t>(0xf0debc9a78563412));
+  static_assert(absl::byteswap<uint8_t>(0x21) == 0x21);
+  static_assert(absl::byteswap<uint16_t>(0x4321) == 0x2143);
+  static_assert(absl::byteswap<uint32_t>(0x87654321) == 0x21436587);
+  static_assert(absl::byteswap<uint64_t>(0xfedcba9876543210) ==
+                static_cast<uint64_t>(0x1032547698badcfe));
+  static_assert(absl::byteswap<int32_t>(static_cast<int32_t>(0xdeadbeef)) ==
+                static_cast<int32_t>(0xefbeadde));
+}
+
+TEST(Byteswap, NotConstexpr) {
+  int8_t a = 0x12;
+  int16_t b = 0x1234;
+  int32_t c = 0x12345678;
+  int64_t d = 0x123456789abcdef0;
+  uint8_t e = 0x21;
+  uint16_t f = 0x4321;
+  uint32_t g = 0x87654321;
+  uint64_t h = 0xfedcba9876543210;
+  EXPECT_EQ(absl::byteswap<int8_t>(a), 0x12);
+  EXPECT_EQ(absl::byteswap<int16_t>(b), 0x3412);
+  EXPECT_EQ(absl::byteswap(c), 0x78563412);
+  EXPECT_EQ(absl::byteswap(d), 0xf0debc9a78563412);
+  EXPECT_EQ(absl::byteswap<uint8_t>(e), 0x21);
+  EXPECT_EQ(absl::byteswap<uint16_t>(f), 0x2143);
+  EXPECT_EQ(absl::byteswap(g), 0x21436587);
+  EXPECT_EQ(absl::byteswap(h), 0x1032547698badcfe);
+  EXPECT_EQ(absl::byteswap(absl::byteswap<int8_t>(a)), a);
+  EXPECT_EQ(absl::byteswap(absl::byteswap<int16_t>(b)), b);
+  EXPECT_EQ(absl::byteswap(absl::byteswap(c)), c);
+  EXPECT_EQ(absl::byteswap(absl::byteswap(d)), d);
+  EXPECT_EQ(absl::byteswap(absl::byteswap<uint8_t>(e)), e);
+  EXPECT_EQ(absl::byteswap(absl::byteswap<uint16_t>(f)), f);
+  EXPECT_EQ(absl::byteswap(absl::byteswap(g)), g);
+  EXPECT_EQ(absl::byteswap(absl::byteswap(h)), h);
+  EXPECT_EQ(absl::byteswap<uint32_t>(0xdeadbeef), 0xefbeadde);
+  EXPECT_EQ(absl::byteswap<const uint32_t>(0xdeadbeef), 0xefbeadde);
+}
 
 }  // namespace
 ABSL_NAMESPACE_END

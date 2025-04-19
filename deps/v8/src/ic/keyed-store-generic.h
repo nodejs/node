@@ -29,7 +29,7 @@ class KeyedStoreGenericGenerator {
   // Same as above but more generic. I.e. the receiver can by anything and the
   // key does not have to be unique. Essentially the same as KeyedStoreGeneric.
   static void SetProperty(compiler::CodeAssemblerState* state,
-                          TNode<Context> context, TNode<Object> receiver,
+                          TNode<Context> context, TNode<JSAny> receiver,
                           TNode<Object> key, TNode<Object> value,
                           LanguageMode language_mode);
 

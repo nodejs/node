@@ -17,6 +17,8 @@
 // -----------------------------------------------------------------------------
 #include "absl/status/status_matchers.h"
 
+#include <string>
+
 #include "gmock/gmock.h"
 #include "gtest/gtest-spi.h"
 #include "gtest/gtest.h"
@@ -29,7 +31,9 @@ namespace {
 using ::absl_testing::IsOk;
 using ::absl_testing::IsOkAndHolds;
 using ::absl_testing::StatusIs;
+using ::testing::Eq;
 using ::testing::Gt;
+using ::testing::MatchesRegex;
 
 TEST(StatusMatcherTest, StatusIsOk) { EXPECT_THAT(absl::OkStatus(), IsOk()); }
 
@@ -66,6 +70,13 @@ TEST(StatusMatcherTest, IsOkAndHoldsFailure) {
                           "actual");
 }
 
+template <typename MatcherType, typename Value>
+std::string Explain(const MatcherType& m, const Value& x) {
+  ::testing::StringMatchResultListener listener;
+  ExplainMatchResult(m, x, &listener);
+  return listener.str();
+}
+
 TEST(StatusMatcherTest, StatusIs) {
   absl::Status unknown = absl::UnknownError("unbekannt");
   absl::Status invalid = absl::InvalidArgumentError("ungueltig");
@@ -78,6 +89,20 @@ TEST(StatusMatcherTest, StatusIs) {
   EXPECT_THAT(invalid, StatusIs(3));
   EXPECT_THAT(invalid,
               StatusIs(absl::StatusCode::kInvalidArgument, "ungueltig"));
+
+  auto m = StatusIs(absl::StatusCode::kInternal, "internal error");
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::Status>(m),
+      MatchesRegex(
+          "has a status code that .*, and has an error message that .*"));
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::Status>(m, /*negation=*/true),
+      MatchesRegex(
+          "either has a status code that .*, or has an error message that .*"));
+  EXPECT_THAT(Explain(m, absl::InvalidArgumentError("internal error")),
+              Eq("whose status code is wrong"));
+  EXPECT_THAT(Explain(m, absl::InternalError("unexpected error")),
+              Eq("whose error message is wrong"));
 }
 
 TEST(StatusMatcherTest, StatusOrIs) {
@@ -94,6 +119,23 @@ TEST(StatusMatcherTest, StatusOrIs) {
   EXPECT_THAT(invalid, StatusIs(3));
   EXPECT_THAT(invalid,
               StatusIs(absl::StatusCode::kInvalidArgument, "ungueltig"));
+
+  auto m = StatusIs(absl::StatusCode::kInternal, "internal error");
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::StatusOr<int>>(m),
+      MatchesRegex(
+          "has a status code that .*, and has an error message that .*"));
+  EXPECT_THAT(
+      ::testing::DescribeMatcher<absl::StatusOr<int>>(m, /*negation=*/true),
+      MatchesRegex(
+          "either has a status code that .*, or has an error message that .*"));
+  EXPECT_THAT(Explain(m, absl::StatusOr<int>(57)), Eq("which is OK"));
+  EXPECT_THAT(Explain(m, absl::StatusOr<int>(
+                             absl::InvalidArgumentError("internal error"))),
+              Eq("whose status code is wrong"));
+  EXPECT_THAT(
+      Explain(m, absl::StatusOr<int>(absl::InternalError("unexpected error"))),
+      Eq("whose error message is wrong"));
 }
 
 TEST(StatusMatcherTest, StatusIsFailure) {

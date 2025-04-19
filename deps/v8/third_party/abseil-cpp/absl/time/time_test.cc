@@ -37,9 +37,11 @@
 #include <ios>
 #include <limits>
 #include <string>
+#include <type_traits>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
+#include "absl/hash/hash_testing.h"
 #include "absl/numeric/int128.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/clock.h"
@@ -89,6 +91,8 @@ MATCHER_P(TimevalMatcher, tv, "") {
 }
 
 TEST(Time, ConstExpr) {
+  static_assert(std::is_trivially_destructible<absl::Time>::value,
+                "Time is documented as being trivially destructible");
   constexpr absl::Time t0 = absl::UnixEpoch();
   static_assert(t0 == absl::UnixEpoch(), "UnixEpoch");
   constexpr absl::Time t1 = absl::InfiniteFuture();
@@ -1330,6 +1334,31 @@ TEST(Time, AbslStringify) {
   // verify that StrFormat("%v", t) works as expected.
   absl::Time t = absl::Now();
   EXPECT_EQ(absl::StrFormat("%v", t), absl::FormatTime(t));
+}
+
+TEST(Time, SupportsHash) {
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      absl::UTCTimeZone(),
+      absl::FixedTimeZone(-8 * 60 * 60),
+      absl::UTCTimeZone(),
+  }));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      absl::Now(),
+      absl::UnixEpoch(),
+      absl::UnixEpoch() + absl::Seconds(60),
+      absl::UnixEpoch() + absl::Minutes(1),
+      absl::InfiniteFuture(),
+      absl::InfinitePast(),
+  }));
+
+  EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly({
+      absl::Seconds(1),
+      absl::Seconds(60),
+      absl::Minutes(1),
+      absl::InfiniteDuration(),
+      -absl::InfiniteDuration(),
+  }));
 }
 
 }  // namespace

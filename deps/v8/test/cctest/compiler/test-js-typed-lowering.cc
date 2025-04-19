@@ -12,7 +12,7 @@
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator-properties.h"
 #include "src/compiler/simplified-operator.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/execution/isolate.h"
 #include "src/heap/factory-inl.h"
 #include "src/objects/objects.h"
@@ -53,7 +53,7 @@ class JSTypedLoweringTester : public HandleAndZoneScope,
   MachineOperatorBuilder machine;
   SimplifiedOperatorBuilder simplified;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   Typer typer;
   Node* context_node;
   CompilationDependencies deps;

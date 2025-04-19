@@ -7,8 +7,8 @@
 #include "src/codegen/code-factory.h"
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/schedule.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/flags/flags.h"
 #include "src/objects/objects-inl.h"
 #include "test/unittests/compiler/compiler-test-utils.h"
@@ -17,6 +17,8 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 InstructionSelectorTest::InstructionSelectorTest()
     : TestWithNativeContextAndZone(kCompressGraphZone),
       rng_(v8_flags.random_seed) {}
@@ -158,7 +160,7 @@ InstructionSelectorTest::StreamBuilder::GetFrameStateFunctionInfo(
   const uint16_t max_arguments = 0;
   return common()->CreateFrameStateFunctionInfo(
       FrameStateType::kUnoptimizedFunction, parameter_count, max_arguments,
-      local_count, Handle<SharedFunctionInfo>());
+      local_count, {}, {});
 }
 
 // -----------------------------------------------------------------------------
@@ -372,8 +374,16 @@ TARGET_TEST_F(InstructionSelectorTest, CallJSFunctionWithDeopt) {
       m.graph()->start());
 
   // Build the call.
-  Node* nodes[] = {function_node,      receiver, m.UndefinedConstant(),
-                   m.Int32Constant(1), context,  state_node};
+  Node* argc = m.Int32Constant(1);
+#ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
+  Node* dispatch_handle = m.Int32Constant(-1);
+  Node* nodes[] = {function_node, receiver,        m.UndefinedConstant(),
+                   argc,          dispatch_handle, context,
+                   state_node};
+#else
+  Node* nodes[] = {function_node, receiver, m.UndefinedConstant(),
+                   argc,          context,  state_node};
+#endif
   Node* call = m.CallNWithFrameState(call_descriptor, arraysize(nodes), nodes);
   m.Return(call);
 
@@ -606,7 +616,7 @@ TARGET_TEST_F(InstructionSelectorTest, CallStubWithDeoptRecursiveFrameState) {
   EXPECT_EQ(kArchRet, s[index++]->arch_opcode());
   EXPECT_EQ(index, s.size());
 }
-
+#endif
 }  // namespace compiler
 }  // namespace internal
 }  // namespace v8

@@ -66,7 +66,7 @@ ABSL_NAMESPACE_BEGIN
 //        {"$who", "Bob"},
 //        {"#Noun", "Apples"}});
 //   EXPECT_EQ("Bob bought 5 Apples. Thanks Bob!", s);
-ABSL_MUST_USE_RESULT std::string StrReplaceAll(
+[[nodiscard]] std::string StrReplaceAll(
     absl::string_view s,
     std::initializer_list<std::pair<absl::string_view, absl::string_view>>
         replacements);

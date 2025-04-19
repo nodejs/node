@@ -5,8 +5,10 @@
 #ifndef V8_OBJECTS_REGEXP_MATCH_INFO_INL_H_
 #define V8_OBJECTS_REGEXP_MATCH_INFO_INL_H_
 
-#include "src/objects/fixed-array-inl.h"
 #include "src/objects/regexp-match-info.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -14,14 +16,28 @@
 namespace v8 {
 namespace internal {
 
-OBJECT_CONSTRUCTORS_IMPL(RegExpMatchInfo, RegExpMatchInfo::Super)
+int RegExpMatchInfo::number_of_capture_registers() const {
+  return number_of_capture_registers_.load().value();
+}
+void RegExpMatchInfo::set_number_of_capture_registers(int value) {
+  number_of_capture_registers_.store(this, Smi::FromInt(value));
+}
 
-SMI_ACCESSORS(RegExpMatchInfo, number_of_capture_registers,
-              RegExpMatchInfo::kNumberOfCaptureRegistersOffset)
-ACCESSORS_NOCAGE(RegExpMatchInfo, last_subject, Tagged<String>,
-                 RegExpMatchInfo::kLastSubjectOffset)
-ACCESSORS_NOCAGE(RegExpMatchInfo, last_input, Tagged<Object>,
-                 RegExpMatchInfo::kLastInputOffset)
+Tagged<String> RegExpMatchInfo::last_subject() const {
+  return last_subject_.load();
+}
+void RegExpMatchInfo::set_last_subject(Tagged<String> value,
+                                       WriteBarrierMode mode) {
+  last_subject_.store(this, value, mode);
+}
+
+Tagged<Object> RegExpMatchInfo::last_input() const {
+  return last_input_.load();
+}
+void RegExpMatchInfo::set_last_input(Tagged<Object> value,
+                                     WriteBarrierMode mode) {
+  last_input_.store(this, value, mode);
+}
 
 int RegExpMatchInfo::capture(int index) const { return get(index).value(); }
 

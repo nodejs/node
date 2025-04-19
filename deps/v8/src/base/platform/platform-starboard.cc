@@ -100,7 +100,7 @@ int OS::ActivationFrameAlignment() {
   return 8;
 #elif V8_TARGET_ARCH_MIPS
   return 8;
-#elif V8_TARGET_ARCH_S390
+#elif V8_TARGET_ARCH_S390X
   return 8;
 #else
   // Otherwise we just assume 16 byte alignment, i.e.:
@@ -268,7 +268,7 @@ int OS::GetCurrentProcessId() {
   return 0;
 }
 
-int OS::GetCurrentThreadId() { return SbThreadGetId(); }
+int OS::GetCurrentThreadIdInternal() { return SbThreadGetId(); }
 
 int OS::GetLastError() { return SbSystemGetLastError(); }
 

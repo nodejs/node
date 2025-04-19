@@ -26,7 +26,6 @@
 #include <unordered_set>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/algorithm/container.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/container/btree_map.h"
@@ -42,6 +41,7 @@
 #include "absl/strings/cord.h"
 #include "absl/strings/str_format.h"
 #include "absl/time/time.h"
+#include "benchmark/benchmark.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
@@ -406,22 +406,18 @@ void BM_Fifo(benchmark::State& state) {
 template <typename T>
 void BM_FwdIter(benchmark::State& state) {
   using V = typename remove_pair_const<typename T::value_type>::type;
-  using R = typename T::value_type const*;
 
   std::vector<V> values = GenerateValues<V>(kBenchmarkValues);
   T container(values.begin(), values.end());
 
   auto iter = container.end();
 
-  R r = nullptr;
-
   while (state.KeepRunning()) {
     if (iter == container.end()) iter = container.begin();
-    r = &(*iter);
-    ++iter;
+    auto *v = &(*iter);
+    benchmark::DoNotOptimize(v);
+    benchmark::DoNotOptimize(++iter);
   }
-
-  benchmark::DoNotOptimize(r);
 }
 
 // Benchmark random range-construction of a container.
@@ -735,7 +731,7 @@ double ContainerInfo(const btree_map<int, BigTypePtr<Size>>& b) {
 
 BIG_TYPE_PTR_BENCHMARKS(32);
 
-void BM_BtreeSet_IteratorSubtraction(benchmark::State& state) {
+void BM_BtreeSet_IteratorDifference(benchmark::State& state) {
   absl::InsecureBitGen bitgen;
   std::vector<int> vec;
   // Randomize the set's insertion order so the nodes aren't all full.
@@ -752,6 +748,52 @@ void BM_BtreeSet_IteratorSubtraction(benchmark::State& state) {
     size_t begin = end - distance;
     benchmark::DoNotOptimize(set.find(static_cast<int>(end)) -
                              set.find(static_cast<int>(begin)));
+    distance = absl::Uniform(bitgen, 0u, set.size());
+  }
+}
+
+BENCHMARK(BM_BtreeSet_IteratorDifference)->Range(1 << 10, 1 << 20);
+
+void BM_BtreeSet_IteratorAddition(benchmark::State& state) {
+  absl::InsecureBitGen bitgen;
+  std::vector<int> vec;
+  // Randomize the set's insertion order so the nodes aren't all full.
+  vec.reserve(static_cast<size_t>(state.range(0)));
+  for (int i = 0; i < state.range(0); ++i) vec.push_back(i);
+  absl::c_shuffle(vec, bitgen);
+
+  absl::btree_set<int> set;
+  for (int i : vec) set.insert(i);
+
+  size_t distance = absl::Uniform(bitgen, 0u, set.size());
+  while (state.KeepRunningBatch(distance)) {
+    // Let the increment go all the way to the `end` iterator.
+    const size_t begin =
+        absl::Uniform(absl::IntervalClosed, bitgen, 0u, set.size() - distance);
+    auto it = set.find(static_cast<int>(begin));
+    benchmark::DoNotOptimize(it += static_cast<int>(distance));
+    distance = absl::Uniform(bitgen, 0u, set.size());
+  }
+}
+
+BENCHMARK(BM_BtreeSet_IteratorAddition)->Range(1 << 10, 1 << 20);
+
+void BM_BtreeSet_IteratorSubtraction(benchmark::State& state) {
+  absl::InsecureBitGen bitgen;
+  std::vector<int> vec;
+  // Randomize the set's insertion order so the nodes aren't all full.
+  vec.reserve(static_cast<size_t>(state.range(0)));
+  for (int i = 0; i < state.range(0); ++i) vec.push_back(i);
+  absl::c_shuffle(vec, bitgen);
+
+  absl::btree_set<int> set;
+  for (int i : vec) set.insert(i);
+
+  size_t distance = absl::Uniform(bitgen, 0u, set.size());
+  while (state.KeepRunningBatch(distance)) {
+    size_t end = absl::Uniform(bitgen, distance, set.size());
+    auto it = set.find(static_cast<int>(end));
+    benchmark::DoNotOptimize(it -= static_cast<int>(distance));
     distance = absl::Uniform(bitgen, 0u, set.size());
   }
 }

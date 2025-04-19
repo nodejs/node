@@ -12,10 +12,10 @@
 #include "src/codegen/tick-counter.h"
 #include "src/compiler/common-operator.h"
 #include "src/compiler/control-equivalence.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/node-marker.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/utils/bit-vector.h"
 #include "src/zone/zone-containers.h"
 
@@ -28,8 +28,9 @@ namespace compiler {
     if (v8_flags.trace_turbo_scheduler) PrintF(__VA_ARGS__); \
   } while (false)
 
-Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
-                     size_t node_count_hint, TickCounter* tick_counter,
+Scheduler::Scheduler(Zone* zone, TFGraph* graph, Schedule* schedule,
+                     Flags flags, size_t node_count_hint,
+                     TickCounter* tick_counter,
                      const ProfileDataFromFile* profile_data)
     : zone_(zone),
       graph_(graph),
@@ -46,7 +47,7 @@ Scheduler::Scheduler(Zone* zone, Graph* graph, Schedule* schedule, Flags flags,
   node_data_.resize(graph->NodeCount(), DefaultSchedulerData());
 }
 
-Schedule* Scheduler::ComputeSchedule(Zone* zone, Graph* graph, Flags flags,
+Schedule* Scheduler::ComputeSchedule(Zone* zone, TFGraph* graph, Flags flags,
                                      TickCounter* tick_counter,
                                      const ProfileDataFromFile* profile_data) {
   Zone* schedule_zone =
@@ -1299,7 +1300,7 @@ void Scheduler::GenerateDominatorTree() {
 
 class PrepareUsesVisitor {
  public:
-  explicit PrepareUsesVisitor(Scheduler* scheduler, Graph* graph, Zone* zone)
+  explicit PrepareUsesVisitor(Scheduler* scheduler, TFGraph* graph, Zone* zone)
       : scheduler_(scheduler),
         schedule_(scheduler->schedule_),
         graph_(graph),
@@ -1363,7 +1364,7 @@ class PrepareUsesVisitor {
 
   Scheduler* scheduler_;
   Schedule* schedule_;
-  Graph* graph_;
+  TFGraph* graph_;
   BitVector visited_;
   ZoneStack<Node*> stack_;
 };

@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_OBJECTS_JS_DISPLAY_NAMES_H_
+#define V8_OBJECTS_JS_DISPLAY_NAMES_H_
+
 #ifndef V8_INTL_SUPPORT
 #error Internationalization is expected to be enabled.
 #endif  // V8_INTL_SUPPORT
-
-#ifndef V8_OBJECTS_JS_DISPLAY_NAMES_H_
-#define V8_OBJECTS_JS_DISPLAY_NAMES_H_
 
 #include <set>
 #include <string>
@@ -32,23 +32,23 @@ class JSDisplayNames
  public:
   // Creates display names object with properties derived from input
   // locales and options.
-  static MaybeHandle<JSDisplayNames> New(Isolate* isolate,
-                                         DirectHandle<Map> map,
-                                         Handle<Object> locales,
-                                         Handle<Object> options);
+  static MaybeDirectHandle<JSDisplayNames> New(Isolate* isolate,
+                                               DirectHandle<Map> map,
+                                               DirectHandle<Object> locales,
+                                               DirectHandle<Object> options);
 
-  static Handle<JSObject> ResolvedOptions(
+  static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSDisplayNames> format_holder);
 
-  static MaybeHandle<Object> Of(Isolate* isolate,
-                                DirectHandle<JSDisplayNames> holder,
-                                Handle<Object> code_obj);
+  static MaybeDirectHandle<Object> Of(Isolate* isolate,
+                                      DirectHandle<JSDisplayNames> holder,
+                                      Handle<Object> code_obj);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();
 
-  Handle<String> StyleAsString() const;
-  Handle<String> FallbackAsString() const;
-  Handle<String> LanguageDisplayAsString() const;
+  Handle<String> StyleAsString(Isolate* isolate) const;
+  Handle<String> FallbackAsString(Isolate* isolate) const;
+  DirectHandle<String> LanguageDisplayAsString(Isolate* isolate) const;
 
   // Style: identifying the display names style used.
   //

@@ -34,7 +34,7 @@ $ node test_db.js -i db
 ## Building fuzzer
 Then, to build the fuzzer,
 ```bash
-$ ./node_modules/.bin/pkg -t node10-linux-x64 .
+$ ./node_modules/.bin/pkg -t node18-linux-x64 .
 ```
 
 Replace "linux" with either "win" or "macos" for those platforms.

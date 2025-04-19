@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 #define V8_OBJECTS_BYTECODE_ARRAY_INL_H_
 
+#include "src/objects/bytecode-array.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/common/ptr-compr-inl.h"
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/interpreter/bytecode-register.h"
-#include "src/objects/bytecode-array.h"
 #include "src/objects/fixed-array-inl.h"
 
 // Has to be the last include (doesn't have include guards):
@@ -57,6 +59,10 @@ int BytecodeArray::register_count() const {
 
 uint16_t BytecodeArray::parameter_count() const {
   return ReadField<uint16_t>(kParameterSizeOffset);
+}
+
+uint16_t BytecodeArray::parameter_count_without_receiver() const {
+  return parameter_count() - 1;
 }
 
 void BytecodeArray::set_parameter_count(uint16_t number_of_parameters) {
@@ -159,7 +165,7 @@ DEF_GETTER(BytecodeArray, SizeIncludingMetadata, int) {
   int size = BytecodeArraySize();
   Tagged<Object> maybe_constant_pool = raw_constant_pool(cage_base);
   if (IsTrustedFixedArray(maybe_constant_pool)) {
-    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size(cage_base);
+    size += Cast<TrustedFixedArray>(maybe_constant_pool)->Size();
   } else {
     DCHECK_EQ(maybe_constant_pool, Smi::zero());
   }

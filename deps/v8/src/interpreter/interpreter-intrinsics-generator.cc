@@ -158,7 +158,8 @@ TNode<Object> IntrinsicsGenerator::CreateIterResultObject(
 TNode<Object> IntrinsicsGenerator::CreateAsyncFromSyncIterator(
     const InterpreterAssembler::RegListNodePair& args, TNode<Context> context,
     int arg_count) {
-  TNode<Object> sync_iterator = __ LoadRegisterFromRegisterList(args, 0);
+  TNode<JSAny> sync_iterator =
+      __ CAST(__ LoadRegisterFromRegisterList(args, 0));
   return __ CreateAsyncFromSyncIterator(context, sync_iterator);
 }
 

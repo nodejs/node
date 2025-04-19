@@ -1211,6 +1211,14 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     result->platform_ = per_process::v8_platform.Platform();
   }
 
+  if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
+    v8::PageAllocator* allocator = nullptr;
+    if (result->platform_ != nullptr) {
+      allocator = result->platform_->GetPageAllocator();
+    }
+    cppgc::InitializeProcess(allocator);
+  }
+
   if (!(flags & ProcessInitializationFlags::kNoInitializeV8)) {
     V8::Initialize();
 
@@ -1218,14 +1226,6 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     // TODO(legendecas): Replace this global disablement with case suppressions.
     // https://github.com/nodejs/node-v8/issues/301
     absl::SetMutexDeadlockDetectionMode(absl::OnDeadlockCycle::kIgnore);
-  }
-
-  if (!(flags & ProcessInitializationFlags::kNoInitializeCppgc)) {
-    v8::PageAllocator* allocator = nullptr;
-    if (result->platform_ != nullptr) {
-      allocator = result->platform_->GetPageAllocator();
-    }
-    cppgc::InitializeProcess(allocator);
   }
 
 #if NODE_USE_V8_WASM_TRAP_HANDLER

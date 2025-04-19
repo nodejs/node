@@ -39,6 +39,9 @@ bitfield struct SharedFunctionInfoFlags extends uint32 {
   is_top_level: bool: 1 bit;
   properties_are_final: bool: 1 bit;
   private_name_lookup_skips_outer_class: bool: 1 bit;
+
+  // TODO(crbug.com/401059828): remove once crashes are gone.
+  live_edited: bool: 1 bit;
 }
 
 bitfield struct SharedFunctionInfoFlags2 extends uint8 {
@@ -75,11 +78,9 @@ extern class SharedFunctionInfo extends HeapObject {
   outer_scope_info_or_feedback_metadata: HeapObject;
   script: Script|Undefined;
   // [length]: The function length - usually the number of declared parameters
-  // (always without the receiver).
-  // Use up to 2^16-2 parameters (16 bits of values, where one is reserved for
-  // kDontAdaptArgumentsSentinel). The value is only reliable when the function
+  // (always without the receiver). The value is only reliable when the function
   // has been compiled.
-  length: int16;
+  length: uint16;
   // [formal_parameter_count]: The number of declared parameters (or the special
   // value kDontAdaptArgumentsSentinel to indicate that arguments are passed
   // unaltered).

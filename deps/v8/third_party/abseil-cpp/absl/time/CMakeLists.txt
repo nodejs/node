@@ -121,6 +121,7 @@ absl_cc_test(
     absl::time
     absl::config
     absl::core_headers
+    absl::hash_testing
     absl::strings
     absl::str_format
     absl::time_zone

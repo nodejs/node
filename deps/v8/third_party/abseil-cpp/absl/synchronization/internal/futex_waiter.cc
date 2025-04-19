@@ -31,10 +31,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char FutexWaiter::kName[];
-#endif
-
 int FutexWaiter::WaitUntil(std::atomic<int32_t>* v, int32_t val,
                            KernelTimeout t) {
 #ifdef CLOCK_MONOTONIC

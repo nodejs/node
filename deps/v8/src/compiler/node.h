@@ -9,7 +9,7 @@
 #include "src/compiler/graph-zone-traits.h"
 #include "src/compiler/opcodes.h"
 #include "src/compiler/operator.h"
-#include "src/compiler/types.h"
+#include "src/compiler/turbofan-types.h"
 #include "src/zone/zone-containers.h"
 
 namespace v8 {
@@ -18,8 +18,7 @@ namespace compiler {
 
 // Forward declarations.
 class Edge;
-class Graph;
-
+class TFGraph;
 
 // Marks are used during traversal of the graph to distinguish states of nodes.
 // Each node has a mark which is a monotonically increasing integer, and a

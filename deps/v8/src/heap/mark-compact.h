@@ -66,7 +66,7 @@ class MarkCompactCollector final {
 
   enum class MarkingWorklistProcessingMode {
     kDefault,
-    kTrackNewlyDiscoveredObjects
+    kProcessRememberedEphemerons
   };
 
   enum class CallOrigin {
@@ -74,14 +74,24 @@ class MarkCompactCollector final {
     kAtomicGC,
   };
 
+  enum class EphemeronResult {
+    // Both key and value are still unmarked.
+    kUnresolved,
+    // Value got marked because key was already marked.
+    kMarkedValue,
+    // Value is already marked or always live in this GC.
+    kResolved,
+  };
+
   // Callback function for telling whether the object *p is an unmarked
   // heap object.
   static bool IsUnmarkedHeapObject(Heap* heap, FullObjectSlot p);
   static bool IsUnmarkedSharedHeapObject(Heap* heap, FullObjectSlot p);
 
+  template <MarkingWorklistProcessingMode mode =
+                MarkingWorklistProcessingMode::kDefault>
   std::pair<size_t, size_t> ProcessMarkingWorklist(
-      v8::base::TimeDelta max_duration, size_t max_bytes_to_process,
-      MarkingWorklistProcessingMode mode);
+      v8::base::TimeDelta max_duration, size_t max_bytes_to_process);
 
   void TearDown();
 
@@ -103,7 +113,8 @@ class MarkCompactCollector final {
   // Returns whether compaction is running.
   bool StartCompaction(StartCompactionMode mode);
 
-  void StartMarking();
+  void StartMarking(
+      std::shared_ptr<::heap::base::IncrementalMarkingSchedule> schedule = {});
 
   static inline bool IsOnEvacuationCandidate(Tagged<MaybeObject> obj) {
     return MemoryChunk::FromAddress(obj.ptr())->IsEvacuationCandidate();
@@ -169,22 +180,6 @@ class MarkCompactCollector final {
   WeakObjects* weak_objects() { return &weak_objects_; }
   WeakObjects::Local* local_weak_objects() { return local_weak_objects_.get(); }
 
-  void AddNewlyDiscovered(Tagged<HeapObject> object) {
-    if (ephemeron_marking_.newly_discovered_overflowed) return;
-
-    if (ephemeron_marking_.newly_discovered.size() <
-        ephemeron_marking_.newly_discovered_limit) {
-      ephemeron_marking_.newly_discovered.push_back(object);
-    } else {
-      ephemeron_marking_.newly_discovered_overflowed = true;
-    }
-  }
-
-  void ResetNewlyDiscovered() {
-    ephemeron_marking_.newly_discovered_overflowed = false;
-    ephemeron_marking_.newly_discovered.clear();
-  }
-
   bool UseBackgroundThreadsInCycle() const {
     return use_background_threads_in_cycle_;
   }
@@ -232,6 +227,8 @@ class MarkCompactCollector final {
   void MarkObjectsFromClientHeaps();
   void MarkObjectsFromClientHeap(Isolate* client);
 
+  void PinPreciseRootsIfNeeded();
+
   // Updates pointers to shared objects from client heaps.
   void UpdatePointersInClientHeaps();
   void UpdatePointersInClientHeap(Isolate* client);
@@ -249,7 +246,12 @@ class MarkCompactCollector final {
   void ProcessTopOptimizedFrame(ObjectVisitor* visitor, Isolate* isolate);
 
   // Implements ephemeron semantics: Marks value if key is already reachable.
-  // Returns true if value was actually marked.
+  EphemeronResult ApplyEphemeronSemantics(Tagged<HeapObject> key,
+                                          Tagged<HeapObject> value);
+
+  // Wrapper around `ApplyEphemeronSemantics`. Pushes unresolved ephemerons
+  // into next_ephemerons. Returns true if the ephemeron value was warked by
+  // this method.
   bool ProcessEphemeron(Tagged<HeapObject> key, Tagged<HeapObject> value);
 
   // Marks the transitive closure by draining the marking worklist iteratively,
@@ -303,7 +305,9 @@ class MarkCompactCollector final {
   void FlushSFI(Tagged<SharedFunctionInfo> sfi,
                 bool bytecode_already_decompiled);
 
+#ifndef V8_ENABLE_LEAPTIERING
   void ProcessFlushedBaselineCandidates();
+#endif  // !V8_ENABLE_LEAPTIERING
 
   // Resets any JSFunctions which have had their bytecode flushed.
   void ClearFlushedJsFunctions();
@@ -332,6 +336,13 @@ class MarkCompactCollector final {
   // weakness clearing.
   void ClearTrivialWeakReferences();
   class ClearTrivialWeakRefJobItem;
+  // Same, but for trusted space.
+  void ClearTrustedWeakReferences();
+  // Common implementation of the above two.
+  template <typename TObjectAndSlot, typename TMaybeSlot>
+  void ClearWeakReferences(
+      WeakObjects::WeakObjectWorklist<TObjectAndSlot>::Local& worklist,
+      Tagged<HeapObjectReference> cleared_weak_ref);
 
   // Goes through the list of encountered non-trivial weak references and
   // filters out those whose values are still alive. This is performed in a
@@ -365,8 +376,8 @@ class MarkCompactCollector final {
   size_t PostProcessAbortedEvacuationCandidates();
   void ReportAbortedEvacuationCandidateDueToOOM(Address failed_start,
                                                 PageMetadata* page);
-  void ReportAbortedEvacuationCandidateDueToFlags(Address failed_start,
-                                                  PageMetadata* page);
+  void ReportAbortedEvacuationCandidateDueToFlags(PageMetadata* page,
+                                                  MemoryChunk* chunk);
 
   static const int kEphemeronChunkSize = 8 * KB;
 
@@ -377,6 +388,8 @@ class MarkCompactCollector final {
 
   void StartSweepNewSpace();
   void SweepLargeSpace(LargeObjectSpace* space);
+
+  void ResetAndRelinkBlackAllocatedPage(PagedSpace*, PageMetadata*);
 
   Heap* const heap_;
 
@@ -410,7 +423,6 @@ class MarkCompactCollector final {
   std::unique_ptr<MarkingWorklists::Local> local_marking_worklists_;
 
   WeakObjects weak_objects_;
-  EphemeronMarking ephemeron_marking_;
 
   std::unique_ptr<MainMarkingVisitor> marking_visitor_;
   std::unique_ptr<WeakObjects::Local> local_weak_objects_;
@@ -427,9 +439,11 @@ class MarkCompactCollector final {
   std::vector<PageMetadata*> new_space_evacuation_pages_;
   std::vector<std::pair<Address, PageMetadata*>>
       aborted_evacuation_candidates_due_to_oom_;
-  std::vector<std::pair<Address, PageMetadata*>>
-      aborted_evacuation_candidates_due_to_flags_;
+  std::vector<PageMetadata*> aborted_evacuation_candidates_due_to_flags_;
   std::vector<LargePageMetadata*> promoted_large_pages_;
+
+  // Map which stores ephemeron pairs for the linear-time algorithm.
+  KeyToValues key_to_values_;
 
   MarkingState* const marking_state_;
   NonAtomicMarkingState* const non_atomic_marking_state_;
@@ -441,8 +455,6 @@ class MarkCompactCollector final {
   //   two bits are used, so it is okay if this counter overflows and wraps
   //   around.
   unsigned epoch_ = 0;
-
-  ResizeNewSpaceMode resize_new_space_ = ResizeNewSpaceMode::kNone;
 
   // Bytecode flushing is disabled when the code coverage mode is changed. Since
   // that can happen while a GC is happening and we need the
@@ -457,6 +469,7 @@ class MarkCompactCollector final {
   friend class Evacuator;
   friend class RecordMigratedSlotVisitor;
   friend class RootMarkingVisitor;
+  friend class PrecisePagePinningVisitor;
 };
 
 }  // namespace internal

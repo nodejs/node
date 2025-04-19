@@ -62,7 +62,7 @@ struct FlatHashSetPolicy;
 // Its interface is similar to that of `std::unordered_set<T>` with the
 // following notable differences:
 //
-// * Requires keys that are CopyConstructible
+// * Requires keys that are MoveConstructible
 // * Supports heterogeneous lookup, through `find()` and `insert()`, provided
 //   that the set is provided a compatible heterogeneous hashing function and
 //   equality operator. See below for details.

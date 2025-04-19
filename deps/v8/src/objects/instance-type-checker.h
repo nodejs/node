@@ -36,6 +36,7 @@ class Map;
   V(FreeSpaceOrFiller)                   \
   V(GcSafeCode)                          \
   V(InternalizedString)                  \
+  V(MaybeReadOnlyJSObject)               \
   V(PropertyDictionary)
 
 #define INSTANCE_TYPE_CHECKERS(V)  \

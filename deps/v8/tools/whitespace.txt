@@ -5,7 +5,7 @@ Try to write something funny. And please don't add trailing whitespace.
 A Smi balks into a war and says:
 "I'm so deoptimized today!"
 The doubles heard this and started to unbox.
-The Smi looked at them when a crazy v8-autoroll account showed up...
+The Smi looked at them when a crazy v8-autoroll account showed up....
 The autoroller bought a round of Himbeerbrause. Suddenly..............
 The bartender starts to shake the bottles...............................
 I can't add trailing whitespaces, so I'm adding this line..............
@@ -18,6 +18,28 @@ Today's answer to life the universe and everything is 6728!!
 Off-course, this is wrong ...
 ..
 
+# LINT.IfChange(Foo)
+Some
+lines
+of
+code
+# LINT.ThenChange(//DEPS)
+
+# LINT.IfChange(Bar)
+Some
+lines
+of
+code
+# LINT.ThenChange(/test/mjsunit/mjsunit.js)
+
+# LINT.IfChange
+Some
+lines
+of
+code
+# LINT.ThenChange(bazel/.gitignore)
+
 Test b/319667336
 Test git watcher
 Artifact change for b/333913216+1
+
