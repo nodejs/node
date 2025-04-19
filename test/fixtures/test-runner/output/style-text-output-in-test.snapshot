@@ -1,0 +1,20 @@
+TAP version 13
+# [43mTTY[49m
+# No TTY
+# stdout
+# stderr
+# Subtest: /test/fixtures/test-runner/output/style-text-output-in-test.mjs
+ok 1 - /test/fixtures/test-runner/output/style-text-output-in-test.mjs
+  ---
+  duration_ms: *
+  type: 'test'
+  ...
+1..1
+# tests 1
+# suites 0
+# pass 1
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms *
