@@ -1332,7 +1332,7 @@ void DatabaseSync::AggregateFunction(const FunctionCallbackInfo<Value>& args) {
       return;
     }
 
-    // Subract 1 because the first argument is the aggregate value.
+    // Subtract 1 because the first argument is the aggregate value.
     argc = js_len.As<Int32>()->Value() - 1;
     if (!inverseFunc.IsEmpty() &&
         !inverseFunc->Get(env->context(), env->length_string())
