@@ -407,6 +407,16 @@ static int GetDebugSignalHandlerMappingName(DWORD pid,
   return _snwprintf(buf, buf_len, L"node-debug-handler-%u", pid);
 }
 
+static void ThrowWinapiErrnoException(Isolate* isolate,
+                                      int errorno,
+                                      const char* syscall) {
+  Local<Value> exception;
+  if (!TryWinapiErrnoException(isolate, errorno, syscall).ToLocal(&exception)) {
+    return;
+  }
+  isolate->ThrowException(exception);
+}
+
 static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = args.GetIsolate();
@@ -438,9 +448,7 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
                   FALSE,
                   pid);
   if (process == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "OpenProcess"));
-    return;
+    return ThrowWinapiErrnoException(isolate, GetLastError(), "OpenProcess");
   }
 
   if (GetDebugSignalHandlerMappingName(
@@ -451,32 +459,27 @@ static void DebugProcess(const FunctionCallbackInfo<Value>& args) {
 
   mapping = OpenFileMappingW(FILE_MAP_READ, FALSE, mapping_name);
   if (mapping == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "OpenFileMappingW"));
-    return;
+    return ThrowWinapiErrnoException(
+        isolate, GetLastError(), "OpenFileMappingW");
   }
 
   handler = reinterpret_cast<LPTHREAD_START_ROUTINE*>(
       MapViewOfFile(mapping, FILE_MAP_READ, 0, 0, sizeof *handler));
   if (handler == nullptr || *handler == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "MapViewOfFile"));
-    return;
+    return ThrowWinapiErrnoException(isolate, GetLastError(), "MapViewOfFile");
   }
 
   thread =
       CreateRemoteThread(process, nullptr, 0, *handler, nullptr, 0, nullptr);
   if (thread == nullptr) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "CreateRemoteThread"));
-    return;
+    return ThrowWinapiErrnoException(
+        isolate, GetLastError(), "CreateRemoteThread");
   }
 
   // Wait for the thread to terminate
   if (WaitForSingleObject(thread, INFINITE) != WAIT_OBJECT_0) {
-    isolate->ThrowException(
-        WinapiErrnoException(isolate, GetLastError(), "WaitForSingleObject"));
-    return;
+    return ThrowWinapiErrnoException(
+        isolate, GetLastError(), "WaitForSingleObject");
   }
 }
 #endif  // _WIN32
@@ -579,8 +582,10 @@ static void Execve(const FunctionCallbackInfo<Value>& args) {
                        errors::errno_string(errno);
 
   // Abort the process
+  // Using ToLocalChecked() here is fine because we are aborting the process
+  // anyway.
   Local<v8::Value> exception =
-      ErrnoException(isolate, errno, "execve", *executable);
+      TryErrnoException(isolate, errno, "execve", *executable).ToLocalChecked();
   Local<v8::Message> message = v8::Exception::CreateMessage(isolate, exception);
 
   std::string info = FormatErrorMessage(

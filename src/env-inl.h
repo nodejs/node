@@ -779,8 +779,15 @@ inline void Environment::ThrowErrnoException(int errorno,
                                              const char* syscall,
                                              const char* message,
                                              const char* path) {
-  isolate()->ThrowException(
-      ErrnoException(isolate(), errorno, syscall, message, path));
+  v8::HandleScope handle_scope(isolate());
+  v8::Local<v8::Value> exception;
+  if (!TryErrnoException(isolate(), errno, syscall, message, path)
+           .ToLocal(&exception)) {
+    // V8 will have scheduled an exception to be thrown here, which
+    // takes precedence over the one we were about to throw.
+    return;
+  }
+  isolate()->ThrowException(exception);
 }
 
 inline void Environment::ThrowUVException(int errorno,
@@ -788,8 +795,15 @@ inline void Environment::ThrowUVException(int errorno,
                                           const char* message,
                                           const char* path,
                                           const char* dest) {
-  isolate()->ThrowException(
-      UVException(isolate(), errorno, syscall, message, path, dest));
+  v8::HandleScope handle_scope(isolate());
+  v8::Local<v8::Value> exception;
+  if (!TryUVException(isolate(), errorno, syscall, message, path, dest)
+           .ToLocal(&exception)) {
+    // V8 will have scheduled an exception to be thrown here, which
+    // takes precedence over the one we were about to throw.
+    return;
+  }
+  isolate()->ThrowException(exception);
 }
 
 void Environment::AddCleanupHook(CleanupQueue::Callback fn, void* arg) {

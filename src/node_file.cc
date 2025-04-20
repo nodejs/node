@@ -484,8 +484,17 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
     Isolate* isolate = close->env()->isolate();
     if (req->result < 0) {
       HandleScope handle_scope(isolate);
-      close->Reject(
-          UVException(isolate, static_cast<int>(req->result), "close"));
+      Local<Value> exception;
+      {
+        TryCatch try_catch(isolate);
+        if (!TryUVException(isolate, static_cast<int>(req->result), "close")
+                 .ToLocal(&exception)) {
+          CHECK(try_catch.HasCaught());
+          CHECK(try_catch.CanContinue());
+          exception = try_catch.Exception();
+        }
+      }
+      close->Reject(exception);
     } else {
       close->Resolve();
     }
@@ -494,7 +503,16 @@ MaybeLocal<Promise> FileHandle::ClosePromise() {
   FS_ASYNC_TRACE_BEGIN0(UV_FS_CLOSE, req)
   int ret = req->Dispatch(uv_fs_close, fd_, AfterClose);
   if (ret < 0) {
-    req->Reject(UVException(isolate, ret, "close"));
+    Local<Value> exception;
+    {
+      TryCatch try_catch(isolate);
+      if (!TryUVException(isolate, ret, "close").ToLocal(&exception)) {
+        CHECK(try_catch.HasCaught());
+        CHECK(try_catch.CanContinue());
+        exception = try_catch.Exception();
+      }
+    }
+    req->Reject(exception);
     delete req;
   }
 
@@ -758,12 +776,21 @@ void FSReqAfterScope::Clear() {
 // in JS for more flexibility.
 void FSReqAfterScope::Reject(uv_fs_t* req) {
   BaseObjectPtr<FSReqBase> wrap { wrap_ };
-  Local<Value> exception = UVException(wrap_->env()->isolate(),
-                                       static_cast<int>(req->result),
-                                       wrap_->syscall(),
-                                       nullptr,
-                                       req->path,
-                                       wrap_->data());
+  Local<Value> exception;
+  {
+    TryCatch try_catch(wrap_->env()->isolate());
+    if (!TryUVException(wrap_->env()->isolate(),
+                        static_cast<int>(req->result),
+                        wrap_->syscall(),
+                        nullptr,
+                        req->path,
+                        wrap_->data())
+             .ToLocal(&exception)) {
+      CHECK(try_catch.HasCaught());
+      CHECK(try_catch.CanContinue());
+      exception = try_catch.Exception();
+    }
+  }
   Clear();
   wrap->Reject(exception);
 }
@@ -925,8 +952,17 @@ void AfterScanDir(uv_fs_t* req) {
     if (r == UV_EOF)
       break;
     if (r != 0) {
-      return req_wrap->Reject(
-          UVException(isolate, r, nullptr, req_wrap->syscall(), req->path));
+      Local<Value> exception;
+      {
+        TryCatch try_catch(isolate);
+        if (!TryUVException(isolate, r, nullptr, req_wrap->syscall(), req->path)
+                 .ToLocal(&exception)) {
+          CHECK(try_catch.HasCaught());
+          CHECK(try_catch.CanContinue());
+          exception = try_catch.Exception();
+        }
+      }
+      return req_wrap->Reject(exception);
     }
 
     Local<Value> filename;

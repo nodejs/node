@@ -16,6 +16,7 @@ using v8::Exception;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::MaybeLocal;
 using v8::Object;
 using v8::String;
 using v8::Value;
@@ -25,6 +26,15 @@ Local<Value> ErrnoException(Isolate* isolate,
                             const char* syscall,
                             const char* msg,
                             const char* path) {
+  return TryErrnoException(isolate, errorno, syscall, msg, path)
+      .ToLocalChecked();
+}
+
+MaybeLocal<Value> TryErrnoException(Isolate* isolate,
+                                    int errorno,
+                                    const char* syscall,
+                                    const char* msg,
+                                    const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
 
@@ -39,12 +49,12 @@ Local<Value> ErrnoException(Isolate* isolate,
       String::Concat(isolate, estring, FIXED_ONE_BYTE_STRING(isolate, ", "));
   cons = String::Concat(isolate, cons, message);
 
+  // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
   Local<String> path_string;
-  if (path != nullptr) {
-    // FIXME(bnoordhuis) It's questionable to interpret the file path as UTF-8.
-    path_string = String::NewFromUtf8(isolate, path).ToLocalChecked();
+  if (path != nullptr &&
+      !String::NewFromUtf8(isolate, path).ToLocal(&path_string)) {
+    return {};
   }
-
   if (path_string.IsEmpty() == false) {
     cons = String::Concat(isolate, cons, FIXED_ONE_BYTE_STRING(isolate, " '"));
     cons = String::Concat(isolate, cons, path_string);
@@ -54,46 +64,59 @@ Local<Value> ErrnoException(Isolate* isolate,
 
   Local<Context> context = env->context();
   Local<Object> obj = e.As<Object>();
-  obj->Set(context,
-           env->errno_string(),
-           Integer::New(isolate, errorno)).Check();
-  obj->Set(context, env->code_string(), estring).Check();
-
-  if (path_string.IsEmpty() == false) {
-    obj->Set(context, env->path_string(), path_string).Check();
+  if (obj->Set(context, env->errno_string(), Integer::New(isolate, errorno))
+          .IsNothing() ||
+      obj->Set(context, env->code_string(), estring).IsNothing()) {
+    return {};
   }
 
-  if (syscall != nullptr) {
-    obj->Set(context,
-             env->syscall_string(),
-             OneByteString(isolate, syscall)).Check();
+  if (!path_string.IsEmpty() &&
+      obj->Set(context, env->path_string(), path_string).IsNothing()) {
+    return {};
+  }
+
+  if (syscall != nullptr &&
+      obj->Set(context, env->syscall_string(), OneByteString(isolate, syscall))
+          .IsNothing()) {
+    return {};
   }
 
   return e;
 }
 
-static Local<String> StringFromPath(Isolate* isolate, const char* path) {
+static MaybeLocal<String> StringFromPath(Isolate* isolate, const char* path) {
 #ifdef _WIN32
   if (strncmp(path, "\\\\?\\UNC\\", 8) == 0) {
+    Local<String> path_string;
+    if (!String::NewFromUtf8(isolate, path + 8).ToLocal(&path_string)) {
+      return {};
+    }
     return String::Concat(
-        isolate,
-        FIXED_ONE_BYTE_STRING(isolate, "\\\\"),
-        String::NewFromUtf8(isolate, path + 8).ToLocalChecked());
+        isolate, FIXED_ONE_BYTE_STRING(isolate, "\\\\"), path_string);
   } else if (strncmp(path, "\\\\?\\", 4) == 0) {
-    return String::NewFromUtf8(isolate, path + 4).ToLocalChecked();
+    return String::NewFromUtf8(isolate, path + 4);
   }
 #endif
 
-  return String::NewFromUtf8(isolate, path).ToLocalChecked();
+  return String::NewFromUtf8(isolate, path);
 }
-
 
 Local<Value> UVException(Isolate* isolate,
                          int errorno,
                          const char* syscall,
-                         const char* msg,
+                         const char* message,
                          const char* path,
                          const char* dest) {
+  return TryUVException(isolate, errorno, syscall, message, path, dest)
+      .ToLocalChecked();
+}
+
+MaybeLocal<Value> TryUVException(Isolate* isolate,
+                                 int errorno,
+                                 const char* syscall,
+                                 const char* msg,
+                                 const char* path,
+                                 const char* dest) {
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
 
@@ -114,7 +137,9 @@ Local<Value> UVException(Isolate* isolate,
   js_msg = String::Concat(isolate, js_msg, js_syscall);
 
   if (path != nullptr) {
-    js_path = StringFromPath(isolate, path);
+    if (!StringFromPath(isolate, path).ToLocal(&js_path)) {
+      return {};
+    }
 
     js_msg =
         String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " '"));
@@ -124,7 +149,9 @@ Local<Value> UVException(Isolate* isolate,
   }
 
   if (dest != nullptr) {
-    js_dest = StringFromPath(isolate, dest);
+    if (!StringFromPath(isolate, dest).ToLocal(&js_dest)) {
+      return {};
+    }
 
     js_msg = String::Concat(
         isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, " -> '"));
@@ -133,20 +160,28 @@ Local<Value> UVException(Isolate* isolate,
         String::Concat(isolate, js_msg, FIXED_ONE_BYTE_STRING(isolate, "'"));
   }
 
-  Local<Object> e =
-    Exception::Error(js_msg)->ToObject(isolate->GetCurrentContext())
-      .ToLocalChecked();
+  auto context = isolate->GetCurrentContext();
+  Local<Object> e;
+  if (!Exception::Error(js_msg)->ToObject(context).ToLocal(&e)) {
+    return {};
+  }
 
-  Local<Context> context = env->context();
-  e->Set(context,
-         env->errno_string(),
-         Integer::New(isolate, errorno)).Check();
-  e->Set(context, env->code_string(), js_code).Check();
-  e->Set(context, env->syscall_string(), js_syscall).Check();
-  if (!js_path.IsEmpty())
-    e->Set(context, env->path_string(), js_path).Check();
-  if (!js_dest.IsEmpty())
-    e->Set(context, env->dest_string(), js_dest).Check();
+  if (e->Set(context, env->errno_string(), Integer::New(isolate, errorno))
+          .IsNothing() ||
+      e->Set(context, env->code_string(), js_code).IsNothing() ||
+      e->Set(context, env->syscall_string(), js_syscall).IsNothing()) {
+    return {};
+  }
+
+  if (!js_path.IsEmpty() &&
+      e->Set(context, env->path_string(), js_path).IsNothing()) {
+    return {};
+  }
+
+  if (!js_dest.IsEmpty() &&
+      e->Set(context, env->dest_string(), js_dest).IsNothing()) {
+    return {};
+  }
 
   return e;
 }
@@ -189,6 +224,15 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
                                   const char* syscall,
                                   const char* msg,
                                   const char* path) {
+  return TryWinapiErrnoException(isolate, errorno, syscall, msg, path)
+      .ToLocalChecked();
+}
+
+MaybeLocal<Value> TryWinapiErrnoException(Isolate* isolate,
+                                          int errorno,
+                                          const char* syscall,
+                                          const char* msg,
+                                          const char* path) {
   Environment* env = Environment::GetCurrent(isolate);
   CHECK_NOT_NULL(env);
   Local<Value> e;
@@ -197,14 +241,16 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
     msg = winapi_strerror(errorno, &must_free);
   }
   Local<String> message = OneByteString(isolate, msg);
+  Local<String> path_string;
 
   if (path) {
+    if (!String::NewFromUtf8(isolate, path).ToLocal(&path_string)) {
+      return {};
+    }
+
     Local<String> cons1 =
         String::Concat(isolate, message, FIXED_ONE_BYTE_STRING(isolate, " '"));
-    Local<String> cons2 = String::Concat(
-        isolate,
-        cons1,
-        String::NewFromUtf8(isolate, path).ToLocalChecked());
+    Local<String> cons2 = String::Concat(isolate, cons1, path_string);
     Local<String> cons3 =
         String::Concat(isolate, cons2, FIXED_ONE_BYTE_STRING(isolate, "'"));
     e = Exception::Error(cons3);
@@ -214,21 +260,21 @@ Local<Value> WinapiErrnoException(Isolate* isolate,
 
   Local<Context> context = env->context();
   Local<Object> obj = e.As<Object>();
-  obj->Set(context, env->errno_string(), Integer::New(isolate, errorno))
-      .Check();
 
-  if (path != nullptr) {
-    obj->Set(context,
-             env->path_string(),
-             String::NewFromUtf8(isolate, path).ToLocalChecked())
-        .Check();
+  if (obj->Set(context, env->errno_string(), Integer::New(isolate, errorno))
+          .IsNothing()) {
+    return {};
   }
 
-  if (syscall != nullptr) {
-    obj->Set(context,
-             env->syscall_string(),
-             OneByteString(isolate, syscall))
-        .Check();
+  if (!path_string.IsEmpty() &&
+      obj->Set(context, env->path_string(), path_string).IsNothing()) {
+    return {};
+  }
+
+  if (syscall != nullptr &&
+      obj->Set(context, env->syscall_string(), OneByteString(isolate, syscall))
+          .IsNothing()) {
+    return {};
   }
 
   if (must_free) {
