@@ -5,12 +5,14 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_mem-inl.h"
 #include "node_url.h"
 #include "sqlite3.h"
 #include "threadpoolwork-inl.h"
 #include "util-inl.h"
+#include "v8-fast-api-calls.h"
 
 #include <cinttypes>
 
@@ -21,10 +23,12 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::BigInt;
 using v8::Boolean;
+using v8::CFunction;
 using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
 using v8::Exception;
+using v8::FastApiCallbackOptions;
 using v8::Function;
 using v8::FunctionCallback;
 using v8::FunctionCallbackInfo;
@@ -58,11 +62,11 @@ using v8::Value;
     }                                                                          \
   } while (0)
 
-#define THROW_AND_RETURN_ON_BAD_STATE(env, condition, msg)                     \
+#define THROW_AND_RETURN_ON_BAD_STATE(env, condition, msg, ...)                \
   do {                                                                         \
     if ((condition)) {                                                         \
       THROW_ERR_INVALID_STATE((env), (msg));                                   \
-      return;                                                                  \
+      return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
 
@@ -979,7 +983,7 @@ void DatabaseSync::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(db->IsOpen());
 }
 
-void DatabaseSync::IsTransactionGetter(
+void DatabaseSync::IsTransactionGetterSlow(
     const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -987,6 +991,23 @@ void DatabaseSync::IsTransactionGetter(
   THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
   args.GetReturnValue().Set(sqlite3_get_autocommit(db->connection_) == 0);
 }
+
+bool DatabaseSync::IsTransactionGetterFast(
+    Local<Value> receiver,
+    Local<Object> holder,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("DatabaseSync.isTransaction");
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, holder, false);
+  Environment* env = Environment::GetCurrent(options.isolate);
+  THROW_AND_RETURN_ON_BAD_STATE(
+      env, !db->IsOpen(), "database is not open", false);
+  return sqlite3_get_autocommit(db->connection_) == 0;
+}
+
+CFunction DatabaseSync::is_transaction_getter_methods[] = {
+    CFunction::Make(IsTransactionGetterFast)};
 
 void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
@@ -2343,6 +2364,23 @@ static inline void SetSideEffectFreeGetter(
       name, getter, Local<FunctionTemplate>(), DontDelete);
 }
 
+static inline void SetSideEffectFreeFastGetter(
+    Isolate* isolate,
+    Local<FunctionTemplate> class_template,
+    Local<String> name,
+    v8::FunctionCallback slow_callback,
+    const v8::CFunction* c_function) {
+  Local<v8::FunctionTemplate> getter =
+      NewFunctionTemplate(isolate,
+                          slow_callback,
+                          v8::Signature::New(isolate, class_template),
+                          v8::ConstructorBehavior::kThrow,
+                          v8::SideEffectType::kHasSideEffect,
+                          c_function);
+  class_template->InstanceTemplate()->SetAccessorProperty(
+      name, getter, Local<FunctionTemplate>(), DontDelete);
+}
+
 Local<FunctionTemplate> StatementSync::GetConstructorTemplate(
     Environment* env) {
   Local<FunctionTemplate> tmpl =
@@ -2672,10 +2710,11 @@ static void Initialize(Local<Object> target,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
                           DatabaseSync::IsOpenGetter);
-  SetSideEffectFreeGetter(isolate,
-                          db_tmpl,
-                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
-                          DatabaseSync::IsTransactionGetter);
+  SetSideEffectFreeFastGetter(isolate,
+                              db_tmpl,
+                              FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
+                              DatabaseSync::IsTransactionGetterSlow,
+                              DatabaseSync::is_transaction_getter_methods);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,

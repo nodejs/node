@@ -7,6 +7,7 @@
 #include "node_mem.h"
 #include "sqlite3.h"
 #include "util.h"
+#include "v8-fast-api-calls.h"
 
 #include <map>
 #include <unordered_set>
@@ -61,8 +62,13 @@ class DatabaseSync : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void IsTransactionGetter(
+  static void IsTransactionGetterSlow(
       const v8::FunctionCallbackInfo<v8::Value>& args);
+  static bool IsTransactionGetterFast(
+      v8::Local<v8::Value> receiver,
+      v8::Local<v8::Object> holder,
+      // NOLINTNEXTLINE(runtime/references) This is V8 api.
+      v8::FastApiCallbackOptions& options);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -92,6 +98,8 @@ class DatabaseSync : public BaseObject {
 
   SET_MEMORY_INFO_NAME(DatabaseSync)
   SET_SELF_SIZE(DatabaseSync)
+
+  static v8::CFunction is_transaction_getter_methods[];
 
  private:
   bool Open();
