@@ -7,4 +7,4 @@ interface CallSite {
 
 const callSite = getCallSites({ sourceMap: false })[0];
 
-console.log('mapCallSite: ', callSite);
+console.log('mapCallSites: ', callSite);
