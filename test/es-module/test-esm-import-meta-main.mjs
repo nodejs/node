@@ -1,11 +1,10 @@
 import { mustCall } from '../common/index.mjs';
 import assert from 'node:assert/strict';
-
 import { Worker } from 'node:worker_threads';
 
 function get_environment() {
-  if (process.env.HAS_STARTED_WORKER) return "in worker thread started by ES Module";
-  return "in ES Module";
+  if (process.env.HAS_STARTED_WORKER) return 'in worker thread started by ES Module';
+  return 'in ES Module';
 }
 
 assert.strictEqual(
