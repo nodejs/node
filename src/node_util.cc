@@ -257,7 +257,7 @@ static void GetCallSites(const FunctionCallbackInfo<Value>& args) {
   CHECK_EQ(args.Length(), 1);
   CHECK(args[0]->IsNumber());
   const uint32_t frames = args[0].As<Uint32>()->Value();
-  DCHECK(frames >= 1 && frames <= 200);
+  CHECK(frames >= 1 && frames <= 200);
 
   // +1 for disregarding node:util
   Local<StackTrace> stack = StackTrace::CurrentStackTrace(isolate, frames + 1);
