@@ -2722,7 +2722,7 @@ typedef struct {
     BYTE* matchLength;
     BYTE* dumpsStart;
     BYTE* dumps;
-} seqStore_t;
+} SeqStore_t;
 
 
 /* *************************************

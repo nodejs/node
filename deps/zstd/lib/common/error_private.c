@@ -40,6 +40,7 @@ const char* ERR_getErrorString(ERR_enum code)
     case PREFIX(tableLog_tooLarge): return "tableLog requires too much memory : unsupported";
     case PREFIX(maxSymbolValue_tooLarge): return "Unsupported max Symbol Value : too large";
     case PREFIX(maxSymbolValue_tooSmall): return "Specified maxSymbolValue is too small";
+    case PREFIX(cannotProduce_uncompressedBlock): return "This mode cannot generate an uncompressed block";
     case PREFIX(stabilityCondition_notRespected): return "pledged buffer stability condition is not respected";
     case PREFIX(dictionary_corrupted): return "Dictionary is corrupted";
     case PREFIX(dictionary_wrong): return "Dictionary mismatch";
