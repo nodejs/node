@@ -807,10 +807,10 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());
 
-  Local<Object> primordials = Object::New(isolate);
+  Local<Object> primordials =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
   // Create primordials and make it available to per-context scripts.
-  if (primordials->SetPrototypeV2(context, Null(isolate)).IsNothing() ||
-      exports->Set(context, primordials_string, primordials).IsNothing()) {
+  if (exports->Set(context, primordials_string, primordials).IsNothing()) {
     return Nothing<void>();
   }
 
