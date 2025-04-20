@@ -55,6 +55,8 @@ class DatabaseSync : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsTransactionGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);

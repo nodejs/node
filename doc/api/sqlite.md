@@ -200,6 +200,15 @@ added: v22.15.0
 
 * {boolean} Whether the database is currently open or not.
 
+### `database.isTransaction`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {boolean} Whether the database is currently within a transaction. This method
+  is a wrapper around [`sqlite3_get_autocommit()`][].
+
 ### `database.open()`
 
 <!-- YAML
@@ -628,6 +637,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
+[`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
 [`sqlite3_last_insert_rowid()`]: https://www.sqlite.org/c3ref/last_insert_rowid.html
 [`sqlite3_load_extension()`]: https://www.sqlite.org/c3ref/load_extension.html
 [`sqlite3_prepare_v2()`]: https://www.sqlite.org/c3ref/prepare.html
