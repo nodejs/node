@@ -1,3 +1,4 @@
+// Flags: --expose-gc
 'use strict';
 
 // Test that 'close' emits once and not twice when `emitClose: true` is set.
@@ -17,4 +18,8 @@ const fileWriteStream = fs.createWriteStream(filepath, {
 });
 
 fileReadStream.pipe(fileWriteStream);
-fileWriteStream.on('close', common.mustCall());
+fileWriteStream.on('close', common.mustCall(() => {
+  // TODO(lpinca): Remove the forced GC when
+  // https://github.com/nodejs/node/issues/54918 is fixed.
+  globalThis.gc({ type: 'major' });
+}));
