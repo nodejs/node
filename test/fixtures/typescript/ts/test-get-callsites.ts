@@ -7,4 +7,4 @@ interface CallSite {
 
 const callSite = getCallSites()[0];
 
-console.log('getCallSite: ', callSite);
+console.log('getCallSites: ', callSite);
