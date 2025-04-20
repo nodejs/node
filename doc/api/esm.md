@@ -411,11 +411,12 @@ added:
 
 ```js
 export function foo() {
-  console.log('Hello, world!');
+  return "Hello, world"
 }
 
 function main() {
-  foo();
+  const message = foo();
+  console.log(message);
 }
 
 if (import.meta.main) main();
