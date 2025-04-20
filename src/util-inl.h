@@ -377,14 +377,12 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   if (isolate == nullptr) isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
-  arr.SetLength(vec.size());
+  v8::LocalVector<v8::Value> arr(isolate, vec.size());
   for (size_t i = 0; i < vec.size(); ++i) {
-    if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i]))
-      return v8::MaybeLocal<v8::Value>();
+    if (!ToV8Value(context, vec[i], isolate).ToLocal(&arr[i])) return {};
   }
 
-  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+  return handle_scope.Escape(v8::Array::New(isolate, arr.data(), arr.size()));
 }
 
 template <typename T>
@@ -413,8 +411,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
   if (isolate == nullptr) isolate = context->GetIsolate();
   v8::EscapableHandleScope handle_scope(isolate);
 
-  MaybeStackBuffer<v8::Local<v8::Value>, 128> arr(vec.size());
-  arr.SetLength(vec.size());
+  v8::LocalVector<v8::Value> arr(isolate, vec.size());
   auto it = vec.begin();
   for (size_t i = 0; i < vec.size(); ++i) {
     if (!ToV8Value(context, *it, isolate).ToLocal(&arr[i]))
@@ -422,7 +419,7 @@ v8::MaybeLocal<v8::Value> ToV8Value(v8::Local<v8::Context> context,
     std::advance(it, 1);
   }
 
-  return handle_scope.Escape(v8::Array::New(isolate, arr.out(), arr.length()));
+  return handle_scope.Escape(v8::Array::New(isolate, arr.data(), arr.size()));
 }
 
 template <typename T, typename U>
