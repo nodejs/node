@@ -537,6 +537,15 @@ void DatabaseSync::IsOpenGetter(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(db->IsOpen());
 }
 
+void DatabaseSync::IsTransactionGetter(
+    const FunctionCallbackInfo<Value>& args) {
+  DatabaseSync* db;
+  ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
+  Environment* env = Environment::GetCurrent(args);
+  THROW_AND_RETURN_ON_BAD_STATE(env, !db->IsOpen(), "database is not open");
+  args.GetReturnValue().Set(sqlite3_get_autocommit(db->connection_) == 0);
+}
+
 void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -1876,6 +1885,10 @@ static void Initialize(Local<Object> target,
                           db_tmpl,
                           FIXED_ONE_BYTE_STRING(isolate, "isOpen"),
                           DatabaseSync::IsOpenGetter);
+  SetSideEffectFreeGetter(isolate,
+                          db_tmpl,
+                          FIXED_ONE_BYTE_STRING(isolate, "isTransaction"),
+                          DatabaseSync::IsTransactionGetter);
   SetConstructorFunction(context, target, "DatabaseSync", db_tmpl);
   SetConstructorFunction(context,
                          target,

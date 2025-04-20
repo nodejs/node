@@ -315,3 +315,40 @@ suite('DatabaseSync.prototype.exec()', () => {
     });
   });
 });
+
+suite('DatabaseSync.prototype.isTransaction', () => {
+  test('correctly detects a committed transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('COMMIT');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('correctly detects a rolled back transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('ROLLBACK');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      return db.isTransaction;
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+});
