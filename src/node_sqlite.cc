@@ -492,6 +492,7 @@ class BackupJob : public ThreadPoolWork {
             Integer::New(env()->isolate(), total_pages),
             Integer::New(env()->isolate(), remaining_pages)};
 
+        DCHECK_EQ(arraysize(keys), arraysize(values));
         Local<Object> progress_info = Object::New(env()->isolate(),
                                                   Null(env()->isolate()),
                                                   keys,
