@@ -1939,7 +1939,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     LocalVector<Name> row_keys(isolate);
 
     while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-      if (row_keys.empty()) {
+      if (row_keys.size() == 0) {
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
           Local<Name> key;
