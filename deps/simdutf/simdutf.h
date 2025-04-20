@@ -1,4 +1,4 @@
-/* auto-generated on 2025-04-03 18:47:20 -0400. Do not edit! */
+/* auto-generated on 2025-04-14 21:04:55 -0400. Do not edit! */
 /* begin file include/simdutf.h */
 #ifndef SIMDUTF_H
 #define SIMDUTF_H
@@ -652,7 +652,7 @@ SIMDUTF_DISABLE_UNDESIRED_WARNINGS
 #define SIMDUTF_SIMDUTF_VERSION_H
 
 /** The version of simdutf being used (major.minor.revision) */
-#define SIMDUTF_VERSION "6.4.2"
+#define SIMDUTF_VERSION "6.5.0"
 
 namespace simdutf {
 enum {
@@ -663,11 +663,11 @@ enum {
   /**
    * The minor version (major.MINOR.revision) of simdutf being used.
    */
-  SIMDUTF_VERSION_MINOR = 4,
+  SIMDUTF_VERSION_MINOR = 5,
   /**
    * The revision (major.minor.REVISION) of simdutf being used.
    */
-  SIMDUTF_VERSION_REVISION = 2
+  SIMDUTF_VERSION_REVISION = 0
 };
 } // namespace simdutf
 
@@ -1381,7 +1381,74 @@ validate_utf16be_with_errors(std::span<const char16_t> input) noexcept {
   return validate_utf16be_with_errors(input.data(), input.size());
 }
   #endif // SIMDUTF_SPAN
-#endif   // SIMDUTF_FEATURE_UTF16
+
+/**
+ * Fixes an ill-formed UTF-16LE string by replacing mismatched surrogates with
+ * the Unicode replacement character U+FFFD. If input and output points to
+ * different memory areas, the procedure copies string, and it's expected that
+ * output memory is at least as big as the input. It's also possible to set
+ * input equal output, that makes replacements an in-place operation.
+ *
+ * @param input the UTF-16LE string to correct.
+ * @param len the length of the string in number of 2-byte code units
+ * (char16_t).
+ * @param output the output buffer.
+ */
+void to_well_formed_utf16le(const char16_t *input, size_t len,
+                            char16_t *output) noexcept;
+  #if SIMDUTF_SPAN
+simdutf_really_inline void
+to_well_formed_utf16le(std::span<const char16_t> input,
+                       std::span<char16_t> output) noexcept {
+  to_well_formed_utf16le(input.data(), input.size(), output.data());
+}
+  #endif // SIMDUTF_SPAN
+
+/**
+ * Fixes an ill-formed UTF-16BE string by replacing mismatched surrogates with
+ * the Unicode replacement character U+FFFD. If input and output points to
+ * different memory areas, the procedure copies string, and it's expected that
+ * output memory is at least as big as the input. It's also possible to set
+ * input equal output, that makes replacements an in-place operation.
+ *
+ * @param input the UTF-16BE string to correct.
+ * @param len the length of the string in number of 2-byte code units
+ * (char16_t).
+ * @param output the output buffer.
+ */
+void to_well_formed_utf16be(const char16_t *input, size_t len,
+                            char16_t *output) noexcept;
+  #if SIMDUTF_SPAN
+simdutf_really_inline void
+to_well_formed_utf16be(std::span<const char16_t> input,
+                       std::span<char16_t> output) noexcept {
+  to_well_formed_utf16be(input.data(), input.size(), output.data());
+}
+  #endif // SIMDUTF_SPAN
+
+/**
+ * Fixes an ill-formed UTF-16 string by replacing mismatched surrogates with the
+ * Unicode replacement character U+FFFD. If input and output points to different
+ * memory areas, the procedure copies string, and it's expected that output
+ * memory is at least as big as the input. It's also possible to set input equal
+ * output, that makes replacements an in-place operation.
+ *
+ * @param input the UTF-16 string to correct.
+ * @param len the length of the string in number of 2-byte code units
+ * (char16_t).
+ * @param output the output buffer.
+ */
+void to_well_formed_utf16(const char16_t *input, size_t len,
+                          char16_t *output) noexcept;
+  #if SIMDUTF_SPAN
+simdutf_really_inline void
+to_well_formed_utf16(std::span<const char16_t> input,
+                     std::span<char16_t> output) noexcept {
+  to_well_formed_utf16(input.data(), input.size(), output.data());
+}
+  #endif // SIMDUTF_SPAN
+
+#endif // SIMDUTF_FEATURE_UTF16
 
 #if SIMDUTF_FEATURE_UTF32 || SIMDUTF_FEATURE_DETECT_ENCODING
 /**
@@ -4323,6 +4390,34 @@ public:
   simdutf_warn_unused virtual result
   validate_utf16be_with_errors(const char16_t *buf,
                                size_t len) const noexcept = 0;
+  /**
+   * Copies the UTF-16LE string while replacing mismatched surrogates with the
+   * Unicode replacement character U+FFFD. We allow the input and output to be
+   * the same buffer so that the correction is done in-place.
+   *
+   * Overridden by each implementation.
+   *
+   * @param input the UTF-16LE string to correct.
+   * @param len the length of the string in number of 2-byte code units
+   * (char16_t).
+   * @param output the output buffer.
+   */
+  virtual void to_well_formed_utf16le(const char16_t *input, size_t len,
+                                      char16_t *output) const noexcept = 0;
+  /**
+   * Copies the UTF-16BE string while replacing mismatched surrogates with the
+   * Unicode replacement character U+FFFD. We allow the input and output to be
+   * the same buffer so that the correction is done in-place.
+   *
+   * Overridden by each implementation.
+   *
+   * @param input the UTF-16BE string to correct.
+   * @param len the length of the string in number of 2-byte code units
+   * (char16_t).
+   * @param output the output buffer.
+   */
+  virtual void to_well_formed_utf16be(const char16_t *input, size_t len,
+                                      char16_t *output) const noexcept = 0;
 #endif // SIMDUTF_FEATURE_UTF16
 
 #if SIMDUTF_FEATURE_UTF32 || SIMDUTF_FEATURE_DETECT_ENCODING
