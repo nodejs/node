@@ -486,19 +486,17 @@ class BackupJob : public ThreadPoolWork {
       Local<Function> fn =
           Local<Function>::New(env()->isolate(), progressFunc_);
       if (!fn.IsEmpty()) {
-        Local<Object> progress_info = Object::New(env()->isolate());
-        if (progress_info
-                ->Set(env()->context(),
-                      env()->total_pages_string(),
-                      Integer::New(env()->isolate(), total_pages))
-                .IsNothing() ||
-            progress_info
-                ->Set(env()->context(),
-                      env()->remaining_pages_string(),
-                      Integer::New(env()->isolate(), remaining_pages))
-                .IsNothing()) {
-          return;
-        }
+        Local<Name> keys[] = {env()->total_pages_string(),
+                              env()->remaining_pages_string()};
+        Local<Value> values[] = {
+            Integer::New(env()->isolate(), total_pages),
+            Integer::New(env()->isolate(), remaining_pages)};
+
+        Local<Object> progress_info = Object::New(env()->isolate(),
+                                                  Null(env()->isolate()),
+                                                  keys,
+                                                  values,
+                                                  arraysize(keys));
 
         Local<Value> argv[] = {progress_info};
         TryCatch try_catch(env()->isolate());
@@ -1940,7 +1938,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
     LocalVector<Name> row_keys(isolate);
 
     while ((r = sqlite3_step(stmt->statement_)) == SQLITE_ROW) {
-      if (row_keys.size() == 0) {
+      if (row_keys.empty()) {
         row_keys.reserve(num_cols);
         for (int i = 0; i < num_cols; ++i) {
           Local<Name> key;
