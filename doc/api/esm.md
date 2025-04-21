@@ -411,7 +411,7 @@ added:
 
 ```js
 export function foo() {
-  return "Hello, world"
+  return 'Hello, world';
 }
 
 function main() {
