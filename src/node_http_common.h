@@ -414,8 +414,11 @@ class NgRcBufPointer : public MemoryRetainer {
         const char* header_name = reinterpret_cast<const char*>(ptr.data());
         v8::Eternal<v8::String>& eternal = static_str_map[header_name];
         if (eternal.IsEmpty()) {
-          v8::Local<v8::String> str =
-              GetInternalizedString(env, ptr).ToLocalChecked();
+          v8::Local<v8::String> str;
+          if (!GetInternalizedString(env, ptr).ToLocal(&str)) {
+            ptr.reset();
+            return {};
+          }
           eternal.Set(env->isolate(), str);
           return str;
         }

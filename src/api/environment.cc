@@ -528,8 +528,11 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        Local<Value> main_script =
-            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        Local<Value> main_script;
+        if (!ToV8Value(env->context(), main_script_source_utf8)
+                 .ToLocal(&main_script)) {
+          return {};
+        }
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
       },
