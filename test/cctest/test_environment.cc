@@ -544,8 +544,7 @@ TEST_F(EnvironmentTest, InspectorMultipleEmbeddedEnvironments) {
       node::FreeIsolateData(isolate_data);
     }
 
-    isolate->Dispose();
-    data->platform->UnregisterIsolate(isolate);
+    data->platform->DisposeIsolate(isolate);
     uv_run(&loop, UV_RUN_DEFAULT);
     CHECK_EQ(uv_loop_close(&loop), 0);
 
@@ -678,8 +677,7 @@ TEST_F(NodeZeroIsolateTestFixture, CtrlCWithOnlySafeTerminationTest) {
   }
 
   // Cleanup.
-  isolate->Dispose();
-  platform->UnregisterIsolate(isolate);
+  platform->DisposeIsolate(isolate);
 }
 #endif  // _WIN32
 

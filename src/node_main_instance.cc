@@ -82,9 +82,7 @@ NodeMainInstance::~NodeMainInstance() {
     // IsolateData must be freed before UnregisterIsolate() is called.
     isolate_data_.reset();
   }
-  // TODO(joyeecheung): split Isolate::Free() here?
-  isolate_->Dispose();
-  platform_->UnregisterIsolate(isolate_);
+  platform_->DisposeIsolate(isolate_);
 }
 
 ExitCode NodeMainInstance::Run() {
