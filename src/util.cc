@@ -807,8 +807,11 @@ v8::Maybe<int32_t> GetValidatedFd(Environment* env,
   const bool is_out_of_range = fd < 0 || fd > INT32_MAX;
 
   if (is_out_of_range || !IsSafeJsInt(input)) {
-    Utf8Value utf8_value(
-        env->isolate(), input->ToDetailString(env->context()).ToLocalChecked());
+    Local<String> str;
+    if (!input->ToDetailString(env->context()).ToLocal(&str)) {
+      return v8::Nothing<int32_t>();
+    }
+    Utf8Value utf8_value(env->isolate(), str);
     if (is_out_of_range && !std::isinf(fd)) {
       THROW_ERR_OUT_OF_RANGE(env,
                              "The value of \"fd\" is out of range. "
