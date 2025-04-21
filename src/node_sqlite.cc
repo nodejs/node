@@ -1957,7 +1957,7 @@ void StatementSync::All(const FunctionCallbackInfo<Value>& args) {
         row_values.emplace_back(val);
       }
 
-      DCHECK_EQ(row_keys.size(), row_values.size())
+      DCHECK_EQ(row_keys.size(), row_values.size());
       Local<Object> row_obj = Object::New(
           isolate, Null(isolate), row_keys.data(), row_values.data(), num_cols);
       rows.emplace_back(row_obj);
