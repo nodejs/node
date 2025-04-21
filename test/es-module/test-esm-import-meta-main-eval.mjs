@@ -1,5 +1,5 @@
 import { spawnPromisified } from '../common/index.mjs';
-import assert from "node:assert/strict";
+import assert from 'node:assert/strict';
 
 const execOptions = ['--input-type', 'module'];
 
@@ -18,15 +18,23 @@ new Worker(\`${script}\`, { eval: true });
 `;
 
 async function test_evaluated_script() {
-  const { stderr, code } = await spawnPromisified(process.execPath, [...execOptions, '--eval', script], { cwd: import.meta.dirname })
-  assert.strictEqual(stderr, "")
-  assert.strictEqual(code, 0)
+  const { stderr, code } = await spawnPromisified(
+    process.execPath,
+    [...execOptions, '--eval', script],
+    { cwd: import.meta.dirname }
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
 }
 
 async function test_evaluated_worker_script() {
-  const { stderr, code } = await spawnPromisified(process.execPath, [...execOptions, '--eval', scriptInWorker], { cwd: import.meta.dirname })
-  assert.strictEqual(stderr, "")
-  assert.strictEqual(code, 0)
+  const { stderr, code } = await spawnPromisified(
+    process.execPath,
+    [...execOptions, '--eval', scriptInWorker],
+    { cwd: import.meta.dirname }
+  );
+  assert.strictEqual(stderr, '');
+  assert.strictEqual(code, 0);
 }
 
 await test_evaluated_script();
