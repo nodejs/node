@@ -449,6 +449,9 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
   // pending delayed tasks scheduled for that isolate.
   // This needs to be called right after calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
+  // This disposes, unregisters and frees up an isolate that's allocated using
+  // v8::Isolate::Allocate() in the correct order to prevent race conditions.
+  void DisposeIsolate(v8::Isolate* isolate);
 
   // The platform should call the passed function once all state associated
   // with the given isolate has been cleaned up. This can, but does not have to,

@@ -72,8 +72,7 @@ public:
   void Teardown() {
     platform->DrainTasks(isolate_);
     isolate_->Exit();
-    isolate_->Dispose();
-    platform->UnregisterIsolate(isolate_);
+    platform->DisposeIsolate(isolate_);
     isolate_ = nullptr;
   }
 };
