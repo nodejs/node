@@ -1,0 +1,20 @@
+Server running on http://localhost:5000
+Error: Database connection faild MongooseServerSelectionError: Could not connect to any servers in your MongoDB Atlas cluster. One common reason is that you're trying to access the database from an IP that isn't whitelisted. Make sure your current IP address is on your Atlas cluster's IP whitelist: https://www.mongodb.com/docs/atlas/security-whitelist/
+node:internal/assert:14
+    throw new ERR_INTERNAL_ASSERTION(message);
+    ^
+
+Error [ERR_INTERNAL_ASSERTION]: This is caused by either a bug in Node.js or incorrect usage of Node.js internals.
+Please open an issue with this stack trace at https://github.com/nodejs/node/issues
+
+    at new NodeError (node:internal/errors:399:5)
+    at assert (node:internal/assert:14:11)
+    at internalConnectMultiple (node:net:1077:3)
+    at Timeout.internalConnectMultipleTimeout (node:net:1565:3)
+    at listOnTimeout (node:internal/timers:571:11)
+    at process.processTimers (node:internal/timers:512:7) {
+  code: 'ERR_INTERNAL_ASSERTION'
+}
+
+Node.js v18.16.0
+[nodemon] app crashed - waiting for file changes before starting...
