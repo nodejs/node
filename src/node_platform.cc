@@ -669,4 +669,18 @@ std::queue<std::unique_ptr<T>> TaskQueue<T>::Locked::PopAll() {
   return result;
 }
 
+void MultiIsolatePlatform::DisposeIsolate(Isolate* isolate) {
+  // The order of these calls is important. When the Isolate is disposed,
+  // it may still post tasks to the platform, so it must still be registered
+  // for the task runner to be found from the map. After the isolate is torn
+  // down, we need to remove it from the map before we can free the address,
+  // so that when another Isolate::Allocate() is called, that would not be
+  // allocated to the same address and be registered on an existing map
+  // entry.
+  // Refs: https://github.com/nodejs/node/issues/30846
+  isolate->Deinitialize();
+  this->UnregisterIsolate(isolate);
+  Isolate::Free(isolate);
+}
+
 }  // namespace node
