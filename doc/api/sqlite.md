@@ -237,6 +237,19 @@ Enables or disables the `loadExtension` SQL function, and the `loadExtension()`
 method. When `allowExtension` is `false` when constructing, you cannot enable
 loading extensions for security reasons.
 
+### `database.location([dbName])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
+  database that has been added with [`ATTACH DATABASE`][] **Default:** `'main'`.
+* Returns: {string | null} The location of the database file. When using an in-memory database,
+  this method returns null.
+
+This method is a wrapper around [`sqlite3_db_filename()`][]
+
 ### `database.exec(sql)`
 
 <!-- YAML
@@ -814,6 +827,7 @@ resolution handler passed to [`database.applyChangeset()`][]. See also
 [`sqlite3_column_table_name()`]: https://www.sqlite.org/c3ref/column_database_name.html
 [`sqlite3_create_function_v2()`]: https://www.sqlite.org/c3ref/create_function.html
 [`sqlite3_create_window_function()`]: https://www.sqlite.org/c3ref/create_function.html
+[`sqlite3_db_filename()`]: https://sqlite.org/c3ref/db_filename.html
 [`sqlite3_exec()`]: https://www.sqlite.org/c3ref/exec.html
 [`sqlite3_expanded_sql()`]: https://www.sqlite.org/c3ref/expanded_sql.html
 [`sqlite3_get_autocommit()`]: https://sqlite.org/c3ref/get_autocommit.html
