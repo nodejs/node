@@ -230,19 +230,7 @@ class WorkerThreadData {
         *static_cast<bool*>(data) = true;
       }, &platform_finished);
 
-      // The order of these calls is important; if the Isolate is first disposed
-      // and then unregistered, there is a race condition window in which no
-      // new Isolate at the same address can successfully be registered with
-      // the platform.
-      // (Refs: https://github.com/nodejs/node/issues/30846)
-      // TODO(joyeecheung): we reversed the order because the task runner has
-      // to be available to handle GC tasks posted during isolate disposal.
-      // If this flakes comes back again, try splitting Isolate::Delete out
-      // so that the pointer is still available as map key after disposal
-      // and we delete it after unregistration.
-      // Refs: https://github.com/nodejs/node/pull/53086#issuecomment-2128056793
-      isolate->Dispose();
-      w_->platform_->UnregisterIsolate(isolate);
+      w_->platform_->DisposeIsolate(isolate);
 
       // Wait until the platform has cleaned up all relevant resources.
       while (!platform_finished) {

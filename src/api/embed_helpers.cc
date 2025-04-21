@@ -244,8 +244,7 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
     if (impl_->snapshot_creator.has_value()) {
       impl_->snapshot_creator.reset();
     }
-    isolate->Dispose();
-    impl_->platform->UnregisterIsolate(isolate);
+    impl_->platform->DisposeIsolate(isolate);
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)
