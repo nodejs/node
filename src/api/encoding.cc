@@ -144,7 +144,7 @@ MaybeLocal<Value> TryEncode(Isolate* isolate,
 }
 
 MaybeLocal<Value> TryEncode(Isolate* isolate, const uint16_t* buf, size_t len) {
-  return StringBytes::Encode(isolate, buf, len).ToLocalChecked();
+  return StringBytes::Encode(isolate, buf, len);
 }
 
 Local<Value> Encode(Isolate* isolate,
