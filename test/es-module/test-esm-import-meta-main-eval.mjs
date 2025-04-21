@@ -1,19 +1,15 @@
-import { escapePOSIXShell, mustSucceed } from '../common/index.mjs';
-import child from 'node:child_process';
+import { spawnPromisified } from '../common/index.mjs';
+import assert from "node:assert/strict";
 
-const execOptions = '--input-type module';
+const execOptions = ['--input-type', 'module'];
 
 const script = `
-import { mustCall } from '../common/index.mjs';
 import assert from 'node:assert/strict';
 
 assert.strictEqual(import.meta.main, true);
 
-import('../fixtures/es-modules/import-meta-main.mjs').then(
-  mustCall(({ isMain }) => {
-    assert.strictEqual(isMain, false);
-  })
-);
+const { isMain: importedModuleIsMain } = await import('../fixtures/es-modules/import-meta-main.mjs');
+assert.strictEqual(importedModuleIsMain, false);
 `;
 
 const scriptInWorker = `
@@ -21,17 +17,17 @@ import { Worker } from 'node:worker_threads';
 new Worker(\`${script}\`, { eval: true });
 `;
 
-function test_evaluated_script() {
-  const [cmd, opts] = escapePOSIXShell`"${process.execPath}" ${execOptions} --eval "${script}"`;
-  opts.cwd = import.meta.dirname;
-  child.exec(cmd, opts, mustSucceed((stdout) => {}));
+async function test_evaluated_script() {
+  const { stderr, code } = await spawnPromisified(process.execPath, [...execOptions, '--eval', script], { cwd: import.meta.dirname })
+  assert.strictEqual(stderr, "")
+  assert.strictEqual(code, 0)
 }
 
-function test_evaluated_worker_script() {
-  const [cmd, opts] = escapePOSIXShell`"${process.execPath}" ${execOptions} --eval "${scriptInWorker}"`;
-  opts.cwd = import.meta.dirname;
-  child.exec(cmd, opts, mustSucceed((stdout) => {}));
+async function test_evaluated_worker_script() {
+  const { stderr, code } = await spawnPromisified(process.execPath, [...execOptions, '--eval', scriptInWorker], { cwd: import.meta.dirname })
+  assert.strictEqual(stderr, "")
+  assert.strictEqual(code, 0)
 }
 
-test_evaluated_script();
-test_evaluated_worker_script();
+await test_evaluated_script();
+await test_evaluated_worker_script();
