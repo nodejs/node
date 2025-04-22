@@ -395,11 +395,13 @@ void OptionsParser<Options>::Parse(
         implied_name.insert(2, "no-");
       }
       auto implications = implications_.equal_range(implied_name);
-      std::ranges::for_each(implications | std::views::values, [&](const auto& value) {
+      std::ranges::for_each(
+        implications | std::views::values, [&](const auto& value) {
           if (value.type == kV8Option) {
-              v8_args->push_back(value.name);
+            v8_args->push_back(value.name);
           } else {
-              *value.target_field->template Lookup<bool>(options) = value.target_value;
+            *value.target_field->template Lookup<bool>(options) =
+                value.target_value;
           }
       });
     }
