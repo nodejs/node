@@ -552,9 +552,9 @@ typedef struct {
     U32  cachedLitLength;
     const BYTE* cachedLiterals;
     ZSTDv06_stats_t stats;
-} seqStore_t;
+} SeqStore_t;
 
-void ZSTDv06_seqToCodes(const seqStore_t* seqStorePtr, size_t const nbSeq);
+void ZSTDv06_seqToCodes(const SeqStore_t* seqStorePtr, size_t const nbSeq);
 
 
 #endif   /* ZSTDv06_CCOMMON_H_MODULE */
@@ -3919,6 +3919,10 @@ ZBUFFv06_DCtx* ZBUFFv06_createDCtx(void)
     if (zbd==NULL) return NULL;
     memset(zbd, 0, sizeof(*zbd));
     zbd->zd = ZSTDv06_createDCtx();
+    if (zbd->zd==NULL) {
+        ZBUFFv06_freeDCtx(zbd); /* avoid leaking the context */
+        return NULL;
+    }
     zbd->stage = ZBUFFds_init;
     return zbd;
 }
