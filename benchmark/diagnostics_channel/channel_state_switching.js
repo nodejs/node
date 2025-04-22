@@ -124,6 +124,7 @@ function main({ scenario, n, channels: channelCount, subs: subscriberCount }) {
           channel.publish({ data: 'test', iteration: i });
         } else if (operation < 8) {
           // 20% are hasSubscribers checks
+          /* eslint-disable-next-line no-unused-vars */
           const hasSubscribers = channel.hasSubscribers;
         } else if (operation === 8) {
           // 10% are subscribe
