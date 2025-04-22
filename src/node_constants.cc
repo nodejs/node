@@ -24,6 +24,7 @@
 #include "node_internals.h"
 #include "util-inl.h"
 
+#include "v8-local-handle.h"
 #include "zlib.h"
 
 #if !defined(_MSC_VER)
@@ -1288,41 +1289,24 @@ void CreatePerContextProperties(Local<Object> target,
   CHECK(
       target->SetPrototypeV2(env->context(), Null(env->isolate())).FromJust());
 
-  Local<Object> os_constants = Object::New(isolate);
-  CHECK(os_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> err_constants = Object::New(isolate);
-  CHECK(err_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> sig_constants = Object::New(isolate);
-  CHECK(sig_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> priority_constants = Object::New(isolate);
-  CHECK(priority_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> fs_constants = Object::New(isolate);
-  CHECK(fs_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> crypto_constants = Object::New(isolate);
-  CHECK(crypto_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> zlib_constants = Object::New(isolate);
-  CHECK(zlib_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> dlopen_constants = Object::New(isolate);
-  CHECK(dlopen_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
-
-  Local<Object> trace_constants = Object::New(isolate);
-  CHECK(trace_constants->SetPrototypeV2(env->context(), Null(env->isolate()))
-            .FromJust());
+  Local<Object> os_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> err_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> sig_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> priority_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> fs_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> crypto_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> zlib_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> dlopen_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  Local<Object> trace_constants =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
 
   DefineErrnoConstants(err_constants);
   DefineWindowsErrorConstants(err_constants);
