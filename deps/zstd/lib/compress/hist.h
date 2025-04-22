@@ -73,3 +73,10 @@ size_t HIST_countFast_wksp(unsigned* count, unsigned* maxSymbolValuePtr,
  */
 unsigned HIST_count_simple(unsigned* count, unsigned* maxSymbolValuePtr,
                            const void* src, size_t srcSize);
+
+/*! HIST_add() :
+ *  Lowest level: just add nb of occurrences of characters from @src into @count.
+ *  @count is not reset. @count array is presumed large enough (i.e. 1 KB).
+ @  This function does not need any additional stack memory.
+ */
+void HIST_add(unsigned* count, const void* src, size_t srcSize);

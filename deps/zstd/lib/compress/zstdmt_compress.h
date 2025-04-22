@@ -11,10 +11,10 @@
  #ifndef ZSTDMT_COMPRESS_H
  #define ZSTDMT_COMPRESS_H
 
- #if defined (__cplusplus)
- extern "C" {
- #endif
-
+/* ===   Dependencies   === */
+#include "../common/zstd_deps.h"   /* size_t */
+#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
+#include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
 
 /* Note : This is an internal API.
  *        These APIs used to be exposed with ZSTDLIB_API,
@@ -24,12 +24,6 @@
  *        This API requires ZSTD_MULTITHREAD to be defined during compilation,
  *        otherwise ZSTDMT_createCCtx*() will fail.
  */
-
-/* ===   Dependencies   === */
-#include "../common/zstd_deps.h"   /* size_t */
-#define ZSTD_STATIC_LINKING_ONLY   /* ZSTD_parameters */
-#include "../zstd.h"            /* ZSTD_inBuffer, ZSTD_outBuffer, ZSTDLIB_API */
-
 
 /* ===   Constants   === */
 #ifndef ZSTDMT_NBWORKERS_MAX /* a different value can be selected at compile time */
@@ -104,10 +98,5 @@ void ZSTDMT_updateCParams_whileCompressing(ZSTDMT_CCtx* mtctx, const ZSTD_CCtx_p
  *  able to count progression inside worker threads.
  */
 ZSTD_frameProgression ZSTDMT_getFrameProgression(ZSTDMT_CCtx* mtctx);
-
-
-#if defined (__cplusplus)
-}
-#endif
 
 #endif   /* ZSTDMT_COMPRESS_H */
