@@ -22,16 +22,28 @@ class PerIsolatePlatformData;
 template <class T>
 class TaskQueue {
  public:
+  class Locked {
+   public:
+    void Push(std::unique_ptr<T> task);
+    std::unique_ptr<T> Pop();
+    std::unique_ptr<T> BlockingPop();
+    void NotifyOfCompletion();
+    void BlockingDrain();
+    void Stop();
+    std::queue<std::unique_ptr<T>> PopAll();
+
+   private:
+    friend class TaskQueue;
+    explicit Locked(TaskQueue* queue);
+
+    TaskQueue* queue_;
+    Mutex::ScopedLock lock_;
+  };
+
   TaskQueue();
   ~TaskQueue() = default;
 
-  void Push(std::unique_ptr<T> task);
-  std::unique_ptr<T> Pop();
-  std::unique_ptr<T> BlockingPop();
-  std::queue<std::unique_ptr<T>> PopAll();
-  void NotifyOfCompletion();
-  void BlockingDrain();
-  void Stop();
+  Locked Lock() { return Locked(this); }
 
  private:
   Mutex lock_;
@@ -90,6 +102,8 @@ class PerIsolatePlatformData :
   void RunForegroundTask(std::unique_ptr<v8::Task> task);
   static void RunForegroundTask(uv_timer_t* timer);
 
+  uv_async_t* flush_tasks_ = nullptr;
+
   struct ShutdownCallback {
     void (*cb)(void*);
     void* data;
@@ -102,7 +116,9 @@ class PerIsolatePlatformData :
 
   v8::Isolate* const isolate_;
   uv_loop_t* const loop_;
-  uv_async_t* flush_tasks_ = nullptr;
+
+  // When acquiring locks for both task queues, lock foreground_tasks_
+  // first then foreground_delayed_tasks_ to avoid deadlocks.
   TaskQueue<v8::Task> foreground_tasks_;
   TaskQueue<DelayedTask> foreground_delayed_tasks_;
 
