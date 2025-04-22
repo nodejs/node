@@ -28,9 +28,12 @@
 #include <cstring>
 #include <locale>
 #include <ranges>
-#include <regex>  // NOLINT(build/c++11)
 #include "node_revert.h"
 #include "util.h"
+
+#ifdef _WIN32
+#include <regex>  // NOLINT(build/c++11)
+#endif            // _WIN32
 
 #define CHAR_TEST(bits, name, expr)                                           \
   template <typename T>                                                       \
@@ -588,9 +591,8 @@ constexpr std::string_view FastStringKey::as_string_view() const {
   return name_;
 }
 
-// Inline so the compiler can fully optimize it away on Unix platforms.
-bool IsWindowsBatchFile(const char* filename) {
 #ifdef _WIN32
+inline bool IsWindowsBatchFile(const char* filename) {
   std::string file_with_extension = filename;
   // Regex to match the last extension part after the last dot, ignoring
   // trailing spaces and dots
@@ -603,12 +605,8 @@ bool IsWindowsBatchFile(const char* filename) {
   }
 
   return !extension.empty() && (extension == "cmd" || extension == "bat");
-#else
-  return false;
-#endif  // _WIN32
 }
 
-#ifdef _WIN32
 inline std::wstring ConvertToWideString(const std::string& str,
                                         UINT code_page) {
   int size_needed = MultiByteToWideChar(
