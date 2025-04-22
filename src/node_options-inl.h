@@ -3,6 +3,7 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <algorithm>
 #include <cstdlib>
 #include <ranges>
 #include "node_options.h"
