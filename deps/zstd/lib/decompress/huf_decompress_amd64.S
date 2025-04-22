@@ -42,13 +42,11 @@
 
 /* Calling convention:
  *
- * %rdi contains the first argument: HUF_DecompressAsmArgs*.
+ * %rdi (or %rcx on Windows) contains the first argument: HUF_DecompressAsmArgs*.
  * %rbp isn't maintained (no frame pointer).
  * %rsp contains the stack pointer that grows down.
  *      No red-zone is assumed, only addresses >= %rsp are used.
  * All register contents are preserved.
- *
- * TODO: Support Windows calling convention.
  */
 
 ZSTD_HIDE_ASM_FUNCTION(HUF_decompress4X1_usingDTable_internal_fast_asm_loop)
@@ -137,7 +135,11 @@ HUF_decompress4X1_usingDTable_internal_fast_asm_loop:
     push %r15
 
     /* Read HUF_DecompressAsmArgs* args from %rax */
+#if defined(_WIN32)
+    movq %rcx, %rax
+#else
     movq %rdi, %rax
+#endif
     movq  0(%rax), %ip0
     movq  8(%rax), %ip1
     movq 16(%rax), %ip2
@@ -391,7 +393,12 @@ HUF_decompress4X2_usingDTable_internal_fast_asm_loop:
     push %r14
     push %r15
 
+    /* Read HUF_DecompressAsmArgs* args from %rax */
+#if defined(_WIN32)
+    movq %rcx, %rax
+#else
     movq %rdi, %rax
+#endif
     movq  0(%rax), %ip0
     movq  8(%rax), %ip1
     movq 16(%rax), %ip2

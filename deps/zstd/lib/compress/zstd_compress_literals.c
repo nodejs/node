@@ -140,7 +140,7 @@ size_t ZSTD_compressLiterals (
     size_t const lhSize = 3 + (srcSize >= 1 KB) + (srcSize >= 16 KB);
     BYTE*  const ostart = (BYTE*)dst;
     U32 singleStream = srcSize < 256;
-    symbolEncodingType_e hType = set_compressed;
+    SymbolEncodingType_e hType = set_compressed;
     size_t cLitSize;
 
     DEBUGLOG(5,"ZSTD_compressLiterals (disableLiteralCompression=%i, srcSize=%u, dstCapacity=%zu)",
