@@ -237,7 +237,7 @@ jobs:
             run: |
               node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
           - id: simdjson
-            subsystem: deps, config
+            subsystem: deps
             label: dependencies
             run: |
               ./tools/dep_updaters/update-simdjson.sh > temp-output
