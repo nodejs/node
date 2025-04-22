@@ -1021,9 +1021,12 @@ v8::Maybe<int> GetValidFileMode(Environment* env,
                                 v8::Local<v8::Value> input,
                                 uv_fs_type type);
 
+#ifdef _WIN32
 // Returns true if OS==Windows and filename ends in .bat or .cmd,
 // case insensitive.
 inline bool IsWindowsBatchFile(const char* filename);
+inline std::wstring ConvertToWideString(const std::string& str, UINT code_page);
+#endif  // _WIN32
 
 }  // namespace node
 
