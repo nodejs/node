@@ -11,11 +11,6 @@
  * in the COPYING file in the root directory of this source tree).
  * You may select, at your option, one of the above-listed licenses.
 ****************************************************************** */
-
-#if defined (__cplusplus)
-extern "C" {
-#endif
-
 #ifndef FSE_H
 #define FSE_H
 
@@ -24,7 +19,6 @@ extern "C" {
 *  Dependencies
 ******************************************/
 #include "zstd_deps.h"    /* size_t, ptrdiff_t */
-
 
 /*-*****************************************
 *  FSE_PUBLIC_API : control library symbols visibility
@@ -232,10 +226,7 @@ If there is an error, the function will return an error code, which can be teste
 
 #if defined(FSE_STATIC_LINKING_ONLY) && !defined(FSE_H_FSE_STATIC_LINKING_ONLY)
 #define FSE_H_FSE_STATIC_LINKING_ONLY
-
-/* *** Dependency *** */
 #include "bitstream.h"
-
 
 /* *****************************************
 *  Static allocation
@@ -465,13 +456,13 @@ MEM_STATIC void FSE_encodeSymbol(BIT_CStream_t* bitC, FSE_CState_t* statePtr, un
     FSE_symbolCompressionTransform const symbolTT = ((const FSE_symbolCompressionTransform*)(statePtr->symbolTT))[symbol];
     const U16* const stateTable = (const U16*)(statePtr->stateTable);
     U32 const nbBitsOut  = (U32)((statePtr->value + symbolTT.deltaNbBits) >> 16);
-    BIT_addBits(bitC,  (size_t)statePtr->value, nbBitsOut);
+    BIT_addBits(bitC, (BitContainerType)statePtr->value, nbBitsOut);
     statePtr->value = stateTable[ (statePtr->value >> nbBitsOut) + symbolTT.deltaFindState];
 }
 
 MEM_STATIC void FSE_flushCState(BIT_CStream_t* bitC, const FSE_CState_t* statePtr)
 {
-    BIT_addBits(bitC, (size_t)statePtr->value, statePtr->stateLog);
+    BIT_addBits(bitC, (BitContainerType)statePtr->value, statePtr->stateLog);
     BIT_flushBits(bitC);
 }
 
@@ -631,10 +622,4 @@ MEM_STATIC unsigned FSE_endOfDState(const FSE_DState_t* DStatePtr)
 
 #define FSE_TABLESTEP(tableSize) (((tableSize)>>1) + ((tableSize)>>3) + 3)
 
-
 #endif /* FSE_STATIC_LINKING_ONLY */
-
-
-#if defined (__cplusplus)
-}
-#endif
