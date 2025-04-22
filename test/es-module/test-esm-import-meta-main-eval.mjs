@@ -21,21 +21,29 @@ new Worker(${JSON.stringify(script)}, { eval: true });
 `;
 
 async function test_evaluated_script() {
-  const { stderr, code } = await spawnPromisified(
+  const result = await spawnPromisified(
     process.execPath,
     [...execOptions, '--eval', script],
   );
-  assert.strictEqual(stderr, '');
-  assert.strictEqual(code, 0);
+  assert.deepStrictEqual(result, {
+    stderr: '',
+    stdout: '',
+    code: 0,
+    signal: null,
+  });
 }
 
 async function test_evaluated_worker_script() {
-  const { stderr, code } = await spawnPromisified(
+  const result = await spawnPromisified(
     process.execPath,
     [...execOptions, '--eval', scriptInWorker],
   );
-  assert.strictEqual(stderr, '');
-  assert.strictEqual(code, 0);
+  assert.deepStrictEqual(result, {
+    stderr: '',
+    stdout: '',
+    code: 0,
+    signal: null,
+  });
 }
 
 await test_evaluated_script();
