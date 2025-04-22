@@ -80,7 +80,6 @@ function main({ scenario, n, channels: channelCount, subs: subscriberCount }) {
 
     case 'transition-heavy': {
       // Test rapidly switching between active and inactive states
-      // This is where we'd expect to see the biggest difference between implementations
       bench.start();
       for (let i = 0; i < n; i++) {
         const channelIndex = i % channelCount;
