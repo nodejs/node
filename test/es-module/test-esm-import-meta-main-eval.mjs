@@ -40,7 +40,7 @@ async function test_evaluated_script() {
   });
 }
 
-async function test_evaluated_eval_worker_script() {
+async function test_evaluated_script_in_eval_worker() {
   const result = await spawnPromisified(
     process.execPath,
     [...execOptions, '--eval', scriptInEvalWorker],
@@ -53,7 +53,7 @@ async function test_evaluated_eval_worker_script() {
   });
 }
 
-async function test_evaluated_url_worker_script() {
+async function test_evaluated_script_in_url_worker() {
   const result = await spawnPromisified(
     process.execPath,
     [...execOptions, '--eval', scriptInUrlWorker],
@@ -67,5 +67,5 @@ async function test_evaluated_url_worker_script() {
 }
 
 await test_evaluated_script();
-await test_evaluated_eval_worker_script();
-await test_evaluated_url_worker_script();
+await test_evaluated_script_in_eval_worker();
+await test_evaluated_script_in_url_worker();
