@@ -63,6 +63,8 @@ CPPFLAGS_DYNLIB  += -DZSTD_MULTITHREAD # dynamic library build defaults to multi
 LDFLAGS_DYNLIB   += -pthread
 CPPFLAGS_STATICLIB +=                  # static library build defaults to single-threaded
 
+# pkg-config Libs.private points to LDFLAGS_DYNLIB
+PCLIB := $(LDFLAGS_DYNLIB)
 
 ifeq ($(findstring GCC,$(CCVER)),GCC)
 decompress/zstd_decompress_block.o : CFLAGS+=-fno-tree-vectorize
@@ -71,13 +73,15 @@ endif
 
 # macOS linker doesn't support -soname, and use different extension
 # see : https://developer.apple.com/library/mac/documentation/DeveloperTools/Conceptual/DynamicLibraries/100-Articles/DynamicLibraryDesignGuidelines.html
-ifeq ($(UNAME), Darwin)
+UNAME_TARGET_SYSTEM ?= $(UNAME)
+
+ifeq ($(UNAME_TARGET_SYSTEM), Darwin)
   SHARED_EXT = dylib
   SHARED_EXT_MAJOR = $(LIBVER_MAJOR).$(SHARED_EXT)
   SHARED_EXT_VER = $(LIBVER).$(SHARED_EXT)
   SONAME_FLAGS = -install_name $(LIBDIR)/libzstd.$(SHARED_EXT_MAJOR) -compatibility_version $(LIBVER_MAJOR) -current_version $(LIBVER)
 else
-  ifeq ($(UNAME), AIX)
+  ifeq ($(UNAME_TARGET_SYSTEM), AIX)
     SONAME_FLAGS =
   else
     SONAME_FLAGS = -Wl,-soname=libzstd.$(SHARED_EXT).$(LIBVER_MAJOR)
@@ -186,12 +190,15 @@ lib : libzstd.a libzstd
 %-mt : CPPFLAGS_DYNLIB  := -DZSTD_MULTITHREAD
 %-mt : CPPFLAGS_STATICLIB := -DZSTD_MULTITHREAD
 %-mt : LDFLAGS_DYNLIB   := -pthread
+%-mt : PCLIB :=
+%-mt : PCMTLIB := $(LDFLAGS_DYNLIB)
 %-mt : %
 	@echo multi-threaded build completed
 
 %-nomt : CPPFLAGS_DYNLIB  :=
 %-nomt : LDFLAGS_DYNLIB   :=
 %-nomt : CPPFLAGS_STATICLIB :=
+%-nomt : PCLIB :=
 %-nomt : %
 	@echo single-threaded build completed
 
@@ -261,7 +268,7 @@ clean:
 #-----------------------------------------------------------------------------
 # make install is validated only for below listed environments
 #-----------------------------------------------------------------------------
-ifneq (,$(filter $(UNAME),Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT CYGWIN_NT))
+ifneq (,$(filter Linux Darwin GNU/kFreeBSD GNU OpenBSD FreeBSD NetBSD DragonFly SunOS Haiku AIX MSYS_NT% CYGWIN_NT%,$(UNAME)))
 
 lib: libzstd.pc
 
@@ -292,13 +299,21 @@ PCLIBPREFIX := $(if $(findstring $(LIBDIR),$(PCLIBDIR)),,$${exec_prefix})
 # to PREFIX, rather than as a resolved value.
 PCEXEC_PREFIX := $(if $(HAS_EXPLICIT_EXEC_PREFIX),$(EXEC_PREFIX),$${prefix})
 
-ifneq (,$(filter $(UNAME),FreeBSD NetBSD DragonFly))
+
+ifneq ($(MT),)
+  PCLIB :=
+  PCMTLIB := $(LDFLAGS_DYNLIB)
+else
+  PCLIB := $(LDFLAGS_DYNLIB)
+endif
+
+ifneq (,$(filter FreeBSD NetBSD DragonFly,$(UNAME)))
   PKGCONFIGDIR ?= $(PREFIX)/libdata/pkgconfig
 else
   PKGCONFIGDIR ?= $(LIBDIR)/pkgconfig
 endif
 
-ifneq (,$(filter $(UNAME),SunOS))
+ifneq (,$(filter SunOS,$(UNAME)))
   INSTALL ?= ginstall
 else
   INSTALL ?= install
@@ -308,6 +323,10 @@ INSTALL_PROGRAM ?= $(INSTALL)
 INSTALL_DATA    ?= $(INSTALL) -m 644
 
 
+# pkg-config library define.
+# For static single-threaded library declare -pthread in Libs.private
+# For static multi-threaded library declare -pthread in Libs and Cflags
+.PHONY: libzstd.pc
 libzstd.pc: libzstd.pc.in
 	@echo creating pkgconfig
 	@sed \
@@ -316,7 +335,8 @@ libzstd.pc: libzstd.pc.in
 	        -e 's|@INCLUDEDIR@|$(PCINCPREFIX)$(PCINCDIR)|' \
 	        -e 's|@LIBDIR@|$(PCLIBPREFIX)$(PCLIBDIR)|' \
 	        -e 's|@VERSION@|$(VERSION)|' \
-	        -e 's|@LIBS_PRIVATE@|$(LDFLAGS_DYNLIB)|' \
+	        -e 's|@LIBS_MT@|$(PCMTLIB)|' \
+	        -e 's|@LIBS_PRIVATE@|$(PCLIB)|' \
 	        $< >$@
 
 .PHONY: install
