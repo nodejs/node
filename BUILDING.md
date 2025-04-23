@@ -640,7 +640,10 @@ Refs:
   [Visual Studio 2022 (17.6 or newer)](https://visualstudio.microsoft.com/downloads/)
   or the "C++ build tools" workload from the
   [Build Tools](https://aka.ms/vs/17/release/vs_buildtools.exe),
-  with the default optional components
+  with the default optional components. Starting with Node.js v24, ClangCL is required to compile
+  on Windows. To enable it, two additional components are needed:
+  * C++ Clang Compiler for Windows (Microsoft.VisualStudio.Component.VC.Llvm.Clang)
+  * MSBuild support for LLVM toolset (Microsoft.VisualStudio.Component.VC.Llvm.ClangToolset)
 * Basic Unix tools required for some tests,
   [Git for Windows](https://git-scm.com/download/win) includes Git Bash
   and tools which can be included in the global `PATH`.
@@ -663,13 +666,6 @@ Optional requirements for compiling for Windows on ARM (ARM64):
   * Visual C++ compilers and libraries for ARM64
   * Visual C++ ATL for ARM64
 * Windows 10 SDK 10.0.17763.0 or newer
-
-Optional requirements for compiling with ClangCL (search for `clang` in Visual Studio
-Installer's "individual component" tab):
-
-* Visual Studio individual components
-  * C++ Clang Compiler for Windows
-  * MSBuild support for LLVM toolset
 
 NOTE: Currently we only support compiling with Clang that comes from Visual Studio.
 
