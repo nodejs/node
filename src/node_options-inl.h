@@ -397,7 +397,8 @@ void OptionsParser<Options>::Parse(
       }
       auto [f, l] = implications_.equal_range(implied_name);
       std::ranges::for_each(
-        std::ranges::subrange(f,l) | std::views::values, [&](const auto& value) {
+        std::ranges::subrange(f, l) | std::views::values, 
+          [&](const auto& value) {
             if (value.type == kV8Option) {
               v8_args->push_back(value.name);
             } else {
