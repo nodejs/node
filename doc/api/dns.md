@@ -808,7 +808,7 @@ be an array of objects with the following properties:
 ## `dns.resolveTlsa(hostname, callback)`
 
 <!-- YAML
-added: 
+added:
   - v23.9.0
   - v22.15.0
 -->
@@ -1504,7 +1504,7 @@ the following properties:
 ### `dnsPromises.resolveTlsa(hostname)`
 
 <!-- YAML
-added: 
+added:
   - v23.9.0
   - v22.15.0
 -->

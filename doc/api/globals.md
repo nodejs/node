@@ -257,7 +257,7 @@ Used to handle binary data. See the [buffer section][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
@@ -360,7 +360,7 @@ with the [`--no-experimental-websocket`][] CLI flag.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
@@ -388,7 +388,7 @@ Used to print to stdout and stderr. See the [`console`][] section.
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
@@ -489,7 +489,7 @@ A browser-compatible implementation of the [`CustomEvent` Web API][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
@@ -1018,10 +1018,10 @@ A browser-compatible implementation of [`ReadableStream`][].
 added: v18.0.0
 changes:
 - version:
-    - v23.11.0
-    - v22.15.0
-   pr-url: https://github.com/nodejs/node/pull/57510
-   description: Marking the API stable.
+  - v23.11.0
+  - v22.15.0
+  pr-url: https://github.com/nodejs/node/pull/57510
+  description: Marking the API stable.
 -->
 
 A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
@@ -1031,7 +1031,7 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
@@ -1059,7 +1059,7 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 <!-- YAML
 added: v18.0.0
 changes:
- - version: 
+ - version:
     - v23.11.0
     - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510

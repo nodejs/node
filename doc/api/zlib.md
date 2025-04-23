@@ -725,7 +725,7 @@ These advanced options are available for controlling decompression:
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1034,7 +1034,7 @@ the inflate and deflate algorithms.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1067,7 +1067,7 @@ const stream = zlib.createZstdCompress({
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1079,7 +1079,7 @@ Compress data using the Zstd algorithm.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1264,7 +1264,7 @@ Creates and returns a new [`Unzip`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1278,7 +1278,7 @@ Creates and returns a new [`ZstdCompress`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1638,7 +1638,7 @@ Decompress a chunk of data with [`Unzip`][].
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1652,7 +1652,7 @@ added:
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1665,7 +1665,7 @@ Compress a chunk of data with [`ZstdCompress`][].
 ### `zlib.zstdDecompress(buffer[, options], callback)`
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->
@@ -1679,7 +1679,7 @@ added:
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: 
+added:
   - v23.8.0
   - v22.15.0
 -->

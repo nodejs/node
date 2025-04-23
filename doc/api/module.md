@@ -219,7 +219,7 @@ This feature requires `--allow-worker` if used with the [Permission Model][].
 ### `module.registerHooks(options)`
 
 <!-- YAML
-added: 
+added:
   - v23.5.0
   - v22.15.0
 -->
@@ -1015,7 +1015,7 @@ register('./path-to-my-hooks.js', {
 
 <!-- YAML
 changes:
-  - version: 
+  - version:
     - v23.5.0
     - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55698
