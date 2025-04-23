@@ -637,8 +637,9 @@ bool MaybeLoadSingleExecutableApplication(Environment* env) {
 
   LoadEnvironment(env, LoadSingleExecutableApplication);
   return true;
-#endif
+#else
   return false;
+#endif
 }
 
 void Initialize(Local<Object> target,
