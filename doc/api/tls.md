@@ -2263,7 +2263,7 @@ The server can be tested by connecting to it using the example client from
 ## `tls.getCACertificates([type])`
 
 <!-- YAML
-added: 
+added:
   - v23.10.0
   - v22.15.0
 -->
