@@ -72,7 +72,9 @@ When reporting security vulnerabilities, reporters must adhere to the following 
 
 3. **Responsible Testing**: When testing potential vulnerabilities:
    * Use isolated, controlled environments.
-   * Do not test on production systems.
+   * Do not test on production systems without prior authorization. Contact
+     the Node.js Technical Steering Committee (<tsc@iojs.org>) for permission or open
+     a HackerOne report.
    * Do not attempt to access or modify other users' data.
    * Immediately stop testing if unauthorized access is gained accidentally.
 
