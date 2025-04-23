@@ -96,7 +96,7 @@ jobs:
           echo "TAR_DIR=$RUNNER_TEMP/`basename tarballs/*.tar.gz .tar.gz`" >> $GITHUB_ENV
       - name: Copy directories needed for testing
         run: |
-          cp -r tools/eslint $TAR_DIR/tools
+          cp -r tools/node_modules $TAR_DIR/tools
           cp -r tools/eslint-rules $TAR_DIR/tools
       - name: Build
         run: |
