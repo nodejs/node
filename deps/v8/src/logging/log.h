@@ -63,8 +63,8 @@ class Isolate;
 class JitLogger;
 class LogFile;
 class LowLevelLogger;
-class LinuxPerfBasicLogger;
-class LinuxPerfJitLogger;
+class PerfBasicLogger;
+class PerfJitLogger;
 class Profiler;
 class SourcePosition;
 class Ticker;
@@ -357,9 +357,9 @@ class V8FileLogger : public LogEventListener {
 
   std::atomic<bool> is_logging_;
   std::unique_ptr<LogFile> log_file_;
-#if V8_OS_LINUX
-  std::unique_ptr<LinuxPerfBasicLogger> perf_basic_logger_;
-  std::unique_ptr<LinuxPerfJitLogger> perf_jit_logger_;
+#if V8_OS_LINUX || V8_OS_DARWIN
+  std::unique_ptr<PerfBasicLogger> perf_basic_logger_;
+  std::unique_ptr<PerfJitLogger> perf_jit_logger_;
 #endif
   std::unique_ptr<LowLevelLogger> ll_logger_;
   std::unique_ptr<JitLogger> jit_logger_;
