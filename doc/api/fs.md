@@ -484,7 +484,7 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
-  - version: 
+  - version:
     - v23.8.0
     - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/55461

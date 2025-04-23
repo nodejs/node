@@ -275,7 +275,7 @@ from being emitted by the `InterfaceConstructor` instance.
 ### `rl[Symbol.dispose]()`
 
 <!-- YAML
-added: 
+added:
   - v23.10.0
   - v22.15.0
 -->
