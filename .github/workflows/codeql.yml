@@ -7,6 +7,9 @@ on:
 permissions:
   contents: read
 
+paths-to-ignore:
+  - test
+
 jobs:
   analyze:
     name: Analyze
