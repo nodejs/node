@@ -5340,28 +5340,6 @@ console.log(newBuf.toString('ascii'));
 Because the Euro (`€`) sign is not representable in US-ASCII, it is replaced
 with `?` in the transcoded `Buffer`.
 
-### Class: `SlowBuffer`
-
-<!-- YAML
-deprecated: v6.0.0
--->
-
-> Stability: 0 - Deprecated: Use [`Buffer.allocUnsafeSlow()`][] instead.
-
-See [`Buffer.allocUnsafeSlow()`][]. This was never a class in the sense that
-the constructor always returned a `Buffer` instance, rather than a `SlowBuffer`
-instance.
-
-#### `new SlowBuffer(size)`
-
-<!-- YAML
-deprecated: v6.0.0
--->
-
-* `size` {integer} The desired length of the new `SlowBuffer`.
-
-See [`Buffer.allocUnsafeSlow()`][].
-
 ### Buffer constants
 
 <!-- YAML
@@ -5494,11 +5472,11 @@ added: v5.10.0
 
 Node.js can be started using the `--zero-fill-buffers` command-line option to
 cause all newly-allocated `Buffer` instances to be zero-filled upon creation by
-default. Without the option, buffers created with [`Buffer.allocUnsafe()`][],
-[`Buffer.allocUnsafeSlow()`][], and `new SlowBuffer(size)` are not zero-filled.
-Use of this flag can have a measurable negative impact on performance. Use the
-`--zero-fill-buffers` option only when necessary to enforce that newly allocated
-`Buffer` instances cannot contain old data that is potentially sensitive.
+default. Without the option, buffers created with [`Buffer.allocUnsafe()`][] and
+[`Buffer.allocUnsafeSlow()`][] are not zero-filled. Use of this flag can have a
+measurable negative impact on performance. Use the `--zero-fill-buffers` option
+only when necessary to enforce that newly allocated `Buffer` instances cannot
+contain old data that is potentially sensitive.
 
 ```console
 $ node --zero-fill-buffers
