@@ -388,11 +388,16 @@ async function runTest(
       const cjsPath = join(testFixtures, 'global-setup-teardown', 'required-module.cjs');
       const esmpFile = fixtures.fileURL('test-runner', 'global-setup-teardown', 'imported-module.mjs');
 
-      it('should run required module before globalSetup', async () => {
+      // The difference in behavior is due to how --require and --import are handled by
+      // the main entry point versus the test runner entry point.
+      // When isolation is 'none', both --require and --import are handled by the test runner.
+      const shouldRequireAfterSetup = runnerEnabled && isolation === 'none';
+      const shouldImportAfterSetup = runnerEnabled;
+
+      it(`should run required module ${shouldRequireAfterSetup ? 'after' : 'before'} globalSetup`, async () => {
         const setupFlagPath = tmpdir.resolve('setup-for-required.tmp');
         const teardownFlagPath = tmpdir.resolve('teardown-for-required.tmp');
 
-        // Create a setup file for test-file.js to find
         fs.writeFileSync(setupFlagPath, '');
 
         const { stdout } = await runTest({
@@ -415,108 +420,63 @@ async function runTest(
         assert.match(stdout, /Global setup executed/);
         assert.match(stdout, /Global teardown executed/);
 
-        // Verify that the required module was executed before the global setup
         const requiredExecutedPosition = stdout.indexOf('Required module executed');
         const globalSetupExecutedPosition = stdout.indexOf('Global setup executed');
-        assert.ok(requiredExecutedPosition < globalSetupExecutedPosition,
-                  'Required module should have been executed before global setup');
 
-        // After all tests complete, the teardown should have run
+        assert.ok(
+          shouldRequireAfterSetup ?
+            requiredExecutedPosition > globalSetupExecutedPosition :
+            requiredExecutedPosition < globalSetupExecutedPosition,
+          `Required module should have been executed ${shouldRequireAfterSetup ? 'after' : 'before'} global setup`
+        );
+
         assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
         const content = fs.readFileSync(teardownFlagPath, 'utf8');
         assert.strictEqual(content, 'Teardown was executed');
-
-        // Setup flag should have been removed by teardown
         assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
       });
 
-      // This difference in behavior is due to the way --import is being handled by
-      // run_main entry point or test_runner entry point
-      if (runnerEnabled) {
-        it('should run imported module after globalSetup', async () => {
-          const setupFlagPath = tmpdir.resolve('setup-for-imported.tmp');
-          const teardownFlagPath = tmpdir.resolve('teardown-for-imported.tmp');
+      it(`should run imported module ${shouldImportAfterSetup ? 'after' : 'before'} globalSetup`, async () => {
+        const setupFlagPath = tmpdir.resolve('setup-for-imported.tmp');
+        const teardownFlagPath = tmpdir.resolve('teardown-for-imported.tmp');
 
-          // Create a setup file for test-file.js to find
-          fs.writeFileSync(setupFlagPath, 'non-empty');
+        fs.writeFileSync(setupFlagPath, 'non-empty');
 
-          const { stdout } = await runTest({
-            isolation,
-            globalSetupFile: 'basic-setup-teardown.mjs',
-            importPath: './imported-module.js',
-            env: {
-              SETUP_FLAG_PATH: setupFlagPath,
-              TEARDOWN_FLAG_PATH: teardownFlagPath
-            },
-            additionalFlags: [
-              `--import=${esmpFile}`,
-            ],
-            runnerEnabled
-          });
-
-          assert.match(stdout, /pass 2/);
-          assert.match(stdout, /fail 0/);
-          assert.match(stdout, /Imported module executed/);
-          assert.match(stdout, /Global setup executed/);
-          assert.match(stdout, /Global teardown executed/);
-
-          // Verify that the imported module was executed after the global setup
-          const globalSetupExecutedPosition = stdout.indexOf('Global setup executed');
-          const importedExecutedPosition = stdout.indexOf('Imported module executed');
-          assert.ok(globalSetupExecutedPosition < importedExecutedPosition,
-                    'Imported module should be executed after global setup');
-
-          // After all tests complete, the teardown should have run
-          assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
-          const content = fs.readFileSync(teardownFlagPath, 'utf8');
-          assert.strictEqual(content, 'Teardown was executed');
-
-          // Setup flag should have been removed by teardown
-          assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
+        const { stdout } = await runTest({
+          isolation,
+          globalSetupFile: 'basic-setup-teardown.mjs',
+          importPath: './imported-module.js',
+          env: {
+            SETUP_FLAG_PATH: setupFlagPath,
+            TEARDOWN_FLAG_PATH: teardownFlagPath
+          },
+          additionalFlags: [
+            `--import=${esmpFile}`,
+          ],
+          runnerEnabled
         });
-      } else {
-        it('should run imported module before globalSetup', async () => {
-          const setupFlagPath = tmpdir.resolve('setup-for-imported.tmp');
-          const teardownFlagPath = tmpdir.resolve('teardown-for-imported.tmp');
 
-          // Create a setup file for test-file.js to find
-          fs.writeFileSync(setupFlagPath, 'non-empty');
+        assert.match(stdout, /pass 2/);
+        assert.match(stdout, /fail 0/);
+        assert.match(stdout, /Imported module executed/);
+        assert.match(stdout, /Global setup executed/);
+        assert.match(stdout, /Global teardown executed/);
 
-          const { stdout } = await runTest({
-            isolation,
-            globalSetupFile: 'basic-setup-teardown.mjs',
-            importPath: './imported-module.js',
-            env: {
-              SETUP_FLAG_PATH: setupFlagPath,
-              TEARDOWN_FLAG_PATH: teardownFlagPath
-            },
-            additionalFlags: [
-              `--import=${esmpFile}`,
-            ],
-            runnerEnabled
-          });
+        const importedExecutedPosition = stdout.indexOf('Imported module executed');
+        const globalSetupExecutedPosition = stdout.indexOf('Global setup executed');
 
-          assert.match(stdout, /pass 2/);
-          assert.match(stdout, /fail 0/);
-          assert.match(stdout, /Imported module executed/);
-          assert.match(stdout, /Global setup executed/);
-          assert.match(stdout, /Global teardown executed/);
+        assert.ok(
+          shouldImportAfterSetup ?
+            importedExecutedPosition > globalSetupExecutedPosition :
+            importedExecutedPosition < globalSetupExecutedPosition,
+          `Imported module should have been executed ${shouldImportAfterSetup ? 'after' : 'before'} global setup`
+        );
 
-          // Verify that the imported module was executed before the global setup
-          const importedExecutedPosition = stdout.indexOf('Imported module executed');
-          const globalSetupExecutedPosition = stdout.indexOf('Global setup executed');
-          assert.ok(importedExecutedPosition < globalSetupExecutedPosition,
-                    'Imported module should be executed before global setup');
-
-          // After all tests complete, the teardown should have run
-          assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
-          const content = fs.readFileSync(teardownFlagPath, 'utf8');
-          assert.strictEqual(content, 'Teardown was executed');
-
-          // Setup flag should have been removed by teardown
-          assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
-        });
-      }
+        assert.ok(fs.existsSync(teardownFlagPath), 'Teardown flag file should exist');
+        const content = fs.readFileSync(teardownFlagPath, 'utf8');
+        assert.strictEqual(content, 'Teardown was executed');
+        assert.ok(!fs.existsSync(setupFlagPath), 'Setup flag file should have been removed');
+      });
 
       it('should execute globalSetup and globalTeardown correctly with imported module containing tests', async () => {
         const setupFlagPath = tmpdir.resolve('setup-executed.tmp');
