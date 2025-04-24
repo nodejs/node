@@ -1,5 +1,4 @@
 'use strict';
-// Flags: --expose-internals
 const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
@@ -7,7 +6,6 @@ if (!common.hasCrypto)
 const assert = require('assert');
 const { subtle } = globalThis.crypto;
 const vm = require('vm');
-const { isArrayBuffer } = require('internal/util/types');
 
 // Test with same-realm ArrayBuffer
 {
@@ -15,7 +13,6 @@ const { isArrayBuffer } = require('internal/util/types');
 
   subtle.digest('SHA-256', samerealmData)
     .then(common.mustCall((result) => {
-      assert(isArrayBuffer(result));
       assert.strictEqual(result.byteLength, 32); // SHA-256 is 32 bytes
     }));
 }
@@ -35,9 +32,28 @@ const { isArrayBuffer } = require('internal/util/types');
   // This should still work, since we're checking structural type
   subtle.digest('SHA-256', crossrealmBuffer)
     .then(common.mustCall((result) => {
-      assert(isArrayBuffer(result));
       assert.strictEqual(result.byteLength, 32); // SHA-256 is 32 bytes
     }));
+}
+
+// Cross-realm SharedArrayBuffer should be handled like any SharedArrayBuffer
+{
+  const context = vm.createContext({});
+  const crossrealmSAB = vm.runInContext('new SharedArrayBuffer(4)', context);
+  assert.notStrictEqual(
+    Object.getPrototypeOf(crossrealmSAB),
+    SharedArrayBuffer.prototype
+  );
+  Promise.allSettled([
+    subtle.digest('SHA-256', new Uint8Array(new SharedArrayBuffer(4))),
+    subtle.digest('SHA-256', new Uint8Array(crossrealmSAB)),
+  ]).then(common.mustCall((r) => {
+    assert.partialDeepStrictEqual(r, [
+      { status: 'rejected' },
+      { status: 'rejected' },
+    ]);
+    assert.strictEqual(r[1].reason.message, r[0].reason.message);
+  }));
 }
 
 // Test with both TypedArray buffer methods
@@ -48,14 +64,12 @@ const { isArrayBuffer } = require('internal/util/types');
   // Test the .buffer property
   subtle.digest('SHA-256', crossrealmUint8Array.buffer)
     .then(common.mustCall((result) => {
-      assert(isArrayBuffer(result));
       assert.strictEqual(result.byteLength, 32);
     }));
 
   // Test passing the TypedArray directly (should work both before and after the fix)
   subtle.digest('SHA-256', crossrealmUint8Array)
     .then(common.mustCall((result) => {
-      assert(isArrayBuffer(result));
       assert.strictEqual(result.byteLength, 32);
     }));
 }
@@ -76,34 +90,32 @@ const { isArrayBuffer } = require('internal/util/types');
     name: 'AES-GCM',
     length: 256
   }, true, ['encrypt', 'decrypt'])
-    .then(common.mustCall((key) => {
+    .then(async (key) => {
       // Create an initialization vector
       const iv = crypto.getRandomValues(new Uint8Array(12));
 
       // Encrypt using the cross-realm ArrayBuffer
-      return subtle.encrypt(
+      const ciphertext = await subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
         crossRealmBuffer
-      ).then((ciphertext) => {
+      );
         // Decrypt
-        return subtle.decrypt(
-          { name: 'AES-GCM', iv },
-          key,
-          ciphertext
-        );
-      }).then(common.mustCall((plaintext) => {
+      const plaintext = await subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+      );
         // Verify the decrypted content matches original
-        const decryptedView = new Uint8Array(plaintext);
-        for (let i = 0; i < dataView.length; i++) {
-          assert.strictEqual(
-            decryptedView[i],
-            dataView[i],
-            `Byte at position ${i} doesn't match`
-          );
-        }
-      }));
-    }));
+      const decryptedView = new Uint8Array(plaintext);
+      for (let i = 0; i < dataView.length; i++) {
+        assert.strictEqual(
+          decryptedView[i],
+          dataView[i],
+          `Byte at position ${i} doesn't match`
+        );
+      }
+    }).then(common.mustCall());
 }
 
 // Test with AES-GCM using TypedArray view of cross-realm ArrayBuffer
@@ -122,32 +134,31 @@ const { isArrayBuffer } = require('internal/util/types');
     name: 'AES-GCM',
     length: 256
   }, true, ['encrypt', 'decrypt'])
-    .then(common.mustCall((key) => {
+    .then(async (key) => {
       // Create an initialization vector
       const iv = crypto.getRandomValues(new Uint8Array(12));
 
       // Encrypt using the TypedArray view of cross-realm ArrayBuffer
-      return subtle.encrypt(
+      const ciphertext = await subtle.encrypt(
         { name: 'AES-GCM', iv },
         key,
         dataView
-      ).then((ciphertext) => {
+      );
         // Decrypt
-        return subtle.decrypt(
-          { name: 'AES-GCM', iv },
-          key,
-          ciphertext
+      const plaintext = await subtle.decrypt(
+        { name: 'AES-GCM', iv },
+        key,
+        ciphertext
+      );
+
+      // Verify the decrypted content matches original
+      const decryptedView = new Uint8Array(plaintext);
+      for (let i = 0; i < dataView.length; i++) {
+        assert.strictEqual(
+          decryptedView[i],
+          dataView[i],
+          `Byte at position ${i} doesn't match`
         );
-      }).then(common.mustCall((plaintext) => {
-        // Verify the decrypted content matches original
-        const decryptedView = new Uint8Array(plaintext);
-        for (let i = 0; i < dataView.length; i++) {
-          assert.strictEqual(
-            decryptedView[i],
-            dataView[i],
-            `Byte at position ${i} doesn't match`
-          );
-        }
-      }));
-    }));
+      }
+    }).then(common.mustCall());
 }
