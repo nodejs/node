@@ -2,10 +2,10 @@
 #include "../common.h"
 #include "../entry_point.h"
 
-napi_ref NestedWrap::constructor;
+napi_ref NestedWrap::constructor{};
 static int finalization_count = 0;
 
-NestedWrap::NestedWrap() : env_(nullptr), wrapper_(nullptr), nested_(nullptr) {}
+NestedWrap::NestedWrap() {}
 
 NestedWrap::~NestedWrap() {
   napi_delete_reference(env_, wrapper_);

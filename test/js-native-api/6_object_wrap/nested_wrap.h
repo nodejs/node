@@ -1,5 +1,5 @@
-#ifndef JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_
-#define JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_
+#ifndef TEST_JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_
+#define TEST_JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_
 
 #include <js_native_api.h>
 
@@ -25,9 +25,9 @@ class NestedWrap {
 
   static napi_ref constructor;
 
-  napi_env env_;
-  napi_ref wrapper_;
-  napi_ref nested_;
+  napi_env env_{};
+  napi_ref wrapper_{};
+  napi_ref nested_{};
 };
 
-#endif  // JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_
+#endif  // TEST_JS_NATIVE_API_6_OBJECT_WRAP_NESTED_WRAP_H_

@@ -1,5 +1,5 @@
-#ifndef JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
-#define JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
+#ifndef TEST_JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
+#define TEST_JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
 
 #include <js_native_api.h>
 
@@ -25,4 +25,4 @@ class MyObject {
   napi_ref wrapper_;
 };
 
-#endif  // JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
+#endif  // TEST_JS_NATIVE_API_6_OBJECT_WRAP_MYOBJECT_H_
