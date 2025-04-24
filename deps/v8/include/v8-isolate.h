@@ -872,10 +872,25 @@ class V8_EXPORT Isolate {
   void Exit();
 
   /**
-   * Disposes the isolate.  The isolate must not be entered by any
+   * Deinitializes and frees the isolate. The isolate must not be entered by any
    * thread to be disposable.
    */
   void Dispose();
+
+  /**
+   * Deinitializes the isolate, but does not free the address. The isolate must
+   * not be entered by any thread to be deinitializable. Embedders must call
+   * Isolate::Free() to free the isolate afterwards.
+   */
+  void Deinitialize();
+
+  /**
+   * Frees the memory allocated for the isolate. Can only be called after the
+   * Isolate has already been deinitialized with Isolate::Deinitialize(). After
+   * the isolate is freed, the next call to Isolate::New() or
+   * Isolate::Allocate() might return the same address that just get freed.
+   */
+  static void Free(Isolate* isolate);
 
   /**
    * Dumps activated low-level V8 internal stats. This can be used instead

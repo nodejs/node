@@ -661,10 +661,16 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   static Isolate* New();
   static Isolate* New(IsolateGroup* isolate_group);
 
-  // Deletes Isolate object. Must be used instead of delete operator.
-  // Destroys the non-default isolates.
-  // Sets default isolate into "has_been_disposed" state rather then destroying,
-  // for legacy API reasons.
+  // Deinitialize Isolate object. Must be used instead of delete operator.
+  // Destroys the non-default isolates. Sets default isolate into
+  // "has_been_disposed" state rather then destroying, for legacy API reasons.
+  // Another Free() call must be done after the isolate is deinitialized.
+  // This gives the embedder a chance to clean up before the address is released
+  // (which maybe reused in the next allocation).
+  static void Deinitialize(Isolate* isolate);
+  // Frees the address of the isolate. Must be called after Deinitialize().
+  static void Free(Isolate* isolate);
+  // A convenience helper that deinitializes and frees the isolate.
   static void Delete(Isolate* isolate);
 
   void SetUpFromReadOnlyArtifacts(ReadOnlyArtifacts* artifacts);
