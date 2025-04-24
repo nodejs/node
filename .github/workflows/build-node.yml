@@ -1,0 +1,105 @@
+name: Build Node
+
+on:
+  push:
+    branches:
+      - v20.18.3
+      - workflows-for-v20.18.3
+  pull_request:
+    paths: .github/workflows/build-node.yml
+
+jobs:
+  build-node:
+    name: Build ${{ matrix.platform }}-${{ matrix.arch }}
+    strategy:
+      matrix:
+        include:
+          - platform: linux
+            arch: x64
+            runs_on: ubuntu-22.04
+          - platform: linux
+            arch: arm64
+            runs_on: ubuntu-22.04-arm
+    runs-on: ${{ matrix.runs_on }}
+
+    env:
+      S3_BUCKET: your-bucket-name
+      AWS_REGION: us-east-1
+
+    steps:
+      - name: Checkout Node fork
+        uses: actions/checkout@v3
+        with:
+          repository: Asana/node
+          path: node
+          ref: ${{ github.event_name == 'pull_request' && format('refs/pull/{0}/merge', github.event.pull_request.number) || github.ref_name }}
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract Node Version
+        id: extract-node-version
+        run: |
+           NODE_MAJOR_VERSION=$(grep '#define NODE_MAJOR_VERSION' node/src/node_version.h | awk '{print $3}')
+           NODE_MINOR_VERSION=$(grep '#define NODE_MINOR_VERSION' node/src/node_version.h | awk '{print $3}')
+           NODE_PATCH_VERSION=$(grep '#define NODE_PATCH_VERSION' node/src/node_version.h | awk '{print $3}')
+           NODE_VERSION="v${NODE_MAJOR_VERSION}.${NODE_MINOR_VERSION}.${NODE_PATCH_VERSION}"
+           echo "NODE_VERSION=${NODE_VERSION}" >> $GITHUB_ENV
+
+      - name: Set build metadata
+        id: meta
+        working-directory: node
+        run: |
+          TIMESTAMP=$(date -u +%Y-%m-%dT%H-%M)
+          SHORT_SHA=$(git rev-parse --short HEAD)
+          echo "BUILD_ID=${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_ENV
+          echo "build_id=${TIMESTAMP}-${SHORT_SHA}" >> $GITHUB_OUTPUT
+
+      - name: Install dependencies (Linux)
+        if: matrix.platform == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y python3 g++ make curl tar xz-utils
+
+      - name: Build Node (linux)
+        working-directory: node
+        if: matrix.platform == 'linux'
+        run: |
+          ./configure --experimental-enable-pointer-compression
+          make -j4 install DESTDIR=$GITHUB_WORKSPACE/node-install
+
+      - name: Build Node (darwin)
+        working-directory: node
+        if: matrix.platform == 'darwin'
+        run: |
+          ./configure --experimental-enable-pointer-compression --without-snapshot
+          make -j2 install DESTDIR=$GITHUB_WORKSPACE/node-install
+
+      - name: Archive Node
+        run: |
+          mkdir -p artifacts
+          FILENAME=node-${NODE_VERSION}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.meta.outputs.build_id }}.tar.xz
+          FILENAME_LATEST=node-${NODE_VERSION}-${{ matrix.platform }}-${{ matrix.arch }}-LATEST.tar.xz
+          tar -C node-install -cJf artifacts/$FILENAME .
+          cp artifacts/$FILENAME artifacts/$FILENAME_LATEST
+          echo "NODE_ARCHIVE=$FILENAME" >> $GITHUB_ENV
+          echo "NODE_ARCHIVE_LATEST=$FILENAME_LATEST" >> $GITHUB_ENV
+
+      - name: Upload Node archive
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-${{ steps.meta.outputs.build_id }}
+          path: artifacts/${{ env.NODE_ARCHIVE }}
+
+      - name: Upload Node archive latest
+        uses: actions/upload-artifact@v4
+        with:
+          name: node-${{ env.NODE_VERSION }}-${{ matrix.platform }}-${{ matrix.arch }}-LATEST
+          path: artifacts/${{ env.NODE_ARCHIVE_LATEST }}
+
+      - name: Upload Node archive to release
+        uses: softprops/action-gh-release@v1
+        with:
+          name: node-${{ env.NODE_VERSION }}-LATEST
+          tag_name: node-${{ env.NODE_VERSION }}-release
+          files: ./artifacts/${{ env.NODE_ARCHIVE_LATEST }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
