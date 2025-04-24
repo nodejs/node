@@ -350,9 +350,11 @@ properties. It is only supported in ES modules.
 added:
   - v21.2.0
   - v20.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: This property is no longer experimental.
 -->
-
-> Stability: 1.2 - Release candidate
 
 * {string} The directory name of the current module. This is the same as the
   [`path.dirname()`][] of the [`import.meta.filename`][].
@@ -365,9 +367,11 @@ added:
 added:
   - v21.2.0
   - v20.11.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: This property is no longer experimental.
 -->
-
-> Stability: 1.2 - Release candidate
 
 * {string} The full absolute path and filename of the current module, with
   symlinks resolved.
@@ -398,6 +402,9 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: This property is no longer experimental.
   - version:
     - v20.6.0
     - v18.19.0
@@ -421,8 +428,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/38587
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->
-
-> Stability: 1.2 - Release candidate
 
 * `specifier` {string} The module specifier to resolve relative to the
   current module.
