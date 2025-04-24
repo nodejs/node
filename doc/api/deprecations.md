@@ -696,7 +696,7 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58008
     description: End-of-Life.
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55175
