@@ -27,5 +27,9 @@ child.on('exit', common.mustCall(() => {
   );
 }));
 
-child.stdin.write('await import(\'./message.mjs\');\n');
-child.stdin.write('.exit');
+// Note: write the commands on stdin with a slight delay to make sure
+//       that the child process is ready to receive and process them
+setTimeout(() => {
+  child.stdin.write('await import(\'./message.mjs\');\n');
+  child.stdin.write('.exit');
+}, common.platformTimeout(250));
