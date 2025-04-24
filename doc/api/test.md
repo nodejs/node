@@ -2172,7 +2172,7 @@ changes:
   - version:
     - REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58007
-    description: Support JSON modules
+    description: Support JSON modules.
 -->
 
 > Stability: 1.0 - Early development
