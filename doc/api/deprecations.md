@@ -3475,10 +3475,10 @@ be added when a function is bound to an `AsyncResource`.
 changes:
   - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47740
-    description: Documentation-only deprecation.
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
