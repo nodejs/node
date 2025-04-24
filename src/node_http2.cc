@@ -768,7 +768,7 @@ void Http2Stream::EmitStatistics() {
 
 void Http2Session::HasPendingData(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   args.GetReturnValue().Set(session->HasPendingData());
 }
 
@@ -3578,7 +3578,7 @@ void Initialize(Local<Object> target,
 
 void Http2Session::SetGracefulClose(const FunctionCallbackInfo<Value>& args) {
   Http2Session* session;
-  ASSIGN_OR_RETURN_UNWRAP(&session, args.Holder());
+  ASSIGN_OR_RETURN_UNWRAP(&session, args.This());
   CHECK_NOT_NULL(session);
   // Set the graceful close flag
   session->SetGracefulCloseInitiated(true);
