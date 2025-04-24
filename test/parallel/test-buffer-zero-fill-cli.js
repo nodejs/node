@@ -1,11 +1,11 @@
 'use strict';
 // Flags: --zero-fill-buffers
 
-// when using --zero-fill-buffers, every Buffer and SlowBuffer
+// when using --zero-fill-buffers, every Buffer
 // instance must be zero filled upon creation
 
 require('../common');
-const SlowBuffer = require('buffer').SlowBuffer;
+const { Buffer } = require('buffer');
 const assert = require('assert');
 
 function isZeroFilled(buf) {
@@ -22,9 +22,8 @@ for (let i = 0; i < 50; i++) {
   const bufs = [
     Buffer.alloc(20),
     Buffer.allocUnsafe(20),
-    SlowBuffer(20),
+    Buffer.allocUnsafeSlow(20),
     Buffer(20),
-    new SlowBuffer(20),
   ];
   for (const buf of bufs) {
     assert(isZeroFilled(buf));

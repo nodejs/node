@@ -86,5 +86,5 @@ assert.deepStrictEqual(
 
 // Test that it doesn't crash
 {
-  buffer.transcode(new buffer.SlowBuffer(1), 'utf16le', 'ucs2');
+  buffer.transcode(new buffer.Buffer.allocUnsafeSlow(1), 'utf16le', 'ucs2');
 }
