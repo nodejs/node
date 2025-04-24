@@ -3567,16 +3567,17 @@ be added when a function is bound to an `AsyncResource`.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47740
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-In a future version of Node.js, [`assert.CallTracker`][],
-will be removed.
-Consider using alternatives such as the [`mock`][] helper function.
+The `assert.CallTracker` API has been removed.
 
 ### DEP0174: calling `promisify` on a function that returns a `Promise`
 
@@ -3924,7 +3925,6 @@ upon `require('node:module').builtinModules`.
 [`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
-[`assert.CallTracker`]: assert.md#class-assertcalltracker
 [`assert`]: assert.md
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
@@ -3986,7 +3986,6 @@ upon `require('node:module').builtinModules`.
 [`message.socket`]: http.md#messagesocket
 [`message.trailersDistinct`]: http.md#messagetrailersdistinct
 [`message.trailers`]: http.md#messagetrailers
-[`mock`]: test.md#mocking
 [`module.createRequire()`]: module.md#modulecreaterequirefilename
 [`os.networkInterfaces()`]: os.md#osnetworkinterfaces
 [`os.tmpdir()`]: os.md#ostmpdir
