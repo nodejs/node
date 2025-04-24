@@ -10132,6 +10132,21 @@ void Isolate::Dispose() {
   i::Isolate::Delete(i_isolate);
 }
 
+void Isolate::Deinitialize() {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  if (!Utils::ApiCheck(
+          !i_isolate->IsInUse(), "v8::Isolate::Deinitialize()",
+          "Deinitializing the isolate that is entered by a thread")) {
+    return;
+  }
+  i::Isolate::Deinitialize(i_isolate);
+}
+
+void Isolate::Free(Isolate* isolate) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  i::Isolate::Free(i_isolate);
+}
+
 void Isolate::DumpAndResetStats() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   i_isolate->DumpAndResetStats();

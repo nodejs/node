@@ -31344,3 +31344,22 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String>::Cast(no_data);
   }
 }
+
+TEST(IsolateFree) {
+  v8::Isolate* isolate1 = v8::Isolate::Allocate();
+  v8::Isolate::Initialize(isolate1, CreateTestParams());
+  isolate1->Deinitialize();
+
+  // When a new isolate is allocated immediately after one is freed, there is
+  // a chance that the new isolate will be allocated at the same address as the
+  // old one. This tests that when Deinitialize() is called, allocating a new
+  // isolate does not reuse the old address.
+  v8::Isolate* isolate2 = v8::Isolate::Allocate();
+  CHECK_NE(isolate1, isolate2);
+
+  v8::Isolate::Initialize(isolate2, CreateTestParams());
+  isolate2->Deinitialize();
+
+  v8::Isolate::Free(isolate1);
+  v8::Isolate::Free(isolate2);
+}
