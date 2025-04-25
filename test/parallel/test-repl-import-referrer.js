@@ -8,28 +8,25 @@ const args = ['--interactive'];
 const opts = { cwd: fixtures.path('es-modules') };
 const child = cp.spawn(process.execPath, args, opts);
 
-const outputs = [];
+let output = '';
 child.stdout.setEncoding('utf8');
 child.stdout.on('data', (data) => {
-  outputs.push(data);
-  if (outputs.length === 3) {
+  output += data;
+
+  if (
+    !child.stdin.writableEnded &&
+    output.includes('[Module: null prototype] { message: \'A message\' }')
+  ) {
     // All the expected outputs have been received
     // so we can close the child process's stdin
     child.stdin.end();
   }
 });
 
-child.on('exit', common.mustCall(() => {
-  const results = outputs[2].split('\n')[0];
-  assert.strictEqual(
-    results,
-    '[Module: null prototype] { message: \'A message\' }'
-  );
+child.on('exit', common.mustCall((code, signal) => {
+  assert.strictEqual(code, 0);
+  assert.strictEqual(signal, null);
 }));
 
-// Note: write the commands on stdin with a slight delay to make sure
-//       that the child process is ready to receive and process them
-setTimeout(() => {
-  child.stdin.write('await import(\'./message.mjs\');\n');
-  child.stdin.write('.exit');
-}, common.platformTimeout(250));
+child.stdin.write('await import(\'./message.mjs\');\n');
+child.stdin.write('.exit');
