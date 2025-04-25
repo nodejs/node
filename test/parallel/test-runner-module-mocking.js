@@ -381,6 +381,20 @@ test('JSON mocking', async (t) => {
 
     assert.deepStrictEqual(mocked, defaultExport);
   });
+
+  await t.test('throws without appropriate import attributes', async (t) => {
+    const fixturePath = fixtures.path('module-mocking', 'basic.json');
+    const fixture = pathToFileURL(fixturePath);
+    const { default: original } = await import(fixture, { with: { type: 'json' } });
+
+    assert.deepStrictEqual(original, { foo: 'bar' });
+
+    const defaultExport = { qux: 'zed' };
+
+    t.mock.module(fixture, { defaultExport });
+
+    assert.rejects(() => import(fixture), /import attribute/);
+  });
 });
 
 test('modules cannot be mocked multiple times at once', async (t) => {
