@@ -31,7 +31,6 @@
   V(module_circular_visited_private_symbol, "node:module_circular_visited")    \
   V(module_export_private_symbol, "node:module_export")                        \
   V(module_parent_private_symbol, "node:module_parent")                        \
-  V(module_import_meta_path, "node:module_import_meta_path")                   \
   V(napi_type_tag, "node:napi:type_tag")                                       \
   V(napi_wrapper, "node:napi:wrapper")                                         \
   V(untransferable_object_private_symbol, "node:untransferableObject")         \
