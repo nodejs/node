@@ -178,6 +178,7 @@ changes:
     **Default:** `'lifo'`.
   * `timeout` {number} Socket timeout in milliseconds.
     This will set the timeout when the socket is created.
+    **Default:** `0` (no timeout).
 
 `options` in [`socket.connect()`][] are also supported.
 
