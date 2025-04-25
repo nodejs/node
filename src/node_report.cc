@@ -813,7 +813,7 @@ static void PrintComponentVersions(JSONWriter* writer) {
 #undef V
 
   std::ranges::sort(versions_array,
-            [](auto& a, auto& b) { return a.first < b.first; });
+                    [](auto& a, auto& b) { return a.first < b.first; });
 
   for (const auto& version : versions_array) {
     writer->json_keyvalue(version.first, version.second);

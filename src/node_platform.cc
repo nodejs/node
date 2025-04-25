@@ -450,10 +450,11 @@ void PerIsolatePlatformData::RunForegroundTask(std::unique_ptr<Task> task) {
 }
 
 void PerIsolatePlatformData::DeleteFromScheduledTasks(DelayedTask* task) {
-  auto it = std::ranges::find_if(scheduled_delayed_tasks_,
-                         [task](const DelayedTaskPointer& delayed) -> bool {
-          return delayed.get() == task;
-      });
+  auto it =
+      std::ranges::find_if(scheduled_delayed_tasks_,
+                           [task](const DelayedTaskPointer& delayed) -> bool {
+                             return delayed.get() == task;
+                           });
   CHECK_NE(it, scheduled_delayed_tasks_.end());
   scheduled_delayed_tasks_.erase(it);
 }

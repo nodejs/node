@@ -692,8 +692,7 @@ class Http2Session : public AsyncWrap,
 
   bool has_pending_rststream(int32_t stream_id) {
     return pending_rst_streams_.end() !=
-        std::ranges::find(pending_rst_streams_,
-            stream_id);
+           std::ranges::find(pending_rst_streams_, stream_id);
   }
 
   // Handle reads/writes from the underlying network transport.

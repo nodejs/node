@@ -758,16 +758,16 @@ static ExitCode ProcessGlobalArgsInternal(std::vector<std::string>* args,
 
   // TODO(aduh95): remove this when the harmony-import-attributes flag
   // is removed in V8.
-  if (std::ranges::find(v8_args,
-                "--no-harmony-import-attributes") == v8_args.end()) {
+  if (std::ranges::find(v8_args, "--no-harmony-import-attributes") ==
+      v8_args.end()) {
     v8_args.emplace_back("--harmony-import-attributes");
   }
 
   auto env_opts = per_process::cli_options->per_isolate->per_env;
-  if (std::ranges::find(v8_args,
-                "--abort-on-uncaught-exception") != v8_args.end() ||
-      std::ranges::find(v8_args,
-                "--abort_on_uncaught_exception") != v8_args.end()) {
+  if (std::ranges::find(v8_args, "--abort-on-uncaught-exception") !=
+          v8_args.end() ||
+      std::ranges::find(v8_args, "--abort_on_uncaught_exception") !=
+          v8_args.end()) {
     env_opts->abort_on_uncaught_exception = true;
   }
 

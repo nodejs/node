@@ -98,7 +98,7 @@ static void SetVersions(Isolate* isolate, Local<Object> versions) {
 #undef V
 
   std::ranges::sort(versions_array,
-            [](auto& a, auto& b) { return a.first < b.first; });
+                    [](auto& a, auto& b) { return a.first < b.first; });
 
   for (const auto& version : versions_array) {
     versions
