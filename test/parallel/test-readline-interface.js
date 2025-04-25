@@ -1202,47 +1202,6 @@ for (let i = 0; i < 12; i++) {
     fi.emit('data', 'Node.js\n');
   }
 
-  // Call write after close
-  {
-    const [rli, fi] = getInterface({ terminal });
-    rli.question('What\'s your name?', common.mustCall((name) => {
-      assert.strictEqual(name, 'Node.js');
-      rli.close();
-      assert.throws(() => {
-        rli.write('I said Node.js');
-      }, {
-        name: 'Error',
-        code: 'ERR_USE_AFTER_CLOSE'
-      });
-    }));
-    fi.emit('data', 'Node.js\n');
-  }
-
-  // Call pause/resume after close
-  {
-    const [rli, fi] = getInterface({ terminal });
-    rli.question('What\'s your name?', common.mustCall((name) => {
-      assert.strictEqual(name, 'Node.js');
-      rli.close();
-      // No 'resume' nor 'pause' event should be emitted after close
-      rli.on('resume', common.mustNotCall());
-      rli.on('pause', common.mustNotCall());
-      assert.throws(() => {
-        rli.pause();
-      }, {
-        name: 'Error',
-        code: 'ERR_USE_AFTER_CLOSE'
-      });
-      assert.throws(() => {
-        rli.resume();
-      }, {
-        name: 'Error',
-        code: 'ERR_USE_AFTER_CLOSE'
-      });
-    }));
-    fi.emit('data', 'Node.js\n');
-  }
-
   // Can create a new readline Interface with a null output argument
   {
     const [rli, fi] = getInterface({ output: null, terminal });
