@@ -61,12 +61,16 @@ Failed tests:
       *
       *
       *
+      *
+      *
+      *
       * {
     generatedMessage: true,
     code: 'ERR_ASSERTION',
     actual: true,
     expected: false,
-    operator: 'strictEqual'
+    operator: 'strictEqual',
+    diff: 'simple'
   }
 ✖ reject fail (*ms)
   Error: rejected from reject fail
@@ -215,7 +219,8 @@ Failed tests:
     code: 'ERR_ASSERTION',
     actual: [Object],
     expected: [Object],
-    operator: 'deepEqual'
+    operator: 'deepEqual',
+    diff: 'simple'
   }
 ✖ invalid subtest fail (*ms)
   'test could not be started because its parent finished'
