@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     'dirname-and-filename',
     'dirname',
     'filename',
-  ]
+  ],
 });
 
 const fixtureDir = path.resolve(__filename, '../../fixtures');
