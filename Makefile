@@ -807,6 +807,9 @@ doc-only: tools/doc/node_modules \
 .PHONY: doc
 doc: $(NODE_EXE) doc-only ## Build Node.js, and then build the documentation with the new binary.
 
+doc/node.1: doc/api/cli.md
+	$(NODE) tools/lint-md/node_modules/@node-core/api-docs-tooling/bin/cli.mjs -t man-page -i doc/api/cli.md -o doc/node.1
+
 out/doc:
 	mkdir -p $@
 	cp doc/node-config-schema.json $@
