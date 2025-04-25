@@ -26,6 +26,7 @@ child.stdout.on('data', (data) => {
 child.on('exit', common.mustCall((code, signal) => {
   assert.strictEqual(code, 0);
   assert.strictEqual(signal, null);
+  assert.strictEqual(child.stdin.writableEnded, true);
 }));
 
 child.stdin.write('await import(\'./message.mjs\');\n');
