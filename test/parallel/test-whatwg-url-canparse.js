@@ -20,23 +20,29 @@ assert.throws(() => {
 assert.strictEqual(URL.canParse('https://example.org'), true);
 
 {
-  // V8 Fast API
-  function testFastPaths() {
-    // `canParse` binding has two overloads.
-    assert.strictEqual(URL.canParse('https://www.example.com/path/?query=param#hash'), true);
-    assert.strictEqual(URL.canParse('/', 'http://n'), true);
+  // Only javascript methods can be optimized through %OptimizeFunctionOnNextCall
+  // This is why we surround the C++ method we want to optimize with a JS function.
+  function canParse(input) {
+    return URL.canParse(input);
   }
 
-  eval('%PrepareFunctionForOptimization(URL.canParse)');
-  testFastPaths();
-  eval('%OptimizeFunctionOnNextCall(URL.canParse)');
-  testFastPaths();
+  function canParseWithBase(input, base) {
+    return URL.canParse(input, base);
+  }
+
+  eval('%PrepareFunctionForOptimization(canParse)');
+  canParse('https://nodejs.org');
+  eval('%OptimizeFunctionOnNextCall(canParse)');
+  canParse('https://nodejs.org');
+
+  eval('%PrepareFunctionForOptimization(canParseWithBase)');
+  canParseWithBase('https://nodejs.org');
+  eval('%OptimizeFunctionOnNextCall(canParseWithBase)');
+  canParseWithBase('/contact', 'https://nodejs.org');
 
   if (common.isDebug) {
     const { getV8FastApiCallCount } = internalBinding('debug');
-    // TODO: the counts should be 1. The function is optimized, but the fast
-    // API is not called.
-    assert.strictEqual(getV8FastApiCallCount('url.canParse'), 0);
-    assert.strictEqual(getV8FastApiCallCount('url.canParse.withBase'), 0);
+    assert.strictEqual(getV8FastApiCallCount('url.canParse'), 1);
+    assert.strictEqual(getV8FastApiCallCount('url.canParse.withBase'), 1);
   }
 }
