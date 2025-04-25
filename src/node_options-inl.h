@@ -3,7 +3,9 @@
 
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <algorithm>
 #include <cstdlib>
+#include <ranges>
 #include "node_options.h"
 #include "util.h"
 
@@ -393,15 +395,16 @@ void OptionsParser<Options>::Parse(
         // Implications for negated options are defined with "--no-".
         implied_name.insert(2, "no-");
       }
-      auto implications = implications_.equal_range(implied_name);
-      for (auto imp = implications.first; imp != implications.second; ++imp) {
-        if (imp->second.type == kV8Option) {
-          v8_args->push_back(imp->second.name);
-        } else {
-          *imp->second.target_field->template Lookup<bool>(options) =
-              imp->second.target_value;
-        }
-      }
+      auto [f, l] = implications_.equal_range(implied_name);
+      std::ranges::for_each(std::ranges::subrange(f, l) | std::views::values,
+                            [&](const auto& value) {
+                              if (value.type == kV8Option) {
+                                v8_args->push_back(value.name);
+                              } else {
+                                *value.target_field->template Lookup<bool>(
+                                    options) = value.target_value;
+                              }
+                            });
     }
 
     if (it == options_.end()) {
