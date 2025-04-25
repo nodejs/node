@@ -15,7 +15,7 @@ child.stdout.on('data', (data) => {
 
   if (
     !child.stdin.writableEnded &&
-    output.includes('[Module: null prototype] { message: \'A message\' }\n')
+    output.includes('[Module: null prototype] { message: \'A message\' }\n> ')
   ) {
     // All the expected outputs have been received
     // so we can close the child process's stdin
