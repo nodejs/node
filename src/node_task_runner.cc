@@ -351,7 +351,7 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
 PositionalArgs GetPositionalArgs(const std::vector<std::string>& args) {
   // If the "--" flag is not found, return an empty optional
   // Otherwise, return the positional arguments as a single string
-  if (auto dash_dash = std::find(args.begin(), args.end(), "--");
+  if (auto dash_dash = std::ranges::find(args, "--");
       dash_dash != args.end()) {
     PositionalArgs positional_args{};
     positional_args.reserve(args.size() - (dash_dash - args.begin()));

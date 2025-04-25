@@ -28,7 +28,7 @@ std::vector<Dotenv::env_file_data> Dotenv::GetDataFromArgs(
 
   std::vector<Dotenv::env_file_data> env_files;
   // This will be an iterator, pointing to args.end() if no matches are found
-  auto matched_arg = std::find_if(args.begin(), args.end(), find_match);
+  auto matched_arg = std::ranges::find_if(args, find_match);
 
   while (matched_arg != args.end()) {
     if (*matched_arg == "--") {
