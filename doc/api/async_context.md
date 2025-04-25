@@ -215,7 +215,7 @@ added:
  - v12.17.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 Disables the instance of `AsyncLocalStorage`. All subsequent calls
 to `asyncLocalStorage.getStore()` will return `undefined` until
@@ -255,7 +255,7 @@ added:
  - v12.17.0
 -->
 
-> Stability: 1 - Experimental
+> Stability: 2 - Stable
 
 * `store` {any}
 
