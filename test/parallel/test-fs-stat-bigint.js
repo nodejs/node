@@ -18,17 +18,21 @@ function getFilename() {
   return filename;
 }
 
-function verifyStats(bigintStats, numStats, allowableDelta) {
-  // allowableDelta: It's possible that the file stats are updated between the
+function verifyStats(bigintStats, numStats, startTime, endTime) {
+  // allowableTimeDelta: It's possible that the file stats are updated between the
   // two stat() calls so allow for a small difference.
+  // this number is computed by taking the difference between the start and end
+  // times of the stat calls, converting it from nanoseconds to milliseconds,
+  // and adding a small buffer to account for potential timing variations
+  const allowableTimeDelta = Math.ceil(Number(endTime - startTime) / 1e6) + 50;
   for (const key of Object.keys(numStats)) {
     const val = numStats[key];
     if (isDate(val)) {
       const time = val.getTime();
       const time2 = bigintStats[key].getTime();
       assert(
-        time - time2 <= allowableDelta,
-        `difference of ${key}.getTime() should <= ${allowableDelta}.\n` +
+        time - time2 <= allowableTimeDelta,
+        `difference of ${key}.getTime() should <= ${allowableTimeDelta}.\n` +
         `Number version ${time}, BigInt version ${time2}n`);
     } else if (key === 'mode') {
       assert.strictEqual(bigintStats[key], BigInt(val));
@@ -68,16 +72,16 @@ function verifyStats(bigintStats, numStats, allowableDelta) {
       const msFromNum = numStats[key];
 
       assert(
-        msFromNum - Number(msFromBigInt) <= allowableDelta,
+        msFromNum - Number(msFromBigInt) <= allowableTimeDelta,
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${key} = ${msFromBigInt}n, ` +
-        `Allowable delta = ${allowableDelta}`);
+        `Allowable delta = ${allowableTimeDelta}`);
 
       assert(
-        msFromNum - Number(msFromBigIntNs) <= allowableDelta,
+        msFromNum - Number(msFromBigIntNs) <= allowableTimeDelta,
         `Number version ${key} = ${msFromNum}, ` +
         `BigInt version ${nsKey} = ${nsFromBigInt}n` +
-        ` = ${msFromBigIntNs}ms, Allowable delta = ${allowableDelta}`);
+        ` = ${msFromBigIntNs}ms, Allowable delta = ${allowableTimeDelta}`);
     } else if (Number.isSafeInteger(val)) {
       assert.strictEqual(
         bigintStats[key], BigInt(val),
@@ -98,8 +102,7 @@ const runSyncTest = (func, arg) => {
   const bigintStats = func(arg, common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = func(arg);
   const endTime = process.hrtime.bigint();
-  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
-  verifyStats(bigintStats, numStats, allowableDelta);
+  verifyStats(bigintStats, numStats, startTime, endTime);
 };
 
 {
@@ -153,8 +156,7 @@ const runCallbackTest = (func, arg, done) => {
   func(arg, common.mustNotMutateObjectDeep({ bigint: true }), common.mustCall((err, bigintStats) => {
     func(arg, common.mustCall((err, numStats) => {
       const endTime = process.hrtime.bigint();
-      const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
-      verifyStats(bigintStats, numStats, allowableDelta);
+      verifyStats(bigintStats, numStats, startTime, endTime);
       if (done) {
         done();
       }
@@ -185,8 +187,7 @@ const runPromiseTest = async (func, arg) => {
   const bigintStats = await func(arg, common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await func(arg);
   const endTime = process.hrtime.bigint();
-  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
-  verifyStats(bigintStats, numStats, allowableDelta);
+  verifyStats(bigintStats, numStats, startTime, endTime);
 };
 
 {
@@ -208,8 +209,7 @@ if (!common.isWindows) {
   const bigintStats = await handle.stat(common.mustNotMutateObjectDeep({ bigint: true }));
   const numStats = await handle.stat();
   const endTime = process.hrtime.bigint();
-  const allowableDelta = Math.ceil(Number(endTime - startTime) / 1e6);
-  verifyStats(bigintStats, numStats, allowableDelta);
+  verifyStats(bigintStats, numStats, startTime, endTime);
   await handle.close();
 })().then(common.mustCall());
 
