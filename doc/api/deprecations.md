@@ -978,7 +978,7 @@ The `tls.SecurePair` class is deprecated. Please use
 
 <!-- YAML
 changes:
-  - version: REPLACE
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/58027
     description: End-of-Life.
   - version: v22.0.0
