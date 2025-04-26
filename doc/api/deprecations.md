@@ -998,8 +998,7 @@ changes:
 
 Type: End-of-Life
 
-The [`util.isArray()`][] API has been removed. Please use `Array.isArray()`
-instead.
+The `util.isArray()` API has been removed. Please use `Array.isArray()` instead.
 
 ### DEP0045: `util.isBoolean()`
 
@@ -4031,7 +4030,6 @@ upon `require('node:module').builtinModules`.
 [`util.getSystemErrorName()`]: util.md#utilgetsystemerrornameerr
 [`util.inspect()`]: util.md#utilinspectobject-options
 [`util.inspect.custom`]: util.md#utilinspectcustom
-[`util.isArray()`]: util.md#utilisarrayobject
 [`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.toUSVString()`]: util.md#utiltousvstringstring
 [`util.types`]: util.md#utiltypes
