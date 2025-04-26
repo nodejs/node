@@ -1,6 +1,6 @@
 // Reference: https://github.com/nodejs/node/pull/7624
 'use strict';
-require('../common');
+const common = require('../common');
 const assert = require('assert');
 const repl = require('repl');
 const stream = require('stream');
@@ -9,7 +9,8 @@ const r = initRepl();
 
 r.input.emit('data', 'function a() { return 42; } (1)\n');
 r.input.emit('data', 'a\n');
-r.input.emit('data', '.exit');
+r.input.emit('data', '.exit\n');
+r.once('exit', common.mustCall());
 
 const expected = '1\n[Function: a]\n';
 const got = r.output.accumulator.join('');
