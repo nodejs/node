@@ -232,6 +232,32 @@ test('host port flag should be parsed correctly', { skip: !process.features.insp
   strictEqual(result.code, 0);
 });
 
+test('--inspect=true should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--expose-internals',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-true.json'),
+    '-p', 'require("internal/options").getOptionValue("--inspect")',
+  ]);
+  match(result.stderr, /^Debugger listening on (ws:\/\/[^\s]+)/);
+  strictEqual(result.stdout, 'true\n');
+  strictEqual(result.code, 0);
+});
+
+test('--inspect=false should be parsed correctly', { skip: !process.features.inspector }, async () => {
+  const result = await spawnPromisified(process.execPath, [
+    '--no-warnings',
+    '--expose-internals',
+    '--experimental-config-file',
+    fixtures.path('rc/inspect-false.json'),
+    '-p', 'require("internal/options").getOptionValue("--inspect")',
+  ]);
+  strictEqual(result.stderr, '');
+  strictEqual(result.stdout, 'false\n');
+  strictEqual(result.code, 0);
+});
+
 test('no op flag should throw', async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
