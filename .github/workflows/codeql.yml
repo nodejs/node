@@ -7,7 +7,7 @@ on:
 permissions:
   contents: read
 
-paths-to-ignore:
+paths-ignore:
   - test
 
 jobs:
