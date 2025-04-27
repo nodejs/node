@@ -17,6 +17,11 @@ using CFunctionCallbackWithMultipleValueAndOptions =
              v8::Local<v8::Value>,
              v8::Local<v8::Value>,
              v8::FastApiCallbackOptions&);
+using CFunctionA =
+    uint32_t (*)(v8::Local<v8::Value> receiver,
+                 v8::Local<v8::Value> sourceValue,
+                 // NOLINTNEXTLINE(runtime/references) This is V8 api.
+                 v8::FastApiCallbackOptions& options);
 using CFunctionCallbackWithOneByteString =
     uint32_t (*)(v8::Local<v8::Value>, const v8::FastOneByteString&);
 
@@ -98,6 +103,7 @@ class ExternalReferenceRegistry {
   ExternalReferenceRegistry();
 
 #define ALLOWED_EXTERNAL_REFERENCE_TYPES(V)                                    \
+  V(CFunctionA)                                                                \
   V(CFunctionCallback)                                                         \
   V(CFunctionCallbackWithalueAndOptions)                                       \
   V(CFunctionCallbackWithMultipleValueAndOptions)                              \

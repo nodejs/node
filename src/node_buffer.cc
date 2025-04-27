@@ -728,16 +728,28 @@ void SlowByteLengthUtf8(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(args[0].As<String>()->Utf8Length(env->isolate()));
 }
 
-uint32_t FastByteLengthUtf8(Local<Value> receiver,
-                            const v8::FastOneByteString& source) {
+uint32_t FastByteLengthUtf8(
+    Local<Value> receiver,
+    Local<Value> sourceValue,
+    v8::FastApiCallbackOptions& options) {  // NOLINT(runtime/references)
+  TRACK_V8_FAST_API_CALL("Buffer::FastByteLengthUtf8");
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  CHECK(sourceValue->IsString());
+  Local<String> sourceStr = sourceValue.As<String>();
+
+  if (!sourceStr->IsExternalOneByte()) {
+    return sourceStr->Utf8Length(isolate);
+  }
+  auto source = sourceStr->GetExternalOneByteStringResource();
   // For short inputs, the function call overhead to simdutf is maybe
   // not worth it, reserve simdutf for long strings.
-  if (source.length > 128) {
-    return simdutf::utf8_length_from_latin1(source.data, source.length);
+  if (source->length() > 128) {
+    return simdutf::utf8_length_from_latin1(source->data(), source->length());
   }
 
-  uint32_t length = source.length;
-  const auto input = reinterpret_cast<const uint8_t*>(source.data);
+  uint32_t length = source->length();
+  const auto input = reinterpret_cast<const uint8_t*>(source->data());
 
   uint32_t answer = length;
   uint32_t i = 0;
