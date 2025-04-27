@@ -352,7 +352,7 @@ added:
   - v20.11.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
 
@@ -369,7 +369,7 @@ added:
   - v20.11.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
 
@@ -402,9 +402,6 @@ added:
   - v13.9.0
   - v12.16.2
 changes:
-  - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
-    description: This property is no longer experimental.
   - version:
     - v20.6.0
     - v18.19.0
@@ -429,6 +426,7 @@ changes:
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->
 
+> Stability: 1.2 - Release Candidate
 * `specifier` {string} The module specifier to resolve relative to the
   current module.
 * Returns: {string} The absolute URL string that the specifier would resolve to.
