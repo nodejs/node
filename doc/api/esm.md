@@ -426,7 +426,7 @@ changes:
     description: Add support for WHATWG `URL` object to `parentURL` parameter.
 -->
 
-> Stability: 1.2 - Release Candidate
+> Stability: 1.2 - Release candidate
 
 * `specifier` {string} The module specifier to resolve relative to the
   current module.
