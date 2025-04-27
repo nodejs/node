@@ -2390,7 +2390,7 @@ of an asynchronous operation.
 ### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
 
 <!-- YAML
-added: REPLACEME
+added: v23.10.0
 -->
 
 An attempt was made to get options before the bootstrapping was completed.
@@ -2598,6 +2598,7 @@ changes:
   - version:
     - v23.0.0
     - v22.12.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->

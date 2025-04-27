@@ -947,6 +947,9 @@ The [`tls.CryptoStream`][] class was removed. Please use
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -966,9 +969,9 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: End-of-Life
 
-The [`tls.SecurePair`][] class is deprecated. Please use
+The `tls.SecurePair` class is deprecated. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0044: `util.isArray()`
@@ -1488,6 +1491,9 @@ officially supported API.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57361
+    description: End-of-Life.
   - version: v8.0.0
     pr-url: https://github.com/nodejs/node/pull/11349
     description: Runtime deprecation.
@@ -1507,7 +1513,7 @@ changes:
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `tls.createSecurePair()` API was deprecated in documentation in Node.js
 0.11.3. Users should use `tls.Socket` instead.
@@ -2276,7 +2282,7 @@ initialization vectors.
 It is recommended to derive a key using
 [`crypto.pbkdf2()`][] or [`crypto.scrypt()`][] with random salts and to use
 [`crypto.createCipheriv()`][] and [`crypto.createDecipheriv()`][] to obtain the
-[`Cipher`][] and [`Decipher`][] objects respectively.
+[`Cipheriv`][] and [`Decipheriv`][] objects respectively.
 
 ### DEP0107: `tls.convertNPNProtocols()`
 
@@ -2563,12 +2569,15 @@ generally useful and is being removed. See discussion here:
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57339
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23820
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Please use `Server.prototype.setSecureContext()` instead.
 
@@ -3568,7 +3577,7 @@ changes:
 
 Type: Runtime
 
-Calling [`util.promisify`][] on a function that returns a <Promise> will ignore
+Calling [`util.promisify`][] on a function that returns a `Promise` will ignore
 the result of said promise, which can lead to unhandled promise rejections.
 
 ### DEP0175: `util.toUSVString`
@@ -3854,8 +3863,8 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 [`Buffer.from(array)`]: buffer.md#static-method-bufferfromarray
 [`Buffer.from(buffer)`]: buffer.md#static-method-bufferfrombuffer
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
-[`Cipher`]: crypto.md#class-cipher
-[`Decipher`]: crypto.md#class-decipher
+[`Cipheriv`]: crypto.md#class-cipheriv
+[`Decipheriv`]: crypto.md#class-decipheriv
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
@@ -3955,7 +3964,6 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 [`timeout.unref()`]: timers.md#timeoutunref
 [`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
-[`tls.SecurePair`]: tls.md#class-tlssecurepair
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert
 [`tls.createSecureContext()`]: tls.md#tlscreatesecurecontextoptions

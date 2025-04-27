@@ -31,9 +31,11 @@ namespace node {
 
 using ncrypto::BignumPointer;
 using ncrypto::BIOPointer;
+using ncrypto::Cipher;
 using ncrypto::ClearErrorOnReturn;
 using ncrypto::CryptoErrorList;
 using ncrypto::DHPointer;
+using ncrypto::Digest;
 #ifndef OPENSSL_NO_ENGINE
 using ncrypto::EnginePointer;
 #endif  // !OPENSSL_NO_ENGINE
@@ -42,11 +44,13 @@ using ncrypto::MarkPopErrorOnReturn;
 using ncrypto::SSLPointer;
 using ncrypto::StackOfX509;
 using ncrypto::X509Pointer;
+using ncrypto::X509View;
 using v8::Array;
 using v8::ArrayBufferView;
 using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::External;
 using v8::FunctionCallbackInfo;
@@ -57,7 +61,9 @@ using v8::Integer;
 using v8::Isolate;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
+using v8::MaybeLocal;
 using v8::Nothing;
 using v8::Object;
 using v8::PropertyAttribute;
@@ -630,6 +636,21 @@ void ReadWindowsCertificates(
                          CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
                          L"ROOT");
 
+  // Grab the intermediate certs
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_LOCAL_MACHINE, L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_GROUP_POLICY,
+                         L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_LOCAL_MACHINE_ENTERPRISE,
+                         L"CA");
+  GatherCertsForLocation(
+      system_root_certificates_X509, CERT_SYSTEM_STORE_CURRENT_USER, L"CA");
+  GatherCertsForLocation(system_root_certificates_X509,
+                         CERT_SYSTEM_STORE_CURRENT_USER_GROUP_POLICY,
+                         L"CA");
+
   // Grab the user-added trusted server certs. Trusted end-entity certs are
   // only allowed for server auth in the "local machine" store, but not in the
   // "current user" store.
@@ -657,9 +678,6 @@ static void LoadCertsFromDir(std::vector<X509*>* certs,
     return;
   }
 
-  uv_fs_t stats_req;
-  auto cleanup_stats =
-      OnScopeLeave([&stats_req]() { uv_fs_req_cleanup(&stats_req); });
   for (;;) {
     uv_dirent_t ent;
 
@@ -676,12 +694,14 @@ static void LoadCertsFromDir(std::vector<X509*>* certs,
       return;
     }
 
+    uv_fs_t stats_req;
     std::string file_path = std::string(cert_dir) + "/" + ent.name;
     int stats_r = uv_fs_stat(nullptr, &stats_req, file_path.c_str(), nullptr);
     if (stats_r == 0 &&
         (static_cast<uv_stat_t*>(stats_req.ptr)->st_mode & S_IFREG)) {
       LoadCertsFromFile(certs, file_path.c_str());
     }
+    uv_fs_req_cleanup(&stats_req);
   }
 }
 
@@ -760,7 +780,7 @@ static std::vector<X509*> InitializeSystemStoreCertificates() {
   return system_store_certs;
 }
 
-static std::vector<X509*>& GetSystemStoreRootCertificates() {
+static std::vector<X509*>& GetSystemStoreCACertificates() {
   // Use function-local static to guarantee thread safety.
   static std::vector<X509*> system_store_certs =
       InitializeSystemStoreCertificates();
@@ -832,7 +852,7 @@ X509_STORE* NewRootCertStore() {
       CHECK_EQ(1, X509_STORE_add_cert(store, cert));
     }
     if (per_process::cli_options->use_system_ca) {
-      for (X509* cert : GetSystemStoreRootCertificates()) {
+      for (X509* cert : GetSystemStoreCACertificates()) {
         CHECK_EQ(1, X509_STORE_add_cert(store, cert));
       }
     }
@@ -854,7 +874,7 @@ void CleanupCachedRootCertificates() {
     }
   }
   if (has_cached_system_root_certs.load()) {
-    for (X509* cert : GetSystemStoreRootCertificates()) {
+    for (X509* cert : GetSystemStoreCACertificates()) {
       X509_free(cert);
     }
   }
@@ -866,7 +886,7 @@ void CleanupCachedRootCertificates() {
   }
 }
 
-void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
+void GetBundledRootCertificates(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Value> result[arraysize(root_certs)];
 
@@ -881,6 +901,58 @@ void GetRootCertificates(const FunctionCallbackInfo<Value>& args) {
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), result, arraysize(root_certs)));
+}
+
+MaybeLocal<Array> X509sToArrayOfStrings(Environment* env,
+                                        const std::vector<X509*>& certs) {
+  ClearErrorOnReturn clear_error_on_return;
+  EscapableHandleScope scope(env->isolate());
+
+  LocalVector<Value> result(env->isolate(), certs.size());
+  for (size_t i = 0; i < certs.size(); ++i) {
+    X509View view(certs[i]);
+    auto pem_bio = view.toPEM();
+    if (!pem_bio) {
+      ThrowCryptoError(env, ERR_get_error(), "X509 to PEM conversion");
+      return MaybeLocal<Array>();
+    }
+
+    char* pem_data = nullptr;
+    auto pem_size = BIO_get_mem_data(pem_bio.get(), &pem_data);
+    if (pem_size <= 0 || !pem_data) {
+      ThrowCryptoError(env, ERR_get_error(), "Reading PEM data");
+      return MaybeLocal<Array>();
+    }
+    // PEM is base64-encoded, so it must be one-byte.
+    if (!String::NewFromOneByte(env->isolate(),
+                                reinterpret_cast<uint8_t*>(pem_data),
+                                v8::NewStringType::kNormal,
+                                pem_size)
+             .ToLocal(&result[i])) {
+      return MaybeLocal<Array>();
+    }
+  }
+  return scope.Escape(Array::New(env->isolate(), result.data(), result.size()));
+}
+
+void GetSystemCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetSystemStoreCACertificates())
+          .ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
+}
+
+void GetExtraCACertificates(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  if (extra_root_certs_file.empty()) {
+    return args.GetReturnValue().Set(Array::New(env->isolate()));
+  }
+  Local<Array> results;
+  if (X509sToArrayOfStrings(env, GetExtraCACertificates()).ToLocal(&results)) {
+    args.GetReturnValue().Set(results);
+  }
 }
 
 bool SecureContext::HasInstance(Environment* env, const Local<Value>& value) {
@@ -966,8 +1038,14 @@ void SecureContext::Initialize(Environment* env, Local<Object> target) {
                          GetConstructorTemplate(env),
                          SetConstructorFunctionFlag::NONE);
 
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getBundledRootCertificates",
+                        GetBundledRootCertificates);
   SetMethodNoSideEffect(
-      context, target, "getRootCertificates", GetRootCertificates);
+      context, target, "getSystemCACertificates", GetSystemCACertificates);
+  SetMethodNoSideEffect(
+      context, target, "getExtraCACertificates", GetExtraCACertificates);
 }
 
 void SecureContext::RegisterExternalReferences(
@@ -1007,7 +1085,9 @@ void SecureContext::RegisterExternalReferences(
 
   registry->Register(CtxGetter);
 
-  registry->Register(GetRootCertificates);
+  registry->Register(GetBundledRootCertificates);
+  registry->Register(GetSystemCACertificates);
+  registry->Register(GetExtraCACertificates);
 }
 
 SecureContext* SecureContext::Create(Environment* env) {
@@ -1440,8 +1520,6 @@ void SecureContext::AddRootCerts(const FunctionCallbackInfo<Value>& args) {
 }
 
 void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
-  // BoringSSL doesn't allow API config of TLS1.3 cipher suites.
-#ifndef OPENSSL_IS_BORINGSSL
   SecureContext* sc;
   ASSIGN_OR_RETURN_UNWRAP(&sc, args.This());
   Environment* env = sc->env();
@@ -1451,9 +1529,9 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   const Utf8Value ciphers(env->isolate(), args[0]);
-  if (!SSL_CTX_set_ciphersuites(sc->ctx_.get(), *ciphers))
+  if (!sc->ctx_.setCipherSuites(ciphers.ToStringView())) {
     return ThrowCryptoError(env, ERR_get_error(), "Failed to set ciphers");
-#endif
+  }
 }
 
 void SecureContext::SetCiphers(const FunctionCallbackInfo<Value>& args) {
@@ -1932,25 +2010,14 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   }
 
   ArrayBufferViewContents<unsigned char> hmac_buf(hmac);
-  HMAC_Init_ex(hctx,
-               hmac_buf.data(),
-               hmac_buf.length(),
-               EVP_sha256(),
-               nullptr);
+  HMAC_Init_ex(
+      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr);
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
-    EVP_EncryptInit_ex(ectx,
-                       EVP_aes_128_cbc(),
-                       nullptr,
-                       aes_key.data(),
-                       iv);
+    EVP_EncryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
   } else {
-    EVP_DecryptInit_ex(ectx,
-                       EVP_aes_128_cbc(),
-                       nullptr,
-                       aes_key.data(),
-                       iv);
+    EVP_DecryptInit_ex(ectx, Cipher::AES_128_CBC, nullptr, aes_key.data(), iv);
   }
 
   return r;
@@ -1969,11 +2036,11 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     memcpy(name, sc->ticket_key_name_, sizeof(sc->ticket_key_name_));
     if (!ncrypto::CSPRNG(iv, 16) ||
         EVP_EncryptInit_ex(
-            ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+            ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
         HMAC_Init_ex(hctx,
                      sc->ticket_key_hmac_,
                      sizeof(sc->ticket_key_hmac_),
-                     EVP_sha256(),
+                     Digest::SHA256,
                      nullptr) <= 0) {
       return -1;
     }
@@ -1985,10 +2052,13 @@ int SecureContext::TicketCompatibilityCallback(SSL* ssl,
     return 0;
   }
 
-  if (EVP_DecryptInit_ex(ectx, EVP_aes_128_cbc(), nullptr, sc->ticket_key_aes_,
-                         iv) <= 0 ||
-      HMAC_Init_ex(hctx, sc->ticket_key_hmac_, sizeof(sc->ticket_key_hmac_),
-                   EVP_sha256(), nullptr) <= 0) {
+  if (EVP_DecryptInit_ex(
+          ectx, Cipher::AES_128_CBC, nullptr, sc->ticket_key_aes_, iv) <= 0 ||
+      HMAC_Init_ex(hctx,
+                   sc->ticket_key_hmac_,
+                   sizeof(sc->ticket_key_hmac_),
+                   Digest::SHA256,
+                   nullptr) <= 0) {
     return -1;
   }
   return 1;

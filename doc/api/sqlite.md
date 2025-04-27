@@ -78,7 +78,7 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: REPLACEME
+  - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->
@@ -268,7 +268,7 @@ added:
     applying the changeset is aborted and the database is rolled back.
 
     **Default**: A function that returns `SQLITE_CHANGESET_ABORT`.
-* Returns: {boolean} Whether the changeset was applied succesfully without being aborted.
+* Returns: {boolean} Whether the changeset was applied successfully without being aborted.
 
 An exception is thrown if the database is not
 open. This method is a wrapper around [`sqlite3changeset_apply()`][].
@@ -543,7 +543,7 @@ exception.
 <!-- YAML
 added: v23.8.0
 changes:
-  - version: REPLACEME
+  - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
     description: The `path` argument now supports Buffer and URL objects.
 -->

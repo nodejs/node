@@ -10,6 +10,8 @@ The EVP_KDF-X963 algorithm implements the key derivation function (X963KDF).
 X963KDF is used by Cryptographic Message Syntax (CMS) for EC KeyAgreement, to
 derive a key using input such as a shared secret key and shared info.
 
+The output is considered to be keying material.
+
 =head2 Identity
 
 "X963KDF" is the name for this implementation; it

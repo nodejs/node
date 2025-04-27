@@ -14,6 +14,7 @@ const { InvalidArgumentError } = errors
 const api = require('./lib/api')
 const buildConnector = require('./lib/core/connect')
 const MockClient = require('./lib/mock/mock-client')
+const { MockCallHistory, MockCallHistoryLog } = require('./lib/mock/mock-call-history')
 const MockAgent = require('./lib/mock/mock-agent')
 const MockPool = require('./lib/mock/mock-pool')
 const mockErrors = require('./lib/mock/mock-errors')
@@ -169,6 +170,8 @@ module.exports.connect = makeDispatcher(api.connect)
 module.exports.upgrade = makeDispatcher(api.upgrade)
 
 module.exports.MockClient = MockClient
+module.exports.MockCallHistory = MockCallHistory
+module.exports.MockCallHistoryLog = MockCallHistoryLog
 module.exports.MockPool = MockPool
 module.exports.MockAgent = MockAgent
 module.exports.mockErrors = mockErrors

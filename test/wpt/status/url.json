@@ -10,16 +10,7 @@
       ]
     }
   },
-  "toascii.window.js": {
-    "fail": {
-      "note": "Unicode 15.1",
-      "expected": [
-        "\uD87E\uDC68.com (using URL)",
-        "\uD87E\uDC68.com (using URL.host)",
-        "\uD87E\uDC68.com (using URL.hostname)"
-      ]
-    }
-  },
+  "toascii.window.js": {},
   "url-setters-a-area.window.js": {
     "skip": "already tested in url-setters.any.js"
   },

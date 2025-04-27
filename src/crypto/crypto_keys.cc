@@ -924,10 +924,6 @@ void KeyObjectHandle::GetAsymmetricKeyType(
 }
 
 bool KeyObjectHandle::CheckEcKeyData() const {
-#ifdef OPENSSL_IS_BORINGSSL
-  // Operation is unsupported on BoringSSL
-  return true;
-#else
   MarkPopErrorOnReturn mark_pop_error_on_return;
 
   const auto& key = data_.GetAsymmetricKey();
@@ -937,7 +933,6 @@ bool KeyObjectHandle::CheckEcKeyData() const {
 
   return data_.GetKeyType() == kKeyTypePrivate ? ctx.privateCheck()
                                                : ctx.publicCheck();
-#endif
 }
 
 void KeyObjectHandle::CheckEcKeyData(const FunctionCallbackInfo<Value>& args) {

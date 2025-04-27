@@ -1141,6 +1141,42 @@
                 "host": "example.com",
                 "hostname": "example.com"
             }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
         }
     ],
     "hostname": [
@@ -1552,6 +1588,42 @@
                 "host": "example.com",
                 "hostname": "example.com"
             }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "*",
+            "expected": {
+                "href": "https://*/",
+                "host": "*",
+                "hostname": "*"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "x@x",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "foo\t\r\nbar",
+            "expected": {
+                "href": "https://foobar/",
+                "host": "foobar",
+                "hostname": "foobar"
+            }
+        },
+        {
+            "href": "https://test.invalid/",
+            "new_value": "><",
+            "expected": {
+                "href": "https://test.invalid/",
+                "host": "test.invalid",
+                "hostname": "test.invalid"
+            }
         }
     ],
     "port": [
@@ -1921,8 +1993,8 @@
             "href": "a:/",
             "new_value": "\u0000\u0001\t\n\r\u001f !\"#$%&'()*+,-./09:;<=>?@AZ[\\]^_`az{|}~\u007f\u0080\u0081Éé",
             "expected": {
-                "href": "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9",
-                "pathname": "/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]^_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
+                "href": "a:/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]%5E_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9",
+                "pathname": "/%00%01%1F%20!%22%23$%&'()*+,-./09:;%3C=%3E%3F@AZ[\\]%5E_%60az%7B|%7D~%7F%C2%80%C2%81%C3%89%C3%A9"
             }
         },
         {

@@ -13,6 +13,7 @@
 
 namespace node {
 
+using ncrypto::Digest;
 using ncrypto::HMACCtxPointer;
 using v8::Boolean;
 using v8::FunctionCallbackInfo;
@@ -70,8 +71,8 @@ void Hmac::New(const FunctionCallbackInfo<Value>& args) {
 void Hmac::HmacInit(const char* hash_type, const char* key, int key_len) {
   HandleScope scope(env()->isolate());
 
-  const EVP_MD* md = ncrypto::getDigestByName(hash_type);
-  if (md == nullptr) [[unlikely]] {
+  Digest md = Digest::FromName(hash_type);
+  if (!md) [[unlikely]] {
     return THROW_ERR_CRYPTO_INVALID_DIGEST(
         env(), "Invalid digest: %s", hash_type);
   }
@@ -130,7 +131,7 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     encoding = ParseEncoding(env->isolate(), args[0], BUFFER);
   }
 
-  unsigned char md_value[EVP_MAX_MD_SIZE];
+  unsigned char md_value[Digest::MAX_SIZE];
   ncrypto::Buffer<void> buf{
       .data = md_value,
       .len = sizeof(md_value),
@@ -199,8 +200,8 @@ Maybe<void> HmacTraits::AdditionalConfig(
   CHECK(args[offset + 2]->IsObject());  // Key
 
   Utf8Value digest(env->isolate(), args[offset + 1]);
-  params->digest = ncrypto::getDigestByName(digest.ToStringView());
-  if (params->digest == nullptr) [[unlikely]] {
+  params->digest = Digest::FromName(digest.ToStringView());
+  if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
   }
@@ -258,6 +259,7 @@ bool HmacTraits::DeriveBits(
   if (!buf) [[unlikely]]
     return false;
 
+  DCHECK(!buf.isSecure());
   *out = ByteSource::Allocated(buf.release());
 
   return true;

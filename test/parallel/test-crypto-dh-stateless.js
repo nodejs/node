@@ -38,7 +38,12 @@ function test({ publicKey: alicePublicKey, privateKey: alicePrivateKey },
     privateKey: bobPrivateKey,
     publicKey: alicePublicKey
   });
+  const buf3 = crypto.diffieHellman({
+    privateKey: bobPrivateKey,
+    publicKey: alicePrivateKey
+  });
   assert.deepStrictEqual(buf1, buf2);
+  assert.deepStrictEqual(buf1, buf3);
 
   if (expectedValue !== undefined)
     assert.deepStrictEqual(buf1, expectedValue);
@@ -214,13 +219,12 @@ for (const [params1, params2] of list) {
 
 // Test ECDH.
 
-test(crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }),
-     crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }));
+test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
+     crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }));
 
-const not256k1 = crypto.getCurves().find((c) => /^sec.*(224|384|512)/.test(c));
 assert.throws(() => {
-  test(crypto.generateKeyPairSync('ec', { namedCurve: 'secp256k1' }),
-       crypto.generateKeyPairSync('ec', { namedCurve: not256k1 }));
+  test(crypto.generateKeyPairSync('ec', { namedCurve: 'P-256' }),
+       crypto.generateKeyPairSync('ec', { namedCurve: 'P-384' }));
 }, hasOpenSSL3 ? {
   name: 'Error',
   code: 'ERR_OSSL_MISMATCHING_DOMAIN_PARAMETERS'
@@ -228,8 +232,6 @@ assert.throws(() => {
   name: 'Error',
   code: 'ERR_OSSL_EVP_DIFFERENT_PARAMETERS'
 });
-
-// Test ECDH-ES.
 
 test(crypto.generateKeyPairSync('x448'),
      crypto.generateKeyPairSync('x448'));
@@ -245,3 +247,58 @@ assert.throws(() => {
   code: 'ERR_CRYPTO_INCOMPATIBLE_KEY',
   message: 'Incompatible key types for Diffie-Hellman: x448 and x25519'
 });
+
+{
+  const kp = {
+    privateKey: crypto.generateKeySync('aes', { length: 128 }),
+    publicKey: crypto.generateKeyPairSync('x25519').publicKey,
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type secret, expected private.'
+  });
+}
+
+{
+  const kp = {
+    privateKey: crypto.generateKeyPairSync('x25519').publicKey,
+    publicKey: crypto.generateKeyPairSync('x25519').privateKey,
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type public, expected private.'
+  });
+}
+
+{
+  const kp = {
+    privateKey: crypto.generateKeyPairSync('x25519').privateKey,
+    publicKey: crypto.generateKeySync('aes', { length: 128 }),
+  };
+
+  assert.throws(() => {
+    test(kp, kp);
+  }, {
+    code: 'ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE',
+    message: 'Invalid key object type secret, expected private or public.'
+  });
+}
+
+{
+  const { privateKey } = crypto.generateKeyPairSync('x25519');
+  const publicKey = crypto.createPublicKey('-----BEGIN PUBLIC KEY-----\n' +
+    'MCowBQYDK2VuAyEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=\n' +
+    '-----END PUBLIC KEY-----');
+  assert.throws(
+    () => crypto.diffieHellman({ publicKey, privateKey }),
+    hasOpenSSL3 ?
+      { name: 'Error', code: 'ERR_OSSL_FAILED_DURING_DERIVATION' } :
+      { name: 'Error', message: /Deriving bits failed/ },
+  );
+}

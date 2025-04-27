@@ -767,7 +767,7 @@ case-insensitive matching if set to true.
 
 The constructor can throw a `TypeError` to indicate parsing failure.
 
-#### `new URLPattern(objg[, baseURL][, options])`
+#### `new URLPattern(obj[, baseURL][, options])`
 
 * `obj` {Object} An input pattern
 * `baseURL` {string | undefined} A base URL string

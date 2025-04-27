@@ -7,20 +7,20 @@ import libConfig from './lib/eslint.config_partial.mjs';
 import testConfig from './test/eslint.config_partial.mjs';
 import toolsConfig from './tools/eslint/eslint.config_partial.mjs';
 import {
+  importEslintTool,
   noRestrictedSyntaxCommonAll,
   noRestrictedSyntaxCommonLib,
-  requireEslintTool,
   resolveEslintTool,
 } from './tools/eslint/eslint.config_utils.mjs';
 import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 
-const js = requireEslintTool('@eslint/js');
-const babelEslintParser = requireEslintTool('@babel/eslint-parser');
+const { default: js } = await importEslintTool('@eslint/js');
+const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
-const jsdoc = requireEslintTool('eslint-plugin-jsdoc');
-const markdown = requireEslintTool('eslint-plugin-markdown');
-const stylisticJs = requireEslintTool('@stylistic/eslint-plugin-js');
+const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
+const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
+const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
 

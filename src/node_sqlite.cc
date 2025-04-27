@@ -593,54 +593,38 @@ bool DatabaseSync::ShouldIgnoreSQLiteError() {
 std::optional<std::string> ValidateDatabasePath(Environment* env,
                                                 Local<Value> path,
                                                 const std::string& field_name) {
-  auto has_null_bytes = [](const std::string& str) {
-    return str.find('\0') != std::string::npos;
+  constexpr auto has_null_bytes = [](std::string_view str) {
+    return str.find('\0') != std::string_view::npos;
   };
-  std::string location;
   if (path->IsString()) {
-    location = Utf8Value(env->isolate(), path.As<String>()).ToString();
-    if (!has_null_bytes(location)) {
-      return location;
+    Utf8Value location(env->isolate(), path.As<String>());
+    if (!has_null_bytes(location.ToStringView())) {
+      return location.ToString();
     }
-  }
-
-  if (path->IsUint8Array()) {
+  } else if (path->IsUint8Array()) {
     Local<Uint8Array> buffer = path.As<Uint8Array>();
     size_t byteOffset = buffer->ByteOffset();
     size_t byteLength = buffer->ByteLength();
     auto data =
         static_cast<const uint8_t*>(buffer->Buffer()->Data()) + byteOffset;
-    if (!(std::find(data, data + byteLength, 0) != data + byteLength)) {
-      Local<Value> out;
-      if (String::NewFromUtf8(env->isolate(),
-                              reinterpret_cast<const char*>(data),
-                              NewStringType::kNormal,
-                              static_cast<int>(byteLength))
-              .ToLocal(&out)) {
-        return Utf8Value(env->isolate(), out.As<String>()).ToString();
-      }
+    if (std::find(data, data + byteLength, 0) == data + byteLength) {
+      return std::string(reinterpret_cast<const char*>(data), byteLength);
     }
-  }
-
-  // When is URL
-  if (path->IsObject()) {
-    Local<Object> url = path.As<Object>();
+  } else if (path->IsObject()) {  // When is URL
+    auto url = path.As<Object>();
     Local<Value> href;
-    Local<Value> protocol;
     if (url->Get(env->context(), env->href_string()).ToLocal(&href) &&
-        href->IsString() &&
-        url->Get(env->context(), env->protocol_string()).ToLocal(&protocol) &&
-        protocol->IsString()) {
-      location = Utf8Value(env->isolate(), href.As<String>()).ToString();
+        href->IsString()) {
+      Utf8Value location_value(env->isolate(), href.As<String>());
+      auto location = location_value.ToStringView();
       if (!has_null_bytes(location)) {
-        auto file_url = ada::parse(location);
-        CHECK(file_url);
-        if (file_url->type != ada::scheme::FILE) {
+        CHECK(ada::can_parse(location));
+        if (!location.starts_with("file:")) {
           THROW_ERR_INVALID_URL_SCHEME(env->isolate());
           return std::nullopt;
         }
 
-        return location;
+        return location_value.ToString();
       }
     }
   }
@@ -984,7 +968,11 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
     Local<Object> options = args[0].As<Object>();
 
     Local<String> table_key = FIXED_ONE_BYTE_STRING(env->isolate(), "table");
-    if (options->HasOwnProperty(env->context(), table_key).FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), table_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> table_value;
       if (!options->Get(env->context(), table_key).ToLocal(&table_value)) {
         return;
@@ -1002,7 +990,10 @@ void DatabaseSync::CreateSession(const FunctionCallbackInfo<Value>& args) {
 
     Local<String> db_key = FIXED_ONE_BYTE_STRING(env->isolate(), "db");
 
-    if (options->HasOwnProperty(env->context(), db_key).FromJust()) {
+    if (!options->HasOwnProperty(env->context(), db_key).To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> db_value;
       if (!options->Get(env->context(), db_key).ToLocal(&db_value)) {
         // An error will have been scheduled.
@@ -1221,8 +1212,12 @@ void DatabaseSync::ApplyChangeset(const FunctionCallbackInfo<Value>& args) {
       };
     }
 
-    if (options->HasOwnProperty(env->context(), env->filter_string())
-            .FromJust()) {
+    bool hasIt;
+    if (!options->HasOwnProperty(env->context(), env->filter_string())
+             .To(&hasIt)) {
+      return;
+    }
+    if (hasIt) {
       Local<Value> filterValue;
       if (!options->Get(env->context(), env->filter_string())
                .ToLocal(&filterValue)) {
@@ -1871,13 +1866,9 @@ void StatementSync::Run(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  auto reset = OnScopeLeave([&]() { sqlite3_reset(stmt->statement_); });
-  r = sqlite3_step(stmt->statement_);
-  if (r != SQLITE_ROW && r != SQLITE_DONE) {
-    THROW_ERR_SQLITE_ERROR(env->isolate(), stmt->db_.get());
-    return;
-  }
-
+  sqlite3_step(stmt->statement_);
+  r = sqlite3_reset(stmt->statement_);
+  CHECK_ERROR_OR_THROW(env->isolate(), stmt->db_.get(), r, SQLITE_OK, void());
   Local<Object> result = Object::New(env->isolate());
   sqlite3_int64 last_insert_rowid =
       sqlite3_last_insert_rowid(stmt->db_->Connection());
