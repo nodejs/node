@@ -427,6 +427,7 @@ changes:
 -->
 
 > Stability: 1.2 - Release Candidate
+
 * `specifier` {string} The module specifier to resolve relative to the
   current module.
 * Returns: {string} The absolute URL string that the specifier would resolve to.
