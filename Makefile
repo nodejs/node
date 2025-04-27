@@ -175,7 +175,7 @@ out/Makefile: config.gypi common.gypi common_node.gypi node.gyp \
 	tools/v8_gypfiles/toolchain.gypi \
 	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
-	$(PYTHON) tools/gyp_node.py -f make
+	$(PYTHON) tools/gyp_node.py -f make -Dpython=$(PYTHON)
 
 # node_version.h is listed because the N-API version is taken from there
 # and included in config.gypi
