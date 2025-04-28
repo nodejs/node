@@ -67,18 +67,18 @@ static void GetOwnNonIndexProperties(
 
   PropertyFilter filter = FromV8Value<PropertyFilter>(args[1]);
 
-  if (!object->GetPropertyNames(
-        context, KeyCollectionMode::kOwnOnly,
-        filter,
-        IndexFilter::kSkipIndices)
-          .ToLocal(&properties)) {
+  if (!object
+           ->GetPropertyNames(context,
+                              KeyCollectionMode::kOwnOnly,
+                              filter,
+                              IndexFilter::kSkipIndices)
+           .ToLocal(&properties)) {
     return;
   }
   args.GetReturnValue().Set(properties);
 }
 
-static void GetConstructorName(
-    const FunctionCallbackInfo<Value>& args) {
+static void GetConstructorName(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsObject());
 
   Local<Object> object = args[0].As<Object>();
@@ -87,8 +87,7 @@ static void GetConstructorName(
   args.GetReturnValue().Set(name);
 }
 
-static void GetExternalValue(
-    const FunctionCallbackInfo<Value>& args) {
+static void GetExternalValue(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsExternal());
   Isolate* isolate = args.GetIsolate();
   Local<External> external = args[0].As<External>();
@@ -101,15 +100,14 @@ static void GetExternalValue(
 
 static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a Promise.
-  if (!args[0]->IsPromise())
-    return;
+  if (!args[0]->IsPromise()) return;
 
   auto isolate = args.GetIsolate();
 
   Local<Promise> promise = args[0].As<Promise>();
 
   int state = promise->State();
-  Local<Value> values[2] = { Integer::New(isolate, state) };
+  Local<Value> values[2] = {Integer::New(isolate, state)};
   size_t number_of_values = 1;
   if (state != Promise::PromiseState::kPending)
     values[number_of_values++] = promise->Result();
@@ -119,8 +117,7 @@ static void GetPromiseDetails(const FunctionCallbackInfo<Value>& args) {
 
 static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // Return undefined if it's not a proxy.
-  if (!args[0]->IsProxy())
-    return;
+  if (!args[0]->IsProxy()) return;
 
   Local<Proxy> proxy = args[0].As<Proxy>();
 
@@ -128,10 +125,7 @@ static void GetProxyDetails(const FunctionCallbackInfo<Value>& args) {
   // the util binding layer. It's accessed in the wild and `esm` would break in
   // case the check is removed.
   if (args.Length() == 1 || args[1]->IsTrue()) {
-    Local<Value> ret[] = {
-      proxy->GetTarget(),
-      proxy->GetHandler()
-    };
+    Local<Value> ret[] = {proxy->GetTarget(), proxy->GetHandler()};
 
     args.GetReturnValue().Set(
         Array::New(args.GetIsolate(), ret, arraysize(ret)));
@@ -167,8 +161,7 @@ static void GetCallerLocation(const FunctionCallbackInfo<Value>& args) {
 }
 
 static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
-  if (!args[0]->IsObject())
-    return;
+  if (!args[0]->IsObject()) return;
 
   Isolate* isolate = args.GetIsolate();
   bool is_key_value;
@@ -176,8 +169,7 @@ static void PreviewEntries(const FunctionCallbackInfo<Value>& args) {
   if (!args[0].As<Object>()->PreviewEntries(&is_key_value).ToLocal(&entries))
     return;
   // Fast path for WeakMap and WeakSet.
-  if (args.Length() == 1)
-    return args.GetReturnValue().Set(entries);
+  if (args.Length() == 1) return args.GetReturnValue().Set(entries);
 
   Local<Value> ret[] = {entries, Boolean::New(isolate, is_key_value)};
   return args.GetReturnValue().Set(Array::New(isolate, ret, arraysize(ret)));
@@ -215,7 +207,10 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
     case UV_UNKNOWN_HANDLE:
       return 5;
     default:
-      ABORT();
+      // For an unhandled handle type, we want to return `UNKNOWN` instead of
+      // `INVALID` since the type is "known" by UV, just not exposed further to
+      // JS land
+      return 5;
   }
 }
 
@@ -224,7 +219,13 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   Local<Context> context = isolate->GetCurrentContext();
   int fd;
   if (!args[0]->Int32Value(context).To(&fd)) return;
-  CHECK_GE(fd, 0);
+
+  // If the provided file descriptor is not valid, we return `-1`, which in JS
+  // land will be marked as "INVALID"
+  if (fd < 0) [[unlikely]] {
+    args.GetReturnValue().Set(-1);
+    return;
+  }
 
   uv_handle_type t = uv_guess_handle(fd);
   args.GetReturnValue().Set(GetUVHandleTypeCode(t));
