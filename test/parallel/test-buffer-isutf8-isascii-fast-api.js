@@ -26,7 +26,7 @@ assert.strictEqual(buffer.isAscii(nonAsciiBuffer), false);
 const detachedBuffer = new ArrayBuffer(10);
 try {
   detachedBuffer.detach();
-} catch (e) {
+} catch (_e) {
   console.log('Skipping detached buffer tests - detach not supported');
 }
 
