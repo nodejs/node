@@ -209,7 +209,9 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
     case UV_UNKNOWN_HANDLE:
       return 5;
     default:
-      ABORT();
+      // The type is known by libuv, just not exposed to JS land, so report it
+      // as `UNKNOWN`.
+      return 5;
   }
 }
 
