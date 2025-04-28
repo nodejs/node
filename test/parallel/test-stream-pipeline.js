@@ -1344,12 +1344,13 @@ tmpdir.refresh();
 
 {
   const ac = new AbortController();
+  const reason = new Error('Reason');
   const r = Readable.from(async function* () {
     for (let i = 0; i < 10; i++) {
       await Promise.resolve();
       yield String(i);
       if (i === 5) {
-        ac.abort();
+        ac.abort(reason);
       }
     }
   }());
@@ -1362,6 +1363,7 @@ tmpdir.refresh();
   });
   const cb = common.mustCall((err) => {
     assert.strictEqual(err.name, 'AbortError');
+    assert.strictEqual(err.cause, reason);
     assert.strictEqual(res, '012345');
     assert.strictEqual(w.destroyed, true);
     assert.strictEqual(r.destroyed, true);
@@ -1720,4 +1722,31 @@ tmpdir.refresh();
     }
   });
   src.destroy(new Error('problem'));
+}
+
+{
+  async function* myAsyncGenerator(ag) {
+    for await (const data of ag) {
+      yield data;
+    }
+  }
+
+  const duplexStream = Duplex.from(myAsyncGenerator);
+
+  const r = new Readable({
+    read() {
+      this.push('data1\n');
+      throw new Error('booom');
+    },
+  });
+
+  const w = new Writable({
+    write(chunk, encoding, callback) {
+      callback();
+    },
+  });
+
+  pipeline(r, duplexStream, w, common.mustCall((err) => {
+    assert.deepStrictEqual(err, new Error('booom'));
+  }));
 }

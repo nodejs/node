@@ -194,7 +194,6 @@
 //
 // Macros for basic C++ coding:
 //   GTEST_AMBIGUOUS_ELSE_BLOCKER_ - for disabling a gcc warning.
-//   GTEST_MUST_USE_RESULT_   - declares that a function's result must be used.
 //   GTEST_INTENTIONAL_CONST_COND_PUSH_ - start code section where MSVC C4127 is
 //                                        suppressed (constant conditional).
 //   GTEST_INTENTIONAL_CONST_COND_POP_  - finish code section where MSVC C4127
@@ -260,11 +259,6 @@
 //   BoolFromGTestEnv()   - parses a bool environment variable.
 //   Int32FromGTestEnv()  - parses an int32_t environment variable.
 //   StringFromGTestEnv() - parses a string environment variable.
-//
-// Deprecation warnings:
-//   GTEST_INTERNAL_DEPRECATED(message) - attribute marking a function as
-//                                        deprecated; calling a marked function
-//                                        should generate a compiler warning
 
 // The definition of GTEST_INTERNAL_CPLUSPLUS_LANG comes first because it can
 // potentially be used as an #include guard.
@@ -275,8 +269,8 @@
 #endif
 
 #if !defined(GTEST_INTERNAL_CPLUSPLUS_LANG) || \
-    GTEST_INTERNAL_CPLUSPLUS_LANG < 201402L
-#error C++ versions less than C++14 are not supported.
+    GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L
+#error C++ versions less than C++17 are not supported.
 #endif
 
 // MSVC >= 19.11 (VS 2017 Update 3) supports __has_include.
@@ -772,25 +766,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
 #define GTEST_HAVE_FEATURE_(x) 0
 #endif
 
-// Use this annotation after a variable or parameter declaration to tell the
-// compiler the variable/parameter may be used.
-// Example:
-//
-//   GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED int foo = bar();
-//
-// This can be removed once we only support only C++17 or newer and
-// [[maybe_unused]] is available on all supported platforms.
-#if GTEST_INTERNAL_HAVE_CPP_ATTRIBUTE(maybe_unused)
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED [[maybe_unused]]
-#elif GTEST_HAVE_ATTRIBUTE_(unused)
-// This is inferior to [[maybe_unused]] as it can produce a
-// -Wused-but-marked-unused warning on optionally used symbols, but it is all we
-// have.
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED __attribute__((__unused__))
-#else
-#define GTEST_INTERNAL_ATTRIBUTE_MAYBE_UNUSED
-#endif
-
 // Use this annotation before a function that takes a printf format string.
 #if GTEST_HAVE_ATTRIBUTE_(format) && defined(__MINGW_PRINTF_FORMAT)
 // MinGW has two different printf implementations. Ensure the format macro
@@ -803,17 +778,6 @@ typedef struct _RTL_CRITICAL_SECTION GTEST_CRITICAL_SECTION;
   __attribute__((format(printf, string_index, first_to_check)))
 #else
 #define GTEST_ATTRIBUTE_PRINTF_(string_index, first_to_check)
-#endif
-
-// Tell the compiler to warn about unused return values for functions declared
-// with this macro.  The macro should be used on function declarations
-// following the argument list:
-//
-//   Sprocket* AllocateSprocket() GTEST_MUST_USE_RESULT_;
-#if GTEST_HAVE_ATTRIBUTE_(warn_unused_result)
-#define GTEST_MUST_USE_RESULT_ __attribute__((warn_unused_result))
-#else
-#define GTEST_MUST_USE_RESULT_
 #endif
 
 // MS C++ compiler emits warning when a conditional expression is compile time
@@ -2367,26 +2331,6 @@ const char* StringFromGTestEnv(const char* flag, const char* default_val);
 }  // namespace internal
 }  // namespace testing
 
-#if !defined(GTEST_INTERNAL_DEPRECATED)
-
-// Internal Macro to mark an API deprecated, for googletest usage only
-// Usage: class GTEST_INTERNAL_DEPRECATED(message) MyClass or
-// GTEST_INTERNAL_DEPRECATED(message) <return_type> myFunction(); Every usage of
-// a deprecated entity will trigger a warning when compiled with
-// `-Wdeprecated-declarations` option (clang, gcc, any __GNUC__ compiler).
-// For msvc /W3 option will need to be used
-// Note that for 'other' compilers this macro evaluates to nothing to prevent
-// compilations errors.
-#if defined(_MSC_VER)
-#define GTEST_INTERNAL_DEPRECATED(message) __declspec(deprecated(message))
-#elif defined(__GNUC__)
-#define GTEST_INTERNAL_DEPRECATED(message) __attribute__((deprecated(message)))
-#else
-#define GTEST_INTERNAL_DEPRECATED(message)
-#endif
-
-#endif  // !defined(GTEST_INTERNAL_DEPRECATED)
-
 #ifdef GTEST_HAS_ABSL
 // Always use absl::any for UniversalPrinter<> specializations if googletest
 // is built with absl support.
@@ -2527,10 +2471,12 @@ using Variant = ::std::variant<T...>;
 #define GTEST_INTERNAL_HAS_VARIANT 0
 #endif
 
-#if (defined(__cpp_constexpr) && !defined(__cpp_inline_variables)) || \
-    (defined(GTEST_INTERNAL_CPLUSPLUS_LANG) &&                        \
-     GTEST_INTERNAL_CPLUSPLUS_LANG < 201703L)
-#define GTEST_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
+#if (defined(__cpp_lib_three_way_comparison) || \
+     (GTEST_INTERNAL_HAS_INCLUDE(<compare>) &&  \
+      GTEST_INTERNAL_CPLUSPLUS_LANG >= 201907L))
+#define GTEST_INTERNAL_HAS_COMPARE_LIB 1
+#else
+#define GTEST_INTERNAL_HAS_COMPARE_LIB 0
 #endif
 
 #endif  // GOOGLETEST_INCLUDE_GTEST_INTERNAL_GTEST_PORT_H_

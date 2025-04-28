@@ -22,16 +22,16 @@
 # the side to keep the files readable.
 
 
+import hashlib
 import os
 import re
 import subprocess
 import sys
+
 import gyp
 import gyp.common
 import gyp.xcode_emulation
 from gyp.common import GetEnvironFallback
-
-import hashlib
 
 generator_default_variables = {
     "EXECUTABLE_PREFIX": "",
@@ -208,7 +208,7 @@ cmd_solink_module = $(LINK.$(TOOLSET)) -o $@ -shared $(GYP_LDFLAGS) $(LDFLAGS.$(
 
 LINK_COMMANDS_MAC = """\
 quiet_cmd_alink = LIBTOOL-STATIC $@
-cmd_alink = rm -f $@ && ./gyp-mac-tool filter-libtool libtool $(GYP_LIBTOOLFLAGS) -static -o $@ $(filter %.o,$^)
+cmd_alink = rm -f $@ && %(python)s gyp-mac-tool filter-libtool libtool $(GYP_LIBTOOLFLAGS) -static -o $@ $(filter %%.o,$^)
 
 quiet_cmd_link = LINK($(TOOLSET)) $@
 cmd_link = $(LINK.$(TOOLSET)) $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o "$@" $(LD_INPUTS) $(LIBS)
@@ -218,7 +218,7 @@ cmd_solink = $(LINK.$(TOOLSET)) -shared $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o 
 
 quiet_cmd_solink_module = SOLINK_MODULE($(TOOLSET)) $@
 cmd_solink_module = $(LINK.$(TOOLSET)) -bundle $(GYP_LDFLAGS) $(LDFLAGS.$(TOOLSET)) -o $@ $(filter-out FORCE_DO_CMD, $^) $(LIBS)
-"""  # noqa: E501
+""" % {'python': sys.executable}  # noqa: E501
 
 LINK_COMMANDS_ANDROID = """\
 quiet_cmd_alink = AR($(TOOLSET)) $@
@@ -609,14 +609,14 @@ cmd_pch_mm = $(CC.$(TOOLSET)) $(GYP_PCH_OBJCXXFLAGS) $(DEPFLAGS) -c -o $@ $<
 # Use $(4) for the command, since $(2) and $(3) are used as flag by do_cmd
 # already.
 quiet_cmd_mac_tool = MACTOOL $(4) $<
-cmd_mac_tool = ./gyp-mac-tool $(4) $< "$@"
+cmd_mac_tool = %(python)s gyp-mac-tool $(4) $< "$@"
 
 quiet_cmd_mac_package_framework = PACKAGE FRAMEWORK $@
-cmd_mac_package_framework = ./gyp-mac-tool package-framework "$@" $(4)
+cmd_mac_package_framework = %(python)s gyp-mac-tool package-framework "$@" $(4)
 
 quiet_cmd_infoplist = INFOPLIST $@
 cmd_infoplist = $(CC.$(TOOLSET)) -E -P -Wno-trigraphs -x c $(INFOPLIST_DEFINES) "$<" -o "$@"
-"""  # noqa: E501
+""" % {'python': sys.executable}  # noqa: E501
 
 
 def WriteRootHeaderSuffixRules(writer):
@@ -788,7 +788,7 @@ class MakefileWriter:
         self.suffix_rules_objdir2 = {}
 
         # Generate suffix rules for all compilable extensions.
-        for ext in COMPILABLE_EXTENSIONS:
+        for ext, value in COMPILABLE_EXTENSIONS.items():
             # Suffix rules for source folder.
             self.suffix_rules_srcdir.update(
                 {
@@ -797,7 +797,7 @@ class MakefileWriter:
 $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(srcdir)/%%%s FORCE_DO_CMD
 \t@$(call do_cmd,%s,1)
 """
-                        % (ext, COMPILABLE_EXTENSIONS[ext])
+                        % (ext, value)
                     )
                 }
             )
@@ -810,7 +810,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(srcdir)/%%%s FORCE_DO_CMD
 $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj).$(TOOLSET)/%%%s FORCE_DO_CMD
 \t@$(call do_cmd,%s,1)
 """
-                        % (ext, COMPILABLE_EXTENSIONS[ext])
+                        % (ext, value)
                     )
                 }
             )
@@ -821,7 +821,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj).$(TOOLSET)/%%%s FORCE_DO_CMD
 $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
 \t@$(call do_cmd,%s,1)
 """
-                        % (ext, COMPILABLE_EXTENSIONS[ext])
+                        % (ext, value)
                     )
                 }
             )
@@ -1440,7 +1440,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
         for obj in objs:
             assert " " not in obj, "Spaces in object filenames not supported (%s)" % obj
         self.WriteLn(
-            "# Add to the list of files we specially track " "dependencies for."
+            "# Add to the list of files we specially track dependencies for."
         )
         self.WriteLn("all_deps += $(OBJS)")
         self.WriteLn()
@@ -1450,7 +1450,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 deps,
-                comment="Make sure our dependencies are built " "before any of us.",
+                comment="Make sure our dependencies are built before any of us.",
                 order_only=True,
             )
 
@@ -1461,7 +1461,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 ["$(OBJS)"],
                 extra_outputs,
-                comment="Make sure our actions/rules run " "before any of us.",
+                comment="Make sure our actions/rules run before any of us.",
                 order_only=True,
             )
 
@@ -1699,7 +1699,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             self.WriteMakeRule(
                 extra_outputs,
                 deps,
-                comment=("Preserve order dependency of " "special output on deps."),
+                comment=("Preserve order dependency of special output on deps."),
                 order_only=True,
             )
 
@@ -1738,7 +1738,8 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         # into the link command, so we need lots of escaping.
                         ldflags.append(r"-Wl,-rpath=\$$ORIGIN/")
                         ldflags.append(r"-Wl,-rpath-link=\$(builddir)/")
-                library_dirs = config.get("library_dirs", [])
+                if library_dirs := config.get("library_dirs", []):
+                    library_dirs = [Sourceify(self.Absolutify(i)) for i in library_dirs]
                 ldflags += [("-L%s" % library_dir) for library_dir in library_dirs]
                 self.WriteList(ldflags, "LDFLAGS_%s" % configname)
                 if self.flavor == "mac":
@@ -1779,13 +1780,13 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # using ":=".
             self.WriteSortedXcodeEnv(self.output, self.GetSortedXcodePostbuildEnv())
 
-            for configname in target_postbuilds:
+            for configname, value in target_postbuilds.items():
                 self.WriteLn(
                     "%s: TARGET_POSTBUILDS_%s := %s"
                     % (
                         QuoteSpaces(self.output),
                         configname,
-                        gyp.common.EncodePOSIXShellList(target_postbuilds[configname]),
+                        gyp.common.EncodePOSIXShellList(value),
                     )
                 )
 
@@ -1834,7 +1835,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
             # Since this target depends on binary and resources which are in
             # nested subfolders, the framework directory will be older than
             # its dependencies usually. To prevent this rule from executing
-            # on every build (expensive, especially with postbuilds), expliclity
+            # on every build (expensive, especially with postbuilds), explicitly
             # update the time on the framework directory.
             self.WriteLn("\t@touch -c %s" % QuoteSpaces(self.output))
 
@@ -1844,7 +1845,7 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                 "on the bundle, not the binary (target '%s')" % self.target
             )
             assert "product_dir" not in spec, (
-                "Postbuilds do not work with " "custom product_dir"
+                "Postbuilds do not work with custom product_dir"
             )
 
         if self.type == "executable":
@@ -1895,21 +1896,20 @@ $(obj).$(TOOLSET)/$(TARGET)/%%.o: $(obj)/%%%s FORCE_DO_CMD
                         part_of_all,
                         postbuilds=postbuilds,
                     )
+            elif self.flavor in ("linux", "android"):
+                self.WriteMakeRule(
+                    [self.output_binary],
+                    link_deps,
+                    actions=["$(call create_archive,$@,$^)"],
+                )
             else:
-                if self.flavor in ("linux", "android"):
-                    self.WriteMakeRule(
-                        [self.output_binary],
-                        link_deps,
-                        actions=["$(call create_archive,$@,$^)"],
-                    )
-                else:
-                    self.WriteDoCmd(
-                        [self.output_binary],
-                        link_deps,
-                        "alink",
-                        part_of_all,
-                        postbuilds=postbuilds,
-                    )
+                self.WriteDoCmd(
+                    [self.output_binary],
+                    link_deps,
+                    "alink",
+                    part_of_all,
+                    postbuilds=postbuilds,
+                )
         elif self.type == "shared_library":
             self.WriteLn(
                 "%s: LD_INPUTS := %s"
@@ -2498,7 +2498,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
         "PLI.host": PLI_host,
     }
     if flavor == "mac":
-        flock_command = "./gyp-mac-tool flock"
+        flock_command = "%s gyp-mac-tool flock" % sys.executable
         header_params.update(
             {
                 "flock": flock_command,
@@ -2548,7 +2548,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
         header_params.update(
             {
                 "copy_archive_args": copy_archive_arguments,
-                "flock": "./gyp-flock-tool flock",
+                "flock": "%s gyp-flock-tool flock" % sys.executable,
                 "flock_index": 2,
             }
         )
@@ -2564,7 +2564,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
             {
                 "copy_archive_args": copy_archive_arguments,
                 "link_commands": LINK_COMMANDS_AIX,
-                "flock": "./gyp-flock-tool flock",
+                "flock": "%s gyp-flock-tool flock" % sys.executable,
                 "flock_index": 2,
             }
         )
@@ -2574,7 +2574,7 @@ def GenerateOutput(target_list, target_dicts, data, params):
             {
                 "copy_archive_args": copy_archive_arguments,
                 "link_commands": LINK_COMMANDS_OS400,
-                "flock": "./gyp-flock-tool flock",
+                "flock": "%s gyp-flock-tool flock" % sys.executable,
                 "flock_index": 2,
             }
         )

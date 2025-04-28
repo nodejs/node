@@ -74,37 +74,34 @@ class ExternString: public ResourceType {
 
   static MaybeLocal<Value> NewFromCopy(Isolate* isolate,
                                        const TypeName* data,
-                                       size_t length,
-                                       Local<Value>* error) {
-    if (length == 0)
+                                       size_t length) {
+    if (length == 0) {
       return String::Empty(isolate);
+    }
 
-    if (length < EXTERN_APEX)
-      return NewSimpleFromCopy(isolate, data, length, error);
+    if (length < EXTERN_APEX) {
+      return NewSimpleFromCopy(isolate, data, length);
+    }
 
     TypeName* new_data = node::UncheckedMalloc<TypeName>(length);
     if (new_data == nullptr) {
-      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
       return MaybeLocal<Value>();
     }
     memcpy(new_data, data, length * sizeof(*new_data));
 
-    return ExternString<ResourceType, TypeName>::New(isolate,
-                                                     new_data,
-                                                     length,
-                                                     error);
+    return ExternString<ResourceType, TypeName>::New(isolate, new_data, length);
   }
 
   // uses "data" for external resource, and will be free'd on gc
   static MaybeLocal<Value> New(Isolate* isolate,
                                TypeName* data,
-                               size_t length,
-                               Local<Value>* error) {
+                               size_t length) {
     if (length == 0)
       return String::Empty(isolate);
 
     if (length < EXTERN_APEX) {
-      MaybeLocal<Value> str = NewSimpleFromCopy(isolate, data, length, error);
+      MaybeLocal<Value> str = NewSimpleFromCopy(isolate, data, length);
       free(data);
       return str;
     }
@@ -112,16 +109,17 @@ class ExternString: public ResourceType {
     ExternString* h_str = new ExternString<ResourceType, TypeName>(isolate,
                                                                    data,
                                                                    length);
-    MaybeLocal<Value> str = NewExternal(isolate, h_str);
-    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+    Local<Value> str;
 
-    if (str.IsEmpty()) {
+    if (!NewExternal(isolate, h_str).ToLocal(&str)) {
       delete h_str;
-      *error = node::ERR_STRING_TOO_LONG(isolate);
+      isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
       return MaybeLocal<Value>();
     }
 
-    return str.ToLocalChecked();
+    isolate->AdjustAmountOfExternalAllocatedMemory(h_str->byte_length());
+
+    return str;
   }
 
   inline Isolate* isolate() const { return isolate_; }
@@ -135,8 +133,7 @@ class ExternString: public ResourceType {
   // This method does not actually create ExternString instances.
   static MaybeLocal<Value> NewSimpleFromCopy(Isolate* isolate,
                                              const TypeName* data,
-                                             size_t length,
-                                             Local<Value>* error);
+                                             size_t length);
 
   Isolate* isolate_;
   const TypeName* data_;
@@ -166,39 +163,40 @@ MaybeLocal<Value> ExternTwoByteString::NewExternal(
 template <>
 MaybeLocal<Value> ExternOneByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const char* data,
-                                                         size_t length,
-                                                         Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromOneByte(isolate,
-                             reinterpret_cast<const uint8_t*>(data),
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
-    *error = node::ERR_STRING_TOO_LONG(isolate);
+                                                         size_t length) {
+  Local<String> str;
+  if (!String::NewFromOneByte(isolate,
+                              reinterpret_cast<const uint8_t*>(data),
+                              v8::NewStringType::kNormal,
+                              length)
+           .ToLocal(&str)) {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
-
 
 template <>
 MaybeLocal<Value> ExternTwoByteString::NewSimpleFromCopy(Isolate* isolate,
                                                          const uint16_t* data,
-                                                         size_t length,
-                                                         Local<Value>* error) {
-  MaybeLocal<String> str =
-      String::NewFromTwoByte(isolate,
-                             data,
-                             v8::NewStringType::kNormal,
-                             length);
-  if (str.IsEmpty()) {
-    *error = node::ERR_STRING_TOO_LONG(isolate);
+                                                         size_t length) {
+  Local<String> str;
+  if (!String::NewFromTwoByte(isolate, data, v8::NewStringType::kNormal, length)
+           .ToLocal(&str)) {
+    isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
     return MaybeLocal<Value>();
   }
-  return str.ToLocalChecked();
+  return str;
 }
 
 }  // anonymous namespace
+
+static size_t keep_buflen_in_range(size_t len) {
+  if (len > static_cast<size_t>(std::numeric_limits<int>::max())) {
+    return static_cast<size_t>(std::numeric_limits<int>::max());
+  }
+  return len;
+}
 
 size_t StringBytes::WriteUCS2(
     Isolate* isolate, char* buf, size_t buflen, Local<String> str, int flags) {
@@ -245,7 +243,7 @@ size_t StringBytes::Write(Isolate* isolate,
                           enum encoding encoding) {
   HandleScope scope(isolate);
   size_t nbytes;
-
+  buflen = keep_buflen_in_range(buflen);
   CHECK(val->IsString() == true);
   Local<String> str = val.As<String>();
   String::ValueView input_view(isolate, str);
@@ -484,20 +482,18 @@ Maybe<size_t> StringBytes::Size(Isolate* isolate,
   UNREACHABLE();
 }
 
-#define CHECK_BUFLEN_IN_RANGE(len)                                    \
-  do {                                                                \
-    if ((len) > Buffer::kMaxLength) {                                 \
-      *error = node::ERR_BUFFER_TOO_LARGE(isolate);                   \
-      return MaybeLocal<Value>();                                     \
-    }                                                                 \
+#define CHECK_BUFLEN_IN_RANGE(len)                                             \
+  do {                                                                         \
+    if ((len) > Buffer::kMaxLength) {                                          \
+      isolate->ThrowException(node::ERR_BUFFER_TOO_LARGE(isolate));            \
+      return MaybeLocal<Value>();                                              \
+    }                                                                          \
   } while (0)
-
 
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const char* buf,
                                       size_t buflen,
-                                      enum encoding encoding,
-                                      Local<Value>* error) {
+                                      enum encoding encoding) {
   CHECK_BUFLEN_IN_RANGE(buflen);
 
   if (!buflen && encoding != BUFFER) {
@@ -512,61 +508,63 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
         auto maybe_buf = Buffer::Copy(isolate, buf, buflen);
         Local<v8::Object> buf;
         if (!maybe_buf.ToLocal(&buf)) {
-          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
         }
         return buf;
       }
 
     case ASCII:
+      buflen = keep_buflen_in_range(buflen);
       if (simdutf::validate_ascii_with_errors(buf, buflen).error) {
         // The input contains non-ASCII bytes.
         char* out = node::UncheckedMalloc(buflen);
         if (out == nullptr) {
-          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
           return MaybeLocal<Value>();
         }
         nbytes::ForceAscii(buf, out, buflen);
-        return ExternOneByteString::New(isolate, out, buflen, error);
+        return ExternOneByteString::New(isolate, out, buflen);
       } else {
-        return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
+        return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
       }
 
-    case UTF8:
-      {
-        val = String::NewFromUtf8(isolate,
-                                  buf,
-                                  v8::NewStringType::kNormal,
-                                  buflen);
-        Local<String> str;
-        if (!val.ToLocal(&str)) {
-          *error = node::ERR_STRING_TOO_LONG(isolate);
-        }
-        return str;
+    case UTF8: {
+      buflen = keep_buflen_in_range(buflen);
+      val =
+          String::NewFromUtf8(isolate, buf, v8::NewStringType::kNormal, buflen);
+      Local<String> str;
+      if (!val.ToLocal(&str)) {
+        isolate->ThrowException(node::ERR_STRING_TOO_LONG(isolate));
       }
+      return str;
+    }
 
     case LATIN1:
-      return ExternOneByteString::NewFromCopy(isolate, buf, buflen, error);
+      buflen = keep_buflen_in_range(buflen);
+      return ExternOneByteString::NewFromCopy(isolate, buf, buflen);
 
     case BASE64: {
+      buflen = keep_buflen_in_range(buflen);
       size_t dlen = simdutf::base64_length_from_binary(buflen);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
         return MaybeLocal<Value>();
       }
 
       size_t written = simdutf::binary_to_base64(buf, buflen, dst);
       CHECK_EQ(written, dlen);
 
-      return ExternOneByteString::New(isolate, dst, dlen, error);
+      return ExternOneByteString::New(isolate, dst, dlen);
     }
 
     case BASE64URL: {
+      buflen = keep_buflen_in_range(buflen);
       size_t dlen =
           simdutf::base64_length_from_binary(buflen, simdutf::base64_url);
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
         return MaybeLocal<Value>();
       }
 
@@ -574,28 +572,30 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
           simdutf::binary_to_base64(buf, buflen, dst, simdutf::base64_url);
       CHECK_EQ(written, dlen);
 
-      return ExternOneByteString::New(isolate, dst, dlen, error);
+      return ExternOneByteString::New(isolate, dst, dlen);
     }
 
     case HEX: {
+      buflen = keep_buflen_in_range(buflen);
       size_t dlen = buflen * 2;
       char* dst = node::UncheckedMalloc(dlen);
       if (dst == nullptr) {
-        *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+        isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
         return MaybeLocal<Value>();
       }
       size_t written = nbytes::HexEncode(buf, buflen, dst, dlen);
       CHECK_EQ(written, dlen);
 
-      return ExternOneByteString::New(isolate, dst, dlen, error);
+      return ExternOneByteString::New(isolate, dst, dlen);
     }
 
     case UCS2: {
+      buflen = keep_buflen_in_range(buflen);
       size_t str_len = buflen / 2;
       if constexpr (IsBigEndian()) {
         uint16_t* dst = node::UncheckedMalloc<uint16_t>(str_len);
         if (str_len != 0 && dst == nullptr) {
-          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
           return MaybeLocal<Value>();
         }
         for (size_t i = 0, k = 0; k < str_len; i += 2, k += 1) {
@@ -605,21 +605,21 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
           const uint8_t lo = static_cast<uint8_t>(buf[i + 0]);
           dst[k] = static_cast<uint16_t>(hi) << 8 | lo;
         }
-        return ExternTwoByteString::New(isolate, dst, str_len, error);
+        return ExternTwoByteString::New(isolate, dst, str_len);
       }
       if (reinterpret_cast<uintptr_t>(buf) % 2 != 0) {
         // Unaligned data still means we can't directly pass it to V8.
         char* dst = node::UncheckedMalloc(buflen);
         if (dst == nullptr) {
-          *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+          isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
           return MaybeLocal<Value>();
         }
         memcpy(dst, buf, buflen);
         return ExternTwoByteString::New(
-            isolate, reinterpret_cast<uint16_t*>(dst), str_len, error);
+            isolate, reinterpret_cast<uint16_t*>(dst), str_len);
       }
       return ExternTwoByteString::NewFromCopy(
-          isolate, reinterpret_cast<const uint16_t*>(buf), str_len, error);
+          isolate, reinterpret_cast<const uint16_t*>(buf), str_len);
     }
 
     default:
@@ -627,11 +627,9 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   }
 }
 
-
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const uint16_t* buf,
-                                      size_t buflen,
-                                      Local<Value>* error) {
+                                      size_t buflen) {
   if (buflen == 0) return String::Empty(isolate);
   CHECK_BUFLEN_IN_RANGE(buflen);
 
@@ -642,24 +640,23 @@ MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
   if constexpr (IsBigEndian()) {
     uint16_t* dst = node::UncheckedMalloc<uint16_t>(buflen);
     if (dst == nullptr) {
-      *error = node::ERR_MEMORY_ALLOCATION_FAILED(isolate);
+      isolate->ThrowException(node::ERR_MEMORY_ALLOCATION_FAILED(isolate));
       return MaybeLocal<Value>();
     }
     size_t nbytes = buflen * sizeof(uint16_t);
     memcpy(dst, buf, nbytes);
     CHECK(nbytes::SwapBytes16(reinterpret_cast<char*>(dst), nbytes));
-    return ExternTwoByteString::New(isolate, dst, buflen, error);
+    return ExternTwoByteString::New(isolate, dst, buflen);
   } else {
-    return ExternTwoByteString::NewFromCopy(isolate, buf, buflen, error);
+    return ExternTwoByteString::NewFromCopy(isolate, buf, buflen);
   }
 }
 
 MaybeLocal<Value> StringBytes::Encode(Isolate* isolate,
                                       const char* buf,
-                                      enum encoding encoding,
-                                      Local<Value>* error) {
+                                      enum encoding encoding) {
   const size_t len = strlen(buf);
-  return Encode(isolate, buf, len, encoding, error);
+  return Encode(isolate, buf, len, encoding);
 }
 
 }  // namespace node

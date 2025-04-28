@@ -26,7 +26,7 @@ test('only = true, with subtests', { only: true }, common.mustCall(async (t) => 
   // Switch the context to only execute 'only' tests.
   t.runOnly(true);
   await t.test('skipped subtest 1', common.mustNotCall());
-  await t.test('skipped subtest 2'), common.mustNotCall();
+  await t.test('skipped subtest 2', common.mustNotCall());
   await t.test('running subtest 3', { only: true }, common.mustCall());
 
   // Switch the context back to execute all tests.
@@ -56,6 +56,7 @@ describe.only('describe only = true, with subtests', common.mustCall(() => {
 describe.only('describe only = true, with a mixture of subtests', common.mustCall(() => {
   it.only('`it` subtest 1', common.mustCall());
 
+  // eslint-disable-next-line no-restricted-syntax
   it.only('`it` async subtest 1', common.mustCall(async () => {}));
 
   it('`it` subtest 2 only=true', { only: true }, common.mustCall());
@@ -68,6 +69,7 @@ describe.only('describe only = true, with a mixture of subtests', common.mustCal
 
   test.only('`test` subtest 1', common.mustCall());
 
+  // eslint-disable-next-line no-restricted-syntax
   test.only('`test` async subtest 1', common.mustCall(async () => {}));
 
   test('`test` subtest 2 only=true', { only: true }, common.mustCall());
@@ -120,7 +122,7 @@ describe('describe only = false, with nested only subtests', { only: false }, co
   }));
 }));
 
-test('nested tests with run only',{only: true}, common.mustCall(async (t) => {
+test('nested tests with run only', { only: true }, common.mustCall(async (t) => {
   // Within this test, all subtests are run by default.
   await t.test('running subtest - 1');
 
@@ -139,4 +141,4 @@ test('nested tests with run only',{only: true}, common.mustCall(async (t) => {
   // Explicitly do not run these tests.
   await t.test('skipped subtest - 7', { only: false }, common.mustNotCall());
   await t.test('skipped subtest - 8', { skip: true }, common.mustNotCall());
-}))
+}));

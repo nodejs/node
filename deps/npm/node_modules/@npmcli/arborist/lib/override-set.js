@@ -1,5 +1,6 @@
 const npa = require('npm-package-arg')
 const semver = require('semver')
+const { log } = require('proc-log')
 
 class OverrideSet {
   constructor ({ overrides, key, parent }) {
@@ -44,6 +45,43 @@ class OverrideSet {
     }
   }
 
+  childrenAreEqual (other) {
+    if (this.children.size !== other.children.size) {
+      return false
+    }
+    for (const [key] of this.children) {
+      if (!other.children.has(key)) {
+        return false
+      }
+      if (this.children.get(key).value !== other.children.get(key).value) {
+        return false
+      }
+      if (!this.children.get(key).childrenAreEqual(other.children.get(key))) {
+        return false
+      }
+    }
+    return true
+  }
+
+  isEqual (other) {
+    if (this === other) {
+      return true
+    }
+    if (!other) {
+      return false
+    }
+    if (this.key !== other.key || this.value !== other.value) {
+      return false
+    }
+    if (!this.childrenAreEqual(other)) {
+      return false
+    }
+    if (!this.parent) {
+      return !other.parent
+    }
+    return this.parent.isEqual(other.parent)
+  }
+
   getEdgeRule (edge) {
     for (const rule of this.ruleset.values()) {
       if (rule.name !== edge.name) {
@@ -55,7 +93,9 @@ class OverrideSet {
         return rule
       }
 
-      let spec = npa(`${edge.name}@${edge.spec}`)
+      // We need to use the rawSpec here, because the spec has the overrides applied to it already.
+      // rawSpec can be undefined, so we need to use the fallback value of spec if it is.
+      let spec = npa(`${edge.name}@${edge.rawSpec || edge.spec}`)
       if (spec.type === 'alias') {
         spec = spec.subSpec
       }
@@ -141,6 +181,28 @@ class OverrideSet {
     }
 
     return ruleset
+  }
+
+  static findSpecificOverrideSet (first, second) {
+    for (let overrideSet = second; overrideSet; overrideSet = overrideSet.parent) {
+      if (overrideSet.isEqual(first)) {
+        return second
+      }
+    }
+    for (let overrideSet = first; overrideSet; overrideSet = overrideSet.parent) {
+      if (overrideSet.isEqual(second)) {
+        return first
+      }
+    }
+
+    // The override sets are incomparable. Neither one contains the other.
+    log.silly('Conflicting override sets', first, second)
+  }
+
+  static doOverrideSetsConflict (first, second) {
+    // If override sets contain one another then we can try to use the more specific one.
+    // If neither one is more specific, then we consider them to be in conflict.
+    return (this.findSpecificOverrideSet(first, second) === undefined)
   }
 }
 

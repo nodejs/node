@@ -3,12 +3,16 @@
 
 #include "unicode/utypes.h"
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
 
+#include "unicode/messageformat2.h"
 #include "messageformat2_allocation.h"
 #include "messageformat2_checker.h"
+#include "messageformat2_evaluation.h"
 #include "messageformat2_macros.h"
 #include "uvector.h" // U_ASSERT
 
@@ -22,6 +26,7 @@ Checks data model errors
 
 The following are checked here:
 Variant Key Mismatch
+Duplicate Variant
 Missing Fallback Variant (called NonexhaustivePattern here)
 Missing Selector Annotation
 Duplicate Declaration
@@ -103,6 +108,14 @@ TypeEnvironment::~TypeEnvironment() {}
 
 // ---------------------
 
+Key Checker::normalizeNFC(const Key& k) const {
+    if (k.isWildcard()) {
+        return k;
+    }
+    return Key(Literal(k.asLiteral().isQuoted(),
+                       context.normalizeNFC(k.asLiteral().unquoted())));
+}
+
 static bool areDefaultKeys(const Key* keys, int32_t len) {
     U_ASSERT(len > 0);
     for (int32_t i = 0; i < len; i++) {
@@ -135,9 +148,7 @@ void Checker::addFreeVars(TypeEnvironment& t, const OptionMap& opts, UErrorCode&
 void Checker::addFreeVars(TypeEnvironment& t, const Operator& rator, UErrorCode& status) {
     CHECK_ERROR(status);
 
-    if (!rator.isReserved()) {
-        addFreeVars(t, rator.getOptionsInternal(), status);
-    }
+    addFreeVars(t, rator.getOptionsInternal(), status);
 }
 
 void Checker::addFreeVars(TypeEnvironment& t, const Expression& rhs, UErrorCode& status) {
@@ -162,6 +173,7 @@ void Checker::checkVariants(UErrorCode& status) {
 
     // Check that one variant includes only wildcards
     bool defaultExists = false;
+    bool duplicatesExist = false;
 
     for (int32_t i = 0; i < dataModel.numVariants(); i++) {
         const SelectorKeys& k = variants[i].getKeys();
@@ -173,26 +185,45 @@ void Checker::checkVariants(UErrorCode& status) {
             return;
         }
         defaultExists |= areDefaultKeys(keys, len);
+
+        // Check if this variant's keys are duplicated by any other variant's keys
+        if (!duplicatesExist) {
+            // This check takes quadratic time, but it can be optimized if checking
+            // this property turns out to be a bottleneck.
+            for (int32_t j = 0; j < i; j++) {
+                const SelectorKeys& k1 = variants[j].getKeys();
+                const Key* keys1 = k1.getKeysInternal();
+                bool allEqual = true;
+                // This variant was already checked,
+                // so we know keys1.len == len
+                for (int32_t kk = 0; kk < len; kk++) {
+                    if (!(normalizeNFC(keys[kk]) == normalizeNFC(keys1[kk]))) {
+                        allEqual = false;
+                        break;
+                    }
+                }
+                if (allEqual) {
+                    duplicatesExist = true;
+                }
+            }
+        }
+    }
+
+    if (duplicatesExist) {
+        errors.addError(StaticErrorType::DuplicateVariant, status);
     }
     if (!defaultExists) {
         errors.addError(StaticErrorType::NonexhaustivePattern, status);
-        return;
     }
 }
 
-void Checker::requireAnnotated(const TypeEnvironment& t, const Expression& selectorExpr, UErrorCode& status) {
+void Checker::requireAnnotated(const TypeEnvironment& t,
+                               const VariableName& selectorVar,
+                               UErrorCode& status) {
     CHECK_ERROR(status);
 
-    if (selectorExpr.isFunctionCall()) {
+    if (t.get(selectorVar) == TypeEnvironment::Type::Annotated) {
         return; // No error
-    }
-    if (!selectorExpr.isReserved()) {
-        const Operand& rand = selectorExpr.getOperand();
-        if (rand.isVariable()) {
-            if (t.get(rand.asVariable()) == TypeEnvironment::Type::Annotated) {
-                return; // No error
-            }
-        }
     }
     // If this code is reached, an error was detected
     errors.addError(StaticErrorType::MissingSelectorAnnotation, status);
@@ -203,7 +234,7 @@ void Checker::checkSelectors(const TypeEnvironment& t, UErrorCode& status) {
 
     // Check each selector; if it's not annotated, emit a
     // "missing selector annotation" error
-    const Expression* selectors = dataModel.getSelectorsInternal();
+    const VariableName* selectors = dataModel.getSelectorsInternal();
     for (int32_t i = 0; i < dataModel.numSelectors(); i++) {
         requireAnnotated(t, selectors[i], status);
     }
@@ -212,9 +243,6 @@ void Checker::checkSelectors(const TypeEnvironment& t, UErrorCode& status) {
 TypeEnvironment::Type typeOf(TypeEnvironment& t, const Expression& expr) {
     if (expr.isFunctionCall()) {
         return TypeEnvironment::Type::Annotated;
-    }
-    if (expr.isReserved()) {
-        return TypeEnvironment::Type::Unannotated;
     }
     const Operand& rand = expr.getOperand();
     U_ASSERT(!rand.isNull());
@@ -269,11 +297,6 @@ void Checker::checkDeclarations(TypeEnvironment& t, UErrorCode& status) {
         // Next, extend the type environment with a binding from lhs to its type
         t.extend(lhs, typeOf(t, rhs), status);
     }
-
-    // Check for unsupported statements
-    if (dataModel.unsupportedStatementsLen > 0) {
-        errors.addError(StaticErrorType::UnsupportedStatementError, status);
-    }
 }
 
 void Checker::check(UErrorCode& status) {
@@ -297,3 +320,5 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */

@@ -143,7 +143,7 @@ int ngtcp2_pv_validation_timed_out(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   ent = ngtcp2_ringbuf_get(&pv->ents.rb, ngtcp2_ringbuf_len(&pv->ents.rb) - 1);
 
   t = pv->started_ts + pv->timeout;
-  t = ngtcp2_max(t, ent->expiry);
+  t = ngtcp2_max_uint64(t, ent->expiry);
 
   return t <= ts;
 }
@@ -169,4 +169,11 @@ void ngtcp2_pv_cancel_expired_timer(ngtcp2_pv *pv, ngtcp2_tstamp ts) {
   }
 
   pv->flags |= NGTCP2_PV_FLAG_CANCEL_TIMER;
+}
+
+void ngtcp2_pv_set_fallback(ngtcp2_pv *pv, const ngtcp2_dcid *dcid,
+                            ngtcp2_duration pto) {
+  pv->flags |= NGTCP2_PV_FLAG_FALLBACK_PRESENT;
+  ngtcp2_dcid_copy(&pv->fallback_dcid, dcid);
+  pv->fallback_pto = pto;
 }

@@ -4,15 +4,17 @@ const common = require('../common');
 const assert = require('node:assert');
 const path = require('node:path');
 const { describe, it } = require('node:test');
+const { parseEnv } = require('node:util');
 const fixtures = require('../common/fixtures');
 
 const validEnvFilePath = '../fixtures/dotenv/valid.env';
 const nodeOptionsEnvFilePath = '../fixtures/dotenv/node-options.env';
+const noFinalNewlineEnvFilePath = '../fixtures/dotenv/no-final-newline.env';
+const noFinalNewlineSingleQuotesEnvFilePath = '../fixtures/dotenv/no-final-newline-single-quotes.env';
 
 describe('.env supports edge cases', () => {
   it('supports multiple declarations, including optional ones', async () => {
     const code = `
-      const assert = require('assert');
       assert.strictEqual(process.env.BASIC, 'basic');
       assert.strictEqual(process.env.NODE_NO_WARNINGS, '1');
     `.trim();
@@ -39,7 +41,7 @@ describe('.env supports edge cases', () => {
 
   it('supports absolute paths', async () => {
     const code = `
-      require('assert').strictEqual(process.env.BASIC, 'basic');
+      assert.strictEqual(process.env.BASIC, 'basic');
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -51,7 +53,7 @@ describe('.env supports edge cases', () => {
 
   it('supports a space instead of \'=\' for the flag ', async () => {
     const code = `
-      require('assert').strictEqual(process.env.BASIC, 'basic');
+      assert.strictEqual(process.env.BASIC, 'basic');
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -64,7 +66,7 @@ describe('.env supports edge cases', () => {
 
   it('should handle non-existent .env file', async () => {
     const code = `
-      require('assert').strictEqual(1, 1)
+      assert.strictEqual(1, 1)
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -77,7 +79,7 @@ describe('.env supports edge cases', () => {
 
   it('should handle non-existent optional .env file', async () => {
     const code = `
-      require('assert').strictEqual(1,1);
+      assert.strictEqual(1,1);
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -90,8 +92,8 @@ describe('.env supports edge cases', () => {
 
   it('should not override existing environment variables but introduce new vars', async () => {
     const code = `
-      require('assert').strictEqual(process.env.BASIC, 'existing');
-      require('assert').strictEqual(process.env.AFTER_LINE, 'after_line');
+      assert.strictEqual(process.env.BASIC, 'existing');
+      assert.strictEqual(process.env.AFTER_LINE, 'after_line');
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -122,8 +124,27 @@ describe('.env supports edge cases', () => {
     // Ref: https://github.com/nodejs/node/issues/52466
     const code = `
       process.loadEnvFile('./eof-without-value.env');
-      require('assert').strictEqual(process.env.BASIC, 'value');
-      require('assert').strictEqual(process.env.EMPTY, '');
+      assert.strictEqual(process.env.BASIC, 'value');
+      assert.strictEqual(process.env.EMPTY, '');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--eval', code ],
+      { cwd: fixtures.path('dotenv') },
+    );
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+  });
+
+  it('should handle lines that come after lines with only spaces (and tabs)', async () => {
+    // Ref: https://github.com/nodejs/node/issues/56686
+    const code = `
+      process.loadEnvFile('./lines-with-only-spaces.env');
+      assert.strictEqual(process.env.EMPTY_LINE, 'value after an empty line');
+      assert.strictEqual(process.env.SPACES_LINE, 'value after a line with just some spaces');
+      assert.strictEqual(process.env.TABS_LINE, 'value after a line with just some tabs');
+      assert.strictEqual(process.env.SPACES_TABS_LINE, 'value after a line with just some spaces and tabs');
     `.trim();
     const child = await common.spawnPromisified(
       process.execPath,
@@ -139,7 +160,7 @@ describe('.env supports edge cases', () => {
     const child = await common.spawnPromisified(
       process.execPath,
       [
-        '--eval', `require('assert').strictEqual(process.env.BASIC, undefined);`,
+        '--eval', `assert.strictEqual(process.env.BASIC, undefined);`,
         '--', '--env-file', validEnvFilePath,
       ],
       { cwd: __dirname },
@@ -147,5 +168,94 @@ describe('.env supports edge cases', () => {
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.stderr, '');
     assert.strictEqual(child.code, 0);
+  });
+
+  it('should handle file without a final newline', async () => {
+    const code = `
+      assert.strictEqual(process.env.BASIC, 'basic');
+    `.trim();
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${path.resolve(__dirname, noFinalNewlineEnvFilePath)}`, '--eval', code ],
+    );
+
+    const SingleQuotesChild = await common.spawnPromisified(
+      process.execPath,
+      [ `--env-file=${path.resolve(__dirname, noFinalNewlineSingleQuotesEnvFilePath)}`, '--eval', code ],
+    );
+
+    assert.strictEqual(child.stderr, '');
+    assert.strictEqual(child.code, 0);
+    assert.strictEqual(SingleQuotesChild.stderr, '');
+    assert.strictEqual(SingleQuotesChild.code, 0);
+  });
+
+  it('should reject invalid env file flag', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      ['--env-file-ABCD', validEnvFilePath],
+      { cwd: __dirname },
+    );
+
+    assert.strictEqual(child.stdout, '');
+    assert.strictEqual(child.code, 9);
+    assert.match(child.stderr, /bad option: --env-file-ABCD/);
+  });
+
+  it('should handle invalid multiline syntax', () => {
+    const result = parseEnv([
+      'foo',
+      '',
+      'bar',
+      'baz=whatever',
+      'VALID_AFTER_INVALID=test',
+      'multiple_invalid',
+      'lines_without_equals',
+      'ANOTHER_VALID=value',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      baz: 'whatever',
+      VALID_AFTER_INVALID: 'test',
+      ANOTHER_VALID: 'value',
+    });
+  });
+
+  it('should handle trimming of keys and values correctly', () => {
+    const result = parseEnv([
+      '   KEY_WITH_SPACES_BEFORE=   value_with_spaces_before_and_after   ',
+      'KEY_WITH_TABS_BEFORE\t=\tvalue_with_tabs_before_and_after\t',
+      'KEY_WITH_SPACES_AND_TABS\t = \t value_with_spaces_and_tabs \t',
+      '   KEY_WITH_SPACES_ONLY   =value',
+      'KEY_WITH_NO_VALUE=',
+      'KEY_WITH_SPACES_AFTER=   value   ',
+      'KEY_WITH_SPACES_AND_COMMENT=value   # this is a comment',
+      'KEY_WITH_ONLY_COMMENT=# this is a comment',
+      'KEY_WITH_EXPORT=export value',
+      '   export   KEY_WITH_EXPORT_AND_SPACES   =   value   ',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_SPACES_BEFORE: 'value_with_spaces_before_and_after',
+      KEY_WITH_TABS_BEFORE: 'value_with_tabs_before_and_after',
+      KEY_WITH_SPACES_AND_TABS: 'value_with_spaces_and_tabs',
+      KEY_WITH_SPACES_ONLY: 'value',
+      KEY_WITH_NO_VALUE: '',
+      KEY_WITH_ONLY_COMMENT: '',
+      KEY_WITH_SPACES_AFTER: 'value',
+      KEY_WITH_SPACES_AND_COMMENT: 'value',
+      KEY_WITH_EXPORT: 'export value',
+      KEY_WITH_EXPORT_AND_SPACES: 'value',
+    });
+  });
+
+  it('should handle a comment in a valid value', () => {
+    const result = parseEnv([
+      'KEY_WITH_COMMENT_IN_VALUE="value # this is a comment"',
+    ].join('\n'));
+
+    assert.deepStrictEqual(result, {
+      KEY_WITH_COMMENT_IN_VALUE: 'value # this is a comment',
+    });
   });
 });

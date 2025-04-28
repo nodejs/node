@@ -1,3 +1,4 @@
+// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.mjs';
 import * as snapshot from '../common/assertSnapshot.js';
@@ -5,14 +6,13 @@ import { describe, it } from 'node:test';
 import { hostname } from 'node:os';
 import { chdir, cwd } from 'node:process';
 import { fileURLToPath } from 'node:url';
+import internalTTy from 'internal/tty';
 
 const skipForceColors =
   process.config.variables.icu_gyp_path !== 'tools/icu/icu-generic.gyp' ||
   process.config.variables.node_shared_openssl;
 
-const canColorize = process.stderr?.isTTY && (
-  typeof process.stderr?.getColorDepth === 'function' ?
-    process.stderr?.getColorDepth() > 2 : true);
+const canColorize = internalTTy.getColorDepth() > 2;
 const skipCoverageColors = !canColorize;
 
 function replaceTestDuration(str) {
@@ -133,6 +133,15 @@ const tests = [
     flags: ['--test-reporter=tap'],
   },
   {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: ['--test-reporter=tap'],
+  },
+  // --test-timeout should work with or without --test flag
+  {
+    name: 'test-runner/output/test-timeout-flag.js',
+    flags: ['--test-reporter=tap', '--test'],
+  },
+  {
     name: 'test-runner/output/hooks-with-no-global-test.js',
     flags: ['--test-reporter=tap'],
   },
@@ -171,7 +180,12 @@ const tests = [
     name: 'test-runner/output/source_mapped_locations.mjs',
     flags: ['--test-reporter=tap'],
   },
-  process.features.inspector ? { name: 'test-runner/output/lcov_reporter.js', transform: lcovTransform } : false,
+  process.features.inspector ?
+    {
+      name: 'test-runner/output/lcov_reporter.js',
+      transform: lcovTransform
+    } :
+    false,
   { name: 'test-runner/output/output.js', flags: ['--test-reporter=tap'] },
   { name: 'test-runner/output/output_cli.js' },
   {
@@ -194,15 +208,21 @@ const tests = [
     name: 'test-runner/output/unfinished-suite-async-error.js',
     flags: ['--test-reporter=tap'],
   },
-  {
-    name: 'test-runner/output/unresolved_promise.js',
-    flags: ['--test-reporter=tap'],
-  },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
   {
     name: 'test-runner/output/arbitrary-output.js',
     flags: ['--test-reporter=tap'],
   },
+  {
+    name: 'test-runner/output/non-tty-forced-color-output.js',
+    transform: specTransform,
+  },
+  canColorize ? {
+    name: 'test-runner/output/assertion-color-tty.mjs',
+    flags: ['--test', '--stack-trace-limit=0'],
+    transform: specTransform,
+    tty: true,
+  } : false,
   {
     name: 'test-runner/output/async-test-scheduling.mjs',
     flags: ['--test-reporter=tap'],
@@ -224,9 +244,17 @@ const tests = [
     name: 'test-runner/output/test-runner-plan.js',
     flags: ['--test-reporter=tap'],
   },
+  {
+    name: 'test-runner/output/test-runner-watch-spec.mjs',
+    transform: specTransform,
+  },
+  {
+    name: 'test-runner/output/test-runner-plan-timeout.js',
+    flags: ['--test-reporter=tap', '--test-force-exit'],
+  },
   process.features.inspector ? {
     name: 'test-runner/output/coverage_failure.js',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   {
     name: 'test-runner/output/test-diagnostic-warning-without-test-only-flag.js',
@@ -234,56 +262,63 @@ const tests = [
   },
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-40.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-80.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector && !skipCoverageColors ? {
     name: 'test-runner/output/coverage-width-80-color.mjs',
+    flags: ['--test-coverage-exclude=!test/**'],
     transform: specTransform,
     tty: true
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-100.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-150.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-infinity.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-80-uncovered-lines.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-100-uncovered-lines.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector && !skipCoverageColors ? {
     name: 'test-runner/output/coverage-width-80-uncovered-lines-color.mjs',
+    flags: ['--test-coverage-exclude=!test/**'],
     transform: specTransform,
     tty: true
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-150-uncovered-lines.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
   } : false,
   process.features.inspector ? {
     name: 'test-runner/output/coverage-width-infinity-uncovered-lines.mjs',
-    flags: ['--test-reporter=tap'],
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=!test/**'],
+  } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/coverage-short-filename.mjs',
+    flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
+    cwd: fixtures.path('test-runner/coverage-snap'),
   } : false,
 ]
 .filter(Boolean)
-.map(({ flags, name, tty, transform }) => ({
+.map(({ flags, name, tty, transform, cwd }) => ({
   name,
   fn: common.mustCall(async () => {
-    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags });
+    await snapshot.spawnAndAssert(fixtures.path(name), transform ?? defaultTransform, { tty, flags, cwd });
   }),
 }));
 

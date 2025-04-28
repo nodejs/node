@@ -315,7 +315,7 @@ events (due to incorrect stream implementations) do not cause unexpected
 crashes. If this is unwanted behavior then `options.cleanup` should be set to
 `true`:
 
-```js
+```mjs
 await finished(rs, { cleanup: true });
 ```
 
@@ -877,9 +877,11 @@ the stream has not been destroyed, errored, or ended.
 added:
   - v18.0.0
   - v16.17.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1641,9 +1643,11 @@ the stream has not been destroyed or emitted `'error'` or `'end'`.
 
 <!-- YAML
 added: v16.8.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -1655,9 +1659,11 @@ Returns whether the stream was destroyed or errored before emitting `'end'`.
 added:
   - v16.7.0
   - v14.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {boolean}
 
@@ -2003,9 +2009,11 @@ a promise that fulfills when the stream is finished.
 added:
   - v19.1.0
   - v18.13.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Stream|Iterable|AsyncIterable|Function}
 * `options` {Object}
@@ -2038,9 +2046,11 @@ See [`stream.compose`][] for more information.
 
 <!-- YAML
 added: v16.3.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `options` {Object}
   * `destroyOnReturn` {boolean} When set to `false`, calling `return` on the
@@ -3079,9 +3089,11 @@ Readable.from([
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `readableStream` {ReadableStream}
 * `options` {Object}
@@ -3095,9 +3107,11 @@ added: v17.0.0
 
 <!-- YAML
 added: v16.8.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {stream.Readable|ReadableStream}
 * Returns: `boolean`
@@ -3110,9 +3124,11 @@ Returns whether the stream has been read from or cancelled.
 added:
   - v17.3.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Readable|Writable|Duplex|WritableStream|ReadableStream}
 * Returns: {boolean}
@@ -3125,9 +3141,11 @@ Returns whether the stream has encountered an error.
 added:
   - v17.4.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `stream` {Readable|Duplex|ReadableStream}
 * Returns: {boolean}
@@ -3138,9 +3156,15 @@ Returns whether the stream is readable.
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
+  - version:
+    - v18.7.0
+    pr-url: https://github.com/nodejs/node/pull/43515
+    description: include strategy options on Readable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamReadable` {stream.Readable}
 * `options` {Object}
@@ -3159,9 +3183,11 @@ added: v17.0.0
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `writableStream` {WritableStream}
 * `options` {Object}
@@ -3175,9 +3201,11 @@ added: v17.0.0
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamWritable` {stream.Writable}
 * Returns: {WritableStream}
@@ -3237,9 +3265,11 @@ Duplex.from([
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `pair` {Object}
   * `readable` {ReadableStream}
@@ -3318,9 +3348,11 @@ duplex.once('readable', () => console.log('readable', duplex.read()));
 
 <!-- YAML
 added: v17.0.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57513
+    description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `streamDuplex` {stream.Duplex}
 * Returns: {Object}
@@ -3731,7 +3763,7 @@ class WriteStream extends Writable {
     this.fd = null;
   }
   _construct(callback) {
-    fs.open(this.filename, (err, fd) => {
+    fs.open(this.filename, 'w', (err, fd) => {
       if (err) {
         callback(err);
       } else {
@@ -3846,8 +3878,6 @@ added: v8.0.0
 
 The `_destroy()` method is called by [`writable.destroy()`][writable-destroy].
 It can be overridden by child classes but it **must not** be called directly.
-Furthermore, the `callback` should not be mixed with async/await
-once it is executed when a promise is resolved.
 
 #### `writable._final(callback)`
 
@@ -3926,7 +3956,7 @@ const { StringDecoder } = require('node:string_decoder');
 class StringWritable extends Writable {
   constructor(options) {
     super(options);
-    this._decoder = new StringDecoder(options && options.defaultEncoding);
+    this._decoder = new StringDecoder(options?.defaultEncoding);
     this.data = '';
   }
   _write(chunk, encoding, callback) {

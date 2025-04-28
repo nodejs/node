@@ -54,7 +54,8 @@ Worker::Worker(Environment* env,
                std::shared_ptr<PerIsolateOptions> per_isolate_opts,
                std::vector<std::string>&& exec_argv,
                std::shared_ptr<KVStore> env_vars,
-               const SnapshotData* snapshot_data)
+               const SnapshotData* snapshot_data,
+               const bool is_internal)
     : AsyncWrap(env, wrap, AsyncWrap::PROVIDER_WORKER),
       per_isolate_opts_(per_isolate_opts),
       exec_argv_(exec_argv),
@@ -63,7 +64,8 @@ Worker::Worker(Environment* env,
       name_(name),
       env_vars_(env_vars),
       embedder_preload_(env->embedder_preload()),
-      snapshot_data_(snapshot_data) {
+      snapshot_data_(snapshot_data),
+      is_internal_(is_internal) {
   Debug(this, "Creating new worker instance with thread id %llu",
         thread_id_.id);
 
@@ -449,6 +451,9 @@ void Worker::JoinThread() {
 
   env()->remove_sub_worker_context(this);
 
+  // Join may happen after the worker exits and disposes the isolate
+  if (!env()->can_call_into_js()) return;
+
   {
     HandleScope handle_scope(env()->isolate());
     Context::Scope context_scope(env()->context());
@@ -490,11 +495,9 @@ Worker::~Worker() {
 
 void Worker::New(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kWorkerThreads, "");
   bool is_internal = args[5]->IsTrue();
-  if (!is_internal) {
-    THROW_IF_INSUFFICIENT_PERMISSIONS(
-        env, permission::PermissionScope::kWorkerThreads, "");
-  }
   Isolate* isolate = args.GetIsolate();
 
   CHECK(args.IsConstructCall());
@@ -540,6 +543,10 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
   } else {
     // Env is shared.
     env_vars = env->env_vars();
+  }
+
+  if (!env_vars) {
+    THROW_ERR_OPERATION_FAILED(env, "Failed to copy environment variables");
   }
 
   if (args[1]->IsObject() || args[2]->IsArray()) {
@@ -684,7 +691,8 @@ void Worker::New(const FunctionCallbackInfo<Value>& args) {
                               per_isolate_opts,
                               std::move(exec_argv_out),
                               env_vars,
-                              snapshot_data);
+                              snapshot_data,
+                              is_internal);
 
   CHECK(args[3]->IsFloat64Array());
   Local<Float64Array> limit_info = args[3].As<Float64Array>();
@@ -736,6 +744,7 @@ void Worker::StartThread(const FunctionCallbackInfo<Value>& args) {
     Worker* w = static_cast<Worker*>(arg);
     const uintptr_t stack_top = reinterpret_cast<uintptr_t>(&arg);
 
+    uv_thread_setname(w->name_.c_str());
     // Leave a few kilobytes just to make sure we're within limits and have
     // some space to do work in C++ land.
     w->stack_base_ = stack_top - (w->stack_size_ - kStackBufferSize);
@@ -804,6 +813,116 @@ void Worker::Unref(const FunctionCallbackInfo<Value>& args) {
   if (w->has_ref_ && w->tid_.has_value()) {
     w->has_ref_ = false;
     w->env()->add_refs(-1);
+  }
+}
+
+class WorkerHeapStatisticsTaker : public AsyncWrap {
+ public:
+  WorkerHeapStatisticsTaker(Environment* env, Local<Object> obj)
+      : AsyncWrap(env, obj, AsyncWrap::PROVIDER_WORKERHEAPSTATISTICS) {}
+
+  SET_NO_MEMORY_INFO()
+  SET_MEMORY_INFO_NAME(WorkerHeapStatisticsTaker)
+  SET_SELF_SIZE(WorkerHeapStatisticsTaker)
+};
+
+void Worker::GetHeapStatistics(const FunctionCallbackInfo<Value>& args) {
+  Worker* w;
+  ASSIGN_OR_RETURN_UNWRAP(&w, args.This());
+
+  Environment* env = w->env();
+  AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(w);
+  Local<Object> wrap;
+  if (!env->worker_heap_statistics_taker_template()
+           ->NewInstance(env->context())
+           .ToLocal(&wrap)) {
+    return;
+  }
+
+  // The created WorkerHeapStatisticsTaker is an object owned by main
+  // thread's Isolate, it can not be accessed by worker thread
+  std::unique_ptr<BaseObjectPtr<WorkerHeapStatisticsTaker>> taker =
+      std::make_unique<BaseObjectPtr<WorkerHeapStatisticsTaker>>(
+          MakeDetachedBaseObject<WorkerHeapStatisticsTaker>(env, wrap));
+
+  // Interrupt the worker thread and take a snapshot, then schedule a call
+  // on the parent thread that turns that snapshot into a readable stream.
+  bool scheduled = w->RequestInterrupt([taker = std::move(taker),
+                                        env](Environment* worker_env) mutable {
+    // We create a unique pointer to HeapStatistics so that the actual object
+    // it's not copied in the lambda, but only the pointer is.
+    auto heap_stats = std::make_unique<v8::HeapStatistics>();
+    worker_env->isolate()->GetHeapStatistics(heap_stats.get());
+
+    // Here, the worker thread temporarily owns the WorkerHeapStatisticsTaker
+    // object.
+
+    env->SetImmediateThreadsafe(
+        [taker = std::move(taker),
+         heap_stats = std::move(heap_stats)](Environment* env) mutable {
+          Isolate* isolate = env->isolate();
+          HandleScope handle_scope(isolate);
+          Context::Scope context_scope(env->context());
+
+          AsyncHooks::DefaultTriggerAsyncIdScope trigger_id_scope(taker->get());
+
+          Local<v8::Name> heap_stats_names[] = {
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_heap_size_executable"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_physical_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_available_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_heap_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "heap_size_limit"),
+              FIXED_ONE_BYTE_STRING(isolate, "malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "peak_malloced_memory"),
+              FIXED_ONE_BYTE_STRING(isolate, "does_zap_garbage"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_native_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "number_of_detached_contexts"),
+              FIXED_ONE_BYTE_STRING(isolate, "total_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "used_global_handles_size"),
+              FIXED_ONE_BYTE_STRING(isolate, "external_memory")};
+
+          // Define an array of property values
+          Local<Value> heap_stats_values[] = {
+              Number::New(isolate, heap_stats->total_heap_size()),
+              Number::New(isolate, heap_stats->total_heap_size_executable()),
+              Number::New(isolate, heap_stats->total_physical_size()),
+              Number::New(isolate, heap_stats->total_available_size()),
+              Number::New(isolate, heap_stats->used_heap_size()),
+              Number::New(isolate, heap_stats->heap_size_limit()),
+              Number::New(isolate, heap_stats->malloced_memory()),
+              Number::New(isolate, heap_stats->peak_malloced_memory()),
+              Boolean::New(isolate, heap_stats->does_zap_garbage()),
+              Number::New(isolate, heap_stats->number_of_native_contexts()),
+              Number::New(isolate, heap_stats->number_of_detached_contexts()),
+              Number::New(isolate, heap_stats->total_global_handles_size()),
+              Number::New(isolate, heap_stats->used_global_handles_size()),
+              Number::New(isolate, heap_stats->external_memory())};
+
+          DCHECK_EQ(arraysize(heap_stats_names), arraysize(heap_stats_values));
+
+          // Create the object with the property names and values
+          Local<Object> stats = Object::New(isolate,
+                                            Null(isolate),
+                                            heap_stats_names,
+                                            heap_stats_values,
+                                            arraysize(heap_stats_names));
+
+          Local<Value> args[] = {stats};
+          taker->get()->MakeCallback(
+              env->ondone_string(), arraysize(args), args);
+          // implicitly delete `taker`
+        },
+        CallbackFlags::kUnrefed);
+
+    // Now, the lambda is delivered to the main thread, as a result, the
+    // WorkerHeapStatisticsTaker object is delivered to the main thread, too.
+  });
+
+  if (scheduled) {
+    args.GetReturnValue().Set(wrap);
+  } else {
+    args.GetReturnValue().Set(Local<Object>());
   }
 }
 
@@ -987,6 +1106,7 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
     SetProtoMethod(isolate, w, "takeHeapSnapshot", Worker::TakeHeapSnapshot);
     SetProtoMethod(isolate, w, "loopIdleTime", Worker::LoopIdleTime);
     SetProtoMethod(isolate, w, "loopStartTime", Worker::LoopStartTime);
+    SetProtoMethod(isolate, w, "getHeapStatistics", Worker::GetHeapStatistics);
 
     SetConstructorFunction(isolate, target, "Worker", w);
   }
@@ -1002,6 +1122,20 @@ void CreateWorkerPerIsolateProperties(IsolateData* isolate_data,
         FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapSnapshotTaker");
     wst->SetClassName(wst_string);
     isolate_data->set_worker_heap_snapshot_taker_template(
+        wst->InstanceTemplate());
+  }
+
+  {
+    Local<FunctionTemplate> wst = NewFunctionTemplate(isolate, nullptr);
+
+    wst->InstanceTemplate()->SetInternalFieldCount(
+        WorkerHeapSnapshotTaker::kInternalFieldCount);
+    wst->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
+
+    Local<String> wst_string =
+        FIXED_ONE_BYTE_STRING(isolate, "WorkerHeapStatisticsTaker");
+    wst->SetClassName(wst_string);
+    isolate_data->set_worker_heap_statistics_taker_template(
         wst->InstanceTemplate());
   }
 
@@ -1025,6 +1159,16 @@ void CreateWorkerPerContextProperties(Local<Object> target,
       ->Set(env->context(),
             FIXED_ONE_BYTE_STRING(isolate, "isMainThread"),
             Boolean::New(isolate, env->is_main_thread()))
+      .Check();
+
+  Worker* worker = env->isolate_data()->worker_context();
+  bool is_internal = worker != nullptr && worker->is_internal();
+
+  // Set the is_internal property
+  target
+      ->Set(env->context(),
+            FIXED_ONE_BYTE_STRING(isolate, "isInternalThread"),
+            Boolean::New(isolate, is_internal))
       .Check();
 
   target
@@ -1060,6 +1204,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Worker::TakeHeapSnapshot);
   registry->Register(Worker::LoopIdleTime);
   registry->Register(Worker::LoopStartTime);
+  registry->Register(Worker::GetHeapStatistics);
 }
 
 }  // anonymous namespace

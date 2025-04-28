@@ -136,8 +136,13 @@ static std::string GetErrorSource(Isolate* isolate,
 
   // Print (filename):(line number): (message).
   ScriptOrigin origin = message->GetScriptOrigin();
-  node::Utf8Value filename(isolate, message->GetScriptResourceName());
-  const char* filename_string = *filename;
+  std::string filename_string;
+  if (message->GetScriptResourceName()->IsUndefined()) {
+    filename_string = "<anonymous_script>";
+  } else {
+    node::Utf8Value filename(isolate, message->GetScriptResourceName());
+    filename_string = filename.ToString();
+  }
   int linenum = message->GetLineNumber(context).FromJust();
 
   int script_start = (linenum - origin.LineOffset()) == 1
@@ -1210,9 +1215,12 @@ void TriggerUncaughtException(Isolate* isolate,
   // monkey-patchable.
   Local<Object> process_object = env->process_object();
   Local<String> fatal_exception_string = env->fatal_exception_string();
-  Local<Value> fatal_exception_function =
-      process_object->Get(env->context(),
-                          fatal_exception_string).ToLocalChecked();
+  Local<Value> fatal_exception_function;
+  if (!process_object->Get(env->context(), fatal_exception_string)
+           .ToLocal(&fatal_exception_function)) {
+    // V8 will have scheduled a superseding error to throw
+    return;
+  }
   // If the exception happens before process._fatalException is attached
   // during bootstrap, or if the user has patched it incorrectly, exit
   // the current Node.js instance.

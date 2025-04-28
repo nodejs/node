@@ -8,12 +8,14 @@ const Agent = require('./lib/dispatcher/agent')
 const ProxyAgent = require('./lib/dispatcher/proxy-agent')
 const EnvHttpProxyAgent = require('./lib/dispatcher/env-http-proxy-agent')
 const RetryAgent = require('./lib/dispatcher/retry-agent')
+const H2CClient = require('./lib/dispatcher/h2c-client')
 const errors = require('./lib/core/errors')
 const util = require('./lib/core/util')
 const { InvalidArgumentError } = errors
 const api = require('./lib/api')
 const buildConnector = require('./lib/core/connect')
 const MockClient = require('./lib/mock/mock-client')
+const { MockCallHistory, MockCallHistoryLog } = require('./lib/mock/mock-call-history')
 const MockAgent = require('./lib/mock/mock-agent')
 const MockPool = require('./lib/mock/mock-pool')
 const mockErrors = require('./lib/mock/mock-errors')
@@ -21,7 +23,6 @@ const RetryHandler = require('./lib/handler/retry-handler')
 const { getGlobalDispatcher, setGlobalDispatcher } = require('./lib/global')
 const DecoratorHandler = require('./lib/handler/decorator-handler')
 const RedirectHandler = require('./lib/handler/redirect-handler')
-const createRedirectInterceptor = require('./lib/interceptor/redirect-interceptor')
 
 Object.assign(Dispatcher.prototype, api)
 
@@ -33,16 +34,26 @@ module.exports.Agent = Agent
 module.exports.ProxyAgent = ProxyAgent
 module.exports.EnvHttpProxyAgent = EnvHttpProxyAgent
 module.exports.RetryAgent = RetryAgent
+module.exports.H2CClient = H2CClient
 module.exports.RetryHandler = RetryHandler
 
 module.exports.DecoratorHandler = DecoratorHandler
 module.exports.RedirectHandler = RedirectHandler
-module.exports.createRedirectInterceptor = createRedirectInterceptor
 module.exports.interceptors = {
   redirect: require('./lib/interceptor/redirect'),
+  responseError: require('./lib/interceptor/response-error'),
   retry: require('./lib/interceptor/retry'),
-  dump: require('./lib/interceptor/dump')
+  dump: require('./lib/interceptor/dump'),
+  dns: require('./lib/interceptor/dns'),
+  cache: require('./lib/interceptor/cache')
 }
+
+module.exports.cacheStores = {
+  MemoryCacheStore: require('./lib/cache/memory-cache-store')
+}
+
+const SqliteCacheStore = require('./lib/cache/sqlite-cache-store')
+module.exports.cacheStores.SqliteCacheStore = SqliteCacheStore
 
 module.exports.buildConnector = buildConnector
 module.exports.errors = errors
@@ -119,8 +130,6 @@ module.exports.Headers = require('./lib/web/fetch/headers').Headers
 module.exports.Response = require('./lib/web/fetch/response').Response
 module.exports.Request = require('./lib/web/fetch/request').Request
 module.exports.FormData = require('./lib/web/fetch/formdata').FormData
-module.exports.File = globalThis.File ?? require('node:buffer').File
-module.exports.FileReader = require('./lib/web/fileapi/filereader').FileReader
 
 const { setGlobalOrigin, getGlobalOrigin } = require('./lib/web/fetch/global')
 
@@ -128,18 +137,19 @@ module.exports.setGlobalOrigin = setGlobalOrigin
 module.exports.getGlobalOrigin = getGlobalOrigin
 
 const { CacheStorage } = require('./lib/web/cache/cachestorage')
-const { kConstruct } = require('./lib/web/cache/symbols')
+const { kConstruct } = require('./lib/core/symbols')
 
 // Cache & CacheStorage are tightly coupled with fetch. Even if it may run
 // in an older version of Node, it doesn't have any use without fetch.
 module.exports.caches = new CacheStorage(kConstruct)
 
-const { deleteCookie, getCookies, getSetCookies, setCookie } = require('./lib/web/cookies')
+const { deleteCookie, getCookies, getSetCookies, setCookie, parseCookie } = require('./lib/web/cookies')
 
 module.exports.deleteCookie = deleteCookie
 module.exports.getCookies = getCookies
 module.exports.getSetCookies = getSetCookies
 module.exports.setCookie = setCookie
+module.exports.parseCookie = parseCookie
 
 const { parseMIMEType, serializeAMimeType } = require('./lib/web/fetch/data-url')
 
@@ -152,6 +162,9 @@ module.exports.CloseEvent = CloseEvent
 module.exports.ErrorEvent = ErrorEvent
 module.exports.MessageEvent = MessageEvent
 
+module.exports.WebSocketStream = require('./lib/web/websocket/stream/websocketstream').WebSocketStream
+module.exports.WebSocketError = require('./lib/web/websocket/stream/websocketerror').WebSocketError
+
 module.exports.request = makeDispatcher(api.request)
 module.exports.stream = makeDispatcher(api.stream)
 module.exports.pipeline = makeDispatcher(api.pipeline)
@@ -159,6 +172,8 @@ module.exports.connect = makeDispatcher(api.connect)
 module.exports.upgrade = makeDispatcher(api.upgrade)
 
 module.exports.MockClient = MockClient
+module.exports.MockCallHistory = MockCallHistory
+module.exports.MockCallHistoryLog = MockCallHistoryLog
 module.exports.MockPool = MockPool
 module.exports.MockAgent = MockAgent
 module.exports.mockErrors = mockErrors

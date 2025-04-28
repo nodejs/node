@@ -2,11 +2,12 @@
 
 Select a Node.js version below to view the changelog history:
 
-* [Node.js 22](doc/changelogs/CHANGELOG_V22.md) **Current**
+* [Node.js 23](doc/changelogs/CHANGELOG_V23.md) **Current**
+* [Node.js 22](doc/changelogs/CHANGELOG_V22.md) **Long Term Support**
 * [Node.js 21](doc/changelogs/CHANGELOG_V21.md) End-of-Life
-* [Node.js 20](doc/changelogs/CHANGELOG_V20.md) **Long Term Support**
+* [Node.js 20](doc/changelogs/CHANGELOG_V20.md) Long Term Support
 * [Node.js 19](doc/changelogs/CHANGELOG_V19.md) End-of-Life
-* [Node.js 18](doc/changelogs/CHANGELOG_V18.md) **Long Term Support**
+* [Node.js 18](doc/changelogs/CHANGELOG_V18.md) Long Term Support
 * [Node.js 17](doc/changelogs/CHANGELOG_V17.md) End-of-Life
 * [Node.js 16](doc/changelogs/CHANGELOG_V16.md) End-of-Life
 * [Node.js 15](doc/changelogs/CHANGELOG_V15.md) End-of-Life
@@ -31,13 +32,36 @@ release.
 
 <table>
 <tr>
-  <th title="Current"><a href="doc/changelogs/CHANGELOG_V22.md">22</a> (Current)</th>
+  <th title="Current"><a href="doc/changelogs/CHANGELOG_V23.md">23</a> (Current)</th>
+  <th title="LTS Until 2027-04"><a href="doc/changelogs/CHANGELOG_V22.md">22</a> (LTS)</th>
   <th title="LTS Until 2026-04"><a href="doc/changelogs/CHANGELOG_V20.md">20</a> (LTS)</th>
   <th title="LTS Until 2025-04"><a href="doc/changelogs/CHANGELOG_V18.md">18</a> (LTS)</th>
 </tr>
 <tr>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V22.md#22.9.0">22.9.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V23.md#23.11.0">23.11.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.10.0">23.10.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.9.0">23.9.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.8.0">23.8.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.7.0">23.7.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.6.1">23.6.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.6.0">23.6.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.5.0">23.5.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.4.0">23.4.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.3.0">23.3.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.2.0">23.2.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.1.0">23.1.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V23.md#23.0.0">23.0.0</a><br/>
+  </td>
+  <td valign="top">
+<b><a href="doc/changelogs/CHANGELOG_V22.md#22.15.0">22.15.0</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.14.0">22.14.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.13.1">22.13.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.13.0">22.13.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.12.0">22.12.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.11.0">22.11.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.10.0">22.10.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.9.0">22.9.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.8.0">22.8.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.7.0">22.7.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.6.0">22.6.0</a><br/>
@@ -51,7 +75,12 @@ release.
 <a href="doc/changelogs/CHANGELOG_V22.md#22.0.0">22.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V20.md#20.18.0">20.18.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V20.md#20.19.1">20.19.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.19.0">20.19.0</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.18.3">20.18.3</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.18.2">20.18.2</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.18.1">20.18.1</a><br/>
+<a href="doc/changelogs/CHANGELOG_V20.md#20.18.0">20.18.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.17.0">20.17.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.16.0">20.16.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V20.md#20.15.1">20.15.1</a><br/>
@@ -81,7 +110,11 @@ release.
 <a href="doc/changelogs/CHANGELOG_V20.md#20.0.0">20.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.4">18.20.4</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V18.md#18.20.8">18.20.8</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.7">18.20.7</a><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.6">18.20.6</a><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.5">18.20.5</a><br/>
+<a href="doc/changelogs/CHANGELOG_V18.md#18.20.4">18.20.4</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.3">18.20.3</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.2">18.20.2</a><br/>
 <a href="doc/changelogs/CHANGELOG_V18.md#18.20.1">18.20.1</a><br/>

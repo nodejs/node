@@ -115,7 +115,6 @@ JapaneseCalendar::JapaneseCalendar(const Locale& aLocale, UErrorCode& success)
 :   GregorianCalendar(aLocale, success)
 {
     init(success);
-    setTimeInMillis(getNow(), success); // Call this again now that the vtable is set up properly.
 }
 
 JapaneseCalendar::~JapaneseCalendar()
@@ -128,12 +127,6 @@ JapaneseCalendar::JapaneseCalendar(const JapaneseCalendar& source)
     UErrorCode status = U_ZERO_ERROR;
     init(status);
     U_ASSERT(U_SUCCESS(status));
-}
-
-JapaneseCalendar& JapaneseCalendar::operator= ( const JapaneseCalendar& right)
-{
-    GregorianCalendar::operator=(right);
-    return *this;
 }
 
 JapaneseCalendar* JapaneseCalendar::clone() const
@@ -171,15 +164,19 @@ int32_t JapaneseCalendar::getDefaultMonthInYear(int32_t eyear, UErrorCode& statu
     return month;
 }
 
-int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month) 
+int32_t JapaneseCalendar::getDefaultDayInMonth(int32_t eyear, int32_t month, UErrorCode& status) 
 {
+    if (U_FAILURE(status)) {
+        return 0;
+    }
     int32_t era = internalGetEra();
     int32_t day = 1;
 
     int32_t eraStart[3] = { 0,0,0 };
-    UErrorCode status = U_ZERO_ERROR;
     gJapaneseEraRules->getStartDate(era, eraStart, status);
-    U_ASSERT(U_SUCCESS(status));
+    if (U_FAILURE(status)) {
+        return 0;
+    }
     if (eyear == eraStart[0] && (month == eraStart[1] - 1)) {
         return eraStart[2];
     }
@@ -227,8 +224,16 @@ void JapaneseCalendar::handleComputeFields(int32_t julianDay, UErrorCode& status
     int32_t year = internalGet(UCAL_EXTENDED_YEAR); // Gregorian year
     int32_t eraIdx = gJapaneseEraRules->getEraIndex(year, internalGetMonth(status) + 1, internalGet(UCAL_DAY_OF_MONTH), status);
 
+    int32_t startYear = gJapaneseEraRules->getStartYear(eraIdx, status) - 1;
+    if (U_FAILURE(status)) {
+        return;
+    }
+    if (uprv_add32_overflow(year, -startYear,  &year)) {
+        status = U_ILLEGAL_ARGUMENT_ERROR;
+        return;
+    }
     internalSet(UCAL_ERA, eraIdx);
-    internalSet(UCAL_YEAR, year - gJapaneseEraRules->getStartYear(eraIdx, status) + 1);
+    internalSet(UCAL_YEAR, year);
 }
 
 /*

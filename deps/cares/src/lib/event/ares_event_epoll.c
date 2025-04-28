@@ -26,14 +26,14 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
+#if defined(HAVE_EPOLL) && defined(CARES_THREADS)
+
 #ifdef HAVE_SYS_EPOLL_H
 #  include <sys/epoll.h>
 #endif
 #ifdef HAVE_FCNTL_H
 #  include <fcntl.h>
 #endif
-
-#ifdef HAVE_EPOLL
 
 typedef struct {
   int epoll_fd;
@@ -161,8 +161,8 @@ static size_t ares_evsys_epoll_wait(ares_event_thread_t *e,
     ares_event_t      *ev;
     ares_event_flags_t flags = 0;
 
-    ev = ares__htable_asvp_get_direct(e->ev_sock_handles,
-                                      (ares_socket_t)events[i].data.fd);
+    ev = ares_htable_asvp_get_direct(e->ev_sock_handles,
+                                     (ares_socket_t)events[i].data.fd);
     if (ev == NULL || ev->cb == NULL) {
       continue; /* LCOV_EXCL_LINE: DefensiveCoding */
     }

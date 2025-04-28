@@ -348,6 +348,8 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
                             ClassInfo* class_info, int class_token_pos);
   void DeclareClassBrandVariable(ClassScope* scope, ClassInfo* class_info,
                                  int class_token_pos);
+  void AddInstanceFieldOrStaticElement(ClassLiteralProperty* property,
+                                       ClassInfo* class_info, bool is_static);
   void DeclarePrivateClassMember(ClassScope* scope,
                                  const AstRawString* property_name,
                                  ClassLiteralProperty* property,
@@ -894,6 +896,7 @@ class V8_EXPORT_PRIVATE Parser : public NON_EXPORTED_BASE(ParserBase<Parser>) {
   }
 
   void ReindexArrowFunctionFormalParameters(ParserFormalParameters* parameters);
+  void ReindexComputedMemberName(Expression* computed_name);
   void DeclareArrowFunctionFormalParameters(
       ParserFormalParameters* parameters, Expression* params,
       const Scanner::Location& params_loc);

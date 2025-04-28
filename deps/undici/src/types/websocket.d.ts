@@ -1,10 +1,9 @@
 /// <reference types="node" />
 
 import type { Blob } from 'buffer'
+import type { ReadableStream, WritableStream } from 'stream/web'
 import type { MessagePort } from 'worker_threads'
 import {
-  EventTarget,
-  Event,
   EventInit,
   EventListenerOptions,
   AddEventListenerOptions,
@@ -24,7 +23,7 @@ interface WebSocketEventMap {
 
 interface WebSocket extends EventTarget {
   binaryType: BinaryType
-  
+
   readonly bufferedAmount: number
   readonly extensions: string
 
@@ -149,4 +148,37 @@ interface WebSocketInit {
   protocols?: string | string[],
   dispatcher?: Dispatcher,
   headers?: HeadersInit
+}
+
+interface WebSocketStreamOptions {
+  protocols?: string | string[]
+  signal?: AbortSignal
+}
+
+interface WebSocketCloseInfo {
+  closeCode: number
+  reason: string
+}
+
+interface WebSocketStream {
+  closed: Promise<WebSocketCloseInfo>
+  opened: Promise<{
+    extensions: string
+    protocol: string
+    readable: ReadableStream
+    writable: WritableStream
+  }>
+  url: string
+}
+
+export declare const WebSocketStream: {
+  prototype: WebSocketStream
+  new (url: string | URL, options?: WebSocketStreamOptions): WebSocketStream
+}
+
+interface WebSocketError extends Event, WebSocketCloseInfo {}
+
+export declare const WebSocketError: {
+  prototype: WebSocketError
+  new (type: string, init?: WebSocketCloseInfo): WebSocketError
 }

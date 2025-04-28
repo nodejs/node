@@ -187,6 +187,9 @@
 /* Define if you have the send function. */
 #define HAVE_SEND 1
 
+/* Define if you have the sendto function. */
+#define HAVE_SENDTO 1
+
 /* Define to the type of arg 1 for send. */
 #define SEND_TYPE_ARG1 SOCKET
 
@@ -234,8 +237,10 @@
 #  undef HAVE_NETIOAPI_H
 #endif
 
-/* Threading support enabled */
-#define CARES_THREADS 1
+/* Threading support enabled for Vista+ */
+#if !defined(_WIN32_WINNT) || _WIN32_WINNT >= 0x0600
+#  define CARES_THREADS 1
+#endif
 
 /* ---------------------------------------------------------------- */
 /*                       TYPEDEF REPLACEMENTS                       */
@@ -367,6 +372,8 @@
 #  define HAVE_CONVERTINTERFACELUIDTONAMEA 1
 /* Define to 1 if you have the `NotifyIpInterfaceChange' function. */
 #  define HAVE_NOTIFYIPINTERFACECHANGE 1
+/* Define to 1 if you have the `GetBestRoute2` function */
+#  define HAVE_GETBESTROUTE2 1
 #endif
 
 /* ---------------------------------------------------------------- */

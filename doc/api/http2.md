@@ -1073,7 +1073,7 @@ The `'origin'` event is only emitted when using a secure TLS connection.
 added: v8.4.0
 -->
 
-* `headers` {HTTP/2 Headers Object}
+* `headers` {HTTP/2 Headers Object} | {Array}
 
 * `options` {Object}
   * `endStream` {boolean} `true` if the `Http2Stream` _writable_ side should
@@ -2767,7 +2767,8 @@ Throws `ERR_INVALID_ARG_TYPE` for invalid `settings` argument.
 added: v8.4.0
 changes:
   - version:
-      - REPLACEME
+      - v23.0.0
+      - v22.10.0
     pr-url: https://github.com/nodejs/node/pull/54875
     description: Added `streamResetBurst` and `streamResetRate`.
   - version:
@@ -3054,6 +3055,9 @@ changes:
     **Default:** `100`.
   * `settings` {HTTP/2 Settings Object} The initial settings to send to the
     remote peer upon connection.
+  * `streamResetBurst` {number} and `streamResetRate` {number} Sets the rate
+    limit for the incoming stream reset (RST\_STREAM frame). Both settings must
+    be set to have any effect, and default to 1000 and 33 respectively.
   * `remoteCustomSettings` {Array} The array of integer values determines the
     settings types, which are included in the `customSettings`-property of the
     received remoteSettings. Please see the `customSettings`-property of the

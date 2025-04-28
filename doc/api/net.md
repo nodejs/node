@@ -170,6 +170,17 @@ added:
 
 The list of rules added to the blocklist.
 
+### `BlockList.isBlockList(value)`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+* `value` {any} Any JS value
+* Returns `true` if the `value` is a `net.BlockList`.
+
 ## Class: `net.SocketAddress`
 
 <!-- YAML
@@ -234,6 +245,19 @@ added:
 -->
 
 * Type {number}
+
+### `SocketAddress.parse(input)`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+* `input` {string} An input string containing an IP address and optional port,
+  e.g. `123.1.2.3:1234` or `[1::1]:1234`.
+* Returns: {net.SocketAddress} Returns a `SocketAddress` if parsing was successful.
+  Otherwise returns `undefined`.
 
 ## Class: `net.Server`
 
@@ -471,6 +495,11 @@ Listening on a file descriptor is not supported on Windows.
 <!-- YAML
 added: v0.11.14
 changes:
+  - version:
+    - v23.1.0
+    - v22.12.0
+    pr-url: https://github.com/nodejs/node/pull/55408
+    description: The `reusePort` option is supported.
   - version: v15.6.0
     pr-url: https://github.com/nodejs/node/pull/36623
     description: AbortSignal support was added.
@@ -487,6 +516,11 @@ changes:
   * `ipv6Only` {boolean} For TCP servers, setting `ipv6Only` to `true` will
     disable dual-stack support, i.e., binding to host `::` won't make
     `0.0.0.0` be bound. **Default:** `false`.
+  * `reusePort` {boolean} For TCP servers, setting `reusePort` to `true` allows
+    multiple sockets on the same host to bind to the same port. Incoming connections
+    are distributed by the operating system to listening sockets. This option is
+    available only on some platforms, such as Linux 3.9+, DragonFlyBSD 3.6+, FreeBSD 12.0+,
+    Solaris 11.4, and AIX 7.2.5+. **Default:** `false`.
   * `path` {string} Will be ignored if `port` is specified. See
     [Identifying paths for IPC connections][].
   * `port` {number}
@@ -603,11 +637,26 @@ changes:
 
 * {integer}
 
-Set this property to reject connections when the server's connection count gets
-high.
+When the number of connections reaches the `server.maxConnections` threshold:
+
+1. If the process is not running in cluster mode, Node.js will close the connection.
+
+2. If the process is running in cluster mode, Node.js will, by default, route the connection to another worker process. To close the connection instead, set \[`server.dropMaxConnection`]\[] to `true`.
 
 It is not recommended to use this option once a socket has been sent to a child
 with [`child_process.fork()`][].
+
+### `server.dropMaxConnection`
+
+<!-- YAML
+added:
+  - v23.1.0
+  - v22.12.0
+-->
+
+* {boolean}
+
+Set this property to `true` to begin closing connections once the number of connections reaches the \[`server.maxConnections`]\[] threshold. This setting is only effective in cluster mode.
 
 ### `server.ref()`
 
@@ -1048,6 +1097,8 @@ For TCP connections, available `options` are:
 * `noDelay` {boolean} If set to `true`, it disables the use of Nagle's algorithm
   immediately after the socket is established. **Default:** `false`.
 * `port` {number} Required. Port the socket should connect to.
+* `blockList` {net.BlockList} `blockList` can be used for disabling outbound
+  access to specific IP addresses, IP ranges, or IP subnets.
 
 For [IPC][] connections, available `options` are:
 
@@ -1692,6 +1743,11 @@ changes:
     **Default:** `false`.
   * `pauseOnConnect` {boolean} Indicates whether the socket should be
     paused on incoming connections. **Default:** `false`.
+  * `blockList` {net.BlockList} `blockList` can be used for disabling inbound
+    access to specific IP addresses, IP ranges, or IP subnets. This does not
+    work if the server is behind a reverse proxy, NAT, etc. because the address
+    checked against the block list is the address of the proxy, or the one
+    specified by the NAT.
 
 * `connectionListener` {Function} Automatically set as a listener for the
   [`'connection'`][] event.

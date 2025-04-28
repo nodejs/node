@@ -61,7 +61,6 @@ class Publish extends BaseCommand {
         if (err.code !== 'EPRIVATE') {
           throw err
         }
-        // eslint-disable-next-line max-len
         log.warn('publish', `Skipping workspace ${this.npm.chalk.cyan(name)}, marked as ${this.npm.chalk.bold('private')}`)
       }
     }
@@ -115,6 +114,15 @@ class Publish extends BaseCommand {
     // so that we send the latest and greatest thing to the registry
     // note that publishConfig might have changed as well!
     manifest = await this.#getManifest(spec, opts, true)
+    const force = this.npm.config.get('force')
+    const isDefaultTag = this.npm.config.isDefault('tag') && !manifest.publishConfig?.tag
+
+    if (!force) {
+      const isPreRelease = Boolean(semver.parse(manifest.version).prerelease.length)
+      if (isPreRelease && isDefaultTag) {
+        throw new Error('You must specify a tag using --tag when publishing a prerelease version.')
+      }
+    }
 
     // If we are not in JSON mode then we show the user the contents of the tarball
     // before it is published so they can see it while their otp is pending
@@ -147,6 +155,20 @@ class Publish extends BaseCommand {
         log.warn('', `${msg} (dry-run)`)
       } else {
         throw Object.assign(new Error(msg), { code: 'ENEEDAUTH' })
+      }
+    }
+
+    if (!force) {
+      const { highestVersion, versions } = await this.#registryVersions(resolved, registry)
+      /* eslint-disable-next-line max-len */
+      const highestVersionIsGreater = !!highestVersion && semver.gte(highestVersion, manifest.version)
+
+      if (versions.includes(manifest.version)) {
+        throw new Error(`You cannot publish over the previously published versions: ${manifest.version}.`)
+      }
+
+      if (highestVersionIsGreater && isDefaultTag) {
+        throw new Error(`Cannot implicitly apply the "latest" tag because previously published version ${highestVersion} is higher than the new version ${manifest.version}. You must specify a tag using --tag.`)
       }
     }
 
@@ -189,6 +211,33 @@ class Publish extends BaseCommand {
     }
   }
 
+  async #registryVersions (spec, registry) {
+    try {
+      const packument = await pacote.packument(spec, {
+        ...this.npm.flatOptions,
+        preferOnline: true,
+        registry,
+      })
+      if (typeof packument?.versions === 'undefined') {
+        return { versions: [], highestVersion: null }
+      }
+      const ordered = Object.keys(packument?.versions)
+        .flatMap(v => {
+          const s = new semver.SemVer(v)
+          if ((s.prerelease.length > 0) || packument.versions[v].deprecated) {
+            return []
+          }
+          return s
+        })
+        .sort((a, b) => b.compare(a))
+      const highestVersion = ordered.length >= 1 ? ordered[0].version : null
+      const versions = ordered.map(v => v.version)
+      return { versions, highestVersion }
+    } catch (e) {
+      return { versions: [], highestVersion: null }
+    }
+  }
+
   // if it's a directory, read it from the file system
   // otherwise, get the full metadata from whatever it is
   // XXX can't pacote read the manifest from a directory?
@@ -198,7 +247,6 @@ class Publish extends BaseCommand {
       const changes = []
       const pkg = await pkgJson.fix(spec.fetchSpec, { changes })
       if (changes.length && logWarnings) {
-        /* eslint-disable-next-line max-len */
         log.warn('publish', 'npm auto-corrected some errors in your package.json when publishing.  Please run "npm pkg fix" to address these errors.')
         log.warn('publish', `errors corrected:\n${changes.join('\n')}`)
       }
@@ -218,6 +266,11 @@ class Publish extends BaseCommand {
       // corresponding `publishConfig` settings
       const filteredPublishConfig = Object.fromEntries(
         Object.entries(manifest.publishConfig).filter(([key]) => !(key in cliFlags)))
+      if (logWarnings) {
+        for (const key in filteredPublishConfig) {
+          this.npm.config.checkUnknown('publishConfig', key)
+        }
+      }
       flatten(filteredPublishConfig, opts)
     }
     return manifest

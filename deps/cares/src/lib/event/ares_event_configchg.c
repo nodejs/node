@@ -26,7 +26,7 @@
 #include "ares_private.h"
 #include "ares_event.h"
 
-#ifdef __ANDROID__
+#if defined(__ANDROID__) && defined(CARES_THREADS)
 
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
@@ -43,7 +43,7 @@ void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
   (void)configchg;
 }
 
-#elif defined(__linux__)
+#elif defined(__linux__) && defined(CARES_THREADS)
 
 #  include <sys/inotify.h>
 
@@ -116,8 +116,8 @@ static void ares_event_configchg_cb(ares_event_thread_t *e, ares_socket_t fd,
         continue;
       }
 
-      if (strcasecmp(event->name, "resolv.conf") == 0 ||
-          strcasecmp(event->name, "nsswitch.conf") == 0) {
+      if (ares_strcaseeq(event->name, "resolv.conf") ||
+          ares_strcaseeq(event->name, "nsswitch.conf")) {
         triggered = ARES_TRUE;
       }
     }
@@ -174,7 +174,7 @@ done:
   return status;
 }
 
-#elif defined(USE_WINSOCK)
+#elif defined(USE_WINSOCK) && defined(CARES_THREADS)
 
 #  include <winsock2.h>
 #  include <iphlpapi.h>
@@ -379,7 +379,7 @@ done:
   return status;
 }
 
-#elif defined(__APPLE__)
+#elif defined(__APPLE__) && defined(CARES_THREADS)
 
 #  include <sys/types.h>
 #  include <unistd.h>
@@ -531,7 +531,7 @@ done:
   return status;
 }
 
-#elif defined(HAVE_STAT) && !defined(_WIN32)
+#elif defined(HAVE_STAT) && !defined(_WIN32) && defined(CARES_THREADS)
 #  ifdef HAVE_SYS_TYPES_H
 #    include <sys/types.h>
 #  endif
@@ -545,30 +545,40 @@ typedef struct {
 } fileinfo_t;
 
 struct ares_event_configchg {
-  ares_bool_t           isup;
-  ares__thread_t       *thread;
-  ares__htable_strvp_t *filestat;
-  ares__thread_mutex_t *lock;
-  ares__thread_cond_t  *wake;
-  const char           *resolvconf_path;
-  ares_event_thread_t  *e;
+  ares_bool_t          isup;
+  ares_thread_t       *thread;
+  ares_htable_strvp_t *filestat;
+  ares_thread_mutex_t *lock;
+  ares_thread_cond_t  *wake;
+  const char          *resolvconf_path;
+  ares_event_thread_t *e;
 };
 
-static ares_status_t config_change_check(ares__htable_strvp_t *filestat,
-                                         const char           *resolvconf_path)
+static ares_status_t config_change_check(ares_htable_strvp_t *filestat,
+                                         const char          *resolvconf_path)
 {
   size_t      i;
-  const char *configfiles[5];
+  const char *configfiles[16];
   ares_bool_t changed = ARES_FALSE;
+  size_t      cnt = 0;
 
-  configfiles[0] = resolvconf_path;
-  configfiles[1] = "/etc/nsswitch.conf";
-  configfiles[2] = "/etc/netsvc.conf";
-  configfiles[3] = "/etc/svc.conf";
-  configfiles[4] = NULL;
+  memset(configfiles, 0, sizeof(configfiles));
+
+  configfiles[cnt++] = resolvconf_path;
+  configfiles[cnt++] = "/etc/nsswitch.conf";
+#ifdef _AIX
+  configfiles[cnt++] = "/etc/netsvc.conf";
+#endif
+#ifdef __osf /* Tru64 */
+  configfiles[cnt++] = "/etc/svc.conf";
+#endif
+#ifdef __QNX__
+  configfiles[cnt++] = "/etc/net.cfg";
+#endif
+  configfiles[cnt++] = NULL;
 
   for (i = 0; configfiles[i] != NULL; i++) {
-    fileinfo_t *fi = ares__htable_strvp_get_direct(filestat, configfiles[i]);
+    fileinfo_t *fi = ares_htable_strvp_get_direct(filestat, configfiles[i]);
     struct stat st;
 
     if (stat(configfiles[i], &st) == 0) {
@@ -577,7 +587,7 @@ static ares_status_t config_change_check(ares__htable_strvp_t *filestat,
         if (fi == NULL) {
           return ARES_ENOMEM;
         }
-        if (!ares__htable_strvp_insert(filestat, configfiles[i], fi)) {
+        if (!ares_htable_strvp_insert(filestat, configfiles[i], fi)) {
           ares_free(fi);
           return ARES_ENOMEM;
         }
@@ -589,7 +599,7 @@ static ares_status_t config_change_check(ares__htable_strvp_t *filestat,
       fi->mtime = (time_t)st.st_mtime;
     } else if (fi != NULL) {
       /* File no longer exists, remove */
-      ares__htable_strvp_remove(filestat, configfiles[i]);
+      ares_htable_strvp_remove(filestat, configfiles[i]);
       changed = ARES_TRUE;
     }
   }
@@ -604,11 +614,11 @@ static void *ares_event_configchg_thread(void *arg)
 {
   ares_event_configchg_t *c = arg;
 
-  ares__thread_mutex_lock(c->lock);
+  ares_thread_mutex_lock(c->lock);
   while (c->isup) {
     ares_status_t status;
 
-    if (ares__thread_cond_timedwait(c->wake, c->lock, 30000) != ARES_ETIMEOUT) {
+    if (ares_thread_cond_timedwait(c->wake, c->lock, 30000) != ARES_ETIMEOUT) {
       continue;
     }
 
@@ -623,7 +633,7 @@ static void *ares_event_configchg_thread(void *arg)
     }
   }
 
-  ares__thread_mutex_unlock(c->lock);
+  ares_thread_mutex_unlock(c->lock);
   return NULL;
 }
 
@@ -643,14 +653,20 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
 
   c->e = e;
 
-  c->filestat = ares__htable_strvp_create(ares_free);
+  c->filestat = ares_htable_strvp_create(ares_free);
   if (c->filestat == NULL) {
     status = ARES_ENOMEM;
     goto done;
   }
 
-  c->wake = ares__thread_cond_create();
+  c->wake = ares_thread_cond_create();
   if (c->wake == NULL) {
+    status = ARES_ENOMEM;
+    goto done;
+  }
+
+  c->lock = ares_thread_mutex_create();
+  if (c->lock == NULL) {
     status = ARES_ENOMEM;
     goto done;
   }
@@ -666,7 +682,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
   }
 
   c->isup = ARES_TRUE;
-  status  = ares__thread_create(&c->thread, ares_event_configchg_thread, c);
+  status  = ares_thread_create(&c->thread, ares_event_configchg_thread, c);
 
 done:
   if (status != ARES_SUCCESS) {
@@ -684,26 +700,26 @@ void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
   }
 
   if (configchg->lock) {
-    ares__thread_mutex_lock(configchg->lock);
+    ares_thread_mutex_lock(configchg->lock);
   }
 
   configchg->isup = ARES_FALSE;
   if (configchg->wake) {
-    ares__thread_cond_signal(configchg->wake);
+    ares_thread_cond_signal(configchg->wake);
   }
 
   if (configchg->lock) {
-    ares__thread_mutex_unlock(configchg->lock);
+    ares_thread_mutex_unlock(configchg->lock);
   }
 
   if (configchg->thread) {
     void *rv = NULL;
-    ares__thread_join(configchg->thread, &rv);
+    ares_thread_join(configchg->thread, &rv);
   }
 
-  ares__thread_mutex_destroy(configchg->lock);
-  ares__thread_cond_destroy(configchg->wake);
-  ares__htable_strvp_destroy(configchg->filestat);
+  ares_thread_mutex_destroy(configchg->lock);
+  ares_thread_cond_destroy(configchg->wake);
+  ares_htable_strvp_destroy(configchg->filestat);
   ares_free(configchg);
 }
 
@@ -712,6 +728,8 @@ void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
                                         ares_event_thread_t     *e)
 {
+  (void)configchg;
+  (void)e;
   /* No ability */
   return ARES_ENOTIMP;
 }
@@ -719,6 +737,7 @@ ares_status_t ares_event_configchg_init(ares_event_configchg_t **configchg,
 void ares_event_configchg_destroy(ares_event_configchg_t *configchg)
 {
   /* No-op */
+  (void)configchg;
 }
 
 #endif

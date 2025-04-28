@@ -58,6 +58,7 @@ namespace Buffer {
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::FastApiTypedArray;
@@ -71,7 +72,6 @@ using v8::Just;
 using v8::Local;
 using v8::Maybe;
 using v8::MaybeLocal;
-using v8::NewStringType;
 using v8::Nothing;
 using v8::Number;
 using v8::Object;
@@ -278,10 +278,10 @@ MaybeLocal<Uint8Array> New(Environment* env,
                            size_t length) {
   CHECK(!env->buffer_prototype_object().IsEmpty());
   Local<Uint8Array> ui = Uint8Array::New(ab, byte_offset, length);
-  Maybe<bool> mb =
-      ui->SetPrototype(env->context(), env->buffer_prototype_object());
-  if (mb.IsNothing())
+  if (ui->SetPrototypeV2(env->context(), env->buffer_prototype_object())
+          .IsNothing()) {
     return MaybeLocal<Uint8Array>();
+  }
   return ui;
 }
 
@@ -329,9 +329,7 @@ MaybeLocal<Object> New(Isolate* isolate,
       if (actual < length) {
         std::unique_ptr<BackingStore> old_store = std::move(store);
         store = ArrayBuffer::NewBackingStore(isolate, actual);
-        memcpy(static_cast<char*>(store->Data()),
-               static_cast<char*>(old_store->Data()),
-               actual);
+        memcpy(store->Data(), old_store->Data(), actual);
       }
       Local<ArrayBuffer> buf = ArrayBuffer::New(isolate, std::move(store));
       Local<Object> obj;
@@ -372,9 +370,8 @@ MaybeLocal<Object> New(Environment* env, size_t length) {
 
   Local<ArrayBuffer> ab;
   {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    std::unique_ptr<BackingStore> bs =
-        ArrayBuffer::NewBackingStore(isolate, length);
+    std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+        isolate, length, BackingStoreInitializationMode::kUninitialized);
 
     CHECK(bs);
 
@@ -413,18 +410,14 @@ MaybeLocal<Object> Copy(Environment* env, const char* data, size_t length) {
     return Local<Object>();
   }
 
-  Local<ArrayBuffer> ab;
-  {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    std::unique_ptr<BackingStore> bs =
-        ArrayBuffer::NewBackingStore(isolate, length);
+  std::unique_ptr<BackingStore> bs = ArrayBuffer::NewBackingStore(
+      isolate, length, BackingStoreInitializationMode::kUninitialized);
 
-    CHECK(bs);
+  CHECK(bs);
 
-    memcpy(bs->Data(), data, length);
+  memcpy(bs->Data(), data, length);
 
-    ab = ArrayBuffer::New(isolate, std::move(bs));
-  }
+  Local<ArrayBuffer> ab = ArrayBuffer::New(isolate, std::move(bs));
 
   MaybeLocal<Object> obj =
       New(env, ab, 0, ab->ByteLength())
@@ -549,20 +542,11 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
   size_t length = end - start;
 
-  Local<Value> error;
-  MaybeLocal<Value> maybe_ret =
-      StringBytes::Encode(isolate,
-                          buffer.data() + start,
-                          length,
-                          encoding,
-                          &error);
   Local<Value> ret;
-  if (!maybe_ret.ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
-    return;
+  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(ret);
 }
 
 // Assume caller has properly validated args.
@@ -572,9 +556,14 @@ void SlowCopy(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> source(args[0]);
   SPREAD_BUFFER_ARG(args[1].As<Object>(), target);
 
-  const auto target_start = args[2]->Uint32Value(env->context()).ToChecked();
-  const auto source_start = args[3]->Uint32Value(env->context()).ToChecked();
-  const auto to_copy = args[4]->Uint32Value(env->context()).ToChecked();
+  uint32_t target_start;
+  uint32_t source_start;
+  uint32_t to_copy;
+  if (!args[2]->Uint32Value(env->context()).To(&target_start) ||
+      !args[3]->Uint32Value(env->context()).To(&source_start) ||
+      !args[4]->Uint32Value(env->context()).To(&to_copy)) {
+    return;
+  }
 
   memmove(target_data + target_start, source.data() + source_start, to_copy);
   args.GetReturnValue().Set(to_copy);
@@ -639,7 +628,9 @@ void Fill(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  str_obj = args[1]->ToString(env->context()).ToLocalChecked();
+  if (!args[1]->ToString(env->context()).ToLocal(&str_obj)) {
+    return;
+  }
   enc = ParseEncoding(env->isolate(), args[4], UTF8);
 
   // Can't use StringBytes::Write() in all cases. For example if attempting
@@ -702,7 +693,10 @@ void StringWrite(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[0], "argument");
 
-  Local<String> str = args[0]->ToString(env->context()).ToLocalChecked();
+  Local<String> str;
+  if (!args[0]->ToString(env->context()).ToLocal(&str)) {
+    return;
+  }
 
   size_t offset = 0;
   size_t max_length = 0;
@@ -966,8 +960,9 @@ void IndexOfString(const FunctionCallbackInfo<Value>& args) {
 
   if (enc == UCS2) {
     String::Value needle_value(isolate, needle);
-    if (*needle_value == nullptr)
+    if (*needle_value == nullptr) {
       return args.GetReturnValue().Set(-1);
+    }
 
     if (haystack_length < 2 || needle_value.length() < 1) {
       return args.GetReturnValue().Set(-1);
@@ -1227,12 +1222,20 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
   Local<ArrayBuffer> ab;
   // It can be a nullptr when running inside an isolate where we
   // do not own the ArrayBuffer allocator.
-  if (allocator == nullptr) {
+  if (allocator == nullptr || env->isolate_data()->is_building_snapshot()) {
     // Create a dummy Uint32Array - the JS land can only toggle the C++ land
     // setting when the allocator uses our toggle. With this the toggle in JS
     // land results in no-ops.
+    // When building a snapshot, just use a dummy toggle as well to avoid
+    // introducing the dynamic external reference. We'll re-initialize the
+    // toggle with a real one connected to the C++ allocator after snapshot
+    // deserialization.
+
     ab = ArrayBuffer::New(env->isolate(), sizeof(uint32_t));
   } else {
+    // TODO(joyeecheung): save ab->GetBackingStore()->Data() in the Node.js
+    // array buffer allocator and include it into the C++ toggle while the
+    // Environment is still alive.
     uint32_t* zero_fill_field = allocator->zero_fill_field();
     std::unique_ptr<BackingStore> backing =
         ArrayBuffer::NewBackingStore(zero_fill_field,
@@ -1242,10 +1245,12 @@ void GetZeroFillToggle(const FunctionCallbackInfo<Value>& args) {
     ab = ArrayBuffer::New(env->isolate(), std::move(backing));
   }
 
-  ab->SetPrivate(
-      env->context(),
-      env->untransferable_object_private_symbol(),
-      True(env->isolate())).Check();
+  if (ab->SetPrivate(env->context(),
+                     env->untransferable_object_private_symbol(),
+                     True(env->isolate()))
+          .IsNothing()) {
+    return;
+  }
 
   args.GetReturnValue().Set(Uint32Array::New(ab, 0, 1));
 }
@@ -1256,7 +1261,9 @@ void DetachArrayBuffer(const FunctionCallbackInfo<Value>& args) {
     Local<ArrayBuffer> buf = args[0].As<ArrayBuffer>();
     if (buf->IsDetachable()) {
       std::shared_ptr<BackingStore> store = buf->GetBackingStore();
-      buf->Detach(Local<Value>()).Check();
+      if (buf->Detach(Local<Value>()).IsNothing()) {
+        return;
+      }
       args.GetReturnValue().Set(ArrayBuffer::New(env->isolate(), store));
     }
   }
@@ -1310,12 +1317,9 @@ static void Btoa(const FunctionCallbackInfo<Value>& args) {
     written = simdutf::binary_to_base64(*stack_buf, out_len, buffer.out());
   }
 
-  auto value =
-      String::NewFromOneByte(env->isolate(),
-                             reinterpret_cast<const uint8_t*>(buffer.out()),
-                             NewStringType::kNormal,
-                             written)
-          .ToLocalChecked();
+  auto value = OneByteString(
+      env->isolate(), reinterpret_cast<const uint8_t*>(buffer.out()), written);
+
   return args.GetReturnValue().Set(value);
 }
 
@@ -1365,12 +1369,9 @@ static void Atob(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (result.error == simdutf::error_code::SUCCESS) {
-    auto value =
-        String::NewFromOneByte(env->isolate(),
+    auto value = OneByteString(env->isolate(),
                                reinterpret_cast<const uint8_t*>(buffer.out()),
-                               NewStringType::kNormal,
-                               result.count)
-            .ToLocalChecked();
+                               result.count);
     return args.GetReturnValue().Set(value);
   }
 
@@ -1471,7 +1472,10 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 
   THROW_AND_RETURN_IF_NOT_STRING(env, args[1], "argument");
 
-  Local<String> str = args[1]->ToString(env->context()).ToLocalChecked();
+  Local<String> str;
+  if (!args[1]->ToString(env->context()).ToLocal(&str)) {
+    return;
+  }
 
   size_t offset = 0;
   size_t max_length = 0;
@@ -1518,11 +1522,11 @@ uint32_t FastWriteString(Local<Value> receiver,
       std::min<uint32_t>(dst.length() - offset, max_length));
 }
 
-static v8::CFunction fast_write_string_ascii(
+static const v8::CFunction fast_write_string_ascii(
     v8::CFunction::Make(FastWriteString<ASCII>));
-static v8::CFunction fast_write_string_latin1(
+static const v8::CFunction fast_write_string_latin1(
     v8::CFunction::Make(FastWriteString<LATIN1>));
-static v8::CFunction fast_write_string_utf8(
+static const v8::CFunction fast_write_string_utf8(
     v8::CFunction::Make(FastWriteString<UTF8>));
 
 void Initialize(Local<Object> target,

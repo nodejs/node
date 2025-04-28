@@ -73,20 +73,7 @@ Maybe<ExitCode> SpinEventLoopInternal(Environment* env) {
 
   env->PrintInfoForSnapshotIfDebug();
   env->ForEachRealm([](Realm* realm) { realm->VerifyNoStrongBaseObjects(); });
-  Maybe<ExitCode> exit_code = EmitProcessExitInternal(env);
-  if (exit_code.FromMaybe(ExitCode::kGenericUserError) !=
-      ExitCode::kNoFailure) {
-    return exit_code;
-  }
-
-  auto unsettled_tla = env->CheckUnsettledTopLevelAwait();
-  if (unsettled_tla.IsNothing()) {
-    return Nothing<ExitCode>();
-  }
-  if (!unsettled_tla.FromJust()) {
-    return Just(ExitCode::kUnsettledTopLevelAwait);
-  }
-  return Just(ExitCode::kNoFailure);
+  return EmitProcessExitInternal(env);
 }
 
 struct CommonEnvironmentSetup::Impl {
@@ -123,22 +110,40 @@ CommonEnvironmentSetup::CommonEnvironmentSetup(
   }
   loop->data = this;
 
+  impl_->allocator = ArrayBufferAllocator::Create();
+  const std::vector<intptr_t>& external_references =
+      SnapshotBuilder::CollectExternalReferences();
+  Isolate::CreateParams params;
+  params.array_buffer_allocator = impl_->allocator.get();
+  params.external_references = external_references.data();
+  params.external_references = external_references.data();
+  params.cpp_heap =
+      v8::CppHeap::Create(platform, v8::CppHeapCreateParams{{}}).release();
+
   Isolate* isolate;
+
+  // Isolates created for snapshotting should be set up differently since
+  // it will be owned by the snapshot creator and needs to be cleaned up
+  // before serialization.
   if (flags & Flags::kIsForSnapshotting) {
-    const std::vector<intptr_t>& external_references =
-        SnapshotBuilder::CollectExternalReferences();
+    // The isolate must be registered before the SnapshotCreator initializes the
+    // isolate, so that the memory reducer can be initialized.
     isolate = impl_->isolate = Isolate::Allocate();
-    // Must be done before the SnapshotCreator creation so  that the
-    // memory reducer can be initialized.
     platform->RegisterIsolate(isolate, loop);
-    impl_->snapshot_creator.emplace(isolate, external_references.data());
+
+    impl_->snapshot_creator.emplace(isolate, params);
     isolate->SetCaptureStackTraceForUncaughtExceptions(
-        true, 10, v8::StackTrace::StackTraceOptions::kDetailed);
+        true,
+        static_cast<int>(
+            per_process::cli_options->per_isolate->stack_trace_limit),
+        v8::StackTrace::StackTraceOptions::kDetailed);
     SetIsolateMiscHandlers(isolate, {});
   } else {
-    impl_->allocator = ArrayBufferAllocator::Create();
     isolate = impl_->isolate =
-        NewIsolate(impl_->allocator, &impl_->loop, platform, snapshot_data);
+        NewIsolate(&params,
+                   &impl_->loop,
+                   platform,
+                   SnapshotData::FromEmbedderWrapper(snapshot_data));
   }
 
   {
@@ -233,10 +238,10 @@ CommonEnvironmentSetup::~CommonEnvironmentSetup() {
       *static_cast<bool*>(data) = true;
     }, &platform_finished);
     impl_->platform->UnregisterIsolate(isolate);
-    if (impl_->snapshot_creator.has_value())
+    if (impl_->snapshot_creator.has_value()) {
       impl_->snapshot_creator.reset();
-    else
-      isolate->Dispose();
+    }
+    isolate->Dispose();
 
     // Wait until the platform has cleaned up all relevant resources.
     while (!platform_finished)

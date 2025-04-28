@@ -1,0 +1,85 @@
+[stdin]:1
+enum Foo{};
+^^^^
+TypeScript enum is not supported in strip-only mode
+
+SyntaxError: Unexpected reserved word
+
+Node.js *
+[stdin]:1
+enum Foo{};
+^^^^
+TypeScript enum is not supported in strip-only mode
+
+SyntaxError: Unexpected reserved word
+
+Node.js *
+[stdin]:1
+throw new SyntaxError("hello")
+^
+
+SyntaxError: hello
+
+Node.js *
+[stdin]:1
+throw new SyntaxError("hello")
+^
+
+SyntaxError: hello
+
+Node.js *
+[stdin]:1
+const foo;
+      ^^^
+'const' declarations must be initialized
+
+SyntaxError: Missing initializer in const declaration
+
+Node.js *
+[stdin]:1
+const foo;
+      ^^^
+'const' declarations must be initialized
+
+SyntaxError: Missing initializer in const declaration
+
+Node.js *
+100
+100
+undefined
+undefined
+false
+false
+[stdin]:1
+interface Foo{};const foo;
+          ^^^
+'const' declarations must be initialized
+
+SyntaxError: Unexpected identifier 'Foo'
+
+Node.js *
+[stdin]:1
+interface Foo{};const foo;
+^^^^^^^^^
+'const' declarations must be initialized
+
+SyntaxError: Unexpected strict mode reserved word
+
+Node.js *
+[stdin]:1
+function foo(){ await Promise.resolve(1)};
+                ^^^^^
+await isn't allowed in non-async function
+
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+
+Node.js *
+[stdin]:1
+function foo(){ await Promise.resolve(1)};
+                ^^^^^
+await isn't allowed in non-async function
+
+SyntaxError: await is only valid in async functions and the top level bodies of modules
+
+Node.js *
+done

@@ -4,22 +4,27 @@
 
 <!--type=misc-->
 
-Applications running in Node.js will generally experience four categories of
-errors:
+Applications running in Node.js will generally experience the following
+categories of errors:
 
 * Standard JavaScript errors such as {EvalError}, {SyntaxError}, {RangeError},
   {ReferenceError}, {TypeError}, and {URIError}.
+* Standard `DOMException`s.
 * System errors triggered by underlying operating system constraints such
   as attempting to open a file that does not exist or attempting to send data
   over a closed socket.
-* User-specified errors triggered by application code.
 * `AssertionError`s are a special class of error that can be triggered when
   Node.js detects an exceptional logic violation that should never occur. These
   are raised typically by the `node:assert` module.
+* User-specified errors triggered by application code.
 
 All JavaScript and system errors raised by Node.js inherit from, or are
 instances of, the standard JavaScript {Error} class and are guaranteed
 to provide _at least_ the properties available on that class.
+
+The [`error.message`][] property of errors raised by Node.js may be changed in
+any versions. Use [`error.code`][] to identify an error instead. For a
+`DOMException`, use [`domException.name`][] to identify its type.
 
 ## Error propagation and interception
 
@@ -61,7 +66,7 @@ Errors that occur within _Asynchronous APIs_ may be reported in multiple ways:
   <!-- eslint-disable no-useless-return -->
 
   ```js
-  const fs = require('fs/promises');
+  const fs = require('node:fs/promises');
 
   (async () => {
     let data;
@@ -956,12 +961,6 @@ added: v15.0.0
 
 An invalid JSON Web Key was provided.
 
-<a id="ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE"></a>
-
-### `ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE`
-
-The given crypto key object's type is invalid for the attempted operation.
-
 <a id="ERR_CRYPTO_INVALID_KEYLEN"></a>
 
 ### `ERR_CRYPTO_INVALID_KEYLEN`
@@ -991,6 +990,12 @@ added: v15.0.0
 -->
 
 An invalid key type was provided.
+
+<a id="ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE"></a>
+
+### `ERR_CRYPTO_INVALID_KEY_OBJECT_TYPE`
+
+The given crypto key object's type is invalid for the attempted operation.
 
 <a id="ERR_CRYPTO_INVALID_MESSAGELEN"></a>
 
@@ -1140,6 +1145,23 @@ added:
 
 The [debugger][] timed out waiting for the required host/port to be free.
 
+<a id="ERR_DIR_CLOSED"></a>
+
+### `ERR_DIR_CLOSED`
+
+The [`fs.Dir`][] was previously closed.
+
+<a id="ERR_DIR_CONCURRENT_OPERATION"></a>
+
+### `ERR_DIR_CONCURRENT_OPERATION`
+
+<!-- YAML
+added: v14.3.0
+-->
+
+A synchronous read or close call was attempted on an [`fs.Dir`][] which has
+ongoing asynchronous operations.
+
 <a id="ERR_DLOPEN_DISABLED"></a>
 
 ### `ERR_DLOPEN_DISABLED`
@@ -1161,23 +1183,6 @@ added: v15.0.0
 -->
 
 A call to `process.dlopen()` failed.
-
-<a id="ERR_DIR_CLOSED"></a>
-
-### `ERR_DIR_CLOSED`
-
-The [`fs.Dir`][] was previously closed.
-
-<a id="ERR_DIR_CONCURRENT_OPERATION"></a>
-
-### `ERR_DIR_CONCURRENT_OPERATION`
-
-<!-- YAML
-added: v14.3.0
--->
-
-A synchronous read or close call was attempted on an [`fs.Dir`][] which has
-ongoing asynchronous operations.
 
 <a id="ERR_DNS_SET_SERVERS_FAILED"></a>
 
@@ -1295,19 +1300,6 @@ added: v16.7.0
 
 When using [`fs.cp()`][], `src` or `dest` pointed to an invalid path.
 
-<a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
-
-### `ERR_HTTP_BODY_NOT_ALLOWED`
-
-An error is thrown when writing to an HTTP response which does not allow
-contents.
-
-<a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
-
-### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
-
-Response body size doesn't match with the specified content-length header value.
-
 <a id="ERR_FS_CP_FIFO_PIPE"></a>
 
 ### `ERR_FS_CP_FIFO_PIPE`
@@ -1373,49 +1365,6 @@ Path is a directory.
 An attempt has been made to read a file whose size is larger than the maximum
 allowed size for a `Buffer`.
 
-<a id="ERR_HTTP_HEADERS_SENT"></a>
-
-### `ERR_HTTP_HEADERS_SENT`
-
-An attempt was made to add more headers after the headers had already been sent.
-
-<a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
-
-### `ERR_HTTP_INVALID_HEADER_VALUE`
-
-An invalid HTTP header value was specified.
-
-<a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
-
-### `ERR_HTTP_INVALID_STATUS_CODE`
-
-Status code was outside the regular status code range (100-999).
-
-<a id="ERR_HTTP_REQUEST_TIMEOUT"></a>
-
-### `ERR_HTTP_REQUEST_TIMEOUT`
-
-The client has not sent the entire request within the allowed time.
-
-<a id="ERR_HTTP_SOCKET_ASSIGNED"></a>
-
-### `ERR_HTTP_SOCKET_ASSIGNED`
-
-The given [`ServerResponse`][] was already assigned a socket.
-
-<a id="ERR_HTTP_SOCKET_ENCODING"></a>
-
-### `ERR_HTTP_SOCKET_ENCODING`
-
-Changing the socket encoding is not allowed per [RFC 7230 Section 3][].
-
-<a id="ERR_HTTP_TRAILER_INVALID"></a>
-
-### `ERR_HTTP_TRAILER_INVALID`
-
-The `Trailer` header was set even though the transfer encoding does not support
-that.
-
 <a id="ERR_HTTP2_ALTSVC_INVALID_ORIGIN"></a>
 
 ### `ERR_HTTP2_ALTSVC_INVALID_ORIGIN`
@@ -1462,13 +1411,6 @@ A non-specific HTTP/2 error has occurred.
 New HTTP/2 Streams may not be opened after the `Http2Session` has received a
 `GOAWAY` frame from the connected peer.
 
-<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
-
-### `ERR_HTTP2_HEADER_SINGLE_VALUE`
-
-Multiple values were provided for an HTTP/2 header field that was required to
-have only a single value.
-
 <a id="ERR_HTTP2_HEADERS_AFTER_RESPOND"></a>
 
 ### `ERR_HTTP2_HEADERS_AFTER_RESPOND`
@@ -1480,6 +1422,13 @@ An additional headers was specified after an HTTP/2 response was initiated.
 ### `ERR_HTTP2_HEADERS_SENT`
 
 An attempt was made to send multiple response headers.
+
+<a id="ERR_HTTP2_HEADER_SINGLE_VALUE"></a>
+
+### `ERR_HTTP2_HEADER_SINGLE_VALUE`
+
+Multiple values were provided for an HTTP/2 header field that was required to
+have only a single value.
 
 <a id="ERR_HTTP2_INFO_STATUS_NOT_ALLOWED"></a>
 
@@ -1738,11 +1687,78 @@ is set for the `Http2Stream`.
 `http2.connect()` was passed a URL that uses any protocol other than `http:` or
 `https:`.
 
+<a id="ERR_HTTP_BODY_NOT_ALLOWED"></a>
+
+### `ERR_HTTP_BODY_NOT_ALLOWED`
+
+An error is thrown when writing to an HTTP response which does not allow
+contents.
+
+<a id="ERR_HTTP_CONTENT_LENGTH_MISMATCH"></a>
+
+### `ERR_HTTP_CONTENT_LENGTH_MISMATCH`
+
+Response body size doesn't match with the specified content-length header value.
+
+<a id="ERR_HTTP_HEADERS_SENT"></a>
+
+### `ERR_HTTP_HEADERS_SENT`
+
+An attempt was made to add more headers after the headers had already been sent.
+
+<a id="ERR_HTTP_INVALID_HEADER_VALUE"></a>
+
+### `ERR_HTTP_INVALID_HEADER_VALUE`
+
+An invalid HTTP header value was specified.
+
+<a id="ERR_HTTP_INVALID_STATUS_CODE"></a>
+
+### `ERR_HTTP_INVALID_STATUS_CODE`
+
+Status code was outside the regular status code range (100-999).
+
+<a id="ERR_HTTP_REQUEST_TIMEOUT"></a>
+
+### `ERR_HTTP_REQUEST_TIMEOUT`
+
+The client has not sent the entire request within the allowed time.
+
+<a id="ERR_HTTP_SOCKET_ASSIGNED"></a>
+
+### `ERR_HTTP_SOCKET_ASSIGNED`
+
+The given [`ServerResponse`][] was already assigned a socket.
+
+<a id="ERR_HTTP_SOCKET_ENCODING"></a>
+
+### `ERR_HTTP_SOCKET_ENCODING`
+
+Changing the socket encoding is not allowed per [RFC 7230 Section 3][].
+
+<a id="ERR_HTTP_TRAILER_INVALID"></a>
+
+### `ERR_HTTP_TRAILER_INVALID`
+
+The `Trailer` header was set even though the transfer encoding does not support
+that.
+
 <a id="ERR_ILLEGAL_CONSTRUCTOR"></a>
 
 ### `ERR_ILLEGAL_CONSTRUCTOR`
 
 An attempt was made to construct an object using a non-public constructor.
+
+<a id="ERR_IMPORT_ATTRIBUTE_MISSING"></a>
+
+### `ERR_IMPORT_ATTRIBUTE_MISSING`
+
+<!-- YAML
+added:
+  - v21.1.0
+-->
+
+An import attribute is missing, preventing the specified module to be imported.
 
 <a id="ERR_IMPORT_ATTRIBUTE_TYPE_INCOMPATIBLE"></a>
 
@@ -1755,17 +1771,6 @@ added:
 
 An import `type` attribute was provided, but the specified module is of a
 different type.
-
-<a id="ERR_IMPORT_ATTRIBUTE_MISSING"></a>
-
-### `ERR_IMPORT_ATTRIBUTE_MISSING`
-
-<!-- YAML
-added:
-  - v21.1.0
--->
-
-An import attribute is missing, preventing the specified module to be imported.
 
 <a id="ERR_IMPORT_ATTRIBUTE_UNSUPPORTED"></a>
 
@@ -2003,13 +2008,6 @@ An invalid [`package.json`][] file failed parsing.
 The `package.json` [`"exports"`][] field contains an invalid target mapping
 value for the attempted module resolution.
 
-<a id="ERR_INVALID_PERFORMANCE_MARK"></a>
-
-### `ERR_INVALID_PERFORMANCE_MARK`
-
-While using the Performance Timing API (`perf_hooks`), a performance mark is
-invalid.
-
 <a id="ERR_INVALID_PROTOCOL"></a>
 
 ### `ERR_INVALID_PROTOCOL`
@@ -2094,6 +2092,24 @@ An element in the `iterable` provided to the [WHATWG][WHATWG URL API]
 represent a `[name, value]` tuple – that is, if an element is not iterable, or
 does not consist of exactly two elements.
 
+<a id="ERR_INVALID_TYPESCRIPT_SYNTAX"></a>
+
+### `ERR_INVALID_TYPESCRIPT_SYNTAX`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+changes:
+    - version:
+      - v23.7.0
+      - v22.14.0
+      pr-url: https://github.com/nodejs/node/pull/56610
+      description: This error is no longer thrown on valid yet unsupported syntax.
+-->
+
+The provided TypeScript syntax is not valid.
+
 <a id="ERR_INVALID_URI"></a>
 
 ### `ERR_INVALID_URI`
@@ -2108,6 +2124,13 @@ An invalid URL was passed to the [WHATWG][WHATWG URL API] [`URL`
 constructor][`new URL(input)`] or the legacy [`url.parse()`][] to be parsed.
 The thrown error object typically has an additional property `'input'` that
 contains the URL that failed to parse.
+
+<a id="ERR_INVALID_URL_PATTERN"></a>
+
+### `ERR_INVALID_URL_PATTERN`
+
+An invalid URLPattern was passed to the [WHATWG][WHATWG URL API] \[`URLPattern`
+constructor]\[`new URLPattern(input)`] to be parsed.
 
 <a id="ERR_INVALID_URL_SCHEME"></a>
 
@@ -2148,6 +2171,12 @@ An attempt was made to open an IPC communication channel with a synchronously
 forked Node.js process. See the documentation for the [`child_process`][] module
 for more information.
 
+<a id="ERR_IP_BLOCKED"></a>
+
+### `ERR_IP_BLOCKED`
+
+IP is blocked by `net.BlockList`.
+
 <a id="ERR_LOADER_CHAIN_INCOMPLETE"></a>
 
 ### `ERR_LOADER_CHAIN_INCOMPLETE`
@@ -2160,6 +2189,18 @@ added:
 
 An ESM loader hook returned without calling `next()` and without explicitly
 signaling a short circuit.
+
+<a id="ERR_LOAD_SQLITE_EXTENSION"></a>
+
+### `ERR_LOAD_SQLITE_EXTENSION`
+
+<!-- YAML
+added:
+  - v23.5.0
+  - v22.13.0
+-->
+
+An error occurred while loading a SQLite extension.
 
 <a id="ERR_MEMORY_ALLOCATION_FAILED"></a>
 
@@ -2278,6 +2319,12 @@ function.
 An error occurred while attempting to retrieve the JavaScript `undefined`
 value.
 
+<a id="ERR_NON_CONTEXT_AWARE_DISABLED"></a>
+
+### `ERR_NON_CONTEXT_AWARE_DISABLED`
+
+A non-context-aware native addon was loaded in a process that disallows them.
+
 <a id="ERR_NOT_BUILDING_SNAPSHOT"></a>
 
 ### `ERR_NOT_BUILDING_SNAPSHOT`
@@ -2319,11 +2366,39 @@ OpenSSL crypto support.
 An attempt was made to use features that require [ICU][], but Node.js was not
 compiled with ICU support.
 
-<a id="ERR_NON_CONTEXT_AWARE_DISABLED"></a>
+<a id="ERR_NO_TYPESCRIPT"></a>
 
-### `ERR_NON_CONTEXT_AWARE_DISABLED`
+### `ERR_NO_TYPESCRIPT`
 
-A non-context-aware native addon was loaded in a process that disallows them.
+<!-- YAML
+added:
+  - v23.0.0
+  - v22.12.0
+-->
+
+An attempt was made to use features that require [Native TypeScript support][], but Node.js was not
+compiled with TypeScript support.
+
+<a id="ERR_OPERATION_FAILED"></a>
+
+### `ERR_OPERATION_FAILED`
+
+<!-- YAML
+added: v15.0.0
+-->
+
+An operation failed. This is typically used to signal the general failure
+of an asynchronous operation.
+
+<a id="ERR_OPTIONS_BEFORE_BOOTSTRAPPING"></a>
+
+### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
+
+<!-- YAML
+added: v23.10.0
+-->
+
+An attempt was made to get options before the bootstrapping was completed.
 
 <a id="ERR_OUT_OF_RANGE"></a>
 
@@ -2407,6 +2482,103 @@ Accessing `Object.prototype.__proto__` has been forbidden using
 [`Object.setPrototypeOf`][] should be used to get and set the prototype of an
 object.
 
+<a id="ERR_QUIC_APPLICATION_ERROR"></a>
+
+### `ERR_QUIC_APPLICATION_ERROR`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC application error occurred.
+
+<a id="ERR_QUIC_CONNECTION_FAILED"></a>
+
+### `ERR_QUIC_CONNECTION_FAILED`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+-->
+
+> Stability: 1 - Experimental
+
+Establishing a QUIC connection failed.
+
+<a id="ERR_QUIC_ENDPOINT_CLOSED"></a>
+
+### `ERR_QUIC_ENDPOINT_CLOSED`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC Endpoint closed with an error.
+
+<a id="ERR_QUIC_OPEN_STREAM_FAILED"></a>
+
+### `ERR_QUIC_OPEN_STREAM_FAILED`
+
+<!-- YAML
+added:
+ - v23.0.0
+ - v22.10.0
+-->
+
+> Stability: 1 - Experimental
+
+Opening a QUIC stream failed.
+
+<a id="ERR_QUIC_TRANSPORT_ERROR"></a>
+
+### `ERR_QUIC_TRANSPORT_ERROR`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC transport error occurred.
+
+<a id="ERR_QUIC_VERSION_NEGOTIATION_ERROR"></a>
+
+### `ERR_QUIC_VERSION_NEGOTIATION_ERROR`
+
+<!-- YAML
+added:
+  - v23.4.0
+  - v22.13.0
+-->
+
+> Stability: 1 - Experimental
+
+A QUIC session failed because version negotiation is required.
+
+<a id="ERR_REQUIRE_ASYNC_MODULE"></a>
+
+### `ERR_REQUIRE_ASYNC_MODULE`
+
+> Stability: 1 - Experimental
+
+When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
+That is, it contains top-level await.
+
+To see where the top-level await is, use
+`--experimental-print-required-tla` (this would execute the modules
+before looking for the top-level awaits).
+
 <a id="ERR_REQUIRE_CYCLE_MODULE"></a>
 
 ### `ERR_REQUIRE_CYCLE_MODULE`
@@ -2422,26 +2594,16 @@ To avoid the cycle, the `require()` call involved in a cycle should not happen
 at the top-level of either an ES Module (via `createRequire()`) or a CommonJS
 module, and should be done lazily in an inner function.
 
-<a id="ERR_REQUIRE_ASYNC_MODULE"></a>
-
-### `ERR_REQUIRE_ASYNC_MODULE`
-
-> Stability: 1 - Experimental
-
-When trying to `require()` a [ES Module][], the module turns out to be asynchronous.
-That is, it contains top-level await.
-
-To see where the top-level await is, use
-`--experimental-print-required-tla` (this would execute the modules
-before looking for the top-level awaits).
-
 <a id="ERR_REQUIRE_ESM"></a>
 
 ### `ERR_REQUIRE_ESM`
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version:
+    - v23.0.0
+    - v22.12.0
+    - v20.19.0
     pr-url: https://github.com/nodejs/node/pull/55085
     description: require() now supports loading synchronous ES modules by default.
 -->
@@ -2568,11 +2730,28 @@ disconnected socket.
 
 A call was made and the UDP subsystem was not running.
 
+<a id="ERR_SOURCE_MAP_CORRUPT"></a>
+
+### `ERR_SOURCE_MAP_CORRUPT`
+
+The source map could not be parsed because it does not exist, or is corrupt.
+
 <a id="ERR_SOURCE_MAP_MISSING_SOURCE"></a>
 
 ### `ERR_SOURCE_MAP_MISSING_SOURCE`
 
 A file imported from a source map was not found.
+
+<a id="ERR_SOURCE_PHASE_NOT_DEFINED"></a>
+
+### `ERR_SOURCE_PHASE_NOT_DEFINED`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The provided module import does not provide a source phase imports representation for source phase
+import syntax `import source x from 'x'` or `import.source(x)`.
 
 <a id="ERR_SQLITE_ERROR"></a>
 
@@ -2687,25 +2866,6 @@ reports.
 An unspecified or non-specific system error has occurred within the Node.js
 process. The error object will have an `err.info` object property with
 additional details.
-
-<a id="ERR_TAP_LEXER_ERROR"></a>
-
-### `ERR_TAP_LEXER_ERROR`
-
-An error representing a failing lexer state.
-
-<a id="ERR_TAP_PARSER_ERROR"></a>
-
-### `ERR_TAP_PARSER_ERROR`
-
-An error representing a failing parser state. Additional information about
-the token causing the error is available via the `cause` property.
-
-<a id="ERR_TAP_VALIDATION_ERROR"></a>
-
-### `ERR_TAP_VALIDATION_ERROR`
-
-This error represents a failed TAP validation.
 
 <a id="ERR_TEST_FAILURE"></a>
 
@@ -2964,6 +3124,16 @@ import 'package-name'; // supported
 
 `import` with URL schemes other than `file` and `data` is unsupported.
 
+<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
+
+### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
+
+<!-- YAML
+added: v22.6.0
+-->
+
+Type stripping is not supported for files descendent of a `node_modules` directory.
+
 <a id="ERR_UNSUPPORTED_RESOLVE_REQUEST"></a>
 
 ### `ERR_UNSUPPORTED_RESOLVE_REQUEST`
@@ -2984,6 +3154,20 @@ try {
 }
 ```
 
+<a id="ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX"></a>
+
+### `ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`
+
+<!-- YAML
+added:
+  - v23.7.0
+  - v22.14.0
+-->
+
+The provided TypeScript syntax is unsupported.
+This could happen when using TypeScript syntax that requires
+transformation with [type-stripping][].
+
 <a id="ERR_USE_AFTER_CLOSE"></a>
 
 ### `ERR_USE_AFTER_CLOSE`
@@ -2999,17 +3183,17 @@ An attempt was made to use something that was already closed.
 While using the Performance Timing API (`perf_hooks`), no valid performance
 entry types are found.
 
-<a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG"></a>
-
-### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`
-
-A dynamic import callback was invoked without `--experimental-vm-modules`.
-
 <a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING"></a>
 
 ### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING`
 
 A dynamic import callback was not specified.
+
+<a id="ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG"></a>
+
+### `ERR_VM_DYNAMIC_IMPORT_CALLBACK_MISSING_FLAG`
+
+A dynamic import callback was invoked without `--experimental-vm-modules`.
 
 <a id="ERR_VM_MODULE_ALREADY_LINKED"></a>
 
@@ -3096,25 +3280,6 @@ The `Worker` initialization failed.
 The `execArgv` option passed to the `Worker` constructor contains
 invalid flags.
 
-<a id="ERR_WORKER_NOT_RUNNING"></a>
-
-### `ERR_WORKER_NOT_RUNNING`
-
-An operation failed because the `Worker` instance is not currently running.
-
-<a id="ERR_WORKER_OUT_OF_MEMORY"></a>
-
-### `ERR_WORKER_OUT_OF_MEMORY`
-
-The `Worker` instance terminated because it reached its memory limit.
-
-<a id="ERR_WORKER_PATH"></a>
-
-### `ERR_WORKER_PATH`
-
-The path for the main script of a worker is neither an absolute path
-nor a relative path starting with `./` or `../`.
-
 <a id="ERR_WORKER_MESSAGING_ERRORED"></a>
 
 ### `ERR_WORKER_MESSAGING_ERRORED`
@@ -3163,6 +3328,25 @@ added: v22.5.0
 
 Sending a message via [`postMessageToThread()`][] timed out.
 
+<a id="ERR_WORKER_NOT_RUNNING"></a>
+
+### `ERR_WORKER_NOT_RUNNING`
+
+An operation failed because the `Worker` instance is not currently running.
+
+<a id="ERR_WORKER_OUT_OF_MEMORY"></a>
+
+### `ERR_WORKER_OUT_OF_MEMORY`
+
+The `Worker` instance terminated because it reached its memory limit.
+
+<a id="ERR_WORKER_PATH"></a>
+
+### `ERR_WORKER_PATH`
+
+The path for the main script of a worker is neither an absolute path
+nor a relative path starting with `./` or `../`.
+
 <a id="ERR_WORKER_UNSERIALIZABLE_ERROR"></a>
 
 ### `ERR_WORKER_UNSERIALIZABLE_ERROR`
@@ -3180,6 +3364,27 @@ The requested functionality is not supported in worker threads.
 ### `ERR_ZLIB_INITIALIZATION_FAILED`
 
 Creation of a [`zlib`][] object failed due to incorrect configuration.
+
+<a id="ERR_ZSTD_INVALID_PARAM"></a>
+
+### `ERR_ZSTD_INVALID_PARAM`
+
+An invalid parameter key was passed during construction of a Zstd stream.
+
+<a id="HPE_CHUNK_EXTENSIONS_OVERFLOW"></a>
+
+### `HPE_CHUNK_EXTENSIONS_OVERFLOW`
+
+<!-- YAML
+added:
+ - v21.6.2
+ - v20.11.1
+ - v18.19.1
+-->
+
+Too much data was received for a chunk extensions. In order to protect against
+malicious or malconfigured clients, if more than 16 KiB of data is received
+then an `Error` with this code will be emitted.
 
 <a id="HPE_HEADER_OVERFLOW"></a>
 
@@ -3199,21 +3404,6 @@ Too much HTTP header data was received. In order to protect against malicious or
 malconfigured clients, if more than `maxHeaderSize` of HTTP header data is received then
 HTTP parsing will abort without a request or response object being created, and
 an `Error` with this code will be emitted.
-
-<a id="HPE_CHUNK_EXTENSIONS_OVERFLOW"></a>
-
-### `HPE_CHUNK_EXTENSIONS_OVERFLOW`
-
-<!-- YAML
-added:
- - v21.6.2
- - v20.11.1
- - v18.19.1
--->
-
-Too much data was received for a chunk extensions. In order to protect against
-malicious or malconfigured clients, if more than 16 KiB of data is received
-then an `Error` with this code will be emitted.
 
 <a id="HPE_UNEXPECTED_CONTENT_LENGTH"></a>
 
@@ -3258,6 +3448,16 @@ removed: v12.5.0
 The value passed to `postMessage()` contained an object that is not supported
 for transferring.
 
+<a id="ERR_CPU_USAGE"></a>
+
+### `ERR_CPU_USAGE`
+
+<!-- YAML
+removed: v15.0.0
+-->
+
+The native call from `process.cpuUsage` could not be processed.
+
 <a id="ERR_CRYPTO_HASH_DIGEST_NO_UTF16"></a>
 
 ### `ERR_CRYPTO_HASH_DIGEST_NO_UTF16`
@@ -3277,7 +3477,7 @@ encoding (e.g. `ucs` or `utf16le`) is not supported.
 ### `ERR_CRYPTO_SCRYPT_INVALID_PARAMETER`
 
 <!-- YAML
-removed: REPLACEME
+removed: v23.0.0
 -->
 
 An incompatible combination of options was passed to [`crypto.scrypt()`][] or
@@ -3289,7 +3489,7 @@ An incompatible combination of options was passed to [`crypto.scrypt()`][] or
 ### `ERR_FS_INVALID_SYMLINK_TYPE`
 
 <!-- YAML
-removed: REPLACEME
+removed: v23.0.0
 -->
 
 An invalid symlink type was passed to the [`fs.symlink()`][] or
@@ -3365,53 +3565,6 @@ removed: v10.0.0
 Used when an invalid character is found in an HTTP response status message
 (reason phrase).
 
-<a id="ERR_INDEX_OUT_OF_RANGE"></a>
-
-### `ERR_INDEX_OUT_OF_RANGE`
-
-<!-- YAML
-  added: v10.0.0
-  removed: v11.0.0
--->
-
-A given index was out of the accepted range (e.g. negative offsets).
-
-<a id="ERR_INVALID_OPT_VALUE"></a>
-
-### `ERR_INVALID_OPT_VALUE`
-
-<!-- YAML
-added: v8.0.0
-removed: v15.0.0
--->
-
-An invalid or unexpected value was passed in an options object.
-
-<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
-
-### `ERR_INVALID_OPT_VALUE_ENCODING`
-
-<!-- YAML
-added: v9.0.0
-removed: v15.0.0
--->
-
-An invalid or unknown file encoding was passed.
-
-<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
-
-### `ERR_INVALID_TRANSFER_OBJECT`
-
-<!-- YAML
-removed: v21.0.0
-changes:
-  - version: v21.0.0
-    pr-url: https://github.com/nodejs/node/pull/47839
-    description: A `DOMException` is thrown instead.
--->
-
-An invalid transfer object was passed to `postMessage()`.
-
 <a id="ERR_IMPORT_ASSERTION_TYPE_FAILED"></a>
 
 ### `ERR_IMPORT_ASSERTION_TYPE_FAILED`
@@ -3450,6 +3603,65 @@ removed: v21.1.0
 -->
 
 An import attribute is not supported by this version of Node.js.
+
+<a id="ERR_INDEX_OUT_OF_RANGE"></a>
+
+### `ERR_INDEX_OUT_OF_RANGE`
+
+<!-- YAML
+  added: v10.0.0
+  removed: v11.0.0
+-->
+
+A given index was out of the accepted range (e.g. negative offsets).
+
+<a id="ERR_INVALID_OPT_VALUE"></a>
+
+### `ERR_INVALID_OPT_VALUE`
+
+<!-- YAML
+added: v8.0.0
+removed: v15.0.0
+-->
+
+An invalid or unexpected value was passed in an options object.
+
+<a id="ERR_INVALID_OPT_VALUE_ENCODING"></a>
+
+### `ERR_INVALID_OPT_VALUE_ENCODING`
+
+<!-- YAML
+added: v9.0.0
+removed: v15.0.0
+-->
+
+An invalid or unknown file encoding was passed.
+
+<a id="ERR_INVALID_PERFORMANCE_MARK"></a>
+
+### `ERR_INVALID_PERFORMANCE_MARK`
+
+<!-- YAML
+added: v8.5.0
+removed: v16.7.0
+-->
+
+While using the Performance Timing API (`perf_hooks`), a performance mark is
+invalid.
+
+<a id="ERR_INVALID_TRANSFER_OBJECT"></a>
+
+### `ERR_INVALID_TRANSFER_OBJECT`
+
+<!-- YAML
+removed: v21.0.0
+changes:
+  - version: v21.0.0
+    pr-url: https://github.com/nodejs/node/pull/47839
+    description: A `DOMException` is thrown instead.
+-->
+
+An invalid transfer object was passed to `postMessage()`.
 
 <a id="ERR_MANIFEST_ASSERT_INTEGRITY"></a>
 
@@ -3630,17 +3842,6 @@ error indicates that the idle loop has failed to stop.
 A Node.js API was called in an unsupported manner, such as
 `Buffer.write(string, encoding, offset[, length])`.
 
-<a id="ERR_OPERATION_FAILED"></a>
-
-### `ERR_OPERATION_FAILED`
-
-<!-- YAML
-added: v15.0.0
--->
-
-An operation failed. This is typically used to signal the general failure
-of an asynchronous operation.
-
 <a id="ERR_OUTOFMEMORY"></a>
 
 ### `ERR_OUTOFMEMORY`
@@ -3663,42 +3864,6 @@ removed: v10.0.0
 -->
 
 The `node:repl` module was unable to parse data from the REPL history file.
-
-<a id="ERR_QUIC_CONNECTION_FAILED"></a>
-
-### `ERR_QUIC_CONNECTION_FAILED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Establishing a QUIC connection failed.
-
-<a id="ERR_QUIC_ENDPOINT_CLOSED"></a>
-
-### `ERR_QUIC_ENDPOINT_CLOSED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-A QUIC Endpoint closed with an error.
-
-<a id="ERR_QUIC_OPEN_STREAM_FAILED"></a>
-
-### `ERR_QUIC_OPEN_STREAM_FAILED`
-
-<!-- YAML
-added: REPLACEME
--->
-
-> Stability: 1 - Experimental
-
-Opening a QUIC stream failed.
 
 <a id="ERR_SOCKET_CANNOT_SEND"></a>
 
@@ -3756,6 +3921,25 @@ removed: v10.0.0
 
 Used when an attempt is made to use a readable stream that has not implemented
 [`readable._read()`][].
+
+<a id="ERR_TAP_LEXER_ERROR"></a>
+
+### `ERR_TAP_LEXER_ERROR`
+
+An error representing a failing lexer state.
+
+<a id="ERR_TAP_PARSER_ERROR"></a>
+
+### `ERR_TAP_PARSER_ERROR`
+
+An error representing a failing parser state. Additional information about
+the token causing the error is available via the `cause` property.
+
+<a id="ERR_TAP_VALIDATION_ERROR"></a>
+
+### `ERR_TAP_VALIDATION_ERROR`
+
+This error represents a failed TAP validation.
 
 <a id="ERR_TLS_RENEGOTIATION_FAILED"></a>
 
@@ -3827,12 +4011,6 @@ removed: v10.0.0
 
 Used when a given value is out of the accepted range.
 
-<a id="ERR_VM_MODULE_NOT_LINKED"></a>
-
-### `ERR_VM_MODULE_NOT_LINKED`
-
-The module must be successfully linked before instantiation.
-
 <a id="ERR_VM_MODULE_LINKING_ERRORED"></a>
 
 ### `ERR_VM_MODULE_LINKING_ERRORED`
@@ -3845,6 +4023,12 @@ removed:
 -->
 
 The linker function returned a module for which linking has failed.
+
+<a id="ERR_VM_MODULE_NOT_LINKED"></a>
+
+### `ERR_VM_MODULE_NOT_LINKED`
+
+The module must be successfully linked before instantiation.
 
 <a id="ERR_WORKER_UNSUPPORTED_EXTENSION"></a>
 
@@ -3869,16 +4053,6 @@ removed: v10.0.0
 
 Used when an attempt is made to use a `zlib` object after it has already been
 closed.
-
-<a id="ERR_CPU_USAGE"></a>
-
-### `ERR_CPU_USAGE`
-
-<!-- YAML
-removed: v15.0.0
--->
-
-The native call from `process.cpuUsage` could not be processed.
 
 <a id="openssl-error-codes"></a>
 
@@ -4091,20 +4265,11 @@ The public key in the certificate SubjectPublicKeyInfo could not be read.
 
 An error occurred trying to allocate memory. This should never happen.
 
-<a id="ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING"></a>
-
-#### `ERR_UNSUPPORTED_NODE_MODULES_TYPE_STRIPPING`
-
-<!-- YAML
-added: v22.6.0
--->
-
-Type stripping is not supported for files descendent of a `node_modules` directory.
-
 [ES Module]: esm.md
 [ICU]: intl.md#internationalization-support
 [JSON Web Key Elliptic Curve Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-elliptic-curve
 [JSON Web Key Types Registry]: https://www.iana.org/assignments/jose/jose.xhtml#web-key-types
+[Native TypeScript support]: typescript.md#type-stripping
 [Node.js error codes]: #nodejs-error-codes
 [Permission Model]: permissions.md#permission-model
 [RFC 7230 Section 3]: https://tools.ietf.org/html/rfc7230#section-3
@@ -4143,7 +4308,10 @@ Type stripping is not supported for files descendent of a `node_modules` directo
 [`dgram.createSocket()`]: dgram.md#dgramcreatesocketoptions-callback
 [`dgram.disconnect()`]: dgram.md#socketdisconnect
 [`dgram.remoteAddress()`]: dgram.md#socketremoteaddress
+[`domException.name`]: https://developer.mozilla.org/en-US/docs/Web/API/DOMException/name
 [`errno`(3) man page]: https://man7.org/linux/man-pages/man3/errno.3.html
+[`error.code`]: #errorcode
+[`error.message`]: #errormessage
 [`fs.Dir`]: fs.md#class-fsdir
 [`fs.cp()`]: fs.md#fscpsrc-dest-options-callback
 [`fs.readFileSync`]: fs.md#fsreadfilesyncpath-options
@@ -4197,4 +4365,5 @@ Type stripping is not supported for files descendent of a `node_modules` directo
 [stream-based]: stream.md
 [syscall]: https://man7.org/linux/man-pages/man2/syscalls.2.html
 [try-catch]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/try...catch
+[type-stripping]: typescript.md#type-stripping
 [vm]: vm.md

@@ -4,11 +4,7 @@ require('../common');
 const { spawnSyncAndAssert } = require('../common/child_process');
 const { fixturesDir } = require('../common/fixtures');
 
-const warningRE = /ExperimentalWarning: Support for loading ES Module in require/;
 function testPreload(preloadFlag) {
-  // The warning is only emitted when ESM is loaded by --require.
-  const stderr = preloadFlag !== '--import' ? warningRE : undefined;
-
   // Test named exports.
   {
     spawnSyncAndAssert(
@@ -24,7 +20,6 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: 'A',
-        stderr,
         trim: true,
       }
     );
@@ -44,7 +39,6 @@ function testPreload(preloadFlag) {
         cwd: fixturesDir
       },
       {
-        stderr,
         stdout: /^world\s+A$/,
         trim: true,
       }
@@ -66,7 +60,6 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: /^ok\s+A$/,
-        stderr,
         trim: true,
       }
     );
@@ -89,7 +82,6 @@ function testPreload(preloadFlag) {
       },
       {
         stdout: /^world\s+A$/,
-        stderr,
         trim: true,
       }
     );
@@ -115,7 +107,6 @@ testPreload('--import');
     },
     {
       stdout: /^package-type-module\s+A$/,
-      stderr: warningRE,
       trim: true,
     }
   );

@@ -22,6 +22,11 @@ const { subtle } = globalThis.crypto;
         code: 'ERR_INVALID_ARG_VALUE'
       });
     await assert.rejects(
+      subtle.importKey('KeyObject', keyData, {}, false, ['wrapKey']), {
+        message: /'KeyObject' is not a valid enum value of type KeyFormat/,
+        code: 'ERR_INVALID_ARG_VALUE'
+      });
+    await assert.rejects(
       subtle.importKey('raw', 1, {}, false, ['deriveBits']), {
         code: 'ERR_INVALID_ARG_TYPE'
       });
@@ -30,6 +35,15 @@ const { subtle } = globalThis.crypto;
         name: 'HMAC'
       }, false, ['sign', 'verify']), {
         code: 'ERR_MISSING_OPTION'
+      });
+    await assert.rejects(
+      subtle.importKey('raw', keyData, {
+        name: 'HMAC',
+        hash: 'SHA-256',
+        length: 384,
+      }, false, ['sign', 'verify']), {
+        name: 'DataError',
+        message: 'Invalid key length'
       });
     await assert.rejects(
       subtle.importKey('raw', keyData, {
@@ -54,8 +68,8 @@ const { subtle } = globalThis.crypto;
         hash: 'SHA-256',
         length: 1
       }, false, ['sign', 'verify']), {
-        name: 'DataError',
-        message: 'Invalid key length'
+        name: 'NotSupportedError',
+        message: 'Unsupported algorithm.length'
       });
     await assert.rejects(
       subtle.importKey('jwk', null, {
@@ -80,6 +94,10 @@ const { subtle } = globalThis.crypto;
         name: 'HMAC',
         hash: 'SHA-256'
       }, true, ['sign', 'verify']);
+
+
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
 
     const raw = await subtle.exportKey('raw', key);
 
@@ -122,6 +140,8 @@ const { subtle } = globalThis.crypto;
         name: 'AES-CTR',
         length: 256,
       }, true, ['encrypt', 'decrypt']);
+    assert.strictEqual(key.algorithm, key.algorithm);
+    assert.strictEqual(key.usages, key.usages);
 
     const raw = await subtle.exportKey('raw', key);
 

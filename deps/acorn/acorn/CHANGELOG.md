@@ -1,3 +1,33 @@
+## 8.14.1 (2025-03-05)
+
+### Bug fixes
+
+Fix an issue where `await` expressions in class field initializers were inappropriately allowed.
+
+Properly allow await inside an async arrow function inside a class field initializer.
+
+Mention the source file name in syntax error messages when given.
+
+Properly add an empty `attributes` property to every form of `ExportNamedDeclaration`.
+
+## 8.14.0 (2024-10-27)
+
+### New features
+
+Support ES2025 import attributes.
+
+Support ES2025 RegExp modifiers.
+
+### Bug fixes
+
+Support some missing Unicode properties.
+
+## 8.13.0 (2024-10-16)
+
+### New features
+
+Upgrade to Unicode 16.0.
+
 ## 8.12.1 (2024-07-03)
 
 ### Bug fixes

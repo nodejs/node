@@ -63,6 +63,7 @@ using v8::Int32;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
@@ -735,12 +736,13 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
-    Local<Object> ret = Buffer::Copy(
+    Local<Object> ret;
+    if (Buffer::Copy(
         parser->env(),
         parser->current_buffer_data_,
-        parser->current_buffer_len_).ToLocalChecked();
-
-    args.GetReturnValue().Set(ret);
+        parser->current_buffer_len_).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
   }
 
   static void Duration(const FunctionCallbackInfo<Value>& args) {
@@ -1091,7 +1093,7 @@ void ConnectionsList::All(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     result.emplace_back(parser->object());
@@ -1108,7 +1110,7 @@ void ConnectionsList::Idle(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->all_connections_.size());
   for (auto parser : list->all_connections_) {
     if (parser->last_message_start_ == 0) {
@@ -1127,7 +1129,7 @@ void ConnectionsList::Active(const FunctionCallbackInfo<Value>& args) {
 
   ASSIGN_OR_RETURN_UNWRAP(&list, args.This());
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->active_connections_.size());
   for (auto parser : list->active_connections_) {
     result.emplace_back(parser->object());
@@ -1176,7 +1178,7 @@ void ConnectionsList::Expired(const FunctionCallbackInfo<Value>& args) {
   auto iter = list->active_connections_.begin();
   auto end = list->active_connections_.end();
 
-  std::vector<Local<Value>> result;
+  LocalVector<Value> result(isolate);
   result.reserve(list->active_connections_.size());
   while (iter != end) {
     Parser* parser = *iter;
@@ -1335,8 +1337,8 @@ void CreatePerContextProperties(Local<Object> target,
   BindingData* const binding_data = realm->AddBindingData<BindingData>(target);
   if (binding_data == nullptr) return;
 
-  std::vector<Local<Value>> methods_val;
-  std::vector<Local<Value>> all_methods_val;
+  LocalVector<Value> methods_val(isolate);
+  LocalVector<Value> all_methods_val(isolate);
 
 #define V(num, name, string)                                                   \
   methods_val.push_back(FIXED_ONE_BYTE_STRING(isolate, #string));

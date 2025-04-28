@@ -82,6 +82,9 @@
 /* Define to 1 if you have the <poll.h> header file. */
 #cmakedefine HAVE_POLL_H 1
 
+/* Define to 1 if you have the memmem function. */
+#cmakedefine HAVE_MEMMEM 1
+
 /* Define to 1 if you have the poll function. */
 #cmakedefine HAVE_POLL 1
 
@@ -141,6 +144,9 @@
 
 /* Define to 1 if you have the `if_nametoindex' function. */
 #cmakedefine HAVE_IF_NAMETOINDEX 1
+
+/* Define to 1 if you have the `GetBestRoute2' function. */
+#cmakedefine HAVE_GETBESTROUTE2 1
 
 /* Define to 1 if you have the `ConvertInterfaceIndexToLuid' function. */
 #cmakedefine HAVE_CONVERTINTERFACEINDEXTOLUID 1
@@ -242,6 +248,9 @@
 /* Define to 1 if you have the send function. */
 #cmakedefine HAVE_SEND 1
 
+/* Define to 1 if you have the sendto function. */
+#cmakedefine HAVE_SENDTO 1
+
 /* Define to 1 if you have the setsockopt function. */
 #cmakedefine HAVE_SETSOCKOPT 1
 
@@ -250,6 +259,9 @@
 
 /* Define to 1 if you have the <signal.h> header file. */
 #cmakedefine HAVE_SIGNAL_H 1
+
+/* Define to 1 if you have the strnlen function. */
+#cmakedefine HAVE_STRNLEN 1
 
 /* Define to 1 if your struct sockaddr_in6 has sin6_scope_id. */
 #cmakedefine HAVE_STRUCT_SOCKADDR_IN6_SIN6_SCOPE_ID 1

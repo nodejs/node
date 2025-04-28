@@ -29,27 +29,33 @@ test('', { skip: !hasCrypto }, () => {
       () => assert.deepStrictEqual(date, fake),
       {
         message: 'Expected values to be strictly deep-equal:\n' +
-                '+ actual - expected\n\n+ 2016-01-01T00:00:00.000Z\n- Date {}'
+        '+ actual - expected\n' +
+        '\n' +
+        '+ 2016-01-01T00:00:00.000Z\n' +
+        '- Date {}\n'
       }
     );
     assert.throws(
       () => assert.deepStrictEqual(fake, date),
       {
         message: 'Expected values to be strictly deep-equal:\n' +
-                '+ actual - expected\n\n+ Date {}\n- 2016-01-01T00:00:00.000Z'
+        '+ actual - expected\n' +
+        '\n' +
+        '+ Date {}\n' +
+        '- 2016-01-01T00:00:00.000Z\n'
       }
     );
   }
 
   {  // At the moment global has its own type tag
     const fakeGlobal = {};
-    Object.setPrototypeOf(fakeGlobal, Object.getPrototypeOf(global));
-    for (const prop of Object.keys(global)) {
+    Object.setPrototypeOf(fakeGlobal, Object.getPrototypeOf(globalThis));
+    for (const prop of Object.keys(globalThis)) {
       fakeGlobal[prop] = global[prop];
     }
-    assert.notDeepEqual(fakeGlobal, global);
+    assert.notDeepEqual(fakeGlobal, globalThis);
     // Message will be truncated anyway, don't validate
-    assert.throws(() => assert.deepStrictEqual(fakeGlobal, global),
+    assert.throws(() => assert.deepStrictEqual(fakeGlobal, globalThis),
                   assert.AssertionError);
   }
 

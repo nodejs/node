@@ -231,6 +231,7 @@ void UDPWrap::Initialize(Local<Object> target,
   Local<Object> constants = Object::New(isolate);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_IPV6ONLY);
   NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEADDR);
+  NODE_DEFINE_CONSTANT(constants, UV_UDP_REUSEPORT);
   target->Set(context,
               env->constants_string(),
               constants).Check();
@@ -383,8 +384,8 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
                                        "uv_send_buffer_size";
 
   if (!args[0]->IsInt32()) {
-    env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name);
-    return args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[2], UV_EINVAL, uv_func_name));
+    return;
   }
 
   uv_handle_t* handle = reinterpret_cast<uv_handle_t*>(&wrap->handle_);
@@ -397,8 +398,8 @@ void UDPWrap::BufferSize(const FunctionCallbackInfo<Value>& args) {
     err = uv_send_buffer_size(handle, &size);
 
   if (err != 0) {
-    env->CollectUVExceptionInfo(args[2], err, uv_func_name);
-    return args.GetReturnValue().SetUndefined();
+    USE(env->CollectUVExceptionInfo(args[2], err, uv_func_name));
+    return;
   }
 
   args.GetReturnValue().Set(size);
@@ -759,9 +760,7 @@ void UDPWrap::OnRecv(ssize_t nread,
     CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
     bs = ArrayBuffer::NewBackingStore(isolate, nread);
-    memcpy(static_cast<char*>(bs->Data()),
-           static_cast<char*>(old_bs->Data()),
-           nread);
+    memcpy(bs->Data(), old_bs->Data(), nread);
   }
 
   Local<Object> address;

@@ -161,10 +161,6 @@ Local<Object> BaseObject::WrappedObject() const {
   return object();
 }
 
-bool BaseObject::IsRootNode() const {
-  return !persistent_handle_.IsWeak();
-}
-
 bool BaseObject::IsNotIndicativeOfMemoryLeakAtExit() const {
   return IsWeakOrDetached();
 }

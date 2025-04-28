@@ -19,7 +19,13 @@ function generateReport(report) {
 }
 
 const flags = [
-  '--test', '--experimental-test-coverage', '--test-reporter', 'tap',
+  '--enable-source-maps',
+  '--test',
+  '--experimental-test-coverage',
+  '--test-coverage-exclude=!test/**',
+  '--test-reporter',
+  'tap',
+  '--no-experimental-strip-types',
 ];
 
 describe('Coverage with source maps', async () => {
@@ -38,6 +44,28 @@ describe('Coverage with source maps', async () => {
     ]);
 
     const spawned = await common.spawnPromisified(process.execPath, flags, {
+      cwd: fixtures.path('test-runner', 'coverage')
+    });
+
+    t.assert.strictEqual(spawned.stderr, '');
+    t.assert.ok(spawned.stdout.includes(report));
+    t.assert.strictEqual(spawned.code, 1);
+  });
+
+  await it('should only work with --enable-source-maps', async (t) => {
+    const report = generateReport([
+      '# --------------------------------------------------------------',
+      '# file          | line % | branch % | funcs % | uncovered lines',
+      '# --------------------------------------------------------------',
+      '# a.test.mjs    | 100.00 |   100.00 |  100.00 | ',
+      '# index.test.js |  71.43 |    66.67 |  100.00 | 6-7',
+      '# stdin.test.js | 100.00 |   100.00 |  100.00 | ',
+      '# --------------------------------------------------------------',
+      '# all files     |  85.71 |    87.50 |  100.00 | ',
+      '# --------------------------------------------------------------',
+    ]);
+
+    const spawned = await common.spawnPromisified(process.execPath, flags.slice(1), {
       cwd: fixtures.path('test-runner', 'coverage')
     });
     t.assert.strictEqual(spawned.stderr, '');
@@ -80,4 +108,18 @@ describe('Coverage with source maps', async () => {
     t.assert.ok(spawned.stdout.includes(error));
     t.assert.strictEqual(spawned.code, 1);
   });
-}).then(common.mustCall());
+
+  for (const [file, message] of [
+    [fixtures.path('test-runner', 'source-maps', 'invalid-json', 'index.js'), 'is not valid JSON'],
+    [fixtures.path('test-runner', 'source-maps', 'missing-map.js'), 'does not exist'],
+  ]) {
+    await it(`should throw when a source map ${message}`, async (t) => {
+      const spawned = await common.spawnPromisified(process.execPath, [...flags, file]);
+
+      const error = `The source map for '${pathToFileURL(file)}' does not exist or is corrupt`;
+      t.assert.strictEqual(spawned.stderr, '');
+      t.assert.ok(spawned.stdout.includes(error));
+      t.assert.strictEqual(spawned.code, 1);
+    });
+  }
+});

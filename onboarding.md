@@ -53,6 +53,8 @@ onboarding session.
     set up email
   * Watching the main repository will flood your inbox (several hundred
     notifications on typical weekdays), so be prepared
+  * Watching the discussions in the
+    [collaborators repo](https://github.com/nodejs/collaborators) is recommended.
 
 The project has a venue for real-time discussion:
 
@@ -216,16 +218,14 @@ needs to be pointed out separately during the onboarding.
     `git show --format=%B 6669b3857f0f43ee0296eb7ac45086cd907b9e94`
 * Collaborators are in alphabetical order by GitHub username.
 * Optionally, include your personal pronouns.
-* The PR should include an addition to the
-  [mailmap](.mailmap) file if the email
-  being added to the collaborator list does not match the email used for
-  commits. Otherwise tooling will not see the collaborator as being active and
-  may suggest removing them. See
-  [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
-  format of the mailmap file.
-* Add the `Fixes: <collaborator-nomination-issue-url>` to the commit message
+* Commit, including a `Fixes: <collaborator-nomination-issue-url>` trailer
   so that when the commit lands, the nomination issue url will be
   automatically closed.
+* Run `tools/find-inactive-collaborators.mjs`. If that command outputs your name,
+  amend the commit to include an addition to the [mailmap](.mailmap) file. See
+  [gitmailmap](https://git-scm.com/docs/gitmailmap) for information on the
+  format of the mailmap file.
+* Push the commit to your own fork.
 * Label your pull request with the `doc`, `notable-change`, and `fast-track`
   labels. The `fast-track` label should cause the Node.js GitHub bot to post a
   comment in the pull request asking collaborators to approve the pull request
@@ -260,9 +260,10 @@ needs to be pointed out separately during the onboarding.
   * <https://github.com/nodejs/citgm>
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
-  project. The Foundation has travel funds to cover participants' expenses
-  including accommodations, transportation, visa fees, etc. if needed. Check out
-  the [summit](https://github.com/nodejs/summit) repository for details.
+  project. The Foundation has travel funds to cover [participants' expenses][]
+  including accommodations, transportation, and visa fees (even in case the visa
+  is denied) if needed. Check out the [summit](https://github.com/nodejs/summit)
+  repository for details.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
 
@@ -274,6 +275,7 @@ needs to be pointed out separately during the onboarding.
 [`author-ready`]: doc/contributing/collaborator-guide.md#author-ready-pull-requests
 [`core-validate-commit`]: https://github.com/nodejs/core-validate-commit
 [`git-node`]: https://github.com/nodejs/node-core-utils/blob/HEAD/docs/git-node.md
+[participants' expenses]: https://github.com/openjs-foundation/cross-project-council/blob/main/community-fund/COMMUNITY_FUND_POLICY.md#community-fund-rules
 [set up the credentials]: https://github.com/nodejs/node-core-utils#setting-up-github-credentials
 [static-analysis]: doc/contributing/static-analysis.md
 [two-factor authentication]: https://help.github.com/articles/securing-your-account-with-two-factor-authentication-2fa/

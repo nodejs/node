@@ -226,7 +226,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<HistogramBase>();
+    return nullptr;
   }
 
   return MakeBaseObject<HistogramBase>(env, obj, options);
@@ -240,7 +240,7 @@ BaseObjectPtr<HistogramBase> HistogramBase::Create(
            ->InstanceTemplate()
            ->NewInstance(env->context())
            .ToLocal(&obj)) {
-    return BaseObjectPtr<HistogramBase>();
+    return nullptr;
   }
   return MakeBaseObject<HistogramBase>(env, obj, std::move(histogram));
 }
@@ -341,7 +341,7 @@ Local<FunctionTemplate> IntervalHistogram::GetConstructorTemplate(
     Isolate* isolate = env->isolate();
     tmpl = NewFunctionTemplate(isolate, nullptr);
     tmpl->Inherit(HandleWrap::GetConstructorTemplate(env));
-    tmpl->SetClassName(OneByteString(isolate, "Histogram"));
+    tmpl->SetClassName(FIXED_ONE_BYTE_STRING(isolate, "Histogram"));
     auto instance = tmpl->InstanceTemplate();
     instance->SetInternalFieldCount(HistogramImpl::kInternalFieldCount);
     HistogramImpl::AddMethods(isolate, tmpl);
@@ -394,7 +394,7 @@ BaseObjectPtr<IntervalHistogram> IntervalHistogram::Create(
   if (!GetConstructorTemplate(env)
           ->InstanceTemplate()
           ->NewInstance(env->context()).ToLocal(&obj)) {
-    return BaseObjectPtr<IntervalHistogram>();
+    return nullptr;
   }
 
   return MakeBaseObject<IntervalHistogram>(

@@ -1119,6 +1119,10 @@ class PreParser : public ParserBase<PreParser> {
                                           const PreParserExpression& property,
                                           bool is_constructor,
                                           ClassInfo* class_info) {}
+
+  V8_INLINE void AddInstanceFieldOrStaticElement(
+      const PreParserExpression& property, ClassInfo* class_info,
+      bool is_static) {}
   V8_INLINE void DeclarePublicClassField(ClassScope* scope,
                                          const PreParserExpression& property,
                                          bool is_static, bool is_computed_name,
@@ -1556,6 +1560,8 @@ class PreParser : public ParserBase<PreParser> {
 
   V8_INLINE void ReindexArrowFunctionFormalParameters(
       PreParserFormalParameters* parameters) {}
+  V8_INLINE void ReindexComputedMemberName(
+      const PreParserExpression& expression) {}
   V8_INLINE void DeclareFormalParameters(
       const PreParserFormalParameters* parameters) {
     if (!parameters->is_simple) parameters->scope->SetHasNonSimpleParameters();

@@ -113,7 +113,10 @@ std::string GetHumanReadableProcessName();
 v8::Maybe<void> InitializeBaseContextForSnapshot(
     v8::Local<v8::Context> context);
 v8::Maybe<void> InitializeContextRuntime(v8::Local<v8::Context> context);
-v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context);
+v8::Maybe<void> InitializePrimordials(v8::Local<v8::Context> context,
+                                      IsolateData* isolate_data);
+v8::MaybeLocal<v8::Object> InitializePrivateSymbols(
+    v8::Local<v8::Context> context, IsolateData* isolate_data);
 
 class NodeArrayBufferAllocator : public ArrayBufferAllocator {
  public:
@@ -321,10 +324,14 @@ class ThreadPoolWork {
 #endif  // defined(__POSIX__) && !defined(__ANDROID__) && !defined(__CloudABI__)
 
 namespace credentials {
-bool SafeGetenv(const char* key,
-                std::string* text,
-                std::shared_ptr<KVStore> env_vars = nullptr);
+bool SafeGetenv(const char* key, std::string* text, Environment* env = nullptr);
 }  // namespace credentials
+
+void TraceEnvVar(Environment* env, const char* message);
+void TraceEnvVar(Environment* env, const char* message, const char* key);
+void TraceEnvVar(Environment* env,
+                 const char* message,
+                 v8::Local<v8::String> key);
 
 void DefineZlibConstants(v8::Local<v8::Object> target);
 v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
@@ -336,7 +343,8 @@ v8::Isolate* NewIsolate(v8::Isolate::CreateParams* params,
 // was provided by the embedder.
 v8::MaybeLocal<v8::Value> StartExecution(Environment* env,
                                          StartExecutionCallback cb = nullptr);
-v8::MaybeLocal<v8::Object> GetPerContextExports(v8::Local<v8::Context> context);
+v8::MaybeLocal<v8::Object> GetPerContextExports(
+    v8::Local<v8::Context> context, IsolateData* isolate_data = nullptr);
 void MarkBootstrapComplete(const v8::FunctionCallbackInfo<v8::Value>& args);
 
 class InitializationResultImpl final : public InitializationResult {

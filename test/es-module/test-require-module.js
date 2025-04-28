@@ -4,12 +4,6 @@
 const common = require('../common');
 const assert = require('assert');
 
-common.expectWarning(
-  'ExperimentalWarning',
-  'Support for loading ES Module in require() is an experimental feature ' +
-  'and might change at any time'
-);
-
 // Test named exports.
 {
   const mod = require('../fixtures/es-module-loaders/module-named-exports.mjs');

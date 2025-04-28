@@ -2735,6 +2735,13 @@ void Parser::ReindexArrowFunctionFormalParameters(
   }
 }
 
+void Parser::ReindexComputedMemberName(Expression* computed_name) {
+  // Make space for the member initializer function above the computed property
+  // name.
+  AstFunctionLiteralIdReindexer reindexer(stack_limit_, 1);
+  reindexer.Reindex(computed_name);
+}
+
 void Parser::PrepareGeneratorVariables() {
   // Calling a generator returns a generator object.  That object is stored
   // in a temporary variable, a definition that is used by "yield"
@@ -3267,16 +3274,22 @@ VariableProxy* Parser::CreatePrivateNameVariable(ClassScope* scope,
   return factory()->NewVariableProxy(var, begin);
 }
 
+void Parser::AddInstanceFieldOrStaticElement(ClassLiteralProperty* property,
+                                             ClassInfo* class_info,
+                                             bool is_static) {
+  if (is_static) {
+    class_info->static_elements->Add(
+        factory()->NewClassLiteralStaticElement(property), zone());
+    return;
+  }
+  class_info->instance_fields->Add(property, zone());
+}
+
 void Parser::DeclarePublicClassField(ClassScope* scope,
                                      ClassLiteralProperty* property,
                                      bool is_static, bool is_computed_name,
                                      ClassInfo* class_info) {
-  if (is_static) {
-    class_info->static_elements->Add(
-        factory()->NewClassLiteralStaticElement(property), zone());
-  } else {
-    class_info->instance_fields->Add(property, zone());
-  }
+  AddInstanceFieldOrStaticElement(property, class_info, is_static);
 
   if (is_computed_name) {
     // We create a synthetic variable name here so that scope
@@ -3297,12 +3310,7 @@ void Parser::DeclarePrivateClassMember(ClassScope* scope,
                                        bool is_static, ClassInfo* class_info) {
   if (kind == ClassLiteralProperty::Kind::FIELD ||
       kind == ClassLiteralProperty::Kind::AUTO_ACCESSOR) {
-    if (is_static) {
-      class_info->static_elements->Add(
-          factory()->NewClassLiteralStaticElement(property), zone());
-    } else {
-      class_info->instance_fields->Add(property, zone());
-    }
+    AddInstanceFieldOrStaticElement(property, class_info, is_static);
   }
   class_info->private_members->Add(property, zone());
 

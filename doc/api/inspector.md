@@ -31,11 +31,11 @@ const inspector = require('node:inspector');
 
 ## Promises API
 
-> Stability: 1 - Experimental
-
 <!-- YAML
 added: v19.0.0
 -->
+
+> Stability: 1 - Experimental
 
 ### Class: `inspector.Session`
 
@@ -490,6 +490,8 @@ An exception will be thrown if there is no active inspector.
 
 ## Integration with DevTools
 
+> Stability: 1.1 - Active development
+
 The `node:inspector` module provides an API for integrating with devtools that support Chrome DevTools Protocol.
 DevTools frontends connected to a running Node.js instance can capture protocol events emitted from the instance
 and display them accordingly to facilitate debugging.
@@ -505,7 +507,7 @@ inspector.Network.requestWillBeSent({
   request: {
     url: 'https://nodejs.org/en',
     method: 'GET',
-  }
+  },
 });
 ```
 
@@ -516,8 +518,6 @@ added:
  - v22.6.0
  - v20.18.0
 -->
-
-> Stability: 1 - Experimental
 
 * `params` {Object}
 
@@ -534,8 +534,6 @@ added:
  - v20.18.0
 -->
 
-> Stability: 1 - Experimental
-
 * `params` {Object}
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
@@ -551,8 +549,6 @@ added:
  - v20.18.0
 -->
 
-> Stability: 1 - Experimental
-
 * `params` {Object}
 
 This feature is only available with the `--experimental-network-inspection` flag enabled.
@@ -567,8 +563,6 @@ added:
  - v22.7.0
  - v20.18.0
 -->
-
-> Stability: 1 - Experimental
 
 * `params` {Object}
 

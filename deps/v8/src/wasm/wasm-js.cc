@@ -202,8 +202,8 @@ GET_FIRST_ARGUMENT_AS(Tag)
 #undef GET_FIRST_ARGUMENT_AS
 
 i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
-    const v8::FunctionCallbackInfo<v8::Value>& info, ErrorThrower* thrower,
-    bool* is_shared) {
+    const v8::FunctionCallbackInfo<v8::Value>& info, size_t max_length,
+    ErrorThrower* thrower, bool* is_shared) {
   DCHECK(i::ValidateCallbackInfo(info));
   const uint8_t* start = nullptr;
   size_t length = 0;
@@ -234,7 +234,6 @@ i::wasm::ModuleWireBytes GetFirstArgumentAsBytes(
   if (length == 0) {
     thrower->CompileError("BufferSource argument is empty");
   }
-  size_t max_length = i::wasm::max_module_size();
   if (length > max_length) {
     // The spec requires a CompileError for implementation-defined limits, see
     // https://webassembly.github.io/spec/js-api/index.html#limits.
@@ -579,10 +578,17 @@ CompileTimeImports ArgumentToCompileOptions(
         // style (rather than `...->StringEquals(v8_str(...))`).
         if (builtin->IsEqualTo(base::CStrVector("js-string"))) {
           result.Add(CompileTimeImport::kJsString);
-        } else if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
-          result.Add(CompileTimeImport::kTextEncoder);
-        } else if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
-          result.Add(CompileTimeImport::kTextDecoder);
+          continue;
+        }
+        if (enabled_features.has_imported_strings_utf8()) {
+          if (builtin->IsEqualTo(base::CStrVector("text-encoder"))) {
+            result.Add(CompileTimeImport::kTextEncoder);
+            continue;
+          }
+          if (builtin->IsEqualTo(base::CStrVector("text-decoder"))) {
+            result.Add(CompileTimeImport::kTextDecoder);
+            continue;
+          }
         }
       }
     }
@@ -637,7 +643,8 @@ void WebAssemblyCompileImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
       new AsyncCompilationResolver(isolate, context, promise_resolver));
 
   bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, &thrower, &is_shared);
+  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
+                                       &thrower, &is_shared);
   if (thrower.error()) {
     resolver->OnCompilationFailed(thrower.Reify());
     return;
@@ -669,8 +676,11 @@ void WasmStreamingCallbackForTesting(
       v8::WasmStreaming::Unpack(info.GetIsolate(), info.Data());
 
   bool is_shared = false;
+  // We don't check the buffer length up front, to allow d8 to test that the
+  // streaming decoder implementation handles overly large inputs correctly.
+  size_t unlimited = std::numeric_limits<size_t>::max();
   i::wasm::ModuleWireBytes bytes =
-      GetFirstArgumentAsBytes(info, &thrower, &is_shared);
+      GetFirstArgumentAsBytes(info, unlimited, &thrower, &is_shared);
   if (thrower.error()) {
     streaming->Abort(Utils::ToLocal(thrower.Reify()));
     return;
@@ -771,7 +781,8 @@ void WebAssemblyValidateImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   ErrorThrower thrower(i_isolate, "WebAssembly.validate()");
 
   bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, &thrower, &is_shared);
+  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
+                                       &thrower, &is_shared);
 
   v8::ReturnValue<v8::Value> return_value = info.GetReturnValue();
 
@@ -850,7 +861,8 @@ void WebAssemblyModuleImpl(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
 
   bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, &thrower, &is_shared);
+  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
+                                       &thrower, &is_shared);
 
   if (thrower.error()) {
     return;
@@ -1168,7 +1180,8 @@ void WebAssemblyInstantiateImpl(
   }
 
   bool is_shared = false;
-  auto bytes = GetFirstArgumentAsBytes(info, &thrower, &is_shared);
+  auto bytes = GetFirstArgumentAsBytes(info, i::wasm::max_module_size(),
+                                       &thrower, &is_shared);
   if (thrower.error()) {
     resolver->OnInstantiationFailed(thrower.Reify());
     return;
@@ -1309,9 +1322,12 @@ i::Handle<i::HeapObject> DefaultReferenceValue(i::Isolate* isolate,
   DCHECK(type.is_object_reference());
   // Use undefined for JS type (externref) but null for wasm types as wasm does
   // not know undefined.
-  if (type.heap_representation() == i::wasm::HeapType::kExtern ||
-      type.heap_representation() == i::wasm::HeapType::kNoExtern) {
+  if (type.heap_representation() == i::wasm::HeapType::kExtern) {
     return isolate->factory()->undefined_value();
+  } else if (type.heap_representation() == i::wasm::HeapType::kNoExtern ||
+             type.heap_representation() == i::wasm::HeapType::kExn ||
+             type.heap_representation() == i::wasm::HeapType::kNoExn) {
+    return isolate->factory()->null_value();
   }
   return isolate->factory()->wasm_null();
 }
@@ -2110,11 +2126,11 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
       i_isolate};
 
   int num_imported_functions = module->num_imported_functions;
-  i::DirectHandle<i::TrustedObject> ref;
+  i::DirectHandle<i::TrustedObject> implicit_arg;
   if (func_index >= num_imported_functions) {
-    ref = trusted_instance_data;
+    implicit_arg = trusted_instance_data;
   } else {
-    ref = i_isolate->factory()->NewWasmImportData(direct_handle(
+    implicit_arg = i_isolate->factory()->NewWasmImportData(direct_handle(
         i::Cast<i::WasmImportData>(
             trusted_instance_data->dispatch_table_for_imports()->implicit_arg(
                 func_index)),
@@ -2129,13 +2145,13 @@ i::Handle<i::JSFunction> NewPromisingWasmExportedFunction(
 #endif
 
   i::DirectHandle<i::WasmInternalFunction> internal =
-      i_isolate->factory()->NewWasmInternalFunction(ref, func_index,
+      i_isolate->factory()->NewWasmInternalFunction(implicit_arg, func_index,
                                                     signature_hash);
   i::DirectHandle<i::WasmFuncRef> func_ref =
       i_isolate->factory()->NewWasmFuncRef(internal, rtt);
   internal->set_call_target(trusted_instance_data->GetCallTarget(func_index));
   if (func_index < num_imported_functions) {
-    i::Cast<i::WasmImportData>(ref)->set_call_origin(*func_ref);
+    i::Cast<i::WasmImportData>(implicit_arg)->set_call_origin(*func_ref);
   }
 
   i::Handle<i::JSFunction> result = i::WasmExportedFunction::New(

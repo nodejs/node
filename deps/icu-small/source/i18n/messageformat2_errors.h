@@ -15,6 +15,8 @@
  * \brief C++ API: Formats messages using the draft MessageFormat 2.0.
  */
 
+#if !UCONFIG_NO_NORMALIZATION
+
 #if !UCONFIG_NO_FORMATTING
 
 #if !UCONFIG_NO_MF2
@@ -54,10 +56,10 @@ namespace message2 {
     enum StaticErrorType {
         DuplicateDeclarationError,
         DuplicateOptionName,
+        DuplicateVariant,
         MissingSelectorAnnotation,
         NonexhaustivePattern,
         SyntaxError,
-        UnsupportedStatementError,
         VariantKeyMismatchError
     };
 
@@ -65,7 +67,6 @@ namespace message2 {
         UnresolvedVariable,
         FormattingError,
         OperandMismatchError,
-        ReservedError,
         SelectorError,
         UnknownFunction,
     };
@@ -99,8 +100,9 @@ namespace message2 {
         bool hasSyntaxError() const { return syntaxError; }
         bool hasMissingSelectorAnnotationError() const { return missingSelectorAnnotationError; }
         void addError(StaticError&&, UErrorCode&);
-        void checkErrors(UErrorCode&);
+        void checkErrors(UErrorCode&) const;
 
+        void clear();
         const StaticError& first() const;
         StaticErrors(const StaticErrors&, UErrorCode&);
         StaticErrors(StaticErrors&&) noexcept;
@@ -121,7 +123,6 @@ namespace message2 {
 
         int32_t count() const;
         void setSelectorError(const FunctionName&, UErrorCode&);
-        void setReservedError(UErrorCode&);
         void setUnresolvedVariable(const VariableName&, UErrorCode&);
         void setUnknownFunction(const FunctionName&, UErrorCode&);
         void setFormattingError(const FunctionName&, UErrorCode&);
@@ -151,6 +152,8 @@ U_NAMESPACE_END
 #endif /* #if !UCONFIG_NO_MF2 */
 
 #endif /* #if !UCONFIG_NO_FORMATTING */
+
+#endif /* #if !UCONFIG_NO_NORMALIZATION */
 
 #endif /* U_SHOW_CPLUSPLUS_API */
 

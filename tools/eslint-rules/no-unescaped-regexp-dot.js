@@ -42,8 +42,7 @@ module.exports = {
               break;
             case ']':
               if (!escaping) {
-                if (inCharClass)
-                  inCharClass = false;
+                inCharClass &&= false;
               } else {
                 escaping = false;
               }
@@ -63,8 +62,7 @@ module.exports = {
               }
               break;
             default:
-              if (escaping)
-                escaping = false;
+              escaping &&= false;
           }
         }
       }

@@ -105,8 +105,6 @@ class BaseObject : public MemoryRetainer {
   // to it anymore.
   inline bool IsWeakOrDetached() const;
 
-  inline v8::EmbedderGraph::Node::Detachedness GetDetachedness() const override;
-
   // Utility to create a FunctionTemplate with one internal field (used for
   // the `BaseObject*` pointer) and a constructor that initializes that field
   // to `nullptr`.
@@ -192,7 +190,6 @@ class BaseObject : public MemoryRetainer {
 
  private:
   v8::Local<v8::Object> WrappedObject() const override;
-  bool IsRootNode() const override;
   void DeleteMe();
 
   // persistent_handle_ needs to be at a fixed offset from the start of the
@@ -288,6 +285,9 @@ class BaseObjectPtrImpl final {
   inline BaseObjectPtrImpl(BaseObjectPtrImpl&& other);
   inline BaseObjectPtrImpl& operator=(BaseObjectPtrImpl&& other);
 
+  inline BaseObjectPtrImpl(std::nullptr_t);
+  inline BaseObjectPtrImpl& operator=(std::nullptr_t);
+
   inline void reset(T* ptr = nullptr);
   inline T* get() const;
   inline T& operator*() const;
@@ -308,6 +308,13 @@ class BaseObjectPtrImpl final {
   inline BaseObject* get_base_object() const;
   inline BaseObject::PointerData* pointer_data() const;
 };
+
+template <typename T, bool kIsWeak>
+inline static bool operator==(const BaseObjectPtrImpl<T, kIsWeak>,
+                              const std::nullptr_t);
+template <typename T, bool kIsWeak>
+inline static bool operator==(const std::nullptr_t,
+                              const BaseObjectPtrImpl<T, kIsWeak>);
 
 template <typename T>
 using BaseObjectPtr = BaseObjectPtrImpl<T, false>;

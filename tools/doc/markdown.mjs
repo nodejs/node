@@ -7,12 +7,10 @@ export function replaceLinks({ filename, linksMapper }) {
     const fileHtmlUrls = linksMapper[filename];
 
     visit(tree, (node) => {
-      if (node.url) {
-        node.url = node.url.replace(
-          referenceToLocalMdFile,
-          (_, filename, hash) => `${filename}.html${hash || ''}`,
-        );
-      }
+      node.url &&= node.url.replace(
+        referenceToLocalMdFile,
+        (_, filename, hash) => `${filename}.html${hash || ''}`,
+      );
     });
     visit(tree, 'definition', (node) => {
       const htmlUrl = fileHtmlUrls?.[node.identifier];

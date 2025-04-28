@@ -1,15 +1,8 @@
-/* eslint-disable max-len */
-
 // Separated out for easier unit testing
 module.exports = async (process, validateEngines) => {
   // set it here so that regardless of what happens later, we don't
   // leak any private CLI configs to other programs
   process.title = 'npm'
-
-  // if npm is called as "npmg" or "npm_g", then run in global mode.
-  if (process.argv[1][process.argv[1].length - 1] === 'g') {
-    process.argv.splice(1, 1, 'npm', '-g')
-  }
 
   // Patch the global fs module here at the app level
   require('graceful-fs').gracefulify(require('node:fs'))

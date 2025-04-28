@@ -600,6 +600,12 @@ value returned is equivalent to that of [`url.href`][] and [`url.toJSON()`][].
 
 #### `url.toJSON()`
 
+<!-- YAML
+added:
+  - v7.7.0
+  - v6.13.0
+-->
+
 * Returns: {string}
 
 The `toJSON()` method on the `URL` object returns the serialized URL. The
@@ -622,9 +628,11 @@ console.log(JSON.stringify(myURLs));
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `blob` {Blob}
 * Returns: {string}
@@ -658,9 +666,11 @@ to other workers or the main thread.
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
@@ -707,6 +717,129 @@ added: v22.1.0
 Parses a string as a URL. If `base` is provided, it will be used as the base
 URL for the purpose of resolving non-absolute `input` URLs. Returns `null`
 if `input` is not a valid.
+
+### Class: `URLPattern`
+
+<!-- YAML
+added: v23.8.0
+-->
+
+> Stability: 1 - Experimental
+
+The `URLPattern` API provides an interface to match URLs or parts of URLs
+against a pattern.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints:
+// {
+//  "hash": { "groups": {  "0": "" },  "input": "" },
+//  "hostname": { "groups": {}, "input": "nodejs.org" },
+//  "inputs": [
+//    "https://nodejs.org/docs/latest/api/dns.html"
+//  ],
+//  "password": { "groups": { "0": "" }, "input": "" },
+//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
+//  "port": { "groups": {}, "input": "" },
+//  "protocol": { "groups": {}, "input": "https" },
+//  "search": { "groups": { "0": "" }, "input": "" },
+//  "username": { "groups": { "0": "" }, "input": "" }
+// }
+
+console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints: true
+```
+
+#### `new URLPattern()`
+
+Instantiate a new empty `URLPattern` object.
+
+#### `new URLPattern(string[, baseURL][, options])`
+
+* `string` {string} A URL string
+* `baseURL` {string | undefined} A base URL string
+* `options` {Object} Options
+
+Parse the `string` as a URL, and use it to instantiate a new
+`URLPattern` object.
+
+If `baseURL` is not specified, it defaults to `undefined`.
+
+An option can have `ignoreCase` boolean attribute which enables
+case-insensitive matching if set to true.
+
+The constructor can throw a `TypeError` to indicate parsing failure.
+
+#### `new URLPattern(obj[, baseURL][, options])`
+
+* `obj` {Object} An input pattern
+* `baseURL` {string | undefined} A base URL string
+* `options` {Object} Options
+
+Parse the `Object` as an input pattern, and use it to instantiate a new
+`URLPattern` object. The object members can be any of `protocol`, `username`,
+`password`, `hostname`, `port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it defaults to `undefined`.
+
+An option can have `ignoreCase` boolean attribute which enables
+case-insensitive matching if set to true.
+
+The constructor can throw a `TypeError` to indicate parsing failure.
+
+#### `urlPattern.exec(input[, baseURL])`
+
+* `input` {string | Object} A URL or URL parts
+* `baseURL` {string | undefined} A base URL string
+
+Input can be a string or an object providing the individual URL parts. The
+object members can be any of `protocol`, `username`, `password`, `hostname`,
+`port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it will default to `undefined`.
+
+Returns an object with an `inputs` key containing the array of arguments
+passed into the function and keys of the URL components which contains the
+matched input and matched groups.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.exec('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints:
+// {
+//  "hash": { "groups": {  "0": "" },  "input": "" },
+//  "hostname": { "groups": {}, "input": "nodejs.org" },
+//  "inputs": [
+//    "https://nodejs.org/docs/latest/api/dns.html"
+//  ],
+//  "password": { "groups": { "0": "" }, "input": "" },
+//  "pathname": { "groups": { "0": "dns" }, "input": "/docs/latest/api/dns.html" },
+//  "port": { "groups": {}, "input": "" },
+//  "protocol": { "groups": {}, "input": "https" },
+//  "search": { "groups": { "0": "" }, "input": "" },
+//  "username": { "groups": { "0": "" }, "input": "" }
+// }
+```
+
+#### `urlPattern.test(input[, baseURL])`
+
+* `input` {string | Object} A URL or URL parts
+* `baseURL` {string | undefined} A base URL string
+
+Input can be a string or an object providing the individual URL parts. The
+object members can be any of `protocol`, `username`, `password`, `hostname`,
+`port`, `pathname`, `search`, `hash` or `baseURL`.
+
+If `baseURL` is not specified, it will default to `undefined`.
+
+Returns a boolean indicating if the input matches the current pattern.
+
+```js
+const myPattern = new URLPattern('https://nodejs.org/docs/latest/api/*.html');
+console.log(myPattern.test('https://nodejs.org/docs/latest/api/dns.html'));
+// Prints: true
+```
 
 ### Class: `URLSearchParams`
 
@@ -827,7 +960,7 @@ added:
 * `iterable` {Iterable} An iterable object whose elements are key-value pairs
 
 Instantiate a new `URLSearchParams` object with an iterable map in a way that
-is similar to [`Map`][]'s constructor. `iterable` can be an `Array` or any
+is similar to {Map}'s constructor. `iterable` can be an `Array` or any
 iterable object. That means `iterable` can be another `URLSearchParams`, in
 which case the constructor will simply create a clone of the provided
 `URLSearchParams`. Elements of `iterable` are key-value pairs, and can
@@ -1431,8 +1564,6 @@ changes:
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 The legacy `urlObject` (`require('node:url').Url` or
 `import { Url } from 'node:url'`) is
 created and returned by the `url.parse()` function.
@@ -1559,8 +1690,6 @@ changes:
                  `slashes` option with no protocol is now also respected at all
                  times.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
@@ -1722,8 +1851,6 @@ changes:
                  contains a hostname.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.
 
@@ -1822,7 +1949,6 @@ console.log(myURL.origin);
 [WHATWG URL Standard]: https://url.spec.whatwg.org/
 [`Error`]: errors.md#class-error
 [`JSON.stringify()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/JSON/stringify
-[`Map`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Map
 [`TypeError`]: errors.md#class-typeerror
 [`URLSearchParams`]: #class-urlsearchparams
 [`array.toString()`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array/toString

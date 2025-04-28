@@ -124,6 +124,7 @@
     'uv_sources_apple': [
       'src/unix/darwin.c',
       'src/unix/fsevents.c',
+      'src/unix/darwin-syscalls.h',
       'src/unix/darwin-proctitle.c',
       'src/unix/random-getentropy.c',
     ],
@@ -219,7 +220,6 @@
             '<@(uv_sources_posix)',
           ],
           'link_settings': {
-            'libraries': [ '-lm' ],
             'conditions': [
               ['OS=="solaris"', {
                 'ldflags': [ '-pthreads' ],
@@ -229,6 +229,11 @@
               }],
               ['OS != "solaris" and OS != "android" and OS != "zos"', {
                 'ldflags': [ '-pthread' ],
+              }],
+              ['OS!="mac"', {
+                'libraries': [
+                  '-lm'
+                ],
               }],
             ],
           },

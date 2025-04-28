@@ -1,11 +1,9 @@
-// Flags: --expose-internals
 import * as common from '../common/index.mjs';
 import { describe, it, beforeEach, run } from 'node:test';
 import assert from 'node:assert';
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
 import { writeFileSync, renameSync, unlinkSync, existsSync } from 'node:fs';
-import util from 'internal/util';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 
@@ -52,8 +50,8 @@ async function testWatch(
     isolation
   }
 ) {
-  const ran1 = util.createDeferredPromise();
-  const ran2 = util.createDeferredPromise();
+  const ran1 = Promise.withResolvers();
+  const ran2 = Promise.withResolvers();
   const args = [runner];
   if (file) args.push('--file', file);
   if (runnerCwd) args.push('--cwd', runnerCwd);
@@ -191,6 +189,8 @@ async function testWatch(
   action === 'rename2' && await testRename();
   action === 'delete' && await testDelete();
   action === 'create' && await testCreate();
+
+  return runs;
 }
 
 describe('test runner watch mode', () => {
@@ -242,6 +242,20 @@ describe('test runner watch mode', () => {
     async () => {
       await testWatch({ action: 'create', fileToCreate: 'new-test-file.test.js' });
     });
+
+  // This test is flaky by its nature as it relies on the timing of 2 different runs
+  // considering the number of digits in the duration_ms is 9
+  // the chances of having the same duration_ms are very low
+  // but not impossible
+  // In case of costant failures, consider increasing the number of tests
+  it('should recalculate the run duration on a watch restart', async () => {
+    const testRuns = await testWatch({ file: 'test.js', fileToUpdate: 'test.js' });
+    const durations = testRuns.map((run) => {
+      const runDuration = run.match(/# duration_ms\s([\d.]+)/);
+      return runDuration;
+    });
+    assert.notDeepStrictEqual(durations[0][1], durations[1][1]);
+  });
 
   describe('test runner watch mode with different cwd', () => {
     it(

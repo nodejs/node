@@ -2,9 +2,10 @@
 
 """Unit tests for the xcode_emulation.py file."""
 
-from gyp.xcode_emulation import XcodeSettings
 import sys
 import unittest
+
+from gyp.xcode_emulation import XcodeSettings
 
 
 class TestXcodeSettings(unittest.TestCase):

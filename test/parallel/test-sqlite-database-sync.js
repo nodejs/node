@@ -1,4 +1,3 @@
-// Flags: --experimental-sqlite
 'use strict';
 require('../common');
 const tmpdir = require('../common/tmpdir');
@@ -24,12 +23,30 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
-  test('throws if database path is not a string', (t) => {
+  test('throws if database path is not a string, Uint8Array, or URL', (t) => {
     t.assert.throws(() => {
       new DatabaseSync();
     }, {
       code: 'ERR_INVALID_ARG_TYPE',
-      message: /The "path" argument must be a string/,
+      message: /The "path" argument must be a string, Uint8Array, or URL without null bytes/,
+    });
+  });
+
+  test('throws if the database location as Buffer contains null bytes', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(Buffer.from('l\0cation'));
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.',
+    });
+  });
+
+  test('throws if the database location as string contains null bytes', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('l\0cation');
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "path" argument must be a string, Uint8Array, or URL without null bytes.',
     });
   });
 
@@ -50,6 +67,112 @@ suite('DatabaseSync() constructor', () => {
       message: /The "options\.open" argument must be a boolean/,
     });
   });
+
+  test('throws if options.readOnly is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { readOnly: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.readOnly" argument must be a boolean/,
+    });
+  });
+
+  test('throws if options.timeout is provided but is not an integer', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { timeout: .99 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.timeout" argument must be an integer/,
+    });
+  });
+
+  test('is not read-only by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+  });
+
+  test('is read-only if readOnly is set', (t) => {
+    const dbPath = nextDb();
+    {
+      const db = new DatabaseSync(dbPath);
+      db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+      db.close();
+    }
+    {
+      const db = new DatabaseSync(dbPath, { readOnly: true });
+      t.assert.throws(() => {
+        db.exec('CREATE TABLE bar (id INTEGER PRIMARY KEY)');
+      }, {
+        code: 'ERR_SQLITE_ERROR',
+        message: /attempt to write a readonly database/,
+      });
+    }
+  });
+
+  test('throws if options.enableForeignKeyConstraints is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { enableForeignKeyConstraints: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.enableForeignKeyConstraints" argument must be a boolean/,
+    });
+  });
+
+  test('enables foreign key constraints by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    db.exec(`
+      CREATE TABLE foo (id INTEGER PRIMARY KEY);
+      CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
+    `);
+    t.after(() => { db.close(); });
+    t.assert.throws(() => {
+      db.exec('INSERT INTO bar (foo_id) VALUES (1)');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: 'FOREIGN KEY constraint failed',
+    });
+  });
+
+  test('allows disabling foreign key constraints', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { enableForeignKeyConstraints: false });
+    db.exec(`
+      CREATE TABLE foo (id INTEGER PRIMARY KEY);
+      CREATE TABLE bar (foo_id INTEGER REFERENCES foo(id));
+    `);
+    t.after(() => { db.close(); });
+    db.exec('INSERT INTO bar (foo_id) VALUES (1)');
+  });
+
+  test('throws if options.enableDoubleQuotedStringLiterals is provided but is not a boolean', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { enableDoubleQuotedStringLiterals: 5 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.enableDoubleQuotedStringLiterals" argument must be a boolean/,
+    });
+  });
+
+  test('disables double-quoted string literals by default', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.throws(() => {
+      db.exec('SELECT "foo";');
+    }, {
+      code: 'ERR_SQLITE_ERROR',
+      message: /no such column: "foo"/,
+    });
+  });
+
+  test('allows enabling double-quoted string literals', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath, { enableDoubleQuotedStringLiterals: true });
+    t.after(() => { db.close(); });
+    db.exec('SELECT "foo";');
+  });
 });
 
 suite('DatabaseSync.prototype.open()', () => {
@@ -58,8 +181,10 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(dbPath, { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.strictEqual(existsSync(dbPath), false);
     t.assert.strictEqual(db.open(), undefined);
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(existsSync(dbPath), true);
   });
 
@@ -67,13 +192,16 @@ suite('DatabaseSync.prototype.open()', () => {
     const db = new DatabaseSync(nextDb(), { open: false });
     t.after(() => { db.close(); });
 
+    t.assert.strictEqual(db.isOpen, false);
     db.open();
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.throws(() => {
       db.open();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is already open/,
     });
+    t.assert.strictEqual(db.isOpen, true);
   });
 });
 
@@ -81,18 +209,22 @@ suite('DatabaseSync.prototype.close()', () => {
   test('closes an open database connection', (t) => {
     const db = new DatabaseSync(nextDb());
 
+    t.assert.strictEqual(db.isOpen, true);
     t.assert.strictEqual(db.close(), undefined);
+    t.assert.strictEqual(db.isOpen, false);
   });
 
   test('throws if database is not open', (t) => {
     const db = new DatabaseSync(nextDb(), { open: false });
 
+    t.assert.strictEqual(db.isOpen, false);
     t.assert.throws(() => {
       db.close();
     }, {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
+    t.assert.strictEqual(db.isOpen, false);
   });
 });
 
@@ -160,6 +292,15 @@ suite('DatabaseSync.prototype.exec()', () => {
     });
   });
 
+  test('throws if the URL does not have the file: scheme', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync(new URL('http://example.com'));
+    }, {
+      code: 'ERR_INVALID_URL_SCHEME',
+      message: 'The URL must be of scheme file:',
+    });
+  });
+
   test('throws if database is not open', (t) => {
     const db = new DatabaseSync(nextDb(), { open: false });
 
@@ -181,5 +322,94 @@ suite('DatabaseSync.prototype.exec()', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
     });
+  });
+});
+
+suite('DatabaseSync.prototype.isTransaction', () => {
+  test('correctly detects a committed transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('COMMIT');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('correctly detects a rolled back transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('ROLLBACK');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      return db.isTransaction;
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+});
+
+suite('DatabaseSync.prototype.location()', () => {
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      db.location();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  test('throws if provided dbName is not string', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.location(null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "dbName" argument must be a string/,
+    });
+  });
+
+  test('returns null when connected to in-memory database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.strictEqual(db.location(), null);
+  });
+
+  test('returns db path when connected to a persistent database', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.strictEqual(db.location(), dbPath);
+  });
+
+  test('returns that specific db path when attached', (t) => {
+    const dbPath = nextDb();
+    const otherPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    const other = new DatabaseSync(dbPath);
+    t.after(() => { other.close(); });
+
+    // Adding this escape because the test with unusual chars have a single quote which breaks the query
+    const escapedPath = otherPath.replace("'", "''");
+    db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
+
+    t.assert.strictEqual(db.location('other'), otherPath);
   });
 });

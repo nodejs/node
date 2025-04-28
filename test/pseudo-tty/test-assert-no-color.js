@@ -15,5 +15,21 @@ assert.throws(
       '+ {}\n' +
       '- {\n' +
       '-   foo: \'bar\'\n' +
-      '- }',
+      '- }\n',
   });
+
+{
+  assert.throws(
+    () => {
+      assert.partialDeepStrictEqual({}, { foo: 'bar' });
+    },
+    {
+      message: 'Expected values to be partially and strictly deep-equal:\n' +
+        '+ actual - expected\n' +
+        '\n' +
+        '+ {}\n' +
+        '- {\n' +
+        "-   foo: 'bar'\n" +
+        '- }\n',
+    });
+}

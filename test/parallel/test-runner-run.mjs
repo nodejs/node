@@ -70,10 +70,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should support timeout', async () => {
     const stream = run({ timeout: 50, files: [
-      fixtures.path('test-runner', 'never_ending_sync.js'),
-      fixtures.path('test-runner', 'never_ending_async.js'),
+      fixtures.path('test-runner', 'timeout-basic.mjs'),
     ] });
-    stream.on('test:fail', common.mustCall(2));
+    stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
@@ -192,6 +191,33 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
         controller.abort();
       }
     });
+  });
+
+  it('should include test type in enqueue, dequeue events', async (t) => {
+    const stream = await run({
+      files: [join(testFixtures, 'default-behavior/test/suite_and_test.cjs')],
+    });
+    t.plan(4);
+
+    stream.on('test:enqueue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        t.assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
+      }
+    }, 3));
+    stream.on('test:dequeue', common.mustCall((data) => {
+      if (data.name === 'this is a suite') {
+        t.assert.strictEqual(data.type, 'suite');
+      }
+      if (data.name === 'this is a test') {
+        t.assert.strictEqual(data.type, 'test');
+      }
+    }, 3));
+
+    // eslint-disable-next-line no-unused-vars
+    for await (const _ of stream);
   });
 
   describe('AbortSignal', () => {

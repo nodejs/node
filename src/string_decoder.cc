@@ -28,7 +28,6 @@ MaybeLocal<String> MakeString(Isolate* isolate,
                               const char* data,
                               size_t length,
                               enum encoding encoding) {
-  Local<Value> error;
   MaybeLocal<Value> ret;
   if (encoding == UTF8) {
     MaybeLocal<String> utf8_string;
@@ -43,17 +42,11 @@ MaybeLocal<String> MakeString(Isolate* isolate,
       return utf8_string;
     }
   } else {
-    ret = StringBytes::Encode(
-        isolate,
-        data,
-        length,
-        encoding,
-        &error);
+    ret = StringBytes::Encode(isolate, data, length, encoding);
   }
 
   if (ret.IsEmpty()) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
+    return {};
   }
 
   DCHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
@@ -272,19 +265,21 @@ void DecodeData(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferViewContents<char> content(args[1].As<ArrayBufferView>());
   size_t length = content.length();
 
-  MaybeLocal<String> ret =
-      decoder->DecodeData(args.GetIsolate(), content.data(), &length);
-  if (!ret.IsEmpty())
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  Local<String> ret;
+  if (decoder->DecodeData(args.GetIsolate(), content.data(), &length)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void FlushData(const FunctionCallbackInfo<Value>& args) {
   StringDecoder* decoder =
       reinterpret_cast<StringDecoder*>(Buffer::Data(args[0]));
   CHECK_NOT_NULL(decoder);
-  MaybeLocal<String> ret = decoder->FlushData(args.GetIsolate());
-  if (!ret.IsEmpty())
-    args.GetReturnValue().Set(ret.ToLocalChecked());
+  Local<String> ret;
+  if (decoder->FlushData(args.GetIsolate()).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
+  }
 }
 
 void InitializeStringDecoder(Local<Object> target,

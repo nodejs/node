@@ -14,6 +14,10 @@ application usage.
 
 Enables debugging of `ArrayBuffer` allocations.
 
+#### `--experimental-quic`
+
+Enable QUIC Protocol (under development)
+
 #### `--expose-internals`
 
 Allows the usage of `internal/*` modules, granting access to internal Node.js functionality.

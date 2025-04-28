@@ -53,7 +53,6 @@
 #endif
 
 #include "ares_inet_net_pton.h"
-#include "ares_platform.h"
 
 #if defined(USE_WINSOCK)
 /*
@@ -177,6 +176,7 @@ static int compareAddresses(const void *arg1, const void *arg2)
   return 0;
 }
 
+#if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
 /* There can be multiple routes to "the Internet".  And there can be different
  * DNS servers associated with each of the interfaces that offer those routes.
  * We have to assume that any DNS server can serve any request.  But, some DNS
@@ -214,18 +214,6 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
                                 const SOCKADDR_INET * const dest,
                                 const ULONG                 interfaceMetric)
 {
-  /* On this interface, get the best route to that destination. */
-#  if defined(__WATCOMC__)
-  /* OpenWatcom's builtin Windows SDK does not have a definition for
-   * MIB_IPFORWARD_ROW2, and also does not allow the usage of SOCKADDR_INET
-   * as a variable. Let's work around this by returning the worst possible
-   * metric, but only when using the OpenWatcom compiler.
-   * It may be worth investigating using a different version of the Windows
-   * SDK with OpenWatcom in the future, though this may be fixed in OpenWatcom
-   * 2.0.
-   */
-  return (ULONG)-1;
-#  else
   MIB_IPFORWARD_ROW2 row;
   SOCKADDR_INET      ignored;
   if (GetBestRoute2(/* The interface to use.  The index is ignored since we are
@@ -258,8 +246,8 @@ static ULONG getBestRouteMetric(IF_LUID * const luid, /* Can't be const :( */
    * which describes the combination as a "sum".
    */
   return row.Metric + interfaceMetric;
-#  endif /* __WATCOMC__ */
 }
+#endif
 
 /*
  * get_DNS_Windows()
@@ -380,9 +368,21 @@ static ares_bool_t get_DNS_Windows(char **outptr)
           addressesSize = newSize;
         }
 
+#  if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
+        /* OpenWatcom's builtin Windows SDK does not have a definition for
+         * MIB_IPFORWARD_ROW2, and also does not allow the usage of SOCKADDR_INET
+         * as a variable. Let's work around this by returning the worst possible
+         * metric, but only when using the OpenWatcom compiler.
+         * It may be worth investigating using a different version of the Windows
+         * SDK with OpenWatcom in the future, though this may be fixed in OpenWatcom
+         * 2.0.
+         */
         addresses[addressesIndex].metric = getBestRouteMetric(
           &ipaaEntry->Luid, (SOCKADDR_INET *)((void *)(namesrvr.sa)),
           ipaaEntry->Ipv4Metric);
+#  else
+        addresses[addressesIndex].metric = (ULONG)-1;
+#  endif
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
@@ -420,13 +420,17 @@ static ares_bool_t get_DNS_Windows(char **outptr)
         memset(&addr, 0, sizeof(addr));
         addr.family = AF_INET6;
         memcpy(&addr.addr.addr6, &namesrvr.sa6->sin6_addr, 16);
-        if (ares__addr_is_linklocal(&addr)) {
+        if (ares_addr_is_linklocal(&addr)) {
           ll_scope = ipaaEntry->Ipv6IfIndex;
         }
 
+#  if defined(HAVE_GETBESTROUTE2) && !defined(__WATCOMC__)
         addresses[addressesIndex].metric = getBestRouteMetric(
           &ipaaEntry->Luid, (SOCKADDR_INET *)((void *)(namesrvr.sa)),
           ipaaEntry->Ipv6Metric);
+#  else
+        addresses[addressesIndex].metric = (ULONG)-1;
+#  endif
 
         /* Record insertion index to make qsort stable */
         addresses[addressesIndex].orig_idx = addressesIndex;
@@ -514,10 +518,6 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
 
   *outptr = NULL;
 
-  if (ares__getplatform() != WIN_NT) {
-    return ARES_FALSE;
-  }
-
   /* 1. Global DNS Suffix Search List */
   if (RegOpenKeyExA(HKEY_LOCAL_MACHINE, WIN_NS_NT_KEY, 0, KEY_READ, &hKey) ==
       ERROR_SUCCESS) {
@@ -589,13 +589,15 @@ static ares_bool_t get_SuffixList_Windows(char **outptr)
   return *outptr != NULL ? ARES_TRUE : ARES_FALSE;
 }
 
-ares_status_t ares__init_sysconfig_windows(ares_sysconfig_t *sysconfig)
+ares_status_t ares_init_sysconfig_windows(const ares_channel_t *channel,
+                                          ares_sysconfig_t     *sysconfig)
 {
   char         *line   = NULL;
   ares_status_t status = ARES_SUCCESS;
 
   if (get_DNS_Windows(&line)) {
-    status = ares__sconfig_append_fromstr(&sysconfig->sconfig, line, ARES_TRUE);
+    status = ares_sconfig_append_fromstr(channel, &sysconfig->sconfig, line,
+                                         ARES_TRUE);
     ares_free(line);
     if (status != ARES_SUCCESS) {
       goto done;
@@ -603,7 +605,7 @@ ares_status_t ares__init_sysconfig_windows(ares_sysconfig_t *sysconfig)
   }
 
   if (get_SuffixList_Windows(&line)) {
-    sysconfig->domains = ares__strsplit(line, ", ", &sysconfig->ndomains);
+    sysconfig->domains = ares_strsplit(line, ", ", &sysconfig->ndomains);
     ares_free(line);
     if (sysconfig->domains == NULL) {
       status = ARES_EFILE;

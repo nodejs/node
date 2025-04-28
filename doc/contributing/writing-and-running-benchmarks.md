@@ -174,6 +174,16 @@ It is possible to execute more groups by adding extra process arguments.
 node benchmark/run.js assert async_hooks
 ```
 
+It's also possible to execute the benchmark more than once using the
+`--runs` flag.
+
+```bash
+node benchmark/run.js --runs 10 assert async_hooks
+```
+
+This command will run the benchmark files in `benchmark/assert` and `benchmark/async_hooks`
+10 times each.
+
 #### Specifying CPU Cores for Benchmarks with run.js
 
 When using `run.js` to execute a group of benchmarks,
@@ -528,7 +538,7 @@ The arguments of `createBenchmark` are:
         source: ['buffer', 'string'],
         len: [2048],
         n: [50, 2048],
-      }
+      },
     }, { byGroups: true });
     ```
 
@@ -562,7 +572,7 @@ the code inside the `main` function if it's more than just declaration.
 ```js
 'use strict';
 const common = require('../common.js');
-const { SlowBuffer } = require('node:buffer');
+const { Buffer } = require('node:buffer');
 
 const configs = {
   // Number of operations, specified here so they show up in the report.
@@ -593,10 +603,11 @@ function main(conf) {
   bench.start();
 
   // Do operations here
-  const BufferConstructor = conf.type === 'fast' ? Buffer : SlowBuffer;
 
   for (let i = 0; i < conf.n; i++) {
-    new BufferConstructor(conf.size);
+    conf.type === 'fast' ?
+      Buffer.allocUnsafe(conf.size) :
+      Buffer.allocUnsafeSlow(conf.size);
   }
 
   // End the timer, pass in the number of operations

@@ -19,6 +19,7 @@ namespace node {
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
@@ -243,8 +244,8 @@ int StreamBase::Writev(const FunctionCallbackInfo<Value>& args) {
 
   std::unique_ptr<BackingStore> bs;
   if (storage_size > 0) {
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(isolate, storage_size);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, storage_size, BackingStoreInitializationMode::kUninitialized);
   }
 
   offset = 0;
@@ -398,14 +399,14 @@ int StreamBase::WriteString(const FunctionCallbackInfo<Value>& args) {
 
   if (try_write) {
     // Copy partial data
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(isolate, buf.len);
-    memcpy(static_cast<char*>(bs->Data()), buf.base, buf.len);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, buf.len, BackingStoreInitializationMode::kUninitialized);
+    memcpy(bs->Data(), buf.base, buf.len);
     data_size = buf.len;
   } else {
     // Write it
-    NoArrayBufferZeroFillScope no_zero_fill_scope(env->isolate_data());
-    bs = ArrayBuffer::NewBackingStore(isolate, storage_size);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, storage_size, BackingStoreInitializationMode::kUninitialized);
     data_size = StringBytes::Write(isolate,
                                    static_cast<char*>(bs->Data()),
                                    storage_size,
@@ -708,9 +709,7 @@ void EmitToJSStreamListener::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
   if (static_cast<size_t>(nread) != bs->ByteLength()) {
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
     bs = ArrayBuffer::NewBackingStore(isolate, nread);
-    memcpy(static_cast<char*>(bs->Data()),
-           static_cast<char*>(old_bs->Data()),
-           nread);
+    memcpy(bs->Data(), old_bs->Data(), nread);
   }
 
   stream->CallJSOnreadMethod(nread, ArrayBuffer::New(isolate, std::move(bs)));

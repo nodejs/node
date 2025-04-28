@@ -154,6 +154,7 @@ declare namespace primordials {
   export const ArrayBufferPrototypeGetDetached: UncurryThis<typeof ArrayBuffer.prototype.detached>
   export const ArrayBufferPrototypeSlice: UncurryThis<typeof ArrayBuffer.prototype.slice>
   export const ArrayBufferPrototypeTransfer: UncurryThis<typeof ArrayBuffer.prototype.transfer>
+  export const ArrayBufferPrototypeGetByteLength: UncurryGetter<typeof ArrayBuffer.prototype , "byteLength">;
   export const AsyncIteratorPrototype: AsyncIterable<any>;
   export import BigInt = globalThis.BigInt;
   export const BigIntPrototype: typeof BigInt.prototype
@@ -431,7 +432,9 @@ declare namespace primordials {
   export const SymbolPrototype: typeof Symbol.prototype
   export const SymbolFor: typeof Symbol.for
   export const SymbolKeyFor: typeof Symbol.keyFor
+  export const SymbolAsyncDispose: typeof Symbol.asyncDispose
   export const SymbolAsyncIterator: typeof Symbol.asyncIterator
+  export const SymbolDispose: typeof Symbol.dispose
   export const SymbolHasInstance: typeof Symbol.hasInstance
   export const SymbolIsConcatSpreadable: typeof Symbol.isConcatSpreadable
   export const SymbolIterator: typeof Symbol.iterator
@@ -529,6 +532,7 @@ declare namespace primordials {
   export const PromisePrototypeThen: UncurryThis<typeof Promise.prototype.then>
   export const PromisePrototypeCatch: UncurryThis<typeof Promise.prototype.catch>
   export const PromisePrototypeFinally: UncurryThis<typeof Promise.prototype.finally>
+  export const PromiseWithResolvers: typeof Promise.withResolvers
   export import Proxy = globalThis.Proxy
   import _globalThis = globalThis
   export { _globalThis as globalThis }

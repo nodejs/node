@@ -19,6 +19,7 @@ This a list of all the dependencies:
 * [googletest][]
 * [histogram][]
 * [icu-small][]
+* [inspector\_protocol][inspector_protocol]
 * [libuv][]
 * [llhttp][]
 * [minimatch][]
@@ -35,6 +36,7 @@ This a list of all the dependencies:
 * [uvwasi][]
 * [V8][]
 * [zlib][]
+* [zstd][]
 
 Any code which meets one or more of these conditions should
 be managed as a dependency:
@@ -145,6 +147,48 @@ can be added as a non-externalizable dependency. In this case
 simply add the path to the JavaScript file in the `deps_files`
 list in the `node.gyp` file.
 
+## Common approach for dependencies with WASM components
+
+WASM components within dependencies are most often built
+outside of the regular Node.js `make build` step. They also
+require different tools.
+
+It is important that the tools and their versions used to build
+WASM components shipped within Node.js are well documented and
+be available if needed to rebuild/update older Node.js versions.
+
+In order to minimize the different number of tools and versions
+used to build WASM components and to document and ensure future
+availability, the project builds and maintains a common
+[wasm-builder](https://github.com/nodejs/wasm-builder) container
+that should be use to build WASM components in Node.js
+dependencies.
+
+The container provides a durable copy of the versions of the tools
+used for a specific build which are under the control of the Node.js
+project. In addition, the tools and verions are documented through metadata
+within the container in the `/home/node/metadata directory`.
+
+The available tools can be found by looking at the current version of the
+[Dockerfile](https://github.com/nodejs/wasm-builder/blob/main/container-build-info/Dockerfile)
+used to create the container.
+
+If additional WASM tool are needed beyond those available in the
+container, additions should be PR'd into the wasm-builder container.
+
+Examples of using the container include:
+
+* [build/wasm.js](https://github.com/nodejs/undici/blob/main/build/wasm.js) from undici
+* [tools/build-wasm.js](https://github.com/nodejs/amaro/blob/main/tools/build-wasm.js) from amaro
+
+In addition to using the container to build WASM components, the goal is also
+for the WASM components and final files that are shipped with Node.js to be
+built by the [dep-updaters](https://github.com/nodejs/node/tree/main/tools/dep_updaters)
+that are run on a regular basis and that they use only the files available in the Node.js
+repo for the dependency. For example, being able to rebuild the WASM and files that
+we ship in Node.js using only the files in
+[../deps/undici](https://github.com/nodejs/node/tree/main/deps/undici).
+
 ## Updating dependencies
 
 Most dependencies are automatically updated by
@@ -228,6 +272,12 @@ The [icu](http://site.icu-project.org) is widely used set of C/C++
 and Java libraries providing Unicode and Globalization
 support for software applications.
 See [maintaining-icu][] for more information.
+
+### inspector\_protocol
+
+The [inspector\_protocol](https://chromium.googlesource.com/deps/inspector_protocol/)
+is Chromium's of code generators and templates for the inspector protocol.
+See [this doc](../../../tools/inspector_protocol/README.md) for more information.
 
 ### libuv
 
@@ -351,6 +401,11 @@ dependency lossless data-compression library,
 it comes from the Chromium team's zlib fork which incorporated
 performance improvements not currently available in standard zlib.
 
+### zstd
+
+The [zstd](https://github.com/facebook/zstd) dependency is used for compression
+according to [RFC 8878](https://datatracker.ietf.org/doc/html/rfc8878).
+
 [acorn]: #acorn
 [ada]: #ada
 [amaro]: #amaro
@@ -363,6 +418,7 @@ performance improvements not currently available in standard zlib.
 [googletest]: #googletest
 [histogram]: #histogram
 [icu-small]: #icu-small
+[inspector_protocol]: #inspector_protocol
 [libuv]: #libuv
 [llhttp]: #llhttp
 [maintaining-V8]: ./maintaining-V8.md
@@ -386,3 +442,4 @@ performance improvements not currently available in standard zlib.
 [uvwasi]: #uvwasi
 [v8]: #v8
 [zlib]: #zlib
+[zstd]: #zstd

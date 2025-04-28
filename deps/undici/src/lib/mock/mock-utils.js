@@ -8,13 +8,14 @@ const {
   kOrigin,
   kGetNetConnect
 } = require('./mock-symbols')
-const { buildURL } = require('../core/util')
+const { serializePathWithQuery } = require('../core/util')
 const { STATUS_CODES } = require('node:http')
 const {
   types: {
     isPromise
   }
 } = require('node:util')
+const { InvalidArgumentError } = require('../core/errors')
 
 function matchValue (match, value) {
   if (typeof match === 'string') {
@@ -96,7 +97,7 @@ function safeUrl (path) {
     return path
   }
 
-  const pathSegments = path.split('?')
+  const pathSegments = path.split('?', 3)
 
   if (pathSegments.length !== 2) {
     return path
@@ -118,19 +119,33 @@ function matchKey (mockDispatch, { path, method, body, headers }) {
 function getResponseData (data) {
   if (Buffer.isBuffer(data)) {
     return data
+  } else if (data instanceof Uint8Array) {
+    return data
+  } else if (data instanceof ArrayBuffer) {
+    return data
   } else if (typeof data === 'object') {
     return JSON.stringify(data)
-  } else {
+  } else if (data) {
     return data.toString()
+  } else {
+    return ''
   }
 }
 
 function getMockDispatch (mockDispatches, key) {
-  const basePath = key.query ? buildURL(key.path, key.query) : key.path
+  const basePath = key.query ? serializePathWithQuery(key.path, key.query) : key.path
   const resolvedPath = typeof basePath === 'string' ? safeUrl(basePath) : basePath
 
+  const resolvedPathWithoutTrailingSlash = removeTrailingSlash(resolvedPath)
+
   // Match path
-  let matchedMockDispatches = mockDispatches.filter(({ consumed }) => !consumed).filter(({ path }) => matchValue(safeUrl(path), resolvedPath))
+  let matchedMockDispatches = mockDispatches
+    .filter(({ consumed }) => !consumed)
+    .filter(({ path, ignoreTrailingSlash }) => {
+      return ignoreTrailingSlash
+        ? matchValue(removeTrailingSlash(safeUrl(path)), resolvedPathWithoutTrailingSlash)
+        : matchValue(safeUrl(path), resolvedPath)
+    })
   if (matchedMockDispatches.length === 0) {
     throw new MockNotMatchedError(`Mock dispatch not matched for path '${resolvedPath}'`)
   }
@@ -157,8 +172,8 @@ function getMockDispatch (mockDispatches, key) {
   return matchedMockDispatches[0]
 }
 
-function addMockDispatch (mockDispatches, key, data) {
-  const baseData = { timesInvoked: 0, times: 1, persist: false, consumed: false }
+function addMockDispatch (mockDispatches, key, data, opts) {
+  const baseData = { timesInvoked: 0, times: 1, persist: false, consumed: false, ...opts }
   const replyData = typeof data === 'function' ? { callback: data } : { ...data }
   const newMockDispatch = { ...baseData, ...key, pending: true, data: { error: null, ...replyData } }
   mockDispatches.push(newMockDispatch)
@@ -177,8 +192,24 @@ function deleteMockDispatch (mockDispatches, key) {
   }
 }
 
+/**
+ * @param {string} path Path to remove trailing slash from
+ */
+function removeTrailingSlash (path) {
+  while (path.endsWith('/')) {
+    path = path.slice(0, -1)
+  }
+
+  if (path.length === 0) {
+    path = '/'
+  }
+
+  return path
+}
+
 function buildKey (opts) {
   const { path, method, body, headers, query } = opts
+
   return {
     path,
     method,
@@ -337,9 +368,14 @@ function checkNetConnect (netConnect, origin) {
   return false
 }
 
-function buildMockOptions (opts) {
+function buildAndValidateMockOptions (opts) {
   if (opts) {
     const { agent, ...mockOptions } = opts
+
+    if ('enableCallHistory' in mockOptions && typeof mockOptions.enableCallHistory !== 'boolean') {
+      throw new InvalidArgumentError('options.enableCallHistory must to be a boolean')
+    }
+
     return mockOptions
   }
 }
@@ -357,7 +393,7 @@ module.exports = {
   mockDispatch,
   buildMockDispatch,
   checkNetConnect,
-  buildMockOptions,
+  buildAndValidateMockOptions,
   getHeaderByName,
   buildHeadersFromArray
 }

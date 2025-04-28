@@ -1,44 +1,29 @@
-// Flags: --expose-internals
 'use strict';
-const common = require('../common');
+// This tests heap snapshot integration of inspector.
 
+const common = require('../common');
+const assert = require('assert');
 common.skipIfInspectorDisabled();
 
-const { validateSnapshotNodes } = require('../common/heap');
+const { validateByRetainingPath, validateByRetainingPathFromNodes } = require('../common/heap');
 const inspector = require('inspector');
 
-const snapshotNode = {
-  children: [
-    { node_name: 'Node / InspectorSession', edge_name: 'session' },
-  ],
-};
-
-// Starts with no JSBindingsConnection (or 1 if coverage enabled).
+// Starts with no JSBindingsConnection.
 {
-  const expected = [];
-  if (process.env.NODE_V8_COVERAGE) {
-    expected.push(snapshotNode);
-  }
-  validateSnapshotNodes('Node / JSBindingsConnection', expected);
+  const nodes = validateByRetainingPath('Node / JSBindingsConnection', []);
+  assert.strictEqual(nodes.length, 0);
 }
 
-// JSBindingsConnection should be added.
+// JSBindingsConnection should be added once inspector session is created.
 {
   const session = new inspector.Session();
   session.connect();
-  const expected = [
-    {
-      children: [
-        { node_name: 'Node / InspectorSession', edge_name: 'session' },
-        { node_name: 'Connection', edge_name: 'native_to_javascript' },
-        (edge) => edge.name === 'callback' &&
-          (edge.to.type === undefined || // embedded graph
-           edge.to.type === 'closure'), // snapshot
-      ],
-    },
-  ];
-  if (process.env.NODE_V8_COVERAGE) {
-    expected.push(snapshotNode);
-  }
-  validateSnapshotNodes('Node / JSBindingsConnection', expected);
+
+  const nodes = validateByRetainingPath('Node / JSBindingsConnection', []);
+  validateByRetainingPathFromNodes(nodes, 'Node / JSBindingsConnection', [
+    { node_name: 'Node / InspectorSession', edge_name: 'session' },
+  ]);
+  validateByRetainingPathFromNodes(nodes, 'Node / JSBindingsConnection', [
+    { node_name: 'Connection', edge_name: 'native_to_javascript' },
+  ]);
 }

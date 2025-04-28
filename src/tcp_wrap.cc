@@ -59,10 +59,12 @@ MaybeLocal<Object> TCPWrap::Instantiate(Environment* env,
   EscapableHandleScope handle_scope(env->isolate());
   AsyncHooks::DefaultTriggerAsyncIdScope trigger_scope(parent);
   CHECK_EQ(env->tcp_constructor_template().IsEmpty(), false);
-  Local<Function> constructor = env->tcp_constructor_template()
-                                    ->GetFunction(env->context())
-                                    .ToLocalChecked();
-  CHECK_EQ(constructor.IsEmpty(), false);
+  Local<Function> constructor;
+  if (!env->tcp_constructor_template()
+           ->GetFunction(env->context())
+           .ToLocal(&constructor)) {
+    return {};
+  }
   Local<Value> type_value = Int32::New(env->isolate(), type);
   return handle_scope.EscapeMaybe(
       constructor->NewInstance(env->context(), 1, &type_value));
@@ -123,6 +125,7 @@ void TCPWrap::Initialize(Local<Object> target,
   NODE_DEFINE_CONSTANT(constants, SOCKET);
   NODE_DEFINE_CONSTANT(constants, SERVER);
   NODE_DEFINE_CONSTANT(constants, UV_TCP_IPV6ONLY);
+  NODE_DEFINE_CONSTANT(constants, UV_TCP_REUSEPORT);
   target->Set(context,
               env->constants_string(),
               constants).Check();
@@ -246,9 +249,12 @@ void TCPWrap::Bind(
   int port;
   unsigned int flags = 0;
   if (!args[1]->Int32Value(env->context()).To(&port)) return;
-  if (family == AF_INET6 &&
-      !args[2]->Uint32Value(env->context()).To(&flags)) {
-    return;
+  if (args.Length() >= 3 && args[2]->IsUint32()) {
+    if (!args[2]->Uint32Value(env->context()).To(&flags)) return;
+    // Can not set IPV6 flags on IPV4 socket
+    if (family == AF_INET) {
+      flags &= ~UV_TCP_IPV6ONLY;
+    }
   }
 
   T addr;
@@ -338,7 +344,10 @@ void TCPWrap::Connect(const FunctionCallbackInfo<Value>& args,
       delete req_wrap;
     } else {
       CHECK(args[2]->Uint32Value(env->context()).IsJust());
-      int port = args[2]->Uint32Value(env->context()).FromJust();
+      uint32_t port;
+      if (!args[2]->Uint32Value(env->context()).To(&port)) {
+        return;
+      }
       TRACE_EVENT_NESTABLE_ASYNC_BEGIN2(TRACING_CATEGORY_NODE2(net, native),
                                         "connect",
                                         req_wrap,
@@ -386,8 +395,9 @@ MaybeLocal<Object> AddressToJS(Environment* env,
 
   int port;
 
-  if (info.IsEmpty())
+  if (info.IsEmpty()) {
     info = Object::New(env->isolate());
+  }
 
   switch (addr->sa_family) {
   case AF_INET6:
@@ -409,32 +419,45 @@ MaybeLocal<Object> AddressToJS(Environment* env,
       }
     }
     port = ntohs(a6->sin6_port);
-    info->Set(env->context(),
-              env->address_string(),
-              OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(), env->family_string(), env->ipv6_string()).Check();
-    info->Set(env->context(),
-              env->port_string(),
-              Integer::New(env->isolate(), port)).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  OneByteString(env->isolate(), ip))
+            .IsNothing() ||
+        info->Set(env->context(), env->family_string(), env->ipv6_string())
+            .IsNothing() ||
+        info->Set(env->context(),
+                  env->port_string(),
+                  Integer::New(env->isolate(), port))
+            .IsNothing()) {
+      return {};
+    }
     break;
 
   case AF_INET:
     a4 = reinterpret_cast<const sockaddr_in*>(addr);
     uv_inet_ntop(AF_INET, &a4->sin_addr, ip, sizeof ip);
     port = ntohs(a4->sin_port);
-    info->Set(env->context(),
-              env->address_string(),
-              OneByteString(env->isolate(), ip)).Check();
-    info->Set(env->context(), env->family_string(), env->ipv4_string()).Check();
-    info->Set(env->context(),
-              env->port_string(),
-              Integer::New(env->isolate(), port)).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  OneByteString(env->isolate(), ip))
+            .IsNothing() ||
+        info->Set(env->context(), env->family_string(), env->ipv4_string())
+            .IsNothing() ||
+        info->Set(env->context(),
+                  env->port_string(),
+                  Integer::New(env->isolate(), port))
+            .IsNothing()) {
+      return {};
+    }
     break;
 
   default:
-    info->Set(env->context(),
-              env->address_string(),
-              String::Empty(env->isolate())).Check();
+    if (info->Set(env->context(),
+                  env->address_string(),
+                  String::Empty(env->isolate()))
+            .IsNothing()) {
+      return {};
+    }
   }
 
   return scope.Escape(info);

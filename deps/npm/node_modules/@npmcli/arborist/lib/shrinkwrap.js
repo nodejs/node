@@ -109,6 +109,7 @@ const nodeMetaKeys = [
   'inBundle',
   'hasShrinkwrap',
   'hasInstallScript',
+  'ideallyInert',
 ]
 
 const metaFieldFromPkg = (pkg, key) => {
@@ -135,6 +136,10 @@ const assertNoNewer = async (path, data, lockTime, dir, seen) => {
 
   const parent = isParent ? dir : resolve(dir, 'node_modules')
   const rel = relpath(path, dir)
+  const inert = data.packages[rel]?.ideallyInert
+  if (inert) {
+    return
+  }
   seen.add(rel)
   let entries
   if (dir === path) {
@@ -173,7 +178,7 @@ const assertNoNewer = async (path, data, lockTime, dir, seen) => {
 
   // assert that all the entries in the lockfile were seen
   for (const loc in data.packages) {
-    if (!seen.has(loc)) {
+    if (!seen.has(loc) && !data.packages[loc].ideallyInert) {
       throw new Error(`missing from node_modules: ${loc}`)
     }
   }
@@ -783,6 +788,10 @@ class Shrinkwrap {
       // ok, I did my best!  good luck!
     }
 
+    if (lock.ideallyInert) {
+      meta.ideallyInert = true
+    }
+
     if (lock.bundled) {
       meta.inBundle = true
     }
@@ -817,7 +826,7 @@ class Shrinkwrap {
         if (!/^file:/.test(resolved)) {
           pathFixed = resolved
         } else {
-          pathFixed = `file:${resolve(this.path, resolved.slice(5)).replace(/#/g, '%23')}`
+          pathFixed = `file:${resolve(this.path, resolved.slice(5))}`
         }
       }
 
@@ -953,6 +962,12 @@ class Shrinkwrap {
       this.#buildLegacyLockfile(this.tree, this.data)
     }
 
+    if (!this.hiddenLockfile) {
+      for (const node of Object.values(this.data.packages)) {
+        delete node.ideallyInert
+      }
+    }
+
     // lf version 1 = dependencies only
     // lf version 2 = dependencies and packages
     // lf version 3 = packages only
@@ -1011,7 +1026,7 @@ class Shrinkwrap {
     }
 
     if (node.isLink) {
-      lock.version = `file:${relpath(this.path, node.realpath).replace(/#/g, '%23')}`
+      lock.version = `file:${relpath(this.path, node.realpath)}`
     } else if (spec && (spec.type === 'file' || spec.type === 'remote')) {
       lock.version = spec.saveSpec
     } else if (spec && spec.type === 'git' || rSpec.type === 'git') {
@@ -1089,7 +1104,7 @@ class Shrinkwrap {
             // this especially shows up with workspace edges when the root
             // node is also a workspace in the set.
             const p = resolve(node.realpath, spec.slice('file:'.length))
-            set[k] = `file:${relpath(node.realpath, p).replace(/#/g, '%23')}`
+            set[k] = `file:${relpath(node.realpath, p)}`
           } else {
             set[k] = spec
           }

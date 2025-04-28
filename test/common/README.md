@@ -1,6 +1,29 @@
 # Node.js Core Test Common Modules
 
 This directory contains modules used to test the Node.js implementation.
+All tests must begin by requiring the `common` module:
+
+```js
+require('../common');
+```
+
+This is not just a convenience for exporting helper functions etc; it also performs
+several other tasks:
+
+* Verifies that no unintended globals have been leaked to ensure that tests
+  don't accidentally pollute the global namespace.
+
+* Some tests assume a default umask of `0o022`. To enforce this assumption,
+  the common module sets the unmask at startup. Tests that require a
+  different umask can override this setting after loading the module.
+
+* Some tests specify runtime flags (example, `--expose-internals`) via a
+  comment at the top of the file: `// Flags: --expose-internals`.
+  If the test is run without those flags, the common module automatically
+  spawns a child process with proper flags. This ensures that the tests
+  always run under the expected conditions. Because of this behaviour, the
+  common module must be loaded first so that any code below it is not
+  executed until the process has been re-spawned with the correct flags.
 
 ## Table of contents
 
@@ -101,10 +124,6 @@ returns `false` if the process running doesn't have privileges to create
 symlinks
 ([SeCreateSymbolicLinkPrivilege](https://msdn.microsoft.com/en-us/library/windows/desktop/bb530716\(v=vs.85\).aspx)).
 On non-Windows platforms, this always returns `true`.
-
-### `createZeroFilledFile(filename)`
-
-Creates a 10 MiB file of all null characters.
 
 ### `enoughTestMem`
 
@@ -226,17 +245,6 @@ The TTY file descriptor is assumed to be capable of being writable.
 
 Indicates whether OpenSSL is available.
 
-### `hasFipsCrypto`
-
-* [\<boolean>][<boolean>]
-
-Indicates that Node.js has been linked with a FIPS compatible OpenSSL library,
-and that FIPS as been enabled using `--enable-fips`.
-
-To only detect if the OpenSSL library is FIPS compatible, regardless if it has
-been enabled or not, then `process.config.variables.openssl_is_fips` can be
-used to determine that situation.
-
 ### `hasIntl`
 
 * [\<boolean>][<boolean>]
@@ -248,12 +256,6 @@ Indicates if [internationalization][] is supported.
 * [\<boolean>][<boolean>]
 
 Indicates whether `IPv6` is supported on this platform.
-
-### `hasMultiLocalhost`
-
-* [\<boolean>][<boolean>]
-
-Indicates if there are multiple localhosts available.
 
 ### `inFreeBSDJail`
 
@@ -274,10 +276,6 @@ Platform check for Advanced Interactive eXecutive (AIX).
 
 Attempts to 'kill' `pid`
 
-### `isDumbTerminal`
-
-* [\<boolean>][<boolean>]
-
 ### `isFreeBSD`
 
 * [\<boolean>][<boolean>]
@@ -295,12 +293,6 @@ Platform check for IBMi.
 * [\<boolean>][<boolean>]
 
 Platform check for Linux.
-
-### `isLinuxPPCBE`
-
-* [\<boolean>][<boolean>]
-
-Platform check for Linux on PowerPC.
 
 ### `isMacOS`
 
@@ -417,12 +409,6 @@ Returns `true` if the exit code `exitCode` and/or signal name `signal` represent
 the exit code and/or signal name of a node process that aborted, `false`
 otherwise.
 
-### `opensslCli`
-
-* [\<boolean>][<boolean>]
-
-Indicates whether 'opensslCli' is supported.
-
 ### `platformTimeout(ms)`
 
 * `ms` [\<number>][<number>] | [\<bigint>][<bigint>]
@@ -485,10 +471,6 @@ will not be run.
 
 Logs '1..0 # Skipped: ' + `msg` and exits with exit code `0`.
 
-### `skipIfDumbTerminal()`
-
-Skip the rest of the tests if the current terminal is a dumb terminal
-
 ### `skipIfEslintMissing()`
 
 Skip the rest of the tests in the current file when `ESLint` is not available
@@ -503,11 +485,6 @@ was disabled at compile time.
 
 Skip the rest of the tests in the current file when the Node.js executable
 was compiled with a pointer size smaller than 64 bits.
-
-### `skipIfWorker()`
-
-Skip the rest of the tests in the current file when not running on a main
-thread.
 
 ## ArrayStream module
 

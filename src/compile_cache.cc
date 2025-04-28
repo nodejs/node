@@ -14,6 +14,14 @@
 #endif
 
 namespace node {
+
+using v8::Function;
+using v8::Local;
+using v8::Module;
+using v8::ScriptCompiler;
+using v8::String;
+
+namespace {
 std::string Uint32ToHex(uint32_t crc) {
   std::string str;
   str.reserve(8);
@@ -40,8 +48,7 @@ std::string GetCacheVersionTag() {
   // This should be fine on Windows, as there local directories tend to be
   // user-specific.
   std::string tag = std::string(NODE_VERSION) + '-' + std::string(NODE_ARCH) +
-                    '-' +
-                    Uint32ToHex(v8::ScriptCompiler::CachedDataVersionTag());
+                    '-' + Uint32ToHex(ScriptCompiler::CachedDataVersionTag());
 #ifdef NODE_IMPLEMENTS_POSIX_CREDENTIALS
   tag += '-' + std::to_string(getuid());
 #endif
@@ -55,6 +62,7 @@ uint32_t GetCacheKey(std::string_view filename, CachedCodeType type) {
       crc, reinterpret_cast<const Bytef*>(filename.data()), filename.length());
   return crc;
 }
+}  // namespace
 
 template <typename... Args>
 inline void CompileCacheHandler::Debug(const char* format,
@@ -64,23 +72,40 @@ inline void CompileCacheHandler::Debug(const char* format,
   }
 }
 
-v8::ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
+ScriptCompiler::CachedData* CompileCacheEntry::CopyCache() const {
   DCHECK_NOT_NULL(cache);
   int cache_size = cache->length;
   uint8_t* data = new uint8_t[cache_size];
   memcpy(data, cache->data, cache_size);
-  return new v8::ScriptCompiler::CachedData(
-      data, cache_size, v8::ScriptCompiler::CachedData::BufferOwned);
+  return new ScriptCompiler::CachedData(
+      data, cache_size, ScriptCompiler::CachedData::BufferOwned);
 }
 
 // Used for identifying and verifying a file is a compile cache file.
 // See comments in CompileCacheHandler::Persist().
 constexpr uint32_t kCacheMagicNumber = 0x8adfdbb2;
 
+const char* CompileCacheEntry::type_name() const {
+  switch (type) {
+    case CachedCodeType::kCommonJS:
+      return "CommonJS";
+    case CachedCodeType::kESM:
+      return "ESM";
+    case CachedCodeType::kStrippedTypeScript:
+      return "StrippedTypeScript";
+    case CachedCodeType::kTransformedTypeScript:
+      return "TransformedTypeScript";
+    case CachedCodeType::kTransformedTypeScriptWithSourceMaps:
+      return "TransformedTypeScriptWithSourceMaps";
+    default:
+      UNREACHABLE();
+  }
+}
+
 void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
   Debug("[compile cache] reading cache from %s for %s %s...",
         entry->cache_filename,
-        entry->type == CachedCodeType::kCommonJS ? "CommonJS" : "ESM",
+        entry->type_name(),
         entry->source_filename);
 
   uv_fs_t req;
@@ -193,15 +218,14 @@ void CompileCacheHandler::ReadCacheFile(CompileCacheEntry* entry) {
     return;
   }
 
-  entry->cache.reset(new v8::ScriptCompiler::CachedData(
-      buffer, total_read, v8::ScriptCompiler::CachedData::BufferOwned));
+  entry->cache.reset(new ScriptCompiler::CachedData(
+      buffer, total_read, ScriptCompiler::CachedData::BufferOwned));
   Debug(" success, size=%d\n", total_read);
 }
 
-CompileCacheEntry* CompileCacheHandler::GetOrInsert(
-    v8::Local<v8::String> code,
-    v8::Local<v8::String> filename,
-    CachedCodeType type) {
+CompileCacheEntry* CompileCacheHandler::GetOrInsert(Local<String> code,
+                                                    Local<String> filename,
+                                                    CachedCodeType type) {
   DCHECK(!compile_cache_dir_.empty());
 
   Utf8Value filename_utf8(isolate_, filename);
@@ -242,21 +266,21 @@ CompileCacheEntry* CompileCacheHandler::GetOrInsert(
   return result;
 }
 
-v8::ScriptCompiler::CachedData* SerializeCodeCache(
-    v8::Local<v8::Function> func) {
-  return v8::ScriptCompiler::CreateCodeCacheForFunction(func);
+ScriptCompiler::CachedData* SerializeCodeCache(Local<Function> func) {
+  return ScriptCompiler::CreateCodeCacheForFunction(func);
 }
 
-v8::ScriptCompiler::CachedData* SerializeCodeCache(v8::Local<v8::Module> mod) {
-  return v8::ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
+ScriptCompiler::CachedData* SerializeCodeCache(Local<Module> mod) {
+  return ScriptCompiler::CreateCodeCache(mod->GetUnboundModuleScript());
 }
 
 template <typename T>
 void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
-                                        v8::Local<T> func_or_mod,
+                                        Local<T> func_or_mod,
                                         bool rejected) {
   DCHECK_NOT_NULL(entry);
-  Debug("[compile cache] cache for %s was %s, ",
+  Debug("[compile cache] V8 code cache for %s %s was %s, ",
+        entry->type_name(),
         entry->source_filename,
         rejected                    ? "rejected"
         : (entry->cache == nullptr) ? "not initialized"
@@ -268,23 +292,42 @@ void CompileCacheHandler::MaybeSaveImpl(CompileCacheEntry* entry,
   Debug("%s the in-memory entry\n",
         entry->cache == nullptr ? "initializing" : "refreshing");
 
-  v8::ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
-  DCHECK_EQ(data->buffer_policy, v8::ScriptCompiler::CachedData::BufferOwned);
+  ScriptCompiler::CachedData* data = SerializeCodeCache(func_or_mod);
+  DCHECK_EQ(data->buffer_policy, ScriptCompiler::CachedData::BufferOwned);
   entry->refreshed = true;
   entry->cache.reset(data);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
-                                    v8::Local<v8::Module> mod,
+                                    Local<Module> mod,
                                     bool rejected) {
   DCHECK(mod->IsSourceTextModule());
   MaybeSaveImpl(entry, mod, rejected);
 }
 
 void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
-                                    v8::Local<v8::Function> func,
+                                    Local<Function> func,
                                     bool rejected) {
   MaybeSaveImpl(entry, func, rejected);
+}
+
+void CompileCacheHandler::MaybeSave(CompileCacheEntry* entry,
+                                    std::string_view transpiled) {
+  CHECK(entry->type == CachedCodeType::kStrippedTypeScript ||
+        entry->type == CachedCodeType::kTransformedTypeScript ||
+        entry->type == CachedCodeType::kTransformedTypeScriptWithSourceMaps);
+  Debug("[compile cache] saving transpilation cache for %s %s\n",
+        entry->type_name(),
+        entry->source_filename);
+
+  // TODO(joyeecheung): it's weird to copy it again here. Convert the v8::String
+  // directly into buffer held by v8::ScriptCompiler::CachedData here.
+  int cache_size = static_cast<int>(transpiled.size());
+  uint8_t* data = new uint8_t[cache_size];
+  memcpy(data, transpiled.data(), cache_size);
+  entry->cache.reset(new ScriptCompiler::CachedData(
+      data, cache_size, ScriptCompiler::CachedData::BufferOwned));
+  entry->refreshed = true;
 }
 
 /**
@@ -316,24 +359,31 @@ void CompileCacheHandler::Persist() {
   // incur a negligible overhead from thread synchronization.
   for (auto& pair : compiler_cache_store_) {
     auto* entry = pair.second.get();
+    const char* type_name = entry->type_name();
     if (entry->cache == nullptr) {
-      Debug("[compile cache] skip %s because the cache was not initialized\n",
+      Debug("[compile cache] skip persisting %s %s because the cache was not "
+            "initialized\n",
+            type_name,
             entry->source_filename);
       continue;
     }
     if (entry->refreshed == false) {
-      Debug("[compile cache] skip %s because cache was the same\n",
-            entry->source_filename);
+      Debug(
+          "[compile cache] skip persisting %s %s because cache was the same\n",
+          type_name,
+          entry->source_filename);
       continue;
     }
     if (entry->persisted == true) {
-      Debug("[compile cache] skip %s because cache was already persisted\n",
+      Debug("[compile cache] skip persisting %s %s because cache was already "
+            "persisted\n",
+            type_name,
             entry->source_filename);
       continue;
     }
 
     DCHECK_EQ(entry->cache->buffer_policy,
-              v8::ScriptCompiler::CachedData::BufferOwned);
+              ScriptCompiler::CachedData::BufferOwned);
     char* cache_ptr =
         reinterpret_cast<char*>(const_cast<uint8_t*>(entry->cache->data));
     uint32_t cache_size = static_cast<uint32_t>(entry->cache->length);
@@ -363,8 +413,9 @@ void CompileCacheHandler::Persist() {
     auto cleanup_mkstemp =
         OnScopeLeave([&mkstemp_req]() { uv_fs_req_cleanup(&mkstemp_req); });
     std::string cache_filename_tmp = entry->cache_filename + ".XXXXXX";
-    Debug("[compile cache] Creating temporary file for cache of %s...",
-          entry->source_filename);
+    Debug("[compile cache] Creating temporary file for cache of %s (%s)...",
+          entry->source_filename,
+          type_name);
     int err = uv_fs_mkstemp(
         nullptr, &mkstemp_req, cache_filename_tmp.c_str(), nullptr);
     if (err < 0) {
@@ -372,8 +423,10 @@ void CompileCacheHandler::Persist() {
       continue;
     }
     Debug(" -> %s\n", mkstemp_req.path);
-    Debug("[compile cache] writing cache for %s to temporary file %s [%d %d %d "
+    Debug("[compile cache] writing cache for %s %s to temporary file %s [%d "
+          "%d %d "
           "%d %d]...",
+          type_name,
           entry->source_filename,
           mkstemp_req.path,
           headers[kMagicNumberOffset],
