@@ -78,8 +78,6 @@
     'v8_win64_unwinding_info': 1,
 
     # Variables controlling external defines exposed in public headers.
-    'v8_enable_conservative_stack_scanning%': 0,
-    'v8_enable_direct_local%': 0,
     'v8_enable_map_packing%': 0,
     'v8_enable_pointer_compression_shared_cage%': 0,
     'v8_enable_sandbox%': 0,
@@ -472,12 +470,6 @@
       }],
       ['tsan == 1', {
         'defines': ['V8_IS_TSAN',],
-      }],
-      ['v8_enable_conservative_stack_scanning == 1', {
-        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
-      }],
-      ['v8_enable_direct_local == 1', {
-        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['OS == "win"', {
         'defines': [
