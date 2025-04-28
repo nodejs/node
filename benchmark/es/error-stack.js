@@ -10,7 +10,7 @@ const bench = common.createBenchmark(main, {
     'without-sourcemap',
     'sourcemap',
     'node-modules-without-sourcemap',
-    'node-module-sourcemap'],
+    'node-modules-sourcemap'],
   n: [1e5],
 });
 
