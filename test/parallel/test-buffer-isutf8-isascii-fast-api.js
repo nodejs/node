@@ -24,11 +24,8 @@ assert.strictEqual(buffer.isAscii(nonAsciiBuffer), false);
 
 // Test detached buffers
 const detachedBuffer = new ArrayBuffer(10);
-try {
-  detachedBuffer.detach();
-} catch (_e) {
-  console.log('Skipping detached buffer tests - detach not supported');
-}
+// Let's detach the buffer if it's supported
+detachedBuffer.detach?.();
 
 if (detachedBuffer.detached) {
   const typedArray = new Uint8Array(detachedBuffer);

@@ -1191,23 +1191,33 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
 }
 
 bool FastIsUtf8(v8::Local<v8::Value>,
-                const v8::FastApiTypedArray<uint8_t>& buffer) {
-  uint8_t* buffer_data;
-  CHECK(buffer.getStorageIfAligned(&buffer_data));
+                Local<Value> buffer,
+                FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isUtf8");
-  return simdutf::validate_utf8(reinterpret_cast<const char*>(buffer_data),
-                                buffer.length());
+  ArrayBufferViewContents<uint8_t> view(buffer);
+  if (view.WasDetached()) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return simdutf::validate_utf8(reinterpret_cast<const char*>(view.data()),
+                                view.length());
 }
 
 static v8::CFunction fast_is_utf8(v8::CFunction::Make(FastIsUtf8));
 
 bool FastIsAscii(v8::Local<v8::Value>,
-                 const v8::FastApiTypedArray<uint8_t>& buffer) {
-  uint8_t* buffer_data;
-  CHECK(buffer.getStorageIfAligned(&buffer_data));
+                 Local<Value> buffer,
+                 FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isAscii");
-  return simdutf::validate_ascii(reinterpret_cast<const char*>(buffer_data),
-                                 buffer.length());
+  ArrayBufferViewContents<uint8_t> view(buffer);
+  if (view.WasDetached()) {
+    node::THROW_ERR_INVALID_STATE(options.isolate,
+                                  "Cannot validate on a detached buffer");
+    return false;
+  }
+  return simdutf::validate_ascii(reinterpret_cast<const char*>(view.data()),
+                                 view.length());
 }
 
 static v8::CFunction fast_is_ascii(v8::CFunction::Make(FastIsAscii));
