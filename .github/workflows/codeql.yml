@@ -7,9 +7,6 @@ on:
 permissions:
   contents: read
 
-paths-to-ignore:
-  - test
-
 jobs:
   analyze:
     name: Analyze
@@ -33,6 +30,7 @@ jobs:
         uses: github/codeql-action/init@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
         with:
           languages: ${{ matrix.language }}
+          config-file: ./.github/codeql-config.yml
 
       - name: Autobuild
         uses: github/codeql-action/autobuild@6bb031afdd8eb862ea3fc1848194185e076637e5  # v3.28.11
