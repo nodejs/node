@@ -20,5 +20,4 @@ child.on('exit', common.mustCall(() => {
 child.stdin.write('const isObject = (obj) => obj.constructor === Object;\n');
 child.stdin.write('isObject({});\n');
 child.stdin.write(`require(${JSON.stringify(fixture)}).isObject({});\n`);
-child.stdin.write('.exit');
-child.stdin.end();
+child.stdin.write('.exit\n');
