@@ -224,13 +224,14 @@ to `asyncLocalStorage.getStore()` will return `undefined` until
 When calling `asyncLocalStorage.disable()`, all current contexts linked to the
 instance will be exited.
 
-Calling `asyncLocalStorage.disable()` is required before the
-`asyncLocalStorage` can be garbage collected. This does not apply to stores
-provided by the `asyncLocalStorage`, as those objects are garbage collected
-along with the corresponding async resources.
+There is no need to call this method in order to get an `asyncLocalStorage`
+instance from being garbage-collected.
 
-Use this method when the `asyncLocalStorage` is not in use anymore
-in the current process.
+When running Node.js with CLI flag [`--no-async-context-frame`][], calling
+`asyncLocalStorage.disable()` is required before the `asyncLocalStorage` itself
+can be garbage collected. However, this does not apply to stores provided by
+the `asyncLocalStorage`, as those objects are garbage collected along with the
+corresponding async resources.
 
 ### `asyncLocalStorage.getStore()`
 
@@ -905,6 +906,7 @@ const server = createServer((req, res) => {
 }).listen(3000);
 ```
 
+[`--no-async-context-frame`]: cli.md#--no-async-context-frame
 [`AsyncResource`]: #class-asyncresource
 [`EventEmitter`]: events.md#class-eventemitter
 [`Stream`]: stream.md#stream
