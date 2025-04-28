@@ -508,6 +508,48 @@ On POSIX systems, the operating system release is determined by calling
 available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
+## `os.guessHandleType(handle)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `handle` {integer} The handle number to try and guess the type of.
+
+* Returns: {string}
+
+Returns the type of the handle passed in, or `'INVALID'` if the provided handle
+is invalid.
+
+Currently, the following types for a handle can be returned:
+
+<table>
+  <tr>
+    <th>Constant</th>
+  </tr>
+  <tr>
+    <td><code>TCP</code></td>
+  </tr>
+  <tr>
+    <td><code>TTY</code></td>
+  </tr>
+  <tr>
+    <td><code>UDP</code></td>
+  </tr>
+  <tr>
+    <td><code>FILE</code></td>
+  </tr>
+  <tr>
+    <td><code>PIPE</code></td>
+  </tr>
+  <tr>
+    <td><code>UNKNOWN</code></td>
+  </tr>
+  <tr>
+    <td><code>INVALID</code></td>
+  </tr>
+</table>
+
 ## OS constants
 
 The following constants are exported by `os.constants`.
