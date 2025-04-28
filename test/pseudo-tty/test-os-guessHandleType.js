@@ -13,3 +13,5 @@ strictEqual(guessHandleType(55555), 'UNKNOWN', '55555 reported to be a tty, but 
 strictEqual(guessHandleType(2 ** 31), 'INVALID', '2^31 reported to be a tty, but it is not');
 strictEqual(guessHandleType(1.1), 'INVALID', '1.1 reported to be a tty, but it is not');
 strictEqual(guessHandleType('1'), 'INVALID', '\'1\' reported to be a tty, but it is not');
+strictEqual(guessHandleType({}), 'INVALID', '{} reported to be a tty, but it is not');
+strictEqual(guessHandleType(() => {}), 'INVALID', '() => {} reported to be a tty, but it is not');
