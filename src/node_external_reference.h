@@ -46,6 +46,8 @@ using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> unused,
 using CFunctionCallbackWithBool = void (*)(v8::Local<v8::Object> unused,
                                            v8::Local<v8::Object> receiver,
                                            bool);
+using CFunctionFastIsUtf8 = bool (*)(
+    v8::Local<v8::Value>, const v8::FastApiTypedArray<uint8_t>& buffer);
 using CFunctionCallbackWithString =
     bool (*)(v8::Local<v8::Value>, const v8::FastOneByteString& input);
 using CFunctionCallbackWithStrings =
@@ -111,6 +113,7 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackValueReturnDoubleUnusedReceiver)                          \
   V(CFunctionCallbackWithInt64)                                                \
   V(CFunctionCallbackWithBool)                                                 \
+  V(CFunctionFastIsUtf8)                                                       \
   V(CFunctionCallbackWithString)                                               \
   V(CFunctionCallbackWithStrings)                                              \
   V(CFunctionCallbackWithTwoUint8Arrays)                                       \
