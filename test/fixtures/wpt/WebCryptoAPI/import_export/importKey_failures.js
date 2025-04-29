@@ -267,4 +267,23 @@ function run_test(algorithmNames) {
             });
         });
     });
+
+    // Use an 'alg' field with incorrect casing.
+    testVectors.forEach(function(vector) {
+        var name = vector.name;
+        if (name !== "Ed25519" && name !== "Ed448")
+            return; // The rest ignore the 'alg' field.
+        allAlgorithmSpecifiersFor(name).forEach(function(algorithm) {
+            getValidKeyData(algorithm).forEach(function(test) {
+                if (test.format === "jwk") {
+                    var data = {crv: test.data.crv, kty: test.data.kty, d: test.data.d, x: test.data.x, y: test.data.y};
+                    var usages =  validUsages(vector, 'jwk', test.data);
+                    [name.toLowerCase(), name.toUpperCase()].forEach(function(algName) {
+                        data.alg = algName;
+                        testError('jwk', algorithm, data, name, usages, true, "DataError", "Invalid 'alg' field '" + data.alg + "'");
+                    });
+                }
+            });
+        });
+    });
 }
