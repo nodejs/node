@@ -2,11 +2,11 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// This file describes the way aborts are handled in OS::Abort and the way
-// DCHECKs are working.
-
 #ifndef V8_BASE_ABORT_MODE_H_
 #define V8_BASE_ABORT_MODE_H_
+
+// This file describes the way aborts are handled in OS::Abort and the way
+// DCHECKs are working.
 
 #include "src/base/base-export.h"
 

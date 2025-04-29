@@ -83,28 +83,30 @@ class TraceLogParseHelper {
   }
 }
 
-DOM.defineCustomElement('../js/log-file-reader', 'trace-file-reader',
-                        (templateText) =>
-                            class TraceFileReader extends FileReader {
-  constructor() {
-    super(templateText);
-    this.fullDataFromFile = '';
-    this.addEventListener('fileuploadchunk', (e) => this.handleLoadChunk(e));
+DOM.defineCustomElement(
+    '../js/log-file-reader', 'trace-file-reader',
+    (templateText) => class TraceFileReader extends FileReader {
+      constructor() {
+        super(templateText);
+        this.fullDataFromFile = '';
+        this.addEventListener(
+            'fileuploadchunk', (e) => this.handleLoadChunk(e));
 
-    this.addEventListener('fileuploadend', (e) => this.handleLoadEnd(e));
-  }
+        this.addEventListener('fileuploadend', (e) => this.handleLoadEnd(e));
+      }
 
-  handleLoadChunk(event) {
-    this.fullDataFromFile += event.detail;
-  }
+      handleLoadChunk(event) {
+        this.fullDataFromFile += event.detail;
+      }
 
-  handleLoadEnd(event) {
-    let contents = this.fullDataFromFile.split('\n');
-    let snapshots = TraceLogParseHelper.createModelFromV8TraceFile(contents);
-    this.dispatchEvent(new CustomEvent('change', {
-      bubbles: true,
-      composed: true,
-      detail: snapshots,
-    }));
-  }
-});
+      handleLoadEnd(event) {
+        let contents = this.fullDataFromFile.split('\n');
+        let snapshots =
+            TraceLogParseHelper.createModelFromV8TraceFile(contents);
+        this.dispatchEvent(new CustomEvent('change', {
+          bubbles: true,
+          composed: true,
+          detail: snapshots,
+        }));
+      }
+    });

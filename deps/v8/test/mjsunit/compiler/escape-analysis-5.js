@@ -41,7 +41,9 @@ function h(x) {
   assertEquals("[object Arguments]", ""+x)
 }
 
+%PrepareFunctionForOptimization(f);
 %PrepareFunctionForOptimization(g);
+%PrepareFunctionForOptimization(h);
 assertEquals(4, g(h));
 assertEquals(4, g(h));
 %OptimizeFunctionOnNextCall(g);

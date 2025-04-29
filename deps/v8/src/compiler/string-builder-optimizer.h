@@ -152,7 +152,7 @@ class OneOrTwoByteAnalysis final {
   // a 2-byte string, and we can optimize the generated code to remove all
   // 1-byte/2-byte checks.
  public:
-  OneOrTwoByteAnalysis(Graph* graph, Zone* zone, JSHeapBroker* broker)
+  OneOrTwoByteAnalysis(TFGraph* graph, Zone* zone, JSHeapBroker* broker)
       : states_(graph->NodeCount(), State::kUnknown, zone), broker_(broker) {}
 
   enum class State : uint8_t {
@@ -259,7 +259,7 @@ class V8_EXPORT_PRIVATE StringBuilderOptimizer final {
   void Run();
 
   JSGraph* jsgraph() const { return jsgraph_; }
-  Graph* graph() const { return jsgraph_->graph(); }
+  TFGraph* graph() const { return jsgraph_->graph(); }
   Schedule* schedule() const { return schedule_; }
   Zone* temp_zone() const { return temp_zone_; }
   JSHeapBroker* broker() const { return broker_; }

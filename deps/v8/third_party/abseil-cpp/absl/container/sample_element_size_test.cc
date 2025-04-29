@@ -21,6 +21,7 @@
 #include "gtest/gtest.h"
 #include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
+#include "absl/container/internal/hashtablez_sampler.h"
 #include "absl/container/node_hash_map.h"
 #include "absl/container/node_hash_set.h"
 
@@ -46,6 +47,7 @@ void TestInlineElementSize(
     std::vector<Table>& tables,
     const std::vector<typename Table::value_type>& values,
     size_t expected_element_size) {
+  EXPECT_GT(values.size(), 0);
   for (int i = 0; i < 10; ++i) {
     // We create a new table and must store it somewhere so that when we store
     // a pointer to the resulting `HashtablezInfo` into `preexisting_info`
@@ -82,6 +84,7 @@ TEST(FlatHashMap, SampleElementSize) {
   // Enable sampling even if the prod default is off.
   SetHashtablezEnabled(true);
   SetHashtablezSampleParameter(1);
+  TestOnlyRefreshSamplingStateForCurrentThread();
 
   auto& sampler = GlobalHashtablezSampler();
   std::vector<flat_hash_map<int, bigstruct>> flat_map_tables;
@@ -91,14 +94,6 @@ TEST(FlatHashMap, SampleElementSize) {
   std::vector<bigstruct> set_values = {bigstruct{{0}}, bigstruct{{1}}};
   std::vector<std::pair<const int, bigstruct>> map_values = {{0, bigstruct{}},
                                                              {1, bigstruct{}}};
-
-  // It takes thousands of new tables after changing the sampling parameters
-  // before you actually get some instrumentation.  And if you must actually
-  // put something into those tables.
-  for (int i = 0; i < 10000; ++i) {
-    flat_map_tables.emplace_back();
-    flat_map_tables.back()[i] = bigstruct{};
-  }
 
   // clang-tidy gives a false positive on this declaration.  This unordered set
   // cannot be a flat_hash_set, however, since that would introduce a mutex

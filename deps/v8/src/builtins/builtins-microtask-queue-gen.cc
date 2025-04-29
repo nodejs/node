@@ -481,7 +481,7 @@ void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
     switch (type) {
       case PromiseHookType::kBefore:
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-        RunContextPromiseHookBefore(context, promise_or_capability,
+        RunContextPromiseHookBefore(context, CAST(promise_or_capability),
                                     promiseHookFlags);
 #endif
         RunPromiseHook(Runtime::kPromiseHookBefore, context,
@@ -489,7 +489,7 @@ void MicrotaskQueueBuiltinsAssembler::RunAllPromiseHooks(
         break;
       case PromiseHookType::kAfter:
 #ifdef V8_ENABLE_JAVASCRIPT_PROMISE_HOOKS
-        RunContextPromiseHookAfter(context, promise_or_capability,
+        RunContextPromiseHookAfter(context, CAST(promise_or_capability),
                                    promiseHookFlags);
 #endif
         RunPromiseHook(Runtime::kPromiseHookAfter, context,

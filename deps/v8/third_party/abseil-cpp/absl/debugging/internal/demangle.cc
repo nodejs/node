@@ -1039,7 +1039,8 @@ static bool ParseNumber(State *state, int *number_out) {
     number = ~number + 1;
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     if (number_out != nullptr) {
       // Note: possibly truncate "number".
@@ -1062,7 +1063,8 @@ static bool ParseFloatNumber(State *state) {
     }
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     return true;
   }
@@ -1081,7 +1083,8 @@ static bool ParseSeqId(State *state) {
     }
   }
   if (p != RemainingInput(state)) {  // Conversion succeeded.
-    state->parse_state.mangled_idx += p - RemainingInput(state);
+    state->parse_state.mangled_idx +=
+        static_cast<int>(p - RemainingInput(state));
     UpdateHighWaterMark(state);
     return true;
   }
@@ -1100,7 +1103,7 @@ static bool ParseIdentifier(State *state, size_t length) {
   } else {
     MaybeAppendWithLength(state, RemainingInput(state), length);
   }
-  state->parse_state.mangled_idx += length;
+  state->parse_state.mangled_idx += static_cast<int>(length);
   UpdateHighWaterMark(state);
   return true;
 }
@@ -2816,7 +2819,8 @@ static bool ParseLocalNameSuffix(State *state) {
     // On late parse failure, roll back not only the input but also the output,
     // whose trailing NUL was overwritten.
     state->parse_state = copy;
-    if (state->parse_state.append) {
+    if (state->parse_state.append &&
+        state->parse_state.out_cur_idx < state->out_end_idx) {
       state->out[state->parse_state.out_cur_idx] = '\0';
     }
     return false;
@@ -2829,7 +2833,8 @@ static bool ParseLocalNameSuffix(State *state) {
     return true;
   }
   state->parse_state = copy;
-  if (state->parse_state.append) {
+  if (state->parse_state.append &&
+      state->parse_state.out_cur_idx < state->out_end_idx) {
     state->out[state->parse_state.out_cur_idx] = '\0';
   }
 

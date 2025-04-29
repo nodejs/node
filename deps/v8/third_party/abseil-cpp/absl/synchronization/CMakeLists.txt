@@ -109,6 +109,7 @@ absl_cc_library(
     absl::core_headers
     absl::dynamic_annotations
     absl::malloc_internal
+    absl::nullability
     absl::raw_logging_internal
     absl::stacktrace
     absl::symbolize

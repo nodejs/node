@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
+#define V8_WASM_WASM_EXTERNAL_REFS_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_WASM_EXTERNAL_REFS_H_
-#define V8_WASM_WASM_EXTERNAL_REFS_H_
 
 #include <stdint.h>
 
@@ -188,7 +188,7 @@ double flat_string_to_f64(Address string_address);
 
 // Update the stack limit after a stack switch,
 // and preserve pending interrupts.
-void sync_stack_limit(Isolate* isolate);
+void switch_stacks(Isolate* isolate, Address old_continuation);
 // Return {continuation}'s stack memory to the stack pool after it has returned
 // and switched back to its parent, and update the stack limit.
 void return_switch(Isolate* isolate, Address continuation);

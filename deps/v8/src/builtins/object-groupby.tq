@@ -76,7 +76,7 @@ transitioning builtin GroupByGeneric(
     } catch (e, message) {
       // f. and g.ii.
       // IfAbruptCloseIterator(key, iteratorRecord).
-      iterator::IteratorCloseOnException(iteratorRecord);
+      iterator::IteratorCloseOnException(iteratorRecord.object);
       ReThrowWithMessage(context, e, message);
     }
 
@@ -163,6 +163,7 @@ transitioning macro GroupByImpl(
   }
 }
 
+@incrementUseCounter('v8::Isolate::kArrayGroup')
 transitioning javascript builtin ObjectGroupBy(
     js-implicit context: NativeContext, receiver: JSAny)(items: JSAny,
     callback: JSAny): JSAny {

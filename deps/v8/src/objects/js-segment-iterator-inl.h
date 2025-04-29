@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
 #define V8_OBJECTS_JS_SEGMENT_ITERATOR_INL_H_
 
@@ -9,6 +10,8 @@
 #endif  // V8_INTL_SUPPORT
 
 #include "src/objects/js-segment-iterator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

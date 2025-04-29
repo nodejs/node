@@ -408,7 +408,7 @@ Reduction JSIntrinsicLowering::Change(Node* node, Callable const& callable,
   return Changed(node);
 }
 
-Graph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
+TFGraph* JSIntrinsicLowering::graph() const { return jsgraph()->graph(); }
 
 Isolate* JSIntrinsicLowering::isolate() const { return jsgraph()->isolate(); }
 

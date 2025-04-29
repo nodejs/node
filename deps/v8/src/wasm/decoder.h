@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_DECODER_H_
+#define V8_WASM_DECODER_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_DECODER_H_
-#define V8_WASM_DECODER_H_
 
 #include <cinttypes>
 #include <cstdarg>
@@ -64,6 +64,7 @@ class ITracer {
   virtual void Description(const char* desc) = 0;
   virtual void Description(const char* desc, size_t length) = 0;
   virtual void Description(uint32_t number) = 0;
+  virtual void Description(uint64_t number) = 0;
   virtual void Description(ValueType type) = 0;
   virtual void Description(HeapType type) = 0;
   virtual void Description(const FunctionSig* sig) = 0;
@@ -96,7 +97,7 @@ class Decoder {
   } kFullValidation = {};
 
   struct NoName {
-    constexpr NoName(const char*) {}
+    constexpr NoName(const char*) {}  // NOLINT(runtime/explicit)
     operator const char*() const { UNREACHABLE(); }
   };
   // Pass a {NoName} if we know statically that we do not use it anyway (we are

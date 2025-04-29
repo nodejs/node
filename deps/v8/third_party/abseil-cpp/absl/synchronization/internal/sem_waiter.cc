@@ -33,10 +33,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char SemWaiter::kName[];
-#endif
-
 SemWaiter::SemWaiter() : wakeups_(0) {
   if (sem_init(&sem_, 0, 0) != 0) {
     ABSL_RAW_LOG(FATAL, "sem_init failed with errno %d\n", errno);

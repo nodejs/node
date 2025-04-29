@@ -2,7 +2,7 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-// Flags: --experimental-wasm-shared --no-experimental-wasm-inlining
+// Flags: --experimental-wasm-shared --no-wasm-inlining-call-indirect
 
 d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
@@ -34,7 +34,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   let struct = builder.addStruct(
     [makeField(kWasmI32, true)], kNoSuperType, false, true);
   let global = builder.addGlobal(
-    wasmRefNullType(kWasmAnyRef, true), true, true,
+    wasmRefNullType(kWasmAnyRef).shared(), true, true,
     [kExprRefNull, kWasmSharedTypeForm, kAnyRefCode]);
 
   let side_effect = builder.addFunction("side_effect", kSig_v_v).addBody([]);
@@ -189,7 +189,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
                                  [kExprRefFunc, adder.index]);
 
   assertThrows(() => builder.instantiate(), WebAssembly.CompileError,
-               /ref.func does not have a shared type/);
+               /Shared global 0 must have shared type, actual type \(ref 0\)/);
 })();
 
 (function DataSegmentInFunction() {
@@ -288,7 +288,7 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   print(arguments.callee.name);
   let builder = new WasmModuleBuilder();
   let table = builder.addTable(
-    wasmRefNullType(kWasmFuncRef, true), 10, undefined,
+    wasmRefNullType(kWasmFuncRef).shared(), 10, undefined,
     [kExprRefNull, kWasmSharedTypeForm, kFuncRefCode], true);
   let sig = builder.addType(kSig_i_ii, kNoSuperType, true, true);
   let add = builder.addFunction("add", sig)
@@ -298,10 +298,10 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
   builder.addActiveElementSegment(
     table.index, [kExprI32Const, 0],
     [[kExprRefFunc, add.index], [kExprRefFunc, mul.index]],
-    wasmRefNullType(kWasmFuncRef, true), true);
+    wasmRefNullType(kWasmFuncRef).shared(), true);
   let passive = builder.addPassiveElementSegment(
     [[kExprRefFunc, add.index], [kExprRefFunc, mul.index]],
-    wasmRefNullType(kWasmFuncRef, true), true);
+    wasmRefNullType(kWasmFuncRef).shared(), true);
 
   builder.addFunction("call", kSig_i_iii)
     .addBody([

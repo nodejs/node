@@ -6,6 +6,7 @@
 #define V8_OBJECTS_STRING_TABLE_INL_H_
 
 #include "src/objects/string-table.h"
+// Include the non-inl header before the rest of the headers.
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -13,7 +14,7 @@
 namespace v8 {
 namespace internal {
 
-StringTableKey::StringTableKey(uint32_t raw_hash_field, int length)
+StringTableKey::StringTableKey(uint32_t raw_hash_field, uint32_t length)
     : raw_hash_field_(raw_hash_field), length_(length) {}
 
 void StringTableKey::set_raw_hash_field(uint32_t raw_hash_field) {

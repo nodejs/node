@@ -5,8 +5,10 @@
 #ifndef V8_PARSING_SCANNER_INL_H_
 #define V8_PARSING_SCANNER_INL_H_
 
-#include "src/parsing/keywords-gen.h"
 #include "src/parsing/scanner.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/parsing/keywords-gen.h"
 #include "src/strings/char-predicates-inl.h"
 #include "src/utils/utils.h"
 
@@ -347,6 +349,10 @@ V8_INLINE Token::Value Scanner::SkipWhiteSpace() {
 }
 
 V8_INLINE Token::Value Scanner::ScanSingleToken() {
+  bool old_saw_non_comment = saw_non_comment_;
+  // Assume the token we'll parse is not a comment; if it is, saw_non_comment_
+  // is restored.
+  saw_non_comment_ = true;
   Token::Value token;
   do {
     next().location.beg_pos = source_pos();
@@ -460,6 +466,7 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
           // /  // /* /=
           Advance();
           if (c0_ == '/') {
+            saw_non_comment_ = old_saw_non_comment;
             base::uc32 c = Peek();
             if (c == '#' || c == '@') {
               Advance();
@@ -471,6 +478,7 @@ V8_INLINE Token::Value Scanner::ScanSingleToken() {
             continue;
           }
           if (c0_ == '*') {
+            saw_non_comment_ = old_saw_non_comment;
             token = SkipMultiLineComment();
             continue;
           }

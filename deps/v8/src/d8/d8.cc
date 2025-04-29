@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include <errno.h>
+#include <fcntl.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
@@ -19,7 +20,7 @@
 #include <vector>
 
 #ifdef ENABLE_VTUNE_JIT_INTERFACE
-#include "src/third_party/vtune/v8-vtune.h"
+#include "third_party/vtune/v8-vtune.h"
 #endif
 
 #include "include/libplatform/libplatform.h"
@@ -34,6 +35,7 @@
 #include "include/v8-wasm.h"
 #include "src/api/api-inl.h"
 #include "src/base/cpu.h"
+#include "src/base/fpu.h"
 #include "src/base/logging.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
@@ -59,6 +61,7 @@
 #include "src/interpreter/interpreter.h"
 #include "src/logging/counters.h"
 #include "src/logging/log-file.h"
+#include "src/objects/js-array.h"
 #include "src/objects/managed-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/objects.h"
@@ -79,6 +82,10 @@
 #ifdef V8_ENABLE_MAGLEV
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 #endif  // V8_ENABLE_MAGLEV
+
+#ifdef V8_ENABLE_PARTITION_ALLOC
+#include <partition_alloc/shim/allocator_shim_default_dispatch_to_partition_alloc.h>
+#endif  // V8_ENABLE_PARTITION_ALLOC
 
 #if V8_OS_POSIX
 #include <signal.h>
@@ -149,6 +156,10 @@ class ArrayBufferAllocatorBase : public v8::ArrayBuffer::Allocator {
     allocator_->Free(data, length);
   }
 
+  PageAllocator* GetPageAllocator() override {
+    return allocator_->GetPageAllocator();
+  }
+
  private:
   std::unique_ptr<Allocator> allocator_ =
       std::unique_ptr<Allocator>(NewDefaultAllocator());
@@ -180,7 +191,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
 
   void* AllocateVM(size_t length) {
     DCHECK_LE(kVMThreshold, length);
-    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
+    v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
@@ -188,7 +199,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
   }
 
   void FreeVM(void* data, size_t length) {
-    v8::PageAllocator* page_allocator = i::GetArrayBufferPageAllocator();
+    v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
     i::FreePages(page_allocator, data, allocated);
@@ -222,7 +233,7 @@ class MockArrayBufferAllocator : public ArrayBufferAllocatorBase {
 class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
  public:
   explicit MockArrayBufferAllocatiorWithLimit(size_t allocation_limit)
-      : space_left_(allocation_limit) {}
+      : limit_(allocation_limit), space_left_(allocation_limit) {}
 
  protected:
   void* Allocate(size_t length) override {
@@ -246,7 +257,10 @@ class MockArrayBufferAllocatiorWithLimit : public MockArrayBufferAllocator {
     return MockArrayBufferAllocator::Free(data, length);
   }
 
+  size_t MaxAllocationSize() const override { return limit_; }
+
  private:
+  size_t limit_;
   std::atomic<size_t> space_left_;
 };
 
@@ -295,7 +309,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     // sandbox's virtual address space to essentially just reserve a number of
     // OS pages inside the sandbox, but then using mremap to replace these
     // pages directly afterwards. In practice, this works fine however.
-    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
     i::Address in_sandbox_page_reservation = vas->AllocatePages(
         VirtualAddressSpace::kNoHint, rounded_length,
         vas->allocation_granularity(), PagePermissions::kNoAccess);
@@ -353,7 +367,7 @@ class MultiMappedAllocator : public ArrayBufferAllocatorBase {
     munmap(real_alloc, kChunkSize);
     size_t rounded_length = RoundUp(length, kChunkSize);
 #ifdef V8_ENABLE_SANDBOX
-    VirtualAddressSpace* vas = i::GetProcessWideSandbox()->address_space();
+    VirtualAddressSpace* vas = i::Sandbox::current()->address_space();
     vas->FreePages(reinterpret_cast<i::Address>(data), rounded_length);
 #else
     munmap(data, rounded_length);
@@ -375,16 +389,19 @@ v8::Platform* g_default_platform;
 std::unique_ptr<v8::Platform> g_platform;
 
 template <int N>
-bool ThrowError(Isolate* isolate, const char (&message)[N]) {
-  if (isolate->IsExecutionTerminating()) return false;
+void ThrowError(Isolate* isolate, const char (&message)[N]) {
+  if (isolate->IsExecutionTerminating()) return;
   isolate->ThrowError(message);
-  return true;
 }
 
-bool ThrowError(Isolate* isolate, Local<String> message) {
-  if (isolate->IsExecutionTerminating()) return false;
+void ThrowError(Isolate* isolate, Local<String> message) {
+  if (isolate->IsExecutionTerminating()) return;
   isolate->ThrowError(message);
-  return true;
+}
+
+void ThrowException(Isolate* isolate, Local<Value> exception) {
+  if (isolate->IsExecutionTerminating()) return;
+  isolate->ThrowException(exception);
 }
 
 static MaybeLocal<Value> TryGetValue(v8::Isolate* isolate,
@@ -513,7 +530,7 @@ class ExternalOwningOneByteStringResource
 
 // static variables:
 CounterMap* Shell::counter_map_;
-base::SharedMutex Shell::counter_mutex_;
+base::Mutex Shell::counter_mutex_;
 base::OS::MemoryMappedFile* Shell::counters_file_ = nullptr;
 CounterCollection Shell::local_counters_;
 CounterCollection* Shell::counters_ = &local_counters_;
@@ -581,9 +598,10 @@ void Shell::StoreInCodeCache(Isolate* isolate, Local<Value> source,
 // TODO(leszeks): Also test chunking the data.
 class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
  public:
-  explicit DummySourceStream(Local<String> source) : done_(false) {
-    source_buffer_ = Utils::OpenDirectHandle(*source)->ToCString(
-        i::ALLOW_NULLS, i::FAST_STRING_TRAVERSAL, &source_length_);
+  DummySourceStream(Isolate* isolate, Local<String> source) : done_(false) {
+    source_length_ = source->Length();
+    source_buffer_ = std::make_unique<uint16_t[]>(source_length_);
+    source->WriteV2(isolate, 0, source_length_, source_buffer_.get());
   }
 
   size_t GetMoreData(const uint8_t** src) override {
@@ -593,12 +611,12 @@ class DummySourceStream : public v8::ScriptCompiler::ExternalSourceStream {
     *src = reinterpret_cast<uint8_t*>(source_buffer_.release());
     done_ = true;
 
-    return source_length_;
+    return source_length_ * 2;
   }
 
  private:
-  int source_length_;
-  std::unique_ptr<char[]> source_buffer_;
+  uint32_t source_length_;
+  std::unique_ptr<uint16_t[]> source_buffer_;
   bool done_;
 };
 
@@ -671,11 +689,11 @@ MaybeLocal<T> Shell::CompileString(Isolate* isolate, Local<Context> context,
                                    const ScriptOrigin& origin) {
   if (options.streaming_compile) {
     v8::ScriptCompiler::StreamedSource streamed_source(
-        std::make_unique<DummySourceStream>(source),
-        v8::ScriptCompiler::StreamedSource::UTF8);
+        std::make_unique<DummySourceStream>(isolate, source),
+        v8::ScriptCompiler::StreamedSource::TWO_BYTE);
     std::unique_ptr<v8::ScriptCompiler::ScriptStreamingTask> streaming_task(
         v8::ScriptCompiler::StartStreaming(isolate, &streamed_source,
-                                           std::is_same<T, Module>::value
+                                           std::is_same_v<T, Module>
                                                ? v8::ScriptType::kModule
                                                : v8::ScriptType::kClassic));
     StreamerThread::StartThreadForTaskAndJoin(streaming_task.get());
@@ -725,7 +743,8 @@ class ModuleEmbedderData {
   };
 
  public:
-  static constexpr i::ExternalPointerTag kManagedTag = i::kGenericManagedTag;
+  static constexpr i::ExternalPointerTag kManagedTag =
+      i::kD8ModuleEmbedderDataTag;
 
   explicit ModuleEmbedderData(Isolate* isolate)
       : isolate_(isolate),
@@ -816,7 +835,7 @@ std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
     Local<Context> context) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
   const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
-  i::Handle<i::Managed<ModuleEmbedderData>> module_data_managed =
+  i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Managed<ModuleEmbedderData>::From(
           i_isolate, kModuleEmbedderDataEstimate,
           std::make_shared<ModuleEmbedderData>(context->GetIsolate()));
@@ -917,9 +936,10 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
                           ReportExceptions report_exceptions,
                           Global<Value>* out_result) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+  if (i_isolate->is_execution_terminating()) return true;
   if (i::v8_flags.parse_only) {
     i::VMState<PARSER> state(i_isolate);
-    i::Handle<i::String> str = Utils::OpenHandle(*(source));
+    i::DirectHandle<i::String> str = Utils::OpenDirectHandle(*(source));
 
     // Set up ParseInfo.
     i::UnoptimizedCompileState compile_state;
@@ -1018,6 +1038,13 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
 
   Local<Value> result;
   if (!maybe_result.ToLocal(&result)) {
+    if (try_catch.HasTerminated()) {
+      // Re-request terminate execution as it's been cleared, so
+      // Shell::FinishExecution doesn't waste time draining all enqueued tasks
+      // and microtasks.
+      isolate->TerminateExecution();
+      return true;
+    }
     DCHECK(try_catch.HasCaught());
     return false;
   } else if (out_result != nullptr) {
@@ -1183,7 +1210,14 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
       break;
     }
     default:
-      UNREACHABLE();
+      // https://tc39.es/proposal-source-phase-imports/#table-abstract-methods-of-module-records
+      // For Module Records that do not have a source representation,
+      // GetModuleSource() must always return a throw completion whose [[Value]]
+      // is a ReferenceError.
+      ThrowException(
+          isolate, v8::Exception::SyntaxError(String::NewFromUtf8Literal(
+                       isolate, "Module source can not be imported for type")));
+      return MaybeLocal<Object>();
   }
 
   CHECK(
@@ -1357,9 +1391,10 @@ MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
 struct DynamicImportData {
   DynamicImportData(Isolate* isolate_, Local<Context> context_,
                     Local<Value> referrer_, Local<String> specifier_,
+                    ModuleImportPhase phase_,
                     Local<FixedArray> import_attributes_,
                     Local<Promise::Resolver> resolver_)
-      : isolate(isolate_) {
+      : isolate(isolate_), phase(phase_) {
     context.Reset(isolate, context_);
     referrer.Reset(isolate, referrer_);
     specifier.Reset(isolate, specifier_);
@@ -1373,6 +1408,7 @@ struct DynamicImportData {
   Global<Context> context;
   Global<Value> referrer;
   Global<String> specifier;
+  ModuleImportPhase phase;
   Global<FixedArray> import_attributes;
   Global<Promise::Resolver> resolver;
 };
@@ -1381,7 +1417,7 @@ namespace {
 
 enum ModuleResolutionDataIndex : uint32_t {
   kResolver = 0,
-  kNamespace = 1,
+  kNamespaceOrSource = 1,
 };
 
 }  // namespace
@@ -1398,16 +1434,16 @@ void Shell::ModuleResolutionSuccessCallback(
       module_resolution_data->Get(context, ModuleResolutionDataIndex::kResolver)
           .ToLocalChecked()
           .As<Promise::Resolver>());
-  Local<Value> module_namespace(
+  Local<Value> namespace_or_source(
       module_resolution_data
-          ->Get(context, ModuleResolutionDataIndex::kNamespace)
+          ->Get(context, ModuleResolutionDataIndex::kNamespaceOrSource)
           .ToLocalChecked());
 
   PerIsolateData* data = PerIsolateData::Get(isolate);
   Local<Context> realm = data->realms_[data->realm_current_].Get(isolate);
   Context::Scope context_scope(realm);
 
-  resolver->Resolve(realm, module_namespace).ToChecked();
+  resolver->Resolve(realm, namespace_or_source).ToChecked();
 }
 
 void Shell::ModuleResolutionFailureCallback(
@@ -1435,6 +1471,15 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     Local<FixedArray> import_attributes) {
+  return HostImportModuleWithPhaseDynamically(
+      context, host_defined_options, resource_name, specifier,
+      ModuleImportPhase::kEvaluation, import_attributes);
+}
+
+MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
+    Local<Context> context, Local<Data> host_defined_options,
+    Local<Value> resource_name, Local<String> specifier,
+    ModuleImportPhase phase, Local<FixedArray> import_attributes) {
   Isolate* isolate = context->GetIsolate();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
@@ -1451,7 +1496,7 @@ MaybeLocal<Promise> Shell::HostImportModuleDynamically(
         .ToChecked();
   } else {
     DynamicImportData* data =
-        new DynamicImportData(isolate, context, resource_name, specifier,
+        new DynamicImportData(isolate, context, resource_name, specifier, phase,
                               import_attributes, resolver);
     PerIsolateData::Get(isolate)->AddDynamicImportData(data);
     isolate->EnqueueMicrotask(Shell::DoHostImportModuleDynamically, data);
@@ -1492,6 +1537,60 @@ MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
   return context;
 }
 
+namespace {
+void RejectPromiseIfExecutionIsNotTerminating(Isolate* isolate,
+                                              Local<Context> realm,
+                                              Local<Promise::Resolver> resolver,
+                                              const TryCatch& try_catch) {
+  CHECK(try_catch.HasCaught());
+  if (isolate->IsExecutionTerminating()) {
+    Shell::ReportException(isolate, try_catch);
+  } else {
+    resolver->Reject(realm, try_catch.Exception()).ToChecked();
+  }
+}
+
+Maybe<bool> ChainDynamicImportPromise(Isolate* isolate, Local<Context> realm,
+                                      v8::Local<v8::Promise::Resolver> resolver,
+                                      Local<Promise> result_promise,
+                                      Local<Value> namespace_or_source) {
+  Local<Array> module_resolution_data = v8::Array::New(isolate);
+  if (module_resolution_data->SetPrototypeV2(realm, v8::Null(isolate))
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+  if (module_resolution_data
+          ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+  if (module_resolution_data
+          ->Set(realm, ModuleResolutionDataIndex::kNamespaceOrSource,
+                namespace_or_source)
+          .IsNothing()) {
+    return Nothing<bool>();
+  }
+  Local<Function> callback_success;
+  if (!Function::New(realm, Shell::ModuleResolutionSuccessCallback,
+                     module_resolution_data)
+           .ToLocal(&callback_success)) {
+    return Nothing<bool>();
+  }
+
+  Local<Function> callback_failure;
+  if (!Function::New(realm, Shell::ModuleResolutionFailureCallback,
+                     module_resolution_data)
+           .ToLocal(&callback_failure)) {
+    return Nothing<bool>();
+  }
+  if (result_promise->Then(realm, callback_success, callback_failure)
+          .IsEmpty()) {
+    return Nothing<bool>();
+  }
+  return Just(true);
+}
+}  // namespace
+
 void Shell::DoHostImportModuleDynamically(void* import_data) {
   DynamicImportData* import_data_ =
       static_cast<DynamicImportData*>(import_data);
@@ -1499,8 +1598,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
   Isolate* isolate(import_data_->isolate);
   Global<Context> global_realm;
   Global<Promise::Resolver> global_resolver;
-  Global<Module> global_root_module;
-  Global<Value> global_result;
+  Global<Promise> global_result_promise;
+  Global<Value> global_namespace_or_source;
 
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
@@ -1510,6 +1609,7 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
     Local<Context> realm = import_data_->context.Get(isolate);
     Local<Value> referrer = import_data_->referrer.Get(isolate);
     Local<String> v8_specifier = import_data_->specifier.Get(isolate);
+    ModuleImportPhase phase = import_data_->phase;
     Local<FixedArray> import_attributes =
         import_data_->import_attributes.Get(isolate);
     Local<Promise::Resolver> resolver = import_data_->resolver.Get(isolate);
@@ -1529,8 +1629,8 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
 
     if (module_type == ModuleType::kInvalid) {
       ThrowError(isolate, "Invalid module type was asserted");
-      CHECK(try_catch.HasCaught());
-      resolver->Reject(realm, try_catch.Exception()).ToChecked();
+      RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                               try_catch);
       return;
     }
 
@@ -1544,37 +1644,68 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
         DirName(NormalizePath(source_url, GetWorkingDirectory()));
     std::string absolute_path = NormalizeModuleSpecifier(specifier, dir_name);
 
-    Local<Module> root_module;
-    auto module_it = module_data->module_map.find(
-        std::make_pair(absolute_path, module_type));
-    if (module_it != module_data->module_map.end()) {
-      root_module = module_it->second.Get(isolate);
-    } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
-                                module_type)
-                    .ToLocal(&root_module)) {
-      CHECK(try_catch.HasCaught());
-      if (isolate->IsExecutionTerminating()) {
-        Shell::ReportException(isolate, try_catch);
-      } else {
-        resolver->Reject(realm, try_catch.Exception()).ToChecked();
-      }
-      return;
-    }
-    global_root_module.Reset(isolate, root_module);
+    switch (phase) {
+      case ModuleImportPhase::kSource: {
+        Local<Object> module_source;
+        auto module_it = module_data->module_source_map.find(
+            std::make_pair(absolute_path, module_type));
+        if (module_it != module_data->module_source_map.end()) {
+          module_source = module_it->second.Get(isolate);
+        } else if (!FetchModuleSource(Local<Module>(), realm, absolute_path,
+                                      module_type)
+                        .ToLocal(&module_source)) {
+          break;
+        }
+        Local<Promise::Resolver> module_resolver =
+            Promise::Resolver::New(realm).ToLocalChecked();
+        module_resolver->Resolve(realm, module_source).ToChecked();
 
-    if (root_module
-            ->InstantiateModule(realm, ResolveModuleCallback,
-                                ResolveModuleSourceCallback)
-            .FromMaybe(false)) {
-      MaybeLocal<Value> maybe_result = root_module->Evaluate(realm);
-      CHECK(!maybe_result.IsEmpty());
-      global_result.Reset(isolate, maybe_result.ToLocalChecked());
+        global_namespace_or_source.Reset(isolate, module_source);
+        global_result_promise.Reset(isolate, module_resolver->GetPromise());
+        break;
+      }
+      case v8::ModuleImportPhase::kEvaluation: {
+        Local<Module> root_module;
+        auto module_it = module_data->module_map.find(
+            std::make_pair(absolute_path, module_type));
+        if (module_it != module_data->module_map.end()) {
+          root_module = module_it->second.Get(isolate);
+        } else if (!FetchModuleTree(Local<Module>(), realm, absolute_path,
+                                    module_type)
+                        .ToLocal(&root_module)) {
+          break;
+        }
+        if (root_module
+                ->InstantiateModule(realm, ResolveModuleCallback,
+                                    ResolveModuleSourceCallback)
+                .FromMaybe(false)) {
+          MaybeLocal<Value> maybe_result = root_module->Evaluate(realm);
+          if (maybe_result.IsEmpty()) break;
+          global_result_promise.Reset(
+              isolate, maybe_result.ToLocalChecked().As<Promise>());
+          global_namespace_or_source.Reset(isolate,
+                                           root_module->GetModuleNamespace());
+        }
+        break;
+      }
+      default: {
+        UNREACHABLE();
+      }
     }
   }
 
-  if (!global_result.IsEmpty()) {
-    // This method is invoked from a microtask, where in general we may have an
-    // non-trivial stack. Emptying the message queue below may trigger the
+  if (global_result_promise.IsEmpty()) {
+    HandleScope handle_scope(isolate);
+    Local<Context> realm = global_realm.Get(isolate);
+    Local<Promise::Resolver> resolver = global_resolver.Get(isolate);
+    RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                             try_catch);
+    return;
+  }
+
+  {
+    // This method is invoked from a microtask, where in general we may have
+    // an non-trivial stack. Emptying the message queue below may trigger the
     // execution of a stackless GC. We need to override the embedder stack
     // state, to force scanning the stack, if this happens.
     i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
@@ -1582,41 +1713,26 @@ void Shell::DoHostImportModuleDynamically(void* import_data) {
         heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
         StackState::kMayContainHeapPointers);
     EmptyMessageQueues(isolate);
-  } else {
-    DCHECK(try_catch.HasCaught());
-    HandleScope handle_scope(isolate);
-    Local<Context> realm = global_realm.Get(isolate);
-    Local<Promise::Resolver> resolver = global_resolver.Get(isolate);
-    resolver->Reject(realm, try_catch.Exception()).ToChecked();
-    return;
   }
 
+  // Setup callbacks, and then chain them to the result promise.
   HandleScope handle_scope(isolate);
   Local<Context> realm = global_realm.Get(isolate);
-  Local<Module> root_module = global_root_module.Get(isolate);
   Local<Promise::Resolver> resolver = global_resolver.Get(isolate);
-  Local<Value> result = global_result.Get(isolate);
-  Local<Value> module_namespace = root_module->GetModuleNamespace();
-  Local<Promise> result_promise = result.As<Promise>();
+  Local<Promise> result_promise = global_result_promise.Get(isolate);
+  Local<Value> namespace_or_source = global_namespace_or_source.Get(isolate);
 
-  // Setup callbacks, and then chain them to the result promise.
-  Local<Array> module_resolution_data = v8::Array::New(isolate);
-  module_resolution_data
-      ->Set(realm, ModuleResolutionDataIndex::kResolver, resolver)
-      .ToChecked();
-  module_resolution_data
-      ->Set(realm, ModuleResolutionDataIndex::kNamespace, module_namespace)
-      .ToChecked();
-  Local<Function> callback_success;
-  CHECK(Function::New(realm, ModuleResolutionSuccessCallback,
-                      module_resolution_data)
-            .ToLocal(&callback_success));
-  Local<Function> callback_failure;
-  CHECK(Function::New(realm, ModuleResolutionFailureCallback,
-                      module_resolution_data)
-            .ToLocal(&callback_failure));
-  result_promise->Then(realm, callback_success, callback_failure)
-      .ToLocalChecked();
+  Context::Scope context_scope(realm);
+
+  // Chaining the promise generally does not throw, but execution may be
+  // terminating (e.g. when within a worker being terminated). Check the return
+  // value to display a helpful message.
+  if (ChainDynamicImportPromise(isolate, realm, resolver, result_promise,
+                                namespace_or_source)
+          .IsNothing()) {
+    RejectPromiseIfExecutionIsNotTerminating(isolate, realm, resolver,
+                                             try_catch);
+  }
 }
 
 bool Shell::ExecuteModule(Isolate* isolate, const char* file_name) {
@@ -2174,13 +2290,13 @@ void Shell::RealmOwner(const v8::FunctionCallbackInfo<v8::Value>& info) {
   }
   Local<Object> object =
       info[0]->ToObject(isolate->GetCurrentContext()).ToLocalChecked();
-  i::Handle<i::JSReceiver> i_object = Utils::OpenHandle(*object);
+  i::DirectHandle<i::JSReceiver> i_object = Utils::OpenDirectHandle(*object);
   if (IsJSGlobalProxy(*i_object) &&
       i::Cast<i::JSGlobalProxy>(i_object)->IsDetached()) {
     return;
   }
   Local<Context> creation_context;
-  if (!object->GetCreationContext().ToLocal(&creation_context)) {
+  if (!object->GetCreationContext(isolate).ToLocal(&creation_context)) {
     ThrowError(info.GetIsolate(), "object doesn't have creation context");
     return;
   }
@@ -2203,11 +2319,11 @@ void Shell::RealmGlobal(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // global objects.
   Local<Object> global =
       Local<Context>::New(info.GetIsolate(), data->realms_[index])->Global();
-  i::Handle<i::Object> i_global = Utils::OpenHandle(*global);
+  i::DirectHandle<i::Object> i_global = Utils::OpenDirectHandle(*global);
   if (IsJSGlobalObject(*i_global)) {
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
-    i::Handle<i::JSObject> i_global_proxy =
-        handle(i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
+    i::DirectHandle<i::JSObject> i_global_proxy(
+        i::Cast<i::JSGlobalObject>(i_global)->global_proxy(), i_isolate);
     global = Utils::ToLocal(i_global_proxy);
   }
   info.GetReturnValue().Set(global);
@@ -2256,7 +2372,7 @@ void Shell::DisposeRealm(const v8::FunctionCallbackInfo<v8::Value>& info,
   data->realms_[index].Reset();
   // ContextDisposedNotification expects the disposed context to be entered.
   v8::Context::Scope scope(context);
-  isolate->ContextDisposedNotification();
+  isolate->ContextDisposedNotification(v8::ContextDependants::kSomeDependants);
 }
 
 // Realm.create() creates a new realm with a distinct security token
@@ -2557,6 +2673,27 @@ void Shell::EnableJSPI(const v8::FunctionCallbackInfo<v8::Value>& info) {
   isolate->InstallConditionalFeatures(isolate->GetCurrentContext());
 }
 
+void Shell::SetFlushDenormals(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  Isolate* isolate = info.GetIsolate();
+  if (i::v8_flags.correctness_fuzzer_suppressions) {
+    // Setting denormals flushing in the middle of code is almost certain to
+    // cause correctness issues, in a way that isn't interesting to us. Make
+    // this a no-op instead.
+    return;
+  }
+  // Check if the argument is a valid function.
+  if (info.Length() != 1) {
+    ThrowError(isolate, "Expected single boolean argument.");
+    return;
+  }
+  Local<Value> arg = info[0];
+  if (!arg->IsBoolean()) {
+    ThrowError(isolate, "Expected single boolean argument.");
+    return;
+  }
+  base::FPU::SetFlushDenormals(arg.As<Boolean>()->BooleanValue(isolate));
+}
+
 // async_hooks.createHook() registers functions to be called for different
 // lifetime events of each async operation.
 void Shell::AsyncHooksCreateHook(
@@ -2761,7 +2898,7 @@ void WriteToFile(FILE* file, const v8::FunctionCallbackInfo<v8::Value>& info,
     }
 
     v8::String::Utf8Value str(info.GetIsolate(), str_obj);
-    int n = static_cast<int>(fwrite(*str, sizeof(**str), str.length(), file));
+    size_t n = fwrite(*str, sizeof(**str), str.length(), file);
     if (n != str.length()) {
       printf("Error in fwrite\n");
       base::OS::ExitProcess(1);
@@ -2857,6 +2994,26 @@ void Shell::ReadFile(const v8::FunctionCallbackInfo<v8::Value>& info) {
   if (!ReadFile(info.GetIsolate(), *file_name).ToLocal(&source)) return;
   info.GetReturnValue().Set(source);
 }
+
+#if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
+void Shell::CreateWasmMemoryMapDescriptor(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  CHECK(i::v8_flags.experimental_wasm_memory_control);
+  DCHECK(i::ValidateCallbackInfo(info));
+  String::Utf8Value file_name(info.GetIsolate(), info[0]);
+  if (*file_name == nullptr) {
+    ThrowError(info.GetIsolate(), "Error converting filename to string");
+    return;
+  }
+
+  int file_descriptor = open(*file_name, O_RDWR);
+
+  WasmMemoryMapDescriptor::WasmFileDescriptor wasm_fd =
+      static_cast<WasmMemoryMapDescriptor::WasmFileDescriptor>(file_descriptor);
+  info.GetReturnValue().Set(
+      v8::WasmMemoryMapDescriptor::New(info.GetIsolate(), wasm_fd));
+}
+#endif  // V8_TARGET_OS_LINUX
 
 Local<String> Shell::ReadFromStdin(Isolate* isolate) {
   static const int kBufferSize = 256;
@@ -3135,6 +3292,20 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
   // early-out from the instance calls.
   info.This()->SetInternalField(0, v8::Integer::New(isolate, 0));
 
+  // By default, propagate flush denormals state.
+  bool flush_denormals = base::FPU::GetFlushDenormals();
+  if (info.Length() > 1 && info[1]->IsObject()) {
+    Local<Value> value;
+    if (!TryGetValue(isolate, isolate->GetCurrentContext(),
+                     info[1].As<Object>(), "flushDenormals")
+             .ToLocal(&value)) {
+      return;
+    }
+    if (!value->IsUndefined()) {
+      flush_denormals = value->BooleanValue(isolate);
+    }
+  }
+
   {
     // Don't allow workers to create more workers if the main thread
     // is waiting for existing running workers to terminate.
@@ -3152,10 +3323,10 @@ void Shell::WorkerNew(const v8::FunctionCallbackInfo<v8::Value>& info) {
     // The C++ worker object's lifetime is shared between the Managed<Worker>
     // object on the heap, which the JavaScript object points to, and an
     // internal std::shared_ptr in the worker thread itself.
-    auto worker = std::make_shared<Worker>(isolate, *script);
+    auto worker = std::make_shared<Worker>(isolate, *script, flush_denormals);
     i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
     const size_t kWorkerSizeEstimate = 4 * 1024 * 1024;  // stack + heap.
-    i::Handle<i::Object> managed =
+    i::DirectHandle<i::Object> managed =
         i::Managed<Worker>::From(i_isolate, kWorkerSizeEstimate, worker);
     info.This()->SetInternalField(0, Utils::ToLocal(managed));
     base::Thread::Priority priority =
@@ -3400,7 +3571,6 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
                       .FromMaybe(0);
   Isolate* isolate = info->GetIsolate();
   ResetOnProfileEndListener(isolate);
-  isolate->Exit();
 
   // As we exit the process anyway, we do not dispose the platform and other
   // global data and manually unlock to quell DCHECKs. Other isolates might
@@ -3416,6 +3586,10 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
     i_isolate->main_thread_local_isolate()->ExecuteMainThreadWhileParked(
         [](const i::ParkedScope& parked) { WaitForRunningWorkers(parked); });
   }
+
+  // Reset thread-locals here only after stopping workers. They are still used
+  // e.g. during heap verification in shared GCs.
+  isolate->Exit();
 
   OnExit(isolate, false);
   base::OS::ExitProcess(exit_code);
@@ -3561,7 +3735,7 @@ void Shell::MapCounters(v8::Isolate* isolate, const char* name) {
 Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   Counter* counter = nullptr;
   {
-    base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
+    base::MutexGuard mutex_guard(&counter_mutex_);
     auto map_entry = counter_map_->find(name);
     if (map_entry != counter_map_->end()) {
       counter = map_entry->second;
@@ -3569,7 +3743,7 @@ Counter* Shell::GetCounter(const char* name, bool is_histogram) {
   }
 
   if (counter == nullptr) {
-    base::SharedMutexGuard<base::kExclusive> mutex_guard(&counter_mutex_);
+    base::MutexGuard mutex_guard(&counter_mutex_);
 
     counter = (*counter_map_)[name];
 
@@ -3866,6 +4040,13 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
                        FunctionTemplate::New(isolate, Shell::ReadFile));
     file_template->Set(isolate, "execute",
                        FunctionTemplate::New(isolate, Shell::ExecuteFile));
+#if V8_TARGET_OS_LINUX && V8_ENABLE_WEBASSEMBLY
+    if (i::v8_flags.experimental_wasm_memory_control) {
+      file_template->Set(
+          isolate, "create_wasm_memory_map_descriptor",
+          FunctionTemplate::New(isolate, Shell::CreateWasmMemoryMapDescriptor));
+    }
+#endif
     d8_template->Set(isolate, "file", file_template);
   }
   {
@@ -3914,6 +4095,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
     test_template->Set(isolate, "enableJSPI",
                        FunctionTemplate::New(isolate, Shell::EnableJSPI));
 
+    test_template->Set(
+        isolate, "setFlushDenormals",
+        FunctionTemplate::New(isolate, Shell::SetFlushDenormals));
+
     d8_template->Set(isolate, "test", test_template);
   }
   {
@@ -3956,6 +4141,22 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
         isolate, "triggerSample",
         FunctionTemplate::New(isolate, ProfilerTriggerSample));
     d8_template->Set(isolate, "profiler", profiler_template);
+  }
+  {
+    Local<ObjectTemplate> constants_template = ObjectTemplate::New(isolate);
+    if (!i::v8_flags.correctness_fuzzer_suppressions) {
+      // Don't expose these constants in differential-fuzzing builds as they
+      // differ with lower-limits mode.
+      constants_template->Set(
+          String::NewFromUtf8Literal(isolate, "maxFixedArrayCapacity",
+                                     NewStringType::kInternalized),
+          Number::New(isolate, i::kMaxFixedArrayCapacity));
+      constants_template->Set(
+          String::NewFromUtf8Literal(isolate, "maxFastArrayLength",
+                                     NewStringType::kInternalized),
+          Number::New(isolate, i::JSArray::kMaxFastArrayLength));
+    }
+    d8_template->Set(isolate, "constants", constants_template);
   }
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
   d8_template->Set(
@@ -4064,6 +4265,8 @@ void Shell::Initialize(Isolate* isolate, D8Console* console,
 
   isolate->SetHostImportModuleDynamicallyCallback(
       Shell::HostImportModuleDynamically);
+  isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
+      Shell::HostImportModuleWithPhaseDynamically);
   isolate->SetHostInitializeImportMetaObjectCallback(
       Shell::HostInitializeImportMetaObject);
   isolate->SetHostCreateShadowRealmContextCallback(
@@ -4127,7 +4330,7 @@ void Shell::WriteIgnitionDispatchCountersFile(v8::Isolate* isolate) {
   Local<Context> context = Context::New(isolate);
   Context::Scope context_scope(context);
 
-  i::Handle<i::JSObject> dispatch_counters =
+  i::DirectHandle<i::JSObject> dispatch_counters =
       reinterpret_cast<i::Isolate*>(isolate)
           ->interpreter()
           ->GetDispatchCountersObject();
@@ -4261,7 +4464,7 @@ void Shell::OnExit(v8::Isolate* isolate, bool dispose) {
   }
 
   if (options.dump_counters || options.dump_counters_nvp) {
-    base::SharedMutexGuard<base::kShared> mutex_guard(&counter_mutex_);
+    base::MutexGuard mutex_guard(&counter_mutex_);
     std::vector<std::pair<std::string, Counter*>> counters(
         counter_map_->begin(), counter_map_->end());
     std::sort(counters.begin(), counters.end());
@@ -4722,9 +4925,9 @@ class InspectorClient : public v8_inspector::V8InspectorClient {
     Local<String> message = info[0]->ToString(context).ToLocalChecked();
     v8_inspector::V8InspectorSession* session =
         InspectorClient::GetSession(context);
-    int length = message->Length();
+    uint32_t length = message->Length();
     std::unique_ptr<uint16_t[]> buffer(new uint16_t[length]);
-    message->Write(isolate, buffer.get(), 0, length);
+    message->WriteV2(isolate, 0, length, buffer.get());
     v8_inspector::StringView message_view(buffer.get(), length);
     {
       v8::SealHandleScope seal_handle_scope(isolate);
@@ -4860,6 +5063,8 @@ SourceGroup::IsolateThread::IsolateThread(SourceGroup* group)
     : base::Thread(GetThreadOptions("IsolateThread")), group_(group) {}
 
 void SourceGroup::ExecuteInThread() {
+  v8::base::FlushDenormalsScope denormals_scope(Shell::options.flush_denormals);
+
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   Isolate* isolate = Isolate::New(create_params);
@@ -4951,8 +5156,11 @@ void SerializationDataQueue::Clear() {
   data_.clear();
 }
 
-Worker::Worker(Isolate* parent_isolate, const char* script)
-    : script_(i::StrDup(script)), parent_isolate_(parent_isolate) {
+Worker::Worker(Isolate* parent_isolate, const char* script,
+               bool flush_denormals)
+    : script_(i::StrDup(script)),
+      flush_denormals_(flush_denormals),
+      parent_isolate_(parent_isolate) {
   state_.store(State::kReady);
 }
 
@@ -5121,15 +5329,25 @@ void Worker::ProcessMessage(std::unique_ptr<SerializationData> data) {
     MaybeLocal<Value> result = onmessage_fun->Call(context, global, 1, argv);
     USE(result);
   }
+  if (isolate_->IsExecutionTerminating()) {
+    // Re-schedule an interrupt in case the worker is going to run more code
+    // and never return to the event queue.
+    isolate_->TerminateExecution();
+  }
 }
 
 void Worker::ProcessMessages() {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate_);
   i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
   SealHandleScope shs(isolate_);
+
+  TryCatch try_catch(isolate_);
+  try_catch.SetVerbose(true);
+
   while (is_running() && v8::platform::PumpMessageLoop(
                              g_default_platform, isolate_,
                              platform::MessageLoopBehavior::kWaitForWork)) {
+    if (try_catch.HasCaught()) return;
     if (is_running()) {
       MicrotasksScope::PerformCheckpoint(isolate_);
     }
@@ -5146,6 +5364,8 @@ void Worker::SetCurrentWorker(Worker* worker) {
 Worker* Worker::GetCurrentWorker() { return current_worker_; }
 
 void Worker::ExecuteInThread() {
+  v8::base::FlushDenormalsScope denormals_scope(flush_denormals_);
+
   Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = Shell::array_buffer_allocator;
   isolate_ = Isolate::New(create_params);
@@ -5601,6 +5821,8 @@ bool Shell::SetOptions(int argc, char* argv[]) {
 #endif  // V8_ENABLE_WEBASSEMBLY
     } else if (FlagMatches("--expose-fast-api", &argv[i])) {
       options.expose_fast_api = true;
+    } else if (FlagMatches("--flush-denormals", &argv[i])) {
+      options.flush_denormals = true;
     } else {
 #ifdef V8_TARGET_OS_WIN
       PreProcessUnicodeFilenameArg(argv, i);
@@ -5707,7 +5929,7 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
         WaitForRunningWorkers(parked);
       });
 
-  // Other threads have terminated, we can now run the artifical
+  // Other threads have terminated, we can now run the artificial
   // serialize-deserialize pass (which destructively mutates heap state).
   if (success && last_run && i::v8_flags.stress_snapshot) {
     HandleScope handle_scope(isolate);
@@ -5716,7 +5938,8 @@ int Shell::RunMain(v8::Isolate* isolate, bool last_run) {
     i::DirectHandle<i::Context> i_context = Utils::OpenDirectHandle(*context);
     // Stop concurrent compiles before mutating the heap.
     if (i_isolate->concurrent_recompilation_enabled()) {
-      i_isolate->optimizing_compile_dispatcher()->Stop();
+      i_isolate->optimizing_compile_dispatcher()->StartTearDown();
+      i_isolate->optimizing_compile_dispatcher()->FinishTearDown();
     }
 #if V8_ENABLE_MAGLEV
     if (i_isolate->maglev_concurrent_dispatcher()->is_enabled()) {
@@ -5765,7 +5988,7 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
       // testcase sent by Fuzzilli to be skipped, which will desynchronize the
       // communication between d8 and Fuzzilli, leading to a crash.
       DCHECK(!fuzzilli_reprl);
-      return false;
+      return true;
     }
     global_context.Reset(isolate, context);
     if (keep_context_alive) {
@@ -5791,7 +6014,8 @@ bool Shell::RunMainIsolate(v8::Isolate* isolate, bool keep_context_alive) {
 
 void Shell::CollectGarbage(Isolate* isolate) {
   if (options.send_idle_notification) {
-    isolate->ContextDisposedNotification();
+    isolate->ContextDisposedNotification(
+        v8::ContextDependants::kSomeDependants);
   }
   if (options.invoke_weak_callbacks) {
     // By sending a low memory notifications, we will try hard to collect all
@@ -5809,7 +6033,7 @@ bool ProcessMessages(
   i::SaveAndSwitchContext saved_context(i_isolate, i::Context());
   SealHandleScope shs(isolate);
 
-  if (isolate->IsExecutionTerminating()) return false;
+  if (isolate->IsExecutionTerminating()) return true;
   TryCatch try_catch(isolate);
   try_catch.SetVerbose(true);
 
@@ -5817,23 +6041,24 @@ bool ProcessMessages(
     bool ran_a_task;
     ran_a_task =
         v8::platform::PumpMessageLoop(g_default_platform, isolate, behavior());
+    if (isolate->IsExecutionTerminating()) return true;
     if (try_catch.HasCaught()) return false;
     if (ran_a_task) MicrotasksScope::PerformCheckpoint(isolate);
-    if (isolate->IsExecutionTerminating()) return false;
+    if (isolate->IsExecutionTerminating()) return true;
 
     // In predictable mode we push all background tasks into the foreground
     // task queue of the {kProcessGlobalPredictablePlatformWorkerTaskQueue}
     // isolate. We execute all background tasks after running one foreground
     // task.
     if (i::v8_flags.verify_predictable) {
-      TryCatch try_catch(isolate);
-      try_catch.SetVerbose(true);
+      TryCatch inner_try_catch(isolate);
+      inner_try_catch.SetVerbose(true);
       while (v8::platform::PumpMessageLoop(
           g_default_platform, kProcessGlobalPredictablePlatformWorkerTaskQueue,
           platform::MessageLoopBehavior::kDoNotWait)) {
         ran_a_task = true;
-        if (try_catch.HasCaught()) return false;
-        if (isolate->IsExecutionTerminating()) return false;
+        if (inner_try_catch.HasCaught()) return false;
+        if (isolate->IsExecutionTerminating()) return true;
       }
     }
 
@@ -5843,7 +6068,7 @@ bool ProcessMessages(
     v8::platform::RunIdleTasks(g_default_platform, isolate,
                                50.0 / base::Time::kMillisecondsPerSecond);
     if (try_catch.HasCaught()) return false;
-    if (isolate->IsExecutionTerminating()) return false;
+    if (isolate->IsExecutionTerminating()) return true;
   }
   return true;
 }
@@ -6240,9 +6465,18 @@ void d8_install_sigterm_handler() {
 }  // namespace
 
 int Shell::Main(int argc, char* argv[]) {
+#if defined(V8_ENABLE_PARTITION_ALLOC)
+#if PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+  allocator_shim::ConfigurePartitionsForTesting();
+  allocator_shim::internal::PartitionAllocMalloc::Allocator()
+      ->EnableThreadCacheIfSupported();
+#endif  // PA_BUILDFLAG(USE_PARTITION_ALLOC_AS_MALLOC)
+#endif
   v8::base::EnsureConsoleOutput();
   if (!SetOptions(argc, argv)) return 1;
   if (!i::v8_flags.fuzzing) d8_install_sigterm_handler();
+
+  v8::base::FlushDenormalsScope denormals_scope(options.flush_denormals);
 
   v8::V8::InitializeICUDefaultLocation(argv[0], options.icu_data_file);
 

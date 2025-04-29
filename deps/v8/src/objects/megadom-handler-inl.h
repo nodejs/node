@@ -6,6 +6,8 @@
 #define V8_OBJECTS_MEGADOM_HANDLER_INL_H_
 
 #include "src/objects/megadom-handler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
@@ -18,7 +20,8 @@ namespace internal {
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(MegaDomHandler)
 
-RELEASE_ACQUIRE_WEAK_ACCESSORS(MegaDomHandler, accessor, kAccessorOffset)
+RELEASE_ACQUIRE_ACCESSORS(MegaDomHandler, accessor, Tagged<MaybeObject>,
+                          kAccessorOffset)
 
 }  // namespace internal
 }  // namespace v8

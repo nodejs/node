@@ -359,16 +359,13 @@ template <typename FloatType>
 bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
                     absl::Nonnull<FloatType*> value) {
   if (input.type == strings_internal::FloatType::kNan) {
-    // A bug in both clang < 7 and gcc would cause the compiler to optimize
-    // away the buffer we are building below.  Declaring the buffer volatile
-    // avoids the issue, and has no measurable performance impact in
-    // microbenchmarks.
+    // A bug in gcc would cause the compiler to optimize away the buffer we are
+    // building below.  Declaring the buffer volatile avoids the issue, and has
+    // no measurable performance impact in microbenchmarks.
     //
-    // https://bugs.llvm.org/show_bug.cgi?id=37778
     // https://gcc.gnu.org/bugzilla/show_bug.cgi?id=86113
     constexpr ptrdiff_t kNanBufferSize = 128;
-#if (defined(__GNUC__) && !defined(__clang__)) || \
-    (defined(__clang__) && __clang_major__ < 7)
+#if (defined(__GNUC__) && !defined(__clang__))
     volatile char n_char_sequence[kNanBufferSize];
 #else
     char n_char_sequence[kNanBufferSize];
@@ -392,7 +389,7 @@ bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
     return true;
   }
   if (input.mantissa == 0) {
-    *value = negative ? -0.0 : 0.0;
+    *value = negative ? -0.0f : 0.0f;
     return true;
   }
   return false;
@@ -415,7 +412,7 @@ void EncodeResult(const CalculatedFloat& calculated, bool negative,
     return;
   } else if (calculated.mantissa == 0 || calculated.exponent == kUnderflow) {
     result->ec = std::errc::result_out_of_range;
-    *value = negative ? -0.0 : 0.0;
+    *value = negative ? -0.0f : 0.0f;
     return;
   }
   *value = FloatTraits<FloatType>::Make(
@@ -692,7 +689,7 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
   uint64_t man = input.mantissa;
   int exp10 = input.exponent;
   if (exp10 < FloatTraits<FloatType>::kEiselLemireMinInclusiveExp10) {
-    *value = negative ? -0.0 : 0.0;
+    *value = negative ? -0.0f : 0.0f;
     *ec = std::errc::result_out_of_range;
     return true;
   } else if (exp10 >= FloatTraits<FloatType>::kEiselLemireMaxExclusiveExp10) {
@@ -845,7 +842,7 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
     if (negative) {
       ret_bits |= 0x8000000000000000u;
     }
-    *value = absl::bit_cast<double>(ret_bits);
+    *value = static_cast<FloatType>(absl::bit_cast<double>(ret_bits));
     return true;
   } else if (FloatTraits<FloatType>::kTargetBits == 32) {
     uint32_t ret_bits = (static_cast<uint32_t>(ret_exp2) << 23) |
@@ -853,7 +850,7 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
     if (negative) {
       ret_bits |= 0x80000000u;
     }
-    *value = absl::bit_cast<float>(ret_bits);
+    *value = static_cast<FloatType>(absl::bit_cast<float>(ret_bits));
     return true;
   }
 #endif  // ABSL_BIT_PACK_FLOATS
@@ -893,7 +890,7 @@ from_chars_result FromCharsImpl(absl::Nonnull<const char*> first,
         result.ec = std::errc::invalid_argument;
       } else {
         result.ptr = first + 1;
-        value = negative ? -0.0 : 0.0;
+        value = negative ? -0.0f : 0.0f;
       }
       return result;
     }

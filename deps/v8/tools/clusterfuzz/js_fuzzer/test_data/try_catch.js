@@ -16,6 +16,7 @@ function blah() {
       continue label;
     }
   }
+  return 1;
 }
 
 blah();
@@ -39,3 +40,36 @@ with (Math) {
 }
 
 let module = new WebAssembly.Module(builder.toBuffer());
+
+const complex1 = [1, 2, 3];
+const complex2 = boom()
+
+let complex3 = (function () {
+  let complex4 = [1, 2, 3];
+  return 2;
+})();
+
+if (true) {
+  let complex5 = new Map();
+}
+
+async function foo(a) {
+  let val = await a;
+}
+
+try {
+  1;
+} catch (e) {
+  2;
+}
+
+call(() => { 1; 2; });
+
+function foo() {
+  let a = 0;
+  let b = 1;
+  boom();
+  return {a: a, b: b};
+}
+
+let {a: x, b: y} = foo();

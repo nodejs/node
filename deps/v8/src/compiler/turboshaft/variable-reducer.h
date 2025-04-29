@@ -256,7 +256,7 @@ class VariableReducer : public RequiredOptimizationReducer<AfterNext> {
     for (auto frame_state : frame_states) {
       DCHECK_EQ(first_frame->input_count, frame_state->input_count);
       DCHECK_EQ(first_frame->inlined, frame_state->inlined);
-      DCHECK_EQ(first_frame->data, frame_state->data);
+      DCHECK_EQ(*first_frame->data, *frame_state->data);
     }
 #endif
 

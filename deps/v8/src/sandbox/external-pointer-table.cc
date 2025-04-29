@@ -214,7 +214,7 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
         // the entry that was evacuated must have been processed already (it
         // is in an evacuated segment, which are processed first as they are
         // at the end of the space). This will have cleared the marking bit.
-        DCHECK(at(i).GetRawPayload().ContainsPointer());
+        DCHECK(at(i).HasExternalPointer(kAnyExternalPointerTagRange));
         DCHECK(!at(i).GetRawPayload().HasMarkBitSet());
       } else if (!payload.HasMarkBitSet()) {
         FreeManagedResourceIfPresent(i);
@@ -248,6 +248,15 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
 
   // We cannot deallocate the segments during the above loop, so do it now.
   for (auto segment : segments_to_deallocate) {
+#ifdef DEBUG
+    // There should not be any live entries in the segments we are freeing.
+    // TODO(saelo): we should be able to assert here that we're not freeing any
+    // entries here. Otherwise, we'd have to FreeManagedResourceIfPresent.
+    // for (uint32_t i = segment.last_entry(); i >= segment.first_entry(); i--)
+    // {
+    //  CHECK(!at(i).HasExternalPointer(kAnyExternalPointerTag));
+    //}
+#endif
     FreeTableSegment(segment);
     space->segments_.erase(segment);
   }

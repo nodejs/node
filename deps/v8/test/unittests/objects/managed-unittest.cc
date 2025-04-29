@@ -12,8 +12,7 @@
 #include "test/unittests/test-utils.h"
 #include "testing/gtest/include/gtest/gtest.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 using ManagedTest = TestWithIsolate;
 
@@ -127,18 +126,20 @@ TEST_F(ManagedTest, DisposeAcrossIsolates) {
   isolate1->Enter();
   {
     HandleScope scope1(i_isolate1);
-    auto handle1 = Managed<DeleteCounter>::From(
-        i_isolate1, 0, std::make_shared<DeleteCounter>(&deleted));
+    auto shared = std::make_shared<DeleteCounter>(&deleted);
+    USE(Managed<DeleteCounter>::From(i_isolate1, 0, shared));
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
     isolate2->Enter();
     {
       HandleScope scope(i_isolate2);
-      USE(Managed<DeleteCounter>::From(i_isolate2, 0, handle1->get()));
+      USE(Managed<DeleteCounter>::From(i_isolate2, 0, shared));
+      shared.reset();
     }
     isolate2->Exit();
     isolate2->Dispose();
+    // The DeleteCounter is kept alive by the Managed in the first isolate.
     CHECK_EQ(0, deleted);
   }
   // Should be deleted after the first isolate is destroyed.
@@ -158,15 +159,16 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
   isolate1->Enter();
   {
     HandleScope scope1(i_isolate1);
-    auto handle1 = Managed<DeleteCounter>::From(
-        i_isolate1, 0, std::make_shared<DeleteCounter>(&deleted));
+    auto shared = std::make_shared<DeleteCounter>(&deleted);
+    USE(Managed<DeleteCounter>::From(i_isolate1, 0, shared));
 
     v8::Isolate* isolate2 = v8::Isolate::New(create_params);
     Isolate* i_isolate2 = reinterpret_cast<i::Isolate*>(isolate2);
     isolate2->Enter();
     {
       HandleScope scope(i_isolate2);
-      USE(Managed<DeleteCounter>::From(i_isolate2, 0, handle1->get()));
+      USE(Managed<DeleteCounter>::From(i_isolate2, 0, shared));
+      shared.reset();
     }
     InvokeMemoryReducingMajorGCs(i_isolate2);
     CHECK_EQ(0, deleted);
@@ -186,5 +188,4 @@ TEST_F(ManagedTest, CollectAcrossIsolates) {
   CHECK_EQ(1, deleted);
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal

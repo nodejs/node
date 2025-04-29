@@ -18,7 +18,6 @@
 #include <cstdint>
 
 #include "absl/base/config.h"
-#include "absl/base/internal/inline_variable.h"
 #include "absl/base/internal/unscaledcycleclock_config.h"
 
 namespace absl {
@@ -31,22 +30,23 @@ namespace base_internal {
 // Not debug mode and the UnscaledCycleClock frequency is the CPU
 // frequency.  Scale the CycleClock to prevent overflow if someone
 // tries to represent the time as cycles since the Unix epoch.
-ABSL_INTERNAL_INLINE_CONSTEXPR(int32_t, kCycleClockShift, 1);
+inline constexpr int32_t kCycleClockShift = 1;
 #else
 // Not debug mode and the UnscaledCycleClock isn't operating at the
 // raw CPU frequency. There is no need to do any scaling, so don't
 // needlessly sacrifice precision.
-ABSL_INTERNAL_INLINE_CONSTEXPR(int32_t, kCycleClockShift, 0);
+inline constexpr int32_t kCycleClockShift = 0;
 #endif
 #else   // NDEBUG
 // In debug mode use a different shift to discourage depending on a
 // particular shift value.
-ABSL_INTERNAL_INLINE_CONSTEXPR(int32_t, kCycleClockShift, 2);
+inline constexpr int32_t kCycleClockShift = 2;
 #endif  // NDEBUG
 
-ABSL_INTERNAL_INLINE_CONSTEXPR(double, kCycleClockFrequencyScale,
-                               1.0 / (1 << kCycleClockShift));
-#endif  //  ABSL_USE_UNSCALED_CYCLECLOC
+inline constexpr double kCycleClockFrequencyScale =
+    1.0 / (1 << kCycleClockShift);
+
+#endif  // ABSL_USE_UNSCALED_CYCLECLOCK
 
 }  // namespace base_internal
 ABSL_NAMESPACE_END

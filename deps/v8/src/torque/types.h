@@ -231,8 +231,7 @@ struct Field {
 
   bool custom_weak_marking;
   bool const_qualified;
-  FieldSynchronization read_synchronization;
-  FieldSynchronization write_synchronization;
+  FieldSynchronization synchronization;
 };
 
 std::ostream& operator<<(std::ostream& os, const Field& name_and_type);
@@ -485,6 +484,8 @@ class V8_EXPORT_PRIVATE UnionType final : public Type {
   void RecomputeParent();
   std::string SimpleNameImpl() const override;
 
+  static void InsertGeneratedTNodeTypeName(std::set<std::string>& names,
+                                           const Type* t);
   static void InsertConstexprGeneratedTypeName(std::set<std::string>& names,
                                                const Type* t);
 

@@ -20,7 +20,7 @@ alignas(api_constants::kCachelineSize) CageBaseGlobal::Base
 // Debugging helpers.
 
 #if defined(CPPGC_POINTER_COMPRESSION)
-extern "C" V8_DONT_STRIP_SYMBOL V8_EXPORT_PRIVATE void*
+V8_DEBUGGING_EXPORT extern "C" void*
 _cppgc_internal_Decompress_Compressed_Pointer(uint32_t cmprsd) {
   return CompressedPointer::Decompress(cmprsd);
 }
@@ -33,8 +33,8 @@ class MemberDebugHelper final {
   }
 };
 
-extern "C" V8_DONT_STRIP_SYMBOL V8_EXPORT_PRIVATE void*
-_cppgc_internal_Uncompress_Member(void* m) {
+V8_DEBUGGING_EXPORT extern "C" void* _cppgc_internal_Uncompress_Member(
+    void* m) {
   return MemberDebugHelper::Uncompress(
       static_cast<MemberBase<DefaultMemberStorage>*>(m));
 }

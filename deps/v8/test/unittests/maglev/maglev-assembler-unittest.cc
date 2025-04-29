@@ -18,8 +18,8 @@ class MaglevAssemblerTest : public MaglevTest {
  public:
   MaglevAssemblerTest()
       : MaglevTest(),
-        codegen_state(nullptr, nullptr),
-        as(isolate(), &codegen_state) {}
+        codegen_state(nullptr, nullptr, 0),
+        as(isolate(), zone(), &codegen_state) {}
 
   void FinalizeAndRun(Label* pass, Label* fail) {
     as.bind(pass);
