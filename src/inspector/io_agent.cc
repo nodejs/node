@@ -27,7 +27,7 @@ DispatchResponse IoAgent::read(const String& in_handle,
     size = in_size.fromJust();
   }
 
-  if (offset < txt.length()) {
+  if (static_cast<std::size_t>(offset) < txt.length()) {
     std::string out_txt = txt.substr(offset, size);
     out_data->assign(out_txt);
   } else {
