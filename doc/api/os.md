@@ -523,32 +523,13 @@ is invalid.
 
 Currently, the following types for a handle can be returned:
 
-<table>
-  <tr>
-    <th>Constant</th>
-  </tr>
-  <tr>
-    <td><code>TCP</code></td>
-  </tr>
-  <tr>
-    <td><code>TTY</code></td>
-  </tr>
-  <tr>
-    <td><code>UDP</code></td>
-  </tr>
-  <tr>
-    <td><code>FILE</code></td>
-  </tr>
-  <tr>
-    <td><code>PIPE</code></td>
-  </tr>
-  <tr>
-    <td><code>UNKNOWN</code></td>
-  </tr>
-  <tr>
-    <td><code>INVALID</code></td>
-  </tr>
-</table>
+* `'TCP'`
+* `'TTY'`
+* `'UDP'`
+* `'FILE'`
+* `'PIPE'`
+* `'UNKNOWN'`
+* `'INVALID'`
 
 ## OS constants
 
