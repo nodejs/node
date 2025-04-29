@@ -36,6 +36,14 @@ static_assert(static_cast<int>(NM_F_LINKED) ==
 #define NODE_BUILTIN_QUIC_BINDINGS(V)
 #endif
 
+#if HAVE_SQLITE
+#define NODE_BUILTIN_SQLITE_BINDINGS(V)                                        \
+  V(sqlite)                                                                    \
+  V(webstorage)
+#else
+#define NODE_BUILTIN_SQLITE_BINDINGS(V)
+#endif
+
 #define NODE_BINDINGS_WITH_PER_ISOLATE_INIT(V)                                 \
   V(async_wrap)                                                                \
   V(blob)                                                                      \

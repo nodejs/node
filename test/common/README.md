@@ -257,6 +257,12 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
+### `hasSQLite`
+
+* [\<boolean>][<boolean>]
+
+Indicates whether SQLite is available.
+
 ### `inFreeBSDJail`
 
 * [\<boolean>][<boolean>]

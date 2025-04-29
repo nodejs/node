@@ -54,6 +54,8 @@ const noop = () => {};
 const hasCrypto = Boolean(process.versions.openssl) &&
                   !process.env.NODE_SKIP_CRYPTO;
 
+const hasSQLite = Boolean(process.versions.sqlite);
+
 const hasQuic = hasCrypto && !!process.config.variables.node_quic;
 
 function parseTestFlags(filename = process.argv[1]) {
@@ -883,6 +885,7 @@ const common = {
   hasIntl,
   hasCrypto,
   hasQuic,
+  hasSQLite,
   invalidArgTypeHelper,
   isAlive,
   isASan,

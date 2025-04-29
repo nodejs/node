@@ -1,5 +1,7 @@
 'use strict';
-require('../common');
+const common = require('../common');
+if (!common.hasSQLite)
+  common.skip('missing SQLite');
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
