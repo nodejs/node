@@ -240,30 +240,24 @@ std::tuple<int, std::string, std::string> NetworkAgent::spawnFetchProcess(
 
 #ifdef _WIN32
   const char* file = "cmd.exe";
-  char* args[] = {
-    const_cast<char*>(file),
-    const_cast<char*>("/d"),
-    const_cast<char*>("/s"),
-    const_cast<char*>("/c"),
-    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
-    nullptr
-  };
+  char* args[] = {const_cast<char*>(file),
+                  const_cast<char*>("/d"),
+                  const_cast<char*>("/s"),
+                  const_cast<char*>("/c"),
+                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+                  nullptr};
 #elif defined(__ANDROID__)
   const char* file = "/system/bin/sh";
-  char* args[] = {
-    const_cast<char*>(file),
-    const_cast<char*>("-c"),
-    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
-    nullptr
-  };
+  char* args[] = {const_cast<char*>(file),
+                  const_cast<char*>("-c"),
+                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+                  nullptr};
 #else
   const char* file = "/bin/sh";
-  char* args[] = {
-    const_cast<char*>(file),
-    const_cast<char*>("-c"),
-    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
-    nullptr
-  };
+  char* args[] = {const_cast<char*>(file),
+                  const_cast<char*>("-c"),
+                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+                  nullptr};
 #endif
 
   uv_stdio_container_t stdio[3];
