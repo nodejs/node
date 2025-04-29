@@ -139,6 +139,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
+#if !HAVE_SQLITE
+        "internal/webstorage",  // Experimental.
+#endif
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -686,8 +689,8 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(Boolean::New(
-      args.GetIsolate(), instance->code_cache_->has_code_cache));
+  args.GetReturnValue().Set(
+      Boolean::New(args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {

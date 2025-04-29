@@ -257,6 +257,12 @@ Indicates if [internationalization][] is supported.
 
 Indicates whether `IPv6` is supported on this platform.
 
+### `hasSQLite`
+
+* [\<boolean>][<boolean>]
+
+Indicates whether SQLite is available.
+
 ### `inFreeBSDJail`
 
 * [\<boolean>][<boolean>]
@@ -479,6 +485,11 @@ at `tools/eslint/node_modules/eslint`
 ### `skipIfInspectorDisabled()`
 
 Skip the rest of the tests in the current file when the Inspector
+was disabled at compile time.
+
+### `skipIfSQLiteMissing()`
+
+Skip the rest of the tests in the current file when the SQLite
 was disabled at compile time.
 
 ### `skipIf32Bits()`

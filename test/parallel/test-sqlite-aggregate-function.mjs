@@ -1,6 +1,7 @@
-import '../common/index.mjs';
-import { DatabaseSync } from 'node:sqlite';
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import { describe, test } from 'node:test';
+skipIfSQLiteMissing();
+const { DatabaseSync } = await import('node:sqlite');
 
 describe('DatabaseSync.prototype.aggregate()', () => {
   describe('input validation', () => {

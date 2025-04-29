@@ -864,6 +864,12 @@ parser.add_argument('--without-node-options',
     default=None,
     help='build without NODE_OPTIONS support')
 
+parser.add_argument('--without-sqlite',
+    action='store_true',
+    dest='without_sqlite',
+    default=None,
+    help='build without SQLite (disables SQLite and Web Stoage API)')
+
 parser.add_argument('--ninja',
     action='store_true',
     dest='use_ninja',
@@ -1816,6 +1822,16 @@ def configure_openssl(o):
 
   configure_library('openssl', o)
 
+def configure_sqlite(o):
+  o['variables']['node_use_sqlite'] = b(not options.without_sqlite)
+  if options.without_sqlite:
+    def without_sqlite_error(option):
+      error(f'--without-sqlite is incompatible with {option}')
+    if options.shared_sqlite:
+      without_sqlite_error('--shared-sqlite')
+    return
+
+  configure_library('sqlite', o, pkgname='sqlite3')
 
 def configure_static(o):
   if options.fully_static or options.partly_static:
@@ -2259,7 +2275,7 @@ configure_library('cares', output, pkgname='libcares')
 configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
-configure_library('sqlite', output, pkgname='sqlite3')
+configure_sqlite(output);
 configure_library('uvwasi', output, pkgname='libuvwasi')
 configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)

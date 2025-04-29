@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+common.skipIfSQLiteMissing();
 const assert = require('node:assert');
 
 const code = `const sqlite = require('node:sqlite');
