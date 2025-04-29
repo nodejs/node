@@ -406,8 +406,10 @@ added:
 > Stability: 1.0 - Early development
 
 * {boolean} `true` when the current module is the entry point of the current process; `false` otherwise.
-* Equivalent to `require.main === module` in CommonJS.
-* Analogous to Python's `__name__ == "__main__"`.
+
+Equivalent to `require.main === module` in CommonJS.
+
+Analogous to Python's `__name__ == "__main__"`.
 
 ```js
 export function foo() {
