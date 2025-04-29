@@ -1069,6 +1069,18 @@ passing a second `parentURL` argument for contextual resolution.
 
 Previously gated the entire `import.meta.resolve` feature.
 
+### `--experimental-inspector-network-resource`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Enables the Network.loadNetworkResource method in the Chrome DevTools Protocol (CDP) during debugging sessions.
+This feature allows DevTools to fetch additional resources directly through the inspector backend.
+
 ### `--experimental-loader=module`
 
 <!-- YAML

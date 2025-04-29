@@ -1,8 +1,14 @@
 #include "network_agent.h"
 #include "debug_utils-inl.h"
+#include <string>
+#include "env-inl.h"
 #include "inspector/protocol_helper.h"
 #include "network_inspector.h"
+#include "node_metadata.h"
 #include "util-inl.h"
+#include "uv.h"
+#include "uv/unix.h"
+#include "v8-context.h"
 #include "v8.h"
 
 namespace node {
@@ -203,8 +209,13 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 }
 
 NetworkAgent::NetworkAgent(NetworkInspector* inspector,
-                           v8_inspector::V8Inspector* v8_inspector)
-    : inspector_(inspector), v8_inspector_(v8_inspector) {
+                           v8_inspector::V8Inspector* v8_inspector,
+                           Environment* env,
+                           std::shared_ptr<protocol::IoAgent> io_agent)
+    : inspector_(inspector),
+      v8_inspector_(v8_inspector),
+      env_(env),
+      io_agent_(io_agent) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -328,6 +339,166 @@ protocol::DispatchResponse NetworkAgent::streamResourceContent(
   if (request_entry.is_response_finished) {
     // If the request is finished, remove the entry.
     requests_.erase(in_requestId);
+  }
+  return protocol::DispatchResponse::Success();
+}
+
+std::tuple<int, std::string, std::string> NetworkAgent::spawnFetchProcess(
+    std::string_view code, Environment* env, std::string_view url) {
+  std::string stdout_result;
+  std::string stderr_result;
+  uv_loop_t* loop = new uv_loop_t;
+  uv_loop_init(loop);
+  uv_process_t child;
+  uv_pipe_t stdout_pipe;
+  uv_pipe_init(loop, &stdout_pipe, 0);
+  uv_pipe_t stderr_pipe;
+  uv_pipe_init(loop, &stderr_pipe, 0);
+
+  uv_process_options_t uv_process_options;
+  std::string command =
+      env->exec_path() + " --eval \"" + code.data() + "\" -- " + url.data();
+
+#ifdef _WIN32
+  const char* file = "cmd.exe";
+  char* args[] = {
+    const_cast<char*>(file),
+    const_cast<char*>("/d"),
+    const_cast<char*>("/s"),
+    const_cast<char*>("/c"),
+    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+    nullptr
+  };
+#elif defined(__ANDROID__)
+  const char* file = "/system/bin/sh";
+  char* args[] = {
+    const_cast<char*>(file),
+    const_cast<char*>("-c"),
+    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+    nullptr
+  };
+#else
+  const char* file = "/bin/sh";
+  char* args[] = {
+    const_cast<char*>(file),
+    const_cast<char*>("-c"),
+    reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+    nullptr
+  };
+#endif
+
+  uv_stdio_container_t stdio[3];
+  uv_process_options.file = file;
+  uv_process_options.args = args;
+  uv_process_options.flags = 0;
+  uv_process_options.stdio_count = 3;
+  uv_process_options.stdio = stdio;
+  uv_process_options.cwd = nullptr;
+  uv_process_options.env = nullptr;
+
+  uv_process_options.exit_cb =
+      [](uv_process_t* req, int64_t exit_status, int term_signal) {
+        uv_close(reinterpret_cast<uv_handle_t*>(req), nullptr);
+      };
+
+  stdio[0].flags = UV_INHERIT_FD;
+  stdio[0].data.fd = 0;
+  stdio[1].flags =
+      static_cast<uv_stdio_flags>(UV_CREATE_PIPE | UV_WRITABLE_PIPE);
+  stdio[1].data.stream = reinterpret_cast<uv_stream_t*>(&stdout_pipe);
+  stdio[2].flags =
+      static_cast<uv_stdio_flags>(UV_CREATE_PIPE | UV_WRITABLE_PIPE);
+  stdio[2].data.stream = reinterpret_cast<uv_stream_t*>(&stderr_pipe);
+
+  int r = uv_spawn(loop, &child, &uv_process_options);
+
+  if (r != 0) {
+    uv_loop_close(loop);
+    delete loop;
+    return {r, stdout_result, stderr_result};
+  }
+
+  auto alloc_cb =
+      [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
+        buf->base = static_cast<char*>(malloc(suggested_size));
+        buf->len = suggested_size;
+      };
+
+  auto read_cb = [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
+    auto* response = static_cast<std::string*>(stream->data);
+    if (nread > 0) {
+      response->append(buf->base, nread);
+    } else if (nread < 0) {
+      if (!response->empty() && response->back() == '\n') {
+        response->pop_back();
+      }
+      uv_close(reinterpret_cast<uv_handle_t*>(stream), nullptr);
+    }
+    if (buf->base) free(buf->base);
+  };
+
+  stdout_pipe.data = &stdout_result;
+  uv_read_start(
+      reinterpret_cast<uv_stream_t*>(&stdout_pipe), alloc_cb, read_cb);
+
+  stderr_pipe.data = &stderr_result;
+  uv_read_start(
+      reinterpret_cast<uv_stream_t*>(&stderr_pipe), alloc_cb, read_cb);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  uv_walk(
+      loop,
+      [](uv_handle_t* handle, void*) {
+        if (!uv_is_closing(handle)) {
+          uv_close(handle, nullptr);
+        }
+      },
+      nullptr);
+
+  uv_run(loop, UV_RUN_DEFAULT);
+
+  uv_loop_close(loop);
+  delete loop;
+  return {r, stdout_result, stderr_result};
+}
+
+protocol::DispatchResponse NetworkAgent::loadNetworkResource(
+    const protocol::String& in_url,
+    std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
+        out_resource) {
+  if (!env_->options()->experimental_inspector_network_resource) {
+    return protocol::DispatchResponse::MethodNotFound(
+        "Network.loadNetworkResource is not supported in this environment. "
+        "Please enable the experimental-inspector-network-resource option.");
+  }
+  DCHECK(io_agent_);
+
+  std::string code = R"(
+      fetch(process.argv[1], {signal: AbortSignal.timeout(2000) }).then(res => {
+        if (res.ok) {
+          res.text().then(console.log)
+        } else {
+          throw new Error('Network error: ' + res.status);
+        }
+      })
+    )";
+
+  auto [r, response, err] = spawnFetchProcess(code, env_, in_url);
+  if (r == 0 && err.empty()) {
+    std::string uuid = std::to_string(load_id_counter_);
+    load_id_counter_++;
+    io_agent_->setData(uuid, response);
+    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
+                      .setSuccess(true)
+                      .setStream(uuid)
+                      .build();
+    out_resource->reset(result.release());
+  } else {
+    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
+                      .setSuccess(false)
+                      .build();
+    out_resource->reset(result.release());
   }
 
   return protocol::DispatchResponse::Success();
