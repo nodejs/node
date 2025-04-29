@@ -27,6 +27,7 @@ TEST(FNMatchTest, Works) {
   EXPECT_THAT(FNMatch("foo", "bar"), IsFalse());
   EXPECT_THAT(FNMatch("foo", "fo"), IsFalse());
   EXPECT_THAT(FNMatch("foo", "foo2"), IsFalse());
+  EXPECT_THAT(FNMatch("foo/*", "foo/1/2/3/4"), IsTrue());
   EXPECT_THAT(FNMatch("bar/foo.ext", "bar/foo.ext"), IsTrue());
   EXPECT_THAT(FNMatch("*ba*r/fo*o.ext*", "bar/foo.ext"), IsTrue());
   EXPECT_THAT(FNMatch("bar/foo.ext", "bar/baz.ext"), IsFalse());

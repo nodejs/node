@@ -21,10 +21,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr int WaiterBase::kIdlePeriods;
-#endif
-
 void WaiterBase::MaybeBecomeIdle() {
   base_internal::ThreadIdentity *identity =
       base_internal::CurrentThreadIdentityIfPresent();

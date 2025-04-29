@@ -29,9 +29,10 @@ namespace interpreter {
 
 class InterpreterTest : public WithContextMixin<TestWithIsolateAndZone> {
  public:
-  Handle<Object> RunBytecode(Handle<BytecodeArray> bytecode_array,
-                             MaybeHandle<FeedbackMetadata> feedback_metadata =
-                                 MaybeHandle<FeedbackMetadata>()) {
+  DirectHandle<Object> RunBytecode(
+      Handle<BytecodeArray> bytecode_array,
+      MaybeHandle<FeedbackMetadata> feedback_metadata =
+          MaybeHandle<FeedbackMetadata>()) {
     InterpreterTester tester(i_isolate(), bytecode_array, feedback_metadata);
     auto callable = tester.GetCallable<>();
     return callable().ToHandleChecked();
@@ -51,7 +52,7 @@ TEST_F(InterpreterTest, InterpreterReturn) {
   builder.Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(undefined_value));
 }
 
@@ -62,7 +63,7 @@ TEST_F(InterpreterTest, InterpreterLoadUndefined) {
   builder.LoadUndefined().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(undefined_value));
 }
 
@@ -73,7 +74,7 @@ TEST_F(InterpreterTest, InterpreterLoadNull) {
   builder.LoadNull().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(null_value));
 }
 
@@ -84,7 +85,7 @@ TEST_F(InterpreterTest, InterpreterLoadTheHole) {
   builder.LoadTheHole().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(the_hole_value));
 }
 
@@ -95,7 +96,7 @@ TEST_F(InterpreterTest, InterpreterLoadTrue) {
   builder.LoadTrue().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(true_value));
 }
 
@@ -106,7 +107,7 @@ TEST_F(InterpreterTest, InterpreterLoadFalse) {
   builder.LoadFalse().Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> return_val = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_val = RunBytecode(bytecode_array);
   CHECK(return_val.is_identical_to(false_value));
 }
 
@@ -179,7 +180,7 @@ TEST_F(InterpreterTest, InterpreterLoadStoreRegisters) {
         .Return();
     Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-    Handle<Object> return_val = RunBytecode(bytecode_array);
+    DirectHandle<Object> return_val = RunBytecode(bytecode_array);
     CHECK(return_val.is_identical_to(true_value));
   }
 }
@@ -509,11 +510,11 @@ TEST_F(InterpreterTest, InterpreterReceiverParameter) {
   builder.LoadAccumulatorWithRegister(builder.Receiver()).Return();
   Handle<BytecodeArray> bytecode_array = builder.ToBytecodeArray(i_isolate());
 
-  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
+  Handle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
 
   InterpreterTester tester(i_isolate(), bytecode_array);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<Object> return_val = callable(object).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(object).ToHandleChecked();
 
   CHECK(return_val.is_identical_to(object));
 }
@@ -529,7 +530,7 @@ TEST_F(InterpreterTest, InterpreterParameter0) {
 
   // Check for heap objects.
   Handle<Object> true_value = i_isolate()->factory()->true_value();
-  Handle<Object> return_val = callable(true_value).ToHandleChecked();
+  DirectHandle<Object> return_val = callable(true_value).ToHandleChecked();
   CHECK(return_val.is_identical_to(true_value));
 
   // Check for Smis.
@@ -571,7 +572,7 @@ TEST_F(InterpreterTest, InterpreterParameter8) {
   using H = Handle<Object>;
   auto callable = tester.GetCallableWithReceiver<H, H, H, H, H, H, H>();
 
-  Handle<Smi> arg1 = Handle<Smi>(Smi::FromInt(1), i_isolate());
+  DirectHandle<Smi> arg1 = DirectHandle<Smi>(Smi::FromInt(1), i_isolate());
   Handle<Smi> arg2 = Handle<Smi>(Smi::FromInt(2), i_isolate());
   Handle<Smi> arg3 = Handle<Smi>(Smi::FromInt(3), i_isolate());
   Handle<Smi> arg4 = Handle<Smi>(Smi::FromInt(4), i_isolate());
@@ -605,7 +606,9 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
        BinaryOperationFeedback::kSignedSmall},
       {Token::kAdd, LiteralForTest(Smi::kMaxValue), LiteralForTest(1),
        i_isolate()->factory()->NewHeapNumber(Smi::kMaxValue + 1.0),
-       BinaryOperationFeedback::kNumber},
+       v8_flags.additive_safe_int_feedback
+           ? BinaryOperationFeedback::kAdditiveSafeInteger
+           : BinaryOperationFeedback::kNumber},
       {Token::kAdd, LiteralForTest(3.1415), LiteralForTest(3),
        i_isolate()->factory()->NewHeapNumber(3.1415 + 3),
        BinaryOperationFeedback::kNumber},
@@ -711,7 +714,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpTypeFeedback) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallable<>();
 
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
@@ -739,7 +742,9 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
        BinaryOperationFeedback::kSignedSmall},
       {Token::kAdd, LiteralForTest(2), Smi::kMaxValue,
        i_isolate()->factory()->NewHeapNumber(Smi::kMaxValue + 2.0),
-       BinaryOperationFeedback::kNumber},
+       v8_flags.additive_safe_int_feedback
+           ? BinaryOperationFeedback::kAdditiveSafeInteger
+           : BinaryOperationFeedback::kNumber},
       {Token::kAdd, LiteralForTest(3.1415), 2,
        i_isolate()->factory()->NewHeapNumber(3.1415 + 2.0),
        BinaryOperationFeedback::kNumber},
@@ -819,7 +824,7 @@ TEST_F(InterpreterTest, InterpreterBinaryOpSmiTypeFeedback) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallable<>();
 
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     Tagged<MaybeObject> feedback0 = callable.vector()->Get(slot0);
     CHECK(IsSmi(feedback0));
     CHECK_EQ(test_case.feedback, feedback0.ToSmi().value());
@@ -974,7 +979,8 @@ TEST_F(InterpreterTest, InterpreterParameter1Assign) {
   auto callable = tester.GetCallableWithReceiver<>();
 
   DirectHandle<Object> return_val =
-      callable(Handle<Smi>(Smi::FromInt(3), i_isolate())).ToHandleChecked();
+      callable(DirectHandle<Smi>(Smi::FromInt(3), i_isolate()))
+          .ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(5));
 }
 
@@ -1009,7 +1015,7 @@ TEST_F(InterpreterTest, InterpreterStoreGlobal) {
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
-  Handle<i::String> name = factory->InternalizeUtf8String("global");
+  DirectHandle<i::String> name = factory->InternalizeUtf8String("global");
   DirectHandle<i::Object> global_obj =
       Object::GetProperty(i_isolate(), i_isolate()->global_object(), name)
           .ToHandleChecked();
@@ -1063,7 +1069,7 @@ TEST_F(InterpreterTest, InterpreterStoreUnallocated) {
   auto callable = tester.GetCallable<>();
 
   callable().ToHandleChecked();
-  Handle<i::String> name = factory->InternalizeUtf8String("unallocated");
+  DirectHandle<i::String> name = factory->InternalizeUtf8String("unallocated");
   DirectHandle<i::Object> global_obj =
       Object::GetProperty(i_isolate(), i_isolate()->global_object(), name)
           .ToHandleChecked();
@@ -1091,7 +1097,7 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
 
-  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
   DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
@@ -1101,19 +1107,19 @@ TEST_F(InterpreterTest, InterpreterLoadNamedProperty) {
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to polymorphic IC.
-  Handle<Object> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   return_val = callable(object2).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(456));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<Object> object4 =
+  DirectHandle<JSAny> object4 =
       InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<Object> object5 =
+  DirectHandle<JSAny> object5 =
       InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   return_val = callable(object5).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(789));
@@ -1142,7 +1148,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
 
-  Handle<Object> object = InterpreterTester::NewObject("({ key : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ key : 123 })");
   // Test IC miss.
   DirectHandle<Object> return_val = callable(object).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
@@ -1152,7 +1158,7 @@ TEST_F(InterpreterTest, InterpreterLoadKeyedProperty) {
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(123));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ key : 789, val2 : 123 })");
   return_val = callable(object3).ToHandleChecked();
   CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(789));
@@ -1181,9 +1187,9 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
 
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  Handle<Object> result;
+  DirectHandle<Object> result;
   callable(object).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object, name->string())
             .ToHandle(&result));
@@ -1196,7 +1202,7 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to polymorphic IC.
-  Handle<Object> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object2, name->string())
@@ -1204,13 +1210,13 @@ TEST_F(InterpreterTest, InterpreterSetNamedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object3 =
+  DirectHandle<JSAny> object3 =
       InterpreterTester::NewObject("({ val : 789, val2 : 123 })");
   callable(object3).ToHandleChecked();
-  Handle<Object> object4 =
+  DirectHandle<JSAny> object4 =
       InterpreterTester::NewObject("({ val : 789, val3 : 123 })");
   callable(object4).ToHandleChecked();
-  Handle<Object> object5 =
+  DirectHandle<JSAny> object5 =
       InterpreterTester::NewObject("({ val : 789, val4 : 123 })");
   callable(object5).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object5, name->string())
@@ -1243,9 +1249,9 @@ TEST_F(InterpreterTest, InterpreterSetKeyedProperty) {
 
   InterpreterTester tester(i_isolate(), bytecode_array, metadata);
   auto callable = tester.GetCallableWithReceiver<>();
-  Handle<Object> object = InterpreterTester::NewObject("({ val : 123 })");
+  DirectHandle<JSAny> object = InterpreterTester::NewObject("({ val : 123 })");
   // Test IC miss.
-  Handle<Object> result;
+  DirectHandle<Object> result;
   callable(object).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object, name->string())
             .ToHandle(&result));
@@ -1258,7 +1264,7 @@ TEST_F(InterpreterTest, InterpreterSetKeyedProperty) {
   CHECK_EQ(Cast<Smi>(*result), Smi::FromInt(999));
 
   // Test transition to megamorphic IC.
-  Handle<Object> object2 =
+  DirectHandle<JSAny> object2 =
       InterpreterTester::NewObject("({ val : 456, other : 123 })");
   callable(object2).ToHandleChecked();
   CHECK(Runtime::GetObjectProperty(i_isolate(), object2, name->string())
@@ -1301,7 +1307,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<Object> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { this.func = function() { return 0x265; }})()");
     DirectHandle<Object> return_val = callable(object).ToHandleChecked();
     CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(0x265));
@@ -1327,7 +1333,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<Object> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() {"
         "  this.val = 1234;"
         "  this.func = function() { return this.val; };"
@@ -1365,7 +1371,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<Object> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.func = function(a, b) { return a - b; }"
         "})()");
@@ -1418,7 +1424,7 @@ TEST_F(InterpreterTest, InterpreterCall) {
     InterpreterTester tester(i_isolate(), bytecode_array, metadata);
     auto callable = tester.GetCallableWithReceiver<>();
 
-    Handle<Object> object = InterpreterTester::NewObject(
+    DirectHandle<JSAny> object = InterpreterTester::NewObject(
         "new (function Obj() { "
         "  this.prefix = \"prefix_\";"
         "  this.func = function(a, b, c, d, e, f, g, h, i, j) {"
@@ -1629,7 +1635,7 @@ TEST_F(InterpreterTest, InterpreterJumpConstantWith16BitOperand) {
     CHECK(found_16bit_constant_jump);
   }
 
-  Handle<Object> return_value = RunBytecode(bytecode_array, metadata);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array, metadata);
   CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 256.0 / 2 * (1.5 + 256.5));
 }
 
@@ -1643,7 +1649,7 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
   builder.LoadLiteral(Smi::zero());
   builder.StoreAccumulatorInRegister(reg);
   // Consume all 16-bit constant pool entries. Make sure to use doubles so that
-  // the jump can't re-use an integer.
+  // the jump can't reuse an integer.
   for (int i = 1; i <= 65536; i++) {
     builder.LoadLiteral(i + 0.5);
   }
@@ -1669,7 +1675,7 @@ TEST_F(InterpreterTest, InterpreterJumpWith32BitOperand) {
     CHECK(found_32bit_jump);
   }
 
-  Handle<Object> return_value = RunBytecode(bytecode_array);
+  DirectHandle<Object> return_value = RunBytecode(bytecode_array);
   CHECK_EQ(Cast<HeapNumber>(return_value)->value(), 65536.5);
 }
 
@@ -2906,7 +2912,7 @@ TEST_F(InterpreterTest, InterpreterCreateArguments) {
   for (size_t i = 0; i < arraysize(create_args); i++) {
     InterpreterTester tester(i_isolate(), create_args[i].first);
     auto callable = tester.GetCallable<>();
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     CHECK(return_val.is_identical_to(factory->undefined_value()));
   }
 
@@ -2914,7 +2920,7 @@ TEST_F(InterpreterTest, InterpreterCreateArguments) {
   for (size_t i = 0; i < arraysize(create_args); i++) {
     InterpreterTester tester(i_isolate(), create_args[i].first);
     auto callable = tester.GetCallable<Handle<Object>>();
-    Handle<Object> return_val =
+    DirectHandle<Object> return_val =
         callable(handle(Smi::FromInt(40), i_isolate())).ToHandleChecked();
     if (create_args[i].second == 0) {
       CHECK_EQ(Cast<Smi>(*return_val), Smi::FromInt(40));
@@ -4322,7 +4328,7 @@ TEST_F(InterpreterTest, InterpreterCallWideRegisters) {
     std::string source = InterpreterTester::SourceForBody(os.str().c_str());
     InterpreterTester tester(i_isolate(), source.c_str());
     auto callable = tester.GetCallable();
-    Handle<Object> return_val = callable().ToHandleChecked();
+    DirectHandle<Object> return_val = callable().ToHandleChecked();
     DirectHandle<String> return_string = Cast<String>(return_val);
     CHECK_EQ(return_string->length(), kLength);
     for (int i = 0; i < kLength; i += 1) {
@@ -4814,7 +4820,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions) {
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
-  Handle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
   DirectHandle<BytecodeArray> bytecode_array(sfi->GetBytecodeArray(i_isolate()),
                                              i_isolate());
   CHECK(!bytecode_array->HasSourcePositionTable());
@@ -4840,7 +4846,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_StackOverflow) {
       Cast<JSFunction>(v8::Utils::OpenDirectHandle(
           *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
-  Handle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
+  DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
   DirectHandle<BytecodeArray> bytecode_array(sfi->GetBytecodeArray(i_isolate()),
                                              i_isolate());
   CHECK(!bytecode_array->HasSourcePositionTable());
@@ -4875,7 +4881,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4886,9 +4892,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom1stFrame) {
 
   {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
-    MaybeHandle<Object> result = Execution::Call(
-        i_isolate(), function,
-        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0, nullptr);
+    MaybeDirectHandle<Object> result = Execution::Call(
+        i_isolate(), function, i_isolate()->factory()->undefined_value(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
   }
@@ -4911,7 +4916,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4922,9 +4927,8 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_ThrowFrom2ndFrame) {
 
   {
     v8::TryCatch try_catch(reinterpret_cast<v8::Isolate*>(i_isolate()));
-    MaybeHandle<Object> result = Execution::Call(
-        i_isolate(), function,
-        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0, nullptr);
+    MaybeDirectHandle<Object> result = Execution::Call(
+        i_isolate(), function, i_isolate()->factory()->undefined_value(), {});
     CHECK(result.is_null());
     CHECK(try_catch.HasCaught());
   }
@@ -4944,7 +4948,8 @@ void CheckStringEqual(const char* expected_ptr, const char* actual_ptr) {
   CHECK_EQ(expected, actual);
 }
 
-void CheckStringEqual(const char* expected_ptr, Handle<Object> actual_handle) {
+void CheckStringEqual(const char* expected_ptr,
+                      DirectHandle<Object> actual_handle) {
   v8::String::Utf8Value utf8(v8::Isolate::GetCurrent(),
                              v8::Utils::ToLocal(Cast<String>(actual_handle)));
   CheckStringEqual(expected_ptr, *utf8);
@@ -4967,7 +4972,7 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
       });
       )javascript";
 
-  Handle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
+  DirectHandle<JSFunction> function = Cast<JSFunction>(v8::Utils::OpenHandle(
       *v8::Local<v8::Function>::Cast(CompileRun(source))));
 
   DirectHandle<SharedFunctionInfo> sfi(function->shared(), i_isolate());
@@ -4976,10 +4981,9 @@ TEST_F(InterpreterTest, InterpreterCollectSourcePositions_GenerateStackTrace) {
   CHECK(!bytecode_array->HasSourcePositionTable());
 
   {
-    Handle<Object> result =
+    DirectHandle<Object> result =
         Execution::Call(i_isolate(), function,
-                        ReadOnlyRoots(i_isolate()).undefined_value_handle(), 0,
-                        nullptr)
+                        i_isolate()->factory()->undefined_value(), {})
             .ToHandleChecked();
     CheckStringEqual("Error\n    at <anonymous>:4:17", result);
   }

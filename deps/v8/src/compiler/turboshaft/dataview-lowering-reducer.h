@@ -24,6 +24,7 @@ class DataViewLoweringReducer : public Next {
         return value;
       case kExternalInt16Array:
         return __ Word32ShiftRightArithmetic(__ Word32ReverseBytes(value), 16);
+      case kExternalFloat16Array:
       case kExternalUint16Array:
         return __ Word32ShiftRightLogical(__ Word32ReverseBytes(value), 16);
       case kExternalInt32Array:
@@ -50,8 +51,6 @@ class DataViewLoweringReducer : public Next {
       case kExternalBigInt64Array:
       case kExternalBigUint64Array:
         return __ Word64ReverseBytes(value);
-      case kExternalFloat16Array:
-        UNIMPLEMENTED();
     }
   }
 

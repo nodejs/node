@@ -15,7 +15,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 struct ElementAccess;
-class Graph;
+class TFGraph;
 class JSGraph;
 class MachineOperatorBuilder;
 class Node;
@@ -119,7 +119,7 @@ class MemoryLowering final : public Reducer {
   // defined.
   Node* AlignToAllocationAlignment(Node* address);
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   Isolate* isolate() const { return isolate_; }
   Zone* zone() const { return zone_; }
   inline Zone* graph_zone() const;
@@ -131,7 +131,7 @@ class MemoryLowering final : public Reducer {
   SetOncePointer<Node> wasm_instance_node_;
   Isolate* isolate_;
   Zone* zone_;
-  Graph* graph_;
+  TFGraph* graph_;
   CommonOperatorBuilder* common_;
   MachineOperatorBuilder* machine_;
   JSGraphAssembler* graph_assembler_;

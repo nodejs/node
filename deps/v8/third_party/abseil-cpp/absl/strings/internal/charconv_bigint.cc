@@ -279,7 +279,7 @@ int BigUnsigned<max_words>::ReadDigits(const char* begin, const char* end,
     // Either way, [begin, decimal_point) will contain the set of dropped digits
     // that require an exponent adjustment.
     const char* decimal_point = std::find(begin, end, '.');
-    exponent_adjust += (decimal_point - begin);
+    exponent_adjust += static_cast<int>(decimal_point - begin);
   }
   return exponent_adjust;
 }

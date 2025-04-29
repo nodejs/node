@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_UNITTESTS_FUZZTEST_H_
+#define V8_UNITTESTS_FUZZTEST_H_
+
 /*
   Macros to define fuzz tests in V8 (https://github.com/google/fuzztest/).
   The macros are no-ops with unsupported configurations.
@@ -30,9 +33,6 @@
   // New fuzz test.
   V8_FUZZ_TEST_F(NewFuzzTest, MyParameterizedTestP).WithDomains(...);
 */
-
-#ifndef V8_UNITTESTS_FUZZTEST_H_
-#define V8_UNITTESTS_FUZZTEST_H_
 
 #ifdef V8_ENABLE_FUZZTEST
 #include "test/unittests/fuzztest-adapter.h"

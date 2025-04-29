@@ -60,8 +60,8 @@ namespace log_internal {
 
 // Helper for `ABSL_DIE_IF_NULL`.
 template <typename T>
-ABSL_MUST_USE_RESULT T DieIfNull(const char* file, int line,
-                                 const char* exprtext, T&& t) {
+[[nodiscard]] T DieIfNull(const char* file, int line, const char* exprtext,
+                          T&& t) {
   if (ABSL_PREDICT_FALSE(t == nullptr)) {
     // Call a non-inline helper function for a small code size improvement.
     DieBecauseNull(file, line, exprtext);

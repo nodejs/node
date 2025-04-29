@@ -13,14 +13,14 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-class Graph;
+class TFGraph;
 
 // Elide all the Bitcast and TruncateInt64ToInt32 nodes which are required by
 // MachineGraphVerifier. This avoid generating redundant move instructions in
 // instruction selection phase.
 class BitcastElider {
  public:
-  BitcastElider(Zone* zone, Graph* graph, bool is_builtin);
+  BitcastElider(Zone* zone, TFGraph* graph, bool is_builtin);
   ~BitcastElider() = default;
 
   void Reduce();
@@ -31,7 +31,7 @@ class BitcastElider {
   void ProcessGraph();
 
  private:
-  Graph* const graph_;
+  TFGraph* const graph_;
   ZoneQueue<Node*> to_visit_;
   NodeMarker<bool> seen_;
   bool is_builtin_;

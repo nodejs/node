@@ -431,8 +431,6 @@ int NativeRegExpMacroAssembler::Execute(
     int start_offset, const uint8_t* input_start, const uint8_t* input_end,
     int* output, int output_size, Isolate* isolate,
     Tagged<IrRegExpData> regexp_data) {
-  RegExpStackScope stack_scope(isolate);
-
   bool is_one_byte = String::IsOneByteRepresentationUnderneath(input);
   Tagged<Code> code = regexp_data->code(isolate, is_one_byte);
   RegExp::CallOrigin call_origin = RegExp::CallOrigin::kFromRuntime;

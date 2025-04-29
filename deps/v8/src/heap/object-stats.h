@@ -82,6 +82,8 @@
   V(STRING_EXTERNAL_RESOURCE_TWO_BYTE_TYPE)      \
   V(SOURCE_POSITION_TABLE_TYPE)                  \
   V(UNCOMPILED_SHARED_FUNCTION_INFO_TYPE)        \
+  V(WASTED_DESCRIPTOR_ARRAY_DETAILS_TYPE)        \
+  V(WASTED_DESCRIPTOR_ARRAY_VALUES_TYPE)         \
   V(WEAK_NEW_SPACE_OBJECT_TO_CODE_TYPE)
 
 namespace v8 {
@@ -97,7 +99,7 @@ class ObjectStats {
   explicit ObjectStats(Heap* heap) : heap_(heap) { ClearObjectStats(true); }
 
   // See description on VIRTUAL_INSTANCE_TYPE_LIST.
-  enum VirtualInstanceType {
+  enum class VirtualInstanceType {
 #define DEFINE_VIRTUAL_INSTANCE_TYPE(type) type,
     VIRTUAL_INSTANCE_TYPE_LIST(DEFINE_VIRTUAL_INSTANCE_TYPE)
 #undef DEFINE_FIXED_ARRAY_SUB_INSTANCE_TYPE
@@ -109,7 +111,8 @@ class ObjectStats {
   // another.
   static constexpr int FIRST_VIRTUAL_TYPE = LAST_TYPE + 1;
   static constexpr int OBJECT_STATS_COUNT =
-      FIRST_VIRTUAL_TYPE + LAST_VIRTUAL_TYPE + 1;
+      FIRST_VIRTUAL_TYPE +
+      static_cast<int>(VirtualInstanceType::LAST_VIRTUAL_TYPE) + 1;
 
   void ClearObjectStats(bool clear_last_time_stats = false);
 

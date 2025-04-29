@@ -165,8 +165,7 @@ struct ZipBuffer {
 // writing compressed data and it returns NULL for this case.)
 void* OpenZipBuffer(void* opaque, const void* /*filename*/, int mode) {
   if ((mode & ZLIB_FILEFUNC_MODE_READWRITEFILTER) != ZLIB_FILEFUNC_MODE_READ) {
-    NOTREACHED_IN_MIGRATION();
-    return NULL;
+    NOTREACHED();
   }
   ZipBuffer* buffer = static_cast<ZipBuffer*>(opaque);
   if (!buffer || !buffer->data || !buffer->length)
@@ -196,8 +195,7 @@ uLong WriteZipBuffer(void* /*opaque*/,
                      void* /*stream*/,
                      const void* /*buf*/,
                      uLong /*size*/) {
-  NOTREACHED_IN_MIGRATION();
-  return 0;
+  NOTREACHED();
 }
 
 // Returns the offset from the beginning of the data.
@@ -228,8 +226,7 @@ long SeekZipBuffer(void* opaque,
     buffer->offset = std::min(buffer->length, offset);
     return 0;
   }
-  NOTREACHED_IN_MIGRATION();
-  return -1;
+  NOTREACHED();
 }
 
 // Closes the input offset and deletes all resources used for compressing or
@@ -400,14 +397,14 @@ Compression GetCompressionMethod(const base::FilePath& path) {
 
 
   // Skip the leading dot.
-  base::FilePath::StringPieceType ext_without_dot = ext;
+  base::FilePath::StringViewType ext_without_dot = ext;
   DCHECK_EQ(ext_without_dot.front(), FILE_PATH_LITERAL('.'));
   ext_without_dot.remove_prefix(1);
 
   // Well known filename extensions of files that a likely to be already
   // compressed. The extensions are in lower case without the leading dot.
   static constexpr auto kExts =
-      base::MakeFixedFlatSet<base::FilePath::StringPieceType>({
+      base::MakeFixedFlatSet<base::FilePath::StringViewType>({
           FILE_PATH_LITERAL("3g2"),   //
           FILE_PATH_LITERAL("3gp"),   //
           FILE_PATH_LITERAL("7z"),    //

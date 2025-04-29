@@ -128,6 +128,12 @@ class DoublyThreadedList {
     return iterator{next};
   }
 
+  bool Contains(T needle) const {
+    const bool in_use = DTLTraits::in_use(needle);
+    DCHECK_EQ(in_use, ContainsSlow(needle));
+    return in_use;
+  }
+
   bool ContainsSlow(T needle) const {
     for (T element : *this) {
       if (element == needle) {

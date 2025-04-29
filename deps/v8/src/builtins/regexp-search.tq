@@ -40,8 +40,8 @@ extern macro RegExpBuiltinsAssembler::BranchIfRegExpResult(
     implicit context: Context)(Object): never labels IsUnmodified,
     IsModified;
 
-macro IsRegExpResult(implicit context: Context)(execResult: HeapObject):
-    bool {
+macro IsRegExpResult(implicit context: Context)(
+                        execResult: HeapObject): bool {
   BranchIfRegExpResult(execResult) otherwise return true, return false;
 }
 

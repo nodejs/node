@@ -5,8 +5,10 @@
 #ifndef V8_SNAPSHOT_SERIALIZER_INL_H_
 #define V8_SNAPSHOT_SERIALIZER_INL_H_
 
-#include "src/roots/roots-inl.h"
 #include "src/snapshot/serializer.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/roots/roots-inl.h"
 
 namespace v8 {
 namespace internal {

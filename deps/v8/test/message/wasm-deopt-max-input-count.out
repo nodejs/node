@@ -1,0 +1,6 @@
+[function 2: call #0 inlineable (monomorphic)]
+[function 2: expanding topmost caller... budget=min({NUMBER}, {NUMBER}), size 13->13 queueing 1 callee(s)]
+[function 2: in function 2, considering call #0, case #0, to function 0 (count=1, size=7, score={NUMBER})... budget=min({NUMBER}, {NUMBER}), size 13->20 decided to inline! no feedback yet or no callees]
+[function 2: Disabling deoptimizations for speculative inlining as the deoptimization FrameState takes too many inputs (508 vs. 500)]
+[function 2: Speculatively inlining call_ref #0, case #0, to function 0]
+[function 2: emitted {NUMBER} nodes]

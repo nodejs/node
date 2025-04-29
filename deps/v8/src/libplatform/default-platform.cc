@@ -215,10 +215,10 @@ void DefaultPlatform::PostTaskOnWorkerThreadImpl(
     TaskPriority priority, std::unique_ptr<Task> task,
     const SourceLocation& location) {
   // If this DCHECK fires, then this means that either
-  // - V8 is running without the --single-threaded flag but
-  //   but the platform was created as a single-threaded platform.
-  // - or some component in V8 is ignoring --single-threaded
-  //   and posting a background task.
+  // - V8 is running without the --single-threaded flag but the platform was
+  //   created as a single-threaded platform or
+  // - some component in V8 is ignoring --single-threaded and posting a
+  //   background task.
   int index = priority_to_index(priority);
   DCHECK_NOT_NULL(worker_threads_task_runners_[index]);
   worker_threads_task_runners_[index]->PostTask(std::move(task));

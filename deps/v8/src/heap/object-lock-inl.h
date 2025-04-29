@@ -5,39 +5,30 @@
 #ifndef V8_HEAP_OBJECT_LOCK_INL_H_
 #define V8_HEAP_OBJECT_LOCK_INL_H_
 
-#include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/object-lock.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/mutable-page-metadata-inl.h"
 
 namespace v8 {
 namespace internal {
 
 // static
-void ExclusiveObjectLock::Lock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)
-      ->shared_mutex()
-      ->LockExclusive();
+void ObjectLock::Lock(Tagged<HeapObject> heap_object) {
+  MutablePageMetadata::FromHeapObject(heap_object)->object_mutex().Lock();
 }
 
 // static
-void ExclusiveObjectLock::Unlock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)
-      ->shared_mutex()
-      ->UnlockExclusive();
+void ObjectLock::Unlock(Tagged<HeapObject> heap_object) {
+  MutablePageMetadata::FromHeapObject(heap_object)->object_mutex().Unlock();
 }
 
-// static
-void SharedObjectLock::Lock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)
-      ->shared_mutex()
-      ->LockShared();
+ObjectLockGuard::ObjectLockGuard(Tagged<HeapObject> object)
+    : raw_object_(object) {
+  ObjectLock::Lock(object);
 }
 
-// static
-void SharedObjectLock::Unlock(Tagged<HeapObject> heap_object) {
-  MutablePageMetadata::FromHeapObject(heap_object)
-      ->shared_mutex()
-      ->UnlockShared();
-}
+ObjectLockGuard::~ObjectLockGuard() { ObjectLock::Unlock(raw_object_); }
 
 }  // namespace internal
 }  // namespace v8

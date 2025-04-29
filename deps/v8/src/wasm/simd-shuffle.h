@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_WASM_SIMD_SHUFFLE_H_
+#define V8_WASM_SIMD_SHUFFLE_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_WASM_SIMD_SHUFFLE_H_
-#define V8_WASM_SIMD_SHUFFLE_H_
 
 #include "src/base/macros.h"
 #include "src/common/globals.h"
@@ -47,11 +47,11 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // |inputs_equal| true if this is an explicit swizzle. Returns canonicalized
   // |shuffle|, |needs_swap|, and |is_swizzle|. If |needs_swap| is true, inputs
   // must be swapped. If |is_swizzle| is true, the second input can be ignored.
-  template <const int simd_size = kSimd128Size,
-            typename = std::enable_if_t<simd_size == kSimd128Size ||
-                                        simd_size == kSimd256Size>>
+  template <const int simd_size = kSimd128Size>
   static void CanonicalizeShuffle(bool inputs_equal, uint8_t* shuffle,
-                                  bool* needs_swap, bool* is_swizzle) {
+                                  bool* needs_swap, bool* is_swizzle)
+    requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
+  {
     *needs_swap = false;
     // Inputs equal, then it's a swizzle.
     if (inputs_equal) {
@@ -135,10 +135,25 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static bool TryMatch32x4OneLaneSwizzle(const uint8_t* shuffle32x4,
                                          uint8_t* from, uint8_t* to);
 
+  // Tries to match an 8x8 byte shuffle to an equivalent 64x1 shuffle. If
+  // successful, it writes the 64x1 shuffle word indices. E.g.
+  // [8 9 10 11 12 13 14 15] == [1]
+  static bool TryMatch64x1Shuffle(const uint8_t* shuffle, uint8_t* shuffle64x1);
+
   // Tries to match an 8x16 byte shuffle to an equivalent 64x2 shuffle. If
   // successful, it writes the 64x2 shuffle word indices. E.g.
   // [8 9 10 11 12 13 14 15 0 1 2 3 4 5 6 7] == [1 0]
   static bool TryMatch64x2Shuffle(const uint8_t* shuffle, uint8_t* shuffle64x2);
+
+  // Tries to match an 8x4 byte shuffle to an equivalent 32x1 shuffle. If
+  // successful, it writes the 32x1 shuffle word indices. E.g.
+  // [8 9 10 11] == [2]
+  static bool TryMatch32x1Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x1);
+
+  // Tries to match an 8x8 byte shuffle to an equivalent 32x2 shuffle. If
+  // successful, it writes the 32x2 shuffle word indices. E.g.
+  // [0 1 2 3 8 9 10 11] == [0 2]
+  static bool TryMatch32x2Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x2);
 
   // Tries to match an 8x16 byte shuffle to an equivalent 32x4 shuffle. If
   // successful, it writes the 32x4 shuffle word indices. E.g.
@@ -150,6 +165,21 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   // [0 1 2 3 8 9 10 11 4 5 6 7 12 13 14 15 16 17 18 19 24 25 26 27 20 21 22 23
   //  28 29 30 31 == [0 2 1 3 4 6 5 7]
   static bool TryMatch32x8Shuffle(const uint8_t* shuffle, uint8_t* shuffle32x8);
+
+  // Tries to match an 8x2 byte shuffle to an equivalent 16x1 shuffle. If
+  // successful, it writes the 16x1 shuffle word indices. E.g.
+  // [8 9] == [4]
+  static bool TryMatch16x1Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x1);
+
+  // Tries to match an 8x4 byte shuffle to an equivalent 16x2 shuffle. If
+  // successful, it writes the 16x2 shuffle word indices. E.g.
+  // [0 1 8 9] == [0 4]
+  static bool TryMatch16x2Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x2);
+
+  // Tries to match an 8x8 byte shuffle to an equivalent 16x4 shuffle. If
+  // successful, it writes the 16x4 shuffle word indices. E.g.
+  // [0 1 8 9 2 3 10 11] == [0 4 1 5]
+  static bool TryMatch16x4Shuffle(const uint8_t* shuffle, uint8_t* shuffle16x4);
 
   // Tries to match an 8x16 byte shuffle to an equivalent 16x8 shuffle. If
   // successful, it writes the 16x8 shuffle word indices. E.g.
@@ -212,10 +242,49 @@ class V8_EXPORT_PRIVATE SimdShuffle {
   static uint8_t PackBlend8(const uint8_t* shuffle16x8);
   // Gets an 8 bit lane mask suitable for 32x4 pblendw.
   static uint8_t PackBlend4(const uint8_t* shuffle32x4);
+  // Packs 2 bytes of shuffle into a 32 bit immediate.
+  static int32_t Pack2Lanes(const std::array<uint8_t, 2>& shuffle);
   // Packs 4 bytes of shuffle into a 32 bit immediate.
   static int32_t Pack4Lanes(const uint8_t* shuffle);
   // Packs 16 bytes of shuffle into an array of 4 uint32_t.
   static void Pack16Lanes(uint32_t* dst, const uint8_t* shuffle);
+
+  enum class CanonicalShuffle : uint8_t {
+    kUnknown,
+    kIdentity,
+    kS64x2Even,
+    kS64x2Odd,
+    kS64x2ReverseBytes,
+    kS64x2Reverse,
+    kS32x4Even,
+    kS32x4Odd,
+    kS32x4InterleaveLowHalves,
+    kS32x4InterleaveHighHalves,
+    kS32x4ReverseBytes,
+    kS32x4Reverse,
+    kS32x2Reverse,
+    kS32x4TransposeEven,
+    kS32x4TransposeOdd,
+    kS16x8Even,
+    kS16x8Odd,
+    kS16x8InterleaveLowHalves,
+    kS16x8InterleaveHighHalves,
+    kS16x8ReverseBytes,
+    kS16x2Reverse,
+    kS16x4Reverse,
+    kS16x8TransposeEven,
+    kS16x8TransposeOdd,
+    kS8x16Even,
+    kS8x16Odd,
+    kS8x16InterleaveLowHalves,
+    kS8x16InterleaveHighHalves,
+    kS8x16TransposeEven,
+    kS8x16TransposeOdd,
+    kMaxShuffles,
+  };
+
+  using ShuffleArray = std::array<uint8_t, kSimd128Size>;
+  static CanonicalShuffle TryMatchCanonical(const ShuffleArray& shuffle);
 
 #ifdef V8_TARGET_ARCH_X64
   // If matching success, the corresponding instrution should be:
@@ -330,12 +399,11 @@ class V8_EXPORT_PRIVATE SimdShuffle {
         24, 25, 26, 27, 56, 57, 58, 59, 28, 29, 30, 31, 60, 61, 62, 63},
        compiler::kX64S32x8UnpackHigh}};
 
-  template <int simd_size,
-            typename = std::enable_if_t<simd_size == kSimd128Size ||
-                                        simd_size == kSimd256Size>>
-  static bool TryMatchArchShuffle(
-      const uint8_t* shuffle, bool is_swizzle,
-      const ShuffleEntry<simd_size>** arch_shuffle) {
+  template <int simd_size>
+  static bool TryMatchArchShuffle(const uint8_t* shuffle, bool is_swizzle,
+                                  const ShuffleEntry<simd_size>** arch_shuffle)
+    requires(simd_size == kSimd128Size || simd_size == kSimd256Size)
+  {
     uint8_t mask = is_swizzle ? simd_size - 1 : 2 * simd_size - 1;
 
     const ShuffleEntry<simd_size>* table;

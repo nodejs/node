@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 //
 // Flags: --maglev --allow-natives-syntax
+// Flags: --no-optimize-maglev-optimizes-to-turbofan
 
 // This object will later have a deprecated map.
 let o1 = {y: 0, a: 1};

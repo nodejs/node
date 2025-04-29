@@ -6,7 +6,6 @@
 #define V8_OBJECTS_WAITER_QUEUE_NODE_H_
 
 #include "src/base/platform/condition-variable.h"
-#include "src/base/platform/mutex.h"
 
 namespace v8 {
 

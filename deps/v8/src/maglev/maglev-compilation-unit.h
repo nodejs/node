@@ -29,9 +29,9 @@ class MaglevCompilationUnit : public ZoneObject {
   static MaglevCompilationUnit* NewInner(
       Zone* zone, const MaglevCompilationUnit* caller,
       compiler::SharedFunctionInfoRef shared_function_info,
-      compiler::FeedbackVectorRef feedback_vector) {
+      compiler::FeedbackCellRef feedback_cell) {
     return zone->New<MaglevCompilationUnit>(
-        caller->info(), caller, shared_function_info, feedback_vector);
+        caller->info(), caller, shared_function_info, feedback_cell);
   }
   static MaglevCompilationUnit* NewDummy(Zone* zone,
                                          const MaglevCompilationUnit* caller,
@@ -48,7 +48,7 @@ class MaglevCompilationUnit : public ZoneObject {
   MaglevCompilationUnit(MaglevCompilationInfo* info,
                         const MaglevCompilationUnit* caller,
                         compiler::SharedFunctionInfoRef shared_function_info,
-                        compiler::FeedbackVectorRef feedback_vector);
+                        compiler::FeedbackCellRef feedback_cell);
 
   MaglevCompilationUnit(MaglevCompilationInfo* info,
                         const MaglevCompilationUnit* caller, int register_count,
@@ -72,16 +72,22 @@ class MaglevCompilationUnit : public ZoneObject {
     return shared_function_info_.value();
   }
   compiler::BytecodeArrayRef bytecode() const { return bytecode_.value(); }
-  compiler::FeedbackVectorRef feedback() const { return feedback_.value(); }
+  compiler::FeedbackCellRef feedback_cell() const {
+    return feedback_cell_.value();
+  }
+  compiler::FeedbackVectorRef feedback() const {
+    return feedback_cell().feedback_vector((broker())).value();
+  }
 
   void RegisterNodeInGraphLabeller(const Node* node);
+  const MaglevCompilationUnit* GetTopLevelCompilationUnit() const;
 
  private:
   MaglevCompilationInfo* const info_;
   const MaglevCompilationUnit* const caller_;
   const compiler::OptionalSharedFunctionInfoRef shared_function_info_;
   const compiler::OptionalBytecodeArrayRef bytecode_;
-  const compiler::OptionalFeedbackVectorRef feedback_;
+  const compiler::OptionalFeedbackCellRef feedback_cell_;
   const int register_count_;
   const uint16_t parameter_count_;
   const uint16_t max_arguments_;

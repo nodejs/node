@@ -251,7 +251,7 @@ template <typename Descriptor>
 void AsyncGeneratorBuiltinsAssembler::AsyncGeneratorAwait() {
   auto async_generator_object =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kAsyncGeneratorObject);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<AsyncGeneratorRequest> request =
@@ -389,14 +389,14 @@ TF_BUILTIN(AsyncGeneratorPrototypeThrow, AsyncGeneratorBuiltinsAssembler) {
 }
 
 TF_BUILTIN(AsyncGeneratorAwaitResolveClosure, AsyncGeneratorBuiltinsAssembler) {
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
   AsyncGeneratorAwaitResumeClosure(context, value,
                                    JSAsyncGeneratorObject::kNext);
 }
 
 TF_BUILTIN(AsyncGeneratorAwaitRejectClosure, AsyncGeneratorBuiltinsAssembler) {
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
   // Restart in Rethrow mode, as this exception was already thrown and we don't
   // want to trigger a second debug break event or change the message location.
@@ -500,7 +500,7 @@ TF_BUILTIN(AsyncGeneratorResumeNext, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const auto done = Parameter<Object>(Descriptor::kDone);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
@@ -570,7 +570,7 @@ TF_BUILTIN(AsyncGeneratorResolve, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<AsyncGeneratorRequest> next =
@@ -584,7 +584,7 @@ TF_BUILTIN(AsyncGeneratorReject, AsyncGeneratorBuiltinsAssembler) {
 
 TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
   const auto generator = Parameter<JSGeneratorObject>(Descriptor::kGenerator);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<AsyncGeneratorRequest> request =
@@ -602,7 +602,7 @@ TF_BUILTIN(AsyncGeneratorYieldWithAwait, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorYieldWithAwaitResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
       CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
 
@@ -635,7 +635,7 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
   // In all cases, the final step is to jump back to AsyncGeneratorResumeNext.
   const auto generator =
       Parameter<JSAsyncGeneratorObject>(Descriptor::kGenerator);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<AsyncGeneratorRequest> req =
       CAST(LoadFirstAsyncGeneratorRequestFromQueue(generator));
 
@@ -709,7 +709,7 @@ TF_BUILTIN(AsyncGeneratorReturn, AsyncGeneratorBuiltinsAssembler) {
 TF_BUILTIN(AsyncGeneratorReturnResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   AsyncGeneratorAwaitResumeClosure(context, value, JSGeneratorObject::kReturn);
 }
 
@@ -719,7 +719,7 @@ TF_BUILTIN(AsyncGeneratorReturnResolveClosure,
 TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
       CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
 
@@ -737,7 +737,7 @@ TF_BUILTIN(AsyncGeneratorReturnClosedResolveClosure,
 TF_BUILTIN(AsyncGeneratorReturnClosedRejectClosure,
            AsyncGeneratorBuiltinsAssembler) {
   const auto context = Parameter<Context>(Descriptor::kContext);
-  const auto value = Parameter<Object>(Descriptor::kValue);
+  const auto value = Parameter<JSAny>(Descriptor::kValue);
   const TNode<JSAsyncGeneratorObject> generator =
       CAST(LoadContextElement(context, Context::EXTENSION_INDEX));
 

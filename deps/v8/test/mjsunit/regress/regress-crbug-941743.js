@@ -22,7 +22,7 @@ mapping(a);
 
 // Now lengthen the array, but ensure that it points to a non-dictionary
 // backing store.
-a.length = 32 * 1024 * 1024 - 1;
+a.length = d8.constants.maxFastArrayLength - 1;
 a.fill(1, 0);
 a.push(2);
 a.length += 500;

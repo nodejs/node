@@ -66,7 +66,7 @@ int64_t ExponentialBiased::GetSkipCount(int64_t mean) {
   }
   double value = std::rint(interval);
   bias_ = interval - value;
-  return value;
+  return static_cast<int64_t>(value);
 }
 
 int64_t ExponentialBiased::GetStride(int64_t mean) {

@@ -20,7 +20,7 @@ namespace compiler {
 // Forward declarations.
 class CommonOperatorBuilder;
 struct ObjectAccess;
-class Graph;
+class TFGraph;
 class JSGraph;
 
 class V8_EXPORT_PRIVATE CsaLoadElimination final
@@ -167,7 +167,7 @@ class V8_EXPORT_PRIVATE CsaLoadElimination final
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;
   Isolate* isolate() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   Zone* zone() const { return zone_; }
   AbstractState const* empty_state() const { return &empty_state_; }

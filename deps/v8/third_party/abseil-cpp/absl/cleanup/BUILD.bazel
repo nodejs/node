@@ -36,7 +36,6 @@ cc_library(
     copts = ABSL_DEFAULT_COPTS,
     linkopts = ABSL_DEFAULT_LINKOPTS,
     deps = [
-        "//absl/base:base_internal",
         "//absl/base:core_headers",
         "//absl/utility",
     ],
@@ -67,7 +66,7 @@ cc_test(
         ":cleanup",
         "//absl/base:config",
         "//absl/utility",
-        "@com_google_googletest//:gtest",
-        "@com_google_googletest//:gtest_main",
+        "@googletest//:gtest",
+        "@googletest//:gtest_main",
     ],
 )

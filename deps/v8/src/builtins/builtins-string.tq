@@ -43,6 +43,18 @@ transitioning builtin ToString(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
 
+transitioning builtin ToStringConvertSymbol(context: Context, o: JSAny):
+    String {
+  typeswitch (o) {
+    case (value: Symbol): {
+      return SymbolDescriptiveString(value);
+    }
+    case (value: JSAny): {
+      return ToStringImpl(context, value);
+    }
+  }
+}
+
 transitioning macro ToString_Inline(context: Context, o: JSAny): String {
   return ToStringImpl(context, o);
 }
@@ -70,8 +82,8 @@ extern macro StringBuiltinsAssembler::StringFromSingleUTF16EncodedCodePoint(
     int32): String;
 
 // This function assumes StringPrimitiveWithNoCustomIteration is true.
-transitioning builtin StringToList(implicit context: Context)(string: String):
-    JSArray {
+transitioning builtin StringToList(implicit context: Context)(
+                                   string: String): JSArray {
   const kind = ElementsKind::PACKED_ELEMENTS;
   const stringLength: intptr = string.length_intptr;
 

@@ -30,10 +30,6 @@ namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace synchronization_internal {
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr char StdcppWaiter::kName[];
-#endif
-
 StdcppWaiter::StdcppWaiter() : waiter_count_(0), wakeup_count_(0) {}
 
 bool StdcppWaiter::Wait(KernelTimeout t) {
