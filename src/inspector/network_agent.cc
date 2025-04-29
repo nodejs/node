@@ -1,8 +1,14 @@
 #include "network_agent.h"
+#include <string>
 #include "debug_utils-inl.h"
+#include "env-inl.h"
+#include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "network_inspector.h"
+#include "node_metadata.h"
 #include "util-inl.h"
+#include "uv.h"
+#include "v8-context.h"
 #include "v8.h"
 
 namespace node {
@@ -203,8 +209,9 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 }
 
 NetworkAgent::NetworkAgent(NetworkInspector* inspector,
-                           v8_inspector::V8Inspector* v8_inspector)
-    : inspector_(inspector), v8_inspector_(v8_inspector) {
+                           v8_inspector::V8Inspector* v8_inspector,
+                           Environment* env)
+    : inspector_(inspector), v8_inspector_(v8_inspector), env_(env) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -329,8 +336,36 @@ protocol::DispatchResponse NetworkAgent::streamResourceContent(
     // If the request is finished, remove the entry.
     requests_.erase(in_requestId);
   }
-
   return protocol::DispatchResponse::Success();
+}
+
+protocol::DispatchResponse NetworkAgent::loadNetworkResource(
+    const protocol::String& in_url,
+    std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
+        out_resource) {
+  if (!env_->options()->experimental_inspector_network_resource) {
+    return protocol::DispatchResponse::ServerError(
+        "Network resource loading is not enabled. This feature is "
+        "experimental and requires --experimental-inspector-network-resource "
+        "flag to be set.");
+  }
+  std::string data = NetworkResourceManager::Get(in_url);
+  bool found = !data.empty();
+  if (found) {
+    uint64_t stream_id = NetworkResourceManager::GetStreamId(in_url);
+    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
+                      .setSuccess(true)
+                      .setStream(std::to_string(stream_id))
+                      .build();
+    *out_resource = std::move(result);
+    return protocol::DispatchResponse::Success();
+  } else {
+    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
+                      .setSuccess(false)
+                      .build();
+    *out_resource = std::move(result);
+    return protocol::DispatchResponse::Success();
+  }
 }
 
 void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,

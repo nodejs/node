@@ -6,7 +6,7 @@ namespace inspector {
 NetworkInspector::NetworkInspector(Environment* env,
                                    v8_inspector::V8Inspector* v8_inspector)
     : enabled_(false), env_(env) {
-  network_agent_ = std::make_unique<NetworkAgent>(this, v8_inspector);
+  network_agent_ = std::make_unique<NetworkAgent>(this, v8_inspector, env);
 }
 NetworkInspector::~NetworkInspector() {
   network_agent_.reset();

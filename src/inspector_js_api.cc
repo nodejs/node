@@ -1,4 +1,5 @@
 #include "base_object-inl.h"
+#include "inspector/network_resource_manager.h"
 #include "inspector/protocol_helper.h"
 #include "inspector_agent.h"
 #include "inspector_io.h"
@@ -334,6 +335,18 @@ void Url(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(OneByteString(env->isolate(), url));
 }
 
+void PutNetworkResource(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  CHECK_GE(args.Length(), 2);
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsString());
+
+  Utf8Value url(env->isolate(), args[0].As<String>());
+  Utf8Value data(env->isolate(), args[1].As<String>());
+
+  NetworkResourceManager::Put(*url, *data);
+}
+
 void Initialize(Local<Object> target, Local<Value> unused,
                 Local<Context> context, void* priv) {
   Environment* env = Environment::GetCurrent(context);
@@ -378,6 +391,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
+  SetMethod(context, target, "putNetworkResource", PutNetworkResource);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
 
@@ -420,6 +434,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(JSBindingsConnection<MainThreadConnection>::New);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Dispatch);
   registry->Register(JSBindingsConnection<MainThreadConnection>::Disconnect);
+  registry->Register(PutNetworkResource);
 }
 
 }  // namespace inspector
