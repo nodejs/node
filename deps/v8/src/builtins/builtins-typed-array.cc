@@ -883,14 +883,14 @@ BUILTIN(Uint8ArrayFromHex) {
         base::Vector<const uint8_t> input_vector =
             input_content.ToOneByteVector();
         result = ArrayBufferFromHex(
-            input_vector, /*is_shared*/ false,
-            static_cast<uint8_t*>(buffer->backing_store()), output_length);
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       } else {
         base::Vector<const base::uc16> input_vector =
             input_content.ToUC16Vector();
         result = ArrayBufferFromHex(
-            input_vector, /*is_shared*/ false,
-            static_cast<uint8_t*>(buffer->backing_store()), output_length);
+            input_vector, static_cast<uint8_t*>(buffer->backing_store()),
+            output_length);
       }
   }
 
@@ -959,6 +959,11 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
   size_t output_length = (input_length / 2);
   output_length = std::min(output_length, array_length);
 
+  // TODO(rezvan): Add path for typed arrays backed by SharedArrayBuffer
+  if (uint8array->buffer()->is_shared()) {
+    UNIMPLEMENTED();
+  }
+
   // 7. Let result be FromHex(string, byteLength).
   // 8. Let bytes be result.[[Bytes]].
   // 9. Let written be the length of bytes.
@@ -974,15 +979,15 @@ BUILTIN(Uint8ArrayPrototypeSetFromHex) {
     if (input_content.IsOneByte()) {
       base::Vector<const uint8_t> input_vector =
           input_content.ToOneByteVector();
-      result = ArrayBufferFromHex(
-          input_vector, uint8array->buffer()->is_shared(),
-          static_cast<uint8_t*>(uint8array->DataPtr()), output_length);
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
     } else {
       base::Vector<const base::uc16> input_vector =
           input_content.ToUC16Vector();
-      result = ArrayBufferFromHex(
-          input_vector, uint8array->buffer()->is_shared(),
-          static_cast<uint8_t*>(uint8array->DataPtr()), output_length);
+      result = ArrayBufferFromHex(input_vector,
+                                  static_cast<uint8_t*>(uint8array->DataPtr()),
+                                  output_length);
     }
   }
 
@@ -1052,8 +1057,7 @@ BUILTIN(Uint8ArrayPrototypeToHex) {
   //    b. Set hex to StringPad(hex, 2, "0", start).
   //    c. Set out to the string-concatenation of out and hex.
   //  6. Return out.
-  return Uint8ArrayToHex(bytes, length, uint8array->buffer()->is_shared(),
-                         output);
+  return Uint8ArrayToHex(bytes, length, output);
 }
 
 }  // namespace internal
