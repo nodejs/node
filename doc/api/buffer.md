@@ -239,7 +239,7 @@ the characters.
 changes:
   - version: v3.0.0
     pr-url: https://github.com/nodejs/node/pull/2002
-    description: The `Buffer`s class now inherits from `Uint8Array`.
+    description: The `Buffer` class now inherits from `Uint8Array`.
 -->
 
 `Buffer` instances are also JavaScript {Uint8Array} and {TypedArray}
@@ -260,7 +260,7 @@ In particular:
 
 There are two ways to create new {TypedArray} instances from a `Buffer`:
 
-* Passing a `Buffer` to a {TypedArray} constructor will copy the `Buffer`s
+* Passing a `Buffer` to a {TypedArray} constructor will copy the `Buffer`'s
   contents, interpreted as an array of integers, and not as a byte sequence
   of the target type.
 
@@ -286,7 +286,7 @@ console.log(uint32array);
 // Prints: Uint32Array(4) [ 1, 2, 3, 4 ]
 ```
 
-* Passing the `Buffer`s underlying {ArrayBuffer} will create a
+* Passing the `Buffer`'s underlying {ArrayBuffer} will create a
   {TypedArray} that shares its memory with the `Buffer`.
 
 ```mjs
@@ -1584,7 +1584,7 @@ console.log(buffer.buffer === arrayBuffer);
 
 ### `buf.byteOffset`
 
-* {integer} The `byteOffset` of the `Buffer`s underlying `ArrayBuffer` object.
+* {integer} The `byteOffset` of the `Buffer`'s underlying `ArrayBuffer` object.
 
 When setting `byteOffset` in `Buffer.from(ArrayBuffer, byteOffset, length)`,
 or sometimes when allocating a `Buffer` smaller than `Buffer.poolSize`, the
