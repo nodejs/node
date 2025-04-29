@@ -199,7 +199,7 @@ template <typename Descriptor>
 void AsyncFunctionBuiltinsAssembler::AsyncFunctionAwait() {
   auto async_function_object =
       Parameter<JSAsyncFunctionObject>(Descriptor::kAsyncFunctionObject);
-  auto value = Parameter<Object>(Descriptor::kValue);
+  auto value = Parameter<JSAny>(Descriptor::kValue);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   TNode<JSPromise> outer_promise = LoadObjectField<JSPromise>(

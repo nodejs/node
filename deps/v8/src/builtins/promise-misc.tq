@@ -269,8 +269,8 @@ transitioning macro RunAnyPromiseHookInit(
 // This uses the given parent as the parent promise for the promise
 // init hook.
 @export
-transitioning macro NewJSPromise(implicit context: Context)(parent: Object):
-    JSPromise {
+transitioning macro NewJSPromise(implicit context: Context)(
+                                 parent: Object): JSPromise {
   const instance = InnerNewJSPromise();
   PromiseInit(instance);
   RunAnyPromiseHookInit(instance, parent);

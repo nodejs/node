@@ -38,6 +38,7 @@ class MaglevPrintingVisitor {
 
   void PreProcessGraph(Graph* graph);
   void PostProcessGraph(Graph* graph) {}
+  void PostProcessBasicBlock(BasicBlock* block) {}
   BlockProcessResult PreProcessBasicBlock(BasicBlock* block);
   void PostPhiProcessing() {}
   ProcessResult Process(Phi* phi, const ProcessingState& state);

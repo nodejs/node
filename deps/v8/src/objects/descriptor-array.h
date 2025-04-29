@@ -82,6 +82,10 @@ class DescriptorArray
   inline Tagged<FieldType> GetFieldType(PtrComprCageBase cage_base,
                                         InternalIndex descriptor_number);
 
+  // Returns true if given entry is already initialized. Useful in cases
+  // when a heap stats collector might see a half-initialized descriptor.
+  inline bool IsInitializedDescriptor(InternalIndex descriptor_number) const;
+
   inline Tagged<Name> GetSortedKey(int descriptor_number);
   inline Tagged<Name> GetSortedKey(PtrComprCageBase cage_base,
                                    int descriptor_number);
@@ -102,11 +106,11 @@ class DescriptorArray
   // array.
   inline void Append(Descriptor* desc);
 
-  static Handle<DescriptorArray> CopyUpTo(Isolate* isolate,
-                                          DirectHandle<DescriptorArray> desc,
-                                          int enumeration_index, int slack = 0);
+  static DirectHandle<DescriptorArray> CopyUpTo(
+      Isolate* isolate, DirectHandle<DescriptorArray> desc,
+      int enumeration_index, int slack = 0);
 
-  static Handle<DescriptorArray> CopyUpToAddAttributes(
+  static DirectHandle<DescriptorArray> CopyUpToAddAttributes(
       Isolate* isolate, DirectHandle<DescriptorArray> desc,
       int enumeration_index, PropertyAttributes attributes, int slack = 0);
 
@@ -231,6 +235,11 @@ class DescriptorArray
                        Tagged<MaybeObject> value);
   inline void SetDetails(InternalIndex descriptor_number,
                          PropertyDetails details);
+
+  V8_INLINE InternalIndex BinarySearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
+  V8_INLINE InternalIndex LinearSearch(Tagged<Name> name,
+                                       int number_of_own_descriptors);
 
   // Transfer a complete descriptor from the src descriptor array to this
   // descriptor array.

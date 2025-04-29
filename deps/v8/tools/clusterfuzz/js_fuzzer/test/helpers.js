@@ -9,15 +9,22 @@
 'use strict';
 
 const assert = require('assert');
+const dircompare = require('dir-compare');
 const path = require('path');
 const fs = require('fs');
 
+const corpus = require('../corpus.js');
 const sourceHelpers = require('../source_helpers.js');
 
 const BASE_DIR = path.join(path.dirname(__dirname), 'test_data');
 const DB_DIR = path.join(BASE_DIR, 'fake_db');
 
-const HEADER = `// Copyright 2020 the V8 project authors. All rights reserved.
+const TEST_CORPUS = new sourceHelpers.BaseCorpus(BASE_DIR);
+const V8_TEST_CORPUS = corpus.create(BASE_DIR, 'v8');
+const FUZZILLI_TEST_CORPUS = corpus.create(
+    BASE_DIR, 'fuzzilli', false, V8_TEST_CORPUS);
+
+const HEADER = `// Copyright 2025 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
@@ -49,13 +56,48 @@ function deterministicRandom(sandbox) {
 }
 
 function loadTestData(relPath) {
-  return sourceHelpers.loadSource(BASE_DIR, relPath);
+  return sourceHelpers.loadSource(TEST_CORPUS, relPath);
+}
+
+function loadFuzzilliTestData(relPath) {
+  return sourceHelpers.loadSource(FUZZILLI_TEST_CORPUS, relPath);
+}
+
+function loadV8TestData(relPath) {
+  return sourceHelpers.loadSource(V8_TEST_CORPUS, relPath);
+}
+
+function assertExpectedPath(expectedPath, actualPath) {
+  const absPath = path.join(BASE_DIR, expectedPath);
+  if (process.env.GENERATE) {
+    if (fs.existsSync(absPath)) {
+      fs.rmSync(absPath, { recursive: true, force: true });
+    }
+    fs.cpSync(actualPath, absPath, {recursive: true});
+  }
+  const options = { compareSize: true };
+  const res = dircompare.compareSync(absPath, actualPath, options);
+
+  const message = (
+      `Equal: ${res.equal}, distinct: ${res.distinct}, ` +
+      `expected only: ${res.left}, actual only: ${res.right}, ` +
+      `differences: ${res.differences}`
+  );
+
+  assert.ok(res.same, message);
 }
 
 function assertExpectedResult(expectedPath, result) {
   const absPath = path.join(BASE_DIR, expectedPath);
   if (process.env.GENERATE) {
-    fs.writeFileSync(absPath, HEADER + result.trim() + '\n');
+    let header = HEADER;
+    if (fs.existsSync(absPath)) {
+      // Keep the old copyright header if the file already exists.
+      const previous = fs.readFileSync(absPath, 'utf-8').trim().split('\n');
+      previous.splice(3);
+      header = previous.join('\n') + '\n\n';
+    }
+    fs.writeFileSync(absPath, header + result.trim() + '\n');
     return;
   }
 
@@ -68,8 +110,13 @@ function assertExpectedResult(expectedPath, result) {
 module.exports = {
   BASE_DIR: BASE_DIR,
   DB_DIR: DB_DIR,
+  FUZZILLI_TEST_CORPUS: FUZZILLI_TEST_CORPUS,
+  TEST_CORPUS: TEST_CORPUS,
+  assertExpectedPath: assertExpectedPath,
   assertExpectedResult: assertExpectedResult,
   cycleProbabilitiesFun: cycleProbabilitiesFun,
   deterministicRandom: deterministicRandom,
+  loadFuzzilliTestData: loadFuzzilliTestData,
   loadTestData: loadTestData,
+  loadV8TestData: loadV8TestData,
 }

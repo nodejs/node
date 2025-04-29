@@ -128,6 +128,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64Float32RoundUp:
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16RawBits:
+    case kArm64Float16RawBitsToFloat64:
     case kArm64Float32ToInt32:
     case kArm64Float64ToInt32:
     case kArm64Float32ToUint32:
@@ -265,6 +267,8 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128AndNot:
     case kArm64Ssra:
     case kArm64Usra:
+    case kArm64S64x2UnzipLeft:
+    case kArm64S64x2UnzipRight:
     case kArm64S32x4ZipLeft:
     case kArm64S32x4ZipRight:
     case kArm64S32x4UnzipLeft:
@@ -272,7 +276,14 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S32x4TransposeLeft:
     case kArm64S32x4TransposeRight:
     case kArm64S32x4OneLaneSwizzle:
+    case kArm64S64x1Shuffle:
+    case kArm64S64x2Shuffle:
+    case kArm64S32x1Shuffle:
+    case kArm64S32x2Shuffle:
     case kArm64S32x4Shuffle:
+    case kArm64S16x1Shuffle:
+    case kArm64S16x2Shuffle:
+    case kArm64S8x2Shuffle:
     case kArm64S16x8ZipLeft:
     case kArm64S16x8ZipRight:
     case kArm64S16x8UnzipLeft:
@@ -355,6 +366,7 @@ int InstructionScheduler::GetTargetInstructionFlags(
     case kArm64S128Load16x4U:
     case kArm64S128Load32x2S:
     case kArm64S128Load32x2U:
+    case kArm64S128LoadPairDeinterleave:
 #endif  // V8_ENABLE_WEBASSEMBLY
       return kIsLoadOperation;
 
@@ -539,6 +551,8 @@ int InstructionScheduler::GetInstructionLatency(const Instruction* instr) {
 
     case kArm64Float32ToFloat64:
     case kArm64Float64ToFloat32:
+    case kArm64Float64ToFloat16RawBits:
+    case kArm64Float16RawBitsToFloat64:
     case kArm64Float64ToInt32:
     case kArm64Float64ToUint32:
     case kArm64Float32ToInt64:

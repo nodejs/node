@@ -14,14 +14,15 @@ namespace v8 {
 namespace internal {
 
 // static
-Handle<Tuple2> WasmInterpreterObject::New(Handle<WasmInstanceObject> instance) {
+DirectHandle<Tuple2> WasmInterpreterObject::New(
+    DirectHandle<WasmInstanceObject> instance) {
   DCHECK(v8_flags.wasm_jitless);
   Isolate* isolate = instance->GetIsolate();
   Factory* factory = isolate->factory();
-  Handle<WasmTrustedInstanceData> trusted_data =
-      handle(instance->trusted_data(isolate), isolate);
+  DirectHandle<WasmTrustedInstanceData> trusted_data(
+      instance->trusted_data(isolate), isolate);
   DCHECK(!trusted_data->has_interpreter_object());
-  Handle<Tuple2> interpreter_object = factory->NewTuple2(
+  DirectHandle<Tuple2> interpreter_object = factory->NewTuple2(
       instance, factory->undefined_value(), AllocationType::kOld);
   trusted_data->set_interpreter_object(*interpreter_object);
   return interpreter_object;
@@ -30,7 +31,7 @@ Handle<Tuple2> WasmInterpreterObject::New(Handle<WasmInstanceObject> instance) {
 // static
 bool WasmInterpreterObject::RunInterpreter(
     Isolate* isolate, Address frame_pointer,
-    Handle<WasmInstanceObject> instance, int func_index,
+    DirectHandle<WasmInstanceObject> instance, int func_index,
     const std::vector<wasm::WasmValue>& argument_values,
     std::vector<wasm::WasmValue>& return_values) {
   DCHECK_LE(0, func_index);
@@ -40,7 +41,7 @@ bool WasmInterpreterObject::RunInterpreter(
   DCHECK_NOT_NULL(thread);
 
   // Assume an instance can run in only one thread.
-  Handle<Tuple2> interpreter_object =
+  DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
   wasm::InterpreterHandle* handle =
       wasm::GetOrCreateInterpreterHandle(isolate, interpreter_object);
@@ -51,11 +52,10 @@ bool WasmInterpreterObject::RunInterpreter(
 }
 
 // static
-bool WasmInterpreterObject::RunInterpreter(Isolate* isolate,
-                                           Address frame_pointer,
-                                           Handle<WasmInstanceObject> instance,
-                                           int func_index,
-                                           uint8_t* interpreter_sp) {
+bool WasmInterpreterObject::RunInterpreter(
+    Isolate* isolate, Address frame_pointer,
+    DirectHandle<WasmInstanceObject> instance, int func_index,
+    uint8_t* interpreter_sp) {
   DCHECK_LE(0, func_index);
 
   wasm::WasmInterpreterThread* thread =
@@ -63,7 +63,7 @@ bool WasmInterpreterObject::RunInterpreter(Isolate* isolate,
   DCHECK_NOT_NULL(thread);
 
   // Assume an instance can run in only one thread.
-  Handle<Tuple2> interpreter_object =
+  DirectHandle<Tuple2> interpreter_object =
       WasmTrustedInstanceData::GetInterpreterObject(instance);
   wasm::InterpreterHandle* handle =
       wasm::GetInterpreterHandle(isolate, interpreter_object);

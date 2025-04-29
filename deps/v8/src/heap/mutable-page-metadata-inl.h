@@ -5,8 +5,10 @@
 #ifndef V8_HEAP_MUTABLE_PAGE_METADATA_INL_H_
 #define V8_HEAP_MUTABLE_PAGE_METADATA_INL_H_
 
-#include "src/heap/memory-chunk-metadata-inl.h"
 #include "src/heap/mutable-page-metadata.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/memory-chunk-metadata-inl.h"
 #include "src/heap/spaces-inl.h"
 
 namespace v8 {
@@ -57,6 +59,12 @@ AllocationSpace MutablePageMetadata::owner_identity() const {
 
 void MutablePageMetadata::SetOldGenerationPageFlags(MarkingMode marking_mode) {
   return Chunk()->SetOldGenerationPageFlags(marking_mode, owner_identity());
+}
+
+template <AccessMode mode>
+void MutablePageMetadata::ClearLiveness() {
+  marking_bitmap()->Clear<mode>();
+  SetLiveBytes(0);
 }
 
 }  // namespace internal

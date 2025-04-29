@@ -50,7 +50,7 @@ namespace v8::internal {
 // - If the |old_map| had integrity level transition, create the new map for it.
 class V8_EXPORT_PRIVATE MapUpdater {
  public:
-  MapUpdater(Isolate* isolate, Handle<Map> old_map);
+  MapUpdater(Isolate* isolate, DirectHandle<Map> old_map);
 
   // Prepares for reconfiguring of a property at |descriptor| to data field
   // with given |attributes| and |representation|/|field_type| and
@@ -59,10 +59,10 @@ class V8_EXPORT_PRIVATE MapUpdater {
                                      PropertyAttributes attributes,
                                      PropertyConstness constness,
                                      Representation representation,
-                                     Handle<FieldType> field_type);
+                                     DirectHandle<FieldType> field_type);
 
   // Prepares for reconfiguring elements kind and performs the steps 1-6.
-  Handle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
+  DirectHandle<Map> ReconfigureElementsKind(ElementsKind elements_kind);
 
   // Prepares for an UpdatePrototype. Similar to reconfigure elements kind,
   // prototype transitions are put first. I.e., a prototype transition for
@@ -73,7 +73,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   //     bar {} -- bar {a}
   //
   // and JSObject::UpdatePrototype performs a map update and instance migration.
-  Handle<Map> ApplyPrototypeTransition(Handle<HeapObject> prototype);
+  Handle<Map> ApplyPrototypeTransition(DirectHandle<JSPrototype> prototype);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.
@@ -86,7 +86,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
       ConcurrencyMode cmode) V8_WARN_UNUSED_RESULT;
 
   static Handle<Map> ReconfigureExistingProperty(Isolate* isolate,
-                                                 Handle<Map> map,
+                                                 DirectHandle<Map> map,
                                                  InternalIndex descriptor,
                                                  PropertyKind kind,
                                                  PropertyAttributes attributes,
@@ -96,7 +96,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
                               InternalIndex modify_index,
                               PropertyConstness new_constness,
                               Representation new_representation,
-                              Handle<FieldType> new_field_type);
+                              DirectHandle<FieldType> new_field_type);
 
   // Completes inobject slack tracking for the transition tree starting at the
   // initial map.
@@ -113,8 +113,8 @@ class V8_EXPORT_PRIVATE MapUpdater {
   };
 
   // Updates map to the most up-to-date non-deprecated version.
-  static inline Handle<Map> UpdateMapNoLock(Isolate* isolate,
-                                            Handle<Map> old_map);
+  static inline DirectHandle<Map> UpdateMapNoLock(Isolate* isolate,
+                                                  DirectHandle<Map> old_map);
 
   // Prepares for updating deprecated map to most up-to-date non-deprecated
   // version and performs the steps 1-6.
@@ -147,13 +147,13 @@ class V8_EXPORT_PRIVATE MapUpdater {
   //   descriptor array of the |target_map_|.
   // - Generalize the |modified_descriptor_| using |new_representation| and
   //   |new_field_type_|.
-  Handle<DescriptorArray> BuildDescriptorArray();
+  DirectHandle<DescriptorArray> BuildDescriptorArray();
 
   // Step 4.
   // - Walk the tree again starting from the root towards |target_map|. Stop at
   //   |split_map|, the first map whose descriptor array does not match the
   //   merged descriptor array.
-  Handle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
+  DirectHandle<Map> FindSplitMap(DirectHandle<DescriptorArray> descriptors);
 
   // Step 5.
   // - If |target_map| == |split_map|, |target_map| is in the expected state.
@@ -191,7 +191,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // location then returns its field type, otherwise computes the optimal field
   // type for the descriptor's value and |representation|. The |location|
   // value must be a pre-fetched location for |descriptor|.
-  inline Handle<FieldType> GetOrComputeFieldType(
+  inline DirectHandle<FieldType> GetOrComputeFieldType(
       InternalIndex descriptor, PropertyLocation location,
       Representation representation) const;
 
@@ -199,7 +199,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // location then returns its field type, otherwise computes the optimal field
   // type for the descriptor's value and |representation|.
   // The |location| value must be a pre-fetched location for |descriptor|.
-  inline Handle<FieldType> GetOrComputeFieldType(
+  inline DirectHandle<FieldType> GetOrComputeFieldType(
       DirectHandle<DescriptorArray> descriptors, InternalIndex descriptor,
       PropertyLocation location, Representation representation);
 
@@ -208,21 +208,21 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // it must be either a simple type or a map wrapped in a weak cell.
   static void UpdateFieldType(Isolate* isolate, DirectHandle<Map> map,
                               InternalIndex descriptor_number,
-                              Handle<Name> name,
+                              DirectHandle<Name> name,
                               PropertyConstness new_constness,
                               Representation new_representation,
-                              Handle<FieldType> new_type);
+                              DirectHandle<FieldType> new_type);
 
   void GeneralizeField(DirectHandle<Map> map, InternalIndex modify_index,
                        PropertyConstness new_constness,
                        Representation new_representation,
-                       Handle<FieldType> new_field_type);
+                       DirectHandle<FieldType> new_field_type);
 
   bool TrySaveIntegrityLevelTransitions();
 
   Isolate* isolate_;
-  Handle<Map> old_map_;
-  Handle<DescriptorArray> old_descriptors_;
+  DirectHandle<Map> old_map_;
+  DirectHandle<DescriptorArray> old_descriptors_;
   Handle<Map> root_map_;
   Handle<Map> target_map_;
   Handle<Map> result_map_;
@@ -231,14 +231,14 @@ class V8_EXPORT_PRIVATE MapUpdater {
   // Information about integrity level transitions.
   bool has_integrity_level_transition_ = false;
   PropertyAttributes integrity_level_ = NONE;
-  Handle<Symbol> integrity_level_symbol_;
-  Handle<Map> integrity_source_map_;
+  DirectHandle<Symbol> integrity_level_symbol_;
+  DirectHandle<Map> integrity_source_map_;
 
   State state_ = kInitialized;
   ElementsKind new_elements_kind_;
   bool is_transitionable_fast_elements_kind_;
 
-  Handle<HeapObject> new_prototype_;
+  DirectHandle<JSPrototype> new_prototype_;
 
   // If |modified_descriptor_.is_found()|, then the fields below form
   // an "update" of the |old_map_|'s descriptors.
@@ -250,10 +250,7 @@ class V8_EXPORT_PRIVATE MapUpdater {
   Representation new_representation_ = Representation::None();
 
   // Data specific to kField location.
-  Handle<FieldType> new_field_type_;
-
-  // Data specific to kDescriptor location.
-  Handle<Object> new_value_;
+  DirectHandle<FieldType> new_field_type_;
 };
 
 }  // namespace v8::internal

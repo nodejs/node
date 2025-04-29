@@ -847,6 +847,11 @@ int Decoder::FormatOption(Instruction* instr, const char* format) {
 // the output buffer. All escaped options are handed to FormatOption to be
 // parsed further.
 void Decoder::Format(Instruction* instr, const char* format) {
+  if (instr->IsShortInstruction() && !v8_flags.use_aliases &&
+      (out_buffer_pos_ < (out_buffer_.length() - 2))) {
+    out_buffer_[out_buffer_pos_++] = 'c';
+    out_buffer_[out_buffer_pos_++] = '.';
+  }
   char cur = *format++;
   while ((cur != 0) && (out_buffer_pos_ < (out_buffer_.length() - 1))) {
     if (cur == '\'') {  // Single quote is used as the formatting escape.
@@ -1130,7 +1135,7 @@ void Decoder::DecodeRAType(Instruction* instr) {
       Format(instr, "amomin.d'a 'rd, 'rs2, ('rs1)");
       break;
     case RO_AMOMAX_D:
-      Format(instr, "amoswap.d'a 'rd, 'rs2, ('rs1)");
+      Format(instr, "amomax.d'a 'rd, 'rs2, ('rs1)");
       break;
     case RO_AMOMINU_D:
       Format(instr, "amominu.d'a 'rd, 'rs2, ('rs1)");
@@ -2059,7 +2064,7 @@ void Decoder::DecodeCLType(Instruction* instr) {
       break;
 #elif defined(V8_TARGET_ARCH_32_BIT)
     case RO_C_FLW:
-      Format(instr, "fld       'Cfs2s, 'Cimm5D('Crs1s)");
+      Format(instr, "flw       'Cfs2s, 'Cimm5D('Crs1s)");
       break;
 #endif
 

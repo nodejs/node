@@ -2,6 +2,13 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+// Original: resources/chakra_stubs.js
+function test(fun) {
+  try {
+    fun();
+  } catch (e) {}
+}
+
 // Original: chakra/load2.js
 console.log('load2.js');
 
@@ -10,8 +17,9 @@ console.log('load3');
 
 // Original: chakra/load1.js
 console.log('load1.js');
+function script() {}
 
 // Original: chakra/load.js
 if (this.WScript && this.WScript.LoadScriptFile) {}
-
 console.log('load.js');
+script();

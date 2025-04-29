@@ -5,8 +5,10 @@
 #ifndef V8_SANDBOX_CODE_POINTER_TABLE_INL_H_
 #define V8_SANDBOX_CODE_POINTER_TABLE_INL_H_
 
-#include "src/common/code-memory-access-inl.h"
 #include "src/sandbox/code-pointer-table.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/common/code-memory-access-inl.h"
 #include "src/sandbox/external-entity-table-inl.h"
 
 #ifdef V8_COMPRESS_POINTERS

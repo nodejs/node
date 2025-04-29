@@ -9,6 +9,9 @@ d8.file.execute("test/mjsunit/wasm/wasm-module-builder.js");
 
 function testOptimized(run, fctToOptimize) {
   fctToOptimize = fctToOptimize ?? run;
+  // Make sure there's no left over optimized code from other
+  // instances of the function.
+  %DeoptimizeFunction(fctToOptimize);
   %PrepareFunctionForOptimization(fctToOptimize);
   for (let i = 0; i < 10; ++i) {
     run();
@@ -60,11 +63,9 @@ function testOptimized(run, fctToOptimize) {
   let instance = builder.instantiate({});
   let wasm = instance.exports;
 
-  // TODO(mliedtke): Consider splitting this loop as the reuse seems to prevent
-  // proper feedback for the second iteration.
-  for (let [create, get] of [
-      [wasm.createStruct, wasm.getField],
-      [wasm.createStructNull, wasm.getFieldNull]]) {
+  {
+    let create = wasm.createStruct;
+    let get = wasm.getField;
     let fct = () => {
       for (let i = 1; i <= 10; ++i) {
         const struct = create(i);
@@ -106,6 +107,56 @@ function testOptimized(run, fctToOptimize) {
       } catch (e) {
         assertTrue(e instanceof WebAssembly.RuntimeError ||
                    e instanceof TypeError);
+        return;
+      }
+      assertUnreachable();
+    };
+    testOptimized(getTry);
+  }
+  {
+    let create = wasm.createStructNull;
+    let get = wasm.getFieldNull;
+    let fct = () => {
+      for (let i = 1; i <= 10; ++i) {
+        const struct = create(i);
+        assertEquals(i, get(struct));
+      }
+    };
+    testOptimized(fct);
+
+    // While these cases will all trap on the ref.cast, they cover very
+    // different code paths in any.convert_extern.
+    print("Test exceptional cases");
+    const trap = kTrapIllegalCast;
+    print("- test get null");
+    const getNull = () => get(null);
+    // If the null check is done by the wrapper, it throws a TypeError.
+    // Otherwise it's a RuntimeError for the wasm trap.
+    testOptimized(() => assertThrows(getNull), getNull);
+    print("- test undefined");
+    const getUndefined = () => get(undefined);
+    testOptimized(() => assertTraps(trap, getUndefined), getUndefined);
+    print("- test Smi");
+    const getSmi = () => get(1);
+    testOptimized(() => assertTraps(trap, getSmi), getSmi);
+    print("- test -0");
+    const getNZero = () => get(-0);
+    testOptimized(() => assertTraps(trap, getNZero), getNZero);
+    print("- test HeapNumber with fractional digits");
+    const getFractional = () => get(0.5);
+    testOptimized(() => assertTraps(trap, getFractional), getFractional);
+    print("- test Smi/HeapNumber too large for i31ref");
+    const getLargeNumber = () => get(0x4000_000);
+    testOptimized(() => assertTraps(trap, getLargeNumber), getLargeNumber);
+
+    print("- test inlining into try block");
+    // TODO(14034): This is currently not supported by inlining yet.
+    const getTry = () => {
+      try {
+        get(null);
+      } catch (e) {
+        assertTrue(e instanceof WebAssembly.RuntimeError ||
+                    e instanceof TypeError);
         return;
       }
       assertUnreachable();
@@ -647,7 +698,7 @@ function testStackTrace(error, expected) {
         testStackTrace(e, [
           /RuntimeError: illegal cast/,
           /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-          /at getTrap .*\.js:639:19/,
+          /at getTrap .*\.js:690:19/,
         ]);
       }
     };
@@ -672,8 +723,8 @@ function testStackTrace(error, expected) {
       testStackTrace(e, [
         /RuntimeError: illegal cast/,
         /at getField \(wasm:\/\/wasm\/[0-9a-f]+:wasm-function\[1\]:0x50/,
-        /at inlined .*\.js:661:40/,
-        /at getTrapNested .*\.js:660:14/,
+        /at inlined .*\.js:712:40/,
+        /at getTrapNested .*\.js:711:14/,
       ]);
       assertOptimized(getTrapNested);
     }

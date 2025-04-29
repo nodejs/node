@@ -15,7 +15,7 @@ namespace compiler {
 
 // Forward declarations.
 class CommonOperatorBuilder;
-class Graph;
+class TFGraph;
 class MachineOperatorBuilder;
 class Operator;
 
@@ -24,7 +24,7 @@ class Operator;
 class V8_EXPORT_PRIVATE CommonOperatorReducer final
     : public NON_EXPORTED_BASE(AdvancedReducer) {
  public:
-  CommonOperatorReducer(Editor* editor, Graph* graph, JSHeapBroker* broker,
+  CommonOperatorReducer(Editor* editor, TFGraph* graph, JSHeapBroker* broker,
                         CommonOperatorBuilder* common,
                         MachineOperatorBuilder* machine, Zone* temp_zone,
                         BranchSemantics default_branch_semantics);
@@ -57,13 +57,13 @@ class V8_EXPORT_PRIVATE CommonOperatorReducer final
     return default_branch_semantics_;
   }
 
-  Graph* graph() const { return graph_; }
+  TFGraph* graph() const { return graph_; }
   JSHeapBroker* broker() const { return broker_; }
   CommonOperatorBuilder* common() const { return common_; }
   MachineOperatorBuilder* machine() const { return machine_; }
   Node* dead() const { return dead_; }
 
-  Graph* const graph_;
+  TFGraph* const graph_;
   JSHeapBroker* const broker_;
   CommonOperatorBuilder* const common_;
   MachineOperatorBuilder* const machine_;

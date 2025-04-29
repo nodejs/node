@@ -16,21 +16,21 @@
 // File: nullability.h
 // -----------------------------------------------------------------------------
 //
-// This header file defines a set of "templated annotations" for designating the
-// expected nullability of pointers. These annotations allow you to designate
-// pointers in one of three classification states:
+// This header file defines a set of annotations for designating the expected
+// nullability of pointers. These annotations allow you to designate pointers in
+// one of three classification states:
 //
-//  * "Non-null" (for pointers annotated `Nonnull<T>`), indicating that it is
+//  * "Non-null" (for pointers annotated `absl_nonnull`), indicating that it is
 //    invalid for the given pointer to ever be null.
-//  * "Nullable" (for pointers annotated `Nullable<T>`), indicating that it is
+//  * "Nullable" (for pointers annotated `absl_nullable`), indicating that it is
 //    valid for the given pointer to be null.
-//  * "Unknown" (for pointers annotated `NullabilityUnknown<T>`), indicating
-//    that the given pointer has not been yet classified as either nullable or
+//  * "Unknown" (for pointers annotated `absl_nullability_unknown`), indicating
+//    that the given pointer has not yet been classified as either nullable or
 //    non-null. This is the default state of unannotated pointers.
 //
-// NOTE: unannotated pointers implicitly bear the annotation
-// `NullabilityUnknown<T>`; you should rarely, if ever, see this annotation used
-// in the codebase explicitly.
+// NOTE: Unannotated pointers implicitly bear the annotation
+// `absl_nullability_unknown`; you should rarely, if ever, see this annotation
+// used in the codebase explicitly.
 //
 // -----------------------------------------------------------------------------
 // Nullability and Contracts
@@ -64,16 +64,46 @@
 // formalize those contracts within the codebase.
 //
 // -----------------------------------------------------------------------------
+// Annotation Syntax
+// -----------------------------------------------------------------------------
+//
+// The annotations should be positioned as a qualifier for the pointer type. For
+// example, the position of `const` when declaring a const pointer (not a
+// pointer to a const type) is the position you should also use for these
+// annotations.
+//
+// Example:
+//
+// // A const non-null pointer to an `Employee`.
+// Employee* absl_nonnull const e;
+//
+// // A non-null pointer to a const `Employee`.
+// const Employee* absl_nonnull e;
+//
+// // A non-null pointer to a const nullable pointer to an `Employee`.
+// Employee* absl_nullable const* absl_nonnull e = nullptr;
+//
+// // A non-null function pointer.
+// void (*absl_nonnull func)(int, double);
+//
+// // A non-null std::unique_ptr to an `Employee`.
+// // As with `const`, it is possible to place the annotation on either side of
+// // a named type not ending in `*`, but placing it before the type it
+// // describes is preferred, unless inconsistent with surrounding code.
+// absl_nonnull std::unique_ptr<Employee> employee;
+//
+// // Invalid annotation usage – this attempts to declare a pointer to a
+// // nullable `Employee`, which is meaningless.
+// absl_nullable Employee* e;
+//
+// -----------------------------------------------------------------------------
 // Using Nullability Annotations
 // -----------------------------------------------------------------------------
 //
-// It is important to note that these annotations are not distinct strong
-// *types*. They are alias templates defined to be equal to the underlying
-// pointer type. A pointer annotated `Nonnull<T*>`, for example, is simply a
-// pointer of type `T*`. Each annotation acts as a form of documentation about
-// the contract for the given pointer. Each annotation requires providers or
-// consumers of these pointers across API boundaries to take appropriate steps
-// when setting or using these pointers:
+// Each annotation acts as a form of documentation about the contract for the
+// given pointer. Each annotation requires providers or consumers of these
+// pointers across API boundaries to take appropriate steps when setting or
+// using these pointers:
 //
 // * "Non-null" pointers should never be null. It is the responsibility of the
 //   provider of this pointer to ensure that the pointer may never be set to
@@ -91,20 +121,20 @@
 // Example:
 //
 // // PaySalary() requires the passed pointer to an `Employee` to be non-null.
-// void PaySalary(absl::Nonnull<Employee *> e) {
+// void PaySalary(Employee* absl_nonnull e) {
 //   pay(e->salary);  // OK to dereference
 // }
 //
 // // CompleteTransaction() guarantees the returned pointer to an `Account` to
 // // be non-null.
-// absl::Nonnull<Account *> balance CompleteTransaction(double fee) {
+// Account* absl_nonnull balance CompleteTransaction(double fee) {
 // ...
 // }
 //
 // // Note that specifying a nullability annotation does not prevent someone
 // // from violating the contract:
 //
-// Nullable<Employee *> find(Map& employees, std::string_view name);
+// Employee* absl_nullable find(Map& employees, std::string_view name);
 //
 // void g(Map& employees) {
 //   Employee *e = find(employees, "Pat");
@@ -135,25 +165,17 @@
 //   ...
 // };
 //
-// Note: For the time being, nullability-compatible classes should additionally
-// be marked with an `absl_nullability_compatible` nested type (this will soon
-// be deprecated). The actual definition of this inner type is not relevant as
-// it is used merely as a marker. It is common to use a using declaration of
-// `absl_nullability_compatible` set to void.
-//
-// // Example:
-// struct MyPtr {
-//   using absl_nullability_compatible = void;
-//   ...
-// };
+// Note: Compilers that don't support the `nullability_on_classes` feature will
+// allow nullability annotations to be applied to any type, not just ones
+// marked with `ABSL_NULLABILITY_COMPATIBLE`.
 //
 // DISCLAIMER:
 // ===========================================================================
 // These nullability annotations are primarily a human readable signal about the
 // intended contract of the pointer. They are not *types* and do not currently
 // provide any correctness guarantees. For example, a pointer annotated as
-// `Nonnull<T*>` is *not guaranteed* to be non-null, and the compiler won't
-// alert or prevent assignment of a `Nullable<T*>` to a `Nonnull<T*>`.
+// `absl_nonnull` is *not guaranteed* to be non-null, and the compiler won't
+// alert or prevent assignment of a `T* absl_nullable` to a `T* absl_nonnull`.
 // ===========================================================================
 #ifndef ABSL_BASE_NULLABILITY_H_
 #define ABSL_BASE_NULLABILITY_H_
@@ -176,14 +198,14 @@
 //     ABSL_POINTERS_DEFAULT_NONNULL
 //
 //     void FillMessage(Message *m);                  // implicitly non-null
-//     absl::Nullable<T*> GetNullablePtr();           // explicitly nullable
-//     absl::NullabilityUnknown<T*> GetUnknownPtr();  // explicitly unknown
+//     T* absl_nullable GetNullablePtr();           // explicitly nullable
+//     T* absl_nullability_unknown GetUnknownPtr();  // explicitly unknown
 //
-// The macro can be safely used in header files -- it will not affect any files
+// The macro can be safely used in header files – it will not affect any files
 // that include it.
 //
-// In files with the macro, plain `T*` syntax means `absl::Nonnull<T*>`, and the
-// exceptions (`Nullable` and `NullabilityUnknown`) must be marked
+// In files with the macro, plain `T*` syntax means `T* absl_nonnull`, and the
+// exceptions (`absl_nullable` and `absl_nullability_unknown`) must be marked
 // explicitly. The same holds, correspondingly, for smart pointer types.
 //
 // For comparison, without the macro, all unannotated pointers would default to
@@ -191,17 +213,16 @@
 //
 //     #include "absl/base/nullability.h"
 //
-//     void FillMessage(absl::Nonnull<Message*> m);  // explicitly non-null
-//     absl::Nullable<T*> GetNullablePtr();          // explicitly nullable
+//     void FillMessage(Message* absl_nonnull m);  // explicitly non-null
+//     T* absl_nullable GetNullablePtr();          // explicitly nullable
 //     T* GetUnknownPtr();                           // implicitly unknown
 //
 // No-op except for being a human readable signal.
 #define ABSL_POINTERS_DEFAULT_NONNULL
 
-namespace absl {
-ABSL_NAMESPACE_BEGIN
-
-// absl::Nonnull (default with `ABSL_POINTERS_DEFAULT_NONNULL`)
+#if defined(__clang__) && !defined(__OBJC__) && \
+    ABSL_HAVE_FEATURE(nullability_on_classes)
+// absl_nonnull (default with `ABSL_POINTERS_DEFAULT_NONNULL`)
 //
 // The indicated pointer is never null. It is the responsibility of the provider
 // of this pointer across an API boundary to ensure that the pointer is never
@@ -211,13 +232,12 @@ ABSL_NAMESPACE_BEGIN
 // Example:
 //
 // // `employee` is designated as not null.
-// void PaySalary(absl::Nonnull<Employee *> employee) {
+// void PaySalary(Employee* absl_nonnull employee) {
 //   pay(*employee);  // OK to dereference
 // }
-template <typename T>
-using Nonnull = nullability_internal::NonnullImpl<T>;
+#define absl_nonnull _Nonnull
 
-// absl::Nullable
+// absl_nullable
 //
 // The indicated pointer may, by design, be either null or non-null. Consumers
 // of this pointer across an API boundary should perform a `nullptr` check
@@ -226,15 +246,14 @@ using Nonnull = nullability_internal::NonnullImpl<T>;
 // Example:
 //
 // // `employee` may  be null.
-// void PaySalary(absl::Nullable<Employee *> employee) {
+// void PaySalary(Employee* absl_nullable employee) {
 //   if (employee != nullptr) {
 //     Pay(*employee);  // OK to dereference
 //   }
 // }
-template <typename T>
-using Nullable = nullability_internal::NullableImpl<T>;
+#define absl_nullable _Nullable
 
-// absl::NullabilityUnknown (default without `ABSL_POINTERS_DEFAULT_NONNULL`)
+// absl_nullability_unknown  (default without `ABSL_POINTERS_DEFAULT_NONNULL`)
 //
 // The indicated pointer has not yet been determined to be definitively
 // "non-null" or "nullable." Providers of such pointers across API boundaries
@@ -242,8 +261,8 @@ using Nullable = nullability_internal::NullableImpl<T>;
 // Consumers of these pointers across an API boundary should treat such pointers
 // with the same caution they treat currently unannotated pointers. Most
 // existing code will have "unknown"  pointers, which should eventually be
-// migrated into one of the above two nullability states: `Nonnull<T>` or
-//  `Nullable<T>`.
+// migrated into one of the above two nullability states: `absl_nonnull` or
+//  `absl_nullable`.
 //
 // NOTE: For files that do not specify `ABSL_POINTERS_DEFAULT_NONNULL`,
 // because this annotation is the global default state, unannotated pointers are
@@ -253,7 +272,7 @@ using Nullable = nullability_internal::NullableImpl<T>;
 // Example:
 //
 // // `employee`s nullability state is unknown.
-// void PaySalary(absl::NullabilityUnknown<Employee *> employee) {
+// void PaySalary(Employee* absl_nullability_unknown employee) {
 //   Pay(*employee); // Potentially dangerous. API provider should investigate.
 // }
 //
@@ -264,11 +283,15 @@ using Nullable = nullability_internal::NullableImpl<T>;
 // void PaySalary(Employee* employee) {
 //   Pay(*employee); // Potentially dangerous. API provider should investigate.
 // }
-template <typename T>
-using NullabilityUnknown = nullability_internal::NullabilityUnknownImpl<T>;
-
-ABSL_NAMESPACE_END
-}  // namespace absl
+#define absl_nullability_unknown _Null_unspecified
+#else
+// No-op for non-Clang compilers or Objective-C.
+#define absl_nonnull
+// No-op for non-Clang compilers or Objective-C.
+#define absl_nullable
+// No-op for non-Clang compilers or Objective-C.
+#define absl_nullability_unknown
+#endif
 
 // ABSL_NULLABILITY_COMPATIBLE
 //
@@ -279,10 +302,56 @@ ABSL_NAMESPACE_END
 // struct ABSL_NULLABILITY_COMPATIBLE MyPtr {
 //   ...
 // };
+//
+// Note: Compilers that don't support the `nullability_on_classes` feature will
+// allow nullability annotations to be applied to any type, not just ones marked
+// with `ABSL_NULLABILITY_COMPATIBLE`.
 #if ABSL_HAVE_FEATURE(nullability_on_classes)
 #define ABSL_NULLABILITY_COMPATIBLE _Nullable
 #else
 #define ABSL_NULLABILITY_COMPATIBLE
 #endif
+
+namespace absl {
+ABSL_NAMESPACE_BEGIN
+
+// The following template aliases are alternate forms of the macro annotations
+// above. They have some limitations, for example, an incompatibility with
+// `auto*` pointers, as `auto` cannot be used in a template argument.
+//
+// It is important to note that these annotations are not distinct strong
+// *types*. They are alias templates defined to be equal to the underlying
+// pointer type. A pointer annotated `Nonnull<T*>`, for example, is simply a
+// pointer of type `T*`.
+
+// absl::Nonnull, analogous to absl_nonnull
+//
+// Example:
+// absl::Nonnull<int*> foo;
+// Is equivalent to:
+// int* absl_nonnull foo;
+template <typename T>
+using Nonnull = nullability_internal::NonnullImpl<T>;
+
+// absl::Nullable, analogous to absl_nullable
+//
+// Example:
+// absl::Nullable<int*> foo;
+// Is equivalent to:
+// int* absl_nullable foo;
+template <typename T>
+using Nullable = nullability_internal::NullableImpl<T>;
+
+// absl::NullabilityUnknown, analogous to absl_nullability_unknown
+//
+// Example:
+// absl::NullabilityUnknown<int*> foo;
+// Is equivalent to:
+// int* absl_nullability_unknown foo;
+template <typename T>
+using NullabilityUnknown = nullability_internal::NullabilityUnknownImpl<T>;
+
+ABSL_NAMESPACE_END
+}  // namespace absl
 
 #endif  // ABSL_BASE_NULLABILITY_H_

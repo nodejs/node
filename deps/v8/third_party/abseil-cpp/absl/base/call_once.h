@@ -31,7 +31,8 @@
 #include <type_traits>
 #include <utility>
 
-#include "absl/base/internal/invoke.h"
+#include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/low_level_scheduling.h"
 #include "absl/base/internal/raw_logging.h"
 #include "absl/base/internal/scheduling_mode.h"
@@ -147,10 +148,10 @@ enum {
 };
 
 template <typename Callable, typename... Args>
-ABSL_ATTRIBUTE_NOINLINE void CallOnceImpl(
-    absl::Nonnull<std::atomic<uint32_t>*> control,
-    base_internal::SchedulingMode scheduling_mode, Callable&& fn,
-    Args&&... args) {
+    void
+    CallOnceImpl(absl::Nonnull<std::atomic<uint32_t>*> control,
+                 base_internal::SchedulingMode scheduling_mode, Callable&& fn,
+                 Args&&... args) {
 #ifndef NDEBUG
   {
     uint32_t old_control = control->load(std::memory_order_relaxed);
@@ -179,8 +180,7 @@ ABSL_ATTRIBUTE_NOINLINE void CallOnceImpl(
                                        std::memory_order_relaxed) ||
       base_internal::SpinLockWait(control, ABSL_ARRAYSIZE(trans), trans,
                                   scheduling_mode) == kOnceInit) {
-    base_internal::invoke(std::forward<Callable>(fn),
-                          std::forward<Args>(args)...);
+    std::invoke(std::forward<Callable>(fn), std::forward<Args>(args)...);
     old_control =
         control->exchange(base_internal::kOnceDone, std::memory_order_release);
     if (old_control == base_internal::kOnceWaiter) {
@@ -209,7 +209,8 @@ void LowLevelCallOnce(absl::Nonnull<absl::once_flag*> flag, Callable&& fn,
 }  // namespace base_internal
 
 template <typename Callable, typename... Args>
-void call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
+    void
+    call_once(absl::once_flag& flag, Callable&& fn, Args&&... args) {
   std::atomic<uint32_t>* once = base_internal::ControlWord(&flag);
   uint32_t s = once->load(std::memory_order_acquire);
   if (ABSL_PREDICT_FALSE(s != base_internal::kOnceDone)) {

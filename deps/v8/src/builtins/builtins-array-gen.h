@@ -20,14 +20,13 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
   using BuiltinResultGenerator =
       std::function<void(ArrayBuiltinsAssembler* masm)>;
 
-  using CallResultProcessor = std::function<TNode<Object>(
+  using CallResultProcessor = std::function<TNode<JSAny>(
       ArrayBuiltinsAssembler* masm, TNode<Object> k_value, TNode<UintPtrT> k)>;
 
   void TypedArrayMapResultGenerator();
 
   // See tc39.github.io/ecma262/#sec-%typedarray%.prototype.map.
-  TNode<Object> TypedArrayMapProcessor(TNode<Object> k_value,
-                                       TNode<UintPtrT> k);
+  TNode<JSAny> TypedArrayMapProcessor(TNode<Object> k_value, TNode<UintPtrT> k);
 
   TNode<String> CallJSArrayArrayJoinConcatToSequentialString(
       TNode<FixedArray> fixed_array, TNode<IntPtrT> length, TNode<String> sep,
@@ -48,21 +47,21 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
  protected:
   TNode<Context> context() { return context_; }
-  TNode<Object> receiver() { return receiver_; }
+  TNode<JSAny> receiver() { return receiver_; }
   TNode<IntPtrT> argc() { return argc_; }
   TNode<JSReceiver> o() { return o_; }
   TNode<UintPtrT> len() { return len_; }
   TNode<Object> callbackfn() { return callbackfn_; }
-  TNode<Object> this_arg() { return this_arg_; }
+  TNode<JSAny> this_arg() { return this_arg_; }
   TNode<UintPtrT> k() { return k_.value(); }
-  TNode<Object> a() { return a_.value(); }
+  TNode<JSAny> a() { return a_.value(); }
 
   void ReturnFromBuiltin(TNode<Object> value);
 
   void InitIteratingArrayBuiltinBody(TNode<Context> context,
-                                     TNode<Object> receiver,
+                                     TNode<JSAny> receiver,
                                      TNode<Object> callbackfn,
-                                     TNode<Object> this_arg,
+                                     TNode<JSAny> this_arg,
                                      TNode<IntPtrT> argc);
 
   void GenerateIteratingTypedArrayBuiltinBody(
@@ -91,7 +90,7 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
       std::optional<TNode<AllocationSite>> allocation_site);
 
   void GenerateConstructor(TNode<Context> context,
-                           TNode<HeapObject> array_function,
+                           TNode<JSAnyNotSmi> array_function,
                            TNode<Map> array_map, TNode<Object> array_size,
                            TNode<HeapObject> allocation_site,
                            ElementsKind elements_kind, AllocationSiteMode mode);
@@ -112,15 +111,15 @@ class ArrayBuiltinsAssembler : public CodeStubAssembler {
 
   TNode<Object> callbackfn_;
   TNode<JSReceiver> o_;
-  TNode<Object> this_arg_;
+  TNode<JSAny> this_arg_;
   TNode<UintPtrT> len_;
   TNode<Context> context_;
-  TNode<Object> receiver_;
+  TNode<JSAny> receiver_;
   TNode<IntPtrT> argc_;
   TNode<BoolT> fast_typed_array_target_;
   const char* name_ = nullptr;
   TVariable<UintPtrT> k_;
-  TVariable<Object> a_;
+  TVariable<JSAny> a_;
   Label fully_spec_compliant_;
   ElementsKind source_elements_kind_ = ElementsKind::NO_ELEMENTS;
 };

@@ -69,7 +69,7 @@ transitioning javascript builtin ObjectFromEntries(
       }
       return result;
     } catch (e, message) deferred {
-      iterator::IteratorCloseOnException(i);
+      iterator::IteratorCloseOnException(i.object);
       ReThrowWithMessage(context, e, message);
     }
   } label Throw deferred {

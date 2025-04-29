@@ -83,7 +83,7 @@ class JSInliner final : public AdvancedReducer {
   CommonOperatorBuilder* common() const;
   JSOperatorBuilder* javascript() const;
   SimplifiedOperatorBuilder* simplified() const;
-  Graph* graph() const;
+  TFGraph* graph() const;
   JSGraph* jsgraph() const { return jsgraph_; }
   // TODO(neis): Make heap broker a component of JSGraph?
   JSHeapBroker* broker() const { return broker_; }
@@ -111,7 +111,8 @@ class JSInliner final : public AdvancedReducer {
   FrameState CreateArtificialFrameState(
       Node* node, FrameState outer_frame_state, int parameter_count,
       FrameStateType frame_state_type, SharedFunctionInfoRef shared,
-      Node* context = nullptr, Node* callee = nullptr);
+      OptionalBytecodeArrayRef maybe_bytecode_array, Node* context = nullptr,
+      Node* callee = nullptr);
 
   Reduction InlineCall(Node* call, Node* new_target, Node* context,
                        Node* frame_state, StartNode start, Node* end,

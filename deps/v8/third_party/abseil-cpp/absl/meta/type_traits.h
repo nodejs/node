@@ -97,22 +97,6 @@ struct is_detected_impl<typename VoidTImpl<Op<Args...>>::type, Op, Args...> {
 template <template <class...> class Op, class... Args>
 struct is_detected : is_detected_impl<void, Op, Args...>::type {};
 
-template <class Enabler, class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl {
-  using type = std::false_type;
-};
-
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible_impl<
-    typename std::enable_if<std::is_convertible<Op<Args...>, To>::value>::type,
-    To, Op, Args...> {
-  using type = std::true_type;
-};
-
-template <class To, template <class...> class Op, class... Args>
-struct is_detected_convertible
-    : is_detected_convertible_impl<void, To, Op, Args...>::type {};
-
 }  // namespace type_traits_internal
 
 // void_t()
@@ -121,96 +105,32 @@ struct is_detected_convertible
 // metafunction allows you to create a general case that maps to `void` while
 // allowing specializations that map to specific types.
 //
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::void_t` metafunction.
-//
-// NOTE: `absl::void_t` does not use the standard-specified implementation so
-// that it can remain compatible with gcc < 5.1. This can introduce slightly
-// different behavior, such as when ordering partial specializations.
+// This metafunction is not 100% compatible with the C++17 `std::void_t`
+// metafunction. It has slightly different behavior, such as when ordering
+// partial specializations. It is recommended to use `std::void_t` instead.
 template <typename... Ts>
 using void_t = typename type_traits_internal::VoidTImpl<Ts...>::type;
 
-// conjunction
-//
-// Performs a compile-time logical AND operation on the passed types (which
-// must have  `::value` members convertible to `bool`. Short-circuits if it
-// encounters any `false` members (and does not compare the `::value` members
-// of any remaining arguments).
-//
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::conjunction` metafunction.
-template <typename... Ts>
-struct conjunction : std::true_type {};
-
-template <typename T, typename... Ts>
-struct conjunction<T, Ts...>
-    : std::conditional<T::value, conjunction<Ts...>, T>::type {};
-
-template <typename T>
-struct conjunction<T> : T {};
-
-// disjunction
-//
-// Performs a compile-time logical OR operation on the passed types (which
-// must have  `::value` members convertible to `bool`. Short-circuits if it
-// encounters any `true` members (and does not compare the `::value` members
-// of any remaining arguments).
-//
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::disjunction` metafunction.
-template <typename... Ts>
-struct disjunction : std::false_type {};
-
-template <typename T, typename... Ts>
-struct disjunction<T, Ts...>
-    : std::conditional<T::value, T, disjunction<Ts...>>::type {};
-
-template <typename T>
-struct disjunction<T> : T {};
-
-// negation
-//
-// Performs a compile-time logical NOT operation on the passed type (which
-// must have  `::value` members convertible to `bool`.
-//
-// This metafunction is designed to be a drop-in replacement for the C++17
-// `std::negation` metafunction.
-template <typename T>
-struct negation : std::integral_constant<bool, !T::value> {};
-
-// is_function()
-//
-// Determines whether the passed type `T` is a function type.
-//
-// This metafunction is designed to be a drop-in replacement for the C++11
-// `std::is_function()` metafunction for platforms that have incomplete C++11
-// support (such as libstdc++ 4.x).
-//
-// This metafunction works because appending `const` to a type does nothing to
-// function types and reference types (and forms a const-qualified type
-// otherwise).
-template <typename T>
-struct is_function
-    : std::integral_constant<
-          bool, !(std::is_reference<T>::value ||
-                  std::is_const<typename std::add_const<T>::type>::value)> {};
-
-// is_copy_assignable()
-// is_move_assignable()
-// is_trivially_destructible()
-// is_trivially_default_constructible()
-// is_trivially_move_constructible()
-// is_trivially_copy_constructible()
-// is_trivially_move_assignable()
-// is_trivially_copy_assignable()
-//
 // Historical note: Abseil once provided implementations of these type traits
 // for platforms that lacked full support. New code should prefer to use the
 // std variants.
 //
 // See the documentation for the STL <type_traits> header for more information:
 // https://en.cppreference.com/w/cpp/header/type_traits
+using std::add_const_t;
+using std::add_cv_t;
+using std::add_lvalue_reference_t;
+using std::add_pointer_t;
+using std::add_rvalue_reference_t;
+using std::add_volatile_t;
+using std::common_type_t;
+using std::conditional_t;
+using std::conjunction;
+using std::decay_t;
+using std::enable_if_t;
+using std::disjunction;
 using std::is_copy_assignable;
+using std::is_function;
 using std::is_move_assignable;
 using std::is_trivially_copy_assignable;
 using std::is_trivially_copy_constructible;
@@ -218,6 +138,17 @@ using std::is_trivially_default_constructible;
 using std::is_trivially_destructible;
 using std::is_trivially_move_assignable;
 using std::is_trivially_move_constructible;
+using std::make_signed_t;
+using std::make_unsigned_t;
+using std::negation;
+using std::remove_all_extents_t;
+using std::remove_const_t;
+using std::remove_cv_t;
+using std::remove_extent_t;
+using std::remove_pointer_t;
+using std::remove_reference_t;
+using std::remove_volatile_t;
+using std::underlying_type_t;
 
 #if defined(__cpp_lib_remove_cvref) && __cpp_lib_remove_cvref >= 201711L
 template <typename T>
@@ -239,70 +170,6 @@ struct remove_cvref {
 template <typename T>
 using remove_cvref_t = typename remove_cvref<T>::type;
 #endif
-
-// -----------------------------------------------------------------------------
-// C++14 "_t" trait aliases
-// -----------------------------------------------------------------------------
-
-template <typename T>
-using remove_cv_t = typename std::remove_cv<T>::type;
-
-template <typename T>
-using remove_const_t = typename std::remove_const<T>::type;
-
-template <typename T>
-using remove_volatile_t = typename std::remove_volatile<T>::type;
-
-template <typename T>
-using add_cv_t = typename std::add_cv<T>::type;
-
-template <typename T>
-using add_const_t = typename std::add_const<T>::type;
-
-template <typename T>
-using add_volatile_t = typename std::add_volatile<T>::type;
-
-template <typename T>
-using remove_reference_t = typename std::remove_reference<T>::type;
-
-template <typename T>
-using add_lvalue_reference_t = typename std::add_lvalue_reference<T>::type;
-
-template <typename T>
-using add_rvalue_reference_t = typename std::add_rvalue_reference<T>::type;
-
-template <typename T>
-using remove_pointer_t = typename std::remove_pointer<T>::type;
-
-template <typename T>
-using add_pointer_t = typename std::add_pointer<T>::type;
-
-template <typename T>
-using make_signed_t = typename std::make_signed<T>::type;
-
-template <typename T>
-using make_unsigned_t = typename std::make_unsigned<T>::type;
-
-template <typename T>
-using remove_extent_t = typename std::remove_extent<T>::type;
-
-template <typename T>
-using remove_all_extents_t = typename std::remove_all_extents<T>::type;
-
-template <typename T>
-using decay_t = typename std::decay<T>::type;
-
-template <bool B, typename T = void>
-using enable_if_t = typename std::enable_if<B, T>::type;
-
-template <bool B, typename T, typename F>
-using conditional_t = typename std::conditional<B, T, F>::type;
-
-template <typename... T>
-using common_type_t = typename std::common_type<T...>::type;
-
-template <typename T>
-using underlying_type_t = typename std::underlying_type<T>::type;
 
 namespace type_traits_internal {
 
@@ -503,10 +370,11 @@ using swap_internal::Swap;
 // remove the condition.
 //
 // Clang on all platforms fails to detect that a type with a user-provided
-// move-assignment operator is not trivially relocatable. So in fact we
-// opt out of Clang altogether, for now.
+// move-assignment operator is not trivially relocatable so we also check for
+// is_trivially_move_assignable for Clang.
 //
-// TODO(b/325479096): Remove the opt-out once Clang's behavior is fixed.
+// TODO(b/325479096): Remove the Clang is_trivially_move_assignable version once
+// Clang's behavior is fixed.
 //
 // According to https://github.com/abseil/abseil-cpp/issues/1479, this does not
 // work with NVCC either.
@@ -516,6 +384,15 @@ using swap_internal::Swap;
 template <class T>
 struct is_trivially_relocatable
     : std::integral_constant<bool, __is_trivially_relocatable(T)> {};
+#elif ABSL_HAVE_BUILTIN(__is_trivially_relocatable) && defined(__clang__) && \
+    !(defined(_WIN32) || defined(_WIN64)) && !defined(__APPLE__) &&          \
+    !defined(__NVCC__)
+template <class T>
+struct is_trivially_relocatable
+    : std::integral_constant<
+          bool, std::is_trivially_copyable<T>::value ||
+                    (__is_trivially_relocatable(T) &&
+                     std::is_trivially_move_assignable<T>::value)> {};
 #else
 // Otherwise we use a fallback that detects only those types we can feasibly
 // detect. Any type that is trivially copyable is by definition trivially
@@ -648,9 +525,9 @@ struct IsView<std::span<T>> : std::true_type {};
 // Until then, we consider an assignment from an "owner" (such as std::string)
 // to a "view" (such as std::string_view) to be a lifetime-bound assignment.
 template <typename T, typename U>
-using IsLifetimeBoundAssignment =
-    std::integral_constant<bool, IsView<absl::remove_cvref_t<T>>::value &&
-                                     IsOwner<absl::remove_cvref_t<U>>::value>;
+using IsLifetimeBoundAssignment = absl::conjunction<
+    std::integral_constant<bool, !std::is_lvalue_reference<U>::value>,
+    IsOwner<absl::remove_cvref_t<U>>, IsView<absl::remove_cvref_t<T>>>;
 
 }  // namespace type_traits_internal
 

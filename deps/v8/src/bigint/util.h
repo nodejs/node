@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BIGINT_UTIL_H_
+#define V8_BIGINT_UTIL_H_
+
 // "Generic" helper functions (not specific to BigInts).
 
 #include <stdint.h>
@@ -11,9 +14,6 @@
 #ifdef _MSC_VER
 #include <intrin.h>  // For _BitScanReverse.
 #endif
-
-#ifndef V8_BIGINT_UTIL_H_
-#define V8_BIGINT_UTIL_H_
 
 // Integer division, rounding up.
 #define DIV_CEIL(x, y) (((x)-1) / (y) + 1)
@@ -26,9 +26,10 @@ inline constexpr int RoundUp(int x, int y) { return (x + y - 1) & -y; }
 
 // Different environments disagree on how 64-bit uintptr_t and uint64_t are
 // defined, so we have to use templates to be generic.
-template <typename T, typename = typename std::enable_if<
-                          std::is_unsigned<T>::value && sizeof(T) == 8>::type>
-constexpr int CountLeadingZeros(T value) {
+template <typename T>
+constexpr int CountLeadingZeros(T value)
+  requires(std::is_unsigned<T>::value && sizeof(T) == 8)
+{
 #if __GNUC__ || __clang__
   return value == 0 ? 64 : __builtin_clzll(value);
 #elif _MSC_VER

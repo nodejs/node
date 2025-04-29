@@ -4,8 +4,6 @@
 
 #include "src/compiler/common-operator.h"
 #include "src/compiler/compiler-source-position-table.h"
-#include "src/compiler/graph-visualizer.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/machine-operator.h"
 #include "src/compiler/node-origin-table.h"
@@ -13,6 +11,8 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/scheduler.h"
+#include "src/compiler/turbofan-graph-visualizer.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/verifier.h"
 #include "test/cctest/cctest.h"
 
@@ -28,7 +28,7 @@ static Operator dummy_operator6(IrOpcode::kParameter, Operator::kNoWrite,
 
 TEST(NodeWithNullInputReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -47,7 +47,7 @@ TEST(NodeWithNullInputReachableFromEnd) {
 
 TEST(NodeWithNullControlReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -66,7 +66,7 @@ TEST(NodeWithNullControlReachableFromEnd) {
 
 TEST(NodeWithNullInputReachableFromStart) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -85,7 +85,7 @@ TEST(NodeWithNullInputReachableFromStart) {
 
 TEST(NodeWithNullControlReachableFromStart) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
@@ -102,7 +102,7 @@ TEST(NodeWithNullControlReachableFromStart) {
 
 TEST(NodeNetworkOfDummiesReachableFromEnd) {
   HandleAndZoneScope scope(kCompressGraphZone);
-  Graph graph(scope.main_zone());
+  TFGraph graph(scope.main_zone());
   CommonOperatorBuilder common(scope.main_zone());
 
   Node* start = graph.NewNode(common.Start(0));
