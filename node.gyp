@@ -25,6 +25,7 @@
     'node_shared_uvwasi%': 'false',
     'node_shared_nghttp2%': 'false',
     'node_use_openssl%': 'true',
+    'node_use_sqlite%': 'true',
     'node_shared_openssl%': 'false',
     'node_v8_options%': '',
     'node_enable_v8_vtunejit%': 'false',
@@ -140,7 +141,6 @@
       'src/node_shadow_realm.cc',
       'src/node_snapshotable.cc',
       'src/node_sockaddr.cc',
-      'src/node_sqlite.cc',
       'src/node_stat_watcher.cc',
       'src/node_symbols.cc',
       'src/node_task_queue.cc',
@@ -154,7 +154,6 @@
       'src/node_wasi.cc',
       'src/node_wasm_web_api.cc',
       'src/node_watchdog.cc',
-      'src/node_webstorage.cc',
       'src/node_worker.cc',
       'src/node_zlib.cc',
       'src/path.cc',
@@ -275,7 +274,6 @@
       'src/node_snapshot_builder.h',
       'src/node_sockaddr.h',
       'src/node_sockaddr-inl.h',
-      'src/node_sqlite.h',
       'src/node_stat_watcher.h',
       'src/node_union_bytes.h',
       'src/node_url.h',
@@ -285,7 +283,6 @@
       'src/node_v8_platform-inl.h',
       'src/node_wasi.h',
       'src/node_watchdog.h',
-      'src/node_webstorage.h',
       'src/node_worker.h',
       'src/path.h',
       'src/permission/child_process_permission.h',
@@ -417,6 +414,12 @@
       'test/cctest/inspector/test_node_protocol.cc',
       'test/cctest/test_inspector_socket.cc',
       'test/cctest/test_inspector_socket_server.cc',
+    ],
+    'node_sqlite_sources': [
+      'src/node_sqlite.cc',
+      'src/node_webstorage.cc',
+      'src/node_sqlite.h',
+      'src/node_webstorage.h',
     ],
     'node_mksnapshot_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_mksnapshot<(EXECUTABLE_SUFFIX)',
     'node_js2c_exec': '<(PRODUCT_DIR)/<(EXECUTABLE_PREFIX)node_js2c<(EXECUTABLE_SUFFIX)',
@@ -892,6 +895,12 @@
             'src/node_snapshot_stub.cc',
           ]
         }],
+        [ 'node_use_sqlite=="true"', {
+          'sources': [
+            '<@(node_sqlite_sources)',
+          ],
+          'defines': [ 'HAVE_SQLITE=1' ],
+        }],
         [ 'node_shared=="true" and node_module_version!="" and OS!="win"', {
           'product_extension': '<(shlib_suffix)',
           'xcode_settings': {
@@ -939,6 +948,12 @@
           'sources': [
             '<@(node_quic_sources)',
           ],
+        }],
+        [ 'node_use_sqlite=="true"', {
+          'sources': [
+            '<@(node_sqlite_sources)',
+          ],
+          'defines': [ 'HAVE_SQLITE=1' ],
         }],
         [ 'OS in "linux freebsd mac solaris" and '
           'target_arch=="x64" and '

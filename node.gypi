@@ -233,7 +233,7 @@
       'dependencies': [ 'deps/brotli/brotli.gyp:brotli' ],
     }],
 
-    [ 'node_shared_sqlite=="false"', {
+    [ 'node_use_sqlite=="true" and node_shared_sqlite=="false"', {
       'dependencies': [ 'deps/sqlite/sqlite.gyp:sqlite' ],
     }],
 
