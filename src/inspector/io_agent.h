@@ -4,7 +4,6 @@
 #include <unordered_map>
 #include "node/inspector/protocol/IO.h"
 
-
 namespace node {
 
 namespace inspector {
