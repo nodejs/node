@@ -11,10 +11,14 @@ const options = {
 const bench = common.createBenchmark(
   main,
   {
-    operation: ['findSourceMap-valid'],
+    operation: [
+      'findSourceMap-valid',
+      'findSourceMap-invalid',
+      'findSourceMap-missing',
+    ],
     n: [1e5],
   },
-  options,
+  options
 );
 
 function main({ operation, n }) {
@@ -31,13 +35,40 @@ function main({ operation, n }) {
   const validFileContent = fs.readFileSync(validFileName, 'utf8');
   fs.readFileSync(validMapFile, 'utf8');
 
+  const invalidFileName = path.resolve(
+    __dirname,
+    '../../test/fixtures/test-runner/source-maps/invalid-json/index.js',
+  );
+  const invalidMapFile = path.resolve(invalidFileName + '.map');
+  const invalidFileContent = fs.readFileSync(invalidFileName, 'utf8');
+  fs.readFileSync(invalidMapFile, 'utf8');
+
+  const missingSourceURL = 'missing-source-url.js';
+
   maybeCacheSourceMap(validFileName, validFileContent, null, false);
+  maybeCacheSourceMap(invalidFileName, invalidFileContent, null, false);
 
   switch (operation) {
     case 'findSourceMap-valid':
       bench.start();
       for (let i = 0; i < n; i++) {
         findSourceMap(validFileName);
+      }
+      bench.end(n);
+      break;
+
+    case 'findSourceMap-invalid':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        findSourceMap(invalidFileName);
+      }
+      bench.end(n);
+      break;
+
+    case 'findSourceMap-missing':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        findSourceMap(missingSourceURL);
       }
       bench.end(n);
       break;
