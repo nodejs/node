@@ -15,11 +15,17 @@ const bench = common.createBenchmark(
       'parse-sectioned',
       'parse-large',
       'findEntry',
+      'findEntry-minified',
+      'findEntry-sectioned',
+      'findEntry-large',
       'findOrigin',
+      'findOrigin-minified',
+      'findOrigin-sectioned',
+      'findOrigin-large',
     ],
     n: [1e5],
   },
-  options
+  options,
 );
 
 function main({ operation, n }) {
@@ -68,6 +74,9 @@ function main({ operation, n }) {
   };
 
   const sourceMap = new SourceMap(samplePayload);
+  const minifiedSourceMap = new SourceMap(minifiedPayload);
+  const sectionedSourceMap = new SourceMap(sectionedPayload);
+  const largeSourceMap = new SourceMap(largePayload);
 
   switch (operation) {
     case 'parse':
@@ -110,10 +119,58 @@ function main({ operation, n }) {
       bench.end(n);
       break;
 
+    case 'findEntry-minified':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        minifiedSourceMap.findEntry(2, 2);
+      }
+      bench.end(n);
+      break;
+
+    case 'findEntry-sectioned':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        sectionedSourceMap.findEntry(3, 3);
+      }
+      bench.end(n);
+      break;
+
+    case 'findEntry-large':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        largeSourceMap.findEntry(10, 10);
+      }
+      bench.end(n);
+      break;
+
     case 'findOrigin':
       bench.start();
       for (let i = 0; i < n; i++) {
         sourceMap.findOrigin(2, 5);
+      }
+      bench.end(n);
+      break;
+
+    case 'findOrigin-minified':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        minifiedSourceMap.findOrigin(3, 6);
+      }
+      bench.end(n);
+      break;
+
+    case 'findOrigin-sectioned':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        sectionedSourceMap.findOrigin(4, 7);
+      }
+      bench.end(n);
+      break;
+
+    case 'findOrigin-large':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        largeSourceMap.findOrigin(12, 15);
       }
       bench.end(n);
       break;
