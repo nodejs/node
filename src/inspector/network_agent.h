@@ -1,6 +1,8 @@
 #ifndef SRC_INSPECTOR_NETWORK_AGENT_H_
 #define SRC_INSPECTOR_NETWORK_AGENT_H_
 
+#include "env.h"
+#include "io_agent.h"
 #include "node/inspector/protocol/Network.h"
 
 #include <map>
@@ -21,7 +23,9 @@ struct RequestEntry {
 class NetworkAgent : public protocol::Network::Backend {
  public:
   explicit NetworkAgent(NetworkInspector* inspector,
-                        v8_inspector::V8Inspector* v8_inspector);
+                        v8_inspector::V8Inspector* v8_inspector,
+                        Environment* env,
+                        std::shared_ptr<protocol::IoAgent> io_agent);
 
   void Wire(protocol::UberDispatcher* dispatcher);
 
@@ -32,6 +36,11 @@ class NetworkAgent : public protocol::Network::Backend {
   protocol::DispatchResponse streamResourceContent(
       const protocol::String& in_requestId,
       protocol::Binary* out_bufferedData) override;
+
+  protocol::DispatchResponse loadNetworkResource(
+      const protocol::String& in_url,
+      std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
+          out_resource) override;
 
   void emitNotification(v8::Local<v8::Context> context,
                         const protocol::String& event,
@@ -53,13 +62,18 @@ class NetworkAgent : public protocol::Network::Backend {
                     v8::Local<v8::Object> params);
 
  private:
+  std::tuple<int, std::string, std::string> spawnFetchProcess(
+      std::string_view code, Environment* env, std::string_view url);
   NetworkInspector* inspector_;
   v8_inspector::V8Inspector* v8_inspector_;
   std::shared_ptr<protocol::Network::Frontend> frontend_;
+  Environment* env_;
   using EventNotifier = void (NetworkAgent::*)(v8::Local<v8::Context> context,
                                                v8::Local<v8::Object>);
   std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;
   std::map<protocol::String, RequestEntry> requests_;
+  std::shared_ptr<protocol::IoAgent> io_agent_;
+  int load_id_counter_ = 1;
 };
 
 }  // namespace inspector
