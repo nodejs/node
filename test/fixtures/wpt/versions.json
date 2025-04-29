@@ -92,7 +92,7 @@
     "path": "wasm/webapi"
   },
   "WebCryptoAPI": {
-    "commit": "164426ace287247bd99e6d1cee31035875ad57a0",
+    "commit": "b48efd681ea3a5b0daa6b866c3bb54bec895037b",
     "path": "WebCryptoAPI"
   },
   "webidl/ecmascript-binding/es-exceptions": {
