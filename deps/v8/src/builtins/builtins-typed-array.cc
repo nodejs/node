@@ -818,16 +818,11 @@ BUILTIN(Uint8ArrayPrototypeToBase64) {
     //    is false.
     // 11. Return CodePointsToString(outAscii).
 
-    size_t simd_result_size;
-    if (uint8array->buffer()->is_shared()) {
-      simd_result_size = simdutf::atomic_binary_to_base64(
-          std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-          length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
-    } else {
-      simd_result_size = simdutf::binary_to_base64(
-          std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
-          length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
-    }
+    // TODO(rezvan): Make sure to add a path for SharedArrayBuffers when
+    // simdutf library got updated. Also, add a test for it.
+    size_t simd_result_size = simdutf::binary_to_base64(
+        std::bit_cast<const char*>(uint8array->GetBuffer()->backing_store()),
+        length, reinterpret_cast<char*>(output->GetChars(no_gc)), alphabet);
     DCHECK_EQ(simd_result_size, output_length);
     USE(simd_result_size);
   }

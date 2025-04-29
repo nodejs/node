@@ -4361,12 +4361,6 @@ cc_library(
   name = "simdutf",
   srcs = ["third_party/simdutf/simdutf.cpp"],
   hdrs = ["third_party/simdutf/simdutf.h"],
-  copts = select({
-        "@v8//bazel/config:is_clang": ["-std=c++20"],
-        "@v8//bazel/config:is_gcc": ["-std=gnu++2a"],
-        "@v8//bazel/config:is_windows": ["/std:c++20"],
-        "//conditions:default": [],
-    }),
 )
 
 v8_library(
