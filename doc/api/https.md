@@ -341,6 +341,7 @@ changes:
 * `options` {Object | string | URL} Accepts the same `options` as
   [`https.request()`][], with the method set to GET by default.
 * `callback` {Function}
+* Returns: {http.ClientRequest}
 
 Like [`http.get()`][] but for HTTPS.
 
