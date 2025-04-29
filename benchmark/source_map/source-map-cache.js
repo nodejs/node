@@ -15,10 +15,11 @@ const bench = common.createBenchmark(
       'findSourceMap-valid',
       'findSourceMap-invalid',
       'findSourceMap-missing',
+      'findSourceMap-generated-source',
     ],
     n: [1e5],
   },
-  options
+  options,
 );
 
 function main({ operation, n }) {
@@ -45,8 +46,20 @@ function main({ operation, n }) {
 
   const missingSourceURL = 'missing-source-url.js';
 
+  const generatedSourceFileName = 'generated-source.js';
+  const generatedSourceContent = eval(`
+    function hello() {
+      console.log('Hello, World!');
+    }
+    // # sourceMappingURL=${generatedSourceFileName}
+  `);
+
   maybeCacheSourceMap(validFileName, validFileContent, null, false);
   maybeCacheSourceMap(invalidFileName, invalidFileContent, null, false);
+  maybeCacheSourceMap(generatedSourceFileName, generatedSourceContent, null, true,
+    `/${generatedSourceFileName}`,
+    `${generatedSourceFileName}.map`,
+  );
 
   switch (operation) {
     case 'findSourceMap-valid':
@@ -69,6 +82,14 @@ function main({ operation, n }) {
       bench.start();
       for (let i = 0; i < n; i++) {
         findSourceMap(missingSourceURL);
+      }
+      bench.end(n);
+      break;
+
+    case 'findSourceMap-generated-source':
+      bench.start();
+      for (let i = 0; i < n; i++) {
+        findSourceMap(generatedSourceFileName);
       }
       bench.end(n);
       break;
