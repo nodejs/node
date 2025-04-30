@@ -101,7 +101,7 @@ benchmarks. This increases the likelihood of each benchmark achieving peak perfo
 according to the hardware. Therefore, run:
 
 ```console
-$ ./benchmark/cpu.sh fast
+$ ./benchmarks/cpu.sh fast
 ```
 
 ### Running individual benchmarks

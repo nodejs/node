@@ -57,9 +57,8 @@ function main({ operation, n }) {
   maybeCacheSourceMap(validFileName, validFileContent, null, false);
   maybeCacheSourceMap(invalidFileName, invalidFileContent, null, false);
   maybeCacheSourceMap(generatedSourceFileName, generatedSourceContent, null, true,
-    `/${generatedSourceFileName}`,
-    `${generatedSourceFileName}.map`,
-  );
+                      `/${generatedSourceFileName}`,
+                      `${generatedSourceFileName}.map`);
 
   switch (operation) {
     case 'findSourceMap-valid':
