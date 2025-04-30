@@ -6,7 +6,6 @@
 #include "node_metadata.h"
 #include "util-inl.h"
 #include "uv.h"
-#include "uv/unix.h"
 #include "v8-context.h"
 #include "v8.h"
 
