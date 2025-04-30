@@ -247,7 +247,6 @@ test('--inspect=true should be parsed correctly', { skip: !process.features.insp
 test('--inspect=false should be parsed correctly', { skip: !process.features.inspector }, async () => {
   const result = await spawnPromisified(process.execPath, [
     '--no-warnings',
-    '--expose-internals',
     '--experimental-config-file',
     fixtures.path('rc/inspect-false.json'),
     '-p', 'require("node:inspector").url()',
