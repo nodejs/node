@@ -238,7 +238,7 @@ coverage-clean: ## Remove coverage artifacts.
 	$(RM) -r node_modules
 	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
 			-type f | xargs $(RM); \
 	fi
@@ -265,7 +265,7 @@ coverage-build-js: ## Build JavaScript coverage files.
 
 .PHONY: coverage-test
 coverage-test: coverage-build ## Run the tests and generate a coverage report.
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f | xargs $(RM); \
 	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
