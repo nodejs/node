@@ -263,27 +263,12 @@ std::tuple<int, std::string, std::string> NetworkAgent::spawnFetchProcess(
   std::string command =
       env->exec_path() + " --eval \"" + code.data() + "\" -- " + url.data();
 
-#ifdef _WIN32
-  const char* file = "cmd.exe";
+  const char* file = env->exec_path().c_str();
   char* args[] = {const_cast<char*>(file),
-                  const_cast<char*>("/d"),
-                  const_cast<char*>("/s"),
-                  const_cast<char*>("/c"),
-                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
+                  const_cast<char*>("--eval"),
+                  reinterpret_cast<char*>(const_cast<char*>(code.data())),
+                  reinterpret_cast<char*>(const_cast<char*>(url.data())),
                   nullptr};
-#elif defined(__ANDROID__)
-  const char* file = "/system/bin/sh";
-  char* args[] = {const_cast<char*>(file),
-                  const_cast<char*>("-c"),
-                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
-                  nullptr};
-#else
-  const char* file = "/bin/sh";
-  char* args[] = {const_cast<char*>(file),
-                  const_cast<char*>("-c"),
-                  reinterpret_cast<char*>(const_cast<char*>(command.c_str())),
-                  nullptr};
-#endif
 
   uv_stdio_container_t stdio[3];
   uv_process_options.file = file;
