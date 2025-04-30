@@ -5,7 +5,7 @@ const common = require('../common.js');
 const { styleText } = require('node:util');
 const assert = require('node:assert');
 
-const validFormats = ['red', 'italic','bold']
+const validFormats = ['red', 'italic', 'bold'];
 const invalidFormats = 'invalidFormat';
 
 const bench = common.createBenchmark(main, {
