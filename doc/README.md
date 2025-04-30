@@ -1,3 +1,4 @@
+Edited by Satish Medar
 # Node.js documentation style guide
 
 This guide provides clear and concise instructions to help you create well-organized and readable documentation for
