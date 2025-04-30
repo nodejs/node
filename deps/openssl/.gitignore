@@ -1,6 +1,3 @@
-openssl/demos
-openssl/doc
 openssl/fuzz/corpora
 openssl/makefile.in
 openssl/Makefile.in
-openssl/test

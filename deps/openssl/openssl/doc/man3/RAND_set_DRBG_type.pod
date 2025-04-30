@@ -1,0 +1,64 @@
+=pod
+
+=head1 NAME
+
+RAND_set_DRBG_type,
+RAND_set_seed_source_type
+- specify the global random number generator types
+
+=head1 SYNOPSIS
+
+ #include <openssl/rand.h>
+
+ int RAND_set_DRBG_type(OSSL_LIB_CTX *ctx, const char *drbg, const char *propq,
+                        const char *cipher, const char *digest);
+ int RAND_set_seed_source_type(OSSL_LIB_CTX *ctx, const char *seed,
+                               const char *propq);
+
+=head1 DESCRIPTION
+
+RAND_set_DRBG_type() specifies the random bit generator that will be
+used within the library context I<ctx>.  A generator of name I<drbg>
+with properties I<propq> will be fetched.  It will be instantiated with
+either I<cipher> or I<digest> as its underlying cryptographic algorithm.
+This specifies the type that will be used for the primary, public and
+private random instances.
+
+RAND_set_seed_source_type() specifies the seed source that will be used
+within the library context I<ctx>.  The seed source of name I<seed>
+with properties I<propq> will be fetched and used to seed the primary
+random bit generator.
+
+=head1 RETURN VALUES
+
+These function return 1 on success and 0 on failure.
+
+=head1 NOTES
+
+These functions must be called before the random bit generators are first
+created in the library context.  They will return an error if the call
+is made too late.
+
+The default DRBG is "CTR-DRBG" using the "AES-256-CTR" cipher.
+
+The default seed source is "SEED-SRC".
+
+=head1 SEE ALSO
+
+L<EVP_RAND(3)>,
+L<RAND_get0_primary(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
