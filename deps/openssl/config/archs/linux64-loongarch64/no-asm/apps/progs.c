@@ -89,6 +89,7 @@ FUNCTION functions[] = {
     {FT_general, "s_time", s_time_main, s_time_options, NULL, NULL},
 #endif
     {FT_general, "sess_id", sess_id_main, sess_id_options, NULL, NULL},
+    {FT_general, "skeyutl", skeyutl_main, skeyutl_options, NULL, NULL},
     {FT_general, "smime", smime_main, smime_options, NULL, NULL},
     {FT_general, "speed", speed_main, speed_options, NULL, NULL},
     {FT_general, "spkac", spkac_main, spkac_options, NULL, NULL},
@@ -225,8 +226,14 @@ FUNCTION functions[] = {
     {FT_cipher, "camellia-256-ecb", enc_main, enc_options, NULL},
 #endif
     {FT_cipher, "base64", enc_main, enc_options, NULL},
-#ifdef ZLIB
+#ifndef OPENSSL_NO_ZLIB
     {FT_cipher, "zlib", enc_main, enc_options, NULL},
+#endif
+#ifndef OPENSSL_NO_BROTLI
+    {FT_cipher, "brotli", enc_main, enc_options, NULL},
+#endif
+#ifndef OPENSSL_NO_ZSTD
+    {FT_cipher, "zstd", enc_main, enc_options, NULL},
 #endif
 #ifndef OPENSSL_NO_DES
     {FT_cipher, "des", enc_main, enc_options, NULL},

@@ -956,5 +956,6 @@ bn_mul8x_mont_neon:
 .align	2
 .align	2
 #if __ARM_MAX_ARCH__>=7
-.comm	OPENSSL_armcap_P,4,4
+
+.hidden	OPENSSL_armcap_P
 #endif
