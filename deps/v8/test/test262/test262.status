@@ -1277,6 +1277,10 @@
   # May OOM fatally
   'staging/sm/regress/regress-610026': [SKIP],
 
+  # https://github.com/rbuckton/ecma262/pull/14
+  'staging/explicit-resource-management/await-using-in-switch-case-block': [SKIP],
+  'staging/explicit-resource-management/call-dispose-methods': [SKIP],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
