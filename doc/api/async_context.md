@@ -347,6 +347,43 @@ try {
 }
 ```
 
+### `asyncLocalStorage.use(store)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `store` {any}
+* Returns: {Disposable} A disposable object.
+
+Transitions into the given context, and transitions back into the previous
+context when the returned disposable object is disposed. The store is
+accessible to any asynchronous operations created before disposal.
+
+Example:
+
+```js
+const store1 = { id: 1 };
+const store2 = { id: 2 };
+
+function inner() {
+  // Once `using` syntax is supported, you can use that here, and omit the
+  // dispose call at the end of this function.
+  const disposable = asyncLocalStorage.use(store);
+  asyncLocalStorage.getStore(); // Returns store2
+  setTimeout(() => {
+    asyncLocalStorage.getStore(); // Returns store2
+  }, 200);
+  disposable[Symbol.dispose]();
+}
+
+asyncLocalStorage.run(store1, () => {
+  asyncLocalStorage.getStore(); // Returns store1
+  inner();
+  asyncLocalStorage.getStore(); // Returns store1
+});
+```
+
 ### `asyncLocalStorage.exit(callback[, ...args])`
 
 <!-- YAML
