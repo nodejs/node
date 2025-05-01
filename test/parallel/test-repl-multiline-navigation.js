@@ -71,16 +71,77 @@ tmpdir.refresh();
     assert.strictEqual(r.cursor, 15);
     r.input.run([{ name: 'up' }]);
 
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 4; i++) {
       r.input.run([{ name: 'right' }]);
     }
-    assert.strictEqual(r.cursor, 8);
+    assert.strictEqual(r.cursor, 11);
 
     r.input.run([{ name: 'down' }]);
     assert.strictEqual(r.cursor, 15);
 
     r.input.run([{ name: 'down' }]);
-    assert.strictEqual(r.cursor, 19);
+    assert.strictEqual(r.cursor, 27);
+  });
+
+  repl.createInternalRepl(
+    { NODE_REPL_HISTORY: historyPath },
+    {
+      terminal: true,
+      input: new ActionStream(),
+      output: new stream.Writable({
+        write(chunk, _, next) {
+          next();
+        }
+      }),
+    },
+    checkResults
+  );
+}
+
+{
+  const historyPath = tmpdir.resolve(`.${Math.floor(Math.random() * 10000)}`);
+  // Make sure the cursor is at the right places.
+  // This is testing cursor clamping and restoring when moving up and down from long lines.
+  const checkResults = common.mustSucceed((r) => {
+    r.write('let ddd = `000');
+    r.input.run([{ name: 'enter' }]);
+    r.write('1111111111111');
+    r.input.run([{ name: 'enter' }]);
+    r.write('22222');
+    r.input.run([{ name: 'enter' }]);
+    r.write('2222');
+    r.input.run([{ name: 'enter' }]);
+    r.write('22222');
+    r.input.run([{ name: 'enter' }]);
+    r.write('33333333`');
+    r.input.run([{ name: 'up' }]);
+    assert.strictEqual(r.cursor, 45);
+
+    r.input.run([{ name: 'up' }]);
+    assert.strictEqual(r.cursor, 39);
+
+    r.input.run([{ name: 'up' }]);
+    assert.strictEqual(r.cursor, 34);
+
+    r.input.run([{ name: 'up' }]);
+    assert.strictEqual(r.cursor, 24);
+
+    r.input.run([{ name: 'right' }]);
+    // This is to reach a cursor pos which is much higher than the line we want to go to,
+    // So we can check that the cursor is clamped to the end of the line.
+    r.input.run([{ name: 'right' }]);
+
+    r.input.run([{ name: 'down' }]);
+    assert.strictEqual(r.cursor, 34);
+
+    r.input.run([{ name: 'down' }]);
+    assert.strictEqual(r.cursor, 39);
+
+    r.input.run([{ name: 'down' }]);
+    assert.strictEqual(r.cursor, 45);
+
+    r.input.run([{ name: 'down' }]);
+    assert.strictEqual(r.cursor, 55);
   });
 
   repl.createInternalRepl(

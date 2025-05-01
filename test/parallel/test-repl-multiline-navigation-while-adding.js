@@ -55,7 +55,7 @@ tmpdir.refresh();
     r.write('22222222222222'); // The command is not complete yet. I can still edit it
     r.input.run([{ name: 'up' }]);
     r.input.run([{ name: 'up' }]); // I am on the first line
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 3; i++) {
       r.input.run([{ name: 'right' }]);
     } // I am at the end of the first line
     assert.strictEqual(r.cursor, 17);
@@ -101,7 +101,7 @@ tmpdir.refresh();
     r.write('22222222222222'); // The command is not complete yet. I can still edit it
     r.input.run([{ name: 'up' }]);
     r.input.run([{ name: 'up' }]); // I am on the first line
-    for (let i = 0; i < 2; i++) {
+    for (let i = 0; i < 3; i++) {
       r.input.run([{ name: 'left' }]);
     } // I am right after the string definition
     assert.strictEqual(r.cursor, 11);
