@@ -7,7 +7,6 @@ if (!process.config.variables.node_use_amaro) skip('Requires Amaro');
 
 test('expect failure of a .mts file with CommonJS syntax', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     fixtures.path('typescript/mts/test-mts-but-commonjs-syntax.mts'),
   ]);
 
@@ -18,7 +17,6 @@ test('expect failure of a .mts file with CommonJS syntax', async () => {
 
 test('execute an .mts file importing an .mts file', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     fixtures.path('typescript/mts/test-import-module.mts'),
   ]);
 
@@ -29,7 +27,6 @@ test('execute an .mts file importing an .mts file', async () => {
 
 test('execute an .mts file importing a .ts file', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--no-warnings',
     fixtures.path('typescript/mts/test-import-ts-file.mts'),
   ]);
@@ -41,7 +38,6 @@ test('execute an .mts file importing a .ts file', async () => {
 
 test('execute an .mts file importing a .ts file with default-type module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--experimental-default-type=module',
     '--no-warnings',
     fixtures.path('typescript/mts/test-import-ts-file.mts'),
@@ -54,7 +50,6 @@ test('execute an .mts file importing a .ts file with default-type module', async
 
 test('execute an .mts file importing a .cts file', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--no-warnings',
     fixtures.path('typescript/mts/test-import-commonjs.mts'),
   ]);
@@ -66,7 +61,6 @@ test('execute an .mts file importing a .cts file', async () => {
 
 test('execute an .mts file with wrong default module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--no-experimental-require-module',
     '--experimental-default-type=commonjs',
     fixtures.path('typescript/mts/test-import-module.mts'),
@@ -79,7 +73,6 @@ test('execute an .mts file with wrong default module', async () => {
 
 test('execute an .mts file with wrong default module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--experimental-require-module',
     '--experimental-default-type=commonjs',
     fixtures.path('typescript/mts/test-import-module.mts'),
@@ -91,7 +84,6 @@ test('execute an .mts file with wrong default module', async () => {
 
 test('execute an .mts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     fixtures.path('typescript/mts/test-mts-node_modules.mts'),
   ]);
 
@@ -102,7 +94,6 @@ test('execute an .mts file from node_modules', async () => {
 
 test('execute a .cts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     fixtures.path('typescript/mts/test-cts-node_modules.mts'),
   ]);
 
@@ -113,7 +104,6 @@ test('execute a .cts file from node_modules', async () => {
 
 test('execute a .ts file from node_modules', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     fixtures.path('typescript/mts/test-ts-node_modules.mts'),
   ]);
 
@@ -124,7 +114,6 @@ test('execute a .ts file from node_modules', async () => {
 
 test('execute an empty .ts file', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--no-warnings',
     fixtures.path('typescript/ts/test-empty-file.ts'),
   ]);
@@ -136,7 +125,6 @@ test('execute an empty .ts file', async () => {
 
 test('execute .ts file importing a module', async () => {
   const result = await spawnPromisified(process.execPath, [
-    '--experimental-strip-types',
     '--no-warnings',
     fixtures.path('typescript/ts/test-import-fs.ts'),
   ]);

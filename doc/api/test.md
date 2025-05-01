@@ -420,15 +420,12 @@ By default, Node.js will run all files matching these patterns:
 * `**/test.{cjs,mjs,js}`
 * `**/test/**/*.{cjs,mjs,js}`
 
-When [`--experimental-strip-types`][] is supplied, the following
-additional patterns are matched:
+Unless [`--no-experimental-strip-types`][] is supplied, the following
+additional patterns are also matched:
 
-* `**/*.test.{cts,mts,ts}`
-* `**/*-test.{cts,mts,ts}`
-* `**/*_test.{cts,mts,ts}`
-* `**/test-*.{cts,mts,ts}`
-* `**/test.{cts,mts,ts}`
-* `**/test/**/*.{cts,mts,ts}`
+* `**/test/**/*-test.{cts,mts,ts}`
+* `**/test/**/*.test.{cts,mts,ts}`
+* `**/test/**/*_test.{cts,mts,ts}`
 
 Alternatively, one or more glob patterns can be provided as the
 final argument(s) to the Node.js command, as shown below.
@@ -3679,10 +3676,10 @@ Can be used to abort test subtasks when the test has been aborted.
 
 [TAP]: https://testanything.org/
 [TTY]: tty.md
-[`--experimental-strip-types`]: cli.md#--experimental-strip-types
 [`--experimental-test-coverage`]: cli.md#--experimental-test-coverage
 [`--experimental-test-module-mocks`]: cli.md#--experimental-test-module-mocks
 [`--import`]: cli.md#--importmodule
+[`--no-experimental-strip-types`]: cli.md#--no-experimental-strip-types
 [`--test-concurrency`]: cli.md#--test-concurrency
 [`--test-coverage-include`]: cli.md#--test-coverage-include
 [`--test-name-pattern`]: cli.md#--test-name-pattern
