@@ -336,7 +336,7 @@ added:
 -->
 
 * `value` {any} A value transmitted using [`postMessageToThread()`][].
-* `source` {number} The transmitting worker thread ID or `0` for the main thread.
+* `source` {number} The transmitting worker thread ID or `0` for the main thread.
 
 The `'workerMessage'` event is emitted for any incoming message send by the other
 party by using [`postMessageToThread()`][].
@@ -529,7 +529,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
+  return reportToUser(JSON.parse(res)); // This had a typo fixed from `pasre` to `parse`
 }); // No `.catch()` or `.then()`
 ```
 
@@ -542,7 +542,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.pasre(res)); // Note the typo (`pasre`)
+  return reportToUser(JSON.parse(res)); // This had a typo fixed from `pasre` to `parse`
 }); // No `.catch()` or `.then()`
 ```
 
