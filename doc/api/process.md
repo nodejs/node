@@ -529,7 +529,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.parse(res)); // This had a typo fixed from `pasre` to `parse`
+  return reportToUser(JSON.pasre(res)); // This had a typo fixed from `pasre` to `parse`
 }); // No `.catch()` or `.then()`
 ```
 
@@ -542,7 +542,7 @@ process.on('unhandledRejection', (reason, promise) => {
 });
 
 somePromise.then((res) => {
-  return reportToUser(JSON.parse(res)); // This had a typo fixed from `pasre` to `parse`
+  return reportToUser(JSON.pasre(res)); // This had a typo fixed from `pasre` to `parse`
 }); // No `.catch()` or `.then()`
 ```
 
