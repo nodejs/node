@@ -1,0 +1,58 @@
+=pod
+
+=head1 NAME
+
+CMS_digest_create_ex, CMS_digest_create
+- Create CMS DigestedData object
+
+=head1 SYNOPSIS
+
+ #include <openssl/cms.h>
+
+ CMS_ContentInfo *CMS_digest_create_ex(BIO *in, const EVP_MD *md,
+                                       unsigned int flags, OSSL_LIB_CTX *ctx,
+                                       const char *propq);
+
+ CMS_ContentInfo *CMS_digest_create(BIO *in, const EVP_MD *md,
+                                    unsigned int flags);
+
+=head1 DESCRIPTION
+
+CMS_digest_create_ex() creates a B<CMS_ContentInfo> structure
+with a type B<NID_pkcs7_digest>. The data supplied via the I<in> BIO is digested
+using I<md>. The library context I<libctx> and the property query I<propq> are
+used when retrieving algorithms from providers.
+The I<flags> field supports the B<CMS_DETACHED> and B<CMS_STREAM> flags,
+Internally CMS_final() is called unless B<CMS_STREAM> is specified.
+
+The B<CMS_ContentInfo> structure can be freed using L<CMS_ContentInfo_free(3)>.
+
+CMS_digest_create() is similar to CMS_digest_create_ex()
+but uses default values of NULL for the library context I<libctx> and the
+property query I<propq>.
+
+
+=head1 RETURN VALUES
+
+If the allocation fails, CMS_digest_create_ex() and CMS_digest_create()
+return NULL and set an error code that can be obtained by L<ERR_get_error(3)>.
+Otherwise they return a pointer to the newly allocated structure.
+
+=head1 SEE ALSO
+
+L<ERR_get_error(3)>, L<CMS_final(3)>>
+
+=head1 HISTORY
+
+The CMS_digest_create_ex() method was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

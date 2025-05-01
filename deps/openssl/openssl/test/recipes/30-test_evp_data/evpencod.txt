@@ -1,0 +1,192 @@
+#
+# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = Base64 tests
+
+Encoding = canonical
+Input = ""
+Output = ""
+
+Encoding = canonical
+Input = "h"
+Output = "aA==\n"
+
+Encoding = canonical
+Input = "hello"
+Output = "aGVsbG8=\n"
+
+Encoding = canonical
+Input = "hello world!"
+Output = "aGVsbG8gd29ybGQh\n"
+
+Encoding = canonical
+Input = 00010203040506070809a0b0c0d0e0f000
+Output = "AAECAwQFBgcICaCwwNDg8AA=\n"
+
+# Missing padding
+Encoding = invalid
+Output = "aGVsbG8"
+
+Encoding = invalid
+Output = "aGVsbG8\n"
+
+# Tolerate missing newline
+Encoding = valid
+Input = "hello"
+Output = "aGVsbG8="
+
+# Don't tolerate extra trailing '='
+Encoding = invalid
+Input = "hello"
+Output = "aGVsbG8==\n"
+
+Encoding = invalid
+Output = "aGVsbG8===\n"
+
+# Don't tolerate data after '='
+Encoding = invalid
+Output = "aGV=sbG8=\n"
+
+# Newlines are ignored
+Encoding = valid
+Input = "hello"
+Output = "aGV\nsbG8=\n"
+
+Encoding = canonical
+Input = "hello"
+Output = 614756736247383d0a
+
+# Invalid characters
+Encoding = invalid
+Output = 614756736247383d0a00
+
+Encoding = invalid
+Output = 61475600736247383d0a
+
+Encoding = invalid
+Output = 61475601736247383d0a
+
+Encoding = invalid
+Output = 61475680736247383d0a
+
+Encoding = invalid
+Output = e14756736247383d0a
+
+Encoding = canonical
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE9wZW5TU0wK\n"
+
+Encoding = valid
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE9wZW5TU0wK"
+
+# Truncate 1-3 chars
+Encoding = invalid
+Output = "T3BlblNTTE9wZW5TU0w"
+
+Encoding = invalid
+Output = "T3BlblNTTE9wZW5TU0"
+
+Encoding = invalid
+Output = "T3BlblNTTE9wZW5TU"
+
+Encoding = invalid
+Output = "T3BlblNTTE9wZW5TU0wK===="
+
+Encoding = invalid
+Output = "T3BlblNTTE9wZW5TU0wK============================================\n"
+
+Encoding = invalid
+Output = "YQ==YQ==YQ==\n"
+
+Encoding = invalid
+Output = "A"
+
+Encoding = invalid
+Output = "A\n"
+
+Encoding = invalid
+Output = "A="
+
+Encoding = invalid
+Output = "A==\n"
+
+Encoding = invalid
+Output = "A===\n"
+
+Encoding = invalid
+Output = "A====\n"
+
+Encoding = valid
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE9wZW5TU0wK\n\n"
+
+Encoding = valid
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE\n9wZW5TU0wK"
+
+# CVE 2015-0292
+Encoding = invalid
+Output = "ZW5jb2RlIG1lCg==================================================================\n"
+
+Encoding = canonical
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==\n"
+
+Encoding = valid
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA\n==\n"
+
+Encoding = valid
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA=\n=\n"
+
+Encoding = invalid
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA====\n"
+
+# Multiline output without padding
+Encoding = canonical
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4\neHh4eHh4eHh4eHh4\n"
+
+# Multiline output with padding
+Encoding = canonical
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4\neHh4eHh4eHh4eHh4eHh4eA==\n"
+
+# Multiline output with line break in the middle of a b64 block is accepted
+Encoding = valid
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh\n4eHh4eHh4eHh4eHh4eHh4eA==\n"
+
+# Long lines are accepted
+Encoding = valid
+Input = "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==\n"
+
+# Multiline input with data after '='.
+Encoding = invalid
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eA==\neHh4eHh4eHh4eHh4eHh4eHh4\n"
+
+Encoding = invalid
+Output = "eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4eHh4\neA==eHh4eHh4eHh4eHh4eHh4\n"
+
+# B64_EOF ('-') terminates input and trailing bytes are ignored
+Encoding = valid
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE9wZW5TU0wK\n-abcd"
+
+Encoding = valid
+Input = "OpenSSLOpenSSL\n"
+Output = "T3BlblNTTE9wZW5TU0wK-abcd"
+

@@ -1,0 +1,218 @@
+=pod
+
+=head1 NAME
+
+life_cycle-mac - The MAC algorithm life-cycle
+
+=head1 DESCRIPTION
+
+All message authentication codes (MACs)
+go through a number of stages in their life-cycle:
+
+=over 4
+
+=item start
+
+This state represents the MAC before it has been allocated.  It is the
+starting state for any life-cycle transitions.
+
+=item newed
+
+This state represents the MAC after it has been allocated.
+
+=item initialised
+
+This state represents the MAC when it is set up and capable of processing
+input.
+
+=item updated
+
+This state represents the MAC when it is set up and capable of processing
+additional input or generating output.
+
+=item finaled
+
+This state represents the MAC when it has generated output.
+
+=item freed
+
+This state is entered when the MAC is freed.  It is the terminal state
+for all life-cycle transitions.
+
+=back
+
+=head2 State Transition Diagram
+
+The usual life-cycle of a MAC is illustrated:
+
+=begin man
+
+                 +-------------------+
+                 |       start       |
+                 +-------------------+
+                   |
+                   | EVP_MAC_CTX_new
+                   v
+                 +-------------------+
+                 |       newed       |
+                 +-------------------+
+                   |
+                   | EVP_MAC_init
+                   v
+                 +-------------------+
+              +> |    initialised    | <+
+              |  +-------------------+  |
+              |    |                    |
+              |    | EVP_MAC_update     | EVP_MAC_init
+              |    v                    |
+ EVP_MAC_init |  +-------------------+  |
+              |  |      updated      | -+
+              |  +-------------------+
+              |    |               |
+              |    | EVP_MAC_final | EVP_MAC_finalXOF
+              |    v               v
+              |  +-------------------+
+              +- |      finaled      |
+                 +-------------------+
+                   |
+                   | EVP_MAC_CTX_free
+                   v
+                 +-------------------+
+                 |       freed       |
+                 +-------------------+
+
+=end man
+
+=for html <img src="img/mac.png">
+
+=head2 Formal State Transitions
+
+This section defines all of the legal state transitions.
+This is the canonical list.
+
+=begin man
+
+ Function Call                   --------------------- Current State ----------------------
+                                 start   newed    initialised   updated     finaled   freed
+ EVP_MAC_CTX_new                 newed
+ EVP_MAC_init                         initialised initialised initialised initialised
+ EVP_MAC_update                                     updated     updated
+ EVP_MAC_final                                                  finaled
+ EVP_MAC_finalXOF                                               finaled
+ EVP_MAC_CTX_free                freed   freed       freed       freed       freed
+ EVP_MAC_CTX_get_params                  newed    initialised   updated
+ EVP_MAC_CTX_set_params                  newed    initialised   updated
+ EVP_MAC_CTX_gettable_params             newed    initialised   updated
+ EVP_MAC_CTX_settable_params             newed    initialised   updated
+
+=end man
+
+=begin html
+
+<table style="border:1px solid; border-collapse:collapse">
+<tr><th style="border:1px solid" align="left">Function Call</th>
+    <th style="border:1px solid" colspan="6">Current State</th></tr>
+<tr><th style="border:1px solid"></th>
+    <th style="border:1px solid" align="center">start</th>
+    <th style="border:1px solid" align="center">newed</th>
+    <th style="border:1px solid" align="center">initialised</th>
+    <th style="border:1px solid" align="center">updated</th>
+    <th style="border:1px solid" align="center">finaled</th>
+    <th style="border:1px solid" align="center">freed</th></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_new</th>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_init</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_update</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_final</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">finaled</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_finalXOF</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">finaled</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_free</th>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center">freed</td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_get_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_set_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_gettable_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+<tr><th style="border:1px solid" align="left">EVP_MAC_CTX_settable_params</th>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center">newed</td>
+    <td style="border:1px solid" align="center">initialised</td>
+    <td style="border:1px solid" align="center">updated</td>
+    <td style="border:1px solid" align="center"></td>
+    <td style="border:1px solid" align="center"></td></tr>
+</table>
+
+=end html
+
+=head1 NOTES
+
+At some point the EVP layer will begin enforcing the transitions described
+herein.
+
+=head1 SEE ALSO
+
+L<provider-mac(7)>, L<EVP_MAC(3)>.
+
+=head1 HISTORY
+
+The provider MAC interface was introduced in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,60 @@
+=pod
+
+=head1 NAME
+
+OSSL_PARAM_dup, OSSL_PARAM_merge, OSSL_PARAM_free
+- OSSL_PARAM array copy functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/params.h>
+
+ OSSL_PARAM *OSSL_PARAM_dup(const OSSL_PARAM *params);
+ OSSL_PARAM *OSSL_PARAM_merge(const OSSL_PARAM *params, const OSSL_PARAM *params1);
+ void OSSL_PARAM_free(OSSL_PARAM *params);
+
+=head1 DESCRIPTION
+
+Algorithm parameters can be exported/imported from/to providers using arrays of
+L<OSSL_PARAM(3)>. The following utility functions allow the parameters to be
+duplicated and merged with other L<OSSL_PARAM(3)> to assist in this process.
+
+OSSL_PARAM_dup() duplicates the parameter array I<params>. This function does a
+deep copy of the data.
+
+OSSL_PARAM_merge() merges the parameter arrays I<params> and I<params1> into a
+new parameter array. If I<params> and I<params1> contain values with the same
+'key' then the value from I<params1> will replace the I<param> value. This
+function does a shallow copy of the parameters. Either I<params> or I<params1>
+may be NULL. The behaviour of the merge is unpredictable if I<params> and
+I<params1> contain the same key, and there are multiple entries within either
+array that have the same key.
+
+OSSL_PARAM_free() frees the parameter array I<params> that was created using
+OSSL_PARAM_dup(), OSSL_PARAM_merge() or OSSL_PARAM_BLD_to_param().
+If the argument to OSSL_PARAM_free() is NULL, nothing is done.
+
+=head1 RETURN VALUES
+
+The functions OSSL_PARAM_dup() and OSSL_PARAM_merge() return a newly allocated
+L<OSSL_PARAM(3)> array, or NULL if there was an error. If both parameters are NULL
+ then NULL is returned.
+
+=head1 SEE ALSO
+
+L<OSSL_PARAM(3)>, L<OSSL_PARAM_BLD(3)>
+
+=head1 HISTORY
+
+The functions were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
