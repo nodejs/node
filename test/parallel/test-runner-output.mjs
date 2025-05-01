@@ -32,7 +32,7 @@ function replaceJunitDuration(str) {
   return str
     .replaceAll(/time="[0-9.]+"/g, 'time="*"')
     .replaceAll(/duration_ms [0-9.]+/g, 'duration_ms *')
-    .replaceAll(hostname(), 'HOSTNAME')
+    .replaceAll(`hostname="${hostname()}"`, 'hostname="HOSTNAME"')
     .replace(stackTraceBasePath, '$3');
 }
 
