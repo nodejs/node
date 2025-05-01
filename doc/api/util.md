@@ -2402,7 +2402,7 @@ changes:
     - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
-      such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
+      such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
 * `format` {string | Array} A text format or an Array
@@ -2414,7 +2414,7 @@ changes:
 
 This function returns a formatted text considering the `format` passed
 for printing in a terminal. It is aware of the terminal's capabilities
-and acts according to the configuration set via `NO_COLORS`,
+and acts according to the configuration set via `NO_COLOR`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
