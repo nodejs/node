@@ -2744,8 +2744,9 @@ std::optional<int> SSLPointer::getSecurityLevel() {
 
   return SSL_get_security_level(ssl);
 #else
-  // for BoringSSL assume the same as the default
-  return OPENSSL_TLS_SECURITY_LEVEL;
+  // OPENSSL_TLS_SECURITY_LEVEL is not defined in BoringSSL
+  // so assume it is the default OPENSSL_TLS_SECURITY_LEVEL value.
+  return 1;
 #endif  // OPENSSL_IS_BORINGSSL
 }
 
