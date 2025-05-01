@@ -1,0 +1,79 @@
+=pod
+
+=head1 NAME
+
+SSL_stream_reset - reset a QUIC stream
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ typedef struct ssl_stream_reset_args_st {
+     uint64_t quic_error_code;
+ } SSL_STREAM_RESET_ARGS;
+
+ int SSL_stream_reset(SSL *ssl,
+                      const SSL_STREAM_RESET_ARGS *args,
+                      size_t args_len);
+
+=head1 DESCRIPTION
+
+The SSL_stream_reset() function resets the send part of a QUIC stream when
+called on a QUIC stream SSL object, or on a QUIC connection SSL object with  a
+default stream attached.
+
+If I<args> is non-NULL, I<args_len> must be set to C<sizeof(*args)>.
+
+I<quic_error_code> is an application-specified error code, which must be in the
+range [0, 2**62-1]. If I<args> is NULL, a value of 0 is used.
+
+Resetting a stream indicates to an application that the sending part of the
+stream is terminating abnormally. When a stream is reset, the implementation
+does not guarantee that any data already passed to L<SSL_write(3)> will be
+received by the peer, and data already passed to L<SSL_write(3)> but not yet
+transmitted may or may not be discarded. As such, you should only reset
+a stream when the information transmitted on the stream no longer matters, for
+example due to an error condition.
+
+This function cannot be called on a unidirectional stream initiated by the peer,
+as only the sending side of a stream can initiate a stream reset.
+
+It is also possible to trigger a stream reset by calling L<SSL_free(3)>; see the
+documentation for L<SSL_free(3)> for details.
+
+The receiving part of the stream (for bidirectional streams) continues to
+function normally.
+
+=head1 NOTES
+
+This function corresponds to the QUIC B<RESET_STREAM> frame.
+
+=head1 RETURN VALUES
+
+Returns 1 on success and 0 on failure.
+
+This function fails if called on a QUIC connection SSL object without a default
+stream attached, or on a non-QUIC SSL object.
+
+After the first call to this function succeeds for a given stream,
+subsequent calls succeed but are ignored. The application error code
+used is that passed to the first successful call to this function.
+
+=head1 SEE ALSO
+
+L<SSL_free(3)>
+
+=head1 HISTORY
+
+SSL_stream_reset() was added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

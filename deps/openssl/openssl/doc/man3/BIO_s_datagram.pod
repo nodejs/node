@@ -9,6 +9,7 @@ BIO_dgram_recv_timedout,
 BIO_dgram_send_timedout,
 BIO_dgram_get_peer,
 BIO_dgram_set_peer,
+BIO_dgram_detect_peer_addr,
 BIO_dgram_get_mtu_overhead - Network BIO with datagram semantics
 
 =head1 SYNOPSIS
@@ -25,17 +26,23 @@ BIO_dgram_get_mtu_overhead - Network BIO with datagram semantics
  int BIO_dgram_get_peer(BIO *bio, BIO_ADDR *peer);
  int BIO_dgram_set_peer(BIO *bio, const BIO_ADDR *peer);
  int BIO_dgram_get_mtu_overhead(BIO *bio);
+ int BIO_dgram_detect_peer_addr(BIO *bio, BIO_ADDR *peer);
 
 =head1 DESCRIPTION
 
 BIO_s_datagram() is a BIO implementation designed for use with network sockets
 which provide datagram semantics, such as UDP sockets. It is suitable for use
-with DTLSv1.
+with DTLSv1 or QUIC.
 
 Because BIO_s_datagram() has datagram semantics, a single BIO_write() call sends
 a single datagram and a single BIO_read() call receives a single datagram. If
 the size of the buffer passed to BIO_read() is inadequate, the datagram is
 silently truncated.
+
+For a memory-based BIO which provides datagram semantics identical to those of
+BIO_s_datagram(), see L<BIO_s_dgram_pair(3)>.
+
+This BIO supports the L<BIO_sendmmsg(3)> and L<BIO_recvmmsg(3)> functions.
 
 When using BIO_s_datagram(), it is important to note that:
 
@@ -64,10 +71,18 @@ subsequent call to BIO_write() being set to the source address of the datagram
 received by that call to BIO_read(). Thus, unless the caller calls
 BIO_dgram_set_peer() immediately prior to every call to BIO_write(), or never
 calls BIO_read(), any host on the network may cause future datagrams written to
-be redirected to that host. Therefore, it is recommended that users use
-BIO_s_dgram() only with a connected socket. An exception is where
+be redirected to that host. Therefore, it is recommended that users either use
+BIO_s_dgram() only with a connected socket, or, if using BIO_s_dgram() with an
+unconnected socket, to use the L<BIO_sendmmsg(3)> and L<BIO_recvmmsg(3)> methods
+only and forego use of L<BIO_read(3)> and L<BIO_write(3)>. An exception is where
 L<DTLSv1_listen(3)> must be used; see L<DTLSv1_listen(3)> for further
 discussion.
+
+=item
+
+Unlike L<BIO_read(3)> and L<BIO_write(3)>, the L<BIO_sendmmsg(3)> and
+L<BIO_recvmmsg(3)> methods are stateless and do not cause the internal state of
+the BIO_s_datagram() to change.
 
 =back
 
@@ -99,6 +114,9 @@ If the I<peer> argument is NULL, BIO_s_datagram() assumes that the underlying
 socket is not connected and will attempt to use the socket using an OS APIs
 which specify peer addresses (for example, sendto(3) and recvfrom(3)).
 
+This control does not affect the operation of L<BIO_sendmmsg(3)> or
+L<BIO_recvmmsg(3)>.
+
 =item BIO_dgram_get_peer (BIO_CTRL_DGRAM_GET_PEER)
 
 This outputs a B<BIO_ADDR> which specifies one of the following values,
@@ -124,6 +142,18 @@ Sets the peer address to be used for subsequent writes to this BIO.
 Warning: When used with an unconnected network socket, the value set may be
 modified by future calls to L<BIO_read(3)>, making use of BIO_s_datagram()
 hazardous when used with unconnected network sockets; see above.
+
+This does not affect the operation of L<BIO_sendmmsg(3)>.
+L<BIO_recvmmsg(3)> does not affect the value set by BIO_dgram_set_peer().
+
+=item BIO_dgram_detect_peer_addr (BIO_CTRL_DGRAM_DETECT_PEER_ADDR)
+
+This is similar to BIO_dgram_get_peer() except that if the peer address has not
+been set on the BIO object, an OS call such as getpeername(2) will be attempted
+to try and autodetect the peer address to which the underlying socket is
+connected. Other BIOs may also implement this control if they are capable of
+sensing a peer address, without necessarily also implementing
+BIO_dgram_set_peer() and BIO_dgram_get_peer().
 
 =item BIO_dgram_recv_timeout (BIO_CTRL_DGRAM_GET_RECV_TIMER_EXP)
 
@@ -199,6 +229,8 @@ peek mode is enabled, calls to L<BIO_read(3)> read datagrams from the underlying
 network socket in peek mode, meaning that a future call to L<BIO_read(3)> will
 yield the same datagram until peek mode is disabled.
 
+L<BIO_recvmmsg(3)> is not affected by this control.
+
 =back
 
 BIO_new_dgram() is a helper function which instantiates a BIO_s_datagram() and
@@ -210,8 +242,12 @@ BIO_s_datagram() returns a BIO method.
 
 BIO_new_dgram() returns a BIO on success and NULL on failure.
 
-BIO_ctrl_dgram_connect(), BIO_ctrl_set_connected(),
-BIO_dgram_get_peer(), BIO_dgram_set_peer() return 1 on success and 0 on failure.
+BIO_ctrl_dgram_connect(), BIO_ctrl_set_connected() and BIO_dgram_set_peer()
+return 1 on success and 0 on failure.
+
+BIO_dgram_get_peer() and BIO_dgram_detect_peer_addr() return 0 on failure and
+the number of bytes for the outputted address representation (a positive value)
+on success.
 
 BIO_dgram_recv_timedout() and BIO_dgram_send_timedout() return 0 or 1 depending
 on the circumstance; see discussion above.
@@ -220,7 +256,7 @@ BIO_dgram_get_mtu_overhead() returns a value in bytes.
 
 =head1 SEE ALSO
 
-L<DTLSv1_listen(3)>, L<bio(7)>
+L<BIO_sendmmsg(3)>, L<BIO_s_dgram_pair(3)>, L<DTLSv1_listen(3)>, L<bio(7)>
 
 =head1 COPYRIGHT
 

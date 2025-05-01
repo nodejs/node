@@ -173,14 +173,27 @@ Examples:
 =head2 Subject Key Identifier
 
 The SKID extension specification has a value with three choices.
-If the value is the word B<none> then no SKID extension will be included.
-If the value is the word B<hash>, or by default for the B<x509>, B<req>, and
-B<ca> apps, the process specified in RFC 5280 section 4.2.1.2. (1) is followed:
+
+=over 4
+
+=item B<none>
+
+No SKID extension will be included.
+
+=item B<hash>
+
+The process specified in RFC 5280 section 4.2.1.2. (1) is followed:
 The keyIdentifier is composed of the 160-bit SHA-1 hash of the value of the BIT
 STRING subjectPublicKey (excluding the tag, length, and number of unused bits).
 
-Otherwise, the value must be a hex string (possibly with C<:> separating bytes)
-to output directly, however, this is strongly discouraged.
+=item A hex string (possibly with C<:> separating bytes)
+
+The provided value is output directly.
+This choice is strongly discouraged.
+
+=back
+
+By default the B<x509>, B<req>, and B<ca> apps behave as if B<hash> was given.
 
 Example:
 
@@ -195,8 +208,9 @@ or both of them, separated by C<,>.
 Either or both can have the option B<always>,
 indicated by putting a colon C<:> between the value and this option.
 For self-signed certificates the AKID is suppressed unless B<always> is present.
-By default the B<x509>, B<req>, and B<ca> apps behave as if
-"none" was given for self-signed certificates and "keyid, issuer" otherwise.
+
+By default the B<x509>, B<req>, and B<ca> apps behave as if B<none> was given
+for self-signed certificates and B<keyid>C<,> B<issuer> otherwise.
 
 If B<keyid> is present, an attempt is made to
 copy the subject key identifier (SKID) from the issuer certificate except if
@@ -208,6 +222,7 @@ If B<always> is present but no value can be obtained, an error is returned.
 If B<issuer> is present, and in addition it has the option B<always> specified
 or B<keyid> is not present,
 then the issuer DN and serial number are copied from the issuer certificate.
+If this fails, an error is returned.
 
 Examples:
 

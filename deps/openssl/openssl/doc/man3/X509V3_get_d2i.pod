@@ -4,9 +4,10 @@
 
 X509V3_get_d2i, X509V3_add1_i2d, X509V3_EXT_d2i, X509V3_EXT_i2d,
 X509_get_ext_d2i, X509_add1_ext_i2d,
+X509_ACERT_get_ext_d2i, X509_ACERT_add1_ext_i2d,
 X509_CRL_get_ext_d2i, X509_CRL_add1_ext_i2d,
 X509_REVOKED_get_ext_d2i, X509_REVOKED_add1_ext_i2d,
-X509_get0_extensions, X509_CRL_get0_extensions,
+X509_get0_extensions, X509_ACERT_get0_extensions, X509_CRL_get0_extensions,
 X509_REVOKED_get0_extensions - X509 extension decode and encode functions
 
 =head1 SYNOPSIS
@@ -25,6 +26,10 @@ X509_REVOKED_get0_extensions - X509 extension decode and encode functions
  int X509_add1_ext_i2d(X509 *x, int nid, void *value, int crit,
                        unsigned long flags);
 
+ void *X509_ACERT_get_ext_d2i(const X509_ACERT *x, int nid, int *crit, int *idx);
+ int X509_ACERT_add1_ext_i2d(X509_ACERT *x, int nid, void *value, int crit,
+                             unsigned long flags);
+
  void *X509_CRL_get_ext_d2i(const X509_CRL *crl, int nid, int *crit, int *idx);
  int X509_CRL_add1_ext_i2d(X509_CRL *crl, int nid, void *value, int crit,
                            unsigned long flags);
@@ -34,6 +39,7 @@ X509_REVOKED_get0_extensions - X509 extension decode and encode functions
                                unsigned long flags);
 
  const STACK_OF(X509_EXTENSION) *X509_get0_extensions(const X509 *x);
+ const STACK_OF(X509_EXTENSION) *X509_ACERT_get0_extensions(const X509 *x);
  const STACK_OF(X509_EXTENSION) *X509_CRL_get0_extensions(const X509_CRL *crl);
  const STACK_OF(X509_EXTENSION) *X509_REVOKED_get0_extensions(const X509_REVOKED *r);
 
@@ -64,6 +70,10 @@ X509_get_ext_d2i() and X509_add1_ext_i2d() operate on the extensions of
 certificate I<x>. They are otherwise identical to X509V3_get_d2i() and
 X509V3_add1_i2d().
 
+X509_ACERT_get_ext_d2i() and X509_ACERT_add1_ext_i2d() operate on the extensions
+of B<X509_ACERT> structure I<x>. They are otherwise identical to X509V3_get_d2i()
+and X509V3_add1_i2d().
+
 X509_CRL_get_ext_d2i() and X509_CRL_add1_ext_i2d() operate on the extensions
 of CRL I<crl>. They are otherwise identical to X509V3_get_d2i() and
 X509V3_add1_i2d().
@@ -72,9 +82,10 @@ X509_REVOKED_get_ext_d2i() and X509_REVOKED_add1_ext_i2d() operate on the
 extensions of B<X509_REVOKED> structure I<r> (i.e for CRL entry extensions).
 They are otherwise identical to X509V3_get_d2i() and X509V3_add1_i2d().
 
-X509_get0_extensions(), X509_CRL_get0_extensions() and
-X509_REVOKED_get0_extensions() return a STACK of all the extensions
-of a certificate, a CRL or a CRL entry respectively.
+X509_get0_extensions(), X509_ACERT_get0_extensions(),
+X509_CRL_get0_extensions() and X509_REVOKED_get0_extensions() return a
+STACK of all the extensions of a certificate, an attribute certificate,
+a CRL or a CRL entry respectively.
 
 =head1 NOTES
 
@@ -234,6 +245,11 @@ L<X509_NAME_print_ex(3)>,
 L<X509_new(3)>,
 L<X509_sign(3)>,
 L<X509_verify_cert(3)>
+
+=head1 HISTORY
+
+X509_ACERT_get_ext_d2i(), X509_ACERT_add1_ext_i2d(),
+X509_ACERT_get0_extensions() were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 

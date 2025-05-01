@@ -1,0 +1,329 @@
+=pod
+
+=begin comment
+
+NB: Changes to the source code samples in this file should also be reflected in
+demos/guide/tls-server-block.c
+
+=end comment
+
+=head1 NAME
+
+ossl-guide-tls-server-block
+- OpenSSL Guide: Writing a simple blocking TLS server
+
+=head1 SIMPLE BLOCKING TLS SERVER EXAMPLE
+
+This page will present various source code samples demonstrating how to write a
+simple, non-concurrent, TLS "echo" server application which accepts one client
+connection at a time, echoing input from the client back to the same client.
+Once the current client disconnects, the next client connection is accepted.
+
+Both the acceptor socket and client connections are "blocking".  A more typical
+server might use nonblocking sockets with an event loop and callbacks for I/O
+events.
+
+The complete source code for this example blocking TLS server is available in
+the B<demos/guide> directory of the OpenSSL source distribution in the file
+B<tls-server-block.c>. It is also available online at
+L<https://github.com/openssl/openssl/blob/master/demos/guide/tls-server-block.c>.
+
+We assume that you already have OpenSSL installed on your system; that you
+already have some fundamental understanding of OpenSSL concepts and TLS (see
+L<ossl-guide-libraries-introduction(7)> and L<ossl-guide-tls-introduction(7)>);
+and that you know how to write and build C code and link it against the
+libcrypto and libssl libraries that are provided by OpenSSL. It also assumes
+that you have a basic understanding of TCP/IP and sockets.
+
+=head2 Creating the SSL_CTX and SSL objects
+
+The first step is to create an B<SSL_CTX> object for our server. We use the
+L<SSL_CTX_new(3)> function for this purpose. We could alternatively use
+L<SSL_CTX_new_ex(3)> if we want to associate the B<SSL_CTX> with a particular
+B<OSSL_LIB_CTX> (see L<ossl-guide-libraries-introduction(7)> to learn about
+B<OSSL_LIB_CTX>). We pass as an argument the return value of the function
+L<TLS_server_method(3)>. You should use this method whenever you are writing a
+TLS server. This method will automatically use TLS version negotiation to select
+the highest version of the protocol that is mutually supported by both the
+server and the client.
+
+    /*
+     * An SSL_CTX holds shared configuration information for multiple
+     * subsequent per-client SSL connections.
+     */
+    ctx = SSL_CTX_new(TLS_server_method());
+    if (ctx == NULL) {
+        ERR_print_errors_fp(stderr);
+        errx(res, "Failed to create server SSL_CTX");
+    }
+
+We would also like to restrict the TLS versions that we are willing to accept to
+TLSv1.2 or above. TLS protocol versions earlier than that are generally to be
+avoided where possible. We can do that using
+L<SSL_CTX_set_min_proto_version(3)>:
+
+    /*
+     * TLS versions older than TLS 1.2 are deprecated by IETF and SHOULD
+     * be avoided if possible.
+     */
+    if (!SSL_CTX_set_min_proto_version(ctx, TLS1_2_VERSION)) {
+        SSL_CTX_free(ctx);
+        ERR_print_errors_fp(stderr);
+        errx(res, "Failed to set the minimum TLS protocol version");
+    }
+
+Next we configure some option flags, see L<SSL_CTX_set_options(3)> for details:
+
+    /*
+     * Tolerate clients hanging up without a TLS "shutdown".  Appropriate in all
+     * application protocols which perform their own message "framing", and
+     * don't rely on TLS to defend against "truncation" attacks.
+     */
+    opts = SSL_OP_IGNORE_UNEXPECTED_EOF;
+
+    /*
+     * Block potential CPU-exhaustion attacks by clients that request frequent
+     * renegotiation.  This is of course only effective if there are existing
+     * limits on initial full TLS handshake or connection rates.
+     */
+    opts |= SSL_OP_NO_RENEGOTIATION;
+
+    /*
+     * Most servers elect to use their own cipher preference rather than that of
+     * the client.
+     */
+    opts |= SSL_OP_CIPHER_SERVER_PREFERENCE;
+
+    /* Apply the selection options */
+    SSL_CTX_set_options(ctx, opts);
+
+Servers need a private key and certificate.  Though anonymous ciphers (no
+server certificate) are possible in TLS 1.2, they are rarely applicable, and
+are not currently defined for TLS 1.3.  Additional intermediate issuer CA
+certificates are often also required, and both the server (end-entity or EE)
+certificate and the issuer ("chain") certificates are most easily configured in
+a single "chain file".  Below we load such a chain file (the EE certificate
+must appear first), and then load the corresponding private key, checking that
+it matches the server certificate.  No checks are performed to check the
+integrity of the chain (CA signatures or certificate expiration dates, for
+example).
+
+    /*
+     * Load the server's certificate *chain* file (PEM format), which includes
+     * not only the leaf (end-entity) server certificate, but also any
+     * intermediate issuer-CA certificates.  The leaf certificate must be the
+     * first certificate in the file.
+     *
+     * In advanced use-cases this can be called multiple times, once per public
+     * key algorithm for which the server has a corresponding certificate.
+     * However, the corresponding private key (see below) must be loaded first,
+     * *before* moving on to the next chain file.
+     */
+    if (SSL_CTX_use_certificate_chain_file(ctx, "chain.pem") <= 0) {
+        SSL_CTX_free(ctx);
+        ERR_print_errors_fp(stderr);
+        errx(res, "Failed to load the server certificate chain file");
+    }
+
+    /*
+     * Load the corresponding private key, this also checks that the private
+     * key matches the just loaded end-entity certificate.  It does not check
+     * whether the certificate chain is valid, the certificates could be
+     * expired, or may otherwise fail to form a chain that a client can validate.
+     */
+    if (SSL_CTX_use_PrivateKey_file(ctx, "pkey.pem", SSL_FILETYPE_PEM) <= 0) {
+        SSL_CTX_free(ctx);
+        ERR_print_errors_fp(stderr);
+        errx(res, "Error loading the server private key file, "
+                  "possible key/cert mismatch???");
+    }
+
+Next we enable session caching, which makes it possible for clients to more
+efficiently make additional TLS connections after completing an initial full
+TLS handshake.  With TLS 1.3, session resumption typically still performs a fresh
+key agreement, but the certificate exchange is avoided.
+
+    /*
+     * Servers that want to enable session resumption must specify a cache id
+     * byte array, that identifies the server application, and reduces the
+     * chance of inappropriate cache sharing.
+     */
+    SSL_CTX_set_session_id_context(ctx, (void *)cache_id, sizeof(cache_id));
+    SSL_CTX_set_session_cache_mode(ctx, SSL_SESS_CACHE_SERVER);
+
+    /*
+     * How many client TLS sessions to cache.  The default is
+     * SSL_SESSION_CACHE_MAX_SIZE_DEFAULT (20k in recent OpenSSL versions),
+     * which may be too small or too large.
+     */
+    SSL_CTX_sess_set_cache_size(ctx, 1024);
+
+    /*
+     * Sessions older than this are considered a cache miss even if still in
+     * the cache.  The default is two hours.  Busy servers whose clients make
+     * many connections in a short burst may want a shorter timeout, on lightly
+     * loaded servers with sporadic connections from any given client, a longer
+     * time may be appropriate.
+     */
+    SSL_CTX_set_timeout(ctx, 3600);
+
+Most servers, including this one, do not solicit client certificates.  We
+therefore do not need a "trust store" and allow the handshake to complete even
+when the client does not present a certificate.  Note: Even if a client did
+present a trusted ceritificate, for it to be useful, the server application
+would still need custom code to use the verified identity to grant nondefault
+access to that particular client.  Some servers grant access to all clients
+with certificates from a private CA, this then requires processing of
+certificate revocation lists to deauthorise a client.  It is often simpler and
+more secure to instead keep a list of authorised public keys.
+
+Though this is the default setting, we explicitly call the
+L<SSL_CTX_set_verify(3)> function and pass the B<SSL_VERIFY_NONE> value to it.
+The final argument to this function is a callback that you can optionally
+supply to override the default handling for certificate verification. Most
+applications do not need to do this so this can safely be set to NULL to get
+the default handling.
+
+    /*
+     * Clients rarely employ certificate-based authentication, and so we don't
+     * require "mutual" TLS authentication (indeed there's no way to know
+     * whether or how the client authenticated the server, so the term "mutual"
+     * is potentially misleading).
+     *
+     * Since we're not soliciting or processing client certificates, we don't
+     * need to configure a trusted-certificate store, so no call to
+     * SSL_CTX_set_default_verify_paths() is needed.  The server's own
+     * certificate chain is assumed valid.
+     */
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
+That is all the setup that we need to do for the B<SSL_CTX>.  Next we create an
+acceptor BIO on which to accept client connections.  This just records the
+intended port (and optional "host:" prefix), without actually creating the
+socket.  This delayed processing allows the programmer to specify additional
+behaviours before the listening socket is actually created.
+
+    /*
+     * Create a listener socket wrapped in a BIO.
+     * The first call to BIO_do_accept() initialises the socket
+     */
+    acceptor_bio = BIO_new_accept(hostport);
+    if (acceptor_bio == NULL) {
+        SSL_CTX_free(ctx);
+        ERR_print_errors_fp(stderr);
+        errx(res, "Error creating acceptor bio");
+    }
+
+Servers almost always want to use the "SO_REUSEADDR" option to avoid startup
+failures if there are still lingering client connections, so we do that before
+making the B<first> call to L<BIO_do_accept(3)> which creates the listening
+socket, without accepting a client connection.  Subsequent calls to the same
+function will accept new connections.
+
+    BIO_set_bind_mode(acceptor_bio, BIO_BIND_REUSEADDR);
+    if (BIO_do_accept(acceptor_bio) <= 0) {
+        SSL_CTX_free(ctx);
+        ERR_print_errors_fp(stderr);
+        errx(res, "Error setting up acceptor socket");
+    }
+
+=head2 Server loop
+
+The server now enters a "forever" loop handling one client connection at a
+time.  Before each connection we clear the OpenSSL error stack, so that any
+error reports are related to just the new connection.
+
+    /* Pristine error stack for each new connection */
+    ERR_clear_error();
+
+At this point the server blocks to accept the next client:
+
+    /* Wait for the next client to connect */
+    if (BIO_do_accept(acceptor_bio) <= 0) {
+        /* Client went away before we accepted the connection */
+        continue;
+    }
+
+On success the accepted client connection has been wrapped in a fresh BIO and
+pushed onto the end of the acceptor BIO chain.  We pop it off returning the
+acceptor BIO to its initial state.
+
+    /* Pop the client connection from the BIO chain */
+    client_bio = BIO_pop(acceptor_bio);
+    fprintf(stderr, "New client connection accepted\n");
+
+Next, we create an B<SSL> object by calling the B<SSL_new(3)> function and
+passing the B<SSL_CTX> we created as an argument.  The client connection BIO is
+configured as the I/O conduit for this SSL handle.  SSL_set_bio transfers
+ownership of the BIO or BIOs involved (our B<client_bio>) to the SSL handle.
+
+    /* Associate a new SSL handle with the new connection */
+    if ((ssl = SSL_new(ctx)) == NULL) {
+        ERR_print_errors_fp(stderr);
+        warnx("Error creating SSL handle for new connection");
+        BIO_free(client_bio);
+        continue;
+    }
+    SSL_set_bio(ssl, client_bio, client_bio);
+
+And now we're ready to attempt the SSL handshake.  With a blocking socket
+OpenSSL will perform all the read and write operations required to complete the
+handshake (or detect and report a failure) before returning.
+
+    /* Attempt an SSL handshake with the client */
+    if (SSL_accept(ssl) <= 0) {
+        ERR_print_errors_fp(stderr);
+        warnx("Error performing SSL handshake with client");
+        SSL_free(ssl);
+        continue;
+    }
+
+With the handshake complete, the server loops echoing client input back to the
+client:
+
+    while (SSL_read_ex(ssl, buf, sizeof(buf), &nread) > 0) {
+        if (SSL_write_ex(ssl, buf, nread, &nwritten) > 0 &&
+            nwritten == nread) {
+            total += nwritten;
+            continue;
+        }
+        warnx("Error echoing client input");
+        break;
+    }
+
+Once the client closes its connection, we report the number of bytes sent to
+B<stderr> and free the SSL handle, which also frees the B<client_bio> and
+closes the underlying socket.
+
+    fprintf(stderr, "Client connection closed, %zu bytes sent\n", total);
+    SSL_free(ssl);
+
+The server is now ready to accept the next client connection.
+
+=head2 Final clean up
+
+If the server could somehow manage to break out of the infinite loop, and
+be ready to exit, it would first deallocate the constructed B<SSL_CTX>.
+
+    /*
+     * Unreachable placeholder cleanup code, the above loop runs forever.
+     */
+    SSL_CTX_free(ctx);
+    return EXIT_SUCCESS;
+
+=head1 SEE ALSO
+
+L<ossl-guide-introduction(7)>, L<ossl-guide-libraries-introduction(7)>,
+L<ossl-guide-libssl-introduction(7)>, L<ossl-guide-tls-introduction(7)>,
+L<ossl-guide-tls-client-non-block(7)>, L<ossl-guide-quic-client-block(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

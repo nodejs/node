@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -12,8 +12,13 @@
 #include "crypto/dso_conf.h"
 #include "internal/thread_once.h"
 #include "internal/cryptlib.h"
-#include "e_os.h"
+#include "internal/e_os.h"
 #include "buildinf.h"
+
+#ifndef OPENSSL_NO_JITTER
+# include <stdio.h>
+# include <jitterentropy.h>
+#endif
 
 #if defined(__arm__) || defined(__arm) || defined(__aarch64__)
 # include "arm_arch.h"
@@ -21,8 +26,11 @@
 #elif defined(__s390__) || defined(__s390x__)
 # include "s390x_arch.h"
 # define CPU_INFO_STR_LEN 2048
+#elif defined(__riscv)
+# include "crypto/riscv_arch.h"
+# define CPU_INFO_STR_LEN 2048
 #else
-# define CPU_INFO_STR_LEN 128
+# define CPU_INFO_STR_LEN 256
 #endif
 
 /* extern declaration to avoid warning */
@@ -44,11 +52,18 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
     const char *env;
 
     BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
-                 CPUINFO_PREFIX "OPENSSL_ia32cap=0x%llx:0x%llx",
+                 CPUINFO_PREFIX "OPENSSL_ia32cap=0x%.16llx:0x%.16llx:0x%.16llx:0x%.16llx:0x%.16llx",
                  (unsigned long long)OPENSSL_ia32cap_P[0] |
                  (unsigned long long)OPENSSL_ia32cap_P[1] << 32,
                  (unsigned long long)OPENSSL_ia32cap_P[2] |
-                 (unsigned long long)OPENSSL_ia32cap_P[3] << 32);
+                 (unsigned long long)OPENSSL_ia32cap_P[3] << 32,
+                 (unsigned long long)OPENSSL_ia32cap_P[4] |
+                 (unsigned long long)OPENSSL_ia32cap_P[5] << 32,
+                 (unsigned long long)OPENSSL_ia32cap_P[6] |
+                 (unsigned long long)OPENSSL_ia32cap_P[7] << 32,
+                 (unsigned long long)OPENSSL_ia32cap_P[8] |
+                 (unsigned long long)OPENSSL_ia32cap_P[9] << 32);
+
     if ((env = getenv("OPENSSL_ia32cap")) != NULL)
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
@@ -98,6 +113,33 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
         BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
                      sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
                      " env:%s", env);
+# elif defined(__riscv)
+    const char *env;
+    char sep = '=';
+
+    BIO_snprintf(ossl_cpu_info_str, sizeof(ossl_cpu_info_str),
+                 CPUINFO_PREFIX "OPENSSL_riscvcap");
+    for (size_t i = 0; i < kRISCVNumCaps; ++i) {
+        if (OPENSSL_riscvcap_P[RISCV_capabilities[i].index]
+                & (1 << RISCV_capabilities[i].bit_offset)) {
+            /* Match, display the name */
+            BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
+                         sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
+                         "%c%s", sep, RISCV_capabilities[i].name);
+            /* Only the first sep is '=' */
+            sep = '_';
+        }
+    }
+    /* If no capability is found, add back the = */
+    if (sep == '=') {
+        BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
+                     sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
+                     "%c", sep);
+    }
+    if ((env = getenv("OPENSSL_riscvcap")) != NULL)
+        BIO_snprintf(ossl_cpu_info_str + strlen(ossl_cpu_info_str),
+                     sizeof(ossl_cpu_info_str) - strlen(ossl_cpu_info_str),
+                     " env:%s", env);
 # endif
 #endif
 
@@ -135,10 +177,11 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
         add_seeds_string("rdtsc");
 #endif
 #ifdef OPENSSL_RAND_SEED_RDCPU
+# ifdef __aarch64__
+        add_seeds_string("rndr ( rndrrs rndr )");
+# else
         add_seeds_string("rdrand ( rdseed rdrand )");
-#endif
-#ifdef OPENSSL_RAND_SEED_LIBRANDOM
-        add_seeds_string("C-library-random");
+# endif
 #endif
 #ifdef OPENSSL_RAND_SEED_GETRANDOM
         add_seeds_string("getrandom-syscall");
@@ -151,6 +194,14 @@ DEFINE_RUN_ONCE_STATIC(init_info_strings)
 #endif
 #ifdef OPENSSL_RAND_SEED_OS
         add_seeds_string("os-specific");
+#endif
+#ifndef OPENSSL_NO_JITTER
+        {
+            char buf[32];
+
+            BIO_snprintf(buf, sizeof(buf), "JITTER (%d)", jent_version());
+            add_seeds_string(buf);
+        }
 #endif
         seed_sources = seeds;
     }
@@ -168,11 +219,11 @@ const char *OPENSSL_info(int t)
 
     switch (t) {
     case OPENSSL_INFO_CONFIG_DIR:
-        return OPENSSLDIR;
+        return ossl_get_openssldir();
     case OPENSSL_INFO_ENGINES_DIR:
-        return ENGINESDIR;
+        return ossl_get_enginesdir();
     case OPENSSL_INFO_MODULES_DIR:
-        return MODULESDIR;
+        return ossl_get_modulesdir();
     case OPENSSL_INFO_DSO_EXTENSION:
         return DSO_EXTENSION;
     case OPENSSL_INFO_DIR_FILENAME_SEPARATOR:
@@ -199,6 +250,8 @@ const char *OPENSSL_info(int t)
         if (ossl_cpu_info_str[0] != '\0')
             return ossl_cpu_info_str + strlen(CPUINFO_PREFIX);
         break;
+    case OPENSSL_INFO_WINDOWS_CONTEXT:
+        return ossl_get_wininstallcontext();
     default:
         break;
     }

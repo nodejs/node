@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -22,6 +22,7 @@ int main(int argc, char **argv)
     char **args = argv + 1;
     const char *connect_str = "localhost:4433";
     int nargs = argc - 1;
+    int ret = EXIT_FAILURE;
 
     ctx = SSL_CTX_new(TLS_client_method());
     cctx = SSL_CONF_CTX_new();
@@ -100,9 +101,10 @@ int main(int argc, char **argv)
             break;
         BIO_write(out, tmpbuf, len);
     }
+    ret = EXIT_SUCCESS;
  end:
     SSL_CONF_CTX_free(cctx);
     BIO_free_all(sbio);
     BIO_free(out);
-    return 0;
+    return ret;
 }

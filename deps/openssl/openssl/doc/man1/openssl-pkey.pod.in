@@ -69,8 +69,9 @@ or the public component of a key pair.
 
 =item B<-in> I<filename>|I<uri>
 
-This specifies the input to read a key from
+This specifies the input file to read a key from
 or standard input if this option is not specified.
+
 If the key input is encrypted and B<-passin> is not given
 a pass phrase will be prompted for.
 
@@ -89,7 +90,8 @@ see L<openssl-passphrase-options(1)>.
 =item B<-pubin>
 
 By default a private key is read from the input.
-With this option only the public components are read.
+With this option a public key is read instead.
+If the input contains no public key but a private key, its public part is used.
 
 =back
 
@@ -99,11 +101,15 @@ With this option only the public components are read.
 
 =item B<-out> I<filename>
 
-This specifies the output filename to save the encoded and/or text output of key
+This specifies the output file to save the encoded and/or text output of key
 or standard output if this option is not specified.
+The output filename can be the same as the input filename,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
+
 If any cipher option is set but no B<-passout> is given
 then a pass phrase will be prompted for.
-The output filename should B<not> be the same as the input filename.
+When password input is interrupted, the output file is not touched.
 
 =item B<-outform> B<DER>|B<PEM>
 
@@ -228,7 +234,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

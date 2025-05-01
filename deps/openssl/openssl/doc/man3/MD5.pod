@@ -70,7 +70,7 @@ MD2_Final() places the message digest in B<md>, which must have space
 for MD2_DIGEST_LENGTH == 16 bytes of output, and erases the B<MD2_CTX>.
 
 MD4_Init(), MD4_Update(), MD4_Final(), MD5_Init(), MD5_Update(), and
-MD5_Final() are analogous using an B<MD4_CTX> and B<MD5_CTX> structure.
+MD5_Final() are analogous using an B<MD4_CTX> and B<MD5_CTX> structure. The parameter B<MUST NOT> be NULL.
 
 Applications should use the higher level functions
 L<EVP_DigestInit(3)>

@@ -1,6 +1,6 @@
 # Generated with generate_ssl_tests.pl
 
-num_tests = 57
+num_tests = 58
 
 test-0 = 0-ECDSA CipherString Selection
 test-1 = 1-ECDSA CipherString Selection
@@ -59,6 +59,7 @@ test-53 = 53-TLS 1.3 ECDSA with brainpool
 test-54 = 54-TLS 1.2 DSA Certificate Test
 test-55 = 55-TLS 1.3 Client Auth No TLS 1.3 Signature Algorithms
 test-56 = 56-TLS 1.3 DSA Certificate Test
+test-57 = 57-TLS 1.3 ML-DSA Certificate Test
 # ===========================================================
 
 [0-ECDSA CipherString Selection]
@@ -214,7 +215,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 [4-P-256 CipherString and Signature Algorithm Selection-client]
 CipherString = aECDSA
 MaxProtocol = TLSv1.2
-SignatureAlgorithms = ECDSA+SHA256:ed25519
+SignatureAlgorithms = ecdSA+SHA256:eD25519
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -273,7 +274,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [6-ECDSA Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = eCDsa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -307,7 +308,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [7-ECDSA Signature Algorithm Selection SHA384-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA384
+SignatureAlgorithms = eCdSa+SHA384
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -337,7 +338,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [8-ECDSA Signature Algorithm Selection compressed point-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = EcDsA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -365,7 +366,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [9-ECDSA Signature Algorithm Selection, no ECDSA certificate-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = eCdsA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -396,7 +397,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [10-RSA Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = RSA+SHA256
+SignatureAlgorithms = rsA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -430,7 +431,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [11-RSA-PSS Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = RSA-PSS+SHA256
+SignatureAlgorithms = RSA-pss+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -487,7 +488,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [13-Suite B P-256 Hash Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA384:ECDSA+SHA256
+SignatureAlgorithms = eCdsA+SHA384:ECdSA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/p384-root.pem
 VerifyMode = Peer
 
@@ -517,7 +518,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [14-Suite B P-384 Hash Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256:ECDSA+SHA384
+SignatureAlgorithms = EcdSA+SHA256:ECDSA+SHA384
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/p384-root.pem
 VerifyMode = Peer
 
@@ -553,7 +554,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 CipherString = aECDSA
 MaxProtocol = TLSv1.2
 RequestCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
-SignatureAlgorithms = ed25519:ECDSA+SHA256
+SignatureAlgorithms = eD25519:eCdsa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -589,7 +590,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 CipherString = aECDSA
 MaxProtocol = TLSv1.2
 RequestCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
-SignatureAlgorithms = ed448:ECDSA+SHA256
+SignatureAlgorithms = Ed448:ECdSa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 
@@ -685,7 +686,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [19-ECDSA Signature Algorithm Selection SHA1-client]
 CipherString = DEFAULT:@SECLEVEL=0
-SignatureAlgorithms = ECDSA+SHA1
+SignatureAlgorithms = ECdSa+SHA1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -751,7 +752,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 CipherString = aECDSA
 Curves = X25519
 MaxProtocol = TLSv1.2
-SignatureAlgorithms = ECDSA+SHA256:ed25519
+SignatureAlgorithms = ecDSA+SHA256:Ed25519
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -786,7 +787,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 CipherString = aECDSA
 Curves = X448
 MaxProtocol = TLSv1.2
-SignatureAlgorithms = ECDSA+SHA256:ed448
+SignatureAlgorithms = ECDSa+SHA256:ED448
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 
@@ -856,7 +857,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [24-RSA-PSS Certificate Legacy Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = RSA-PSS+SHA256
+SignatureAlgorithms = rSA-pSS+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -892,7 +893,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [25-RSA-PSS Certificate Unified Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = rsa_pss_pss_sha256
+SignatureAlgorithms = rsA_PsS_PsS_sHa256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -945,7 +946,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-key.pem
 
 [27-Only RSA-PSS Certificate Valid Signature Algorithms-client]
 CipherString = DEFAULT
-SignatureAlgorithms = rsa_pss_pss_sha512
+SignatureAlgorithms = rsa_psS_psS_sHa512
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -972,7 +973,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-key.pem
 
 [28-RSA-PSS Certificate, no PSS signature algorithms-client]
 CipherString = DEFAULT
-SignatureAlgorithms = RSA+SHA256
+SignatureAlgorithms = rsa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1022,7 +1023,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-restrict-key.pem
 
 [30-RSA-PSS Restricted Certificate Valid Signature Algorithms-client]
 CipherString = DEFAULT
-SignatureAlgorithms = rsa_pss_pss_sha256:rsa_pss_pss_sha512
+SignatureAlgorithms = RSa_pSS_pSs_sHA256:rsa_PsS_PSs_sHA512
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1049,7 +1050,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-restrict-key.pem
 
 [31-RSA-PSS Restricted Cert client prefers invalid Signature Algorithm-client]
 CipherString = DEFAULT
-SignatureAlgorithms = rsa_pss_pss_sha512:rsa_pss_pss_sha256
+SignatureAlgorithms = rsA_pss_psS_sha512:rsA_pSS_PSs_ShA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1076,7 +1077,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-restrict-key.pem
 
 [32-RSA-PSS Restricted Certificate Invalid Signature Algorithms-client]
 CipherString = DEFAULT
-SignatureAlgorithms = rsa_pss_pss_sha512
+SignatureAlgorithms = rSa_PSS_pSS_sHa512
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1119,11 +1120,11 @@ client = 34-Only RSA-PSS Certificate, TLS v1.1-client
 
 [34-Only RSA-PSS Certificate, TLS v1.1-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/server-pss-cert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT:@SECLEVEL=0
 PrivateKey = ${ENV::TEST_CERTS_DIR}/server-pss-key.pem
 
 [34-Only RSA-PSS Certificate, TLS v1.1-client]
-CipherString = DEFAULT
+CipherString = DEFAULT:@SECLEVEL=0
 MaxProtocol = TLSv1.1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -1156,7 +1157,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [35-TLS 1.3 ECDSA Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = ECDsa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1188,7 +1189,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [36-TLS 1.3 ECDSA Signature Algorithm Selection compressed point-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = ecDSA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1224,7 +1225,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [37-TLS 1.3 ECDSA Signature Algorithm Selection SHA1-client]
 CipherString = DEFAULT:@SECLEVEL=0
-SignatureAlgorithms = ECDSA+SHA1
+SignatureAlgorithms = eCDSa+SHA1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1257,7 +1258,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 [38-TLS 1.3 ECDSA Signature Algorithm Selection with PSS-client]
 CipherString = DEFAULT
 RequestCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
-SignatureAlgorithms = ECDSA+SHA256:RSA-PSS+SHA256
+SignatureAlgorithms = eCdsA+SHA256:rsA-pSs+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1293,7 +1294,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [39-TLS 1.3 RSA Signature Algorithm Selection SHA384 with PSS-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA384:RSA-PSS+SHA384
+SignatureAlgorithms = ECdsA+SHA384:RSa-psS+SHA384
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1322,7 +1323,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [40-TLS 1.3 ECDSA Signature Algorithm Selection, no ECDSA certificate-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ECDSA+SHA256
+SignatureAlgorithms = eCDSA+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1386,7 +1387,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [42-TLS 1.3 RSA-PSS Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = RSA-PSS+SHA256
+SignatureAlgorithms = Rsa-PSS+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1445,7 +1446,7 @@ client = 44-TLS 1.3 RSA Client Auth Signature Algorithm Selection non-empty CA N
 [44-TLS 1.3 RSA Client Auth Signature Algorithm Selection non-empty CA Names-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
-ClientSignatureAlgorithms = PSS+SHA256
+ClientSignatureAlgorithms = Pss+SHA256
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 RequestCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
@@ -1482,7 +1483,7 @@ client = 45-TLS 1.3 ECDSA Client Auth Signature Algorithm Selection-client
 [45-TLS 1.3 ECDSA Client Auth Signature Algorithm Selection-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
-ClientSignatureAlgorithms = ECDSA+SHA256
+ClientSignatureAlgorithms = ECDsA+SHA256
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
 VerifyMode = Require
@@ -1529,7 +1530,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [46-TLS 1.3 Ed25519 Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ed25519
+SignatureAlgorithms = eD25519
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1563,7 +1564,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [47-TLS 1.3 Ed448 Signature Algorithm Selection-client]
 CipherString = DEFAULT
-SignatureAlgorithms = ed448
+SignatureAlgorithms = eD448
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 
@@ -1598,7 +1599,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 [48-TLS 1.3 Ed25519 CipherString and Groups Selection-client]
 CipherString = DEFAULT
 Groups = X25519
-SignatureAlgorithms = ECDSA+SHA256:ed25519
+SignatureAlgorithms = EcdSA+SHA256:eD25519
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1633,7 +1634,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 [49-TLS 1.3 Ed448 CipherString and Groups Selection-client]
 CipherString = DEFAULT
 Groups = X448
-SignatureAlgorithms = ECDSA+SHA256:ed448
+SignatureAlgorithms = eCDSa+SHA256:ED448
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1754,7 +1755,7 @@ VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
 [test-53]
-ExpectedResult = ServerFail
+ExpectedResult = Success
 
 
 # ===========================================================
@@ -1778,7 +1779,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [54-TLS 1.2 DSA Certificate Test-client]
 CipherString = ALL
-SignatureAlgorithms = DSA+SHA256:DSA+SHA1
+SignatureAlgorithms = DSA+SHA256:DSa+SHA1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -1798,7 +1799,7 @@ client = 55-TLS 1.3 Client Auth No TLS 1.3 Signature Algorithms-client
 [55-TLS 1.3 Client Auth No TLS 1.3 Signature Algorithms-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT
-ClientSignatureAlgorithms = ECDSA+SHA1:DSA+SHA256:RSA+SHA256
+ClientSignatureAlgorithms = ecDSA+SHA1:DsA+SHA256:rsA+SHA256
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
 VerifyMode = Request
@@ -1832,11 +1833,40 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [56-TLS 1.3 DSA Certificate Test-client]
 CipherString = ALL
-SignatureAlgorithms = DSA+SHA1:DSA+SHA256:ECDSA+SHA256
+SignatureAlgorithms = dSA+SHA1:DSA+SHA256:ecDsa+SHA256
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
 [test-56]
 ExpectedResult = ServerFail
+
+
+# ===========================================================
+
+[57-TLS 1.3 ML-DSA Certificate Test]
+ssl_conf = 57-TLS 1.3 ML-DSA Certificate Test-ssl
+
+[57-TLS 1.3 ML-DSA Certificate Test-ssl]
+server = 57-TLS 1.3 ML-DSA Certificate Test-server
+client = 57-TLS 1.3 ML-DSA Certificate Test-client
+
+[57-TLS 1.3 ML-DSA Certificate Test-server]
+Certificate = ${ENV::TEST_CERTS_DIR}/server-ml-dsa-44-cert.pem
+CipherString = DEFAULT
+MaxProtocol = TLSv1.3
+MinProtocol = TLSv1.3
+PrivateKey = ${ENV::TEST_CERTS_DIR}/server-ml-dsa-44-key.pem
+SignatureAlgorithms = mlDsA44
+
+[57-TLS 1.3 ML-DSA Certificate Test-client]
+CipherString = DEFAULT
+MaxProtocol = TLSv1.3
+MinProtocol = TLSv1.3
+SignatureAlgorithms = mlDSa44
+VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ml-dsa-44-cert.pem
+VerifyMode = Peer
+
+[test-57]
+ExpectedResult = Success
 
 

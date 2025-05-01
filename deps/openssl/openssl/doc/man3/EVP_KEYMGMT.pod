@@ -14,6 +14,7 @@ EVP_KEYMGMT_do_all_provided,
 EVP_KEYMGMT_names_do_all,
 EVP_KEYMGMT_gettable_params,
 EVP_KEYMGMT_settable_params,
+EVP_KEYMGMT_gen_gettable_params,
 EVP_KEYMGMT_gen_settable_params
 - EVP key management routines
 
@@ -41,6 +42,7 @@ EVP_KEYMGMT_gen_settable_params
  const OSSL_PARAM *EVP_KEYMGMT_gettable_params(const EVP_KEYMGMT *keymgmt);
  const OSSL_PARAM *EVP_KEYMGMT_settable_params(const EVP_KEYMGMT *keymgmt);
  const OSSL_PARAM *EVP_KEYMGMT_gen_settable_params(const EVP_KEYMGMT *keymgmt);
+ const OSSL_PARAM *EVP_KEYMGMT_gen_gettable_params(const EVP_KEYMGMT *keymgmt);
 
 =head1 DESCRIPTION
 
@@ -93,9 +95,10 @@ constant L<OSSL_PARAM(3)> array that describes the names and types of key
 parameters that can be retrieved or set.
 EVP_KEYMGMT_gettable_params() is used by L<EVP_PKEY_gettable_params(3)>.
 
-EVP_KEYMGMT_gen_settable_params() returns a constant L<OSSL_PARAM(3)> array that
-describes the names and types of key generation parameters that can be set via
-L<EVP_PKEY_CTX_set_params(3)>.
+EVP_KEYMGMT_gen_gettable_params() and EVP_KEYMGMT_gen_settable_params() return a
+constant L<OSSL_PARAM(3)> array that describes the names and types of key
+generation parameters that can be retrieved or set via
+L<EVP_PKEY_CTX_get_params(3)> or L<EVP_PKEY_CTX_set_params(3)> respectively.
 
 =head1 NOTES
 
@@ -127,9 +130,9 @@ EVP_KEYMGMT_get0_name() returns the algorithm name, or NULL on error.
 EVP_KEYMGMT_get0_description() returns a pointer to a description, or NULL if
 there isn't one.
 
-EVP_KEYMGMT_gettable_params(), EVP_KEYMGMT_settable_params() and
-EVP_KEYMGMT_gen_settable_params() return a constant L<OSSL_PARAM(3)> array or
-NULL on error.
+EVP_KEYMGMT_gettable_params(), EVP_KEYMGMT_settable_params(),
+EVP_KEYMGMT_gen_gettable_params() and EVP_KEYMGMT_gen_settable_params()
+return a constant L<OSSL_PARAM(3)> array or NULL on error.
 
 =head1 SEE ALSO
 
@@ -137,7 +140,8 @@ L<EVP_MD_fetch(3)>, L<OSSL_LIB_CTX(3)>
 
 =head1 HISTORY
 
-The functions described here were added in OpenSSL 3.0.
+The function EVP_KEYMGMT_gen_gettable_params() was added in OpenSSL 3.4.0
+All other functions described here were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 

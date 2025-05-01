@@ -26,6 +26,8 @@ PEM_write_bio_Parameters, PEM_read_bio_DSAparams, PEM_read_DSAparams,
 PEM_write_bio_DSAparams, PEM_write_DSAparams, PEM_read_bio_DHparams,
 PEM_read_DHparams, PEM_write_bio_DHparams, PEM_write_DHparams,
 PEM_read_bio_X509, PEM_read_X509, PEM_write_bio_X509, PEM_write_X509,
+PEM_read_bio_X509_ACERT, PEM_read_X509_ACERT,
+PEM_write_bio_X509_ACERT, PEM_write_X509_ACERT,
 PEM_read_bio_X509_AUX, PEM_read_X509_AUX, PEM_write_bio_X509_AUX,
 PEM_write_X509_AUX, PEM_read_bio_X509_REQ, PEM_read_X509_REQ,
 PEM_write_bio_X509_REQ, PEM_write_X509_REQ, PEM_write_bio_X509_REQ_NEW,
@@ -107,6 +109,13 @@ PEM_write_bio_PKCS7, PEM_write_PKCS7 - PEM routines
  X509 *PEM_read_X509(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
  int PEM_write_bio_X509(BIO *bp, X509 *x);
  int PEM_write_X509(FILE *fp, X509 *x);
+
+ X509_ACERT *PEM_read_bio_X509_ACERT(BIO *bp, X509_ACERT **x,
+                                     pem_password_cb *cb, void *u);
+ X509_ACERT *PEM_read_X509_ACERT(FILE *fp, X509_ACERT **x,
+                                     pem_password_cb *cb, void *u);
+ int PEM_write_bio_X509_ACERT(BIO *bp, X509_ACERT *x);
+ int PEM_write_X509_ACERT(FILE *fp, X509_ACERT *x);
 
  X509 *PEM_read_bio_X509_AUX(BIO *bp, X509 **x, pem_password_cb *cb, void *u);
  X509 *PEM_read_X509_AUX(FILE *fp, X509 **x, pem_password_cb *cb, void *u);
@@ -287,6 +296,9 @@ The B<X509> functions process an X509 certificate using an X509
 structure. They will also process a trusted X509 certificate but
 any trust settings are discarded.
 
+The B<X509_ACERT> functions process an X509 attribute certificate using
+an X509_ACERT structure.
+
 The B<X509_AUX> functions process a trusted X509 certificate using
 an X509 structure.
 
@@ -308,7 +320,7 @@ structure.
 The PEM functions have many common arguments.
 
 The I<bp> BIO parameter (if present) specifies the BIO to read from
-or write to.
+or write to. The I<bp> BIO parameter B<MUST NOT> be NULL.
 
 The I<fp> FILE parameter (if present) specifies the FILE pointer to
 read from or write to.
@@ -573,6 +585,9 @@ PEM_write_bio_DSAparams(), PEM_write_DSAparams(),
 PEM_read_bio_DHparams(), PEM_read_DHparams(),
 PEM_write_bio_DHparams() and PEM_write_DHparams() were deprecated in 3.0.
 
+PEM_read_bio_X509_ACERT(), PEM_read_X509_ACERT(),
+PEM_write_bio_X509_ACERT(), PEM_write_X509_ACERT()
+were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 

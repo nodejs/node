@@ -1,0 +1,211 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_riscvcap - the RISC-V processor capabilities vector
+
+=head1 SYNOPSIS
+
+ env OPENSSL_riscvcap=... <application>
+
+=head1 DESCRIPTION
+
+libcrypto supports RISC-V instruction set extensions. These
+extensions are denoted by individual extension names in the capabilities
+vector. For Linux platform, when libcrypto is initialized, the results
+returned by the RISC-V Hardware Probing syscall (hwprobe) are stored
+in the vector. Otherwise all capabilities are disabled.
+
+To override the set of instructions available to an application, you can
+set the B<OPENSSL_riscvcap> environment variable before you start the
+application.
+
+The environment variable is similar to the RISC-V ISA string defined in the
+RISC-V Instruction Set Manual. It is case insensitive. Though due to the limit
+of the environment variable parser inside libcrypto, an extension must be
+prefixed with an underscore to make it recognizable. This also applies to the
+Vector extension.
+
+ OPENSSL_riscvcap="rv64gc_v_zba_zbb_zbs..."
+
+Note that extension implication is currently not implemented.
+For example, when "rv64gc_b" is provided as the environment variable,
+zba/zbb/zbs would not be implied in the capability vector.
+
+Currently only these extensions are recognized:
+
+=over 4
+
+=item ZBA
+
+Address Generation
+
+Could be detected using hwprobe for Linux kernel >= 6.5
+
+=item ZBB
+
+Basic bit-manipulation
+
+Could be detected using hwprobe for Linux kernel >= 6.5
+
+=item ZBC
+
+Carry-less multiplication
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZBS
+
+Single-bit instructions
+
+Could be detected using hwprobe for Linux kernel >= 6.5
+
+=item ZBKB
+
+Bit-manipulation for Cryptography
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZBKC
+
+Carry-less multiplication for Cryptography
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZBKX
+
+Crossbar permutations
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKND
+
+NIST Suite: AES Decryption
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKNE
+
+NIST Suite: AES Encryption
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKNH
+
+NIST Suite: Hash Function Instructions
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKSED
+
+ShangMi Suite: SM4 Block Cipher Instructions
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKSH
+
+ShangMi Suite: SM3 Hash Function Instructions
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZKR
+
+Entropy Source Extension
+
+=item ZKT
+
+Data Independent Execution Latency
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item V
+
+Vector Extension for Application Processors
+
+Could be detected using hwprobe for Linux kernel >= 6.5
+
+=item ZVBB
+
+Vector Basic Bit-manipulation
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVBC
+
+Vector Carryless Multiplication
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKB
+
+Vector Cryptography Bit-manipulation
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKG
+
+Vector GCM/GMAC
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKNED
+
+NIST Suite: Vector AES Block Cipher
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKNHA
+
+NIST Suite: Vector SHA-2 Secure Hash
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKNHB
+
+NIST Suite: Vector SHA-2 Secure Hash
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKSED
+
+ShangMi Suite: SM4 Block Cipher
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=item ZVKSH
+
+ShangMi Suite: SM3 Secure Hash
+
+Could be detected using hwprobe for Linux kernel >= 6.8
+
+=back
+
+=head1 RETURN VALUES
+
+Not available.
+
+=head1 EXAMPLES
+
+Check currently detected capabilities
+
+ $ openssl info -cpusettings
+ OPENSSL_riscvcap=ZBA_ZBB_ZBC_ZBS_V
+
+Disables all instruction set extensions:
+
+ OPENSSL_riscvcap="rv64gc"
+
+Only enable the vector extension:
+
+ OPENSSL_riscvcap="rv64gc_v"
+
+=head1 COPYRIGHT
+
+Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

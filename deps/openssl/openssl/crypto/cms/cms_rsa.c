@@ -150,17 +150,16 @@ static int rsa_cms_encrypt(CMS_RecipientInfo *ri)
     if (!ossl_x509_algor_md_to_mgf1(&oaep->maskGenFunc, mgf1md))
         goto err;
     if (labellen > 0) {
-        oaep->pSourceFunc = X509_ALGOR_new();
-        if (oaep->pSourceFunc == NULL)
-            goto err;
         los = ASN1_OCTET_STRING_new();
+
         if (los == NULL)
             goto err;
         if (!ASN1_OCTET_STRING_set(los, label, labellen))
             goto err;
 
-        if (!X509_ALGOR_set0(oaep->pSourceFunc, OBJ_nid2obj(NID_pSpecified),
-                        V_ASN1_OCTET_STRING, los))
+        oaep->pSourceFunc = ossl_X509_ALGOR_from_nid(NID_pSpecified,
+                                                     V_ASN1_OCTET_STRING, los);
+        if (oaep->pSourceFunc == NULL)
             goto err;
 
         los = NULL;
@@ -208,10 +207,10 @@ static int rsa_cms_sign(CMS_SignerInfo *si)
         if (EVP_PKEY_CTX_get_rsa_padding(pkctx, &pad_mode) <= 0)
             return 0;
     }
-    if (pad_mode == RSA_PKCS1_PADDING) {
-        X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption), V_ASN1_NULL, 0);
-        return 1;
-    }
+    if (pad_mode == RSA_PKCS1_PADDING)
+        return X509_ALGOR_set0(alg, OBJ_nid2obj(NID_rsaEncryption),
+                               V_ASN1_NULL, NULL);
+
     /* We don't support it */
     if (pad_mode != RSA_PKCS1_PSS_PADDING)
         return 0;

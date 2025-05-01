@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -42,7 +42,7 @@ static const BIO_METHOD *bio_f_watchccs_filter(void)
     if (method_watchccs == NULL) {
         method_watchccs = BIO_meth_new(BIO_TYPE_WATCHCCS_FILTER,
                                        "Watch CCS filter");
-        if (   method_watchccs == NULL
+        if (method_watchccs == NULL
             || !BIO_meth_set_write(method_watchccs, watchccs_write)
             || !BIO_meth_set_read(method_watchccs, watchccs_read)
             || !BIO_meth_set_puts(method_watchccs, watchccs_puts)
@@ -193,7 +193,7 @@ static int watchccs_write(BIO *bio, const char *in, int inl)
             } else {
                 badccs = 1;
             }
-        } else if(rectype == SSL3_RT_APPLICATION_DATA) {
+        } else if (rectype == SSL3_RT_APPLICATION_DATA) {
             if (bio == s_to_c_fbio)
                 sappdataseen = 1;
             else
@@ -321,7 +321,7 @@ static int test_tls13ccs(int tst)
             goto err;
 # endif
 #else
-        if (!TEST_true(SSL_CTX_set1_groups_list(sctx, "P-256")))
+        if (!TEST_true(SSL_CTX_set1_groups_list(sctx, "P-384")))
             goto err;
 #endif
     }
@@ -471,10 +471,6 @@ static int test_tls13ccs(int tst)
                 || !TEST_size_t_gt(chsessidlen, 0))
             goto err;
         break;
-
-    default:
-        TEST_error("Invalid test value");
-        goto err;
     }
 
     ret = 1;

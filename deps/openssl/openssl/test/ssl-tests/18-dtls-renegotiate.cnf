@@ -23,6 +23,7 @@ client = 0-renegotiate-client-no-resume-client
 [0-renegotiate-client-no-resume-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT:@SECLEVEL=0
+MaxProtocol = DTLSv1.2
 Options = NoResumptionOnRenegotiation
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
@@ -51,6 +52,7 @@ client = 1-renegotiate-client-resume-client
 [1-renegotiate-client-resume-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT:@SECLEVEL=0
+MaxProtocol = DTLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [1-renegotiate-client-resume-client]
@@ -78,6 +80,7 @@ client = 2-renegotiate-server-resume-client
 [2-renegotiate-server-resume-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT:@SECLEVEL=0
+MaxProtocol = DTLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [2-renegotiate-server-resume-client]
@@ -105,6 +108,7 @@ client = 3-renegotiate-client-auth-require-client
 [3-renegotiate-client-auth-require-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT:@SECLEVEL=0
+MaxProtocol = DTLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
 VerifyMode = Require
@@ -136,6 +140,7 @@ client = 4-renegotiate-client-auth-once-client
 [4-renegotiate-client-auth-once-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
 CipherString = DEFAULT:@SECLEVEL=0
+MaxProtocol = DTLSv1.2
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-cert.pem
 VerifyMode = Once
@@ -172,6 +177,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [5-renegotiate-aead-to-non-aead-client]
 CipherString = AES128-GCM-SHA256
+MaxProtocol = DTLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -204,6 +210,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [6-renegotiate-non-aead-to-aead-client]
 CipherString = AES128-SHA
+MaxProtocol = DTLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -236,6 +243,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [7-renegotiate-non-aead-to-non-aead-client]
 CipherString = AES128-SHA
+MaxProtocol = DTLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -268,6 +276,7 @@ PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [8-renegotiate-aead-to-aead-client]
 CipherString = AES128-GCM-SHA256
+MaxProtocol = DTLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 

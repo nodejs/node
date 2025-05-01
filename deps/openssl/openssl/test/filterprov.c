@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,10 +14,12 @@
 
 #include <string.h>
 #include <openssl/core.h>
+#include <openssl/core_dispatch.h>
 #include <openssl/provider.h>
 #include <openssl/crypto.h>
 #include "testutil.h"
 #include "filterprov.h"
+#include "prov/bio.h"
 
 #define MAX_FILTERS     10
 #define MAX_ALG_FILTERS 5
@@ -118,6 +120,8 @@ static void filter_teardown(void *provctx)
     OSSL_PROVIDER_unload(globs->deflt);
     OSSL_LIB_CTX_free(globs->libctx);
     memset(globs, 0, sizeof(*globs));
+    BIO_meth_free(ossl_prov_ctx_get0_core_bio_method(provctx));
+    ossl_prov_ctx_free(provctx);
 }
 
 /* Functions we provide to the core */
@@ -128,7 +132,7 @@ static const OSSL_DISPATCH filter_dispatch_table[] = {
     { OSSL_FUNC_PROVIDER_UNQUERY_OPERATION, (void (*)(void))filter_unquery },
     { OSSL_FUNC_PROVIDER_GET_CAPABILITIES, (void (*)(void))filter_get_capabilities },
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))filter_teardown },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 int filter_provider_init(const OSSL_CORE_HANDLE *handle,
@@ -136,6 +140,25 @@ int filter_provider_init(const OSSL_CORE_HANDLE *handle,
                          const OSSL_DISPATCH **out,
                          void **provctx)
 {
+    OSSL_FUNC_core_get_libctx_fn *c_get_libctx = NULL;
+    BIO_METHOD *corebiometh;
+
+    if (!ossl_prov_bio_from_dispatch(in))
+        return 0;
+    for (; in->function_id != 0; in++) {
+        switch (in->function_id) {
+        case OSSL_FUNC_CORE_GET_LIBCTX:
+            c_get_libctx = OSSL_FUNC_core_get_libctx(in);
+            break;
+        default:
+            /* Just ignore anything we don't understand */
+            break;
+        }
+    }
+
+    if (c_get_libctx == NULL)
+        return 0;
+
     memset(&ourglobals, 0, sizeof(ourglobals));
     ourglobals.libctx = OSSL_LIB_CTX_new();
     if (ourglobals.libctx == NULL)
@@ -145,7 +168,23 @@ int filter_provider_init(const OSSL_CORE_HANDLE *handle,
     if (ourglobals.deflt == NULL)
         goto err;
 
-    *provctx = OSSL_PROVIDER_get0_provider_ctx(ourglobals.deflt);
+    /*
+     * We want to make sure that all calls from this provider that requires
+     * a library context use the same context as the one used to call our
+     * functions.  We do that by passing it along in the provider context.
+     *
+     * This only works for built-in providers.  Most providers should
+     * create their own library context.
+     */
+    if ((*provctx = ossl_prov_ctx_new()) == NULL
+            || (corebiometh = ossl_bio_prov_init_bio_method()) == NULL) {
+        ossl_prov_ctx_free(*provctx);
+        *provctx = NULL;
+        goto err;
+    }
+    ossl_prov_ctx_set0_libctx(*provctx, (OSSL_LIB_CTX *)c_get_libctx(handle));
+    ossl_prov_ctx_set0_handle(*provctx, handle);
+    ossl_prov_ctx_set0_core_bio_method(*provctx, corebiometh);
     *out = filter_dispatch_table;
     return 1;
 

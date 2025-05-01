@@ -93,7 +93,9 @@ Print out the CRL in text form.
 
 =item B<-verify>
 
-Verify the signature in the CRL.
+Verify the signature in the CRL. If the verification fails,
+the program will immediately exit, i.e. further option processing
+(e.g. B<-gendelta>) is skipped.
 
 This option is implicitly enabled if any of B<-CApath>, B<-CAfile>
 or B<-CAstore> is specified.
@@ -162,6 +164,10 @@ L<openssl-crl2pkcs7(1)>,
 L<openssl-ca(1)>,
 L<openssl-x509(1)>,
 L<ossl_store-file(7)>
+
+=head1 HISTORY
+
+Since OpenSSL 3.3, the B<-verify> option will exit with 1 on failure.
 
 =head1 COPYRIGHT
 

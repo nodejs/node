@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -69,3 +69,66 @@ Ctrl.Secret = hexsecret:01
 Ctrl.Seed = hexseed:02
 Output = 03
 Result = KDF_DERIVE_ERROR
+
+# Test that unsupported XOF is rejected
+KDF = TLS1-PRF
+Ctrl.digest = digest:SHAKE-256
+Ctrl.Secret = hexsecret:f8938ecc9edebc5030c0c6a441e213cd24e6f770a50dda07876f8d55da062bcadb386b411fd4fe4313a604fce6c17fbc
+Ctrl.label = seed:extended master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Result = KDF_CTRL_ERROR
+
+Title = FIPS indicator tests
+
+# Test that the operation with unapproved digest function is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = TLS1-PRF
+Ctrl.digest = digest:SHA512-256
+Ctrl.Secret = hexsecret:f8938ecc9edebc5030c0c6a441e213cd24e6f770a50dda07876f8d55da062bcadb386b411fd4fe4313a604fce6c17fbc
+Ctrl.label = seed:extended master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Result = KDF_DERIVE_ERROR
+Reason = digest not allowed
+
+# Test that the operation with unapproved digest function is is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = TLS1-PRF
+Unapproved = 1
+Ctrl.digest-check = digest-check:0
+Ctrl.digest = digest:SHA512-256
+Ctrl.Secret = hexsecret:f8938ecc9edebc5030c0c6a441e213cd24e6f770a50dda07876f8d55da062bcadb386b411fd4fe4313a604fce6c17fbc
+Ctrl.label = seed:extended master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Output = 17be20a3b4cc05524d7de353b2f125537c23372144111b0367bda166fcfc09cf1c94909a408b986f53afbdc41d93ae09
+
+# Test that the key whose length is shorter than 112 bits is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = TLS1-PRF
+Ctrl.digest = digest:SHA256
+Ctrl.Secret = hexsecret:0102030405060708090a0b
+Ctrl.label = seed:extended master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+# Test that the key whose length is shorter than 112 bits is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = TLS1-PRF
+Unapproved = 1
+Ctrl.key-check = key-check:0
+Ctrl.digest = digest:SHA256
+Ctrl.Secret = hexsecret:0102030405060708090a0b
+Ctrl.label = seed:extended master secret
+Ctrl.client_random = hexseed:36c129d01a3200894b9179faac589d9835d58775f9b5ea3587cb8fd0364cae8c
+Ctrl.server_random = hexseed:f6c9575ed7ddd73e1f7d16eca115415812a43c2b747daaaae043abfb50053fce
+Output = 8cb203c99a13871fd96cecd2770720df3c4ebd49e1cbc956fddb400f9c051fb69b63d7abb2f996f4e4d1ac0e9153f51b

@@ -1,0 +1,26 @@
+#
+# To run the demos when linked with a shared library (default) ensure that
+# libcrypto is on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./hkdf
+
+PROGRAMS{noinst} = hkdf \
+                   pbkdf2 \
+                   scrypt \
+                   argon2
+
+INCLUDE[hkdf]=../../include
+SOURCE[hkdf]=hkdf.c
+DEPEND[hkdf]=../../libcrypto
+
+INCLUDE[pbkdf2]=../../include
+SOURCE[pbkdf2]=pbkdf2.c
+DEPEND[pbkdf2]=../../libcrypto
+
+INCLUDE[scrypt]=../../include
+SOURCE[scrypt]=scrypt.c
+DEPEND[scrypt]=../../libcrypto
+
+INCLUDE[argon2]=../../include
+SOURCE[argon2]=argon2.c
+DEPEND[argon2]=../../libcrypto

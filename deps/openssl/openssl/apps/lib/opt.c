@@ -41,6 +41,7 @@ static int opt_index;
 static char *arg;
 static char *flag;
 static char *dunno;
+static const char *unknown_name;
 static const OPTIONS *unknown;
 static const OPTIONS *opts;
 static char prog[40];
@@ -166,7 +167,6 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
     opt_begin();
     opts = o;
     unknown = NULL;
-
     /* Make sure prog name is set for usage output */
     (void)opt_progname(argv[0]);
 
@@ -194,7 +194,7 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
         case   0: case '-': case '.':
         case '/': case '<': case '>': case 'E': case 'F':
         case 'M': case 'U': case 'f': case 'l': case 'n': case 'p': case 's':
-        case 'u': case 'c': case ':': case 'N':
+        case 'u': case 'c': case ':': case 'N': case 'A':
             break;
         default:
             OPENSSL_assert(0);
@@ -215,6 +215,7 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
         }
 #endif
         if (o->name[0] == '\0') {
+            OPENSSL_assert(unknown_name != NULL);
             OPENSSL_assert(unknown == NULL);
             unknown = o;
             OPENSSL_assert(unknown->valtype == 0 || unknown->valtype == '-');
@@ -224,7 +225,9 @@ char *opt_init(int ac, char **av, const OPTIONS *o)
 }
 
 static OPT_PAIR formats[] = {
-    {"PEM/DER", OPT_FMT_PEMDER},
+    {"pem", OPT_FMT_PEM},
+    {"der", OPT_FMT_DER},
+    {"b64", OPT_FMT_B64},
     {"pkcs12", OPT_FMT_PKCS12},
     {"smime", OPT_FMT_SMIME},
     {"engine", OPT_FMT_ENGINE},
@@ -236,21 +239,22 @@ static OPT_PAIR formats[] = {
     {NULL}
 };
 
+void opt_set_unknown_name(const char *name)
+{
+    unknown_name = name;
+}
+
 /* Print an error message about a failed format parse. */
 static int opt_format_error(const char *s, unsigned long flags)
 {
     OPT_PAIR *ap;
 
-    if (flags == OPT_FMT_PEMDER) {
-        opt_printf_stderr("%s: Bad format \"%s\"; must be pem or der\n",
-                          prog, s);
-    } else {
-        opt_printf_stderr("%s: Bad format \"%s\"; must be one of:\n",
-                          prog, s);
-        for (ap = formats; ap->name; ap++)
-            if (flags & ap->retval)
-                opt_printf_stderr("   %s\n", ap->name);
-    }
+    opt_printf_stderr("%s: Bad format \"%s\"; must be one of: ", prog, s);
+    for (ap = formats; ap->name; ap++)
+        if (flags & ap->retval)
+            opt_printf_stderr(" %s", ap->name);
+    opt_printf_stderr("\n");
+
     return 0;
 }
 
@@ -261,9 +265,21 @@ int opt_format(const char *s, unsigned long flags, int *result)
     default:
         opt_printf_stderr("%s: Bad format \"%s\"\n", prog, s);
         return 0;
+    case 'B':
+    case 'b':
+        if (s[1] == '\0'
+            || strcmp(s, "B64") == 0 || strcmp(s, "b64") == 0
+            || strcmp(s, "BASE64") == 0 || strcmp(s, "base64") == 0 ) {
+            if ((flags & OPT_FMT_B64) == 0)
+                return opt_format_error(s, flags);
+            *result = FORMAT_BASE64;
+        } else {
+            return 0;
+        }
+        break;
     case 'D':
     case 'd':
-        if ((flags & OPT_FMT_PEMDER) == 0)
+        if ((flags & OPT_FMT_DER) == 0)
             return opt_format_error(s, flags);
         *result = FORMAT_ASN1;
         break;
@@ -313,7 +329,7 @@ int opt_format(const char *s, unsigned long flags, int *result)
     case 'P':
     case 'p':
         if (s[1] == '\0' || strcmp(s, "PEM") == 0 || strcmp(s, "pem") == 0) {
-            if ((flags & OPT_FMT_PEMDER) == 0)
+            if ((flags & OPT_FMT_PEM) == 0)
                 return opt_format_error(s, flags);
             *result = FORMAT_PEM;
         } else if (strcmp(s, "PVK") == 0 || strcmp(s, "pvk") == 0) {
@@ -399,8 +415,10 @@ int opt_cipher_any(const char *name, EVP_CIPHER **cipherp)
 {
     int ret;
 
+    if (name == NULL)
+         return 1;
     if ((ret = opt_cipher_silent(name, cipherp)) == 0)
-        opt_printf_stderr("%s: Unknown cipher: %s\n", prog, name);
+        opt_printf_stderr("%s: Unknown option or cipher: %s\n", prog, name);
     return ret;
 }
 
@@ -410,6 +428,8 @@ int opt_cipher(const char *name, EVP_CIPHER **cipherp)
      unsigned long int flags;
      EVP_CIPHER *c = NULL;
 
+    if (name == NULL)
+         return 1;
      if (opt_cipher_any(name, &c)) {
         mode = EVP_CIPHER_get_mode(c);
         flags = EVP_CIPHER_get_flags(c);
@@ -454,10 +474,20 @@ int opt_md(const char *name, EVP_MD **mdp)
 {
     int ret;
 
+    if (name == NULL)
+        return 1;
     if ((ret = opt_md_silent(name, mdp)) == 0)
-        opt_printf_stderr("%s: Unknown option or message digest: %s\n", prog,
-                          name != NULL ? name : "\"\"");
+        opt_printf_stderr("%s: Unknown option or message digest: %s\n",
+                          prog, name);
     return ret;
+}
+
+int opt_check_md(const char *name)
+{
+    if (opt_md(name, NULL))
+        return 1;
+    ERR_clear_error();
+    return 0;
 }
 
 /* Look through a list of name/value pairs. */
@@ -961,11 +991,14 @@ int opt_next(void)
         case 'E':
         case 'F':
         case 'f':
+        case 'A':
+        case 'a':
             if (opt_format(arg,
                            o->valtype == 'c' ? OPT_FMT_PDS :
                            o->valtype == 'E' ? OPT_FMT_PDE :
-                           o->valtype == 'F' ? OPT_FMT_PEMDER
-                           : OPT_FMT_ANY, &ival))
+                           o->valtype == 'F' ? OPT_FMT_PEMDER :
+                           o->valtype == 'A' ? OPT_FMT_ASN1 :
+                           OPT_FMT_ANY, &ival))
                 break;
             opt_printf_stderr("%s: Invalid format \"%s\" for option -%s\n",
                               prog, arg, o->name);
@@ -976,6 +1009,11 @@ int opt_next(void)
         return o->retval;
     }
     if (unknown != NULL) {
+        if (dunno != NULL) {
+            opt_printf_stderr("%s: Multiple %s or unknown options: -%s and -%s\n",
+                              prog, unknown_name, dunno, p);
+            return -1;
+        }
         dunno = p;
         return unknown->retval;
     }
@@ -1001,6 +1039,12 @@ char *opt_unknown(void)
     return dunno;
 }
 
+/* Reset the unknown option; needed by ocsp to allow multiple digest options. */
+void reset_unknown(void)
+{
+    dunno = NULL;
+}
+
 /* Return the rest of the arguments after parsing flags. */
 char **opt_rest(void)
 {
@@ -1016,6 +1060,31 @@ int opt_num_rest(void)
     for (pp = opt_rest(); *pp; pp++, i++)
         continue;
     return i;
+}
+
+int opt_check_rest_arg(const char *expected)
+{
+    char *opt = *opt_rest();
+
+    if (opt == NULL || *opt == '\0') {
+        if (expected == NULL)
+            return 1;
+        opt_printf_stderr("%s: Missing argument: %s\n", prog, expected);
+        return 0;
+    }
+    if (expected != NULL) {
+        opt = argv[opt_index + 1];
+        if (opt == NULL || *opt == '\0')
+            return 1;
+        opt_printf_stderr("%s: Extra argument after %s: \"%s\"\n", prog, expected, opt);
+        return 0;
+    }
+    if (opt_unknown() == NULL)
+        opt_printf_stderr("%s: Extra option: \"%s\"\n", prog, opt);
+    else
+        opt_printf_stderr("%s: Extra (unknown) options: \"%s\" \"%s\"\n",
+                          prog, opt_unknown(), opt);
+    return 0;
 }
 
 /* Return a string describing the parameter type. */
@@ -1063,55 +1132,60 @@ static void opt_print(const OPTIONS *o, int doingparams, int width)
 {
     const char* help;
     char start[80 + 1];
-    char *p;
+    int linelen, printlen;
 
-        help = o->helpstr ? o->helpstr : "(No additional info)";
-        if (o->name == OPT_HELP_STR) {
-            opt_printf_stderr(help, prog);
-            return;
-        }
-        if (o->name == OPT_SECTION_STR) {
-            opt_printf_stderr("\n");
-            opt_printf_stderr(help, prog);
-            return;
-        }
-        if (o->name == OPT_PARAM_STR) {
-            opt_printf_stderr("\nParameters:\n");
-            return;
-        }
+    /* Avoid OOB if width is beyond the buffer size of start */
+    if (width >= (int)sizeof(start))
+        width = (int)sizeof(start) - 1;
 
-        /* Pad out prefix */
-        memset(start, ' ', sizeof(start) - 1);
-        start[sizeof(start) - 1] = '\0';
+    help = o->helpstr ? o->helpstr : "(No additional info)";
+    if (o->name == OPT_HELP_STR) {
+        opt_printf_stderr(help, prog);
+        return;
+    } else if (o->name == OPT_SECTION_STR) {
+        opt_printf_stderr("\n");
+        opt_printf_stderr(help, prog);
+        return;
+    } else if (o->name == OPT_PARAM_STR) {
+        opt_printf_stderr("\nParameters:\n");
+        return;
+    }
 
-        if (o->name == OPT_MORE_STR) {
-            /* Continuation of previous line; pad and print. */
-            start[width] = '\0';
-            opt_printf_stderr("%s  %s\n", start, help);
-            return;
-        }
+    /* Pad out prefix */
+    memset(start, ' ', sizeof(start) - 1);
+    start[sizeof(start) - 1] = '\0';
 
-        /* Build up the "-flag [param]" part. */
-        p = start;
-        *p++ = ' ';
-        if (!doingparams)
-            *p++ = '-';
-        if (o->name[0])
-            p += strlen(strcpy(p, o->name));
-        else
-            *p++ = '*';
-        if (o->valtype != '-') {
-            *p++ = ' ';
-            p += strlen(strcpy(p, valtype2param(o)));
-        }
-        *p = ' ';
-        if ((int)(p - start) >= MAX_OPT_HELP_WIDTH) {
-            *p = '\0';
-            opt_printf_stderr("%s\n", start);
-            memset(start, ' ', sizeof(start));
-        }
+    if (o->name == OPT_MORE_STR) {
+        /* Continuation of previous line; pad and print. */
         start[width] = '\0';
         opt_printf_stderr("%s  %s\n", start, help);
+        return;
+    }
+
+    /* Build up the "-flag [param]" part. */
+    linelen = 0;
+
+    printlen = opt_printf_stderr(" %s", !doingparams ? "-" : "");
+    linelen += (printlen > 0) ? printlen : MAX_OPT_HELP_WIDTH;
+
+    printlen = opt_printf_stderr("%s" , o->name[0] ? o->name : "*");
+    linelen += (printlen > 0) ? printlen : MAX_OPT_HELP_WIDTH;
+
+    if (o->valtype != '-') {
+        printlen = opt_printf_stderr(" %s" , valtype2param(o));
+        linelen += (printlen > 0) ? printlen : MAX_OPT_HELP_WIDTH;
+    }
+
+    if (linelen >= MAX_OPT_HELP_WIDTH || linelen > width) {
+        opt_printf_stderr("%s", "\n");
+        memset(start, ' ', sizeof(start));
+        linelen = 0;
+    }
+
+    width -= linelen;
+
+    start[width] = '\0';
+    opt_printf_stderr("%s  %s\n", start, help);
 }
 
 void opt_help(const OPTIONS *list)
@@ -1119,7 +1193,6 @@ void opt_help(const OPTIONS *list)
     const OPTIONS *o;
     int i, sawparams = 0, width = 5;
     int standard_prolog;
-    char start[80 + 1];
 
     /* Starts with its own help message? */
     standard_prolog = list[0].name != OPT_HELP_STR;
@@ -1128,13 +1201,17 @@ void opt_help(const OPTIONS *list)
     for (o = list; o->name; o++) {
         if (o->name == OPT_MORE_STR)
             continue;
+
         i = 2 + (int)strlen(o->name);
         if (o->valtype != '-')
             i += 1 + strlen(valtype2param(o));
-        if (i < MAX_OPT_HELP_WIDTH && i > width)
+
+        if (i > width)
             width = i;
-        OPENSSL_assert(i < (int)sizeof(start));
     }
+
+    if (width > MAX_OPT_HELP_WIDTH)
+        width = MAX_OPT_HELP_WIDTH;
 
     if (standard_prolog) {
         opt_printf_stderr("Usage: %s [options]\n", prog);

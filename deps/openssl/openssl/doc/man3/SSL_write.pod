@@ -2,13 +2,19 @@
 
 =head1 NAME
 
-SSL_write_ex, SSL_write, SSL_sendfile - write bytes to a TLS/SSL connection
+SSL_write_ex2, SSL_write_ex, SSL_write, SSL_sendfile, SSL_WRITE_FLAG_CONCLUDE -
+write bytes to a TLS/SSL connection
 
 =head1 SYNOPSIS
 
  #include <openssl/ssl.h>
 
+ #define SSL_WRITE_FLAG_CONCLUDE
+
  ossl_ssize_t SSL_sendfile(SSL *s, int fd, off_t offset, size_t size, int flags);
+ int SSL_write_ex2(SSL *s, const void *buf, size_t num,
+                   uint64_t flags,
+                   size_t *written);
  int SSL_write_ex(SSL *s, const void *buf, size_t num, size_t *written);
  int SSL_write(SSL *ssl, const void *buf, int num);
 
@@ -18,6 +24,10 @@ SSL_write_ex() and SSL_write() write B<num> bytes from the buffer B<buf> into
 the specified B<ssl> connection. On success SSL_write_ex() will store the number
 of bytes written in B<*written>.
 
+SSL_write_ex2() functions similarly to SSL_write_ex() but can also accept
+optional flags which modify its behaviour. Calling SSL_write_ex2() with a
+I<flags> argument of 0 is exactly equivalent to calling SSL_write_ex().
+
 SSL_sendfile() writes B<size> bytes from offset B<offset> in the file
 descriptor B<fd> to the specified SSL connection B<s>. This function provides
 efficient zero-copy semantics. SSL_sendfile() is available only when
@@ -25,6 +35,39 @@ Kernel TLS is enabled, which can be checked by calling BIO_get_ktls_send().
 It is provided here to allow users to maintain the same interface.
 The meaning of B<flags> is platform dependent.
 Currently, under Linux it is ignored.
+
+The I<flags> argument to SSL_write_ex2() can accept zero or more of the
+following flags. Note that which flags are supported will depend on the kind of
+SSL object and underlying protocol being used:
+
+=over 4
+
+=item B<SSL_WRITE_FLAG_CONCLUDE>
+
+This flag is only supported on QUIC stream SSL objects (or QUIC connection SSL
+objects with a default stream attached).
+
+If this flag is set, and the call to SSL_write_ex2() succeeds, and all of the
+data passed to the call is written (meaning that C<*written == num>), the
+relevant QUIC stream's send part is concluded automatically as though
+L<SSL_stream_conclude(3)> was called (causing transmission of a FIN for the
+stream).
+
+While using this flag is semantically equivalent to calling
+L<SSL_stream_conclude(3)> after a successful call to this function, using this
+flag enables greater efficiency than making these two API calls separately, as
+it enables the written stream data and the FIN flag indicating the end of the
+stream to be scheduled as part of the same QUIC STREAM frame and QUIC packet.
+
+Setting this flag does not cause a stream's send part to be concluded if not all
+of the data passed to the call was consumed.
+
+=back
+
+A call to SSL_write_ex2() fails if a flag is passed which is not supported or
+understood by the given SSL object. An application should determine if a flag is
+supported (for example, for B<SSL_WRITE_FLAG_CONCLUDE>, that a QUIC stream SSL
+object is being used) before attempting to use it.
 
 =head1 NOTES
 
@@ -66,6 +109,14 @@ operation is considered completed. The bytes are sent and a new write call with
 a new buffer (with the already sent bytes removed) must be started. A partial
 write is performed with the size of a message block, which is 16kB.
 
+When used with a QUIC SSL object, calling an I/O function such as SSL_write()
+allows internal network event processing to be performed. It is important that
+this processing is performed regularly. If an application is not using thread
+assisted mode, an application should ensure that an I/O function such as
+SSL_write() is called regularly, or alternatively ensure that SSL_handle_events()
+is called regularly. See L<openssl-quic(7)> and L<SSL_handle_events(3)> for more
+information.
+
 =head1 WARNINGS
 
 When a write function call has to be repeated because L<SSL_get_error(3)>
@@ -81,16 +132,17 @@ the peer.
 
 =head1 RETURN VALUES
 
-SSL_write_ex() will return 1 for success or 0 for failure. Success means that
-all requested application data bytes have been written to the SSL connection or,
-if SSL_MODE_ENABLE_PARTIAL_WRITE is in use, at least 1 application data byte has
-been written to the SSL connection. Failure means that not all the requested
-bytes have been written yet (if SSL_MODE_ENABLE_PARTIAL_WRITE is not in use) or
-no bytes could be written to the SSL connection (if
-SSL_MODE_ENABLE_PARTIAL_WRITE is in use). Failures can be retryable (e.g. the
-network write buffer has temporarily filled up) or non-retryable (e.g. a fatal
-network error). In the event of a failure call L<SSL_get_error(3)> to find out
-the reason which indicates whether the call is retryable or not.
+SSL_write_ex() and SSL_write_ex2() return 1 for success or 0 for failure.
+Success means that all requested application data bytes have been written to the
+SSL connection or, if SSL_MODE_ENABLE_PARTIAL_WRITE is in use, at least 1
+application data byte has been written to the SSL connection. Failure means that
+not all the requested bytes have been written yet (if
+SSL_MODE_ENABLE_PARTIAL_WRITE is not in use) or no bytes could be written to the
+SSL connection (if SSL_MODE_ENABLE_PARTIAL_WRITE is in use). Failures can be
+retryable (e.g. the network write buffer has temporarily filled up) or
+non-retryable (e.g. a fatal network error). In the event of a failure call
+L<SSL_get_error(3)> to find out the reason which indicates whether the call is
+retryable or not.
 
 For SSL_write() the following return values can occur:
 
@@ -143,10 +195,11 @@ L<ssl(7)>, L<bio(7)>
 
 The SSL_write_ex() function was added in OpenSSL 1.1.1.
 The SSL_sendfile() function was added in OpenSSL 3.0.
+The SSL_write_ex2() function was added in OpenSSL 3.3.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -77,6 +77,7 @@ Ctrl.IKM = hexkey:19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb
 Ctrl.info = info:
 Output = 8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8
 
+Availablein = default
 KDF = HKDF
 Ctrl.digest = digest:SHA1
 Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
@@ -84,6 +85,7 @@ Ctrl.salt = hexsalt:000102030405060708090a0b0c
 Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
 Output = 085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896
 
+Availablein = default
 KDF = HKDF
 Ctrl.mode = mode:EXTRACT_ONLY
 Ctrl.digest = digest:SHA1
@@ -213,3 +215,47 @@ Ctrl.info = hexinfo:c1c2c3
 Ctrl.info = hexinfo:c4c5c6c7c8c9cacbcccdcecfd0d1d2d3d4d5d6d7d8d9
 Ctrl.info = hexinfo:dadbdcdddedfe0e1e2e3e4e5e6e7e8e9eaebecedeeeff0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
 Output = 0bd770a74d1160f7c9f12cd5912a06ebff6adcae899d92191fe4305673ba2ffe8fa3f1a4e5ad79f3f334b3b202b2173c486ea37ce3d397ed034c7f9dfeb15c5e927336d0441f4c4300e2cff0d0900b52d3b4
+
+Availablein = default
+KDF = HKDF
+Ctrl.digest = digest:BLAKE2S-256
+Ctrl.IKM = hexkey:1a2d
+Ctrl.salt = hexsalt:000000000000000000000000000000000000000000000000000000000000000000
+Ctrl.info = info:
+Output = 62f99231760bedd72319cc6cad
+
+# Test that the operation with XOF digest function is rejected
+FIPSversion = >=3.4.0
+KDF = HKDF
+Ctrl.digest = digest:SHAKE-256
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Result = KDF_CTRL_ERROR
+Reason = xof digests not allowed
+
+Title = FIPS indicator tests
+
+# Test that the key whose length is shorter than 112 bits is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = HKDF
+Ctrl.digest = digest:SHA1
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+# Test that the key whose length is shorter than 112 bits is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = HKDF
+Unapproved = 1
+Ctrl.key-check = key-check:0
+Ctrl.digest = digest:SHA1
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Output = 085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896

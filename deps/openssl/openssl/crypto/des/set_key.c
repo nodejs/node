@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -324,8 +324,9 @@ int DES_set_key_checked(const_DES_cblock *key, DES_key_schedule *schedule)
 
 void DES_set_key_unchecked(const_DES_cblock *key, DES_key_schedule *schedule)
 {
-    static const int shifts2[16] =
-        { 0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0 };
+    static const int shifts2[16] = {
+         0, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 1, 1, 1, 0
+     };
     register DES_LONG c, d, t, s, t2;
     register const unsigned char *in;
     register DES_LONG *k;

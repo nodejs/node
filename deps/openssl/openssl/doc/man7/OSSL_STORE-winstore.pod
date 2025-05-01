@@ -1,0 +1,86 @@
+=pod
+
+=head1 NAME
+
+OSSL_STORE-winstore - OpenSSL built in OSSL_STORE for Windows
+
+=head1 DESCRIPTION
+
+The OSSL_STORE implementation for Windows provides access to Windows' system
+C<ROOT> certificate store through URIs, using the URI scheme
+C<org.openssl.winstore>.
+
+=head2 Supported URIs
+
+There is only one supported URI:
+
+  org.openssl.winstore:
+
+No authority (host, etc), no path, no query, no fragment.
+
+=head2 Supported OSSL_STORE_SEARCH operations
+
+=over 4
+
+=item L<OSSL_STORE_SEARCH_by_name(3)>
+
+As a matter of fact, this must be used.  It is not possible to enumerate all
+available certificates in the store.
+
+=back
+
+=head2 Windows certificate store features
+
+Apart from diverse constraints present in the certificates themselves, the
+Windows certificate store also has the ability to associate additional
+constraining properties alongside a certificate in the store. This includes
+both documented and undocumented capabilities:
+
+=over 4
+
+=item *
+
+The documented capability to override EKU
+
+=item *
+
+The undocumented capability to add name constraints
+
+=item *
+
+The undocumented capability to override the certificate expiry date
+
+=back
+
+I<Such constraints are not checked by this OSSL_STORE implementation, and
+thereby not honoured>.
+
+However, once extracted with L<OSSL_STORE_load(3)>, certificates that have
+constraints in their X.509 extensions will go through the usual constraint
+checks when used by OpenSSL, and are thereby honoured.
+
+=head1 SEE ALSO
+
+L<ossl_store(7)>, L<OSSL_STORE_open_ex(3)>, L<OSSL_STORE_SEARCH(3)>
+
+=head1 HISTORY
+
+The winstore (C<org.openssl.winstore>) implementation was added in OpenSSL
+3.2.0.
+
+=head1 NOTES
+
+OpenSSL uses L<OSSL_DECODER(3)> implementations under the hood.
+To influence what L<OSSL_DECODER(3)> implementations are used, it's advisable
+to use L<OSSL_STORE_open_ex(3)> and set the I<propq> argument.
+
+=head1 COPYRIGHT
+
+Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

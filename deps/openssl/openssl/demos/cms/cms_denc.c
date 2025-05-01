@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,7 +21,7 @@ int main(int argc, char **argv)
     X509 *rcert = NULL;
     STACK_OF(X509) *recips = NULL;
     CMS_ContentInfo *cms = NULL;
-    int ret = 1;
+    int ret = EXIT_FAILURE;
 
     int flags = CMS_STREAM | CMS_DETACHED;
 
@@ -46,8 +46,8 @@ int main(int argc, char **argv)
         goto err;
 
     /*
-     * sk_X509_pop_free will free up recipient STACK and its contents so set
-     * rcert to NULL so it isn't freed up twice.
+     * OSSL_STACK_OF_X509_free() free up recipient STACK and its contents
+     * so set rcert to NULL so it isn't freed up twice.
      */
     rcert = NULL;
 
@@ -77,18 +77,16 @@ int main(int argc, char **argv)
     if (!PEM_write_bio_CMS(out, cms))
         goto err;
 
-    ret = 0;
-
+    ret = EXIT_SUCCESS;
  err:
-
-    if (ret) {
+    if (ret != EXIT_SUCCESS) {
         fprintf(stderr, "Error Encrypting Data\n");
         ERR_print_errors_fp(stderr);
     }
 
     CMS_ContentInfo_free(cms);
     X509_free(rcert);
-    sk_X509_pop_free(recips, X509_free);
+    OSSL_STACK_OF_X509_free(recips);
     BIO_free(in);
     BIO_free(out);
     BIO_free(dout);

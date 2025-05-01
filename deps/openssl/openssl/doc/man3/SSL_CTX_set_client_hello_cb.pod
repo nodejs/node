@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-SSL_CTX_set_client_hello_cb, SSL_client_hello_cb_fn, SSL_client_hello_isv2, SSL_client_hello_get0_legacy_version, SSL_client_hello_get0_random, SSL_client_hello_get0_session_id, SSL_client_hello_get0_ciphers, SSL_client_hello_get0_compression_methods, SSL_client_hello_get1_extensions_present, SSL_client_hello_get0_ext - callback functions for early server-side ClientHello processing
+SSL_CTX_set_client_hello_cb, SSL_client_hello_cb_fn, SSL_client_hello_isv2, SSL_client_hello_get0_legacy_version, SSL_client_hello_get0_random, SSL_client_hello_get0_session_id, SSL_client_hello_get0_ciphers, SSL_client_hello_get0_compression_methods, SSL_client_hello_get1_extensions_present, SSL_client_hello_get_extension_order, SSL_client_hello_get0_ext - callback functions for early server-side ClientHello processing
 
 =head1 SYNOPSIS
 
@@ -18,6 +18,8 @@ SSL_CTX_set_client_hello_cb, SSL_client_hello_cb_fn, SSL_client_hello_isv2, SSL_
                                                   const unsigned char **out);
  int SSL_client_hello_get1_extensions_present(SSL *s, int **out,
                                               size_t *outlen);
+ int SSL_client_hello_get_extension_order(SSL *s, uint16_t *exts,
+                                          size_t *num_exts);
  int SSL_client_hello_get0_ext(SSL *s, unsigned int type, const unsigned char **out,
                                size_t *outlen);
 
@@ -68,6 +70,20 @@ in the ClientHello.  B<*outlen> contains the number of elements in the array.
 In situations when the ClientHello has no extensions, the function will return
 success with B<*out> set to NULL and B<*outlen> set to 0.
 
+SSL_client_hello_get_extension_order() is similar to
+SSL_client_hello_get1_extensions_present(), without internal memory allocation.
+When called with B<exts> set to NULL, returns the number of extensions
+(e.g., to allocate storage for a subsequent call).  Otherwise, B<*exts> is populated
+with the ExtensionType values in the order that the corresponding extensions
+appeared in the ClientHello.  B<*num_exts> is an input/output parameter, used
+as input to supply the size of storage allocated by the caller, and as output to
+indicate how many ExtensionType values were written.  If the input B<*num_exts>
+is smaller then the number of extensions in question, that is treated as an error.
+A subsequent call with B<exts> set to NULL can retrieve the size of storage needed.
+A ClientHello that contained no extensions is treated as success, with B<*num_exts>
+set to 0.
+
+
 =head1 NOTES
 
 The ClientHello callback provides a vast window of possibilities for application
@@ -107,6 +123,8 @@ SSL_client_hello_get0_ext() returns 1 if the extension of type 'type' is present
 
 SSL_client_hello_get1_extensions_present() returns 1 on success and 0 on failure.
 
+SSL_client_hello_get_extension_order() returns 1 on success and 0 on failure.
+
 =head1 SEE ALSO
 
 L<ssl(7)>, L<SSL_CTX_set_tlsext_servername_callback(3)>,
@@ -119,10 +137,12 @@ SSL_client_hello_get0_random(), SSL_client_hello_get0_session_id(),
 SSL_client_hello_get0_ciphers(), SSL_client_hello_get0_compression_methods(),
 SSL_client_hello_get0_ext(), and SSL_client_hello_get1_extensions_present()
 were added in OpenSSL 1.1.1.
+SSL_client_hello_get_extension_order()
+was added in OpenSSL 3.2.0.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

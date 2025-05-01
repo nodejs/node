@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -8,8 +8,9 @@
  */
 
 /*
- * SRP is deprecated and there is no replacent. When SRP is removed, the code in
- * this file can be removed too. Until then we have to use the deprecated APIs.
+ * SRP is deprecated and there is no replacement. When SRP is removed,
+ * the code in this file can be removed too. Until then we have to use
+ * the deprecated APIs.
  */
 #define OPENSSL_SUPPRESS_DEPRECATED
 

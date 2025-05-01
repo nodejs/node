@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <string.h>
 
 #include <openssl/rand.h>
+#include <openssl/asn1.h>
 #include <openssl/asn1t.h>
 #include <openssl/obj_mac.h>
 #include "internal/numbers.h"
@@ -161,6 +162,56 @@ static int test_uint64(void)
     return 1;
 }
 
+/* GeneralizedTime underflow *********************************************** */
+
+static int test_gentime(void)
+{
+    /* Underflowing GeneralizedTime 161208193400Z (YYMMDDHHMMSSZ) */
+    const unsigned char der[] = {
+        0x18, 0x0d, 0x31, 0x36, 0x31, 0x32, 0x30, 0x38, 0x31,
+        0x39, 0x33, 0x34, 0x30, 0x30, 0x5a,
+    };
+    const unsigned char *p;
+    int der_len, rc = 1;
+    ASN1_GENERALIZEDTIME *gentime;
+
+    p = der;
+    der_len = sizeof(der);
+    gentime = d2i_ASN1_GENERALIZEDTIME(NULL, &p, der_len);
+
+    if (!TEST_ptr_null(gentime))
+        rc = 0; /* fail */
+
+    ASN1_GENERALIZEDTIME_free(gentime);
+    return rc;
+}
+
+/* UTCTime underflow ******************************************************* */
+
+static int test_utctime(void)
+{
+    /* Underflowing UTCTime 0205104700Z (MMDDHHMMSSZ) */
+    const unsigned char der[] = {
+        0x17, 0x0b, 0x30, 0x32, 0x30, 0x35, 0x31, 0x30,
+        0x34, 0x37, 0x30, 0x30, 0x5a,
+    };
+    const unsigned char *p;
+    int der_len, rc = 1;
+    ASN1_UTCTIME *utctime;
+
+    p = der;
+    der_len = sizeof(der);
+    utctime = d2i_ASN1_UTCTIME(NULL, &p, der_len);
+
+    if (!TEST_ptr_null(utctime))
+        rc = 0; /* fail */
+
+    ASN1_UTCTIME_free(utctime);
+    return rc;
+}
+
+/* Invalid template ******************************************************** */
+
 typedef struct {
     ASN1_STRING *invalidDirString;
 } INVALIDTEMPLATE;
@@ -229,6 +280,8 @@ int setup_tests(void)
     ADD_TEST(test_uint32);
     ADD_TEST(test_int64);
     ADD_TEST(test_uint64);
+    ADD_TEST(test_gentime);
+    ADD_TEST(test_utctime);
     ADD_TEST(test_invalid_template);
     ADD_TEST(test_reuse_asn1_object);
     return 1;

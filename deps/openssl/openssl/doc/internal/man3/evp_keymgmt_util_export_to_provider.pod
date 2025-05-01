@@ -25,7 +25,7 @@ OP_CACHE_ELEM
  OP_CACHE_ELEM *evp_keymgmt_util_find_operation_cache(EVP_PKEY *pk,
                                                       EVP_KEYMGMT *keymgmt,
                                                       int selection);
- int evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk, int locking);
+ int evp_keymgmt_util_clear_operation_cache(EVP_PKEY *pk);
  int evp_keymgmt_util_cache_keydata(EVP_PKEY *pk, EVP_KEYMGMT *keymgmt,
                                     void *keydata, int selection);
  void evp_keymgmt_util_cache_keyinfo(EVP_PKEY *pk);
@@ -52,9 +52,8 @@ I<keymgmt> in I<pk>'s cache of provided keys for operations.
 It should only be called while holding I<pk>'s lock (read or write).
 
 evp_keymgmt_util_clear_operation_cache() can be used to explicitly
-clear the cache of operation key references. If I<locking> is set to 1 then
-then I<pk>'s lock will be obtained while doing the clear. Otherwise it will be
-assumed that the lock has already been obtained or is not required.
+clear the cache of operation key references. If required the lock must already
+have been obtained.
 
 evp_keymgmt_util_cache_keydata() can be used to add a provider key
 object to a B<PKEY>.
@@ -96,7 +95,7 @@ L<EVP_PKEY_ASN1_METHOD(3)>, L<EVP_PKEY_assign_RSA(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -9,7 +9,9 @@ SSL_set_record_padding_callback_arg,
 SSL_CTX_get_record_padding_callback_arg,
 SSL_get_record_padding_callback_arg,
 SSL_CTX_set_block_padding,
-SSL_set_block_padding - install callback to specify TLS 1.3 record padding
+SSL_CTX_set_block_padding_ex,
+SSL_set_block_padding,
+SSL_set_block_padding_ex - install callback to specify TLS 1.3 record padding
 
 =head1 SYNOPSIS
 
@@ -26,6 +28,8 @@ SSL_set_block_padding - install callback to specify TLS 1.3 record padding
 
  int SSL_CTX_set_block_padding(SSL_CTX *ctx, size_t block_size);
  int SSL_set_block_padding(SSL *ssl, size_t block_size);
+ int SSL_CTX_set_block_padding_ex(SSL_CTX *ctx, size_t app_block_size, size_t hs_block_size);
+ int SSL_set_block_padding_ex(SSL *ssl, size_t app_block_size, size_t hs_block_size);
 
 =head1 DESCRIPTION
 
@@ -46,12 +50,20 @@ SSL_CTX_set_block_padding() and SSL_set_block_padding() pads the record to a mul
 of the B<block_size>. A B<block_size> of 0 or 1 disables block padding. The limit of
 B<block_size> is SSL3_RT_MAX_PLAIN_LENGTH.
 
+SSL_CTX_set_block_padding_ex() and SSL_set_block_padding_ex() do similarly but
+allow the caller to separately specify the padding block size to be applied to
+handshake and application data messages.
+
 The callback is invoked for every record before encryption.
 The B<type> parameter is the TLS record type that is being processed; may be
 one of SSL3_RT_APPLICATION_DATA, SSL3_RT_HANDSHAKE, or SSL3_RT_ALERT.
 The B<len> parameter is the current plaintext length of the record before encryption.
 The B<arg> parameter is the value set via SSL_CTX_set_record_padding_callback_arg()
 or SSL_set_record_padding_callback_arg().
+
+These functions cannot be used with QUIC SSL objects.
+SSL_set_record_padding_callback() and SSL_set_block_padding() fail if called on
+a QUIC SSL object.
 
 =head1 RETURN VALUES
 
@@ -92,9 +104,12 @@ The record padding API was added for TLS 1.3 support in OpenSSL 1.1.1.
 The return type of SSL_CTX_set_record_padding_callback() function was
 changed to int in OpenSSL 3.0.
 
+The functions SSL_set_block_padding_ex() and SSL_CTX_set_block_padding_ex()
+were added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

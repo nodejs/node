@@ -1,0 +1,58 @@
+[
+    {"server_command": ["@SERVER@", "s_server", "-www",
+                        "-key", "tests/serverX509Key.pem",
+                        "-cert", "tests/serverX509Cert.pem",
+                        "-verify", "1",
+                        "-CAfile", "tests/clientX509Cert.pem"],
+     "comment": "Use ANY certificate just to ensure that server tries to authorise a client",
+     "environment": {"PYTHONPATH" : "."},
+     "server_hostname": "localhost",
+     "server_port": @PORT@,
+     "tests" : [
+       {"name" : "test-tls13-certificate-verify.py",
+        "arguments" : ["-k", "tests/clientX509Key.pem",
+                       "-c", "tests/clientX509Cert.pem",
+                       "-s", "9+5 9+6 9+4 ecdsa_secp256r1_sha256 ecdsa_secp384r1_sha384 ecdsa_secp521r1_sha512 ed25519 ed448 8+26 8+27 8+28 rsa_pss_pss_sha256 rsa_pss_pss_sha384 rsa_pss_pss_sha512 rsa_pss_rsae_sha256 rsa_pss_rsae_sha384 rsa_pss_rsae_sha512 rsa_pkcs1_sha256 rsa_pkcs1_sha384 rsa_pkcs1_sha512",
+                       "-p", "@PORT@"]},
+       {"name" : "test-tls13-ecdsa-in-certificate-verify.py",
+          "arguments" : ["-k", "tests/serverECKey.pem",
+                         "-c", "tests/serverECCert.pem",
+                         "-s", "9+5 9+6 9+4 ecdsa_secp256r1_sha256 ecdsa_secp384r1_sha384 ecdsa_secp521r1_sha512 ed25519 ed448 8+26 8+27 8+28 rsa_pss_pss_sha256 rsa_pss_pss_sha384 rsa_pss_pss_sha512 rsa_pss_rsae_sha256 rsa_pss_rsae_sha384 rsa_pss_rsae_sha512 rsa_pkcs1_sha256 rsa_pkcs1_sha384 rsa_pkcs1_sha512",
+                         "-p", "@PORT@"]}
+     ]
+    },
+    {"server_command": ["@SERVER@", "s_server", "-www",
+                 "-key", "tests/serverX509Key.pem",
+                 "-cert", "tests/serverX509Cert.pem",
+                 "-verify", "1", "-CAfile", "tests/clientX509Cert.pem",
+                 "-client_sigalgs", "RSA+SHA384:rsa_pss_rsae_sha384:rsa_pss_pss_sha384"],
+     "comment": "set -client_sigalgs because of https://github.com/openssl/openssl/issues/25277",
+     "environment": {"PYTHONPATH" : "."},
+     "server_hostname": "localhost",
+     "server_port": @PORT@,
+     "tests" : [
+       {"name" : "test-certificate-verify-malformed.py",
+        "arguments" : ["-d", "-k", "tests/clientX509Key.pem",
+                       "-c", "tests/clientX509Cert.pem",
+                       "-p", "@PORT@"]}
+     ]
+    },
+    {"server_command": ["@SERVER@", "s_server", "-www",
+                 "-key", "tests/serverX509Key.pem",
+                 "-cert", "tests/serverX509Cert.pem"],
+     "environment": {"PYTHONPATH" : "."},
+     "server_hostname": "localhost",
+     "server_port": @PORT@,
+     "tests" : [
+       {"name" : "test-tls13-conversation.py",
+        "arguments" : ["-p", "@PORT@"]},
+       {"name" : "test-conversation.py",
+        "arguments" : ["-p", "@PORT@",
+                       "-d"]},
+       {"name" : "test-invalid-client-hello-w-record-overflow.py",
+        "arguments" : ["-n", "0", "-C",
+                       "TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256", "-d",
+                       "--ems", "session ID len fuzz to 5 w/ext"]}
+     ]
+    }
+]

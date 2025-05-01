@@ -13,4 +13,4 @@ default = default_sect
 fips = fips_sect
 
 [default_sect]
-activate = 1
+activate = yes

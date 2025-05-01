@@ -4,6 +4,7 @@
 
 X509_VERIFY_PARAM_set_flags, X509_VERIFY_PARAM_clear_flags,
 X509_VERIFY_PARAM_get_flags, X509_VERIFY_PARAM_set_purpose,
+X509_VERIFY_PARAM_get_purpose,
 X509_VERIFY_PARAM_get_inh_flags, X509_VERIFY_PARAM_set_inh_flags,
 X509_VERIFY_PARAM_set_trust, X509_VERIFY_PARAM_set_depth,
 X509_VERIFY_PARAM_get_depth, X509_VERIFY_PARAM_set_auth_level,
@@ -35,6 +36,7 @@ X509_VERIFY_PARAM_set1_ip_asc
  uint32_t X509_VERIFY_PARAM_get_inh_flags(const X509_VERIFY_PARAM *param);
 
  int X509_VERIFY_PARAM_set_purpose(X509_VERIFY_PARAM *param, int purpose);
+ int X509_VERIFY_PARAM_get_purpose(X509_VERIFY_PARAM *param);
  int X509_VERIFY_PARAM_set_trust(X509_VERIFY_PARAM *param, int trust);
 
  void X509_VERIFY_PARAM_set_time(X509_VERIFY_PARAM *param, time_t t);
@@ -90,7 +92,9 @@ X509_VERIFY_PARAM_clear_flags() clears the flags B<flags> in B<param>.
 X509_VERIFY_PARAM_set_purpose() sets the verification purpose in B<param>
 to B<purpose>. This determines the acceptable purpose of the certificate
 chain, for example B<X509_PURPOSE_SSL_CLIENT>.
-The purpose requirement is cleared if B<purpose> is 0.
+The purpose requirement is cleared if B<purpose> is X509_PURPOSE_DEFAULT_ANY.
+
+X509_VERIFY_PARAM_get_purpose() returns the purpose in B<param>.
 
 X509_VERIFY_PARAM_set_trust() sets the trust setting in B<param> to
 B<trust>.
@@ -223,7 +227,7 @@ X509_VERIFY_PARAM_set1_ip_asc() return 1 for success and 0 for
 failure.
 
 X509_VERIFY_PARAM_get0_host(), X509_VERIFY_PARAM_get0_email(), and
-X509_VERIFY_PARAM_get1_ip_asc(), return the string pointer specified above
+X509_VERIFY_PARAM_get1_ip_asc(), return the string pointers specified above
 or NULL if the respective value has not been set or on error.
 
 X509_VERIFY_PARAM_get_flags() returns the current verification flags.
@@ -240,6 +244,9 @@ X509_VERIFY_PARAM_get_depth() returns the current verification depth.
 X509_VERIFY_PARAM_get_auth_level() returns the current authentication security
 level.
 
+X509_VERIFY_PARAM_get_purpose() returns the current purpose,
+which may be B<X509_PURPOSE_DEFAULT_ANY> if unset.
+
 =head1 VERIFICATION FLAGS
 
 The verification flags consists of zero or more of the following flags
@@ -248,8 +255,8 @@ ored together.
 B<X509_V_FLAG_CRL_CHECK> enables CRL checking for the certificate chain leaf
 certificate. An error occurs if a suitable CRL cannot be found.
 
-B<X509_V_FLAG_CRL_CHECK_ALL> enables CRL checking for the entire certificate
-chain.
+B<X509_V_FLAG_CRL_CHECK_ALL> expands CRL checking to the entire certificate
+chain if B<X509_V_FLAG_CRL_CHECK> has also been enabled, and is otherwise ignored.
 
 B<X509_V_FLAG_IGNORE_CRITICAL> disables critical extension checking. By default
 any unhandled critical extensions in certificates or (if checked) CRLs result
@@ -405,9 +412,11 @@ The function X509_VERIFY_PARAM_add0_policy() was historically documented as
 enabling policy checking however the implementation has never done this.
 The documentation was changed to align with the implementation.
 
+The X509_VERIFY_PARAM_get_purpose() function was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2009-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2009-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -60,7 +60,21 @@ when a matching identifier is found. There is no way to restrict the list
 of compression methods supported on a per connection basis.
 
 If enabled during compilation, the OpenSSL library will have the
-COMP_zlib() compression method available.
+following compression methods available:
+
+=over 4
+
+=item COMP_zlib()
+
+=item COMP_brotli()
+
+=item COMP_brotli_oneshot()
+
+=item COMP_zstd()
+
+=item COMP_zstd_oneshot()
+
+=back
 
 =head1 RETURN VALUES
 
@@ -96,7 +110,7 @@ The SSL_COMP_get0_name() and SSL_comp_get_id() functions were added in OpenSSL 1
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

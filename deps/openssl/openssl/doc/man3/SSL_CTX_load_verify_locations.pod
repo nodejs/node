@@ -31,7 +31,7 @@ SSL_CTX_load_verify_locations(), SSL_CTX_load_verify_dir(),
 SSL_CTX_load_verify_file(), SSL_CTX_load_verify_store() specifies the
 locations for B<ctx>, at which CA certificates for verification purposes
 are located. The certificates available via B<CAfile>, B<CApath> and
-B<CAstore> are trusted.
+B<CAstore> are trusted. B<ctx> B<MUST NOT> be NULL
 
 Details of the certificate verification and chain checking process are
 described in L<openssl-verification-options(1)/Certification Path Validation>.
@@ -47,6 +47,7 @@ The default CA certificates file is called F<cert.pem> in the default
 OpenSSL directory.
 Alternatively the B<SSL_CERT_FILE> environment variable can be defined to
 override this location.
+B<ctx> B<MUST NOT> be NULL.
 
 SSL_CTX_set_default_verify_dir() is similar to
 SSL_CTX_set_default_verify_paths() except that just the default directory is

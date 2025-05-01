@@ -178,10 +178,7 @@ where a comparison function has been specified, I<sk> is sorted and
 B<sk_I<TYPE>_find>() returns the index of a matching element or B<-1> if there
 is no match. Note that, in this case the comparison function will usually
 compare the values pointed to rather than the pointers themselves and
-the order of elements in I<sk> can change. Note that because the stack may be
-sorted as the result of a B<sk_I<TYPE>_find>() call, if a lock is being used to
-synchronise access to the stack across multiple threads, then that lock must be
-a "write" lock.
+the order of elements in I<sk> can change.
 
 B<sk_I<TYPE>_find_ex>() operates like B<sk_I<TYPE>_find>() except when a
 comparison function has been specified and no matching element is found.
@@ -273,7 +270,6 @@ on error.
 
 B<sk_I<TYPE>_insert>(), B<sk_I<TYPE>_push>() and B<sk_I<TYPE>_unshift>() return
 the total number of elements in the stack and 0 if an error occurred.
-B<sk_I<TYPE>_push>() further returns -1 if I<sk> is NULL.
 
 B<sk_I<TYPE>_set>() returns a pointer to the replacement element or NULL on
 error.
@@ -294,6 +290,14 @@ and was not a public API.
 
 B<sk_I<TYPE>_reserve>() and B<sk_I<TYPE>_new_reserve>() were added in OpenSSL
 1.1.1.
+
+From OpenSSL 3.2.0, the B<sk_I<TYPE>_find>(), B<sk_I<TYPE>_find_ex>()
+and B<sk_I<TYPE>_find_all>() calls are read-only and do not sort the
+stack.  To avoid any performance implications this change introduces,
+B<sk_I<TYPE>_sort>() should be called before these find operations.
+
+Before OpenSSL 3.3.0 B<sk_I<TYPE>_push>() returned -1 if I<sk> was NULL. It
+was changed to return 0 in this condition as for other errors.
 
 =head1 COPYRIGHT
 

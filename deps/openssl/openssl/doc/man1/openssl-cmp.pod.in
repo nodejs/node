@@ -17,14 +17,18 @@ Generic message options:
 
 [B<-cmd> I<ir|cr|kur|p10cr|rr|genm>]
 [B<-infotype> I<name>]
-[B<-geninfo> I<OID:int:N>]
+[B<-profile> I<name>]
+[B<-geninfo> I<values>]
+[B<-template> I<filename>]
+[B<-keyspec> I<filename>]
 
 Certificate enrollment options:
 
 [B<-newkey> I<filename>|I<uri>]
 [B<-newkeypass> I<arg>]
+[B<-centralkeygen>
+[B<-newkeyout> I<filename>]
 [B<-subject> I<name>]
-[B<-issuer> I<name>]
 [B<-days> I<number>]
 [B<-reqexts> I<name>]
 [B<-sans> I<spec>]
@@ -43,6 +47,8 @@ Certificate enrollment options:
 Certificate enrollment and revocation options:
 
 [B<-oldcert> I<filename>|I<uri>]
+[B<-issuer> I<name>]
+[B<-serial> I<number>]
 [B<-revreason> I<number>]
 
 Message transfer options:
@@ -64,8 +70,17 @@ Server authentication options:
 [B<-expect_sender> I<name>]
 [B<-ignore_keyusage>]
 [B<-unprotected_errors>]
+[B<-no_cache_extracerts>]
+[B<-srvcertout> I<filename>]
 [B<-extracertsout> I<filename>]
 [B<-cacertsout> I<filename>]
+[B<-oldwithold> I<filename>]
+[B<-newwithnew> I<filename>]
+[B<-newwithold> I<filename>]
+[B<-oldwithnew> I<filename>]
+[B<-crlcert> I<filename>]
+[B<-oldcrl> I<filename>]
+[B<-crlout> I<filename>]
 
 Client authentication and protection options:
 
@@ -83,6 +98,7 @@ Client authentication and protection options:
 Credentials format options:
 
 [B<-certform> I<PEM|DER>]
+[B<-crlform> I<PEM|DER>]
 [B<-keyform> I<PEM|DER|P12|ENGINE>]
 [B<-otherpass> I<arg>]
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_provider_synopsis -}
@@ -108,6 +124,7 @@ Client-side debugging options:
 [B<-reqin> I<filenames>]
 [B<-reqin_new_tid>]
 [B<-reqout> I<filenames>]
+[B<-reqout_only> I<filename>]
 [B<-rspin> I<filenames>]
 [B<-rspout> I<filenames>]
 [B<-use_mock_srv>]
@@ -123,9 +140,16 @@ Mock server options:
 [B<-srv_keypass> I<arg>]
 [B<-srv_trusted> I<filenames>|I<uris>]
 [B<-srv_untrusted> I<filenames>|I<uris>]
+[B<-ref_cert> I<filename>|I<uri>]
 [B<-rsp_cert> I<filename>|I<uri>]
+[B<-rsp_key> I<filename>|I<uri>]
+[B<-rsp_keypass> I<filename>|I<uri>]
+[B<-rsp_crl> I<filename>|I<uri>]
 [B<-rsp_extracerts> I<filenames>|I<uris>]
 [B<-rsp_capubs> I<filenames>|I<uris>]
+[B<-rsp_newwithnew> I<filename>|I<uri>]
+[B<-rsp_newwithold> I<filename>|I<uri>]
+[B<-rsp_oldwithnew> I<filename>|I<uri>]
 [B<-poll_count> I<number>]
 [B<-check_after> I<number>]
 [B<-grant_implicitconf>]
@@ -234,11 +258,33 @@ ITAV B<infoType>s is printed to stdout.
 
 Set InfoType name to use for requesting specific info in B<genm>,
 e.g., C<signKeyPairTypes>.
+There is specific support for C<caCerts>, C<rootCaCert>,
+C<certReqTemplate>, and C<crlStatusList> (CRL update retrieval).
 
-=item B<-geninfo> I<OID:int:N>
+=item B<-profile> I<name>
 
-generalInfo integer values to place in request PKIHeader with given OID,
-e.g., C<1.2.3.4:int:56789>.
+Name of a certificate profile to place in
+the PKIHeader generalInfo field of request messages.
+
+=item B<-geninfo> I<values>
+
+A comma-separated list of InfoTypeAndValue to place in
+the generalInfo field of the PKIHeader of requests messages.
+Each InfoTypeAndValue gives an OID and an integer or string value
+of the form I<OID>:int:I<number> or I<OID>:str:I<text>,
+e.g., C<'1.2.3.4:int:56789, id-kp:str:name'>.
+
+=item B<-template> I<filename>
+
+The file to save any CRMF certTemplate in DER format
+received in a genp message with id-it-certReqTemplate.
+
+=item B<-keyspec> I<filename>
+
+It is optional and used to specify the file to save any keySpec if
+present in a genp message with id-it-keyGenParameters.
+
+Note: any keySpec field contents received are logged as INFO.
 
 =back
 
@@ -266,17 +312,26 @@ If not given here, the password will be prompted for if needed.
 For more information about the format of I<arg> see
 L<openssl-passphrase-options(1)>.
 
+=item B<-centralkeygen>
+
+Request central key generation for certificate enrollment.
+This applies to B<-cmd> I<ir|cr|kur|p10cr>.
+
+=item B<-newkeyout> I<filename>
+
+File to save centrally generated private key, in PEM format.
+
 =item B<-subject> I<name>
 
-X509 Distinguished Name (DN) of subject to use in the requested certificate
-template.
-If the NULL-DN (C<"/">) is given then no subject is placed in the template.
+X.509 Distinguished Name (DN) to use as subject field
+in the requested certificate template in IR/CR/KUR messages.
+If the NULL-DN (C</>) is given then no subject is placed in the template.
 Default is the subject DN of any PKCS#10 CSR given with the B<-csr> option.
 For KUR, a further fallback is the subject DN
 of the reference certificate (see B<-oldcert>) if provided.
 This fallback is used for IR and CR only if no SANs are set.
 
-If provided and neither B<-cert> nor B<-oldcert> is given,
+If provided and neither of B<-cert>, B<-oldcert>, or B<-csr> is given,
 the subject DN is used as fallback sender of outgoing CMP messages.
 
 The argument must be formatted as I</type0=value0/type1=value1/type2=...>.
@@ -288,18 +343,6 @@ between the AttributeValueAssertions (AVAs) that specify the members of the set.
 Example:
 
 C</DC=org/DC=OpenSSL/DC=users/UID=123456+CN=John Doe>
-
-=item B<-issuer> I<name>
-
-X509 issuer Distinguished Name (DN) of the CA server
-to place in the requested certificate template in IR/CR/KUR.
-If the NULL-DN (C<"/">) is given then no issuer is placed in the template.
-
-If provided and neither B<-recipient> nor B<-srvcert> is given,
-the issuer DN is used as fallback recipient of outgoing CMP messages.
-
-The argument must be formatted as I</type0=value0/type1=value1/type2=...>.
-For details see the description of the B<-subject> option.
 
 =item B<-days> I<number>
 
@@ -316,7 +359,8 @@ contained the given PKCS#10 CSR, overriding any extensions with same OIDs.
 
 =item B<-sans> I<spec>
 
-One or more IP addresses, DNS names, or URIs separated by commas or whitespace
+One or more IP addresses, email addresses, DNS names, or URIs
+separated by commas or whitespace
 (where in the latter case the whole argument must be enclosed in "...")
 to add as Subject Alternative Name(s) (SAN) certificate request extension.
 If the special element "critical" is given the SANs are flagged as critical.
@@ -349,7 +393,8 @@ Flag the policies given with B<-policy_oids> as critical.
 =item B<-popo> I<number>
 
 Proof-of-possession (POPO) method to use for IR/CR/KUR; values: C<-1>..<2> where
-C<-1> = NONE, C<0> = RAVERIFIED, C<1> = SIGNATURE (default), C<2> = KEYENC.
+C<-1> = NONE, which implies central key generation,
+C<0> = RAVERIFIED, C<1> = SIGNATURE (default), C<2> = KEYENC.
 
 Note that a signature-based POPO can only be produced if a private key
 is provided via the B<-newkey> or B<-key> options.
@@ -369,6 +414,8 @@ and the respective public key is placed in the certification request
 PKCS#10 CSR input may also be used with B<-cmd> I<rr>
 to specify the certificate to be revoked
 via the included subject name and public key.
+Its subject is used as fallback sender in CMP message headers
+if B<-cert> and B<-oldcert> are not given.
 
 =item B<-out_trusted> I<filenames>|I<uris>
 
@@ -396,11 +443,17 @@ B<WARNING:> This leads to behavior violating RFC 4210.
 
 =item B<-certout> I<filename>
 
-The file where the newly enrolled certificate should be saved.
+The file where any newly enrolled certificate should be saved.
 
 =item B<-chainout> I<filename>
 
-The file where the chain of the newly enrolled certificate should be saved.
+The file where the chain of any newly enrolled certificate should be saved.
+This chain excludes the leaf certificate, i.e., the newly enrolled certificate.
+Also the trust anchor (the root certificate) is not included.
+
+If the B<-certout> option is given, too, with equal I<filename> argument,
+then the file produced contains both outputs concatenated:
+the newly enrolled certificate followed by its chain.
 
 =back
 
@@ -415,6 +468,7 @@ The certificate to be updated (i.e., renewed or re-keyed) in Key Update Request
 For KUR the certificate to be updated defaults to B<-cert>,
 and the resulting certificate is called I<reference certificate>.
 For RR the certificate to be revoked can also be specified using B<-csr>.
+B<-oldcert> and B<-csr> is ignored if B<-issuer> and B<-serial> is provided.
 
 The reference certificate, if any, is also used for
 deriving default subject DN and Subject Alternative Names and the
@@ -423,6 +477,23 @@ Its public key is used as a fallback in the template of certification requests.
 Its subject is used as sender of outgoing messages if B<-cert> is not given.
 Its issuer is used as default recipient in CMP message headers
 if neither B<-recipient>, B<-srvcert>, nor B<-issuer> is given.
+
+=item B<-issuer> I<name>
+
+X.509 Distinguished Name (DN) to place as the issuer field
+in the requested certificate template in IR/CR/KUR/RR messages.
+If the NULL-DN (C</>) is given then no issuer is placed in the template.
+
+If provided and neither B<-recipient> nor B<-srvcert> is given,
+the issuer DN is used as fallback recipient of outgoing CMP messages.
+
+The argument must be formatted as I</type0=value0/type1=value1/type2=...>.
+For details see the description of the B<-subject> option.
+
+=item B<-serial> I<number>
+
+Specify the Serial number of certificate to be revoked in revocation request.
+The serial number can be decimal or hex (if preceded by C<0x>)
 
 =item B<-revreason> I<number>
 
@@ -461,8 +532,8 @@ If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 This option excludes I<-port> and I<-use_mock_srv>.
 It is ignored if I<-rspin> is given with enough filename arguments.
 
-The scheme C<https> may be given only if the B<-tls_used> option is used.
-In this case the default port is 443, else 80.
+If the scheme C<https> is given, the B<-tls_used> option is implied.
+When TLS is used, the default port is 443, otherwise 80.
 The optional userinfo and fragment components are ignored.
 Any given query component is handled as part of the path component.
 If a path is included it provides the default value for the B<-path> option.
@@ -473,9 +544,9 @@ The HTTP(S) proxy server to use for reaching the CMP server unless B<-no_proxy>
 applies, see below.
 If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 The proxy port defaults to 80 or 443 if the scheme is C<https>; apart from that
-the optional C<http://> or C<https://> prefix is ignored (note that TLS may be
-selected by B<-tls_used>), as well as any path, userinfo, and query, and fragment
-components.
+the optional C<http://> or C<https://> prefix is ignored (note that using TLS
+may be required by B<-tls_used> or B<-server> with the prefix C<https>),
+as well as any path, userinfo, and query, and fragment components.
 Defaults to the environment variable C<http_proxy> if set, else C<HTTP_PROXY>
 in case no TLS is used, otherwise C<https_proxy> if set, else C<HTTPS_PROXY>.
 This option is ignored if I<-server> is not given.
@@ -511,11 +582,13 @@ Defaults to any path given with B<-server>, else C<"/">.
 
 =item B<-keep_alive> I<value>
 
-If the given value is 0 then HTTP connections are not kept open
-after receiving a response, which is the default behavior for HTTP 1.0.
-If the value is 1 or 2 then persistent connections are requested.
-If the value is 2 then persistent connections are required,
-i.e., in case the server does not grant them an error occurs.
+If the given value is 0 then HTTP connections are closed after each response
+(which would be the default behavior of HTTP 1.0)
+even if a CMP transaction needs more than one round trip.
+If the value is 1 or 2
+then for each transaction a persistent connection is requested.
+If the value is 2 then a persistent connection is required,
+i.e., an error occurs if the server does not grant it.
 The default value is 1, which means preferring to keep the connection open.
 
 =item B<-msg_timeout> I<seconds>
@@ -564,12 +637,13 @@ Non-trusted intermediate CA certificate(s).
 Any extra certificates given with the B<-cert> option are appended to it.
 All these certificates may be useful for cert path construction
 for the own CMP signer certificate (to include in the extraCerts field of
-request messages) and for the TLS client certificate (if TLS is enabled)
+request messages) and for the TLS client certificate (if TLS is used)
 as well as for chain building
 when validating server certificates (checking signature-based
 CMP message protection) and when validating newly enrolled certificates.
 
-Multiple filenames or URLs may be given, separated by commas and/or whitespace.
+Multiple sources may be given, separated by commas and/or whitespace
+(where in the latter case the whole argument must be enclosed in "...").
 Each source may contain multiple certificates.
 
 =item B<-srvcert> I<filename>|I<uri>
@@ -602,6 +676,7 @@ For details see the description of the B<-subject> option.
 Ignore key usage restrictions in CMP signer certificates when validating
 signature-based protection of incoming CMP messages.
 By default, C<digitalSignature> must be allowed by CMP signer certificates.
+This option applies to both CMP clients and the mock server.
 
 =item B<-unprotected_errors>
 
@@ -639,15 +714,85 @@ with a signature key."
 
 =back
 
+=item B<-no_cache_extracerts>
+
+Do not cache certificates in the extraCerts field of CMP messages received.
+By default, they are kept as they may be helful for validating further messages.
+This option applies to both CMP clients and the mock server.
+
+=item B<-srvcertout> I<filename>
+
+The file where to save the successfully validated certificate, if any,
+that the CMP server used for signature-based response message protection.
+If there is no such certificate, typically because the protection was MAC-based,
+this is indicated by deleting the file (if it existed).
+
 =item B<-extracertsout> I<filename>
 
-The file where to save all certificates contained in the extraCerts field
-of the last received response message (except for pollRep and PKIConf).
+The file where to save the list of certificates contained in the extraCerts
+field of the last received response message that is not a pollRep nor PKIConf.
 
 =item B<-cacertsout> I<filename>
 
-The file where to save any CA certificates contained in the caPubs field of
-the last received certificate response (i.e., IP, CP, or KUP) message.
+The file where to save the list of CA certificates contained in the caPubs field
+if a positive certificate response (i.e., IP, CP, or KUP) message was received
+or contained in a general response (genp) message with infoType C<caCerts>.
+
+=item B<-oldwithold> I<filename>
+
+The root CA certificate to include in a genm request of infoType C<rootCaCert>.
+If present and the optional oldWithNew certificate is received,
+it is verified using the newWithNew certificate as the (only) trust anchor.
+
+=item B<-newwithnew> I<filename>
+
+This option must be provided when B<-infotype> I<rootCaCert> is given.
+It specifies the file to save the newWithNew certificate
+received in a genp message of type C<rootCaKeyUpdate>.
+If on success no such cert was received, this file (if present) is deleted
+to indicate that the requested root CA certificate update is not available.
+
+Any received newWithNew certificate is verified
+using any received newWithOld certificate as untrusted intermediate certificate
+and the certificate provided with B<-oldwithold> as the (only) trust anchor,
+or if not provided, using the certificates given with the B<-trusted> option.
+
+B<WARNING:>
+The newWithNew certificate is meant to be a certificate that will be trusted.
+The trust placed in it cannot be stronger than the trust placed in
+the B<-oldwithold> certificate if present, otherwise it cannot be stronger than
+the weakest trust placed in any of the B<-trusted> certificates.
+
+=item B<-newwithold> I<filename>
+
+The file to save any newWithOld certificate
+received in a genp message of infoType C<rootCaKeyUpdate>.
+If on success no such cert was received, this is indicated by deleting the file.
+
+=item B<-oldwithnew> I<filename>
+
+The file to save any oldWithNew certificate
+received in a genp message of infoType C<rootCaKeyUpdate>.
+If on success no such cert was received, this is indicated by deleting the file.
+
+=item B<-crlcert> I<filename>
+
+Certificate to derive CRL issuer data for the source field
+when obtaining a CRL in a genm request with infoType C<crlStatusList>.
+Any available distribution point name is preferred over issuer names.
+
+=item B<-oldcrl> I<filename>
+
+The CRL to obtain an update for in a genm request with infoType C<crlStatusList>.
+Unless the B<-crlcert> option is provided as well,
+the given CRL is used for deriving CRL issuer data for the source field.
+Any available distribution point name is preferred over issuer names.
+If the CRL contains a thisUpdate field, its value is copied to the request.
+
+=item B<-crlout> I<filename>
+
+The file to save any CRL received in a genp message of infoType C<crls>.
+If on success no such CRL was received, this is indicated by deleting the file.
 
 =back
 
@@ -774,6 +919,13 @@ Send request messages without CMP-level protection.
 File format to use when saving a certificate to a file.
 Default value is PEM.
 
+=item B<-crlform> I<PEM|DER>
+
+File format to use when saving a CRL to a file.
+Default value is DER.
+DER format is preferred because it enables more efficient storage
+of large CRLs.
+
 =item B<-keyform> I<PEM|DER|P12|ENGINE>
 
 The format of the key input; unspecified by default.
@@ -782,8 +934,10 @@ See L<openssl(1)/Format Options> for details.
 =item B<-otherpass> I<arg>
 
 Pass phrase source for certificate given with the B<-trusted>, B<-untrusted>,
-B<-own_trusted>, B<-srvcert>, B<-out_trusted>, B<-extracerts>,
-B<-srv_trusted>, B<-srv_untrusted>, B<-rsp_extracerts>, B<-rsp_capubs>,
+B<-own_trusted>, B<-srvcert>, B<-crlcert>, B<-out_trusted>, B<-extracerts>,
+B<-srv_trusted>, B<-srv_untrusted>, B<-ref_cert>,
+B<-rsp_extracerts>, B<-rsp_capubs>,
+B<-rsp_newwithnew>, B<-rsp_newwithold>, B<-rsp_oldwithnew>,
 B<-tls_extra>, and B<-tls_trusted> options.
 If not given here, the password will be prompted for if needed.
 
@@ -830,18 +984,18 @@ B<-tls_key>.
 
 =item B<-tls_used>
 
-Enable using TLS (even when other TLS-related options are not set)
-for message exchange with CMP server via HTTP.
+Make the CMP client use TLS (regardless if other TLS-related options are set)
+for message exchange with the server via HTTP.
 This option is not supported with the I<-port> option.
-It is ignored if the I<-server> option is not given or I<-use_mock_srv> is given
-or I<-rspin> is given with enough filename arguments.
+It is implied if the B<-server> option is given with the scheme C<https>.
+It is ignored if the B<-server> option is not given or B<-use_mock_srv> is given
+or B<-rspin> is given with enough filename arguments.
 
-The following TLS-related options are ignored
-if B<-tls_used> is not given or does not take effect.
+The following TLS-related options are ignored if TLS is not used.
 
 =item B<-tls_cert> I<filename>|I<uri>
 
-Client's TLS certificate.
+Client's TLS certificate to use for authenticating to the TLS server.
 If the source includes further certs they are used (along with B<-untrusted>
 certs) for constructing the client cert chain provided to the TLS server.
 
@@ -860,7 +1014,7 @@ L<openssl-passphrase-options(1)>.
 
 =item B<-tls_extra> I<filenames>|I<uris>
 
-Extra certificates to provide to TLS server during TLS handshake
+Extra certificates to provide to the TLS server during handshake.
 
 =item B<-tls_trusted> I<filenames>|I<uris>
 
@@ -883,7 +1037,7 @@ If not given it defaults to the B<-server> address.
 
 =back
 
-=head2 Client-side debugging options
+=head2 Client-side options for debugging and offline scenarios
 
 =over 4
 
@@ -902,8 +1056,28 @@ Default is one invocation.
 Take the sequence of CMP requests to send to the server from the given file(s)
 rather than from the sequence of requests produced internally.
 
+This option is useful for supporting offline scenarios where the certificate
+request (or any other CMP request) is produced beforehand and sent out later.
+
 This option is ignored if the B<-rspin> option is given
 because in the latter case no requests are actually sent.
+
+Note that in any case the client produces internally its sequence
+of CMP request messages. Thus, all options required for doing this
+(such as B<-cmd> and all options providing the required parameters)
+need to be given also when the B<-reqin> option is present.
+
+If the B<-reqin> option is given for a certificate request
+and no B<-newkey>, B<-key>, B<-oldcert>, or B<-csr> option is given,
+a fallback public key is taken from the request message file
+(if it is included in the certificate template).
+
+Hint: In case the B<-reqin> option is given for a certificate request, there are
+situations where the client has access to the public key to be certified but
+not to the private key that by default will be needed for proof of possession.
+In this case the POPO is not actually needed (because the internally produced
+certificate request message will not be sent), and its generation
+can be disabled using the options B<-popo> I<-1> or B<-popo> I<0>.
 
 Multiple filenames may be given, separated by commas and/or whitespace
 (where in the latter case the whole argument must be enclosed in "...").
@@ -934,6 +1108,14 @@ Multiple filenames may be given, separated by commas and/or whitespace.
 Files are written as far as needed to save the transaction
 and filenames have been provided.
 If the transaction contains more requests, the remaining ones are not saved.
+
+=item B<-reqout_only> I<filename>
+
+Save the first CMP requests created by the client to the given file and exit.
+Any options related to CMP servers and their responses are ignored.
+
+This option is useful for supporting offline scenarios where the certificate
+request (or any other CMP request) is produced beforehand and sent out later.
 
 =item B<-rspin> I<filenames>
 
@@ -1019,9 +1201,25 @@ have no effect on the certificate verification enabled via this option.
 
 Intermediate CA certs that may be useful when validating client certificates.
 
+=item B<-ref_cert> I<filename>|I<uri>
+
+Certificate to be expected for RR messages and any oldCertID in KUR messages.
+
 =item B<-rsp_cert> I<filename>|I<uri>
 
 Certificate to be returned as mock enrollment result.
+
+=item B<-rsp_key> I<filename>|I<uri>
+
+Private key to be returned as central key generation result.
+
+=item B<-rsp_keypass> I<arg>
+
+Pass phrase source for B<rsp_cert> and B<rsp_key>.
+
+=item B<-rsp_crl> I<filename>|I<uri>
+
+CRL to be returned in genp of type C<crls>.
 
 =item B<-rsp_extracerts> I<filenames>|I<uris>
 
@@ -1030,6 +1228,18 @@ Extra certificates to be included in mock certification responses.
 =item B<-rsp_capubs> I<filenames>|I<uris>
 
 CA certificates to be included in mock Initialization Response (IP) message.
+
+=item B<-rsp_newwithnew> I<filename>|I<uri>
+
+Certificate to be returned in newWithNew field of genp of type rootCaKeyUpdate.
+
+=item B<-rsp_newwithold> I<filename>|I<uri>
+
+Certificate to be returned in newWithOld field of genp of type rootCaKeyUpdate.
+
+=item B<-rsp_oldwithnew> I<filename>|I<uri>
+
+Certificate to be returned in oldWithNew field of genp of type rootCaKeyUpdate.
 
 =item B<-poll_count> I<number>
 
@@ -1104,12 +1314,16 @@ only affect the certificate verification enabled via the B<-out_trusted> option.
 
 =head1 NOTES
 
-When a client obtains from a CMP server CA certificates that it is going to
-trust, for instance via the C<caPubs> field of a certificate response,
+When a client obtains, from a CMP server, CA certificates that it is going to
+trust, for instance via the C<caPubs> field of a certificate response
+or using general messages with infoType C<caCerts> or C<rootCaCert>,
 authentication of the CMP server is particularly critical.
 So special care must be taken setting up server authentication
 using B<-trusted> and related options for certificate-based authentication
 or B<-secret> for MAC-based protection.
+If authentication is certificate-based, the B<-srvcertout> option
+should be used to obtain the validated server certificate
+and perform an authorization check based on it.
 
 When setting up CMP configurations and experimenting with enrollment options
 typically various errors occur until the configuration is correct and complete.
@@ -1120,6 +1334,10 @@ In this case the client will reject them, and thus their contents are not shown
 although they usually contain hints that would be helpful for diagnostics.
 For assisting in such cases the CMP client offers a workaround via the
 B<-unprotected_errors> option, which allows accepting such negative messages.
+
+If OpenSSL was built with trace support enabled (e.g., C<./config enable-trace>)
+and the environment variable B<OPENSSL_TRACE> includes B<HTTP>,
+the requests and the response headers transferred via HTTP are printed.
 
 =head1 EXAMPLES
 
@@ -1178,13 +1396,10 @@ or by referencing in addition the B<[cr]> section of the example configuration:
 
 In order to update the enrolled certificate one may call
 
-  openssl cmp -section insta,kur
-
-using MAC-based protection with PBM or
-
   openssl cmp -section insta,kur,signature
 
-using signature-based protection.
+using signature-based protection with the certificate that is to be updated.
+For certificate updates, MAC-based protection should generally not be used.
 
 In a similar way any previously enrolled certificate may be revoked by
 
@@ -1298,11 +1513,25 @@ L<openssl-req(1)>, L<openssl-x509(1)>, L<x509v3_config(5)>
 
 The B<cmp> application was added in OpenSSL 3.0.
 
-The B<-engine option> was deprecated in OpenSSL 3.0.
+The B<-engine> option was deprecated in OpenSSL 3.0.
+
+The B<-oldwithold>, B<-newwithnew>, B<-newwithold>, B<-oldwithnew>,
+The B<-srvcertout>, and B<-serial> option were added in OpenSSL 3.2, as well
+as an extension of B<-cacertsout> to use when getting CA certificates.
+Since then, the B<-issuer> may be used also for certificates to be revoked.
+
+The B<-profile> and B<-no_cache_extracerts> options were added in OpenSSL 3.3,
+as well as support for delayed delivery of all types of response messages.
+
+The B<-template>, B<-crlcert>, B<-oldcrl>, B<-crlout>, B<-crlform>
+and B<-rsp_crl> options were added in OpenSSL 3.4.
+
+B<-centralkeygen>, b<-newkeyout>, B<-rsp_key> and
+B<-rsp_keypass> were added in OpenSSL 3.5.
 
 =head1 COPYRIGHT
 
-Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

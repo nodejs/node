@@ -4,7 +4,7 @@
 
 X509_verify, X509_self_signed,
 X509_REQ_verify_ex, X509_REQ_verify,
-X509_CRL_verify -
+X509_CRL_verify, X509_ACERT_verify -
 verify certificate, certificate request, or CRL signature
 
 =head1 SYNOPSIS
@@ -19,6 +19,9 @@ verify certificate, certificate request, or CRL signature
  int X509_REQ_verify(X509_REQ *a, EVP_PKEY *r);
  int X509_CRL_verify(X509_CRL *a, EVP_PKEY *r);
 
+ #include <openssl/x509_acert.h>
+ int X509_ACERT_verify(X509_CRL *a, EVP_PKEY *r);
+
 =head1 DESCRIPTION
 
 X509_verify() verifies the signature of certificate I<x> using public key
@@ -31,8 +34,9 @@ authority key identifier (if present) must match the subject key identifier etc.
 The signature itself is actually verified only if B<verify_signature> is 1, as
 for explicitly trusted certificates this verification is not worth the effort.
 
-X509_REQ_verify_ex(), X509_REQ_verify() and X509_CRL_verify()
-verify the signatures of certificate requests and CRLs, respectively.
+X509_REQ_verify_ex(), X509_REQ_verify(), X509_CRL_verify() and X509_ACERT_verify()
+verify the signatures of certificate requests, CRLs and attribute certificates
+respectively.
 
 =head1 RETURN VALUES
 
@@ -71,9 +75,11 @@ functions are available in all versions of OpenSSL.
 
 X509_REQ_verify_ex(), and X509_self_signed() were added in OpenSSL 3.0.
 
+X509_ACERT_verify() was added in OpenSSL 3.4.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

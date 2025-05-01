@@ -1,5 +1,5 @@
 /*
- * Copyright 2008-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@ int main(int argc, char **argv)
 {
     BIO *in = NULL, *out = NULL;
     CMS_ContentInfo *cms = NULL;
-    int ret = 1;
+    int ret = EXIT_FAILURE;
 
     /*
      * On OpenSSL 1.0.0+ only:
@@ -48,11 +48,11 @@ int main(int argc, char **argv)
     if (!SMIME_write_CMS(out, cms, in, flags))
         goto err;
 
-    ret = 0;
+    ret = EXIT_SUCCESS;
 
  err:
 
-    if (ret) {
+    if (ret != EXIT_SUCCESS) {
         fprintf(stderr, "Error Compressing Data\n");
         ERR_print_errors_fp(stderr);
     }

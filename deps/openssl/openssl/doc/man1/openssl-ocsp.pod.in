@@ -24,10 +24,10 @@ B<openssl> B<ocsp>
 [B<-req_text>]
 [B<-resp_text>]
 [B<-text>]
-[B<-reqout> I<file>]
-[B<-respout> I<file>]
-[B<-reqin> I<file>]
-[B<-respin> I<file>]
+[B<-reqout> I<filename>]
+[B<-respout> I<filename>]
+[B<-reqin> I<filename>]
+[B<-respin> I<filename>]
 [B<-url> I<URL>]
 [B<-host> I<host>:I<port>]
 [B<-path> I<pathname>]
@@ -102,15 +102,20 @@ specify output filename, default is standard output.
 
 =item B<-issuer> I<filename>
 
-This specifies the current issuer certificate. This option can be used
-multiple times.
+This specifies the current issuer certificate.
+The input can be in PEM, DER, or PKCS#12 format.
+
+This option can be used multiple times.
 This option B<MUST> come before any B<-cert> options.
 
 =item B<-cert> I<filename>
 
-Add the certificate I<filename> to the request. The issuer certificate
-is taken from the previous B<-issuer> option, or an error occurs if no
-issuer certificate is specified.
+Add the certificate I<filename> to the request.
+The input can be in PEM, DER, or PKCS#12 format.
+
+This option can be used multiple times.
+The issuer certificate is taken from the previous B<-issuer> option,
+or an error occurs if no issuer certificate is specified.
 
 =item B<-no_certs>
 
@@ -126,8 +131,10 @@ be specified by preceding the value by a C<-> sign.
 =item B<-signer> I<filename>, B<-signkey> I<filename>
 
 Sign the OCSP request using the certificate specified in the B<-signer>
-option and the private key specified by the B<-signkey> option. If
-the B<-signkey> option is not present then the private key is read
+option and the private key specified by the B<-signkey> option.
+The input can be in PEM, DER, or PKCS#12 format.
+
+If the B<-signkey> option is not present then the private key is read
 from the same file as the certificate. If neither option is specified then
 the OCSP request is not signed.
 
@@ -148,11 +155,14 @@ a nonce is automatically added specifying B<-no_nonce> overrides this.
 
 Print out the text form of the OCSP request, response or both respectively.
 
-=item B<-reqout> I<file>, B<-respout> I<file>
+=item B<-reqout> I<file>, B<-respout> I<filename>
 
-Write out the DER encoded certificate request or response to I<file>.
+Write out the DER-encoded OCSP request or response to I<filename>.
+The output filename can be the same as the input filename,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
 
-=item B<-reqin> I<file>, B<-respin> I<file>
+=item B<-reqin> I<file>, B<-respin> I<filename>
 
 Read OCSP request or response file from I<file>. These option are ignored
 if OCSP request or response creation is implied by other options (for example
@@ -329,13 +339,14 @@ must also be present.
 
 =item B<-CA> I<file>
 
-CA certificate corresponding to the revocation information in the index
+CA certificates corresponding to the revocation information in the index
 file given with B<-index>.
 The input can be in PEM, DER, or PKCS#12 format.
 
 =item B<-rsigner> I<file>
 
 The certificate to sign OCSP responses with.
+The input can be in PEM, DER, or PKCS#12 format.
 
 =item B<-rkey> I<file>
 
@@ -515,7 +526,7 @@ The -no_alt_chains option was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

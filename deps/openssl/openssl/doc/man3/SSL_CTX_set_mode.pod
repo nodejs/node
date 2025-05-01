@@ -46,6 +46,9 @@ SSL_write() returns successful, B<r> bytes have been written and the next call
 to SSL_write_ex() or SSL_write() must only send the n-r bytes left, imitating
 the behaviour of write().
 
+This mode cannot be enabled while in the middle of an incomplete write
+operation.
+
 =item SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER
 
 Make it possible to retry SSL_write_ex() or SSL_write() with changed buffer
@@ -137,7 +140,7 @@ SSL_MODE_ASYNC was added in OpenSSL 1.1.0.
 
 =head1 COPYRIGHT
 
-Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

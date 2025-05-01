@@ -1,0 +1,127 @@
+=pod
+
+=head1 NAME
+
+SSL_set_default_stream_mode,
+SSL_DEFAULT_STREAM_MODE_NONE, SSL_DEFAULT_STREAM_MODE_AUTO_BIDI,
+SSL_DEFAULT_STREAM_MODE_AUTO_UNI - manage the default stream for a QUIC
+connection
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ #define SSL_DEFAULT_STREAM_MODE_NONE
+ #define SSL_DEFAULT_STREAM_MODE_AUTO_BIDI
+ #define SSL_DEFAULT_STREAM_MODE_AUTO_UNI
+
+ int SSL_set_default_stream_mode(SSL *conn, uint32_t mode);
+
+=head1 DESCRIPTION
+
+A QUIC connection SSL object may have a default stream attached to it. A default
+stream is a QUIC stream to which calls to L<SSL_read(3)> and L<SSL_write(3)>
+made on a QUIC connection SSL object are redirected. Default stream handling
+allows legacy applications to use QUIC similarly to a traditional TLS
+connection.
+
+When not disabled, a default stream is automatically created on an outgoing
+connection once L<SSL_read(3)> or L<SSL_write(3)> is called.
+
+A QUIC stream must be explicitly designated as client-initiated or
+server-initiated up front. This broadly corresponds to whether an application
+protocol involves the client transmitting first, or the server transmitting
+first. As such, if L<SSL_read(3)> is called first (before any call to
+L<SSL_write(3)>)  after establishing a connection, OpenSSL will wait for the
+server to open the first server-initiated stream, and then bind this as the
+default stream. Conversely, if L<SSL_write(3)> is called before any call to
+L<SSL_read(3)>, OpenSSL assumes the client wishes to transmit first, creates a
+client-initiated stream, and binds this as the default stream.
+
+By default, the default stream created is bidirectional. If a unidirectional
+stream is desired, or if the application wishes to disable default stream
+functionality, SSL_set_default_stream_mode() (discussed below) can be used to
+accomplish this.
+
+When a QUIC connection SSL object has no default stream currently associated
+with it, for example because default stream functionality was disabled, calls to
+functions which require a stream on the QUIC connection SSL object (for example,
+L<SSL_read(3)> and L<SSL_write(3)>) will fail.
+
+It is recommended that new applications and applications which rely on multiple
+streams forego use of the default stream functionality, which is intended for
+legacy applications.
+
+SSL_set_default_stream_mode() can be used to configure or disable default stream
+handling. It can only be called on a QUIC connection SSL object prior to any
+default stream being created. If used, it is recommended to call it immediately
+after calling L<SSL_new(3)>, prior to initiating a connection. The argument
+I<mode> may be one of the following options:
+
+=over 4
+
+=item SSL_DEFAULT_STREAM_MODE_AUTO_BIDI
+
+This is the default setting. If L<SSL_write(3)> is called prior to any call to
+L<SSL_read(3)>, a bidirectional client-initiated stream is created and bound as
+the default stream. If L<SSL_read(3)> is called prior to any call to
+L<SSL_write(3)>, OpenSSL waits for an incoming stream from the peer (causing
+L<SSL_read(3)> to block if the connection is in blocking mode), and then binds
+that stream as the default stream. Note that this incoming stream may be either
+bidirectional or unidirectional; thus, this setting does not guarantee the
+presence of a bidirectional stream when L<SSL_read(3)> is called first. To
+determine the type of a stream after a call to L<SSL_read(3)>, use
+L<SSL_get_stream_type(3)>.
+
+=item SSL_DEFAULT_STREAM_MODE_AUTO_UNI
+
+In this mode, if L<SSL_write(3)> is called prior to any call to L<SSL_read(3)>,
+a unidirectional client-initiated stream is created and bound as the default
+stream. The behaviour is otherwise identical to that of
+B<SSL_DEFAULT_STREAM_MODE_AUTO_BIDI>. The behaviour when L<SSL_read(3)> is
+called prior to any call to L<SSL_write(3)> is unchanged.
+
+=item SSL_DEFAULT_STREAM_MODE_NONE
+
+Default stream creation is inhibited. This is the recommended mode of operation.
+L<SSL_read(3)> and L<SSL_write(3)> calls cannot be made on the QUIC connection
+SSL object directly. You must obtain streams using L<SSL_new_stream(3)> or
+L<SSL_accept_stream(3)> in order to communicate with the peer.
+
+=back
+
+A default stream will not be automatically created on a QUIC connection SSL
+object if the default stream mode is set to B<SSL_DEFAULT_STREAM_MODE_NONE>.
+
+L<SSL_set_incoming_stream_policy(3)> interacts significantly with the default
+stream functionality.
+
+=head1 RETURN VALUES
+
+SSL_set_default_stream_mode() returns 1 on success and 0 on failure.
+
+SSL_set_default_stream_mode() fails if it is called after a default stream has
+already been established.
+
+These functions fail if called on a QUIC stream SSL object or on a non-QUIC SSL
+object.
+
+=head1 SEE ALSO
+
+L<SSL_new_stream(3)>, L<SSL_accept_stream(3)>, L<SSL_free(3)>,
+L<SSL_set_incoming_stream_policy(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

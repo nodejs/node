@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -107,7 +107,7 @@ failed:
 }
 
 static const char *file; /* path of a cert/CRL/key file in PEM format */
-static const char *num;  /* expected number of certs/CRLs/keys included */
+static int expected;     /* expected number of certs/CRLs/keys included */
 
 static int test_PEM_X509_INFO_read_bio(void)
 {
@@ -115,13 +115,11 @@ static int test_PEM_X509_INFO_read_bio(void)
     STACK_OF(X509_INFO) *sk;
     X509_INFO *it;
     int i, count = 0;
-    int expected = 0;
 
     if (!TEST_ptr((in = BIO_new_file(file, "r"))))
         return 0;
     sk = PEM_X509_INFO_read_bio(in, NULL, NULL, "");
     BIO_free(in);
-    sscanf(num, "%d", &expected);
     for (i = 0; i < sk_X509_INFO_num(sk); i++) {
         it = sk_X509_INFO_value(sk, i);
         if (it->x509 != NULL)
@@ -160,8 +158,12 @@ int setup_tests(void)
     }
 
     if (test_get_argument_count() == 2) {
+        const char *num;  /* expected number of certs/CRLs/keys included */
+
         if (!TEST_ptr(file = test_get_argument(0))
                 || !TEST_ptr(num = test_get_argument(1)))
+            return 0;
+        if (!TEST_int_eq(sscanf(num, "%d", &expected), 1))
             return 0;
         ADD_TEST(test_PEM_X509_INFO_read_bio);
         return 1;

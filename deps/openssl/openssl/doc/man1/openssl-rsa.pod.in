@@ -121,8 +121,9 @@ This option checks the consistency of an RSA private key.
 
 =item B<-pubin>
 
-By default a private key is read from the input file: with this
-option a public key is read instead.
+By default a private key is read from the input.
+With this option a public key is read instead.
+If the input contains no public key but a private key, its public part is used.
 
 =item B<-pubout>
 
@@ -206,7 +207,7 @@ The B<-engine> option was deprecated in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

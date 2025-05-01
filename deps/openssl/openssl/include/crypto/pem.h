@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -24,7 +24,7 @@ int ossl_do_blob_header(const unsigned char **in, unsigned int length,
                         int *pisdss, int *pispub);
 unsigned int ossl_blob_length(unsigned bitlen, int isdss, int ispub);
 int ossl_do_PVK_header(const unsigned char **in, unsigned int length,
-                       int skip_magic,
+                       int skip_magic, int *isdss,
                        unsigned int *psaltlen, unsigned int *pkeylen);
 # ifndef OPENSSL_NO_DEPRECATED_3_0
 #  ifndef OPENSSL_NO_DSA

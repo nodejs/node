@@ -7,6 +7,8 @@ openssl-cms - CMS command
 
 =head1 SYNOPSIS
 
+=for openssl duplicate options
+
 B<openssl> B<cms>
 [B<-help>]
 
@@ -25,6 +27,7 @@ Operation options:
 [B<-resign>]
 [B<-sign_receipt>]
 [B<-verify_receipt> I<receipt>]
+[B<-digest> I<digest>]
 [B<-digest_create>]
 [B<-digest_verify>]
 [B<-compress>]
@@ -82,6 +85,7 @@ Signing options:
 [B<-nocerts>]
 [B<-noattr>]
 [B<-nosmimecap>]
+[B<-no_signing_time>]
 [B<-receipt_request_all>]
 [B<-receipt_request_first>]
 [B<-receipt_request_from> I<emailaddress>]
@@ -210,6 +214,16 @@ similar to the B<-sign> operation.
 Verify a signed receipt in filename B<receipt>. The input message B<must>
 contain the original receipt request. Functionality is otherwise similar
 to the B<-verify> operation.
+
+=item B<-digest> I<digest>
+
+When used with B<-sign>, provides the digest in hexadecimal form instead of
+computing it from the original message content. Cannot be combined with B<-in>
+or B<-nodetach>.
+
+This operation is the CMS equivalent of L<openssl-pkeyutl(1)> signing.
+When signing a pre-computed digest, the security relies on the digest and its
+computation from the original message being trusted.
 
 =item B<-digest_create>
 
@@ -400,16 +414,16 @@ One or more certificate filenames may be given.
 
 =item B<-I<cipher>>
 
-The encryption algorithm to use. For example triple DES (168 bits) - B<-des3>
-or 256 bit AES - B<-aes256>. Any standard algorithm name (as used by the
+The encryption algorithm to use. For example, AES (256 bits) - B<-aes256>
+or triple DES (168 bits) - B<-des3>. Any standard algorithm name (as used by the
 EVP_get_cipherbyname() function) can also be used preceded by a dash, for
 example B<-aes-128-cbc>. See L<openssl-enc(1)> for a list of ciphers
 supported by your version of OpenSSL.
 
-Currently the AES variants with GCM mode are the only supported AEAD
+Currently, the AES variants with GCM mode are the only supported AEAD
 algorithms.
 
-If not specified triple DES is used. Only used with B<-encrypt> and
+If not specified, AES-256-CBC is used as the default. Only used with B<-encrypt> and
 B<-EncryptedData_create> commands.
 
 =item B<-wrap> I<cipher>
@@ -447,8 +461,9 @@ used multiple times if more than one signer is required.
 =item B<-certfile> I<file>
 
 Allows additional certificates to be specified. When signing these will
-be included with the message. When verifying these will be searched for
-the signers certificates.
+be included with the message. When verifying, these will be searched for
+signer certificates and will be used for chain building.
+
 The input can be in PEM, DER, or PKCS#12 format.
 
 =item B<-cades>
@@ -481,7 +496,12 @@ option they are not included.
 =item B<-nosmimecap>
 
 Exclude the list of supported algorithms from signed attributes, other options
-such as signing time and content type are still included.
+such as content type and (optionally) signing time are still included.
+
+=item B<-no_signing_time>
+
+Exclude the signing time from signed attributes, other options
+such as content type are still included.
 
 =item B<-receipt_request_all>, B<-receipt_request_first>
 
@@ -889,6 +909,8 @@ L<ossl_store-file(7)>
 
 =head1 HISTORY
 
+The default encryption cipher was changed from 3DES to AES-256 in OpenSSL 3.5.
+
 The use of multiple B<-signer> options and the B<-resign> command were first
 added in OpenSSL 1.0.0.
 
@@ -904,6 +926,8 @@ The -no_alt_chains option was added in OpenSSL 1.0.2b.
 The B<-nameopt> option was added in OpenSSL 3.0.0.
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
+
+The B<-digest> option was added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 

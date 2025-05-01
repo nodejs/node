@@ -4,7 +4,8 @@
 
 ASYNC_get_wait_ctx,
 ASYNC_init_thread, ASYNC_cleanup_thread, ASYNC_start_job, ASYNC_pause_job,
-ASYNC_get_current_job, ASYNC_block_pause, ASYNC_unblock_pause, ASYNC_is_capable
+ASYNC_get_current_job, ASYNC_block_pause, ASYNC_unblock_pause, ASYNC_is_capable,
+ASYNC_stack_alloc_fn, ASYNC_stack_free_fn, ASYNC_set_mem_functions, ASYNC_get_mem_functions
 - asynchronous job management functions
 
 =head1 SYNOPSIS
@@ -25,12 +26,20 @@ ASYNC_get_current_job, ASYNC_block_pause, ASYNC_unblock_pause, ASYNC_is_capable
 
  int ASYNC_is_capable(void);
 
+ typedef void *(*ASYNC_stack_alloc_fn)(size_t *num);
+ typedef void (*ASYNC_stack_free_fn)(void *addr);
+ int ASYNC_set_mem_functions(ASYNC_stack_alloc_fn alloc_fn,
+                             ASYNC_stack_free_fn free_fn);
+ void ASYNC_get_mem_functions(ASYNC_stack_alloc_fn *alloc_fn,
+                              ASYNC_stack_free_fn *free_fn);
+
 =head1 DESCRIPTION
 
 OpenSSL implements asynchronous capabilities through an B<ASYNC_JOB>. This
 represents code that can be started and executes until some event occurs. At
 that point the code can be paused and control returns to user code until some
-subsequent event indicates that the job can be resumed.
+subsequent event indicates that the job can be resumed. It's OpenSSL
+specific implementation of cooperative multitasking.
 
 The creation of an B<ASYNC_JOB> is a relatively expensive operation. Therefore,
 for efficiency reasons, jobs can be created up front and reused many times. They
@@ -83,7 +92,8 @@ can be performed (if desired) and the job restarted at a later time. To restart
 a job call ASYNC_start_job() again passing the job handle in I<*job>. The
 I<func>, I<args> and I<size> parameters will be ignored when restarting a job.
 When restarting a job ASYNC_start_job() B<must> be called from the same thread
-that the job was originally started from.
+that the job was originally started from. B<ASYNC_WAIT_CTX> is used to
+know when a job is ready to be restarted.
 
 =item B<ASYNC_FINISH>
 
@@ -107,13 +117,15 @@ ASYNC_pause_job() is called whilst not within the context of a job then no
 action is taken and ASYNC_pause_job() returns immediately.
 
 ASYNC_get_wait_ctx() can be used to get a pointer to the B<ASYNC_WAIT_CTX>
-for the I<job>. B<ASYNC_WAIT_CTX>s contain two different ways to notify
+for the I<job> (see L<ASYNC_WAIT_CTX_new(3)>).
+B<ASYNC_WAIT_CTX>s contain two different ways to notify
 applications that a job is ready to be resumed. One is a "wait" file
 descriptor, and the other is a "callback" mechanism.
 
 The "wait" file descriptor associated with B<ASYNC_WAIT_CTX> is used for
 applications to wait for the file descriptor to be ready for "read" using a
-system function call such as select or poll (being ready for "read" indicates
+system function call such as select(2) or poll(2) (being ready for "read"
+indicates
 that the job should be resumed). If no file descriptor is made available then
 an application will have to periodically "poll" the job by attempting to restart
 it to see if it is ready to continue.
@@ -146,6 +158,15 @@ occur.
 Some platforms cannot support async operations. The ASYNC_is_capable() function
 can be used to detect whether the current platform is async capable or not.
 
+Custom memory allocation functions are supported for the POSIX platform.
+Custom memory allocation functions allow alternative methods of allocating
+stack memory such as mmap, or using stack memory from the current thread.
+Using an ASYNC_stack_alloc_fn callback also allows manipulation of the stack
+size, which defaults to 32k.
+The stack size can be altered by allocating a stack of a size different to
+the requested size, and passing back the new stack size in the callback's I<*num>
+parameter.
+
 =head1 RETURN VALUES
 
 ASYNC_init_thread returns 1 on success or 0 otherwise.
@@ -164,6 +185,9 @@ ASYNC_get_wait_ctx() returns a pointer to the B<ASYNC_WAIT_CTX> for the job.
 
 ASYNC_is_capable() returns 1 if the current platform is async capable or 0
 otherwise.
+
+ASYNC_set_mem_functions returns 1 if custom stack allocators are supported by
+the current platform and no allocations have already occurred or 0 otherwise.
 
 =head1 NOTES
 
@@ -216,6 +240,13 @@ The following example demonstrates how to use most of the core async APIs:
      msg = (unsigned char *)arg;
      printf("Passed in message is: %s\n", msg);
 
+     /*
+      * Create a way to inform the calling thread when this job is ready
+      * to resume, in this example we're using file descriptors.
+      * For offloading the task to an asynchronous ENGINE it's not necessary,
+      * the ENGINE should handle that internally.
+      */
+
      if (pipe(pipefds) != 0) {
          printf("Failed to create pipe\n");
          return 0;
@@ -230,17 +261,23 @@ The following example demonstrates how to use most of the core async APIs:
                                 pipefds[0], wptr, cleanup);
 
      /*
-      * Normally some external event would cause this to happen at some
+      * Normally some external event (like a network read being ready,
+      * disk access being finished, or some hardware offload operation
+      * completing) would cause this to happen at some
       * later point - but we do it here for demo purposes, i.e.
       * immediately signalling that the job is ready to be woken up after
       * we return to main via ASYNC_pause_job().
       */
      write(pipefds[1], &buf, 1);
 
-     /* Return control back to main */
+     /*
+      * Return control back to main just before calling a blocking
+      * method. The main thread will wait until pipefds[0] is ready
+      * for reading before returning control to this thread.
+      */
      ASYNC_pause_job();
 
-     /* Clear the wake signal */
+     /* Perform the blocking call (it won't block with this example code) */
      read(pipefds[0], &buf, 1);
 
      printf ("Resumed the job after a pause\n");
@@ -280,7 +317,9 @@ The following example demonstrates how to use most of the core async APIs:
              goto end;
          }
 
-         /* Wait for the job to be woken */
+         /* Get the file descriptor we can use to wait for the job
+          * to be ready to be woken up
+          */
          printf("Waiting for the job to be woken up\n");
 
          if (!ASYNC_WAIT_CTX_get_all_fds(ctx, NULL, &numfds)
@@ -291,6 +330,8 @@ The following example demonstrates how to use most of the core async APIs:
          ASYNC_WAIT_CTX_get_all_fds(ctx, &waitfd, &numfds);
          FD_ZERO(&waitfdset);
          FD_SET(waitfd, &waitfdset);
+
+         /* Wait for the job to be ready for wakeup */
          select(waitfd + 1, &waitfdset, NULL, NULL, NULL);
      }
 
@@ -322,10 +363,12 @@ ASYNC_init_thread, ASYNC_cleanup_thread,
 ASYNC_start_job, ASYNC_pause_job, ASYNC_get_current_job, ASYNC_get_wait_ctx(),
 ASYNC_block_pause(), ASYNC_unblock_pause() and ASYNC_is_capable() were first
 added in OpenSSL 1.1.0.
+ASYNC_set_mem_functions(), ASYNC_get_mem_functions() were added
+in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 
-Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

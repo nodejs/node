@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -27,33 +27,39 @@ our @tests_ec = (
     {
         name => "SECLEVEL 4 with ED448 key",
         server => { "CipherString" => "DEFAULT:\@SECLEVEL=4",
+                    "Groups" => "?X448:?secp521r1",
                     "Certificate" => test_pem("server-ed448-cert.pem"),
                     "PrivateKey" => test_pem("server-ed448-key.pem") },
         client => { "CipherString" => "DEFAULT:\@SECLEVEL=4",
+                    "Groups" => "?X448:?secp521r1",
                     "VerifyCAFile" => test_pem("root-ed448-cert.pem") },
         test   => { "ExpectedResult" => "Success" },
     },
     {
         # The Ed448 signature algorithm will not be enabled.
         # Because of the config order, the certificate is first loaded, and
-        # then the security level is chaged. If you try this with s_server
+        # then the security level is changed. If you try this with s_server
         # the order will be reversed and it will instead fail to load the key.
         name => "SECLEVEL 5 server with ED448 key",
         server => { "CipherString" => "DEFAULT:\@SECLEVEL=5",
+                    "Groups" => "?X448:?secp521r1",
                     "Certificate" => test_pem("server-ed448-cert.pem"),
                     "PrivateKey" => test_pem("server-ed448-key.pem") },
         client => { "CipherString" => "DEFAULT:\@SECLEVEL=4",
+                    "Groups" => "?X448:?secp521r1",
                     "VerifyCAFile" => test_pem("root-ed448-cert.pem") },
         test   => { "ExpectedResult" => "ServerFail" },
     },
     {
         # The client will not sent the Ed448 signature algorithm, so the server
-        # doesn't have a useable signature algorithm for the certificate.
+        # doesn't have a usable signature algorithm for the certificate.
         name => "SECLEVEL 5 client with ED448 key",
         server => { "CipherString" => "DEFAULT:\@SECLEVEL=4",
+                    "Groups" => "?X448:?secp521r1",
                     "Certificate" => test_pem("server-ed448-cert.pem"),
                     "PrivateKey" => test_pem("server-ed448-key.pem") },
         client => { "CipherString" => "DEFAULT:\@SECLEVEL=5",
+                    "Groups" => "?X448:?secp521r1",
                     "VerifyCAFile" => test_pem("root-ed448-cert.pem") },
         test   => { "ExpectedResult" => "ServerFail" },
     }
@@ -85,5 +91,5 @@ our @tests_tls1_2 = (
 );
 
 push @tests_ec, @tests_ec_non_fips unless $fips_mode;
-push @tests, @tests_ec unless disabled("ec");
-push @tests, @tests_tls1_2 unless disabled("tls1_2") || disabled("ec");
+push @tests, @tests_ec unless disabled("ecx");
+push @tests, @tests_tls1_2 unless disabled("tls1_2") || disabled("ecx");

@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2017 BaishanCloud. All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -289,8 +289,41 @@ err:
     return ret;
 }
 
+static int test_rsa_mp_gen_bad_input(void)
+{
+    int ret = 0;
+    RSA *rsa = NULL;
+    BIGNUM *ebn = NULL;
+
+    if (!TEST_ptr(rsa = RSA_new()))
+        goto err;
+
+    if (!TEST_ptr(ebn = BN_new()))
+        goto err;
+    if (!TEST_true(BN_set_word(ebn, 65537)))
+        goto err;
+
+    /* Test that a NULL exponent fails and does not segfault */
+    if (!TEST_int_eq(RSA_generate_multi_prime_key(rsa, 1024, 2, NULL, NULL), 0))
+        goto err;
+
+    /* Test invalid bitsize fails */
+    if (!TEST_int_eq(RSA_generate_multi_prime_key(rsa, 500, 2, ebn, NULL), 0))
+        goto err;
+
+    /* Test invalid prime count fails */
+    if (!TEST_int_eq(RSA_generate_multi_prime_key(rsa, 1024, 1, ebn, NULL), 0))
+        goto err;
+    ret = 1;
+err:
+    BN_free(ebn);
+    RSA_free(rsa);
+    return ret;
+}
+
 int setup_tests(void)
 {
+    ADD_TEST(test_rsa_mp_gen_bad_input);
     ADD_ALL_TESTS(test_rsa_mp, 2);
     return 1;
 }

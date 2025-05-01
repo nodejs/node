@@ -89,7 +89,7 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
 
     ctx = BN_CTX_new();
     if (ctx == NULL) {
-        reason = ERR_R_MALLOC_FAILURE;
+        reason = ERR_R_BN_LIB;
         goto err;
     }
 
@@ -127,7 +127,7 @@ int ECPKParameters_print(BIO *bp, const EC_GROUP *x, int off)
 
         if ((p = BN_new()) == NULL || (a = BN_new()) == NULL ||
             (b = BN_new()) == NULL) {
-            reason = ERR_R_MALLOC_FAILURE;
+            reason = ERR_R_BN_LIB;
             goto err;
         }
 

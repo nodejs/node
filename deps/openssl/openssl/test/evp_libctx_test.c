@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -21,6 +21,7 @@
  */
 #include "internal/deprecated.h"
 #include <assert.h>
+#include <string.h>
 #include <openssl/evp.h>
 #include <openssl/provider.h>
 #include <openssl/dsa.h>
@@ -38,6 +39,8 @@ static OSSL_LIB_CTX *libctx = NULL;
 static OSSL_PROVIDER *nullprov = NULL;
 static OSSL_PROVIDER *libprov = NULL;
 static STACK_OF(OPENSSL_STRING) *cipher_names = NULL;
+static int is_fips = 0;
+static int is_fips_lt_3_5 = 0;
 
 typedef enum OPTION_choice {
     OPT_ERR = -1,
@@ -70,6 +73,37 @@ static const char *getname(int id)
     return "?";
 }
 #endif
+
+static int test_evp_cipher_api_safety(void)
+{
+    int ret = 0;
+    EVP_CIPHER_CTX *ctx = NULL;
+
+    ctx = EVP_CIPHER_CTX_new();
+
+    if (!TEST_ptr(ctx))
+        goto err;
+
+    /*
+     * Ensure that EVP_CIPHER_get_block_size returns 0
+     * if we haven't initialized the cipher in this context
+     */
+    if (!TEST_int_eq(EVP_CIPHER_CTX_get_block_size(ctx), 0))
+        goto err_free;
+
+    /*
+     * Ensure that EVP_CIPHER_get_iv_length returns 0
+     * if we haven't initialized the cipher in this context
+     */
+    if (!TEST_int_eq(EVP_CIPHER_CTX_get_iv_length(ctx), 0))
+        goto err_free;
+
+    ret = 1;
+err_free:
+    EVP_CIPHER_CTX_free(ctx);
+err:
+    return ret;
+}
 
 /*
  * We're using some DH specific values in this test, so we skip compilation if
@@ -334,7 +368,11 @@ static int test_cipher_reinit(int test_id)
         0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
     };
-    unsigned char iv[16] = {
+    unsigned char iv[48] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
         0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
         0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
     };
@@ -363,7 +401,6 @@ static int test_cipher_reinit(int test_id)
 
     /* DES3-WRAP uses random every update - so it will give a different value */
     diff = EVP_CIPHER_is_a(cipher, "DES3-WRAP");
-
     if (!TEST_true(EVP_EncryptInit_ex(ctx, cipher, NULL, key, iv))
         || !TEST_true(EVP_EncryptUpdate(ctx, out1, &out1_len, in, sizeof(in)))
         || !TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, key, iv))
@@ -425,7 +462,11 @@ static int test_cipher_reinit_partialupdate(int test_id)
         0x03, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07,
         0x08, 0x09, 0x0a, 0x0b, 0x0c, 0x0d, 0x0e, 0x0f,
     };
-    static const unsigned char iv[16] = {
+    static const unsigned char iv[48] = {
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
+        0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
+        0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00,
         0x0f, 0x0e, 0x0d, 0x0c, 0x0b, 0x0a, 0x09, 0x08,
         0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01, 0x00
     };
@@ -438,7 +479,11 @@ static int test_cipher_reinit_partialupdate(int test_id)
     if (!TEST_ptr(cipher = EVP_CIPHER_fetch(libctx, name, NULL)))
         goto err;
 
-    in_len = EVP_CIPHER_get_block_size(cipher) / 2;
+    in_len = EVP_CIPHER_get_block_size(cipher);
+    if (!TEST_int_gt(in_len, 0))
+        goto err;
+    if (in_len > 1)
+        in_len /= 2;
 
     /* skip any ciphers that don't allow partial updates */
     if (((EVP_CIPHER_get_flags(cipher)
@@ -456,16 +501,18 @@ static int test_cipher_reinit_partialupdate(int test_id)
         || !TEST_true(EVP_EncryptUpdate(ctx, out2, &out2_len, in, in_len)))
         goto err;
 
-    if (!TEST_mem_eq(out1, out1_len, out2, out2_len))
-        goto err;
+    if (EVP_CIPHER_get_iv_length(cipher) != 0)
+        if (!TEST_mem_eq(out1, out1_len, out2, out2_len))
+            goto err;
 
     if (EVP_CIPHER_get_mode(cipher) != EVP_CIPH_SIV_MODE) {
         if (!TEST_true(EVP_EncryptInit_ex(ctx, NULL, NULL, NULL, iv))
             || !TEST_true(EVP_EncryptUpdate(ctx, out3, &out3_len, in, in_len)))
             goto err;
 
-        if (!TEST_mem_eq(out1, out1_len, out3, out3_len))
-            goto err;
+        if (EVP_CIPHER_get_iv_length(cipher) != 0)
+            if (!TEST_mem_eq(out1, out1_len, out3, out3_len))
+                goto err;
     }
     ret = 1;
 err:
@@ -473,7 +520,6 @@ err:
     EVP_CIPHER_CTX_free(ctx);
     return ret;
 }
-
 
 static int name_cmp(const char * const *a, const char * const *b)
 {
@@ -486,6 +532,10 @@ static void collect_cipher_names(EVP_CIPHER *cipher, void *cipher_names_list)
     const char *name = EVP_CIPHER_get0_name(cipher);
     char *namedup = NULL;
 
+    /* Skip Triple-DES encryption operations in FIPS mode */
+    if (OSSL_PROVIDER_available(libctx, "fips")
+            && strncmp(name, "DES", 3) == 0)
+        return;
     assert(name != NULL);
     /* the cipher will be freed after returning, strdup is needed */
     if ((namedup = OPENSSL_strdup(name)) != NULL
@@ -586,13 +636,18 @@ static int test_cipher_tdes_randkey(void)
     EVP_CIPHER_CTX *ctx = NULL;
     EVP_CIPHER *tdes_cipher = NULL, *aes_cipher = NULL;
     unsigned char key[24] = { 0 };
+    OSSL_PARAM params[2];
+    int check = 0;
 
+    params[0] = OSSL_PARAM_construct_int("encrypt-check", &check);
+    params[1] = OSSL_PARAM_construct_end();
     ret = TEST_ptr(aes_cipher = EVP_CIPHER_fetch(libctx, "AES-256-CBC", NULL))
           && TEST_int_eq(EVP_CIPHER_get_flags(aes_cipher) & EVP_CIPH_RAND_KEY, 0)
           && TEST_ptr(tdes_cipher = EVP_CIPHER_fetch(libctx, "DES-EDE3-CBC", NULL))
           && TEST_int_ne(EVP_CIPHER_get_flags(tdes_cipher) & EVP_CIPH_RAND_KEY, 0)
           && TEST_ptr(ctx = EVP_CIPHER_CTX_new())
-          && TEST_true(EVP_CipherInit_ex(ctx, tdes_cipher, NULL, NULL, NULL, 1))
+          && TEST_true(EVP_CipherInit_ex2(ctx, tdes_cipher, NULL, NULL, 1,
+                                          params))
           && TEST_int_gt(EVP_CIPHER_CTX_rand_key(ctx, key), 0);
 
     EVP_CIPHER_CTX_free(ctx);
@@ -631,9 +686,13 @@ static int kem_rsa_params(void)
         && TEST_int_eq(EVP_PKEY_decapsulate(pubctx, secret, &secretlen, ct,
                                             sizeof(ct)), 0)
         && TEST_uchar_eq(secret[0], 0)
-        /* Test encapsulate fails if the mode is not set */
+        /* Unless older FIPS, test encapsulate succeeds even if the mode is not set */
         && TEST_int_eq(EVP_PKEY_encapsulate_init(pubctx, NULL), 1)
-        && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, &secretlen), -2)
+        && (is_fips_lt_3_5 ||
+            (TEST_int_eq(EVP_PKEY_encapsulate(pubctx, NULL, &ctlen, NULL, &secretlen), 1)
+             && TEST_true(ctlen <= sizeof(ct))
+             && TEST_true(secretlen <= sizeof(secret))
+             && TEST_int_eq(EVP_PKEY_encapsulate(pubctx, ct, &ctlen, secret, &secretlen), 1)))
         /* Test setting a bad kem ops fail */
         && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, "RSA"), 0)
         && TEST_int_eq(EVP_PKEY_CTX_set_kem_op(pubctx, NULL), 0)
@@ -743,8 +802,16 @@ int setup_tests(void)
     if (!test_get_libctx(&libctx, &nullprov, config_file, &libprov, prov_name))
         return 0;
 
+    ADD_TEST(test_evp_cipher_api_safety);
+
+    if (strcmp(prov_name, "fips") == 0)
+        is_fips = 1;
+
+    is_fips_lt_3_5 = is_fips && fips_provider_version_lt(libctx, 3, 5, 0);
+
 #if !defined(OPENSSL_NO_DSA) && !defined(OPENSSL_NO_DH)
-    ADD_ALL_TESTS(test_dsa_param_keygen, 3 * 3 * 3);
+    if (!is_fips || fips_provider_version_lt(libctx, 3, 4, 0))
+        ADD_ALL_TESTS(test_dsa_param_keygen, 3 * 3 * 3);
 #endif
 #ifndef OPENSSL_NO_DH
     ADD_ALL_TESTS(test_dh_safeprime_param_keygen, 3 * 3 * 3);

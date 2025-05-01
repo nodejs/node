@@ -251,7 +251,7 @@ static void util_do_cmds(ENGINE *e, STACK_OF(OPENSSL_STRING) *cmds,
         cmd = sk_OPENSSL_STRING_value(cmds, loop);
         res = 1;                /* assume success */
         /* Check if this command has no ":arg" */
-        if ((arg = strstr(cmd, ":")) == NULL) {
+        if ((arg = strchr(cmd, ':')) == NULL) {
             if (!ENGINE_ctrl_cmd_string(e, cmd, NULL, 0))
                 res = 0;
         } else {
@@ -316,7 +316,8 @@ int engine_main(int argc, char **argv)
      * names, and then setup to parse the rest of the line as flags. */
     prog = argv[0];
     while ((argv1 = argv[1]) != NULL && *argv1 != '-') {
-        sk_OPENSSL_CSTRING_push(engines, argv1);
+        if (!sk_OPENSSL_CSTRING_push(engines, argv1))
+            goto end;
         argc--;
         argv++;
     }
@@ -347,7 +348,7 @@ int engine_main(int argc, char **argv)
             break;
         case OPT_TT:
             test_avail_noise++;
-            /* fall thru */
+            /* fall through */
         case OPT_T:
             test_avail++;
             break;
@@ -372,12 +373,14 @@ int engine_main(int argc, char **argv)
             BIO_printf(bio_err, "%s: Use -help for summary.\n", prog);
             goto end;
         }
-        sk_OPENSSL_CSTRING_push(engines, *argv);
+        if (!sk_OPENSSL_CSTRING_push(engines, *argv))
+            goto end;
     }
 
     if (sk_OPENSSL_CSTRING_num(engines) == 0) {
         for (e = ENGINE_get_first(); e != NULL; e = ENGINE_get_next(e)) {
-            sk_OPENSSL_CSTRING_push(engines, ENGINE_get_id(e));
+            if (!sk_OPENSSL_CSTRING_push(engines, ENGINE_get_id(e)))
+                goto end;
         }
     }
 
@@ -406,6 +409,9 @@ int engine_main(int argc, char **argv)
 
                 if (ENGINE_get_RSA(e) != NULL
                     && !append_buf(&cap_buf, &cap_size, "RSA"))
+                    goto end;
+                if (ENGINE_get_EC(e) != NULL
+                    && !append_buf(&cap_buf, &cap_size, "EC"))
                     goto end;
                 if (ENGINE_get_DSA(e) != NULL
                     && !append_buf(&cap_buf, &cap_size, "DSA"))

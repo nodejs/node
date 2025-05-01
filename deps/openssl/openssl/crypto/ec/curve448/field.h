@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright 2014 Cryptography Research, Inc.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -54,15 +54,15 @@ static INLINE_UNUSED void gf_weak_reduce(gf inout);
 void gf_strong_reduce(gf inout);
 void gf_add(gf out, const gf a, const gf b);
 void gf_sub(gf out, const gf a, const gf b);
-void gf_mul(gf_s * RESTRICT out, const gf a, const gf b);
-void gf_mulw_unsigned(gf_s * RESTRICT out, const gf a, uint32_t b);
-void gf_sqr(gf_s * RESTRICT out, const gf a);
+void ossl_gf_mul(gf_s * RESTRICT out, const gf a, const gf b);
+void ossl_gf_mulw_unsigned(gf_s * RESTRICT out, const gf a, uint32_t b);
+void ossl_gf_sqr(gf_s * RESTRICT out, const gf a);
 mask_t gf_isr(gf a, const gf x); /** a^2 x = 1, QNR, or 0 if x=0.  Return true if successful */
 mask_t gf_eq(const gf x, const gf y);
 mask_t gf_lobit(const gf x);
 mask_t gf_hibit(const gf x);
 
-void gf_serialize(uint8_t *serial, const gf x, int with_highbit);
+void gf_serialize(uint8_t serial[SER_BYTES], const gf x, int with_highbit);
 mask_t gf_deserialize(gf x, const uint8_t serial[SER_BYTES], int with_hibit,
                       uint8_t hi_nmask);
 
@@ -85,16 +85,16 @@ static ossl_inline void gf_sqrn(gf_s * RESTRICT y, const gf x, int n)
 
     assert(n > 0);
     if (n & 1) {
-        gf_sqr(y, x);
+        ossl_gf_sqr(y, x);
         n--;
     } else {
-        gf_sqr(tmp, x);
-        gf_sqr(y, tmp);
+        ossl_gf_sqr(tmp, x);
+        ossl_gf_sqr(y, tmp);
         n -= 2;
     }
     for (; n; n -= 2) {
-        gf_sqr(tmp, y);
-        gf_sqr(y, tmp);
+        ossl_gf_sqr(tmp, y);
+        ossl_gf_sqr(y, tmp);
     }
 }
 
@@ -122,9 +122,9 @@ static ossl_inline void gf_subx_nr(gf c, const gf a, const gf b, int amt)
 static ossl_inline void gf_mulw(gf c, const gf a, int32_t w)
 {
     if (w > 0) {
-        gf_mulw_unsigned(c, a, w);
+        ossl_gf_mulw_unsigned(c, a, w);
     } else {
-        gf_mulw_unsigned(c, a, -w);
+        ossl_gf_mulw_unsigned(c, a, -w);
         gf_sub(c, ZERO, c);
     }
 }

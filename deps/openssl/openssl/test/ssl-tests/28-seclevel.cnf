@@ -43,10 +43,12 @@ client = 1-SECLEVEL 4 with ED448 key-client
 [1-SECLEVEL 4 with ED448 key-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/server-ed448-cert.pem
 CipherString = DEFAULT:@SECLEVEL=4
+Groups = ?X448:?secp521r1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/server-ed448-key.pem
 
 [1-SECLEVEL 4 with ED448 key-client]
 CipherString = DEFAULT:@SECLEVEL=4
+Groups = ?X448:?secp521r1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 
@@ -66,10 +68,12 @@ client = 2-SECLEVEL 5 server with ED448 key-client
 [2-SECLEVEL 5 server with ED448 key-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/server-ed448-cert.pem
 CipherString = DEFAULT:@SECLEVEL=5
+Groups = ?X448:?secp521r1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/server-ed448-key.pem
 
 [2-SECLEVEL 5 server with ED448 key-client]
 CipherString = DEFAULT:@SECLEVEL=4
+Groups = ?X448:?secp521r1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 
@@ -89,10 +93,12 @@ client = 3-SECLEVEL 5 client with ED448 key-client
 [3-SECLEVEL 5 client with ED448 key-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/server-ed448-cert.pem
 CipherString = DEFAULT:@SECLEVEL=4
+Groups = ?X448:?secp521r1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/server-ed448-key.pem
 
 [3-SECLEVEL 5 client with ED448 key-client]
 CipherString = DEFAULT:@SECLEVEL=5
+Groups = ?X448:?secp521r1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/root-ed448-cert.pem
 VerifyMode = Peer
 

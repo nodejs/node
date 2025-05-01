@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -40,8 +40,9 @@ static const unsigned char cts128_test_key[16] = "chicken teriyaki";
 static const unsigned char cts128_test_input[64] =
     "I would like the" " General Gau's C"
     "hicken, please, " "and wonton soup.";
-static const unsigned char cts128_test_iv[] =
-    { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };
+static const unsigned char cts128_test_iv[] = {
+    0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0
+};
 
 static const unsigned char vector_17[17] = {
     0xc6, 0x35, 0x35, 0x68, 0xf2, 0xbf, 0x8c, 0xb4,
@@ -869,7 +870,7 @@ static int test_gcm128(int idx)
     if (A.data != NULL)
         CRYPTO_gcm128_aad(&ctx, A.data, A.size);
     if (P.data != NULL)
-        if (!TEST_int_ge(CRYPTO_gcm128_encrypt( &ctx, P.data, out, P.size), 0))
+        if (!TEST_int_ge(CRYPTO_gcm128_encrypt(&ctx, P.data, out, P.size), 0))
             return 0;
     if (!TEST_false(CRYPTO_gcm128_finish(&ctx, T.data, 16))
             || (C.data != NULL

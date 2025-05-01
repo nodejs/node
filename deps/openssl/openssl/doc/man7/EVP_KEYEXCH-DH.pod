@@ -33,21 +33,19 @@ the KDF type is set to "X942KDF-ASN1" (B<OSSL_KDF_NAME_X942KDF_ASN1>).
 
 =item "kdf-type" (B<OSSL_EXCHANGE_PARAM_KDF_TYPE>) <UTF8 string>
 
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
-
 =item "kdf-digest" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST>) <UTF8 string>
-
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =item "kdf-digest-props" (B<OSSL_EXCHANGE_PARAM_KDF_DIGEST_PROPS>) <UTF8 string>
 
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
-
 =item "kdf-outlen" (B<OSSL_EXCHANGE_PARAM_KDF_OUTLEN>) <unsigned integer>
 
-See L<provider-keyexch(7)/Common Key Exchange parameters>.
-
 =item "kdf-ukm" (B<OSSL_EXCHANGE_PARAM_KDF_UKM>) <octet string>
+
+=item "fips-indicator" (B<OSSL_EXCHANGE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+=item "key-check" (B<OSSL_EXCHANGE_PARAM_FIPS_KEY_CHECK>) <integer>
+
+=item "digest-check" (B<OSSL_EXCHANGE_PARAM_FIPS_DIGEST_CHECK>) <integer>
 
 See L<provider-keyexch(7)/Common Key Exchange parameters>.
 

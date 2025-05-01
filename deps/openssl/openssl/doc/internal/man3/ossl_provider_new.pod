@@ -3,9 +3,8 @@
 =head1 NAME
 
 ossl_provider_find, ossl_provider_new, ossl_provider_up_ref,
-ossl_provider_free,
-ossl_provider_set_fallback, ossl_provider_set_module_path,
-ossl_provider_add_parameter, ossl_provider_set_child, ossl_provider_get_parent,
+ossl_provider_free, ossl_provider_set_module_path,
+ossl_provider_set_child, ossl_provider_get_parent,
 ossl_provider_up_ref_parent, ossl_provider_free_parent,
 ossl_provider_default_props_update, ossl_provider_get0_dispatch,
 ossl_provider_init_as_child, ossl_provider_deinit_child,
@@ -18,6 +17,7 @@ ossl_provider_libctx,
 ossl_provider_teardown, ossl_provider_gettable_params,
 ossl_provider_get_params,
 ossl_provider_query_operation, ossl_provider_unquery_operation,
+ossl_provider_random_bytes,
 ossl_provider_set_operation_bit, ossl_provider_test_operation_bit,
 ossl_provider_get_capabilities
 - internal provider routines
@@ -35,10 +35,7 @@ ossl_provider_get_capabilities
  void ossl_provider_free(OSSL_PROVIDER *prov);
 
  /* Setters */
- int ossl_provider_set_fallback(OSSL_PROVIDER *prov);
  int ossl_provider_set_module_path(OSSL_PROVIDER *prov, const char *path);
- int ossl_provider_add_parameter(OSSL_PROVIDER *prov, const char *name,
-                                 const char *value);
 
  /* Child Providers */
  int ossl_provider_set_child(OSSL_PROVIDER *prov,
@@ -90,6 +87,8 @@ ossl_provider_get_capabilities
  void ossl_provider_unquery_operation(const OSSL_PROVIDER *prov,
                                       int operation_id,
                                       const OSSL_ALGORITHM *algs);
+ int ossl_provider_random_bytes(const OSSL_PROVIDER *prov, int which,
+                                void *buf, size_t n, unsigned int strength);
 
  int ossl_provider_set_operation_bit(OSSL_PROVIDER *provider, size_t bitnum);
  int ossl_provider_test_operation_bit(OSSL_PROVIDER *provider, size_t bitnum,
@@ -159,11 +158,6 @@ to have fallen out of use and will be deinitialized (its I<teardown>
 function is called), and the associated module will be unloaded if one
 was loaded, and I<prov> itself will be freed.
 
-ossl_provider_set_fallback() marks an available provider I<prov> as
-fallback.
-Note that after this call, the provider object pointer that was
-used can simply be dropped, but not freed.
-
 ossl_provider_set_module_path() sets the module path to load the
 provider module given the provider object I<prov>.
 This will be used in preference to automatically trying to figure out
@@ -172,13 +166,6 @@ on this in L</NOTES>).
 
 ossl_provider_libctx() returns the library context the given
 provider I<prov> is registered in.
-
-ossl_provider_add_parameter() adds a global parameter for the provider
-to retrieve as it sees fit.
-The parameters are a combination of I<name> and I<value>, and the
-provider will use the name to find the value it wants.
-Only text parameters can be given, and it's up to the provider to
-interpret them.
 
 ossl_provider_set_child() marks this provider as a child of a provider in the
 parent library context. I<handle> is the B<OSSL_CORE_HANDLE> object passed to
@@ -292,6 +279,26 @@ ossl_provider_unquery_operation() informs the provider that the result of
 ossl_provider_query_operation() is no longer going to be directly accessed and
 that all relevant information has been copied.
 
+ossl_provider_random_bytes() queries the provider, I<prov>, randomness
+source for I<n> bytes of entropy which are returned in the buffer
+I<buf>, the returned entropy will have a number of bits of I<strength>.
+The entropy is drawn from the source, I<which>, which can be:
+
+=over 4
+
+=item *
+
+OSSL_PROV_RANDOM_PUBLIC for a source equivalent to L<RAND_bytes(3)> or
+
+=item *
+
+.OSSL_PROV_RANDOM_PRIVATE for a source equivalent to L<RAND_priv_bytes(3)>.
+
+=back
+
+Specifying other values for I<which> will result in an unspecified source but will
+not result in an error.
+
 ossl_provider_set_operation_bit() registers a 1 for operation I<bitnum>
 in a bitstring that's internal to I<provider>.
 
@@ -350,7 +357,7 @@ ossl_provider_doall_activated() returns 1 if the callback was called for all
 activated providers.  A return value of 0 means that the callback was not
 called for any activated providers.
 
-ossl_provider_set_module_path(), ossl_provider_set_fallback(),
+ossl_provider_set_module_path(),
 ossl_provider_activate(), ossl_provider_activate_leave_fallbacks() and
 ossl_provider_deactivate(), ossl_provider_add_to_store(),
 ossl_provider_default_props_update() return 1 on success, or 0 on error.
@@ -380,6 +387,9 @@ ossl_provider_get_capabilities() returns 1 on success, or 0 on error.
 If this function isn't available in the provider or the provider does not
 support the requested capability then 0 is returned.
 
+ossl_provider_random_bytes() returns 1 on success or 0 or -1 on error as per
+L<RAND_bytes(3)>.
+
 =head1 SEE ALSO
 
 L<OSSL_PROVIDER(3)>, L<provider(7)>, L<openssl(1)>
@@ -390,7 +400,7 @@ The functions described here were all added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

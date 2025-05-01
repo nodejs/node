@@ -16,6 +16,11 @@ Key exchange support for the B<X25519> and B<X448> key types.
 
 =item "pad" (B<OSSL_EXCHANGE_PARAM_PAD>) <unsigned integer>
 
+=item "fips-indicator" (B<OSSL_EXCHANGE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+B<X25519> and B<X448> are not FIPS approved in FIPS 140-3.
+So this getter will return 0.
+
 See L<provider-keyexch(7)/Common Key Exchange parameters>.
 
 =back
@@ -40,7 +45,7 @@ L<OSSL_PROVIDER-FIPS(7)>,
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

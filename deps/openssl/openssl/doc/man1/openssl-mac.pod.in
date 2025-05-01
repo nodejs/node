@@ -48,8 +48,7 @@ Output the MAC in binary form. Uses hexadecimal text format if not specified.
 =item B<-cipher> I<name>
 
 Used by CMAC and GMAC to specify the cipher algorithm.
-For CMAC it must be one of AES-128-CBC, AES-192-CBC, AES-256-CBC or
-DES-EDE3-CBC.
+For CMAC it should be a CBC mode cipher e.g. AES-128-CBC.
 For GMAC it should be a GCM mode cipher e.g. AES-128-GCM.
 
 =item B<-digest> I<name>

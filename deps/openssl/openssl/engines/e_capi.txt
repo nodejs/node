@@ -1,4 +1,4 @@
-# Copyright 1999-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 1999-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -6,10 +6,10 @@
 # https://www.openssl.org/source/license.html
 
 #Reason codes
-CAPI_R_CANT_CREATE_HASH_OBJECT:100:cant create hash object
-CAPI_R_CANT_FIND_CAPI_CONTEXT:101:cant find capi context
-CAPI_R_CANT_GET_KEY:102:cant get key
-CAPI_R_CANT_SET_HASH_VALUE:103:cant set hash value
+CAPI_R_CANT_CREATE_HASH_OBJECT:100:can't create hash object
+CAPI_R_CANT_FIND_CAPI_CONTEXT:101:can't find capi context
+CAPI_R_CANT_GET_KEY:102:can't get key
+CAPI_R_CANT_SET_HASH_VALUE:103:can't set hash value
 CAPI_R_CRYPTACQUIRECONTEXT_ERROR:104:cryptacquirecontext error
 CAPI_R_CRYPTENUMPROVIDERS_ERROR:105:cryptenumproviders error
 CAPI_R_DECRYPT_ERROR:106:decrypt error

@@ -19,7 +19,7 @@
  * The prime is: 2^768 - 2 ^704 - 1 + 2^64 * { [2^638 pi] + 149686 }
  *
  * RFC2409 specifies a generator of 2.
- * RFC2412 specifies a generator of of 22.
+ * RFC2412 specifies a generator of 22.
  */
 
 BIGNUM *BN_get_rfc2409_prime_768(BIGNUM *bn)

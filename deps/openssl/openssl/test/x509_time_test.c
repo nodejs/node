@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -72,7 +72,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "20170217180105.001Z", 0, 0, -1, NULL,
     },
     {
-        /* time zone, check only */
+        /* timezone, check only */
         "20170217180105+0800", 0, 0, -1, NULL,
     },
     {
@@ -84,7 +84,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "20170217180105.001Z", 1, 0, -1, NULL,
     },
     {
-        /* time zone, set string */
+        /* timezone, set string */
         "20170217180105+0800", 1, 0, -1, NULL,
     },
     {
@@ -113,7 +113,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "040229180101Z", 0, 1, -1, NULL,
     },
     {
-        /* time zone, check only */
+        /* timezone, check only */
         "170217180154+0800", 0, 0, -1, NULL,
     },
     {
@@ -121,7 +121,7 @@ static TESTDATA_FORMAT x509_format_tests[] = {
         "1702171801Z", 1, 0, -1, NULL,
     },
     {
-        /* time zone, set string */
+        /* timezone, set string */
         "170217180154+0800", 1, 0, -1, NULL,
     },
     {
@@ -490,7 +490,7 @@ static const struct {
             "Jul 31 22:20:50 2017 GMT"),
     /* Generalized Time, no seconds */
     construct_asn1_time("201707312220Z", V_ASN1_GENERALIZEDTIME,
-            "Jul 31 22:20:00 2017 GMT"),
+            "Bad time value"),
     /* Generalized Time, fractional seconds (3 digits) */
     construct_asn1_time("20170731222050.123Z", V_ASN1_GENERALIZEDTIME,
             "Jul 31 22:20:50.123 2017 GMT"),
@@ -505,7 +505,7 @@ static const struct {
             "Jul 31 22:20:50 2017 GMT"),
     /* UTC Time, no seconds */
     construct_asn1_time("1707312220Z", V_ASN1_UTCTIME,
-            "Jul 31 22:20:00 2017 GMT"),
+            "Bad time value"),
 };
 
 static const struct {
@@ -517,7 +517,7 @@ static const struct {
             "2017-07-31 22:20:50Z"),
     /* Generalized Time, no seconds */
     construct_asn1_time("201707312220Z", V_ASN1_GENERALIZEDTIME,
-            "2017-07-31 22:20:00Z"),
+            "Bad time value"),
     /* Generalized Time, fractional seconds (3 digits) */
     construct_asn1_time("20170731222050.123Z", V_ASN1_GENERALIZEDTIME,
             "2017-07-31 22:20:50.123Z"),
@@ -532,7 +532,7 @@ static const struct {
             "2017-07-31 22:20:50Z"),
     /* UTC Time, no seconds */
     construct_asn1_time("1707312220Z", V_ASN1_UTCTIME,
-            "2017-07-31 22:20:00Z"),
+            "Bad time value"),
 };
 
 static int test_x509_time_print_rfc_822(int idx)

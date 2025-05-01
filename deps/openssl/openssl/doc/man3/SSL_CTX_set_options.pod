@@ -24,6 +24,7 @@ SSL_get_secure_renegotiation_support - manipulate SSL options
 =head1 DESCRIPTION
 
 SSL_CTX_set_options() adds the options set via bit-mask in B<options> to B<ctx>.
+B<ctx> B<MUST NOT> be NULL.
 Options already set before are not cleared!
 
 SSL_set_options() adds the options set via bit-mask in B<options> to B<ssl>.
@@ -70,7 +71,7 @@ CSP 3.x.
 
 =item SSL_OP_DONT_INSERT_EMPTY_FRAGMENTS
 
-Disables a countermeasure against a SSL 3.0/TLS 1.0 protocol
+Disables a countermeasure against an SSL 3.0/TLS 1.0 protocol
 vulnerability affecting CBC ciphers, which cannot be handled by some
 broken SSL implementations.  This option has no effect for connections
 using other ciphers.
@@ -110,6 +111,12 @@ this option to enable it.
 In TLSv1.3 allow a non-(ec)dhe based key exchange mode on resumption. This means
 that there will be no forward secrecy for the resumed session.
 
+=item SSL_OP_PREFER_NO_DHE_KEX
+
+In TLSv1.3, on resumption let the server prefer a non-(ec)dhe based key
+exchange mode over an (ec)dhe based one. Ignored without B<SSL_OP_ALLOW_NO_DHE_KEX>
+being set as well. Always ignored on the client.
+
 =item SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION
 
 Allow legacy insecure renegotiation between OpenSSL and unpatched clients or
@@ -129,7 +136,7 @@ connection. Only available when using the deprecated DTLSv1_client_method() API.
 
 =item SSL_OP_CLEANSE_PLAINTEXT
 
-By default TLS connections keep a copy of received plaintext
+By default TLS and QUIC SSL objects keep a copy of received plaintext
 application data in a static buffer until it is overwritten by the
 next portion of data. When enabling SSL_OP_CLEANSE_PLAINTEXT
 deciphered application data is cleansed by calling OPENSSL_cleanse(3)
@@ -140,6 +147,14 @@ Since OpenSSL only cleanses internal buffers, the application is still
 responsible for cleansing all other buffers. Most notably, this
 applies to buffers passed to functions like L<SSL_read(3)>,
 L<SSL_peek(3)> but also like L<SSL_write(3)>.
+
+TLS connections do not buffer data to be sent in plaintext. QUIC stream
+objects do buffer plaintext data to be sent and this option will also cause
+that data to be cleansed when it is discarded.
+
+This option can be set differently on individual QUIC stream objects and
+has no effect on QUIC connection objects (except where a default stream is
+being used).
 
 =item SSL_OP_COOKIE_EXCHANGE
 
@@ -174,6 +189,16 @@ Note that with kernel TLS enabled some cryptographic operations are performed
 by the kernel directly and not via any available OpenSSL Providers. This might
 be undesirable if, for example, the application requires all cryptographic
 operations to be performed by the FIPS provider.
+
+=item SSL_OP_ENABLE_KTLS_TX_ZEROCOPY_SENDFILE
+
+With this option, sendfile() will use the zerocopy mode, which gives a
+performance boost when used with KTLS hardware offload. Note that invalid TLS
+records might be transmitted if the file is changed while being sent. This
+option has no effect if B<SSL_OP_ENABLE_KTLS> is not enabled.
+
+This option only applies to Linux. KTLS sendfile on FreeBSD doesn't offer an
+option to disable zerocopy and always runs in this mode.
 
 =item SSL_OP_ENABLE_MIDDLEBOX_COMPAT
 
@@ -214,10 +239,30 @@ functionality is not required. Those applications can turn this feature off by
 setting this option. This is a server-side option only. It is ignored by
 clients.
 
+=item SSL_OP_NO_TX_CERTIFICATE_COMPRESSION
+
+Normally clients and servers will transparently attempt to negotiate the
+RFC8879 certificate compression option on TLSv1.3 connections.
+
+If this option is set, the certificate compression extension is ignored
+upon receipt and compressed certificates will not be sent to the peer.
+
+=item SSL_OP_NO_RX_CERTIFICATE_COMPRESSION
+
+Normally clients and servers will transparently attempt to negotiate the
+RFC8879 certificate compression option on TLSv1.3 connections.
+
+If this option is set, the certificate compression extension will not be sent
+and compressed certificates will not be accepted from the peer.
+
 =item SSL_OP_NO_COMPRESSION
 
-Do not use compression even if it is supported. This option is set by default.
-To switch it off use SSL_clear_options().
+Do not use TLS record compression even if it is supported. This option is set by
+default. To switch it off use SSL_clear_options(). Note that TLS record
+compression is not recommended and is not available at security level 2 or
+above. From OpenSSL 3.2 the default security level is 2, so clearing this option
+will have no effect without also changing the default security level. See
+L<SSL_CTX_set_security_level(3)>.
 
 =item SSL_OP_NO_ENCRYPT_THEN_MAC
 
@@ -312,7 +357,7 @@ Disable version rollback attack detection.
 During the client key exchange, the client must send the same information
 about acceptable SSL/TLS protocol levels as during the first hello. Some
 clients violate this rule by adapting to the server's answer. (Example:
-the client sends a SSLv2 hello and accepts up to SSLv3.1=TLSv1, the server
+the client sends an SSLv2 hello and accepts up to SSLv3.1=TLSv1, the server
 only understands up to SSLv3. In this case the client must still use the
 same SSLv3.1=TLSv1 announcement. Some clients step down to SSLv3 with respect
 to the server's answer and violate the version rollback protection.)
@@ -416,6 +461,47 @@ B<SSL_OP_LEGACY_SERVER_CONNECT> enables initial connections and secure
 renegotiation between OpenSSL clients and unpatched servers B<only>, while
 B<SSL_OP_ALLOW_UNSAFE_LEGACY_RENEGOTIATION> allows initial connections
 and renegotiation between OpenSSL and unpatched clients or servers.
+
+=head2 Applicability of options to QUIC connections and streams
+
+These options apply to SSL objects referencing a QUIC connection:
+
+=over 4
+
+=item SSL_OP_ALLOW_NO_DHE_KEX
+
+=item SSL_OP_NO_TX_CERTIFICATE_COMPRESSION
+
+=item SSL_OP_NO_RX_CERTIFICATE_COMPRESSION
+
+=item SSL_OP_NO_TICKET
+
+=item SSL_OP_PRIORITIZE_CHACHA
+
+=back
+
+These options apply to SSL objects referencing a QUIC stream:
+
+=over 4
+
+=item SSL_OP_CLEANSE_PLAINTEXT
+
+=back
+
+Options on QUIC connections are initialized from the options set on SSL_CTX
+before a QUIC connection SSL object is created. Options on QUIC streams are
+initialised from the options configured on the QUIC connection SSL object
+they are created from.
+
+Setting options which relate to QUIC streams on a QUIC connection SSL object has
+no direct effect on the QUIC connection SSL object itself, but will change the
+options set on the default stream (if there is one) and will also determine the
+default options set on any future streams which are created.
+
+Other options not mentioned above do not have an effect and will be ignored.
+
+Options which relate to QUIC streams may also be set directly on QUIC stream SSL
+objects. Setting connection-related options on such an object has no effect.
 
 =head1 RETURN VALUES
 

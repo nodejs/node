@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,7 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
     BIO *b, *mem;
     static unsigned char inp[BUF_SIZE] = { 0 };
     unsigned char out[BUF_SIZE], ref[BUF_SIZE];
-    int i, lref, len;
+    int i, lref, len, tmplen;
 
     /* Fill buffer with non-zero data so that over steps can be detected */
     if (!TEST_int_gt(RAND_bytes(inp, DATA_SIZE), 0))
@@ -77,13 +77,20 @@ static int do_bio_cipher(const EVP_CIPHER* cipher, const unsigned char* key,
         BIO_push(b, mem);
         memset(out, 0, sizeof(out));
         out[i] = ~ref[i];
-        len = BIO_read(b, out, i);
+        tmplen = BIO_read(b, out, i);
+        if (tmplen < 0)
+            goto err;
+        len = tmplen;
         /* check for overstep */
         if (!TEST_uchar_eq(out[i], (unsigned char)~ref[i])) {
             TEST_info("Encrypt overstep check failed @ operation %d", i);
             goto err;
         }
-        len += BIO_read(b, out + len, sizeof(out) - len);
+        tmplen = BIO_read(b, out + len, sizeof(out) - len);
+        if (tmplen < 0)
+            goto err;
+        len += tmplen;
+
         BIO_free_all(b);
 
         if (!TEST_mem_eq(out, len, ref, lref)) {
@@ -206,8 +213,7 @@ err:
 
 static int do_test_bio_cipher(const EVP_CIPHER* cipher, int idx)
 {
-    switch(idx)
-    {
+    switch (idx) {
         case 0:
             return do_bio_cipher(cipher, KEY, NULL);
         case 1:

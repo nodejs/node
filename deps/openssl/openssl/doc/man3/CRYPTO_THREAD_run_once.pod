@@ -5,7 +5,11 @@
 CRYPTO_THREAD_run_once,
 CRYPTO_THREAD_lock_new, CRYPTO_THREAD_read_lock, CRYPTO_THREAD_write_lock,
 CRYPTO_THREAD_unlock, CRYPTO_THREAD_lock_free,
-CRYPTO_atomic_add, CRYPTO_atomic_or, CRYPTO_atomic_load - OpenSSL thread support
+CRYPTO_atomic_add, CRYPTO_atomic_add64, CRYPTO_atomic_and, CRYPTO_atomic_or,
+CRYPTO_atomic_load, CRYPTO_atomic_store, CRYPTO_atomic_load_int,
+OSSL_set_max_threads, OSSL_get_max_threads,
+OSSL_get_thread_support_flags, OSSL_THREAD_SUPPORT_FLAG_THREAD_POOL,
+OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN - OpenSSL thread support
 
 =head1 SYNOPSIS
 
@@ -21,9 +25,22 @@ CRYPTO_atomic_add, CRYPTO_atomic_or, CRYPTO_atomic_load - OpenSSL thread support
  void CRYPTO_THREAD_lock_free(CRYPTO_RWLOCK *lock);
 
  int CRYPTO_atomic_add(int *val, int amount, int *ret, CRYPTO_RWLOCK *lock);
+ int CRYPTO_atomic_add64(uint64_t *val, uint64_t op, uint64_t *ret,
+                         CRYPTO_RWLOCK *lock);
+ int CRYPTO_atomic_and(uint64_t *val, uint64_t op, uint64_t *ret,
+                       CRYPTO_RWLOCK *lock);
  int CRYPTO_atomic_or(uint64_t *val, uint64_t op, uint64_t *ret,
                       CRYPTO_RWLOCK *lock);
  int CRYPTO_atomic_load(uint64_t *val, uint64_t *ret, CRYPTO_RWLOCK *lock);
+ int CRYPTO_atomic_store(uint64_t *dst, uint64_t val, CRYPTO_RWLOCK *lock);
+ int CRYPTO_atomic_load_int(int *val, int *ret, CRYPTO_RWLOCK *lock);
+
+ int OSSL_set_max_threads(OSSL_LIB_CTX *ctx, uint64_t max_threads);
+ uint64_t OSSL_get_max_threads(OSSL_LIB_CTX *ctx);
+ uint32_t OSSL_get_thread_support_flags(void);
+
+ #define OSSL_THREAD_SUPPORT_FLAG_THREAD_POOL
+ #define OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN
 
 =head1 DESCRIPTION
 
@@ -82,6 +99,25 @@ supported and I<lock> is NULL, then the function will fail.
 
 =item *
 
+CRYPTO_atomic_add64() atomically adds I<op> to I<*val> and returns the
+result of the operation in I<*ret>. I<lock> will be locked, unless atomic
+operations are supported on the specific platform. Because of this, if a
+variable is modified by CRYPTO_atomic_add64() then CRYPTO_atomic_add64() must
+be the only way that the variable is modified. If atomic operations are not
+supported and I<lock> is NULL, then the function will fail.
+
+=item *
+
+CRYPTO_atomic_and() performs an atomic bitwise and of I<op> and I<*val> and stores
+the result back in I<*val>. It also returns the result of the operation in
+I<*ret>. I<lock> will be locked, unless atomic operations are supported on the
+specific platform. Because of this, if a variable is modified by
+CRYPTO_atomic_and() or read by CRYPTO_atomic_load() then CRYPTO_atomic_and() must
+be the only way that the variable is modified. If atomic operations are not
+supported and I<lock> is NULL, then the function will fail.
+
+=item *
+
 CRYPTO_atomic_or() performs an atomic bitwise or of I<op> and I<*val> and stores
 the result back in I<*val>. It also returns the result of the operation in
 I<*ret>. I<lock> will be locked, unless atomic operations are supported on the
@@ -99,6 +135,38 @@ read by CRYPTO_atomic_load() then CRYPTO_atomic_load() must be the only way that
 the variable is read. If atomic operations are not supported and I<lock> is
 NULL, then the function will fail.
 
+=item *
+
+CRYPTO_atomic_store() atomically stores the contents of I<val> into I<*dst>.
+I<lock> will be locked, unless atomic operations are supported on the specific
+platform.
+
+=item *
+
+CRYPTO_atomic_load_int() works identically to CRYPTO_atomic_load() but operates
+on an I<int> value instead of a I<uint64_t> value.
+
+=item *
+
+OSSL_set_max_threads() sets the maximum number of threads to be used by the
+thread pool. If the argument is 0, thread pooling is disabled. OpenSSL will
+not create any threads and existing threads in the thread pool will be torn
+down. The maximum thread count is a limit, not a target. Threads will not be
+spawned unless (and until) there is demand. Thread polling is disabled by
+default. To enable threading you must call OSSL_set_max_threads() explicitly.
+Under no circumstances is this done for you.
+
+=item *
+
+OSSL_get_thread_support_flags() determines what thread pool functionality
+OpenSSL is compiled with and is able to support in the current run time
+environment. B<OSSL_THREAD_SUPPORT_FLAG_THREAD_POOL> indicates that the base
+thread pool functionality is available, and
+B<OSSL_THREAD_SUPPORT_FLAG_DEFAULT_SPAWN> indicates that the default thread pool
+model is available. The default thread pool model is currently the only model
+available, therefore both of these flags must be set for thread pool
+functionality to be used.
+
 =back
 
 =head1 RETURN VALUES
@@ -108,6 +176,18 @@ CRYPTO_THREAD_run_once() returns 1 on success, or 0 on error.
 CRYPTO_THREAD_lock_new() returns the allocated lock, or NULL on error.
 
 CRYPTO_THREAD_lock_free() returns no value.
+
+OSSL_set_max_threads() returns 1 on success and 0 on failure. Returns failure
+if OpenSSL-managed thread pooling is not supported (for example, if it is not
+supported on the current platform, or because OpenSSL is not built with the
+necessary support).
+
+OSSL_get_max_threads() returns the maximum number of threads currently allowed
+to be used by the thread pool. If thread pooling is disabled or not available,
+returns 0.
+
+OSSL_get_thread_support_flags() returns zero or more B<OSSL_THREAD_SUPPORT_FLAG>
+values.
 
 The other functions return 1 on success, or 0 on error.
 
@@ -184,6 +264,14 @@ repeatedly load/unload shared libraries that allocate locks.
 =head1 SEE ALSO
 
 L<crypto(7)>, L<openssl-threads(7)>.
+
+=head1 HISTORY
+
+CRYPTO_atomic_load_int(), OSSL_set_max_threads(), OSSL_get_max_threads(),
+OSSL_get_thread_support_flags() were added in OpenSSL 3.2.
+
+CRYPTO_atomic_store(), CRYPTO_atomic_add64(), CRYPTO_atomic_and()
+were added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 

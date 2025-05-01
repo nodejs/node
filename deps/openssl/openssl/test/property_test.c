@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -64,6 +64,19 @@ static int test_property_string(void)
         && TEST_int_eq(ossl_property_name(ctx, "fnord", 0), 0)
         && TEST_int_ne(ossl_property_name(ctx, "fnord", 1), 0)
         && TEST_int_ne(ossl_property_name(ctx, "name", 1), 0)
+        /* Pre loaded names */
+        && TEST_str_eq(ossl_property_name_str(ctx, 1), "provider")
+        && TEST_str_eq(ossl_property_name_str(ctx, 2), "version")
+        && TEST_str_eq(ossl_property_name_str(ctx, 3), "fips")
+        && TEST_str_eq(ossl_property_name_str(ctx, 4), "output")
+        && TEST_str_eq(ossl_property_name_str(ctx, 5), "input")
+        && TEST_str_eq(ossl_property_name_str(ctx, 6), "structure")
+        /* The names we added */
+        && TEST_str_eq(ossl_property_name_str(ctx, 7), "fnord")
+        && TEST_str_eq(ossl_property_name_str(ctx, 8), "name")
+        /* Out of range */
+        && TEST_ptr_null(ossl_property_name_str(ctx, 0))
+        && TEST_ptr_null(ossl_property_name_str(ctx, 9))
         /* Property value checks */
         && TEST_int_eq(ossl_property_value(ctx, "fnord", 0), 0)
         && TEST_int_ne(i = ossl_property_value(ctx, "no", 0), 0)
@@ -74,6 +87,15 @@ static int test_property_string(void)
         && TEST_int_ne(i = ossl_property_value(ctx, "illuminati", 1), 0)
         && TEST_int_eq(j = ossl_property_value(ctx, "fnord", 1), i + 1)
         && TEST_int_eq(ossl_property_value(ctx, "fnord", 1), j)
+        /* Pre loaded values */
+        && TEST_str_eq(ossl_property_value_str(ctx, 1), "yes")
+        && TEST_str_eq(ossl_property_value_str(ctx, 2), "no")
+        /* The value we added */
+        && TEST_str_eq(ossl_property_value_str(ctx, 3), "illuminati")
+        && TEST_str_eq(ossl_property_value_str(ctx, 4), "fnord")
+        /* Out of range */
+        && TEST_ptr_null(ossl_property_value_str(ctx, 0))
+        && TEST_ptr_null(ossl_property_value_str(ctx, 5))
         /* Check name and values are distinct */
         && TEST_int_eq(ossl_property_value(ctx, "cold", 0), 0)
         && TEST_int_ne(ossl_property_name(ctx, "fnord", 0),

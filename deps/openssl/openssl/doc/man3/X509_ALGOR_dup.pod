@@ -2,7 +2,10 @@
 
 =head1 NAME
 
-X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_cmp, X509_ALGOR_copy - AlgorithmIdentifier functions
+X509_ALGOR_dup,
+X509_ALGOR_set0, X509_ALGOR_get0,
+X509_ALGOR_set_md, X509_ALGOR_cmp,
+X509_ALGOR_copy - AlgorithmIdentifier functions
 
 =head1 SYNOPSIS
 
@@ -18,23 +21,24 @@ X509_ALGOR_dup, X509_ALGOR_set0, X509_ALGOR_get0, X509_ALGOR_set_md, X509_ALGOR_
 
 =head1 DESCRIPTION
 
-X509_ALGOR_dup() returns a copy of B<alg>.
+X509_ALGOR_dup() returns a copy of I<alg>.
 
-X509_ALGOR_set0() sets the algorithm OID of B<alg> to B<aobj> and the
-associated parameter type to B<ptype> with value B<pval>. If B<ptype> is
-B<V_ASN1_UNDEF> the parameter is omitted, otherwise B<ptype> and B<pval> have
-the same meaning as the B<type> and B<value> parameters to ASN1_TYPE_set().
+X509_ALGOR_set0() sets the algorithm OID of I<alg> to I<aobj> and the
+associated parameter type to I<ptype> with value I<pval>. If I<ptype> is
+B<V_ASN1_UNDEF> the parameter is omitted, otherwise I<ptype> and I<pval> have
+the same meaning as the I<type> and I<value> parameters to ASN1_TYPE_set().
 All the supplied parameters are used internally so must B<NOT> be freed after
-this call.
+this call succeeded;
+otherwise ownership remains with the caller and I<alg> remains untouched.
 
 X509_ALGOR_get0() is the inverse of X509_ALGOR_set0(): it returns the
-algorithm OID in B<*paobj> and the associated parameter in B<*pptype>
-and B<*ppval> from the B<AlgorithmIdentifier> B<alg>.
+algorithm OID in I<*paobj> and the associated parameter in I<*pptype>
+and I<*ppval> from the B<AlgorithmIdentifier> I<alg>.
 
-X509_ALGOR_set_md() sets the B<AlgorithmIdentifier> B<alg> to appropriate
-values for the message digest B<md>.
+X509_ALGOR_set_md() sets the B<AlgorithmIdentifier> I<alg> to appropriate
+values for the message digest I<md>.
 
-X509_ALGOR_cmp() compares B<a> and B<b> and returns 0 if they have identical
+X509_ALGOR_cmp() compares I<a> and I<b> and returns 0 if they have identical
 encodings and nonzero otherwise.
 
 X509_ALGOR_copy() copies the source values into the dest structs; making
@@ -58,7 +62,7 @@ The X509_ALGOR_copy() was added in 1.1.1e.
 
 =head1 COPYRIGHT
 
-Copyright 2002-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2002-2022 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

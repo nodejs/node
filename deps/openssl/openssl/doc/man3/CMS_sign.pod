@@ -60,7 +60,8 @@ otherwise the translation will corrupt it.
 The SignedData structure includes several CMS signedAttributes including the
 signing time, the CMS content type and the supported list of ciphers in an
 SMIMECapabilities attribute. If B<CMS_NOATTR> is set then no signedAttributes
-will be used. If B<CMS_NOSMIMECAP> is set then just the SMIMECapabilities are
+will be used at all. If B<CMS_NOSMIMECAP> is set then the SMIMECapabilities
+will be omitted. If B<CMS_NO_SIGNING_TIME> is set then the signing time will be
 omitted.
 
 If present the SMIMECapabilities attribute indicates support for the following
@@ -129,6 +130,9 @@ The B<CMS_STREAM> flag is only supported for detached data in OpenSSL 0.9.8,
 it is supported for embedded data in OpenSSL 1.0.0 and later.
 
 The CMS_sign_ex() method was added in OpenSSL 3.0.
+
+Since OpenSSL 3.2, CMS_sign_ex() and CMS_sign() ignore any duplicate
+certificates in their I<certs> argument and no longer throw an error for them.
 
 =head1 COPYRIGHT
 

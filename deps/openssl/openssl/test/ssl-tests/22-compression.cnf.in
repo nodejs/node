@@ -21,9 +21,11 @@ our @tests_tls1_3 = (
     {
         name => "tlsv1_3-both-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         test => {
@@ -34,8 +36,10 @@ our @tests_tls1_3 = (
     {
         name => "tlsv1_3-client-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         test => {
@@ -46,9 +50,11 @@ our @tests_tls1_3 = (
     {
         name => "tlsv1_3-server-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         test => {
             "CompressionExpected" => "No",
@@ -58,8 +64,10 @@ our @tests_tls1_3 = (
     {
         name => "tlsv1_3-neither-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         test => {
             "CompressionExpected" => "No",
@@ -71,9 +79,11 @@ our @tests_tls1_2 = (
     {
         name => "tlsv1_2-both-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression",
             "MaxProtocol" => "TLSv1.2"
         },
@@ -85,8 +95,10 @@ our @tests_tls1_2 = (
     {
         name => "tlsv1_2-client-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression",
             "MaxProtocol" => "TLSv1.2"
         },
@@ -98,9 +110,11 @@ our @tests_tls1_2 = (
     {
         name => "tlsv1_2-server-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "Options" => "Compression"
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "MaxProtocol" => "TLSv1.2"
         },
         test => {
@@ -111,8 +125,10 @@ our @tests_tls1_2 = (
     {
         name => "tlsv1_2-neither-compress",
         server => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
         },
         client => {
+            "CipherString" => 'DEFAULT@SECLEVEL=1',
             "MaxProtocol" => "TLSv1.2"
         },
         test => {

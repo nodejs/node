@@ -127,7 +127,9 @@ The name of an implementation should match the type of object it handles.
 For example, an implementation that encodes an RSA key should be named "RSA".
 Likewise, an implementation that further encodes DER should be named "DER".
 
-Properties can be used to further specify details about an implementation:
+Properties, as defined in the L<OSSL_ALGORITHM(3)> array element of each
+decoder implementation, can be used to further specify details about an
+implementation:
 
 =over 4
 
@@ -321,7 +323,7 @@ The ENCODER interface was introduced in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

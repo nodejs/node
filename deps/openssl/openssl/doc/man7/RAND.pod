@@ -54,6 +54,13 @@ only in exceptional cases and is not recommended, unless you have a profound
 knowledge of cryptographic principles and understand the implications of your
 changes.
 
+Finally, it is possible for a provider to bypass the default RAND setup for
+L<RAND_bytes(3)> and associated functions.  A provider can be specified as the
+single randomness source via the L<RAND_set1_random_provider(3)> function or via
+configuration using the B<random_provider> option in L<config(5)>.  Once specified,
+the nominated provider will be used directly when calling the L<RAND_bytes(3)>
+family of functions.
+
 =head1 DEFAULT SETUP
 
 The default OpenSSL RAND method is based on the EVP_RAND deterministic random
@@ -68,11 +75,13 @@ L<RAND_bytes(3)>,
 L<RAND_priv_bytes(3)>,
 L<EVP_RAND(3)>,
 L<RAND_get0_primary(3)>,
-L<EVP_RAND(7)>
+L<config(5)>,
+L<EVP_RAND(7)>,
+L<RAND_set1_random_provider(3)>.
 
 =head1 COPYRIGHT
 
-Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

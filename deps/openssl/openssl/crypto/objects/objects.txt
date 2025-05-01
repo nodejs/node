@@ -282,6 +282,9 @@ id-smime-ct 35		: id-ct-rpkiGhostbusters
 id-smime-ct 36		: id-ct-resourceTaggedAttest
 id-smime-ct 47		: id-ct-geofeedCSVwithCRLF
 id-smime-ct 48		: id-ct-signedChecklist
+id-smime-ct 49		: id-ct-ASPA
+id-smime-ct 50		: id-ct-signedTAL
+id-smime-ct 51		: id-ct-rpkiSignedPrefixList
 
 # S/MIME Attributes
 id-smime-aa 1		: id-smime-aa-receiptRequest
@@ -315,7 +318,10 @@ id-smime-aa 26		: id-smime-aa-ets-certCRLTimestamp
 id-smime-aa 27		: id-smime-aa-ets-archiveTimeStamp
 id-smime-aa 28		: id-smime-aa-signatureType
 id-smime-aa 29		: id-smime-aa-dvcs-dvc
+id-smime-aa 44		: id-aa-ets-attrCertificateRefs
+id-smime-aa 45		: id-aa-ets-attrRevocationRefs
 id-smime-aa 47		: id-smime-aa-signingCertificateV2
+id-smime-aa 48		: id-aa-ets-archiveTimestampV2
 
 # S/MIME Algorithm Identifiers
 # obsolete
@@ -348,14 +354,17 @@ id-smime-cti 6		: id-smime-cti-ets-proofOfCreation
 
 pkcs9 20		:			: friendlyName
 pkcs9 21		:			: localKeyID
+!Alias ms-corp 1 3 6 1 4 1 311
 !Cname ms-csp-name
-1 3 6 1 4 1 311 17 1	: CSPName		: Microsoft CSP Name
-1 3 6 1 4 1 311 17 2	: LocalKeySet		: Microsoft Local Key set
+ms-corp 17 1	: CSPName		: Microsoft CSP Name
+ms-corp 17 2	: LocalKeySet		: Microsoft Local Key set
 !Alias certTypes pkcs9 22
 certTypes 1		:			: x509Certificate
 certTypes 2		:			: sdsiCertificate
 !Alias crlTypes pkcs9 23
 crlTypes 1		:			: x509Crl
+
+pkcs9 52		: id-aa-CMSAlgorithmProtection
 
 !Alias pkcs12 pkcs 12
 !Alias pkcs12-pbeids pkcs12 1
@@ -396,6 +405,9 @@ sm-scheme 504           : RSA-SM3		: sm3WithRSAEncryption
 
 sm-scheme 501           : SM2-SM3               : SM2-with-SM3
 
+# From GM/T 0091-2020
+sm3 3 1			:			: hmacWithSM3
+
 # From RFC4231
 rsadsi 2 8		:			: hmacWithSHA224
 rsadsi 2 9		:			: hmacWithSHA256
@@ -425,21 +437,26 @@ rsadsi 3 8		: RC5-CBC		: rc5-cbc
 			: RC5-OFB		: rc5-ofb
 
 !Cname ms-ext-req
-1 3 6 1 4 1 311 2 1 14	: msExtReq		: Microsoft Extension Request
+ms-corp 2 1 14	: msExtReq		: Microsoft Extension Request
 !Cname ms-code-ind
-1 3 6 1 4 1 311 2 1 21	: msCodeInd		: Microsoft Individual Code Signing
+ms-corp 2 1 21	: msCodeInd		: Microsoft Individual Code Signing
 !Cname ms-code-com
-1 3 6 1 4 1 311 2 1 22	: msCodeCom		: Microsoft Commercial Code Signing
+ms-corp 2 1 22	: msCodeCom		: Microsoft Commercial Code Signing
 !Cname ms-ctl-sign
-1 3 6 1 4 1 311 10 3 1	: msCTLSign		: Microsoft Trust List Signing
+ms-corp 10 3 1	: msCTLSign		: Microsoft Trust List Signing
 !Cname ms-sgc
-1 3 6 1 4 1 311 10 3 3	: msSGC			: Microsoft Server Gated Crypto
+ms-corp 10 3 3	: msSGC			: Microsoft Server Gated Crypto
 !Cname ms-efs
-1 3 6 1 4 1 311 10 3 4	: msEFS			: Microsoft Encrypted File System
+ms-corp 10 3 4	: msEFS			: Microsoft Encrypted File System
 !Cname ms-smartcard-login
-1 3 6 1 4 1 311 20 2 2	: msSmartcardLogin	: Microsoft Smartcard Login
+ms-corp 20 2 2	: msSmartcardLogin	: Microsoft Smartcard Login
 !Cname ms-upn
-1 3 6 1 4 1 311 20 2 3	: msUPN			: Microsoft User Principal Name
+ms-corp 20 2 3	: msUPN			: Microsoft User Principal Name
+
+ms-corp 25 2	: ms-ntds-sec-ext	: Microsoft NTDS CA Extension
+ms-corp 25 2 1	: ms-ntds-obj-sid	: Microsoft NTDS AD objectSid
+ms-corp 21 7	: ms-cert-templ		: Microsoft certificate template
+ms-corp 21 10	: ms-app-policies	: Microsoft Application Policies Extension
 
 1 3 6 1 4 1 188 7 1 1 2	: IDEA-CBC		: idea-cbc
 			: IDEA-ECB		: idea-ecb
@@ -493,13 +510,17 @@ id-pkix-mod 13		: id-mod-timestamp-protocol
 id-pkix-mod 14		: id-mod-ocsp
 id-pkix-mod 15		: id-mod-dvcs
 id-pkix-mod 16		: id-mod-cmp2000
+id-pkix-mod 50		: id-mod-cmp2000-02
+id-pkix-mod 99		: id-mod-cmp2021-88
+id-pkix-mod 100		: id-mod-cmp2021-02
 
 # PKIX Private Extensions
 !Cname info-access
 id-pe 1			: authorityInfoAccess	: Authority Information Access
 id-pe 2			: biometricInfo		: Biometric Info
 id-pe 3			: qcStatements
-id-pe 4			: ac-auditEntity
+id-pe 4         : ac-auditIdentity      : X509v3 Audit Identity
+!Alias ac-auditEntity ac-auditIdentity
 id-pe 5			: ac-targeting
 id-pe 6			: aaControls
 id-pe 7			: sbgp-ipAddrBlock
@@ -565,9 +586,9 @@ id-it 4			: id-it-preferredSymmAlg
 id-it 5			: id-it-caKeyUpdateInfo
 id-it 6			: id-it-currentCRL
 id-it 7			: id-it-unsupportedOIDs
-# obsolete
+# [Reserved and Obsolete]:
 id-it 8			: id-it-subscriptionRequest
-# obsolete
+# [Reserved and Obsolete]:
 id-it 9			: id-it-subscriptionResponse
 id-it 10		: id-it-keyPairParamReq
 id-it 11		: id-it-keyPairParamRep
@@ -579,6 +600,10 @@ id-it 16		: id-it-suppLangTags
 id-it 17		: id-it-caCerts
 id-it 18		: id-it-rootCaKeyUpdate
 id-it 19		: id-it-certReqTemplate
+id-it 20		: id-it-rootCaCert
+id-it 21		: id-it-certProfile
+id-it 22		: id-it-crlStatusList
+id-it 23		: id-it-crls
 
 # CRMF registration
 id-pkip 1		: id-regCtrl
@@ -591,6 +616,12 @@ id-regCtrl 3		: id-regCtrl-pkiPublicationInfo
 id-regCtrl 4		: id-regCtrl-pkiArchiveOptions
 id-regCtrl 5		: id-regCtrl-oldCertID
 id-regCtrl 6		: id-regCtrl-protocolEncrKey
+id-regCtrl 7		: id-regCtrl-altCertTemplate
+# id-regCtrl 8		: id-regCtrl-wtlsTemplate	[Reserved and Obsolete]
+# id-regCtrl 9		: id-regCtrl-regTokenUTF8	[Reserved and Obsolete]
+# id-regCtrl 10		: id-regCtrl-authenticatorUTF8	[Reserved and Obsolete]
+id-regCtrl 11		: id-regCtrl-algId
+id-regCtrl 12		: id-regCtrl-rsaKeyLen
 
 # CRMF registration information
 id-regInfo 1		: id-regInfo-utf8Pairs
@@ -627,6 +658,7 @@ id-cmc 24		: id-cmc-confirmCertAcceptance
 # other names
 id-on 1			: id-on-personalData
 id-on 3			: id-on-permanentIdentifier : Permanent Identifier
+id-on 4			: id-on-hardwareModuleName : Hardware Module Name
 id-on 5			: id-on-xmppAddr : XmppAddr
 id-on 7			: id-on-dnsSRV : SRVName
 id-on 8			: id-on-NAIRealm : NAIRealm
@@ -850,14 +882,64 @@ id-ce 35		: authorityKeyIdentifier : X509v3 Authority Key Identifier
 id-ce 36		: policyConstraints	: X509v3 Policy Constraints
 !Cname ext-key-usage
 id-ce 37		: extendedKeyUsage	: X509v3 Extended Key Usage
+!Cname authority-attribute-identifier
+id-ce 38		: authorityAttributeIdentifier : X509v3 Authority Attribute Identifier
+!Cname role-spec-cert-identifier
+id-ce 39		: roleSpecCertIdentifier	: X509v3 Role Specification Certificate Identifier
+!Cname basic-att-constraints
+id-ce 41		: basicAttConstraints		: X509v3 Basic Attribute Certificate Constraints
+!Cname delegated-name-constraints
+id-ce 42 		: delegatedNameConstraints	: X509v3 Delegated Name Constraints
+!Cname time-specification
+id-ce 43		: timeSpecification			: X509v3 Time Specification
 !Cname freshest-crl
 id-ce 46		: freshestCRL		: X509v3 Freshest CRL
+!Cname attribute-descriptor
+id-ce 48		: attributeDescriptor		: X509v3 Attribute Descriptor
+!Cname user-notice
+id-ce 49		: userNotice				: X509v3 User Notice
+!Cname soa-identifier
+id-ce 50        : sOAIdentifier     : X509v3 Source of Authority Identifier
+!Cname acceptable-cert-policies
+id-ce 52		: acceptableCertPolicies	: X509v3 Acceptable Certification Policies
 !Cname inhibit-any-policy
 id-ce 54		: inhibitAnyPolicy	: X509v3 Inhibit Any Policy
 !Cname target-information
 id-ce 55		: targetInformation	: X509v3 AC Targeting
 !Cname no-rev-avail
 id-ce 56		: noRevAvail		: X509v3 No Revocation Available
+!Cname acceptable-privilege-policies
+id-ce 57		: acceptablePrivPolicies	: X509v3 Acceptable Privilege Policies
+!Cname indirect-issuer
+id-ce 61		: indirectIssuer			: X509v3 Indirect Issuer
+!Cname no-assertion
+id-ce 62        : noAssertion       : X509v3 No Assertion
+!Cname id-aa-issuing-distribution-point
+id-ce 63		: aAissuingDistributionPoint : X509v3 Attribute Authority Issuing Distribution Point
+!Cname issued-on-behalf-of
+id-ce 64		: issuedOnBehalfOf	: X509v3 Issued On Behalf Of
+!Cname single-use
+id-ce 65		: singleUse			: X509v3 Single Use
+!Cname group-ac
+id-ce 66		: groupAC			: X509v3 Group Attribute Certificate
+!Cname allowed-attribute-assignments
+id-ce 67		: allowedAttributeAssignments		: X509v3 Allowed Attribute Assignments
+!Cname attribute-mappings
+id-ce 68		: attributeMappings		: X509v3 Attribute Mappings
+!Cname holder-name-constraints
+id-ce 69		: holderNameConstraints	: X509v3 Holder Name Constraints
+!Cname authorization-validation
+id-ce 70		: authorizationValidation : X509v3 Authorization Validation
+!Cname prot-restrict
+id-ce 71		: protRestrict : X509v3 Protocol Restriction
+!Cname subject-alt-public-key-info
+id-ce 72		: subjectAltPublicKeyInfo : X509v3 Subject Alternative Public Key Info
+!Cname alt-signature-algorithm
+id-ce 73		: altSignatureAlgorithm : X509v3 Alternative Signature Algorithm
+!Cname alt-signature-value
+id-ce 74		: altSignatureValue : X509v3 Alternative Signature Value
+!Cname associated-information
+id-ce 75		: associatedInformation : X509v3 Associated Information
 
 # From RFC5280
 ext-key-usage 0		: anyExtendedKeyUsage	: Any Extended Key Usage
@@ -913,6 +995,9 @@ Private 1		: enterprises		: Enterprises
 
 # RFC 2247
 Enterprises 1466 344	: dcobject		: dcObject
+
+# Wi-SUN Assigned Value Registry
+Enterprises 45605 1     : id-kp-wisun-fan-device : Wi-SUN Alliance Field Area Network (FAN)
 
 # RFC 1495
 Mail 1			: mime-mhs		: MIME MHS
@@ -1036,6 +1121,36 @@ sigAlgs 13	: id-rsassa-pkcs1-v1_5-with-sha3-224	: RSA-SHA3-224
 sigAlgs 14	: id-rsassa-pkcs1-v1_5-with-sha3-256	: RSA-SHA3-256
 sigAlgs 15	: id-rsassa-pkcs1-v1_5-with-sha3-384	: RSA-SHA3-384
 sigAlgs 16	: id-rsassa-pkcs1-v1_5-with-sha3-512	: RSA-SHA3-512
+sigAlgs 17      : id-ml-dsa-44      : ML-DSA-44
+sigAlgs 18      : id-ml-dsa-65      : ML-DSA-65
+sigAlgs 19      : id-ml-dsa-87      : ML-DSA-87
+sigAlgs 20      : id-slh-dsa-sha2-128s	: SLH-DSA-SHA2-128s
+sigAlgs 21      : id-slh-dsa-sha2-128f	: SLH-DSA-SHA2-128f
+sigAlgs 22      : id-slh-dsa-sha2-192s	: SLH-DSA-SHA2-192s
+sigAlgs 23      : id-slh-dsa-sha2-192f	: SLH-DSA-SHA2-192f
+sigAlgs 24      : id-slh-dsa-sha2-256s	: SLH-DSA-SHA2-256s
+sigAlgs 25      : id-slh-dsa-sha2-256f	: SLH-DSA-SHA2-256f
+sigAlgs 26      : id-slh-dsa-shake-128s	: SLH-DSA-SHAKE-128s
+sigAlgs 27      : id-slh-dsa-shake-128f	: SLH-DSA-SHAKE-128f
+sigAlgs 28      : id-slh-dsa-shake-192s	: SLH-DSA-SHAKE-192s
+sigAlgs 29      : id-slh-dsa-shake-192f	: SLH-DSA-SHAKE-192f
+sigAlgs 30      : id-slh-dsa-shake-256s	: SLH-DSA-SHAKE-256s
+sigAlgs 31      : id-slh-dsa-shake-256f	: SLH-DSA-SHAKE-256f
+sigAlgs 32      : id-hash-ml-dsa-44-with-sha512 : HASH-ML-DSA-44-WITH-SHA512
+sigAlgs 33      : id-hash-ml-dsa-65-with-sha512 : HASH-ML-DSA-65-WITH-SHA512
+sigAlgs 34      : id-hash-ml-dsa-87-with-sha512 : HASH-ML-DSA-87-WITH-SHA512
+sigAlgs 35      : id-hash-slh-dsa-sha2-128s-with-sha256    : SLH-DSA-SHA2-128s-WITH-SHA256
+sigAlgs 36      : id-hash-slh-dsa-sha2-128f-with-sha256    : SLH-DSA-SHA2-128f-WITH-SHA256
+sigAlgs 37      : id-hash-slh-dsa-sha2-192s-with-sha512    : SLH-DSA-SHA2-192s-WITH-SHA512
+sigAlgs 38      : id-hash-slh-dsa-sha2-192f-with-sha512    : SLH-DSA-SHA2-192f-WITH-SHA512
+sigAlgs 39      : id-hash-slh-dsa-sha2-256s-with-sha512    : SLH-DSA-SHA2-256s-WITH-SHA512
+sigAlgs 40      : id-hash-slh-dsa-sha2-256f-with-sha512    : SLH-DSA-SHA2-256f-WITH-SHA512
+sigAlgs 41      : id-hash-slh-dsa-shake-128s-with-shake128 : SLH-DSA-SHAKE-128s-WITH-SHAKE128
+sigAlgs 42      : id-hash-slh-dsa-shake-128f-with-shake128 : SLH-DSA-SHAKE-128f-WITH-SHAKE128
+sigAlgs 43      : id-hash-slh-dsa-shake-192s-with-shake256 : SLH-DSA-SHAKE-192s-WITH-SHAKE256
+sigAlgs 44      : id-hash-slh-dsa-shake-192f-with-shake256 : SLH-DSA-SHAKE-192f-WITH-SHAKE256
+sigAlgs 45      : id-hash-slh-dsa-shake-256s-with-shake256 : SLH-DSA-SHAKE-256s-WITH-SHAKE256
+sigAlgs 46      : id-hash-slh-dsa-shake-256f-with-shake256 : SLH-DSA-SHAKE-256f-WITH-SHAKE256
 
 # Hold instruction CRL entry extension
 !Cname hold-instruction-code
@@ -1050,6 +1165,27 @@ holdInstruction 3	: holdInstructionReject	: Hold Instruction Reject
 
 # OID's from ITU-T.  Most of this is defined in RFC 1274.  A couple of
 # them are also mentioned in RFC 2247
+# OIDs specific to Electronic Signature Standard/CAdES are as specified in
+# ETSI EN 319 122-1 V1.2.1 (2021-10):
+# Electronic Signatures and Infrastructures (ESI); CAdES digital signatures;
+# Part 1: Building blocks and CAdES baseline signatures
+itu-t 4			: itu-t-identified-organization
+itu-t-identified-organization 0: etsi
+etsi 1733		: electronic-signature-standard
+electronic-signature-standard 2: ess-attributes
+ess-attributes 1	: id-aa-ets-mimeType
+ess-attributes 2	: id-aa-ets-longTermValidation
+ess-attributes 3	: id-aa-ets-SignaturePolicyDocument
+ess-attributes 4	: id-aa-ets-archiveTimestampV3
+ess-attributes 5	: id-aa-ATSHashIndex
+etsi 19122		: cades
+cades 1			: cades-attributes
+cades-attributes 1	: id-aa-ets-signerAttrV2
+cades-attributes 3	: id-aa-ets-sigPolicyStore
+cades-attributes 4	: id-aa-ATSHashIndex-v2
+cades-attributes 5	: id-aa-ATSHashIndex-v3
+cades-attributes 6	: signedAssertion
+
 itu-t 9			: data
 data 2342		: pss
 pss 19200300		: ucl
@@ -1565,6 +1701,9 @@ sm-scheme 104 4         : SM4-CFB             : sm4-cfb
 sm-scheme 104 5         : SM4-CFB1            : sm4-cfb1
 sm-scheme 104 6         : SM4-CFB8            : sm4-cfb8
 sm-scheme 104 7         : SM4-CTR             : sm4-ctr
+sm-scheme 104 8         : SM4-GCM             : sm4-gcm
+sm-scheme 104 9         : SM4-CCM             : sm4-ccm
+sm-scheme 104 10        : SM4-XTS             : sm4-xts
 
 # There is no OID that just denotes "HMAC" oddly enough...
 
@@ -1597,12 +1736,18 @@ ISO-US 10046 2 1	: dhpublicnumber		: X9.42 DH
 1 3 36 3 3 2 8 1 1 5 : brainpoolP224r1
 1 3 36 3 3 2 8 1 1 6 : brainpoolP224t1
 1 3 36 3 3 2 8 1 1 7 : brainpoolP256r1
+# Alternate NID to represent the TLSv1.3 brainpoolP256r1 group
+                     : brainpoolP256r1tls13
 1 3 36 3 3 2 8 1 1 8 : brainpoolP256t1
 1 3 36 3 3 2 8 1 1 9 : brainpoolP320r1
 1 3 36 3 3 2 8 1 1 10 : brainpoolP320t1
 1 3 36 3 3 2 8 1 1 11 : brainpoolP384r1
+# Alternate NID to represent the TLSv1.3 brainpoolP384r1 group
+                      : brainpoolP384r1tls13
 1 3 36 3 3 2 8 1 1 12 : brainpoolP384t1
 1 3 36 3 3 2 8 1 1 13 : brainpoolP512r1
+# Alternate NID to represent the TLSv1.3 brainpoolP512r1 group
+                      : brainpoolP512r1tls13
 1 3 36 3 3 2 8 1 1 14 : brainpoolP512t1
 
 # ECDH schemes from RFC5753
@@ -1633,9 +1778,9 @@ secg-scheme 14 3 : dhSinglePass-cofactorDH-sha512kdf-scheme
 # CABForum EV SSL Certificate Guidelines
 # (see https://cabforum.org/extended-validation/)
 # OIDs for Subject Jurisdiction of Incorporation or Registration
-1 3 6 1 4 1 311 60 2 1 1	: jurisdictionL		: jurisdictionLocalityName
-1 3 6 1 4 1 311 60 2 1 2	: jurisdictionST	: jurisdictionStateOrProvinceName
-1 3 6 1 4 1 311 60 2 1 3	: jurisdictionC		: jurisdictionCountryName
+ms-corp 60 2 1 1	: jurisdictionL		: jurisdictionLocalityName
+ms-corp 60 2 1 2	: jurisdictionST	: jurisdictionStateOrProvinceName
+ms-corp 60 2 1 3	: jurisdictionC		: jurisdictionCountryName
 
 # SCRYPT algorithm
 !Cname id-scrypt
@@ -1744,3 +1889,164 @@ dstu4145le 2 9 : uacurve9 : DSTU curve 9
                             : AES-128-SIV  : aes-128-siv
                             : AES-192-SIV  : aes-192-siv
                             : AES-256-SIV  : aes-256-siv
+
+
+!Cname oracle
+joint-iso-itu-t 16 840 1 113894 : oracle-organization : Oracle organization
+# Jdk trustedKeyUsage attribute
+oracle 746875 1 1 : oracle-jdk-trustedkeyusage : Trusted key usage (Oracle)
+
+# NID for compression
+                            : brotli : Brotli compression
+			    : zstd : Zstandard compression
+
+2 23 133 : tcg 		: Trusted Computing Group
+
+tcg 1  : tcg-tcpaSpecVersion
+tcg 2  : tcg-attribute 			: Trusted Computing Group Attributes
+tcg 3  : tcg-protocol 			: Trusted Computing Group Protocols
+tcg 4  : tcg-algorithm 			: Trusted Computing Group Algorithms
+tcg 5  : tcg-platformClass 		: Trusted Computing Group Platform Classes
+tcg 6  : tcg-ce 				: Trusted Computing Group Certificate Extensions
+tcg 8  : tcg-kp 				: Trusted Computing Group Key Purposes
+tcg 11 : tcg-ca					: Trusted Computing Group Certificate Policies
+tcg 17 : tcg-address 			: Trusted Computing Group Address Formats
+tcg 18 : tcg-registry 			: Trusted Computing Group Registry
+tcg 19 : tcg-traits				: Trusted Computing Group Traits
+
+tcg-platformClass 1 : tcg-common 							: Trusted Computing Group Common
+tcg-common 1		: tcg-at-platformManufacturerStr		: TCG Platform Manufacturer String
+tcg-common 2		: tcg-at-platformManufacturerId			: TCG Platform Manufacturer ID
+tcg-common 3		: tcg-at-platformConfigUri				: TCG Platform Configuration URI
+tcg-common 4		: tcg-at-platformModel					: TCG Platform Model
+tcg-common 5		: tcg-at-platformVersion				: TCG Platform Version
+tcg-common 6		: tcg-at-platformSerial					: TCG Platform Serial Number
+tcg-common 7		: tcg-at-platformConfiguration			: TCG Platform Configuration
+tcg-common 8		: tcg-at-platformIdentifier				: TCG Platform Identifier
+
+tcg-attribute 1		: tcg-at-tpmManufacturer			  : TPM Manufacturer
+tcg-attribute 2		: tcg-at-tpmModel					  : TPM Model
+tcg-attribute 3		: tcg-at-tpmVersion 				  : TPM Version
+tcg-attribute 10	: tcg-at-securityQualities			  : Security Qualities
+tcg-attribute 11	: tcg-at-tpmProtectionProfile		  : TPM Protection Profile
+tcg-attribute 12	: tcg-at-tpmSecurityTarget 			  : TPM Security Target
+tcg-attribute 13	: tcg-at-tbbProtectionProfile		  : TBB Protection Profile
+tcg-attribute 14	: tcg-at-tbbSecurityTarget			  : TBB Security Target
+tcg-attribute 15	: tcg-at-tpmIdLabel					  : TPM ID Label
+tcg-attribute 16	: tcg-at-tpmSpecification			  : TPM Specification
+tcg-attribute 17	: tcg-at-tcgPlatformSpecification	  : TPM Platform Specification
+tcg-attribute 18	: tcg-at-tpmSecurityAssertions		  : TPM Security Assertions
+tcg-attribute 19	: tcg-at-tbbSecurityAssertions		  : TBB Security Assertions
+tcg-attribute 23	: tcg-at-tcgCredentialSpecification	  : TCG Credential Specification
+tcg-attribute 25	: tcg-at-tcgCredentialType			  : TCG Credential Type
+tcg-attribute 26    : tcg-at-previousPlatformCertificates : TCG Previous Platform Certificates
+tcg-attribute 27    : tcg-at-tbbSecurityAssertions-v3     : TCG TBB Security Assertions V3
+tcg-attribute 28    : tcg-at-cryptographicAnchors         : TCG Cryptographic Anchors
+
+tcg-at-platformConfiguration 1 : tcg-at-platformConfiguration-v1 : Platform Configuration Version 1
+tcg-at-platformConfiguration 2 : tcg-at-platformConfiguration-v2 : Platform Configuration Version 2
+tcg-at-platformConfiguration 3 : tcg-at-platformConfiguration-v3 : Platform Configuration Version 3
+tcg-at-platformConfiguration 4 : tcg-at-platformConfigUri-v3     : Platform Configuration URI Version 3
+
+tcg-algorithm 1 : tcg-algorithm-null : TCG NULL Algorithm
+
+tcg-kp 1 : tcg-kp-EKCertificate 						 : Endorsement Key Certificate
+tcg-kp 2 : tcg-kp-PlatformAttributeCertificate 			 : Platform Attribute Certificate
+tcg-kp 3 : tcg-kp-AIKCertificate 						 : Attestation Identity Key Certificate
+tcg-kp 4 : tcg-kp-PlatformKeyCertificate 				 : Platform Key Certificate
+tcg-kp 5 : tcg-kp-DeltaPlatformAttributeCertificate 	 : Delta Platform Attribute Certificate
+tcg-kp 6 : tcg-kp-DeltaPlatformKeyCertificate 			 : Delta Platform Key Certificate
+tcg-kp 7 : tcg-kp-AdditionalPlatformAttributeCertificate : Additional Platform Attribute Certificate
+tcg-kp 8 : tcg-kp-AdditionalPlatformKeyCertificate 		 : Additional Platform Key Certificate
+
+tcg-ce 2 : tcg-ce-relevantCredentials						: Relevant Credentials
+tcg-ce 3 : tcg-ce-relevantManifests							: Relevant Manifests
+tcg-ce 4 : tcg-ce-virtualPlatformAttestationService			: Virtual Platform Attestation Service
+tcg-ce 5 : tcg-ce-migrationControllerAttestationService		: Migration Controller Attestation Service
+tcg-ce 6 : tcg-ce-migrationControllerRegistrationService	: Migration Controller Registration Service
+tcg-ce 7 : tcg-ce-virtualPlatformBackupService				: Virtual Platform Backup Service
+
+tcg-protocol 1 : tcg-prt-tpmIdProtocol : TCG TPM Protocol
+
+tcg-address 1 : tcg-address-ethernetmac		: Ethernet MAC Address
+tcg-address 2 : tcg-address-wlanmac			: WLAN MAC Address
+tcg-address 3 : tcg-address-bluetoothmac	: Bluetooth MAC Address
+
+tcg-registry 3 : tcg-registry-componentClass : TCG Component Class
+
+tcg-registry-componentClass 1 : tcg-registry-componentClass-tcg		: Trusted Computed Group Registry
+tcg-registry-componentClass 2 : tcg-registry-componentClass-ietf	: Internet Engineering Task Force Registry
+tcg-registry-componentClass 3 : tcg-registry-componentClass-dmtf	: Distributed Management Task Force Registry
+tcg-registry-componentClass 4 : tcg-registry-componentClass-pcie	: PCIE Component Class
+tcg-registry-componentClass 5 : tcg-registry-componentClass-disk	: Disk Component Class
+
+tcg-ca 4 : tcg-cap-verifiedPlatformCertificate : TCG Verified Platform Certificate CA Policy
+
+tcg-traits 1 : tcg-tr-ID       : TCG Trait Identifiers
+tcg-traits 2 : tcg-tr-category : TCG Trait Categories
+tcg-traits 3 : tcg-tr-registry : TCG Trait Registries
+
+tcg-tr-ID 1  : tcg-tr-ID-Boolean 								: Boolean Trait
+tcg-tr-ID 2  : tcg-tr-ID-CertificateIdentifier 					: Certificate Identifier Trait
+tcg-tr-ID 3  : tcg-tr-ID-CommonCriteria 						: Common Criteria Trait
+tcg-tr-ID 4  : tcg-tr-ID-componentClass 						: Component Class Trait
+tcg-tr-ID 5  : tcg-tr-ID-componentIdentifierV11 				: Component Identifier V1.1 Trait
+tcg-tr-ID 6  : tcg-tr-ID-FIPSLevel 								: FIPS Level Trait
+tcg-tr-ID 7  : tcg-tr-ID-ISO9000Level 							: ISO 9000 Level Trait
+tcg-tr-ID 8  : tcg-tr-ID-networkMAC 							: Network MAC Trait
+tcg-tr-ID 9  : tcg-tr-ID-OID 									: Object Identifier Trait
+tcg-tr-ID 10 : tcg-tr-ID-PEN 									: Private Enterprise Number Trait
+tcg-tr-ID 11 : tcg-tr-ID-platformFirmwareCapabilities 			: Platform Firmware Capabilities Trait
+tcg-tr-ID 12 : tcg-tr-ID-platformFirmwareSignatureVerification 	: Platform Firmware Signature Verification Trait
+tcg-tr-ID 13 : tcg-tr-ID-platformFirmwareUpdateCompliance 		: Platform Firmware Update Compliance Trait
+tcg-tr-ID 14 : tcg-tr-ID-platformHardwareCapabilities 			: Platform Hardware Capabilities Trait
+tcg-tr-ID 15 : tcg-tr-ID-RTM 									: Root of Trust for Measurement Trait
+tcg-tr-ID 16 : tcg-tr-ID-status 								: Attribute Status Trait
+tcg-tr-ID 17 : tcg-tr-ID-URI 									: Uniform Resource Identifier Trait
+tcg-tr-ID 18 : tcg-tr-ID-UTF8String 							: UTF8String Trait
+tcg-tr-ID 19 : tcg-tr-ID-IA5String 								: IA5String Trait
+tcg-tr-ID 20 : tcg-tr-ID-PEMCertString 							: PEM-Encoded Certificate String Trait
+tcg-tr-ID 21 : tcg-tr-ID-PublicKey 								: Public Key Trait
+
+tcg-tr-category 1  : tcg-tr-cat-platformManufacturer 					: Platform Manufacturer Trait Category
+tcg-tr-category 2  : tcg-tr-cat-platformModel 							: Platform Model Trait Category
+tcg-tr-category 3  : tcg-tr-cat-platformVersion 						: Platform Version Trait Category
+tcg-tr-category 4  : tcg-tr-cat-platformSerial 							: Platform Serial Trait Category
+tcg-tr-category 5  : tcg-tr-cat-platformManufacturerIdentifier 			: Platform Manufacturer Identifier Trait Category
+tcg-tr-category 6  : tcg-tr-cat-platformOwnership 						: Platform Ownership Trait Category
+tcg-tr-category 7  : tcg-tr-cat-componentClass 							: Component Class Trait Category
+tcg-tr-category 8  : tcg-tr-cat-componentManufacturer 					: Component Manufacturer Trait Category
+tcg-tr-category 9  : tcg-tr-cat-componentModel 							: Component Model Trait Category
+tcg-tr-category 10 : tcg-tr-cat-componentSerial 						: Component Serial Trait Category
+tcg-tr-category 11 : tcg-tr-cat-componentStatus 						: Component Status Trait Category
+tcg-tr-category 12 : tcg-tr-cat-componentLocation 						: Component Location Trait Category
+tcg-tr-category 13 : tcg-tr-cat-componentRevision 						: Component Revision Trait Category
+tcg-tr-category 14 : tcg-tr-cat-componentFieldReplaceable 				: Component Field Replaceable Trait Category
+tcg-tr-category 15 : tcg-tr-cat-EKCertificate 							: EK Certificate Trait Category
+tcg-tr-category 16 : tcg-tr-cat-IAKCertificate 							: IAK Certificate Trait Category
+tcg-tr-category 17 : tcg-tr-cat-IDevIDCertificate 						: IDevID Certificate Trait Category
+tcg-tr-category 18 : tcg-tr-cat-DICECertificate 						: DICE Certificate Trait Category
+tcg-tr-category 19 : tcg-tr-cat-SPDMCertificate 						: SPDM Certificate Trait Category
+tcg-tr-category 20 : tcg-tr-cat-PEMCertificate 							: PEM Certificate Trait Category
+tcg-tr-category 21 : tcg-tr-cat-PlatformCertificate 					: Platform Certificate Trait Category
+tcg-tr-category 22 : tcg-tr-cat-DeltaPlatformCertificate 				: Delta Platform Certificate Trait Category
+tcg-tr-category 23 : tcg-tr-cat-RebasePlatformCertificate 				: Rebase Platform Certificate Trait Category
+tcg-tr-category 24 : tcg-tr-cat-genericCertificate 						: Generic Certificate Trait Category
+tcg-tr-category 25 : tcg-tr-cat-CommonCriteria 							: Common Criteria Trait Category
+tcg-tr-category 26 : tcg-tr-cat-componentIdentifierV11 					: Component Identifier V1.1 Trait Category
+tcg-tr-category 27 : tcg-tr-cat-FIPSLevel 								: FIPS Level Trait Category
+tcg-tr-category 28 : tcg-tr-cat-ISO9000 								: ISO 9000 Trait Category
+tcg-tr-category 29 : tcg-tr-cat-networkMAC 								: Network MAC Trait Category
+tcg-tr-category 30 : tcg-tr-cat-attestationProtocol 					: Attestation Protocol Trait Category
+tcg-tr-category 31 : tcg-tr-cat-PEN 									: Private Enterprise Number Trait Category
+tcg-tr-category 32 : tcg-tr-cat-platformFirmwareCapabilities 			: Platform Firmware Capabilities Trait Category
+tcg-tr-category 33 : tcg-tr-cat-platformHardwareCapabilities 			: Platform Hardware Capabilities Trait Category
+tcg-tr-category 34 : tcg-tr-cat-platformFirmwareSignatureVerification 	: Platform Firmware Signature Verification Trait Category
+tcg-tr-category 35 : tcg-tr-cat-platformFirmwareUpdateCompliance 		: Platform Firmware Update Compliance Trait Category
+tcg-tr-category 36 : tcg-tr-cat-RTM 									: Root of Trust of Measurement Trait Category
+tcg-tr-category 37 : tcg-tr-cat-PublicKey 								: Public Key Trait Category
+
+!Alias nistKems nistAlgorithms 4
+nistKems 1 : id-alg-ml-kem-512  : ML-KEM-512
+nistKems 2 : id-alg-ml-kem-768  : ML-KEM-768
+nistKems 3 : id-alg-ml-kem-1024 : ML-KEM-1024

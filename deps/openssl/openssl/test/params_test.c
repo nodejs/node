@@ -47,7 +47,7 @@ struct object_st {
      */
     double p2;
     /*
-     * Documented as an arbitrarly large unsigned integer.
+     * Documented as an arbitrarily large unsigned integer.
      * The data size must be large enough to accommodate.
      * Assumed data type OSSL_PARAM_UNSIGNED_INTEGER
      */

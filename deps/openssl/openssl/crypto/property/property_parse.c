@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright (c) 2019, Oracle and/or its affiliates.  All rights reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
@@ -18,7 +18,7 @@
 #include "crypto/ctype.h"
 #include "internal/nelem.h"
 #include "property_local.h"
-#include "e_os.h"
+#include "internal/e_os.h"
 
 DEFINE_STACK_OF(OSSL_PROPERTY_DEFINITION)
 
@@ -567,8 +567,7 @@ OSSL_PROPERTY_LIST *ossl_property_merge(const OSSL_PROPERTY_LIST *a,
         r->has_optional |= copy->optional;
     }
     r->num_properties = n;
-    if (n != t)
-        r = OPENSSL_realloc(r, sizeof(*r) + (n - 1) * sizeof(r->properties[0]));
+
     return r;
 }
 

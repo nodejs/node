@@ -1,0 +1,120 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_domain_flags, SSL_CTX_get_domain_flags, SSL_get_domain_flags,
+SSL_DOMAIN_FLAG_SINGLE_THREAD,
+SSL_DOMAIN_FLAG_MULTI_THREAD,
+SSL_DOMAIN_FLAG_THREAD_ASSISTED,
+SSL_DOMAIN_FLAG_BLOCKING,
+SSL_DOMAIN_FLAG_LEGACY_BLOCKING
+- control the concurrency model used by a QUIC domain
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ #define SSL_DOMAIN_FLAG_SINGLE_THREAD
+ #define SSL_DOMAIN_FLAG_MULTI_THREAD
+ #define SSL_DOMAIN_FLAG_LEGACY_BLOCKING
+ #define SSL_DOMAIN_FLAG_BLOCKING
+ #define SSL_DOMAIN_FLAG_THREAD_ASSISTED
+
+ int SSL_CTX_set_domain_flags(SSL_CTX *ctx, uint64_t flags);
+ int SSL_CTX_get_domain_flags(SSL_CTX *ctx, uint64_t *flags);
+
+ int SSL_get_domain_flags(SSL *ssl, uint64_t *flags);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_domain_flags() and SSL_CTX_get_domain_flags() set and get the QUIC
+domain flags on a B<SSL_CTX> using a QUIC B<SSL_METHOD>. These flags determine
+the concurrency model which is used for a QUIC domain. A detailed introduction
+to these concepts can be found in L<openssl-quic-concurrency(7)>.
+
+Applications may use either one the flags here:
+
+=over 4
+
+=item B<SSL_DOMAIN_FLAG_SINGLE_THREAD>
+
+Specifying this flag configures the Single-Threaded Concurrency Model (SCM).
+
+=item B<SSL_DOMAIN_FLAG_MULTI_THREAD>
+
+Speciyfing this flag configures the Contentive Concurrency Model (CCM) (unless
+B<SSL_DOMAIN_FLAG_THREAD_ASSISTED> is also specified).
+
+If OpenSSL was built without thread support, this is identical to
+B<SSL_DOMAIN_FLAG_SINGLE_THREAD>.
+
+=item B<SSL_DOMAIN_FLAG_THREAD_ASSISTED>
+
+Specifying this flag configures the Thread-Assisted Concurrency Model (TACM).
+It implies B<SSL_DOMAIN_FLAG_MULTI_THREAD> and B<SSL_DOMAIN_FLAG_BLOCKING>.
+
+This concurrency model is not available if OpenSSL was built without thread
+support, in which case attempting to configure it will result in an error.
+
+=item B<SSL_DOMAIN_FLAG_BLOCKING>
+
+Enable reliable support for blocking I/O calls, allocating whatever OS resources
+are necessary to realise this. If this flag is specified,
+B<SSL_DOMAIN_FLAG_LEGACY_BLOCKING> is ignored.
+
+=item B<SSL_DOMAIN_FLAG_LEGACY_BLOCKING>
+
+Enables legacy blocking compatibility mode. See
+L<openssl-quic-concurrency(7)/Legacy Blocking Support Compatibility>.
+
+=back
+
+Mutually exclusive flag combinations result in an error (for example, combining
+B<SSL_DOMAIN_FLAG_SINGLE_THREAD> and B<SSL_DOMAIN_FLAG_MULTI_THREADED>).
+
+Because exactly one concurrency model must be chosen, the domain flags cannot be
+set to 0 and attempting to do so will result in an error.
+
+Changing these flags using SSL_CTX_set_domain_flags() has no effect on QUIC
+domains which have already been created.
+
+The default set of domain flags set on a newly created B<SSL_CTX> may vary by
+OpenSSL version, chosen B<SSL_METHOD>, and operating environment. See
+L<openssl-quic-concurrency(7)> for details. An application can retrieve the
+default domain flags by calling SSL_CTX_get_domain_flags() immediately after
+constructing a B<SSL_CTX>.
+
+SSL_get_domain_flags() retrieves the domain flags which are effective for a QUIC
+domain when called on any QUIC SSL object under that domain.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set_domain_flags(), SSL_CTX_get_domain_flags() and
+SSL_get_domain_flags() return 1 on success and 0 on failure.
+
+SSL_CTX_set_domain_flags() fails if called with a set of flags which are
+inconsistent or which cannot be supported given the current environment.
+
+SSL_CTX_set_domain_flags() and SSL_CTX_get_domain_flags() fail if called on a
+B<SSL_CTX> which is not using a QUIC B<SSL_METHOD>.
+
+SSL_get_domain_flags() fails if called on a non-QUIC SSL object.
+
+=head1 SEE ALSO
+
+L<SSL_new_domain(3)>, L<openssl-quic-concurrency(7)>
+
+=head1 HISTORY
+
+These functions were added in @QUIC_SERVER_VERSION@.
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

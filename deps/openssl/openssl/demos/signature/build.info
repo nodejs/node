@@ -1,0 +1,31 @@
+#
+# To run the demos when linked with a shared library (default) ensure
+# that libcrypto is on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./EVP_EC_Signature_demo
+
+PROGRAMS{noinst} = EVP_EC_Signature_demo \
+                   EVP_DSA_Signature_demo \
+                   EVP_ED_Signature_demo \
+                   rsa_pss_direct \
+                   rsa_pss_hash
+
+INCLUDE[EVP_EC_Signature_demo]=../../include
+SOURCE[EVP_EC_Signature_demo]=EVP_EC_Signature_demo.c
+DEPEND[EVP_EC_Signature_demo]=../../libcrypto
+
+INCLUDE[EVP_DSA_Signature_demo]=../../include
+SOURCE[EVP_DSA_Signature_demo]=EVP_DSA_Signature_demo.c
+DEPEND[EVP_DSA_Signature_demo]=../../libcrypto
+
+INCLUDE[EVP_ED_Signature_demo]=../../include
+SOURCE[EVP_ED_Signature_demo]=EVP_ED_Signature_demo.c
+DEPEND[EVP_ED_Signature_demo]=../../libcrypto
+
+INCLUDE[rsa_pss_direct]=../../include
+SOURCE[rsa_pss_direct]=rsa_pss_direct.c
+DEPEND[rsa_pss_direct]=../../libcrypto
+
+INCLUDE[rsa_pss_hash]=../../include
+SOURCE[rsa_pss_hash]=rsa_pss_hash.c
+DEPEND[rsa_pss_hash]=../../libcrypto

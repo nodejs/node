@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,6 @@
 int i2a_ASN1_STRING(BIO *bp, const ASN1_STRING *a, int type)
 {
     int i, n = 0;
-    static const char *h = "0123456789ABCDEF";
     char buf[2];
 
     if (a == NULL)
@@ -33,8 +32,7 @@ int i2a_ASN1_STRING(BIO *bp, const ASN1_STRING *a, int type)
                     goto err;
                 n += 2;
             }
-            buf[0] = h[((unsigned char)a->data[i] >> 4) & 0x0f];
-            buf[1] = h[((unsigned char)a->data[i]) & 0x0f];
+            ossl_to_hex(buf, a->data[i]);
             if (BIO_write(bp, buf, 2) != 2)
                 goto err;
             n += 2;
@@ -99,7 +97,6 @@ int a2i_ASN1_STRING(BIO *bp, ASN1_STRING *bs, char *buf, int size)
         if (num + i > slen) {
             sp = OPENSSL_realloc(s, (unsigned int)num + i * 2);
             if (sp == NULL) {
-                ERR_raise(ERR_LIB_ASN1, ERR_R_MALLOC_FAILURE);
                 OPENSSL_free(s);
                 return 0;
             }

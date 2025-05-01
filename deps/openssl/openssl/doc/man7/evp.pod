@@ -63,7 +63,7 @@ implementation. However, new applications should not typically use this (preferr
 PBKDF2 from PCKS#5).
 
 The L<B<EVP_Encode>I<XXX>|EVP_EncodeInit(3)> and
-L<B<EVP_Decode>I<XXX>|EVP_EncodeInit(3)> functions implement base 64 encoding
+L<B<EVP_Decode>I<XXX>|EVP_EncodeInit(3)> functions implement base64 encoding
 and decoding.
 
 All the symmetric algorithms (ciphers), digests and asymmetric algorithms
@@ -106,7 +106,7 @@ L<ENGINE_by_id(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

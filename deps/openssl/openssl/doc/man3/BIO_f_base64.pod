@@ -25,10 +25,27 @@ For writing, by default output is divided to lines of length 64
 characters and there is a newline at the end of output.
 This behavior can be changed with B<BIO_FLAGS_BASE64_NO_NL> flag.
 
-For reading, first line should be at most 1024 bytes long including newline
-unless the flag B<BIO_FLAGS_BASE64_NO_NL> is set.
-Further input lines can be of any length (i.e., newlines may appear anywhere
+For reading, the first line of base64 content should be at most 1024 bytes long
+including newline unless the flag B<BIO_FLAGS_BASE64_NO_NL> is set.
+Subsequent input lines can be of any length (i.e., newlines may appear anywhere
 in the input) and a newline at the end of input is not needed.
+
+Also when reading, unless the flag B<BIO_FLAGS_BASE64_NO_NL> is set, initial
+lines that contain non-base64 content (whitespace is tolerated and ignored) are
+skipped, as are lines longer than 1024 bytes.
+Decoding starts with the first line that is shorter than 1024 bytes (including
+the newline) and consists of only (at least one) valid base64 characters plus
+optional whitespace.
+Decoding stops when base64 padding is encountered, a soft end-of-input
+character (B<->, see L<EVP_DecodeUpdate(3)>) occurs as the first byte after a
+complete group of 4 valid base64 characters is decoded, or when an error occurs
+(e.g. due to input characters other than valid base64 or whitespace).
+
+If decoding stops as a result of an error, the first L<BIO_read(3)> that
+returns no decoded data will typically return a negative result, rather
+than 0 (which indicates normal end of input).
+However, a negative return value can also occur if the underlying BIO
+supports retries, see L<BIO_should_read(3)> and L<BIO_set_mem_eof_return(3)>.
 
 BIO_flush() on a base64 BIO that is being written through is
 used to signal that no more data is to be encoded: this is used
@@ -64,7 +81,7 @@ to standard output:
 
  BIO_free_all(b64);
 
-Read Base64 encoded data from standard input and write the decoded
+Read base64 encoded data from standard input and write the decoded
 data to standard output:
 
  BIO *bio, *b64, *bio_out;
@@ -83,15 +100,29 @@ data to standard output:
 
 =head1 BUGS
 
-On decoding, if the flag B<BIO_FLAGS_BASE64_NO_NL> is not set and
-the first 1024 bytes of input do not include a newline character
-the first two lines of input are ignored.
+The hyphen character (B<->) is treated as an ad hoc soft end-of-input
+character when it occurs at the start of a base64 group of 4 encoded
+characters.
 
-The ambiguity of EOF in base64 encoded data can cause additional
-data following the base64 encoded block to be misinterpreted.
+This heuristic works to detect the ends of base64 blocks in PEM or
+multi-part MIME, provided there are no stray hyphens in the middle
+input.
+But it is just a heuristic, and sufficiently unusual input could produce
+unexpected results.
 
-There should be some way of specifying a test that the BIO can perform
+There should perhaps be some way of specifying a test that the BIO can perform
 to reliably determine EOF (for example a MIME boundary).
+
+It may be possible for L<BIO_read(3)> to return zero, rather than -1, even if
+an error has been detected, more tests are needed to cover all the potential
+error paths.
+
+=head1 SEE ALSO
+
+L<BIO_read(3)>,
+L<BIO_should_read(3)>,
+L<BIO_set_mem_eof_return(3)>,
+L<EVP_DecodeUpdate(3)>.
 
 =head1 COPYRIGHT
 

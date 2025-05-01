@@ -31,6 +31,7 @@ B<openssl> B<enc>|I<cipher>
 [B<-md> I<digest>]
 [B<-iter> I<count>]
 [B<-pbkdf2>]
+[B<-saltlen> I<size>]
 [B<-p>]
 [B<-P>]
 [B<-bufsize> I<number>]
@@ -38,6 +39,8 @@ B<openssl> B<enc>|I<cipher>
 [B<-v>]
 [B<-debug>]
 [B<-none>]
+[B<-skeymgmt> I<skeymgmt>]
+[B<-skeyopt> I<opt>:I<value>]
 {- $OpenSSL::safe::opt_engine_synopsis -}{- $OpenSSL::safe::opt_r_synopsis -}
 {- $OpenSSL::safe::opt_provider_synopsis -}
 
@@ -138,6 +141,15 @@ This option enables the use of PBKDF2 algorithm to derive the key.
 Use PBKDF2 algorithm with a default iteration count of 10000
 unless otherwise specified by the B<-iter> command line option.
 
+=item B<-saltlen>
+
+Set the salt length to use when using the B<-pbkdf2> option.
+For compatibility reasons, the default is 8 bytes.
+The maximum value is currently 16 bytes.
+If the B<-pbkdf2> option is not used, then this option is ignored
+and a fixed salt length of 8 is used. The salt length used when
+encrypting must also be used when decrypting.
+
 =item B<-nosalt>
 
 Don't use a salt in the key derivation routines. This option B<SHOULD NOT> be
@@ -153,7 +165,8 @@ encrypting, this is the default.
 
 The actual salt to use: this must be represented as a string of hex digits.
 If this option is used while encrypting, the same exact value will be needed
-again during decryption.
+again during decryption. This salt may be truncated or zero padded to
+match the salt length (See B<-saltlen>).
 
 =item B<-K> I<key>
 
@@ -205,6 +218,21 @@ or zlib-dynamic option.
 =item B<-none>
 
 Use NULL cipher (no encryption or decryption of input).
+
+=item B<-skeymgmt> I<skeymgmt>
+
+Some providers may support opaque symmetric keys objects. To use them, we need
+to know the name of the B<EVP_SKEYMGMT> to be used. If not specified, the name
+of the cipher will be used.
+
+To find out the name of the suitable symmetric key management,
+please refer to the output of the C<openssl list -skey-managers> command.
+
+=item B<-skeyopt> I<opt>:I<value>
+
+To obtain an existing opaque symmetric key or generate a new one, key
+options are specified as opt:value. These options can't be used together with
+any options implying raw key directly or indirectly.
 
 {- $OpenSSL::safe::opt_r_item -}
 
@@ -294,13 +322,22 @@ able to roll back upon authentication failure.  The AEAD modes currently in
 common use also suffer from catastrophic failure of confidentiality and/or
 integrity upon reuse of key/iv/nonce, and since B<openssl enc> places the
 entire burden of key/iv/nonce management upon the user, the risk of
-exposing AEAD modes is too great to allow.  These key/iv/nonce
+exposing AEAD modes is too great to allow. These key/iv/nonce
 management issues also affect other modes currently exposed in this command,
 but the failure modes are less extreme in these cases, and the
 functionality cannot be removed with a stable release branch.
 For bulk encryption of data, whether using authenticated encryption
 modes or other modes, L<openssl-cms(1)> is recommended, as it provides a
 standard data format and performs the needed key/iv/nonce management.
+
+When enc is used with key wrapping modes the input data cannot be streamed,
+meaning it must be processed in a single pass.
+Consequently, the input data size must be less than
+the buffer size (-bufsize arg, default to 8*1024 bytes).
+The '*-wrap' ciphers require the input to be a multiple of 8 bytes long,
+because no padding is involved.
+The '*-wrap-pad' ciphers allow any input length.
+In both cases, no IV is needed. See example below.
 
 
  base64             Base 64
@@ -389,6 +426,9 @@ standard data format and performs the needed key/iv/nonce management.
  aes-[128|192|256]-ecb  128/192/256 bit AES in ECB mode
  aes-[128|192|256]-ofb  128/192/256 bit AES in OFB mode
 
+ aes-[128|192|256]-wrap     key wrapping using 128/192/256 bit AES
+ aes-[128|192|256]-wrap-pad key wrapping with padding using 128/192/256 bit AES
+
  aria-[128|192|256]-cbc  128/192/256 bit ARIA in CBC mode
  aria[128|192|256]       Alias for aria-[128|192|256]-cbc
  aria-[128|192|256]-cfb  128/192/256 bit ARIA in 128 bit CFB mode
@@ -437,6 +477,12 @@ Base64 decode a file then decrypt it using a password supplied in a file:
  openssl enc -aes-256-ctr -pbkdf2 -d -a -in file.aes256 -out file.txt \
     -pass file:<passfile>
 
+AES key wrapping:
+
+ openssl enc -e -a -id-aes128-wrap-pad -K 000102030405060708090A0B0C0D0E0F -in file.bin
+or
+ openssl aes128-wrap-pad -e -a -K 000102030405060708090A0B0C0D0E0F -in file.bin
+
 =head1 BUGS
 
 The B<-A> option when used with large files doesn't work properly.
@@ -448,6 +494,10 @@ The B<openssl enc> command only supports a fixed number of algorithms with
 certain parameters. So if, for example, you want to use RC2 with a
 76 bit key or RC4 with an 84 bit key you can't use this program.
 
+=head1 SEE ALSO
+
+L<openssl-list(1)>, L<EVP_SKEY(3)>
+
 =head1 HISTORY
 
 The default digest was changed from MD5 to SHA256 in OpenSSL 1.1.0.
@@ -456,9 +506,13 @@ The B<-list> option was added in OpenSSL 1.1.1e.
 
 The B<-ciphers> and B<-engine> options were deprecated in OpenSSL 3.0.
 
+The B<-saltlen> option was added in OpenSSL 3.2.
+
+The B<-skeymgmt> and B<-skeyopt> options were added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

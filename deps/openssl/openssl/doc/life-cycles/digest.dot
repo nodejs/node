@@ -6,28 +6,30 @@ digraph digest {
     initialised [label=initialised, fontcolor="#c94c4c"];
     updated [label=updated, fontcolor="#c94c4c"];
     finaled [label="finaled", fontcolor="#c94c4c"];
+    squeezed [label="squeezed", fontcolor="#c94c4c"];
     end [label="freed", color="#deeaee", style="filled"];
 
     begin -> newed [label="EVP_MD_CTX_new"];
-    newed -> initialised [label="EVP_DigestInit"];
-    initialised -> updated [label="EVP_DigestUpdate", weight=3];
+    newed -> initialised [label="EVP_DigestInit", weight=100];
+    initialised -> updated [label="EVP_DigestUpdate", weight=100];
     updated -> updated [label="EVP_DigestUpdate"];
-    updated -> finaled [label="EVP_DigestFinal"];
+    updated -> finaled [label="EVP_DigestFinal", weight=2];
     updated -> finaled [label="EVP_DigestFinalXOF",
                         fontcolor="#808080", color="#808080"];
-    /* Once this works it should go back in:
-    finaled -> finaled [taillabel="EVP_DigestFinalXOF",
-                        labeldistance=9, labelangle=345,
-                        labelfontcolor="#808080", color="#808080"];
-    */
+    updated -> squeezed [label="EVP_DigestSqueeze", weight=3];
     finaled -> end [label="EVP_MD_CTX_free"];
-    finaled -> newed [label="EVP_MD_CTX_reset", style=dashed, weight=2,
+    finaled -> newed [label="EVP_MD_CTX_reset", style=dashed,
                       color="#034f84", fontcolor="#034f84"];
     updated -> newed [label="EVP_MD_CTX_reset", style=dashed,
                       color="#034f84", fontcolor="#034f84"];
-    updated -> initialised [label="EVP_DigestInit", weight=0, style=dashed,
+    updated -> initialised [label="EVP_DigestInit", style=dashed,
                             color="#034f84", fontcolor="#034f84"];
     finaled -> initialised [label="EVP_DigestInit", style=dashed,
                             color="#034f84", fontcolor="#034f84"];
+    squeezed -> squeezed [label="EVP_DigestSqueeze"];
+    squeezed -> end [label="EVP_MD_CTX_free", weight=1];
+    squeezed -> newed [label="EVP_MD_CTX_reset", style=dashed,
+                      color="#034f84", fontcolor="#034f84"];
+    squeezed -> initialised [label="EVP_DigestInit", style=dashed,
+                            color="#034f84", fontcolor="#034f84"];
 }
-

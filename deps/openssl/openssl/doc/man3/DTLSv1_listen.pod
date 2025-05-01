@@ -103,6 +103,9 @@ TLSv1.3 is used.
 Both SSL_stateless() and DTLSv1_listen() will clear the error queue when they
 start.
 
+SSL_stateless() cannot be used with QUIC SSL objects and returns an error if
+called on such an object.
+
 =head1 RETURN VALUES
 
 For SSL_stateless() a return value of 1 indicates success and the B<ssl> object

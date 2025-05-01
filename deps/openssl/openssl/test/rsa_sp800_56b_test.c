@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -300,7 +300,8 @@ static int test_check_crt_components(void)
         BN_free(q);
         goto end;
     }
-    ret = TEST_true(ossl_rsa_sp800_56b_derive_params_from_pq(key, 8, e, ctx))
+
+    ret = TEST_int_eq(ossl_rsa_sp800_56b_derive_params_from_pq(key, 8, e, ctx), 1)
           && TEST_BN_eq_word(key->n, N)
           && TEST_BN_eq_word(key->dmp1, DP)
           && TEST_BN_eq_word(key->dmq1, DQ)
@@ -338,6 +339,43 @@ static int test_check_crt_components(void)
           && TEST_true(BN_set_word(key->iqmp, QINV))
           /* check defaults are still valid */
           && TEST_true(ossl_rsa_check_crt_components(key, ctx));
+end:
+    BN_free(e);
+    RSA_free(key);
+    BN_CTX_free(ctx);
+    return ret;
+}
+
+static const struct derive_from_pq_test {
+    int p, q, e;
+} derive_from_pq_tests[] = {
+    { 15, 17, 6 }, /* Mod_inverse failure */
+    { 0, 17, 5 }, /* d is too small */
+};
+
+static int test_derive_params_from_pq_fail(int tst)
+{
+    int ret = 0;
+    RSA *key = NULL;
+    BN_CTX *ctx = NULL;
+    BIGNUM *p = NULL, *q = NULL, *e = NULL;
+
+    ret = TEST_ptr(key = RSA_new())
+          && TEST_ptr(ctx = BN_CTX_new())
+          && TEST_ptr(p = BN_new())
+          && TEST_ptr(q = BN_new())
+          && TEST_ptr(e = BN_new())
+          && TEST_true(BN_set_word(p, derive_from_pq_tests[tst].p))
+          && TEST_true(BN_set_word(q, derive_from_pq_tests[tst].q))
+          && TEST_true(BN_set_word(e, derive_from_pq_tests[tst].e))
+          && TEST_true(RSA_set0_factors(key, p, q));
+    if (!ret) {
+        BN_free(p);
+        BN_free(q);
+        goto end;
+    }
+
+    ret = TEST_int_le(ossl_rsa_sp800_56b_derive_params_from_pq(key, 8, e, ctx), 0);
 end:
     BN_free(e);
     RSA_free(key);
@@ -420,6 +458,10 @@ static int test_invalid_keypair(void)
           && TEST_true(BN_add_word(n, 1))
           && TEST_false(ossl_rsa_sp800_56b_check_keypair(key, NULL, -1, 2048))
           && TEST_true(BN_sub_word(n, 1))
+          /* check that validation fails if len(n) is not even */
+          && TEST_true(BN_lshift1(n, n))
+          && TEST_false(ossl_rsa_sp800_56b_check_keypair(key, NULL, -1, 2049))
+          && TEST_true(BN_rshift1(n, n))
           /* check p  */
           && TEST_true(BN_sub_word(p, 2))
           && TEST_true(BN_mul(n, p, q, ctx))
@@ -438,8 +480,7 @@ end:
     return ret;
 }
 
-static int keygen_size[] =
-{
+static int keygen_size[] = {
     2048, 3072
 };
 
@@ -539,6 +580,7 @@ int setup_tests(void)
     ADD_TEST(test_check_prime_factor);
     ADD_TEST(test_check_private_exponent);
     ADD_TEST(test_check_crt_components);
+    ADD_ALL_TESTS(test_derive_params_from_pq_fail, (int)OSSL_NELEM(derive_from_pq_tests));
     ADD_TEST(test_check_private_key);
     ADD_TEST(test_check_public_key);
     ADD_TEST(test_invalid_keypair);

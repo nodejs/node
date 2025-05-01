@@ -1,5 +1,5 @@
 /*
- * Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2013-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -64,11 +64,11 @@ static const unsigned char ccm_tag[] = {
  * algorithm implementations. If they are NULL then the default library
  * context and properties are used.
  */
-OSSL_LIB_CTX *libctx = NULL;
-const char *propq = NULL;
+static OSSL_LIB_CTX *libctx = NULL;
+static const char *propq = NULL;
 
 
-int aes_ccm_encrypt(void)
+static int aes_ccm_encrypt(void)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx;
@@ -155,7 +155,7 @@ err:
     return ret;
 }
 
-int aes_ccm_decrypt(void)
+static int aes_ccm_decrypt(void)
 {
     int ret = 0;
     EVP_CIPHER_CTX *ctx;
@@ -229,10 +229,10 @@ err:
 int main(int argc, char **argv)
 {
     if (!aes_ccm_encrypt())
-        return 1;
+        return EXIT_FAILURE;
 
     if (!aes_ccm_decrypt())
-        return 1;
+        return EXIT_FAILURE;
 
-    return 0;
+    return EXIT_SUCCESS;
 }

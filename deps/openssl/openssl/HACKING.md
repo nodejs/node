@@ -9,7 +9,7 @@ This document describes the way to add custom modifications to OpenSSL sources.
  [Configurations/unix-Makefile.tmpl](Configurations/unix-Makefile.tmpl)
  to pick up that file.
 
- After that perform the following steps:
+ After that, perform the following steps:
 
     ./Configure -Werror --strict-warnings [your-options]
     make update
@@ -27,7 +27,7 @@ This document describes the way to add custom modifications to OpenSSL sources.
 
  `make update` also generates files related to OIDs (in the `crypto/objects/`
  folder) and errors.
- If a merge error occurs in one of these generated files then the
+ If a merge error occurs in one of these generated files, then the
  generated files need to be removed and regenerated using `make update`.
- To aid in this process the generated files can be committed separately
+ To aid in this process, the generated files can be committed separately
  so they can be removed easily.

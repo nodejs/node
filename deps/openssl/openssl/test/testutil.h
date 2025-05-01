@@ -1,5 +1,5 @@
 /*
- * Copyright 2014-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2014-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 # define OSSL_TESTUTIL_H
 
 # include <stdarg.h>
+# include "internal/common.h" /* for HAS_PREFIX */
 
 # include <openssl/provider.h>
 # include <openssl/err.h>
@@ -319,6 +320,8 @@ DECLARE_COMPARISONS(char, char)
 DECLARE_COMPARISONS(unsigned char, uchar)
 DECLARE_COMPARISONS(long, long)
 DECLARE_COMPARISONS(unsigned long, ulong)
+DECLARE_COMPARISONS(int64_t, int64_t)
+DECLARE_COMPARISONS(uint64_t, uint64_t)
 DECLARE_COMPARISONS(double, double)
 DECLARE_COMPARISONS(time_t, time_t)
 
@@ -468,6 +471,20 @@ void test_perror(const char *s);
 # define TEST_ulong_gt(a, b)  test_ulong_gt(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_ulong_ge(a, b)  test_ulong_ge(__FILE__, __LINE__, #a, #b, a, b)
 
+# define TEST_int64_t_eq(a, b)  test_int64_t_eq(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_int64_t_ne(a, b)  test_int64_t_ne(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_int64_t_lt(a, b)  test_int64_t_lt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_int64_t_le(a, b)  test_int64_t_le(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_int64_t_gt(a, b)  test_int64_t_gt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_int64_t_ge(a, b)  test_int64_t_ge(__FILE__, __LINE__, #a, #b, a, b)
+
+# define TEST_uint64_t_eq(a, b)  test_uint64_t_eq(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_uint64_t_ne(a, b)  test_uint64_t_ne(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_uint64_t_lt(a, b)  test_uint64_t_lt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_uint64_t_le(a, b)  test_uint64_t_le(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_uint64_t_gt(a, b)  test_uint64_t_gt(__FILE__, __LINE__, #a, #b, a, b)
+# define TEST_uint64_t_ge(a, b)  test_uint64_t_ge(__FILE__, __LINE__, #a, #b, a, b)
+
 # define TEST_size_t_eq(a, b) test_size_t_eq(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_size_t_ne(a, b) test_size_t_ne(__FILE__, __LINE__, #a, #b, a, b)
 # define TEST_size_t_lt(a, b) test_size_t_lt(__FILE__, __LINE__, #a, #b, a, b)
@@ -545,6 +562,10 @@ void test_perror(const char *s);
 extern BIO *bio_out;
 extern BIO *bio_err;
 
+/* Thread local BIO overrides. */
+int set_override_bio_out(BIO *bio);
+int set_override_bio_err(BIO *bio);
+
 /*
  * Formatted output for strings, memory and bignums.
  */
@@ -574,7 +595,6 @@ typedef struct stanza_st {
     int numpairs;
     PAIR pairs[TESTMAXPAIRS];
     BIO *key;                   /* temp memory BIO for reading in keys */
-    char buff[4096];            /* Input buffer for a single key/value */
 } STANZA;
 
 /*
@@ -631,5 +651,5 @@ X509 *load_cert_pem(const char *file, OSSL_LIB_CTX *libctx);
 X509 *load_cert_der(const unsigned char *bytes, int len);
 STACK_OF(X509) *load_certs_pem(const char *file);
 X509_REQ *load_csr_der(const char *file, OSSL_LIB_CTX *libctx);
-
+time_t test_asn1_string_to_time_t(const char *asn1_string);
 #endif                          /* OSSL_TESTUTIL_H */

@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -104,8 +104,7 @@ int crl2pkcs7_main(int argc, char **argv)
     }
 
     /* No remaining args. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (!nocrl) {
@@ -139,7 +138,9 @@ int crl2pkcs7_main(int argc, char **argv)
         if ((crl_stack = sk_X509_CRL_new_null()) == NULL)
             goto end;
         p7s->crl = crl_stack;
-        sk_X509_CRL_push(crl_stack, crl);
+
+        if (!sk_X509_CRL_push(crl_stack, crl))
+            goto end;
         crl = NULL;             /* now part of p7 for OPENSSL_freeing */
     }
 
@@ -217,7 +218,10 @@ static int add_certs_from_file(STACK_OF(X509) *stack, char *certfile)
     while (sk_X509_INFO_num(sk)) {
         xi = sk_X509_INFO_shift(sk);
         if (xi->x509 != NULL) {
-            sk_X509_push(stack, xi->x509);
+            if (!sk_X509_push(stack, xi->x509)) {
+                X509_INFO_free(xi);
+                goto end;
+            }
             xi->x509 = NULL;
             count++;
         }

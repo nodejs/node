@@ -132,6 +132,15 @@ The RSA "e" value. The value may be any odd number greater than or equal to
 65537. The default value is 65537.
 For legacy reasons a value of 3 is currently accepted but is deprecated.
 
+=item "rsa-derive-from-pq"  (B<OSSL_PKEY_PARAM_RSA_DERIVE_FROM_PQ>) <unsigned integer>
+
+Indicate that missing parameters not passed in the parameter list should be
+derived if not provided.  Setting a nonzero value will cause all
+needed exponents and coefficients to be derived if not available.  Setting this
+option requires at least OSSL_PARAM_RSA_FACTOR1, OSSL_PARAM_RSA_FACTOR2,
+and OSSL_PARAM_RSA_N to be provided.  This option is ignored if
+OSSL_KEYMGMT_SELECT_PRIVATE_KEY is not set in the selection parameter.
+
 =back
 
 =head2 RSA key generation parameters for FIPS module testing
@@ -264,7 +273,7 @@ L<EVP_RSA_gen(3)>, L<EVP_KEYMGMT(3)>, L<EVP_PKEY(3)>, L<provider-keymgmt(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

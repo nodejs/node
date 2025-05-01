@@ -9,7 +9,7 @@
 use strict;
 use warnings;
 
-use OpenSSL::Test qw/:DEFAULT srctop_file with/;
+use OpenSSL::Test qw/:DEFAULT srctop_file bldtop_dir with/;
 use OpenSSL::Test::Utils;
 
 use Encode;
@@ -54,7 +54,9 @@ if (eval { require Win32::API; 1; }) {
 }
 $ENV{OPENSSL_WIN32_UTF8}=1;
 
-plan tests => 20;
+my $no_fips = disabled('fips') || ($ENV{NO_FIPS} // 0);
+
+plan tests => $no_fips ? 47 : 53;
 
 # Test different PKCS#12 formats
 ok(run(test(["pkcs12_format_test"])), "test pkcs12 formats");
@@ -80,6 +82,8 @@ my $outfile2 = "out2.p12";
 my $outfile3 = "out3.p12";
 my $outfile4 = "out4.p12";
 my $outfile5 = "out5.p12";
+my $outfile6 = "out6.p12";
+my $outfile7 = "out7.p12";
 
 # Test the -chain option with -untrusted
 ok(run(app(["openssl", "pkcs12", "-export", "-chain",
@@ -143,10 +147,113 @@ my @pkcs12info = run(app(["openssl", "pkcs12", "-info", "-in", $outfile5,
                           "-passin", "pass:"]), capture => 1);
 
 # Test that with one input certificate, we get one output certificate
-ok(grep(/subject=CN = server.example/, @pkcs12info) == 1,
+ok(grep(/subject=CN\s*=\s*server.example/, @pkcs12info) == 1,
    "test one cert in output");
+
 # Test that the expected friendly name is present in the output
 ok(grep(/testname/, @pkcs12info) == 1, "test friendly name in output");
+
+# Test there's no Oracle Trusted Key Usage bag attribute
+ok(grep(/Trusted key usage (Oracle)/, @pkcs12info) == 0,
+    "test no oracle trusted key usage");
+
+# Test export of PEM file with both cert and key, without password.
+# -nomac necessary to avoid legacy provider requirement
+{
+    ok(run(app(["openssl", "pkcs12", "-export",
+            "-inkey", srctop_file(@path, "cert-key-cert.pem"),
+            "-in", srctop_file(@path, "cert-key-cert.pem"),
+            "-passout", "pass:",
+            "-nomac", "-out", $outfile6], stderr => "outerr6.txt")),
+    "test_export_pkcs12_cert_key_cert_no_pass");
+    open DATA, "outerr6.txt";
+    my @match = grep /:error:/, <DATA>;
+    close DATA;
+    ok(scalar @match > 0 ? 0 : 1, "test_export_pkcs12_outerr6_empty");
+}
+
+my %pbmac1_tests = (
+    pbmac1_defaults => {args => [], lookup => "hmacWithSHA256"},
+    pbmac1_nondefaults => {args => ["-pbmac1_pbkdf2_md", "sha512", "-macalg", "sha384"], lookup => "hmacWithSHA512"},
+);
+
+for my $instance (sort keys %pbmac1_tests) {
+    my $extra_args = $pbmac1_tests{$instance}{args};
+    my $lookup     = $pbmac1_tests{$instance}{lookup};
+    # Test export of PEM file with both cert and key, with password.
+    {
+        my $pbmac1_id = $instance;
+        ok(run(app(["openssl", "pkcs12", "-export", "-pbmac1_pbkdf2",
+                "-inkey", srctop_file(@path, "cert-key-cert.pem"),
+                "-in", srctop_file(@path, "cert-key-cert.pem"),
+                "-passout", "pass:1234",
+                @$extra_args,
+                "-out", "$pbmac1_id.p12"], stderr => "${pbmac1_id}_err.txt")),
+        "test_export_pkcs12_${pbmac1_id}");
+        open DATA, "${pbmac1_id}_err.txt";
+        my @match = grep /:error:/, <DATA>;
+        close DATA;
+        ok(scalar @match > 0 ? 0 : 1, "test_export_pkcs12_${pbmac1_id}_err.empty");
+
+        ok(run(app(["openssl", "pkcs12", "-in", "$pbmac1_id.p12", "-info", "-noout",
+                "-passin", "pass:1234"], stderr => "${pbmac1_id}_info.txt")),
+        "test_export_pkcs12_${pbmac1_id}_info");
+        open DATA, "${pbmac1_id}_info.txt";
+        my @match = grep /$lookup/, <DATA>;
+        close DATA;
+        ok(scalar @match > 0 ? 1 : 0, "test_export_pkcs12_${pbmac1_id}_info");
+    }
+}
+
+# Test pbmac1 pkcs12 good files, RFC 9579
+for my $file ("pbmac1_256_256.good.p12", "pbmac1_512_256.good.p12", "pbmac1_512_512.good.p12")
+{
+    my $path = srctop_file("test", "recipes", "80-test_pkcs12_data", $file);
+    ok(run(app(["openssl", "pkcs12", "-in", $path, "-password", "pass:1234", "-noenc"])),
+      "test pbmac1 pkcs12 file $file");
+}
+
+
+unless ($no_fips) {
+    my $provpath = bldtop_dir("providers");
+    my $provconf = srctop_file("test", "fips-and-base.cnf");
+    my $provname = 'fips';
+    my @prov = ("-provider-path", $provpath,
+                "-provider", $provname);
+    local $ENV{OPENSSL_CONF} = $provconf;
+
+# Test pbmac1 pkcs12 good files, RFC 9579
+    for my $file ("pbmac1_256_256.good.p12", "pbmac1_512_256.good.p12", "pbmac1_512_512.good.p12")
+    {
+        my $path = srctop_file("test", "recipes", "80-test_pkcs12_data", $file);
+        ok(run(app(["openssl", "pkcs12", @prov, "-in", $path, "-password", "pass:1234", "-noenc"])),
+           "test pbmac1 pkcs12 file $file");
+
+        ok(run(app(["openssl", "pkcs12", @prov, "-in", $path, "-info", "-noout",
+                    "-passin", "pass:1234"], stderr => "${file}_info.txt")),
+           "test_export_pkcs12_${file}_info");
+    }
+}
+
+# Test pbmac1 pkcs12 bad files, RFC 9579
+for my $file ("pbmac1_256_256.bad-iter.p12", "pbmac1_256_256.bad-salt.p12", "pbmac1_256_256.no-len.p12")
+{
+    my $path = srctop_file("test", "recipes", "80-test_pkcs12_data", $file);
+    with({ exit_checker => sub { return shift == 1; } },
+        sub {
+            ok(run(app(["openssl", "pkcs12", "-in", $path, "-password", "pass:1234", "-noenc"])),
+            "test pbmac1 pkcs12 bad file $file");
+            }
+        );
+}
+
+# Test pbmac1 pkcs12 file with absent PBKDF2 PRF, usually omitted when selecting sha1
+{
+    my $file = "pbmac1_sha1_hmac_and_prf.p12";
+    my $path = srctop_file("test", "recipes", "80-test_pkcs12_data", $file);
+    ok(run(app(["openssl", "pkcs12", "-in", $path, "-password", "pass:1234", "-noenc"])),
+      "test pbmac1 pkcs12 file $file");
+}
 
 # Test some bad pkcs12 files
 my $bad1 = srctop_file("test", "recipes", "80-test_pkcs12_data", "bad1.p12");
@@ -180,5 +287,74 @@ with({ exit_checker => sub { return shift == 1; } },
                     "-info"])),
            "test bad pkcs12 file 3 (info)");
      });
+
+# Test that mac verification doesn't fail when mac is absent in the file
+{
+    my $nomac = srctop_file("test", "recipes", "80-test_pkcs12_data", "nomac_parse.p12");
+    ok(run(app(["openssl", "pkcs12", "-in", $nomac, "-passin", "pass:testpassword"])),
+       "test pkcs12 file without MAC");
+}
+
+# Test with Oracle Trusted Key Usage specified in openssl.cnf
+{
+    ok(run(app(["openssl", "pkcs12", "-export", "-out", $outfile7,
+                "-jdktrust", "anyExtendedKeyUsage", "-in", srctop_file(@path, "ee-cert.pem"),
+                "-nokeys", "-passout", "pass:", "-certpbe", "NONE"])),
+       "test nokeys single cert");
+
+    my @pkcs12info = run(app(["openssl", "pkcs12", "-info", "-in", $outfile7,
+                          "-passin", "pass:"]), capture => 1);
+    ok(grep(/Trusted key usage \(Oracle\): Any Extended Key Usage \(2.5.29.37.0\)/, @pkcs12info) == 1,
+        "test oracle trusted key usage is set");
+
+    delete $ENV{OPENSSL_CONF}
+}
+
+# Tests for pkcs12_parse
+ok(run(test(["pkcs12_api_test",
+             "-in", $outfile1,
+             "-has-ca", 1,
+             ])), "Test pkcs12_parse()");
+
+SKIP: {
+    skip "Skipping PKCS#12 parse test because DES is disabled in this build", 1
+        if disabled("des");
+    ok(run(test(["pkcs12_api_test",
+                 "-in", $outfile2,
+                 "-pass", "v3-certs",
+                 "-has-ca", 1,
+                 ])), "Test pkcs12_parse()");
+}
+
+SKIP: {
+    skip "Skipping PKCS#12 parse test because the required algorithms are disabled", 1
+        if disabled("des") || disabled("rc2") || disabled("legacy");
+    ok(run(test(["pkcs12_api_test",
+                 "-in", $outfile3,
+                 "-pass", "v3-certs",
+                 "-has-ca", 1,
+                 ])), "Test pkcs12_parse()");
+}
+
+ok(run(test(["pkcs12_api_test",
+             "-in", $outfile4,
+             "-pass", "v3-certs",
+             "-has-ca", 1,
+             "-has-key", 1,
+             "-has-cert", 1,
+             ])), "Test pkcs12_parse()");
+
+ok(run(test(["pkcs12_api_test",
+             "-in", $outfile5,
+             "-has-ca", 1,
+             ])), "Test pkcs12_parse()");
+
+ok(run(test(["pkcs12_api_test",
+             "-in", $outfile6,
+             "-pass", "",
+             "-has-ca", 1,
+             "-has-key", 1,
+             "-has-cert", 1,
+             ])), "Test pkcs12_parse()");
 
 SetConsoleOutputCP($savedcp) if (defined($savedcp));

@@ -101,7 +101,7 @@ otherwise.
 When SCT processing is enabled, OCSP stapling will be enabled. This is because
 one possible source of SCTs is the OCSP response from a server.
 
-The time returned by SSL_SESSION_get_time() will be used to evaluate whether any
+The time returned by SSL_SESSION_get_time_ex() will be used to evaluate whether any
 presented SCTs have timestamps that are in the future (and therefore invalid).
 
 =head1 RESTRICTIONS
@@ -135,7 +135,7 @@ L<SSL_SESSION_get_time(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2016-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

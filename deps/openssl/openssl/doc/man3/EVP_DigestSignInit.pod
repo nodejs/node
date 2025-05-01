@@ -18,7 +18,7 @@ EVP_DigestSignFinal, EVP_DigestSign - EVP signing functions
  int EVP_DigestSignUpdate(EVP_MD_CTX *ctx, const void *d, size_t cnt);
  int EVP_DigestSignFinal(EVP_MD_CTX *ctx, unsigned char *sig, size_t *siglen);
 
- int EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sigret,
+ int EVP_DigestSign(EVP_MD_CTX *ctx, unsigned char *sig,
                     size_t *siglen, const unsigned char *tbs,
                     size_t tbslen);
 
@@ -118,7 +118,7 @@ be used for the signing and digest algorithm implementations. I<e> may be NULL.
 
 EVP_DigestSignUpdate() hashes I<cnt> bytes of data at I<d> into the
 signature context I<ctx>. This function can be called several times on the
-same I<ctx> to include additional data.
+same I<ctx> to include additional data. I<ctx> B<MUST NOT> be NULL.
 
 Unless I<sig> is NULL EVP_DigestSignFinal() signs the data in I<ctx>
 and places the signature in I<sig>.
@@ -128,13 +128,12 @@ I<siglen> parameter should contain the length of the I<sig> buffer. If the
 call is successful the signature is written to I<sig> and the amount of data
 written to I<siglen>.
 
-EVP_DigestSign() signs I<tbslen> bytes of data at I<tbs> and places the
-signature in I<sig> and its length in I<siglen> in a similar way to
-EVP_DigestSignFinal(). In the event of a failure EVP_DigestSign() cannot be
-called again without reinitialising the EVP_MD_CTX. If I<sig> is NULL before the
-call then I<siglen> will be populated with the required size for the I<sig>
-buffer. If I<sig> is non-NULL before the call then I<siglen> should contain the
-length of the I<sig> buffer.
+EVP_DigestSign() is similar to a single call to EVP_DigestSignUpdate() and
+EVP_DigestSignFinal().
+Unless I<sig> is NULL, EVP_DigestSign() signs the data I<tbs> of length I<tbslen>
+bytes and places the signature in a buffer I<sig> of size I<siglen>.
+If I<sig> is NULL, the maximum necessary size of the signature buffer is written
+to the I<siglen> parameter.
 
 =head1 RETURN VALUES
 
@@ -166,11 +165,22 @@ external circumstances (see L<RAND(7)>), the operation will fail.
 The call to EVP_DigestSignFinal() internally finalizes a copy of the digest
 context. This means that calls to EVP_DigestSignUpdate() and
 EVP_DigestSignFinal() can be called later to digest and sign additional data.
+Applications may disable this behavior by setting the EVP_MD_CTX_FLAG_FINALISE
+context flag via L<EVP_MD_CTX_set_flags(3)>.
+
+Note that not all providers support continuation, in case the selected
+provider does not allow to duplicate contexts EVP_DigestSignFinal() will
+finalize the digest context and attempting to process additional data via
+EVP_DigestSignUpdate() will result in an error.
 
 EVP_DigestSignInit() and EVP_DigestSignInit_ex() functions can be called
 multiple times on a context and the parameters set by previous calls should be
 preserved if the I<pkey> parameter is NULL. The call then just resets the state
 of the I<ctx>.
+
+EVP_DigestSign() can not be called again, once a signature is generated (by
+passing I<sig> as non NULL), unless the B<EVP_MD_CTX> is reinitialised by
+calling EVP_DigestSignInit_ex().
 
 Ignoring failure returns of EVP_DigestSignInit() and EVP_DigestSignInit_ex()
 functions can lead to subsequent undefined behavior when calling
@@ -201,7 +211,7 @@ EVP_DigestSignUpdate() was converted from a macro to a function in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2006-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2006-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

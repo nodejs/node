@@ -1,0 +1,110 @@
+#
+# Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+Title = Test RSA KEM
+
+PrivateKey = RSA-2048
+-----BEGIN PRIVATE KEY-----
+MIIEvAIBADANBgkqhkiG9w0BAQEFAASCBKYwggSiAgEAAoIBAQDNAIHqeyrh6gbV
+n3xz2f+5SglhXC5Lp8Y2zvCN01M+wxhVJbAVx2m5mnfWclv5w1Mqm25fZifV+4UW
+B2jT3anL01l0URcX3D0wnS/EfuQfl+Mq23+d2GShxHZ6Zm7NcbwarPXnUX9LOFlP
+6psF5C1a2pkSAIAT5FMWpNm7jtCGuI0odYusr5ItRqhotIXSOcm66w4rZFknEPQr
+LR6gpLSALAvsqzKPimiwBzvbVG/uqYCdKEmRKzkMFTK8finHZY+BdfrkbzQzL/h7
+yrPkBkm5hXeGnaDqcYNT8HInVIhpE2SHYNEivmduD8SD3SD/wxvalqMZZsmqLnWt
+A95H4cRPAgMBAAECggEAYCl6x5kbFnoG1rJHWLjL4gi+ubLZ7Jc4vYD5Ci41AF3X
+ziktnim6iFvTFv7x8gkTvArJDWsICLJBTYIQREHYYkozzgIzyPeApIs3Wv8C12cS
+IopwJITbP56+zM+77hcJ26GCgA2Unp5CFuC/81WDiPi9kNo3Oh2CdD7D+90UJ/0W
+glplejFpEuhpU2URfKL4RckJQF/KxV+JX8FdIDhsJu54yemQdQKaF4psHkzwwgDo
+qc+yfp0Vb4bmwq3CKxqEoc1cpbJ5CHXXlAfISzUjlcuBzD/tW7BDtp7eDAcgRVAC
+XO6MX0QBcLYSC7SOD3R7zY9SIRCFDfBDxCjf0YcFMQKBgQD2+WG0fLwDXTrt68fe
+hQqVa2Xs25z2B2QGPxWqSFU8WNly/mZ1BW413f3De/O58vYi7icTNyVoScm+8hdv
+6PfD+LuRujdN1TuvPeyBTSvewQwf3IjN0Wh28mse36PwlBl+301C/x+ylxEDuJjK
+hZxCcocIaoQqtBC7ac8tNa9r4wKBgQDUfnJKf/QQSLJwwlJKQQGHi3MVm7c9PbwY
+eyIOY1s1NPluJDoYTZP4YLa/u2txwe2aHh9FhYMCPDAelqaSwaCLU9DsnKkQEA2A
+RR47fcagG6xK7O+N95iEa8I1oIy7os9MBoBMwRIZ6VYIxxTj8UMNSR+tu6MqV1Gg
+T5d0WDTJpQKBgCHyRSu5uV39AoyRS/eZ8cp36JqV1Q08FtOE+EVfi9evnrPfo9WR
+2YQt7yNfdjCo5IwIj/ZkLhAXlFNakz4el2+oUJ/HKLLaDEoaCNf883q6rh/zABrK
+HcG7sF2d/7qhoJ9/se7zgjfZ68zHIrkzhDbd5xGREnmMJoCcGo3sQyBhAoGAH3UQ
+qmLC2N5KPFMoJ4H0HgLQ6LQCrnhDLkScSBEBYaEUA/AtAYgKjcyTgVLXlyGkcRpg
+esRHHr+WSBD5W+R6ReYEmeKfTJdzyDdzQE9gZjdyjC0DUbsDwybIu3OnIef6VEDq
+IXK7oUZfzDDcsNn4mTDoFaoff5cpqFfgDgM43VkCgYBNHw11b+d+AQmaZS9QqIt7
+aF3FvwCYHV0jdv0Mb+Kc1bY4c0R5MFpzrTwVmdOerjuuA1+9b+0Hwo3nBZM4eaBu
+SOamA2hu2OJWCl9q8fLCT69KqWDjghhvFe7c6aJJGucwaA3Uz3eLcPqoaCarMiNH
+fMkTd7GabVourqIZdgvu1Q==
+-----END PRIVATE KEY-----
+
+# Corresponding public key
+
+PublicKey = RSA-2048-PUBLIC
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAzQCB6nsq4eoG1Z98c9n/
+uUoJYVwuS6fGNs7wjdNTPsMYVSWwFcdpuZp31nJb+cNTKptuX2Yn1fuFFgdo092p
+y9NZdFEXF9w9MJ0vxH7kH5fjKtt/ndhkocR2emZuzXG8Gqz151F/SzhZT+qbBeQt
+WtqZEgCAE+RTFqTZu47QhriNKHWLrK+SLUaoaLSF0jnJuusOK2RZJxD0Ky0eoKS0
+gCwL7Ksyj4posAc721Rv7qmAnShJkSs5DBUyvH4px2WPgXX65G80My/4e8qz5AZJ
+uYV3hp2g6nGDU/ByJ1SIaRNkh2DRIr5nbg/Eg90g/8Mb2pajGWbJqi51rQPeR+HE
+TwIDAQAB
+-----END PUBLIC KEY-----
+
+# We only keep the private key for RSA-512 since it is only used for
+# testing the FIPS provider's ability to detect short keys.  If a
+# positive test is added, the public key will be required too.
+PrivateKey = RSA-512
+-----BEGIN PRIVATE KEY-----
+MIIBVAIBADANBgkqhkiG9w0BAQEFAASCAT4wggE6AgEAAkEA0aGpl/FjkDOqV8yF
+Gw7IFXcLLVf0scal6HRJMJhLoB4iN0jq2XeVCDHNsIzTI7WmdYOV7FAdyOjCm74h
+AFl+KQIDAQABAkAsWYBQte/zbQrHwmwSmmD4MZQ6xpXtGnK1KAzn7ABr4jHdV+OG
+ic1+sY3aKj+C79GWF5WEd+NHnTrV+bSXPrXRAiEA+ahiTkZ9x0m1JmQ5/cJGm8zS
+YOBdE0SlJZJrPskfGzUCIQDW9PkYpIddXU+vJoIIaTgoXmjMsETzcjcyjVkdK+LB
+pQIgScvIIzMbAsl6znpZ2fSPQoZsuU4YtRVZa524LbrtgvECIQDFkRTdhGLx+hCC
+ECeVqXe3CsbR0vUcuA5phSaxvCNHDQIgUaYqag90Gnxe9kST5K1DRRoKpksaIPbG
+NDL6WCBbets=
+-----END PRIVATE KEY-----
+
+# RSA Encapsulate/Decapsulate
+Kem = RSA
+KeyName = RSA-2048
+Op = RSASVE
+
+# Check default KEM op which was added in 3.5.0 so skip this for earlier versions
+FIPSversion = >=3.5.0
+Kem = RSA
+KeyName = RSA-2048
+
+# RSA Decapsulate
+Kem = RSA
+KeyName = RSA-2048
+Op = RSASVE
+Input = 431937b777ae3ddda69da20ea602aeb76f87a7e120f24ff2bf7757de4302413fd875eb740d5ea108d0bce1102d9f0ec1613aa433ab33164afeb06b531334e4a0ea0965a4ef1c06ad783ce5799a35a62c1f8926b878be7400bd39a35a144ddccb1161f9b22891afb84bff8c31028fee69eaeca4c73d9d1dc0db371d52f33c950d7a3d51c2032567d07e1c2af36b4a4e13af04ba165ca3242cafcc2e1778ff205ede37397c1b71aa88ff16927b2ed6e7b04fd980b9a9392ce7ce902c11ac22e0d72633eb6d0b85c766e22a5f80bca7161d7bf544af4790b3d2af0d7631faf6204c3908be1072d52a5be47687cad09a978b856f4d72e659650adccd05b343630d7b
+Output = 01fd95c07b4f4888f4efaf6d69d9309f677b4c0cd2179f10572e4576163c25046917340e8c5098f64d580f56614856a4c46e7e14843a62f5c387b0b30f09d456302534bfa2c944af66bb8a172ea3064d59ed9855797436ea70e218ef59181c6497222819cb1903cdf6febc6d484f1cb8a44946ee7be9e734e6423c83d4aaf509d84980292fe996000d34c9727146157a422110047b7441e0ecd81824b96e09a5fe3a1f0a46099625aeb0a3712e991293a7401bc01dca8bb5e72aaee9a9367ff3294ca158b64404a651c2fd3bab21178e54f27dd0ca25f64f3a6f44a284f8687459a7e453e6c3cc8c2f58da214047d7c416167923b6d6c61d5988e96dff15fad9
+
+# Test small RSA keys are not allowed for Encapsulation in FIPS mode
+FIPSversion = >=3.4.0
+Kem = RSA
+KeyName = RSA-512
+Securitycheck = 1
+Op = RSASVE
+Result = TEST_ENCAPSULATE_INIT_ERROR
+
+# Test small RSA keys are not allowed for Decapsulation in FIPS mode
+FIPSversion = >=3.4.0
+Kem = RSA
+KeyName = RSA-512
+Securitycheck = 1
+Op = RSASVE
+Input = 431937b777ae3ddda69da20ea602aeb76f87a7e120f24ff2bf7757de4302413fd875eb740d5ea108d0bce1102d9f0ec1613aa433ab33164afeb06b531334e4a0ea0965a4ef1c06ad783ce5799a35a62c1f8926b878be7400bd39a35a144ddccb1161f9b22891afb84bff8c31028fee69eaeca4c73d9d1dc0db371d52f33c950d
+Result = TEST_DECAPSULATE_INIT_ERROR
+
+# Test FIPS indicator callback is triggered
+FIPSversion = >=3.4.0
+Kem = RSA
+KeyName = RSA-512
+Securitycheck = 1
+Unapproved = 1
+CtrlInit = key-check:0
+Op = RSASVE

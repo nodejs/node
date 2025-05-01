@@ -55,14 +55,16 @@ Parameters are encoded as B<EcpkParameters> as specified in IETF RFC 3279.
 
 =item B<-in> I<filename>
 
-This specifies the input filename to read parameters from or standard input if
+This specifies the input file to read parameters from or standard input if
 this option is not specified.
 
 =item B<-out> I<filename>
 
 This specifies the output filename parameters to. Standard output is used
-if this option is not present. The output filename should B<not> be the same
-as the input filename.
+if this option is not present.
+The output filename can be the same as the input filename,
+which leads to replacing the file contents.
+Note that file I/O is not atomic. The output file is truncated and then written.
 
 =item B<-noout>
 

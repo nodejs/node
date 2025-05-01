@@ -205,13 +205,16 @@
                @cnf_ldflags, '$(LDFLAGS)');
   our $bin_ex_libs = join('', @cnf_ex_libs, '$(EX_LIBS)');
 
-  # This is a horrible hack, but is needed because recursive inclusion of files
-  # in different directories does not work well with VMS C.  We try to help by
-  # specifying extra relative directories.  They must always be in Unix format,
-  # relative to the directory where the .c file is located.  The logic is that
-  # any inclusion, merged with one of these relative directories, will find the
-  # requested inclusion file.
-  foreach (grep /\[\.crypto\.async\.arch\].*\.o$/, keys %{$unified_info{sources}}) {
+  # These are horrible hacks, but are needed because recursive inclusion of
+  # files in different directories does not work well with VMS C.  We try to
+  # help by specifying extra relative directories.  They must always be in Unix
+  # format, relative to the directory where the .c file is located.  The logic
+  # is that any inclusion, merged with one of these relative directories, will
+  # find the requested inclusion file.
+  # In the regexps, it's advisable to always start the file name with .*?, as
+  # the C source to OBJ file translation adds stuff at the beginning of the,
+  # name, such as [.ssl]bio_ssl.c -> [.ssl]libssl-shlib-bio_ssl.OBJ
+  foreach (grep /\[\.crypto\.async\.arch\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
       push @{$unified_info{includes_extra}->{$obj}}, qw(../);
   }
@@ -223,7 +226,20 @@
       my $obj = platform->obj($_);
       push @{$unified_info{includes_extra}->{$obj}}, qw(../);
   }
-  foreach (grep /\[\.ssl\.(?:record|statem)\].*?\.o$/, keys %{$unified_info{sources}}) {
+  foreach (grep /\[\.ssl\].*?\.o$/, keys %{$unified_info{sources}}) {
+      my $obj = platform->obj($_);
+      # Most of the files in [.ssl] include "ssl_local.h" which includes things
+      # like "record/record.h".  Adding "./" as an inclusion directory helps
+      # making this sort of header from these directories.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(./);
+
+      # Additionally, an increasing amount of files in [.ssl] include
+      # "quic/quic_local.h", which in turn includes "../ssl_local.h".  Adding
+      # "./quic" as an inclusion directory helps making this sort of header
+      # from these directories.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(./quic);
+  }
+  foreach (grep /\[\.ssl\.(?:quic|record|statem|rio)\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
       # Most of the files in [.ssl.record] and [.ssl.statem] include
       # "../ssl_local.h", which includes things like "record/record.h".
@@ -232,13 +248,35 @@
       push @{$unified_info{includes_extra}->{$obj}}, qw(../);
 
   }
+  foreach (grep /\[\.ssl\.record\.methods\].*?\.o$/, keys %{$unified_info{sources}}) {
+      my $obj = platform->obj($_);
+      # Most of the files in [.ssl.record.methods] include "../../ssl_local.h"
+      # which includes things like "record/record.h".  Adding "../../" as an
+      # inclusion directory helps making this sort of header from these
+      # directories.  But this gets worse; through a series of inclusions,
+      # all of them based on the relative directory of the object file, there's
+      # a need to deal with an inclusion of "../ssl_local.h" as well.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../../), qw(../);
+  }
   foreach (grep /\[\.test\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
       push @{$unified_info{includes_extra}->{$obj}}, qw(../ssl ./helpers);
+      # Some of the sources in [.test] also include headers like
+      # "../ssl/record/methods/recmethod_local.h", which in turn might include
+      # "../../ssl_local.h", so these object files need yet another hack.
+      # We could make this specific to just the object files that are affected
+      # directly, but that would end up with more whack-a-mole of this sort, so
+      # nah, we do it broadly.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../ssl/record/methods);
+      # Similarly, some include "../ssl/ssl_local.h", and somewhere down the
+      # line, "quic/quic_local.h" gets included, which includes "../ssl_local.h"
+      # The problem is fixed by adding ../ssl/quic too.
+      push @{$unified_info{includes_extra}->{$obj}}, qw(../ssl/quic);
   }
   foreach (grep /\[\.test\.helpers\].*?\.o$/, keys %{$unified_info{sources}}) {
       my $obj = platform->obj($_);
-      push @{$unified_info{includes_extra}->{$obj}}, qw(../../ssl);
+      push @{$unified_info{includes_extra}->{$obj}},
+          qw(../../ssl ../../ssl/quic);
   }
 
   # This makes sure things get built in the order they need
@@ -436,7 +474,7 @@ NODEBUG=@
         $(NODEBUG) ! Set up logical names for the libraries, so LINK and
         $(NODEBUG) ! running programs can use them.
         $(NODEBUG) !
-        $(NODEBUG) {- join("\n\t\$(NODEBUG) ", map { "DEFINE ".uc($_)." 'F\$ENV(\"DEFAULT\")'".uc($_)."\$(SHLIB_EXT)" } @shlibs) || "!" -}
+        $(NODEBUG) {- join("\n\t\$(NODEBUG) ", map { "DEFINE ".uc($_)." 'F\$ENV(\"DEFAULT\")'".uc($_).".EXE" } @shlibs) || "!" -}
 
 .LAST :
         $(NODEBUG) {- join("\n\t\$(NODEBUG) ", map { "DEASSIGN ".uc($_) } @shlibs) || "!" -}
@@ -1030,16 +1068,48 @@ EOF
           my $dofile = abs2rel(rel2abs(catfile($config{sourcedir},
                                                "util", "dofile.pl")),
                                rel2abs($config{builddir}));
-          my @perlmodules = ( 'configdata.pm',
-                              grep { $_ =~ m|\.pm$| } @{$args{deps}} );
-          my %perlmoduleincs = map { '"-I'.dirname($_).'"' => 1 } @perlmodules;
+          my @perlmodules = ();
+          my %perlmoduleincs = ();
+          my %perlmoduledeps = ();
+          foreach my $x (('configdata.pm', @{$args{deps}})) {
+              # Compute (i)nclusion directory, (m)odule name and (d)ependency
+              my $i, $m, $d;
+              if ($x =~ /\|/) {
+                  $i = $`;
+                  $d = $';
+
+                  # Massage the module part to become a real perl module spec
+                  $m = $d;
+                  $m =~ s|\.pm$||;
+                  # Directory specs are :: in perl package names
+                  $m =~ s|/|::|g;
+
+                  # Full file name of the dependency
+                  $d = catfile($i, $d) if $i;
+              } elsif ($x =~ /\.pm$/) {
+                  $i = dirname($x);
+                  $m = basename($x, '.pm');
+                  $d = $x;
+              } else {
+                  # All other dependencies are simply collected
+                  $d = $x;
+              }
+              push @perlmodules, '"-M'.$m.'"' if $m;
+              $perlmoduledeps{$d} = 1;
+              $perlmoduleincs{'"-I'.$i.'"'} = 1 if $i;
+          }
+
           my @decc_include_data
               = make_decc_include_files(dirname($args{src}), dirname($gen0));
           my $decc_include_scripture = pop @decc_include_data;
-          $deps = join(' ', $deps, @decc_include_data,
-                            compute_platform_depends(@perlmodules));
-          @perlmodules = map { '"-M'.basename($_, '.pm').'"' } @perlmodules;
-          my $perlmodules = join(' ', '', sort keys %perlmoduleincs, @perlmodules);
+          # Because of the special treatment of dependencies, we need to
+          # recompute $deps completely
+          my $deps
+              = join(" ", @decc_include_data,
+                          compute_platform_depends(@{$args{generator_deps}},
+                                                   sort keys %perlmoduledeps));
+          my $perlmodules = join(' ', '', ( sort keys %perlmoduleincs ), @perlmodules);
+
 
           return <<"EOF";
 $args{src} : $gen0 $deps
@@ -1241,16 +1311,28 @@ EOF
       # previous line's file spec as default, so if no directory spec
       # is present in the current line and the previous line has one that
       # doesn't apply, you're in for a surprise.
+      # Furthermore, we collect all object files and static libraries in
+      # an explicit cluster, to make it clear to the linker that these files
+      # shall be processed before shareable images.
+      # The shareable images are used with /SELECTIVE, to avoid warnings of
+      # multiply defined symbols when the module object files override some
+      # symbols that are present in the shareable image.
       my $write_opt1 =
-          join(",-\"\n\t", map { my $x = $_ =~ /\[/ ? $_ : "[]".$_;
-                                 "WRITE OPT_FILE \"$x" } @objs).
-          "\"";
+          join(",-\"\n\t",
+               "\@ WRITE OPT_FILE \"CLUSTER=_,,",
+               (map { my $x = $_ =~ /\[/ ? $_ : "[]".$_;
+                      "\@ WRITE OPT_FILE \"$x" } @objs),
+               (map { my $x = ($_->{lib} =~ /\[/) ? $_->{lib} : "[]".$_->{lib};
+                      "\@ WRITE OPT_FILE \"$x/LIB" }
+                grep { $_->{lib} =~ m|\.OLB$| }
+                @deps))
+          ."\"";
       my $write_opt2 =
-          join("\n\t", map { my $x = $_->{lib} =~ /\[/
-                                 ? $_->{lib} : "[]".$_->{lib};
-                             $x =~ s|(\.EXE)|$1/SHARE|;
-                             $x =~ s|(\.OLB)|$1/LIB|;
-                             "WRITE OPT_FILE \"$x\"" } @deps)
+          join("\n\t",
+               (map { my $x = ($_->{lib} =~ /\[/) ? $_->{lib} : "[]".$_->{lib};
+                      "\@ WRITE OPT_FILE \"$x/SHARE/SELECTIVE\"" }
+                grep { $_->{lib} =~ m|\.EXE$| }
+                @deps))
           || "\@ !";
       return <<"EOF"
 $dso : $deps
@@ -1305,30 +1387,30 @@ EOF
       # is present in the current line and the previous line has one that
       # doesn't apply, you're in for a surprise.
       my $write_opt1 =
-          join(",-\"\n\t", map { my $x = $_ =~ /\[/ ? $_ : "[]".$_;
-                                 "\@ WRITE OPT_FILE \"$x" } @objs).
-          "\"";
+          "\@ WRITE OPT_FILE \"CASE_SENSITIVE=YES\"\n\t"
+          .join(",-\"\n\t",
+                "\@ WRITE OPT_FILE \"CLUSTER=_,,",
+                (map { my $x = $_ =~ /\[/ ? $_ : "[]".$_;
+                       "\@ WRITE OPT_FILE \"$x" } @objs),
+                (map { my $x = ($_->{lib} =~ /\[/) ? $_->{lib} : "[]".$_->{lib};
+                       # Special hack to include the MAIN object module
+                       # explicitly, if it's known that there is one.
+                       # |incmain| is defined in the rule generation further
+                       # down, with the necessary /INCLUDE=main option unless
+                       # the program has been determined to have a main function
+                       # already.
+                       $_->{attrs}->{has_main}
+                       ? "\@ WRITE OPT_FILE \"$x/LIB''incmain'"
+                       : "\@ WRITE OPT_FILE \"$x/LIB" }
+                 grep { $_->{lib} =~ m|\.OLB$| }
+                 @deps))
+          ."\"";
       my $write_opt2 =
-          join("\n\t", "WRITE OPT_FILE \"CASE_SENSITIVE=YES\"",
-                       map { my @lines = ();
-                             use Data::Dumper;
-                             my $x = $_->{lib} =~ /\[/
-                                 ? $_->{lib} : "[]".$_->{lib};
-                             if ($x =~ m|\.EXE$|) {
-                                 push @lines, "\@ WRITE OPT_FILE \"$x/SHARE\"";
-                             } elsif ($x =~ m|\.OLB$|) {
-                                 # Special hack to include the MAIN object
-                                 # module explicitly.  This will only be done
-                                 # if there isn't a 'main' in the program's
-                                 # object modules already.
-                                 my $main = $_->{attrs}->{has_main}
-                                     ? '/INCLUDE=main' : '';
-                                 push @lines,
-                                     "\@ IF nomain THEN WRITE OPT_FILE \"$x/LIB$main\"",
-                                     "\@ IF .NOT. nomain THEN WRITE OPT_FILE \"$x/LIB\""
-                             }
-                             @lines
-                           } @deps)
+          join("\n\t",
+               (map { my $x = $_->{lib} =~ /\[/ ? $_->{lib} : "[]".$_->{lib};
+                      "\@ WRITE OPT_FILE \"$x/SHARE/SELECTIVE\"" }
+                grep { $_->{lib} =~ m|\.EXE$| }
+                @deps))
           || "\@ !";
       # The linking commands looks a bit complex, but it's for good reason.
       # When you link, say, foo.obj, bar.obj and libsomething.exe/share, and
@@ -1351,6 +1433,8 @@ EOF
       return <<"EOF"
 $bin : $deps
         $analyse_objs
+        @ incmain = "/INCLUDE=main"
+        @ IF .NOT. nomain THEN incmain = ""
         @ OPEN/WRITE/SHARE=READ OPT_FILE $binname.OPT
         $write_opt1
         $write_opt2

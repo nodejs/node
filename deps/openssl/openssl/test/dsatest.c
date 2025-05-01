@@ -247,7 +247,7 @@ static int dsa_keygen_test(void)
         goto end;
     if (!TEST_ptr(pg_ctx = EVP_PKEY_CTX_new_from_name(NULL, "DSA", NULL))
         || !TEST_int_gt(EVP_PKEY_paramgen_init(pg_ctx), 0)
-        || !TEST_ptr_null(EVP_PKEY_CTX_gettable_params(pg_ctx))
+        || !TEST_ptr(EVP_PKEY_CTX_gettable_params(pg_ctx))
         || !TEST_ptr(settables = EVP_PKEY_CTX_settable_params(pg_ctx))
         || !TEST_ptr(OSSL_PARAM_locate_const(settables,
                                              OSSL_PKEY_PARAM_FFC_PBITS))

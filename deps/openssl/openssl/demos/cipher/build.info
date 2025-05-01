@@ -1,0 +1,17 @@
+PROGRAMS{noinst}=aesccm aesgcm aeskeywrap ariacbc
+
+INCLUDE[aesccm]=../../include
+SOURCE[aesccm]=aesccm.c
+DEPEND[aesccm]=../../libcrypto ../../libssl
+
+INCLUDE[aesgcm]=../../include
+SOURCE[aesgcm]=aesgcm.c
+DEPEND[aesgcm]=../../libcrypto ../../libssl
+
+INCLUDE[aeskeywrap]=../../include
+SOURCE[aeskeywrap]=aeskeywrap.c
+DEPEND[aeskeywrap]=../../libcrypto ../../libssl
+
+INCLUDE[ariacbc]=../../include
+SOURCE[ariacbc]=ariacbc.c
+DEPEND[ariacbc]=../../libcrypto ../../libssl

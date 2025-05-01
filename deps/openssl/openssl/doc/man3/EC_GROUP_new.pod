@@ -5,6 +5,7 @@
 EC_GROUP_get_ecparameters,
 EC_GROUP_get_ecpkparameters,
 EC_GROUP_new_from_params,
+EC_GROUP_to_params,
 EC_GROUP_new_from_ecparameters,
 EC_GROUP_new_from_ecpkparameters,
 EC_GROUP_new,
@@ -30,6 +31,8 @@ Functions for creating and destroying EC_GROUP objects
 
  EC_GROUP *EC_GROUP_new_from_params(const OSSL_PARAM params[],
                                     OSSL_LIB_CTX *libctx, const char *propq);
+ OSSL_PARAM *EC_GROUP_to_params(const EC_GROUP *group, OSSL_LIB_CTX *libctx,
+                                const char *propq, BN_CTX *bnctx);
  EC_GROUP *EC_GROUP_new_from_ecparameters(const ECPARAMETERS *params);
  EC_GROUP *EC_GROUP_new_from_ecpkparameters(const ECPKPARAMETERS *params);
  void EC_GROUP_free(EC_GROUP *group);
@@ -106,6 +109,16 @@ I<params> may be either a list of explicit params or a named group,
 The values for I<ctx> and I<propq> may be NULL.
 The I<params> that can be used are described in
 L<B<EVP_PKEY-EC>(7)|EVP_PKEY-EC(7)/Common EC parameters>.
+
+EC_GROUP_to_params creates an OSSL_PARAM array with the corresponding parameters
+describing the given EC_GROUP. The resulting parameters may contain parameters
+describing a named or explicit curve depending on the EC_GROUP.
+The library context I<libctx> (see L<OSSL_LIB_CTX(3)>) and property query string
+I<propq> are used to fetch algorithms from providers.
+I<bnctx> is an optional preallocated BN_CTX (to save the overhead of allocating
+and freeing the structure in a loop).
+The values for I<libctx>, I<propq> and I<bnctx> may be NULL.
+The caller is responsible for freeing the OSSL_PARAM pointer returned.
 
 EC_GROUP_new_from_ecparameters() will create a group from the
 specified I<params> and
@@ -199,6 +212,8 @@ L<OSSL_LIB_CTX(3)>, L<EVP_PKEY-EC(7)>
 
 =head1 HISTORY
 
+EC_GROUP_to_params() was added in OpenSSL 3.2.
+
 =over 2
 
 =item *
@@ -223,7 +238,7 @@ instead.
 
 =head1 COPYRIGHT
 
-Copyright 2013-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2013-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

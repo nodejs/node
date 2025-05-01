@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2008-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -657,6 +657,7 @@ sub S0222 { my $i=shift; $i=@SBOX[$i]; $i=($i<<1|$i>>7)&0xff; $i=$i<<16|$i<<8|$i
 sub S3033 { my $i=shift; $i=@SBOX[$i]; $i=($i>>1|$i<<7)&0xff; $i=$i<<24|$i<<8|$i; sprintf("0x%08x",$i); }
 
 $code.=<<___;
+.section .rodata align=64
 .align	64
 .LCamellia_SIGMA:
 .long	0x3bcc908b, 0xa09e667f, 0x4caa73b2, 0xb67ae858
@@ -682,6 +683,7 @@ $_ivp="40(%rsp)";
 $_rsp="48(%rsp)";
 
 $code.=<<___;
+.text
 .globl	Camellia_cbc_encrypt
 .type	Camellia_cbc_encrypt,\@function,6
 .align	16

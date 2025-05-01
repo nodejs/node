@@ -17,65 +17,112 @@ static int test_trace_categories(void)
 
     for (cat_num = -1; cat_num <= OSSL_TRACE_CATEGORY_NUM + 1; ++cat_num) {
         const char *cat_name = OSSL_trace_get_category_name(cat_num);
-        int is_cat_name_eq = 0;
+        const char *expected_cat_name = NULL;
         int ret_cat_num;
-        int expected_ret;
 
+#define SET_EXPECTED_CAT_NAME(name) expected_cat_name = #name; break
         switch (cat_num) {
-#define CASE(name) \
-        case OSSL_TRACE_CATEGORY_##name: \
-            is_cat_name_eq = TEST_str_eq(cat_name, #name); \
-            break
-
-        CASE(ALL);
-        CASE(TRACE);
-        CASE(INIT);
-        CASE(TLS);
-        CASE(TLS_CIPHER);
-        CASE(CONF);
-        CASE(ENGINE_TABLE);
-        CASE(ENGINE_REF_COUNT);
-        CASE(PKCS5V2);
-        CASE(PKCS12_KEYGEN);
-        CASE(PKCS12_DECRYPT);
-        CASE(X509V3_POLICY);
-        CASE(BN_CTX);
-        CASE(CMP);
-        CASE(STORE);
-        CASE(DECODER);
-        CASE(ENCODER);
-        CASE(REF_COUNT);
-#undef CASE
+        case OSSL_TRACE_CATEGORY_ALL:
+            SET_EXPECTED_CAT_NAME(ALL);
+        case OSSL_TRACE_CATEGORY_TRACE:
+            SET_EXPECTED_CAT_NAME(TRACE);
+        case OSSL_TRACE_CATEGORY_INIT:
+            SET_EXPECTED_CAT_NAME(INIT);
+        case OSSL_TRACE_CATEGORY_TLS:
+            SET_EXPECTED_CAT_NAME(TLS);
+        case OSSL_TRACE_CATEGORY_TLS_CIPHER:
+            SET_EXPECTED_CAT_NAME(TLS_CIPHER);
+        case OSSL_TRACE_CATEGORY_CONF:
+            SET_EXPECTED_CAT_NAME(CONF);
+        case OSSL_TRACE_CATEGORY_ENGINE_TABLE:
+            SET_EXPECTED_CAT_NAME(ENGINE_TABLE);
+        case OSSL_TRACE_CATEGORY_ENGINE_REF_COUNT:
+            SET_EXPECTED_CAT_NAME(ENGINE_REF_COUNT);
+        case OSSL_TRACE_CATEGORY_PKCS5V2:
+            SET_EXPECTED_CAT_NAME(PKCS5V2);
+        case OSSL_TRACE_CATEGORY_PKCS12_KEYGEN:
+            SET_EXPECTED_CAT_NAME(PKCS12_KEYGEN);
+        case OSSL_TRACE_CATEGORY_PKCS12_DECRYPT:
+            SET_EXPECTED_CAT_NAME(PKCS12_DECRYPT);
+        case OSSL_TRACE_CATEGORY_X509V3_POLICY:
+            SET_EXPECTED_CAT_NAME(X509V3_POLICY);
+        case OSSL_TRACE_CATEGORY_BN_CTX:
+            SET_EXPECTED_CAT_NAME(BN_CTX);
+        case OSSL_TRACE_CATEGORY_CMP:
+            SET_EXPECTED_CAT_NAME(CMP);
+        case OSSL_TRACE_CATEGORY_STORE:
+            SET_EXPECTED_CAT_NAME(STORE);
+        case OSSL_TRACE_CATEGORY_DECODER:
+            SET_EXPECTED_CAT_NAME(DECODER);
+        case OSSL_TRACE_CATEGORY_ENCODER:
+            SET_EXPECTED_CAT_NAME(ENCODER);
+        case OSSL_TRACE_CATEGORY_REF_COUNT:
+            SET_EXPECTED_CAT_NAME(REF_COUNT);
+        case OSSL_TRACE_CATEGORY_HTTP:
+            SET_EXPECTED_CAT_NAME(HTTP);
+        case OSSL_TRACE_CATEGORY_PROVIDER:
+            SET_EXPECTED_CAT_NAME(PROVIDER);
+        case OSSL_TRACE_CATEGORY_QUERY:
+            SET_EXPECTED_CAT_NAME(QUERY);
         default:
-            is_cat_name_eq = TEST_ptr_null(cat_name);
+            if (cat_num == -1 || cat_num >= OSSL_TRACE_CATEGORY_NUM)
+                expected_cat_name = NULL;
             break;
         }
+#undef SET_EXPECTED_CAT_NAME
 
-        if (!TEST_true(is_cat_name_eq))
+        if (!TEST_str_eq(cat_name, expected_cat_name))
             return 0;
         ret_cat_num =
             OSSL_trace_get_category_num(cat_name);
-        expected_ret = cat_name != NULL ? cat_num : -1;
-        if (!TEST_int_eq(expected_ret, ret_cat_num))
-            return 0;
+        if (cat_num < OSSL_TRACE_CATEGORY_NUM)
+            if (!TEST_int_eq(cat_num, ret_cat_num))
+                return 0;
     }
 
     return 1;
 }
 
 #ifndef OPENSSL_NO_TRACE
-static void put_trace_output(void)
+
+# define OSSL_START "xyz-"
+# define OSSL_HELLO "Hello World\n"
+/* OSSL_STR80 must have length OSSL_TRACE_STRING_MAX */
+# define OSSL_STR80 "1234567890123456789012345678901234567890123456789012345678901234567890123456789\n"
+# define OSSL_STR81 (OSSL_STR80"x")
+# define OSSL_CTRL "A\xfe\nB"
+# define OSSL_MASKED "A \nB"
+# define OSSL_BYE "Good Bye Universe\n"
+# define OSSL_END "-abc"
+
+# define trace_string(text, full, str) \
+    OSSL_trace_string(trc_out, text, full, (unsigned char *)(str), strlen(str))
+
+static int put_trace_output(void)
 {
-    OSSL_TRACE_BEGIN(REF_COUNT) {
-        BIO_printf(trc_out, "Hello World\n");
-        BIO_printf(trc_out, "Good Bye Universe\n");
-    } OSSL_TRACE_END(REF_COUNT);
+    int res = 1;
+
+    OSSL_TRACE_BEGIN(HTTP) {
+        res = TEST_int_eq(BIO_printf(trc_out, OSSL_HELLO), strlen(OSSL_HELLO));
+        res += TEST_int_eq(trace_string(0, 0, OSSL_STR80), strlen(OSSL_STR80));
+        res += TEST_int_eq(trace_string(0, 0, OSSL_STR81), strlen(OSSL_STR80));
+        res += TEST_int_eq(trace_string(1, 1, OSSL_CTRL), strlen(OSSL_CTRL));
+        res += TEST_int_eq(trace_string(0, 1, OSSL_MASKED), strlen(OSSL_MASKED)
+                           + 1); /* newline added */
+        res += TEST_int_eq(BIO_printf(trc_out, OSSL_BYE), strlen(OSSL_BYE));
+        res = res == 6;
+        /* not using '&&' but '+' to catch potentially multiple test failures */
+    } OSSL_TRACE_END(HTTP);
+    return res;
 }
 
 static int test_trace_channel(void)
 {
-    static const char expected[] = "xyz-\nHello World\nGood Bye Universe\n-abc\n";
-    static const char expected_len = sizeof(expected) - 1;
+    static const char expected[] =
+        OSSL_START"\n" OSSL_HELLO
+        OSSL_STR80 "[len 81 limited to 80]: "OSSL_STR80
+        OSSL_CTRL OSSL_MASKED"\n" OSSL_BYE OSSL_END"\n";
+    static const size_t expected_len = sizeof(expected) - 1;
     BIO *bio = NULL;
     char *p_buf = NULL;
     long len = 0;
@@ -85,28 +132,29 @@ static int test_trace_channel(void)
     if (!TEST_ptr(bio))
         goto end;
 
-    if (!TEST_int_eq(OSSL_trace_set_channel(OSSL_TRACE_CATEGORY_REF_COUNT, bio), 1))
+    if (!TEST_int_eq(OSSL_trace_set_channel(OSSL_TRACE_CATEGORY_HTTP, bio), 1)) {
+        BIO_free(bio);
+        goto end;
+    }
+
+    if (!TEST_true(OSSL_trace_enabled(OSSL_TRACE_CATEGORY_HTTP)))
         goto end;
 
-    if (!TEST_true(OSSL_trace_enabled(OSSL_TRACE_CATEGORY_REF_COUNT)))
+    if (!TEST_int_eq(OSSL_trace_set_prefix(OSSL_TRACE_CATEGORY_HTTP,
+                                           OSSL_START), 1))
+        goto end;
+    if (!TEST_int_eq(OSSL_trace_set_suffix(OSSL_TRACE_CATEGORY_HTTP,
+                                           OSSL_END), 1))
         goto end;
 
-    if (!TEST_int_eq(OSSL_trace_set_prefix(OSSL_TRACE_CATEGORY_REF_COUNT, "xyz-"), 1))
-        goto end;
-    if (!TEST_int_eq(OSSL_trace_set_suffix(OSSL_TRACE_CATEGORY_REF_COUNT, "-abc"), 1))
-        goto end;
-
-    put_trace_output();
+    ret = put_trace_output();
     len = BIO_get_mem_data(bio, &p_buf);
     if (!TEST_strn2_eq(p_buf, len, expected, expected_len))
-        goto end;
-    if (!TEST_int_eq(OSSL_trace_set_channel(OSSL_TRACE_CATEGORY_REF_COUNT, NULL), 1))
-        goto end;
-    bio = NULL;
+        ret = 0;
+    ret = TEST_int_eq(OSSL_trace_set_channel(OSSL_TRACE_CATEGORY_HTTP, NULL), 1)
+        && ret;
 
-    ret = 1;
  end:
-    BIO_free(bio);
     return ret;
 }
 

@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -28,7 +28,7 @@
 # define OSSL_provider_init PROVIDER_INIT_FUNCTION_NAME
 #endif
 
-#include "e_os.h"
+#include "internal/e_os.h"
 #include <openssl/core.h>
 #include <openssl/core_dispatch.h>
 #include <openssl/err.h>
@@ -245,7 +245,7 @@ static const OSSL_DISPATCH p_test_table[] = {
         (void (*)(void))p_get_reason_strings},
     { OSSL_FUNC_PROVIDER_TEARDOWN, (void (*)(void))p_teardown },
     { OSSL_FUNC_PROVIDER_QUERY_OPERATION, (void (*)(void))p_query },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
 
 int OSSL_provider_init(const OSSL_CORE_HANDLE *handle,

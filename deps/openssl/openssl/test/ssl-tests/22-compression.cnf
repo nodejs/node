@@ -21,12 +21,12 @@ client = 0-tlsv1_3-both-compress-client
 
 [0-tlsv1_3-both-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [0-tlsv1_3-both-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -47,11 +47,11 @@ client = 1-tlsv1_3-client-compress-client
 
 [1-tlsv1_3-client-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [1-tlsv1_3-client-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -72,12 +72,12 @@ client = 2-tlsv1_3-server-compress-client
 
 [2-tlsv1_3-server-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [2-tlsv1_3-server-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -97,11 +97,11 @@ client = 3-tlsv1_3-neither-compress-client
 
 [3-tlsv1_3-neither-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [3-tlsv1_3-neither-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
 
@@ -121,12 +121,12 @@ client = 4-tlsv1_2-both-compress-client
 
 [4-tlsv1_2-both-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [4-tlsv1_2-both-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 MaxProtocol = TLSv1.2
 Options = Compression
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
@@ -148,11 +148,11 @@ client = 5-tlsv1_2-client-compress-client
 
 [5-tlsv1_2-client-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [5-tlsv1_2-client-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 MaxProtocol = TLSv1.2
 Options = Compression
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
@@ -174,12 +174,12 @@ client = 6-tlsv1_2-server-compress-client
 
 [6-tlsv1_2-server-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 Options = Compression
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [6-tlsv1_2-server-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer
@@ -200,11 +200,11 @@ client = 7-tlsv1_2-neither-compress-client
 
 [7-tlsv1_2-neither-compress-server]
 Certificate = ${ENV::TEST_CERTS_DIR}/servercert.pem
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 PrivateKey = ${ENV::TEST_CERTS_DIR}/serverkey.pem
 
 [7-tlsv1_2-neither-compress-client]
-CipherString = DEFAULT
+CipherString = DEFAULT@SECLEVEL=1
 MaxProtocol = TLSv1.2
 VerifyCAFile = ${ENV::TEST_CERTS_DIR}/rootcert.pem
 VerifyMode = Peer

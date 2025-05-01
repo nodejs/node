@@ -1,5 +1,5 @@
 /*-
- * Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2022-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -47,16 +47,16 @@ static const char hexseed[] =
     "cba30ccd905aa7675a0b81769704bf3c"
     "ccf2ca1892b2eaf6b9e2b38d9bf6affc"
     "42ada55986d8a1772b442770954d0b65";
-const int gindex = 42;
-const int pcounter = 363;
+static const int gindex = 42;
+static const int pcounter = 363;
 static const char digest[] = "SHA384";
 
 /*
  * Create a new dsa param key that is the combination of an existing param key
  * plus extra parameters.
  */
-EVP_PKEY_CTX *create_merged_key(EVP_PKEY *dsaparams, const OSSL_PARAM *newparams,
-                                OSSL_LIB_CTX *libctx, const char *propq)
+static EVP_PKEY_CTX *create_merged_key(EVP_PKEY *dsaparams, const OSSL_PARAM *newparams,
+                                       OSSL_LIB_CTX *libctx, const char *propq)
 {
     EVP_PKEY_CTX *out = NULL;
     EVP_PKEY_CTX *ctx = NULL;
@@ -102,7 +102,7 @@ cleanup:
 
 int main(int argc, char **argv)
 {
-    int rv = EXIT_FAILURE;
+    int ret = EXIT_FAILURE;
     OSSL_LIB_CTX *libctx = NULL;
     const char *propq = NULL;
     EVP_PKEY *dsaparamskey = NULL;
@@ -145,7 +145,7 @@ int main(int argc, char **argv)
      * a proper FIPS 186-4 key validation which requires extra parameters
      */
     if (EVP_PKEY_param_check(ctx) <= 0) {
-        fprintf(stderr, "Simple EVP_PKEY_param_check() failed \n");
+        fprintf(stderr, "Simple EVP_PKEY_param_check() failed\n");
         goto cleanup;
     }
 
@@ -191,12 +191,12 @@ int main(int argc, char **argv)
     if (!dsa_print_key(EVP_PKEY_CTX_get0_pkey(ctx2), 0, libctx, propq))
         goto cleanup;
 
-    rv = EXIT_SUCCESS;
+    ret = EXIT_SUCCESS;
 cleanup:
     EVP_PKEY_free(dsaparamskey);
     EVP_PKEY_CTX_free(ctx2);
     EVP_PKEY_CTX_free(ctx1);
     EVP_PKEY_CTX_free(ctx);
     BIO_free(in);
-    return rv;
+    return ret;
 }

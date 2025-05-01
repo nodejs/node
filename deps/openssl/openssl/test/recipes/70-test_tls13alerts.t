@@ -26,8 +26,6 @@ plan skip_all => "$test_name needs the sock feature enabled"
 plan skip_all => "$test_name needs TLS1.3 enabled"
     if disabled("tls1_3") || (disabled("ec") && disabled("dh"));
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
-
 my $proxy = TLSProxy::Proxy->new(
     undef,
     cmdstr(app(["openssl"]), display => 1),
@@ -41,7 +39,7 @@ $proxy->filter(\&alert_filter);
 $proxy->start() or plan skip_all => "Unable to start up Proxy for tests";
 plan tests => 1;
 my $alert = TLSProxy::Message->alert();
-ok(TLSProxy::Message->fail() && !$alert->server() && !$alert->encrypted(), "Client sends an unecrypted alert");
+ok(TLSProxy::Message->fail() && !$alert->server() && !$alert->encrypted(), "Client sends an unencrypted alert");
 
 sub alert_filter
 {

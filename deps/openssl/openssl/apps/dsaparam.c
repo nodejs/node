@@ -11,7 +11,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include "apps.h"
 #include <time.h>
 #include <string.h>
 #include "apps.h"
@@ -25,17 +24,15 @@
 
 static int verbose = 0;
 
-static int gendsa_cb(EVP_PKEY_CTX *ctx);
-
 typedef enum OPTION_choice {
     OPT_COMMON,
     OPT_INFORM, OPT_OUTFORM, OPT_IN, OPT_OUT, OPT_TEXT,
-    OPT_NOOUT, OPT_GENKEY, OPT_ENGINE, OPT_VERBOSE,
+    OPT_NOOUT, OPT_GENKEY, OPT_ENGINE, OPT_VERBOSE, OPT_QUIET,
     OPT_R_ENUM, OPT_PROV_ENUM
 } OPTION_CHOICE;
 
 const OPTIONS dsaparam_options[] = {
-    {OPT_HELP_STR, 1, '-', "Usage: %s [options] [numbits]\n"},
+    {OPT_HELP_STR, 1, '-', "Usage: %s [options] [numbits] [numqbits]\n"},
 
     OPT_SECTION("General"),
     {"help", OPT_HELP, '-', "Display this summary"},
@@ -53,13 +50,15 @@ const OPTIONS dsaparam_options[] = {
     {"text", OPT_TEXT, '-', "Print as text"},
     {"noout", OPT_NOOUT, '-', "No output"},
     {"verbose", OPT_VERBOSE, '-', "Verbose output"},
+    {"quiet", OPT_QUIET, '-', "Terse output"},
     {"genkey", OPT_GENKEY, '-', "Generate a DSA key"},
 
     OPT_R_OPTIONS,
     OPT_PROV_OPTIONS,
 
     OPT_PARAMETERS(),
-    {"numbits", 0, 0, "Number of bits if generating parameters (optional)"},
+    {"numbits", 0, 0, "Number of bits if generating parameters or key (optional)"},
+    {"numqbits", 0, 0, "Number of bits in the subprime parameter q if generating parameters or key (optional)"},
     {NULL}
 };
 
@@ -69,7 +68,7 @@ int dsaparam_main(int argc, char **argv)
     BIO *out = NULL;
     EVP_PKEY *params = NULL, *pkey = NULL;
     EVP_PKEY_CTX *ctx = NULL;
-    int numbits = -1, num = 0, genkey = 0;
+    int numbits = -1, numqbits = -1, num = 0, genkey = 0;
     int informat = FORMAT_UNDEF, outformat = FORMAT_PEM, noout = 0;
     int ret = 1, i, text = 0, private = 0;
     char *infile = NULL, *outfile = NULL, *prog;
@@ -124,16 +123,24 @@ int dsaparam_main(int argc, char **argv)
         case OPT_VERBOSE:
             verbose = 1;
             break;
+        case OPT_QUIET:
+            verbose = 0;
+            break;
         }
     }
 
-    /* Optional arg is bitsize. */
+    /* Optional args are bitsize and q bitsize. */
     argc = opt_num_rest();
     argv = opt_rest();
-    if (argc == 1) {
+    if (argc == 2) {
         if (!opt_int(argv[0], &num) || num < 0)
             goto opthelp;
-    } else if (argc != 0) {
+        if (!opt_int(argv[1], &numqbits) || numqbits < 0)
+            goto opthelp;
+    } else if (argc == 1) {
+        if (!opt_int(argv[0], &num) || num < 0)
+            goto opthelp;
+    } else if (!opt_check_rest_arg(NULL)) {
         goto opthelp;
     }
     if (!app_RAND_load())
@@ -142,10 +149,6 @@ int dsaparam_main(int argc, char **argv)
     /* generate a key */
     numbits = num;
     private = genkey ? 1 : 0;
-
-    out = bio_open_owner(outfile, outformat, private);
-    if (out == NULL)
-        goto end;
 
     ctx = EVP_PKEY_CTX_new_from_name(app_get0_libctx(), "DSA", app_get0_propq());
     if (ctx == NULL) {
@@ -160,9 +163,9 @@ int dsaparam_main(int argc, char **argv)
                        "         Your key size is %d! Larger key size may behave not as expected.\n",
                        OPENSSL_DSA_MAX_MODULUS_BITS, numbits);
 
-        EVP_PKEY_CTX_set_cb(ctx, gendsa_cb);
         EVP_PKEY_CTX_set_app_data(ctx, bio_err);
         if (verbose) {
+            EVP_PKEY_CTX_set_cb(ctx, progress_cb);
             BIO_printf(bio_err, "Generating DSA parameters, %d bit long prime\n",
                        num);
             BIO_printf(bio_err, "This could take some time\n");
@@ -177,6 +180,13 @@ int dsaparam_main(int argc, char **argv)
                        "Error, DSA key generation setting bit length failed\n");
             goto end;
         }
+        if (numqbits > 0) {
+            if (EVP_PKEY_CTX_set_dsa_paramgen_q_bits(ctx, numqbits) <= 0) {
+                BIO_printf(bio_err,
+                        "Error, DSA key generation setting subprime bit length failed\n");
+                goto end;
+            }
+        }
         params = app_paramgen(ctx, "DSA");
     } else {
         params = load_keyparams(infile, informat, 1, "DSA", "DSA parameters");
@@ -185,6 +195,10 @@ int dsaparam_main(int argc, char **argv)
         /* Error message should already have been displayed */
         goto end;
     }
+
+    out = bio_open_owner(outfile, outformat, private);
+    if (out == NULL)
+        goto end;
 
     if (text) {
         EVP_PKEY_print_params(out, params, 0, NULL);
@@ -236,23 +250,4 @@ int dsaparam_main(int argc, char **argv)
     EVP_PKEY_free(params);
     release_engine(e);
     return ret;
-}
-
-static int gendsa_cb(EVP_PKEY_CTX *ctx)
-{
-    static const char symbols[] = ".+*\n";
-    int p;
-    char c;
-    BIO *b;
-
-    if (!verbose)
-        return 1;
-
-    b = EVP_PKEY_CTX_get_app_data(ctx);
-    p = EVP_PKEY_CTX_get_keygen_info(ctx, 0);
-    c = (p >= 0 && (size_t)p < sizeof(symbols) - 1) ? symbols[p] : '?';
-
-    BIO_write(b, &c, 1);
-    (void)BIO_flush(b);
-    return 1;
 }

@@ -25,7 +25,7 @@ of B<ctx> to/with B<store>. The B<store>'s reference count is incremented.
 If another X509_STORE object is currently set in B<ctx>, it will be X509_STORE_free()ed.
 
 SSL_CTX_get_cert_store() returns a pointer to the current certificate
-verification storage.
+verification storage. B<ctx> B<MUST NOT> be NULL.
 
 =head1 NOTES
 

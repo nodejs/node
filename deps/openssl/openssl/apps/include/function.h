@@ -29,7 +29,7 @@ typedef struct function_st {
     const char *deprecated_version;
 } FUNCTION;
 
-DEFINE_LHASH_OF(FUNCTION);
+DEFINE_LHASH_OF_EX(FUNCTION);
 
 /* Structure to hold the number of columns to be displayed and the
  * field width used to display them.

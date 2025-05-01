@@ -4,7 +4,9 @@
 
 X509_new, X509_new_ex,
 X509_free, X509_up_ref,
-X509_chain_up_ref - X509 certificate ASN1 allocation functions
+X509_chain_up_ref,
+OSSL_STACK_OF_X509_free
+- X509 certificate ASN1 allocation and deallocation functions
 
 =head1 SYNOPSIS
 
@@ -15,6 +17,7 @@ X509_chain_up_ref - X509 certificate ASN1 allocation functions
  void X509_free(X509 *a);
  int X509_up_ref(X509 *a);
  STACK_OF(X509) *X509_chain_up_ref(STACK_OF(X509) *x);
+ void OSSL_STACK_OF_X509_free(STACK_OF(X509) *certs);
 
 =head1 DESCRIPTION
 
@@ -41,6 +44,10 @@ X509_up_ref() increments the reference count of B<a>.
 X509_chain_up_ref() increases the reference count of all certificates in
 chain B<x> and returns a copy of the stack, or an empty stack if B<a> is NULL.
 
+OSSL_STACK_OF_X509_free() deallocates the given list of pointers to
+certificates after calling X509_free() on all its elements.
+If the argument is NULL, nothing is done.
+
 =head1 NOTES
 
 The function X509_up_ref() if useful if a certificate structure is being
@@ -61,6 +68,8 @@ Otherwise it returns a pointer to the newly allocated structure.
 X509_up_ref() returns 1 for success and 0 for failure.
 
 X509_chain_up_ref() returns a copy of the stack or NULL if an error occurred.
+
+OSSL_STACK_OF_X509_free() has no return value.
 
 =head1 SEE ALSO
 
@@ -83,7 +92,9 @@ L<X509_verify_cert(3)>
 
 =head1 HISTORY
 
-The function X509_new_ex() was added in OpenSSL 3.0.
+X509_new_ex() was added in OpenSSL 3.0.
+
+OSSL_STACK_OF_X509_free() was added in OpenSSL 3.2.
 
 =head1 COPYRIGHT
 

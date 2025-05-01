@@ -1,22 +1,37 @@
 #
-# To run the demos when linked with a shared library (default):
+# To run the demos when linked with a shared library (default) ensure
+# that libcrypto is on the library path. For example:
 #
-#    LD_LIBRARY_PATH=../.. ./EVP_Signature_demo
+#    LD_LIBRARY_PATH=../.. ./EVP_EC_Signature_demo
 
-CFLAGS = -I../../include -g -Wall
+TESTS = EVP_EC_Signature_demo \
+        EVP_DSA_Signature_demo \
+        EVP_ED_Signature_demo \
+        rsa_pss_direct \
+        rsa_pss_hash
+
+CFLAGS  = -I../../include -g -Wall
 LDFLAGS = -L../..
-LDLIBS = -lcrypto
+LDLIBS  = -lcrypto
 
-all: EVP_Signature_demo rsa_pss_direct rsa_pss_hash
+all: $(TESTS)
 
-%.o: %.c
-	$(CC) $(CFLAGS) -c $<
-
-EVP_Signature_demo: EVP_Signature_demo.o
+EVP_EC_Signature_demo: EVP_EC_Signature_demo.o
+EVP_DSA_Signature_demo: EVP_DSA_Signature_demo.o
+EVP_ED_Signature_demo: EVP_ED_Signature_demo.o
 rsa_pss_direct: rsa_pss_direct.o
 rsa_pss_hash: rsa_pss_hash.o
 
-test: ;
+$(TESTS):
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $< $(LDLIBS)
 
 clean:
-	$(RM) *.o EVP_Signature_demo rsa_pss_direct rsa_pss_hash
+	$(RM) *.o $(TESTS)
+
+.PHONY: test
+test: all
+	@echo "\nSignature tests:"
+	@set -e; for tst in $(TESTS); do \
+		echo "\n"$$tst; \
+		LD_LIBRARY_PATH=../.. ./$$tst; \
+	done

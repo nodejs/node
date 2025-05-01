@@ -20,7 +20,7 @@ the time when L<SSL_new(3)> is called.
 
 =head1 NOTES
 
-When a peer certificate has been received during a SSL/TLS handshake,
+When a peer certificate has been received during an SSL/TLS handshake,
 a verification function is called regardless of the verification mode.
 If the application does not explicitly specify a verification callback function,
 the built-in verification function is used.

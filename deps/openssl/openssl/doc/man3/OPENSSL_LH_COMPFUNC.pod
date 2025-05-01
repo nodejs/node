@@ -2,7 +2,7 @@
 
 =head1 NAME
 
-LHASH, DECLARE_LHASH_OF,
+LHASH, LHASH_OF, DEFINE_LHASH_OF_EX, DEFINE_LHASH_OF,
 OPENSSL_LH_COMPFUNC, OPENSSL_LH_HASHFUNC, OPENSSL_LH_DOALL_FUNC,
 LHASH_DOALL_ARG_FN_TYPE,
 IMPLEMENT_LHASH_HASH_FN, IMPLEMENT_LHASH_COMP_FN,
@@ -12,7 +12,8 @@ lh_TYPE_doall, lh_TYPE_doall_arg, lh_TYPE_num_items, lh_TYPE_get_down_load,
 lh_TYPE_set_down_load, lh_TYPE_error,
 OPENSSL_LH_new, OPENSSL_LH_free,  OPENSSL_LH_flush,
 OPENSSL_LH_insert, OPENSSL_LH_delete, OPENSSL_LH_retrieve,
-OPENSSL_LH_doall, OPENSSL_LH_doall_arg, OPENSSL_LH_num_items,
+OPENSSL_LH_doall, OPENSSL_LH_doall_arg, OPENSSL_LH_doall_arg_thunk,
+OPENSSL_LH_set_thunks, OPENSSL_LH_num_items,
 OPENSSL_LH_get_down_load, OPENSSL_LH_set_down_load, OPENSSL_LH_error
 - dynamic hash table
 
@@ -22,11 +23,18 @@ OPENSSL_LH_get_down_load, OPENSSL_LH_set_down_load, OPENSSL_LH_error
 
  #include <openssl/lhash.h>
 
- DECLARE_LHASH_OF(TYPE);
+ LHASH_OF(TYPE)
+
+ DEFINE_LHASH_OF_EX(TYPE);
 
  LHASH_OF(TYPE) *lh_TYPE_new(OPENSSL_LH_HASHFUNC hash, OPENSSL_LH_COMPFUNC compare);
  void lh_TYPE_free(LHASH_OF(TYPE) *table);
  void lh_TYPE_flush(LHASH_OF(TYPE) *table);
+ OPENSSL_LHASH *OPENSSL_LH_set_thunks(OPENSSL_LHASH *lh,
+                                      OPENSSL_LH_HASHFUNCTHUNK hw,
+                                      OPENSSL_LH_COMPFUNCTHUNK cw,
+                                      OPENSSL_LH_DOALL_FUNC_THUNK daw,
+                                      OPENSSL_LH_DOALL_FUNCARG_THUNK daaw)
 
  TYPE *lh_TYPE_insert(LHASH_OF(TYPE) *table, TYPE *data);
  TYPE *lh_TYPE_delete(LHASH_OF(TYPE) *table, TYPE *data);
@@ -35,6 +43,9 @@ OPENSSL_LH_get_down_load, OPENSSL_LH_set_down_load, OPENSSL_LH_error
  void lh_TYPE_doall(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNC func);
  void lh_TYPE_doall_arg(LHASH_OF(TYPE) *table, OPENSSL_LH_DOALL_FUNCARG func,
                         TYPE *arg);
+ void OPENSSL_LH_doall_arg_thunk(OPENSSL_LHASH *lh,
+                                 OPENSSL_LH_DOALL_FUNCARG_THUNK daaw,
+                                 OPENSSL_LH_DOALL_FUNCARG fn, void *arg)
 
  unsigned long lh_TYPE_num_items(OPENSSL_LHASH *lh);
  unsigned long lh_TYPE_get_down_load(OPENSSL_LHASH *lh);
@@ -66,12 +77,22 @@ OPENSSL_LH_get_down_load, OPENSSL_LH_set_down_load, OPENSSL_LH_error
 
  #define LH_LOAD_MULT   /* integer constant */
 
+The following macro is deprecated:
+
+ DEFINE_LHASH_OF(TYPE);
+
 =head1 DESCRIPTION
 
 This library implements type-checked dynamic hash tables. The hash
 table entries can be arbitrary structures. Usually they consist of key
 and value fields.  In the description here, B<I<TYPE>> is used a placeholder
 for any of the OpenSSL datatypes, such as I<SSL_SESSION>.
+
+To define a new type-checked dynamic hash table, use B<DEFINE_LHASH_OF_EX>().
+B<DEFINE_LHASH_OF>() was previously used for this purpose, but is now
+deprecated. The B<DEFINE_LHASH_OF_EX>() macro provides all functionality of
+B<DEFINE_LHASH_OF>() except for certain deprecated statistics functions (see
+OPENSSL_LH_stats(3)).
 
 B<lh_I<TYPE>_new>() creates a new B<LHASH_OF>(B<I<TYPE>>) structure to store
 arbitrary data entries, and specifies the 'hash' and 'compare'
@@ -220,6 +241,9 @@ B<lh_I<TYPE>> functions are implemented as type checked wrappers around the
 B<OPENSSL_LH> functions. Most applications should not call the B<OPENSSL_LH>
 functions directly.
 
+OPENSSL_LH_set_thunks() and OPENSSL_LH_doall_arg_thunk(), while public by
+necessity, are actually internal functions and should not be used.
+
 =head1 RETURN VALUES
 
 B<lh_I<TYPE>_new>() and OPENSSL_LH_new() return NULL on error, otherwise a
@@ -296,6 +320,12 @@ L<OPENSSL_LH_stats(3)>
 
 In OpenSSL 1.0.0, the lhash interface was revamped for better
 type checking.
+
+In OpenSSL 3.1, B<DEFINE_LHASH_OF_EX>() was introduced and B<DEFINE_LHASH_OF>()
+was deprecated.
+
+OPENSSL_LH_doall_arg_thunk(), OPENSSL_LH_set_thunks() were added in
+OpenSSL 3.3.
 
 =head1 COPYRIGHT
 

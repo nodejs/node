@@ -1,6 +1,6 @@
 #! /usr/bin/env perl
 # Author: Marc Bevand <bevand_m (at) epita.fr>
-# Copyright 2005-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2005-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,6 @@ EOF
 #   %r10d = X[k_next]
 #   %r11d = z' (copy of z for the next step)
 #   %r12d = z' (copy of z for the next step)
-# Each round2_step() takes about 5.4 clocks (11 instructions, 2.0 IPC)
 sub round2_step
 {
     my ($pos, $dst, $x, $y, $z, $k_next, $T_i, $s) = @_;
@@ -53,9 +52,9 @@ sub round2_step
 	lea	$T_i($dst,%r10d),$dst		/* Const + dst + ... */
 	and	$y,		%r11d		/* y & (not z) */
 	mov	$k_next*4(%rsi),%r10d		/* (NEXT STEP) X[$k_next] */
-	or	%r11d,		%r12d		/* (y & (not z)) | (x & z) */
+	add	%r11d,		$dst		/* dst += (y & (not z)) */
 	mov	$y,		%r11d		/* (NEXT STEP) z' = $y */
-	add	%r12d,		$dst		/* dst += ... */
+	add	%r12d,		$dst		/* dst += (x & z) */
 	mov	$y,		%r12d		/* (NEXT STEP) z' = $y */
 	rol	\$$s,		$dst		/* dst <<< s */
 	add	$x,		$dst		/* dst += x */

@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,7 +23,7 @@
 
 #define CLIENT_VERSION_LEN      2
 
-#define TOTAL_NUM_TESTS                         4
+#define TOTAL_NUM_TESTS                         3
 
 /*
  * Test that explicitly setting ticket data results in it appearing in the
@@ -34,16 +34,10 @@
 #define TEST_ADD_PADDING                        1
 /* Enable padding and make sure ClientHello is short enough to not need it */
 #define TEST_PADDING_NOT_NEEDED                 2
-/*
- * Enable padding and add a PSK to the ClientHello (this will also ensure the
- * ClientHello is long enough to need padding)
- */
-#define TEST_ADD_PADDING_AND_PSK                3
 
 #define F5_WORKAROUND_MIN_MSG_LEN   0x7f
 #define F5_WORKAROUND_MAX_MSG_LEN   0x200
 
-static const char *sessionfile = NULL;
 /* Dummy ALPN protocols used to pad out the size of the ClientHello */
 /* ASCII 'O' = 79 = 0x4F = EBCDIC '|'*/
 #ifdef CHARSET_EBCDIC
@@ -72,11 +66,6 @@ static int test_client_hello(int currtest)
     BIO *sessbio = NULL;
     SSL_SESSION *sess = NULL;
 
-#ifdef OPENSSL_NO_TLS1_3
-    if (currtest == TEST_ADD_PADDING_AND_PSK)
-        return 1;
-#endif
-
     memset(&pkt, 0, sizeof(pkt));
     memset(&pkt2, 0, sizeof(pkt2));
     memset(&pkt3, 0, sizeof(pkt3));
@@ -91,7 +80,7 @@ static int test_client_hello(int currtest)
     if (!TEST_true(SSL_CTX_set_max_proto_version(ctx, 0)))
         goto end;
 
-    switch(currtest) {
+    switch (currtest) {
     case TEST_SET_SESSION_TICK_DATA_VER_NEG:
 #if !defined(OPENSSL_NO_TLS1_3) && defined(OPENSSL_NO_TLS1_2)
         /* TLSv1.3 is enabled and TLSv1.2 is disabled so can't do this test */
@@ -104,21 +93,15 @@ static int test_client_hello(int currtest)
 #endif
         break;
 
-    case TEST_ADD_PADDING_AND_PSK:
-        /*
-         * In this case we're doing TLSv1.3 and we're sending a PSK so the
-         * ClientHello is already going to be quite long. To avoid getting one
-         * that is too long for this test we use a restricted ciphersuite list
-         */
-        if (!TEST_false(SSL_CTX_set_cipher_list(ctx, "")))
-            goto end;
-        ERR_clear_error();
-         /* Fall through */
     case TEST_ADD_PADDING:
     case TEST_PADDING_NOT_NEEDED:
         SSL_CTX_set_options(ctx, SSL_OP_TLSEXT_PADDING);
         /* Make sure we get a consistent size across TLS versions */
         SSL_CTX_clear_options(ctx, SSL_OP_ENABLE_MIDDLEBOX_COMPAT);
+        /* Avoid large keyshares */
+        if (!TEST_true(SSL_CTX_set1_groups_list(ctx,
+                       "?X25519:?secp256r1:?ffdhe2048:?ffdhe3072")))
+            goto end;
         /*
          * Add some dummy ALPN protocols so that the ClientHello is at least
          * F5_WORKAROUND_MIN_MSG_LEN bytes long - meaning padding will be
@@ -148,26 +131,6 @@ static int test_client_hello(int currtest)
     con = SSL_new(ctx);
     if (!TEST_ptr(con))
         goto end;
-
-    if (currtest == TEST_ADD_PADDING_AND_PSK) {
-        sessbio = BIO_new_file(sessionfile, "r");
-        if (!TEST_ptr(sessbio)) {
-            TEST_info("Unable to open session.pem");
-            goto end;
-        }
-        sess = PEM_read_bio_SSL_SESSION(sessbio, NULL, NULL, NULL);
-        if (!TEST_ptr(sess)) {
-            TEST_info("Unable to load SSL_SESSION");
-            goto end;
-        }
-        /*
-         * We reset the creation time so that we don't discard the session as
-         * too old.
-         */
-        if (!TEST_true(SSL_SESSION_set_time(sess, (long)time(NULL)))
-                || !TEST_true(SSL_set_session(con, sess)))
-            goto end;
-    }
 
     rbio = BIO_new(BIO_s_mem());
     wbio = BIO_new(BIO_s_mem());
@@ -234,8 +197,7 @@ static int test_client_hello(int currtest)
         if (type == TLSEXT_TYPE_padding) {
             if (!TEST_false(currtest == TEST_PADDING_NOT_NEEDED))
                 goto end;
-            else if (TEST_true(currtest == TEST_ADD_PADDING
-                    || currtest == TEST_ADD_PADDING_AND_PSK))
+            else if (TEST_true(currtest == TEST_ADD_PADDING))
                 testresult = TEST_true(msglen == F5_WORKAROUND_MAX_MSG_LEN);
         }
     }
@@ -252,17 +214,12 @@ end:
     return testresult;
 }
 
-OPT_TEST_DECLARE_USAGE("sessionfile\n")
-
 int setup_tests(void)
 {
     if (!test_skip_common_options()) {
         TEST_error("Error parsing test options\n");
         return 0;
     }
-
-    if (!TEST_ptr(sessionfile = test_get_argument(0)))
-        return 0;
 
     ADD_ALL_TESTS(test_client_hello, TOTAL_NUM_TESTS);
     return 1;

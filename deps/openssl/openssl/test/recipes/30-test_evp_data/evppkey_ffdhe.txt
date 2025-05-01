@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2022 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -16,7 +16,7 @@ Title = RFC7919 DH tests
 
 # Key generation test
 KeyGen = dhKeyAgreement
-Ctrl = dh_param:ffdhe2048
+Ctrl = group:ffdhe2048
 KeyName = tmpdh
 
 # ffdhe2048-1 and ffdhe2048-2 were randomly generated and have a shared secret
@@ -98,10 +98,10 @@ SharedSecret=00006620DD85B56EE8540C8040CAC46B7385344A164E4DBDF521F7D99F88FA68EDD
 # The plain shared secret for these keys needs padding as seen above.
 Derive=ffdhe2048-1
 PeerKey=ffdhe2048-2-pub
-KDFType=X942KDF-ASN1
-KDFOutlen=32
-KDFDigest=SHA-256
-CEKAlg=id-aes128-wrap
+Ctrl = kdf-type:X942KDF-ASN1
+Ctrl = kdf-outlen:32
+Ctrl = kdf-digest:SHA-256
+Ctrl = cekalg:AES-128-WRAP
 Ctrl = dh_pad:1
 SharedSecret=89A249DF4EE9033B89C2B4E52072A736D94F51143A1ED5C8F1E91FCBEBE09654
 
@@ -109,10 +109,10 @@ SharedSecret=89A249DF4EE9033B89C2B4E52072A736D94F51143A1ED5C8F1E91FCBEBE09654
 FIPSversion = >3.0.0
 Derive=ffdhe2048-2
 PeerKey=ffdhe2048-1-pub
-KDFType=X942KDF-ASN1
-KDFOutlen=32
-KDFDigest=SHA-256
-CEKAlg=id-aes128-wrap
+Ctrl = kdf-type:X942KDF-ASN1
+Ctrl = kdf-outlen:32
+Ctrl = kdf-digest:SHA-256
+Ctrl = cekalg:AES-128-WRAP
 Ctrl = dh_pad:0
 SharedSecret=89A249DF4EE9033B89C2B4E52072A736D94F51143A1ED5C8F1E91FCBEBE09654
 

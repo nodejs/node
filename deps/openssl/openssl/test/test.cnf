@@ -50,7 +50,6 @@ emailAddress		= optional
 ####################################################################
 [ req ]
 distinguished_name	= req_distinguished_name
-encrypt_rsa_key		= no
 
 # Make altreq be identical to req
 [ altreq ]
@@ -78,3 +77,6 @@ C  = UK
 O  = My Organization
 OU = My Unit
 CN = My Name
+
+[ reqexts ]
+keyUsage = critical,digitalSignature,keyEncipherment

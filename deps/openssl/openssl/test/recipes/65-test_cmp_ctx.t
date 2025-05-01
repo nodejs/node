@@ -21,4 +21,4 @@ plan skip_all => "This test is not supported in a no-cmp build"
 
 plan tests => 1;
 
-ok(run(test(["cmp_ctx_test", srctop_file("test", "certs", "ee-cert.pem")])));
+ok(run(test(["cmp_ctx_test"])));

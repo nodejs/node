@@ -1,0 +1,383 @@
+=pod
+
+=begin comment
+
+NB: Changes to the source code samples in this file should also be reflected in
+demos/guide/tls-client-non-block.c
+
+=end comment
+
+=head1 NAME
+
+ossl-guide-tls-client-non-block
+- OpenSSL Guide: Writing a simple nonblocking TLS client
+
+=head1 SIMPLE NONBLOCKING TLS CLIENT EXAMPLE
+
+This page will build on the example developed on the
+L<ossl-guide-tls-client-block(7)> page which demonstrates how to write a simple
+blocking TLS client. On this page we will amend that demo code so that it
+supports a nonblocking socket.
+
+The complete source code for this example nonblocking TLS client is available
+in the B<demos/guide> directory of the OpenSSL source distribution in the file
+B<tls-client-non-block.c>. It is also available online at
+L<https://github.com/openssl/openssl/blob/master/demos/guide/tls-client-non-block.c>.
+
+As we saw in the previous example a blocking socket is one which waits (blocks)
+until data is available to read if you attempt to read from it when there is no
+data yet. Similarly it waits when writing if the socket is currently unable to
+write at the moment. This can simplify the development of code because you do
+not have to worry about what to do in these cases. The execution of the code
+will simply stop until it is able to continue. However in many cases you do not
+want this behaviour. Rather than stopping and waiting your application may need
+to go and do other tasks whilst the socket is unable to read/write, for example
+updating a GUI or performing operations on some other socket.
+
+With a nonblocking socket attempting to read or write to a socket that is
+currently unable to read or write will return immediately with a non-fatal
+error. Although OpenSSL does the reading/writing to the socket this nonblocking
+behaviour is propagated up to the application so that OpenSSL I/O functions such
+as L<SSL_read_ex(3)> or L<SSL_write_ex(3)> will not block.
+
+Since this page is building on the example developed on the
+L<ossl-guide-tls-client-block(7)> page we assume that you are familiar with it
+and we only explain how this example differs.
+
+=head2 Setting the socket to be nonblocking
+
+The first step in writing an application that supports nonblocking is to set
+the socket into nonblocking mode. A socket will be default be blocking. The
+exact details on how to do this can differ from one platform to another.
+Fortunately OpenSSL offers a portable function that will do this for you:
+
+    /* Set to nonblocking mode */
+    if (!BIO_socket_nbio(sock, 1)) {
+        sock = -1;
+        continue;
+    }
+
+You do not have to use OpenSSL's function for this. You can of course directly
+call whatever functions that your Operating System provides for this purpose on
+your platform.
+
+=head2 Performing work while waiting for the socket
+
+In a nonblocking application you will need work to perform in the event that
+we want to read or write to the socket, but we are currently unable to. In fact
+this is the whole point of using a nonblocking socket, i.e. to give the
+application the opportunity to do something else. Whatever it is that the
+application has to do, it must also be prepared to come back and retry the
+operation that it previously attempted periodically to see if it can now
+complete. Ideally it would only do this in the event that the state of the
+underlying socket has actually changed (e.g. become readable where it wasn't
+before), but this does not have to be the case. It can retry at any time.
+
+Note that it is important that you retry exactly the same operation that you
+tried last time. You cannot start something new. For example if you were
+attempting to write the text "Hello World" and the operation failed because the
+socket is currently unable to write, then you cannot then attempt to write
+some other text when you retry the operation.
+
+In this demo application we will create a helper function which simulates doing
+other work. In fact, for the sake of simplicity, it will do nothing except wait
+for the state of the socket to change.
+
+We call our function C<wait_for_activity()> because all it does is wait until
+the underlying socket has become readable or writeable when it wasn't before.
+
+    static void wait_for_activity(SSL *ssl, int write)
+    {
+        fd_set fds;
+        int width, sock;
+
+        /* Get hold of the underlying file descriptor for the socket */
+        sock = SSL_get_fd(ssl);
+
+        FD_ZERO(&fds);
+        FD_SET(sock, &fds);
+        width = sock + 1;
+
+        /*
+         * Wait until the socket is writeable or readable. We use select here
+         * for the sake of simplicity and portability, but you could equally use
+         * poll/epoll or similar functions
+         *
+         * NOTE: For the purposes of this demonstration code this effectively
+         * makes this demo block until it has something more useful to do. In a
+         * real application you probably want to go and do other work here (e.g.
+         * update a GUI, or service other connections).
+         *
+         * Let's say for example that you want to update the progress counter on
+         * a GUI every 100ms. One way to do that would be to add a 100ms timeout
+         * in the last parameter to "select" below. Then, when select returns,
+         * you check if it did so because of activity on the file descriptors or
+         * because of the timeout. If it is due to the timeout then update the
+         * GUI and then restart the "select".
+         */
+        if (write)
+            select(width, NULL, &fds, NULL, NULL);
+        else
+            select(width, &fds, NULL, NULL, NULL);
+    }
+
+In this example we are using the C<select> function because it is very simple
+to use and is available on most Operating Systems. However you could use any
+other similar function to do the same thing. C<select> waits for the state of
+the underlying socket(s) to become readable/writeable before returning. It also
+supports a "timeout" (as do most other similar functions) so in your own
+applications you can make use of this to periodically wake up and perform work
+while waiting for the socket state to change. But we don't use that timeout
+capability in this example for the sake of simplicity.
+
+=head2 Handling errors from OpenSSL I/O functions
+
+An application that uses a nonblocking socket will need to be prepared to
+handle errors returned from OpenSSL I/O functions such as L<SSL_read_ex(3)> or
+L<SSL_write_ex(3)>. Errors may be fatal (for example because the underlying
+connection has failed), or non-fatal (for example because we are trying to read
+from the underlying socket but the data has not yet arrived from the peer).
+
+L<SSL_read_ex(3)> and L<SSL_write_ex(3)> will return 0 to indicate an error and
+L<SSL_read(3)> and L<SSL_write(3)> will return 0 or a negative value to indicate
+an error. L<SSL_shutdown(3)> will return a negative value to incidate an error.
+
+In the event of an error an application should call L<SSL_get_error(3)> to find
+out what type of error has occurred. If the error is non-fatal and can be
+retried then L<SSL_get_error(3)> will return B<SSL_ERROR_WANT_READ> or
+B<SSL_ERROR_WANT_WRITE> depending on whether OpenSSL wanted to read to or write
+from the socket but was unable to. Note that a call to L<SSL_read_ex(3)> or
+L<SSL_read(3)> can still generate B<SSL_ERROR_WANT_WRITE> because OpenSSL
+may need to write protocol messages (such as to update cryptographic keys) even
+if the application is only trying to read data. Similarly calls to
+L<SSL_write_ex(3)> or L<SSL_write(3)> might generate B<SSL_ERROR_WANT_READ>.
+
+Another type of non-fatal error that may occur is B<SSL_ERROR_ZERO_RETURN>. This
+indicates an EOF (End-Of-File) which can occur if you attempt to read data from
+an B<SSL> object but the peer has indicated that it will not send any more data
+on it. In this case you may still want to write data to the connection but you
+will not receive any more data.
+
+Fatal errors that may occur are B<SSL_ERROR_SYSCALL> and B<SSL_ERROR_SSL>. These
+indicate that the underlying connection has failed. You should not attempt to
+shut it down with L<SSL_shutdown(3)>. B<SSL_ERROR_SYSCALL> indicates that
+OpenSSL attempted to make a syscall that failed. You can consult B<errno> for
+further details. B<SSL_ERROR_SSL> indicates that some OpenSSL error occurred. You
+can consult the OpenSSL error stack for further details (for example by calling
+L<ERR_print_errors(3)> to print out details of errors that have occurred).
+
+In our demo application we will write a function to handle these errors from
+OpenSSL I/O functions:
+
+    static int handle_io_failure(SSL *ssl, int res)
+    {
+        switch (SSL_get_error(ssl, res)) {
+        case SSL_ERROR_WANT_READ:
+            /* Temporary failure. Wait until we can read and try again */
+            wait_for_activity(ssl, 0);
+            return 1;
+
+        case SSL_ERROR_WANT_WRITE:
+            /* Temporary failure. Wait until we can write and try again */
+            wait_for_activity(ssl, 1);
+            return 1;
+
+        case SSL_ERROR_ZERO_RETURN:
+            /* EOF */
+            return 0;
+
+        case SSL_ERROR_SYSCALL:
+            return -1;
+
+        case SSL_ERROR_SSL:
+            /*
+            * If the failure is due to a verification error we can get more
+            * information about it from SSL_get_verify_result().
+            */
+            if (SSL_get_verify_result(ssl) != X509_V_OK)
+                printf("Verify error: %s\n",
+                    X509_verify_cert_error_string(SSL_get_verify_result(ssl)));
+            return -1;
+
+        default:
+            return -1;
+        }
+    }
+
+This function takes as arguments the B<SSL> object that represents the
+connection, as well as the return code from the I/O function that failed. In
+the event of a non-fatal failure, it waits until a retry of the I/O operation
+might succeed (by using the C<wait_for_activity()> function that we developed
+in the previous section). It returns 1 in the event of a non-fatal error
+(except EOF), 0 in the event of EOF, or -1 if a fatal error occurred.
+
+=head2 Creating the SSL_CTX and SSL objects
+
+In order to connect to a server we must create B<SSL_CTX> and B<SSL> objects for
+this. The steps do this are the same as for a blocking client and are explained
+on the L<ossl-guide-tls-client-block(7)> page. We won't repeat that information
+here.
+
+=head2 Performing the handshake
+
+As in the demo for a blocking TLS client we use the L<SSL_connect(3)> function
+to perform the TLS handshake with the server. Since we are using a nonblocking
+socket it is very likely that calls to this function will fail with a non-fatal
+error while we are waiting for the server to respond to our handshake messages.
+In such a case we must retry the same L<SSL_connect(3)> call at a later time.
+In this demo we this in a loop:
+
+    /* Do the handshake with the server */
+    while ((ret = SSL_connect(ssl)) != 1) {
+        if (handle_io_failure(ssl, ret) == 1)
+            continue; /* Retry */
+        printf("Failed to connect to server\n");
+        goto end; /* Cannot retry: error */
+    }
+
+We continually call L<SSL_connect(3)> until it gives us a success response.
+Otherwise we use the C<handle_io_failure()> function that we created earlier to
+work out what we should do next. Note that we do not expect an EOF to occur at
+this stage, so such a response is treated in the same way as a fatal error.
+
+=head2 Sending and receiving data
+
+As with the blocking TLS client demo we use the L<SSL_write_ex(3)> function to
+send data to the server. As with L<SSL_connect(3)> above, because we are using
+a nonblocking socket, this call could fail with a non-fatal error. In that case
+we should retry exactly the same L<SSL_write_ex(3)> call again. Note that the
+parameters must be I<exactly> the same, i.e. the same pointer to the buffer to
+write with the same length. You must not attempt to send different data on a
+retry. An optional mode does exist (B<SSL_MODE_ACCEPT_MOVING_WRITE_BUFFER>)
+which will configure OpenSSL to allow the buffer being written to change from
+one retry to the next. However, in this case, you must still retry exactly the
+same data - even though the buffer that contains that data may change location.
+See L<SSL_CTX_set_mode(3)> for further details. As in the TLS client
+blocking tutorial (L<ossl-guide-tls-client-block(7)>) we write the request
+in three chunks.
+
+    /* Write an HTTP GET request to the peer */
+    while (!SSL_write_ex(ssl, request_start, strlen(request_start), &written)) {
+        if (handle_io_failure(ssl, 0) == 1)
+            continue; /* Retry */
+        printf("Failed to write start of HTTP request\n");
+        goto end; /* Cannot retry: error */
+    }
+    while (!SSL_write_ex(ssl, hostname, strlen(hostname), &written)) {
+        if (handle_io_failure(ssl, 0) == 1)
+            continue; /* Retry */
+        printf("Failed to write hostname in HTTP request\n");
+        goto end; /* Cannot retry: error */
+    }
+    while (!SSL_write_ex(ssl, request_end, strlen(request_end), &written)) {
+        if (handle_io_failure(ssl, 0) == 1)
+            continue; /* Retry */
+        printf("Failed to write end of HTTP request\n");
+        goto end; /* Cannot retry: error */
+    }
+
+On a write we do not expect to see an EOF response so we treat that case in the
+same way as a fatal error.
+
+Reading a response back from the server is similar:
+
+    do {
+        /*
+         * Get up to sizeof(buf) bytes of the response. We keep reading until
+         * the server closes the connection.
+         */
+        while (!eof && !SSL_read_ex(ssl, buf, sizeof(buf), &readbytes)) {
+            switch (handle_io_failure(ssl, 0)) {
+            case 1:
+                continue; /* Retry */
+            case 0:
+                eof = 1;
+                continue;
+            case -1:
+            default:
+                printf("Failed reading remaining data\n");
+                goto end; /* Cannot retry: error */
+            }
+        }
+        /*
+         * OpenSSL does not guarantee that the returned data is a string or
+         * that it is NUL terminated so we use fwrite() to write the exact
+         * number of bytes that we read. The data could be non-printable or
+         * have NUL characters in the middle of it. For this simple example
+         * we're going to print it to stdout anyway.
+         */
+        if (!eof)
+            fwrite(buf, 1, readbytes, stdout);
+    } while (!eof);
+    /* In case the response didn't finish with a newline we add one now */
+    printf("\n");
+
+The main difference this time is that it is valid for us to receive an EOF
+response when trying to read data from the server. This will occur when the
+server closes down the connection after sending all the data in its response.
+
+In this demo we just print out all the data we've received back in the response
+from the server. We continue going around the loop until we either encounter a
+fatal error, or we receive an EOF (indicating a graceful finish).
+
+=head2 Shutting down the connection
+
+As in the TLS blocking example we must shutdown the connection when we are
+finished with it.
+
+If our application was initiating the shutdown then we would expect to see
+L<SSL_shutdown(3)> give a return value of 0, and then we would continue to call
+it until we received a return value of 1 (meaning we have successfully completed
+the shutdown). In this particular example we don't expect SSL_shutdown() to
+return 0 because we have already received EOF from the server indicating that it
+has shutdown already. So we just keep calling it until SSL_shutdown() returns 1.
+Since we are using a nonblocking socket we might expect to have to retry this
+operation several times. If L<SSL_shutdown(3)> returns a negative result then we
+must call L<SSL_get_error(3)> to work out what to do next. We use our
+handle_io_failure() function that we developed earlier for this:
+
+    /*
+     * The peer already shutdown gracefully (we know this because of the
+     * SSL_ERROR_ZERO_RETURN (i.e. EOF) above). We should do the same back.
+     */
+    while ((ret = SSL_shutdown(ssl)) != 1) {
+        if (ret < 0 && handle_io_failure(ssl, ret) == 1)
+            continue; /* Retry */
+        /*
+         * ret == 0 is unexpected here because that means "we've sent a
+         * close_notify and we're waiting for one back". But we already know
+         * we got one from the peer because of the SSL_ERROR_ZERO_RETURN
+         * (i.e. EOF) above.
+         */
+        printf("Error shutting down\n");
+        goto end; /* Cannot retry: error */
+    }
+
+=head2 Final clean up
+
+As with the blocking TLS client example, once our connection is finished with we
+must free it. The steps to do this for this example are the same as for the
+blocking example, so we won't repeat it here.
+
+=head1 FURTHER READING
+
+See L<ossl-guide-tls-client-block(7)> to read a tutorial on how to write a
+blocking TLS client. See L<ossl-guide-quic-client-block(7)> to see how to do the
+same thing for a QUIC client.
+
+=head1 SEE ALSO
+
+L<ossl-guide-introduction(7)>, L<ossl-guide-libraries-introduction(7)>,
+L<ossl-guide-libssl-introduction(7)>, L<ossl-guide-tls-introduction(7)>,
+L<ossl-guide-tls-client-block(7)>, L<ossl-guide-quic-client-block(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

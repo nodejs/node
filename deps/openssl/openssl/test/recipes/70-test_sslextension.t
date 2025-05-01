@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2015-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2015-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -41,7 +41,6 @@ use constant {
 my $testtype;
 my $fatal_alert = 0;    # set by filter on fatal alert
 
-$ENV{OPENSSL_ia32cap} = '~0x200000200000000';
 my $proxy = TLSProxy::Proxy->new(
     \&inject_duplicate_extension_clienthello,
     cmdstr(app(["openssl"]), display => 1),
@@ -207,6 +206,7 @@ SKIP: {
     #Test 3: Sending a zero length extension block should pass
     $proxy->clear();
     $proxy->filter(\&extension_filter);
+    $proxy->cipherc("DEFAULT:\@SECLEVEL=0");
     $proxy->ciphers("AES128-SHA:\@SECLEVEL=0");
     $proxy->clientflags("-no_tls1_3");
     $proxy->start();

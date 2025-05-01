@@ -42,6 +42,9 @@ Currently supported versions are B<SSL3_VERSION>, B<TLS1_VERSION>,
 B<TLS1_1_VERSION>, B<TLS1_2_VERSION>, B<TLS1_3_VERSION> for TLS and
 B<DTLS1_VERSION>, B<DTLS1_2_VERSION> for DTLS.
 
+In the current version of OpenSSL only QUICv1 is supported in conjunction with
+TLSv1.3. Calling these functions on a QUIC object has no effect.
+
 =head1 RETURN VALUES
 
 These setter functions return 1 on success and 0 on failure. The getter
@@ -64,7 +67,7 @@ were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2016-2019 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

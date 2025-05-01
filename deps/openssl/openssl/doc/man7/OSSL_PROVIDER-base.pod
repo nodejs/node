@@ -57,27 +57,169 @@ currently permitted.
 
 The OpenSSL base provider supports these operations and algorithms:
 
-=head2 Asymmetric Key Encoder
-
-In addition to "provider=base", some of these encoders define the
-property "fips=yes", to allow them to be used together with the FIPS
-provider.
+=head2 Random Number Generation
 
 =over 4
 
-=item RSA, see L<OSSL_ENCODER-RSA(7)>
+=item SEED-SRC,  see L<EVP_RAND-SEED-SRC(7)>
 
-=item DH, see L<OSSL_ENCODER-DH(7)>
-
-=item DSA, see L<OSSL_ENCODER-DSA(7)>
-
-=item EC, see L<OSSL_ENCODER-EC(7)>
-
-=item X25519, see L<OSSL_ENCODER-X25519(7)>
-
-=item X448, see L<OSSL_ENCODER-X448(7)>
+=item JITTER,  see L<EVP_RAND-JITTER(7)>
 
 =back
+
+In addition to this provider, the "SEED-SRC" and "JITTER" algorithms
+are also available in the default provider.
+
+=head2 Asymmetric Key Encoder
+
+=over 4
+
+=item RSA
+
+=item RSA-PSS
+
+=item DH
+
+=item DHX
+
+=item DSA
+
+=item EC
+
+=item ED25519
+
+=item ED448
+
+=item X25519
+
+=item X448
+
+=item SM2
+
+=item ML-DSA-44
+
+=item ML-DSA-65
+
+=item ML-DSA-87
+
+=item ML-KEM-512
+
+=item ML-KEM-768
+
+=item ML-KEM-1024
+
+=item SLH-DSA-SHA2-128s
+
+=item SLH-DSA-SHA2-128f
+
+=item SLH-DSA-SHA2-192s
+
+=item SLH-DSA-SHA2-192f
+
+=item SLH-DSA-SHA2-256s
+
+=item SLH-DSA-SHA2-256f
+
+=item SLH-DSA-SHAKE-128s
+
+=item SLH-DSA-SHAKE-128f
+
+=item SLH-DSA-SHAKE-192s
+
+=item SLH-DSA-SHAKE-192f
+
+=item SLH-DSA-SHAKE-256s
+
+=item SLH-DSA-SHAKE-256f
+
+=back
+
+In addition to this provider, all of these encoding algorithms are also
+available in the default provider. Some of these algorithms may be used in
+combination with the FIPS provider.
+
+=head2 Asymmetric Key Decoder
+
+=over 4
+
+=item RSA
+
+=item RSA-PSS
+
+=item DH
+
+=item DHX
+
+=item DSA
+
+=item EC
+
+=item ED25519
+
+=item ED448
+
+=item X25519
+
+=item X448
+
+=item SM2
+
+=item DER
+
+=item ML-DSA-44
+
+=item ML-DSA-65
+
+=item ML-DSA-87
+
+=item ML-KEM-512
+
+=item ML-KEM-768
+
+=item ML-KEM-1024
+
+=item SLH-DSA-SHA2-128s
+
+=item SLH-DSA-SHA2-128f
+
+=item SLH-DSA-SHA2-192s
+
+=item SLH-DSA-SHA2-192f
+
+=item SLH-DSA-SHA2-256s
+
+=item SLH-DSA-SHA2-256f
+
+=item SLH-DSA-SHAKE-128s
+
+=item SLH-DSA-SHAKE-128f
+
+=item SLH-DSA-SHAKE-192s
+
+=item SLH-DSA-SHAKE-192f
+
+=item SLH-DSA-SHAKE-256s
+
+=item SLH-DSA-SHAKE-256f
+
+=back
+
+In addition to this provider, all of these decoding algorithms are also
+available in the default provider. Some of these algorithms may be used in
+combination with the FIPS provider.
+
+=head2 Stores
+
+=over 4
+
+=item file
+
+=item org.openssl.winstore, see L<OSSL_STORE-winstore(7)>
+
+=back
+
+In addition to this provider, all of these store algorithms are also
+available in the default provider.
 
 =head1 SEE ALSO
 
@@ -88,9 +230,11 @@ L<openssl-core_dispatch.h(7)>, L<provider(7)>
 
 This functionality was added in OpenSSL 3.0.
 
+Support for B<ML-DSA> and <ML-KEM> was added in OpenSSL 3.5.
+
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

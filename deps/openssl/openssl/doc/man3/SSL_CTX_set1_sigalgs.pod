@@ -34,6 +34,11 @@ must be a null terminated string consisting of a colon separated list of
 elements, where each element is either a combination of a public key
 algorithm and a digest separated by B<+>, or a TLS 1.3-style named
 SignatureScheme such as rsa_pss_pss_sha256.
+Signature scheme names and public key algorithm names (but not the digest
+names) in the B<algorithm+hash> form are case-insensitive.
+If a list entry is preceded with the C<?> character, it will be ignored if an
+implementation is missing.
+
 
 SSL_CTX_set1_client_sigalgs(), SSL_set1_client_sigalgs(),
 SSL_CTX_set1_client_sigalgs_list() and SSL_set1_client_sigalgs_list() set
@@ -106,9 +111,16 @@ using a string:
 L<ssl(7)>, L<SSL_get_shared_sigalgs(3)>,
 L<SSL_CONF_CTX_new(3)>
 
+=head1 HISTORY
+
+Support for ignoring unknown signature algorithms in
+SSL_CTX_set1_sigalgs_list(), SSL_set1_sigalgs_list(),
+SSL_CTX_set1_client_sigalgs_list() and SSL_set1_client_sigalgs_list()
+was added in OpenSSL 3.3.
+
 =head1 COPYRIGHT
 
-Copyright 2015-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

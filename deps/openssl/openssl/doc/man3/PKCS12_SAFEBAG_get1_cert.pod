@@ -5,7 +5,8 @@
 PKCS12_SAFEBAG_get0_attr, PKCS12_SAFEBAG_get0_type,
 PKCS12_SAFEBAG_get_nid, PKCS12_SAFEBAG_get_bag_nid,
 PKCS12_SAFEBAG_get0_bag_obj, PKCS12_SAFEBAG_get0_bag_type,
-PKCS12_SAFEBAG_get1_cert, PKCS12_SAFEBAG_get1_crl,
+PKCS12_SAFEBAG_get1_cert_ex, PKCS12_SAFEBAG_get1_cert,
+PKCS12_SAFEBAG_get1_crl_ex, PKCS12_SAFEBAG_get1_crl,
 PKCS12_SAFEBAG_get0_safes, PKCS12_SAFEBAG_get0_p8inf,
 PKCS12_SAFEBAG_get0_pkcs8 - Get objects from a PKCS#12 safeBag
 
@@ -20,7 +21,11 @@ PKCS12_SAFEBAG_get0_pkcs8 - Get objects from a PKCS#12 safeBag
  int PKCS12_SAFEBAG_get_bag_nid(const PKCS12_SAFEBAG *bag);
  const ASN1_TYPE *PKCS12_SAFEBAG_get0_bag_obj(const PKCS12_SAFEBAG *bag);
  const ASN1_OBJECT *PKCS12_SAFEBAG_get0_bag_type(const PKCS12_SAFEBAG *bag);
+ X509_CRL *PKCS12_SAFEBAG_get1_cert_ex(const PKCS12_SAFEBAG *bag,
+                                       OSSL_LIB_CTX *libctx, const char *propq);
  X509 *PKCS12_SAFEBAG_get1_cert(const PKCS12_SAFEBAG *bag);
+ X509_CRL *PKCS12_SAFEBAG_get1_crl_ex(const PKCS12_SAFEBAG *bag,
+                                      OSSL_LIB_CTX *libctx, const char *propq);
  X509_CRL *PKCS12_SAFEBAG_get1_crl(const PKCS12_SAFEBAG *bag);
  const STACK_OF(PKCS12_SAFEBAG) *PKCS12_SAFEBAG_get0_safes(const PKCS12_SAFEBAG *bag);
  const PKCS8_PRIV_KEY_INFO *PKCS12_SAFEBAG_get0_p8inf(const PKCS12_SAFEBAG *bag);
@@ -41,8 +46,13 @@ arbitrary for B<secretBag>s. PKCS12_SAFEBAG_get0_bag_type() gets this type as an
 
 PKCS12_SAFEBAG_get0_bag_obj() retrieves the object contained within the safeBag.
 
-PKCS12_SAFEBAG_get1_cert() and PKCS12_SAFEBAG_get1_crl() return new B<X509> or
-B<X509_CRL> objects from the item in the safeBag.
+PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() return new B<X509> or
+B<X509_CRL> objects from the item in the safeBag. I<libctx> and I<propq> are used when
+fetching algorithms, and may optionally be set to NULL.
+
+PKCS12_SAFEBAG_get1_cert() and PKCS12_SAFEBAG_get1_crl() are the same as
+PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() and set the I<libctx> and
+I<prop> to NULL. This will use the default library context.
 
 PKCS12_SAFEBAG_get0_p8inf() and PKCS12_SAFEBAG_get0_pkcs8() return the PKCS8 object
 from a PKCS8shroudedKeyBag or a keyBag.
@@ -62,9 +72,14 @@ L<PKCS12_create(3)>,
 L<PKCS12_add_safe(3)>,
 L<PKCS12_add_safes(3)>
 
+=head1 HISTORY
+
+The functions PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() were
+added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

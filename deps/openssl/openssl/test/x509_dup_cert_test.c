@@ -17,7 +17,6 @@
 static int test_509_dup_cert(int n)
 {
     int ret = 0;
-    X509_STORE_CTX *sctx = NULL;
     X509_STORE *store = NULL;
     X509_LOOKUP *lookup = NULL;
     const char *cert_f = test_get_argument(n);
@@ -28,7 +27,6 @@ static int test_509_dup_cert(int n)
         && TEST_true(X509_load_cert_file(lookup, cert_f, X509_FILETYPE_PEM)))
         ret = 1;
 
-    X509_STORE_CTX_free(sctx);
     X509_STORE_free(store);
     return ret;
 }

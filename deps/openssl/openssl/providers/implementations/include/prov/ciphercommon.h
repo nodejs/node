@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,23 +7,27 @@
  * https://www.openssl.org/source/license.html
  */
 
-#include <openssl/params.h>
-#include <openssl/core_dispatch.h>
-#include <openssl/core_names.h>
-#include <openssl/evp.h>
-#include "internal/cryptlib.h"
-#include "crypto/modes.h"
+#ifndef OSSL_PROV_CIPHERCOMMON_H
+# define OSSL_PROV_CIPHERCOMMON_H
+# pragma once
+
+# include <openssl/params.h>
+# include <openssl/core_dispatch.h>
+# include <openssl/core_names.h>
+# include <openssl/evp.h>
+# include "internal/cryptlib.h"
+# include "crypto/modes.h"
 
 # define MAXCHUNK    ((size_t)1 << 30)
 # define MAXBITCHUNK ((size_t)1 << (sizeof(size_t) * 8 - 4))
 
-#define GENERIC_BLOCK_SIZE 16
-#define IV_STATE_UNINITIALISED 0  /* initial state is not initialized */
-#define IV_STATE_BUFFERED      1  /* iv has been copied to the iv buffer */
-#define IV_STATE_COPIED        2  /* iv has been copied from the iv buffer */
-#define IV_STATE_FINISHED      3  /* the iv has been used - so don't reuse it */
+# define GENERIC_BLOCK_SIZE 16
+# define IV_STATE_UNINITIALISED 0  /* initial state is not initialized */
+# define IV_STATE_BUFFERED      1  /* iv has been copied to the iv buffer */
+# define IV_STATE_COPIED        2  /* iv has been copied from the iv buffer */
+# define IV_STATE_FINISHED      3  /* the iv has been used - so don't reuse it */
 
-#define PROV_CIPHER_FUNC(type, name, args) typedef type (* OSSL_##name##_fn)args
+# define PROV_CIPHER_FUNC(type, name, args) typedef type (* OSSL_##name##_fn)args
 
 typedef struct prov_cipher_hw_st PROV_CIPHER_HW;
 typedef struct prov_cipher_ctx_st PROV_CIPHER_CTX;
@@ -32,14 +36,14 @@ typedef int (PROV_CIPHER_HW_FN)(PROV_CIPHER_CTX *dat, unsigned char *out,
                                 const unsigned char *in, size_t len);
 
 /* Internal flags that can be queried */
-#define PROV_CIPHER_FLAG_AEAD             0x0001
-#define PROV_CIPHER_FLAG_CUSTOM_IV        0x0002
-#define PROV_CIPHER_FLAG_CTS              0x0004
-#define PROV_CIPHER_FLAG_TLS1_MULTIBLOCK  0x0008
-#define PROV_CIPHER_FLAG_RAND_KEY         0x0010
+# define PROV_CIPHER_FLAG_AEAD             0x0001
+# define PROV_CIPHER_FLAG_CUSTOM_IV        0x0002
+# define PROV_CIPHER_FLAG_CTS              0x0004
+# define PROV_CIPHER_FLAG_TLS1_MULTIBLOCK  0x0008
+# define PROV_CIPHER_FLAG_RAND_KEY         0x0010
 /* Internal flags that are only used within the provider */
-#define PROV_CIPHER_FLAG_VARIABLE_LENGTH  0x0100
-#define PROV_CIPHER_FLAG_INVERSE_CIPHER   0x0200
+# define PROV_CIPHER_FLAG_VARIABLE_LENGTH  0x0100
+# define PROV_CIPHER_FLAG_INVERSE_CIPHER   0x0200
 
 struct prov_cipher_ctx_st {
     /* place buffer at the beginning for memory alignment */
@@ -118,6 +122,8 @@ OSSL_FUNC_cipher_set_ctx_params_fn ossl_cipher_var_keylen_set_ctx_params;
 OSSL_FUNC_cipher_settable_ctx_params_fn ossl_cipher_var_keylen_settable_ctx_params;
 OSSL_FUNC_cipher_gettable_ctx_params_fn ossl_cipher_aead_gettable_ctx_params;
 OSSL_FUNC_cipher_settable_ctx_params_fn ossl_cipher_aead_settable_ctx_params;
+OSSL_FUNC_cipher_encrypt_skey_init_fn ossl_cipher_generic_skey_einit;
+OSSL_FUNC_cipher_decrypt_skey_init_fn ossl_cipher_generic_skey_dinit;
 
 int ossl_cipher_generic_get_params(OSSL_PARAM params[], unsigned int md,
                                    uint64_t flags,
@@ -127,7 +133,7 @@ void ossl_cipher_generic_initkey(void *vctx, size_t kbits, size_t blkbits,
                                  uint64_t flags,
                                  const PROV_CIPHER_HW *hw, void *provctx);
 
-#define IMPLEMENT_generic_cipher_func(alg, UCALG, lcmode, UCMODE, flags, kbits,\
+# define IMPLEMENT_generic_cipher_func(alg, UCALG, lcmode, UCMODE, flags, kbits,\
                                       blkbits, ivbits, typ)                    \
 const OSSL_DISPATCH ossl_##alg##kbits##lcmode##_functions[] = {                \
     { OSSL_FUNC_CIPHER_NEWCTX,                                                 \
@@ -151,10 +157,12 @@ const OSSL_DISPATCH ossl_##alg##kbits##lcmode##_functions[] = {                \
       (void (*)(void))ossl_cipher_generic_gettable_ctx_params },               \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
      (void (*)(void))ossl_cipher_generic_settable_ctx_params },                \
-    { 0, NULL }                                                                \
+    { OSSL_FUNC_CIPHER_ENCRYPT_SKEY_INIT, (void (*)(void))ossl_cipher_generic_skey_einit },\
+    { OSSL_FUNC_CIPHER_DECRYPT_SKEY_INIT, (void (*)(void))ossl_cipher_generic_skey_dinit },\
+    OSSL_DISPATCH_END                                                          \
 };
 
-#define IMPLEMENT_var_keylen_cipher_func(alg, UCALG, lcmode, UCMODE, flags,    \
+# define IMPLEMENT_var_keylen_cipher_func(alg, UCALG, lcmode, UCMODE, flags,    \
                                          kbits, blkbits, ivbits, typ)          \
 const OSSL_DISPATCH ossl_##alg##kbits##lcmode##_functions[] = {                \
     { OSSL_FUNC_CIPHER_NEWCTX,                                                 \
@@ -178,11 +186,13 @@ const OSSL_DISPATCH ossl_##alg##kbits##lcmode##_functions[] = {                \
       (void (*)(void))ossl_cipher_generic_gettable_ctx_params },               \
     { OSSL_FUNC_CIPHER_SETTABLE_CTX_PARAMS,                                    \
      (void (*)(void))ossl_cipher_var_keylen_settable_ctx_params },             \
-    { 0, NULL }                                                                \
+    { OSSL_FUNC_CIPHER_ENCRYPT_SKEY_INIT, (void (*)(void))ossl_cipher_generic_skey_einit },\
+    { OSSL_FUNC_CIPHER_DECRYPT_SKEY_INIT, (void (*)(void))ossl_cipher_generic_skey_dinit },\
+    OSSL_DISPATCH_END                                                          \
 };
 
 
-#define IMPLEMENT_generic_cipher_genfn(alg, UCALG, lcmode, UCMODE, flags,      \
+# define IMPLEMENT_generic_cipher_genfn(alg, UCALG, lcmode, UCMODE, flags,      \
                                        kbits, blkbits, ivbits, typ)            \
 static OSSL_FUNC_cipher_get_params_fn alg##_##kbits##_##lcmode##_get_params;   \
 static int alg##_##kbits##_##lcmode##_get_params(OSSL_PARAM params[])          \
@@ -204,14 +214,14 @@ static void * alg##_##kbits##_##lcmode##_newctx(void *provctx)                 \
      return ctx;                                                               \
 }                                                                              \
 
-#define IMPLEMENT_generic_cipher(alg, UCALG, lcmode, UCMODE, flags, kbits,     \
+# define IMPLEMENT_generic_cipher(alg, UCALG, lcmode, UCMODE, flags, kbits,     \
                                  blkbits, ivbits, typ)                         \
 IMPLEMENT_generic_cipher_genfn(alg, UCALG, lcmode, UCMODE, flags, kbits,       \
                                blkbits, ivbits, typ)                           \
 IMPLEMENT_generic_cipher_func(alg, UCALG, lcmode, UCMODE, flags, kbits,        \
                               blkbits, ivbits, typ)
 
-#define IMPLEMENT_var_keylen_cipher(alg, UCALG, lcmode, UCMODE, flags, kbits,  \
+# define IMPLEMENT_var_keylen_cipher(alg, UCALG, lcmode, UCMODE, flags, kbits,  \
                                     blkbits, ivbits, typ)                      \
 IMPLEMENT_generic_cipher_genfn(alg, UCALG, lcmode, UCMODE, flags, kbits,       \
                                blkbits, ivbits, typ)                           \
@@ -229,11 +239,11 @@ PROV_CIPHER_HW_FN ossl_cipher_hw_chunked_cbc;
 PROV_CIPHER_HW_FN ossl_cipher_hw_chunked_cfb8;
 PROV_CIPHER_HW_FN ossl_cipher_hw_chunked_cfb128;
 PROV_CIPHER_HW_FN ossl_cipher_hw_chunked_ofb128;
-#define ossl_cipher_hw_chunked_ecb  ossl_cipher_hw_generic_ecb
-#define ossl_cipher_hw_chunked_ctr  ossl_cipher_hw_generic_ctr
-#define ossl_cipher_hw_chunked_cfb1 ossl_cipher_hw_generic_cfb1
+# define ossl_cipher_hw_chunked_ecb  ossl_cipher_hw_generic_ecb
+# define ossl_cipher_hw_chunked_ctr  ossl_cipher_hw_generic_ctr
+# define ossl_cipher_hw_chunked_cfb1 ossl_cipher_hw_generic_cfb1
 
-#define IMPLEMENT_CIPHER_HW_OFB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
+# define IMPLEMENT_CIPHER_HW_OFB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
 static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
                                          unsigned char *out,                   \
                                          const unsigned char *in, size_t len)  \
@@ -254,7 +264,7 @@ static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
     return 1;                                                                  \
 }
 
-#define IMPLEMENT_CIPHER_HW_ECB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
+# define IMPLEMENT_CIPHER_HW_ECB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
 static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
                                          unsigned char *out,                   \
                                          const unsigned char *in, size_t len)  \
@@ -269,7 +279,7 @@ static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
     return 1;                                                                  \
 }
 
-#define IMPLEMENT_CIPHER_HW_CBC(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
+# define IMPLEMENT_CIPHER_HW_CBC(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
 static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
                                          unsigned char *out,                   \
                                          const unsigned char *in, size_t len)  \
@@ -287,7 +297,7 @@ static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
     return 1;                                                                  \
 }
 
-#define IMPLEMENT_CIPHER_HW_CFB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
+# define IMPLEMENT_CIPHER_HW_CFB(MODE, NAME, CTX_NAME, KEY_NAME, FUNC_PREFIX)   \
 static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
                                          unsigned char *out,                   \
                                          const unsigned char *in, size_t len)  \
@@ -311,7 +321,7 @@ static int cipher_hw_##NAME##_##MODE##_cipher(PROV_CIPHER_CTX *ctx,            \
     return 1;                                                                  \
 }
 
-#define IMPLEMENT_CIPHER_HW_COPYCTX(name, CTX_TYPE)                            \
+# define IMPLEMENT_CIPHER_HW_COPYCTX(name, CTX_TYPE)                            \
 static void name(PROV_CIPHER_CTX *dst, const PROV_CIPHER_CTX *src)             \
 {                                                                              \
     CTX_TYPE *sctx = (CTX_TYPE *)src;                                          \
@@ -321,7 +331,7 @@ static void name(PROV_CIPHER_CTX *dst, const PROV_CIPHER_CTX *src)             \
     dst->ks = &dctx->ks.ks;                                                    \
 }
 
-#define CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_START(name)                         \
+# define CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_START(name)                         \
 static const OSSL_PARAM name##_known_gettable_ctx_params[] = {                 \
     OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_KEYLEN, NULL),                         \
     OSSL_PARAM_size_t(OSSL_CIPHER_PARAM_IVLEN, NULL),                          \
@@ -330,7 +340,7 @@ static const OSSL_PARAM name##_known_gettable_ctx_params[] = {                 \
     OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_IV, NULL, 0),                    \
     OSSL_PARAM_octet_string(OSSL_CIPHER_PARAM_UPDATED_IV, NULL, 0),
 
-#define CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_END(name)                           \
+# define CIPHER_DEFAULT_GETTABLE_CTX_PARAMS_END(name)                           \
     OSSL_PARAM_END                                                             \
 };                                                                             \
 const OSSL_PARAM * name##_gettable_ctx_params(ossl_unused void *cctx,          \
@@ -339,11 +349,11 @@ const OSSL_PARAM * name##_gettable_ctx_params(ossl_unused void *cctx,          \
     return name##_known_gettable_ctx_params;                                   \
 }
 
-#define CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_START(name)                         \
+# define CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_START(name)                         \
 static const OSSL_PARAM name##_known_settable_ctx_params[] = {                 \
     OSSL_PARAM_uint(OSSL_CIPHER_PARAM_PADDING, NULL),                          \
     OSSL_PARAM_uint(OSSL_CIPHER_PARAM_NUM, NULL),
-#define CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_END(name)                           \
+# define CIPHER_DEFAULT_SETTABLE_CTX_PARAMS_END(name)                           \
     OSSL_PARAM_END                                                             \
 };                                                                             \
 const OSSL_PARAM * name##_settable_ctx_params(ossl_unused void *cctx,          \
@@ -361,3 +371,5 @@ size_t ossl_cipher_fillblock(unsigned char *buf, size_t *buflen,
 int ossl_cipher_trailingdata(unsigned char *buf, size_t *buflen,
                              size_t blocksize,
                              const unsigned char **in, size_t *inlen);
+
+#endif

@@ -1,0 +1,17 @@
+#
+# To run the demos when linked with a shared library (default) ensure
+# that libcrypto is on the library path.  For example:
+#
+#    LD_LIBRARY_PATH=../.. ./rsa_encode
+
+PROGRAMS{noinst} = ec_encode \
+                   rsa_encode
+
+INCLUDE[ec_encode]=../../include
+SOURCE[ec_encode]=ec_encode.c
+DEPEND[ec_encode]=../../libcrypto
+
+INCLUDE[rsa_encode]=../../include
+SOURCE[rsa_encode]=rsa_encode.c
+DEPEND[rsa_encode]=../../libcrypto
+

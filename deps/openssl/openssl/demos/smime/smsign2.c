@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,7 +7,7 @@
  * https://www.openssl.org/source/license.html
  */
 
-/* S/MIME signing example: 2 signers. OpenSSL 0.9.9 only */
+/* S/MIME signing example: 2 signers */
 #include <openssl/pem.h>
 #include <openssl/pkcs7.h>
 #include <openssl/err.h>
@@ -18,7 +18,7 @@ int main(int argc, char **argv)
     X509 *scert = NULL, *scert2 = NULL;
     EVP_PKEY *skey = NULL, *skey2 = NULL;
     PKCS7 *p7 = NULL;
-    int ret = 1;
+    int ret = EXIT_FAILURE;
 
     OpenSSL_add_all_algorithms();
     ERR_load_crypto_strings();
@@ -30,7 +30,8 @@ int main(int argc, char **argv)
 
     scert = PEM_read_bio_X509(tbio, NULL, 0, NULL);
 
-    BIO_reset(tbio);
+    if (BIO_reset(tbio) < 0)
+        goto err;
 
     skey = PEM_read_bio_PrivateKey(tbio, NULL, 0, NULL);
 
@@ -43,7 +44,8 @@ int main(int argc, char **argv)
 
     scert2 = PEM_read_bio_X509(tbio, NULL, 0, NULL);
 
-    BIO_reset(tbio);
+    if (BIO_reset(tbio) < 0)
+        goto err;
 
     skey2 = PEM_read_bio_PrivateKey(tbio, NULL, 0, NULL);
 
@@ -77,10 +79,11 @@ int main(int argc, char **argv)
     if (!SMIME_write_PKCS7(out, p7, in, PKCS7_STREAM))
         goto err;
 
-    ret = 0;
+    printf("Success\n");
 
+    ret = EXIT_SUCCESS;
  err:
-    if (ret) {
+    if (ret != EXIT_SUCCESS) {
         fprintf(stderr, "Error Signing Data\n");
         ERR_print_errors_fp(stderr);
     }

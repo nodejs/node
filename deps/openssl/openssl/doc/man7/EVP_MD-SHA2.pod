@@ -44,6 +44,10 @@ Available with the default provider:
 
 =over 4
 
+=item SHA2-256/192
+
+Known names are "SHA2-256/192", "SHA-256/192" and "SHA256-192".
+
 =item SHA2-512/224
 
 Known names are "SHA2-512/224", "SHA-512/224" and "SHA512-224".
@@ -67,7 +71,7 @@ L<provider-digest(7)>, L<OSSL_PROVIDER-FIPS(7)>, L<OSSL_PROVIDER-default(7)>
 
 =head1 COPYRIGHT
 
-Copyright 2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

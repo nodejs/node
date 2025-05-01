@@ -1,5 +1,5 @@
 /*
- * Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2007-2023 The OpenSSL Project Authors. All Rights Reserved.
  * Copyright Nokia 2007-2019
  * Copyright Siemens AG 2015-2019
  *
@@ -12,11 +12,6 @@
 #include "helpers/cmp_testlib.h"
 
 #include <openssl/x509_vfy.h>
-
-static X509 *test_cert;
-
-/* Avoid using X509_new() via the generic macros below. */
-#define X509_new() X509_dup(test_cert)
 
 typedef struct test_fixture {
     const char *test_case_name;
@@ -47,7 +42,7 @@ static OSSL_CMP_CTX_TEST_FIXTURE *set_up(const char *const test_case_name)
 static STACK_OF(X509) *sk_X509_new_1(void)
 {
     STACK_OF(X509) *sk = sk_X509_new_null();
-    X509 *x = X509_dup(test_cert);
+    X509 *x = X509_new();
 
     if (x == NULL || !sk_X509_push(sk, x)) {
         sk_X509_free(sk);
@@ -59,7 +54,7 @@ static STACK_OF(X509) *sk_X509_new_1(void)
 
 static void sk_X509_pop_X509_free(STACK_OF(X509) *sk)
 {
-    sk_X509_pop_free(sk, X509_free);
+    OSSL_STACK_OF_X509_free(sk);
 }
 
 static int execute_CTX_reinit_test(OSSL_CMP_CTX_TEST_FIXTURE *fixture)
@@ -67,18 +62,19 @@ static int execute_CTX_reinit_test(OSSL_CMP_CTX_TEST_FIXTURE *fixture)
     OSSL_CMP_CTX *ctx = fixture->ctx;
     ASN1_OCTET_STRING *bytes = NULL;
     STACK_OF(X509) *certs = NULL;
+    X509 *cert = X509_new();
     int res = 0;
 
     /* set non-default values in all relevant fields */
     ctx->status = 1;
     ctx->failInfoCode = 1;
     if (!ossl_cmp_ctx_set0_statusString(ctx, sk_ASN1_UTF8STRING_new_null())
-            || !ossl_cmp_ctx_set0_newCert(ctx, X509_dup(test_cert))
+            || !ossl_cmp_ctx_set0_newCert(ctx, X509_new())
             || !TEST_ptr(certs = sk_X509_new_1())
             || !ossl_cmp_ctx_set1_newChain(ctx, certs)
             || !ossl_cmp_ctx_set1_caPubs(ctx, certs)
             || !ossl_cmp_ctx_set1_extraCertsIn(ctx, certs)
-            || !ossl_cmp_ctx_set0_validatedSrvCert(ctx, X509_dup(test_cert))
+            || !ossl_cmp_ctx_set1_validatedSrvCert(ctx, cert)
             || !TEST_ptr(bytes = ASN1_OCTET_STRING_new())
             || !OSSL_CMP_CTX_set1_transactionID(ctx, bytes)
             || !OSSL_CMP_CTX_set1_senderNonce(ctx, bytes)
@@ -106,8 +102,24 @@ static int execute_CTX_reinit_test(OSSL_CMP_CTX_TEST_FIXTURE *fixture)
     res = 1;
 
  err:
+    X509_free(cert);
     sk_X509_pop_X509_free(certs);
     ASN1_OCTET_STRING_free(bytes);
+    return res;
+}
+
+static int test_CTX_libctx_propq(void)
+{
+    OSSL_LIB_CTX *libctx = OSSL_LIB_CTX_new();
+    const char *propq = "?provider=legacy";
+    OSSL_CMP_CTX *cmpctx = OSSL_CMP_CTX_new(libctx, propq);
+    int res = TEST_ptr(libctx)
+        && TEST_ptr(cmpctx)
+        && TEST_ptr_eq(libctx, OSSL_CMP_CTX_get0_libctx(cmpctx))
+        && TEST_str_eq(propq, OSSL_CMP_CTX_get0_propq(cmpctx));
+
+    OSSL_CMP_CTX_free(cmpctx);
+    OSSL_LIB_CTX_free(libctx);
     return res;
 }
 
@@ -306,10 +318,12 @@ static int test_cmp_ctx_log_cb(void)
     return result;
 }
 
+#ifndef OPENSSL_NO_HTTP
 static BIO *test_http_cb(BIO *bio, void *arg, int use_ssl, int detail)
 {
     return NULL;
 }
+#endif
 
 static OSSL_CMP_MSG *test_transfer_cb(OSSL_CMP_CTX *ctx,
                                       const OSSL_CMP_MSG *req)
@@ -510,6 +524,7 @@ static X509_STORE *X509_STORE_new_1(void)
         return ret; \
     }
 
+/* cannot use PREFIX instead of OSSL_CMP and CTX due to #define OSSL_CMP_CTX */
 #define DEFINE_SET_GET_TEST(OSSL_CMP, CTX, N, M, DUP, FIELD, TYPE) \
     DEFINE_SET_GET_BASE_TEST(OSSL_CMP##_##CTX, set##N, get##M, DUP, FIELD, \
                              TYPE *, NULL, IS_0, TYPE##_new(), TYPE##_free)
@@ -550,7 +565,9 @@ static X509_STORE *X509_STORE_new_1(void)
                              STACK_OF(TYPE)*, NULL, IS_0, \
                              sk_##TYPE##_new_null(), sk_##TYPE##_free)
 
+#ifndef OPENSSL_NO_HTTP
 typedef OSSL_HTTP_bio_cb_t OSSL_CMP_http_cb_t;
+#endif
 #define DEFINE_SET_CB_TEST(FIELD) \
     static OSSL_CMP_##FIELD##_t OSSL_CMP_CTX_get_##FIELD(const CMP_CTX *ctx) \
     { \
@@ -673,7 +690,7 @@ static int execute_CTX_##PUSHN##_##ELEM(OSSL_CMP_CTX_TEST_FIXTURE *fixture) \
     } \
     \
     if (!(*push_fn)(ctx, val2)) { \
-        TEST_error("pushting second value failed"); \
+        TEST_error("pushing second value failed"); \
         res = 0; \
     } \
     if (PUSHN == 0) \
@@ -736,15 +753,17 @@ DEFINE_SET_TEST(OSSL_CMP, CTX, 1, 1, server, char)
 DEFINE_SET_INT_TEST(serverPort)
 DEFINE_SET_TEST(OSSL_CMP, CTX, 1, 1, proxy, char)
 DEFINE_SET_TEST(OSSL_CMP, CTX, 1, 1, no_proxy, char)
+#ifndef OPENSSL_NO_HTTP
 DEFINE_SET_CB_TEST(http_cb)
 DEFINE_SET_GET_P_VOID_TEST(http_cb_arg)
+#endif
 DEFINE_SET_CB_TEST(transfer_cb)
 DEFINE_SET_GET_P_VOID_TEST(transfer_cb_arg)
 
 DEFINE_SET_TEST(OSSL_CMP, CTX, 1, 0, srvCert, X509)
-DEFINE_SET_TEST(ossl_cmp, ctx, 0, 0, validatedSrvCert, X509)
+DEFINE_SET_GET_TEST(ossl_cmp, ctx, 1, 0, 0, validatedSrvCert, X509)
 DEFINE_SET_TEST(OSSL_CMP, CTX, 1, 1, expected_sender, X509_NAME)
-DEFINE_SET_GET_BASE_TEST(OSSL_CMP_CTX, set0, get0, 0, trustedStore,
+DEFINE_SET_GET_BASE_TEST(OSSL_CMP_CTX, set0, get0, 0, trusted,
                          X509_STORE *, NULL,
                          DEFAULT_STORE, X509_STORE_new_1(), X509_STORE_free)
 DEFINE_SET_GET_SK_X509_TEST(OSSL_CMP, CTX, 1, 0, untrusted)
@@ -794,19 +813,13 @@ DEFINE_SET_TEST(ossl_cmp, ctx, 1, 1, recipNonce, ASN1_OCTET_STRING)
 
 int setup_tests(void)
 {
-    char *cert_file;
-
     if (!test_skip_common_options()) {
         TEST_error("Error parsing test options\n");
         return 0;
     }
 
-    if (!TEST_ptr(cert_file = test_get_argument(0))
-        || !TEST_ptr(test_cert = load_cert_pem(cert_file, NULL)))
-        return 0;
-
-    /* OSSL_CMP_CTX_new() is tested by set_up() */
-    /* OSSL_CMP_CTX_free() is tested by tear_down() */
+    /* also tests OSSL_CMP_CTX_new() and OSSL_CMP_CTX_free(): */
+    ADD_TEST(test_CTX_libctx_propq);
     ADD_TEST(test_CTX_reinit);
 
     /* various CMP options: */
@@ -833,15 +846,17 @@ int setup_tests(void)
     ADD_TEST(test_CTX_set_get_serverPort);
     ADD_TEST(test_CTX_set1_get0_proxy);
     ADD_TEST(test_CTX_set1_get0_no_proxy);
+#ifndef OPENSSL_NO_HTTP
     ADD_TEST(test_CTX_set_get_http_cb);
     ADD_TEST(test_CTX_set_get_http_cb_arg);
+#endif
     ADD_TEST(test_CTX_set_get_transfer_cb);
     ADD_TEST(test_CTX_set_get_transfer_cb_arg);
     /* server authentication: */
     ADD_TEST(test_CTX_set1_get0_srvCert);
-    ADD_TEST(test_CTX_set0_get0_validatedSrvCert);
+    ADD_TEST(test_CTX_set1_get0_validatedSrvCert);
     ADD_TEST(test_CTX_set1_get0_expected_sender);
-    ADD_TEST(test_CTX_set0_get0_trustedStore);
+    ADD_TEST(test_CTX_set0_get0_trusted);
     ADD_TEST(test_CTX_set1_get0_untrusted);
     /* client authentication: */
     ADD_TEST(test_CTX_set1_get0_cert);

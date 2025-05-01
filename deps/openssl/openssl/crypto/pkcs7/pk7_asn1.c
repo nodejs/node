@@ -41,7 +41,7 @@ static int pk7_cb(int operation, ASN1_VALUE **pval, const ASN1_ITEM *it,
     case ASN1_OP_STREAM_PRE:
         if (PKCS7_stream(&sarg->boundary, *pp7) <= 0)
             return 0;
-        /* fall thru */
+        /* fall through */
     case ASN1_OP_DETACHED_PRE:
         sarg->ndef_bio = PKCS7_dataInit(*pp7, sarg->out);
         if (!sarg->ndef_bio)
@@ -104,7 +104,6 @@ PKCS7 *PKCS7_new_ex(OSSL_LIB_CTX *libctx, const char *propq)
             if (pkcs7->ctx.propq == NULL) {
                 PKCS7_free(pkcs7);
                 pkcs7 = NULL;
-                ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
             }
         }
     }

@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -30,7 +30,7 @@ my $fipsmoduleconf = bldtop_file('test', 'fipsmodule.cnf');
 plan tests => 1;
 
 # Create the $fipsmoduleconf file
-ok(run(app(['openssl', 'fipsinstall',
+ok(run(app(['openssl', 'fipsinstall', '-pedantic',
             '-module', $fipsmodule, '-provider_name', 'fips',
             '-section_name', 'fips_sect', '-out', $fipsmoduleconf])),
    "fips install");

@@ -461,17 +461,14 @@ C<libmandatory.a> is strong, while the dependency between C<libfoo.a>
 and C<libbar.a> and C<libcookie.a> is weak.  See the description of
 B<weak> in L</Known attributes> for more information.
 
+B<DEPEND> is a bit more involving when used with I<item>s that are
+generated with B<GENERATE>.  This is described more in depth below.
+
 =item B<GENERATE[>I<item>B<]> B<=> I<generator> I<generator-arg> ...
 
 This specifies that the I<item> is generated using the I<generator>
 with the I<generator-arg>s as arguments, plus the name of the output
 file as last argument.
-
-For I<generator>s where this is applicable, any B<INCLUDE> statement
-for the same I<item> will be given to the I<generator> as its
-inclusion directories.  Likewise, any B<DEPEND> statement for the same
-I<item> will be given to the I<generator> as an extra file or module
-to load, where this is applicable.
 
 The build file generators must be able to recognise the I<generator>.
 Currently, they at least recognise files ending in C<.pl>, and will
@@ -479,6 +476,42 @@ execute them to generate the I<item>, and files ending in C<.in>,
 which will be used as input for L<OpenSSL::Template> to generate
 I<item> (in other words, we use the exact same style of
 L</Perl nuggets> mechanism that is used to read F<build.info> files).
+
+For I<generator>s where this is applicable, any B<INCLUDE> statement
+for the same I<item> will be given to the I<generator> as its
+inclusion directories.
+
+Likewise, For I<generator>s where this is applicable, any B<DEPEND>
+statement for the same I<item> will be given to the I<generator> as an
+extra file or module to load, where this is applicable.
+
+=over 4
+
+=item The B<DEPEND> statement may be problematic:
+
+Depending on what generator is used, a B<DEPEND> statement also acts
+as an B<INCLUDE> statement for the directory where the I<file> is
+located.  In some cases, that's not quite feasible, because a module
+isn't meant to be loaded by filename only and may require a nondefault
+separation between the implied inclusion directory and the intended module
+name.
+
+=item ... but there is a solution:
+
+To enable that sort of separation, B<DEPEND> can use a slightly
+different I<file> syntax, that looks like this:
+
+B<DEPEND[>I<items>B<]> B<=> I<dir>|I<module>
+
+The I<module> must be specified in a way that makes sense for the generator.
+For example, when the generator implies perl (ends with C<.in>) and depends
+on the module F<OpenSSL::foo> - a.k.a. F<OpenSSL/foo.pm> - which lives in
+F<util/perl>, it feasible to have something like this:
+
+    GENERATE[something.c]=something.c.in
+    DEPEND[something.c]=util/perl|OpenSSL/foo.pm
+
+=back
 
 =item B<SOURCE[>I<item>B<]> B<=> I<file> ...
 
@@ -634,7 +667,7 @@ L<Text::Template|https://metacpan.org/pod/Text::Template>
 
 =head1 COPYRIGHT
 
-Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use this
 file except in compliance with the License.  You can obtain a copy in the file

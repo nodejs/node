@@ -21,13 +21,13 @@ OSSL_trace_set_callback, OSSL_trace_cb - Enabling trace output
 
 =head1 DESCRIPTION
 
-If available (see L</NOTES> below), the application can request
+If available (see L</Configure Tracing> below), the application can request
 internal trace output.
 This output comes in form of free text for humans to read.
 
 The trace output is divided into categories which can be
 enabled individually.
-Every category can be enabled individually by attaching a so called
+Every category can be enabled individually by attaching a so-called
 I<trace channel> to it, which in the simplest case is just a BIO object
 to which the application can write the tracing output for this category.
 Alternatively, the application can provide a tracer callback in order to
@@ -37,6 +37,11 @@ internally by a dedicated BIO object.
 For the tracing code, both trace channel types are indistinguishable.
 These are called a I<simple trace channel> and a I<callback trace channel>,
 respectively.
+
+L<OSSL_TRACE_ENABLED(3)> can be used to check whether tracing is currently
+enabled for the given category.
+Functions like L<OSSL_TRACE1(3)> and macros like L<OSSL_TRACE_BEGIN(3)>
+can be used for producing free-text trace output.
 
 =head2 Functions
 
@@ -58,7 +63,7 @@ OSSL_trace_set_callback() is used to enable the given trace
 I<category> by giving it the tracer callback I<cb> with the associated
 data I<data>, which will simply be passed through to I<cb> whenever
 it's called. The callback function is internally wrapped by a
-dedicated BIO object, the so called I<callback trace channel>.
+dedicated BIO object, the so-called I<callback trace channel>.
 This should be used when it's desirable to do form the trace output to
 something suitable for application needs where a prefix and suffix
 line aren't enough.
@@ -201,6 +206,10 @@ Traces encoder operations.
 
 Traces decrementing certain ASN.1 structure references.
 
+=item B<OSSL_TRACE_CATEGORY_HTTP>
+
+Traces the HTTP client, such as message headers being sent and received.
+
 =back
 
 There is also B<OSSL_TRACE_CATEGORY_ALL>, which works as a fallback
@@ -313,6 +322,11 @@ necessary to configure and build OpenSSL with the 'enable-trace' option.
 When the library is built with tracing disabled, the macro
 B<OPENSSL_NO_TRACE> is defined in F<< <openssl/opensslconf.h> >> and all
 functions described here are inoperational, i.e. will do nothing.
+
+=head1 SEE ALSO
+
+L<OSSL_TRACE_ENABLED(3)>, L<OSSL_TRACE_BEGIN(3)>, L<OSSL_TRACE1(3)>,
+L<atexit(3)>
 
 =head1 HISTORY
 

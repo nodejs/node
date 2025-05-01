@@ -24,8 +24,8 @@ CMS_decrypt() extracts the decrypted content from a CMS EnvelopedData
 or AuthEnvelopedData structure.
 It uses CMS_decrypt_set1_pkey() to decrypt the content
 with the recipient private key I<pkey> if I<pkey> is not NULL.
-In this case, it is recommended to provide the associated certificate
-in I<cert> - see the NOTES below.
+In this case, the associated certificate is recommended to provide in I<cert> -
+see the NOTES below.
 I<out> is a BIO to write the content to and
 I<flags> is an optional set of flags.
 If I<pkey> is NULL the function assumes that decryption was already done
@@ -36,9 +36,8 @@ is detached. It will normally be set to NULL.
 
 CMS_decrypt_set1_pkey_and_peer() decrypts the CMS_ContentInfo structure I<cms>
 using the private key I<pkey>, the corresponding certificate I<cert>, which is
-recommended to be supplied but may be NULL,
-and the (optional) originator certificate I<peer>.
-On success, it also records in I<cms> the decryption key I<pkey>, and this
+recommended but may be NULL, and the (optional) originator certificate I<peer>.
+On success, it also records in I<cms> the decryption key I<pkey>, and then
 should be followed by C<CMS_decrypt(cms, NULL, NULL, dcont, out, flags)>.
 This call deallocates any decryption key stored in I<cms>.
 
@@ -47,7 +46,7 @@ CMS_decrypt_set1_pkey_and_peer() with I<peer> being NULL.
 
 CMS_decrypt_set1_password() decrypts the CMS_ContentInfo structure I<cms>
 using the secret I<pass> of length I<passlen>.
-On success, it also records in I<cms> the decryption key used, and this
+On success, it also records in I<cms> the decryption key used, and then
 should be followed by C<CMS_decrypt(cms, NULL, NULL, dcont, out, flags)>.
 This call deallocates any decryption key stored in I<cms>.
 
@@ -113,7 +112,7 @@ were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2008-2023 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2008-2020 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

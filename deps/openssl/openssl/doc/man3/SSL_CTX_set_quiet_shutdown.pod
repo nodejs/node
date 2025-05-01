@@ -2,7 +2,8 @@
 
 =head1 NAME
 
-SSL_CTX_set_quiet_shutdown, SSL_CTX_get_quiet_shutdown, SSL_set_quiet_shutdown, SSL_get_quiet_shutdown - manipulate shutdown behaviour
+SSL_CTX_set_quiet_shutdown, SSL_CTX_get_quiet_shutdown, SSL_set_quiet_shutdown,
+SSL_get_quiet_shutdown - manipulate shutdown behaviour
 
 =head1 SYNOPSIS
 
@@ -30,9 +31,12 @@ B<mode> may be 0 or 1.
 
 SSL_get_quiet_shutdown() returns the "quiet shutdown" setting of B<ssl>.
 
+These functions are not supported for QUIC SSL objects. SSL_set_quiet_shutdown()
+has no effect if called on a QUIC SSL object.
+
 =head1 NOTES
 
-Normally when a SSL connection is finished, the parties must send out
+Normally when an SSL connection is finished, the parties must send out
 close_notify alert messages using L<SSL_shutdown(3)>
 for a clean shutdown.
 
@@ -51,7 +55,7 @@ The default is normal shutdown behaviour as described by the TLS standard.
 SSL_CTX_set_quiet_shutdown() and SSL_set_quiet_shutdown() do not return
 diagnostic information.
 
-SSL_CTX_get_quiet_shutdown() and SSL_get_quiet_shutdown return the current
+SSL_CTX_get_quiet_shutdown() and SSL_get_quiet_shutdown() return the current
 setting.
 
 =head1 SEE ALSO
@@ -62,7 +66,7 @@ L<SSL_clear(3)>, L<SSL_free(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2001-2018 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2001-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

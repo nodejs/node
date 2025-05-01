@@ -34,7 +34,6 @@ static void tear_down(CMP_STATUS_TEST_FIXTURE *fixture)
     OPENSSL_free(fixture);
 }
 
-
 /*
  * Tests PKIStatusInfo creation and get-functions
  */
@@ -88,8 +87,6 @@ static int test_PKISI(void)
     EXECUTE_TEST(execute_PKISI_test, tear_down);
     return result;
 }
-
-
 
 void cleanup_tests(void)
 {

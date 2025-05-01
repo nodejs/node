@@ -1,5 +1,5 @@
 /*
- * Copyright 2018-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -23,16 +23,15 @@ EVP_MAC_CTX *EVP_MAC_CTX_new(EVP_MAC *mac)
 {
     EVP_MAC_CTX *ctx = OPENSSL_zalloc(sizeof(EVP_MAC_CTX));
 
-    if (ctx == NULL
-        || (ctx->algctx = mac->newctx(ossl_provider_ctx(mac->prov))) == NULL
-        || !EVP_MAC_up_ref(mac)) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
-        if (ctx != NULL)
-            mac->freectx(ctx->algctx);
-        OPENSSL_free(ctx);
-        ctx = NULL;
-    } else {
+    if (ctx != NULL) {
         ctx->meth = mac;
+        if ((ctx->algctx = mac->newctx(ossl_provider_ctx(mac->prov))) == NULL
+            || !EVP_MAC_up_ref(mac)) {
+            mac->freectx(ctx->algctx);
+            ERR_raise(ERR_LIB_EVP, ERR_R_EVP_LIB);
+            OPENSSL_free(ctx);
+            ctx = NULL;
+        }
     }
     return ctx;
 }
@@ -56,14 +55,12 @@ EVP_MAC_CTX *EVP_MAC_CTX_dup(const EVP_MAC_CTX *src)
         return NULL;
 
     dst = OPENSSL_malloc(sizeof(*dst));
-    if (dst == NULL) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+    if (dst == NULL)
         return NULL;
-    }
 
     *dst = *src;
     if (!EVP_MAC_up_ref(dst->meth)) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EVP, ERR_R_EVP_LIB);
         OPENSSL_free(dst);
         return NULL;
     }
@@ -118,7 +115,22 @@ size_t EVP_MAC_CTX_get_block_size(EVP_MAC_CTX *ctx)
 int EVP_MAC_init(EVP_MAC_CTX *ctx, const unsigned char *key, size_t keylen,
                  const OSSL_PARAM params[])
 {
+    if (ctx->meth->init == NULL) {
+        ERR_raise(ERR_R_EVP_LIB, ERR_R_UNSUPPORTED);
+        return 0;
+    }
     return ctx->meth->init(ctx->algctx, key, keylen, params);
+}
+
+int EVP_MAC_init_SKEY(EVP_MAC_CTX *ctx, EVP_SKEY *skey, const OSSL_PARAM params[])
+{
+    if (ctx->meth->init_skey == NULL
+        || skey->skeymgmt->prov != ctx->meth->prov
+        || ctx->meth->init_skey == NULL) {
+        ERR_raise(ERR_R_EVP_LIB, ERR_R_UNSUPPORTED);
+        return 0;
+    }
+    return ctx->meth->init_skey(ctx->algctx, skey->keydata, params);
 }
 
 int EVP_MAC_update(EVP_MAC_CTX *ctx, const unsigned char *data, size_t datalen)

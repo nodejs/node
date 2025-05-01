@@ -241,6 +241,11 @@ protection feature will still be used even if a callback is present unless it
 has been explicitly disabled using the SSL_OP_NO_ANTI_REPLAY option. See
 L</REPLAY PROTECTION> below.
 
+These functions cannot currently be used with QUIC SSL objects.
+SSL_set_max_early_data(), SSL_set_recv_max_early_data(), SSL_write_early_data(),
+SSL_read_early_data(), SSL_get_early_data_status() and
+SSL_set_allow_early_data_cb() fail if called on a QUIC SSL object.
+
 =head1 NOTES
 
 The whole purpose of early data is to enable a client to start sending data to
@@ -365,7 +370,7 @@ All of the functions described above were added in OpenSSL 1.1.1.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

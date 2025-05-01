@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -77,6 +77,7 @@ Ctrl.IKM = hexkey:19ef24a32c717b167f33a91d6f648bdf96596776afdb6377ac434c1c293ccb
 Ctrl.info = info:
 Output = 8da4e775a563c18f715f802a063c5a31b8a11f5c5ee1879ec3454e5f3c738d2d9d201395faa4b61a96c8
 
+Availablein = default
 PKEYKDF = HKDF
 Ctrl.md = md:SHA1
 Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
@@ -84,6 +85,7 @@ Ctrl.salt = hexsalt:000102030405060708090a0b0c
 Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
 Output = 085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896
 
+Availablein = default
 PKEYKDF = HKDF
 Ctrl.mode = mode:EXTRACT_ONLY
 Ctrl.md = md:SHA1
@@ -193,3 +195,39 @@ Ctrl.md = md:SHA1
 Ctrl.IKM = hexkey:0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c0c
 Ctrl.salt = salt:
 Output = 2c91117204d745f3500d636a62f64f0ab3bae548aa53d423b0d1f27ebba6f5e5673a081d70cce7acfc48
+
+# Test that the operation with XOF digest function is rejected
+FIPSversion = >=3.4.0
+PKEYKDF = HKDF
+Ctrl.digest = digest:SHAKE-256
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Result = PKEY_CTRL_ERROR
+Reason = xof digests not allowed
+
+Title = FIPS indicator tests
+
+# Test that the key whose length is shorter than 112 bits is rejected
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = HKDF
+Ctrl.digest = digest:SHA1
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Result = PKEY_CTRL_ERROR
+Reason = invalid key length
+
+# Test that the key whose length is shorter than 112 bits is reported as
+# unapproved
+Availablein = fips
+FIPSversion = >=3.4.0
+PKEYKDF = HKDF
+Unapproved = 1
+Ctrl.key-check = key-check:0
+Ctrl.digest = digest:SHA1
+Ctrl.IKM = hexkey:0b0b0b0b0b0b0b0b0b0b0b
+Ctrl.salt = hexsalt:000102030405060708090a0b0c
+Ctrl.info = hexinfo:f0f1f2f3f4f5f6f7f8f9
+Output = 085a01ea1b10f36933068b56efa5ad81a4f14b822f5b091568a9cdd4f155fda2c22e422478d305f3f896

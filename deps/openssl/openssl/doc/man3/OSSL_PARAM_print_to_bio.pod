@@ -1,0 +1,42 @@
+=pod
+
+=head1 NAME
+
+OSSL_PARAM_print_to_bio
+- OSSL_PARAM interrogation utilities 
+
+=head1 SYNOPSIS
+
+ #include <openssl/params.h>
+
+ int OSSL_PARAM_print_to_bio(const OSSL_PARAM *p, BIO *bio,
+                             int print_values);
+
+=head1 DESCRIPTION
+
+OSSL_PARAM_print_to_bio() formats each parameter contained in the
+passed in array of B<OSSL_PARAM> values I<p>, and prints both the key,
+and optionally its value, to a provided B<BIO>.
+I<p> must be a non-null array of OSSL_PARAM values, terminated
+with a value containing a null I<key> member.
+I<print_values> is a control parameter, indicating that key values should be
+printed, in addition to key names.
+
+=head1 RETURN VALUES
+
+OSSL_PARAM_print_to_bio() returns 1 on success, and 0 on failure 
+
+=head1 HISTORY
+
+OSSL_PARAM_print_to_bio() was added in OpenSSL 3.5
+
+=head1 COPYRIGHT
+
+Copyright 2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

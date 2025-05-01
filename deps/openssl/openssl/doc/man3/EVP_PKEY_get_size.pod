@@ -22,6 +22,7 @@ EVP_PKEY_bits, EVP_PKEY_security_bits, EVP_PKEY_size
 
 EVP_PKEY_get_size() returns the maximum suitable size for the output
 buffers for almost all operations that can be done with I<pkey>.
+This corresponds to the provider parameter B<OSSL_PKEY_PARAM_MAX_SIZE>.
 The primary documented use is with L<EVP_SignFinal(3)> and
 L<EVP_SealInit(3)>, but it isn't limited there.  The returned size is
 also large enough for the output buffer of L<EVP_PKEY_sign(3)>,
@@ -38,9 +39,11 @@ receive that length), to avoid bugs.
 EVP_PKEY_get_bits() returns the cryptographic length of the cryptosystem
 to which the key in I<pkey> belongs, in bits.  Note that the definition
 of cryptographic length is specific to the key cryptosystem.
+This length corresponds to the provider parameter B<OSSL_PKEY_PARAM_BITS>.
 
 EVP_PKEY_get_security_bits() returns the number of security bits of the given
 I<pkey>, bits of security is defined in NIST SP800-57.
+This corresponds to the provider parameter B<OSSL_PKEY_PARAM_SECURITY_BITS>.
 
 =head1 RETURN VALUES
 
@@ -66,6 +69,7 @@ L<EVP_DigestSignFinal(3)/NOTES>.
 
 =head1 SEE ALSO
 
+L<provider-keymgmt(7)>,
 L<EVP_SignFinal(3)>,
 L<EVP_SealInit(3)>,
 L<EVP_PKEY_sign(3)>,

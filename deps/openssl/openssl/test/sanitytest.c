@@ -1,5 +1,5 @@
 /*
- * Copyright 2015-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2015-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,6 +11,7 @@
 #include <openssl/types.h>
 #include "testutil.h"
 #include "internal/numbers.h"
+#include "internal/time.h"
 
 static int test_sanity_null_zero(void)
 {
@@ -129,6 +130,25 @@ static int test_sanity_memcmp(void)
     return CRYPTO_memcmp("ab", "cd", 2);
 }
 
+static int test_sanity_sleep(void)
+{
+    OSSL_TIME start = ossl_time_now();
+    uint64_t seconds;
+
+    /*
+     * On any reasonable system this must sleep at least one second
+     * but not more than 20.
+     * Assuming there is no interruption.
+     */
+    OSSL_sleep(1000);
+
+    seconds = ossl_time2seconds(ossl_time_subtract(ossl_time_now(), start));
+
+    if (!TEST_uint64_t_ge(seconds, 1) || !TEST_uint64_t_le(seconds, 20))
+       return 0;
+    return 1;
+}
+
 int setup_tests(void)
 {
     ADD_TEST(test_sanity_null_zero);
@@ -138,6 +158,6 @@ int setup_tests(void)
     ADD_TEST(test_sanity_unsigned_conversion);
     ADD_TEST(test_sanity_range);
     ADD_TEST(test_sanity_memcmp);
+    ADD_TEST(test_sanity_sleep);
     return 1;
 }
-

@@ -1,5 +1,5 @@
 /*
- * Copyright 2021-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2021-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -14,10 +14,12 @@
 #include <openssl/core_names.h>
 #include <openssl/evp.h>
 #include <openssl/store.h>
+#include <openssl/ui.h>
 #include "testutil.h"
 #include "fake_rsaprov.h"
 
 static OSSL_LIB_CTX *libctx = NULL;
+extern int key_deleted; /* From fake_rsaprov.c */
 
 /* Fetch SIGNATURE method using a libctx and propq */
 static int fetch_sig(OSSL_LIB_CTX *ctx, const char *alg, const char *propq,
@@ -93,7 +95,7 @@ static int test_pkey_sig(void)
         /*
          * If this picks the wrong signature without realizing it
          * we can get a segfault or some internal error. At least watch
-         * whether fake-rsa sign_init is is exercised by calling sign.
+         * whether fake-rsa sign_init is exercised by calling sign.
          */
         if (!TEST_int_eq(EVP_PKEY_sign_init(ctx), 1))
             goto end;
@@ -288,6 +290,140 @@ end:
     return ret;
 }
 
+static int test_pkey_delete(void)
+{
+    OSSL_PROVIDER *deflt = NULL;
+    OSSL_PROVIDER *fake_rsa = NULL;
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    OSSL_STORE_LOADER *loader = NULL;
+    OSSL_STORE_CTX *ctx = NULL;
+    OSSL_STORE_INFO *info;
+    const char *propq = "?provider=fake-rsa";
+
+    /* It's important to load the default provider first for this test */
+    if (!TEST_ptr(deflt = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    if (!TEST_ptr(fake_rsa = fake_rsa_start(libctx)))
+        goto end;
+
+    if (!TEST_ptr(loader = OSSL_STORE_LOADER_fetch(libctx, "fake_rsa",
+                                                   propq)))
+        goto end;
+
+    OSSL_STORE_LOADER_free(loader);
+
+    /* First iteration: load key, check it, delete it */
+    if (!TEST_ptr(ctx = OSSL_STORE_open_ex("fake_rsa:test", libctx, propq,
+                                           NULL, NULL, NULL, NULL, NULL)))
+        goto end;
+
+    while (!OSSL_STORE_eof(ctx)
+           && (info = OSSL_STORE_load(ctx)) != NULL
+           && pkey == NULL) {
+        if (OSSL_STORE_INFO_get_type(info) == OSSL_STORE_INFO_PKEY)
+            pkey = OSSL_STORE_INFO_get1_PKEY(info);
+        OSSL_STORE_INFO_free(info);
+        info = NULL;
+    }
+
+    if (!TEST_ptr(pkey) || !TEST_int_eq(EVP_PKEY_is_a(pkey, "RSA"), 1))
+        goto end;
+    EVP_PKEY_free(pkey);
+    pkey = NULL;
+
+    if (!TEST_int_eq(OSSL_STORE_delete("fake_rsa:test", libctx, propq,
+                                       NULL, NULL, NULL), 1))
+        goto end;
+    if (!TEST_int_eq(OSSL_STORE_close(ctx), 1))
+        goto end;
+
+    /* Second iteration: load key should fail */
+    if (!TEST_ptr(ctx = OSSL_STORE_open_ex("fake_rsa:test", libctx, propq,
+                                           NULL, NULL, NULL, NULL, NULL)))
+        goto end;
+
+    while (!OSSL_STORE_eof(ctx)) {
+           info = OSSL_STORE_load(ctx);
+	   if (!TEST_ptr_null(info))
+               goto end;
+    }
+
+    ret = 1;
+
+end:
+    fake_rsa_finish(fake_rsa);
+    OSSL_PROVIDER_unload(deflt);
+    OSSL_STORE_close(ctx);
+    fake_rsa_restore_store_state();
+    return ret;
+}
+
+static int fake_pw_read_string(UI *ui, UI_STRING *uis)
+{
+    const char *passphrase = FAKE_PASSPHRASE;
+
+    if (UI_get_string_type(uis) == UIT_PROMPT) {
+        UI_set_result(ui, uis, passphrase);
+        return 1;
+    }
+
+    return 0;
+}
+
+static int test_pkey_store_open_ex(void)
+{
+    OSSL_PROVIDER *deflt = NULL;
+    OSSL_PROVIDER *fake_rsa = NULL;
+    int ret = 0;
+    EVP_PKEY *pkey = NULL;
+    OSSL_STORE_LOADER *loader = NULL;
+    OSSL_STORE_CTX *ctx = NULL;
+    const char *propq = "?provider=fake-rsa";
+    UI_METHOD *ui_method = NULL;
+
+    /* It's important to load the default provider first for this test */
+    if (!TEST_ptr(deflt = OSSL_PROVIDER_load(libctx, "default")))
+        goto end;
+
+    if (!TEST_ptr(fake_rsa = fake_rsa_start(libctx)))
+        goto end;
+
+    if (!TEST_ptr(loader = OSSL_STORE_LOADER_fetch(libctx, "fake_rsa",
+                                                   propq)))
+        goto end;
+
+    OSSL_STORE_LOADER_free(loader);
+
+    if (!TEST_ptr(ui_method= UI_create_method("PW Callbacks")))
+        goto end;
+
+    if (UI_method_set_reader(ui_method, fake_pw_read_string))
+        goto end;
+
+    if (!TEST_ptr(ctx = OSSL_STORE_open_ex("fake_rsa:openpwtest", libctx, propq,
+                                           ui_method, NULL, NULL, NULL, NULL)))
+        goto end;
+
+    /* retry w/o ui_method to ensure we actually enter pw checks and fail */
+    OSSL_STORE_close(ctx);
+    if (!TEST_ptr_null(ctx = OSSL_STORE_open_ex("fake_rsa:openpwtest", libctx,
+                                                propq, NULL, NULL, NULL, NULL,
+                                                NULL)))
+        goto end;
+
+    ret = 1;
+
+end:
+    UI_destroy_method(ui_method);
+    fake_rsa_finish(fake_rsa);
+    OSSL_PROVIDER_unload(deflt);
+    OSSL_STORE_close(ctx);
+    EVP_PKEY_free(pkey);
+    return ret;
+}
+
 int setup_tests(void)
 {
     libctx = OSSL_LIB_CTX_new();
@@ -298,6 +434,8 @@ int setup_tests(void)
     ADD_TEST(test_alternative_keygen_init);
     ADD_TEST(test_pkey_eq);
     ADD_ALL_TESTS(test_pkey_store, 2);
+    ADD_TEST(test_pkey_delete);
+    ADD_TEST(test_pkey_store_open_ex);
 
     return 1;
 }

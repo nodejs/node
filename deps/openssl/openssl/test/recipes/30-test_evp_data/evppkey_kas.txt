@@ -1,5 +1,5 @@
 #
-# Copyright 2001-2020 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -54,7 +54,7 @@ Availablein = fips
 Derive=KAS-ECC-CDH_P-192_C0
 Securitycheck = 1
 PeerKey=KAS-ECC-CDH_P-192_C0-Peer-PUBLIC
-Result = DERIVE_SET_PEER_ERROR
+Result = KEYOP_INIT_ERROR
 
 PrivateKey=KAS-ECC-CDH_P-192_C1
 -----BEGIN PRIVATE KEY-----
@@ -11660,8 +11660,27 @@ aO8Bay1Nqsqca+2XayBk71Q1KliuNDZ4NaYhDhV4KRwd6NZ8ILw9b/piDIezCYor
 nzq7jSys1bLuK2g5nqxOj2XOvdZjAP0Em1s=
 -----END PUBLIC KEY-----
 
-
+# Test that using ECC CDH works for all providers (this uses the EC curves cofactor)
 Derive=KAS-ECC-CDH_B-571_C24
 PeerKey=KAS-ECC-CDH_B-571_C24-Peer-PUBLIC
 Ctrl=ecdh_cofactor_mode:1
 SharedSecret=02da266a269bdc8d8b2a0c6bb5762f102fc801c8d5394a9271539136bd81d4b69cfbb7525cd0a983fb7f7e9deec583b8f8e574c6184b2d79831ec770649e484dc006fa35b0bffd0b
+
+# Test that ECC DH is not approved in FIPS (this uses a cofactor of 1)
+Availablein = fips
+FIPSversion = >=3.4.0
+Derive=KAS-ECC-CDH_B-571_C24
+PeerKey=KAS-ECC-CDH_B-571_C24-Peer-PUBLIC
+Ctrl=ecdh_cofactor_mode:-1
+Result = DERIVE_ERROR
+Reason = cofactor required
+
+# Test the ECC DH FIPS indicator (this uses a cofactor of 1)
+Availablein = fips
+FIPSversion = >=3.4.0
+Derive = KAS-ECC-CDH_B-571_C24
+Unapproved = 1
+Ctrl = ecdh-cofactor-check:0
+Ctrl = ecdh_cofactor_mode:-1
+PeerKey = KAS-ECC-CDH_B-571_C24-Peer-PUBLIC
+SharedSecret=0722353705ad168630247998cfea24e2528622a208d13530b02906f77ca88b6dc3a9d7d44dbe3bf1e0b070d828e1d04349b3bc546664df0849e8f1ddac1b628150f3e1ad36125d9f

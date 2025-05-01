@@ -1,5 +1,5 @@
 #! /usr/bin/env perl
-# Copyright 2018-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2018-2024 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -134,8 +134,9 @@ sub match_opensslerr_reason {
     my @strings = @_;
 
     my $errcode_hex = sprintf "%x", $errcode;
-    my $reason =
-        ( run(app([ qw(openssl errstr), $errcode_hex ]), capture => 1) )[0];
+    my @res = run(app([ qw(openssl errstr), $errcode_hex ]), capture => 1);
+    return 0 unless $#res >= 0;
+    my $reason = $res[0];
     $reason =~ s|\R$||;
     $reason = ( split_error($reason) )[3];
 

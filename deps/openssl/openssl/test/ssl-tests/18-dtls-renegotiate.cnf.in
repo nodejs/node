@@ -1,5 +1,5 @@
 # -*- mode: perl; -*-
-# Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+# Copyright 2016-2025 The OpenSSL Project Authors. All Rights Reserved.
 #
 # Licensed under the Apache License 2.0 (the "License").  You may not use
 # this file except in compliance with the License.  You can obtain a copy
@@ -16,6 +16,7 @@ package ssltests;
 use OpenSSL::Test::Utils;
 
 our $fips_mode;
+our $fips_3_4;
 
 our @tests = ();
 
@@ -29,6 +30,7 @@ foreach my $sctp ("No", "Yes")
         {
             name => "renegotiate-client-no-resume".$suffix,
             server => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => 'DEFAULT:@SECLEVEL=0',
                 "Options" => "NoResumptionOnRenegotiation"
             },
@@ -46,6 +48,7 @@ foreach my $sctp ("No", "Yes")
         {
             name => "renegotiate-client-resume".$suffix,
             server => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => 'DEFAULT:@SECLEVEL=0'
             },
             client => {
@@ -71,6 +74,7 @@ foreach my $sctp ("No", "Yes")
         {
             name => "renegotiate-server-resume".$suffix,
             server => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => 'DEFAULT:@SECLEVEL=0'
             },
             client => {
@@ -87,6 +91,7 @@ foreach my $sctp ("No", "Yes")
         {
             name => "renegotiate-client-auth-require".$suffix,
             server => {
+                "MaxProtocol" => "DTLSv1.2",
                 "VerifyCAFile" => test_pem("root-cert.pem"),
                 "VerifyMode" => "Require",
                 "CipherString" => 'DEFAULT:@SECLEVEL=0'
@@ -107,6 +112,7 @@ foreach my $sctp ("No", "Yes")
         {
             name => "renegotiate-client-auth-once".$suffix,
             server => {
+                "MaxProtocol" => "DTLSv1.2",
                 "VerifyCAFile" => test_pem("root-cert.pem"),
                 "VerifyMode" => "Once",
                 "CipherString" => 'DEFAULT:@SECLEVEL=0'
@@ -127,7 +133,7 @@ foreach my $sctp ("No", "Yes")
     );
     push @tests, @tests_basic;
 
-    next if disabled("dtls1_2");
+    next if disabled("dtls1_2") || $fips_3_4;
     our @tests_dtls1_2 = (
         {
             name => "renegotiate-aead-to-non-aead".$suffix,
@@ -135,6 +141,7 @@ foreach my $sctp ("No", "Yes")
                 "Options" => "NoResumptionOnRenegotiation"
             },
             client => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => "AES128-GCM-SHA256",
                 extra => {
                     "RenegotiateCiphers" => "AES128-SHA"
@@ -154,6 +161,7 @@ foreach my $sctp ("No", "Yes")
                 "Options" => "NoResumptionOnRenegotiation"
             },
             client => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => "AES128-SHA",
                 extra => {
                     "RenegotiateCiphers" => "AES128-GCM-SHA256"
@@ -173,6 +181,7 @@ foreach my $sctp ("No", "Yes")
                 "Options" => "NoResumptionOnRenegotiation"
             },
             client => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => "AES128-SHA",
                 extra => {
                     "RenegotiateCiphers" => "AES256-SHA"
@@ -192,6 +201,7 @@ foreach my $sctp ("No", "Yes")
                 "Options" => "NoResumptionOnRenegotiation"
             },
             client => {
+                "MaxProtocol" => "DTLSv1.2",
                 "CipherString" => "AES128-GCM-SHA256",
                 extra => {
                     "RenegotiateCiphers" => "AES256-GCM-SHA384"

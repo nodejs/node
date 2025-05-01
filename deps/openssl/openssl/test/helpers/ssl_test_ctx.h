@@ -1,5 +1,5 @@
 /*
- * Copyright 2016-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2016-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -65,7 +65,8 @@ typedef enum {
 
 typedef enum {
     SSL_TEST_METHOD_TLS = 0, /* Default */
-    SSL_TEST_METHOD_DTLS
+    SSL_TEST_METHOD_DTLS,
+    SSL_TEST_METHOD_QUIC
 } ssl_test_method_t;
 
 typedef enum {
@@ -217,6 +218,8 @@ typedef struct {
     STACK_OF(X509_NAME) *expected_client_ca_names;
     /* Whether to use SCTP for the transport */
     int use_sctp;
+    /* Whether to pre-compress server certificates */
+    int compress_certificates;
     /* Enable SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG on client side */
     int enable_client_sctp_label_bug;
     /* Enable SSL_MODE_DTLS_SCTP_LABEL_LENGTH_BUG on server side */
@@ -228,6 +231,9 @@ typedef struct {
     char *expected_session_ticket_app_data;
 
     OSSL_LIB_CTX *libctx;
+
+    /* FIPS version string to check for compatibility */
+    char *fips_version;
 } SSL_TEST_CTX;
 
 const char *ssl_test_result_name(ssl_test_result_t result);

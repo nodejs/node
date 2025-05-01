@@ -49,7 +49,7 @@ STACK_OF(X509) *load_certs_pem(const char *file)
     do {
         x = PEM_read_bio_X509(bio, NULL, 0, NULL);
         if (x != NULL && !sk_X509_push(certs, x)) {
-            sk_X509_pop_free(certs, X509_free);
+            OSSL_STACK_OF_X509_free(certs);
             BIO_free(bio);
             return NULL;
         } else if (x == NULL) {

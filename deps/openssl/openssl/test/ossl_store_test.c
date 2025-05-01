@@ -105,7 +105,7 @@ static int test_store_get_params(int idx)
     const char *urifmt;
     char uri[PATH_MAX];
 
-    switch(idx) {
+    switch (idx) {
 #ifndef OPENSSL_NO_DH
     case 0:
         type = "DH";

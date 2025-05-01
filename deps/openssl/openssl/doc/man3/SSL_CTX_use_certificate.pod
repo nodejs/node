@@ -88,7 +88,7 @@ certificate), followed by intermediate CA certificates if applicable, and
 ending at the highest level (root) CA. SSL_use_certificate_chain_file() is
 similar except it loads the certificate chain into B<ssl>.
 
-SSL_CTX_use_PrivateKey() adds B<pkey> as private key to B<ctx>.
+SSL_CTX_use_PrivateKey() adds B<pkey> as private key to B<ctx>. B<ctx> B<MUST NOT> be NULL.
 SSL_CTX_use_RSAPrivateKey() adds the private key B<rsa> of type RSA
 to B<ctx>. SSL_use_PrivateKey() adds B<pkey> as private key to B<ssl>;
 SSL_use_RSAPrivateKey() adds B<rsa> as private key of type RSA to B<ssl>.
@@ -126,7 +126,7 @@ from the known types SSL_FILETYPE_PEM, SSL_FILETYPE_ASN1.
 SSL_CTX_use_RSAPrivateKey_file() adds the first private RSA key found in
 B<file> to B<ctx>. SSL_use_PrivateKey_file() adds the first private key found
 in B<file> to B<ssl>; SSL_use_RSAPrivateKey_file() adds the first private
-RSA key found to B<ssl>.
+RSA key found to B<ssl>. B<ctx> B<MUST NOT> be NULL.
 
 SSL_CTX_check_private_key() checks the consistency of a private key with
 the corresponding certificate loaded into B<ctx>. If more than one

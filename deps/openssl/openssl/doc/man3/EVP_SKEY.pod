@@ -1,0 +1,162 @@
+=pod
+
+=head1 NAME
+
+EVP_SKEY, EVP_SKEY_generate,
+EVP_SKEY_import, EVP_SKEY_import_raw_key, EVP_SKEY_up_ref,
+EVP_SKEY_export, EVP_SKEY_get0_raw_key, EVP_SKEY_get0_key_id,
+EVP_SKEY_get0_skeymgmt_name, EVP_SKEY_get0_provider_name,
+EVP_SKEY_free, EVP_SKEY_is_a, EVP_SKEY_to_provider
+- opaque symmetric key allocation and handling functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ typedef evp_skey_st EVP_SKEY;
+
+ EVP_SKEY *EVP_SKEY_generate(OSSL_LIB_CTX *libctx, const char *skeymgmtname,
+                             const char *propquery, const OSSL_PARAM *params);
+ EVP_SKEY *EVP_SKEY_import(OSSL_LIB_CTX *libctx, const char *skeymgmtname,
+                           const char *propquery,
+                           int selection, const OSSL_PARAM *params);
+ EVP_SKEY *EVP_SKEY_import_raw_key(OSSL_LIB_CTX *libctx, const char *skeymgmtname,
+                                   unsigned char *key, size_t *len,
+                                   const char *propquery);
+ int EVP_SKEY_export(const EVP_SKEY *skey, int selection,
+                     OSSL_CALLBACK *export_cb, void *export_cbarg);
+ int EVP_SKEY_get0_raw_key(const EVP_SKEY *skey, const unsigned char **key,
+                          size_t *len);
+ const char *EVP_SKEY_get0_key_id(const EVP_SKEY *skey);
+
+ const char *EVP_SKEY_get0_skeymgmt_name(const EVP_SKEY *skey);
+ const char *EVP_SKEY_get0_provider_name(const EVP_SKEY *skey);
+
+ int EVP_SKEY_up_ref(EVP_SKEY *key);
+ void EVP_SKEY_free(EVP_SKEY *key);
+ int EVP_SKEY_is_a(const EVP_SKEY *skey, const char *name);
+ EVP_SKEY *EVP_SKEY_to_provider(EVP_SKEY *skey, OSSL_LIB_CTX *libctx,
+                                OSSL_PROVIDER *prov, const char *propquery);
+
+
+=head1 DESCRIPTION
+
+B<EVP_SKEY> is a generic structure to hold symmetric keys as opaque objects.
+The keys themselves are often referred to as the "internal key", and are handled by
+providers using L<EVP_SKEYMGMT(3)>.
+
+Conceptually, an B<EVP_SKEY> internal key may hold a symmetric key, and along
+with those, key parameters if the key type requires them.
+
+The EVP_SKEY_generate() functions creates a new B<EVP_SKEY> object and
+initializes it according to the B<params> argument.
+
+The EVP_SKEY_import() function allocates an empty B<EVP_SKEY> structure
+which is used by OpenSSL to store symmetric keys, assigns the
+B<EVP_SKEYMGMT> object associated with the key, and initializes the object from
+the B<params> argument.
+
+The EVP_SKEY_import_raw_key() function is a helper that creates an B<EVP_SKEY> object
+containing the raw byte representation of the symmetric keys.
+
+The EVP_SKEY_export() function extracts values from a key I<skey> using the
+I<selection>.  I<selection> is described below. It uses a callback I<export_cb>
+that gets passed the value of I<export_cbarg>.  See L<openssl-core.h(7)> for
+more information about the callback. Note that the L<OSSL_PARAM(3)> array that
+is passed to the callback is not persistent after the callback returns.
+
+The EVP_SKEY_get0_raw_key() returns a pointer to a raw key bytes to the passed
+address and sets the key len. The returned address is managed by the internal
+key management and shouldn't be freed explicitly.  The operation can fail when
+the underlying key management doesn't support export of the secret key.
+
+The EVP_SKEY_get0_key_id() returns a NUL-terminated string providing some
+human-readable identifier of the key if provided by the underlying key
+management. The pointer becomes invalid after freeing the EVP_SKEY object.
+
+The EVP_SKEY_get0_skeymgmt_name() and EVP_SKEY_get0_provider_name() return the
+names of the associated EVP_SKEYMGMT object and its provider correspondingly.
+
+EVP_SKEY_up_ref() increments the reference count of I<key>.
+
+EVP_SKEY_free() decrements the reference count of I<key> and, if the reference
+count is zero, frees it. If I<key> is NULL, nothing is done.
+
+EVP_SKEY_is_a() checks if the key type of I<skey> is I<name>.
+
+EVP_SKEY_to_provider() simplifies the task of importing a I<skey> into a
+different provider identified by I<prov>. If I<prov> is NULL, the default
+provider for the key type identified via I<skey> is used.
+
+=head2 Selections
+
+The following constants can be used for I<selection>:
+
+=over 4
+
+=item B<OSSL_SKEYMGMT_SELECT_SECRET_KEY>
+
+Only the raw key representation will be selected.
+
+=item B<OSSL_SKEYMGMT_SELECT_PARAMETERS>
+
+Only the key parameters will be selected. This includes optional key
+parameters.
+
+=item B<OSSL_SKEYMGMT_SELECT_ALL>
+
+All parameters will be selected.
+
+=back
+
+=head1 NOTES
+
+The B<EVP_SKEY> structure is used by various OpenSSL functions which require a
+general symmetric key without reference to any particular algorithm.
+
+The EVP_SKEY_to_provider() function will fail and return NULL if the origin
+key I<skey> cannot be exported from its provider.
+
+=head1 RETURN VALUES
+
+EVP_SKEY_generate(), EVP_SKEY_import() and EVP_SKEY_import_raw_key() return
+either the newly allocated B<EVP_SKEY> structure or NULL if an error occurred.
+
+EVP_SKEY_get0_key_id() returns either a valid pointer or NULL.
+
+EVP_SKEY_up_ref() returns 1 for success and 0 on failure.
+
+EVP_SKEY_export() and EVP_SKEY_get0_raw_key() return 1 for success and 0 on failure.
+
+EVP_SKEY_get0_skeymgmt_name() and EVP_SKEY_get0_provider_name() return the
+names of the associated EVP_SKEYMGMT object and its provider correspondigly.
+
+EVP_SKEY_is_a() returns 1 if I<skey> has the key type I<name>,
+otherwise 0.
+
+EVP_SKEY_to_provider() returns a new B<EVP_SKEY> suitable for operations with
+the I<prov> provider or NULL in case of failure.
+
+=head1 SEE ALSO
+
+L<EVP_SKEYMGMT(3)>, L<provider(7)>, L<OSSL_PARAM(3)>
+
+=head1 HISTORY
+
+The B<EVP_SKEY> API and functions EVP_SKEY_export(),
+EVP_SKEY_free(), EVP_SKEY_get0_raw_key(), EVP_SKEY_import(),
+EVP_SKEY_import_raw_key(), EVP_SKEY_up_ref(), EVP_SKEY_generate(),
+EVP_SKEY_get0_key_id(), EVP_SKEY_get0_provider_name(),
+EVP_SKEY_get0_skeymgmt_name(), EVP_SKEY_is_a(), EVP_SKEY_to_provider()
+were introduced in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

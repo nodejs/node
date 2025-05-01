@@ -9,7 +9,7 @@ openssl-asn1parse - ASN.1 parsing command
 
 B<openssl> B<asn1parse>
 [B<-help>]
-[B<-inform> B<DER>|B<PEM>]
+[B<-inform> B<DER>|B<PEM>|B<B64>]
 [B<-in> I<filename>]
 [B<-out> I<filename>]
 [B<-noout>]
@@ -38,7 +38,7 @@ It can also be used to extract data from ASN.1 formatted data.
 
 Print out a usage message.
 
-=item B<-inform> B<DER>|B<PEM>
+=item B<-inform> B<DER>|B<PEM>|B<B64>
 
 The input format; the default is B<PEM>.
 See L<openssl-format-options(1)> for details.
@@ -210,7 +210,7 @@ L<ASN1_generate_nconf(3)>
 
 =head1 COPYRIGHT
 
-Copyright 2000-2020 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

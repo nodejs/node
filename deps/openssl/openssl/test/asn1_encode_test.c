@@ -1,5 +1,5 @@
 /*
- * Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -738,8 +738,7 @@ static int test_intern(const TEST_PACKAGE *package)
     /* Do decode_custom checks */
     nelems = package->encode_expectations_size
         / package->encode_expectations_elem_size;
-    OPENSSL_assert(nelems ==
-                   sizeof(test_custom_data) / sizeof(test_custom_data[0]));
+    OPENSSL_assert(nelems == OSSL_NELEM(test_custom_data));
     for (i = 0; i < nelems; i++) {
         size_t pos = i * package->encode_expectations_elem_size;
         EXPECTED *expected

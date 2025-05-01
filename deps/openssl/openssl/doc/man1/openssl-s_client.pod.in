@@ -20,6 +20,7 @@ B<openssl> B<s_client>
 [B<-unix> I<path>]
 [B<-4>]
 [B<-6>]
+[B<-quic>]
 [B<-servername> I<name>]
 [B<-noservername>]
 [B<-verify> I<depth>]
@@ -48,15 +49,17 @@ B<openssl> B<s_client>
 [B<-reconnect>]
 [B<-showcerts>]
 [B<-prexit>]
+[B<-no-interactive>]
 [B<-debug>]
 [B<-trace>]
 [B<-nocommands>]
+[B<-adv>]
 [B<-security_debug>]
 [B<-security_debug_verbose>]
 [B<-msg>]
 [B<-timeout>]
 [B<-mtu> I<size>]
-[B<-no_etm>]
+[B<-no_ems>]
 [B<-keymatexport> I<label>]
 [B<-keymatexportlen> I<len>]
 [B<-msgfile> I<filename>]
@@ -80,26 +83,14 @@ B<openssl> B<s_client>
 [B<-max_pipelines>]
 [B<-read_buf>]
 [B<-ignore_unexpected_eof>]
-[B<-bugs>]
-[B<-comp>]
-[B<-no_comp>]
+[B<-no_tx_cert_comp>]
+[B<-no_rx_cert_comp>]
 [B<-brief>]
-[B<-legacy_server_connect>]
-[B<-no_legacy_server_connect>]
-[B<-allow_no_dhe_kex>]
-[B<-sigalgs> I<sigalglist>]
-[B<-curves> I<curvelist>]
-[B<-cipher> I<cipherlist>]
-[B<-ciphersuites> I<val>]
-[B<-serverpref>]
 [B<-starttls> I<protocol>]
-[B<-name> I<hostname>]
 [B<-xmpphost> I<hostname>]
 [B<-name> I<hostname>]
 [B<-tlsextdebug>]
-[B<-no_ticket>]
 [B<-sess_out> I<filename>]
-[B<-serverinfo> I<types>]
 [B<-sess_in> I<filename>]
 [B<-serverinfo> I<types>]
 [B<-status>]
@@ -117,6 +108,8 @@ B<openssl> B<s_client>
 [B<-srp_lateuser>]
 [B<-srp_moregroups>]
 [B<-srp_strength> I<number>]
+[B<-ktls>]
+[B<-tfo>]
 {- $OpenSSL::safe::opt_name_synopsis -}
 {- $OpenSSL::safe::opt_version_synopsis -}
 {- $OpenSSL::safe::opt_x_synopsis -}
@@ -126,6 +119,8 @@ B<openssl> B<s_client>
 {- $OpenSSL::safe::opt_provider_synopsis -}
 {- $OpenSSL::safe::opt_engine_synopsis -}[B<-ssl_client_engine> I<id>]
 {- $OpenSSL::safe::opt_v_synopsis -}
+[B<-enable_server_rpk>]
+[B<-enable_client_rpk>]
 [I<host>:I<port>]
 
 =head1 DESCRIPTION
@@ -207,6 +202,11 @@ Use IPv4 only.
 =item B<-6>
 
 Use IPv6 only.
+
+=item B<-quic>
+
+Connect using the QUIC protocol. If specified then the B<-alpn> option must also
+be provided.
 
 =item B<-servername> I<name>
 
@@ -429,6 +429,10 @@ attempt is made to access a certain URL. Note: the output produced by this
 option is not always accurate because a connection might never have been
 established.
 
+=item B<-no-interactive>
+
+This flag can be used to run the client in a non-interactive mode.
+
 =item B<-state>
 
 Prints out the SSL session states.
@@ -440,6 +444,10 @@ Print extensive debugging information including a hex dump of all traffic.
 =item B<-nocommands>
 
 Do not use interactive command letters.
+
+=item B<-adv>
+
+Use advanced command mode.
 
 =item B<-security_debug>
 
@@ -461,9 +469,9 @@ Enable send/receive timeout on DTLS connections.
 
 Set MTU of the link layer to the specified size.
 
-=item B<-no_etm>
+=item B<-no_ems>
 
-Disable Encrypt-then-MAC negotiation.
+Disable Extended master secret negotiation.
 
 =item B<-keymatexport> I<label>
 
@@ -595,62 +603,18 @@ option is enabled the peer does not need to send the close_notify alert and a
 closed connection will be treated as if the close_notify alert was received.
 For more information on shutting down a connection, see L<SSL_shutdown(3)>.
 
-=item B<-bugs>
+=item B<-no_tx_cert_comp>
 
-There are several known bugs in SSL and TLS implementations. Adding this
-option enables various workarounds.
+Disables support for sending TLSv1.3 compressed certificates.
 
-=item B<-comp>
+=item B<-no_rx_cert_comp>
 
-Enables support for SSL/TLS compression.
-This option was introduced in OpenSSL 1.1.0.
-TLS compression is not recommended and is off by default as of
-OpenSSL 1.1.0.
-
-=item B<-no_comp>
-
-Disables support for SSL/TLS compression.
-TLS compression is not recommended and is off by default as of
-OpenSSL 1.1.0.
+Disables support for receiving TLSv1.3 compressed certificate.
 
 =item B<-brief>
 
 Only provide a brief summary of connection parameters instead of the
 normal verbose output.
-
-=item B<-sigalgs> I<sigalglist>
-
-Specifies the list of signature algorithms that are sent by the client.
-The server selects one entry in the list based on its preferences.
-For example strings, see L<SSL_CTX_set1_sigalgs(3)>
-
-=item B<-curves> I<curvelist>
-
-Specifies the list of supported curves to be sent by the client. The curve is
-ultimately selected by the server.
-
-The list of all supported groups includes named EC parameters as well as X25519
-and X448 or FFDHE groups, and may also include groups implemented in 3rd-party
-providers. For a list of named EC parameters, use:
-
-    $ openssl ecparam -list_curves
-
-=item B<-cipher> I<cipherlist>
-
-This allows the TLSv1.2 and below cipher list sent by the client to be modified.
-This list will be combined with any TLSv1.3 ciphersuites that have been
-configured. Although the server determines which ciphersuite is used it should
-take the first supported cipher in the list sent by the client. See
-L<openssl-ciphers(1)> for more information.
-
-=item B<-ciphersuites> I<val>
-
-This allows the TLSv1.3 ciphersuites sent by the client to be modified. This
-list will be combined with any TLSv1.2 and below ciphersuites that have been
-configured. Although the server determines which cipher suite is used it should
-take the first supported cipher in the list sent by the client. See
-L<openssl-ciphers(1)> for more information. The format for this list is a simple
-colon (":") separated list of TLSv1.3 ciphersuite names.
 
 =item B<-starttls> I<protocol>
 
@@ -685,10 +649,6 @@ this option is not specified, then "mail.example.com" will be used.
 =item B<-tlsextdebug>
 
 Print out a hex dump of any TLS extensions received from the server.
-
-=item B<-no_ticket>
-
-Disable RFC4507bis session ticket support.
 
 =item B<-sess_out> I<filename>
 
@@ -781,6 +741,16 @@ Tolerate other than the known B<g> and B<N> values.
 Set the minimal acceptable length, in bits, for B<N>.  This option is
 deprecated.
 
+=item B<-ktls>
+
+Enable Kernel TLS for sending and receiving.
+This option was introduced in OpenSSL 3.2.0.
+Kernel TLS is off by default as of OpenSSL 3.2.0.
+
+=item B<-tfo>
+
+Enable creation of connections via TCP fast open (RFC7413).
+
 {- $OpenSSL::safe::opt_version_item -}
 
 {- $OpenSSL::safe::opt_name_item -}
@@ -808,6 +778,22 @@ Specify engine to be used for client certificate operations.
 Verification errors are displayed, for debugging, but the command will
 proceed unless the B<-verify_return_error> option is used.
 
+=item B<-enable_server_rpk>
+
+Enable support for receiving raw public keys (RFC7250) from the server.
+Use of X.509 certificates by the server becomes optional, and servers that
+support raw public keys may elect to use them.
+Servers that don't support raw public keys or prefer to use X.509
+certificates can still elect to send X.509 certificates as usual.
+
+=item B<-enable_client_rpk>
+
+Enable support for sending raw public keys (RFC7250) to the server.
+A raw public key will be sent by the client, if solicited by the server,
+provided a suitable key and public certificate pair is configured.
+Some servers may nevertheless not request any client credentials,
+or may request a certificate.
+
 =item I<host>:I<port>
 
 Rather than providing B<-connect>, the target host and optional port may
@@ -818,15 +804,18 @@ If the host string is an IPv6 address, it must be enclosed in C<[> and C<]>.
 
 =back
 
-=head1 CONNECTED COMMANDS
+=head1 CONNECTED COMMANDS (BASIC)
 
-If a connection is established with an SSL server then any data received
+If a connection is established with an SSL/TLS server then any data received
 from the server is displayed and any key presses will be sent to the
-server. If end of file is reached then the connection will be closed down. When
-used interactively (which means neither B<-quiet> nor B<-ign_eof> have been
-given), then certain commands are also recognized which perform special
-operations. These commands are a letter which must appear at the start of a
-line. They are listed below.
+server. If end of file is reached then the connection will be closed down.
+
+When used interactively (which means neither B<-quiet> nor B<-ign_eof> have been
+given), and neither of B<-adv> or B<-nocommands> are given then "Basic" command
+mode is entered. In this mode certain commands are recognized which perform
+special operations. These commands are a letter which must appear at the start
+of a line. All further data after the initial letter on the line is ignored.
+The commands are listed below.
 
 =over 4
 
@@ -838,6 +827,10 @@ End the current SSL connection and exit.
 
 Renegotiate the SSL session (TLSv1.2 and below only).
 
+=item B<C>
+
+Attempt to reconnect to the server using a resumption handshake.
+
 =item B<k>
 
 Send a key update message to the server (TLSv1.3 only)
@@ -845,6 +838,59 @@ Send a key update message to the server (TLSv1.3 only)
 =item B<K>
 
 Send a key update message to the server and request one back (TLSv1.3 only)
+
+=back
+
+=head1 CONNECTED COMMANDS (ADVANCED)
+
+If B<-adv> has been given then "advanced" command mode is entered. As with basic
+mode, if a connection is established with an SSL/TLS server then any data
+received from the server is displayed and any key presses will be sent to the
+server. If end of file is reached then the connection will be closed down.
+
+Special commands can be supplied by enclosing them in braces, e.g. "{help}" or
+"{quit}". These commands can appear anywhere in the text entered into s_client,
+but they are not sent to the server. Some commands can take an argument by
+ending the command name with ":" and then providing the argument, e.g.
+"{keyup:req}". Some commands are only available when certain protocol versions
+have been negotiated.
+
+If a newline appears at the end of a line entered into s_client then this is
+also sent to the server. If a command appears on a line on its own with no other
+text on the same line, then the newline is suppressed and not sent to the
+server.
+
+The following commands are recognised.
+
+=over 4
+
+=item B<help>
+
+Prints out summary help text about the available commands.
+
+=item B<quit>
+
+Close the connection to the peer
+
+=item B<reconnect>
+
+Reconnect to the peer and attempt a resumption handshake
+
+=item B<keyup>
+
+Send a Key Update message. TLSv1.3 only. This command takes an optional
+argument. If the argument "req" is supplied then the peer is also requested to
+update its keys. Otherwise if "noreq" is supplied the peer is not requested
+to update its keys. The default is "req".
+
+=item B<reneg>
+
+Initiate a renegotiation with the server. (D)TLSv1.2 or below only.
+
+=item B<fin>
+
+Indicate FIN on the current stream. QUIC only. Once FIN has been sent any
+further text entered for this stream is ignored.
 
 =back
 
@@ -969,9 +1015,17 @@ The B<-certform> option has become obsolete in OpenSSL 3.0.0 and has no effect.
 
 The B<-engine> option was deprecated in OpenSSL 3.0.
 
+The
+B<-enable_client_rpk>,
+B<-enable_server_rpk>,
+B<-no_rx_cert_comp>,
+B<-no_tx_cert_comp>,
+and B<-tfo>
+options were added in OpenSSL 3.2.
+
 =head1 COPYRIGHT
 
-Copyright 2000-2024 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

@@ -22,6 +22,8 @@ The supported parameters are:
 
 =item "state" (B<OSSL_RAND_PARAM_STATE>) <integer>
 
+=item "fips-indicator" (B<OSSL_RAND_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
 These parameter works as described in L<EVP_RAND(3)/PARAMETERS>.
 
 =item "strength" (B<OSSL_RAND_PARAM_STRENGTH>) <unsigned integer>
@@ -60,6 +62,13 @@ If there are insufficient data present to satisfy a call, an error is returned.
 Sets the bytes returned when the test generator is sent a nonce request.
 Each nonce request will return all of the bytes.
 
+=item "generate" (B<OSSL_RAND_PARAM_GENERATE>) <integer>
+
+If this parameter is zero, it will only emit the nonce and entropy data
+supplied via the aforementioned parameters.  Otherwise, low quality
+non-cryptographic pseudorandom output is produced.  This parameter defaults
+to zero.
+
 =back
 
 =head1 NOTES
@@ -67,7 +76,7 @@ Each nonce request will return all of the bytes.
 A context for a test generator can be obtained by calling:
 
  EVP_RAND *rand = EVP_RAND_fetch(NULL, "TEST-RAND", NULL);
- EVP_RAND_CTX *rctx = EVP_RAND_CTX_new(rand);
+ EVP_RAND_CTX *rctx = EVP_RAND_CTX_new(rand, NULL);
 
 =head1 EXAMPLES
 
@@ -106,7 +115,7 @@ This functionality was added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy

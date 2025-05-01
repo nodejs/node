@@ -1,0 +1,48 @@
+#
+# Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# The Test data (for the positive tests) was derived from a subset of evppkey_dsa_rfc6979.txt
+# using the intermediate outputs.
+
+Title = HMAC-DRBG-KDF Tests
+
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHA1
+Ctrl.properties = properties:provider=default
+Ctrl.hexentropy = hexentropy:411602cb19a6ccc34494d79d98ef1e7ed5af25f7
+Ctrl.hexnonce = hexnonce:8151325dcdbae9e0ff95f9f9658432dbedfdb209
+Output = 7bdb6b0ff756e1bb5d53583ef979082f9ad5bd5b
+
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHA1
+Ctrl.hexentropy = hexentropy:69c7548c21d0dfea6b9a51c9ead4e27c33d3b3f180316e5bcab92c933f0e4dbc
+Ctrl.hexnonce = hexnonce:0000000000000000000000008151325dcdbae9e0ff95f9f9658432dbedfdb209
+Output = 888fa6f7738a41bdc9846466abdb8174c0338250ae50ce955ca16230f9cbd53e
+
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHA256
+Ctrl.hexentropy = hexentropy:69c7548c21d0dfea6b9a51c9ead4e27c33d3b3f180316e5bcab92c933f0e4dbc
+Ctrl.hexnonce = hexnonce:9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08
+Output = 1d6ce6dda1c5d37307839cd03ab0a5cbb18e60d800937d67dfb4479aac8dead7
+
+# Fail if nonce input missing
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHA256
+Ctrl.hexentropy = hexentropy:69
+Result = KDF_DERIVE_ERROR
+
+# Fail if entropy input missing
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHA256
+Ctrl.hexnonce = hexnonce:9f
+Result = KDF_DERIVE_ERROR
+
+# Fail if XOF Digest used
+KDF = HMAC-DRBG-KDF
+Ctrl.digest = digest:SHAKE-256
+Result = KDF_CTRL_ERROR

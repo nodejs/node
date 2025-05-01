@@ -149,17 +149,33 @@ To run up to four tests in parallel at any given time:
 
     $ make HARNESS_JOBS=4 test
 
+Random numbers in tests
+-----------------------
+
+Some tests use random numbers as part of the test. In some cases a test failure
+may occur for some random numbers, but not for others. The seed used for the
+rand number generator can be set via the `OPENSSL_TEST_RAND_SEED` environment
+variable. It can also be set via the `OPENSSL_TEST_RAND_ORDER` environment
+variable which additionally randomises the order tests are run in (see below).
+
+When a test fails the test harness will display the seed used during the test
+(displaying either the `OPENSSL_TEST_RAND_SEED` or `OPENSSL_TEST_RAND_ORDER`
+environment variable value that must be used to recreate the results), e.g.
+
+    $ make OPENSSL_TEST_RAND_SEED=42 test
+
 Randomisation of Test Ordering
 ------------------------------
 
 By default, the test harness will execute tests in the order they were added.
 By setting the `OPENSSL_TEST_RAND_ORDER` environment variable to zero, the
-test ordering will be randomised.  If a randomly ordered test fails, the
-seed value used will be reported.  Setting the `OPENSSL_TEST_RAND_ORDER`
-environment variable to this value will rerun the tests in the same
-order.  This assures repeatability of randomly ordered test runs.
-This repeatability is independent of the operating system, processor or
-platform used.
+test ordering will be randomised. This additionally seeds the random number
+generator used within the tests as described in the section above. If a randomly
+ordered test fails, the seed value used will be reported.  Setting the
+`OPENSSL_TEST_RAND_ORDER` environment variable to this value will rerun the
+tests in the same order and will also seed the test random number generator.
+This assures repeatability of randomly ordered test runs. This repeatability is
+independent of the operating system, processor or platform used.
 
 To randomise the test ordering:
 

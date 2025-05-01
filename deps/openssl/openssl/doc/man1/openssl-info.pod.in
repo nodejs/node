@@ -17,6 +17,7 @@ B<openssl info>
 [B<-listsep>]
 [B<-seeds>]
 [B<-cpusettings>]
+[B<-windowscontext>]
 
 =head1 DESCRIPTION
 
@@ -73,11 +74,17 @@ Outputs the randomness seed sources.
 
 Outputs the OpenSSL CPU settings info.
 
+=item B<-windowscontext>
+
+Outputs the Windows install context.
+
 =back
 
 =head1 HISTORY
 
 This command was added in OpenSSL 3.0.
+
+The B<-windowscontext> option was added in OpenSSL 3.4.
 
 =head1 COPYRIGHT
 

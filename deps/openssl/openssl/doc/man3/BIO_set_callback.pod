@@ -35,6 +35,13 @@ see L<openssl_user_macros(7)>:
  long BIO_debug_callback(BIO *bio, int cmd, const char *argp, int argi,
                          long argl, long ret);
 
+ typedef struct bio_mmsg_cb_args_st {
+     BIO_MSG    *msg;
+     size_t      stride, num_msg;
+     uint64_t    flags;
+     size_t     *msgs_processed;
+ } BIO_MMSG_CB_ARGS;
+
 =head1 DESCRIPTION
 
 BIO_set_callback_ex() and BIO_get_callback_ex() set and retrieve the BIO
@@ -217,6 +224,34 @@ after.
 Note: B<cmd> == B<BIO_CTRL_SET_CALLBACK> is special, because B<parg> is not the
 argument of type B<BIO_info_cb> itself.  In this case B<parg> is a pointer to
 the actual call parameter, see B<BIO_callback_ctrl>.
+
+=item B<BIO_sendmmsg(BIO *b, BIO_MSG *msg, size_t stride, size_t num_msg, uint64_t flags, size_t *msgs_processed)>
+
+  callback_ex(b, BIO_CB_SENDMMSG, args, 0, 0, 0, 1, NULL)
+
+or
+
+  callback(b, BIO_CB_SENDMMSG, args, 0, 0, 1)
+
+is called before the call and
+
+  callback_ex(b, BIO_CB_SENDMMSG | BIO_CB_RETURN, args, ret, 0, 0, ret, NULL)
+
+or
+
+  callback(b, BIO_CB_SENDMMSG | BIO_CB_RETURN, args, ret, 0, 0, ret)
+
+after.
+
+B<args> is a pointer to a B<BIO_MMSG_CB_ARGS> structure containing the arguments
+passed to BIO_sendmmsg(). B<ret> is the return value of the BIO_sendmmsg() call.
+The return value of BIO_sendmmsg() is altered to the value returned by the
+B<BIO_CB_SENDMMSG | BIO_CB_RETURN> call.
+
+=item B<BIO_recvmmsg(BIO *b, BIO_MSG *msg, size_t stride, size_t num_msg, uint64_t flags, size_t *msgs_processed)>
+
+See the documentation for BIO_sendmmsg(). BIO_recvmmsg() works identically
+except that B<BIO_CB_RECVMMSG> is used instead of B<BIO_CB_SENDMMSG>.
 
 =back
 

@@ -18,30 +18,30 @@ X509_STORE_load_locations_ex, X509_STORE_load_locations
 
  typedef x509_store_st X509_STORE;
 
- int X509_STORE_add_cert(X509_STORE *ctx, X509 *x);
- int X509_STORE_add_crl(X509_STORE *ctx, X509_CRL *x);
+ int X509_STORE_add_cert(X509_STORE *xs, X509 *x);
+ int X509_STORE_add_crl(X509_STORE *xs, X509_CRL *x);
  int X509_STORE_set_depth(X509_STORE *store, int depth);
- int X509_STORE_set_flags(X509_STORE *ctx, unsigned long flags);
- int X509_STORE_set_purpose(X509_STORE *ctx, int purpose);
- int X509_STORE_set_trust(X509_STORE *ctx, int trust);
+ int X509_STORE_set_flags(X509_STORE *xs, unsigned long flags);
+ int X509_STORE_set_purpose(X509_STORE *xs, int purpose);
+ int X509_STORE_set_trust(X509_STORE *xs, int trust);
 
  X509_LOOKUP *X509_STORE_add_lookup(X509_STORE *store,
                                     X509_LOOKUP_METHOD *meth);
 
- int X509_STORE_set_default_paths_ex(X509_STORE *ctx, OSSL_LIB_CTX *libctx,
+ int X509_STORE_set_default_paths_ex(X509_STORE *xs, OSSL_LIB_CTX *libctx,
                                      const char *propq);
- int X509_STORE_set_default_paths(X509_STORE *ctx);
- int X509_STORE_load_file_ex(X509_STORE *ctx, const char *file,
+ int X509_STORE_set_default_paths(X509_STORE *xs);
+ int X509_STORE_load_file_ex(X509_STORE *xs, const char *file,
                              OSSL_LIB_CTX *libctx, const char *propq);
- int X509_STORE_load_file(X509_STORE *ctx, const char *file);
- int X509_STORE_load_path(X509_STORE *ctx, const char *dir);
- int X509_STORE_load_store_ex(X509_STORE *ctx, const char *uri,
+ int X509_STORE_load_file(X509_STORE *xs, const char *file);
+ int X509_STORE_load_path(X509_STORE *xs, const char *dir);
+ int X509_STORE_load_store_ex(X509_STORE *xs, const char *uri,
                               OSSL_LIB_CTX *libctx, const char *propq);
- int X509_STORE_load_store(X509_STORE *ctx, const char *uri);
- int X509_STORE_load_locations_ex(X509_STORE *ctx, const char *file,
+ int X509_STORE_load_store(X509_STORE *xs, const char *uri);
+ int X509_STORE_load_locations_ex(X509_STORE *xs, const char *file,
                                   const char *dir, OSSL_LIB_CTX *libctx,
                                   const char *propq);
- int X509_STORE_load_locations(X509_STORE *ctx,
+ int X509_STORE_load_locations(X509_STORE *xs,
                                const char *file, const char *dir);
 
 =head1 DESCRIPTION
@@ -88,7 +88,7 @@ X509_STORE_set_depth(), X509_STORE_set_flags(), X509_STORE_set_purpose(),
 X509_STORE_set_trust(), and X509_STORE_set1_param() set the default values
 for the corresponding values used in certificate chain validation.  Their
 behavior is documented in the corresponding B<X509_VERIFY_PARAM> manual
-pages, e.g., L<X509_VERIFY_PARAM_set_depth(3)>.
+pages, e.g., L<X509_VERIFY_PARAM_set_depth(3)>. The B<X509_STORE> B<MUST NOT> be NULL.
 
 X509_STORE_add_lookup() finds or creates a L<X509_LOOKUP(3)> with the
 L<X509_LOOKUP_METHOD(3)> I<meth> and adds it to the B<X509_STORE>
@@ -162,7 +162,7 @@ X509_STORE_load_locations_ex() were added in OpenSSL 3.0.
 
 =head1 COPYRIGHT
 
-Copyright 2017-2022 The OpenSSL Project Authors. All Rights Reserved.
+Copyright 2017-2021 The OpenSSL Project Authors. All Rights Reserved.
 
 Licensed under the Apache License 2.0 (the "License").  You may not use
 this file except in compliance with the License.  You can obtain a copy
