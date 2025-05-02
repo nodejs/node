@@ -1,6 +1,9 @@
 'use strict';
 
 const common = require('../common.js');
+const assert = require('assert');
+const fs = require('fs');
+const path = require('path');
 
 const options = {
   flags: ['--expose-internals'],
@@ -31,58 +34,37 @@ const bench = common.createBenchmark(
 function main({ operation, n }) {
   const { SourceMap } = require('internal/source_map/source_map');
 
-  const samplePayload = {
-    version: 3,
-    file: 'out.js',
-    sourceRoot: '',
-    sources: ['foo.js', 'bar.js'],
-    sourcesContent: [null, null],
-    names: ['src', 'maps', 'are', 'fun'],
-    mappings: 'A,AAAB;;ABCDE;',
-  };
-  const minifiedPayload = {
-    version: 3,
-    file: 'add.min.js',
-    sourceRoot: '',
-    sources: ['add.ts'],
-    names: ['add', 'x', 'y'],
-    mappings:
-      'AAAA,QAASA,EAAGC,EAAGC,CAClB,OAAOD,EAAGC,GACZC,QAAQC,IAAI,CAAC,CAAC,CAAC',
-  };
-  const sectionedPayload = {
-    version: 3,
-    file: 'app.js',
-    sections: [
-      {
-        offset: { line: 100, column: 10 },
-        map: {
-          version: 3,
-          file: 'section.js',
-          sources: ['foo.js', 'bar.js'],
-          names: ['src', 'maps', 'are', 'fun'],
-          mappings: 'AAAA,E;;ABCDE;',
-        },
-      },
-    ],
-  };
-  const largePayload = {
-    version: 3,
-    file: 'out.js',
-    sources: Array.from({ length: 1000 }, (_, i) => `source-${i}.js`),
-    names: Array.from({ length: 1000 }, (_, i) => `name-${i}`),
-    mappings: 'A,AAAB;;ABCDE;'.repeat(1000),
-  };
+  const samplePayload = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../test/fixtures/source-map/no-source.js.map'),
+      'utf8',
+    ),
+  );
+  const minifiedPayload = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../test/fixtures/source-map/enclosing-call-site.js.map'),
+      'utf8',
+    ),
+  );
+  const sectionedPayload = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../test/fixtures/source-map/disk-index.map'),
+      'utf8',
+    ),
+  );
+  const largePayload = JSON.parse(
+    fs.readFileSync(
+      path.resolve(__dirname, '../../test/fixtures/test-runner/source-maps/line-lengths/index.js.map'),
+      'utf8',
+    ),
+  );
 
-  const sourceMap = new SourceMap(samplePayload);
-  const minifiedSourceMap = new SourceMap(minifiedPayload);
-  const sectionedSourceMap = new SourceMap(sectionedPayload);
-  const largeSourceMap = new SourceMap(largePayload);
-
+  let sourceMap;
   switch (operation) {
     case 'parse':
       bench.start();
       for (let i = 0; i < n; i++) {
-        new SourceMap(samplePayload);
+        sourceMap = new SourceMap(samplePayload);
       }
       bench.end(n);
       break;
@@ -90,7 +72,7 @@ function main({ operation, n }) {
     case 'parse-minified':
       bench.start();
       for (let i = 0; i < n; i++) {
-        new SourceMap(minifiedPayload);
+        sourceMap = new SourceMap(minifiedPayload);
       }
       bench.end(n);
       break;
@@ -98,7 +80,7 @@ function main({ operation, n }) {
     case 'parse-sectioned':
       bench.start();
       for (let i = 0; i < n; i++) {
-        new SourceMap(sectionedPayload);
+        sourceMap = new SourceMap(sectionedPayload);
       }
       bench.end(n);
       break;
@@ -106,7 +88,7 @@ function main({ operation, n }) {
     case 'parse-large':
       bench.start();
       for (let i = 0; i < n; i++) {
-        new SourceMap(largePayload);
+        sourceMap = new SourceMap(largePayload);
       }
       bench.end(n);
       break;
@@ -114,7 +96,7 @@ function main({ operation, n }) {
     case 'findEntry':
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findEntry(1, 1);
+        sourceMap = new SourceMap(samplePayload).findEntry(i, i);
       }
       bench.end(n);
       break;
@@ -122,7 +104,7 @@ function main({ operation, n }) {
     case 'findEntry-minified':
       bench.start();
       for (let i = 0; i < n; i++) {
-        minifiedSourceMap.findEntry(2, 2);
+        sourceMap = new SourceMap(minifiedPayload).findEntry(i, i);
       }
       bench.end(n);
       break;
@@ -130,7 +112,7 @@ function main({ operation, n }) {
     case 'findEntry-sectioned':
       bench.start();
       for (let i = 0; i < n; i++) {
-        sectionedSourceMap.findEntry(3, 3);
+        sourceMap = new SourceMap(sectionedPayload).findEntry(i, i);
       }
       bench.end(n);
       break;
@@ -138,7 +120,7 @@ function main({ operation, n }) {
     case 'findEntry-large':
       bench.start();
       for (let i = 0; i < n; i++) {
-        largeSourceMap.findEntry(10, 10);
+        sourceMap = new SourceMap(largePayload).findEntry(i, i);
       }
       bench.end(n);
       break;
@@ -146,7 +128,7 @@ function main({ operation, n }) {
     case 'findOrigin':
       bench.start();
       for (let i = 0; i < n; i++) {
-        sourceMap.findOrigin(2, 5);
+        sourceMap = new SourceMap(samplePayload).findOrigin(i, i);
       }
       bench.end(n);
       break;
@@ -154,7 +136,7 @@ function main({ operation, n }) {
     case 'findOrigin-minified':
       bench.start();
       for (let i = 0; i < n; i++) {
-        minifiedSourceMap.findOrigin(3, 6);
+        sourceMap = new SourceMap(minifiedPayload).findOrigin(i, i);
       }
       bench.end(n);
       break;
@@ -162,7 +144,7 @@ function main({ operation, n }) {
     case 'findOrigin-sectioned':
       bench.start();
       for (let i = 0; i < n; i++) {
-        sectionedSourceMap.findOrigin(4, 7);
+        sourceMap = new SourceMap(sectionedPayload).findOrigin(i, i);
       }
       bench.end(n);
       break;
@@ -170,7 +152,7 @@ function main({ operation, n }) {
     case 'findOrigin-large':
       bench.start();
       for (let i = 0; i < n; i++) {
-        largeSourceMap.findOrigin(12, 15);
+        sourceMap = new SourceMap(largePayload).findOrigin(i, i);
       }
       bench.end(n);
       break;
@@ -178,4 +160,5 @@ function main({ operation, n }) {
     default:
       throw new Error(`Unknown operation: ${operation}`);
   }
+  assert.ok(sourceMap);
 }
