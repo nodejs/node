@@ -508,20 +508,20 @@ On POSIX systems, the operating system release is determined by calling
 available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
-## `os.guessHandleType(handle)`
+## `os.guessFileDescriptorType(fd)`
 
 <!-- YAML
 added: REPLACEME
 -->
 
-* `handle` {integer} The handle number to try and guess the type of.
+* `fd` {integer} The file descriptor number to try and guess the type of.
 
 * Returns: {string}
 
-Returns the type of the handle passed in, or `'INVALID'` if the provided handle
+Returns the type of the file descriptor passed in, or `'INVALID'` if the provided file descriptor
 is invalid.
 
-Currently, the following types for a handle can be returned:
+Currently, the following types for a file descriptor can be returned:
 
 * `'TCP'`
 * `'TTY'`
