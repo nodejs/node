@@ -48,10 +48,10 @@ class TaskQueue {
                                             EntryCompare>;
   class Locked {
    public:
-    void Push(std::unique_ptr<T> task);
+    void Push(std::unique_ptr<T> task, bool outstanding = false);
     std::unique_ptr<T> Pop();
     std::unique_ptr<T> BlockingPop();
-    void NotifyOfCompletion();
+    void NotifyOfOutstandingCompletion();
     void BlockingDrain();
     void Stop();
     PriorityQueue PopAll();
@@ -72,7 +72,7 @@ class TaskQueue {
  private:
   Mutex lock_;
   ConditionVariable tasks_available_;
-  ConditionVariable tasks_drained_;
+  ConditionVariable outstanding_tasks_drained_;
   int outstanding_tasks_;
   bool stopped_;
   PriorityQueue task_queue_;
@@ -83,6 +83,9 @@ struct TaskQueueEntry {
   v8::TaskPriority priority;
   TaskQueueEntry(std::unique_ptr<v8::Task> t, v8::TaskPriority p)
       : task(std::move(t)), priority(p) {}
+  inline bool is_outstanding() const {
+    return priority == v8::TaskPriority::kUserBlocking;
+  }
 };
 
 struct DelayedTask {
