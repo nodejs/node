@@ -1,8 +1,7 @@
 // Flags: --expose-gc
 'use strict';
-const common = require('../common');
-if (!common.hasSQLite)
-  common.skip('missing SQLite');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');

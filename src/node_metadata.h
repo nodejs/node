@@ -85,7 +85,7 @@ namespace node {
 #define NODE_VERSIONS_KEY_QUIC(V)
 #endif
 
-#ifdef HAVE_SQLITE
+#if HAVE_SQLITE
 #define NODE_VERSIONS_KEY_SQLITE(V) V(sqlite)
 #else
 #define NODE_VERSIONS_KEY_SQLITE(V)

@@ -1,7 +1,6 @@
-import * as common from '../common/index.mjs';
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import { describe, test } from 'node:test';
-if (!common.hasSQLite)
-  common.skip('missing SQLite');
+skipIfSQLiteMissing();
 const { DatabaseSync } = await import('node:sqlite');
 
 describe('DatabaseSync.prototype.aggregate()', () => {

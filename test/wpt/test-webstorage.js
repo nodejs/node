@@ -1,7 +1,6 @@
 'use strict';
-const common = require('../common');
-if (!common.hasSQLite)
-  common.skip('missing SQLite');
+const { skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { WPTRunner } = require('../common/wpt');
 const { join } = require('node:path');

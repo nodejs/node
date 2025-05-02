@@ -1,11 +1,10 @@
-import * as common from '../common/index.mjs';
+import { skipIfSQLiteMissing } from '../common/index.mjs';
 import tmpdir from '../common/tmpdir.js';
 import { join } from 'node:path';
 import { describe, test } from 'node:test';
 import { writeFileSync } from 'node:fs';
 import { pathToFileURL } from 'node:url';
-if (!common.hasSQLite)
-  common.skip('missing SQLite');
+skipIfSQLiteMissing();
 const { backup, DatabaseSync } = await import('node:sqlite');
 
 let cnt = 0;

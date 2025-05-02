@@ -1,7 +1,6 @@
 'use strict';
-const { spawnPromisified, hasSQLite, skip } = require('../common');
-if (!hasSQLite)
-  skip('missing SQLite');
+const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
 const { join } = require('node:path');
 const { DatabaseSync, constants } = require('node:sqlite');
