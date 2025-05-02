@@ -18,7 +18,7 @@ using v8::TaskPriority;
 namespace {
 
 struct PlatformWorkerData {
-  TaskQueue<Task>* task_queue;
+  TaskQueue<TaskQueueEntry>* task_queue;
   Mutex* platform_workers_mutex;
   ConditionVariable* platform_workers_ready;
   int* pending_platform_workers;
@@ -53,7 +53,7 @@ static void PlatformWorkerThread(void* data) {
   std::unique_ptr<PlatformWorkerData>
       worker_data(static_cast<PlatformWorkerData*>(data));
 
-  TaskQueue<Task>* pending_worker_tasks = worker_data->task_queue;
+  TaskQueue<TaskQueueEntry>* pending_worker_tasks = worker_data->task_queue;
   TRACE_EVENT_METADATA1("__metadata", "thread_name", "name",
                         "PlatformWorkerThread");
 
@@ -67,16 +67,17 @@ static void PlatformWorkerThread(void* data) {
   bool debug_log_enabled =
       worker_data->debug_log_level != PlatformDebugLogLevel::kNone;
   int id = worker_data->id;
-  while (std::unique_ptr<Task> task =
+  while (std::unique_ptr<TaskQueueEntry> entry =
              pending_worker_tasks->Lock().BlockingPop()) {
     if (debug_log_enabled) {
       fprintf(stderr,
-              "\nPlatformWorkerThread %d running task %p\n",
+              "\nPlatformWorkerThread %d running task %p %s\n",
               id,
-              task.get());
+              entry->task.get(),
+              GetTaskPriorityName(entry->priority));
       fflush(stderr);
     }
-    task->Run();
+    entry->task->Run();
     pending_worker_tasks->Lock().NotifyOfCompletion();
   }
 }
@@ -92,8 +93,8 @@ static int GetActualThreadPoolSize(int thread_pool_size) {
 
 class WorkerThreadsTaskRunner::DelayedTaskScheduler {
  public:
-  explicit DelayedTaskScheduler(TaskQueue<Task>* tasks)
-    : pending_worker_tasks_(tasks) {}
+  explicit DelayedTaskScheduler(TaskQueue<TaskQueueEntry>* tasks)
+      : pending_worker_tasks_(tasks) {}
 
   std::unique_ptr<uv_thread_t> Start() {
     auto start_thread = [](void* data) {
@@ -107,16 +108,21 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
     return t;
   }
 
-  void PostDelayedTask(std::unique_ptr<Task> task, double delay_in_seconds) {
+  void PostDelayedTask(v8::TaskPriority priority,
+                       std::unique_ptr<Task> task,
+                       double delay_in_seconds) {
     auto locked = tasks_.Lock();
+
+    auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
+    auto delayed = std::make_unique<ScheduleTask>(
+        this, std::move(entry), delay_in_seconds);
 
     // The delayed task scheuler is on is own thread with its own loop that
     // runs the timers for the scheduled tasks to pop the original task back
     // into the the worker task queue. This first pushes the tasks that
     // schedules the timers into the local task queue that will be flushed
     // by the local event loop.
-    locked.Push(std::make_unique<ScheduleTask>(
-        this, std::move(task), delay_in_seconds));
+    locked.Push(std::move(delayed));
     uv_async_send(&flush_tasks_);
   }
 
@@ -144,10 +150,12 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
     DelayedTaskScheduler* scheduler =
         ContainerOf(&DelayedTaskScheduler::loop_, flush_tasks->loop);
 
-    std::queue<std::unique_ptr<Task>> tasks_to_run =
-        scheduler->tasks_.Lock().PopAll();
+    auto tasks_to_run = scheduler->tasks_.Lock().PopAll();
     while (!tasks_to_run.empty()) {
-      std::unique_ptr<Task> task = std::move(tasks_to_run.front());
+      // We have to use const_cast because std::priority_queue::top() does not
+      // return a movable item.
+      std::unique_ptr<Task> task =
+          std::move(const_cast<std::unique_ptr<Task>&>(tasks_to_run.top()));
       tasks_to_run.pop();
       // This runs either the ScheduleTasks that scheduels the timers to
       // pop the tasks back into the worker task runner queue, or the
@@ -177,7 +185,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
   class ScheduleTask : public Task {
    public:
     ScheduleTask(DelayedTaskScheduler* scheduler,
-                 std::unique_ptr<Task> task,
+                 std::unique_ptr<TaskQueueEntry> task,
                  double delay_in_seconds)
         : scheduler_(scheduler),
           task_(std::move(task)),
@@ -194,7 +202,7 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
 
    private:
     DelayedTaskScheduler* scheduler_;
-    std::unique_ptr<Task> task_;
+    std::unique_ptr<TaskQueueEntry> task_;
     double delay_in_seconds_;
   };
 
@@ -205,20 +213,21 @@ class WorkerThreadsTaskRunner::DelayedTaskScheduler {
         scheduler->TakeTimerTask(timer));
   }
 
-  std::unique_ptr<Task> TakeTimerTask(uv_timer_t* timer) {
-    std::unique_ptr<Task> task(static_cast<Task*>(timer->data));
+  std::unique_ptr<TaskQueueEntry> TakeTimerTask(uv_timer_t* timer) {
+    std::unique_ptr<TaskQueueEntry> task_entry(
+        static_cast<TaskQueueEntry*>(timer->data));
     uv_timer_stop(timer);
     uv_close(reinterpret_cast<uv_handle_t*>(timer), [](uv_handle_t* handle) {
       delete reinterpret_cast<uv_timer_t*>(handle);
     });
     timers_.erase(timer);
-    return task;
+    return task_entry;
   }
 
   uv_sem_t ready_;
   // Task queue in the worker thread task runner, we push the delayed task back
   // to it when the timer expires.
-  TaskQueue<Task>* pending_worker_tasks_;
+  TaskQueue<TaskQueueEntry>* pending_worker_tasks_;
 
   // Locally scheduled tasks to be poped into the worker task runner queue.
   // It is flushed whenever the next closest timer expires.
@@ -264,13 +273,20 @@ WorkerThreadsTaskRunner::WorkerThreadsTaskRunner(
   }
 }
 
-void WorkerThreadsTaskRunner::PostTask(std::unique_ptr<Task> task) {
-  pending_worker_tasks_.Lock().Push(std::move(task));
+void WorkerThreadsTaskRunner::PostTask(v8::TaskPriority priority,
+                                       std::unique_ptr<v8::Task> task,
+                                       const v8::SourceLocation& location) {
+  auto entry = std::make_unique<TaskQueueEntry>(std::move(task), priority);
+  pending_worker_tasks_.Lock().Push(std::move(entry));
 }
 
-void WorkerThreadsTaskRunner::PostDelayedTask(std::unique_ptr<Task> task,
-                                              double delay_in_seconds) {
-  delayed_task_scheduler_->PostDelayedTask(std::move(task), delay_in_seconds);
+void WorkerThreadsTaskRunner::PostDelayedTask(
+    v8::TaskPriority priority,
+    std::unique_ptr<v8::Task> task,
+    const v8::SourceLocation& location,
+    double delay_in_seconds) {
+  delayed_task_scheduler_->PostDelayedTask(
+      priority, std::move(task), delay_in_seconds);
 }
 
 void WorkerThreadsTaskRunner::BlockingDrain() {
@@ -330,7 +346,9 @@ void PerIsolatePlatformData::PostTaskImpl(std::unique_ptr<Task> task,
 
   auto locked = foreground_tasks_.Lock();
   if (flush_tasks_ == nullptr) return;
-  locked.Push(std::move(task));
+  // All foreground tasks are treated as user blocking tasks.
+  locked.Push(std::make_unique<TaskQueueEntry>(
+      std::move(task), v8::TaskPriority::kUserBlocking));
   uv_async_send(flush_tasks_);
 }
 
@@ -356,6 +374,8 @@ void PerIsolatePlatformData::PostDelayedTaskImpl(
   delayed->task = std::move(task);
   delayed->platform_data = shared_from_this();
   delayed->timeout = delay_in_seconds;
+  // All foreground tasks are treated as user blocking tasks.
+  delayed->priority = v8::TaskPriority::kUserBlocking;
   locked.Push(std::move(delayed));
   uv_async_send(flush_tasks_);
 }
@@ -562,11 +582,13 @@ void NodePlatform::DrainTasks(Isolate* isolate) {
 bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
   bool did_work = false;
 
-  std::queue<std::unique_ptr<DelayedTask>> delayed_tasks_to_schedule =
-      foreground_delayed_tasks_.Lock().PopAll();
+  auto delayed_tasks_to_schedule = foreground_delayed_tasks_.Lock().PopAll();
   while (!delayed_tasks_to_schedule.empty()) {
+    // We have to use const_cast because std::priority_queue::top() does not
+    // return a movable item.
     std::unique_ptr<DelayedTask> delayed =
-        std::move(delayed_tasks_to_schedule.front());
+        std::move(const_cast<std::unique_ptr<DelayedTask>&>(
+            delayed_tasks_to_schedule.top()));
     delayed_tasks_to_schedule.pop();
 
     did_work = true;
@@ -591,17 +613,20 @@ bool PerIsolatePlatformData::FlushForegroundTasksInternal() {
         });
   }
 
-  std::queue<std::unique_ptr<Task>> tasks;
+  TaskQueue<TaskQueueEntry>::PriorityQueue tasks;
   {
     auto locked = foreground_tasks_.Lock();
     tasks = locked.PopAll();
   }
 
   while (!tasks.empty()) {
-    std::unique_ptr<Task> task = std::move(tasks.front());
+    // We have to use const_cast because std::priority_queue::top() does not
+    // return a movable item.
+    std::unique_ptr<TaskQueueEntry> entry =
+        std::move(const_cast<std::unique_ptr<TaskQueueEntry>&>(tasks.top()));
     tasks.pop();
     did_work = true;
-    RunForegroundTask(std::move(task));
+    RunForegroundTask(std::move(entry->task));
   }
 
   return did_work;
@@ -622,7 +647,7 @@ void NodePlatform::PostTaskOnWorkerThreadImpl(
     }
     fflush(stderr);
   }
-  worker_thread_task_runner_->PostTask(std::move(task));
+  worker_thread_task_runner_->PostTask(priority, std::move(task), location);
 }
 
 void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
@@ -642,8 +667,8 @@ void NodePlatform::PostDelayedTaskOnWorkerThreadImpl(
     }
     fflush(stderr);
   }
-  worker_thread_task_runner_->PostDelayedTask(std::move(task),
-                                              delay_in_seconds);
+  worker_thread_task_runner_->PostDelayedTask(
+      priority, std::move(task), location, delay_in_seconds);
 }
 
 IsolatePlatformDelegate* NodePlatform::ForIsolate(Isolate* isolate) {
@@ -742,7 +767,8 @@ std::unique_ptr<T> TaskQueue<T>::Locked::Pop() {
   if (queue_->task_queue_.empty()) {
     return std::unique_ptr<T>(nullptr);
   }
-  std::unique_ptr<T> result = std::move(queue_->task_queue_.front());
+  std::unique_ptr<T> result = std::move(
+      std::move(const_cast<std::unique_ptr<T>&>(queue_->task_queue_.top())));
   queue_->task_queue_.pop();
   return result;
 }
@@ -755,7 +781,8 @@ std::unique_ptr<T> TaskQueue<T>::Locked::BlockingPop() {
   if (queue_->stopped_) {
     return std::unique_ptr<T>(nullptr);
   }
-  std::unique_ptr<T> result = std::move(queue_->task_queue_.front());
+  std::unique_ptr<T> result = std::move(
+      std::move(const_cast<std::unique_ptr<T>&>(queue_->task_queue_.top())));
   queue_->task_queue_.pop();
   return result;
 }
@@ -781,8 +808,8 @@ void TaskQueue<T>::Locked::Stop() {
 }
 
 template <class T>
-std::queue<std::unique_ptr<T>> TaskQueue<T>::Locked::PopAll() {
-  std::queue<std::unique_ptr<T>> result;
+TaskQueue<T>::PriorityQueue TaskQueue<T>::Locked::PopAll() {
+  TaskQueue<T>::PriorityQueue result;
   result.swap(queue_->task_queue_);
   return result;
 }
