@@ -137,13 +137,13 @@ void BindingData::FastEncodeInto(
   char* write_result = static_cast<char*>(buf->Data()) + dest_->ByteOffset();
   size_t dest_length = dest_->ByteLength();
 
-  int nchars;
-  int written = source_->WriteUtf8(
+  size_t nchars;
+  size_t written = source_->WriteUtf8V2(
       options.isolate,
       write_result,
       dest_length,
-      &nchars,
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+      String::WriteFlags::kReplaceInvalidUtf8,
+      &nchars);
 
   binding_data->encode_into_results_buffer_[0] = nchars;
   binding_data->encode_into_results_buffer_[1] = written;
