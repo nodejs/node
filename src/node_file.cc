@@ -42,6 +42,7 @@
 #include "string_bytes.h"
 #include "uv.h"
 #include "v8-fast-api-calls.h"
+#include <utime.h>
 
 #include <filesystem>
 
@@ -3350,6 +3351,56 @@ static void CpSyncCheckPaths(const FunctionCallbackInfo<Value>& args) {
   }
 }
 
+static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+
+  CHECK_EQ(args.Length(), 4); // src, dest, mode, preserveTimestamps
+
+  BufferValue src(isolate, args[0]);
+  CHECK_NOT_NULL(*src);
+  ToNamespacedPath(env, &src);
+
+  BufferValue dest(isolate, args[1]);
+  CHECK_NOT_NULL(*dest);
+  ToNamespacedPath(env, &dest);
+
+  int mode;
+  if (!GetValidFileMode(env, args[2], UV_FS_COPYFILE).To(&mode)) {
+    return;
+  }
+
+  bool preserve_timestamps = args[3]->IsTrue();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+    env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+    env,
+    permission::PermissionScope::kFileSystemWrite,
+    dest.ToStringView());
+
+  std::filesystem::remove(*dest);
+
+  if (mode == 0) {
+    // if no mode is specified use the faster std::filesystem API
+    std::filesystem::copy_file(*src, *dest, std::filesystem::copy_options::skip_existing);
+  } else {
+    // if a mode is specified fallback to libuv instead
+    FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
+    SyncCallAndThrowOnError(
+      env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, mode);
+  }
+
+  if (preserve_timestamps) {
+    struct stat fileStat;
+    stat(*src, &fileStat);
+    struct utimbuf dest_times;
+    dest_times.actime = fileStat.st_atim.tv_sec;
+    dest_times.modtime = fileStat.st_mtime;
+    utime(*dest, &dest_times);
+  }
+}
+
 BindingData::FilePathIsFileReturnType BindingData::FilePathIsFile(
     Environment* env, const std::string& file_path) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
@@ -3689,6 +3740,7 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "mkdtemp", Mkdtemp);
 
   SetMethod(isolate, target, "cpSyncCheckPaths", CpSyncCheckPaths);
+  SetMethod(isolate, target, "cpSyncOverrideFile", CpSyncOverrideFile);
 
   StatWatcher::CreatePerIsolateProperties(isolate_data, target);
   BindingData::CreatePerIsolateProperties(isolate_data, target);
@@ -3801,6 +3853,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(CopyFile);
 
   registry->Register(CpSyncCheckPaths);
+  registry->Register(CpSyncOverrideFile);
 
   registry->Register(Chmod);
   registry->Register(FChmod);
