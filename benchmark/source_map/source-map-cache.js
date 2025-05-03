@@ -16,7 +16,7 @@ const bench = common.createBenchmark(
       'findSourceMap-valid',
       'findSourceMap-generated-source',
     ],
-    n: [10],
+    n: [1e5],
   },
   options,
 );
