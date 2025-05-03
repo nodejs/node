@@ -3,8 +3,8 @@
 #define INCLUDE_LLHTTP_H_
 
 #define LLHTTP_VERSION_MAJOR 9
-#define LLHTTP_VERSION_MINOR 2
-#define LLHTTP_VERSION_PATCH 1
+#define LLHTTP_VERSION_MINOR 3
+#define LLHTTP_VERSION_PATCH 0
 
 #ifndef INCLUDE_LLHTTP_ITSELF_H_
 #define INCLUDE_LLHTTP_ITSELF_H_
@@ -90,7 +90,8 @@ enum llhttp_errno {
   HPE_CB_HEADER_VALUE_COMPLETE = 29,
   HPE_CB_CHUNK_EXTENSION_NAME_COMPLETE = 34,
   HPE_CB_CHUNK_EXTENSION_VALUE_COMPLETE = 35,
-  HPE_CB_RESET = 31
+  HPE_CB_RESET = 31,
+  HPE_CB_PROTOCOL_COMPLETE = 38
 };
 typedef enum llhttp_errno llhttp_errno_t;
 
@@ -326,6 +327,7 @@ typedef enum llhttp_status llhttp_status_t;
   XX(34, CB_CHUNK_EXTENSION_NAME_COMPLETE, CB_CHUNK_EXTENSION_NAME_COMPLETE) \
   XX(35, CB_CHUNK_EXTENSION_VALUE_COMPLETE, CB_CHUNK_EXTENSION_VALUE_COMPLETE) \
   XX(31, CB_RESET, CB_RESET) \
+  XX(38, CB_PROTOCOL_COMPLETE, CB_PROTOCOL_COMPLETE) \
 
 
 #define HTTP_METHOD_MAP(XX) \
@@ -567,6 +569,7 @@ struct llhttp_settings_s {
   llhttp_cb      on_message_begin;
 
   /* Possible return values 0, -1, HPE_USER */
+  llhttp_data_cb on_protocol;
   llhttp_data_cb on_url;
   llhttp_data_cb on_status;
   llhttp_data_cb on_method;
@@ -592,6 +595,7 @@ struct llhttp_settings_s {
 
   /* Possible return values 0, -1, `HPE_PAUSED` */
   llhttp_cb      on_message_complete;
+  llhttp_cb      on_protocol_complete;
   llhttp_cb      on_url_complete;
   llhttp_cb      on_status_complete;
   llhttp_cb      on_method_complete;
