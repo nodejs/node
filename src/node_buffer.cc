@@ -1452,9 +1452,9 @@ uint32_t WriteOneByteString(const char* src,
     return 0;
   }
 
-  if (encoding == UTF8) {
+  if constexpr (encoding == UTF8) {
     return simdutf::convert_latin1_to_utf8_safe(src, src_len, dst, dst_len);
-  } else if (encoding == LATIN1 || encoding == ASCII) {
+  } else if constexpr (encoding == LATIN1 || encoding == ASCII) {
     const auto size = std::min(src_len, dst_len);
     memcpy(dst, src, size);
     return size;
