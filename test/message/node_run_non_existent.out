@@ -1,6 +1,6 @@
-Missing script: "non-existent-command" for *
+Unknown script or bin entry "non-existent-command" for *
 
-Available scripts are:
+Available scripts:
   test: echo "Error: no test specified" && exit 1
   ada: ada
   ada-windows: ada.bat
@@ -14,3 +14,9 @@ Available scripts are:
   special-env-variables-windows: special-env-variables.bat
   pwd: pwd
   pwd-windows: cd
+
+Available bins:
+  bin-test: ./test.js
+  test: ./test.js
+  bin-ada: ada
+  bin-ada-windows: ada.bat

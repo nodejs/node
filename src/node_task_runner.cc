@@ -291,57 +291,180 @@ void RunTask(const std::shared_ptr<InitializationResultImpl>& result,
     return;
   }
 
-  // If package_json object doesn't have "scripts" field, throw an error.
   simdjson::ondemand::object scripts_object;
-  if (main_object["scripts"].get_object().get(scripts_object)) {
-    fprintf(
-        stderr, "Can't find \"scripts\" field in %s\n", path.string().c_str());
-    result->exit_code_ = ExitCode::kGenericUserError;
-    return;
-  }
+  bool have_scripts = main_object["scripts"].get_object().get(scripts_object) ==
+                      simdjson::error_code::SUCCESS;
 
-  // If the command_id is not found in the scripts object, throw an error.
-  std::string_view command;
-  if (auto command_error =
-          scripts_object[command_id].get_string().get(command)) {
-    if (command_error == simdjson::error_code::INCORRECT_TYPE) {
+  std::string exec_cmd;
+  if (have_scripts) {
+    std::string_view cmd_string;
+    auto err = scripts_object[command_id].get_string().get(cmd_string);
+    if (err == simdjson::error_code::SUCCESS) {
+      exec_cmd.assign(cmd_string);
+      ProcessRunner runner(result,
+                           path,
+                           command_id,
+                           exec_cmd,
+                           path_env_var,
+                           positional_args);
+      runner.Run();
+      return;
+    }
+    if (err == simdjson::error_code::INCORRECT_TYPE) {
       fprintf(stderr,
               "Script \"%.*s\" is unexpectedly not a string for %s\n\n",
               static_cast<int>(command_id.size()),
               command_id.data(),
               path.string().c_str());
-    } else {
-      fprintf(stderr,
-              "Missing script: \"%.*s\" for %s\n\n",
-              static_cast<int>(command_id.size()),
-              command_id.data(),
-              path.string().c_str());
-      fprintf(stderr, "Available scripts are:\n");
-
-      // Reset the object to iterate over it again
-      scripts_object.reset();
-      simdjson::ondemand::value value;
-      for (auto field : scripts_object) {
-        std::string_view key_str;
-        std::string_view value_str;
-        if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
-            !value.get_string().get(value_str)) {
-          fprintf(stderr,
-                  "  %.*s: %.*s\n",
-                  static_cast<int>(key_str.size()),
-                  key_str.data(),
-                  static_cast<int>(value_str.size()),
-                  value_str.data());
-        }
-      }
+      result->exit_code_ = ExitCode::kGenericUserError;
+      return;
     }
+  }
+
+  // Try "bin"
+  simdjson::ondemand::value bin_value;
+  bool have_bin =
+      main_object["bin"].get(bin_value) == simdjson::error_code::SUCCESS;
+
+  if (!have_scripts && !have_bin) {
+    fprintf(stderr,
+            "Can't find \"scripts\" or \"bin\" fields in %s\n",
+            path.string().c_str());
     result->exit_code_ = ExitCode::kGenericUserError;
     return;
   }
 
-  auto runner = ProcessRunner(
-      result, path, command_id, command, path_env_var, positional_args);
-  runner.Run();
+  if (have_bin) {
+    simdjson::ondemand::json_type bin_type;
+    if (!bin_value.type().get(bin_type)) {
+      std::string exec_rel;
+
+      if (bin_type == simdjson::ondemand::json_type::string) {
+        // "bin": "./cli.js"
+        std::string_view rel;
+        if (!bin_value.get_string().get(rel)) {
+          std::string_view pkg_name;
+          if (!main_object["name"].get_string().get(pkg_name) &&
+              pkg_name == command_id) {
+            exec_rel.assign(rel);
+          } else {
+            fprintf(stderr, "Incorrect command for %s\n", path.string().c_str());
+            result->exit_code_ = ExitCode::kGenericUserError;
+            return;
+          }
+        }
+      } else if (bin_type == simdjson::ondemand::json_type::object) {
+        // "bin": { "foo": "./cli.js" }
+        simdjson::ondemand::object bin_obj;
+        if (bin_value.get_object().get(bin_obj) ==
+            simdjson::error_code::SUCCESS) {
+          std::string_view rel;
+          auto err = bin_obj[command_id].get_string().get(rel);
+          if (err == simdjson::error_code::SUCCESS) {
+            exec_rel.assign(rel);
+          } else if (err == simdjson::error_code::INCORRECT_TYPE) {
+            fprintf(stderr,
+                    "Bin \"%.*s\" is unexpectedly not a string for %s\n",
+                    static_cast<int>(command_id.size()),
+                    command_id.data(),
+                    path.string().c_str());
+            result->exit_code_ = ExitCode::kGenericUserError;
+            return;
+          }
+        }
+      } else {
+        fprintf(stderr,
+                "Bin \"%.*s\" is unexpectedly not a string for %s\n",
+                static_cast<int>(command_id.size()),
+                command_id.data(),
+                path.string().c_str());
+        result->exit_code_ = ExitCode::kGenericUserError;
+        return;
+      }
+
+      if (!exec_rel.empty()) {
+        std::filesystem::path exec_path(exec_rel);
+        if (exec_path.is_relative()) exec_path = path.parent_path() / exec_path;
+
+        auto ext = exec_path.extension().string();
+        bool needs_node = ext == ".js" || ext == ".mjs" || ext == ".cjs";
+
+        exec_cmd =
+            needs_node ? "node " + EscapeShell(exec_path.string()) : exec_rel;
+
+        ProcessRunner runner(
+            result, path, command_id, exec_cmd, path_env_var, positional_args);
+        runner.Run();
+        return;
+      }
+    }
+  }
+
+  fprintf(stderr,
+          "Unknown script or bin entry \"%.*s\" for %s\n\n",
+          static_cast<int>(command_id.size()),
+          command_id.data(),
+          path.string().c_str());
+
+  if (have_scripts) {
+    fprintf(stderr, "Available scripts:\n");
+    scripts_object.reset();
+    simdjson::ondemand::value value;
+    for (auto field : scripts_object) {
+      std::string_view key_str, value_str;
+      if (!field.unescaped_key().get(key_str) && !field.value().get(value) &&
+          !value.get_string().get(value_str)) {
+        fprintf(stderr,
+                "  %.*s: %.*s\n",
+                static_cast<int>(key_str.size()),
+                key_str.data(),
+                static_cast<int>(value_str.size()),
+                value_str.data());
+      }
+    }
+  } else {
+    fprintf(stderr, "No scripts defined in %s\n", path.string().c_str());
+  }
+
+  if (have_bin) {
+    fprintf(stderr, "\nAvailable bins:\n");
+    simdjson::ondemand::json_type t;
+    if (!bin_value.type().get(t)) {
+      if (t == simdjson::ondemand::json_type::string) {
+        std::string_view rel, pkg_name;
+        if (!bin_value.get_string().get(rel) &&
+            !main_object["name"].get_string().get(pkg_name)) {
+          fprintf(stderr,
+                  "  %.*s: %.*s\n",
+                  static_cast<int>(pkg_name.size()),
+                  pkg_name.data(),
+                  static_cast<int>(rel.size()),
+                  rel.data());
+        }
+      } else if (t == simdjson::ondemand::json_type::object) {
+        simdjson::ondemand::object bin_obj;
+        if (!bin_value.get_object().get(bin_obj)) {
+          bin_obj.reset();
+          for (auto field : bin_obj) {
+            std::string_view key_str, rel;
+            if (!field.unescaped_key().get(key_str) &&
+                !field.value().get_string().get(rel)) {
+              fprintf(stderr,
+                      "  %.*s: %.*s\n",
+                      static_cast<int>(key_str.size()),
+                      key_str.data(),
+                      static_cast<int>(rel.size()),
+                      rel.data());
+            }
+          }
+        }
+      }
+    }
+  } else {
+    fprintf(stderr, "No bins defined in %s\n", path.string().c_str());
+  }
+
+  result->exit_code_ = ExitCode::kGenericUserError;
 }
 
 // GetPositionalArgs returns the positional arguments from the command line.
