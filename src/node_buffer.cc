@@ -1192,6 +1192,7 @@ void Swap64(const FunctionCallbackInfo<Value>& args) {
 
 bool FastIsUtf8(v8::Local<v8::Value>,
                 Local<Value> buffer,
+                // NOLINTNEXTLINE(runtime/references) This is V8 api.
                 FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isUtf8");
   ArrayBufferViewContents<uint8_t> view(buffer);
@@ -1208,6 +1209,7 @@ static v8::CFunction fast_is_utf8(v8::CFunction::Make(FastIsUtf8));
 
 bool FastIsAscii(v8::Local<v8::Value>,
                  Local<Value> buffer,
+                 // NOLINTNEXTLINE(runtime/references) This is V8 api.
                  FastApiCallbackOptions& options) {
   TRACK_V8_FAST_API_CALL("buffer.isAscii");
   ArrayBufferViewContents<uint8_t> view(buffer);
