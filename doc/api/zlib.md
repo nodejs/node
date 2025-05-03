@@ -12,7 +12,7 @@ Gzip, Deflate/Inflate, Brotli, and Zstd.
 To access it:
 
 ```mjs
-import os from 'node:zlib';
+import zlib from 'node:zlib';
 ```
 
 ```cjs
