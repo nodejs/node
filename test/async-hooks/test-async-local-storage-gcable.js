@@ -15,6 +15,7 @@ asyncLocalStorage.run({}, () => {
 
   onGC(asyncLocalStorage, { ongc: common.mustCall() });
 });
+asyncLocalStorage.disable();
 
 asyncLocalStorage = null;
 global.gc();
