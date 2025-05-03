@@ -1,9 +1,14 @@
 'use strict';
-require('../common');
+
+const common = require('../common');
 
 // This test ensures that Node.js throws an Error when trying to convert a
 // large buffer into a string.
 // Regression test for https://github.com/nodejs/node/issues/649.
+
+if (!common.enoughTestMem) {
+  common.skip('skipped due to memory requirements');
+}
 
 const assert = require('assert');
 const {
