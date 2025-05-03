@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+const assert = require('assert');
 const kIsNodeError = Symbol('kIsNodeError');
 
 const options = {
@@ -10,7 +11,7 @@ const options = {
 const bench = common.createBenchmark(
   main,
   {
-    operation: ['node-error-callsite', 'non-node-error-callsite'],
+    operation: ['node-error', 'non-node-error'],
     n: [1e5],
   },
   options,
@@ -18,39 +19,32 @@ const bench = common.createBenchmark(
 
 function main({ operation, n }) {
   const { prepareStackTraceWithSourceMaps } = require('internal/source_map/prepare_stack_trace');
+  const {
+    ERR_ASSERTION,
+  } = require('internal/errors').codes;
 
-  const nodeError = new Error('Simulated Node.js error');
-  nodeError.name = 'NodeError';
-  nodeError.code = 'ERR_SIMULATED';
+  const nodeError = new ERR_ASSERTION('Node error');
   nodeError[kIsNodeError] = true;
+  // Stacktrace is not formatted until it is accessed
+  const nodeErrorStackTrace = nodeError.stack.split('\n').slice(1);
 
-  const nodeStackTrace = Array.from({ length: 10 }, (_, i) => ({
-    getFileName: () => `file${i}.js`,
-    getEvalOrigin: () => `eval at <anonymous> (eval${i}.js:1:1)`,
-    getLineNumber: () => i + 1,
-    getColumnNumber: () => 1,
-    getFunctionName: () => `func${i}`,
-    isAsync: () => false,
-    isConstructor: () => false,
-    getTypeName: () => null,
-  }));
+  const nonNodeError = new ERR_ASSERTION('non Node error');
+  const nonNodeErrorStackTrace = nonNodeError.stack.split('\n').slice(1);
 
-  const nonNodeError = new Error('Simulated non-Node.js error');
-  nonNodeError.name = 'NonNodeError';
-
+  let preparedStackTrace;
   switch (operation) {
-    case 'node-error-callsite':
+    case 'node-error':
       bench.start();
       for (let i = 0; i < n; i++) {
-        prepareStackTraceWithSourceMaps(nodeError, nodeStackTrace);
+        preparedStackTrace = prepareStackTraceWithSourceMaps(nodeError, nodeErrorStackTrace);
       }
       bench.end(n);
       break;
 
-    case 'non-node-error-callsite':
+    case 'non-node-error':
       bench.start();
       for (let i = 0; i < n; i++) {
-        prepareStackTraceWithSourceMaps(nonNodeError, nodeStackTrace);
+        preparedStackTrace = prepareStackTraceWithSourceMaps(nonNodeError, nonNodeErrorStackTrace);
       }
       bench.end(n);
       break;
@@ -58,4 +52,5 @@ function main({ operation, n }) {
     default:
       throw new Error(`Unknown operation: ${operation}`);
   }
+  assert.ok(preparedStackTrace);
 }
