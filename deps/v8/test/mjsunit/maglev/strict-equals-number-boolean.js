@@ -14,8 +14,8 @@ function strictEquals(a, b) {
 %PrepareFunctionForOptimization(strictEquals);
 
 // Add the NumberOrBoolean feedback.
-strictEquals(0, true);
-strictEquals(true, 1);
+strictEquals(0, 1);
+strictEquals(true, true);
 
 %OptimizeMaglevOnNextCall(strictEquals);
 strictEquals(0, true);

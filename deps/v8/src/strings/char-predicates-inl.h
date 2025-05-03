@@ -5,8 +5,10 @@
 #ifndef V8_STRINGS_CHAR_PREDICATES_INL_H_
 #define V8_STRINGS_CHAR_PREDICATES_INL_H_
 
-#include "src/base/bounds.h"
 #include "src/strings/char-predicates.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/base/bounds.h"
 #include "src/utils/utils.h"
 
 namespace v8 {
@@ -52,6 +54,8 @@ inline constexpr bool IsBinaryDigit(base::uc32 c) {
   // ECMA-262, 6th, 7.8.3
   return c == '0' || c == '1';
 }
+
+inline constexpr bool IsAscii(base::uc32 c) { return !(c & ~0x7F); }
 
 inline constexpr bool IsAsciiLower(base::uc32 c) {
   return base::IsInRange(c, 'a', 'z');

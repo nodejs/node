@@ -66,6 +66,9 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
   // Allocate isolate
   v8::Isolate::CreateParams create_params;
   create_params.array_buffer_allocator = allocator.get();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(platform.get(), v8::CppHeapCreateParams{{}})
+          .release();
   auto isolate = v8::Isolate::Allocate();
   CHECK_NOT_NULL(isolate);
 
@@ -104,8 +107,7 @@ TEST_F(NodeZeroIsolateTestFixture, IsolatePlatformDelegateTest) {
 
   // Graceful shutdown
   delegate->Shutdown();
-  platform->UnregisterIsolate(isolate);
-  isolate->Dispose();
+  platform->DisposeIsolate(isolate);
 }
 
 TEST_F(PlatformTest, TracingControllerNullptr) {

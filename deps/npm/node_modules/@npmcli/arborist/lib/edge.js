@@ -206,27 +206,41 @@ class Edge {
     if (this.overrides?.value && this.overrides.value !== '*' && this.overrides.name === this.#name) {
       if (this.overrides.value.startsWith('$')) {
         const ref = this.overrides.value.slice(1)
-        const pkg = this.#from?.sourceReference
+        let pkg = this.#from?.sourceReference
           ? this.#from?.sourceReference.root.package
           : this.#from?.root?.package
-        if (pkg.devDependencies?.[ref]) {
-          return pkg.devDependencies[ref]
-        }
-        if (pkg.optionalDependencies?.[ref]) {
-          return pkg.optionalDependencies[ref]
-        }
-        if (pkg.dependencies?.[ref]) {
-          return pkg.dependencies[ref]
-        }
-        if (pkg.peerDependencies?.[ref]) {
-          return pkg.peerDependencies[ref]
+
+        let specValue = this.#calculateReferentialOverrideSpec(ref, pkg)
+
+        // If the package isn't found in the root package, fall back to the local package.
+        if (!specValue) {
+          pkg = this.#from?.package
+          specValue = this.#calculateReferentialOverrideSpec(ref, pkg)
         }
 
+        if (specValue) {
+          return specValue
+        }
         throw new Error(`Unable to resolve reference ${this.overrides.value}`)
       }
       return this.overrides.value
     }
     return this.#spec
+  }
+
+  #calculateReferentialOverrideSpec (ref, pkg) {
+    if (pkg.devDependencies?.[ref]) {
+      return pkg.devDependencies[ref]
+    }
+    if (pkg.optionalDependencies?.[ref]) {
+      return pkg.optionalDependencies[ref]
+    }
+    if (pkg.dependencies?.[ref]) {
+      return pkg.dependencies[ref]
+    }
+    if (pkg.peerDependencies?.[ref]) {
+      return pkg.peerDependencies[ref]
+    }
   }
 
   get accept () {

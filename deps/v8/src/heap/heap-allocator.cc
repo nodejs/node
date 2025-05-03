@@ -110,20 +110,14 @@ constexpr AllocationSpace AllocationTypeToGCSpace(AllocationType type) {
 AllocationResult HeapAllocator::AllocateRawWithLightRetrySlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
-  AllocationResult result = AllocateRaw(size, allocation, origin, alignment);
-  if (!result.IsFailure()) {
-    return result;
-  }
+  auto Allocate = [&](AllocationType allocation) {
+    return AllocateRaw(size, allocation, origin, alignment);
+  };
+  auto RetryAllocate = [&](AllocationType allocation) {
+    return RetryAllocateRaw(size, allocation, origin, alignment);
+  };
 
-  // Two GCs before returning failure.
-  for (int i = 0; i < 2; i++) {
-    CollectGarbage(allocation);
-    result = RetryAllocateRaw(size, allocation, origin, alignment);
-    if (!result.IsFailure()) {
-      return result;
-    }
-  }
-  return result;
+  return AllocateRawWithLightRetrySlowPath(Allocate, RetryAllocate, allocation);
 }
 
 void HeapAllocator::CollectGarbage(AllocationType allocation) {
@@ -144,19 +138,14 @@ void HeapAllocator::CollectGarbage(AllocationType allocation) {
 AllocationResult HeapAllocator::AllocateRawWithRetryOrFailSlowPath(
     int size, AllocationType allocation, AllocationOrigin origin,
     AllocationAlignment alignment) {
-  AllocationResult result =
-      AllocateRawWithLightRetrySlowPath(size, allocation, origin, alignment);
-  if (!result.IsFailure()) return result;
-
-  CollectAllAvailableGarbage(allocation);
-  result = RetryAllocateRaw(size, allocation, origin, alignment);
-
-  if (!result.IsFailure()) {
-    return result;
-  }
-
-  V8::FatalProcessOutOfMemory(heap_->isolate(), "CALL_AND_RETRY_LAST",
-                              V8::kHeapOOM);
+  auto Allocate = [&](AllocationType allocation) {
+    return AllocateRaw(size, allocation, origin, alignment);
+  };
+  auto RetryAllocate = [&](AllocationType allocation) {
+    return RetryAllocateRaw(size, allocation, origin, alignment);
+  };
+  return AllocateRawWithRetryOrFailSlowPath(Allocate, RetryAllocate,
+                                            allocation);
 }
 
 void HeapAllocator::CollectAllAvailableGarbage(AllocationType allocation) {
@@ -222,18 +211,21 @@ void HeapAllocator::VerifyLinearAllocationAreas() const {
 #endif  // DEBUG
 
 void HeapAllocator::MarkLinearAllocationAreasBlack() {
+  DCHECK(!v8_flags.black_allocated_pages);
   old_space_allocator_->MarkLinearAllocationAreaBlack();
   trusted_space_allocator_->MarkLinearAllocationAreaBlack();
   code_space_allocator_->MarkLinearAllocationAreaBlack();
 }
 
 void HeapAllocator::UnmarkLinearAllocationsArea() {
+  DCHECK(!v8_flags.black_allocated_pages);
   old_space_allocator_->UnmarkLinearAllocationArea();
   trusted_space_allocator_->UnmarkLinearAllocationArea();
   code_space_allocator_->UnmarkLinearAllocationArea();
 }
 
 void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
+  DCHECK(!v8_flags.black_allocated_pages);
   if (shared_space_allocator_) {
     shared_space_allocator_->MarkLinearAllocationAreaBlack();
   }
@@ -243,11 +235,29 @@ void HeapAllocator::MarkSharedLinearAllocationAreasBlack() {
 }
 
 void HeapAllocator::UnmarkSharedLinearAllocationAreas() {
+  DCHECK(!v8_flags.black_allocated_pages);
   if (shared_space_allocator_) {
     shared_space_allocator_->UnmarkLinearAllocationArea();
   }
   if (shared_trusted_space_allocator_) {
     shared_trusted_space_allocator_->UnmarkLinearAllocationArea();
+  }
+}
+
+void HeapAllocator::FreeLinearAllocationAreasAndResetFreeLists() {
+  DCHECK(v8_flags.black_allocated_pages);
+  old_space_allocator_->FreeLinearAllocationAreaAndResetFreeList();
+  trusted_space_allocator_->FreeLinearAllocationAreaAndResetFreeList();
+  code_space_allocator_->FreeLinearAllocationAreaAndResetFreeList();
+}
+
+void HeapAllocator::FreeSharedLinearAllocationAreasAndResetFreeLists() {
+  DCHECK(v8_flags.black_allocated_pages);
+  if (shared_space_allocator_) {
+    shared_space_allocator_->FreeLinearAllocationAreaAndResetFreeList();
+  }
+  if (shared_trusted_space_allocator_) {
+    shared_trusted_space_allocator_->FreeLinearAllocationAreaAndResetFreeList();
   }
 }
 

@@ -26,31 +26,6 @@ function uniform(min, max) {
   return Math.random() * (max - min) + min;
 }
 
-function sample(iterable, count) {
-  const result = new Array(count);
-  let index = 0;
-
-  for (const item of iterable) {
-    if (index < count) {
-      result[index] = item;
-    } else {
-      const randIndex = randInt(0, index);
-      if (randIndex < count) {
-        result[randIndex] = item;
-      }
-    }
-
-    index++;
-  }
-
-  if (index < count) {
-    // Not enough items.
-    result.length = index;
-  }
-
-  return result;
-}
-
 function swap(array, p1, p2) {
   [array[p1], array[p2]] = [array[p2], array[p1]];
 }
@@ -88,8 +63,47 @@ function twoBucketSample(lowProbArray, highProbArray, factor, count) {
   return result;
 }
 
+/**
+ * Returns a single random element from an array.
+ */
 function single(array) {
   return array[randInt(0, array.length - 1)];
+}
+
+/**
+ * Returns an array with a sample of two distinct elements from an array.
+ */
+function sampleOfTwo(array) {
+  assert(array.length >= 2);
+
+  const first = randInt(0, array.length - 1);
+  let second = randInt(1, array.length - 1);
+  if (first == second) {
+    // On a collision, we simulate a swap.
+    second = 0;
+  }
+  return [array[first], array[second]];
+}
+
+/**
+ * As above for an arbitrary number of elements with a fast implementation
+ * for 1 or 2 elements.
+ */
+function sample(array, count) {
+  assert(count > 0);
+  assert(array.length >= count);
+
+  // Fast paths for 1 or 2 elements.
+  if (count == 1) {
+    return [single(array)];
+  }
+  if (count == 2) {
+    return sampleOfTwo(array);
+  }
+
+  const copy = Array.from(array);
+  shuffle(copy);
+  return copy.slice(0, count);
 }
 
 function shuffle(array) {
@@ -106,6 +120,7 @@ module.exports = {
   randInt: randInt,
   random: random,
   sample: sample,
+  sampleOfTwo: sampleOfTwo,
   shuffle: shuffle,
   single: single,
   twoBucketSample: twoBucketSample,

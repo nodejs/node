@@ -217,10 +217,18 @@ RegionAllocator::Address RegionAllocator::AllocateAlignedRegion(
 
   const size_t padded_size = size + alignment - page_size_;
   Region* region = FreeListFindRegion(padded_size);
+  if (region == nullptr) {
+    // In case we are out of space we might still fit an allocation without
+    // padding and the result might still satisfy our alignment requirements.
+    region = FreeListFindRegion(size);
+  }
   if (region == nullptr) return kAllocationFailure;
 
   if (!IsAligned(region->begin(), alignment)) {
     size_t start = RoundUp(region->begin(), alignment);
+    if (start + size > region->end()) {
+      return kAllocationFailure;
+    }
     region = Split(region, start - region->begin());
     DCHECK_EQ(region->begin(), start);
     DCHECK(IsAligned(region->begin(), alignment));

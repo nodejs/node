@@ -44,15 +44,15 @@ ENGINE* EnginePointer::release() {
   return ret;
 }
 
-EnginePointer EnginePointer::getEngineByName(const std::string_view name,
+EnginePointer EnginePointer::getEngineByName(const char* name,
                                              CryptoErrorList* errors) {
   MarkPopErrorOnReturn mark_pop_error_on_return(errors);
-  EnginePointer engine(ENGINE_by_id(name.data()));
+  EnginePointer engine(ENGINE_by_id(name));
   if (!engine) {
     // Engine not found, try loading dynamically.
     engine = EnginePointer(ENGINE_by_id("dynamic"));
     if (engine) {
-      if (!ENGINE_ctrl_cmd_string(engine.get(), "SO_PATH", name.data(), 0) ||
+      if (!ENGINE_ctrl_cmd_string(engine.get(), "SO_PATH", name, 0) ||
           !ENGINE_ctrl_cmd_string(engine.get(), "LOAD", nullptr, 0)) {
         engine.reset();
       }
@@ -73,10 +73,10 @@ bool EnginePointer::init(bool finish_on_exit) {
   return ENGINE_init(engine) == 1;
 }
 
-EVPKeyPointer EnginePointer::loadPrivateKey(const std::string_view key_name) {
+EVPKeyPointer EnginePointer::loadPrivateKey(const char* key_name) {
   if (engine == nullptr) return EVPKeyPointer();
   return EVPKeyPointer(
-      ENGINE_load_private_key(engine, key_name.data(), nullptr, nullptr));
+      ENGINE_load_private_key(engine, key_name, nullptr, nullptr));
 }
 
 void EnginePointer::initEnginesOnce() {

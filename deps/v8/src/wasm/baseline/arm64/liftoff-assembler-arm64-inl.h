@@ -7,6 +7,7 @@
 
 #include "src/codegen/arm64/macro-assembler-arm64-inl.h"
 #include "src/codegen/interface-descriptors-inl.h"
+#include "src/compiler/linkage.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/wasm/baseline/liftoff-assembler.h"
 #include "src/wasm/baseline/parallel-move-inl.h"
@@ -58,7 +59,6 @@ inline CPURegister GetRegFromType(const LiftoffRegister& reg, ValueKind kind) {
     case kI64:
     case kRef:
     case kRefNull:
-    case kRtt:
       return reg.gp().X();
     case kF32:
       return reg.fp().S();
@@ -349,7 +349,7 @@ void LiftoffAssembler::PatchPrepareStackFrame(
   // Misalignment will cause a stack alignment fault.
   DCHECK_EQ(frame_size, RoundUp(frame_size, kQuadWordSizeInBytes));
 
-  PatchingAssembler patching_assembler(AssemblerOptions{},
+  PatchingAssembler patching_assembler(zone(), AssemblerOptions{},
                                        buffer_start_ + offset, 1);
 
   if (V8_LIKELY(frame_size < 4 * KB)) {
@@ -396,12 +396,14 @@ void LiftoffAssembler::PatchPrepareStackFrame(
     regs_to_save.set(WasmHandleStackOverflowDescriptor::GapRegister());
     regs_to_save.set(WasmHandleStackOverflowDescriptor::FrameBaseRegister());
     for (auto reg : kGpParamRegisters) regs_to_save.set(reg);
+    for (auto reg : kFpParamRegisters) regs_to_save.set(reg);
     PushRegisters(regs_to_save);
     Mov(WasmHandleStackOverflowDescriptor::GapRegister(), frame_size);
     Add(WasmHandleStackOverflowDescriptor::FrameBaseRegister(), fp,
         Operand(stack_param_slots * kStackSlotSize +
                 CommonFrameConstants::kFixedFrameSizeAboveFp));
     CallBuiltin(Builtin::kWasmHandleStackOverflow);
+    safepoint_table_builder->DefineSafepoint(this);
     PopRegisters(regs_to_save);
   } else {
     Call(static_cast<Address>(Builtin::kWasmStackOverflow),
@@ -527,6 +529,7 @@ void LiftoffAssembler::CheckStackShrink() {
   B(ne, &done);
   LiftoffRegList regs_to_save;
   for (auto reg : kGpReturnRegisters) regs_to_save.set(reg);
+  for (auto reg : kFpReturnRegisters) regs_to_save.set(reg);
   PushRegisters(regs_to_save);
   Mov(kCArgRegs[0], ExternalReference::isolate_address());
   CallCFunction(ExternalReference::wasm_shrink_stack(), 1);
@@ -2112,7 +2115,6 @@ void LiftoffAssembler::emit_cond_jump(Condition cond, Label* label,
       break;
     case kRef:
     case kRefNull:
-    case kRtt:
       DCHECK(rhs.is_valid());
       DCHECK(cond == kEqual || cond == kNotEqual);
 #if defined(V8_COMPRESS_POINTERS)
@@ -2232,13 +2234,15 @@ void LiftoffAssembler::LoadTransform(LiftoffRegister dst, Register src_addr,
                                      Register offset_reg, uintptr_t offset_imm,
                                      LoadType type,
                                      LoadTransformationKind transform,
-                                     uint32_t* protected_load_pc) {
+                                     uint32_t* protected_load_pc,
+                                     bool i64_offset) {
   UseScratchRegisterScope temps(this);
   MemOperand src_op =
       transform == LoadTransformationKind::kSplat
           ? MemOperand{liftoff::GetEffectiveAddress(this, &temps, src_addr,
                                                     offset_reg, offset_imm)}
-          : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm);
+          : liftoff::GetMemOp(this, &temps, src_addr, offset_reg, offset_imm,
+                              i64_offset);
   *protected_load_pc = pc_offset();
   MachineType memtype = type.mem_type();
 
@@ -4130,13 +4134,10 @@ bool LiftoffAssembler::supports_f16_mem_access() {
   return CpuFeatures::IsSupported(FP16);
 }
 
-void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t oob_size,
-                                             uint64_t oob_index) {
-  Label done;
-  Cmp(index, oob_size);
-  B(&done, kUnsignedLessThan);
-  Mov(index, oob_index);
-  bind(&done);
+void LiftoffAssembler::set_trap_on_oob_mem64(Register index, uint64_t max_index,
+                                             Label* trap_label) {
+  Cmp(index, max_index);
+  B(trap_label, kUnsignedGreaterThanEqual);
 }
 
 void LiftoffAssembler::StackCheck(Label* ool_code) {
@@ -4272,10 +4273,11 @@ void LiftoffAssembler::CallIndirect(const ValueKindSig* sig,
   // For Arm64, we have more cache registers than wasm parameters. That means
   // that target will always be in a register.
   DCHECK(target.is_valid());
-  Call(target);
+  CallWasmCodePointer(target, call_descriptor->signature_hash());
 }
 
-void LiftoffAssembler::TailCallIndirect(Register target) {
+void LiftoffAssembler::TailCallIndirect(
+    compiler::CallDescriptor* call_descriptor, Register target) {
   DCHECK(target.is_valid());
   // When control flow integrity is enabled, the target is a "bti c"
   // instruction, which enforces that the jump instruction is either a "blr", or
@@ -4283,7 +4285,8 @@ void LiftoffAssembler::TailCallIndirect(Register target) {
   UseScratchRegisterScope temps(this);
   temps.Exclude(x17);
   Mov(x17, target);
-  Jump(x17);
+  CallWasmCodePointer(x17, call_descriptor->signature_hash(),
+                      CallJumpMode::kTailCall);
 }
 
 void LiftoffAssembler::CallBuiltin(Builtin builtin) {
@@ -4307,8 +4310,9 @@ void LiftoffAssembler::DeallocateStackSlot(uint32_t size) {
 
 void LiftoffAssembler::MaybeOSR() {}
 
-void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
-                                       ValueKind kind) {
+void LiftoffAssembler::emit_store_nonzero_if_nan(Register dst,
+                                                 DoubleRegister src,
+                                                 ValueKind kind) {
   Label not_nan;
   if (kind == kF32) {
     Fcmp(src.S(), src.S());
@@ -4326,10 +4330,11 @@ void LiftoffAssembler::emit_set_if_nan(Register dst, DoubleRegister src,
   Bind(&not_nan);
 }
 
-void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
-                                            Register tmp_gp,
-                                            LiftoffRegister tmp_s128,
-                                            ValueKind lane_kind) {
+void LiftoffAssembler::emit_s128_store_nonzero_if_nan(Register dst,
+                                                      LiftoffRegister src,
+                                                      Register tmp_gp,
+                                                      LiftoffRegister tmp_s128,
+                                                      ValueKind lane_kind) {
   DoubleRegister tmp_fp = tmp_s128.fp();
   if (lane_kind == kF32) {
     Fmaxv(tmp_fp.S(), src.fp().V4S());
@@ -4337,7 +4342,11 @@ void LiftoffAssembler::emit_s128_set_if_nan(Register dst, LiftoffRegister src,
     DCHECK_EQ(lane_kind, kF64);
     Fmaxp(tmp_fp.D(), src.fp().V2D());
   }
-  emit_set_if_nan(dst, tmp_fp, lane_kind);
+  emit_store_nonzero_if_nan(dst, tmp_fp, lane_kind);
+}
+
+void LiftoffAssembler::emit_store_nonzero(Register dst) {
+  Str(dst, MemOperand(dst));
 }
 
 void LiftoffStackSlots::Construct(int param_slots) {

@@ -5,20 +5,22 @@
 #ifndef V8_SANDBOX_INDIRECT_POINTER_INL_H_
 #define V8_SANDBOX_INDIRECT_POINTER_INL_H_
 
+#include "src/sandbox/indirect-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/sandbox/code-pointer-table-inl.h"
-#include "src/sandbox/indirect-pointer.h"
 #include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/trusted-pointer-table-inl.h"
 
 namespace v8 {
 namespace internal {
 
-V8_INLINE void InitSelfIndirectPointerField(Address field_address,
-                                            IsolateForSandbox isolate,
-                                            Tagged<HeapObject> host,
-                                            IndirectPointerTag tag) {
+V8_INLINE void InitSelfIndirectPointerField(
+    Address field_address, IsolateForSandbox isolate, Tagged<HeapObject> host,
+    IndirectPointerTag tag,
+    TrustedPointerPublishingScope* opt_publishing_scope) {
 #ifdef V8_ENABLE_SANDBOX
   DCHECK_NE(tag, kUnknownIndirectPointerTag);
   // TODO(saelo): in the future, we might want to CHECK here or in
@@ -28,12 +30,16 @@ V8_INLINE void InitSelfIndirectPointerField(Address field_address,
   if (tag == kCodeIndirectPointerTag) {
     CodePointerTable::Space* space =
         isolate.GetCodePointerTableSpaceFor(field_address);
-    handle = GetProcessWideCodePointerTable()->AllocateAndInitializeEntry(
-        space, host.address(), kNullAddress, kDefaultCodeEntrypointTag);
+    handle =
+        IsolateGroup::current()
+            ->code_pointer_table()
+            ->AllocateAndInitializeEntry(space, host.address(), kNullAddress,
+                                         kDefaultCodeEntrypointTag);
   } else {
-    TrustedPointerTable::Space* space = isolate.GetTrustedPointerTableSpace();
-    handle = isolate.GetTrustedPointerTable().AllocateAndInitializeEntry(
-        space, host.ptr(), tag);
+    TrustedPointerTable::Space* space =
+        isolate.GetTrustedPointerTableSpaceFor(tag);
+    handle = isolate.GetTrustedPointerTableFor(tag).AllocateAndInitializeEntry(
+        space, host.ptr(), tag, opt_publishing_scope);
   }
 
   // Use a Release_Store to ensure that the store of the pointer into the table
@@ -51,13 +57,13 @@ namespace {
 template <IndirectPointerTag tag>
 V8_INLINE Tagged<Object> ResolveTrustedPointerHandle(
     IndirectPointerHandle handle, IsolateForSandbox isolate) {
-  const TrustedPointerTable& table = isolate.GetTrustedPointerTable();
+  const TrustedPointerTable& table = isolate.GetTrustedPointerTableFor(tag);
   return Tagged<Object>(table.Get(handle, tag));
 }
 
 V8_INLINE Tagged<Object> ResolveCodePointerHandle(
     IndirectPointerHandle handle) {
-  CodePointerTable* table = GetProcessWideCodePointerTable();
+  CodePointerTable* table = IsolateGroup::current()->code_pointer_table();
   return Tagged<Object>(table->GetCodeObject(handle));
 }
 #endif  // V8_ENABLE_SANDBOX

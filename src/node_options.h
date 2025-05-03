@@ -146,7 +146,7 @@ class EnvironmentOptions : public Options {
   bool allow_worker_threads = false;
   bool experimental_repl_await = true;
   bool experimental_vm_modules = false;
-  bool async_context_frame = false;
+  bool async_context_frame = true;
   bool expose_internals = false;
   bool force_node_api_uncaught_exceptions_policy = false;
   bool frozen_intrinsics = false;
@@ -197,6 +197,7 @@ class EnvironmentOptions : public Options {
   std::vector<std::string> test_name_pattern;
   std::vector<std::string> test_reporter;
   std::vector<std::string> test_reporter_destination;
+  std::string test_global_setup_path;
   bool test_only = false;
   bool test_udp_no_try_send = false;
   std::string test_isolation = "process";
@@ -407,6 +408,10 @@ class OptionsParser {
   // These methods add a single option to the parser. Optionally, it can be
   // specified whether the option should be allowed from environment variable
   // sources (i.e. NODE_OPTIONS).
+
+  // default_is_true is only a hint in printing help text, it does not
+  // affect the default value of the option. Set the default value in the
+  // Options struct instead.
   void AddOption(const char* name,
                  const char* help_text,
                  bool Options::*field,

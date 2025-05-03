@@ -19,6 +19,12 @@ class Isolate;
 class Script;
 class SharedFunctionInfo;
 
+#if V8_ENABLE_WEBASSEMBLY
+namespace wasm {
+class NativeModule;
+}
+#endif  // V8_ENABLE_WEBASSEMBLY
+
 // Helper class to write V8 related trace packets.
 // Used to intern various types and to set common trace proto fields.
 class CodeTraceContext {
@@ -44,17 +50,22 @@ class CodeTraceContext {
     return incremental_state_.InternJsScript(isolate, script);
   }
 
-  uint64_t InternJsFunction(Isolate& isolate, Handle<SharedFunctionInfo> info,
+  uint64_t InternJsFunction(Isolate& isolate,
+                            DirectHandle<SharedFunctionInfo> info,
                             uint64_t v8_js_script_iid, int line_num,
                             int column_num) {
     return incremental_state_.InternJsFunction(isolate, info, v8_js_script_iid,
                                                line_num, column_num);
   }
 
+#if V8_ENABLE_WEBASSEMBLY
   uint64_t InternWasmScript(Isolate& isolate, int script_id,
-                            const std::string& url) {
-    return incremental_state_.InternWasmScript(isolate, script_id, url);
+                            const std::string& url,
+                            wasm::NativeModule* native_module) {
+    return incremental_state_.InternWasmScript(isolate, script_id, url,
+                                               native_module);
   }
+#endif  // V8_ENABLE_WEBASSEMBLY
 
   perfetto::protos::pbzero::V8JsCode* set_v8_js_code() {
     return trace_packet_->set_v8_js_code();

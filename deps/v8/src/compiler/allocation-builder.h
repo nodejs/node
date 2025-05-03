@@ -86,7 +86,7 @@ class AllocationBuilder final {
  protected:
   JSGraph* jsgraph() { return jsgraph_; }
   Isolate* isolate() const { return jsgraph_->isolate(); }
-  Graph* graph() { return jsgraph_->graph(); }
+  TFGraph* graph() { return jsgraph_->graph(); }
   CommonOperatorBuilder* common() { return jsgraph_->common(); }
   SimplifiedOperatorBuilder* simplified() { return jsgraph_->simplified(); }
 

@@ -134,18 +134,14 @@
 #define ALIGNAS(byte_alignment) __attribute__((aligned(byte_alignment)))
 #endif
 
-// Forces the linker to not GC the section corresponding to the symbol.
-#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_RETAIN
-#define V8_DONT_STRIP_SYMBOL __attribute__((used, retain))
+// Functions called from GDB.
+// Forces the linker to not optimize out the function.
+#if V8_HAS_ATTRIBUTE_USED && V8_HAS_ATTRIBUTE_RETAIN && \
+    V8_HAS_ATTRIBUTE_OPTNONE && V8_HAS_ATTRIBUTE_VISIBILITY
+#define V8_DEBUGGING_EXPORT \
+  __attribute__((used, retain, optnone, visibility("default")))
 #else
-#define V8_DONT_STRIP_SYMBOL
-#endif
-
-#ifdef __cpp_concepts
-#define HAS_CPP_CONCEPTS 1
-#define CONCEPT(name) name
-#else
-#define CONCEPT(name) typename
+#define V8_DEBUGGING_EXPORT
 #endif
 
 #if __cplusplus >= 202002L

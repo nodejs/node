@@ -9,6 +9,7 @@
 #include "src/execution/isolate.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/memory-allocator.h"
+#include "src/heap/page-pool.h"
 #include "src/heap/spaces-inl.h"
 #include "src/utils/ostreams.h"
 #include "test/unittests/test-utils.h"
@@ -301,10 +302,6 @@ class PoolTest : public                                     //
   PoolTest(const PoolTest&) = delete;
   PoolTest& operator=(const PoolTest&) = delete;
 
-  static void FreeProcessWidePtrComprCageForTesting() {
-    IsolateGroup::ReleaseGlobal();
-  }
-
   static void DoMixinSetUp() {
     CHECK_NULL(tracking_page_allocator_);
     old_page_allocator_ = GetPlatformPageAllocator();
@@ -314,30 +311,21 @@ class PoolTest : public                                     //
              SetPlatformPageAllocatorForTesting(tracking_page_allocator_));
     old_sweeping_flag_ = i::v8_flags.concurrent_sweeping;
     i::v8_flags.concurrent_sweeping = false;
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-    // Reinitialize the process-wide pointer cage so it can pick up the
-    // TrackingPageAllocator.
-    // The pointer cage must be destroyed before the sandbox.
-    FreeProcessWidePtrComprCageForTesting();
+    IsolateGroup::ReleaseDefault();
 #ifdef V8_ENABLE_SANDBOX
     // Reinitialze the sandbox so it uses the TrackingPageAllocator.
-    GetProcessWideSandbox()->TearDown();
+    Sandbox::current()->TearDown();
     constexpr bool use_guard_regions = false;
-    CHECK(GetProcessWideSandbox()->Initialize(
+    CHECK(Sandbox::current()->Initialize(
         tracking_page_allocator_, kSandboxMinimumSize, use_guard_regions));
 #endif
     IsolateGroup::InitializeOncePerProcess();
-#endif
   }
 
   static void DoMixinTearDown() {
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-    // Free the process-wide cage reservation, otherwise the pages won't be
-    // freed until process teardown.
-    FreeProcessWidePtrComprCageForTesting();
-#endif
+    IsolateGroup::ReleaseDefault();
 #ifdef V8_ENABLE_SANDBOX
-    GetProcessWideSandbox()->TearDown();
+    Sandbox::current()->TearDown();
 #endif
     i::v8_flags.concurrent_sweeping = old_sweeping_flag_;
     CHECK(tracking_page_allocator_->IsEmpty());
@@ -347,11 +335,13 @@ class PoolTest : public                                     //
              SetPlatformPageAllocatorForTesting(old_page_allocator_));
     delete tracking_page_allocator_;
     tracking_page_allocator_ = nullptr;
+
+    IsolateGroup::InitializeOncePerProcess();
   }
 
   Heap* heap() { return isolate()->heap(); }
   MemoryAllocator* allocator() { return heap()->memory_allocator(); }
-  MemoryAllocator::Pool* pool() { return allocator()->pool(); }
+  PagePool* pool() { return allocator()->pool(); }
 
   TrackingPageAllocator* tracking_page_allocator() {
     return tracking_page_allocator_;
@@ -391,7 +381,7 @@ TEST_F(PoolTest, UnmapOnTeardown) {
   allocator()->Free(MemoryAllocator::FreeMode::kPool, page);
   tracking_page_allocator()->CheckPagePermissions(chunk_address, page_size,
                                                   PageAllocator::kReadWrite);
-  pool()->ReleasePooledChunks();
+  pool()->ReleaseImmediately(i_isolate());
 #ifdef V8_COMPRESS_POINTERS
   // In this mode Isolate uses bounded page allocator which allocates pages
   // inside prereserved region. Thus these pages are kept reserved until

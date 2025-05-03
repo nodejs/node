@@ -1,3 +1,5 @@
+// Flags: --js-float16array
+// TODO(LiviaMedeiros): once `Float16Array` is unflagged in v8, remove the line above
 'use strict';
 
 const common = require('../common');

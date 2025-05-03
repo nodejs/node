@@ -87,6 +87,7 @@ class V8_EXPORT CppHeap {
    *
    * After this call, object allocation is prohibited.
    */
+  V8_DEPRECATED("Terminate gets automatically called in the CppHeap destructor")
   void Terminate();
 
   /**
@@ -101,7 +102,7 @@ class V8_EXPORT CppHeap {
   /**
    * Collects statistics for the given spaces and reports them to the receiver.
    *
-   * \param custom_spaces a collection of custom space indicies.
+   * \param custom_spaces a collection of custom space indices.
    * \param receiver an object that gets the results.
    */
   void CollectCustomSpaceStatisticsAtLastGC(

@@ -1,6 +1,7 @@
 /// <reference types="node" />
 
 import type { Blob } from 'buffer'
+import type { ReadableStream, WritableStream } from 'stream/web'
 import type { MessagePort } from 'worker_threads'
 import {
   EventInit,

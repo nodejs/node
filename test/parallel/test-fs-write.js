@@ -37,17 +37,20 @@ const constants = fs.constants;
 
 const {
   createExternalizableString,
+  createExternalizableTwoByteString,
   externalizeString,
   isOneByteString,
 } = globalThis;
 
 assert.notStrictEqual(createExternalizableString, undefined);
+assert.notStrictEqual(createExternalizableTwoByteString, undefined);
 assert.notStrictEqual(externalizeString, undefined);
 assert.notStrictEqual(isOneByteString, undefined);
 
 // Account for extra globals exposed by --expose_externalize_string.
 common.allowGlobals(
   createExternalizableString,
+  createExternalizableTwoByteString,
   externalizeString,
   isOneByteString,
   globalThis.x,

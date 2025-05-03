@@ -6,35 +6,18 @@
 #define V8_PROFILER_OUTPUT_STREAM_WRITER_H_
 
 #include <algorithm>
+#include <charconv>
 #include <string>
+#include <system_error>
 
 #include "include/v8-profiler.h"
+#include "include/v8config.h"
 #include "src/base/logging.h"
-#include "src/base/strings.h"
 #include "src/base/vector.h"
-#include "src/common/globals.h"
 #include "src/utils/memcopy.h"
 
 namespace v8 {
 namespace internal {
-
-template <int bytes>
-struct MaxDecimalDigitsIn;
-template <>
-struct MaxDecimalDigitsIn<1> {
-  static const int kSigned = 3;
-  static const int kUnsigned = 3;
-};
-template <>
-struct MaxDecimalDigitsIn<4> {
-  static const int kSigned = 11;
-  static const int kUnsigned = 10;
-};
-template <>
-struct MaxDecimalDigitsIn<8> {
-  static const int kSigned = 20;
-  static const int kUnsigned = 20;
-};
 
 class OutputStreamWriter {
  public:
@@ -56,12 +39,7 @@ class OutputStreamWriter {
   void AddString(const char* s) {
     size_t len = strlen(s);
     DCHECK_GE(kMaxInt, len);
-    AddSubstring(s, static_cast<int>(len));
-  }
-  void AddSubstring(const char* s, int n) {
-    if (n <= 0) return;
-    DCHECK_LE(n, strlen(s));
-    const char* s_end = s + n;
+    const char* s_end = s + len;
     while (s < s_end) {
       int s_chunk_size =
           std::min(chunk_size_ - chunk_pos_, static_cast<int>(s_end - s));
@@ -72,7 +50,23 @@ class OutputStreamWriter {
       MaybeWriteChunk();
     }
   }
-  void AddNumber(unsigned n) { AddNumberImpl<unsigned>(n, "%u"); }
+  template <typename T>
+  void AddNumber(T n) {
+    std::to_chars_result result =
+        std::to_chars(chunk_.begin() + chunk_pos_, chunk_.end(), n);
+    if (V8_LIKELY(result.ec == std::errc{})) {
+      chunk_pos_ = static_cast<int>(result.ptr - chunk_.begin());
+      MaybeWriteChunk();
+    } else {
+      // Expected to be the only possible reason for `to_chars` to fail.
+      CHECK(result.ec == std::errc::value_too_large);
+      // Write the current chunk and try again if we haven't already.
+      CHECK_WITH_MSG(chunk_pos_ > 0,
+                     "Chunk size insufficient to serialize number");
+      WriteChunk();
+      AddNumber(n);
+    }
+  }
   void Finalize() {
     if (aborted_) return;
     DCHECK(chunk_pos_ < chunk_size_);
@@ -83,25 +77,6 @@ class OutputStreamWriter {
   }
 
  private:
-  template <typename T>
-  void AddNumberImpl(T n, const char* format) {
-    // Buffer for the longest value plus trailing \0
-    static const int kMaxNumberSize =
-        MaxDecimalDigitsIn<sizeof(T)>::kUnsigned + 1;
-    if (chunk_size_ - chunk_pos_ >= kMaxNumberSize) {
-      int result =
-          SNPrintF(chunk_.SubVector(chunk_pos_, chunk_size_), format, n);
-      DCHECK_NE(result, -1);
-      chunk_pos_ += result;
-      MaybeWriteChunk();
-    } else {
-      base::EmbeddedVector<char, kMaxNumberSize> buffer;
-      int result = SNPrintF(buffer, format, n);
-      USE(result);
-      DCHECK_NE(result, -1);
-      AddString(buffer.begin());
-    }
-  }
   void MaybeWriteChunk() {
     DCHECK(chunk_pos_ <= chunk_size_);
     if (chunk_pos_ == chunk_size_) {

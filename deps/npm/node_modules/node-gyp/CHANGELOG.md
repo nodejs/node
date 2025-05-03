@@ -1,5 +1,35 @@
 # Changelog
 
+## [11.2.0](https://github.com/nodejs/node-gyp/compare/v11.1.0...v11.2.0) (2025-04-01)
+
+
+### Features
+
+* update gyp-next to v0.20.0 ([#3149](https://github.com/nodejs/node-gyp/issues/3149)) ([80e9c79](https://github.com/nodejs/node-gyp/commit/80e9c795a739c490cfbc85633e63022b36a7c70d))
+
+
+### Bug Fixes
+
+* disable msbuild.exe nodeReuse ([#3112](https://github.com/nodejs/node-gyp/issues/3112)) ([0cf16d2](https://github.com/nodejs/node-gyp/commit/0cf16d29fe604266fb47325496287a63075ea532))
+* use maxRetries on fs.rm calls ([#3113](https://github.com/nodejs/node-gyp/issues/3113)) ([a2772a7](https://github.com/nodejs/node-gyp/commit/a2772a76709f939af1e80dd8fe766ca2143aa5bf))
+
+
+### Tests
+
+* fix wasm test on Windows ([#3145](https://github.com/nodejs/node-gyp/issues/3145)) ([ee1d6fd](https://github.com/nodejs/node-gyp/commit/ee1d6fd8d83c9dd3eae7df7ec533bb6b39e1a812))
+* use maxRetries with tests too ([#3150](https://github.com/nodejs/node-gyp/issues/3150)) ([0ccbe7e](https://github.com/nodejs/node-gyp/commit/0ccbe7e90afb096b46a7818ba127a4871237952e))
+
+
+### Doc
+
+* add ffi-napi to docs/README.md ([#3138](https://github.com/nodejs/node-gyp/issues/3138)) ([4885110](https://github.com/nodejs/node-gyp/commit/48851107ad8c5d2cf18a55e8bd2764f5938e7102))
+
+
+### Miscellaneous
+
+* switch to tinyglobby ([#3133](https://github.com/nodejs/node-gyp/issues/3133)) ([c3b3ab0](https://github.com/nodejs/node-gyp/commit/c3b3ab06ee0f092cd5c0646120d57e56d41b79fc))
+* update tinyglobby ([#3136](https://github.com/nodejs/node-gyp/issues/3136)) ([b21cf87](https://github.com/nodejs/node-gyp/commit/b21cf874f58883f3fd4dd07bec3b584fb07e831d))
+
 ## [11.1.0](https://github.com/nodejs/node-gyp/compare/v11.0.0...v11.1.0) (2025-02-10)
 
 

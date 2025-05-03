@@ -196,6 +196,12 @@ async_id AsyncHooksGetExecutionAsyncId(Isolate* isolate) {
   return env->execution_async_id();
 }
 
+async_id AsyncHooksGetExecutionAsyncId(Local<Context> context) {
+  Environment* env = Environment::GetCurrent(context);
+  if (env == nullptr) return -1;
+  return env->execution_async_id();
+}
+
 async_id AsyncHooksGetTriggerAsyncId(Isolate* isolate) {
   Environment* env = Environment::GetCurrent(isolate);
   if (env == nullptr) return -1;

@@ -28,7 +28,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
             isolate,
             CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            isolate, zone->template New<Graph>(zone),
+            isolate, zone->template New<TFGraph>(zone),
             Linkage::GetSimplifiedCDescriptor(
                 zone,
                 CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
@@ -46,7 +46,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
             isolate,
             CSignature::New(zone, MachineTypeForC<ReturnType>(), p...)),
         RawMachineAssembler(
-            isolate, zone->template New<Graph>(zone),
+            isolate, zone->template New<TFGraph>(zone),
             Linkage::GetSimplifiedCDescriptor(
                 zone,
                 CSignature::New(zone, MachineTypeForC<ReturnType>(), p...),
@@ -72,7 +72,7 @@ class RawMachineAssemblerTester : public CallHelper<ReturnType>,
 
   void GenerateCode() { Generate(); }
 
-  Handle<Code> GetCode() {
+  DirectHandle<Code> GetCode() {
     Generate();
     return code_.ToHandleChecked();
   }

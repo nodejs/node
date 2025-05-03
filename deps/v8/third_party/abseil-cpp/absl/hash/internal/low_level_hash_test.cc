@@ -15,6 +15,7 @@
 #include "absl/hash/internal/low_level_hash.h"
 
 #include <cinttypes>
+#include <cstdint>
 
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
@@ -29,55 +30,11 @@ static const uint64_t kSalt[5] = {0xa0761d6478bd642f, 0xe7037ed1a0b428dbl,
                                   0x1d8e4e27c47d124f};
 
 TEST(LowLevelHashTest, VerifyGolden) {
-  constexpr size_t kNumGoldenOutputs = 134;
+  constexpr size_t kNumGoldenOutputs = 94;
   static struct {
     absl::string_view base64_data;
     uint64_t seed;
   } cases[] = {
-      {"", uint64_t{0xec42b7ab404b8acb}},
-      {"ICAg", uint64_t{0}},
-      {"YWFhYQ==", uint64_t{0}},
-      {"AQID", uint64_t{0}},
-      {"AQIDBA==", uint64_t{0}},
-      {"dGhpcmRfcGFydHl8d3loYXNofDY0", uint64_t{0}},
-      {"Zw==", uint64_t{0xeeee074043a3ee0f}},
-      {"xmk=", uint64_t{0x857902089c393de}},
-      {"c1H/", uint64_t{0x993df040024ca3af}},
-      {"SuwpzQ==", uint64_t{0xc4e4c2acea740e96}},
-      {"uqvy++M=", uint64_t{0x6a214b3db872d0cf}},
-      {"RnzCVPgb", uint64_t{0x44343db6a89dba4d}},
-      {"6OeNdlouYw==", uint64_t{0x77b5d6d1ae1dd483}},
-      {"M5/JmmYyDbc=", uint64_t{0x89ab8ecb44d221f1}},
-      {"MVijWiVdBRdY", uint64_t{0x60244b17577ca81b}},
-      {"6V7Uq7LNxpu0VA==", uint64_t{0x59a08dcee0717067}},
-      {"EQ6CdEEhPdyHcOk=", uint64_t{0xf5f20db3ade57396}},
-      {"PqFB4fxnPgF+l+rc", uint64_t{0xbf8dee0751ad3efb}},
-      {"a5aPOFwq7LA7+zKvPA==", uint64_t{0x6b7a06b268d63e30}},
-      {"VOwY21wCGv5D+/qqOvs=", uint64_t{0xb8c37f0ae0f54c82}},
-      {"KdHmBTx8lHXYvmGJ+Vy7", uint64_t{0x9fcbed0c38e50eef}},
-      {"qJkPlbHr8bMF7/cA6aE65Q==", uint64_t{0x2af4bade1d8e3a1d}},
-      {"ygvL0EhHZL0fIx6oHHtkxRQ=", uint64_t{0x714e3aa912da2f2c}},
-      {"c1rFXkt5YztwZCQRngncqtSs", uint64_t{0xf5ee75e3cbb82c1c}},
-      {"8hsQrzszzeNQSEcVXLtvIhm6mw==", uint64_t{0x620e7007321b93b9}},
-      {"ffUL4RocfyP4KfikGxO1yk7omDI=", uint64_t{0xc08528cac2e551fc}},
-      {"OOB5TT00vF9Od/rLbAWshiErqhpV", uint64_t{0x6a1debf9cc3ad39}},
-      {"or5wtXM7BFzTNpSzr+Lw5J5PMhVJ/Q==", uint64_t{0x7e0a3c88111fc226}},
-      {"gk6pCHDUsoopVEiaCrzVDhioRKxb844=", uint64_t{0x1301fef15df39edb}},
-      {"TNctmwlC5QbEM6/No4R/La3UdkfeMhzs", uint64_t{0x64e181f3d5817ab}},
-      {"SsQw9iAjhWz7sgcE9OwLuSC6hsM+BfHs2Q==", uint64_t{0xafafc44961078ecb}},
-      {"ZzO3mVCj4xTT2TT3XqDyEKj2BZQBvrS8RHg=", uint64_t{0x4f7bb45549250094}},
-      {"+klp5iPQGtppan5MflEls0iEUzqU+zGZkDJX", uint64_t{0xa30061abaa2818c}},
-      {"RO6bvOnlJc8I9eniXlNgqtKy0IX6VNg16NRmgg==",
-       uint64_t{0xd902ee3e44a5705f}},
-      {"ZJjZqId1ZXBaij9igClE3nyliU5XWdNRrayGlYA=", uint64_t{0x316d36da516f583}},
-      {"7BfkhfGMDGbxfMB8uyL85GbaYQtjr2K8g7RpLzr/",
-       uint64_t{0x402d83f9f834f616}},
-      {"rycWk6wHH7htETQtje9PidS2YzXBx+Qkg2fY7ZYS7A==",
-       uint64_t{0x9c604164c016b72c}},
-      {"RTkC2OUK+J13CdGllsH0H5WqgspsSa6QzRZouqx6pvI=",
-       uint64_t{0x3f4507e01f9e73ba}},
-      {"tKjKmbLCNyrLCM9hycOAXm4DKNpM12oZ7dLTmUx5iwAi",
-       uint64_t{0xc3fe0d5be8d2c7c7}},
       {"VprUGNH+5NnNRaORxgH/ySrZFQFDL+4VAodhfBNinmn8cg==",
        uint64_t{0x531858a40bfa7ea1}},
       {"gc1xZaY+q0nPcUvOOnWnT3bqfmT/geth/f7Dm2e/DemMfk4=",
@@ -405,100 +362,42 @@ TEST(LowLevelHashTest, VerifyGolden) {
   };
 
 #if defined(ABSL_IS_BIG_ENDIAN)
-  constexpr uint64_t kGolden[kNumGoldenOutputs] = {
-      0x4c34aacf38f6eee4, 0x88b1366815e50b88, 0x1a36bd0c6150fb9c,
-      0xa783aba8a67366c7, 0x5e4a92123ae874f2, 0x0cc9ecf27067ee9a,
-      0xbe77aa94940527f9, 0x7ea5c12f2669fe31, 0xa33eed8737d946b9,
-      0x310aec5b1340bb36, 0x354e400861c5d8ff, 0x15be98166adcf42f,
-      0xc51910b62a90ae51, 0x539d47fc7fdf6a1f, 0x3ebba9daa46eef93,
-      0xd96bcd3a9113c17f, 0xc78eaf6256ded15a, 0x98902ed321c2f0d9,
-      0x75a4ac96414b954a, 0x2cb90e00a39e307b, 0x46539574626c3637,
-      0x186ec89a2be3ff45, 0x972a3bf7531519d2, 0xa14df0d25922364b,
-      0xa351e19d22752109, 0x08bd311d8fed4f82, 0xea2b52ddc6af54f9,
-      0x5f20549941338336, 0xd43b07422dc2782e, 0x377c68e2acda4835,
-      0x1b31a0a663b1d7b3, 0x7388ba5d68058a1a, 0xe382794ea816f032,
-      0xd4c3fe7889276ee0, 0x2833030545582ea9, 0x554d32a55e55df32,
-      0x8d6d33d7e17b424d, 0xe51a193d03ae1e34, 0xabb6a80835bd66b3,
-      0x0e4ba5293f9ce9b7, 0x1ebd8642cb762cdf, 0xcb54b555850888ee,
-      0x1e4195e4717c701f, 0x6235a13937f6532a, 0xd460960741e845c0,
-      0x2a72168a2d6af7b1, 0x6be38fbbfc5b17de, 0x4ee97cffa0d0fb39,
-      0xfdf1119ad5e71a55, 0x0dff7f66b3070727, 0x812d791d6ed62744,
-      0x60962919074b70b8, 0x956fa5c7d6872547, 0xee892daa58aae597,
-      0xeeda546e998ee369, 0x454481f5eb9b1fa8, 0x1054394634c98b1b,
-      0x55bb425415f591fb, 0x9601fa97416232c4, 0xd7a18506519daad7,
-      0x90935cb5de039acf, 0xe64054c5146ed359, 0xe5b323fb1e866c09,
-      0x10a472555f5ba1bc, 0xe3c0cd57d26e0972, 0x7ca3db7c121da3e8,
-      0x7004a89c800bb466, 0x865f69c1a1ff7f39, 0xbe0edd48f0cf2b99,
-      0x10e5e4ba3cc400f5, 0xafc2b91a220eef50, 0x6f04a259289b24f1,
-      0x2179a8070e880ef0, 0xd6a9a3d023a740c2, 0x96e6d7954755d9b8,
-      0xc8e4bddecce5af9f, 0x93941f0fbc724c92, 0xbef5fb15bf76a479,
-      0x534dca8f5da86529, 0x70789790feec116b, 0x2a296e167eea1fe9,
-      0x54cb1efd2a3ec7ea, 0x357b43897dfeb9f7, 0xd1eda89bc7ff89d3,
-      0x434f2e10cbb83c98, 0xeec4cdac46ca69ce, 0xd46aafd52a303206,
-      0x4bf05968ff50a5c9, 0x71c533747a6292df, 0xa40bd0d16a36118c,
-      0x597b4ee310c395ab, 0xc5b3e3e386172583, 0x12ca0b32284e6c70,
-      0xb48995fadcf35630, 0x0646368454cd217d, 0xa21c168e40d765b5,
-      0x4260d3811337da30, 0xb72728a01cff78e4, 0x8586920947f4756f,
-      0xc21e5f853cae7dc1, 0xf08c9533be9de285, 0x72df06653b4256d6,
-      0xf7b7f937f8db1779, 0x976db27dd0418127, 0x9ce863b7bc3f9e00,
-      0xebb679854fcf3a0a, 0x2ccebabbcf1afa99, 0x44201d6be451dac5,
-      0xb4af71c0e9a537d1, 0xad8fe9bb33ed2681, 0xcb30128bb68df43b,
-      0x154d8328903e8d07, 0x5844276dabeabdff, 0xd99017d7d36d930b,
-      0xabb0b4774fb261ca, 0x0a43f075d62e67e0, 0x8df7b371355ada6b,
-      0xf4c7a40d06513dcf, 0x257a3615955a0372, 0x987ac410bba74c06,
-      0xa011a46f25a632a2, 0xa14384b963ddd995, 0xf51b6b8cf9d50ba7,
-      0x3acdb91ee3abf18d, 0x34e799be08920e8c, 0x8766748a31304b36,
-      0x0aa239d5d0092f2e, 0xadf473ed26628594, 0xc4094b798eb4b79b,
-      0xe04ee5f33cd130f4, 0x85045d098c341d46, 0xf936cdf115a890ec,
-      0x51d137b6d8d2eb4f, 0xd10738bb2fccc1ef,
-  };
+  constexpr uint64_t kGolden[kNumGoldenOutputs] = {};
+  GTEST_SKIP() << "We only maintain golden data for little endian systems.";
 #else
   constexpr uint64_t kGolden[kNumGoldenOutputs] = {
-      0x4c34aacf38f6eee4, 0x88b1366815e50b88, 0x1a36bd0c6150fb9c,
-      0xa783aba8a67366c7, 0xbc89ebdc622314e4, 0x632bc3cfcc7544d8,
-      0xbe77aa94940527f9, 0x7ea5c12f2669fe31, 0xa33eed8737d946b9,
-      0x74d832ea11fd18ab, 0x49c0487486246cdc, 0x3fdd986c87ddb0a0,
-      0xac3fa52a64d7c09a, 0xbff0e330196e7ed2, 0x8c8138d3ad7d3cce,
-      0x968c7d4b48e93778, 0xa04c78d3a421f529, 0x8854bc9c3c3c0241,
-      0xcccfcdf5a41113fe, 0xe6fc63dc543d984d, 0x00a39ff89e903c05,
-      0xaf7e9da25f9a26f9, 0x6e269a13d01a43df, 0x846d2300ce2ecdf8,
-      0xe7ea8c8f08478260, 0x9a2db0d62f6232f3, 0x6f66c761d168c59f,
-      0x55f9feacaae82043, 0x518084043700f614, 0xb0c8cfc11bead99f,
-      0xe4a68fdab6359d80, 0x97b17caa8f92236e, 0x96edf5e8363643dc,
-      0x9b3fbcd8d5b254cd, 0x22a263621d9b3a8b, 0xde90bf6f81800a6d,
-      0x1b51cae38c2e9513, 0x689215b3c414ef21, 0x064dc85afae8f557,
-      0xa2f3a8b51f408378, 0x6907c197ec1f6a3b, 0xfe83a42ef5c1cf13,
-      0x9b8b1d8f7a20cc13, 0x1f1681d52ca895d0, 0xd7b1670bf28e0f96,
-      0xb32f20f82d8b038a, 0x6a61d030fb2f5253, 0x8eb2bb0bc29ebb39,
-      0x144f36f7a9eef95c, 0xe77aa47d29808d8c, 0xf14d34c1fc568bad,
-      0x9796dcd4383f3c73, 0xa2f685fc1be7225b, 0xf3791295b16068b1,
-      0xb6b8f63424618948, 0x8ac4fd587045db19, 0x7e2aec2c34feb72e,
-      0x72e135a6910ccbb1, 0x661ff16f3c904e6f, 0xdf92cf9d67ca092d,
-      0x98a9953d79722eef, 0xe0649ed2181d1707, 0xcd8b8478636a297b,
-      0x9516258709c8471b, 0xc703b675b51f4394, 0xdb740eae020139f3,
-      0x57d1499ac4212ff2, 0x355cc03713d43825, 0x0e71ac9b8b1e101e,
-      0x8029fa72258ff559, 0xa2159726b4c16a50, 0x04e61582fba43007,
-      0xdab25af835be8cce, 0x13510b1b184705ee, 0xabdbc9e53666fdeb,
-      0x94a788fcb8173cef, 0x750d5e031286e722, 0x02559e72f4f5b497,
-      0x7d6e0e5996a646fa, 0x66e871b73b014132, 0x2ec170083f8b784f,
-      0x34ac9540cfce3fd9, 0x75c5622c6aad1295, 0xf799a6bb2651acc1,
-      0x8f6bcd3145bdc452, 0xddd9d326eb584a04, 0x5411af1e3532f8dc,
-      0xeb34722f2ad0f509, 0x835bc952a82298cc, 0xeb3839ff60ea92ad,
-      0x70bddf1bcdc8a4bc, 0x4bfb3ee86fcde525, 0xc7b3b93b81dfa386,
-      0xe66db544d57997e8, 0xf68a1b83fd363187, 0xe9b99bec615b171b,
-      0x093fba04d04ad28a, 0xba6117ed4231a303, 0x594bef25f9d4e206,
-      0x0a8cba60578b8f67, 0x88f6c7ca10b06019, 0x32a74082aef17b08,
-      0xe758222f971e22df, 0x4af14ff4a593e51e, 0xdba651e16cb09044,
-      0x3f3ac837d181eaac, 0xa5589a3f89610c01, 0xd409a7c3a18d5643,
-      0x8a89444f82962f26, 0x22eb62a13b9771b9, 0xd3a617615256ddd8,
-      0x7089b990c4bba297, 0x7d752893783eac4f, 0x1f2fcbb79372c915,
-      0x67a4446b17eb9839, 0x70d11df5cae46788, 0x52621e1780b47d0f,
-      0xcf63b93a6e590ee6, 0xb6bc96b58ee064b8, 0x2587f8d635ca9c75,
-      0xc6bddd62ec5e5d01, 0x957398ad3009cdb7, 0x05b6890b20bcd0d3,
-      0xbe6e965ff837222e, 0x47383a87d2b04b1a, 0x7d42207e6d8d7950,
-      0x7e981ed12a7f4aa3, 0xdebb05b30769441a, 0xaac5d86f4ff76c49,
-      0x384f195ca3248331, 0xec4c4b855e909ca1, 0x6a7eeb5a657d73d5,
-      0x9efbebe2fa9c2791, 0x19e7fa0546900c4d,
+      0x59b1542b0ff6b7b8, 0x3fb979d297096db9, 0xb391802c536343a9,
+      0x94e0f7e4331081c4, 0x234d95e49e3ce30e, 0xca6351a3e568ed17,
+      0xa62fcf7fa334293d, 0xb03111035f546067, 0x97b8c861e013d558,
+      0xb6683803d9387949, 0xce5d907e0b3cb6a1, 0xab7466fae53ed201,
+      0x8f13ca3f1cac3edd, 0xa2684a99cd909a2a, 0x03194f86b9440843,
+      0xab3a745d96f75a66, 0xef2448606760ec3d, 0xd999e03247d5d5c5,
+      0x4a25ab345d53f926, 0xa511b829ce9fc919, 0x4b76517f8e806cbf,
+      0x006efd7ee09ff8d4, 0x790a4978bd0170a1, 0xc14f6e4b2dff057e,
+      0xe0d2f4ae7c836d09, 0x4e2038a491ed939d, 0x23fd6f408e9598e0,
+      0xa91cf8f1d92bcb08, 0x555cdec06df49d58, 0xe7d3e14bd6a8f3bd,
+      0x4fdd25c1e75c009a, 0x3dffb8acf1ffbd17, 0x56946f33ed73a705,
+      0x154c633d7690f3b0, 0x3e96f8e9a58a04e0, 0xb0279b244d3ccf9c,
+      0x8571e87c882b2142, 0x9d9ada45132e7b41, 0xd5667655533f1dec,
+      0x70607ace4ec36463, 0x691418d2eb63116c, 0xa70179d8e7142980,
+      0xf8388d756bea25a7, 0xe5127c736d9826de, 0x7f1c95f9b6b656b6,
+      0x66ab835b7bf4c7b3, 0xc03423b9a6db9728, 0xe88415a2b416b76d,
+      0x8afd8c14d0b56c36, 0xe9a252b3ba217dad, 0x710150f5cd87a9ff,
+      0xd66b147837fad9ae, 0x1af5f8ffbaa717a7, 0xe01f88d7a9a8ac17,
+      0xd67870a7251fde72, 0xf32b837f845a676b, 0x0827717b1ffe59f7,
+      0x80307212ca7645fb, 0xf0d22af71ea57c80, 0x459373765f2c114b,
+      0x54d26109fab9cbaf, 0xc603da4e257b93db, 0x57fa334b5689d7d5,
+      0x41cd1b2a8a91f620, 0xe1d6e7cd0fb015af, 0x8608e9035eb9d795,
+      0x45c7b9fae739fee1, 0x9f5ae4f7a6b597ee, 0xfb771b6e0017757d,
+      0x8dac6d29cfd8d027, 0x3c9ba4fb62ce6508, 0xa971fad8243844a7,
+      0xd2126f49b2ea3b64, 0x5dd78fe7ac436861, 0xfe4004a6bb3494a8,
+      0xe7c01cc63d770d7c, 0xa117075b8c801d37, 0xdf1dfe75f0e73069,
+      0x7285b39700cefb98, 0x5e97ea1aa9a670eb, 0xe21872db2b9137a3,
+      0x12630b02c6ca405e, 0xfe1f2d802151f97a, 0xb53b0ed3dea4fb02,
+      0xc6d5ed56d1dbf9fd, 0xe5b92b558a5c70cb, 0xccd6eedf97277d08,
+      0x08582fff2e1494ed, 0xa41f2b3d17f1c4c7, 0x29ec07e5ef950f3d,
+      0x96aba32565a97084, 0xf26870eca10cebcd, 0xbe1432feb4d33361,
+      0x21993a779845e6eb,
   };
 #endif
 
@@ -507,8 +406,9 @@ TEST(LowLevelHashTest, VerifyGolden) {
   for (size_t i = 0; i < kNumGoldenOutputs; ++i) {
     std::string str;
     ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
-    uint64_t h = absl::hash_internal::LowLevelHash(str.data(), str.size(),
-                                                   cases[i].seed, kSalt);
+    ASSERT_GT(str.size(), 32);
+    uint64_t h = absl::hash_internal::LowLevelHashLenGt32(
+        str.data(), str.size(), cases[i].seed, kSalt);
     printf("0x%016" PRIx64 ", ", h);
     if (i % 3 == 2) {
       printf("\n");
@@ -522,8 +422,9 @@ TEST(LowLevelHashTest, VerifyGolden) {
                  << "i = " << i << "; input = " << cases[i].base64_data);
     std::string str;
     ASSERT_TRUE(absl::Base64Unescape(cases[i].base64_data, &str));
-    EXPECT_EQ(absl::hash_internal::LowLevelHash(str.data(), str.size(),
-                                                cases[i].seed, kSalt),
+    ASSERT_GT(str.size(), 32);
+    EXPECT_EQ(absl::hash_internal::LowLevelHashLenGt32(str.data(), str.size(),
+                                                       cases[i].seed, kSalt),
               kGolden[i]);
   }
 #endif

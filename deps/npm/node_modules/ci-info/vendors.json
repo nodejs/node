@@ -86,6 +86,11 @@
     "pr": "CIRRUS_PR"
   },
   {
+    "name": "Cloudflare Pages",
+    "constant": "CLOUDFLARE_PAGES",
+    "env": "CF_PAGES"
+  },
+  {
     "name": "Codefresh",
     "constant": "CODEFRESH",
     "env": "CF_BUILD_ID",

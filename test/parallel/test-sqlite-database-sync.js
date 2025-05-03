@@ -77,6 +77,15 @@ suite('DatabaseSync() constructor', () => {
     });
   });
 
+  test('throws if options.timeout is provided but is not an integer', (t) => {
+    t.assert.throws(() => {
+      new DatabaseSync('foo', { timeout: .99 });
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "options\.timeout" argument must be an integer/,
+    });
+  });
+
   test('is not read-only by default', (t) => {
     const dbPath = nextDb();
     const db = new DatabaseSync(dbPath);
@@ -313,5 +322,94 @@ suite('DatabaseSync.prototype.exec()', () => {
       code: 'ERR_INVALID_ARG_TYPE',
       message: /The "sql" argument must be a string/,
     });
+  });
+});
+
+suite('DatabaseSync.prototype.isTransaction', () => {
+  test('correctly detects a committed transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('COMMIT');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('correctly detects a rolled back transaction', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('ROLLBACK');
+    t.assert.strictEqual(db.isTransaction, false);
+  });
+
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      return db.isTransaction;
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+});
+
+suite('DatabaseSync.prototype.location()', () => {
+  test('throws if database is not open', (t) => {
+    const db = new DatabaseSync(nextDb(), { open: false });
+
+    t.assert.throws(() => {
+      db.location();
+    }, {
+      code: 'ERR_INVALID_STATE',
+      message: /database is not open/,
+    });
+  });
+
+  test('throws if provided dbName is not string', (t) => {
+    const db = new DatabaseSync(nextDb());
+    t.after(() => { db.close(); });
+
+    t.assert.throws(() => {
+      db.location(null);
+    }, {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: /The "dbName" argument must be a string/,
+    });
+  });
+
+  test('returns null when connected to in-memory database', (t) => {
+    const db = new DatabaseSync(':memory:');
+    t.assert.strictEqual(db.location(), null);
+  });
+
+  test('returns db path when connected to a persistent database', (t) => {
+    const dbPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    t.assert.strictEqual(db.location(), dbPath);
+  });
+
+  test('returns that specific db path when attached', (t) => {
+    const dbPath = nextDb();
+    const otherPath = nextDb();
+    const db = new DatabaseSync(dbPath);
+    t.after(() => { db.close(); });
+    const other = new DatabaseSync(dbPath);
+    t.after(() => { other.close(); });
+
+    // Adding this escape because the test with unusual chars have a single quote which breaks the query
+    const escapedPath = otherPath.replace("'", "''");
+    db.exec(`ATTACH DATABASE '${escapedPath}' AS other`);
+
+    t.assert.strictEqual(db.location('other'), otherPath);
   });
 });

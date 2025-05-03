@@ -34,6 +34,7 @@
 
 #include "absl/base/attributes.h"
 #include "absl/base/config.h"
+#include "absl/base/nullability.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
 #include "absl/strings/string_view.h"
@@ -60,7 +61,7 @@ constexpr int kUseFlag = (std::numeric_limits<int16_t>::min)();
 class VLogSite final {
  public:
   // `f` must not be destroyed until the program exits.
-  explicit constexpr VLogSite(const char* f)
+  explicit constexpr VLogSite(const char* absl_nonnull f)
       : file_(f), v_(kUninitialized), next_(nullptr) {}
   VLogSite(const VLogSite&) = delete;
   VLogSite& operator=(const VLogSite&) = delete;
@@ -116,7 +117,7 @@ class VLogSite final {
   ABSL_ATTRIBUTE_NOINLINE bool SlowIsEnabled5(int stale_v);
 
   // This object is too size-sensitive to use absl::string_view.
-  const char* const file_;
+  const char* absl_nonnull const file_;
   std::atomic<int> v_;
   std::atomic<VLogSite*> next_;
 };

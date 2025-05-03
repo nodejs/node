@@ -17,7 +17,7 @@ class CommonOperatorBuilder;
 // the object.
 class LateEscapeAnalysis final : public AdvancedReducer {
  public:
-  LateEscapeAnalysis(Editor* editor, Graph* graph,
+  LateEscapeAnalysis(Editor* editor, TFGraph* graph,
                      CommonOperatorBuilder* common, Zone* zone);
 
   const char* reducer_name() const override { return "LateEscapeAnalysis"; }

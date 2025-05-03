@@ -33,9 +33,11 @@ struct ClearErrnoGuard {
 
 void BufferRawSink::Write(string_view v) {
   size_t to_write = std::min(v.size(), size_);
-  std::memcpy(buffer_, v.data(), to_write);
-  buffer_ += to_write;
-  size_ -= to_write;
+  if (to_write > 0) {
+    std::memcpy(buffer_, v.data(), to_write);
+    buffer_ += to_write;
+    size_ -= to_write;
+  }
   total_written_ += v.size();
 }
 

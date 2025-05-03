@@ -20,7 +20,7 @@ class RegExpBytecodePeepholeOptimization : public AllStatic {
  public:
   // Performs peephole optimization on the given bytecode and returns the
   // optimized bytecode.
-  static Handle<TrustedByteArray> OptimizeBytecode(
+  static DirectHandle<TrustedByteArray> OptimizeBytecode(
       Isolate* isolate, Zone* zone, DirectHandle<String> source,
       const uint8_t* bytecode, int length,
       const ZoneUnorderedMap<int, int>& jump_edges);

@@ -43,21 +43,18 @@ class CipherBase : public BaseObject {
   };
   static const unsigned kNoAuthTagLength = static_cast<unsigned>(-1);
 
-  void CommonInit(std::string_view cipher_type,
+  void CommonInit(const char* cipher_type,
                   const ncrypto::Cipher& cipher,
                   const unsigned char* key,
                   int key_len,
                   const unsigned char* iv,
                   int iv_len,
                   unsigned int auth_tag_len);
-  void Init(std::string_view cipher_type,
-            const ArrayBufferOrViewContents<unsigned char>& key_buf,
-            unsigned int auth_tag_len);
-  void InitIv(std::string_view cipher_type,
+  void InitIv(const char* cipher_type,
               const ByteSource& key_buf,
               const ArrayBufferOrViewContents<unsigned char>& iv_buf,
               unsigned int auth_tag_len);
-  bool InitAuthenticated(std::string_view cipher_type,
+  bool InitAuthenticated(const char* cipher_type,
                          int iv_len,
                          unsigned int auth_tag_len);
   bool CheckCCMMessageLength(int message_len);
@@ -73,7 +70,6 @@ class CipherBase : public BaseObject {
   bool MaybePassAuthTagToOpenSSL();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void Init(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void InitIv(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
@@ -90,7 +86,7 @@ class CipherBase : public BaseObject {
   const CipherKind kind_;
   AuthTagState auth_tag_state_;
   unsigned int auth_tag_len_;
-  char auth_tag_[EVP_GCM_TLS_TAG_LEN];
+  char auth_tag_[ncrypto::Cipher::MAX_AUTH_TAG_LENGTH];
   bool pending_auth_failed_;
   int max_message_size_;
 };

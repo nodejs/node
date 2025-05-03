@@ -328,7 +328,9 @@ property take precedence over `--trace-deprecation` and
 ## `util.diff(actual, expected)`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -436,7 +438,7 @@ corresponding argument. Supported specifiers are:
 
 * `%s`: `String` will be used to convert all values except `BigInt`, `Object`
   and `-0`. `BigInt` values will be represented with an `n` and Objects that
-  have no user defined `toString` function are inspected using `util.inspect()`
+  have neither a user defined `toString` function nor `Symbol.toPrimitive` function are inspected using `util.inspect()`
   with options `{ depth: 0, colors: false, compact: 3 }`.
 * `%d`: `Number` will be used to convert all values except `BigInt` and
   `Symbol`.
@@ -1562,7 +1564,9 @@ added:
   - v19.1.0
   - v18.13.0
 changes:
- - version: v23.11.0
+ - version:
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -2414,7 +2418,7 @@ changes:
     - v20.18.0
     pr-url: https://github.com/nodejs/node/pull/54389
     description: Respect isTTY and environment variables
-      such as NO_COLORS, NODE_DISABLE_COLORS, and FORCE_COLOR.
+      such as NO_COLOR, NODE_DISABLE_COLORS, and FORCE_COLOR.
 -->
 
 * `format` {string | Array} A text format or an Array
@@ -2426,7 +2430,7 @@ changes:
 
 This function returns a formatted text considering the `format` passed
 for printing in a terminal. It is aware of the terminal's capabilities
-and acts according to the configuration set via `NO_COLORS`,
+and acts according to the configuration set via `NO_COLOR`,
 `NODE_DISABLE_COLORS` and `FORCE_COLOR` environment variables.
 
 ```mjs
@@ -2694,7 +2698,9 @@ Unicode "replacement character" U+FFFD.
 <!-- YAML
 added: v18.11.0
 changes:
- - version: v23.11.0
+ - version:
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -2707,7 +2713,9 @@ as transferable and can be used with `structuredClone()` or `postMessage()`.
 <!-- YAML
 added: v18.11.0
 changes:
- - version: v23.11.0
+ - version:
+    - v23.11.0
+    - v22.15.0
    pr-url: https://github.com/nodejs/node/pull/57510
    description: Marking the API stable.
 -->
@@ -2730,9 +2738,11 @@ channel.port2.postMessage(signal, [signal]);
 added:
  - v19.7.0
  - v18.16.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57765
+   description: Change stability index for this feature from Experimental to Stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `signal` {AbortSignal}
 * `resource` {Object} Any non-null object tied to the abortable operation and held weakly.
@@ -3099,6 +3109,23 @@ types.isExternal(new String('foo')); // returns false
 
 For further information on `napi_create_external`, refer to
 [`napi_create_external()`][].
+
+### `util.types.isFloat16Array(value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `value` {any}
+* Returns: {boolean}
+
+Returns `true` if the value is a built-in {Float16Array} instance.
+
+```js
+util.types.isFloat16Array(new ArrayBuffer());  // Returns false
+util.types.isFloat16Array(new Float16Array());  // Returns true
+util.types.isFloat16Array(new Float32Array());  // Returns false
+```
 
 ### `util.types.isFloat32Array(value)`
 

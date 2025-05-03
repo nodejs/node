@@ -38,7 +38,6 @@
 
 #include "include/v8-inspector.h"
 #include "src/base/macros.h"
-#include "src/base/platform/mutex.h"
 #include "src/inspector/injected-script.h"
 #include "src/inspector/protocol/Protocol.h"
 
@@ -70,7 +69,6 @@ class V8InspectorImpl : public V8Inspector {
   }
   int contextGroupId(v8::Local<v8::Context>) const;
   int contextGroupId(int contextId) const;
-  uint64_t isolateId() const { return m_isolateId; }
   int resolveUniqueContextId(internal::V8DebuggerId uniqueId) const;
 
   v8::MaybeLocal<v8::Value> compileAndRunInternalScript(v8::Local<v8::Context>,
@@ -91,6 +89,7 @@ class V8InspectorImpl : public V8Inspector {
   void contextDestroyed(v8::Local<v8::Context>) override;
   v8::MaybeLocal<v8::Context> contextById(int contextId) override;
   V8DebuggerId uniqueDebuggerId(int contextId) override;
+  uint64_t isolateId() override;
   void contextCollected(int contextGroupId, int contextId);
   void resetContextGroup(int contextGroupId) override;
   void idleStarted() override;
@@ -169,7 +168,6 @@ class V8InspectorImpl : public V8Inspector {
   unsigned m_lastExceptionId;
   int m_lastContextId;
   int m_lastSessionId = 0;
-  uint64_t m_isolateId;
 
   using MuteExceptionsMap = std::unordered_map<int, int>;
   MuteExceptionsMap m_muteExceptionsMap;

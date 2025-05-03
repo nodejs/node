@@ -20,12 +20,15 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#include "v8-cppgc.h"
 
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -312,21 +315,27 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-#ifdef NODE_V8_SHARED_RO_HEAP
   {
-    // In shared-readonly-heap mode, V8 requires all snapshots used for
-    // creating Isolates to be identical. This isn't really memory-safe
+    // Because it uses a shared readonly-heap, V8 requires all snapshots used
+    // for creating Isolates to be identical. This isn't really memory-safe
     // but also otherwise just doesn't work, and the only real alternative
     // is disabling shared-readonly-heap mode altogether.
     static Isolate::CreateParams first_params = *params;
     params->snapshot_blob = first_params.snapshot_blob;
     params->external_references = first_params.external_references;
   }
-#endif
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
+
+  // Ensure that there is always a CppHeap.
+  if (settings.cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  } else {
+    params->cpp_heap = settings.cpp_heap;
+  }
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
@@ -539,8 +548,11 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        Local<Value> main_script =
-            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        Local<Value> main_script;
+        if (!ToV8Value(env->context(), main_script_source_utf8)
+                 .ToLocal(&main_script)) {
+          return {};
+        }
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
       },
@@ -807,10 +819,10 @@ Maybe<void> InitializePrimordials(Local<Context> context,
   // context.
   CHECK(!exports->Has(context, primordials_string).FromJust());
 
-  Local<Object> primordials = Object::New(isolate);
+  Local<Object> primordials =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
   // Create primordials and make it available to per-context scripts.
-  if (primordials->SetPrototypeV2(context, Null(isolate)).IsNothing() ||
-      exports->Set(context, primordials_string, primordials).IsNothing()) {
+  if (exports->Set(context, primordials_string, primordials).IsNothing()) {
     return Nothing<void>();
   }
 

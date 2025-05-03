@@ -35,11 +35,16 @@ class DatabaseOpenConfiguration {
 
   inline void set_enable_dqs(bool flag) { enable_dqs_ = flag; }
 
+  inline void set_timeout(int timeout) { timeout_ = timeout; }
+
+  inline int get_timeout() { return timeout_; }
+
  private:
   std::string location_;
   bool read_only_ = false;
   bool enable_foreign_keys_ = true;
   bool enable_dqs_ = false;
+  int timeout_ = 0;
 };
 
 class StatementSync;
@@ -56,10 +61,15 @@ class DatabaseSync : public BaseObject {
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Open(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void IsOpenGetter(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsTransactionGetter(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Close(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Prepare(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Exec(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void Location(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CustomFunction(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void AggregateFunction(
+      const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CreateSession(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ApplyChangeset(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void EnableLoadExtension(

@@ -59,8 +59,12 @@ ParseResult ConfigReader::ParseNodeOptions(
             FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
             return ParseResult::InvalidContent;
           }
-          node_options_.push_back(it->first + "=" +
-                                  (result ? "true" : "false"));
+
+          if (result) {
+            // If the value is true, we need to set the flag
+            node_options_.push_back(it->first);
+          }
+
           break;
         }
         // String array can allow both string and array types

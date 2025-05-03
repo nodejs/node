@@ -1136,14 +1136,15 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
   - version:
     - v22.0.0
     - v20.13.0
     pr-url: https://github.com/nodejs/node/pull/52039
     description: Aligned return value with `uv_get_constrained_memory`.
 -->
-
-> Stability: 1 - Experimental
 
 * {number}
 
@@ -1160,9 +1161,11 @@ information.
 added:
   - v22.0.0
   - v20.13.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
 -->
-
-> Stability: 1 - Experimental
 
 * {number}
 
@@ -2301,9 +2304,11 @@ setup();
 added:
   - v17.3.0
   - v16.14.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
 -->
-
-> Stability: 1 - Experimental
 
 * Returns: {string\[]}
 
@@ -3352,7 +3357,9 @@ relied upon to exist.
 ## `process.execve(file[, args[, env]])`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.15.0
 -->
 
 > Stability: 1 - Experimental
@@ -3374,7 +3381,7 @@ any exit or close events and without running any cleanup handler.
 
 This function will never return, unless an error occurred.
 
-This function is not available on Windows.
+This function is not available on Windows or IBM i.
 
 ## `process.report`
 

@@ -12,7 +12,7 @@ Gzip, Deflate/Inflate, Brotli, and Zstd.
 To access it:
 
 ```mjs
-import os from 'node:zlib';
+import zlib from 'node:zlib';
 ```
 
 ```cjs
@@ -725,7 +725,9 @@ These advanced options are available for controlling decompression:
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 There are several options and other constants available for Zstd-based
@@ -1032,7 +1034,9 @@ the inflate and deflate algorithms.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 <!--type=misc-->
@@ -1063,7 +1067,9 @@ const stream = zlib.createZstdCompress({
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 Compress data using the Zstd algorithm.
@@ -1073,7 +1079,9 @@ Compress data using the Zstd algorithm.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 Decompress data using the Zstd algorithm.
@@ -1256,7 +1264,9 @@ Creates and returns a new [`Unzip`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `options` {zstd options}
@@ -1268,7 +1278,9 @@ Creates and returns a new [`ZstdCompress`][] object.
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `options` {zstd options}
@@ -1626,7 +1638,9 @@ Decompress a chunk of data with [`Unzip`][].
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1638,7 +1652,9 @@ added: v23.8.0
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1649,7 +1665,9 @@ Compress a chunk of data with [`ZstdCompress`][].
 ### `zlib.zstdDecompress(buffer[, options], callback)`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}
@@ -1661,7 +1679,9 @@ added: v23.8.0
 > Stability: 1 - Experimental
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.15.0
 -->
 
 * `buffer` {Buffer|TypedArray|DataView|ArrayBuffer|string}

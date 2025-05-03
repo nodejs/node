@@ -57,11 +57,11 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat
+        run: ./vcbuild.bat clang-cl
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
-        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        run: ./vcbuild.bat noprojgen nobuild test-ci-js; node -e 'process.exit(0)'
         env:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report

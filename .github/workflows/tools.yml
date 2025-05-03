@@ -36,11 +36,11 @@ on:
           - postject
           - root-certificates
           - simdjson
-          - simdutf
           - sqlite
           - undici
           - uvwasi
           - zlib
+          - zstd
 
 env:
   PYTHON_VERSION: '3.12'
@@ -236,18 +236,10 @@ jobs:
             run: |
               node ./tools/dep_updaters/update-root-certs.mjs -v -f "$GITHUB_ENV"
           - id: simdjson
-            subsystem: deps, config
-            label: dependencies
-            run: |
-              ./tools/dep_updaters/update-simdjson.sh > temp-output
-              cat temp-output
-              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
-              rm temp-output
-          - id: simdutf
             subsystem: deps
             label: dependencies
             run: |
-              ./tools/dep_updaters/update-simdutf.sh > temp-output
+              ./tools/dep_updaters/update-simdjson.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output
@@ -280,6 +272,14 @@ jobs:
             label: dependencies, zlib
             run: |
               ./tools/dep_updaters/update-zlib.sh > temp-output
+              cat temp-output
+              tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
+              rm temp-output
+          - id: zstd
+            subsystem: deps
+            label: dependencies, zlib
+            run: |
+              ./tools/dep_updaters/update-zstd.sh > temp-output
               cat temp-output
               tail -n1 temp-output | grep "NEW_VERSION=" >> "$GITHUB_ENV" || true
               rm temp-output

@@ -1527,46 +1527,107 @@ test('Detects differences in deeply nested arrays instead of seeing a new object
   );
 });
 
-// check URL
-{
-  const a = new URL('http://foo');
-  const b = new URL('http://bar');
+test('URLs', () => {
+  // check URL
+  {
+    const a = new URL('http://foo');
+    const b = new URL('http://bar');
 
-  assertNotDeepOrStrict(a, b);
-}
+    assertNotDeepOrStrict(a, b);
+  }
 
-{
-  const a = new URL('http://foo');
-  const b = new URL('http://foo');
+  {
+    const a = new URL('http://foo');
+    const b = new URL('http://foo');
 
+    assertDeepAndStrictEqual(a, b);
+  }
+
+  {
+    const a = new URL('http://foo');
+    const b = new URL('http://foo');
+    a.bar = 1;
+    b.bar = 2;
+    assertNotDeepOrStrict(a, b);
+  }
+
+  {
+    const a = new URL('http://foo');
+    const b = new URL('http://foo');
+    a.bar = 1;
+    b.bar = 1;
+    assertDeepAndStrictEqual(a, b);
+  }
+
+  {
+    const a = new URL('http://foo');
+    const b = new URL('http://bar');
+    assert.throws(
+      () => assert.deepStrictEqual(a, b),
+      {
+        code: 'ERR_ASSERTION',
+        name: 'AssertionError',
+        message: /http:\/\/bar/
+      }
+    );
+  }
+});
+
+test('Own property constructor properties should check against the original prototype', () => {
+  const a = { constructor: { name: 'Foo' } };
+  const b = { constructor: { name: 'Foo' } };
   assertDeepAndStrictEqual(a, b);
-}
 
-{
-  const a = new URL('http://foo');
-  const b = new URL('http://foo');
-  a.bar = 1;
-  b.bar = 2;
-  assertNotDeepOrStrict(a, b);
-}
-
-{
-  const a = new URL('http://foo');
-  const b = new URL('http://foo');
-  a.bar = 1;
-  b.bar = 1;
+  let prototype = {};
+  Object.setPrototypeOf(a, prototype);
+  Object.setPrototypeOf(b, prototype);
   assertDeepAndStrictEqual(a, b);
-}
 
-{
-  const a = new URL('http://foo');
-  const b = new URL('http://bar');
-  assert.throws(
-    () => assert.deepStrictEqual(a, b),
-    {
-      code: 'ERR_ASSERTION',
-      name: 'AssertionError',
-      message: /http:\/\/bar/
-    }
-  );
-}
+  Object.setPrototypeOf(b, {});
+  assertNotDeepOrStrict(a, {});
+
+  prototype = { __proto__: null };
+  Object.setPrototypeOf(a, prototype);
+  Object.setPrototypeOf(b, prototype);
+  assertDeepAndStrictEqual(a, b);
+
+  Object.setPrototypeOf(b, { __proto__: null });
+  assert.notDeepStrictEqual(a, b);
+  assert.notDeepStrictEqual(b, a);
+
+  // Turn off no-restricted-properties because we are testing deepEqual!
+  /* eslint-disable no-restricted-properties */
+  assert.deepEqual(a, b);
+  assert.deepEqual(b, a);
+});
+
+test('Inherited null prototype without own constructor properties should check the correct prototype', () => {
+  const a = { foo: { name: 'Foo' } };
+  const b = { foo: { name: 'Foo' } };
+  assertDeepAndStrictEqual(a, b);
+
+  let prototype = {};
+  Object.setPrototypeOf(a, prototype);
+  Object.setPrototypeOf(b, prototype);
+  assertDeepAndStrictEqual(a, b);
+
+  Object.setPrototypeOf(b, {});
+  assertNotDeepOrStrict(a, {});
+
+  prototype = { __proto__: null };
+  Object.setPrototypeOf(a, prototype);
+  Object.setPrototypeOf(b, prototype);
+  assertDeepAndStrictEqual(a, b);
+
+  Object.setPrototypeOf(b, { __proto__: null });
+  assert.notDeepStrictEqual(a, b);
+  assert.notDeepStrictEqual(b, a);
+
+  assert.notDeepStrictEqual({ __proto__: null }, { __proto__: { __proto__: null } });
+  assert.notDeepStrictEqual({ __proto__: { __proto__: null } }, { __proto__: null });
+
+  // Turn off no-restricted-properties because we are testing deepEqual!
+  /* eslint-disable no-restricted-properties */
+  assert.deepEqual(a, b);
+  assert.deepEqual(b, a);
+});

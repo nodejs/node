@@ -6,6 +6,8 @@
 #define V8_OBJECTS_DATA_HANDLER_INL_H_
 
 #include "src/objects/data-handler.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/objects-inl.h"  // Needed for write barriers
 
 // Has to be the last include (doesn't have include guards):
@@ -22,12 +24,12 @@ int DataHandler::data_field_count() const {
   return (map()->instance_size() - kSizeWithData0) / kTaggedSize;
 }
 
-WEAK_ACCESSORS_CHECKED(DataHandler, data1, kData1Offset,
-                       map()->instance_size() >= kSizeWithData1)
-WEAK_ACCESSORS_CHECKED(DataHandler, data2, kData2Offset,
-                       map()->instance_size() >= kSizeWithData2)
-WEAK_ACCESSORS_CHECKED(DataHandler, data3, kData3Offset,
-                       map()->instance_size() >= kSizeWithData3)
+ACCESSORS_CHECKED(DataHandler, data1, Tagged<MaybeObject>, kData1Offset,
+                  map()->instance_size() >= kSizeWithData1)
+ACCESSORS_CHECKED(DataHandler, data2, Tagged<MaybeObject>, kData2Offset,
+                  map()->instance_size() >= kSizeWithData2)
+ACCESSORS_CHECKED(DataHandler, data3, Tagged<MaybeObject>, kData3Offset,
+                  map()->instance_size() >= kSizeWithData3)
 
 }  // namespace internal
 }  // namespace v8

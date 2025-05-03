@@ -1104,12 +1104,13 @@ SecureContext* SecureContext::Create(Environment* env) {
 SecureContext::SecureContext(Environment* env, Local<Object> wrap)
     : BaseObject(env, wrap) {
   MakeWeak();
-  env->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+  env->external_memory_accounter()->Increase(env->isolate(), kExternalSize);
 }
 
 inline void SecureContext::Reset() {
   if (ctx_ != nullptr) {
-    env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+    env()->external_memory_accounter()->Decrease(env()->isolate(),
+                                                 kExternalSize);
   }
   ctx_.reset();
   cert_.reset();
@@ -1361,8 +1362,7 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
 
   CryptoErrorList errors;
   Utf8Value engine_id(env->isolate(), args[1]);
-  auto engine =
-      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
+  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {
@@ -1380,7 +1380,7 @@ void SecureContext::SetEngineKey(const FunctionCallbackInfo<Value>& args) {
   }
 
   Utf8Value key_name(env->isolate(), args[0]);
-  auto key = engine.loadPrivateKey(key_name.ToStringView());
+  auto key = engine.loadPrivateKey(*key_name);
 
   if (!key)
     return ThrowCryptoError(env, ERR_get_error(), "ENGINE_load_private_key");
@@ -1529,7 +1529,7 @@ void SecureContext::SetCipherSuites(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   const Utf8Value ciphers(env->isolate(), args[0]);
-  if (!sc->ctx_.setCipherSuites(ciphers.ToStringView())) {
+  if (!sc->ctx_.setCipherSuites(*ciphers)) {
     return ThrowCryptoError(env, ERR_get_error(), "Failed to set ciphers");
   }
 }
@@ -1871,8 +1871,7 @@ void SecureContext::SetClientCertEngine(
 
   CryptoErrorList errors;
   const Utf8Value engine_id(env->isolate(), args[0]);
-  auto engine =
-      EnginePointer::getEngineByName(engine_id.ToStringView(), &errors);
+  auto engine = EnginePointer::getEngineByName(*engine_id, &errors);
   if (!engine) {
     Local<Value> exception;
     if (errors.empty()) {

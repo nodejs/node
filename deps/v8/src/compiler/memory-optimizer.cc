@@ -529,7 +529,7 @@ void MemoryOptimizer::EnqueueUse(Node* node, int index,
   }
 }
 
-Graph* MemoryOptimizer::graph() const { return jsgraph()->graph(); }
+TFGraph* MemoryOptimizer::graph() const { return jsgraph()->graph(); }
 
 }  // namespace compiler
 }  // namespace internal
