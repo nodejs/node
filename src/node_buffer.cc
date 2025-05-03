@@ -544,20 +544,11 @@ void StringSlice(const FunctionCallbackInfo<Value>& args) {
   THROW_AND_RETURN_IF_OOB(Just(end <= buffer.length()));
   size_t length = end - start;
 
-  Local<Value> error;
-  MaybeLocal<Value> maybe_ret =
-      StringBytes::Encode(isolate,
-                          buffer.data() + start,
-                          length,
-                          encoding,
-                          &error);
   Local<Value> ret;
-  if (!maybe_ret.ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
-    return;
+  if (StringBytes::Encode(isolate, buffer.data() + start, length, encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(ret);
 }
 
 // Assume caller has properly validated args.
@@ -1525,11 +1516,11 @@ uint32_t FastWriteString(Local<Value> receiver,
       std::min<uint32_t>(dst.length() - offset, max_length));
 }
 
-static v8::CFunction fast_write_string_ascii(
+static const v8::CFunction fast_write_string_ascii(
     v8::CFunction::Make(FastWriteString<ASCII>));
-static v8::CFunction fast_write_string_latin1(
+static const v8::CFunction fast_write_string_latin1(
     v8::CFunction::Make(FastWriteString<LATIN1>));
-static v8::CFunction fast_write_string_utf8(
+static const v8::CFunction fast_write_string_utf8(
     v8::CFunction::Make(FastWriteString<UTF8>));
 
 void Initialize(Local<Object> target,

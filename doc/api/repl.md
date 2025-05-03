@@ -258,8 +258,7 @@ undefined
 ```
 
 One known limitation of using the `await` keyword in the REPL is that
-it will invalidate the lexical scoping of the `const` and `let`
-keywords.
+it will invalidate the lexical scoping of the `const` keywords.
 
 For example:
 
@@ -268,10 +267,11 @@ For example:
 undefined
 > m
 123
-> const m = await Promise.resolve(234)
-undefined
-> m
+> m = await Promise.resolve(234)
 234
+// redeclaring the constant does error
+> const m = await Promise.resolve(345)
+Uncaught SyntaxError: Identifier 'm' has already been declared
 ```
 
 [`--no-experimental-repl-await`][] shall disable top-level await in REPL.
@@ -666,11 +666,14 @@ with REPL instances programmatically.
 
 <!-- YAML
 added: v14.5.0
+deprecated: REPLACEME
 -->
+
+> Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.
 
 * {string\[]}
 
-A list of the names of all Node.js modules, e.g., `'http'`.
+A list of the names of some Node.js modules, e.g., `'http'`.
 
 ## `repl.start([options])`
 
@@ -929,6 +932,7 @@ avoiding open network interfaces.
 [`ERR_INVALID_REPL_INPUT`]: errors.md#err_invalid_repl_input
 [`curl(1)`]: https://curl.haxx.se/docs/manpage.html
 [`domain`]: domain.md
+[`module.builtinModules`]: module.md#modulebuiltinmodules
 [`process.setUncaughtExceptionCaptureCallback()`]: process.md#processsetuncaughtexceptioncapturecallbackfn
 [`readline.InterfaceCompleter`]: readline.md#use-of-the-completer-function
 [`repl.ReplServer`]: #class-replserver

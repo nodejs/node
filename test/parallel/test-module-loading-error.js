@@ -28,7 +28,7 @@ const errorMessagesByPlatform = {
   win32: ['is not a valid Win32 application'],
   linux: ['file too short', 'Exec format error'],
   sunos: ['unknown file type', 'not an ELF file'],
-  darwin: ['file too short', 'not a mach-o file'],
+  darwin: ['file too short', 'not a mach-o file', 'not valid mach-o file'],
   aix: ['Cannot load module',
         'Cannot run a file that does not have a valid format.',
         'Exec format error'],

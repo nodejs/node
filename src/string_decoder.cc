@@ -28,7 +28,6 @@ MaybeLocal<String> MakeString(Isolate* isolate,
                               const char* data,
                               size_t length,
                               enum encoding encoding) {
-  Local<Value> error;
   MaybeLocal<Value> ret;
   if (encoding == UTF8) {
     MaybeLocal<String> utf8_string;
@@ -43,17 +42,11 @@ MaybeLocal<String> MakeString(Isolate* isolate,
       return utf8_string;
     }
   } else {
-    ret = StringBytes::Encode(
-        isolate,
-        data,
-        length,
-        encoding,
-        &error);
+    ret = StringBytes::Encode(isolate, data, length, encoding);
   }
 
   if (ret.IsEmpty()) {
-    CHECK(!error.IsEmpty());
-    isolate->ThrowException(error);
+    return {};
   }
 
   DCHECK(ret.IsEmpty() || ret.ToLocalChecked()->IsString());
