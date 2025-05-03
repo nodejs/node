@@ -192,6 +192,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         '  strictEqual(e instanceof SyntaxError, true);',
         '  strictEqual(e.message.includes("Source phase import object is not defined for module"), true);',
         `  strictEqual(e.message.includes(${JSON.stringify(fileUrl)}), true);`,
+        `  return true`,
         '});',
       ].join('\n'),
     ]);
