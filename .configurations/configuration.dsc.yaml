@@ -1,4 +1,5 @@
 # yaml-language-server: $schema=https://aka.ms/configuration-dsc-schema/0.2
+
 # Reference: https://github.com/nodejs/node/blob/main/BUILDING.md#windows
 properties:
   resources:
