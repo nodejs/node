@@ -3391,12 +3391,14 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (preserve_timestamps) {
-    struct stat fileStat;
-    stat(*src, &fileStat);
-    struct utimbuf dest_times;
-    dest_times.actime = fileStat.st_atim.tv_sec;
-    dest_times.modtime = fileStat.st_mtime;
-    utime(*dest, &dest_times);
+    uv_fs_t req = uv_fs_t();
+    uv_fs_stat(env->event_loop(), &req, *src, nullptr);
+    const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
+    FSReqWrapSync req_wrap_sync("utime", *dest);
+    const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
+    const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
+    SyncCallAndThrowOnError(
+        env, &req_wrap_sync, uv_fs_utime, *dest, source_atime, source_mtime);
   }
 }
 
