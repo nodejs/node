@@ -6,6 +6,7 @@ const assert = require('node:assert');
 // Verify that ALS instances are independent of each other.
 
 {
+  // Verify als2.enterWith() and als2.run inside als1.run()
   const als1 = new AsyncLocalStorage();
   const als2 = new AsyncLocalStorage();
 
@@ -33,6 +34,7 @@ const assert = require('node:assert');
 }
 
 {
+  // Verify als1.disable() has no side effects to als2 and als3
   const als1 = new AsyncLocalStorage();
   const als2 = new AsyncLocalStorage();
   const als3 = new AsyncLocalStorage();
