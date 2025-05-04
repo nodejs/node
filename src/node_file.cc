@@ -3377,12 +3377,20 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   THROW_IF_INSUFFICIENT_PERMISSIONS(
       env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
-  std::filesystem::remove(*dest);
+  std::error_code error;
+
+  std::filesystem::remove(*dest, error);
+  if (error) {
+    return env->ThrowError(error.message().c_str());
+  }
 
   if (mode == 0) {
     // if no mode is specified use the faster std::filesystem API
     std::filesystem::copy_file(
-        *src, *dest, std::filesystem::copy_options::skip_existing);
+        *src, *dest, std::filesystem::copy_options::skip_existing, error);
+    if (error) {
+      return env->ThrowError(error.message().c_str());
+    }
   } else {
     // if a mode is specified fallback to libuv instead
     FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
