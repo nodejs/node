@@ -689,13 +689,9 @@ class NonCopyableMaybe {
 };
 
 // Test whether some value can be called with ().
-template <typename T, typename = void>
-struct is_callable : std::is_function<T> { };
-
 template <typename T>
-struct is_callable<T, typename std::enable_if<
-    std::is_same<decltype(void(&T::operator())), void>::value
-    >::type> : std::true_type { };
+concept is_callable =
+    std::is_function<T>::value || requires { &T::operator(); };
 
 template <typename T, void (*function)(T*)>
 struct FunctionDeleter {
