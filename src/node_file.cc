@@ -37,12 +37,12 @@
 
 #include "tracing/trace_event.h"
 
+#include <utime.h>
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
 #include "uv.h"
 #include "v8-fast-api-calls.h"
-#include <utime.h>
 
 #include <filesystem>
 
@@ -3355,7 +3355,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
 
-  CHECK_EQ(args.Length(), 4); // src, dest, mode, preserveTimestamps
+  CHECK_EQ(args.Length(), 4);  // src, dest, mode, preserveTimestamps
 
   BufferValue src(isolate, args[0]);
   CHECK_NOT_NULL(*src);
@@ -3373,22 +3373,21 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   bool preserve_timestamps = args[3]->IsTrue();
 
   THROW_IF_INSUFFICIENT_PERMISSIONS(
-    env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
+      env, permission::PermissionScope::kFileSystemRead, src.ToStringView());
   THROW_IF_INSUFFICIENT_PERMISSIONS(
-    env,
-    permission::PermissionScope::kFileSystemWrite,
-    dest.ToStringView());
+      env, permission::PermissionScope::kFileSystemWrite, dest.ToStringView());
 
   std::filesystem::remove(*dest);
 
   if (mode == 0) {
     // if no mode is specified use the faster std::filesystem API
-    std::filesystem::copy_file(*src, *dest, std::filesystem::copy_options::skip_existing);
+    std::filesystem::copy_file(
+        *src, *dest, std::filesystem::copy_options::skip_existing);
   } else {
     // if a mode is specified fallback to libuv instead
     FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
     SyncCallAndThrowOnError(
-      env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, mode);
+        env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, mode);
   }
 
   if (preserve_timestamps) {
