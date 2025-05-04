@@ -742,7 +742,7 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
-    return sourceStr->Utf8Length(isolate);
+    return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
   // For short inputs, the function call overhead to simdutf is maybe
