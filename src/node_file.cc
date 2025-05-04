@@ -44,6 +44,7 @@
 #include "uv.h"
 #include "v8-fast-api-calls.h"
 
+#include <cstdio>
 #include <filesystem>
 
 #if defined(__MINGW32__) || defined(_MSC_VER)
@@ -3392,21 +3393,29 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
       return env->ThrowError(error.message().c_str());
     }
   } else {
-    // if a mode is specified fallback to libuv instead
-    FSReqWrapSync req_wrap_sync("copyfile", *src, *dest);
-    SyncCallAndThrowOnError(
-        env, &req_wrap_sync, uv_fs_copyfile, *src, *dest, mode);
+    uv_fs_t req;
+    int result = uv_fs_copyfile(nullptr, &req, *src, *dest, mode, nullptr);
+    if (is_uv_error(result)) {
+      return env->ThrowUVException(result, "copyfile", nullptr, *src, *dest);
+    }
   }
 
   if (preserve_timestamps) {
-    uv_fs_t req = uv_fs_t();
-    uv_fs_stat(env->event_loop(), &req, *src, nullptr);
+    uv_fs_t req;
+    int result = uv_fs_stat(nullptr, &req, *src, nullptr);
+    if (is_uv_error(result)) {
+      return env->ThrowUVException(result, "stat", nullptr, *src);
+    }
+
     const uv_stat_t* const s = static_cast<const uv_stat_t*>(req.ptr);
-    FSReqWrapSync req_wrap_sync("utime", *dest);
     const double source_atime = s->st_atim.tv_sec + s->st_atim.tv_nsec / 1e9;
     const double source_mtime = s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
-    SyncCallAndThrowOnError(
-        env, &req_wrap_sync, uv_fs_utime, *dest, source_atime, source_mtime);
+
+    int utime_result =
+        uv_fs_utime(nullptr, &req, *dest, source_atime, source_mtime, nullptr);
+    if (is_uv_error(utime_result)) {
+      return env->ThrowUVException(utime_result, "utime", nullptr, *dest);
+    }
   }
 }
 
