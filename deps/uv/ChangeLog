@@ -1,4 +1,94 @@
-2025.01.15, Version 1.50.0 (Stable)
+2025.04.25, Version 1.51.0 (Stable)
+
+Changes since version 1.50.0:
+
+* win: fix leak in uv_os_tmpdir (Saúl Ibarra Corretgé)
+
+* docs: fix RTD build (Saúl Ibarra Corretgé)
+
+* win: lazy-load [GS]etThreadDescription symbols (Ben Noordhuis)
+
+* linux: try preadv64/pwritev64 before preadv/pwritev (Ben Noordhuis)
+
+* win: check cwd length before spawning a child process (Morten Engelhardt
+  Olsen)
+
+* macos,bsd: handle missing /dev/null in chroot env (Andrey)
+
+* doc: fix README link text (Julio Jordán)
+
+* win: fix order of FILE_STAT_BASIC_INFORMATION struct fields (Hüseyin Açacak)
+
+* macos: increase child process stdio buffer size (Jinho Jang)
+
+* doc: add C3 bindings to LINKS.md (Velikiy Kirill)
+
+* unix: remove unnecessary errno.h include in poll.c (Juan José Arboleda)
+
+* win: fix the inconsistency in volume serial number (Hüseyin Açacak)
+
+* unix: add thread affinity support on openharmony (rainlow)
+
+* unix: enable getrusage for SunOS (Paolo Insogna)
+
+* unix,win: accept NAN/INFINITY as file timestamps (Ben Noordhuis)
+
+* win: add ENABLE_VIRTUAL_TERMINAL_INPUT raw tty mode (Anna Henningsen)
+
+* test: handle UV_ENOTSUP in platform_output (cjihrig)
+
+* doc: fix rendering of threading.html (Tobias Nießen)
+
+* unix,sunos: enable use of sendmmsg on Solaris and Illumos (Stacey Marshall)
+
+* unix: handle out of memory in iface name copy (Ben Noordhuis)
+
+* openbsd: do not error out if cpuspeed is not available (Robert Nagy)
+
+* test: skip thread_name_threadpool on AIX/IBMi (Abdirahim Musse)
+
+* aix,ibmi: fix undeclared identifiers (Richard Lau)
+
+* unix,sunos: prefer SO_REUSEPORT for load balancing (Stacey Marshall)
+
+* doc: free lib pointer before function return (mugitya03)
+
+* test: link with libm (Juan José Arboleda)
+
+* style: rename parameter to match definition (Mohammed Keyvanzadeh)
+
+* test: support partial output lines in test runner (cjihrig)
+
+* build: switch from c90 to c11 (Ben Noordhuis)
+
+* linux: allow nul bytes in abstract socket address (Itay Bookstein)
+
+* sunos: use pipe2 on solaris and illumos (Andy Pan)
+
+* unix: remove TOCTOU issues from uv_pipe_chmod (Ben Noordhuis)
+
+* unix: use pipe_fname if getsockname returns nothing (crupest)
+
+* haiku: use uint32 instead of uint32_t (AE1020)
+
+* doc: update thread pool stack size comment (Ben Noordhuis)
+
+* unix: improve uv_loop_init OOM handling (Ben Noordhuis)
+
+* test: merge uv_tcp_connect callbacks (Juan José Arboleda)
+
+* test: skip multievent tests on macOS with TSAN enabled (Juan José Arboleda)
+
+* linux: align CPU quota calculation with Rust (Juan José Arboleda)
+
+* kqueue: improve fs event watcher OOM handling (Juan José Arboleda)
+
+* sunos: improve fs event watcher OOM handling (Juan José Arboleda)
+
+* build: shorten instructions for cmake build (Juan José Arboleda)
+
+
+2025.01.15, Version 1.50.0 (Stable), 8fb9cb919489a48880680a56efecff6a7dfb4504
 
 Changes since version 1.49.2:
 

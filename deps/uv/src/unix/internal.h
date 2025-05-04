@@ -257,7 +257,12 @@ void uv__make_close_pending(uv_handle_t* handle);
 int uv__getiovmax(void);
 
 void uv__io_init(uv__io_t* w, uv__io_cb cb, int fd);
-void uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events);
+int uv__io_start(uv_loop_t* loop, uv__io_t* w, unsigned int events);
+int uv__io_init_start(uv_loop_t* loop,
+                      uv__io_t* w,
+                      uv__io_cb cb,
+                      int fd,
+                      unsigned int events);
 void uv__io_stop(uv_loop_t* loop, uv__io_t* w, unsigned int events);
 void uv__io_close(uv_loop_t* loop, uv__io_t* w);
 void uv__io_feed(uv_loop_t* loop, uv__io_t* w);
@@ -489,13 +494,7 @@ uv__fs_copy_file_range(int fd_in,
 #endif
 
 #ifdef __linux__
-typedef struct {
-  long long quota_per_period;
-  long long period_length;
-  double proportions;
-} uv__cpu_constraint;
-
-int uv__get_constrained_cpu(uv__cpu_constraint* constraint);
+int uv__get_constrained_cpu(long long* quota);
 #endif
 
 #if defined(__sun) && !defined(__illumos__)

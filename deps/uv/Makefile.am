@@ -206,12 +206,13 @@ test_run_tests_SOURCES = test/blackhole-server.c \
                          test/test-ipc-send-recv.c \
                          test/test-ipc.c \
                          test/test-list.h \
-                         test/test-loop-handles.c \
                          test/test-loop-alive.c \
                          test/test-loop-close.c \
+                         test/test-loop-configure.c \
+                         test/test-loop-handles.c \
+                         test/test-loop-oom.c \
                          test/test-loop-stop.c \
                          test/test-loop-time.c \
-                         test/test-loop-configure.c \
                          test/test-metrics.c \
                          test/test-multiple-listen.c \
                          test/test-mutexes.c \
