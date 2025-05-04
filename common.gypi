@@ -80,6 +80,7 @@
     # Variables controlling external defines exposed in public headers.
     'v8_enable_map_packing%': 0,
     'v8_enable_pointer_compression_shared_cage%': 0,
+    'v8_enable_external_code_space%': 0,
     'v8_enable_sandbox%': 0,
     'v8_enable_v8_checks%': 0,
     'v8_enable_zone_compression%': 0,
@@ -113,6 +114,7 @@
       ['target_arch in "arm ia32 mips mipsel"', {
         'v8_enable_pointer_compression': 0,
         'v8_enable_31bit_smis_on_64bit_arch': 0,
+        'v8_enable_external_code_space': 0,
         'v8_enable_sandbox': 0
       }],
       ['target_arch in "ppc64 s390x"', {
@@ -455,6 +457,9 @@
       }],
       ['v8_enable_sandbox == 1', {
         'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_enable_external_code_space == 1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
       }],
       ['v8_deprecation_warnings == 1', {
         'defines': ['V8_DEPRECATION_WARNINGS',],
