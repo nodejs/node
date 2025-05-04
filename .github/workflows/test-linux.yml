@@ -6,6 +6,8 @@ on:
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
+      - doc/**
+      - '!tools/doc/*'
     types: [opened, synchronize, reopened, ready_for_review]
   push:
     branches:
@@ -17,6 +19,8 @@ on:
       - README.md
       - .github/**
       - '!.github/workflows/test-linux.yml'
+      - doc/**
+      - '!tools/doc/*'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.head_ref || github.run_id }}
