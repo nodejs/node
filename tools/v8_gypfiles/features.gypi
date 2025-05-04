@@ -252,6 +252,11 @@
     # Sets -DV8_ENABLE_SANDBOX.
     'v8_enable_sandbox%': 0,
 
+    # Enable support for external code range relative to the pointer compression
+    # cage.
+    # Sets -DV8_EXTERNAL_CODE_SPACE.
+    'v8_enable_external_code_space%': 0,
+
     # Experimental feature for collecting per-class zone memory stats.
     # Requires use_rtti = true
     'v8_enable_precise_zone_stats%': 0,
@@ -383,6 +388,9 @@
       }],
       ['v8_enable_sandbox==1', {
         'defines': ['V8_ENABLE_SANDBOX',],
+      }],
+      ['v8_enable_external_code_space==1', {
+        'defines': ['V8_EXTERNAL_CODE_SPACE',],
       }],
       ['v8_enable_object_print==1', {
         'defines': ['OBJECT_PRINT',],
