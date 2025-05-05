@@ -1077,6 +1077,9 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/TODO
+    description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
@@ -1092,7 +1095,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3136,6 +3139,9 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/TODO
+    description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
@@ -3152,7 +3158,7 @@ changes:
 * `pattern` {string|string\[]}
 
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -5689,6 +5695,9 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/TODO
+    description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
@@ -5704,7 +5713,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
