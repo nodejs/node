@@ -37,7 +37,6 @@
 
 #include "tracing/trace_event.h"
 
-#include <utime.h>
 #include "req_wrap-inl.h"
 #include "stream_base-inl.h"
 #include "string_bytes.h"
@@ -3394,6 +3393,8 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
     }
   } else {
     uv_fs_t req;
+    auto cleanup =
+        OnScopeLeave([&mkstemp_req]() { uv_fs_req_cleanup(&req); });
     int result = uv_fs_copyfile(nullptr, &req, *src, *dest, mode, nullptr);
     if (is_uv_error(result)) {
       return env->ThrowUVException(result, "copyfile", nullptr, *src, *dest);
