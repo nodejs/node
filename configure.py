@@ -81,7 +81,7 @@ shared_builtin_optgroup = parser.add_argument_group("Shared builtins",
     "Flags that allows you to control whether you want to build against "
     "internal builtins or shared files.")
 
-# Options should be in alphabetical order but keep --prefix at the top,
+# Option should be in alphabetical order but keep --prefix at the top,
 # that's arguably the one people will be looking for most.
 parser.add_argument('--prefix',
     action='store',
