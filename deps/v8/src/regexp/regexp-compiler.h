@@ -379,9 +379,9 @@ class Trace {
   TriBool at_start_;
 };
 
-class GreedyLoopState {
+class FixedLengthLoopState {
  public:
-  explicit GreedyLoopState(bool not_at_start);
+  explicit FixedLengthLoopState(bool not_at_start);
 
   Label* label() { return &label_; }
   Trace* counter_backtrack_trace() { return &counter_backtrack_trace_; }
