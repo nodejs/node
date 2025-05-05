@@ -3381,7 +3381,11 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
 
   std::filesystem::remove(*dest, error);
   if (error) {
-    return env->ThrowError(error.message().c_str());
+    auto dest_path = BufferValueToPath(dest);
+    auto dest_path_str = PathToString(dest_path);
+    std::string message = "operation not permitted, unlink";
+    return env->ThrowErrnoException(
+      EPERM, "unlink", message.c_str(), dest_path.c_str());
   }
 
   if (mode == 0) {
