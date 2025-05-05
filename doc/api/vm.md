@@ -1042,13 +1042,13 @@ changes:
   * `contextExtensions` {Object\[]} An array containing a collection of context
     extensions (objects wrapping the current scope) to be applied while
     compiling. **Default:** `[]`.
-* `importModuleDynamically`
-  {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
-  Used to specify the how the modules should be loaded during the evaluation of
-  this function when `import()` is called. This option is part of the
-  experimental modules API. We do not recommend using it in a production
-  environment. For detailed information, see
-  [Support of dynamic `import()` in compilation APIs][].
+  * `importModuleDynamically`
+    {Function|vm.constants.USE\_MAIN\_CONTEXT\_DEFAULT\_LOADER}
+    Used to specify the how the modules should be loaded during the evaluation of
+    this function when `import()` is called. This option is part of the
+    experimental modules API. We do not recommend using it in a production
+    environment. For detailed information, see
+    [Support of dynamic `import()` in compilation APIs][].
 * Returns: {Function}
 
 Compiles the given code into the provided context (if no context is
