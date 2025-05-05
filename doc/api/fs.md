@@ -1078,7 +1078,7 @@ behavior is similar to `cp dir1/ dir2/`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/TODO
+    pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
@@ -3140,7 +3140,7 @@ descriptor. See [`fs.utimes()`][].
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/TODO
+    pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
@@ -5696,7 +5696,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 added: v22.0.0
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/TODO
+    pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
