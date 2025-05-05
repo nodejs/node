@@ -3385,7 +3385,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
     auto dest_path_str = PathToString(dest_path);
     std::string message = "operation not permitted, unlink";
     return env->ThrowErrnoException(
-      EPERM, "unlink", message.c_str(), dest_path.c_str());
+        EPERM, "unlink", message.c_str(), dest_path.c_str());
   }
 
   if (mode == 0) {
@@ -3397,8 +3397,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
     }
   } else {
     uv_fs_t req;
-    auto cleanup =
-        OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+    auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
     int result = uv_fs_copyfile(nullptr, &req, *src, *dest, mode, nullptr);
     if (is_uv_error(result)) {
       return env->ThrowUVException(result, "copyfile", nullptr, *src, *dest);
@@ -3407,8 +3406,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
 
   if (preserve_timestamps) {
     uv_fs_t req;
-    auto cleanup =
-      OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
+    auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
     int result = uv_fs_stat(nullptr, &req, *src, nullptr);
     if (is_uv_error(result)) {
       return env->ThrowUVException(result, "stat", nullptr, *src);
