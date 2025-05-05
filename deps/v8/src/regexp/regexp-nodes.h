@@ -14,7 +14,7 @@ namespace internal {
 
 class AlternativeGenerationList;
 class BoyerMooreLookahead;
-class GreedyLoopState;
+class FixedLengthLoopState;
 class NodeVisitor;
 class QuickCheckDetails;
 class RegExpCompiler;
@@ -185,8 +185,10 @@ class RegExpNode : public ZoneObject {
                                                  RegExpCompiler* compiler,
                                                  int characters_filled_in,
                                                  bool not_at_start);
-  static const int kNodeIsTooComplexForGreedyLoops = kMinInt;
-  virtual int GreedyLoopTextLength() { return kNodeIsTooComplexForGreedyLoops; }
+  static const int kNodeIsTooComplexForFixedLengthLoops = kMinInt;
+  virtual int FixedLengthLoopLength() {
+    return kNodeIsTooComplexForFixedLengthLoops;
+  }
   // Only returns the successor for a text node of length 1 that matches any
   // character and that has no guards on it.
   virtual RegExpNode* GetSuccessorOfOmnivorousTextNode(
@@ -366,9 +368,9 @@ class ActionNode : public SeqRegExpNode {
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
                     BoyerMooreLookahead* bm, bool not_at_start) override;
   ActionType action_type() const { return action_type_; }
-  // TODO(erikcorry): We should allow some action nodes in greedy loops.
-  int GreedyLoopTextLength() override {
-    return kNodeIsTooComplexForGreedyLoops;
+  // TODO(erikcorry): We should allow some action nodes in fixed length loops.
+  int FixedLengthLoopLength() override {
+    return kNodeIsTooComplexForFixedLengthLoops;
   }
   RegExpFlags flags() const {
     DCHECK_EQ(action_type(), MODIFY_FLAGS);
@@ -458,7 +460,7 @@ class TextNode : public SeqRegExpNode {
   bool read_backward() { return read_backward_; }
   void MakeCaseIndependent(Isolate* isolate, bool is_one_byte,
                            RegExpFlags flags);
-  int GreedyLoopTextLength() override;
+  int FixedLengthLoopLength() override;
   RegExpNode* GetSuccessorOfOmnivorousTextNode(
       RegExpCompiler* compiler) override;
   void FillInBMInfo(Isolate* isolate, int offset, int budget,
@@ -660,7 +662,7 @@ class ChoiceNode : public RegExpNode {
   virtual bool read_backward() { return false; }
 
  protected:
-  int GreedyLoopTextLengthForAlternative(GuardedAlternative* alternative);
+  int FixedLengthLoopLengthForAlternative(GuardedAlternative* alternative);
   ZoneList<GuardedAlternative>* alternatives_;
 
  private:
@@ -679,10 +681,11 @@ class ChoiceNode : public RegExpNode {
                     PreloadState* preloads);
   void AssertGuardsMentionRegisters(Trace* trace);
   int EmitOptimizedUnanchoredSearch(RegExpCompiler* compiler, Trace* trace);
-  Trace* EmitGreedyLoop(RegExpCompiler* compiler, Trace* trace,
-                        AlternativeGenerationList* alt_gens,
-                        PreloadState* preloads,
-                        GreedyLoopState* greedy_loop_state, int text_length);
+  Trace* EmitFixedLengthLoop(RegExpCompiler* compiler, Trace* trace,
+                             AlternativeGenerationList* alt_gens,
+                             PreloadState* preloads,
+                             FixedLengthLoopState* fixed_length_loop_state,
+                             int text_length);
   void EmitChoices(RegExpCompiler* compiler,
                    AlternativeGenerationList* alt_gens, int first_choice,
                    Trace* trace, PreloadState* preloads);

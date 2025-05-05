@@ -283,7 +283,7 @@ void RegExpMacroAssemblerARM64::CheckCharacters(
   }
 }
 
-void RegExpMacroAssemblerARM64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerARM64::CheckFixedLengthLoop(Label* on_equal) {
   __ Ldr(w10, MemOperand(backtrack_stackpointer()));
   __ Cmp(current_input_offset(), w10);
   __ Cset(x11, eq);
