@@ -240,7 +240,7 @@ enum http_status_codes {
   V(VERSION_CONTROL, "VERSION-CONTROL")
 
 // NgHeaders takes as input a block of headers provided by the
-// JavaScript side (see http2's mapToHeaders function) and
+// JavaScript side (see http2's buildNgHeaderString function) and
 // converts it into a array of ng header structs. This is done
 // generically to handle both http/2 and (in the future) http/3,
 // which use nearly identical structs. The template parameter
@@ -414,8 +414,11 @@ class NgRcBufPointer : public MemoryRetainer {
         const char* header_name = reinterpret_cast<const char*>(ptr.data());
         v8::Eternal<v8::String>& eternal = static_str_map[header_name];
         if (eternal.IsEmpty()) {
-          v8::Local<v8::String> str =
-              GetInternalizedString(env, ptr).ToLocalChecked();
+          v8::Local<v8::String> str;
+          if (!GetInternalizedString(env, ptr).ToLocal(&str)) {
+            ptr.reset();
+            return {};
+          }
           eternal.Set(env->isolate(), str);
           return str;
         }

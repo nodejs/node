@@ -25,7 +25,9 @@ namespace {
 
 class MockPlatform final : public TestPlatform {
  public:
-  MockPlatform() : task_runner_(std::make_shared<MockTaskRunner>()) {}
+  MockPlatform()
+      : no_memory_reducer_(&v8_flags.memory_reducer, false),
+        task_runner_(std::make_shared<MockTaskRunner>()) {}
 
   ~MockPlatform() override {
     for (auto* job_handle : job_handles_) job_handle->ResetPlatform();
@@ -142,6 +144,7 @@ class MockPlatform final : public TestPlatform {
     MockPlatform* platform_;
   };
 
+  FlagScope<bool> no_memory_reducer_;
   std::shared_ptr<MockTaskRunner> task_runner_;
   std::unordered_set<MockJobHandle*> job_handles_;
 };
@@ -159,11 +162,11 @@ class TestInstantiateResolver : public InstantiationResultResolver {
       : isolate_(isolate), status_(status), error_message_(error_message) {}
 
   void OnInstantiationSucceeded(
-      i::Handle<i::WasmInstanceObject> instance) override {
+      i::DirectHandle<i::WasmInstanceObject> instance) override {
     *status_ = CompilationStatus::kFinished;
   }
 
-  void OnInstantiationFailed(i::Handle<i::Object> error_reason) override {
+  void OnInstantiationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(isolate_, error_reason).ToHandleChecked();
@@ -186,18 +189,19 @@ class TestCompileResolver : public CompilationResultResolver {
         isolate_(isolate),
         native_module_(native_module) {}
 
-  void OnCompilationSucceeded(i::Handle<i::WasmModuleObject> module) override {
+  void OnCompilationSucceeded(
+      i::DirectHandle<i::WasmModuleObject> module) override {
     if (!module.is_null()) {
       *native_module_ = module->shared_native_module();
       GetWasmEngine()->AsyncInstantiate(
           isolate_,
           std::make_unique<TestInstantiateResolver>(isolate_, status_,
                                                     error_message_),
-          module, MaybeHandle<JSReceiver>());
+          module, MaybeDirectHandle<JSReceiver>());
     }
   }
 
-  void OnCompilationFailed(i::Handle<i::Object> error_reason) override {
+  void OnCompilationFailed(i::DirectHandle<i::JSAny> error_reason) override {
     *status_ = CompilationStatus::kFailed;
     DirectHandle<String> str =
         Object::ToString(CcTest::i_isolate(), error_reason).ToHandleChecked();
@@ -278,9 +282,7 @@ COMPILE_TEST(TestEventMetrics) {
   WasmModuleBuilder* builder = zone.New<WasmModuleBuilder>(&zone);
   WasmFunctionBuilder* f = builder->AddFunction(sigs.i_v());
   f->builder()->AddExport(base::CStrVector("main"), f);
-  uint8_t code[] = {WASM_I32V_2(0)};
-  f->EmitCode(code, sizeof(code));
-  f->Emit(kExprEnd);
+  f->EmitCode({WASM_I32V_2(0), WASM_END});
   ZoneBuffer buffer(&zone);
   builder->WriteTo(&buffer);
 
@@ -288,12 +290,12 @@ COMPILE_TEST(TestEventMetrics) {
   CompilationStatus status = CompilationStatus::kPending;
   std::string error_message;
   std::shared_ptr<NativeModule> native_module;
+  base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(buffer);
   GetWasmEngine()->AsyncCompile(
       isolate, enabled_features, CompileTimeImports{},
       std::make_shared<TestCompileResolver>(&status, &error_message, isolate,
                                             &native_module),
-      ModuleWireBytes(buffer.begin(), buffer.end()), true,
-      "CompileAndInstantiateWasmModuleForTesting");
+      std::move(bytes), "CompileAndInstantiateWasmModuleForTesting");
 
   // Finish compilation tasks.
   while (status == CompilationStatus::kPending) {

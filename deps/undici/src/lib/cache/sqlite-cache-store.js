@@ -115,6 +115,11 @@ module.exports = class SqliteCacheStore {
     this.#db = new DatabaseSync(opts?.location ?? ':memory:')
 
     this.#db.exec(`
+      PRAGMA journal_mode = WAL;
+      PRAGMA synchronous = NORMAL;
+      PRAGMA temp_store = memory;
+      PRAGMA optimize;
+
       CREATE TABLE IF NOT EXISTS cacheInterceptorV${VERSION} (
         -- Data specific to us
         id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -134,9 +139,8 @@ module.exports = class SqliteCacheStore {
         staleAt INTEGER NOT NULL
       );
 
-      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_url ON cacheInterceptorV${VERSION}(url);
-      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_method ON cacheInterceptorV${VERSION}(method);
-      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_deleteAt ON cacheInterceptorV${VERSION}(deleteAt);
+      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_getValuesQuery ON cacheInterceptorV${VERSION}(url, method, deleteAt);
+      CREATE INDEX IF NOT EXISTS idx_cacheInterceptorV${VERSION}_deleteByUrlQuery ON cacheInterceptorV${VERSION}(deleteAt);
     `)
 
     this.#getValuesQuery = this.#db.prepare(`
@@ -346,7 +350,7 @@ module.exports = class SqliteCacheStore {
   }
 
   #prune () {
-    if (this.size <= this.#maxCount) {
+    if (Number.isFinite(this.#maxCount) && this.size <= this.#maxCount) {
       return 0
     }
 

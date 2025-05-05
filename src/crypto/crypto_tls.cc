@@ -431,7 +431,7 @@ TLSWrap::TLSWrap(Environment* env,
   StreamBase::AttachToObject(GetObject());
   stream->PushStreamListener(this);
 
-  env_->isolate()->AdjustAmountOfExternalAllocatedMemory(kExternalSize);
+  env_->external_memory_accounter()->Increase(env_->isolate(), kExternalSize);
 
   InitSSL();
   Debug(this, "Created new TLSWrap");
@@ -1317,7 +1317,7 @@ void TLSWrap::Destroy() {
   // And destroy
   InvokeQueued(UV_ECANCELED, "Canceled because of SSL destruction");
 
-  env()->isolate()->AdjustAmountOfExternalAllocatedMemory(-kExternalSize);
+  env()->external_memory_accounter()->Decrease(env()->isolate(), kExternalSize);
   ssl_.reset();
 
   enc_in_ = nullptr;
@@ -1868,7 +1868,7 @@ void TLSWrap::VerifyError(const FunctionCallbackInfo<Value>& args) {
                             .FromMaybe(Local<Object>());
 
   auto code = X509Pointer::ErrorCode(x509_verify_error);
-  if (Set(env, error, env->code_string(), code.data()))
+  if (Set(env, error, env->code_string(), code))
     args.GetReturnValue().Set(error);
 }
 

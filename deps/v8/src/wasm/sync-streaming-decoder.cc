@@ -16,13 +16,13 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
  public:
   SyncStreamingDecoder(Isolate* isolate, WasmEnabledFeatures enabled,
                        CompileTimeImports compile_imports,
-                       Handle<Context> context,
+                       DirectHandle<Context> context,
                        const char* api_method_name_for_errors,
                        std::shared_ptr<CompilationResultResolver> resolver)
       : isolate_(isolate),
         enabled_(enabled),
         compile_imports_(std::move(compile_imports)),
-        context_(context),
+        context_(indirect_handle(context)),
         api_method_name_for_errors_(api_method_name_for_errors),
         resolver_(resolver) {}
 
@@ -36,41 +36,42 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 
   void Finish(bool can_use_compiled_module) override {
     // We copy all received chunks into one byte buffer.
-    auto bytes = std::make_unique<uint8_t[]>(buffer_size_);
-    uint8_t* destination = bytes.get();
+    auto bytes = base::OwnedVector<uint8_t>::NewForOverwrite(buffer_size_);
+    uint8_t* destination = bytes.begin();
     for (auto& chunk : buffer_) {
       std::memcpy(destination, chunk.data(), chunk.size());
       destination += chunk.size();
     }
-    CHECK_EQ(destination - bytes.get(), buffer_size_);
+    CHECK_EQ(destination - bytes.begin(), buffer_size_);
 
     // Check if we can deserialize the module from cache.
     if (can_use_compiled_module && deserializing()) {
       HandleScope scope(isolate_);
       SaveAndSwitchContext saved_context(isolate_, *context_);
 
-      MaybeHandle<WasmModuleObject> module_object = DeserializeNativeModule(
-          isolate_, compiled_module_bytes_,
-          base::Vector<const uint8_t>(bytes.get(), buffer_size_),
-          compile_imports_, base::VectorOf(url()));
+      MaybeDirectHandle<WasmModuleObject> module_object =
+          DeserializeNativeModule(isolate_, compiled_module_bytes_,
+                                  bytes.as_vector(), compile_imports_,
+                                  base::VectorOf(url()));
 
       if (!module_object.is_null()) {
-        Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+        DirectHandle<WasmModuleObject> module = module_object.ToHandleChecked();
         resolver_->OnCompilationSucceeded(module);
         return;
       }
     }
 
     // Compile the received bytes synchronously.
-    ModuleWireBytes wire_bytes(bytes.get(), bytes.get() + buffer_size_);
     ErrorThrower thrower(isolate_, api_method_name_for_errors_);
-    MaybeHandle<WasmModuleObject> module_object = GetWasmEngine()->SyncCompile(
-        isolate_, enabled_, std::move(compile_imports_), &thrower, wire_bytes);
+    MaybeDirectHandle<WasmModuleObject> module_object =
+        GetWasmEngine()->SyncCompile(isolate_, enabled_,
+                                     std::move(compile_imports_), &thrower,
+                                     std::move(bytes));
     if (thrower.error()) {
       resolver_->OnCompilationFailed(thrower.Reify());
       return;
     }
-    Handle<WasmModuleObject> module = module_object.ToHandleChecked();
+    DirectHandle<WasmModuleObject> module = module_object.ToHandleChecked();
     resolver_->OnCompilationSucceeded(module);
   }
 
@@ -91,7 +92,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
   Isolate* isolate_;
   const WasmEnabledFeatures enabled_;
   CompileTimeImports compile_imports_;
-  Handle<Context> context_;
+  IndirectHandle<Context> context_;
   const char* api_method_name_for_errors_;
   std::shared_ptr<CompilationResultResolver> resolver_;
 
@@ -101,7 +102,7 @@ class V8_EXPORT_PRIVATE SyncStreamingDecoder : public StreamingDecoder {
 
 std::unique_ptr<StreamingDecoder> StreamingDecoder::CreateSyncStreamingDecoder(
     Isolate* isolate, WasmEnabledFeatures enabled,
-    CompileTimeImports compile_imports, Handle<Context> context,
+    CompileTimeImports compile_imports, DirectHandle<Context> context,
     const char* api_method_name_for_errors,
     std::shared_ptr<CompilationResultResolver> resolver) {
   return std::make_unique<SyncStreamingDecoder>(

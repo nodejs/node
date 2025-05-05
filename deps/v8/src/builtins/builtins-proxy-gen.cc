@@ -97,12 +97,11 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
       trap_undefined(this);
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  TNode<HeapObject> handler =
+  TNode<Union<Null, JSReceiver>> handler =
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -116,7 +115,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
   TNode<Object> trap = GetMethod(context, handler, trap_name, &trap_undefined);
 
   CodeStubArguments args(this, argc_ptr);
-  TNode<Object> receiver = args.GetReceiver();
+  TNode<JSAny> receiver = args.GetReceiver();
 
   // 7. Let argArray be CreateArrayFromList(argumentsList).
   TNode<JSArray> array = EmitFastNewAllArguments(
@@ -126,7 +125,7 @@ TF_BUILTIN(CallProxy, ProxiesCodeStubAssembler) {
 
   // 8. Return Call(trap, handler, «target, thisArgument, argArray»).
   TNode<Object> result = Call(context, trap, handler, target, receiver, array);
-  args.PopAndReturn(result);
+  args.PopAndReturn(CAST(result));
 
   BIND(&trap_undefined);
   {
@@ -153,12 +152,11 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
       trap_undefined(this), not_an_object(this, Label::kDeferred);
 
   // 1. Let handler be the value of the [[ProxyHandler]] internal slot of O.
-  TNode<HeapObject> handler =
+  TNode<Union<Null, JSReceiver>> handler =
       CAST(LoadObjectField(proxy, JSProxy::kHandlerOffset));
 
   // 2. If handler is null, throw a TypeError exception.
-  CSA_DCHECK(this, IsNullOrJSReceiver(handler));
-  GotoIfNot(JSAnyIsNotPrimitive(handler), &throw_proxy_handler_revoked);
+  GotoIf(IsNull(handler), &throw_proxy_handler_revoked);
 
   // 3. Assert: Type(handler) is Object.
   CSA_DCHECK(this, IsJSReceiver(handler));
@@ -180,7 +178,7 @@ TF_BUILTIN(ConstructProxy, ProxiesCodeStubAssembler) {
       UncheckedCast<IntPtrT>(args.GetLengthWithoutReceiver()));
 
   // 8. Let newObj be ? Call(trap, handler, « target, argArray, newTarget »).
-  TNode<Object> new_obj =
+  TNode<JSAny> new_obj =
       Call(context, trap, handler, target, array, new_target);
 
   // 9. If Type(newObj) is not Object, throw a TypeError exception.

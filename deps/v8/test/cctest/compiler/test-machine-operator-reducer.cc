@@ -8,7 +8,7 @@
 #include "src/compiler/js-graph.h"
 #include "src/compiler/machine-operator-reducer.h"
 #include "src/compiler/operator-properties.h"
-#include "src/compiler/typer.h"
+#include "src/compiler/turbofan-typer.h"
 #include "src/objects/objects-inl.h"
 #include "test/cctest/cctest.h"
 #include "test/common/value-helper.h"
@@ -100,7 +100,7 @@ class ReducerTester : public HandleAndZoneScope {
   const Operator* unop;
   MachineOperatorBuilder machine;
   CommonOperatorBuilder common;
-  Graph graph;
+  TFGraph graph;
   JSOperatorBuilder javascript;
   JSGraph jsgraph;
   Node* maxuint32;

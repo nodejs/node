@@ -5,12 +5,14 @@
 #ifndef V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_INL_H_
 #define V8_HEAP_CPPGC_JS_UNIFIED_HEAP_MARKING_STATE_INL_H_
 
+#include "src/heap/cppgc-js/unified-heap-marking-state.h"
+// Include the non-inl header before the rest of the headers.
+
 #include <atomic>
 
 #include "include/v8-traced-handle.h"
 #include "src/base/logging.h"
 #include "src/handles/traced-handles.h"
-#include "src/heap/cppgc-js/unified-heap-marking-state.h"
 #include "src/heap/heap.h"
 #include "src/heap/mark-compact.h"
 #include "src/heap/marking-inl.h"

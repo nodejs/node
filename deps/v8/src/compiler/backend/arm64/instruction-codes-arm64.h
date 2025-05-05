@@ -36,6 +36,7 @@ namespace compiler {
   IF_WASM(V, Arm64S128Load8x8S)                            \
   IF_WASM(V, Arm64S128Load8x8U)                            \
   IF_WASM(V, Arm64StoreLane)                               \
+  IF_WASM(V, Arm64S128LoadPairDeinterleave)                \
   V(Arm64Str)                                              \
   V(Arm64StrPair)                                          \
   V(Arm64Strb)                                             \
@@ -103,13 +104,22 @@ namespace compiler {
   V(Arm64S128AndNot)                    \
   V(Arm64Ssra)                          \
   V(Arm64Usra)                          \
+  V(Arm64S64x2UnzipLeft)                \
+  V(Arm64S64x2UnzipRight)               \
   V(Arm64S32x4ZipLeft)                  \
   V(Arm64S32x4ZipRight)                 \
   V(Arm64S32x4UnzipLeft)                \
   V(Arm64S32x4UnzipRight)               \
   V(Arm64S32x4TransposeLeft)            \
   V(Arm64S32x4TransposeRight)           \
+  V(Arm64S64x2Shuffle)                  \
+  V(Arm64S64x1Shuffle)                  \
   V(Arm64S32x4Shuffle)                  \
+  V(Arm64S32x2Shuffle)                  \
+  V(Arm64S32x1Shuffle)                  \
+  V(Arm64S16x2Shuffle)                  \
+  V(Arm64S16x1Shuffle)                  \
+  V(Arm64S8x2Shuffle)                   \
   V(Arm64S16x8ZipLeft)                  \
   V(Arm64S16x8ZipRight)                 \
   V(Arm64S16x8UnzipLeft)                \
@@ -348,6 +358,8 @@ namespace compiler {
   V(Arm64Float64SilenceNaN)                          \
   V(Arm64Float32ToFloat64)                           \
   V(Arm64Float64ToFloat32)                           \
+  V(Arm64Float64ToFloat16RawBits)                    \
+  V(Arm64Float16RawBitsToFloat64)                    \
   V(Arm64Float32ToInt32)                             \
   V(Arm64Float64ToInt32)                             \
   V(Arm64Float32ToUint32)                            \

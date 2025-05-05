@@ -91,7 +91,7 @@ transitioning javascript builtin PromiseRace(
           }
       }
     } catch (e, _message) deferred {
-      iterator::IteratorCloseOnException(i);
+      iterator::IteratorCloseOnException(i.object);
       goto Reject(e);
     }
   } label Reject(exception: JSAny) deferred {

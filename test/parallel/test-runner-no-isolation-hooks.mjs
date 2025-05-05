@@ -43,24 +43,28 @@ const order = [
   'after(): global',
   'after one: <root>',
   'after two: <root>',
-];
+].join('\n');
 
-test('Using --require to define global hooks works', async (t) => {
-  const spawned = await common.spawnPromisified(process.execPath, [
+test('use --import (CJS) to define global hooks', async (t) => {
+  const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--require', fixtures.path('test-runner', 'no-isolation', 'global-hooks.js'),
+    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.cjs'),
     ...testFiles,
   ]);
 
-  t.assert.ok(spawned.stdout.includes(order.join('\n')));
+  const testHookOutput = stdout.split('\n▶')[0];
+
+  t.assert.equal(testHookOutput, order);
 });
 
-test('Using --import to define global hooks works', async (t) => {
-  const spawned = await common.spawnPromisified(process.execPath, [
+test('use --import (ESM) to define global hooks', async (t) => {
+  const { stdout } = await common.spawnPromisified(process.execPath, [
     ...testArguments,
-    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.js'),
+    '--import', fixtures.fileURL('test-runner', 'no-isolation', 'global-hooks.mjs'),
     ...testFiles,
   ]);
 
-  t.assert.ok(spawned.stdout.includes(order.join('\n')));
+  const testHookOutput = stdout.split('\n▶')[0];
+
+  t.assert.equal(testHookOutput, order);
 });

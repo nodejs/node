@@ -14,29 +14,44 @@
 
 #include "absl/hash/internal/low_level_hash.h"
 
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 
+#include "absl/base/config.h"
 #include "absl/base/internal/unaligned_access.h"
+#include "absl/base/optimization.h"
 #include "absl/base/prefetch.h"
 #include "absl/numeric/int128.h"
 
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace hash_internal {
-
-static uint64_t Mix(uint64_t v0, uint64_t v1) {
+namespace {
+uint64_t Mix(uint64_t v0, uint64_t v1) {
   absl::uint128 p = v0;
   p *= v1;
   return absl::Uint128Low64(p) ^ absl::Uint128High64(p);
 }
+uint64_t Mix32Bytes(const uint8_t* ptr, uint64_t current_state,
+                    const uint64_t salt[5]) {
+  uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
+  uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
+  uint64_t c = absl::base_internal::UnalignedLoad64(ptr + 16);
+  uint64_t d = absl::base_internal::UnalignedLoad64(ptr + 24);
 
-uint64_t LowLevelHashLenGt16(const void* data, size_t len, uint64_t seed,
+  uint64_t cs0 = Mix(a ^ salt[1], b ^ current_state);
+  uint64_t cs1 = Mix(c ^ salt[2], d ^ current_state);
+  return cs0 ^ cs1;
+}
+}  // namespace
+
+uint64_t LowLevelHashLenGt32(const void* data, size_t len, uint64_t seed,
                              const uint64_t salt[5]) {
+  assert(len > 32);
   const uint8_t* ptr = static_cast<const uint8_t*>(data);
-  uint64_t starting_length = static_cast<uint64_t>(len);
-  const uint8_t* last_16_ptr = ptr + starting_length - 16;
-  uint64_t current_state = seed ^ salt[0];
+  uint64_t current_state = seed ^ salt[0] ^ len;
+  const uint8_t* last_32_ptr = ptr + len - 32;
 
   if (len > 64) {
     // If we have more than 64 bytes, we're going to handle chunks of 64
@@ -76,71 +91,13 @@ uint64_t LowLevelHashLenGt16(const void* data, size_t len, uint64_t seed,
   // We now have a data `ptr` with at most 64 bytes and the current state
   // of the hashing state machine stored in current_state.
   if (len > 32) {
-    uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
-    uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
-    uint64_t c = absl::base_internal::UnalignedLoad64(ptr + 16);
-    uint64_t d = absl::base_internal::UnalignedLoad64(ptr + 24);
-
-    uint64_t cs0 = Mix(a ^ salt[1], b ^ current_state);
-    uint64_t cs1 = Mix(c ^ salt[2], d ^ current_state);
-    current_state = cs0 ^ cs1;
-
-    ptr += 32;
-    len -= 32;
+    current_state = Mix32Bytes(ptr, current_state, salt);
   }
 
   // We now have a data `ptr` with at most 32 bytes and the current state
-  // of the hashing state machine stored in current_state.
-  if (len > 16) {
-    uint64_t a = absl::base_internal::UnalignedLoad64(ptr);
-    uint64_t b = absl::base_internal::UnalignedLoad64(ptr + 8);
-
-    current_state = Mix(a ^ salt[1], b ^ current_state);
-  }
-
-  // We now have a data `ptr` with at least 1 and at most 16 bytes. But we can
-  // safely read from `ptr + len - 16`.
-  uint64_t a = absl::base_internal::UnalignedLoad64(last_16_ptr);
-  uint64_t b = absl::base_internal::UnalignedLoad64(last_16_ptr + 8);
-
-  return Mix(a ^ salt[1] ^ starting_length, b ^ current_state);
-}
-
-uint64_t LowLevelHash(const void* data, size_t len, uint64_t seed,
-                      const uint64_t salt[5]) {
-  if (len > 16) return LowLevelHashLenGt16(data, len, seed, salt);
-
-  // Prefetch the cacheline that data resides in.
-  PrefetchToLocalCache(data);
-  const uint8_t* ptr = static_cast<const uint8_t*>(data);
-  uint64_t starting_length = static_cast<uint64_t>(len);
-  uint64_t current_state = seed ^ salt[0];
-  if (len == 0) return current_state;
-
-  uint64_t a = 0;
-  uint64_t b = 0;
-
-  // We now have a data `ptr` with at least 1 and at most 16 bytes.
-  if (len > 8) {
-    // When we have at least 9 and at most 16 bytes, set A to the first 64
-    // bits of the input and B to the last 64 bits of the input. Yes, they
-    // will overlap in the middle if we are working with less than the full 16
-    // bytes.
-    a = absl::base_internal::UnalignedLoad64(ptr);
-    b = absl::base_internal::UnalignedLoad64(ptr + len - 8);
-  } else if (len > 3) {
-    // If we have at least 4 and at most 8 bytes, set A to the first 32
-    // bits and B to the last 32 bits.
-    a = absl::base_internal::UnalignedLoad32(ptr);
-    b = absl::base_internal::UnalignedLoad32(ptr + len - 4);
-  } else {
-    // If we have at least 1 and at most 3 bytes, read 2 bytes into A and the
-    // other byte into B, with some adjustments.
-    a = static_cast<uint64_t>((ptr[0] << 8) | ptr[len - 1]);
-    b = static_cast<uint64_t>(ptr[len >> 1]);
-  }
-
-  return Mix(a ^ salt[1] ^ starting_length, b ^ current_state);
+  // of the hashing state machine stored in current_state. But we can
+  // safely read from `ptr + len - 32`.
+  return Mix32Bytes(last_32_ptr, current_state, salt);
 }
 
 }  // namespace hash_internal

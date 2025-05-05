@@ -553,29 +553,6 @@ appends a hint suggesting that if the root CA is installed locally,
 try running with the `--use-system-ca` flag to direct developers towards a
 secure solution, to prevent unsafe workarounds.
 
-## Class: `tls.CryptoStream`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-> Stability: 0 - Deprecated: Use [`tls.TLSSocket`][] instead.
-
-The `tls.CryptoStream` class represents a stream of encrypted data. This class
-is deprecated and should no longer be used.
-
-### `cryptoStream.bytesWritten`
-
-<!-- YAML
-added: v0.3.4
-deprecated: v0.11.3
--->
-
-The `cryptoStream.bytesWritten` property returns the total number of bytes
-written to the underlying socket _including_ the bytes required for the
-implementation of the TLS protocol.
-
 ## Class: `tls.Server`
 
 <!-- YAML
@@ -2286,7 +2263,9 @@ The server can be tested by connecting to it using the example client from
 ## `tls.getCACertificates([type])`
 
 <!-- YAML
-added: v23.10.0
+added:
+  - v23.10.0
+  - v22.15.0
 -->
 
 * `type` {string|undefined} The type of CA certificates that will be returned. Valid values

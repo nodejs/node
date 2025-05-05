@@ -540,7 +540,7 @@ Maybe<void> EcKeyGenTraits::AdditionalConfig(
   CHECK(args[*offset + 1]->IsInt32());  // param encoding
 
   Utf8Value curve_name(env->isolate(), args[*offset]);
-  params->params.curve_nid = Ec::GetCurveIdFromName(curve_name.ToStringView());
+  params->params.curve_nid = Ec::GetCurveIdFromName(*curve_name);
   if (params->params.curve_nid == NID_undef) {
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
     return Nothing<void>();
@@ -800,17 +800,11 @@ bool ExportJWKEdKey(Environment* env,
                                        Local<Object> target,
                                        Local<String> key) {
     Local<Value> encoded;
-    Local<Value> error;
     if (!data) return false;
     const ncrypto::Buffer<const char> out = data;
-    if (!StringBytes::Encode(
-             env->isolate(), out.data, out.len, BASE64URL, &error)
-             .ToLocal(&encoded) ||
-        target->Set(env->context(), key, encoded).IsNothing()) {
-      if (!error.IsEmpty()) env->isolate()->ThrowException(error);
-      return false;
-    }
-    return true;
+    return StringBytes::Encode(env->isolate(), out.data, out.len, BASE64URL)
+               .ToLocal(&encoded) &&
+           target->Set(env->context(), key, encoded).IsJust();
   };
 
   return !(
@@ -833,7 +827,7 @@ KeyObjectData ImportJWKEcKey(Environment* env,
   CHECK(args[offset]->IsString());  // curve name
   Utf8Value curve(env->isolate(), args[offset].As<String>());
 
-  int nid = Ec::GetCurveIdFromName(curve.ToStringView());
+  int nid = Ec::GetCurveIdFromName(*curve);
   if (nid == NID_undef) {  // Unknown curve
     THROW_ERR_CRYPTO_INVALID_CURVE(env);
     return {};

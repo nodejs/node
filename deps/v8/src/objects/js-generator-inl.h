@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_GENERATOR_INL_H_
 
 #include "src/objects/js-generator.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/js-promise-inl.h"
 
 #include "src/objects/objects-inl.h"  // Needed for write barriers

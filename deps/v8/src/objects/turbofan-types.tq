@@ -14,7 +14,7 @@ const kMinIntPtr: constexpr IntegerLiteral
 class TurbofanType extends HeapObject {}
 
 // TurbofanBitsetType is 64 bit.
-// We use two separate 32 bit bitsets in Torque, due to limitted support
+// We use two separate 32 bit bitsets in Torque, due to limited support
 // of 64 bit bitsets.
 bitfield struct TurbofanTypeLowBits extends uint32 {
   _unused_padding_field_1: bool: 1 bit;
@@ -55,6 +55,7 @@ bitfield struct TurbofanTypeHighBits extends uint32 {
   machine: bool: 1 bit;
   hole: bool: 1 bit;
   string_wrapper: bool: 1 bit;
+  typed_array: bool: 1 bit;
 }
 
 @export
@@ -198,6 +199,9 @@ macro TestTurbofanBitsetType(
       } else {
         return bitsetLow.other_object;
       }
+    }
+    case (JSTypedArray): {
+      return bitsetHigh.typed_array;
     }
     case (object: JSObject): {
       if (object.map.IsUndetectable()) {

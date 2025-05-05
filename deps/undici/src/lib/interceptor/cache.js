@@ -6,7 +6,7 @@ const util = require('../core/util')
 const CacheHandler = require('../handler/cache-handler')
 const MemoryCacheStore = require('../cache/memory-cache-store')
 const CacheRevalidationHandler = require('../handler/cache-revalidation-handler')
-const { assertCacheStore, assertCacheMethods, makeCacheKey, parseCacheControlHeader } = require('../util/cache.js')
+const { assertCacheStore, assertCacheMethods, makeCacheKey, normaliseHeaders, parseCacheControlHeader } = require('../util/cache.js')
 const { AbortError } = require('../core/errors.js')
 
 /**
@@ -221,7 +221,7 @@ function handleResult (
   // Check if the response is stale
   if (needsRevalidation(result, reqCacheControl)) {
     if (util.isStream(opts.body) && util.bodyLength(opts.body) !== 0) {
-      // If body is is stream we can't revalidate...
+      // If body is a stream we can't revalidate...
       // TODO (fix): This could be less strict...
       return dispatch(opts, new CacheHandler(globalOpts, cacheKey, handler))
     }
@@ -233,7 +233,7 @@ function handleResult (
     }
 
     let headers = {
-      ...opts.headers,
+      ...normaliseHeaders(opts),
       'if-modified-since': new Date(result.cachedAt).toUTCString()
     }
 

@@ -1,4 +1,5 @@
 #include <cstdlib>
+#include "env_properties.h"
 #include "node.h"
 #include "node_builtins.h"
 #include "node_context_data.h"
@@ -19,12 +20,15 @@
 #if HAVE_INSPECTOR
 #include "inspector/worker_inspector.h"  // ParentInspectorHandle
 #endif
+#include "v8-cppgc.h"
 
 namespace node {
 using errors::TryCatchScope;
 using v8::Array;
 using v8::Boolean;
 using v8::Context;
+using v8::CppHeap;
+using v8::CppHeapCreateParams;
 using v8::EscapableHandleScope;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -311,21 +315,27 @@ Isolate* NewIsolate(Isolate::CreateParams* params,
     SnapshotBuilder::InitializeIsolateParams(snapshot_data, params);
   }
 
-#ifdef NODE_V8_SHARED_RO_HEAP
   {
-    // In shared-readonly-heap mode, V8 requires all snapshots used for
-    // creating Isolates to be identical. This isn't really memory-safe
+    // Because it uses a shared readonly-heap, V8 requires all snapshots used
+    // for creating Isolates to be identical. This isn't really memory-safe
     // but also otherwise just doesn't work, and the only real alternative
     // is disabling shared-readonly-heap mode altogether.
     static Isolate::CreateParams first_params = *params;
     params->snapshot_blob = first_params.snapshot_blob;
     params->external_references = first_params.external_references;
   }
-#endif
 
   // Register the isolate on the platform before the isolate gets initialized,
   // so that the isolate can access the platform during initialization.
   platform->RegisterIsolate(isolate, event_loop);
+
+  // Ensure that there is always a CppHeap.
+  if (settings.cpp_heap == nullptr) {
+    params->cpp_heap =
+        CppHeap::Create(platform, CppHeapCreateParams{{}}).release();
+  } else {
+    params->cpp_heap = settings.cpp_heap;
+  }
 
   SetIsolateCreateParamsForNode(params);
   Isolate::Initialize(isolate, *params);
@@ -538,8 +548,11 @@ MaybeLocal<Value> LoadEnvironment(Environment* env,
   return LoadEnvironment(
       env,
       [&](const StartExecutionCallbackInfo& info) -> MaybeLocal<Value> {
-        Local<Value> main_script =
-            ToV8Value(env->context(), main_script_source_utf8).ToLocalChecked();
+        Local<Value> main_script;
+        if (!ToV8Value(env->context(), main_script_source_utf8)
+                 .ToLocal(&main_script)) {
+          return {};
+        }
         return info.run_cjs->Call(
             env->context(), Null(env->isolate()), 1, &main_script);
       },
@@ -599,7 +612,8 @@ std::unique_ptr<MultiIsolatePlatform> MultiIsolatePlatform::Create(
                                         page_allocator);
 }
 
-MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
+MaybeLocal<Object> GetPerContextExports(Local<Context> context,
+                                        IsolateData* isolate_data) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope handle_scope(isolate);
 
@@ -613,10 +627,14 @@ MaybeLocal<Object> GetPerContextExports(Local<Context> context) {
   if (existing_value->IsObject())
     return handle_scope.Escape(existing_value.As<Object>());
 
+  // To initialize the per-context binding exports, a non-nullptr isolate_data
+  // is needed
+  CHECK(isolate_data);
   Local<Object> exports = Object::New(isolate);
   if (context->Global()->SetPrivate(context, key, exports).IsNothing() ||
-      InitializePrimordials(context).IsNothing())
+      InitializePrimordials(context, isolate_data).IsNothing()) {
     return MaybeLocal<Object>();
+  }
   return handle_scope.Escape(exports);
 }
 
@@ -758,23 +776,59 @@ Maybe<void> InitializeMainContextForSnapshot(Local<Context> context) {
   if (InitializeBaseContextForSnapshot(context).IsNothing()) {
     return Nothing<void>();
   }
-  return InitializePrimordials(context);
+  return JustVoid();
 }
 
-Maybe<void> InitializePrimordials(Local<Context> context) {
+MaybeLocal<Object> InitializePrivateSymbols(Local<Context> context,
+                                            IsolateData* isolate_data) {
+  CHECK(isolate_data);
+  Isolate* isolate = context->GetIsolate();
+  EscapableHandleScope scope(isolate);
+  Context::Scope context_scope(context);
+
+  Local<ObjectTemplate> private_symbols = ObjectTemplate::New(isolate);
+  Local<Object> private_symbols_object;
+#define V(PropertyName, _)                                                     \
+  private_symbols->Set(isolate, #PropertyName, isolate_data->PropertyName());
+
+  PER_ISOLATE_PRIVATE_SYMBOL_PROPERTIES(V)
+#undef V
+
+  if (!private_symbols->NewInstance(context).ToLocal(&private_symbols_object) ||
+      private_symbols_object->SetPrototypeV2(context, Null(isolate))
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  return scope.Escape(private_symbols_object);
+}
+
+Maybe<void> InitializePrimordials(Local<Context> context,
+                                  IsolateData* isolate_data) {
   // Run per-context JS files.
   Isolate* isolate = context->GetIsolate();
   Context::Scope context_scope(context);
   Local<Object> exports;
 
+  if (!GetPerContextExports(context).ToLocal(&exports)) {
+    return Nothing<void>();
+  }
   Local<String> primordials_string =
       FIXED_ONE_BYTE_STRING(isolate, "primordials");
+  // Ensure that `InitializePrimordials` is called exactly once on a given
+  // context.
+  CHECK(!exports->Has(context, primordials_string).FromJust());
 
-  // Create primordials first and make it available to per-context scripts.
-  Local<Object> primordials = Object::New(isolate);
-  if (primordials->SetPrototypeV2(context, Null(isolate)).IsNothing() ||
-      !GetPerContextExports(context).ToLocal(&exports) ||
-      exports->Set(context, primordials_string, primordials).IsNothing()) {
+  Local<Object> primordials =
+      Object::New(isolate, Null(isolate), nullptr, nullptr, 0);
+  // Create primordials and make it available to per-context scripts.
+  if (exports->Set(context, primordials_string, primordials).IsNothing()) {
+    return Nothing<void>();
+  }
+
+  Local<Object> private_symbols;
+  if (!InitializePrivateSymbols(context, isolate_data)
+           .ToLocal(&private_symbols)) {
     return Nothing<void>();
   }
 
@@ -793,7 +847,8 @@ Maybe<void> InitializePrimordials(Local<Context> context) {
   builtin_loader.SetEagerCompile();
 
   for (const char** module = context_files; *module != nullptr; module++) {
-    Local<Value> arguments[] = {exports, primordials};
+    Local<Value> arguments[] = {exports, primordials, private_symbols};
+
     if (builtin_loader
             .CompileAndCall(
                 context, *module, arraysize(arguments), arguments, nullptr)

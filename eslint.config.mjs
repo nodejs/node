@@ -1,3 +1,4 @@
+import { readdirSync } from 'node:fs';
 import Module from 'node:module';
 import { fileURLToPath, URL } from 'node:url';
 
@@ -14,6 +15,7 @@ import {
 } from './tools/eslint/eslint.config_utils.mjs';
 import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 
+const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
@@ -23,6 +25,12 @@ const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
+
+function filterFilesInDir(dirpath, filterFn) {
+  return readdirSync(dirpath)
+    .filter(filterFn)
+    .map((f) => `${dirpath}/${f}`);
+}
 
 // The Module._resolveFilename() monkeypatching is to make it so that ESLint is able to
 // dynamically load extra modules that we install with it.
@@ -39,19 +47,40 @@ Module._resolveFilename = (request, parent, isMain, options) => {
 
 export default [
   // #region ignores
-  {
-    ignores: [
-      '**/node_modules/**',
-      'benchmark/fixtures/**',
-      'benchmark/tmp/**',
-      'doc/changelogs/CHANGELOG_V1*.md',
-      '!doc/changelogs/CHANGELOG_V18.md',
-      'lib/punycode.js',
-      'test/.tmp.*/**',
-      'test/addons/??_*',
-      'test/fixtures/**',
-    ],
-  },
+  globalIgnores([
+    '**/node_modules/**',
+    'benchmark/fixtures/**',
+    'benchmark/tmp/**',
+    'doc/changelogs/CHANGELOG_V1*.md',
+    '!doc/changelogs/CHANGELOG_V18.md',
+    'lib/punycode.js',
+    'test/.tmp.*/**',
+    'test/addons/??_*',
+
+    // We want to lint only a few specific fixtures folders
+    'test/fixtures/*',
+    '!test/fixtures/console',
+    '!test/fixtures/errors',
+    '!test/fixtures/eval',
+    '!test/fixtures/source-map',
+    'test/fixtures/source-map/*',
+    '!test/fixtures/source-map/output',
+    ...filterFilesInDir(
+      'test/fixtures/source-map/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/(\.[cm]?)js$/, '$1ts')),
+    ),
+    '!test/fixtures/test-runner',
+    'test/fixtures/test-runner/*',
+    '!test/fixtures/test-runner/output',
+    ...filterFilesInDir(
+      'test/fixtures/test-runner/output',
+      // Filtering tsc output files (i.e. if there a foo.ts, we ignore foo.js):
+      (f, _, files) => f.endsWith('js') && files.includes(f.replace(/\.[cm]?js$/, '.ts')),
+    ),
+    '!test/fixtures/v8',
+    '!test/fixtures/vm',
+  ]),
   // #endregion
   // #region general config
   js.configs.recommended,

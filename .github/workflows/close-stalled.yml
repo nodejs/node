@@ -32,7 +32,5 @@ jobs:
           only-labels: stalled
           # max requests it will send per run to the GitHub API before it deliberately exits to avoid hitting API rate limits
           operations-per-run: 500
-          # deactivates automatic removal of stalled label if issue gets any activity
-          remove-stale-when-updated: false
           # deactivates automatic stale labelling as we prefer to do that manually
           days-before-stale: -1

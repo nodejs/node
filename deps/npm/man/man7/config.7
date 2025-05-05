@@ -1,4 +1,4 @@
-.TH "CONFIG" "7" "March 2025" "NPM@11.2.0" ""
+.TH "CONFIG" "7" "April 2025" "NPM@11.3.0" ""
 .SH "NAME"
 \fBconfig\fR - More than you probably want to know about npm configuration
 .SS "Description"
@@ -1036,6 +1036,18 @@ Type: String
 Commit message which is used by \fBnpm version\fR when creating version commit.
 .P
 Any "%s" in the message will be replaced with the version number.
+.SS "\fBnode-gyp\fR"
+.RS 0
+.IP \(bu 4
+Default: The path to the node-gyp bin that ships with npm
+.IP \(bu 4
+Type: Path
+.RE 0
+
+.P
+This is the location of the "node-gyp" bin. By default it uses one that ships with npm itself.
+.P
+You can use this config to specify your own "node-gyp" to run when it is required to build a package.
 .SS "\fBnode-options\fR"
 .RS 0
 .IP \(bu 4

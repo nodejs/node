@@ -47,119 +47,154 @@
 #  include <limits.h>
 #endif
 
+static size_t hostent_nalias(const struct hostent *host)
+{
+  size_t i;
+  for (i=0; host->h_aliases != NULL && host->h_aliases[i] != NULL; i++)
+    ;
+
+  return i;
+}
+
+static size_t ai_nalias(const struct ares_addrinfo *ai)
+{
+  const struct ares_addrinfo_cname *cname;
+  size_t                            i     = 0;
+
+  for (cname = ai->cnames; cname != NULL; cname=cname->next) {
+    i++;
+  }
+
+  return i;
+}
+
+static size_t hostent_naddr(const struct hostent *host)
+{
+  size_t i;
+  for (i=0; host->h_addr_list != NULL && host->h_addr_list[i] != NULL; i++)
+    ;
+
+  return i;
+}
+
+static size_t ai_naddr(const struct ares_addrinfo *ai, int af)
+{
+  const struct ares_addrinfo_node *node;
+  size_t                           i     = 0;
+
+  for (node = ai->nodes; node != NULL; node=node->ai_next) {
+    if (af != AF_UNSPEC && af != node->ai_family)
+      continue;
+    i++;
+  }
+
+  return i;
+}
 
 ares_status_t ares_addrinfo2hostent(const struct ares_addrinfo *ai, int family,
                                     struct hostent **host)
 {
   struct ares_addrinfo_node  *next;
-  struct ares_addrinfo_cname *next_cname;
   char                      **aliases  = NULL;
-  char                       *addrs    = NULL;
+  char                      **addrs    = NULL;
   size_t                      naliases = 0;
   size_t                      naddrs   = 0;
-  size_t                      alias    = 0;
   size_t                      i;
+  size_t                      ealiases = 0;
+  size_t                      eaddrs   = 0;
 
   if (ai == NULL || host == NULL) {
     return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
-  /* Use the first node of the response as the family, since hostent can only
+  /* Use either the host set in the passed in hosts to be filled in, or the
+   * first node of the response as the family, since hostent can only
    * represent one family.  We assume getaddrinfo() returned a sorted list if
    * the user requested AF_UNSPEC. */
-  if (family == AF_UNSPEC && ai->nodes) {
-    family = ai->nodes->ai_family;
+  if (family == AF_UNSPEC) {
+    if (*host != NULL && (*host)->h_addrtype != AF_UNSPEC) {
+      family = (*host)->h_addrtype;
+    } else if (ai->nodes != NULL) {
+      family = ai->nodes->ai_family;
+    }
   }
 
   if (family != AF_INET && family != AF_INET6) {
     return ARES_EBADQUERY; /* LCOV_EXCL_LINE: DefensiveCoding */
   }
 
-  *host = ares_malloc(sizeof(**host));
-  if (!(*host)) {
-    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-  memset(*host, 0, sizeof(**host));
-
-  next = ai->nodes;
-  while (next) {
-    if (next->ai_family == family) {
-      ++naddrs;
-    }
-    next = next->ai_next;
-  }
-
-  next_cname = ai->cnames;
-  while (next_cname) {
-    if (next_cname->alias) {
-      ++naliases;
-    }
-    next_cname = next_cname->next;
-  }
-
-  aliases = ares_malloc((naliases + 1) * sizeof(char *));
-  if (!aliases) {
-    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-  (*host)->h_aliases = aliases;
-  memset(aliases, 0, (naliases + 1) * sizeof(char *));
-
-  if (naliases) {
-    for (next_cname = ai->cnames; next_cname != NULL;
-         next_cname = next_cname->next) {
-      if (next_cname->alias == NULL) {
-        continue;
-      }
-      aliases[alias] = ares_strdup(next_cname->alias);
-      if (!aliases[alias]) {
-        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
-      }
-      alias++;
-    }
-  }
-
-
-  (*host)->h_addr_list = ares_malloc((naddrs + 1) * sizeof(char *));
-  if (!(*host)->h_addr_list) {
-    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
-  }
-
-  memset((*host)->h_addr_list, 0, (naddrs + 1) * sizeof(char *));
-
-  if (ai->cnames) {
-    (*host)->h_name = ares_strdup(ai->cnames->name);
-    if ((*host)->h_name == NULL && ai->cnames->name) {
-      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
-    }
-  } else {
-    (*host)->h_name = ares_strdup(ai->name);
-    if ((*host)->h_name == NULL && ai->name) {
+  if (*host == NULL) {
+    *host = ares_malloc_zero(sizeof(**host));
+    if (!(*host)) {
       goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
     }
   }
 
   (*host)->h_addrtype = (HOSTENT_ADDRTYPE_TYPE)family;
-
   if (family == AF_INET) {
     (*host)->h_length = sizeof(struct in_addr);
-  }
-
-  if (family == AF_INET6) {
+  } else if (family == AF_INET6) {
     (*host)->h_length = sizeof(struct ares_in6_addr);
   }
 
-  if (naddrs) {
-    addrs = ares_malloc(naddrs * (size_t)(*host)->h_length);
-    if (!addrs) {
-      goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+  if ((*host)->h_name == NULL) {
+    if (ai->cnames) {
+      (*host)->h_name = ares_strdup(ai->cnames->name);
+      if ((*host)->h_name == NULL && ai->cnames->name) {
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+      }
+    } else {
+      (*host)->h_name = ares_strdup(ai->name);
+      if ((*host)->h_name == NULL && ai->name) {
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+      }
     }
+  }
 
-    i = 0;
+  naliases = ai_nalias(ai);
+  ealiases = hostent_nalias(*host);
+  aliases  = ares_realloc_zero((*host)->h_aliases,
+                               ealiases * sizeof(char *),
+                               (naliases + ealiases + 1) * sizeof(char *));
+  if (!aliases) {
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+  (*host)->h_aliases = aliases;
+
+  if (naliases) {
+    const struct ares_addrinfo_cname *cname;
+    i = ealiases;
+    for (cname = ai->cnames; cname != NULL; cname = cname->next) {
+      if (cname->alias == NULL) {
+        continue;
+      }
+      (*host)->h_aliases[i] = ares_strdup(cname->alias);
+      if ((*host)->h_aliases[i] == NULL) {
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+      }
+      i++;
+    }
+  }
+
+  naddrs = ai_naddr(ai, family);
+  eaddrs = hostent_naddr(*host);
+  addrs  = ares_realloc_zero((*host)->h_addr_list, eaddrs * sizeof(char *),
+                             (naddrs + eaddrs + 1) * sizeof(char *));
+  if (addrs == NULL) {
+    goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+  }
+  (*host)->h_addr_list = addrs;
+
+  if (naddrs) {
+    i = eaddrs;
     for (next = ai->nodes; next != NULL; next = next->ai_next) {
       if (next->ai_family != family) {
         continue;
       }
-      (*host)->h_addr_list[i] = addrs + (i * (size_t)(*host)->h_length);
+      (*host)->h_addr_list[i] = ares_malloc_zero((size_t)(*host)->h_length);
+      if ((*host)->h_addr_list[i] == NULL) {
+        goto enomem; /* LCOV_EXCL_LINE: OutOfMemory */
+      }
       if (family == AF_INET6) {
         memcpy((*host)->h_addr_list[i],
                &(CARES_INADDR_CAST(const struct sockaddr_in6 *, next->ai_addr)
@@ -172,15 +207,11 @@ ares_status_t ares_addrinfo2hostent(const struct ares_addrinfo *ai, int family,
                    ->sin_addr),
                (size_t)(*host)->h_length);
       }
-      ++i;
-    }
-
-    if (i == 0) {
-      ares_free(addrs);
+      i++;
     }
   }
 
-  if (naddrs == 0 && naliases == 0) {
+  if (naddrs + eaddrs == 0 && naliases + ealiases == 0) {
     ares_free_hostent(*host);
     *host = NULL;
     return ARES_ENODATA;

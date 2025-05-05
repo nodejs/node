@@ -138,7 +138,7 @@ exec('my.bat', (err, stdout, stderr) => {
 });
 
 // Script with spaces in the filename:
-const bat = spawn('"my script.cmd"', ['a', 'b'], { shell: true });
+const bat = spawn('"my script.cmd" a b', { shell: true });
 // or:
 exec('"my script.cmd" a b', (err, stdout, stderr) => {
   // ...
@@ -158,7 +158,7 @@ exec('my.bat', (err, stdout, stderr) => {
 });
 
 // Script with spaces in the filename:
-const bat = spawn('"my script.cmd"', ['a', 'b'], { shell: true });
+const bat = spawn('"my script.cmd" a b', { shell: true });
 // or:
 exec('"my script.cmd" a b', (err, stdout, stderr) => {
   // ...
@@ -348,6 +348,11 @@ controller.abort();
 <!-- YAML
 added: v0.1.91
 changes:
+  - version:
+      - v23.11.0
+      - v22.15.0
+    pr-url: https://github.com/nodejs/node/pull/57389
+    description: Passing `args` when `shell` is set to `true` is deprecated.
   - version:
       - v16.4.0
       - v14.18.0
@@ -641,6 +646,11 @@ if (process.argv[2] === 'child') {
 <!-- YAML
 added: v0.1.90
 changes:
+  - version:
+      - v23.11.0
+      - v22.15.0
+    pr-url: https://github.com/nodejs/node/pull/57389
+    description: Passing `args` when `shell` is set to `true` is deprecated.
   - version:
       - v16.4.0
       - v14.18.0

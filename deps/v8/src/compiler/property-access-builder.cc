@@ -22,7 +22,7 @@ namespace v8 {
 namespace internal {
 namespace compiler {
 
-Graph* PropertyAccessBuilder::graph() const { return jsgraph()->graph(); }
+TFGraph* PropertyAccessBuilder::graph() const { return jsgraph()->graph(); }
 
 Isolate* PropertyAccessBuilder::isolate() const { return jsgraph()->isolate(); }
 
@@ -37,6 +37,30 @@ SimplifiedOperatorBuilder* PropertyAccessBuilder::simplified() const {
 bool HasOnlyStringMaps(JSHeapBroker* broker, ZoneVector<MapRef> const& maps) {
   for (MapRef map : maps) {
     if (!map.IsStringMap()) return false;
+  }
+  return true;
+}
+
+bool HasOnlyStringWrapperMaps(JSHeapBroker* broker,
+                              ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSPrimitiveWrapperMap()) return false;
+    auto elements_kind = map.elements_kind();
+    if (elements_kind != FAST_STRING_WRAPPER_ELEMENTS &&
+        elements_kind != SLOW_STRING_WRAPPER_ELEMENTS) {
+      return false;
+    }
+  }
+  return true;
+}
+
+bool HasOnlyNonResizableTypedArrayMaps(JSHeapBroker* broker,
+                                       ZoneVector<MapRef> const& maps) {
+  for (MapRef map : maps) {
+    if (!map.IsJSTypedArrayMap()) return false;
+    if (IsRabGsabTypedArrayElementsKind(map.elements_kind())) {
+      return false;
+    }
   }
   return true;
 }
@@ -81,9 +105,10 @@ bool PropertyAccessBuilder::TryBuildNumberCheck(JSHeapBroker* broker,
   return false;
 }
 
-void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
-                                           Control control,
-                                           ZoneVector<MapRef> const& maps) {
+void PropertyAccessBuilder::BuildCheckMaps(
+    Node* object, Effect* effect, Control control,
+    ZoneVector<MapRef> const& maps,
+    bool has_deprecated_map_without_migration_target) {
   HeapObjectMatcher m(object);
   if (m.HasResolvedValue()) {
     MapRef object_map = m.Ref(broker()).map(broker());
@@ -97,29 +122,61 @@ void PropertyAccessBuilder::BuildCheckMaps(Node* object, Effect* effect,
     }
   }
   ZoneRefSet<Map> map_set;
-  CheckMapsFlags flags = CheckMapsFlag::kNone;
+  bool has_migration_target = false;
   for (MapRef map : maps) {
     map_set.insert(map, graph()->zone());
     if (map.is_migration_target()) {
-      flags |= CheckMapsFlag::kTryMigrateInstance;
+      has_migration_target = true;
     }
+  }
+  CheckMapsFlags flags = CheckMapsFlag::kNone;
+  if (has_migration_target) {
+    flags = CheckMapsFlag::kTryMigrateInstance;
+  } else if (has_deprecated_map_without_migration_target) {
+    flags = CheckMapsFlag::kTryMigrateInstanceAndDeopt;
   }
   *effect = graph()->NewNode(simplified()->CheckMaps(flags, map_set), object,
                              *effect, control);
 }
 
 Node* PropertyAccessBuilder::BuildCheckValue(Node* receiver, Effect* effect,
-                                             Control control,
-                                             Handle<HeapObject> value) {
-  HeapObjectMatcher m(receiver);
-  if (m.Is(value)) return receiver;
-  Node* expected = jsgraph()->HeapConstantNoHole(value);
+                                             Control control, ObjectRef value) {
+  if (value.IsHeapObject()) {
+    HeapObjectMatcher m(receiver);
+    if (m.Is(value.AsHeapObject().object())) return receiver;
+  }
+  Node* expected = jsgraph()->ConstantNoHole(value, broker());
   Node* check =
       graph()->NewNode(simplified()->ReferenceEqual(), receiver, expected);
   *effect =
       graph()->NewNode(simplified()->CheckIf(DeoptimizeReason::kWrongValue),
                        check, *effect, control);
   return expected;
+}
+
+Node* PropertyAccessBuilder::BuildCheckSmi(Node* value, Effect* effect,
+                                           Control control,
+                                           FeedbackSource feedback_source) {
+  Node* smi_value = *effect = graph()->NewNode(
+      simplified()->CheckSmi(feedback_source), value, *effect, control);
+  return smi_value;
+}
+
+Node* PropertyAccessBuilder::BuildCheckNumber(Node* value, Effect* effect,
+                                              Control control,
+                                              FeedbackSource feedback_source) {
+  Node* number = *effect = graph()->NewNode(
+      simplified()->CheckNumber(feedback_source), value, *effect, control);
+  return number;
+}
+
+Node* PropertyAccessBuilder::BuildCheckNumberFitsInt32(
+    Node* value, Effect* effect, Control control,
+    FeedbackSource feedback_source) {
+  Node* number = *effect =
+      graph()->NewNode(simplified()->CheckNumberFitsInt32(feedback_source),
+                       value, *effect, control);
+  return number;
 }
 
 Node* PropertyAccessBuilder::ResolveHolder(
@@ -191,6 +248,12 @@ Node* PropertyAccessBuilder::TryFoldLoadConstantDataField(
   // If {access_info} has a holder, just use it.
   if (!holder.has_value()) {
     // Otherwise, try to match the {lookup_start_object} as a constant.
+    if (lookup_start_object->opcode() == IrOpcode::kCheckString ||
+        lookup_start_object->opcode() ==
+            IrOpcode::kCheckStringOrStringWrapper) {
+      // Bypassing Check inputs in order to allow constant folding.
+      lookup_start_object = lookup_start_object->InputAt(0);
+    }
     HeapObjectMatcher m(lookup_start_object);
     if (!m.HasResolvedValue() || !m.Ref(broker()).IsJSObject()) return nullptr;
 
@@ -318,6 +381,7 @@ Node* PropertyAccessBuilder::BuildLoadDataField(
       if (field_map->is_stable()) {
         dependencies()->DependOnStableMap(field_map.value());
         field_access.map = field_map;
+        field_access.type = Type::For(*field_map, broker());
       }
     }
   }

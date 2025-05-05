@@ -1,6 +1,6 @@
 {
 	"name": "amaro",
-	"version": "0.4.1",
+	"version": "0.5.2",
 	"description": "Node.js TypeScript wrapper",
 	"license": "MIT",
 	"type": "commonjs",
@@ -24,8 +24,8 @@
 		"build": "node esbuild.config.mjs",
 		"build:wasm": "node tools/build-wasm.js",
 		"typecheck": "tsc --noEmit",
-		"test": "node --test --experimental-test-snapshots \"**/*.test.js\"",
-		"test:regenerate": "node --test --experimental-test-snapshots --test-update-snapshots \"**/*.test.js\""
+		"test": "node --test \"**/*.test.js\"",
+		"test:regenerate": "node --test --test-update-snapshots \"**/*.test.js\""
 	},
 	"devDependencies": {
 		"@biomejs/biome": "1.8.3",

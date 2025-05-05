@@ -1,5 +1,6 @@
-const {describe, test, beforeEach, afterEach} = require("node:test");
-const {setTimeout} = require("timers/promises");
+'use strict';
+const { describe, test, beforeEach, afterEach } = require('node:test');
+const { setTimeout } = require('timers/promises');
 
 
 describe('before each timeout', () => {
@@ -12,7 +13,7 @@ describe('before each timeout', () => {
       return;
     }
     console.log('not gonna timeout');
-  }, {timeout: 500});
+  }, { timeout: 500 });
 
   test('first describe first test', () => {
     console.log('before each test first ' + i);
@@ -34,7 +35,7 @@ describe('after each timeout', () => {
       return;
     }
     console.log('not gonna timeout');
-  }, {timeout: 500});
+  }, { timeout: 500 });
 
   test('second describe first test', () => {
     console.log('after each test first ' + i);

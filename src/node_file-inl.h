@@ -344,23 +344,29 @@ FSReqBase* AsyncCall(Environment* env,
 // creating an error in the C++ land.
 // ctx must be checked using value->IsObject() before being passed.
 template <typename Func, typename... Args>
-int SyncCall(Environment* env, v8::Local<v8::Value> ctx,
-             FSReqWrapSync* req_wrap, const char* syscall,
-             Func fn, Args... args) {
+v8::Maybe<int> SyncCall(Environment* env,
+                        v8::Local<v8::Value> ctx,
+                        FSReqWrapSync* req_wrap,
+                        const char* syscall,
+                        Func fn,
+                        Args... args) {
   env->PrintSyncTrace();
   int err = fn(env->event_loop(), &(req_wrap->req), args..., nullptr);
   if (err < 0) {
     v8::Local<v8::Context> context = env->context();
     v8::Local<v8::Object> ctx_obj = ctx.As<v8::Object>();
     v8::Isolate* isolate = env->isolate();
-    ctx_obj->Set(context,
-                 env->errno_string(),
-                 v8::Integer::New(isolate, err)).Check();
-    ctx_obj->Set(context,
-                 env->syscall_string(),
-                 OneByteString(isolate, syscall)).Check();
+    if (ctx_obj
+            ->Set(context, env->errno_string(), v8::Integer::New(isolate, err))
+            .IsNothing() ||
+        ctx_obj
+            ->Set(
+                context, env->syscall_string(), OneByteString(isolate, syscall))
+            .IsNothing()) {
+      return v8::Nothing<int>();
+    }
   }
-  return err;
+  return v8::Just(err);
 }
 
 // Similar to SyncCall but throws immediately if there is an error.

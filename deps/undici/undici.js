@@ -499,6 +499,242 @@ var require_dispatcher = __commonJS({
   }
 });
 
+// lib/util/timers.js
+var require_timers = __commonJS({
+  "lib/util/timers.js"(exports2, module2) {
+    "use strict";
+    var fastNow = 0;
+    var RESOLUTION_MS = 1e3;
+    var TICK_MS = (RESOLUTION_MS >> 1) - 1;
+    var fastNowTimeout;
+    var kFastTimer = Symbol("kFastTimer");
+    var fastTimers = [];
+    var NOT_IN_LIST = -2;
+    var TO_BE_CLEARED = -1;
+    var PENDING = 0;
+    var ACTIVE = 1;
+    function onTick() {
+      fastNow += TICK_MS;
+      let idx = 0;
+      let len = fastTimers.length;
+      while (idx < len) {
+        const timer = fastTimers[idx];
+        if (timer._state === PENDING) {
+          timer._idleStart = fastNow - TICK_MS;
+          timer._state = ACTIVE;
+        } else if (timer._state === ACTIVE && fastNow >= timer._idleStart + timer._idleTimeout) {
+          timer._state = TO_BE_CLEARED;
+          timer._idleStart = -1;
+          timer._onTimeout(timer._timerArg);
+        }
+        if (timer._state === TO_BE_CLEARED) {
+          timer._state = NOT_IN_LIST;
+          if (--len !== 0) {
+            fastTimers[idx] = fastTimers[len];
+          }
+        } else {
+          ++idx;
+        }
+      }
+      fastTimers.length = len;
+      if (fastTimers.length !== 0) {
+        refreshTimeout();
+      }
+    }
+    __name(onTick, "onTick");
+    function refreshTimeout() {
+      if (fastNowTimeout) {
+        fastNowTimeout.refresh();
+      } else {
+        clearTimeout(fastNowTimeout);
+        fastNowTimeout = setTimeout(onTick, TICK_MS);
+        if (fastNowTimeout.unref) {
+          fastNowTimeout.unref();
+        }
+      }
+    }
+    __name(refreshTimeout, "refreshTimeout");
+    var FastTimer = class {
+      static {
+        __name(this, "FastTimer");
+      }
+      [kFastTimer] = true;
+      /**
+       * The state of the timer, which can be one of the following:
+       * - NOT_IN_LIST (-2)
+       * - TO_BE_CLEARED (-1)
+       * - PENDING (0)
+       * - ACTIVE (1)
+       *
+       * @type {-2|-1|0|1}
+       * @private
+       */
+      _state = NOT_IN_LIST;
+      /**
+       * The number of milliseconds to wait before calling the callback.
+       *
+       * @type {number}
+       * @private
+       */
+      _idleTimeout = -1;
+      /**
+       * The time in milliseconds when the timer was started. This value is used to
+       * calculate when the timer should expire.
+       *
+       * @type {number}
+       * @default -1
+       * @private
+       */
+      _idleStart = -1;
+      /**
+       * The function to be executed when the timer expires.
+       * @type {Function}
+       * @private
+       */
+      _onTimeout;
+      /**
+       * The argument to be passed to the callback when the timer expires.
+       *
+       * @type {*}
+       * @private
+       */
+      _timerArg;
+      /**
+       * @constructor
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should wait
+       * before the specified function or code is executed.
+       * @param {*} arg
+       */
+      constructor(callback, delay, arg) {
+        this._onTimeout = callback;
+        this._idleTimeout = delay;
+        this._timerArg = arg;
+        this.refresh();
+      }
+      /**
+       * Sets the timer's start time to the current time, and reschedules the timer
+       * to call its callback at the previously specified duration adjusted to the
+       * current time.
+       * Using this on a timer that has already called its callback will reactivate
+       * the timer.
+       *
+       * @returns {void}
+       */
+      refresh() {
+        if (this._state === NOT_IN_LIST) {
+          fastTimers.push(this);
+        }
+        if (!fastNowTimeout || fastTimers.length === 1) {
+          refreshTimeout();
+        }
+        this._state = PENDING;
+      }
+      /**
+       * The `clear` method cancels the timer, preventing it from executing.
+       *
+       * @returns {void}
+       * @private
+       */
+      clear() {
+        this._state = TO_BE_CLEARED;
+        this._idleStart = -1;
+      }
+    };
+    module2.exports = {
+      /**
+       * The setTimeout() method sets a timer which executes a function once the
+       * timer expires.
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should
+       * wait before the specified function or code is executed.
+       * @param {*} [arg] An optional argument to be passed to the callback function
+       * when the timer expires.
+       * @returns {NodeJS.Timeout|FastTimer}
+       */
+      setTimeout(callback, delay, arg) {
+        return delay <= RESOLUTION_MS ? setTimeout(callback, delay, arg) : new FastTimer(callback, delay, arg);
+      },
+      /**
+       * The clearTimeout method cancels an instantiated Timer previously created
+       * by calling setTimeout.
+       *
+       * @param {NodeJS.Timeout|FastTimer} timeout
+       */
+      clearTimeout(timeout) {
+        if (timeout[kFastTimer]) {
+          timeout.clear();
+        } else {
+          clearTimeout(timeout);
+        }
+      },
+      /**
+       * The setFastTimeout() method sets a fastTimer which executes a function once
+       * the timer expires.
+       * @param {Function} callback A function to be executed after the timer
+       * expires.
+       * @param {number} delay The time, in milliseconds that the timer should
+       * wait before the specified function or code is executed.
+       * @param {*} [arg] An optional argument to be passed to the callback function
+       * when the timer expires.
+       * @returns {FastTimer}
+       */
+      setFastTimeout(callback, delay, arg) {
+        return new FastTimer(callback, delay, arg);
+      },
+      /**
+       * The clearTimeout method cancels an instantiated FastTimer previously
+       * created by calling setFastTimeout.
+       *
+       * @param {FastTimer} timeout
+       */
+      clearFastTimeout(timeout) {
+        timeout.clear();
+      },
+      /**
+       * The now method returns the value of the internal fast timer clock.
+       *
+       * @returns {number}
+       */
+      now() {
+        return fastNow;
+      },
+      /**
+       * Trigger the onTick function to process the fastTimers array.
+       * Exported for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       * @param {number} [delay=0] The delay in milliseconds to add to the now value.
+       */
+      tick(delay = 0) {
+        fastNow += delay - RESOLUTION_MS + 1;
+        onTick();
+        onTick();
+      },
+      /**
+       * Reset FastTimers.
+       * Exported for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       */
+      reset() {
+        fastNow = 0;
+        fastTimers.length = 0;
+        clearTimeout(fastNowTimeout);
+        fastNowTimeout = null;
+      },
+      /**
+       * Exporting for testing purposes only.
+       * Marking as deprecated to discourage any use outside of testing.
+       * @deprecated
+       */
+      kFastTimer
+    };
+  }
+});
+
 // lib/core/constants.js
 var require_constants = __commonJS({
   "lib/core/constants.js"(exports2, module2) {
@@ -789,10 +1025,11 @@ var require_util = __commonJS({
     var nodeUtil = require("node:util");
     var { stringify } = require("node:querystring");
     var { EventEmitter: EE } = require("node:events");
-    var { InvalidArgumentError } = require_errors();
+    var timers = require_timers();
+    var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
     var { headerNameLowerCasedRecord } = require_constants();
     var { tree } = require_tree();
-    var [nodeMajor, nodeMinor] = process.versions.node.split(".").map((v) => Number(v));
+    var [nodeMajor, nodeMinor] = process.versions.node.split(".", 2).map((v) => Number(v));
     var BodyAsyncIterable = class {
       static {
         __name(this, "BodyAsyncIterable");
@@ -807,6 +1044,9 @@ var require_util = __commonJS({
         yield* this[kBody];
       }
     };
+    function noop() {
+    }
+    __name(noop, "noop");
     function wrapRequestBody(body) {
       if (isStream(body)) {
         if (bodyLength(body) === 0) {
@@ -1264,6 +1504,51 @@ var require_util = __commonJS({
       }
     }
     __name(errorRequest, "errorRequest");
+    var setupConnectTimeout = process.platform === "win32" ? (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop;
+      }
+      let s1 = null;
+      let s2 = null;
+      const fastTimer = timers.setFastTimeout(() => {
+        s1 = setImmediate(() => {
+          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts));
+        });
+      }, opts.timeout);
+      return () => {
+        timers.clearFastTimeout(fastTimer);
+        clearImmediate(s1);
+        clearImmediate(s2);
+      };
+    } : (socketWeakRef, opts) => {
+      if (!opts.timeout) {
+        return noop;
+      }
+      let s1 = null;
+      const fastTimer = timers.setFastTimeout(() => {
+        s1 = setImmediate(() => {
+          onConnectTimeout(socketWeakRef.deref(), opts);
+        });
+      }, opts.timeout);
+      return () => {
+        timers.clearFastTimeout(fastTimer);
+        clearImmediate(s1);
+      };
+    };
+    function onConnectTimeout(socket, opts) {
+      if (socket == null) {
+        return;
+      }
+      let message = "Connect Timeout Error";
+      if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
+        message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")},`;
+      } else {
+        message += ` (attempted address: ${opts.hostname}:${opts.port},`;
+      }
+      message += ` timeout: ${opts.timeout}ms)`;
+      destroy(socket, new ConnectTimeoutError(message));
+    }
+    __name(onConnectTimeout, "onConnectTimeout");
     var kEnumerableProperty = /* @__PURE__ */ Object.create(null);
     kEnumerableProperty.enumerable = true;
     var normalizedMethodRecordsBase = {
@@ -1330,7 +1615,8 @@ var require_util = __commonJS({
       nodeMajor,
       nodeMinor,
       safeHTTPMethods: Object.freeze(["GET", "HEAD", "OPTIONS", "TRACE"]),
-      wrapRequestBody
+      wrapRequestBody,
+      setupConnectTimeout
     };
   }
 });
@@ -2374,242 +2660,6 @@ var require_request = __commonJS({
   }
 });
 
-// lib/util/timers.js
-var require_timers = __commonJS({
-  "lib/util/timers.js"(exports2, module2) {
-    "use strict";
-    var fastNow = 0;
-    var RESOLUTION_MS = 1e3;
-    var TICK_MS = (RESOLUTION_MS >> 1) - 1;
-    var fastNowTimeout;
-    var kFastTimer = Symbol("kFastTimer");
-    var fastTimers = [];
-    var NOT_IN_LIST = -2;
-    var TO_BE_CLEARED = -1;
-    var PENDING = 0;
-    var ACTIVE = 1;
-    function onTick() {
-      fastNow += TICK_MS;
-      let idx = 0;
-      let len = fastTimers.length;
-      while (idx < len) {
-        const timer = fastTimers[idx];
-        if (timer._state === PENDING) {
-          timer._idleStart = fastNow - TICK_MS;
-          timer._state = ACTIVE;
-        } else if (timer._state === ACTIVE && fastNow >= timer._idleStart + timer._idleTimeout) {
-          timer._state = TO_BE_CLEARED;
-          timer._idleStart = -1;
-          timer._onTimeout(timer._timerArg);
-        }
-        if (timer._state === TO_BE_CLEARED) {
-          timer._state = NOT_IN_LIST;
-          if (--len !== 0) {
-            fastTimers[idx] = fastTimers[len];
-          }
-        } else {
-          ++idx;
-        }
-      }
-      fastTimers.length = len;
-      if (fastTimers.length !== 0) {
-        refreshTimeout();
-      }
-    }
-    __name(onTick, "onTick");
-    function refreshTimeout() {
-      if (fastNowTimeout) {
-        fastNowTimeout.refresh();
-      } else {
-        clearTimeout(fastNowTimeout);
-        fastNowTimeout = setTimeout(onTick, TICK_MS);
-        if (fastNowTimeout.unref) {
-          fastNowTimeout.unref();
-        }
-      }
-    }
-    __name(refreshTimeout, "refreshTimeout");
-    var FastTimer = class {
-      static {
-        __name(this, "FastTimer");
-      }
-      [kFastTimer] = true;
-      /**
-       * The state of the timer, which can be one of the following:
-       * - NOT_IN_LIST (-2)
-       * - TO_BE_CLEARED (-1)
-       * - PENDING (0)
-       * - ACTIVE (1)
-       *
-       * @type {-2|-1|0|1}
-       * @private
-       */
-      _state = NOT_IN_LIST;
-      /**
-       * The number of milliseconds to wait before calling the callback.
-       *
-       * @type {number}
-       * @private
-       */
-      _idleTimeout = -1;
-      /**
-       * The time in milliseconds when the timer was started. This value is used to
-       * calculate when the timer should expire.
-       *
-       * @type {number}
-       * @default -1
-       * @private
-       */
-      _idleStart = -1;
-      /**
-       * The function to be executed when the timer expires.
-       * @type {Function}
-       * @private
-       */
-      _onTimeout;
-      /**
-       * The argument to be passed to the callback when the timer expires.
-       *
-       * @type {*}
-       * @private
-       */
-      _timerArg;
-      /**
-       * @constructor
-       * @param {Function} callback A function to be executed after the timer
-       * expires.
-       * @param {number} delay The time, in milliseconds that the timer should wait
-       * before the specified function or code is executed.
-       * @param {*} arg
-       */
-      constructor(callback, delay, arg) {
-        this._onTimeout = callback;
-        this._idleTimeout = delay;
-        this._timerArg = arg;
-        this.refresh();
-      }
-      /**
-       * Sets the timer's start time to the current time, and reschedules the timer
-       * to call its callback at the previously specified duration adjusted to the
-       * current time.
-       * Using this on a timer that has already called its callback will reactivate
-       * the timer.
-       *
-       * @returns {void}
-       */
-      refresh() {
-        if (this._state === NOT_IN_LIST) {
-          fastTimers.push(this);
-        }
-        if (!fastNowTimeout || fastTimers.length === 1) {
-          refreshTimeout();
-        }
-        this._state = PENDING;
-      }
-      /**
-       * The `clear` method cancels the timer, preventing it from executing.
-       *
-       * @returns {void}
-       * @private
-       */
-      clear() {
-        this._state = TO_BE_CLEARED;
-        this._idleStart = -1;
-      }
-    };
-    module2.exports = {
-      /**
-       * The setTimeout() method sets a timer which executes a function once the
-       * timer expires.
-       * @param {Function} callback A function to be executed after the timer
-       * expires.
-       * @param {number} delay The time, in milliseconds that the timer should
-       * wait before the specified function or code is executed.
-       * @param {*} [arg] An optional argument to be passed to the callback function
-       * when the timer expires.
-       * @returns {NodeJS.Timeout|FastTimer}
-       */
-      setTimeout(callback, delay, arg) {
-        return delay <= RESOLUTION_MS ? setTimeout(callback, delay, arg) : new FastTimer(callback, delay, arg);
-      },
-      /**
-       * The clearTimeout method cancels an instantiated Timer previously created
-       * by calling setTimeout.
-       *
-       * @param {NodeJS.Timeout|FastTimer} timeout
-       */
-      clearTimeout(timeout) {
-        if (timeout[kFastTimer]) {
-          timeout.clear();
-        } else {
-          clearTimeout(timeout);
-        }
-      },
-      /**
-       * The setFastTimeout() method sets a fastTimer which executes a function once
-       * the timer expires.
-       * @param {Function} callback A function to be executed after the timer
-       * expires.
-       * @param {number} delay The time, in milliseconds that the timer should
-       * wait before the specified function or code is executed.
-       * @param {*} [arg] An optional argument to be passed to the callback function
-       * when the timer expires.
-       * @returns {FastTimer}
-       */
-      setFastTimeout(callback, delay, arg) {
-        return new FastTimer(callback, delay, arg);
-      },
-      /**
-       * The clearTimeout method cancels an instantiated FastTimer previously
-       * created by calling setFastTimeout.
-       *
-       * @param {FastTimer} timeout
-       */
-      clearFastTimeout(timeout) {
-        timeout.clear();
-      },
-      /**
-       * The now method returns the value of the internal fast timer clock.
-       *
-       * @returns {number}
-       */
-      now() {
-        return fastNow;
-      },
-      /**
-       * Trigger the onTick function to process the fastTimers array.
-       * Exported for testing purposes only.
-       * Marking as deprecated to discourage any use outside of testing.
-       * @deprecated
-       * @param {number} [delay=0] The delay in milliseconds to add to the now value.
-       */
-      tick(delay = 0) {
-        fastNow += delay - RESOLUTION_MS + 1;
-        onTick();
-        onTick();
-      },
-      /**
-       * Reset FastTimers.
-       * Exported for testing purposes only.
-       * Marking as deprecated to discourage any use outside of testing.
-       * @deprecated
-       */
-      reset() {
-        fastNow = 0;
-        fastTimers.length = 0;
-        clearTimeout(fastNowTimeout);
-        fastNowTimeout = null;
-      },
-      /**
-       * Exporting for testing purposes only.
-       * Marking as deprecated to discourage any use outside of testing.
-       * @deprecated
-       */
-      kFastTimer
-    };
-  }
-});
-
 // lib/core/connect.js
 var require_connect = __commonJS({
   "lib/core/connect.js"(exports2, module2) {
@@ -2617,11 +2667,7 @@ var require_connect = __commonJS({
     var net = require("node:net");
     var assert = require("node:assert");
     var util = require_util();
-    var { InvalidArgumentError, ConnectTimeoutError } = require_errors();
-    var timers = require_timers();
-    function noop() {
-    }
-    __name(noop, "noop");
+    var { InvalidArgumentError } = require_errors();
     var tls;
     var SessionCache;
     if (global.FinalizationRegistry && !(process.env.NODE_V8_COVERAGE || process.env.UNDICI_NO_FG)) {
@@ -2704,7 +2750,6 @@ var require_connect = __commonJS({
             servername,
             session,
             localAddress,
-            // TODO(HTTP/2): Add support for h2c
             ALPNProtocols: allowH2 ? ["http/1.1", "h2"] : ["http/1.1"],
             socket: httpSocket,
             // upgrade socket connection
@@ -2730,7 +2775,7 @@ var require_connect = __commonJS({
           const keepAliveInitialDelay = options.keepAliveInitialDelay === void 0 ? 6e4 : options.keepAliveInitialDelay;
           socket.setKeepAlive(true, keepAliveInitialDelay);
         }
-        const clearConnectTimeout = setupConnectTimeout(new WeakRef(socket), { timeout, hostname, port });
+        const clearConnectTimeout = util.setupConnectTimeout(new WeakRef(socket), { timeout, hostname, port });
         socket.setNoDelay(true).once(protocol === "https:" ? "secureConnect" : "connect", function() {
           queueMicrotask(clearConnectTimeout);
           if (callback) {
@@ -2750,51 +2795,6 @@ var require_connect = __commonJS({
       }, "connect");
     }
     __name(buildConnector, "buildConnector");
-    var setupConnectTimeout = process.platform === "win32" ? (socketWeakRef, opts) => {
-      if (!opts.timeout) {
-        return noop;
-      }
-      let s1 = null;
-      let s2 = null;
-      const fastTimer = timers.setFastTimeout(() => {
-        s1 = setImmediate(() => {
-          s2 = setImmediate(() => onConnectTimeout(socketWeakRef.deref(), opts));
-        });
-      }, opts.timeout);
-      return () => {
-        timers.clearFastTimeout(fastTimer);
-        clearImmediate(s1);
-        clearImmediate(s2);
-      };
-    } : (socketWeakRef, opts) => {
-      if (!opts.timeout) {
-        return noop;
-      }
-      let s1 = null;
-      const fastTimer = timers.setFastTimeout(() => {
-        s1 = setImmediate(() => {
-          onConnectTimeout(socketWeakRef.deref(), opts);
-        });
-      }, opts.timeout);
-      return () => {
-        timers.clearFastTimeout(fastTimer);
-        clearImmediate(s1);
-      };
-    };
-    function onConnectTimeout(socket, opts) {
-      if (socket == null) {
-        return;
-      }
-      let message = "Connect Timeout Error";
-      if (Array.isArray(socket.autoSelectFamilyAttemptedAddresses)) {
-        message += ` (attempted addresses: ${socket.autoSelectFamilyAttemptedAddresses.join(", ")},`;
-      } else {
-        message += ` (attempted address: ${opts.hostname}:${opts.port},`;
-      }
-      message += ` timeout: ${opts.timeout}ms)`;
-      util.destroy(socket, new ConnectTimeoutError(message));
-    }
-    __name(onConnectTimeout, "onConnectTimeout");
     module2.exports = buildConnector;
   }
 });
@@ -7619,6 +7619,7 @@ var require_client_h2 = __commonJS({
       }
       assert(client[kRunning] === 0);
       client.emit("disconnect", client[kUrl], [client], err);
+      client.emit("connectionError", client[kUrl], [client], err);
       client[kResume]();
     }
     __name(onHttp2SessionGoAway, "onHttp2SessionGoAway");
@@ -10968,7 +10969,10 @@ var require_fetch = __commonJS({
         originalURL.href,
         initiatorType,
         globalThis,
-        cacheState
+        cacheState,
+        "",
+        // bodyType
+        response.status
       );
     }
     __name(finalizeAndReportTiming, "finalizeAndReportTiming");
@@ -11268,7 +11272,7 @@ var require_fetch = __commonJS({
           fetchParams.controller.fullTimingInfo = timingInfo;
         }
         fetchParams.controller.reportTimingSteps = () => {
-          if (fetchParams.request.url.protocol !== "https:") {
+          if (!urlIsHttpHttpsScheme(fetchParams.request.url)) {
             return;
           }
           timingInfo.endTime = unsafeEndTime;
@@ -12285,7 +12289,7 @@ var require_util3 = __commonJS({
       const extensionList = /* @__PURE__ */ new Map();
       while (position.position < extensions.length) {
         const pair = collectASequenceOfCodePointsFast(";", extensions, position);
-        const [name, value = ""] = pair.split("=");
+        const [name, value = ""] = pair.split("=", 2);
         extensionList.set(
           removeHTTPWhitespace(name, true, false),
           removeHTTPWhitespace(value, false, true)

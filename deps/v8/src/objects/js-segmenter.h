@@ -1,6 +1,7 @@
 // Copyright 2020 the V8 project authors. All rights reserved.
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
+
 #ifndef V8_OBJECTS_JS_SEGMENTER_H_
 #define V8_OBJECTS_JS_SEGMENTER_H_
 
@@ -34,11 +35,11 @@ class JSSegmenter : public TorqueGeneratedJSSegmenter<JSSegmenter, JSObject> {
  public:
   // Creates segmenter object with properties derived from input locales and
   // options.
-  V8_WARN_UNUSED_RESULT static MaybeHandle<JSSegmenter> New(
-      Isolate* isolate, DirectHandle<Map> map, Handle<Object> locales,
-      Handle<Object> options);
+  V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSSegmenter> New(
+      Isolate* isolate, DirectHandle<Map> map, DirectHandle<Object> locales,
+      DirectHandle<Object> options);
 
-  V8_WARN_UNUSED_RESULT static Handle<JSObject> ResolvedOptions(
+  V8_WARN_UNUSED_RESULT static DirectHandle<JSObject> ResolvedOptions(
       Isolate* isolate, DirectHandle<JSSegmenter> segmenter_holder);
 
   V8_EXPORT_PRIVATE static const std::set<std::string>& GetAvailableLocales();

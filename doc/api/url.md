@@ -628,9 +628,11 @@ console.log(JSON.stringify(myURLs));
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `blob` {Blob}
 * Returns: {string}
@@ -664,9 +666,11 @@ to other workers or the main thread.
 
 <!-- YAML
 added: v16.7.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/57513
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental
 
 * `id` {string} A `'blob:nodedata:...` URL string returned by a prior call to
   `URL.createObjectURL()`.
@@ -1560,8 +1564,6 @@ changes:
     description: The Legacy URL API is deprecated. Use the WHATWG URL API.
 -->
 
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
-
 The legacy `urlObject` (`require('node:url').Url` or
 `import { Url } from 'node:url'`) is
 created and returned by the `url.parse()` function.
@@ -1688,8 +1690,6 @@ changes:
                  `slashes` option with no protocol is now also respected at all
                  times.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `urlObject` {Object|string} A URL object (as returned by `url.parse()` or
   constructed otherwise). If a string, it is converted to an object by passing
@@ -1850,8 +1850,6 @@ changes:
     description: The `auth` fields is cleared now the `to` parameter
                  contains a hostname.
 -->
-
-> Stability: 3 - Legacy: Use the WHATWG URL API instead.
 
 * `from` {string} The base URL to use if `to` is a relative URL.
 * `to` {string} The target URL to resolve.

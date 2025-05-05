@@ -22,7 +22,7 @@ class JSCacheTesterHelper {
         main_common_(zone),
         main_javascript_(zone),
         main_machine_(zone) {}
-  Graph main_graph_;
+  TFGraph main_graph_;
   CommonOperatorBuilder main_common_;
   JSOperatorBuilder main_javascript_;
   MachineOperatorBuilder main_machine_;
@@ -46,7 +46,7 @@ class JSConstantCacheTester : public HandleAndZoneScope,
         main_graph_.NewNode(common()->End(1), main_graph_.start()));
   }
 
-  Handle<HeapObject> handle(Node* node) {
+  DirectHandle<HeapObject> handle(Node* node) {
     CHECK_EQ(IrOpcode::kHeapConstant, node->opcode());
     return HeapConstantOf(node->op());
   }

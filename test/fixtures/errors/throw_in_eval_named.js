@@ -6,4 +6,4 @@ eval(`
 
   throw new Error('error in named script');
 
-//# sourceURL=evalscript.js`)
+//# sourceURL=evalscript.js`);

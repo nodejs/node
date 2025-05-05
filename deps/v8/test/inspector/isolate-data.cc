@@ -6,6 +6,7 @@
 
 #include <optional>
 
+#include "include/libplatform/libplatform.h"
 #include "include/v8-context.h"
 #include "include/v8-exception.h"
 #include "include/v8-microtask-queue.h"
@@ -103,6 +104,10 @@ InspectorIsolateData::~InspectorIsolateData() {
   for (int session_id : session_ids_for_cleanup_) {
     ChannelHolder::RemoveChannel(session_id);
   }
+
+  // We don't care about completing pending per-isolate tasks, just delete
+  // them in case they still reference this Isolate.
+  v8::platform::NotifyIsolateShutdown(V8::GetCurrentPlatform(), isolate());
 }
 
 int InspectorIsolateData::CreateContextGroup() {

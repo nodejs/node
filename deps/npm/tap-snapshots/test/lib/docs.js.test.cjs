@@ -1072,6 +1072,19 @@ Any "%s" in the message will be replaced with the version number.
 
 
 
+#### \`node-gyp\`
+
+* Default: The path to the node-gyp bin that ships with npm
+* Type: Path
+
+This is the location of the "node-gyp" bin. By default it uses one that
+ships with npm itself.
+
+You can use this config to specify your own "node-gyp" to run when it is
+required to build a package.
+
+
+
 #### \`node-options\`
 
 * Default: null
@@ -2158,6 +2171,7 @@ Array [
   "long",
   "maxsockets",
   "message",
+  "node-gyp",
   "node-options",
   "noproxy",
   "offline",
@@ -2300,6 +2314,7 @@ Array [
   "loglevel",
   "maxsockets",
   "message",
+  "node-gyp",
   "noproxy",
   "offline",
   "omit",
@@ -2454,6 +2469,7 @@ Object {
   "maxSockets": 15,
   "message": "%s",
   "nodeBin": "{NODE}",
+  "nodeGyp": "{CWD}/node_modules/node-gyp/bin/node-gyp.js",
   "nodeVersion": "2.2.2",
   "noProxy": "",
   "npmBin": "{CWD}/other/bin/npm-cli.js",

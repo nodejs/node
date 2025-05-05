@@ -18,9 +18,9 @@
 #include <random>
 #include <vector>
 
-#include "benchmark/benchmark.h"
 #include "absl/base/config.h"
 #include "absl/numeric/int128.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 

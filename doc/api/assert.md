@@ -556,6 +556,10 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57622
+    description: Recursion now stops when either side encounters a circular
+                 reference.
   - version:
       - v22.2.0
       - v20.15.0
@@ -632,7 +636,7 @@ are also recursively evaluated by the following rules.
 * [Object wrappers][] are compared both as objects and unwrapped values.
 * `Object` properties are compared unordered.
 * {Map} keys and {Set} items are compared unordered.
-* Recursion stops when both sides differ or both sides encounter a circular
+* Recursion stops when both sides differ or either side encounters a circular
   reference.
 * Implementation does not test the [`[[Prototype]]`][prototype-spec] of
   objects.
@@ -743,6 +747,10 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57622
+    description: Recursion now stops when either side encounters a circular
+                 reference.
   - version:
     - v22.2.0
     - v20.15.0
@@ -802,7 +810,7 @@ are recursively evaluated also by the following rules.
 * [Object wrappers][] are compared both as objects and unwrapped values.
 * `Object` properties are compared unordered.
 * {Map} keys and {Set} items are compared unordered.
-* Recursion stops when both sides differ or both sides encounter a circular
+* Recursion stops when both sides differ or either side encounters a circular
   reference.
 * {WeakMap} and {WeakSet} instances are **not** compared structurally.
   They are only equal if they reference the same object. Any comparison between
@@ -2599,8 +2607,6 @@ changes:
    pr-url: https://github.com/nodejs/node/pull/57370
    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->
-
-> Stability: 2 - Stable
 
 * `actual` {any}
 * `expected` {any}

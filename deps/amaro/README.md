@@ -29,6 +29,7 @@ console.log(code); // "const foo         = 'bar';"
 
 It is possible to use Amaro as an external loader to execute TypeScript files.
 This allows the installed Amaro to override the Amaro version used by Node.js.
+In order to use Amaro as an external loader, type stripping needs to be enabled.
 
 ```bash
 node --experimental-strip-types --import="amaro/register" script.ts
@@ -51,7 +52,7 @@ node --experimental-transform-types --import="amaro/transform" script.ts
 
 ### TypeScript Version
 
-The supported TypeScript version is 5.5.4, except the stage 3 decorator proposal.
+The supported TypeScript version is 5.8.
 
 ## License (MIT)
 

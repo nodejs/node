@@ -736,12 +736,13 @@ class Parser : public AsyncWrap, public StreamListener {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
-    Local<Object> ret = Buffer::Copy(
+    Local<Object> ret;
+    if (Buffer::Copy(
         parser->env(),
         parser->current_buffer_data_,
-        parser->current_buffer_len_).ToLocalChecked();
-
-    args.GetReturnValue().Set(ret);
+        parser->current_buffer_len_).ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
+    }
   }
 
   static void Duration(const FunctionCallbackInfo<Value>& args) {

@@ -101,13 +101,12 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   char* write_result = static_cast<char*>(buf->Data()) + dest->ByteOffset();
   size_t dest_length = dest->ByteLength();
 
-  int nchars;
-  int written = source->WriteUtf8(
-      isolate,
-      write_result,
-      dest_length,
-      &nchars,
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+  size_t nchars;
+  size_t written = source->WriteUtf8V2(isolate,
+                                       write_result,
+                                       dest_length,
+                                       String::WriteFlags::kReplaceInvalidUtf8,
+                                       &nchars);
 
   binding_data->encode_into_results_buffer_[0] = nchars;
   binding_data->encode_into_results_buffer_[1] = written;
@@ -122,7 +121,7 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
 
   Local<String> str = args[0].As<String>();
-  size_t length = str->Utf8Length(isolate);
+  size_t length = str->Utf8LengthV2(isolate);
 
   Local<ArrayBuffer> ab;
   {
@@ -131,11 +130,11 @@ void BindingData::EncodeUtf8String(const FunctionCallbackInfo<Value>& args) {
 
     CHECK(bs);
 
-    str->WriteUtf8(isolate,
-                   static_cast<char*>(bs->Data()),
-                   -1,  // We are certain that `data` is sufficiently large
-                   nullptr,
-                   String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8);
+    // We are certain that `data` is sufficiently large
+    str->WriteUtf8V2(isolate,
+                     static_cast<char*>(bs->Data()),
+                     bs->MaxByteLength(),
+                     String::WriteFlags::kReplaceInvalidUtf8);
 
     ab = ArrayBuffer::New(isolate, std::move(bs));
   }
@@ -183,17 +182,10 @@ void BindingData::DecodeUTF8(const FunctionCallbackInfo<Value>& args) {
 
   if (length == 0) return args.GetReturnValue().SetEmptyString();
 
-  Local<Value> error;
   Local<Value> ret;
-
-  if (!StringBytes::Encode(env->isolate(), data, length, UTF8, &error)
-           .ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+  if (StringBytes::Encode(env->isolate(), data, length, UTF8).ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-
-  args.GetReturnValue().Set(ret);
 }
 
 void BindingData::ToASCII(const FunctionCallbackInfo<Value>& args) {

@@ -171,6 +171,14 @@ for (let n = 1; n < 256; n += 1) {
     errMessage);
 }
 
+// And so should undefined be (regardless of mode).
+assert.throws(
+  () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16)),
+  { code: 'ERR_INVALID_ARG_TYPE' });
+assert.throws(
+  () => crypto.createCipheriv('aes-128-ecb', Buffer.alloc(16), undefined),
+  { code: 'ERR_INVALID_ARG_TYPE' });
+
 // Correctly sized IV should be accepted in CBC mode.
 crypto.createCipheriv('aes-128-cbc', Buffer.alloc(16), Buffer.alloc(16));
 

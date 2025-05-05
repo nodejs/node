@@ -21,12 +21,13 @@
 #include <tuple>
 #include <utility>
 
-#include "benchmark/benchmark.h"
 #include "absl/random/log_uniform_int_distribution.h"
 #include "absl/random/random.h"
 #include "absl/strings/str_cat.h"
+#include "absl/strings/str_format.h"
 #include "absl/strings/string_view.h"
 #include "absl/strings/substitute.h"
+#include "benchmark/benchmark.h"
 
 namespace {
 
@@ -111,6 +112,17 @@ void BM_HexCat_By_StrCat(benchmark::State& state) {
 }
 BENCHMARK(BM_HexCat_By_StrCat);
 
+void BM_HexCat_By_StrFormat(benchmark::State& state) {
+  int i = 0;
+  for (auto _ : state) {
+    std::string result =
+        absl::StrFormat("%s %x", kStringOne, int64_t{i} + 0x10000000);
+    benchmark::DoNotOptimize(result);
+    i = IncrementAlternatingSign(i);
+  }
+}
+BENCHMARK(BM_HexCat_By_StrFormat);
+
 void BM_HexCat_By_Substitute(benchmark::State& state) {
   int i = 0;
   for (auto _ : state) {
@@ -144,6 +156,18 @@ void BM_DoubleToString_By_SixDigits(benchmark::State& state) {
   }
 }
 BENCHMARK(BM_DoubleToString_By_SixDigits);
+
+void BM_FloatToString_By_StrFormat(benchmark::State& state) {
+  int i = 0;
+  float foo = 0.0f;
+  for (auto _ : state) {
+    std::string result =
+        absl::StrFormat("%f != %lld", foo += 1.001f, int64_t{i});
+    benchmark::DoNotOptimize(result);
+    i = IncrementAlternatingSign(i);
+  }
+}
+BENCHMARK(BM_FloatToString_By_StrFormat);
 
 template <typename Table, size_t... Index>
 void BM_StrAppendImpl(benchmark::State& state, Table table, size_t total_bytes,

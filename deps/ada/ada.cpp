@@ -1,4 +1,4 @@
-/* auto-generated on 2025-03-10 13:14:56 -0400. Do not edit! */
+/* auto-generated on 2025-04-24 20:04:09 -0400. Do not edit! */
 /* begin file src/ada.cpp */
 #include "ada.h"
 /* begin file src/checkers.cpp */
@@ -11636,15 +11636,20 @@ ada_really_inline void parse_prepared_path(std::string_view input,
     // Note: input cannot be empty, it must at least contain one character ('.')
     // Note: we know that '\' is not present.
     if (input[0] != '.') {
-      size_t slashdot = input.find("/.");
-      if (slashdot == std::string_view::npos) {  // common case
-        trivial_path = true;
-      } else {  // uncommon
-        // only three cases matter: /./, /.. or a final /
-        trivial_path =
-            !(slashdot + 2 == input.size() || input[slashdot + 2] == '.' ||
-              input[slashdot + 2] == '/');
+      size_t slashdot = 0;
+      bool dot_is_file = true;
+      for (;;) {
+        slashdot = input.find("/.", slashdot);
+        if (slashdot == std::string_view::npos) {  // common case
+          break;
+        } else {  // uncommon
+          // only three cases matter: /./, /.. or a final /
+          slashdot += 2;
+          dot_is_file &= !(slashdot == input.size() || input[slashdot] == '.' ||
+                           input[slashdot] == '/');
+        }
       }
+      trivial_path = dot_is_file;
     }
   }
   if (trivial_path) {
@@ -13334,10 +13339,18 @@ result_type parse_url_impl(std::string_view user_input,
           input_position = input_size + 1;
         }
         url.has_opaque_path = true;
+
         // This is a really unlikely scenario in real world. We should not seek
         // to optimize it.
-        url.update_base_pathname(unicode::percent_encode(
-            view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        if (view.ends_with(' ')) {
+          std::string modified_view =
+              std::string(view.begin(), view.end() - 1) + "%20";
+          url.update_base_pathname(unicode::percent_encode(
+              modified_view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        } else {
+          url.update_base_pathname(unicode::percent_encode(
+              view, character_sets::C0_CONTROL_PERCENT_ENCODE));
+        }
         break;
       }
       case state::PORT: {
@@ -15085,15 +15098,20 @@ inline void url_aggregator::consume_prepared_path(std::string_view input) {
     // Note: input cannot be empty, it must at least contain one character ('.')
     // Note: we know that '\' is not present.
     if (input[0] != '.') {
-      size_t slashdot = input.find("/.");
-      if (slashdot == std::string_view::npos) {  // common case
-        trivial_path = true;
-      } else {  // uncommon
-        // only three cases matter: /./, /.. or a final /
-        trivial_path =
-            !(slashdot + 2 == input.size() || input[slashdot + 2] == '.' ||
-              input[slashdot + 2] == '/');
+      size_t slashdot = 0;
+      bool dot_is_file = true;
+      for (;;) {
+        slashdot = input.find("/.", slashdot);
+        if (slashdot == std::string_view::npos) {  // common case
+          break;
+        } else {  // uncommon
+          // only three cases matter: /./, /.. or a final /
+          slashdot += 2;
+          dot_is_file &= !(slashdot == input.size() || input[slashdot] == '.' ||
+                           input[slashdot] == '/');
+        }
       }
+      trivial_path = dot_is_file;
     }
   }
   if (trivial_path && is_at_path()) {

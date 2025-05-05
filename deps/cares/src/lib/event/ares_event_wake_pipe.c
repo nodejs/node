@@ -25,14 +25,16 @@
  */
 #include "ares_private.h"
 #include "ares_event.h"
-#ifdef HAVE_UNISTD_H
-#  include <unistd.h>
-#endif
-#ifdef HAVE_FCNTL_H
-#  include <fcntl.h>
-#endif
 
-#ifdef HAVE_PIPE
+#if defined(HAVE_PIPE) && defined(CARES_THREADS)
+
+#  ifdef HAVE_UNISTD_H
+#    include <unistd.h>
+#  endif
+#  ifdef HAVE_FCNTL_H
+#    include <fcntl.h>
+#  endif
+
 typedef struct {
   int filedes[2];
 } ares_pipeevent_t;

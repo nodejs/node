@@ -633,6 +633,207 @@ const tests = [
     ],
     clean: false
   },
+  {
+    // Test that the multiline history is correctly navigated and it can be edited
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let a = ``',
+      ENTER,
+      'a = `I am a multiline strong',
+      ENTER,
+      'which ends here`',
+      ENTER,
+      UP,
+      // press LEFT 19 times to reach the typo
+      ...Array(19).fill(LEFT),
+      BACKSPACE,
+      'i',
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let a = ``',
+      'undefined\n',
+      prompt, ...'a = `I am a multiline strong', // New Line, the user pressed ENTER
+      '| ',
+      ...'which ends here`', // New Line, the user pressed ENTER
+      "'I am a multiline strong\\nwhich ends here'\n", // This is the result printed to the console
+      prompt,
+      `${prompt}a = \`I am a multiline strong`, // This is the history being shown and navigated
+      `\n| which ends here\``,
+      `${prompt}a = \`I am a multiline strong`, // This is the history being shown and navigated
+      `\n| which ends here\``,
+
+      `${prompt}a = \`I am a multiline strng`, // This is the history being shown and edited
+      `\n| which ends here\``,
+
+      `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+
+      `${prompt}a = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n", // This is the result printed to the console
+      prompt,
+    ],
+    clean: true
+  },
+  {
+    // Test that the previous multiline history can only be accessed going through the entirety of the current
+    // One navigating its all lines first.
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let b = ``',
+      ENTER,
+      'b = `I am a multiline strong',
+      ENTER,
+      'which ends here`',
+      ENTER,
+      'let c = `I',
+      ENTER,
+      'am another one`',
+      ENTER,
+      UP,
+      UP,
+      UP,
+      UP,
+      // press RIGHT 10 times to reach the typo
+      ...Array(10).fill(RIGHT),
+      BACKSPACE,
+      'i',
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let b = ``',
+      'undefined\n',
+      prompt, ...'b = `I am a multiline strong', // New Line, the user pressed ENTER
+      '| ',
+      ...'which ends here`', // New Line, the user pressed ENTER
+      "'I am a multiline strong\\nwhich ends here'\n", // This is the result printed to the console
+      prompt, ...'let c = `I', // New Line, the user pressed ENTER
+      '| ',
+      ...'am another one`', // New Line, the user pressed ENTER
+      'undefined\n',
+      prompt,
+      `${prompt}let c = \`I`, // This is the history being shown and navigated
+      `\n| am another one\``,
+
+      `${prompt}let c = \`I`, // This is the history being shown and navigated
+      `\n| am another one\``,
+
+      `${prompt}b = \`I am a multiline strong`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      `${prompt}b = \`I am a multiline strong`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      `${prompt}b = \`I am a multiline strng`, // This is the history being shown and edited
+      `\n| which ends here\``,
+
+      `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+
+      `${prompt}b = \`I am a multiline string`, // This is the history being shown and edited
+      `\n| which ends here\``,
+      "'I am a multiline string\\nwhich ends here'\n", // This is the result printed to the console
+      prompt,
+    ],
+    clean: true
+  },
+  {
+    // Test that we can recover from a line with a syntax error
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      'let d = ``',
+      ENTER,
+      'd = `I am a',
+      ENTER,
+      'super',
+      ENTER,
+      'broken` line\'',
+      ENTER,
+      UP,
+      BACKSPACE,
+      '`',
+      // press LEFT 6 times to reach the typo
+      ...Array(6).fill(LEFT),
+      BACKSPACE,
+      ENTER,
+    ],
+    expected: [
+      prompt, ...'let d = ``', // New Line, the user pressed ENTER
+      'undefined\n',
+      prompt, ...'d = `I am a', // New Line, the user pressed ENTER
+      '| ',
+      ...'super', // New Line, the user pressed ENTER
+      '| ',
+      ...'broken` line\'', // New Line, the user pressed ENTER
+      "[broken` line'\n" +
+      '        ^^^^\n' +
+      '\n' +
+      "Uncaught SyntaxError: Unexpected identifier 'line'\n" +
+      '] {\n' +
+      '  [stack]: [Getter/Setter],\n' +
+      `  [message]: "Unexpected identifier 'line'"\n` +
+      '}\n',
+      prompt,
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
+      `\n| super`,
+      `\n| broken\` line'`,
+
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
+      `\n| super`,
+      '\n| broken` line',
+      '`',
+
+      `${prompt}d = \`I am a`, // This is the history being shown and edited
+      `\n| super`,
+      `\n| broken line\``,
+      "'I am a\\nsuper\\nbroken line'\n", // This is the result printed to the console
+      prompt,
+    ],
+    clean: true
+  },
+  {
+    // Test that multiline history is not duplicated
+    env: { NODE_REPL_HISTORY: defaultHistoryPath },
+    skip: !process.features.inspector,
+    test: [
+      "let f = ''",
+      ENTER,
+      'f = `multiline',
+      ENTER,
+      'string`',
+      ENTER, // Finished issuing the multiline command
+      UP,
+      ENTER, // Trying to reissue the same command
+      UP, UP, UP, // Going back 3 times in the history, it should show the var definition
+      DOWN, DOWN, // Going down 2 times should show the multiline command only once
+    ],
+    expected: [
+      prompt,
+      ...`let f = ''`,
+      'undefined\n',
+      prompt,
+      ...'f = `multiline',
+      '| ',
+      ...'string`',
+      "'multiline\\nstring'\n",
+      prompt,
+      `${prompt}f = \`multiline`,
+      '\n| string`',
+      "'multiline\\nstring'\n",
+      prompt,
+      `${prompt}f = \`multiline`,
+      `\n| string\``,
+      `${prompt}f = \`multiline`,
+      `\n| string\``,
+      `${prompt}let f = ''`,
+      `${prompt}f = \`multiline`,
+      `\n| string\``,
+      prompt,
+    ],
+    clean: true
+  },
 ];
 const numtests = tests.length;
 

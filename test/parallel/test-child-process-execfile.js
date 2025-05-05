@@ -12,6 +12,12 @@ const fixture = fixtures.path('exit.js');
 const echoFixture = fixtures.path('echo.js');
 const execOpts = { encoding: 'utf8', shell: true, env: { ...process.env, NODE: process.execPath, FIXTURE: fixture } };
 
+common.expectWarning(
+  'DeprecationWarning',
+  'Passing args to a child process with shell option true can lead to security ' +
+  'vulnerabilities, as the arguments are not escaped, only concatenated.',
+  'DEP0190');
+
 {
   execFile(
     process.execPath,

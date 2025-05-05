@@ -70,10 +70,9 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
 
   it('should support timeout', async () => {
     const stream = run({ timeout: 50, files: [
-      fixtures.path('test-runner', 'never_ending_sync.js'),
-      fixtures.path('test-runner', 'never_ending_async.js'),
+      fixtures.path('test-runner', 'timeout-basic.mjs'),
     ] });
-    stream.on('test:fail', common.mustCall(2));
+    stream.on('test:fail', common.mustCall(1));
     stream.on('test:pass', common.mustNotCall());
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);
@@ -207,7 +206,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       if (data.name === 'this is a test') {
         t.assert.strictEqual(data.type, 'test');
       }
-    }, 2));
+    }, 3));
     stream.on('test:dequeue', common.mustCall((data) => {
       if (data.name === 'this is a suite') {
         t.assert.strictEqual(data.type, 'suite');
@@ -215,7 +214,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       if (data.name === 'this is a test') {
         t.assert.strictEqual(data.type, 'test');
       }
-    }, 2));
+    }, 3));
 
     // eslint-disable-next-line no-unused-vars
     for await (const _ of stream);

@@ -159,30 +159,33 @@ ares_status_t ares_event_update(ares_event_t **event, ares_event_thread_t *e,
                                 ares_event_signal_cb_t signal_cb);
 
 
-#ifdef HAVE_PIPE
+#ifdef CARES_THREADS
+#  ifdef HAVE_PIPE
 ares_event_t *ares_pipeevent_create(ares_event_thread_t *e);
-#endif
+#  endif
 
-#ifdef HAVE_POLL
+#  ifdef HAVE_POLL
 extern const ares_event_sys_t ares_evsys_poll;
-#endif
+#  endif
 
-#ifdef HAVE_KQUEUE
+#  ifdef HAVE_KQUEUE
 extern const ares_event_sys_t ares_evsys_kqueue;
-#endif
+#  endif
 
-#ifdef HAVE_EPOLL
+#  ifdef HAVE_EPOLL
 extern const ares_event_sys_t ares_evsys_epoll;
-#endif
+#  endif
 
-#ifdef _WIN32
+#  ifdef _WIN32
 extern const ares_event_sys_t ares_evsys_win32;
-#endif
+#  endif
 
 /* All systems have select(), but not all have a way to wake, so we require
  * pipe() to wake the select() */
-#ifdef HAVE_PIPE
+#  ifdef HAVE_PIPE
 extern const ares_event_sys_t ares_evsys_select;
+#  endif
+
 #endif
 
 #endif

@@ -536,7 +536,13 @@ class RegExpParserImpl final {
   bool contains_anchor() const { return contains_anchor_; }
   void set_contains_anchor() { contains_anchor_ = true; }
   int captures_started() const { return captures_started_; }
-  int position() const { return next_pos_ - 1; }
+  int position() const {
+    const bool current_is_surrogate =
+        current() != kEndMarker &&
+        current() > unibrow::Utf16::kMaxNonSurrogateCharCode;
+    const int rewind_bytes = current_is_surrogate ? 2 : 1;
+    return next_pos_ - rewind_bytes;
+  }
   bool failed() const { return failed_; }
   RegExpFlags flags() const { return flags_; }
   bool IsUnicodeMode() const {
@@ -630,7 +636,6 @@ class RegExpParserImpl final {
   ZoneMap<RegExpCapture*, ZoneList<int>*, RegExpCaptureNameLess>*
       named_captures_;
   ZoneList<RegExpBackReference*>* named_back_references_;
-  ZoneList<CharacterRange>* temp_ranges_;
   const CharT* const input_;
   const int input_length_;
   base::uc32 current_;
@@ -1297,7 +1302,8 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
   Advance();
   if (current() == '?') {
     do {
-      switch (Next()) {
+      base::uc32 next = Next();
+      switch (next) {
         case '-':
           if (!v8_flags.js_regexp_modifiers) {
             ReportError(RegExpError::kInvalidGroup);
@@ -1320,7 +1326,7 @@ RegExpParserState* RegExpParserImpl<CharT>::ParseOpenParenthesis(
           }
           Advance();
           parsing_modifiers = true;
-          RegExpFlag flag = TryRegExpFlagFromChar(current()).value();
+          RegExpFlag flag = TryRegExpFlagFromChar(next).value();
           if ((modifiers & flag) != 0) {
             ReportError(RegExpError::kRepeatedFlag);
             return nullptr;
@@ -1734,7 +1740,7 @@ RegExpCapture* RegExpParserImpl<CharT>::GetCapture(int index) {
   // zero-based.
   const int known_captures =
       is_scanned_for_captures_ ? capture_count_ : captures_started_;
-  DCHECK(index <= known_captures);
+  SBXCHECK(index >= 1 && index <= known_captures);
   if (captures_ == nullptr) {
     captures_ =
         zone()->template New<ZoneList<RegExpCapture*>>(known_captures, zone());
@@ -3047,7 +3053,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '-') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);
@@ -3061,7 +3068,8 @@ RegExpTree* RegExpParserImpl<CharT>::ParseCharacterClass(
         if (Next() == '&') {
           if (operand == nullptr) {
             if (operand_type == ClassSetOperandType::kClassSetCharacter) {
-              ranges->Add(CharacterRange::Singleton(character), zone());
+              AddMaybeSimpleCaseFoldedRange(
+                  ranges, CharacterRange::Singleton(character));
             }
             operand =
                 zone()->template New<RegExpClassSetOperand>(ranges, strings);

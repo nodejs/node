@@ -16,15 +16,85 @@
 
 #include <cassert>
 #include <memory>
+#include <type_traits>
 #include <utility>
 
 #include "gtest/gtest.h"
-#include "absl/base/attributes.h"
 
 namespace {
+namespace macro_annotations {
+void funcWithNonnullArg(int* absl_nonnull /*arg*/) {}
+template <typename T>
+void funcWithDeducedNonnullArg(T* absl_nonnull /*arg*/) {}
+
+TEST(NonnullTest, NonnullArgument) {
+  int var = 0;
+  funcWithNonnullArg(&var);
+  funcWithDeducedNonnullArg(&var);
+}
+
+int* absl_nonnull funcWithNonnullReturn() {
+  static int var = 0;
+  return &var;
+}
+
+TEST(NonnullTest, NonnullReturn) {
+  auto var = funcWithNonnullReturn();
+  (void)var;
+}
+
+TEST(PassThroughTest, PassesThroughRawPointerToInt) {
+  EXPECT_TRUE((std::is_same<int* absl_nonnull, int*>::value));
+  EXPECT_TRUE((std::is_same<int* absl_nullable, int*>::value));
+  EXPECT_TRUE((std::is_same<int* absl_nullability_unknown, int*>::value));
+}
+
+TEST(PassThroughTest, PassesThroughRawPointerToVoid) {
+  EXPECT_TRUE((std::is_same<void* absl_nonnull, void*>::value));
+  EXPECT_TRUE((std::is_same<void* absl_nullable, void*>::value));
+  EXPECT_TRUE((std::is_same<void* absl_nullability_unknown, void*>::value));
+}
+
+TEST(PassThroughTest, PassesThroughUniquePointerToInt) {
+  using T = std::unique_ptr<int>;
+  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+}
+
+TEST(PassThroughTest, PassesThroughSharedPointerToInt) {
+  using T = std::shared_ptr<int>;
+  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+}
+
+TEST(PassThroughTest, PassesThroughSharedPointerToVoid) {
+  using T = std::shared_ptr<void>;
+  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+}
+
+TEST(PassThroughTest, PassesThroughPointerToMemberObject) {
+  using T = decltype(&std::pair<int, int>::first);
+  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+}
+
+TEST(PassThroughTest, PassesThroughPointerToMemberFunction) {
+  using T = decltype(&std::unique_ptr<int>::reset);
+  EXPECT_TRUE((std::is_same<absl_nonnull T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullable T, T>::value));
+  EXPECT_TRUE((std::is_same<absl_nullability_unknown T, T>::value));
+}
+}  // namespace macro_annotations
+
 using ::absl::Nonnull;
 using ::absl::NullabilityUnknown;
 using ::absl::Nullable;
+namespace type_alias_annotations {
 
 void funcWithNonnullArg(Nonnull<int*> /*arg*/) {}
 template <typename T>
@@ -93,6 +163,7 @@ TEST(PassThroughTest, PassesThroughPointerToMemberFunction) {
   EXPECT_TRUE((std::is_same<NullabilityUnknown<T>, T>::value));
 }
 
+}  // namespace type_alias_annotations
 }  // namespace
 
 // Nullable ADL lookup test

@@ -36,6 +36,7 @@ using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BigInt;
 using v8::Context;
+using v8::EscapableHandleScope;
 using v8::Exception;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
@@ -398,13 +399,13 @@ ByteSource ByteSource::FromStringOrBuffer(Environment* env,
 ByteSource ByteSource::FromString(Environment* env, Local<String> str,
                                   bool ntc) {
   CHECK(str->IsString());
-  size_t size = str->Utf8Length(env->isolate());
+  size_t size = str->Utf8LengthV2(env->isolate());
   size_t alloc_size = ntc ? size + 1 : size;
   auto out = DataPointer::Alloc(alloc_size);
-  int opts = String::NO_OPTIONS;
-  if (!ntc) opts |= String::NO_NULL_TERMINATION;
-  str->WriteUtf8(
-      env->isolate(), static_cast<char*>(out.get()), alloc_size, nullptr, opts);
+  int flags = String::WriteFlags::kNone;
+  if (ntc) flags |= String::WriteFlags::kNullTerminate;
+  str->WriteUtf8V2(
+      env->isolate(), static_cast<char*>(out.get()), alloc_size, flags);
   return ByteSource::Allocated(out.release());
 }
 
@@ -599,27 +600,23 @@ void SetEngine(const FunctionCallbackInfo<Value>& args) {
   // If the engine name is not known, calling setAsDefault on the
   // empty engine pointer will be non-op that always returns false.
   args.GetReturnValue().Set(
-      EnginePointer::getEngineByName(engine_id.ToStringView())
-          .setAsDefault(flags));
+      EnginePointer::getEngineByName(*engine_id).setAsDefault(flags));
 }
 #endif  // !OPENSSL_NO_ENGINE
 
 MaybeLocal<Value> EncodeBignum(Environment* env, const BIGNUM* bn, int size) {
+  EscapableHandleScope scope(env->isolate());
   auto buf = BignumPointer::EncodePadded(bn, size);
   CHECK_EQ(buf.size(), static_cast<size_t>(size));
   Local<Value> ret;
-  Local<Value> error;
   if (!StringBytes::Encode(env->isolate(),
                            reinterpret_cast<const char*>(buf.get()),
                            buf.size(),
-                           BASE64URL,
-                           &error)
+                           BASE64URL)
            .ToLocal(&ret)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return MaybeLocal<Value>();
+    return {};
   }
-  return ret;
+  return scope.Escape(ret);
 }
 
 Maybe<void> SetEncodedValue(Environment* env,

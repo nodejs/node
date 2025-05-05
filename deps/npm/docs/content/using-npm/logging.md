@@ -38,7 +38,7 @@ The default value of `loglevel` is `"notice"` but there are several levels/types
 - `"verbose"`
 - `"silly"`
 
-All logs pertaining to a level proceeding the current setting will be shown.
+All logs pertaining to a level preceding the current setting will be shown.
 
 ##### Aliases
 

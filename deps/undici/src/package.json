@@ -1,6 +1,6 @@
 {
   "name": "undici",
-  "version": "7.5.0",
+  "version": "7.8.0",
   "description": "An HTTP/1.1 client, written from scratch for Node.js",
   "homepage": "https://undici.nodejs.org",
   "bugs": {
@@ -80,7 +80,7 @@
     "test:fuzzing": "node test/fuzzing/fuzzing.test.js",
     "test:fetch": "npm run build:node && borp --timeout 180000 --expose-gc --concurrency 1 -p \"test/fetch/*.js\" && npm run test:webidl && npm run test:busboy",
     "test:h2": "npm run test:h2:core && npm run test:h2:fetch",
-    "test:h2:core": "borp -p \"test/http2*.js\"",
+    "test:h2:core": "borp -p \"test/+(http2|h2)*.js\"",
     "test:h2:fetch": "npm run build:node && borp -p \"test/fetch/http2*.js\"",
     "test:interceptors": "borp -p \"test/interceptors/*.js\"",
     "test:jest": "cross-env NODE_V8_COVERAGE= jest",
@@ -108,7 +108,7 @@
   },
   "devDependencies": {
     "@fastify/busboy": "3.1.1",
-    "@matteo.collina/tspl": "^0.1.1",
+    "@matteo.collina/tspl": "^0.2.0",
     "@sinonjs/fake-timers": "^12.0.0",
     "@types/node": "^18.19.50",
     "abort-controller": "^3.0.0",
@@ -116,7 +116,7 @@
     "c8": "^10.0.0",
     "cross-env": "^7.0.3",
     "dns-packet": "^5.4.0",
-    "esbuild": "^0.24.0",
+    "esbuild": "^0.25.2",
     "eslint": "^9.9.0",
     "fast-check": "^3.17.1",
     "https-pem": "^3.0.0",

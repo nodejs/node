@@ -6,9 +6,10 @@
 
 """ Unit tests for the xcode.py file. """
 
-import gyp.generator.xcode as xcode
-import unittest
 import sys
+import unittest
+
+from gyp.generator import xcode
 
 
 class TestEscapeXcodeDefine(unittest.TestCase):

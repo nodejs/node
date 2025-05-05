@@ -139,6 +139,7 @@ struct V8_EXPORT V8StackFrame {
   StringView functionName;
   int lineNumber;
   int columnNumber;
+  int scriptId;
 };
 
 class V8_EXPORT V8StackTrace {
@@ -297,12 +298,14 @@ class V8_EXPORT V8InspectorClient {
     return v8::MaybeLocal<v8::Value>();
   }
 
-  virtual void consoleTime(v8::Isolate* isolate, v8::Local<v8::String> label);
+  virtual void consoleTime(v8::Isolate* isolate, v8::Local<v8::String> label) {}
   virtual void consoleTimeEnd(v8::Isolate* isolate,
-                              v8::Local<v8::String> label);
+                              v8::Local<v8::String> label) {}
   virtual void consoleTimeStamp(v8::Isolate* isolate,
-                                v8::Local<v8::String> label);
-
+                                v8::Local<v8::String> label) {}
+  virtual void consoleTimeStampWithArgs(
+      v8::Isolate* isolate, v8::Local<v8::String> label,
+      const v8::LocalVector<v8::Value>& args) {}
   virtual void consoleClear(int contextGroupId) {}
   virtual double currentTimeMS() { return 0; }
   typedef void (*TimerCallback)(void*);
@@ -361,6 +364,7 @@ class V8_EXPORT V8Inspector {
   virtual void resetContextGroup(int contextGroupId) = 0;
   virtual v8::MaybeLocal<v8::Context> contextById(int contextId) = 0;
   virtual V8DebuggerId uniqueDebuggerId(int contextId) = 0;
+  virtual uint64_t isolateId() = 0;
 
   // Various instrumentation.
   virtual void idleStarted() = 0;

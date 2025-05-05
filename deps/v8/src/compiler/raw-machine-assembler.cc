@@ -17,7 +17,7 @@ namespace internal {
 namespace compiler {
 
 RawMachineAssembler::RawMachineAssembler(
-    Isolate* isolate, Graph* graph, CallDescriptor* call_descriptor,
+    Isolate* isolate, TFGraph* graph, CallDescriptor* call_descriptor,
     MachineRepresentation word, MachineOperatorBuilder::Flags flags,
     MachineOperatorBuilder::AlignmentRequirements alignment_requirements)
     : isolate_(isolate),
@@ -28,6 +28,7 @@ RawMachineAssembler::RawMachineAssembler(
       common_(zone()),
       simplified_(zone()),
       call_descriptor_(call_descriptor),
+      dynamic_js_parameter_count_(nullptr),
       target_parameter_(nullptr),
       parameters_(parameter_count(), zone()),
       current_block_(schedule()->start()) {
@@ -106,7 +107,7 @@ Schedule* RawMachineAssembler::ExportForTest() {
   return schedule;
 }
 
-Graph* RawMachineAssembler::ExportForOptimization() {
+TFGraph* RawMachineAssembler::ExportForOptimization() {
   // Compute the correct codegen order.
   DCHECK(schedule_->rpo_order()->empty());
   if (v8_flags.trace_turbo_scheduler) {
@@ -126,7 +127,8 @@ Graph* RawMachineAssembler::ExportForOptimization() {
   return graph();
 }
 
-void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule, Graph* graph,
+void RawMachineAssembler::OptimizeControlFlow(Schedule* schedule,
+                                              TFGraph* graph,
                                               CommonOperatorBuilder* common) {
   for (bool changed = true; changed;) {
     changed = false;
@@ -536,11 +538,11 @@ void RawMachineAssembler::Goto(RawMachineLabel* label) {
   current_block_ = nullptr;
 }
 
-
 void RawMachineAssembler::Branch(Node* condition, RawMachineLabel* true_val,
-                                 RawMachineLabel* false_val) {
+                                 RawMachineLabel* false_val,
+                                 BranchHint branch_hint) {
   DCHECK(current_block_ != schedule()->end());
-  Node* branch = MakeNode(common()->Branch(BranchHint::kNone), 1, &condition);
+  Node* branch = MakeNode(common()->Branch(branch_hint), 1, &condition);
   BasicBlock* true_block = schedule()->NewBasicBlock();
   BasicBlock* false_block = schedule()->NewBasicBlock();
   schedule()->AddBranch(CurrentBlock(), branch, true_block, false_block);
@@ -628,7 +630,7 @@ void RawMachineAssembler::Return(int count, Node* vs[]) {
 }
 
 void RawMachineAssembler::PopAndReturn(Node* pop, Node* value) {
-  // PopAndReturn is supposed to be using ONLY in CSA/Torque builtins for
+  // PopAndReturn is supposed to be used ONLY in CSA/Torque builtins for
   // dropping ALL JS arguments that are currently located on the stack.
   // The check below ensures that there are no directly accessible stack
   // parameters from current builtin, which implies that the builtin with
@@ -748,7 +750,7 @@ Node* CallCFunctionImpl(
   if (caller_saved_fp_regs) flags |= CallDescriptor::kCallerSavedFPRegisters;
   if (no_function_descriptor) flags |= CallDescriptor::kNoFunctionDescriptor;
   auto call_descriptor =
-      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Build(), flags);
+      Linkage::GetSimplifiedCDescriptor(rasm->zone(), builder.Get(), flags);
 
   base::SmallVector<Node*, kNumCArgs> nodes(args.size() + 1);
   nodes[0] = function;

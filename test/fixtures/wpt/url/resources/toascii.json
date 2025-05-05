@@ -1,6 +1,9 @@
 [
   "This contains assorted IDNA tests that IdnaTestV2 might not cover.",
   "Feel free to deduplicate with a clear commit message.",
+  "",
+  "If the test only applies to the URL Standard's 'domain to ASCII', ",
+  "and not to TR46's ToASCII, then tag it with `urlStandardOnly`",
   {
     "comment": "Label with hyphens in 3rd and 4th position",
     "input": "aa--",
@@ -239,11 +242,13 @@
   },
   {
     "input": "www.lookout.net\u2A7480",
-    "output": null
+    "output": null,
+    "urlStandardOnly": true
   },
   {
     "input": "www\u00A0.lookout.net",
-    "output": null
+    "output": null,
+    "urlStandardOnly": true
   },
   {
     "input": "\u1680lookout.net",
@@ -251,7 +256,8 @@
   },
   {
     "input": "\u001flookout.net",
-    "output": null
+    "output": null,
+    "urlStandardOnly": true
   },
   {
     "input": "look\u06DDout.net",

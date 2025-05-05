@@ -144,6 +144,44 @@ Contributions can be:
 * Participation in other projects, teams, and working groups of the Node.js
   organization.
 
+Collaborators should be people volunteering to do unglamorous work because it's
+the right thing to do, they find the work itself satisfying, and they care about
+Node.js and its users. People should get collaborator status because they're
+doing work and are likely to continue doing work where having the abilities that
+come with collaborator status are helpful (abilities like starting CI jobs,
+reviewing and approving PRs, etc.). That will usually--but, very importantly, not
+always--be work involving committing to the `nodejs/node` repository. For an example
+of an exception, someone working primarily on the website might benefit from being
+able to start Jenkins CI jobs to test changes to documentation tooling. That,
+along with signals indicating commitment to Node.js, personal integrity, etc.,
+should be enough for a successful nomination.
+
+It is important to understand that potential collaborators may have vastly
+different areas and levels of expertise, interest, and skill. The Node.js
+project is large and complex, and it is not expected that every collaborator
+will have the same level of expertise in every area of the project. The
+complexity or "sophistication" of an individual’s contributions, or even their
+relative engineering "skill" level, are not primary factors in determining
+whether they should be a collaborator. The primary factors do include the quality
+of their contributions (do the contributions make sense, do they add value, do
+they follow documented guidelines, are they authentic and well-intentioned,
+etc.), their commitment to the project, can their judgement be trusted, and do
+they have the ability to work well with others.
+
+#### The Authenticity of Contributors
+
+The Node.js project does not require that contributors use their legal names or
+provide any personal information verifying their identity.
+
+It is not uncommon for malicious actors to attempt to gain commit access to
+open-source projects in order to inject malicious code or for other nefarious
+purposes. The Node.js project has a number of mechanisms in place to prevent
+this, but it is important to be vigilant. If you have concerns about the
+authenticity of a contributor, please raise them with the TSC. Anyone nominating
+a new collaborator should take reasonable steps to verify that the contributions
+of the nominee are authentic and made in good faith. This is not always easy,
+but it is important.
+
 ### Nominating a new Collaborator
 
 To nominate a new Collaborator:
@@ -153,10 +191,10 @@ To nominate a new Collaborator:
    the nominee's contributions (see below for an example).
 2. **Optional but strongly recommended**: After sufficient wait time (e.g. 72
    hours), if the nomination proposal has received some support and no explicit
-   block, add a comment in the private discussion stating you're planning on
-   opening a public issue, e.g. "I see a number of approvals and no block, I'll
-   be opening a public nomination issue if I don't hear any objections in the
-   next 72 hours".
+   block, and any questions/concerns have been addressed, add a comment in the
+   private discussion stating you're planning on opening a public issue, e.g.
+   "I see a number of approvals and no block, I'll be opening a public
+   nomination issue if I don't hear any objections in the next 72 hours".
 3. **Optional but strongly recommended**: Privately contact the nominee to make
    sure they're comfortable with the nomination.
 4. Open an issue in the [nodejs/node][] repository. Provide a summary of
@@ -189,14 +227,14 @@ Example of list of contributions:
   organization
 * Other participation in the wider Node.js community
 
-The nomination passes if no collaborators oppose it after one week, and if the
-nominee publicly accepts it. In the case
-of an objection, the TSC is responsible for working with the individuals
-involved and finding a resolution.
-
-Collaborators might overlook someone with valuable contributions. In that case,
-the contributor may open an issue or contact a collaborator to request a
-nomination.
+The nomination passes if no collaborators oppose it (as described in the
+following section) after one week. In the case of an objection, the TSC is
+responsible for working with the individuals involved and finding a resolution.
+The TSC may, following typical TSC consensus seeking processes, choose to
+advance a nomination that has otherwise failed to reach a natural consensus or
+clear path forward even if there are outstanding objections. The TSC may also
+choose to prevent a nomination from advancing if the TSC determines that any
+objections have not been adequately addressed.
 
 #### How to review a collaborator nomination
 
@@ -207,19 +245,47 @@ adding a feature:
 * If you are neutral, or feel you don't know enough to have an informed opinion,
   it's certainly OK to not interact with the nomination.
 * If you think the nomination was made too soon, or can be detrimental to the
-  project, share your concerns, ideally before the public nomination is opened,
-  and avoid sharing those concerns outside of the Collaborator discussion area.
-  Ideally, list what step(s) the nominee could take that would make you
-  approve their nomination.
-  Given that there is no "Request for changes" feature in discussions and issues,
-  try to be explicit when your comment is expressing a blocking concern.
-  Similarly, once the blocking concern has been addressed, explicitly say so.
+  project, share your concerns. See the section "How to oppose a collaborator
+  nomination" below.
 
 Our goal is to keep gate-keeping at a minimal, but it cannot be zero since being
 a collaborator requires trust (collaborators can start CI jobs, use their veto,
 push commits, etc.), so what's the minimal amount is subjective, and there will
 be cases where collaborators disagree on whether a nomination should move
 forward.
+
+Refrain from discussing or debating aspects of the nomination process
+itself directly within a nomination private discussion or public issue.
+Such discussions can derail and frustrate the nomination causing unnecessary
+friction. Move such discussions to a separate issue or discussion thread.
+
+##### How to oppose a collaborator nomination
+
+An important rule of thumb is that the nomination process is intended to be
+biased strongly towards implicit approval of the nomination. This means
+discussion and review around the proposal should be more geared towards "I have
+reasons to say no..." as opposed to "Give me reasons to say yes...".
+
+Given that there is no "Request for changes" feature in discussions and issues,
+try to be explicit when your comment is expressing a blocking concern.
+Similarly, once the blocking concern has been addressed, explicitly say so.
+
+Explicit opposition would typically be signaled as some form of clear
+and unambiguous comment like, "I don't believe this nomination should pass".
+Asking clarifying questions or expressing general concerns is not the same as
+explicit opposition; however, a best effort should be made to answer such
+questions or addressing those concerns before advancing the nomination.
+
+Opposition does not need to be public. Ideally, the comment showing opposition,
+and any discussion thereof, should be done in the private discussion _before_
+the public issue is opened. Opposition _should_ be paired with clear suggestions
+for positive, concrete, and unambiguous next steps that the nominee can take to
+overcome the objection and allow it to move forward. While such suggestions are
+technically optional, they are _strongly encouraged_ to prevent the nomination
+from stalling indefinitely or objections from being overridden by the TSC.
+
+Remember that all private discussions about a nomination will be visible to
+the nominee once they are onboarded.
 
 ### Onboarding
 

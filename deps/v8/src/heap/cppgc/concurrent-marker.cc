@@ -21,17 +21,24 @@ static constexpr double kMarkingScheduleRatioBeforeConcurrentPriorityIncrease =
 
 static constexpr size_t kDefaultDeadlineCheckInterval = 750u;
 
-template <size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
+template <StatsCollector::ConcurrentScopeId scope_id,
+          size_t kDeadlineCheckInterval = kDefaultDeadlineCheckInterval,
           typename WorklistLocal, typename Callback>
-bool DrainWorklistWithYielding(
-    JobDelegate* job_delegate, ConcurrentMarkingState& marking_state,
-    heap::base::IncrementalMarkingSchedule& incremental_marking_schedule,
-    WorklistLocal& worklist_local, Callback callback) {
+bool DrainWorklistWithYielding(JobDelegate* job_delegate,
+                               StatsCollector* stats_collector,
+                               ConcurrentMarkingState& marking_state,
+                               ConcurrentMarkerBase& concurrent_marker,
+                               WorklistLocal& worklist_local,
+                               Callback callback) {
   return DrainWorklistWithPredicate<kDeadlineCheckInterval>(
-      [&incremental_marking_schedule, &marking_state, job_delegate]() {
-        incremental_marking_schedule.AddConcurrentlyMarkedBytes(
+      [&concurrent_marker, &marking_state, job_delegate]() {
+        concurrent_marker.AddConcurrentlyMarkedBytes(
             marking_state.RecentlyMarkedBytes());
         return job_delegate->ShouldYield();
+      },
+      [stats_collector]() {
+        return StatsCollector::DisabledConcurrentScope(stats_collector,
+                                                       scope_id);
       },
       worklist_local, callback);
 }
@@ -63,7 +70,7 @@ class ConcurrentMarkingTask final : public v8::JobTask {
  private:
   void ProcessWorklists(JobDelegate*, ConcurrentMarkingState&, Visitor&);
 
-  const ConcurrentMarkerBase& concurrent_marker_;
+  ConcurrentMarkerBase& concurrent_marker_;
 };
 
 ConcurrentMarkingTask::ConcurrentMarkingTask(
@@ -84,7 +91,7 @@ void ConcurrentMarkingTask::Run(JobDelegate* job_delegate) {
           concurrent_marking_state);
   ProcessWorklists(job_delegate, concurrent_marking_state,
                    *concurrent_marking_visitor);
-  concurrent_marker_.incremental_marking_schedule().AddConcurrentlyMarkedBytes(
+  concurrent_marker_.AddConcurrentlyMarkedBytes(
       concurrent_marking_state.RecentlyMarkedBytes());
   concurrent_marking_state.Publish();
 }
@@ -98,10 +105,12 @@ size_t ConcurrentMarkingTask::GetMaxConcurrency(
 void ConcurrentMarkingTask::ProcessWorklists(
     JobDelegate* job_delegate, ConcurrentMarkingState& concurrent_marking_state,
     Visitor& concurrent_marking_visitor) {
+  StatsCollector* stats_collector = concurrent_marker_.heap().stats_collector();
   do {
-    if (!DrainWorklistWithYielding(
-            job_delegate, concurrent_marking_state,
-            concurrent_marker_.incremental_marking_schedule(),
+    if (!DrainWorklistWithYielding<
+            StatsCollector::kConcurrentMarkProcessNotFullyconstructedWorklist>(
+            job_delegate, stats_collector, concurrent_marking_state,
+            concurrent_marker_,
             concurrent_marking_state
                 .previously_not_fully_constructed_worklist(),
             [&concurrent_marking_state,
@@ -113,11 +122,10 @@ void ConcurrentMarkingTask::ProcessWorklists(
             })) {
       return;
     }
-
-    if (!DrainWorklistWithYielding(
-            job_delegate, concurrent_marking_state,
-            concurrent_marker_.incremental_marking_schedule(),
-            concurrent_marking_state.marking_worklist(),
+    if (!DrainWorklistWithYielding<
+            StatsCollector::kConcurrentMarkProcessMarkingWorklist>(
+            job_delegate, stats_collector, concurrent_marking_state,
+            concurrent_marker_, concurrent_marking_state.marking_worklist(),
             [&concurrent_marking_state, &concurrent_marking_visitor](
                 const MarkingWorklists::MarkingItem& item) {
               BasePage::FromPayload(item.base_object_payload)
@@ -132,10 +140,10 @@ void ConcurrentMarkingTask::ProcessWorklists(
             })) {
       return;
     }
-
-    if (!DrainWorklistWithYielding(
-            job_delegate, concurrent_marking_state,
-            concurrent_marker_.incremental_marking_schedule(),
+    if (!DrainWorklistWithYielding<
+            StatsCollector::kConcurrentMarkProcessWriteBarrierWorklist>(
+            job_delegate, stats_collector, concurrent_marking_state,
+            concurrent_marker_,
             concurrent_marking_state.write_barrier_worklist(),
             [&concurrent_marking_state,
              &concurrent_marking_visitor](HeapObjectHeader* header) {
@@ -146,24 +154,18 @@ void ConcurrentMarkingTask::ProcessWorklists(
             })) {
       return;
     }
-
-    {
-      StatsCollector::DisabledConcurrentScope stats_scope(
-          concurrent_marker_.heap().stats_collector(),
-          StatsCollector::kConcurrentMarkProcessEphemerons);
-      if (!DrainWorklistWithYielding(
-              job_delegate, concurrent_marking_state,
-              concurrent_marker_.incremental_marking_schedule(),
-              concurrent_marking_state
-                  .ephemeron_pairs_for_processing_worklist(),
-              [&concurrent_marking_state, &concurrent_marking_visitor](
-                  const MarkingWorklists::EphemeronPairItem& item) {
-                concurrent_marking_state.ProcessEphemeron(
-                    item.key, item.value, item.value_desc,
-                    concurrent_marking_visitor);
-              })) {
-        return;
-      }
+    if (!DrainWorklistWithYielding<
+            StatsCollector::kConcurrentMarkProcessEphemeronWorklist>(
+            job_delegate, stats_collector, concurrent_marking_state,
+            concurrent_marker_,
+            concurrent_marking_state.ephemeron_pairs_for_processing_worklist(),
+            [&concurrent_marking_state, &concurrent_marking_visitor](
+                const MarkingWorklists::EphemeronPairItem& item) {
+              concurrent_marking_state.ProcessEphemeron(
+                  item.key, item.value, item.value_desc,
+                  concurrent_marking_visitor);
+            })) {
+      return;
     }
   } while (
       !concurrent_marking_state.marking_worklist().IsLocalAndGlobalEmpty());
@@ -185,6 +187,7 @@ void ConcurrentMarkerBase::Start() {
   concurrent_marking_handle_ =
       platform_->PostJob(v8::TaskPriority::kUserVisible,
                          std::make_unique<ConcurrentMarkingTask>(*this));
+  incremental_marking_schedule_.NotifyConcurrentMarkingStart();
 }
 
 bool ConcurrentMarkerBase::Join() {
@@ -205,6 +208,11 @@ bool ConcurrentMarkerBase::Cancel() {
 
 bool ConcurrentMarkerBase::IsActive() const {
   return concurrent_marking_handle_ && concurrent_marking_handle_->IsValid();
+}
+
+void ConcurrentMarkerBase::AddConcurrentlyMarkedBytes(size_t marked_bytes) {
+  concurrently_marked_bytes_.fetch_add(marked_bytes, std::memory_order_relaxed);
+  incremental_marking_schedule().AddConcurrentlyMarkedBytes(marked_bytes);
 }
 
 ConcurrentMarkerBase::~ConcurrentMarkerBase() {
@@ -230,29 +238,27 @@ void ConcurrentMarkerBase::NotifyOfWorkIfNeeded(cppgc::TaskPriority priority) {
 }
 
 void ConcurrentMarkerBase::IncreaseMarkingPriorityIfNeeded() {
-  if (!concurrent_marking_handle_->UpdatePriorityEnabled()) return;
-  if (concurrent_marking_priority_increased_) return;
-  // If concurrent tasks aren't executed, it might delay GC finalization.
-  // As long as GC is active so is the write barrier, which incurs a
-  // performance cost. Marking is estimated to take overall
-  // |MarkingSchedulingOracle::kEstimatedMarkingTimeMs|. If
-  // concurrent marking tasks have not reported any progress (i.e. the
-  // concurrently marked bytes count as not changed) in over
-  // |kMarkingScheduleRatioBeforeConcurrentPriorityIncrease| of
-  // that expected duration, we increase the concurrent task priority
-  // for the duration of the current GC. This is meant to prevent the
-  // GC from exceeding it's expected end time.
-  size_t current_concurrently_marked_bytes_ =
-      incremental_marking_schedule_.GetConcurrentlyMarkedBytes();
-  if (current_concurrently_marked_bytes_ > last_concurrently_marked_bytes_) {
-    last_concurrently_marked_bytes_ = current_concurrently_marked_bytes_;
-    last_concurrently_marked_bytes_update_ = v8::base::TimeTicks::Now();
-  } else if ((v8::base::TimeTicks::Now() -
-              last_concurrently_marked_bytes_update_)
-                 .InMilliseconds() >
-             kMarkingScheduleRatioBeforeConcurrentPriorityIncrease *
-                 heap::base::IncrementalMarkingSchedule::kEstimatedMarkingTime
-                     .InMillisecondsF()) {
+  if (!concurrent_marking_handle_->UpdatePriorityEnabled() ||
+      concurrent_marking_priority_increased_) {
+    return;
+  }
+  // If concurrent tasks aren't executed, it might delay GC finalization. As
+  // long as GC is active so is the write barrier, which incurs a performance
+  // cost. Marking is estimated to take overall
+  // |MarkingSchedulingOracle::kEstimatedMarkingTime|. If concurrent marking
+  // tasks have not reported any progress (i.e. the concurrently marked bytes
+  // count as not changed) in over
+  // |kMarkingScheduleRatioBeforeConcurrentPriorityIncrease| of that expected
+  // duration, we increase the concurrent task priority for the duration of the
+  // current GC. This is meant to prevent the GC from exceeding it's expected
+  // end time.
+  const auto time_delta =
+      incremental_marking_schedule_.GetTimeSinceLastConcurrentMarkingUpdate();
+  if (!time_delta.IsZero() &&
+      (time_delta.InMillisecondsF() >
+       (heap::base::IncrementalMarkingSchedule::kEstimatedMarkingTime
+            .InMillisecondsF() *
+        kMarkingScheduleRatioBeforeConcurrentPriorityIncrease))) {
     concurrent_marking_handle_->UpdatePriority(
         cppgc::TaskPriority::kUserBlocking);
     concurrent_marking_priority_increased_ = true;

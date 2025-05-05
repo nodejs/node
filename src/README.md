@@ -151,6 +151,25 @@ is done executing. `Local` handles can only be allocated on the C++ stack.
 Most of the V8 API uses `Local` handles to work with JavaScript values or return
 them from functions.
 
+Additionally, according to [V8 public API documentation][`v8::Local<T>`], local handles
+(`v8::Local<T>`) should **never** be allocated on the heap.
+
+This disallows heap-allocated data structures containing instances of `v8::Local`
+
+For example:
+
+```cpp
+// Don't do this
+std::vector<v8::Local<v8::Value>> v1;
+```
+
+Instead, it is recommended to use `v8::LocalVector<T>` provided by V8
+for such scenarios:
+
+```cpp
+v8::LocalVector<v8::Value> v1(isolate);
+```
+
 Whenever a `Local` handle is created, a `v8::HandleScope` or
 `v8::EscapableHandleScope` object must exist on the stack. The `Local` is then
 added to that scope and deleted along with it.
@@ -455,7 +474,7 @@ void Initialize(Local<Object> target,
   SetProtoMethod(isolate, channel_wrap, "queryA", Query<QueryAWrap>);
   // ...
   SetProtoMethod(isolate, channel_wrap, "querySoa", Query<QuerySoaWrap>);
-  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<GetHostByAddrWrap>);
+  SetProtoMethod(isolate, channel_wrap, "getHostByAddr", Query<QueryReverseWrap>);
 
   SetProtoMethodNoSideEffect(isolate, channel_wrap, "getServers", GetServers);
 
@@ -1409,6 +1428,7 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 [`v8.h` in Code Search]: https://cs.chromium.org/chromium/src/v8/include/v8.h
 [`v8.h` in Node.js]: https://github.com/nodejs/node/blob/HEAD/deps/v8/include/v8.h
 [`v8.h` in V8]: https://github.com/v8/v8/blob/HEAD/include/v8.h
+[`v8::Local<T>`]: https://v8.github.io/api/head/classv8_1_1Local.html
 [`vm` module]: https://nodejs.org/api/vm.html
 [binding function]: #binding-functions
 [cleanup hooks]: #cleanup-hooks

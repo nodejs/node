@@ -41,8 +41,9 @@ macro LabelTestHelper3(): never
 
 @export
 macro TestConstexpr1(): void {
-  check(FromConstexpr<bool>(
-      IsFastElementsKind(ElementsKind::PACKED_SMI_ELEMENTS)));
+  check(
+      FromConstexpr<bool>(
+          IsFastElementsKind(ElementsKind::PACKED_SMI_ELEMENTS)));
 }
 
 @export
@@ -54,14 +55,17 @@ macro TestConstexprIf(): void {
 
 @export
 macro TestConstexprReturn(): void {
-  check(FromConstexpr<bool>(
-      ElementsKindTestHelper2(ElementsKind::UINT8_ELEMENTS)));
-  check(FromConstexpr<bool>(
-      ElementsKindTestHelper2(ElementsKind::UINT16_ELEMENTS)));
+  check(
+      FromConstexpr<bool>(
+          ElementsKindTestHelper2(ElementsKind::UINT8_ELEMENTS)));
+  check(
+      FromConstexpr<bool>(
+          ElementsKindTestHelper2(ElementsKind::UINT16_ELEMENTS)));
   check(!FromConstexpr<bool>(
       ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
-  check(FromConstexpr<bool>(
-      !ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
+  check(
+      FromConstexpr<bool>(
+          !ElementsKindTestHelper2(ElementsKind::UINT32_ELEMENTS)));
 }
 
 @export
@@ -471,8 +475,8 @@ macro IncrementIfSmi<A: type>(x: A): A {
 }
 
 type NumberOrFixedArray = Number|FixedArray;
-macro TypeswitchExample(implicit context: Context)(x: NumberOrFixedArray):
-    int32 {
+macro TypeswitchExample(implicit context: Context)(
+                           x: NumberOrFixedArray): int32 {
   let result: int32 = 0;
   typeswitch (IncrementIfSmi(x)) {
     case (_x: FixedArray): {
@@ -509,8 +513,8 @@ macro TestTypeswitch(implicit context: Context)(): void {
 }
 
 @export
-macro TestTypeswitchAsanLsanFailure(implicit context: Context)(obj: Object):
-    void {
+macro TestTypeswitchAsanLsanFailure(implicit context: Context)(
+                                       obj: Object): void {
   typeswitch (obj) {
     case (_o: Smi): {
     }
@@ -697,7 +701,7 @@ transitioning macro TestIterator(
 
     const _t7: JSArray = iterator::IterableToList(t1, t1);
 
-    iterator::IteratorCloseOnException(t2);
+    iterator::IteratorCloseOnException(t2.object);
   } label Fail {}
 }
 
@@ -1036,8 +1040,8 @@ macro BranchAndWriteResult(x: Smi, box: SmiBox): bool {
 }
 
 @export
-macro TestBranchOnBoolOptimization(implicit context: Context)(input: Smi):
-    void {
+macro TestBranchOnBoolOptimization(implicit context: Context)(
+                                      input: Smi): void {
   const box = NewSmiBox(1);
   // If the two branches get combined into one, we should be able to determine
   // the value of {box} statically.
@@ -1247,8 +1251,8 @@ macro TestGeneratedCastOperators(implicit context: Context)(): void {
   dcheck(Is<JSArgumentsObject>(fastArgs));
 }
 
-extern runtime InYoungGeneration(implicit context: Context)(HeapObject):
-    Boolean;
+extern runtime InYoungGeneration(implicit context: Context)(
+                                 HeapObject): Boolean;
 
 @export
 macro TestNewPretenured(implicit context: Context)(): void {
@@ -1356,4 +1360,9 @@ builtin TestCallNever(implicit context: Context)(a: Smi): Smi {
     ThrowAsBuiltin('a == -1');
   }
   return a;
+}
+
+@incrementUseCounter('v8::Isolate::kArraySpeciesModified')
+builtin TestIncrementArraySpeciesModified(implicit context: Context)(): Smi {
+  return 0;
 }

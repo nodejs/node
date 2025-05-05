@@ -71,7 +71,7 @@ constexpr bool IsPowerOf2(unsigned int x) noexcept {
 }
 
 template <class T>
-ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
+[[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
     T x, int s) noexcept {
   static_assert(std::is_unsigned<T>::value, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
@@ -82,7 +82,7 @@ ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateRight(
 }
 
 template <class T>
-ABSL_MUST_USE_RESULT ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateLeft(
+[[nodiscard]] ABSL_ATTRIBUTE_ALWAYS_INLINE constexpr T RotateLeft(
     T x, int s) noexcept {
   static_assert(std::is_unsigned<T>::value, "T must be unsigned");
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
@@ -126,7 +126,11 @@ Popcount(T x) noexcept {
   static_assert(IsPowerOf2(std::numeric_limits<T>::digits),
                 "T must have a power-of-2 size");
   static_assert(sizeof(x) <= sizeof(uint64_t), "T is too large");
-  return sizeof(x) <= sizeof(uint32_t) ? Popcount32(x) : Popcount64(x);
+  if constexpr (sizeof(x) <= sizeof(uint32_t)) {
+    return Popcount32(x);
+  } else {
+    return Popcount64(x);
+  }
 }
 
 ABSL_ATTRIBUTE_ALWAYS_INLINE ABSL_INTERNAL_CONSTEXPR_CLZ inline int

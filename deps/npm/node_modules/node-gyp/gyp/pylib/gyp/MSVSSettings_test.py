@@ -7,9 +7,9 @@
 """Unit tests for the MSVSSettings.py file."""
 
 import unittest
-import gyp.MSVSSettings as MSVSSettings
-
 from io import StringIO
+
+from gyp import MSVSSettings
 
 
 class TestSequenceFunctions(unittest.TestCase):

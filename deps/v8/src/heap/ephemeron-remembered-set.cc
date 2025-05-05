@@ -5,13 +5,13 @@
 #include "src/heap/ephemeron-remembered-set.h"
 
 #include "src/heap/heap-inl.h"
-#include "src/heap/remembered-set.h"
+#include "src/heap/heap-layout-inl.h"
 
 namespace v8::internal {
 
 void EphemeronRememberedSet::RecordEphemeronKeyWrite(
     Tagged<EphemeronHashTable> table, Address slot) {
-  DCHECK(ObjectInYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
+  DCHECK(HeapLayout::InYoungGeneration(HeapObjectSlot(slot).ToHeapObject()));
   int slot_index = EphemeronHashTable::SlotToIndex(table.address(), slot);
   InternalIndex entry = EphemeronHashTable::IndexToEntry(slot_index);
   base::MutexGuard guard(&insertion_mutex_);

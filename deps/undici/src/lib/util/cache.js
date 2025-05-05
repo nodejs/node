@@ -12,7 +12,21 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  /** @type {Record<string, string[] | string>} */
+  const headers = normaliseHeaders(opts)
+
+  return {
+    origin: opts.origin.toString(),
+    method: opts.method,
+    path: opts.path,
+    headers
+  }
+}
+
+/**
+ * @param {Record<string, string[] | string>}
+ * @return {Record<string, string[] | string>}
+ */
+function normaliseHeaders (opts) {
   let headers
   if (opts.headers == null) {
     headers = {}
@@ -38,12 +52,7 @@ function makeCacheKey (opts) {
     throw new Error('opts.headers is not an object')
   }
 
-  return {
-    origin: opts.origin.toString(),
-    method: opts.method,
-    path: opts.path,
-    headers
-  }
+  return headers
 }
 
 /**
@@ -350,6 +359,7 @@ function assertCacheMethods (methods, name = 'CacheMethods') {
 
 module.exports = {
   makeCacheKey,
+  normaliseHeaders,
   assertCacheKey,
   assertCacheValue,
   parseCacheControlHeader,

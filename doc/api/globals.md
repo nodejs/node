@@ -31,6 +31,8 @@ changes:
     description: No longer experimental.
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 A utility class used to signal cancelation in selected `Promise`-based APIs.
@@ -230,6 +232,8 @@ If `abortSignal.aborted` is `true`, throws `abortSignal.reason`.
 added: v18.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 See {Blob}.
@@ -239,6 +243,8 @@ See {Blob}.
 <!-- YAML
 added: v0.1.103
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -250,9 +256,13 @@ Used to handle binary data. See the [buffer section][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ByteLengthQueuingStrategy`][].
 
@@ -280,6 +290,8 @@ Global alias for [`buffer.atob()`][].
 added: v18.0.0
 -->
 
+> Stability: 2 - Stable
+
 See {BroadcastChannel}.
 
 ## `btoa(data)`
@@ -298,6 +310,8 @@ Global alias for [`buffer.btoa()`][].
 added: v0.9.1
 -->
 
+> Stability: 2 - Stable
+
 <!--type=global-->
 
 [`clearImmediate`][] is described in the [timers][] section.
@@ -307,6 +321,8 @@ added: v0.9.1
 <!-- YAML
 added: v0.0.1
 -->
+
+> Stability: 2 - Stable
 
 <!--type=global-->
 
@@ -318,6 +334,8 @@ added: v0.0.1
 added: v0.0.1
 -->
 
+> Stability: 2 - Stable
+
 <!--type=global-->
 
 [`clearTimeout`][] is described in the [timers][] section.
@@ -327,6 +345,8 @@ added: v0.0.1
 <!-- YAML
 added: v23.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -339,9 +359,13 @@ with the [`--no-experimental-websocket`][] CLI flag.
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`CompressionStream`][].
 
@@ -350,6 +374,8 @@ A browser-compatible implementation of [`CompressionStream`][].
 <!-- YAML
 added: v0.1.100
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -361,9 +387,13 @@ Used to print to stdout and stderr. See the [`console`][] section.
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`CountQueuingStrategy`][].
 
@@ -382,7 +412,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {Crypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -403,7 +433,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of the [Web Crypto API][].
 
@@ -422,7 +452,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {CryptoKey}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -458,9 +488,13 @@ A browser-compatible implementation of the [`CustomEvent` Web API][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`DecompressionStream`][].
 
@@ -473,6 +507,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -501,6 +537,8 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/35949
     description: No longer experimental.
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -531,11 +569,53 @@ changes:
 
 A browser-compatible implementation of the [`fetch()`][] function.
 
+```mjs
+const res = await fetch('https://nodejs.org/api/documentation.json');
+if (res.ok) {
+  const data = await res.json();
+  console.log(data);
+}
+```
+
+The implementation is based upon [undici](https://undici.nodejs.org), an HTTP/1.1 client
+written from scratch for Node.js. You can figure out which version of `undici` is bundled
+in your Node.js process reading the `process.versions.undici` property.
+
+## Custom dispatcher
+
+You can use a custom dispatcher to dispatch requests passing it in fetch's options object.
+The dispatcher must be compatible with `undici`'s
+[`Dispatcher` class](https://undici.nodejs.org/#/docs/api/Dispatcher.md).
+
+```js
+fetch(url, { dispatcher: new MyAgent() });
+```
+
+It is possible to change the global dispatcher in Node.js installing `undici` and using
+the `setGlobalDispatcher()` method. Calling this method will affect both `undici` and
+Node.js.
+
+```mjs
+import { setGlobalDispatcher } from 'undici';
+setGlobalDispatcher(new MyAgent());
+```
+
+## Related classes
+
+The following globals are available to use with `fetch`:
+
+* [`FormData`](https://nodejs.org/api/globals.html#class-formdata)
+* [`Headers`](https://nodejs.org/api/globals.html#class-headers)
+* [`Request`](https://nodejs.org/api/globals.html#request)
+* [`Response`](https://nodejs.org/api/globals.html#response).
+
 ## Class: `File`
 
 <!-- YAML
 added: v20.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -622,6 +702,8 @@ of a server, it is shared across all users and requests.
 added: v15.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `MessageChannel` class. See [`MessageChannel`][] for more details.
@@ -632,6 +714,8 @@ The `MessageChannel` class. See [`MessageChannel`][] for more details.
 added: v15.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `MessageEvent` class. See [`MessageEvent`][] for more details.
@@ -641,6 +725,8 @@ The `MessageEvent` class. See [`MessageEvent`][] for more details.
 <!-- YAML
 added: v15.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -764,6 +850,8 @@ console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
@@ -773,6 +861,8 @@ The `PerformanceEntry` class. See [`PerformanceEntry`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -784,6 +874,8 @@ The `PerformanceMark` class. See [`PerformanceMark`][] for more details.
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
@@ -794,6 +886,8 @@ The `PerformanceMeasure` class. See [`PerformanceMeasure`][] for more details.
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
@@ -803,6 +897,8 @@ The `PerformanceObserver` class. See [`PerformanceObserver`][] for more details.
 <!-- YAML
 added: v19.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -815,6 +911,8 @@ The `PerformanceObserverEntryList` class. See
 added: v19.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The `PerformanceResourceTiming` class. See [`PerformanceResourceTiming`][] for
@@ -826,6 +924,8 @@ more details.
 added: v16.0.0
 -->
 
+> Stability: 2 - Stable
+
 The [`perf_hooks.performance`][] object.
 
 ## `process`
@@ -833,6 +933,8 @@ The [`perf_hooks.performance`][] object.
 <!-- YAML
 added: v0.1.7
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -845,6 +947,8 @@ The process object. See the [`process` object][] section.
 <!-- YAML
 added: v11.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -884,9 +988,13 @@ DataHandler.prototype.load = async function load(key) {
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableByteStreamController`][].
 
@@ -894,9 +1002,13 @@ A browser-compatible implementation of [`ReadableByteStreamController`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableStream`][].
 
@@ -904,9 +1016,13 @@ A browser-compatible implementation of [`ReadableStream`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+- version:
+  - v23.11.0
+  - v22.15.0
+  pr-url: https://github.com/nodejs/node/pull/57510
+  description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 
@@ -914,9 +1030,13 @@ A browser-compatible implementation of [`ReadableStreamBYOBReader`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 
@@ -924,9 +1044,13 @@ A browser-compatible implementation of [`ReadableStreamBYOBRequest`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 
@@ -934,9 +1058,13 @@ A browser-compatible implementation of [`ReadableStreamDefaultController`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`ReadableStreamDefaultReader`][].
 
@@ -1002,6 +1130,8 @@ the currently running process, and is not shared between workers.
 added: v0.9.1
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 [`setImmediate`][] is described in the [timers][] section.
@@ -1012,6 +1142,8 @@ added: v0.9.1
 added: v0.0.1
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 [`setInterval`][] is described in the [timers][] section.
@@ -1021,6 +1153,8 @@ added: v0.0.1
 <!-- YAML
 added: v0.0.1
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1043,6 +1177,8 @@ A browser-compatible implementation of [`Storage`][]. Enable this API with the
 added: v17.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG [`structuredClone`][] method.
@@ -1059,7 +1195,7 @@ changes:
     description: No longer behind `--experimental-global-webcrypto` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of {SubtleCrypto}. This global is available
 only if the Node.js binary was compiled with including support for the
@@ -1071,6 +1207,8 @@ only if the Node.js binary was compiled with including support for the
 added: v17.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `DOMException` class. See [`DOMException`][] for more details.
@@ -1081,6 +1219,8 @@ The WHATWG `DOMException` class. See [`DOMException`][] for more details.
 added: v11.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
@@ -1089,9 +1229,13 @@ The WHATWG `TextDecoder` class. See the [`TextDecoder`][] section.
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`TextDecoderStream`][].
 
@@ -1101,6 +1245,8 @@ A browser-compatible implementation of [`TextDecoderStream`][].
 added: v11.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
@@ -1109,9 +1255,13 @@ The WHATWG `TextEncoder` class. See the [`TextEncoder`][] section.
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`TextEncoderStream`][].
 
@@ -1119,9 +1269,13 @@ A browser-compatible implementation of [`TextEncoderStream`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`TransformStream`][].
 
@@ -1129,9 +1283,13 @@ A browser-compatible implementation of [`TransformStream`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`TransformStreamDefaultController`][].
 
@@ -1140,6 +1298,8 @@ A browser-compatible implementation of [`TransformStreamDefaultController`][].
 <!-- YAML
 added: v10.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1151,6 +1311,8 @@ The WHATWG `URL` class. See the [`URL`][] section.
 added: REPLACEME
 -->
 
+> Stability: 1 - Experimental
+
 <!-- type=global -->
 
 The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
@@ -1161,6 +1323,8 @@ The WHATWG `URLPattern` class. See the [`URLPattern`][] section.
 added: v10.0.0
 -->
 
+> Stability: 2 - Stable
+
 <!-- type=global -->
 
 The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
@@ -1170,6 +1334,8 @@ The WHATWG `URLSearchParams` class. See the [`URLSearchParams`][] section.
 <!-- YAML
 added: v8.0.0
 -->
+
+> Stability: 2 - Stable
 
 <!-- type=global -->
 
@@ -1194,7 +1360,7 @@ changes:
     description: No longer behind `--experimental-websocket` CLI flag.
 -->
 
-> Stability: 2 - Stable.
+> Stability: 2 - Stable
 
 A browser-compatible implementation of [`WebSocket`][]. Disable this API
 with the [`--no-experimental-websocket`][] CLI flag.
@@ -1203,9 +1369,13 @@ with the [`--no-experimental-websocket`][] CLI flag.
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`WritableStream`][].
 
@@ -1213,9 +1383,13 @@ A browser-compatible implementation of [`WritableStream`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`WritableStreamDefaultController`][].
 
@@ -1223,9 +1397,13 @@ A browser-compatible implementation of [`WritableStreamDefaultController`][].
 
 <!-- YAML
 added: v18.0.0
+changes:
+ - version:
+    - v23.11.0
+    - v22.15.0
+   pr-url: https://github.com/nodejs/node/pull/57510
+   description: Marking the API stable.
 -->
-
-> Stability: 1 - Experimental.
 
 A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 

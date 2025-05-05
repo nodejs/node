@@ -203,7 +203,7 @@ const EVP_MD* GetDigestImplementation(Environment* env,
   return result.explicit_md ? result.explicit_md : result.implicit_md;
 #else
   Utf8Value utf8(env->isolate(), algorithm);
-  return ncrypto::getDigestByName(utf8.ToStringView());
+  return ncrypto::getDigestByName(*utf8);
 #endif
 }
 
@@ -252,19 +252,14 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
     return ThrowCryptoError(env, ERR_get_error());
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc =
-      StringBytes::Encode(env->isolate(),
+  Local<Value> ret;
+  if (StringBytes::Encode(env->isolate(),
                           static_cast<const char*>(output.get()),
                           output.size(),
-                          output_enc,
-                          &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+                          output_enc)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 void Hash::Initialize(Environment* env, Local<Object> target) {
@@ -410,15 +405,12 @@ void Hash::HashDigest(const FunctionCallbackInfo<Value>& args) {
     hash->digest_ = ByteSource::Allocated(data.release());
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc = StringBytes::Encode(
-      env->isolate(), hash->digest_.data<char>(), len, encoding, &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+  Local<Value> ret;
+  if (StringBytes::Encode(
+          env->isolate(), hash->digest_.data<char>(), len, encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HashConfig::HashConfig(HashConfig&& other) noexcept
@@ -456,7 +448,7 @@ Maybe<void> HashTraits::AdditionalConfig(
 
   CHECK(args[offset]->IsString());  // Hash algorithm
   Utf8Value digest(env->isolate(), args[offset]);
-  params->digest = ncrypto::getDigestByName(digest.ToStringView());
+  params->digest = ncrypto::getDigestByName(*digest);
   if (params->digest == nullptr) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();
@@ -526,7 +518,7 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
   CHECK(args[2]->IsArrayBufferView());
   ArrayBufferOrViewContents<unsigned char> expected(args[2]);
 
-  const EVP_MD* md_type = ncrypto::getDigestByName(algorithm.ToStringView());
+  const EVP_MD* md_type = ncrypto::getDigestByName(*algorithm);
   unsigned char digest[EVP_MAX_MD_SIZE];
   unsigned int digest_size;
   if (md_type == nullptr || EVP_Digest(content.data(),
@@ -541,19 +533,14 @@ void InternalVerifyIntegrity(const v8::FunctionCallbackInfo<v8::Value>& args) {
 
   if (digest_size != expected.size() ||
       CRYPTO_memcmp(digest, expected.data(), digest_size) != 0) {
-    Local<Value> error;
-    MaybeLocal<Value> rc =
-        StringBytes::Encode(env->isolate(),
+    Local<Value> ret;
+    if (StringBytes::Encode(env->isolate(),
                             reinterpret_cast<const char*>(digest),
                             digest_size,
-                            BASE64,
-                            &error);
-    if (rc.IsEmpty()) [[unlikely]] {
-      CHECK(!error.IsEmpty());
-      env->isolate()->ThrowException(error);
-      return;
+                            BASE64)
+            .ToLocal(&ret)) {
+      args.GetReturnValue().Set(ret);
     }
-    args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
   }
 }
 }  // namespace crypto

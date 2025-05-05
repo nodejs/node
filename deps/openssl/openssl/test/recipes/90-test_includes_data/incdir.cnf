@@ -1,6 +1,0 @@
-#
-# Set includedir and expect to fail
-#
-.pragma includedir:/
-
-.include includes.cnf

@@ -45,7 +45,7 @@ const linkedHtmls = [...new Set(links)].map((link) => link.match(re)[1])
 const expectedJsons = linkedHtmls
                        .map((name) => name.replace('.html', '.json'));
 const expectedDocs = linkedHtmls.concat(expectedJsons);
-const renamedDocs = ['policy.json', 'policy.html'];
+const renamedDocs = ['corepack.json', 'corepack.html', 'policy.json', 'policy.html'];
 const skipedDocs = ['quic.json', 'quic.html'];
 
 // Test that all the relative links in the TOC match to the actual documents.

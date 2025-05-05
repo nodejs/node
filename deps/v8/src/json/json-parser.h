@@ -40,8 +40,8 @@ class JsonString final {
         has_escape_(false),
         is_index_(true) {}
 
-  JsonString(int start, int length, bool needs_conversion, bool internalize,
-             bool has_escape)
+  JsonString(uint32_t start, uint32_t length, bool needs_conversion,
+             bool internalize, bool has_escape)
       : start_(start),
         length_(length),
         needs_conversion_(needs_conversion),
@@ -64,12 +64,12 @@ class JsonString final {
     return has_escape_;
   }
 
-  int start() const {
+  uint32_t start() const {
     DCHECK(!is_index_);
     return start_;
   }
 
-  int length() const {
+  uint32_t length() const {
     DCHECK(!is_index_);
     return length_;
   }
@@ -83,10 +83,10 @@ class JsonString final {
 
  private:
   union {
-    const int start_;
+    const uint32_t start_;
     const uint32_t index_;
   };
-  const int length_;
+  const uint32_t length_;
   const bool needs_conversion_ : 1;
   const bool internalize_ : 1;
   const bool has_escape_ : 1;
@@ -106,7 +106,7 @@ struct JsonProperty {
 class JsonParseInternalizer {
  public:
   static MaybeHandle<Object> Internalize(Isolate* isolate,
-                                         Handle<Object> result,
+                                         DirectHandle<Object> result,
                                          Handle<Object> reviver,
                                          Handle<String> source,
                                          MaybeHandle<Object> val_node);
@@ -119,10 +119,10 @@ class JsonParseInternalizer {
   enum WithOrWithoutSource { kWithoutSource, kWithSource };
 
   template <WithOrWithoutSource with_source>
-  MaybeHandle<Object> InternalizeJsonProperty(Handle<JSReceiver> holder,
-                                              Handle<String> key,
+  MaybeHandle<Object> InternalizeJsonProperty(DirectHandle<JSReceiver> holder,
+                                              DirectHandle<String> key,
                                               Handle<Object> val_node,
-                                              Handle<Object> snapshot);
+                                              DirectHandle<Object> snapshot);
 
   template <WithOrWithoutSource with_source>
   bool RecurseAndApply(Handle<JSReceiver> holder, Handle<String> name,
@@ -307,7 +307,7 @@ class JsonParser final {
                             Handle<String> hint = Handle<String>());
 
   template <typename SinkChar>
-  void DecodeString(SinkChar* sink, int start, int length);
+  void DecodeString(SinkChar* sink, uint32_t start, uint32_t length);
 
   template <typename SinkSeqString>
   Handle<String> DecodeString(const JsonString& string,
@@ -322,6 +322,10 @@ class JsonParser final {
   // Hexadecimal and octal numbers are not allowed.
   Handle<Object> ParseJsonNumber();
 
+  // Parses a number either as a double or a Smi. Returns true if it was a
+  // double, false if it was a Smi.
+  bool ParseJsonNumberAsDoubleOrSmi(double* result_double, int* result_smi);
+
   // Parse a single JSON value from input (grammar production JSONValue).
   // A JSON value is either a (double-quoted) string literal, a number literal,
   // one of "true", "false", or "null", or an object or array literal.
@@ -333,8 +337,9 @@ class JsonParser final {
   MaybeHandle<Object> ParseJsonArray();
   MaybeHandle<Object> ParseJsonObject(Handle<Map> feedback);
 
+  template <bool should_track_json_source>
   Handle<JSObject> BuildJsonObject(const JsonContinuation& cont,
-                                   Handle<Map> feedback);
+                                   DirectHandle<Map> feedback);
   Handle<Object> BuildJsonArray(size_t start);
 
   static const int kMaxContextCharacters = 10;
@@ -364,7 +369,9 @@ class JsonParser final {
   inline Isolate* isolate() { return isolate_; }
   inline Factory* factory() { return isolate_->factory(); }
   inline ReadOnlyRoots roots() { return ReadOnlyRoots(isolate_); }
-  inline Handle<JSFunction> object_constructor() { return object_constructor_; }
+  inline DirectHandle<JSFunction> object_constructor() {
+    return object_constructor_;
+  }
 
   static const int kInitialSpecialStringLength = 32;
 
@@ -392,7 +399,7 @@ class JsonParser final {
     return cursor_ == end_;
   }
 
-  int position() const { return static_cast<int>(cursor_ - chars_); }
+  uint32_t position() const { return static_cast<uint32_t>(cursor_ - chars_); }
 
   Isolate* isolate_;
   const uint64_t hash_seed_;
@@ -408,6 +415,8 @@ class JsonParser final {
 
   SmallVector<Handle<Object>> element_stack_;
   SmallVector<JsonProperty> property_stack_;
+  SmallVector<double> double_elements_;
+  SmallVector<int> smi_elements_;
 
   // Cached pointer to the raw chars in source. In case source is on-heap, we
   // register an UpdatePointers callback. For this reason, chars_, cursor_ and

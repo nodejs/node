@@ -10,15 +10,19 @@
 namespace node {
 namespace builtins {
 
+using v8::Boolean;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::IntegrityLevel;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::MaybeLocal;
 using v8::Name;
+using v8::NewStringType;
 using v8::None;
 using v8::Object;
 using v8::ObjectTemplate;
@@ -28,6 +32,7 @@ using v8::ScriptOrigin;
 using v8::Set;
 using v8::SideEffectType;
 using v8::String;
+using v8::TryCatch;
 using v8::Undefined;
 using v8::Value;
 
@@ -200,11 +205,11 @@ MaybeLocal<String> BuiltinLoader::LoadBuiltinSource(Isolate* isolate,
                                     uv_strerror(r),
                                     filename);
     Local<String> message = OneByteString(isolate, buf);
-    isolate->ThrowException(v8::Exception::Error(message));
+    isolate->ThrowException(Exception::Error(message));
     return MaybeLocal<String>();
   }
   return String::NewFromUtf8(
-      isolate, contents.c_str(), v8::NewStringType::kNormal, contents.length());
+      isolate, contents.c_str(), NewStringType::kNormal, contents.length());
 #endif  // NODE_BUILTIN_MODULES_PATH
 }
 
@@ -258,7 +263,7 @@ void BuiltinLoader::AddExternalizedBuiltin(const char* id,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompileInternal(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   Isolate* isolate = context->GetIsolate();
   EscapableHandleScope scope(isolate);
@@ -382,8 +387,8 @@ void BuiltinLoader::SaveCodeCache(const char* id, Local<Function> fun) {
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
                                                      const char* id,
                                                      Realm* optional_realm) {
-  std::vector<Local<String>> parameters;
   Isolate* isolate = context->GetIsolate();
+  LocalVector<String> parameters(isolate);
   // Detects parameters of the scripts based on module ids.
   // internal/bootstrap/realm: process, getLinkedBinding,
   //                           getInternalBinding, primordials
@@ -401,6 +406,7 @@ MaybeLocal<Function> BuiltinLoader::LookupAndCompile(Local<Context> context,
     parameters = {
         FIXED_ONE_BYTE_STRING(isolate, "exports"),
         FIXED_ONE_BYTE_STRING(isolate, "primordials"),
+        FIXED_ONE_BYTE_STRING(isolate, "privateSymbols"),
     };
   } else if (strncmp(id, "internal/main/", strlen("internal/main/")) == 0 ||
              strncmp(id,
@@ -497,7 +503,7 @@ MaybeLocal<Value> BuiltinLoader::CompileAndCall(Local<Context> context,
 MaybeLocal<Function> BuiltinLoader::LookupAndCompile(
     Local<Context> context,
     const char* id,
-    std::vector<Local<String>>* parameters,
+    LocalVector<String>* parameters,
     Realm* optional_realm) {
   return LookupAndCompileInternal(context, id, parameters, optional_realm);
 }
@@ -528,7 +534,7 @@ bool BuiltinLoader::CompileAllBuiltinsAndCopyCodeCache(
       to_eager_compile_.emplace(id);
     }
 
-    v8::TryCatch bootstrapCatch(context->GetIsolate());
+    TryCatch bootstrapCatch(context->GetIsolate());
     auto fn = LookupAndCompile(context, id.data(), nullptr);
     if (bootstrapCatch.HasCaught()) {
       per_process::Debug(DebugCategory::CODE_CACHE,
@@ -581,18 +587,15 @@ void BuiltinLoader::GetBuiltinCategories(
   Local<Value> can_be_required_js;
 
   if (!ToV8Value(context, builtin_categories.cannot_be_required)
-           .ToLocal(&cannot_be_required_js))
-    return;
-  if (result
+           .ToLocal(&cannot_be_required_js) ||
+      result
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "cannotBeRequired"),
                 cannot_be_required_js)
-          .IsNothing())
-    return;
-  if (!ToV8Value(context, builtin_categories.can_be_required)
-           .ToLocal(&can_be_required_js))
-    return;
-  if (result
+          .IsNothing() ||
+      !ToV8Value(context, builtin_categories.can_be_required)
+           .ToLocal(&can_be_required_js) ||
+      result
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "canBeRequired"),
                 can_be_required_js)
@@ -612,34 +615,22 @@ void BuiltinLoader::GetCacheUsage(const FunctionCallbackInfo<Value>& args) {
   Local<Value> builtins_without_cache_js;
   Local<Value> builtins_in_snapshot_js;
   if (!ToV8Value(context, realm->builtins_with_cache)
-           .ToLocal(&builtins_with_cache_js)) {
-    return;
-  }
-  if (result
+           .ToLocal(&builtins_with_cache_js) ||
+      result
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "compiledWithCache"),
                 builtins_with_cache_js)
-          .IsNothing()) {
-    return;
-  }
-
-  if (!ToV8Value(context, realm->builtins_without_cache)
-           .ToLocal(&builtins_without_cache_js)) {
-    return;
-  }
-  if (result
+          .IsNothing() ||
+      !ToV8Value(context, realm->builtins_without_cache)
+           .ToLocal(&builtins_without_cache_js) ||
+      result
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "compiledWithoutCache"),
                 builtins_without_cache_js)
-          .IsNothing()) {
-    return;
-  }
-
-  if (!ToV8Value(context, realm->builtins_in_snapshot)
-           .ToLocal(&builtins_in_snapshot_js)) {
-    return;
-  }
-  if (result
+          .IsNothing() ||
+      !ToV8Value(context, realm->builtins_in_snapshot)
+           .ToLocal(&builtins_in_snapshot_js) ||
+      result
           ->Set(context,
                 FIXED_ONE_BYTE_STRING(isolate, "compiledInSnapshot"),
                 builtins_in_snapshot_js)
@@ -656,8 +647,10 @@ void BuiltinLoader::BuiltinIdsGetter(Local<Name> property,
   Isolate* isolate = env->isolate();
 
   auto ids = env->builtin_loader()->GetBuiltinIds();
-  info.GetReturnValue().Set(
-      ToV8Value(isolate->GetCurrentContext(), ids).ToLocalChecked());
+  Local<Value> ret;
+  if (ToV8Value(isolate->GetCurrentContext(), ids).ToLocal(&ret)) {
+    info.GetReturnValue().Set(ret);
+  }
 }
 
 void BuiltinLoader::ConfigStringGetter(
@@ -693,7 +686,7 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(v8::Boolean::New(
+  args.GetReturnValue().Set(Boolean::New(
       args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 

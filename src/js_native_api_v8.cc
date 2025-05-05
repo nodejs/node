@@ -2482,14 +2482,14 @@ napi_status NAPI_CDECL napi_get_value_string_utf8(
 
   if (!buf) {
     CHECK_ARG(env, result);
-    *result = val.As<v8::String>()->Utf8Length(env->isolate);
+    *result = val.As<v8::String>()->Utf8LengthV2(env->isolate);
   } else if (bufsize != 0) {
-    int copied = val.As<v8::String>()->WriteUtf8(
-        env->isolate,
-        buf,
-        bufsize - 1,
-        nullptr,
-        v8::String::REPLACE_INVALID_UTF8 | v8::String::NO_NULL_TERMINATION);
+    auto str = val.As<v8::String>();
+    size_t copied =
+        str->WriteUtf8V2(env->isolate,
+                         buf,
+                         bufsize - 1,
+                         v8::String::WriteFlags::kReplaceInvalidUtf8);
 
     buf[copied] = '\0';
     if (result != nullptr) {

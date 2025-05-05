@@ -182,11 +182,11 @@ struct WasmInliningPosition {
 
 struct SourcePositionInfo {
   SourcePositionInfo(Isolate* isolate, SourcePosition pos,
-                     Handle<SharedFunctionInfo> f);
+                     DirectHandle<SharedFunctionInfo> f);
 
   SourcePosition position;
-  Handle<SharedFunctionInfo> shared;
-  Handle<Script> script;
+  IndirectHandle<SharedFunctionInfo> shared;
+  IndirectHandle<Script> script;
   int line = -1;
   int column = -1;
 };

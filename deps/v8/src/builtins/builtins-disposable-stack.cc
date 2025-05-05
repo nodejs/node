@@ -20,6 +20,7 @@ namespace internal {
 BUILTIN(DisposableStackConstructor) {
   const char* const kMethodName = "DisposableStack";
   HandleScope scope(isolate);
+  isolate->CountUsage(v8::Isolate::kExplicitResourceManagement);
 
   // 1. If NewTarget is undefined, throw a TypeError exception.
   if (IsUndefined(*args.new_target(), isolate)) {
@@ -33,8 +34,8 @@ BUILTIN(DisposableStackConstructor) {
   //    "%DisposableStack.prototype%", « [[DisposableState]],
   //    [[DisposeCapability]] »).
   DirectHandle<Map> map;
-  Handle<JSFunction> target = args.target();
-  Handle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
+  DirectHandle<JSFunction> target = args.target();
+  DirectHandle<JSReceiver> new_target = Cast<JSReceiver>(args.new_target());
 
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, map, JSFunction::GetDerivedMap(isolate, target, new_target));
@@ -57,13 +58,7 @@ BUILTIN(DisposableStackPrototypeUse) {
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
   CHECK_RECEIVER(JSSyncDisposableStack, disposable_stack, kMethodName);
-  Handle<Object> value = args.at(1);
-
-  // use(value) does nothing when the value is null or undefined, so return
-  // early.
-  if (IsNullOrUndefined(*value)) {
-    return *value;
-  }
+  DirectHandle<JSAny> value = args.at<JSAny>(1);
 
   // 3. If disposableStack.[[DisposableState]] is disposed, throw a
   //    ReferenceError exception.
@@ -75,14 +70,21 @@ BUILTIN(DisposableStackPrototypeUse) {
             isolate->factory()->NewStringFromAsciiChecked(kMethodName)));
   }
 
-  Handle<Object> method;
+  // 4. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
+  // value, sync-dispose).
+
+  //    (a. If V is either null or undefined and hint is sync-dispose, then
+  //       i. Return unused.)
+  if (IsNullOrUndefined(*value)) {
+    return *value;
+  }
+
+  DirectHandle<Object> method;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, method,
       JSDisposableStackBase::CheckValueAndGetDisposeMethod(
           isolate, value, DisposeMethodHint::kSyncDispose));
 
-  // 4. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
-  //    value, sync-dispose).
   JSDisposableStackBase::Add(isolate, disposable_stack, value, method,
                              DisposeMethodCallType::kValueIsReceiver,
                              DisposeMethodHint::kSyncDispose);
@@ -105,18 +107,16 @@ BUILTIN(DisposableStackPrototypeDispose) {
   }
 
   // 4. Set disposableStack.[[DisposableState]] to disposed.
-  // Will be done in DisposeResources call.
+  disposable_stack->set_state(DisposableStackState::kDisposed);
 
   // 5. Return ? DisposeResources(disposableStack.[[DisposeCapability]],
   //    NormalCompletion(undefined)).
-  Handle<Object> result;
+  DirectHandle<Object> result;
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
       isolate, result,
       JSDisposableStackBase::DisposeResources(
-          isolate, disposable_stack, MaybeHandle<Object>(),
-          DisposableStackResourcesType::kAllSync));
-
-  return *result;
+          isolate, disposable_stack, DisposableStackResourcesType::kAllSync));
+  return ReadOnlyRoots(isolate).undefined_value();
 }
 
 BUILTIN(DisposableStackPrototypeGetDisposed) {
@@ -140,7 +140,7 @@ BUILTIN(DisposableStackPrototypeAdopt) {
   const char* const kMethodName = "DisposableStack.prototype.adopt";
   HandleScope scope(isolate);
   DirectHandle<Object> value = args.at(1);
-  Handle<Object> on_dispose = args.at(2);
+  DirectHandle<Object> on_dispose = args.at(2);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
@@ -183,7 +183,7 @@ BUILTIN(DisposableStackPrototypeAdopt) {
 BUILTIN(DisposableStackPrototypeDefer) {
   const char* const kMethodName = "DisposableStack.prototype.defer";
   HandleScope scope(isolate);
-  Handle<Object> on_dispose = args.at(1);
+  DirectHandle<Object> on_dispose = args.at(1);
 
   // 1. Let disposableStack be the this value.
   // 2. Perform ? RequireInternalSlot(disposableStack, [[DisposableState]]).
@@ -207,10 +207,10 @@ BUILTIN(DisposableStackPrototypeDefer) {
 
   // 5. Perform ? AddDisposableResource(disposableStack.[[DisposeCapability]],
   // undefined, sync-dispose, onDispose).
-  JSDisposableStackBase::Add(
-      isolate, disposable_stack,
-      ReadOnlyRoots(isolate).undefined_value_handle(), on_dispose,
-      DisposeMethodCallType::kValueIsReceiver, DisposeMethodHint::kSyncDispose);
+  JSDisposableStackBase::Add(isolate, disposable_stack,
+                             isolate->factory()->undefined_value(), on_dispose,
+                             DisposeMethodCallType::kValueIsReceiver,
+                             DisposeMethodHint::kSyncDispose);
 
   // 6. Return undefined.
   return ReadOnlyRoots(isolate).undefined_value();
@@ -254,11 +254,15 @@ BUILTIN(DisposableStackPrototypeMove) {
   new_disposable_stack->set_length(disposable_stack->length());
   new_disposable_stack->set_state(DisposableStackState::kPending);
   new_disposable_stack->set_error(*(isolate->factory()->uninitialized_value()));
+  new_disposable_stack->set_error_message(
+      *(isolate->factory()->uninitialized_value()));
 
   // 7. Set disposableStack.[[DisposeCapability]] to NewDisposeCapability().
   disposable_stack->set_stack(ReadOnlyRoots(isolate).empty_fixed_array());
   disposable_stack->set_length(0);
   disposable_stack->set_error(*(isolate->factory()->uninitialized_value()));
+  disposable_stack->set_error_message(
+      *(isolate->factory()->uninitialized_value()));
 
   // 8. Set disposableStack.[[DisposableState]] to disposed.
   disposable_stack->set_state(DisposableStackState::kDisposed);

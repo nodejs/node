@@ -12,7 +12,6 @@
 #include "include/cppgc/platform.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/lazy-instance.h"
-#include "src/base/platform/mutex.h"
 #include "src/heap/cppgc/globals.h"
 #include "src/heap/cppgc/virtual-memory.h"
 

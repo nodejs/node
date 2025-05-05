@@ -6,6 +6,7 @@
 #define V8_REGEXP_REGEXP_FLAGS_H_
 
 #include <optional>
+#include <ostream>
 
 #include "src/base/flags.h"
 
@@ -59,6 +60,12 @@ REGEXP_FLAG_LIST(V)
 
 constexpr bool IsEitherUnicode(RegExpFlags f) {
   return IsUnicode(f) || IsUnicodeSets(f);
+}
+
+// Whether to rewind the index when it initially points into the middle of a
+// surrogate pair. See also OptionallyStepBackToLeadSurrogate().
+constexpr bool ShouldOptionallyStepBackToLeadSurrogate(RegExpFlags f) {
+  return IsEitherUnicode(f) && (IsGlobal(f) || IsSticky(f));
 }
 
 // clang-format off

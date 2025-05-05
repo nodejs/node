@@ -1,1 +1,2 @@
-throw new Error('Should include grayed stack trace')
+'use strict';
+throw new Error('Should include grayed stack trace');

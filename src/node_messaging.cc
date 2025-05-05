@@ -27,6 +27,7 @@ using v8::Isolate;
 using v8::Just;
 using v8::JustVoid;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::MaybeLocal;
 using v8::Nothing;
@@ -74,7 +75,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
       Message* m,
       Environment* env,
       const std::vector<BaseObjectPtr<BaseObject>>& host_objects,
-      const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers,
+      const LocalVector<SharedArrayBuffer>& shared_array_buffers,
       const std::vector<CompiledWasmModule>& wasm_modules,
       const std::optional<SharedValueConveyor>& shared_value_conveyor)
       : env_(env),
@@ -129,7 +130,7 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
  private:
   Environment* env_;
   const std::vector<BaseObjectPtr<BaseObject>>& host_objects_;
-  const std::vector<Local<SharedArrayBuffer>>& shared_array_buffers_;
+  const LocalVector<SharedArrayBuffer>& shared_array_buffers_;
   const std::vector<CompiledWasmModule>& wasm_modules_;
   const std::optional<SharedValueConveyor>& shared_value_conveyor_;
 };
@@ -188,7 +189,7 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
   }
   transferables_.clear();
 
-  std::vector<Local<SharedArrayBuffer>> shared_array_buffers;
+  LocalVector<SharedArrayBuffer> shared_array_buffers(env->isolate());
   // Attach all transferred SharedArrayBuffers to their new Isolate.
   for (uint32_t i = 0; i < shared_array_buffers_.size(); ++i) {
     Local<SharedArrayBuffer> sab =
@@ -251,14 +252,16 @@ void Message::AdoptSharedValueConveyor(SharedValueConveyor&& conveyor) {
 
 namespace {
 
-MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context) {
+MaybeLocal<Function> GetEmitMessageFunction(Local<Context> context,
+                                            IsolateData* isolate_data) {
   Isolate* isolate = context->GetIsolate();
   Local<Object> per_context_bindings;
   Local<Value> emit_message_val;
-  if (!GetPerContextExports(context).ToLocal(&per_context_bindings) ||
-      !per_context_bindings->Get(context,
-                                FIXED_ONE_BYTE_STRING(isolate, "emitMessage"))
-          .ToLocal(&emit_message_val)) {
+  if (!GetPerContextExports(context, isolate_data)
+           .ToLocal(&per_context_bindings) ||
+      !per_context_bindings
+           ->Get(context, FIXED_ONE_BYTE_STRING(isolate, "emitMessage"))
+           .ToLocal(&emit_message_val)) {
     return MaybeLocal<Function>();
   }
   CHECK(emit_message_val->IsFunction());
@@ -477,7 +480,7 @@ Maybe<bool> Message::Serialize(Environment* env,
   ValueSerializer serializer(env->isolate(), &delegate);
   delegate.serializer = &serializer;
 
-  std::vector<Local<ArrayBuffer>> array_buffers;
+  LocalVector<ArrayBuffer> array_buffers(env->isolate());
   for (uint32_t i = 0; i < transfer_list_v.length(); ++i) {
     Local<Value> entry_val = transfer_list_v[i];
     if (!entry_val->IsObject()) {
@@ -488,8 +491,12 @@ Maybe<bool> Message::Serialize(Environment* env,
     Local<Object> entry = entry_val.As<Object>();
     // See https://github.com/nodejs/node/pull/30339#issuecomment-552225353
     // for details.
-    if (entry->HasPrivate(context, env->untransferable_object_private_symbol())
-            .ToChecked()) {
+    bool ans;
+    if (!entry->HasPrivate(context, env->untransferable_object_private_symbol())
+             .To(&ans)) {
+      return Nothing<bool>();
+    }
+    if (ans) {
       ThrowDataCloneException(context, env->transfer_unsupported_type_str());
       return Nothing<bool>();
     }
@@ -588,7 +595,9 @@ Maybe<bool> Message::Serialize(Environment* env,
   for (Local<ArrayBuffer> ab : array_buffers) {
     // If serialization succeeded, we render it inaccessible in this Isolate.
     std::shared_ptr<BackingStore> backing_store = ab->GetBackingStore();
-    ab->Detach(Local<Value>()).Check();
+    if (ab->Detach(Local<Value>()).IsNothing()) {
+      return Nothing<bool>();
+    }
 
     array_buffers_.emplace_back(std::move(backing_store));
   }
@@ -682,7 +691,8 @@ MessagePort::MessagePort(Environment* env,
   }
 
   Local<Function> emit_message_fn;
-  if (!GetEmitMessageFunction(context).ToLocal(&emit_message_fn))
+  if (!GetEmitMessageFunction(context, env->isolate_data())
+           .ToLocal(&emit_message_fn))
     return;
   emit_message_fn_.Reset(env->isolate(), emit_message_fn);
 
@@ -999,7 +1009,7 @@ static Maybe<bool> ReadIterable(Environment* env,
     return Nothing<bool>();
   if (!next->IsFunction()) return Just(false);
 
-  std::vector<Local<Value>> entries;
+  LocalVector<Value> entries(isolate);
   while (env->can_call_into_js()) {
     Local<Value> result;
     if (!next.As<Function>()->Call(context, iterator, 0, nullptr)
@@ -1069,7 +1079,10 @@ bool GetTransferList(Environment* env,
 void MessagePort::PostMessage(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Local<Object> obj = args.This();
-  Local<Context> context = obj->GetCreationContextChecked();
+  Local<Context> context;
+  if (!obj->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
 
   if (args.Length() == 0) {
     return THROW_ERR_MISSING_ARGS(env, "Not enough arguments to "
@@ -1156,8 +1169,11 @@ void MessagePort::ReceiveMessage(const FunctionCallbackInfo<Value>& args) {
   }
 
   Local<Value> payload;
-  if (port->ReceiveMessage(port->object()->GetCreationContextChecked(),
-                           MessageProcessingMode::kForceReadMessages)
+  Local<Context> context;
+  if (!port->object()->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
+  if (port->ReceiveMessage(context, MessageProcessingMode::kForceReadMessages)
           .ToLocal(&payload)) {
     args.GetReturnValue().Set(payload);
   }
@@ -1615,7 +1631,10 @@ static void MessageChannel(const FunctionCallbackInfo<Value>& args) {
     return;
   }
 
-  Local<Context> context = args.This()->GetCreationContextChecked();
+  Local<Context> context;
+  if (!args.This()->GetCreationContext().ToLocal(&context)) {
+    return;
+  }
   Context::Scope context_scope(context);
 
   MessagePort* port1 = MessagePort::New(env, context);

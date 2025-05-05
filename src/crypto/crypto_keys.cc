@@ -130,20 +130,13 @@ bool ExportJWKSecretKey(Environment* env,
                         Local<Object> target) {
   CHECK_EQ(key.GetKeyType(), kKeyTypeSecret);
 
-  Local<Value> error;
   Local<Value> raw;
-  if (!StringBytes::Encode(env->isolate(),
-                           key.GetSymmetricKey(),
-                           key.GetSymmetricKeySize(),
-                           BASE64URL,
-                           &error)
-           .ToLocal(&raw)) {
-    DCHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return false;
-  }
-
-  return target
+  return StringBytes::Encode(env->isolate(),
+                             key.GetSymmetricKey(),
+                             key.GetSymmetricKeySize(),
+                             BASE64URL)
+             .ToLocal(&raw) &&
+         target
              ->Set(env->context(), env->jwk_kty_string(), env->jwk_oct_string())
              .IsJust() &&
          target->Set(env->context(), env->jwk_k_string(), raw).IsJust();
@@ -342,7 +335,7 @@ KeyObjectData::GetPrivateKeyEncodingFromJs(
     if (context != kKeyContextInput) {
       if (args[*offset]->IsString()) {
         Utf8Value cipher_name(env->isolate(), args[*offset]);
-        config.cipher = ncrypto::getCipherByName(cipher_name.ToStringView());
+        config.cipher = ncrypto::getCipherByName(*cipher_name);
         if (config.cipher == nullptr) {
           THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env);
           return Nothing<EVPKeyPointer::PrivateKeyEncodingConfig>();

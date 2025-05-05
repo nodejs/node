@@ -20,6 +20,8 @@ namespace {
 using wasm::WasmOpcode;
 using wasm::WasmOpcodes;
 
+static constexpr bool kNotShared = false;
+
 class WasmIntoJSInlinerImpl : private wasm::Decoder {
   using ValidationTag = NoValidationTag;
 
@@ -186,20 +188,16 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   Value ParseAnyConvertExtern(Value input) {
     DCHECK(input.type.is_reference_to(wasm::HeapType::kExtern) ||
            input.type.is_reference_to(wasm::HeapType::kNoExtern));
-    wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-        wasm::HeapType::kAny, input.type.is_nullable()
-                                  ? wasm::Nullability::kNullable
-                                  : wasm::Nullability::kNonNullable);
+    wasm::ValueType result_type = wasm::ValueType::Generic(
+        wasm::GenericKind::kAny, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmAnyConvertExtern(input.node);
     return TypeNode(internalized, result_type);
   }
 
   Value ParseExternConvertAny(Value input) {
     DCHECK(input.type.is_reference());
-    wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-        wasm::HeapType::kExtern, input.type.is_nullable()
-                                     ? wasm::Nullability::kNullable
-                                     : wasm::Nullability::kNonNullable);
+    wasm::ValueType result_type = wasm::ValueType::Generic(
+        wasm::GenericKind::kExtern, input.type.nullability(), kNotShared);
     Node* internalized = gasm_.WasmExternConvertAny(input.node);
     return TypeNode(internalized, result_type);
   }
@@ -211,7 +209,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   Value ParseStructGet(Value struct_val, WasmOpcode opcode) {
-    uint32_t struct_index = consume_u32v();
+    wasm::ModuleTypeIndex struct_index{consume_u32v()};
     DCHECK(module_->has_struct(struct_index));
     const wasm::StructType* struct_type = module_->struct_type(struct_index);
     uint32_t field_index = consume_u32v();
@@ -226,7 +224,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   void ParseStructSet(Value wasm_struct, Value value) {
-    uint32_t struct_index = consume_u32v();
+    wasm::ModuleTypeIndex struct_index{consume_u32v()};
     DCHECK(module_->has_struct(struct_index));
     const wasm::StructType* struct_type = module_->struct_type(struct_index);
     uint32_t field_index = consume_u32v();
@@ -259,10 +257,10 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       gasm_.Goto(&done);
       gasm_.Bind(&done);
       // Add TypeGuard for graph typing.
-      Graph* graph = mcgraph_->graph();
-      wasm::ValueType result_type = wasm::ValueType::RefMaybeNull(
-          wasm::HeapType::kArray,
-          null_succeeds ? wasm::kNullable : wasm::kNonNullable);
+      TFGraph* graph = mcgraph_->graph();
+      wasm::ValueType result_type = wasm::ValueType::Generic(
+          wasm::GenericKind::kArray,
+          null_succeeds ? wasm::kNullable : wasm::kNonNullable, kNotShared);
       Node* type_guard =
           graph->NewNode(mcgraph_->common()->TypeGuard(
                              Type::Wasm(result_type, module_, graph->zone())),
@@ -270,26 +268,34 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
       gasm_.InitializeEffectControl(type_guard, gasm_.control());
       return TypeNode(type_guard, result_type);
     }
-    if (module_->has_signature(static_cast<uint32_t>(heap_index))) {
+    wasm::ModuleTypeIndex target_type_index{static_cast<uint32_t>(heap_index)};
+    if (module_->has_signature(target_type_index)) {
       is_inlineable_ = false;
       return {};
     }
     wasm::ValueType target_type = wasm::ValueType::RefMaybeNull(
-        static_cast<uint32_t>(heap_index),
+        module_->heap_type(target_type_index),
         null_succeeds ? wasm::kNullable : wasm::kNonNullable);
     Node* rtt = mcgraph_->graph()->NewNode(
         gasm_.simplified()->RttCanon(target_type.ref_index()),
         trusted_data_node_);
-    TypeNode(rtt, wasm::ValueType::Rtt(target_type.ref_index()));
-    Node* cast = gasm_.WasmTypeCast(input.node, rtt, {input.type, target_type});
+    // Technically this is incorrect: the {rtt} node doesn't hold a reference
+    // to an object of type {target_type}, but to such an object's map. But
+    // we only need this type annotation so {ReduceWasmTypeCast} can get to
+    // the {ref_index}, we never need the type's {kind()}.
+    TypeNode(rtt, wasm::ValueType::Ref(target_type.heap_type()));
+    Node* cast = gasm_.WasmTypeCast(
+        input.node, rtt,
+        {input.type, target_type,
+         module_->type(target_type_index).is_final ? kExactMatchOnly
+                                                   : kMayBeSubtype});
     SetSourcePosition(cast);
     return TypeNode(cast, target_type);
   }
 
   Value ParseArrayLen(Value input) {
     DCHECK(wasm::IsHeapSubtypeOf(input.type.heap_type(),
-                                 wasm::HeapType(wasm::HeapType::kArray),
-                                 module_));
+                                 wasm::kWasmArrayRef.heap_type(), module_));
     const CheckForNull null_check =
         input.type.is_nullable() ? kWithNullCheck : kWithoutNullCheck;
     Node* len = gasm_.ArrayLength(input.node, null_check);
@@ -298,7 +304,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   Value ParseArrayGet(Value array, Value index, WasmOpcode opcode) {
-    uint32_t array_index = consume_u32v();
+    wasm::ModuleTypeIndex array_index{consume_u32v()};
     DCHECK(module_->has_array(array_index));
     const wasm::ArrayType* array_type = module_->array_type(array_index);
     const bool is_signed = opcode == WasmOpcode::kExprArrayGetS;
@@ -317,7 +323,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   }
 
   void ParseArraySet(Value array, Value index, Value value) {
-    uint32_t array_index = consume_u32v();
+    wasm::ModuleTypeIndex array_index{consume_u32v()};
     DCHECK(module_->has_array(array_index));
     const wasm::ArrayType* array_type = module_->array_type(array_index);
     const CheckForNull null_check =
@@ -363,7 +369,7 @@ class WasmIntoJSInlinerImpl : private wasm::Decoder {
   MachineGraph* mcgraph_;
   const wasm::FunctionBody& body_;
   Node** parameters_;
-  Graph* graph_;
+  TFGraph* graph_;
   Node* trusted_data_node_;
   WasmGraphAssembler gasm_;
   SourcePositionTable* source_position_table_ = nullptr;

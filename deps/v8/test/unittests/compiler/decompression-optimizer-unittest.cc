@@ -2,13 +2,14 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#include "src/compiler/decompression-optimizer.h"
-
 #include "test/unittests/compiler/graph-unittest.h"
 
 namespace v8 {
 namespace internal {
 namespace compiler {
+
+// TODO(391750831): This needs to be ported to Turboshaft.
+#if 0
 
 class DecompressionOptimizerTest : public GraphTest {
  public:
@@ -488,6 +489,7 @@ TEST_F(DecompressionOptimizerTest, BitcastTaggedToWordForTagAndSmiBits) {
     }
   }
 }
+#endif
 
 }  // namespace compiler
 }  // namespace internal

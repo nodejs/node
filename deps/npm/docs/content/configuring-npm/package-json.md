@@ -749,7 +749,7 @@ that require npm installing where you don't want to hit an external server,
 but should not be used when publishing your package to the public registry.
 
 *note*: Packages linked by local path will not have their own
-dependencies installed when `npm install` is ran in this case.  You must
+dependencies installed when `npm install` is run.  You must
 run `npm install` from inside the local path itself.
 
 ### devDependencies
@@ -979,7 +979,7 @@ also `1.0.0`:
 ```
 
 To only override `@npm/foo` to be `1.0.0` when it's a child (or grandchild, or great
-grandchild, etc) of the package `bar`:
+grandchild, etc) of the package `@npm/bar`:
 
 ```json
 {

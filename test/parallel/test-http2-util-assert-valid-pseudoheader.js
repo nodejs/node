@@ -5,19 +5,19 @@ require('../common');
 const assert = require('assert');
 
 // Tests the assertValidPseudoHeader function that is used within the
-// mapToHeaders function. The assert function is not exported so we
-// have to test it through mapToHeaders
+// buildNgHeaderString function. The assert function is not exported so we
+// have to test it through buildNgHeaderString
 
-const { mapToHeaders } = require('internal/http2/util');
+const { buildNgHeaderString } = require('internal/http2/util');
 
 // These should not throw
-mapToHeaders({ ':status': 'a' });
-mapToHeaders({ ':path': 'a' });
-mapToHeaders({ ':authority': 'a' });
-mapToHeaders({ ':scheme': 'a' });
-mapToHeaders({ ':method': 'a' });
+buildNgHeaderString({ ':status': 'a' });
+buildNgHeaderString({ ':path': 'a' });
+buildNgHeaderString({ ':authority': 'a' });
+buildNgHeaderString({ ':scheme': 'a' });
+buildNgHeaderString({ ':method': 'a' });
 
-assert.throws(() => mapToHeaders({ ':foo': 'a' }), {
+assert.throws(() => buildNgHeaderString({ ':foo': 'a' }), {
   code: 'ERR_HTTP2_INVALID_PSEUDOHEADER',
   name: 'TypeError',
   message: '":foo" is an invalid pseudoheader or is used incorrectly'

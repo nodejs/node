@@ -1027,6 +1027,19 @@ Any "%s" in the message will be replaced with the version number.
 
 
 
+#### `node-gyp`
+
+* Default: The path to the node-gyp bin that ships with npm
+* Type: Path
+
+This is the location of the "node-gyp" bin. By default it uses one that
+ships with npm itself.
+
+You can use this config to specify your own "node-gyp" to run when it is
+required to build a package.
+
+
+
 #### `node-options`
 
 * Default: null

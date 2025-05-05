@@ -5,7 +5,7 @@
 #ifndef V8_COMPILER_USE_INFO_H_
 #define V8_COMPILER_USE_INFO_H_
 
-#include "src/base/functional.h"
+#include "src/base/hashing.h"
 #include "src/codegen/machine-type.h"
 #include "src/compiler/feedback-source.h"
 #include "src/compiler/globals.h"
@@ -132,6 +132,7 @@ enum class TypeCheckKind : uint8_t {
   kSignedSmall,
   kSigned32,
   kSigned64,
+  kAdditiveSafeInteger,
   kNumber,
   kNumberOrBoolean,
   kNumberOrOddball,
@@ -151,6 +152,8 @@ inline std::ostream& operator<<(std::ostream& os, TypeCheckKind type_check) {
       return os << "Signed32";
     case TypeCheckKind::kSigned64:
       return os << "Signed64";
+    case TypeCheckKind::kAdditiveSafeInteger:
+      return os << "AdditiveSafeInteger";
     case TypeCheckKind::kNumber:
       return os << "Number";
     case TypeCheckKind::kNumberOrBoolean:
@@ -197,6 +200,7 @@ class UseInfo {
   static UseInfo TruncatingWord32() {
     return UseInfo(MachineRepresentation::kWord32, Truncation::Word32());
   }
+
   static UseInfo TruncatingWord64() {
     return UseInfo(MachineRepresentation::kWord64, Truncation::Word64());
   }
@@ -226,6 +230,9 @@ class UseInfo {
   static UseInfo Float32() {
     return UseInfo(MachineRepresentation::kFloat32, Truncation::Any());
   }
+  static UseInfo Float16RawBits() {
+    return UseInfo(MachineRepresentation::kFloat16RawBits, Truncation::Any());
+  }
   static UseInfo Float64() {
     return UseInfo(MachineRepresentation::kFloat64, Truncation::Any());
   }
@@ -233,6 +240,22 @@ class UseInfo {
       IdentifyZeros identify_zeros = kDistinguishZeros) {
     return UseInfo(MachineRepresentation::kFloat64,
                    Truncation::OddballAndBigIntToNumber(identify_zeros));
+  }
+  static UseInfo TruncatingFloat16RawBits(
+      IdentifyZeros identify_zeros = kDistinguishZeros) {
+    return UseInfo(MachineRepresentation::kFloat16,
+                   Truncation::OddballAndBigIntToNumber(identify_zeros));
+  }
+  static UseInfo CheckedSafeIntTruncatingWord32(
+      const FeedbackSource& feedback) {
+    DCHECK(Is64());
+    return UseInfo(MachineRepresentation::kWord32, Truncation::Word32(),
+                   TypeCheckKind::kAdditiveSafeInteger, feedback);
+  }
+  static UseInfo CheckedSafeIntAsWord64(const FeedbackSource& feedback) {
+    DCHECK(Is64());
+    return UseInfo(MachineRepresentation::kWord64, Truncation::Any(),
+                   TypeCheckKind::kAdditiveSafeInteger, feedback);
   }
   static UseInfo AnyTagged() {
     return UseInfo(MachineRepresentation::kTagged, Truncation::Any());

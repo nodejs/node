@@ -49,7 +49,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Set up Python ${{ env.PYTHON_VERSION }}
-        uses: actions/setup-python@42375524e23c412d93fb67b49958b491fce71c38  # v5.4.0
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065  # v5.6.0
         with:
           python-version: ${{ env.PYTHON_VERSION }}
       - name: Install deps
@@ -57,11 +57,11 @@ jobs:
       - name: Environment Information
         run: npx envinfo
       - name: Build
-        run: ./vcbuild.bat
+        run: ./vcbuild.bat clang-cl
       # TODO(bcoe): investigate tests that fail with coverage enabled
       # on Windows.
       - name: Test
-        run: ./vcbuild.bat test-ci-js; node -e 'process.exit(0)'
+        run: ./vcbuild.bat noprojgen nobuild test-ci-js; node -e 'process.exit(0)'
         env:
           NODE_V8_COVERAGE: ./coverage/tmp
       - name: Report

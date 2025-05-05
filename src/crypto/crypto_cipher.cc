@@ -48,7 +48,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
   const auto cipher = ([&] {
     if (args[1]->IsString()) {
       Utf8Value name(env->isolate(), args[1]);
-      return Cipher::FromName(name.ToStringView());
+      return Cipher::FromName(*name);
     } else {
       int nid = args[1].As<Int32>()->Value();
       return Cipher::FromNid(nid);
@@ -117,7 +117,7 @@ void GetCipherInfo(const FunctionCallbackInfo<Value>& args) {
 
   if (info->Set(env->context(),
                 env->name_string(),
-                OneByteString(env->isolate(), name.data(), name.length()))
+                OneByteString(env->isolate(), name))
           .IsNothing()) {
     return;
   }
@@ -231,7 +231,6 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
 
-  SetProtoMethod(isolate, t, "init", Init);
   SetProtoMethod(isolate, t, "initiv", InitIv);
   SetProtoMethod(isolate, t, "update", Update);
   SetProtoMethod(isolate, t, "final", Final);
@@ -275,7 +274,6 @@ void CipherBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
 
-  registry->Register(Init);
   registry->Register(InitIv);
   registry->Register(Update);
   registry->Register(Final);
@@ -305,7 +303,7 @@ void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
 }
 
-void CipherBase::CommonInit(std::string_view cipher_type,
+void CipherBase::CommonInit(const char* cipher_type,
                             const ncrypto::Cipher& cipher,
                             const unsigned char* key,
                             int key_len,
@@ -347,70 +345,7 @@ void CipherBase::CommonInit(std::string_view cipher_type,
   }
 }
 
-void CipherBase::Init(std::string_view cipher_type,
-                      const ArrayBufferOrViewContents<unsigned char>& key_buf,
-                      unsigned int auth_tag_len) {
-  HandleScope scope(env()->isolate());
-  MarkPopErrorOnReturn mark_pop_error_on_return;
-  const auto cipher = Cipher::FromName(cipher_type);
-  if (!cipher) {
-    return THROW_ERR_CRYPTO_UNKNOWN_CIPHER(env());
-  }
-
-  unsigned char key[Cipher::MAX_KEY_LENGTH];
-  unsigned char iv[Cipher::MAX_IV_LENGTH];
-
-  ncrypto::Buffer<const unsigned char> keyBuf{
-      .data = key_buf.data(),
-      .len = key_buf.size(),
-  };
-  int key_len = cipher.bytesToKey(Digest::MD5, keyBuf, key, iv);
-  CHECK_NE(key_len, 0);
-
-  if (kind_ == kCipher &&
-      (cipher.isCtrMode() || cipher.isGcmMode() || cipher.isCcmMode())) {
-    // Ignore the return value (i.e. possible exception) because we are
-    // not calling back into JS anyway.
-    ProcessEmitWarning(env(),
-                       "Use Cipheriv for counter mode of %s",
-                       cipher_type);
-  }
-
-  CommonInit(cipher_type,
-             cipher,
-             key,
-             key_len,
-             iv,
-             cipher.getIvLength(),
-             auth_tag_len);
-}
-
-void CipherBase::Init(const FunctionCallbackInfo<Value>& args) {
-  CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
-  Environment* env = Environment::GetCurrent(args);
-
-  CHECK_GE(args.Length(), 3);
-
-  const Utf8Value cipher_type(args.GetIsolate(), args[0]);
-  ArrayBufferOrViewContents<unsigned char> key_buf(args[1]);
-  if (!key_buf.CheckSizeInt32())
-    return THROW_ERR_OUT_OF_RANGE(env, "password is too large");
-
-  // Don't assign to cipher->auth_tag_len_ directly; the value might not
-  // represent a valid length at this point.
-  unsigned int auth_tag_len;
-  if (args[2]->IsUint32()) {
-    auth_tag_len = args[2].As<Uint32>()->Value();
-  } else {
-    CHECK(args[2]->IsInt32() && args[2].As<Int32>()->Value() == -1);
-    auth_tag_len = kNoAuthTagLength;
-  }
-
-  cipher->Init(cipher_type.ToStringView(), key_buf, auth_tag_len);
-}
-
-void CipherBase::InitIv(std::string_view cipher_type,
+void CipherBase::InitIv(const char* cipher_type,
                         const ByteSource& key_buf,
                         const ArrayBufferOrViewContents<unsigned char>& iv_buf,
                         unsigned int auth_tag_len) {
@@ -490,10 +425,10 @@ void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
     auth_tag_len = kNoAuthTagLength;
   }
 
-  cipher->InitIv(cipher_type.ToStringView(), key_buf, iv_buf, auth_tag_len);
+  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
-bool CipherBase::InitAuthenticated(std::string_view cipher_type,
+bool CipherBase::InitAuthenticated(const char* cipher_type,
                                    int iv_len,
                                    unsigned int auth_tag_len) {
   CHECK(IsAuthenticatedMode());
@@ -524,7 +459,7 @@ bool CipherBase::InitAuthenticated(std::string_view cipher_type,
       // authentication tag length also defaults to 16 bytes when decrypting,
       // whereas GCM would accept any valid authentication tag length.
       if (ctx_.isChaCha20Poly1305()) {
-        auth_tag_len = 16;
+        auth_tag_len = EVP_CHACHAPOLY_TLS_TAG_LEN;
       } else {
         THROW_ERR_CRYPTO_INVALID_AUTH_TAG(
           env(), "authTagLength required for %s", cipher_type);
@@ -637,7 +572,7 @@ void CipherBase::SetAuthTag(const FunctionCallbackInfo<Value>& args) {
   }
 
   if (cipher->ctx_.isGcmMode() && cipher->auth_tag_len_ == kNoAuthTagLength &&
-      tag_len != 16 && env->EmitProcessEnvWarning()) {
+      tag_len != EVP_GCM_TLS_TAG_LEN && env->EmitProcessEnvWarning()) {
     if (ProcessEmitDeprecationWarning(
             env,
             "Using AES-GCM authentication tags of less than 128 bits without "
@@ -781,9 +716,7 @@ CipherBase::UpdateResult CipherBase::Update(
   } else if (static_cast<size_t>(buf_len) != (*out)->ByteLength()) {
     std::unique_ptr<BackingStore> old_out = std::move(*out);
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
-    memcpy(static_cast<char*>((*out)->Data()),
-           static_cast<char*>(old_out->Data()),
-           buf_len);
+    memcpy((*out)->Data(), old_out->Data(), buf_len);
   }
 
   // When in CCM mode, EVP_CipherUpdate will fail if the authentication tag is
@@ -879,9 +812,7 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
     } else if (static_cast<size_t>(out_len) != (*out)->ByteLength()) {
       std::unique_ptr<BackingStore> old_out = std::move(*out);
       *out = ArrayBuffer::NewBackingStore(env()->isolate(), out_len);
-      memcpy(static_cast<char*>((*out)->Data()),
-             static_cast<char*>(old_out->Data()),
-             out_len);
+      memcpy((*out)->Data(), old_out->Data(), out_len);
     }
 
     if (ok && kind_ == kCipher && IsAuthenticatedMode()) {
@@ -890,7 +821,7 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       // always be given by the user.
       if (auth_tag_len_ == kNoAuthTagLength) {
         CHECK(ctx_.isGcmMode());
-        auth_tag_len_ = sizeof(auth_tag_);
+        auth_tag_len_ = EVP_GCM_TLS_TAG_LEN;
       }
       ok = ctx_.getAeadTag(auth_tag_len_,
                            reinterpret_cast<unsigned char*>(auth_tag_));
@@ -957,9 +888,7 @@ bool PublicKeyCipher::Cipher(
     *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
   } else {
     *out = ArrayBuffer::NewBackingStore(env->isolate(), buf.size());
-    memcpy(static_cast<char*>((*out)->Data()),
-           static_cast<char*>(buf.get()),
-           buf.size());
+    memcpy((*out)->Data(), buf.get(), buf.size());
   }
 
   return true;
@@ -1004,7 +933,7 @@ void PublicKeyCipher::Cipher(const FunctionCallbackInfo<Value>& args) {
   Digest digest;
   if (args[offset + 2]->IsString()) {
     Utf8Value oaep_str(env->isolate(), args[offset + 2]);
-    digest = Digest::FromName(oaep_str.ToStringView());
+    digest = Digest::FromName(*oaep_str);
     if (!digest) return THROW_ERR_OSSL_EVP_INVALID_DIGEST(env);
   }
 

@@ -10,9 +10,9 @@
 
 #include "src/base/platform/condition-variable.h"
 #include "src/base/platform/mutex.h"
+#include "src/base/vector.h"
 #include "src/common/globals.h"
 #include "src/flags/flags.h"
-#include "src/heap/parked-scope.h"
 #include "src/utils/allocation.h"
 
 namespace v8 {
@@ -23,76 +23,170 @@ class TurbofanCompilationJob;
 class RuntimeCallStats;
 class SharedFunctionInfo;
 
+// Align the structure to the cache line size to prevent false sharing. While a
+// task state is owned by a single thread, all tasks states are kept in a vector
+// in OptimizingCompileDispatcher::task_states.
+struct alignas(PROCESSOR_CACHE_LINE_SIZE) OptimizingCompileTaskState {
+  Isolate* isolate;
+};
+
 // Circular queue of incoming recompilation tasks (including OSR).
-class V8_EXPORT OptimizingCompileDispatcherQueue {
+class V8_EXPORT OptimizingCompileInputQueue {
  public:
   inline bool IsAvailable() {
     base::MutexGuard access(&mutex_);
-    return length_ < capacity_;
+    return queue_.size() < capacity_;
   }
 
-  inline int Length() {
+  inline size_t Length() {
     base::MutexGuard access_queue(&mutex_);
-    return length_;
+    return queue_.size();
   }
 
-  explicit OptimizingCompileDispatcherQueue(int capacity)
-      : capacity_(capacity), length_(0), shift_(0) {
-    queue_ = NewArray<TurbofanCompilationJob*>(capacity_);
-  }
+  explicit OptimizingCompileInputQueue(int capacity) : capacity_(capacity) {}
 
-  ~OptimizingCompileDispatcherQueue() { DeleteArray(queue_); }
+  TurbofanCompilationJob* Dequeue(OptimizingCompileTaskState& task_state);
+  TurbofanCompilationJob* DequeueIfIsolateMatches(Isolate* isolate);
 
-  TurbofanCompilationJob* Dequeue() {
-    base::MutexGuard access(&mutex_);
-    if (length_ == 0) return nullptr;
-    TurbofanCompilationJob* job = queue_[QueueIndex(0)];
-    DCHECK_NOT_NULL(job);
-    shift_ = QueueIndex(1);
-    length_--;
-    return job;
-  }
+  bool Enqueue(std::unique_ptr<TurbofanCompilationJob>& job);
 
-  void Enqueue(TurbofanCompilationJob* job) {
-    base::MutexGuard access(&mutex_);
-    DCHECK_LT(length_, capacity_);
-    queue_[QueueIndex(length_)] = job;
-    length_++;
-  }
+  void FlushJobsForIsolate(Isolate* isolate);
+  bool HasJobForIsolate(Isolate* isolate);
 
-  void Flush(Isolate* isolate);
-
-  void Prioritize(Tagged<SharedFunctionInfo> function);
+  void Prioritize(Isolate* isolate, Tagged<SharedFunctionInfo> function);
 
  private:
-  inline int QueueIndex(int i) {
-    int result = (i + shift_) % capacity_;
-    DCHECK_LE(0, result);
-    DCHECK_LT(result, capacity_);
-    return result;
-  }
+  std::deque<TurbofanCompilationJob*> queue_;
+  size_t capacity_;
 
-  TurbofanCompilationJob** queue_;
-  int capacity_;
-  int length_;
-  int shift_;
+  base::Mutex mutex_;
+  base::ConditionVariable task_finished_;
+
+  friend class OptimizingCompileTaskExecutor;
+};
+
+// This class runs compile tasks in a thread pool. Threads grab new work from
+// the input_queue_ defined in this class. Once a task is done, it will be
+// enqueued into an isolate-local output queue. This class is
+// not specific to a particular isolate and may be shared across multiple
+// isolates in the future.
+class V8_EXPORT OptimizingCompileTaskExecutor {
+ public:
+  OptimizingCompileTaskExecutor();
+  ~OptimizingCompileTaskExecutor();
+
+  // Creates Job with PostJob.
+  void EnsureInitialized();
+
+  // Invokes and runs Turbofan for this particular job.
+  void CompileNext(Isolate* isolate, LocalIsolate& local_isolate,
+                   TurbofanCompilationJob* job);
+
+  // Gets the next job from the input queue.
+  TurbofanCompilationJob* NextInput(OptimizingCompileTaskState& task_state);
+
+  // Gets the next job from the input queue but only if the job is also for the
+  // given isolate.
+  TurbofanCompilationJob* NextInputIfIsolateMatches(Isolate* isolate);
+
+  // Returns true when one of the currently running compilation tasks is
+  // operating on the given isolate. If the return value is false, the caller
+  // can also assume that no LocalHeap/LocalIsolate exists for the isolate
+  // anymore as well.
+  bool IsTaskRunningForIsolate(Isolate* isolate);
+
+  // Clears the state for a task/thread once it is done with a job. This mainly
+  // clears the current isolate for this task. Only invoke this after the
+  // LocalHeap/LocalIsolate for this thread was destroyed as well.
+  void ClearTaskState(OptimizingCompileTaskState& task_state);
+
+  // Tries to append a new compilation job to the input queue. This may fail if
+  // the input queue was already full.
+  bool TryQueueForOptimization(std::unique_ptr<TurbofanCompilationJob>& job);
+
+  // Waits until all running and queued compilation jobs for this isolate are
+  // done.
+  void WaitUntilCompilationJobsDoneForIsolate(Isolate* isolate);
+
+  // Returns true if there exists a currently running or queued compilation job
+  // for this isolate..
+  bool HasCompilationJobsForIsolate(Isolate* isolate);
+
+ private:
+  class CompileTask;
+
+  static constexpr TaskPriority kTaskPriority = TaskPriority::kUserVisible;
+  static constexpr TaskPriority kEfficiencyTaskPriority =
+      TaskPriority::kBestEffort;
+
+  OptimizingCompileInputQueue input_queue_;
+
+  // Copy of v8_flags.concurrent_recompilation_delay that will be used from the
+  // background thread.
+  //
+  // Since flags might get modified while the background thread is running, it
+  // is not safe to access them directly.
+  int recompilation_delay_;
+
+  std::unique_ptr<JobHandle> job_handle_;
+
+  base::OwnedVector<OptimizingCompileTaskState> task_states_;
+
+  // Used to avoid creating the JobHandle twice.
+  bool is_initialized_ = false;
+
+  friend class OptimizingCompileDispatcher;
+};
+
+class OptimizingCompileOutputQueue {
+ public:
+  void Enqueue(TurbofanCompilationJob* job);
+  std::unique_ptr<TurbofanCompilationJob> Dequeue();
+
+  int InstallGeneratedBuiltins(Isolate* isolate, int installed_count);
+
+  size_t size() const;
+  bool empty() const;
+
+ private:
+  // Queue of recompilation tasks ready to be installed (excluding OSR).
+  std::deque<TurbofanCompilationJob*> queue_;
+
+  // Used for job based recompilation which has multiple producers on
+  // different threads.
   base::Mutex mutex_;
 };
 
+// OptimizingCompileDispatcher is an isolate-specific class to enqueue Turbofan
+// compilation jobs and retrieve results.
 class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
  public:
-  explicit OptimizingCompileDispatcher(Isolate* isolate);
+  explicit OptimizingCompileDispatcher(
+      Isolate* isolate, OptimizingCompileTaskExecutor* task_executor);
 
   ~OptimizingCompileDispatcher();
 
-  void Stop();
+  // Flushes input and output queue for compilation jobs. If blocking behavior
+  // is used, it will also wait until the running compilation jobs are done
+  // before flushing the output queue.
   void Flush(BlockingBehavior blocking_behavior);
-  // Takes ownership of |job|.
-  void QueueForOptimization(TurbofanCompilationJob* job);
-  void AwaitCompileTasks();
+
+  // Tries to append the compilation job to the input queue. Takes ownership of
+  // |job| if successful. Fails if the input queue is already full.
+  bool TryQueueForOptimization(std::unique_ptr<TurbofanCompilationJob>& job);
+
+  // Waits until all running and queued compilation jobs have finished.
+  void WaitUntilCompilationJobsDone();
+
   void InstallOptimizedFunctions();
 
-  inline bool IsQueueAvailable() { return input_queue_.IsAvailable(); }
+  // Install generated builtins in the output queue in contiguous finalization
+  // order, starting with installed_count. Returns the finalization order of the
+  // last job that was finalized.
+  int InstallGeneratedBuiltins(int installed_count);
+
+  // Returns true if there is space available in the input queue.
+  inline bool IsQueueAvailable() { return input_queue().IsAvailable(); }
 
   static bool Enabled() { return v8_flags.concurrent_recompilation; }
 
@@ -101,7 +195,9 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   // Whether to finalize and thus install the optimized code.  Defaults to true.
   // Only set to false for testing (where finalization is then manually
-  // requested using %FinalizeOptimization).
+  // requested using %FinalizeOptimization) and when compiling embedded builtins
+  // concurrently. For the latter, builtins are installed manually using
+  // InstallGeneratedBuiltins().
   bool finalize() const { return finalize_; }
   void set_finalize(bool finalize) {
     CHECK(!HasJobs());
@@ -110,38 +206,31 @@ class V8_EXPORT_PRIVATE OptimizingCompileDispatcher {
 
   void Prioritize(Tagged<SharedFunctionInfo> function);
 
- private:
-  class CompileTask;
+  void StartTearDown();
+  void FinishTearDown();
 
+  void QueueFinishedJob(TurbofanCompilationJob* job);
+
+ private:
   enum ModeFlag { COMPILE, FLUSH };
-  static constexpr TaskPriority kTaskPriority = TaskPriority::kUserVisible;
-  static constexpr TaskPriority kEfficiencyTaskPriority =
-      TaskPriority::kBestEffort;
 
   void FlushQueues(BlockingBehavior blocking_behavior);
   void FlushInputQueue();
   void FlushOutputQueue();
-  void CompileNext(TurbofanCompilationJob* job, LocalIsolate* local_isolate);
-  TurbofanCompilationJob* NextInput(LocalIsolate* local_isolate);
+
+  OptimizingCompileInputQueue& input_queue() {
+    return task_executor_->input_queue_;
+  }
+
+  int recompilation_delay() const {
+    return task_executor_->recompilation_delay_;
+  }
 
   Isolate* isolate_;
 
-  OptimizingCompileDispatcherQueue input_queue_;
+  OptimizingCompileTaskExecutor* task_executor_;
 
-  // Queue of recompilation tasks ready to be installed (excluding OSR).
-  std::queue<TurbofanCompilationJob*> output_queue_;
-  // Used for job based recompilation which has multiple producers on
-  // different threads.
-  base::Mutex output_queue_mutex_;
-
-  std::unique_ptr<JobHandle> job_handle_;
-
-  // Copy of v8_flags.concurrent_recompilation_delay that will be used from the
-  // background thread.
-  //
-  // Since flags might get modified while the background thread is running, it
-  // is not safe to access them directly.
-  int recompilation_delay_;
+  OptimizingCompileOutputQueue output_queue_;
 
   bool finalize_ = true;
 };

@@ -101,9 +101,7 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
     if (sig_buf.len < sig->ByteLength()) {
       auto new_sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_buf.len);
       if (sig_buf.len > 0) [[likely]] {
-        memcpy(static_cast<char*>(new_sig->Data()),
-               static_cast<char*>(sig->Data()),
-               sig_buf.len);
+        memcpy(new_sig->Data(), sig->Data(), sig_buf.len);
       }
       sig = std::move(new_sig);
     }
@@ -232,7 +230,7 @@ bool UseP1363Encoding(const EVPKeyPointer& key, const DSASigEnc dsa_encoding) {
 }
 }  // namespace
 
-SignBase::Error SignBase::Init(std::string_view digest) {
+SignBase::Error SignBase::Init(const char* digest) {
   CHECK_NULL(mdctx_);
   auto md = Digest::FromName(digest);
   if (!md) [[unlikely]]
@@ -319,7 +317,7 @@ void Sign::SignInit(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&sign, args.This());
 
   const node::Utf8Value sign_type(env->isolate(), args[0]);
-  crypto::CheckThrow(env, sign->Init(sign_type.ToStringView()));
+  crypto::CheckThrow(env, sign->Init(*sign_type));
 }
 
 void Sign::SignUpdate(const FunctionCallbackInfo<Value>& args) {
@@ -429,7 +427,7 @@ void Verify::VerifyInit(const FunctionCallbackInfo<Value>& args) {
   ASSIGN_OR_RETURN_UNWRAP(&verify, args.This());
 
   const node::Utf8Value verify_type(env->isolate(), args[0]);
-  crypto::CheckThrow(env, verify->Init(verify_type.ToStringView()));
+  crypto::CheckThrow(env, verify->Init(*verify_type));
 }
 
 void Verify::VerifyUpdate(const FunctionCallbackInfo<Value>& args) {
@@ -588,7 +586,7 @@ Maybe<void> SignTraits::AdditionalConfig(
 
   if (args[offset + 6]->IsString()) {
     Utf8Value digest(env->isolate(), args[offset + 6]);
-    params->digest = Digest::FromName(digest.ToStringView());
+    params->digest = Digest::FromName(*digest);
     if (!params->digest) [[unlikely]] {
       THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
       return Nothing<void>();

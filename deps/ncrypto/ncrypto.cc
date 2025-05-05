@@ -12,9 +12,6 @@
 #if OPENSSL_VERSION_MAJOR >= 3
 #include <openssl/provider.h>
 #endif
-#ifdef OPENSSL_IS_BORINGSSL
-#include "dh-primes.h"
-#endif  // OPENSSL_IS_BORINGSSL
 
 // EVP_PKEY_CTX_set_dsa_paramgen_q_bits was added in OpenSSL 1.1.1e.
 #if OPENSSL_VERSION_NUMBER < 0x1010105fL
@@ -215,7 +212,7 @@ Buffer<void> DataPointer::release() {
 DataPointer DataPointer::resize(size_t len) {
   size_t actual_len = std::min(len_, len);
   auto buf = release();
-  if (actual_len == len_) return DataPointer(buf);
+  if (actual_len == len_) return DataPointer(buf.data, actual_len);
   buf.data = OPENSSL_realloc(buf.data, actual_len);
   buf.len = actual_len;
   return DataPointer(buf);
@@ -1328,7 +1325,7 @@ X509Pointer X509Pointer::PeerFrom(const SSLPointer& ssl) {
 // When adding or removing errors below, please also update the list in the API
 // documentation. See the "OpenSSL Error Codes" section of doc/api/errors.md
 // Also *please* update the respective section in doc/api/tls.md as well
-std::string_view X509Pointer::ErrorCode(int32_t err) {  // NOLINT(runtime/int)
+const char* X509Pointer::ErrorCode(int32_t err) {  // NOLINT(runtime/int)
 #define CASE(CODE)                                                             \
   case X509_V_ERR_##CODE:                                                      \
     return #CODE;
@@ -1366,7 +1363,7 @@ std::string_view X509Pointer::ErrorCode(int32_t err) {  // NOLINT(runtime/int)
   return "UNSPECIFIED";
 }
 
-std::optional<std::string_view> X509Pointer::ErrorReason(int32_t err) {
+std::optional<const char*> X509Pointer::ErrorReason(int32_t err) {
   if (err == X509_V_OK) return std::nullopt;
   return X509_verify_cert_error_string(err);
 }
@@ -1422,9 +1419,8 @@ BIOPointer BIOPointer::New(const void* data, size_t len) {
   return BIOPointer(BIO_new_mem_buf(data, len));
 }
 
-BIOPointer BIOPointer::NewFile(std::string_view filename,
-                               std::string_view mode) {
-  return BIOPointer(BIO_new_file(filename.data(), mode.data()));
+BIOPointer BIOPointer::NewFile(const char* filename, const char* mode) {
+  return BIOPointer(BIO_new_file(filename, mode));
 }
 
 BIOPointer BIOPointer::NewFp(FILE* fd, int close_flag) {
@@ -1706,17 +1702,17 @@ DataPointer DHPointer::stateless(const EVPKeyPointer& ourKey,
 // ============================================================================
 // KDF
 
-const EVP_MD* getDigestByName(const std::string_view name) {
+const EVP_MD* getDigestByName(const char* name) {
   // Historically, "dss1" and "DSS1" were DSA aliases for SHA-1
   // exposed through the public API.
-  if (name == "dss1" || name == "DSS1") [[unlikely]] {
+  if (strcmp(name, "dss1") == 0 || strcmp(name, "DSS1") == 0) [[unlikely]] {
     return EVP_sha1();
   }
-  return EVP_get_digestbyname(name.data());
+  return EVP_get_digestbyname(name);
 }
 
-const EVP_CIPHER* getCipherByName(const std::string_view name) {
-  return EVP_get_cipherbyname(name.data());
+const EVP_CIPHER* getCipherByName(const char* name) {
+  return EVP_get_cipherbyname(name);
 }
 
 bool checkHkdfLength(const Digest& md, size_t length) {
@@ -2563,8 +2559,7 @@ SSLPointer SSLPointer::New(const SSLCtxPointer& ctx) {
   return SSLPointer(SSL_new(ctx.get()));
 }
 
-void SSLPointer::getCiphers(
-    std::function<void(const std::string_view)> cb) const {
+void SSLPointer::getCiphers(std::function<void(const char*)> cb) const {
   if (!ssl_) return;
   STACK_OF(SSL_CIPHER)* ciphers = SSL_get_ciphers(get());
 
@@ -2629,7 +2624,7 @@ std::optional<uint32_t> SSLPointer::verifyPeerCertificate() const {
   return std::nullopt;
 }
 
-const std::string_view SSLPointer::getClientHelloAlpn() const {
+const char* SSLPointer::getClientHelloAlpn() const {
   if (ssl_ == nullptr) return {};
 #ifndef OPENSSL_IS_BORINGSSL
   const unsigned char* buf;
@@ -2654,7 +2649,7 @@ const std::string_view SSLPointer::getClientHelloAlpn() const {
 #endif
 }
 
-const std::string_view SSLPointer::getClientHelloServerName() const {
+const char* SSLPointer::getClientHelloServerName() const {
   if (ssl_ == nullptr) return {};
 #ifndef OPENSSL_IS_BORINGSSL
   const unsigned char* buf;
@@ -2797,10 +2792,10 @@ bool SSLCtxPointer::setGroups(const char* groups) {
   return SSL_CTX_set1_groups_list(get(), groups) == 1;
 }
 
-bool SSLCtxPointer::setCipherSuites(std::string_view ciphers) {
+bool SSLCtxPointer::setCipherSuites(const char* ciphers) {
 #ifndef OPENSSL_IS_BORINGSSL
   if (!ctx_) return false;
-  return SSL_CTX_set_ciphersuites(ctx_.get(), ciphers.data());
+  return SSL_CTX_set_ciphersuites(ctx_.get(), ciphers);
 #else
   // BoringSSL does not allow API config of TLS 1.3 cipher suites.
   // We treat this as a non-op.
@@ -2810,8 +2805,8 @@ bool SSLCtxPointer::setCipherSuites(std::string_view ciphers) {
 
 // ============================================================================
 
-const Cipher Cipher::FromName(std::string_view name) {
-  return Cipher(EVP_get_cipherbyname(name.data()));
+const Cipher Cipher::FromName(const char* name) {
+  return Cipher(EVP_get_cipherbyname(name));
 }
 
 const Cipher Cipher::FromNid(int nid) {
@@ -2925,7 +2920,7 @@ std::string_view Cipher::getModeLabel() const {
   return "{unknown}";
 }
 
-std::string_view Cipher::getName() const {
+const char* Cipher::getName() const {
   if (!cipher_) return {};
   // OBJ_nid2sn(EVP_CIPHER_nid(cipher)) is used here instead of
   // EVP_CIPHER_name(cipher) for compatibility with BoringSSL.
@@ -3842,7 +3837,7 @@ DataPointer Cipher::recover(const EVPKeyPointer& key,
 namespace {
 struct CipherCallbackContext {
   Cipher::CipherNameCallback cb;
-  void operator()(std::string_view name) { cb(name); }
+  void operator()(const char* name) { cb(name); }
 };
 
 #if OPENSSL_VERSION_MAJOR >= 3
@@ -3921,10 +3916,10 @@ int Ec::getCurve() const {
   return EC_GROUP_get_curve_name(getGroup());
 }
 
-int Ec::GetCurveIdFromName(std::string_view name) {
-  int nid = EC_curve_nist2nid(name.data());
+int Ec::GetCurveIdFromName(const char* name) {
+  int nid = EC_curve_nist2nid(name);
   if (nid == NID_undef) {
-    nid = OBJ_sn2nid(name.data());
+    nid = OBJ_sn2nid(name);
   }
   return nid;
 }
@@ -4297,7 +4292,7 @@ const Digest Digest::SHA256 = Digest(EVP_sha256());
 const Digest Digest::SHA384 = Digest(EVP_sha384());
 const Digest Digest::SHA512 = Digest(EVP_sha512());
 
-const Digest Digest::FromName(std::string_view name) {
+const Digest Digest::FromName(const char* name) {
   return ncrypto::getDigestByName(name);
 }
 

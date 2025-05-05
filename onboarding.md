@@ -261,8 +261,9 @@ needs to be pointed out separately during the onboarding.
 * The OpenJS Foundation hosts regular summits for active contributors to the
   Node.js project, where we have face-to-face discussions about our work on the
   project. The Foundation has travel funds to cover [participants' expenses][]
-  including accommodations and transportation if needed. Check out
-  the [summit](https://github.com/nodejs/summit) repository for details.
+  including accommodations, transportation, and visa fees (even in case the visa
+  is denied) if needed. Check out the [summit](https://github.com/nodejs/summit)
+  repository for details.
 * If you are interested in helping to fix coverity reports consider requesting
   access to the projects coverity project as outlined in [static-analysis][].
 

@@ -27,12 +27,14 @@
 #if defined(_MSC_VER)
 #include <direct.h>
 #include <io.h>
+#include <process.h>
 #define umask _umask
 typedef int mode_t;
 #else
 #include <pthread.h>
 #include <sys/resource.h>  // getrlimit, setrlimit
 #include <termios.h>  // tcgetattr, tcsetattr
+#include <unistd.h>
 #endif
 
 namespace node {
@@ -48,6 +50,7 @@ using v8::HeapStatistics;
 using v8::Integer;
 using v8::Isolate;
 using v8::Local;
+using v8::LocalVector;
 using v8::Maybe;
 using v8::NewStringType;
 using v8::Number;
@@ -291,7 +294,7 @@ static void Uptime(const FunctionCallbackInfo<Value>& args) {
 static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> request_v;
+  LocalVector<Value> request_v(env->isolate());
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
     AsyncWrap* w = req_wrap->GetAsyncWrap();
     if (w->persistent().IsEmpty())
@@ -308,7 +311,7 @@ static void GetActiveRequests(const FunctionCallbackInfo<Value>& args) {
 void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
 
-  std::vector<Local<Value>> handle_v;
+  LocalVector<Value> handle_v(env->isolate());
   for (auto w : *env->handle_wrap_queue()) {
     if (!HandleWrap::HasRef(w))
       continue;
@@ -320,7 +323,7 @@ void GetActiveHandles(const FunctionCallbackInfo<Value>& args) {
 
 static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
-  std::vector<Local<Value>> resources_info;
+  LocalVector<Value> resources_info(env->isolate());
 
   // Active requests
   for (ReqWrapBase* req_wrap : *env->req_wrap_queue()) {
@@ -338,14 +341,17 @@ static void GetActiveResourcesInfo(const FunctionCallbackInfo<Value>& args) {
   }
 
   // Active timeouts
-  resources_info.insert(resources_info.end(),
-                        env->timeout_info()[0],
-                        FIXED_ONE_BYTE_STRING(env->isolate(), "Timeout"));
+  Local<Value> timeout_str = FIXED_ONE_BYTE_STRING(env->isolate(), "Timeout");
+  for (int i = 0; i < env->timeout_info()[0]; ++i) {
+    resources_info.push_back(timeout_str);
+  }
 
   // Active immediates
-  resources_info.insert(resources_info.end(),
-                        env->immediate_info()->ref_count(),
-                        FIXED_ONE_BYTE_STRING(env->isolate(), "Immediate"));
+  Local<Value> immediate_str =
+      FIXED_ONE_BYTE_STRING(env->isolate(), "Immediate");
+  for (uint32_t i = 0; i < env->immediate_info()->ref_count(); ++i) {
+    resources_info.push_back(immediate_str);
+  }
 
   args.GetReturnValue().Set(
       Array::New(env->isolate(), resources_info.data(), resources_info.size()));
@@ -498,6 +504,95 @@ static void ReallyExit(const FunctionCallbackInfo<Value>& args) {
   }
   env->Exit(code);
 }
+
+#if defined __POSIX__ && !defined(__PASE__)
+inline int persist_standard_stream(int fd) {
+  int flags = fcntl(fd, F_GETFD, 0);
+
+  if (flags < 0) {
+    return flags;
+  }
+
+  flags &= ~FD_CLOEXEC;
+  return fcntl(fd, F_SETFD, flags);
+}
+
+static void Execve(const FunctionCallbackInfo<Value>& args) {
+  Environment* env = Environment::GetCurrent(args);
+  Isolate* isolate = env->isolate();
+  Local<Context> context = env->context();
+
+  THROW_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kChildProcess, "");
+
+  CHECK(args[0]->IsString());
+  CHECK(args[1]->IsArray());
+  CHECK(args[2]->IsArray());
+
+  Local<Array> argv_array = args[1].As<Array>();
+  Local<Array> envp_array = args[2].As<Array>();
+
+  // Copy arguments and environment
+  Utf8Value executable(isolate, args[0]);
+  std::vector<std::string> argv_strings(argv_array->Length());
+  std::vector<std::string> envp_strings(envp_array->Length());
+  std::vector<char*> argv(argv_array->Length() + 1);
+  std::vector<char*> envp(envp_array->Length() + 1);
+
+  for (unsigned int i = 0; i < argv_array->Length(); i++) {
+    Local<Value> str;
+    if (!argv_array->Get(context, i).ToLocal(&str)) {
+      THROW_ERR_INVALID_ARG_VALUE(env, "Failed to deserialize argument.");
+      return;
+    }
+
+    argv_strings[i] = Utf8Value(isolate, str).ToString();
+    argv[i] = argv_strings[i].data();
+  }
+  argv[argv_array->Length()] = nullptr;
+
+  for (unsigned int i = 0; i < envp_array->Length(); i++) {
+    Local<Value> str;
+    if (!envp_array->Get(context, i).ToLocal(&str)) {
+      THROW_ERR_INVALID_ARG_VALUE(
+          env, "Failed to deserialize environment variable.");
+      return;
+    }
+
+    envp_strings[i] = Utf8Value(isolate, str).ToString();
+    envp[i] = envp_strings[i].data();
+  }
+
+  envp[envp_array->Length()] = nullptr;
+
+  // Set stdin, stdout and stderr to be non-close-on-exec
+  // so that the new process will inherit it.
+  if (persist_standard_stream(0) < 0 || persist_standard_stream(1) < 0 ||
+      persist_standard_stream(2) < 0) {
+    env->ThrowErrnoException(errno, "fcntl");
+    return;
+  }
+
+  // Perform the execve operation.
+  RunAtExit(env);
+  execve(*executable, argv.data(), envp.data());
+
+  // If it returns, it means that the execve operation failed.
+  // In that case we abort the process.
+  auto error_message = std::string("process.execve failed with error code ") +
+                       errors::errno_string(errno);
+
+  // Abort the process
+  Local<v8::Value> exception =
+      ErrnoException(isolate, errno, "execve", *executable);
+  Local<v8::Message> message = v8::Exception::CreateMessage(isolate, exception);
+
+  std::string info = FormatErrorMessage(
+      isolate, context, error_message.c_str(), message, true);
+  FPrintF(stderr, "%s\n", info);
+  ABORT();
+}
+#endif
 
 static void LoadEnvFile(const v8::FunctionCallbackInfo<v8::Value>& args) {
   Environment* env = Environment::GetCurrent(args);
@@ -691,6 +786,10 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethodNoSideEffect(isolate, target, "cwd", Cwd);
   SetMethod(isolate, target, "dlopen", binding::DLOpen);
   SetMethod(isolate, target, "reallyExit", ReallyExit);
+
+#if defined __POSIX__ && !defined(__PASE__)
+  SetMethod(isolate, target, "execve", Execve);
+#endif
   SetMethodNoSideEffect(isolate, target, "uptime", Uptime);
   SetMethod(isolate, target, "patchProcessObject", PatchProcessObject);
 
@@ -734,6 +833,10 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Cwd);
   registry->Register(binding::DLOpen);
   registry->Register(ReallyExit);
+
+#if defined __POSIX__ && !defined(__PASE__)
+  registry->Register(Execve);
+#endif
   registry->Register(Uptime);
   registry->Register(PatchProcessObject);
 

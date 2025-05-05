@@ -29,7 +29,7 @@ const assert = require('node:assert');
   );
 }
 
-// Guarantee dot-left numbers are ignored
+// Guarantee dot-right numbers are ignored
 {
   const callSites = getCallSites(3.6);
   assert.strictEqual(callSites.length, 3);
@@ -44,6 +44,11 @@ const assert = require('node:assert');
   assert.throws(() => {
     // Max than kDefaultMaxCallStackSizeToCapture
     getCallSites(201);
+  }, common.expectsError({
+    code: 'ERR_OUT_OF_RANGE'
+  }));
+  assert.throws(() => {
+    getCallSites(0.5);
   }, common.expectsError({
     code: 'ERR_OUT_OF_RANGE'
   }));
@@ -126,7 +131,7 @@ const assert = require('node:assert');
   const { status, stderr, stdout } = spawnSync(process.execPath, [
     '--no-warnings',
     '--experimental-transform-types',
-    fixtures.path('typescript/ts/test-get-callsite.ts'),
+    fixtures.path('typescript/ts/test-get-callsites.ts'),
   ]);
 
   const output = stdout.toString();
@@ -134,7 +139,7 @@ const assert = require('node:assert');
   assert.match(output, /lineNumber: 8/);
   assert.match(output, /column: 18/);
   assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsite\.ts/);
+  assert.match(output, /test-get-callsites\.ts/);
   assert.strictEqual(status, 0);
 }
 
@@ -143,7 +148,7 @@ const assert = require('node:assert');
     '--no-warnings',
     '--experimental-transform-types',
     '--no-enable-source-maps',
-    fixtures.path('typescript/ts/test-get-callsite.ts'),
+    fixtures.path('typescript/ts/test-get-callsites.ts'),
   ]);
 
   const output = stdout.toString();
@@ -152,7 +157,7 @@ const assert = require('node:assert');
   assert.match(output, /lineNumber: 2/);
   assert.match(output, /column: 18/);
   assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsite\.ts/);
+  assert.match(output, /test-get-callsites\.ts/);
   assert.strictEqual(status, 0);
 }
 
@@ -161,7 +166,7 @@ const assert = require('node:assert');
   const { status, stderr, stdout } = spawnSync(process.execPath, [
     '--no-warnings',
     '--experimental-transform-types',
-    fixtures.path('typescript/ts/test-get-callsite-explicit.ts'),
+    fixtures.path('typescript/ts/test-get-callsites-explicit.ts'),
   ]);
 
   const output = stdout.toString();
@@ -169,7 +174,7 @@ const assert = require('node:assert');
   assert.match(output, /lineNumber: 2/);
   assert.match(output, /column: 18/);
   assert.match(output, /columnNumber: 18/);
-  assert.match(output, /test-get-callsite-explicit\.ts/);
+  assert.match(output, /test-get-callsites-explicit\.ts/);
   assert.strictEqual(status, 0);
 }
 

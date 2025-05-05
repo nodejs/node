@@ -55,6 +55,8 @@ void NODE_EXTERN_PRIVATE FWrite(FILE* file, const std::string& str);
   V(MKSNAPSHOT)                                                                \
   V(SNAPSHOT_SERDES)                                                           \
   V(PERMISSION_MODEL)                                                          \
+  V(PLATFORM_MINIMAL)                                                          \
+  V(PLATFORM_VERBOSE)                                                          \
   V(QUIC)
 
 enum class DebugCategory : unsigned int {

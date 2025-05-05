@@ -16,8 +16,10 @@
 #include "src/compiler/type-cache.h"
 #include "src/ic/call-optimization.h"
 #include "src/objects/cell-inl.h"
+#include "src/objects/elements-kind.h"
 #include "src/objects/field-index-inl.h"
 #include "src/objects/field-type.h"
+#include "src/objects/instance-type-inl.h"
 #include "src/objects/objects-inl.h"
 #include "src/objects/property-details.h"
 #include "src/objects/struct-inl.h"
@@ -160,6 +162,22 @@ PropertyAccessInfo PropertyAccessInfo::ModuleExport(Zone* zone,
 PropertyAccessInfo PropertyAccessInfo::StringLength(Zone* zone,
                                                     MapRef receiver_map) {
   return PropertyAccessInfo(zone, kStringLength, {}, {{receiver_map}, zone});
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::StringWrapperLength(
+    Zone* zone, MapRef receiver_map) {
+  return PropertyAccessInfo(zone, kStringWrapperLength, {},
+                            {{receiver_map}, zone});
+}
+
+// static
+PropertyAccessInfo PropertyAccessInfo::TypedArrayLength(Zone* zone,
+                                                        MapRef receiver_map) {
+  PropertyAccessInfo result(zone, kTypedArrayLength, {},
+                            {{receiver_map}, zone});
+  result.set_elements_kind(receiver_map.elements_kind());
+  return result;
 }
 
 // static
@@ -342,12 +360,17 @@ bool PropertyAccessInfo::Merge(PropertyAccessInfo const* that,
     }
 
     case kNotFound:
-    case kStringLength: {
+    case kStringLength:
+    case kStringWrapperLength: {
       DCHECK(unrecorded_dependencies_.empty());
       DCHECK(that->unrecorded_dependencies_.empty());
       AppendVector(&lookup_start_object_maps_, that->lookup_start_object_maps_);
       return true;
     }
+    case kTypedArrayLength:
+      DCHECK_EQ(lookup_start_object_maps_.size(), 1);
+      DCHECK_EQ(that->lookup_start_object_maps_.size(), 1);
+      return lookup_start_object_maps_[0] == that->lookup_start_object_maps_[0];
     case kModuleExport:
       return false;
   }
@@ -474,8 +497,9 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
       OptionalMapRef maybe_field_map =
           TryMakeRef(broker(), FieldType::AsClass(*descriptors_field_type));
       if (!maybe_field_map.has_value()) return Invalid();
-      field_type = Type::For(maybe_field_map.value(), broker());
       field_map = maybe_field_map;
+      // field_type can only be inferred from field_map if it is stable and we
+      // add a stability dependency. This happens on use in the access builder.
     }
   } else {
     CHECK(details_representation.IsTagged());
@@ -488,16 +512,17 @@ PropertyAccessInfo AccessInfoFactory::ComputeDataFieldAccessInfo(
           descriptors_field_type_ref.value()));
 
   PropertyConstness constness =
-      dependencies()->DependOnFieldConstness(map, field_owner_map, descriptor);
-
+      map.GetPropertyDetails(broker_, descriptor).constness();
   switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           broker(), zone(), receiver_map, std::move(unrecorded_dependencies),
           field_index, details_representation, field_type, field_owner_map,
           field_map, holder, {});
-
     case PropertyConstness::kConst:
+      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
+          map, field_owner_map, descriptor);
+      unrecorded_dependencies.push_back(constness_dep);
       return PropertyAccessInfo::FastDataConstant(
           zone(), receiver_map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, field_owner_map, field_map,
@@ -553,7 +578,7 @@ PropertyAccessInfo AccessorAccessInfoHelper(
     return PropertyAccessInfo::FastAccessorConstant(zone, receiver_map, holder,
                                                     {}, {});
   }
-  Handle<Object> maybe_accessors = get_accessors();
+  DirectHandle<Object> maybe_accessors = get_accessors();
   if (!IsAccessorPair(*maybe_accessors)) {
     return PropertyAccessInfo::Invalid(zone);
   }
@@ -1063,6 +1088,25 @@ PropertyAccessInfo AccessInfoFactory::LookupSpecialFieldAccessor(
     }
     return Invalid();
   }
+  if (IsJSPrimitiveWrapperMap(*map.object()) &&
+      (map.elements_kind() == FAST_STRING_WRAPPER_ELEMENTS ||
+       map.elements_kind() == SLOW_STRING_WRAPPER_ELEMENTS)) {
+    if (Name::Equals(isolate(), name.object(),
+                     isolate()->factory()->length_string())) {
+      return PropertyAccessInfo::StringWrapperLength(zone(), map);
+    }
+  }
+  if (v8_flags.typed_array_length_loading && IsJSTypedArrayMap(*map.object()) &&
+      !IsRabGsabTypedArrayElementsKind(map.elements_kind()) &&
+      Name::Equals(isolate(), name.object(),
+                   isolate()->factory()->length_string()) &&
+      broker_->dependencies()->DependOnTypedArrayLengthProtector() &&
+      broker_->dependencies()->DependOnArrayBufferDetachingProtector()) {
+    // TODO(388844115): If we cannot depend on the detaching protector, add a
+    // different kind of TypedArrayLength operator which checks for detached
+    // before reading the byte_length.
+    return PropertyAccessInfo::TypedArrayLength(zone(), map);
+  }
   // Check for special JSObject field accessors.
   FieldIndex field_index;
   if (Accessors::IsJSObjectFieldAccessor(isolate(), map.object(), name.object(),
@@ -1168,8 +1212,9 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
       OptionalMapRef maybe_field_map =
           TryMakeRef(broker(), FieldType::AsClass(*descriptors_field_type));
       if (!maybe_field_map.has_value()) return Invalid();
-      field_type = Type::For(maybe_field_map.value(), broker());
       field_map = maybe_field_map;
+      // field_type can only be inferred from field_map if it is stable and we
+      // add a stability dependency. This happens on use in the access builder.
     }
   }
 
@@ -1178,14 +1223,19 @@ PropertyAccessInfo AccessInfoFactory::LookupTransition(
   // Transitioning stores *may* store to const fields. The resulting
   // DataConstant access infos can be distinguished from later, i.e. redundant,
   // stores to the same constant field by the presence of a transition map.
-  switch (dependencies()->DependOnFieldConstness(transition_map, transition_map,
-                                                 number)) {
+
+  PropertyConstness constness =
+      transition_map.GetPropertyDetails(broker_, number).constness();
+  switch (constness) {
     case PropertyConstness::kMutable:
       return PropertyAccessInfo::DataField(
           broker(), zone(), map, std::move(unrecorded_dependencies),
           field_index, details_representation, field_type, transition_map,
           field_map, holder, transition_map);
     case PropertyConstness::kConst:
+      auto constness_dep = dependencies()->FieldConstnessDependencyOffTheRecord(
+          transition_map, transition_map, number);
+      unrecorded_dependencies.push_back(constness_dep);
       return PropertyAccessInfo::FastDataConstant(
           zone(), map, std::move(unrecorded_dependencies), field_index,
           details_representation, field_type, transition_map, field_map, holder,

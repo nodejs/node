@@ -145,19 +145,14 @@ void Hmac::HmacDigest(const FunctionCallbackInfo<Value>& args) {
     hmac->ctx_.reset();
   }
 
-  Local<Value> error;
-  MaybeLocal<Value> rc =
-      StringBytes::Encode(env->isolate(),
+  Local<Value> ret;
+  if (StringBytes::Encode(env->isolate(),
                           reinterpret_cast<const char*>(md_value),
                           buf.len,
-                          encoding,
-                          &error);
-  if (rc.IsEmpty()) [[unlikely]] {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
-    return;
+                          encoding)
+          .ToLocal(&ret)) {
+    args.GetReturnValue().Set(ret);
   }
-  args.GetReturnValue().Set(rc.FromMaybe(Local<Value>()));
 }
 
 HmacConfig::HmacConfig(HmacConfig&& other) noexcept
@@ -200,7 +195,7 @@ Maybe<void> HmacTraits::AdditionalConfig(
   CHECK(args[offset + 2]->IsObject());  // Key
 
   Utf8Value digest(env->isolate(), args[offset + 1]);
-  params->digest = Digest::FromName(digest.ToStringView());
+  params->digest = Digest::FromName(*digest);
   if (!params->digest) [[unlikely]] {
     THROW_ERR_CRYPTO_INVALID_DIGEST(env, "Invalid digest: %s", *digest);
     return Nothing<void>();

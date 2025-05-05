@@ -17,7 +17,6 @@ The expected usage is "gyp -f gypsh -D OS=desired_os".
 import code
 import sys
 
-
 # All of this stuff about generator variables was lovingly ripped from gypd.py.
 # That module has a much better description of what's going on and why.
 _generator_identity_variables = [

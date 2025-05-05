@@ -307,8 +307,6 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 
   auto free_passwd = OnScopeLeave([&] { uv_os_free_passwd(&pwd); });
 
-  Local<Value> error;
-
 #ifdef _WIN32
   Local<Value> uid = Number::New(
       env->isolate(),
@@ -322,27 +320,21 @@ static void GetUserInfo(const FunctionCallbackInfo<Value>& args) {
 #endif
 
   Local<Value> username;
-  if (!StringBytes::Encode(env->isolate(), pwd.username, encoding, &error)
+  if (!StringBytes::Encode(env->isolate(), pwd.username, encoding)
            .ToLocal(&username)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 
   Local<Value> homedir;
-  if (!StringBytes::Encode(env->isolate(), pwd.homedir, encoding, &error)
+  if (!StringBytes::Encode(env->isolate(), pwd.homedir, encoding)
            .ToLocal(&homedir)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 
   Local<Value> shell = Null(env->isolate());
   if (pwd.shell != nullptr &&
-      !StringBytes::Encode(env->isolate(), pwd.shell, encoding, &error)
+      !StringBytes::Encode(env->isolate(), pwd.shell, encoding)
            .ToLocal(&shell)) {
-    CHECK(!error.IsEmpty());
-    env->isolate()->ThrowException(error);
     return;
   }
 

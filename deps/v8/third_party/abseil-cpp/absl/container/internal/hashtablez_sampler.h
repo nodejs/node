@@ -219,22 +219,41 @@ class HashtablezInfoHandle {
 extern ABSL_PER_THREAD_TLS_KEYWORD SamplingState global_next_sample;
 #endif  // defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
 
-// Returns a sampling handle.
-inline HashtablezInfoHandle Sample(
-    ABSL_ATTRIBUTE_UNUSED size_t inline_element_size,
-    ABSL_ATTRIBUTE_UNUSED size_t key_size,
-    ABSL_ATTRIBUTE_UNUSED size_t value_size,
-    ABSL_ATTRIBUTE_UNUSED uint16_t soo_capacity) {
+// Returns true if the next table should be sampled.
+// This function updates the global state.
+// If the function returns true, actual sampling should be done by calling
+// ForcedTrySample().
+inline bool ShouldSampleNextTable() {
 #if defined(ABSL_INTERNAL_HASHTABLEZ_SAMPLE)
   if (ABSL_PREDICT_TRUE(--global_next_sample.next_sample > 0)) {
+    return false;
+  }
+  return true;
+#else
+  return false;
+#endif  // ABSL_INTERNAL_HASHTABLEZ_SAMPLE
+}
+
+// Returns a sampling handle.
+// Must be called only if HashSetShouldBeSampled() returned true.
+// Returned handle still can be unsampled if sampling is not possible.
+HashtablezInfoHandle ForcedTrySample(size_t inline_element_size,
+                                     size_t key_size, size_t value_size,
+                                     uint16_t soo_capacity);
+
+// In case sampling needs to be disabled and re-enabled in tests, this function
+// can be used to reset the sampling state for the current thread.
+// It is useful to avoid sampling attempts and sampling delays in tests.
+void TestOnlyRefreshSamplingStateForCurrentThread();
+
+// Returns a sampling handle.
+inline HashtablezInfoHandle Sample(size_t inline_element_size, size_t key_size,
+                                   size_t value_size, uint16_t soo_capacity) {
+  if (ABSL_PREDICT_TRUE(!ShouldSampleNextTable())) {
     return HashtablezInfoHandle(nullptr);
   }
-  return HashtablezInfoHandle(SampleSlow(global_next_sample,
-                                         inline_element_size, key_size,
-                                         value_size, soo_capacity));
-#else
-  return HashtablezInfoHandle(nullptr);
-#endif  // !ABSL_PER_THREAD_TLS
+  return ForcedTrySample(inline_element_size, key_size, value_size,
+                         soo_capacity);
 }
 
 using HashtablezSampler =

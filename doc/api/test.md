@@ -397,6 +397,60 @@ their dependencies. When a change is detected, the test runner will
 rerun the tests affected by the change.
 The test runner will continue to run until the process is terminated.
 
+## Global setup and teardown
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.0 - Early development
+
+The test runner supports specifying a module that will be evaluated before all tests are executed and
+can be used to setup global state or fixtures for tests. This is useful for preparing resources or setting up
+shared state that is required by multiple tests.
+
+This module can export any of the following:
+
+* A `globalSetup` function which runs once before all tests start
+* A `globalTeardown` function which runs once after all tests complete
+
+The module is specified using the `--test-global-setup` flag when running tests from the command line.
+
+```cjs
+// setup-module.js
+async function globalSetup() {
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
+}
+
+async function globalTeardown() {
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
+}
+
+module.exports = { globalSetup, globalTeardown };
+```
+
+```mjs
+// setup-module.mjs
+export async function globalSetup() {
+  // Setup shared resources, state, or environment
+  console.log('Global setup executed');
+  // Run servers, create files, prepare databases, etc.
+}
+
+export async function globalTeardown() {
+  // Clean up resources, state, or environment
+  console.log('Global teardown executed');
+  // Close servers, remove files, disconnect from databases, etc.
+}
+```
+
+If the global setup function throws an error, no tests will be run and the process will exit with a non-zero exit code.
+The global teardown function will not be called in this case.
+
 ## Running tests from the command line
 
 The Node.js test runner can be invoked from the command line by passing the
@@ -2114,6 +2168,11 @@ test('spies on an object method', (t) => {
 added:
   - v22.3.0
   - v20.18.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58007
+    description: Support JSON modules.
 -->
 
 > Stability: 1.0 - Early development
@@ -2137,10 +2196,10 @@ added:
     mock will throw an exception when used as a CJS or builtin module.
 * Returns: {MockModuleContext} An object that can be used to manipulate the mock.
 
-This function is used to mock the exports of ECMAScript modules, CommonJS
-modules, and Node.js builtin modules. Any references to the original module
-prior to mocking are not impacted. In order to enable module mocking, Node.js must
-be started with the [`--experimental-test-module-mocks`][] command-line flag.
+This function is used to mock the exports of ECMAScript modules, CommonJS modules, JSON modules, and
+Node.js builtin modules. Any references to the original module prior to mocking are not impacted. In
+order to enable module mocking, Node.js must be started with the
+[`--experimental-test-module-mocks`][] command-line flag.
 
 The following example demonstrates how a mock is created for a module.
 
@@ -2226,8 +2285,6 @@ changes:
     pr-url: https://github.com/nodejs/node/pull/55398
     description: The Mock Timers is now stable.
 -->
-
-> Stability: 2 - Stable
 
 Mocking timers is a technique commonly used in software testing to simulate and
 control the behavior of timers, such as `setInterval` and `setTimeout`,
@@ -3387,6 +3444,7 @@ added:
 changes:
   - version:
     - v23.9.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/56765
     description: Add the `options` parameter.
   - version:

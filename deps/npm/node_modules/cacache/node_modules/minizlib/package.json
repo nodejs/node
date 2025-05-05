@@ -1,11 +1,10 @@
 {
   "name": "minizlib",
-  "version": "3.0.1",
+  "version": "3.0.2",
   "description": "A small fast zlib stream built on [minipass](http://npm.im/minipass) and Node.js's zlib binding.",
   "main": "./dist/commonjs/index.js",
   "dependencies": {
-    "minipass": "^7.0.4",
-    "rimraf": "^5.0.5"
+    "minipass": "^7.1.2"
   },
   "scripts": {
     "prepare": "tshy",
@@ -34,11 +33,10 @@
   "author": "Isaac Z. Schlueter <i@izs.me> (http://blog.izs.me/)",
   "license": "MIT",
   "devDependencies": {
-    "@types/node": "^20.11.29",
-    "mkdirp": "^3.0.1",
-    "tap": "^18.7.1",
-    "tshy": "^1.12.0",
-    "typedoc": "^0.25.12"
+    "@types/node": "^22.13.14",
+    "tap": "^21.1.0",
+    "tshy": "^3.0.2",
+    "typedoc": "^0.28.1"
   },
   "files": [
     "dist"
@@ -77,5 +75,6 @@
     "bracketSameLine": true,
     "arrowParens": "avoid",
     "endOfLine": "lf"
-  }
+  },
+  "module": "./dist/esm/index.js"
 }

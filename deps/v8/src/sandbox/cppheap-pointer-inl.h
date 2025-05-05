@@ -5,15 +5,16 @@
 #ifndef V8_SANDBOX_CPPHEAP_POINTER_INL_H_
 #define V8_SANDBOX_CPPHEAP_POINTER_INL_H_
 
+#include "src/sandbox/cppheap-pointer.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "include/v8-internal.h"
 #include "src/base/atomic-utils.h"
 #include "src/objects/slots-inl.h"
 #include "src/sandbox/cppheap-pointer-table-inl.h"
-#include "src/sandbox/isolate-inl.h"
 #include "src/sandbox/isolate.h"
 
-namespace v8 {
-namespace internal {
+namespace v8::internal {
 
 // TODO(saelo): consider passing a CppHeapPointerTagRange as template parameter
 // once C++20 is supported everywhere.
@@ -97,7 +98,6 @@ V8_INLINE void WriteLazilyInitializedCppHeapPointerField(
 #endif  // !V8_COMPRESS_POINTERS
 }
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_SANDBOX_CPPHEAP_POINTER_INL_H_

@@ -194,6 +194,7 @@ lists associated with the following keys, are treated as pathnames:
   * include\_dirs
   * inputs
   * libraries
+  * library\_dirs
   * outputs
   * sources
   * mac\_bundle\_resources
@@ -231,7 +232,8 @@ Source dictionary from `../build/common.gypi`:
 ```
 {
   'include_dirs': ['include'],  # Treated as relative to ../build
-  'libraries': ['-lz'],  # Not treated as a pathname, begins with a dash
+  'library_dirs': ['lib'],      # Treated as relative to ../build
+  'libraries': ['-lz'],   # Not treated as a pathname, begins with a dash
   'defines': ['NDEBUG'],  # defines does not contain pathnames
 }
 ```
@@ -250,6 +252,7 @@ Merged dictionary:
 {
   'sources': ['string_util.cc'],
   'include_dirs': ['../build/include'],
+  'library_dirs': ['../build/lib'],
   'libraries': ['-lz'],
   'defines': ['NDEBUG'],
 }

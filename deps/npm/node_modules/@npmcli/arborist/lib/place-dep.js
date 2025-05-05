@@ -423,7 +423,7 @@ class PlaceDep {
   // is another satisfying node further up the tree, and if so, dedupes.
   // Even in installStategy is nested, we do this amount of deduplication.
   pruneDedupable (node, descend = true) {
-    if (node.canDedupe(this.preferDedupe)) {
+    if (node.canDedupe(this.preferDedupe, this.explicitRequest)) {
       // gather up all deps that have no valid edges in from outside
       // the dep set, except for this node we're deduping, so that we
       // also prune deps that would be made extraneous.

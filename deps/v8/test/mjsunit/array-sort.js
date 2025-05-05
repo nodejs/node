@@ -4,6 +4,8 @@
 
 // Flags: --allow-natives-syntax
 
+load('test/mjsunit/elements-kinds-helpers.js');
+
 // Test array sort.
 
 // Test counter-intuitive default number sorting.
@@ -633,52 +635,28 @@ function create_cmpfn(transformfn) {
   }
 }
 
-function HasPackedSmi(xs) {
-  return %HasFastPackedElements(xs) && %HasSmiElements(xs);
-}
-
-function HasPackedDouble(xs) {
-  return %HasFastPackedElements(xs) && %HasDoubleElements(xs);
-}
-
-function HasPackedObject(xs) {
-  return %HasFastPackedElements(xs) && %HasObjectElements(xs);
-}
-
-function HasHoleySmi(xs) {
-  return %HasHoleyElements(xs) && %HasSmiElements(xs);
-}
-
-function HasHoleyDouble(xs) {
-  return %HasHoleyElements(xs) && %HasDoubleElements(xs);
-}
-
-function HasHoleyObject(xs) {
-  return %HasHoleyElements(xs) && %HasObjectElements(xs);
-}
-
 function TestSortCmpPackedSmiToPackedDouble() {
   let xs = [2,1,4];
 
-  assertTrue(HasPackedSmi(xs));
+  assertTrue(HasPackedSmiElements(xs));
   xs.sort(create_cmpfn(() => xs[0] += 0.1));
-  assertTrue(HasPackedDouble(xs));
+  assertTrue(HasPackedDoubleElements(xs));
 }
 TestSortCmpPackedSmiToPackedDouble();
 
 function TestSortCmpPackedDoubleToPackedElement() {
   let xs = [2.1, 1.2, 4.4];
 
-  assertTrue(HasPackedDouble(xs));
+  assertTrue(HasPackedDoubleElements(xs));
   xs.sort(create_cmpfn(() => xs[0] = 'a'));
-  assertTrue(HasPackedObject(xs));
+  assertTrue(HasPackedObjectElements(xs));
 }
 TestSortCmpPackedDoubleToPackedElement();
 
 function TestSortCmpPackedElementToDictionary() {
   let xs = ['a', 'b', 'c'];
 
-  assertTrue(HasPackedObject(xs));
+  assertTrue(HasPackedObjectElements(xs));
   xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'd'));
   assertTrue(%HasDictionaryElements(xs));
 }
@@ -688,9 +666,9 @@ function TestSortCmpHoleySmiToHoleyDouble() {
   let xs = [2, 1, 4];
   xs[5] = 42;
 
-  assertTrue(HasHoleySmi(xs));
+  assertTrue(HasHoleySmiElements(xs));
   xs.sort(create_cmpfn(() => xs[0] += 0.1));
-  assertTrue(HasHoleyDouble(xs));
+  assertTrue(HasHoleyDoubleElements(xs));
 }
 TestSortCmpHoleySmiToHoleyDouble();
 
@@ -698,9 +676,9 @@ function TestSortCmpHoleyDoubleToHoleyElement() {
   let xs = [2.1, 1.2, 4];
   xs[5] = 42;
 
-  assertTrue(HasHoleyDouble(xs));
+  assertTrue(HasHoleyDoubleElements(xs));
   xs.sort(create_cmpfn(() => xs[0] = 'a'));
-  assertTrue(HasHoleyObject(xs));
+  assertTrue(HasHoleyObjectElements(xs));
 }
 TestSortCmpHoleyDoubleToHoleyElement();
 
@@ -708,7 +686,7 @@ function TestSortCmpHoleyElementToDictionary() {
   let xs = ['b', 'a', 'd'];
   xs[5] = '42';
 
-  assertTrue(HasHoleyObject(xs));
+  assertTrue(HasHoleyObjectElements(xs));
   xs.sort(create_cmpfn(() => xs[%MaxSmi()] = 'e'));
   assertTrue(%HasDictionaryElements(xs));
 }
@@ -717,45 +695,45 @@ TestSortCmpHoleyElementToDictionary();
 function TestSortCmpPackedSmiToHoleySmi() {
   let xs = [2, 1, 4];
 
-  assertTrue(HasPackedSmi(xs));
+  assertTrue(HasPackedSmiElements(xs));
   xs.sort(create_cmpfn(() => xs[10] = 42));
-  assertTrue(HasHoleySmi(xs));
+  assertTrue(HasHoleySmiElements(xs));
 }
 TestSortCmpPackedSmiToHoleySmi();
 
 function TestSortCmpPackedDoubleToHoleyDouble() {
   let xs = [2.1, 1.2, 4];
 
-  assertTrue(HasPackedDouble(xs));
+  assertTrue(HasPackedDoubleElements(xs));
   xs.sort(create_cmpfn(() => xs[10] = 42));
-  assertTrue(HasHoleyDouble(xs));
+  assertTrue(HasHoleyDoubleElements(xs));
 }
 TestSortCmpPackedDoubleToHoleyDouble();
 
 function TestSortCmpPackedObjectToHoleyObject() {
   let xs = ['b', 'a', 'd'];
 
-  assertTrue(HasPackedObject(xs));
+  assertTrue(HasPackedObjectElements(xs));
   xs.sort(create_cmpfn(() => xs[10] = '42'));
-  assertTrue(HasHoleyObject(xs));
+  assertTrue(HasHoleyObjectElements(xs));
 }
 TestSortCmpPackedObjectToHoleyObject();
 
 function TestSortCmpPackedChangesLength() {
   let xs = [2, 1, 4];
 
-  assertTrue(HasPackedSmi(xs));
+  assertTrue(HasPackedSmiElements(xs));
   xs.sort(create_cmpfn(() => xs.length *= 2));
-  assertTrue(HasHoleySmi(xs));
+  assertTrue(HasHoleySmiElements(xs));
 }
 TestSortCmpPackedChangesLength();
 
 function TestSortCmpPackedSetLengthToZero() {
   let xs = [2, 1, 4, 3];
 
-  assertTrue(HasPackedSmi(xs));
+  assertTrue(HasPackedSmiElements(xs));
   xs.sort(create_cmpfn(() => xs.length = 0));
-  assertTrue(HasPackedSmi(xs));
+  assertTrue(HasPackedSmiElements(xs));
 }
 TestSortCmpPackedSetLengthToZero();
 

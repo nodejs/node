@@ -11,6 +11,8 @@ const bench = common.createBenchmark(main, {
   method: [
     'deepEqual_Array',
     'notDeepEqual_Array',
+    'deepEqual_sparseArray',
+    'notDeepEqual_sparseArray',
     'deepEqual_Set',
     'notDeepEqual_Set',
   ],
@@ -25,18 +27,30 @@ function run(fn, n, actual, expected) {
 }
 
 function main({ n, len, method, strict }) {
-  const actual = [];
-  const expected = [];
+  let actual = Array.from({ length: len }, (_, i) => i);
+  // Contain one undefined value to trigger a specific code path
+  actual[0] = undefined;
+  let expected = actual.slice(0);
 
-  for (let i = 0; i < len; i++) {
-    actual.push(i);
-    expected.push(i);
-  }
   if (method.includes('not')) {
     expected[len - 1] += 1;
   }
 
   switch (method) {
+    case 'deepEqual_sparseArray':
+    case 'notDeepEqual_sparseArray':
+      actual = new Array(len);
+      for (let i = 0; i < len; i += 2) {
+        actual[i] = i;
+      }
+      expected = actual.slice(0);
+      if (method.includes('not')) {
+        expected[len - 2] += 1;
+        run(strict ? notDeepStrictEqual : notDeepEqual, n, actual, expected);
+      } else {
+        run(strict ? deepStrictEqual : deepEqual, n, actual, expected);
+      }
+      break;
     case 'deepEqual_Array':
       run(strict ? deepStrictEqual : deepEqual, n, actual, expected);
       break;

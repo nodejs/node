@@ -36,6 +36,7 @@ Reduction RedundancyElimination::Reduce(Node* node) {
     case IrOpcode::kCheckInternalizedString:
     case IrOpcode::kCheckNotTaggedHole:
     case IrOpcode::kCheckNumber:
+    case IrOpcode::kCheckNumberFitsInt32:
     case IrOpcode::kCheckReceiver:
     case IrOpcode::kCheckReceiverOrNullOrUndefined:
     case IrOpcode::kCheckSmi:
@@ -59,8 +60,10 @@ Reduction RedundancyElimination::Reduce(Node* node) {
       return ReduceSpeculativeNumberComparison(node);
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kSpeculativeToNumber:
       return ReduceSpeculativeNumberOperation(node);
     case IrOpcode::kEffectPhi:
@@ -189,6 +192,12 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
     } else if (a->opcode() == IrOpcode::kCheckSmi &&
                b->opcode() == IrOpcode::kCheckNumber) {
       // CheckSmi(node) implies CheckNumber(node)
+    } else if (a->opcode() == IrOpcode::kCheckSmi &&
+               b->opcode() == IrOpcode::kCheckNumberFitsInt32) {
+      // CheckSmi(node) implies CheckNumberFitsInt32(node)
+    } else if (a->opcode() == IrOpcode::kCheckNumberFitsInt32 &&
+               b->opcode() == IrOpcode::kCheckNumber) {
+      // CheckNumberFitsInt32(node) implies CheckNumber(node)
     } else if (a->opcode() == IrOpcode::kCheckedTaggedSignedToInt32 &&
                b->opcode() == IrOpcode::kCheckedTaggedToInt32) {
       // CheckedTaggedSignedToInt32(node) implies CheckedTaggedToInt32(node)
@@ -221,6 +230,7 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckString:
         case IrOpcode::kCheckStringOrStringWrapper:
         case IrOpcode::kCheckNumber:
+        case IrOpcode::kCheckNumberFitsInt32:
         case IrOpcode::kCheckBigInt:
         case IrOpcode::kCheckedBigIntToBigInt64:
           break;
@@ -239,8 +249,10 @@ Subsumption CheckSubsumes(Node const* a, Node const* b,
         case IrOpcode::kCheckedUint64ToTaggedSigned:
           break;
         case IrOpcode::kCheckedFloat64ToInt32:
+        case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger:
         case IrOpcode::kCheckedFloat64ToInt64:
         case IrOpcode::kCheckedTaggedToInt32:
+        case IrOpcode::kCheckedTaggedToAdditiveSafeInteger:
         case IrOpcode::kCheckedTaggedToInt64: {
           const CheckMinusZeroParameters& ap =
               CheckMinusZeroParametersOf(a->op());
@@ -440,8 +452,10 @@ Reduction RedundancyElimination::ReduceSpeculativeNumberComparison(Node* node) {
 Reduction RedundancyElimination::ReduceSpeculativeNumberOperation(Node* node) {
   DCHECK(node->opcode() == IrOpcode::kSpeculativeNumberAdd ||
          node->opcode() == IrOpcode::kSpeculativeNumberSubtract ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerAdd ||
-         node->opcode() == IrOpcode::kSpeculativeSafeIntegerSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract ||
+         node->opcode() == IrOpcode::kSpeculativeSmallIntegerAdd ||
+         node->opcode() == IrOpcode::kSpeculativeSmallIntegerSubtract ||
          node->opcode() == IrOpcode::kSpeculativeToNumber);
   DCHECK_EQ(1, node->op()->EffectInputCount());
   DCHECK_EQ(1, node->op()->EffectOutputCount());

@@ -101,7 +101,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   v8::MaybeLocal<v8::Function> LookupAndCompile(
       v8::Local<v8::Context> context,
       const char* id,
-      std::vector<v8::Local<v8::String>>* parameters,
+      v8::LocalVector<v8::String>* parameters,
       Realm* optional_realm);
 
   v8::MaybeLocal<v8::Value> CompileAndCall(v8::Local<v8::Context> context,
@@ -159,7 +159,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
   v8::MaybeLocal<v8::Function> LookupAndCompileInternal(
       v8::Local<v8::Context> context,
       const char* id,
-      std::vector<v8::Local<v8::String>>* parameters,
+      v8::LocalVector<v8::String>* parameters,
       Realm* optional_realm);
   void SaveCodeCache(const char* id, v8::Local<v8::Function> fn);
 

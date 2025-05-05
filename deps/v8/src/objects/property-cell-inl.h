@@ -5,10 +5,12 @@
 #ifndef V8_OBJECTS_PROPERTY_CELL_INL_H_
 #define V8_OBJECTS_PROPERTY_CELL_INL_H_
 
+#include "src/objects/property-cell.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/heap/heap-write-barrier-inl.h"
 #include "src/objects/dependent-code-inl.h"
 #include "src/objects/objects-inl.h"
-#include "src/objects/property-cell.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -68,15 +70,17 @@ void PropertyCell::Transition(PropertyDetails new_details,
   set_property_details_raw(new_details.AsSmi(), kReleaseStore);
 }
 
-TQ_OBJECT_CONSTRUCTORS_IMPL(ConstTrackingLetCell)
+TQ_OBJECT_CONSTRUCTORS_IMPL(ContextSidePropertyCell)
 
-ACCESSORS(ConstTrackingLetCell, dependent_code, Tagged<DependentCode>,
+RELEASE_ACQUIRE_ACCESSORS(ContextSidePropertyCell, context_side_property_raw,
+                          Tagged<Smi>, kPropertyDetailsRawOffset)
+
+ACCESSORS(ContextSidePropertyCell, dependent_code, Tagged<DependentCode>,
           kDependentCodeOffset)
 
-bool ConstTrackingLetCell::IsNotConst(Tagged<Object> object) {
-  DCHECK(IsConstTrackingLetCell(object) ||
-         (object == kNonConstMarker || object == kConstMarker));
-  return object == kNonConstMarker;
+ContextSidePropertyCell::Property
+ContextSidePropertyCell::context_side_property() const {
+  return FromSmi(context_side_property_raw(kAcquireLoad));
 }
 
 }  // namespace internal

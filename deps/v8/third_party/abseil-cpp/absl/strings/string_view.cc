@@ -233,11 +233,6 @@ string_view::size_type string_view::find_last_not_of(
   return npos;
 }
 
-#ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-constexpr string_view::size_type string_view::npos;
-constexpr string_view::size_type string_view::kMaxSize;
-#endif
-
 ABSL_NAMESPACE_END
 }  // namespace absl
 

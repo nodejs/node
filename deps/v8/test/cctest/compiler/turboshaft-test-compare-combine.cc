@@ -15,17 +15,36 @@ namespace {
 constexpr TurboshaftBinop kLogicOpcodes[] = {TurboshaftBinop::kWord32BitwiseAnd,
                                              TurboshaftBinop::kWord32BitwiseOr};
 constexpr std::array kInt32CmpOpcodes = {
-    TurboshaftComparison::kWord32Equal, TurboshaftComparison::kInt32LessThan,
+#ifdef V8_COMPRESS_POINTERS
+    TurboshaftComparison::kTaggedEqual,
+#endif  // V8_COMPRESS_POINTERS
+    TurboshaftComparison::kWord32Equal,
+    TurboshaftComparison::kInt32LessThan,
     TurboshaftComparison::kInt32LessThanOrEqual,
     TurboshaftComparison::kUint32LessThan,
     TurboshaftComparison::kUint32LessThanOrEqual};
+#ifdef V8_COMPRESS_POINTERS
+constexpr size_t kNumInt32Cmps = 6;
+#else
+constexpr size_t kNumInt32Cmps = 5;
+#endif  // V8_COMPRESS_POINTERS
+
 #if V8_TARGET_ARCH_64_BIT
 constexpr std::array kInt64CmpOpcodes = {
-    TurboshaftComparison::kWord64Equal, TurboshaftComparison::kInt64LessThan,
+#ifndef V8_COMPRESS_POINTERS
+    TurboshaftComparison::kTaggedEqual,
+#endif  // V8_COMPRESS_POINTERS
+    TurboshaftComparison::kWord64Equal,
+    TurboshaftComparison::kInt64LessThan,
     TurboshaftComparison::kInt64LessThanOrEqual,
     TurboshaftComparison::kUint64LessThan,
     TurboshaftComparison::kUint64LessThanOrEqual};
-#endif
+#ifdef V8_COMPRESS_POINTERS
+constexpr size_t kNumInt64Cmps = 5;
+#else
+constexpr size_t kNumInt64Cmps = 6;
+#endif  // V8_COMPRESS_POINTERS
+#endif  // V8_TARGET_ARCH_64_BIT
 
 enum GraphShape { kBalanced, kUnbalanced };
 enum InvertPattern {
@@ -305,6 +324,12 @@ class CombineCompares {
     switch (op) {
       default:
         UNREACHABLE();
+      case TurboshaftComparison::kTaggedEqual:
+#ifdef V8_COMPRESS_POINTERS
+        return m().Word32Equal(lhs, rhs);
+#else
+        return m().Word64Equal(lhs, rhs);
+#endif  // V8_COMPRESS_POINTERS
       case TurboshaftComparison::kWord32Equal:
         return m().Word32Equal(lhs, rhs);
       case TurboshaftComparison::kInt32LessThan:
@@ -570,9 +595,9 @@ class CombineCompareWord64 : public CombineCompares<NumLogic, uint64_t> {
   }
 };
 
-template <typename Combiner, typename InputType>
+template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic1(
-    const std::array<TurboshaftComparison, 5>& cmp_opcodes,
+    const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
   constexpr GraphShape shape = kBalanced;
@@ -597,8 +622,8 @@ void CombineCompareLogic1(
 
             for (auto a : input_vector) {
               for (auto b : input_vector) {
-                std::array<InputType, 4> inputs{a, b, b, a};
-                uint32_t expected = gen.Expected(inputs);
+                std::array<InputType, 4> call_inputs{a, b, b, a};
+                uint32_t expected = gen.Expected(call_inputs);
                 uint32_t actual = m.Call(a, b, b, a);
                 CHECK_EQ(expected, actual);
               }
@@ -610,19 +635,19 @@ void CombineCompareLogic1(
   }
 }
 TEST(CombineCompareWord32Logic1) {
-  CombineCompareLogic1<CombineCompareWord32<1>, uint32_t>(
+  CombineCompareLogic1<CombineCompareWord32<1>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic1) {
-  CombineCompareLogic1<CombineCompareWord64<1>, uint64_t>(
+  CombineCompareLogic1<CombineCompareWord64<1>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
-template <typename Combiner, typename InputType>
+template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic2(
-    const std::array<TurboshaftComparison, 5>& cmp_opcodes,
+    const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
   constexpr GraphShape shape = kUnbalanced;
@@ -649,8 +674,8 @@ void CombineCompareLogic2(
 
         for (auto a : input_vector) {
           for (auto b : input_vector) {
-            std::array<InputType, 4> inputs{a, b, b, a};
-            uint32_t expected = gen.Expected(inputs);
+            std::array<InputType, 4> call_inputs{a, b, b, a};
+            uint32_t expected = gen.Expected(call_inputs);
             uint32_t actual = m.Call(a, b, b, a);
             CHECK_EQ(expected, actual);
           }
@@ -660,19 +685,19 @@ void CombineCompareLogic2(
   }
 }
 TEST(CombineCompareWord32Logic2) {
-  CombineCompareLogic2<CombineCompareWord32<2>, uint32_t>(
+  CombineCompareLogic2<CombineCompareWord32<2>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic2) {
-  CombineCompareLogic2<CombineCompareWord64<2>, uint64_t>(
+  CombineCompareLogic2<CombineCompareWord64<2>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
-template <typename Combiner, typename InputType>
+template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic3Zero(
-    const std::array<TurboshaftComparison, 5>& cmp_opcodes,
+    const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
   constexpr BranchPattern branch_pattern = kNone;
@@ -701,8 +726,8 @@ void CombineCompareLogic3Zero(
 
             for (auto a : input_vector) {
               for (auto b : input_vector) {
-                std::array<InputType, 4> inputs{a, b, 0, a};
-                uint32_t expected = gen.Expected(inputs);
+                std::array<InputType, 4> call_inputs{a, b, 0, a};
+                uint32_t expected = gen.Expected(call_inputs);
                 uint32_t actual = m.Call(a, b, b, a);
                 CHECK_EQ(expected, actual);
               }
@@ -714,19 +739,19 @@ void CombineCompareLogic3Zero(
   }
 }
 TEST(CombineCompareWord32Logic3Zero) {
-  CombineCompareLogic3Zero<CombineCompareWord32<3>, uint32_t>(
+  CombineCompareLogic3Zero<CombineCompareWord32<3>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3Zero) {
-  CombineCompareLogic3Zero<CombineCompareWord64<3>, uint64_t>(
+  CombineCompareLogic3Zero<CombineCompareWord64<3>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
-template <typename Combiner, typename InputType>
+template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic3One(
-    const std::array<TurboshaftComparison, 5>& cmp_opcodes,
+    const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
   constexpr BranchPattern branch_pattern = kNone;
@@ -755,8 +780,8 @@ void CombineCompareLogic3One(
 
             for (auto a : input_vector) {
               for (auto b : input_vector) {
-                std::array<InputType, 4> inputs{1, b, b, a};
-                uint32_t expected = gen.Expected(inputs);
+                std::array<InputType, 4> call_inputs{1, b, b, a};
+                uint32_t expected = gen.Expected(call_inputs);
                 uint32_t actual = m.Call(a, b, b, a);
                 CHECK_EQ(expected, actual);
               }
@@ -768,19 +793,19 @@ void CombineCompareLogic3One(
   }
 }
 TEST(CombineCompareWord32Logic3One) {
-  CombineCompareLogic3One<CombineCompareWord32<3>, uint32_t>(
+  CombineCompareLogic3One<CombineCompareWord32<3>, uint32_t, kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3One) {
-  CombineCompareLogic3One<CombineCompareWord64<3>, uint64_t>(
+  CombineCompareLogic3One<CombineCompareWord64<3>, uint64_t, kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
 
-template <typename Combiner, typename InputType>
+template <typename Combiner, typename InputType, size_t NumCmps>
 void CombineCompareLogic3ThirtyTwo(
-    const std::array<TurboshaftComparison, 5>& cmp_opcodes,
+    const std::array<TurboshaftComparison, NumCmps>& cmp_opcodes,
     MachineType (*input_type)(void),
     const base::Vector<const InputType>& input_vector) {
   constexpr BranchPattern branch_pattern = kNone;
@@ -809,8 +834,8 @@ void CombineCompareLogic3ThirtyTwo(
 
             for (auto a : input_vector) {
               for (auto b : input_vector) {
-                std::array<InputType, 4> inputs{a, 32, b, a};
-                uint32_t expected = gen.Expected(inputs);
+                std::array<InputType, 4> call_inputs{a, 32, b, a};
+                uint32_t expected = gen.Expected(call_inputs);
                 uint32_t actual = m.Call(a, b, b, a);
                 CHECK_EQ(expected, actual);
               }
@@ -822,12 +847,14 @@ void CombineCompareLogic3ThirtyTwo(
   }
 }
 TEST(CombineCompareWord32Logic3ThirtyTwo) {
-  CombineCompareLogic3ThirtyTwo<CombineCompareWord32<3>, uint32_t>(
+  CombineCompareLogic3ThirtyTwo<CombineCompareWord32<3>, uint32_t,
+                                kNumInt32Cmps>(
       kInt32CmpOpcodes, MachineType::Uint32, uint32_test_vector);
 }
 #if V8_TARGET_ARCH_64_BIT
 TEST(CombineCompareWord64Logic3ThirtyTwo) {
-  CombineCompareLogic3ThirtyTwo<CombineCompareWord64<3>, uint64_t>(
+  CombineCompareLogic3ThirtyTwo<CombineCompareWord64<3>, uint64_t,
+                                kNumInt64Cmps>(
       kInt64CmpOpcodes, MachineType::Uint64, uint64_test_vector);
 }
 #endif
@@ -872,8 +899,8 @@ TEST(CombineCompareMaxDepth) {
 
     FOR_UINT32_INPUTS(a) {
       FOR_UINT32_INPUTS(b) {
-        std::array inputs{a, b, b, a};
-        uint32_t expected = gen.Expected(inputs);
+        std::array call_inputs{a, b, b, a};
+        uint32_t expected = gen.Expected(call_inputs);
         uint32_t actual = m.Call(a, b, b, a);
         CHECK_EQ(expected, actual);
       }
@@ -908,8 +935,8 @@ TEST(CombineCompareBranchesMaxDepth) {
 
       FOR_UINT32_INPUTS(a) {
         FOR_UINT32_INPUTS(b) {
-          std::array inputs{a, b, b, a};
-          uint32_t expected = gen.Expected(inputs);
+          std::array call_inputs{a, b, b, a};
+          uint32_t expected = gen.Expected(call_inputs);
           uint32_t actual = m.Call(a, b, b, a);
           CHECK_EQ(expected, actual);
         }
@@ -949,8 +976,8 @@ TEST(CombineCompareMaxDepthPlusOne) {
 
       FOR_UINT32_INPUTS(a) {
         FOR_UINT32_INPUTS(b) {
-          std::array inputs{a, b, b, a};
-          uint32_t expected = gen.Expected(inputs);
+          std::array call_inputs{a, b, b, a};
+          uint32_t expected = gen.Expected(call_inputs);
           uint32_t actual = m.Call(a, b, b, a);
           CHECK_EQ(expected, actual);
         }

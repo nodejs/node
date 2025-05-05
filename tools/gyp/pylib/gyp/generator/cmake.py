@@ -33,6 +33,7 @@ import multiprocessing
 import os
 import signal
 import subprocess
+
 import gyp.common
 import gyp.xcode_emulation
 

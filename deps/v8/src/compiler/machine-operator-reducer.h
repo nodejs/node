@@ -145,7 +145,7 @@ class V8_EXPORT_PRIVATE MachineOperatorReducer final
   Reduction ReduceTruncateInt64ToInt32(Node* node);
   Reduction ReduceConditional(Node* node);
 
-  Graph* graph() const;
+  TFGraph* graph() const;
   MachineGraph* mcgraph() const { return mcgraph_; }
   CommonOperatorBuilder* common() const;
   MachineOperatorBuilder* machine() const;

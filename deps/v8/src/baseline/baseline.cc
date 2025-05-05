@@ -53,14 +53,14 @@ bool CanCompileWithBaseline(Isolate* isolate,
   return true;
 }
 
-MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
-                                       Handle<SharedFunctionInfo> shared) {
+MaybeDirectHandle<Code> GenerateBaselineCode(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   RCS_SCOPE(isolate, RuntimeCallCounterId::kCompileBaseline);
   Handle<BytecodeArray> bytecode(shared->GetBytecodeArray(isolate), isolate);
   LocalIsolate* local_isolate = isolate->main_thread_local_isolate();
   baseline::BaselineCompiler compiler(local_isolate, shared, bytecode);
   compiler.GenerateCode();
-  MaybeHandle<Code> code = compiler.Build();
+  MaybeDirectHandle<Code> code = compiler.Build();
   if (v8_flags.print_code && !code.is_null()) {
     Print(*code.ToHandleChecked());
   }
@@ -84,8 +84,8 @@ bool CanCompileWithBaseline(Isolate* isolate,
   return false;
 }
 
-MaybeHandle<Code> GenerateBaselineCode(Isolate* isolate,
-                                       Handle<SharedFunctionInfo> shared) {
+MaybeDirectHandle<Code> GenerateBaselineCode(
+    Isolate* isolate, Handle<SharedFunctionInfo> shared) {
   UNREACHABLE();
 }
 

@@ -34,7 +34,7 @@ class CommonOperatorBuilder;
 // Implements loop peeling.
 class V8_EXPORT_PRIVATE LoopPeeler {
  public:
-  LoopPeeler(Graph* graph, CommonOperatorBuilder* common, LoopTree* loop_tree,
+  LoopPeeler(TFGraph* graph, CommonOperatorBuilder* common, LoopTree* loop_tree,
              Zone* tmp_zone, SourcePositionTable* source_positions,
              NodeOriginTable* node_origins)
       : graph_(graph),
@@ -49,12 +49,12 @@ class V8_EXPORT_PRIVATE LoopPeeler {
   PeeledIteration* Peel(LoopTree::Loop* loop);
   void PeelInnerLoopsOfTree();
 
-  static void EliminateLoopExits(Graph* graph, Zone* tmp_zone);
+  static void EliminateLoopExits(TFGraph* graph, Zone* tmp_zone);
   static void EliminateLoopExit(Node* loop);
   static const size_t kMaxPeeledNodes = 1000;
 
  private:
-  Graph* const graph_;
+  TFGraph* const graph_;
   CommonOperatorBuilder* const common_;
   LoopTree* const loop_tree_;
   Zone* const tmp_zone_;

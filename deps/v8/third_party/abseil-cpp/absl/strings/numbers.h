@@ -32,6 +32,7 @@
 #endif
 
 #include <cstddef>
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 #include <ctime>
@@ -39,6 +40,7 @@
 #include <string>
 #include <type_traits>
 
+#include "absl/base/attributes.h"
 #include "absl/base/config.h"
 #include "absl/base/internal/endian.h"
 #include "absl/base/macros.h"
@@ -60,8 +62,8 @@ ABSL_NAMESPACE_BEGIN
 // encountered, this function returns `false`, leaving `out` in an unspecified
 // state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
-                                     absl::Nonnull<int_type*> out);
+[[nodiscard]] bool SimpleAtoi(absl::string_view str,
+                              absl::Nonnull<int_type*> out);
 
 // SimpleAtof()
 //
@@ -72,8 +74,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
 // allowed formats for `str`, except SimpleAtof() is locale-independent and will
 // always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str,
-                                     absl::Nonnull<float*> out);
+[[nodiscard]] bool SimpleAtof(absl::string_view str, absl::Nonnull<float*> out);
 
 // SimpleAtod()
 //
@@ -84,8 +85,8 @@ ABSL_MUST_USE_RESULT bool SimpleAtof(absl::string_view str,
 // allowed formats for `str`, except SimpleAtod is locale-independent and will
 // always use the "C" locale. If any errors are encountered, this function
 // returns `false`, leaving `out` in an unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str,
-                                     absl::Nonnull<double*> out);
+[[nodiscard]] bool SimpleAtod(absl::string_view str,
+                              absl::Nonnull<double*> out);
 
 // SimpleAtob()
 //
@@ -95,8 +96,7 @@ ABSL_MUST_USE_RESULT bool SimpleAtod(absl::string_view str,
 // are interpreted as boolean `false`: "false", "f", "no", "n", "0". If any
 // errors are encountered, this function returns `false`, leaving `out` in an
 // unspecified state.
-ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str,
-                                     absl::Nonnull<bool*> out);
+[[nodiscard]] bool SimpleAtob(absl::string_view str, absl::Nonnull<bool*> out);
 
 // SimpleHexAtoi()
 //
@@ -109,14 +109,14 @@ ABSL_MUST_USE_RESULT bool SimpleAtob(absl::string_view str,
 // by this function. If any errors are encountered, this function returns
 // `false`, leaving `out` in an unspecified state.
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleHexAtoi(absl::string_view str,
-                                        absl::Nonnull<int_type*> out);
+[[nodiscard]] bool SimpleHexAtoi(absl::string_view str,
+                                 absl::Nonnull<int_type*> out);
 
 // Overloads of SimpleHexAtoi() for 128 bit integers.
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::int128*> out);
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::uint128*> out);
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::int128*> out);
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::uint128*> out);
 
 ABSL_NAMESPACE_END
 }  // namespace absl
@@ -126,6 +126,18 @@ ABSL_NAMESPACE_END
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace numbers_internal {
+
+template <typename int_type>
+constexpr bool is_signed() {
+  if constexpr (std::is_arithmetic<int_type>::value) {
+    // Use std::numeric_limits<T>::is_signed where it's defined to work.
+    return std::numeric_limits<int_type>::is_signed;
+  }
+  // TODO(jorg): This signed-ness check is used because it works correctly
+  // with enums, and it also serves to check that int_type is not a pointer.
+  // If one day something like std::is_signed<enum E> works, switch to it.
+  return static_cast<int_type>(1) - 2 < 0;
+}
 
 // Digit conversion.
 ABSL_DLL extern const char kHexChar[17];  // 0123456789abcdef
@@ -142,12 +154,20 @@ void PutTwoDigits(uint32_t i, absl::Nonnull<char*> buf);
 
 // safe_strto?() functions for implementing SimpleAtoi()
 
+bool safe_strto8_base(absl::string_view text, absl::Nonnull<int8_t*> value,
+                      int base);
+bool safe_strto16_base(absl::string_view text, absl::Nonnull<int16_t*> value,
+                       int base);
 bool safe_strto32_base(absl::string_view text, absl::Nonnull<int32_t*> value,
                        int base);
 bool safe_strto64_base(absl::string_view text, absl::Nonnull<int64_t*> value,
                        int base);
 bool safe_strto128_base(absl::string_view text,
                         absl::Nonnull<absl::int128*> value, int base);
+bool safe_strtou8_base(absl::string_view text, absl::Nonnull<uint8_t*> value,
+                       int base);
+bool safe_strtou16_base(absl::string_view text, absl::Nonnull<uint16_t*> value,
+                        int base);
 bool safe_strtou32_base(absl::string_view text, absl::Nonnull<uint32_t*> value,
                         int base);
 bool safe_strtou64_base(absl::string_view text, absl::Nonnull<uint64_t*> value,
@@ -186,11 +206,8 @@ absl::Nonnull<char*> FastIntToBuffer(int_type i, absl::Nonnull<char*> buffer)
     ABSL_INTERNAL_NEED_MIN_SIZE(buffer, kFastToBufferSize) {
   static_assert(sizeof(i) <= 64 / 8,
                 "FastIntToBuffer works only with 64-bit-or-less integers.");
-  // TODO(jorg): This signed-ness check is used because it works correctly
-  // with enums, and it also serves to check that int_type is not a pointer.
-  // If one day something like std::is_signed<enum E> works, switch to it.
   // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
+  constexpr bool kIsSigned = is_signed<int_type>();
   constexpr bool kUse64Bit = sizeof(i) > 32 / 8;
   if (kIsSigned) {
     if (kUse64Bit) {
@@ -210,38 +227,51 @@ absl::Nonnull<char*> FastIntToBuffer(int_type i, absl::Nonnull<char*> buffer)
 // Implementation of SimpleAtoi, generalized to support arbitrary base (used
 // with base different from 10 elsewhere in Abseil implementation).
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool safe_strtoi_base(absl::string_view s,
-                                           absl::Nonnull<int_type*> out,
-                                           int base) {
-  static_assert(sizeof(*out) == 4 || sizeof(*out) == 8,
-                "SimpleAtoi works only with 32-bit or 64-bit integers.");
+[[nodiscard]] bool safe_strtoi_base(absl::string_view s,
+                                    absl::Nonnull<int_type*> out, int base) {
+  static_assert(sizeof(*out) == 1 || sizeof(*out) == 2 || sizeof(*out) == 4 ||
+                    sizeof(*out) == 8,
+                "SimpleAtoi works only with 8, 16, 32, or 64-bit integers.");
   static_assert(!std::is_floating_point<int_type>::value,
                 "Use SimpleAtof or SimpleAtod instead.");
   bool parsed;
-  // TODO(jorg): This signed-ness check is used because it works correctly
-  // with enums, and it also serves to check that int_type is not a pointer.
-  // If one day something like std::is_signed<enum E> works, switch to it.
   // These conditions are constexpr bools to suppress MSVC warning C4127.
-  constexpr bool kIsSigned = static_cast<int_type>(1) - 2 < 0;
-  constexpr bool kUse64Bit = sizeof(*out) == 64 / 8;
+  constexpr bool kIsSigned = is_signed<int_type>();
+  constexpr int kIntTypeSize = sizeof(*out) * 8;
   if (kIsSigned) {
-    if (kUse64Bit) {
+    if (kIntTypeSize == 64) {
       int64_t val;
       parsed = numbers_internal::safe_strto64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else if (kIntTypeSize == 32) {
       int32_t val;
       parsed = numbers_internal::safe_strto32_base(s, &val, base);
       *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 16) {
+      int16_t val;
+      parsed = numbers_internal::safe_strto16_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 8) {
+      int8_t val;
+      parsed = numbers_internal::safe_strto8_base(s, &val, base);
+      *out = static_cast<int_type>(val);
     }
   } else {
-    if (kUse64Bit) {
+    if (kIntTypeSize == 64) {
       uint64_t val;
       parsed = numbers_internal::safe_strtou64_base(s, &val, base);
       *out = static_cast<int_type>(val);
-    } else {
+    } else if (kIntTypeSize == 32) {
       uint32_t val;
       parsed = numbers_internal::safe_strtou32_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 16) {
+      uint16_t val;
+      parsed = numbers_internal::safe_strtou16_base(s, &val, base);
+      *out = static_cast<int_type>(val);
+    } else if (kIntTypeSize == 8) {
+      uint8_t val;
+      parsed = numbers_internal::safe_strtou8_base(s, &val, base);
       *out = static_cast<int_type>(val);
     }
   }
@@ -280,34 +310,34 @@ inline size_t FastHexToBufferZeroPad16(uint64_t val, absl::Nonnull<char*> out) {
 }  // namespace numbers_internal
 
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleAtoi(absl::string_view str,
-                                     absl::Nonnull<int_type*> out) {
+[[nodiscard]] bool SimpleAtoi(absl::string_view str,
+                              absl::Nonnull<int_type*> out) {
   return numbers_internal::safe_strtoi_base(str, out, 10);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleAtoi(absl::string_view str,
-                                            absl::Nonnull<absl::int128*> out) {
+[[nodiscard]] inline bool SimpleAtoi(absl::string_view str,
+                                     absl::Nonnull<absl::int128*> out) {
   return numbers_internal::safe_strto128_base(str, out, 10);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleAtoi(absl::string_view str,
-                                            absl::Nonnull<absl::uint128*> out) {
+[[nodiscard]] inline bool SimpleAtoi(absl::string_view str,
+                                     absl::Nonnull<absl::uint128*> out) {
   return numbers_internal::safe_strtou128_base(str, out, 10);
 }
 
 template <typename int_type>
-ABSL_MUST_USE_RESULT bool SimpleHexAtoi(absl::string_view str,
-                                        absl::Nonnull<int_type*> out) {
+[[nodiscard]] bool SimpleHexAtoi(absl::string_view str,
+                                 absl::Nonnull<int_type*> out) {
   return numbers_internal::safe_strtoi_base(str, out, 16);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::int128*> out) {
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::int128*> out) {
   return numbers_internal::safe_strto128_base(str, out, 16);
 }
 
-ABSL_MUST_USE_RESULT inline bool SimpleHexAtoi(
-    absl::string_view str, absl::Nonnull<absl::uint128*> out) {
+[[nodiscard]] inline bool SimpleHexAtoi(absl::string_view str,
+                                        absl::Nonnull<absl::uint128*> out) {
   return numbers_internal::safe_strtou128_base(str, out, 16);
 }
 

@@ -1,10 +1,17 @@
 import assert from 'assert';
 import { Buffer } from 'buffer';
 import { Minipass } from 'minipass';
-import realZlib from 'zlib';
+import * as realZlib from 'zlib';
 import { constants } from './constants.js';
 export { constants } from './constants.js';
 const OriginalBufferConcat = Buffer.concat;
+const desc = Object.getOwnPropertyDescriptor(Buffer, 'concat');
+const noop = (args) => args;
+const passthroughBufferConcat = desc?.writable === true || desc?.set !== undefined
+    ? (makeNoOp) => {
+        Buffer.concat = makeNoOp ? noop : OriginalBufferConcat;
+    }
+    : (_) => { };
 const _superWrite = Symbol('_superWrite');
 export class ZlibError extends Error {
     code;
@@ -151,7 +158,7 @@ class ZlibBase extends Minipass {
         this.#handle.close = () => { };
         // It also calls `Buffer.concat()` at the end, which may be convenient
         // for some, but which we are not interested in as it slows us down.
-        Buffer.concat = args => args;
+        passthroughBufferConcat(true);
         let result = undefined;
         try {
             const flushFlag = typeof chunk[_flushFlag] === 'number'
@@ -159,12 +166,12 @@ class ZlibBase extends Minipass {
                 : this.#flushFlag;
             result = this.#handle._processChunk(chunk, flushFlag);
             // if we don't throw, reset it back how it was
-            Buffer.concat = OriginalBufferConcat;
+            passthroughBufferConcat(false);
         }
         catch (err) {
             // or if we do, put Buffer.concat() back before we emit error
             // Error events call into user code, which may call Buffer.concat()
-            Buffer.concat = OriginalBufferConcat;
+            passthroughBufferConcat(false);
             this.#onError(new ZlibError(err));
         }
         finally {

@@ -580,7 +580,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
     if (ZSTD_isError(cSize)) { DISPLAYLEVEL(3, "warning : could not compress sample size %u \n", (unsigned)srcSize); return; }
 
     if (cSize) {  /* if == 0; block is not compressible */
-        const seqStore_t* const seqStorePtr = ZSTD_getSeqStore(esr.zc);
+        const SeqStore_t* const seqStorePtr = ZSTD_getSeqStore(esr.zc);
 
         /* literals stats */
         {   const BYTE* bytePtr;
@@ -608,7 +608,7 @@ static void ZDICT_countEStats(EStats_ress_t esr, const ZSTD_parameters* params,
             }
 
             if (nbSeq >= 2) { /* rep offsets */
-                const seqDef* const seq = seqStorePtr->sequencesStart;
+                const SeqDef* const seq = seqStorePtr->sequencesStart;
                 U32 offset1 = seq[0].offBase - ZSTD_REP_NUM;
                 U32 offset2 = seq[1].offBase - ZSTD_REP_NUM;
                 if (offset1 >= MAXREPOFFSET) offset1 = 0;

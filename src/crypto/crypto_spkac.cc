@@ -5,6 +5,7 @@
 #include "memory_tracker-inl.h"
 #include "ncrypto.h"
 #include "node.h"
+#include "string_bytes.h"
 #include "v8.h"
 
 namespace node {
@@ -52,18 +53,22 @@ void ExportChallenge(const FunctionCallbackInfo<Value>& args) {
   ArrayBufferOrViewContents<char> input(args[0]);
   if (input.empty()) return args.GetReturnValue().SetEmptyString();
 
-  if (!input.CheckSizeInt32()) [[unlikely]]
+  if (!input.CheckSizeInt32()) [[unlikely]] {
     return THROW_ERR_OUT_OF_RANGE(env, "spkac is too large");
+  }
 
   auto cert = ByteSource::Allocated(
       ncrypto::ExportChallenge(input.data(), input.size()));
-  if (!cert)
+  if (!cert) {
     return args.GetReturnValue().SetEmptyString();
+  }
 
-  Local<Value> outString =
-      Encode(env->isolate(), cert.data<char>(), cert.size(), BUFFER);
-
-  args.GetReturnValue().Set(outString);
+  Local<Value> outString;
+  if (StringBytes::Encode(
+          env->isolate(), cert.data<char>(), cert.size(), BUFFER)
+          .ToLocal(&outString)) {
+    args.GetReturnValue().Set(outString);
+  }
 }
 
 void Initialize(Environment* env, Local<Object> target) {

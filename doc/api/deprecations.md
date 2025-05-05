@@ -696,6 +696,9 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58008
+    description: End-of-Life.
+  - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/55175
     description: Runtime deprecation.
   - version: v6.12.0
@@ -706,9 +709,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`SlowBuffer`][] class is deprecated. Please use
+The `SlowBuffer` class has been removed. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 ### DEP0031: `ecdh.setPublicKey()`
@@ -940,7 +943,7 @@ changes:
 
 Type: End-of-Life
 
-The [`tls.CryptoStream`][] class was removed. Please use
+The `tls.CryptoStream` class was removed. Please use
 [`tls.TLSSocket`][] instead.
 
 ### DEP0043: `tls.SecurePair`
@@ -1545,6 +1548,9 @@ removed. Please use `sloppy` instead.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57551
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/24167
     description: Runtime deprecation.
@@ -1553,7 +1559,7 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `node:http` module `OutgoingMessage.prototype._headers` and
 `OutgoingMessage.prototype._headerNames` properties are deprecated. Use one of
@@ -1832,12 +1838,15 @@ and replaced with an identical, public `path.toNamespacedPath()` method.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57567
+    description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/15990
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 `fs.truncate()` `fs.truncateSync()` usage with a file descriptor is
 deprecated. Please use `fs.ftruncate()` or `fs.ftruncateSync()` to work with
@@ -2554,12 +2563,15 @@ undocumented `COUNTER_NET_SERVER_CONNECTION()`,
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57550
+    description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23760
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The undocumented `net._setSimultaneousAccepts()` function was originally
 intended for debugging and performance tuning when using the
@@ -3055,11 +3067,11 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Using a trailing `"/"` to define subpath folder mappings in the
-[subpath exports][] or [subpath imports][] fields is deprecated. Use
-[subpath patterns][] instead.
+[subpath exports][] or [subpath imports][] fields is no longer supported.
+Use [subpath patterns][] instead.
 
 ### DEP0149: `http.IncomingMessage#connection`
 
@@ -3560,10 +3572,10 @@ be added when a function is bound to an `AsyncResource`.
 changes:
   - version: v20.1.0
     pr-url: https://github.com/nodejs/node/pull/47740
-    description: Documentation-only deprecation.
+    description: Runtime deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 In a future version of Node.js, [`assert.CallTracker`][],
 will be removed.
@@ -3859,17 +3871,39 @@ deprecated, as their values are guaranteed to be identical to that of `process.f
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57199
+    description: Runtime deprecation.
   - version:
-    - REPLACEME
+    - v23.11.0
+    - v22.15.0
     pr-url: https://github.com/nodejs/node/pull/57389
     description: Documentation-only deprecation.
 -->
 
-Type: Documentation-only
+Type: Runtime
 
 When an `args` array is passed to [`child_process.execFile`][] or [`child_process.spawn`][] with the option
 `{ shell: true }`, the values are not escaped, only space-separated, which can lead to shell injection.
 
+### DEP0191: `repl.builtinModules`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57508
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+The `node:repl` module exports a `builtinModules` property that contains an array
+of built-in modules. This was incomplete and matched the already deprecated
+`repl._builtinLibs` ([DEP0142][]) instead it's better to rely
+upon `require('node:module').builtinModules`.
+
+[DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
@@ -3890,7 +3924,6 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
-[`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker
@@ -3985,7 +4018,6 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 [`timeout.ref()`]: timers.md#timeoutref
 [`timeout.refresh()`]: timers.md#timeoutrefresh
 [`timeout.unref()`]: timers.md#timeoutunref
-[`tls.CryptoStream`]: tls.md#class-tlscryptostream
 [`tls.SecureContext`]: tls.md#tlscreatesecurecontextoptions
 [`tls.TLSSocket`]: tls.md#class-tlstlssocket
 [`tls.checkServerIdentity()`]: tls.md#tlscheckserveridentityhostname-cert

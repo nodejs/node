@@ -175,7 +175,7 @@ ares_status_t  ares_uri_set_query_key(ares_uri_t *uri, const char *key,
  */
 ares_status_t  ares_uri_del_query_key(ares_uri_t *uri, const char *key);
 
-/*! Retrieve the value associted with a query key. Keys are case-insensitive.
+/*! Retrieve the value associated with a query key. Keys are case-insensitive.
  *
  *  \param[in] uri Initialized URI object
  *  \param[in] key Key to retrieve.

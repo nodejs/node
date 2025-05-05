@@ -12,7 +12,6 @@
 
 #include "src/compiler/all-nodes.h"
 #include "src/compiler/common-operator.h"
-#include "src/compiler/graph.h"
 #include "src/compiler/js-operator.h"
 #include "src/compiler/node-properties.h"
 #include "src/compiler/node.h"
@@ -21,6 +20,7 @@
 #include "src/compiler/operator.h"
 #include "src/compiler/schedule.h"
 #include "src/compiler/state-values-utils.h"
+#include "src/compiler/turbofan-graph.h"
 #include "src/compiler/type-cache.h"
 #include "src/utils/bit-vector.h"
 
@@ -134,6 +134,17 @@ void Verifier::Visitor::CheckSwitch(Node* node, const AllNodes& all) {
   CheckNotTyped(node);
 }
 
+#ifdef DEBUG
+namespace {
+// Print more debug information just before a DCHECK failure.
+bool FailSoon(Node* node) {
+  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
+  node->Print(std::cerr);
+  return false;
+}
+}  // namespace
+#endif  // DEBUG
+
 void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   int value_count = node->op()->ValueInputCount();
   int context_count = OperatorProperties::GetContextInputCount(node->op());
@@ -158,6 +169,9 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       if (all.IsLive(edge.from()) && NodeProperties::IsEffectEdge(edge)) {
         effect_edges++;
       }
+    }
+    if (effect_edges == 0) {
+      FailSoon(node);
     }
     DCHECK_GT(effect_edges, 0);
 #endif
@@ -488,8 +502,16 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CHECK_EQ(0, effect_count);
       CHECK_EQ(0, control_count);
       CHECK_EQ(3, value_count);
-      // The condition must be a Boolean.
-      CheckValueInputIs(node, 0, Type::Boolean());
+      switch (SelectParametersOf(node->op()).semantics()) {
+        case BranchSemantics::kJS:
+        case BranchSemantics::kUnspecified:
+          // The condition must be a Boolean.
+          CheckValueInputIs(node, 0, Type::Boolean());
+          break;
+        case BranchSemantics::kMachine:
+          CheckValueInputIs(node, 0, Type::Machine());
+          break;
+      }
       CheckTypeIs(node, Type::Any());
       break;
     }
@@ -742,7 +764,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::OtherObject());
       break;
     case IrOpcode::kJSCreateTypedArray:
-      CheckTypeIs(node, Type::OtherObject());
+      CheckTypeIs(node, Type::TypedArray());
       break;
     case IrOpcode::kJSCreateLiteralArray:
       CheckTypeIs(node, Type::Array());
@@ -829,6 +851,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Boolean());
       break;
     case IrOpcode::kJSLoadContext:
+    case IrOpcode::kJSLoadScriptContext:
       CheckTypeIs(node, Type::Any());
       break;
     case IrOpcode::kJSStoreContext:
@@ -986,8 +1009,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 1, Type::Number());
       CheckTypeIs(node, Type::Boolean());
       break;
-    case IrOpcode::kSpeculativeSafeIntegerAdd:
-    case IrOpcode::kSpeculativeSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerAdd:
+    case IrOpcode::kSpeculativeAdditiveSafeIntegerSubtract:
+    case IrOpcode::kSpeculativeSmallIntegerAdd:
+    case IrOpcode::kSpeculativeSmallIntegerSubtract:
     case IrOpcode::kSpeculativeNumberAdd:
     case IrOpcode::kSpeculativeNumberSubtract:
     case IrOpcode::kSpeculativeNumberMultiply:
@@ -1223,6 +1248,14 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::String());
       CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
       break;
+    case IrOpcode::kStringWrapperLength:
+      CheckValueInputIs(node, 0, Type::StringWrapper());
+      CheckTypeIs(node, TypeCache::Get()->kStringLengthType);
+      break;
+    case IrOpcode::kTypedArrayLength:
+      CheckValueInputIs(node, 0, Type::TypedArray());
+      CheckTypeIs(node, TypeCache::Get()->kJSTypedArrayLengthType);
+      break;
     case IrOpcode::kStringToLowerCaseIntl:
     case IrOpcode::kStringToUpperCaseIntl:
       CheckValueInputIs(node, 0, Type::String());
@@ -1348,6 +1381,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckTypeIs(node, Type::Internal());
       break;
     case IrOpcode::kTransitionElementsKind:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckNotTyped(node);
+      break;
+    case IrOpcode::kTransitionElementsKindOrCheckMap:
       CheckValueInputIs(node, 0, Type::Any());
       CheckNotTyped(node);
       break;
@@ -1522,6 +1559,10 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Number());
       break;
+    case IrOpcode::kCheckNumberFitsInt32:
+      CheckValueInputIs(node, 0, Type::Any());
+      CheckTypeIs(node, Type::Signed32());
+      break;
     case IrOpcode::kCheckReceiver:
       CheckValueInputIs(node, 0, Type::Any());
       CheckTypeIs(node, Type::Receiver());
@@ -1570,15 +1611,19 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kCheckedUint64ToInt64:
     case IrOpcode::kCheckedUint64ToTaggedSigned:
     case IrOpcode::kCheckedFloat64ToInt32:
+    case IrOpcode::kCheckedFloat64ToAdditiveSafeInteger:
     case IrOpcode::kCheckedFloat64ToInt64:
     case IrOpcode::kCheckedTaggedSignedToInt32:
     case IrOpcode::kCheckedTaggedToInt32:
     case IrOpcode::kCheckedTaggedToArrayIndex:
+    case IrOpcode::kCheckedTaggedToAdditiveSafeInteger:
     case IrOpcode::kCheckedTaggedToInt64:
     case IrOpcode::kCheckedTaggedToFloat64:
     case IrOpcode::kCheckedTaggedToTaggedSigned:
     case IrOpcode::kCheckedTaggedToTaggedPointer:
     case IrOpcode::kCheckedTruncateTaggedToWord32:
+    case IrOpcode::kCheckedAdditiveSafeIntegerAdd:
+    case IrOpcode::kCheckedAdditiveSafeIntegerSub:
     case IrOpcode::kCheckedInt64Add:
     case IrOpcode::kCheckedInt64Sub:
     case IrOpcode::kCheckedInt64Mul:
@@ -1902,6 +1947,8 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
     case IrOpcode::kRoundUint64ToFloat64:
     case IrOpcode::kRoundUint64ToFloat32:
     case IrOpcode::kTruncateFloat64ToFloat32:
+    case IrOpcode::kChangeFloat16RawBitsToFloat64:
+    case IrOpcode::kTruncateFloat64ToFloat16RawBits:
     case IrOpcode::kTruncateFloat64ToWord32:
     case IrOpcode::kBitcastFloat32ToInt32:
     case IrOpcode::kBitcastFloat64ToInt64:
@@ -2000,7 +2047,7 @@ void Verifier::Visitor::Check(Node* node, const AllNodes& all) {
   }
 }
 
-void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
+void Verifier::Run(TFGraph* graph, Typing typing, CheckInputs check_inputs,
                    CodeType code_type) {
   CHECK_NOT_NULL(graph->start());
   CHECK_NOT_NULL(graph->end());
@@ -2024,7 +2071,6 @@ void Verifier::Run(Graph* graph, Typing typing, CheckInputs check_inputs,
     }
   }
 }
-
 
 // -----------------------------------------------------------------------------
 
@@ -2259,15 +2305,6 @@ void ScheduleVerifier::Run(Schedule* schedule) {
 
 
 #ifdef DEBUG
-
-namespace {
-// Print more debug information just before a DCHECK failure.
-bool FailSoon(Node* node) {
-  v8::base::OS::PrintError("#\n# Verification failure for node:\n#\n");
-  node->Print(std::cerr);
-  return false;
-}
-}  // namespace
 
 // static
 void Verifier::VerifyNode(Node* node) {

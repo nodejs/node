@@ -640,12 +640,6 @@ parser.add_argument('--experimental-enable-pointer-compression',
     default=None,
     help='[Experimental] Enable V8 pointer compression (limits max heap to 4GB and breaks ABI compatibility)')
 
-parser.add_argument('--disable-shared-readonly-heap',
-    action='store_true',
-    dest='disable_shared_ro_heap',
-    default=None,
-    help='Disable the shared read-only heap feature in V8')
-
 parser.add_argument('--v8-options',
     action='store',
     dest='v8_options',
@@ -813,11 +807,11 @@ parser.add_argument('--without-npm',
     default=None,
     help='do not install the bundled npm (package manager)')
 
-parser.add_argument('--without-corepack',
+parser.add_argument('--with-corepack',
     action='store_true',
-    dest='without_corepack',
+    dest='with_corepack',
     default=None,
-    help='do not install the bundled Corepack')
+    help='do install the bundled Corepack (experimental, will be removed without notice)')
 
 parser.add_argument('--control-flow-guard',
     action='store_true',
@@ -1448,7 +1442,7 @@ def configure_node(o):
     o['variables']['OS'] = 'android'
   o['variables']['node_prefix'] = options.prefix
   o['variables']['node_install_npm'] = b(not options.without_npm)
-  o['variables']['node_install_corepack'] = b(not options.without_corepack)
+  o['variables']['node_install_corepack'] = b(options.with_corepack)
   o['variables']['control_flow_guard'] = b(options.enable_cfg)
   o['variables']['node_use_amaro'] = b(not options.without_amaro)
   o['variables']['debug_node'] = b(options.debug_node)
@@ -1720,7 +1714,6 @@ def configure_v8(o, configs):
   o['variables']['v8_enable_pointer_compression'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_sandbox'] = 1 if options.enable_pointer_compression else 0
   o['variables']['v8_enable_31bit_smis_on_64bit_arch'] = 1 if options.enable_pointer_compression else 0
-  o['variables']['v8_enable_shared_ro_heap'] = 0 if options.enable_pointer_compression or options.disable_shared_ro_heap else 1
   o['variables']['v8_enable_extensible_ro_snapshot'] = 0
   o['variables']['v8_trace_maps'] = 1 if options.trace_maps else 0
   o['variables']['node_use_v8_platform'] = b(not options.without_v8_platform)
@@ -2268,7 +2261,7 @@ configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_library('sqlite', output, pkgname='sqlite3')
 configure_library('uvwasi', output, pkgname='libuvwasi')
-configure_library('zstd', output)
+configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
 configure_intl(output)

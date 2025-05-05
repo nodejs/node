@@ -28,10 +28,10 @@ class AsmJs {
   static std::unique_ptr<UnoptimizedCompilationJob> NewCompilationJob(
       ParseInfo* parse_info, FunctionLiteral* literal,
       AccountingAllocator* allocator);
-  static MaybeHandle<Object> InstantiateAsmWasm(
+  static MaybeDirectHandle<Object> InstantiateAsmWasm(
       Isolate* isolate, DirectHandle<SharedFunctionInfo>,
-      DirectHandle<AsmWasmData> wasm_data, Handle<JSReceiver> stdlib,
-      Handle<JSReceiver> foreign, Handle<JSArrayBuffer> memory);
+      DirectHandle<AsmWasmData> wasm_data, DirectHandle<JSReceiver> stdlib,
+      DirectHandle<JSReceiver> foreign, DirectHandle<JSArrayBuffer> memory);
 
   // Special export name used to indicate that the module exports a single
   // function instead of a JavaScript object holding multiple functions.
