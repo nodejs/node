@@ -3391,7 +3391,7 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
   if (mode == 0) {
     // if no mode is specified use the faster std::filesystem API
     std::filesystem::copy_file(
-        *src, *dest, std::filesystem::copy_options::skip_existing, error);
+        *src, *dest, std::filesystem::copy_options::none, error);
     if (error) {
       return env->ThrowError(error.message().c_str());
     }
