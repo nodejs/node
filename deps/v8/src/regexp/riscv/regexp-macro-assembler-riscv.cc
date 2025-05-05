@@ -202,7 +202,7 @@ void RegExpMacroAssemblerRISCV::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(on_less, lt, current_character(), Operand(limit));
 }
 
-void RegExpMacroAssemblerRISCV::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerRISCV::CheckFixedLengthLoop(Label* on_equal) {
   Label backtrack_non_equal;
   __ Lw(a0, MemOperand(backtrack_stackpointer(), 0));
   __ BranchShort(&backtrack_non_equal, ne, current_input_offset(), Operand(a0));

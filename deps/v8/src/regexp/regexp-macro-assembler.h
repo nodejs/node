@@ -72,7 +72,7 @@ class RegExpMacroAssembler {
                                       Label* on_equal) = 0;
   virtual void CheckCharacterGT(base::uc16 limit, Label* on_greater) = 0;
   virtual void CheckCharacterLT(base::uc16 limit, Label* on_less) = 0;
-  virtual void CheckGreedyLoop(Label* on_tos_equals_current_position) = 0;
+  virtual void CheckFixedLengthLoop(Label* on_tos_equals_current_position) = 0;
   virtual void CheckAtStart(int cp_offset, Label* on_at_start) = 0;
   virtual void CheckNotAtStart(int cp_offset, Label* on_not_at_start) = 0;
   virtual void CheckNotBackReference(int start_reg, bool read_backward,

@@ -33,9 +33,9 @@ class V8_EXPORT_PRIVATE RegExpMacroAssemblerARM64
   void CheckCharacterLT(base::uc16 limit, Label* on_less) override;
   void CheckCharacters(base::Vector<const base::uc16> str, int cp_offset,
                        Label* on_failure, bool check_end_of_string);
-  // A "greedy loop" is a loop that is both greedy and with a simple
+  // A "fixed length loop" is a loop that is both greedy and with a simple
   // body. It has a particularly simple implementation.
-  void CheckGreedyLoop(Label* on_tos_equals_current_position) override;
+  void CheckFixedLengthLoop(Label* on_tos_equals_current_position) override;
   void CheckNotAtStart(int cp_offset, Label* on_not_at_start) override;
   void CheckNotBackReference(int start_reg, bool read_backward,
                              Label* on_no_match) override;

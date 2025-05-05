@@ -214,7 +214,7 @@ void RegExpMacroAssemblerX64::CheckCharacterLT(base::uc16 limit,
   BranchOrBacktrack(less, on_less);
 }
 
-void RegExpMacroAssemblerX64::CheckGreedyLoop(Label* on_equal) {
+void RegExpMacroAssemblerX64::CheckFixedLengthLoop(Label* on_equal) {
   Label fallthrough;
   __ cmpl(rdi, Operand(backtrack_stackpointer(), 0));
   __ j(not_equal, &fallthrough);
