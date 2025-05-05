@@ -23,6 +23,7 @@
 
 const { invalidArgTypeHelper } = require('../common');
 const assert = require('assert');
+const { Assert } = require('assert');
 const { inspect } = require('util');
 const { test } = require('node:test');
 const vm = require('vm');
@@ -1593,6 +1594,20 @@ test('Additional assert', () => {
 
 test('assert/strict exists', () => {
   assert.strictEqual(require('assert/strict'), assert.strict);
+});
+
+test('Assert class', () => {
+  const assertInstance = new Assert();
+
+  assertInstance.ok(assert.AssertionError.prototype instanceof Error,
+    'assert.AssertionError instanceof Error');
+
+  assertInstance.throws(() => assert(false), assertInstance.AssertionError, 'ok(false)');
+  assertInstance.ok(true);
+  assertInstance.throws(() => assertInstance.equal(true, false),
+          assertInstance.AssertionError, 'equal(true, false)');
+  assertInstance.notEqual(true, false);
+  assertInstance.notStrictEqual(2, '2');
 });
 
 /* eslint-enable no-restricted-syntax */
