@@ -2085,7 +2085,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {any}
+* Returns: {number | string | string\[] | undefined}
 
 Reads out a header that's already been queued but not sent to the client.
 The name is case-insensitive. The type of the return value depends
@@ -2220,7 +2220,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {any}
+* `value` {number | string | string\[]}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
