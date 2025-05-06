@@ -1,6 +1,6 @@
 # Node.js Project Governance
 
-<!-- TOC -->
+<!-- ToC -->
 
 * [Triagers](#triagers)
 * [Collaborators](#collaborators)
