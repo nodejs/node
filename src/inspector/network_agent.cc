@@ -169,11 +169,23 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
     return {};
   }
 
+  protocol::String mimeType;
+  if (!ObjectGetProtocolString(context, response, "mimeType").To(&mimeType)) {
+    return {};
+  }
+
+  protocol::String charset = protocol::String();
+  if (!ObjectGetProtocolString(context, response, "charset").To(&charset)) {
+    return {};
+  }
+
   return protocol::Network::Response::create()
       .setUrl(url)
       .setStatus(status)
       .setStatusText(statusText)
       .setHeaders(std::move(headers))
+      .setMimeType(mimeType)
+      .setCharset(charset)
       .build();
 }
 
