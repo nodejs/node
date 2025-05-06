@@ -5210,6 +5210,11 @@ DirectHandle<JSFunction> Genesis::InstallTypedArray(
           GetCorrespondingRabGsabElementsKind(elements_kind), 0);
   rab_gsab_initial_map->SetConstructor(*result);
 
+  if (rab_gsab_initial_map_index == Context::RAB_GSAB_FLOAT16_ARRAY_MAP_INDEX &&
+      v8_flags.js_float16array) {
+    LOG(isolate(), MapDetails(*rab_gsab_initial_map));
+  }
+
   native_context()->set(rab_gsab_initial_map_index, *rab_gsab_initial_map,
                         UPDATE_WRITE_BARRIER, kReleaseStore);
   Map::SetPrototype(isolate(), rab_gsab_initial_map, prototype);
