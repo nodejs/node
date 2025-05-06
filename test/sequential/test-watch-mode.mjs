@@ -810,14 +810,14 @@ process.on('message', (message) => {
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'no --watch args present',
-      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Completed running ${inspect(file)}`,
       `Restarting ${inspect(file)}`,
       'no --watch args present',
-      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Completed running ${inspect(file)}`,
     ]);
   });
 
-  it('`--watch-path` args without `=` used alongside `--watch` should not make it into the script', async () => {
+  it('`--watch-path` ars without `=` used alongside `--watch` should not make it into the script', async () => {
     const projectDir = tmpdir.resolve('project-watch-watch-path-args');
     mkdirSync(projectDir);
 
@@ -835,10 +835,10 @@ process.on('message', (message) => {
     assert.strictEqual(stderr, '');
     assert.deepStrictEqual(stdout, [
       'no cli arg ends with .js',
-      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Completed running ${inspect(file)}`,
       `Restarting ${inspect(file)}`,
       'no cli arg ends with .js',
-      `Completed running ${inspect(file)}. Waiting for file changes before restarting...`,
+      `Completed running ${inspect(file)}`,
     ]);
   });
 });
