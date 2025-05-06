@@ -294,30 +294,20 @@ RegExpCompiler::CompilationResult RegExpCompiler::Assemble(
   return {code, next_register_};
 }
 
-bool Trace::DeferredAction::Mentions(int that) {
-  if (action_type() == ActionNode::CLEAR_CAPTURES) {
-    Interval range = static_cast<DeferredClearCaptures*>(this)->range();
-    return range.Contains(that);
-  } else {
-    return reg() == that;
-  }
-}
-
-bool Trace::mentions_reg(int reg) {
-  for (DeferredAction* action = actions_; action != nullptr;
-       action = action->next()) {
-    if (action->Mentions(reg)) return true;
+bool Trace::mentions_reg(int reg) const {
+  for (auto trace : *this) {
+    if (trace->has_action() && trace->action()->Mentions(reg)) return true;
   }
   return false;
 }
 
-bool Trace::GetStoredPosition(int reg, int* cp_offset) {
+bool Trace::GetStoredPosition(int reg, int* cp_offset) const {
   DCHECK_EQ(0, *cp_offset);
-  for (DeferredAction* action = actions_; action != nullptr;
-       action = action->next()) {
-    if (action->Mentions(reg)) {
-      if (action->action_type() == ActionNode::STORE_POSITION) {
-        *cp_offset = static_cast<DeferredCapture*>(action)->cp_offset();
+  for (auto trace : *this) {
+    if (trace->has_action() && trace->action()->Mentions(reg)) {
+      if (trace->action_->action_type() == ActionNode::CLEAR_POSITION ||
+          trace->action_->action_type() == ActionNode::RESTORE_POSITION) {
+        *cp_offset = trace->next_->cp_offset();
         return true;
       } else {
         return false;
@@ -363,16 +353,13 @@ class DynamicBitSet : public ZoneObject {
 int Trace::FindAffectedRegisters(DynamicBitSet* affected_registers,
                                  Zone* zone) {
   int max_register = RegExpCompiler::kNoRegister;
-  for (DeferredAction* action = actions_; action != nullptr;
-       action = action->next()) {
-    if (action->action_type() == ActionNode::CLEAR_CAPTURES) {
-      Interval range = static_cast<DeferredClearCaptures*>(action)->range();
-      for (int i = range.from(); i <= range.to(); i++)
+  for (auto trace : *this) {
+    if (ActionNode* action = trace->action_) {
+      int to = action->register_to();
+      for (int i = action->register_from(); i <= to; i++) {
         affected_registers->Set(i, zone);
-      if (range.to() > max_register) max_register = range.to();
-    } else {
-      affected_registers->Set(action->reg(), zone);
-      if (action->reg() > max_register) max_register = action->reg();
+      }
+      if (to > max_register) max_register = to;
     }
   }
   return max_register;
@@ -420,15 +407,14 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
     int store_position = kNoStore;
     // This is a little tricky because we are scanning the actions in reverse
     // historical order (newest first).
-    for (DeferredAction* action = actions_; action != nullptr;
-         action = action->next()) {
+    for (auto trace : *this) {
+      ActionNode* action = trace->action_;
+      if (!action) continue;
       if (action->Mentions(reg)) {
         switch (action->action_type()) {
           case ActionNode::SET_REGISTER_FOR_LOOP: {
-            Trace::DeferredSetRegisterForLoop* psr =
-                static_cast<Trace::DeferredSetRegisterForLoop*>(action);
             if (!absolute) {
-              value += psr->value();
+              value += action->value();
               absolute = true;
             }
             // SET_REGISTER_FOR_LOOP is only used for newly introduced loop
@@ -449,11 +435,10 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
             DCHECK(!clear);
             undo_action = RESTORE;
             break;
-          case ActionNode::STORE_POSITION: {
-            Trace::DeferredCapture* pc =
-                static_cast<Trace::DeferredCapture*>(action);
+          case ActionNode::CLEAR_POSITION:
+          case ActionNode::RESTORE_POSITION: {
             if (!clear && store_position == kNoStore) {
-              store_position = pc->cp_offset();
+              store_position = trace->next()->cp_offset();
             }
 
             // For captures we know that stores and clears alternate.
@@ -466,7 +451,11 @@ void Trace::PerformDeferredActions(RegExpMacroAssembler* assembler,
               // will set it again or fail.
               undo_action = IGNORE;
             } else {
-              undo_action = pc->is_capture() ? CLEAR : RESTORE;
+              if (action->action_type() == ActionNode::CLEAR_POSITION) {
+                undo_action = CLEAR;
+              } else {
+                undo_action = RESTORE;
+              }
             }
             DCHECK(!absolute);
             DCHECK_EQ(value, 0);
@@ -527,7 +516,7 @@ void Trace::Flush(RegExpCompiler* compiler, RegExpNode* successor) {
 
   DCHECK(!is_trivial());
 
-  if (actions_ == nullptr && backtrack() == nullptr) {
+  if (!has_any_actions() && backtrack() == nullptr) {
     // Here we just have some deferred cp advances to fix and we are back to
     // a normal situation.  We may also have to forget some information gained
     // through a quick check that was already performed.
@@ -638,35 +627,26 @@ void GuardedAlternative::AddGuard(Guard* guard, Zone* zone) {
 
 ActionNode* ActionNode::SetRegisterForLoop(int reg, int val,
                                            RegExpNode* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(SET_REGISTER_FOR_LOOP, on_success);
-  result->data_.u_store_register.reg = reg;
-  result->data_.u_store_register.value = val;
-  return result;
+  return on_success->zone()->New<ActionNode>(SET_REGISTER_FOR_LOOP, on_success,
+                                             reg, reg, val);
 }
 
 ActionNode* ActionNode::IncrementRegister(int reg, RegExpNode* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(INCREMENT_REGISTER, on_success);
-  result->data_.u_increment_register.reg = reg;
-  return result;
+  return on_success->zone()->New<ActionNode>(INCREMENT_REGISTER, on_success,
+                                             reg);
 }
 
-ActionNode* ActionNode::StorePosition(int reg, bool is_capture,
-                                      RegExpNode* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(STORE_POSITION, on_success);
-  result->data_.u_position_register.reg = reg;
-  result->data_.u_position_register.is_capture = is_capture;
-  return result;
+ActionNode* ActionNode::ClearPosition(int reg, RegExpNode* on_success) {
+  return on_success->zone()->New<ActionNode>(CLEAR_POSITION, on_success, reg);
+}
+
+ActionNode* ActionNode::RestorePosition(int reg, RegExpNode* on_success) {
+  return on_success->zone()->New<ActionNode>(RESTORE_POSITION, on_success, reg);
 }
 
 ActionNode* ActionNode::ClearCaptures(Interval range, RegExpNode* on_success) {
-  ActionNode* result =
-      on_success->zone()->New<ActionNode>(CLEAR_CAPTURES, on_success);
-  result->data_.u_clear_captures.range_from = range.from();
-  result->data_.u_clear_captures.range_to = range.to();
-  return result;
+  return on_success->zone()->New<ActionNode>(CLEAR_CAPTURES, on_success,
+                                             range.from(), range.to());
 }
 
 ActionNode* ActionNode::BeginPositiveSubmatch(int stack_reg, int position_reg,
@@ -2373,7 +2353,7 @@ void AssertionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
 namespace {
 
-bool DeterminedAlready(QuickCheckDetails* quick_check, int offset) {
+bool DeterminedAlready(const QuickCheckDetails* quick_check, int offset) {
   if (quick_check == nullptr) return false;
   if (offset >= quick_check->characters()) return false;
   return quick_check->positions(offset)->determines_perfectly;
@@ -2423,7 +2403,7 @@ void TextNode::TextEmitPass(RegExpCompiler* compiler, TextEmitPassType pass,
   Isolate* isolate = assembler->isolate();
   bool one_byte = compiler->one_byte();
   Label* backtrack = trace->backtrack();
-  QuickCheckDetails* quick_check = trace->quick_check_performed();
+  const QuickCheckDetails* quick_check = trace->quick_check_performed();
   int element_count = elements()->length();
   int backward_offset = read_backward() ? -Length() : 0;
   for (int i = preloaded ? 0 : element_count - 1; i >= 0; i--) {
@@ -3206,7 +3186,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   // For loop nodes we already flushed (see LoopChoiceNode::Emit), but for
   // other choice nodes we only flush if we are out of code size budget.
-  if (trace->flush_budget() == 0 && trace->actions() != nullptr) {
+  if (trace->flush_budget() == 0 && trace->has_any_actions()) {
     trace->Flush(compiler, this);
     return;
   }
@@ -3239,7 +3219,7 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     // If there are actions to be flushed we have to limit how many times
     // they are flushed.  Take the budget of the parent trace and distribute
     // it fairly amongst the children.
-    if (new_trace.actions() != nullptr) {
+    if (new_trace.has_any_actions()) {
       new_trace.set_flush_budget(new_flush_budget);
     }
     bool next_expects_preload =
@@ -3407,7 +3387,7 @@ void ChoiceNode::EmitChoices(RegExpCompiler* compiler,
       generate_full_check_inline = true;
     }
     if (generate_full_check_inline) {
-      if (new_trace.actions() != nullptr) {
+      if (new_trace.has_any_actions()) {
         new_trace.set_flush_budget(new_flush_budget);
       }
       for (int j = 0; j < guard_count; j++) {
@@ -3468,42 +3448,26 @@ void ActionNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RecursionCheck rc(compiler);
 
   switch (action_type_) {
-    case STORE_POSITION: {
-      Trace::DeferredCapture new_capture(data_.u_position_register.reg,
-                                         data_.u_position_register.is_capture,
-                                         trace);
-      Trace new_trace = *trace;
-      new_trace.add_action(&new_capture);
-      on_success()->Emit(compiler, &new_trace);
-      break;
-    }
-    case INCREMENT_REGISTER: {
-      Trace::DeferredIncrementRegister new_increment(
-          data_.u_increment_register.reg);
-      Trace new_trace = *trace;
-      new_trace.add_action(&new_increment);
-      on_success()->Emit(compiler, &new_trace);
-      break;
-    }
-    case SET_REGISTER_FOR_LOOP: {
-      Trace::DeferredSetRegisterForLoop new_set(data_.u_store_register.reg,
-                                                data_.u_store_register.value);
-      Trace new_trace = *trace;
-      new_trace.add_action(&new_set);
-      on_success()->Emit(compiler, &new_trace);
-      break;
-    }
+    // Start with the actions we know how to defer. These are just recorded in
+    // the new trace, no code is emitted right now.  (If we backtrack then we
+    // don't have to perform and undo these actions.)
+    case CLEAR_POSITION:
+    case RESTORE_POSITION:
+    case INCREMENT_REGISTER:
+    case SET_REGISTER_FOR_LOOP:
     case CLEAR_CAPTURES: {
-      Trace::DeferredClearCaptures new_capture(Interval(
-          data_.u_clear_captures.range_from, data_.u_clear_captures.range_to));
       Trace new_trace = *trace;
-      new_trace.add_action(&new_capture);
+      new_trace.add_action(this);
       on_success()->Emit(compiler, &new_trace);
       break;
     }
+    // We don't yet have the ability to defer these.
     case BEGIN_POSITIVE_SUBMATCH:
     case BEGIN_NEGATIVE_SUBMATCH:
       if (!trace->is_trivial()) {
+        // Complex situation: Flush the trace state to the assembler and
+        // generate a generic version of this action.  This call will
+        // recurse back to the else clause here.
         trace->Flush(compiler, this);
       } else {
         assembler->WriteCurrentPositionToRegister(
