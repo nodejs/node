@@ -487,6 +487,11 @@ at `tools/eslint/node_modules/eslint`
 Skip the rest of the tests in the current file when the Inspector
 was disabled at compile time.
 
+### `skipIfSQLiteMissing()`
+
+Skip the rest of the tests in the current file when the SQLite
+was disabled at compile time.
+
 ### `skipIf32Bits()`
 
 Skip the rest of the tests in the current file when the Node.js executable

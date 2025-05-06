@@ -517,8 +517,8 @@ else
 test/sqlite/.buildstamp:
 endif
 
-ifndef NOSQLITE
 .PHONY: build-sqlite-tests
+ifndef NOSQLITE
 # .buildstamp needs $(NODE_EXE) but cannot depend on it
 # directly because it calls make recursively.  The parent make cannot know
 # if the subprocess touched anything so it pessimistically assumes that
