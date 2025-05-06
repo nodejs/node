@@ -574,14 +574,10 @@ using DebugObjectCache = std::vector<Handle<HeapObject>>;
 #define THREAD_LOCAL_TOP_ADDRESS(type, name) \
   inline type* name##_address() { return &thread_local_top()->name##_; }
 
-#if defined(_MSC_VER)
-extern thread_local Isolate* g_current_isolate_ V8_CONSTINIT;
-#else
 // Do not use this variable directly, use Isolate::Current() instead.
 // Defined outside of Isolate because Isolate uses V8_EXPORT_PRIVATE.
 __attribute__((tls_model(V8_TLS_MODEL))) extern thread_local Isolate*
     g_current_isolate_ V8_CONSTINIT;
-#endif  // defined(_MSC_VER)
 
 // HiddenFactory exists so Isolate can privately inherit from it without making
 // Factory's members available to Isolate directly.

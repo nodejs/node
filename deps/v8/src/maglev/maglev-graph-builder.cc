@@ -11003,19 +11003,13 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceCallForNewClosure(
       return BuildCallRuntime(Runtime::kThrowConstructorNonCallableError,
                               {target_node});
     }
-
-#ifdef V8_ENABLE_LEAPTIERING
-      RETURN_IF_DONE(TryBuildCallKnownJSFunction(
-        target_context, target_node,
-        GetRootConstant(RootIndex::kUndefinedValue),
-        dispatch_handle,
-        shared, feedback_cell, args, feedback_source));
-#else
     RETURN_IF_DONE(TryBuildCallKnownJSFunction(
         target_context, target_node,
         GetRootConstant(RootIndex::kUndefinedValue),
-        shared, feedback_cell, args, feedback_source));
+#ifdef V8_ENABLE_LEAPTIERING
+        dispatch_handle,
 #endif
+        shared, feedback_cell, args, feedback_source));
   }
   return BuildGenericCall(target_node, Call::TargetType::kJSFunction, args);
 }
