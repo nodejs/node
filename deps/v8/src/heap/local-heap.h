@@ -33,14 +33,10 @@ class MarkingBarrier;
 class MutablePageMetadata;
 class Safepoint;
 
-#if defined(_MSC_VER)
-extern thread_local LocalHeap* g_current_local_heap_ V8_CONSTINIT;
-#else
 // Do not use this variable directly, use LocalHeap::Current() instead.
 // Defined outside of LocalHeap because LocalHeap uses V8_EXPORT_PRIVATE.
 __attribute__((tls_model(V8_TLS_MODEL))) extern thread_local LocalHeap*
     g_current_local_heap_ V8_CONSTINIT;
-#endif  // defined(_MSC_VER)
 
 // LocalHeap is used by the GC to track all threads with heap access in order to
 // stop them before performing a collection. LocalHeaps can be either Parked or
