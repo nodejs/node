@@ -329,7 +329,8 @@ class ActionNode : public SeqRegExpNode {
   enum ActionType {
     SET_REGISTER_FOR_LOOP,
     INCREMENT_REGISTER,
-    STORE_POSITION,
+    CLEAR_POSITION,
+    RESTORE_POSITION,
     BEGIN_POSITIVE_SUBMATCH,
     BEGIN_NEGATIVE_SUBMATCH,
     POSITIVE_SUBMATCH_SUCCESS,
@@ -340,8 +341,8 @@ class ActionNode : public SeqRegExpNode {
   static ActionNode* SetRegisterForLoop(int reg, int val,
                                         RegExpNode* on_success);
   static ActionNode* IncrementRegister(int reg, RegExpNode* on_success);
-  static ActionNode* StorePosition(int reg, bool is_capture,
-                                   RegExpNode* on_success);
+  static ActionNode* ClearPosition(int reg, RegExpNode* on_success);
+  static ActionNode* RestorePosition(int reg, RegExpNode* on_success);
   static ActionNode* ClearCaptures(Interval range, RegExpNode* on_success);
   static ActionNode* BeginPositiveSubmatch(int stack_pointer_reg,
                                            int position_reg, RegExpNode* body,
@@ -381,23 +382,50 @@ class ActionNode : public SeqRegExpNode {
     return data_.u_submatch.success_node;
   }
 
+  bool Mentions(int reg) const {
+    return base::IsInRange(reg, register_from(), register_to());
+  }
+
+  int value() const {
+    DCHECK(action_type() == SET_REGISTER_FOR_LOOP);
+    return data_.u_simple.value;
+  }
+
+  bool IsSimpleAction() const {
+    return action_type() == CLEAR_POSITION ||
+           action_type() == RESTORE_POSITION ||
+           action_type() == INCREMENT_REGISTER ||
+           action_type() == SET_REGISTER_FOR_LOOP ||
+           action_type() == CLEAR_CAPTURES;
+  }
+
+  int register_from() const {
+    DCHECK(IsSimpleAction());
+    return data_.u_simple.register_from;
+  }
+
+  int register_to() const { return data_.u_simple.register_to; }
+
  protected:
   ActionNode(ActionType action_type, RegExpNode* on_success)
       : SeqRegExpNode(on_success), action_type_(action_type) {}
 
+  ActionNode(ActionType action_type, RegExpNode* on_success, int from,
+             int to = -1, int value = 0)
+      : SeqRegExpNode(on_success), action_type_(action_type) {
+    data_.u_simple.register_from = from;
+    data_.u_simple.register_to = to == -1 ? from : to;
+    data_.u_simple.value = value;
+    DCHECK(IsSimpleAction());
+  }
+
  private:
   union {
     struct {
-      int reg;
+      int register_from;
+      int register_to;
       int value;
-    } u_store_register;
-    struct {
-      int reg;
-    } u_increment_register;
-    struct {
-      int reg;
-      bool is_capture;
-    } u_position_register;
+    } u_simple;
     struct {
       int stack_pointer_register;
       int current_position_register;
@@ -410,10 +438,6 @@ class ActionNode : public SeqRegExpNode {
       int repetition_register;
       int repetition_limit;
     } u_empty_match_check;
-    struct {
-      int range_from;
-      int range_to;
-    } u_clear_captures;
     struct {
       int flags;
     } u_modify_flags;
