@@ -3475,7 +3475,7 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
 
 {
   const error = new Error('foo');
-  error.stack = error
+  error.stack = error;
 
   assert.strictEqual(inspect(error), '[Error: foo]');
 }
