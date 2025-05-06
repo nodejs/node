@@ -270,6 +270,7 @@ with projects learning from one another and their users.
 | [parsing arguments](https://nodejs.org/api/util.html#utilparseargsconfig)                             | [18.3.0](https://nodejs.org/en/blog/release/v18.3.0)   | Stable as of 20.0.0                                                |
 | [reading environment](https://nodejs.org/api/cli.html#--env-fileconfig)                               | [20.6.0](https://nodejs.org/en/blog/release/v20.6.0)   | Active Development                                                 |
 | [styling output](https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options) | [20.12.0](https://nodejs.org/en/blog/release/v20.12.0) | Stable, as of [22.13.0](https://github.com/nodejs/node/pull/56329) |
+| [run scripts](https://nodejs.org/docs/latest/api/cli.html#--run) | [22.0.0](https://nodejs.org/en/blog/release/v22.0.0) | Stable, as of 22.0.0 |
 | [run TypeScript](https://nodejs.org/api/cli.html#--experimental-strip-types)                          | [22.6.0](https://nodejs.org/en/blog/release/v22.6.0)   | Active Development                                                 |
 
 ##### Related Links
@@ -282,6 +283,7 @@ with projects learning from one another and their users.
 * <https://nodejs.org/api/util.html#utilparseargsconfig>
 * <https://nodejs.org/api/cli.html#--env-fileconfig>
 * <https://nodejs.org/docs/latest-v22.x/api/util.html#utilstyletextformat-text-options>
+* <https://nodejs.org/api/cli.html#--run>
 * <https://nodejs.org/api/cli.html#--experimental-strip-types>
 
 <!-- lint enable prohibited-strings remark-lint-->
