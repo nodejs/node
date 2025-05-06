@@ -360,7 +360,7 @@ describe('globSync - with file: URL as cwd', function() {
   }
 });
 
-describe('fsPromises  - with file: URL as cwdglob', function() {
+describe('fsPromises.glob - with file: URL as cwd', function() {
   for (const [pattern, expected] of Object.entries(patterns)) {
     test(pattern, async () => {
       const actual = [];
