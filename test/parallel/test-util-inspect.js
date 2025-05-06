@@ -3460,3 +3460,22 @@ ${error.stack.split('\n').slice(1).join('\n')}`,
     '[[\n  Symbol(foo)\n]]'
   );
 }
+
+{
+  const prepareStackTrace = Error.prepareStackTrace;
+
+  Error.prepareStackTrace = (error) => error;
+
+  const error = new Error('foo');
+
+  assert.strictEqual(inspect(error), '[Error: foo]');
+
+  Error.prepareStackTrace = prepareStackTrace;
+}
+
+{
+  const error = new Error('foo');
+  error.stack = error
+
+  assert.strictEqual(inspect(error), '[Error: foo]');
+}
