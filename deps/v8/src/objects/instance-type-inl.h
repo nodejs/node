@@ -42,13 +42,13 @@ HEAP_OBJECT_TYPE_LIST(DECL_TYPE)
 // Instance types which are associated with one unique map.
 
 template <class type>
-V8_INLINE constexpr std::optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
+V8_INLINE consteval std::optional<RootIndex> UniqueMapOfInstanceTypeCheck() {
   return {};
 }
 
 #define INSTANCE_TYPE_MAP(V, rootIndexName, rootAccessorName, class_name) \
   template <>                                                             \
-  V8_INLINE constexpr std::optional<RootIndex>                            \
+  V8_INLINE consteval std::optional<RootIndex>                            \
   UniqueMapOfInstanceTypeCheck<InstanceTypeTraits::class_name>() {        \
     return {RootIndex::k##rootIndexName};                                 \
   }
