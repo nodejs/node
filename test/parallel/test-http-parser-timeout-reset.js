@@ -26,7 +26,6 @@ const server = net.createServer((socket) => {
   const parser = new HTTPParser(HTTPParser.RESPONSE, false);
   parser.initialize(
     HTTPParser.RESPONSE,
-    {},
     0,
     0,
   );

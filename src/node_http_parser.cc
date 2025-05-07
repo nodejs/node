@@ -23,7 +23,6 @@
 #include "node_buffer.h"
 #include "util.h"
 
-#include "async_wrap-inl.h"
 #include "env-inl.h"
 #include "llhttp.h"
 #include "memory_tracker-inl.h"
@@ -250,17 +249,16 @@ class ConnectionsList : public BaseObject {
     std::set<Parser*, ParserComparator> active_connections_;
 };
 
-class Parser : public AsyncWrap, public StreamListener {
+class Parser : public BaseObject, public StreamListener {
   friend class ConnectionsList;
   friend struct ParserComparator;
 
  public:
   Parser(BindingData* binding_data, Local<Object> wrap)
-      : AsyncWrap(binding_data->env(), wrap),
+      : BaseObject(binding_data->env(), wrap),
         current_buffer_len_(0),
         current_buffer_data_(nullptr),
-        binding_data_(binding_data) {
-  }
+        binding_data_(binding_data) {}
 
   SET_NO_MEMORY_INFO()
   SET_MEMORY_INFO_NAME(Parser)
@@ -289,13 +287,7 @@ class Parser : public AsyncWrap, public StreamListener {
     Local<Value> cb = object()->Get(env()->context(), kOnMessageBegin)
                               .ToLocalChecked();
     if (cb->IsFunction()) {
-      InternalCallbackScope callback_scope(
-        this, InternalCallbackScope::kSkipTaskQueues);
-
-      MaybeLocal<Value> r = cb.As<Function>()->Call(
-        env()->context(), object(), 0, nullptr);
-
-      if (r.IsEmpty()) callback_scope.MarkAsFailed();
+       USE(cb.As<Function>()->Call(env()->context(), object(), 0, nullptr));
     }
 
     return 0;
@@ -442,14 +434,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
     argv[A_UPGRADE] = Boolean::New(env()->isolate(), parser_.upgrade);
 
-    MaybeLocal<Value> head_response;
-    {
-      InternalCallbackScope callback_scope(
-          this, InternalCallbackScope::kSkipTaskQueues);
-      head_response = cb.As<Function>()->Call(
-          env()->context(), object(), arraysize(argv), argv);
-      if (head_response.IsEmpty()) callback_scope.MarkAsFailed();
-    }
+    MaybeLocal<Value> head_response = cb.As<Function>()->Call(
+        env()->context(), object(), arraysize(argv), argv);
 
     int64_t val;
 
@@ -478,9 +464,10 @@ class Parser : public AsyncWrap, public StreamListener {
 
     Local<Value> buffer = Buffer::Copy(env, at, length).ToLocalChecked();
 
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(), 1, &buffer);
+    v8::TryCatch try_catch(env->isolate());
+    USE(cb.As<Function>()->Call(env->context(), object(), 1, &buffer));
 
-    if (r.IsEmpty()) {
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
       llhttp_set_error_reason(&parser_, "HPE_JS_EXCEPTION:JS Exception");
       return HPE_USER;
@@ -516,15 +503,11 @@ class Parser : public AsyncWrap, public StreamListener {
     if (!cb->IsFunction())
       return 0;
 
-    MaybeLocal<Value> r;
-    {
-      InternalCallbackScope callback_scope(
-          this, InternalCallbackScope::kSkipTaskQueues);
-      r = cb.As<Function>()->Call(env()->context(), object(), 0, nullptr);
-      if (r.IsEmpty()) callback_scope.MarkAsFailed();
-    }
 
-    if (r.IsEmpty()) {
+    v8::TryCatch try_catch(env()->isolate());
+    USE(cb.As<Function>()->Call(env()->context(), object(), 0, nullptr));
+
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
       return -1;
     }
@@ -569,17 +552,6 @@ class Parser : public AsyncWrap, public StreamListener {
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
 
     delete parser;
-  }
-
-
-  static void Free(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-
-    // Since the Parser destructor isn't going to run the destroy() callbacks
-    // it needs to be triggered manually.
-    parser->EmitTraceEventDestroy();
-    parser->EmitDestroy();
   }
 
   static void Remove(const FunctionCallbackInfo<Value>& args) {
@@ -638,25 +610,24 @@ class Parser : public AsyncWrap, public StreamListener {
     ConnectionsList* connectionsList = nullptr;
 
     CHECK(args[0]->IsInt32());
-    CHECK(args[1]->IsObject());
 
-    if (args.Length() > 2) {
-      CHECK(args[2]->IsNumber());
+    if (args.Length() > 1) {
+      CHECK(args[1]->IsNumber());
       max_http_header_size =
-          static_cast<uint64_t>(args[2].As<Number>()->Value());
+          static_cast<uint64_t>(args[1].As<Number>()->Value());
     }
     if (max_http_header_size == 0) {
       max_http_header_size = env->options()->max_http_header_size;
     }
 
-    if (args.Length() > 3) {
-      CHECK(args[3]->IsInt32());
-      lenient_flags = args[3].As<Int32>()->Value();
+    if (args.Length() > 2) {
+      CHECK(args[2]->IsInt32());
+      lenient_flags = args[2].As<Int32>()->Value();
     }
 
-    if (args.Length() > 4 && !args[4]->IsNullOrUndefined()) {
-      CHECK(args[4]->IsObject());
-      ASSIGN_OR_RETURN_UNWRAP(&connectionsList, args[4]);
+    if (args.Length() > 3 && !args[3]->IsNullOrUndefined()) {
+      CHECK(args[3]->IsObject());
+      ASSIGN_OR_RETURN_UNWRAP(&connectionsList, args[3]);
     }
 
     llhttp_type_t type =
@@ -668,13 +639,6 @@ class Parser : public AsyncWrap, public StreamListener {
     // Should always be called from the same context.
     CHECK_EQ(env, parser->env());
 
-    AsyncWrap::ProviderType provider =
-        (type == HTTP_REQUEST ?
-            AsyncWrap::PROVIDER_HTTPINCOMINGMESSAGE
-            : AsyncWrap::PROVIDER_HTTPCLIENTREQUEST);
-
-    parser->set_provider_type(provider);
-    parser->AsyncReset(args[1].As<Object>());
     parser->Init(type, max_http_header_size, lenient_flags);
 
     if (connectionsList != nullptr) {
@@ -820,7 +784,13 @@ class Parser : public AsyncWrap, public StreamListener {
     current_buffer_len_ = nread;
     current_buffer_data_ = buf.base;
 
-    MakeCallback(cb.As<Function>(), 1, &ret);
+    v8::TryCatch try_catch(env()->isolate());
+    USE(cb.As<Function>()->Call(env()->context(), object(), 1, &ret));
+
+    if (try_catch.HasCaught()) {
+      got_exception_ = true;
+      return;
+    }
 
     current_buffer_len_ = 0;
     current_buffer_data_ = nullptr;
@@ -935,12 +905,12 @@ class Parser : public AsyncWrap, public StreamListener {
       url_.ToString(env())
     };
 
-    MaybeLocal<Value> r = MakeCallback(cb.As<Function>(),
-                                       arraysize(argv),
-                                       argv);
+    v8::TryCatch try_catch(env()->isolate());
+    USE(cb.As<Function>()->Call(env()->context(), object(), arraysize(argv), argv));
 
-    if (r.IsEmpty())
+    if (try_catch.HasCaught()) {
       got_exception_ = true;
+    }
 
     url_.Reset();
     have_flushed_ = true;
@@ -1305,9 +1275,7 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));
 
-  t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
   SetProtoMethod(isolate, t, "close", Parser::Close);
-  SetProtoMethod(isolate, t, "free", Parser::Free);
   SetProtoMethod(isolate, t, "remove", Parser::Remove);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
@@ -1378,7 +1346,6 @@ void CreatePerContextProperties(Local<Object> target,
 void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::New);
   registry->Register(Parser::Close);
-  registry->Register(Parser::Free);
   registry->Register(Parser::Remove);
   registry->Register(Parser::Execute);
   registry->Register(Parser::Finish);

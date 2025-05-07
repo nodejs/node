@@ -56,8 +56,6 @@ const { getSystemErrorName } = require('util');
     delete providers.SIGNREQUEST;
     delete providers.VERIFYREQUEST;
     delete providers.HASHREQUEST;
-    delete providers.HTTPCLIENTREQUEST;
-    delete providers.HTTPINCOMINGMESSAGE;
     delete providers.ELDHISTOGRAM;
     delete providers.SIGINTWATCHDOG;
     delete providers.WORKERHEAPSNAPSHOT;
@@ -169,16 +167,6 @@ if (common.hasCrypto) { // eslint-disable-line node-core/crypto-check
   const StatWatcher = binding.StatWatcher;
   testInitialized(new StatWatcher(), 'StatWatcher');
 }
-
-
-{
-  const { HTTPParser } = require('_http_common');
-  const parser = new HTTPParser();
-  testUninitialized(parser, 'HTTPParser');
-  parser.initialize(HTTPParser.REQUEST, {});
-  testInitialized(parser, 'HTTPParser');
-}
-
 
 {
   const Gzip = require('zlib').Gzip;
