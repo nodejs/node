@@ -1337,7 +1337,7 @@ RegExpNode::LimitResult RegExpNode::LimitVersions(RegExpCompiler* compiler,
                                                   Trace* trace) {
   // If we are generating a fixed length loop then don't stop and don't reuse
   // code.
-  if (trace->stop_node() != nullptr) {
+  if (trace->fixed_length_loop_state() != nullptr) {
     return CONTINUE;
   }
 
@@ -2692,7 +2692,8 @@ void LoopChoiceNode::AddContinueAlternative(GuardedAlternative alt) {
 
 void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
   RegExpMacroAssembler* macro_assembler = compiler->macro_assembler();
-  if (trace->stop_node() == this) {
+  if (trace->fixed_length_loop_state() != nullptr &&
+      trace->fixed_length_loop_state()->loop_choice_node() == this) {
     // Back edge of fixed length optimized loop node graph.
     int text_length =
         FixedLengthLoopLengthForAlternative(&(alternatives_->at(0)));
@@ -2701,10 +2702,10 @@ void LoopChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
     // optimization for fixed length loops (see below).
     DCHECK(trace->cp_offset() == text_length);
     macro_assembler->AdvanceCurrentPosition(text_length);
-    macro_assembler->GoTo(trace->loop_label());
+    trace->fixed_length_loop_state()->GoToLoopTopLabel(macro_assembler);
     return;
   }
-  DCHECK_NULL(trace->stop_node());
+  DCHECK_NULL(trace->fixed_length_loop_state());
   if (!trace->is_trivial()) {
     trace->Flush(compiler, this);
     return;
@@ -3136,9 +3137,26 @@ void BoyerMooreLookahead::EmitSkipInstructions(RegExpMacroAssembler* masm) {
  *        S2--/
  */
 
-FixedLengthLoopState::FixedLengthLoopState(bool not_at_start) {
-  counter_backtrack_trace_.set_backtrack(&label_);
+FixedLengthLoopState::FixedLengthLoopState(bool not_at_start,
+                                           ChoiceNode* loop_choice_node)
+    : loop_choice_node_(loop_choice_node) {
+  counter_backtrack_trace_.set_backtrack(&step_backwards_label_);
   if (not_at_start) counter_backtrack_trace_.set_at_start(Trace::FALSE_VALUE);
+}
+
+void FixedLengthLoopState::BindStepBackwardsLabel(
+    RegExpMacroAssembler* macro_assembler) {
+  macro_assembler->Bind(&step_backwards_label_);
+}
+
+void FixedLengthLoopState::BindLoopTopLabel(
+    RegExpMacroAssembler* macro_assembler) {
+  macro_assembler->Bind(&loop_top_label_);
+}
+
+void FixedLengthLoopState::GoToLoopTopLabel(
+    RegExpMacroAssembler* macro_assembler) {
+  macro_assembler->GoTo(&loop_top_label_);
 }
 
 void ChoiceNode::AssertGuardsMentionRegisters(Trace* trace) {
@@ -3195,7 +3213,9 @@ void ChoiceNode::Emit(RegExpCompiler* compiler, Trace* trace) {
 
   PreloadState preload;
   preload.init();
-  FixedLengthLoopState fixed_length_loop_state(not_at_start());
+  // This must be outside the 'if' because the trace we use for what
+  // comes after the fixed_length_loop is inside it and needs the lifetime.
+  FixedLengthLoopState fixed_length_loop_state(not_at_start(), this);
 
   int text_length = FixedLengthLoopLengthForAlternative(&alternatives_->at(0));
   AlternativeGenerationList alt_gens(choice_count, zone());
@@ -3242,32 +3262,32 @@ Trace* ChoiceNode::EmitFixedLengthLoop(
   // decrement the current position and check it against the pushed value.
   // This avoids pushing backtrack information for each iteration of the loop,
   // which could take up a lot of space.
-  DCHECK(trace->stop_node() == nullptr);
+  DCHECK(trace->fixed_length_loop_state() == nullptr);
   macro_assembler->PushCurrentPosition();
-  Label fixed_length_match_failed;
+  // This is the label for trying to match what comes after the greedy
+  // quantifier, either because the body of the quantifier failed, or because
+  // we have stepped back to try again with one iteration fewer.
+  Label after_body_match_attempt;
   Trace fixed_length_match_trace;
   if (not_at_start()) fixed_length_match_trace.set_at_start(Trace::FALSE_VALUE);
-  fixed_length_match_trace.set_backtrack(&fixed_length_match_failed);
-  Label loop_label;
-  macro_assembler->Bind(&loop_label);
-  fixed_length_match_trace.set_stop_node(this);
-  fixed_length_match_trace.set_loop_label(&loop_label);
+  fixed_length_match_trace.set_backtrack(&after_body_match_attempt);
+  fixed_length_loop_state->BindLoopTopLabel(macro_assembler);
+  fixed_length_match_trace.set_fixed_length_loop_state(fixed_length_loop_state);
   alternatives_->at(0).node()->Emit(compiler, &fixed_length_match_trace);
-  macro_assembler->Bind(&fixed_length_match_failed);
-
-  Label second_choice;  // For use in fixed length matches.
-  macro_assembler->Bind(&second_choice);
+  macro_assembler->Bind(&after_body_match_attempt);
 
   Trace* new_trace = fixed_length_loop_state->counter_backtrack_trace();
 
+  // In a fixed length loop there is only one other choice, which is what
+  // comes after the greedy quantifer.  Try to match that now.
   EmitChoices(compiler, alt_gens, 1, new_trace, preload);
 
-  macro_assembler->Bind(fixed_length_loop_state->label());
+  fixed_length_loop_state->BindStepBackwardsLabel(macro_assembler);
   // If we have unwound to the bottom then backtrack.
   macro_assembler->CheckFixedLengthLoop(trace->backtrack());
   // Otherwise try the second priority at an earlier position.
   macro_assembler->AdvanceCurrentPosition(-text_length);
-  macro_assembler->GoTo(&second_choice);
+  macro_assembler->GoTo(&after_body_match_attempt);
   return new_trace;
 }
 
