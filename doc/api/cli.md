@@ -1329,6 +1329,11 @@ Modules preloaded with `--require` will run before modules preloaded with `--imp
 
 <!-- YAML
 added: v12.0.0
+changes:
+  - version:
+    - v20.19.0
+    pr-url: https://github.com/nodejs/node/pull/53619
+    description: ESM syntax detection is enabled by default.
 -->
 
 This configures Node.js to interpret `--eval` or `STDIN` input as CommonJS or
