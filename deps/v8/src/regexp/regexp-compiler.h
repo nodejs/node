@@ -17,6 +17,7 @@ namespace internal {
 
 class DynamicBitSet;
 class Isolate;
+class FixedLengthLoopState;
 
 namespace regexp_compiler_constants {
 
@@ -246,8 +247,7 @@ class Trace {
         has_any_actions_(false),
         action_(nullptr),
         backtrack_(nullptr),
-        stop_node_(nullptr),
-        loop_label_(nullptr),
+        fixed_length_loop_state_(nullptr),
         characters_preloaded_(0),
         bound_checked_up_to_(0),
         next_(nullptr) {}
@@ -259,8 +259,7 @@ class Trace {
         has_any_actions_(other.has_any_actions_),
         action_(nullptr),
         backtrack_(other.backtrack_),
-        stop_node_(other.stop_node_),
-        loop_label_(other.loop_label_),
+        fixed_length_loop_state_(other.fixed_length_loop_state_),
         characters_preloaded_(other.characters_preloaded_),
         bound_checked_up_to_(other.bound_checked_up_to_),
         next_(&other) {}
@@ -294,8 +293,9 @@ class Trace {
   TriBool at_start() const { return at_start_; }
   void set_at_start(TriBool at_start) { at_start_ = at_start; }
   Label* backtrack() const { return backtrack_; }
-  Label* loop_label() const { return loop_label_; }
-  RegExpNode* stop_node() const { return stop_node_; }
+  FixedLengthLoopState* fixed_length_loop_state() const {
+    return fixed_length_loop_state_;
+  }
   int characters_preloaded() const { return characters_preloaded_; }
   int bound_checked_up_to() const { return bound_checked_up_to_; }
   int flush_budget() const { return flush_budget_; }
@@ -313,8 +313,9 @@ class Trace {
     has_any_actions_ = true;
   }
   void set_backtrack(Label* backtrack) { backtrack_ = backtrack; }
-  void set_stop_node(RegExpNode* node) { stop_node_ = node; }
-  void set_loop_label(Label* label) { loop_label_ = label; }
+  void set_fixed_length_loop_state(FixedLengthLoopState* state) {
+    fixed_length_loop_state_ = state;
+  }
   void set_characters_preloaded(int count) { characters_preloaded_ = count; }
   void set_bound_checked_up_to(int to) { bound_checked_up_to_ = to; }
   void set_flush_budget(int to) {
@@ -365,8 +366,7 @@ class Trace {
   bool has_any_actions_ : 8;  // Whether any trace in the chain has an action.
   ActionNode* action_;
   Label* backtrack_;
-  RegExpNode* stop_node_;
-  Label* loop_label_;
+  FixedLengthLoopState* fixed_length_loop_state_;
   int characters_preloaded_;
   int bound_checked_up_to_;
   QuickCheckDetails quick_check_performed_;
@@ -375,13 +375,19 @@ class Trace {
 
 class FixedLengthLoopState {
  public:
-  explicit FixedLengthLoopState(bool not_at_start);
+  explicit FixedLengthLoopState(bool not_at_start,
+                                ChoiceNode* loop_choice_node);
 
-  Label* label() { return &label_; }
+  void BindStepBackwardsLabel(RegExpMacroAssembler* macro_assembler);
+  void BindLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  void GoToLoopTopLabel(RegExpMacroAssembler* macro_assembler);
+  ChoiceNode* loop_choice_node() const { return loop_choice_node_; }
   Trace* counter_backtrack_trace() { return &counter_backtrack_trace_; }
 
  private:
-  Label label_;
+  Label step_backwards_label_;
+  Label loop_top_label_;
+  ChoiceNode* loop_choice_node_;
   Trace counter_backtrack_trace_;
 };
 
