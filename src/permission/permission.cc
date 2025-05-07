@@ -76,6 +76,7 @@ PermissionScope Permission::StringToPermission(const std::string& perm) {
 #undef V
 
 Permission::Permission() : enabled_(false) {
+  std::shared_ptr<PermissionBase> ffi = std::make_shared<FFIPermission>();
   std::shared_ptr<PermissionBase> fs = std::make_shared<FSPermission>();
   std::shared_ptr<PermissionBase> child_p =
       std::make_shared<ChildProcessPermission>();
@@ -84,6 +85,10 @@ Permission::Permission() : enabled_(false) {
   std::shared_ptr<PermissionBase> inspector =
       std::make_shared<InspectorPermission>();
   std::shared_ptr<PermissionBase> wasi = std::make_shared<WASIPermission>();
+#define V(Name, _, __, ___)                                                    \
+  nodes_.insert(std::make_pair(PermissionScope::k##Name, ffi));
+  FFI_PERMISSIONS(V)
+#undef V
 #define V(Name, _, __, ___)                                                    \
   nodes_.insert(std::make_pair(PermissionScope::k##Name, fs));
   FILESYSTEM_PERMISSIONS(V)

@@ -927,6 +927,9 @@ Environment::Environment(IsolateData* isolate_data,
     if (!options_->allow_wasi) {
       permission()->Apply(this, {"*"}, permission::PermissionScope::kWASI);
     }
+    if (!options_->allow_ffi) {
+      permission()->Apply(this, {"*"}, permission::PermissionScope::kFFI);
+    }
 
     if (!options_->allow_fs_read.empty()) {
       permission()->Apply(this,
