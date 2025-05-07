@@ -1596,18 +1596,51 @@ test('assert/strict exists', () => {
   assert.strictEqual(require('assert/strict'), assert.strict);
 });
 
-test('Assert class', () => {
+test('Assert class basic instance', () => {
   const assertInstance = new Assert();
 
   assertInstance.ok(assert.AssertionError.prototype instanceof Error,
-    'assert.AssertionError instanceof Error');
-
-  assertInstance.throws(() => assert(false), assertInstance.AssertionError, 'ok(false)');
+                    'assert.AssertionError instanceof Error');
   assertInstance.ok(true);
-  assertInstance.throws(() => assertInstance.equal(true, false),
-          assertInstance.AssertionError, 'equal(true, false)');
+  assertInstance.equal(undefined, undefined);
   assertInstance.notEqual(true, false);
+  assertInstance.throws(
+    () => assertInstance.deepEqual(/a/),
+    { code: 'ERR_MISSING_ARGS' }
+  );
+  assertInstance.throws(
+    () => assertInstance.notDeepEqual('test'),
+    { code: 'ERR_MISSING_ARGS' }
+  );
   assertInstance.notStrictEqual(2, '2');
+  assertInstance.throws(() => assertInstance.strictEqual(2, '2'),
+                        assertInstance.AssertionError, 'strictEqual(2, \'2\')');
+  assertInstance.throws(
+    () => {
+      assertInstance.partialDeepStrictEqual({ a: true }, { a: false }, 'custom message');
+    },
+    {
+      code: 'ERR_ASSERTION',
+      name: 'AssertionError',
+      message: 'custom message\n+ actual - expected\n\n  {\n+   a: true\n-   a: false\n  }\n'
+    }
+  );
+  assertInstance.throws(
+    () => assertInstance.match(/abc/, 'string'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "regexp" argument must be an instance of RegExp. ' +
+              "Received type string ('string')"
+    }
+  );
+  assertInstance.throws(
+    () => assertInstance.doesNotMatch(/abc/, 'string'),
+    {
+      code: 'ERR_INVALID_ARG_TYPE',
+      message: 'The "regexp" argument must be an instance of RegExp. ' +
+              "Received type string ('string')"
+    }
+  );
 });
 
 /* eslint-enable no-restricted-syntax */
