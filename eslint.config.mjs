@@ -126,6 +126,7 @@ export default [
         DecompressionStream: 'readonly',
         EventSource: 'readable',
         fetch: 'readonly',
+        Float16Array: 'readonly',
         FormData: 'readonly',
         navigator: 'readonly',
         ReadableStream: 'readonly',
