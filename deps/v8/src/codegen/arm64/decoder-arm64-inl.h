@@ -6,6 +6,7 @@
 #define V8_CODEGEN_ARM64_DECODER_ARM64_INL_H_
 
 #include "src/codegen/arm64/decoder-arm64.h"
+// Include the non-inl header before the rest of the headers.
 
 namespace v8 {
 namespace internal {

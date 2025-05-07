@@ -6,6 +6,8 @@
 #define V8_DEBUG_DEBUG_WASM_OBJECTS_INL_H_
 
 #include "src/debug/debug-wasm-objects.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/js-objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):

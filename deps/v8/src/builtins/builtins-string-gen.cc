@@ -547,7 +547,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
                        Int32Constant(kTwoByteStringTag)),
            &two_byte);
     // One-byte sequential string case
-    result = AllocateSeqOneByteString(new_length);
+    result = AllocateNonEmptySeqOneByteString(new_length);
     CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                          IntPtrConstant(0), word_left_length,
                          String::ONE_BYTE_ENCODING, String::ONE_BYTE_ENCODING);
@@ -559,7 +559,7 @@ TNode<String> StringBuiltinsAssembler::StringAdd(
     BIND(&two_byte);
     {
       // Two-byte sequential string case
-      result = AllocateSeqTwoByteString(new_length);
+      result = AllocateNonEmptySeqTwoByteString(new_length);
       CopyStringCharacters(var_left.value(), result.value(), IntPtrConstant(0),
                            IntPtrConstant(0), word_left_length,
                            String::TWO_BYTE_ENCODING,
@@ -1068,7 +1068,7 @@ TF_BUILTIN(StringFromCharCode, StringBuiltinsAssembler) {
 #endif  // V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
-    const TNode<Context> context, const TNode<Object> object,
+    const TNode<Context> context, const TNode<JSAny> object,
     const TNode<Object> maybe_string, Handle<Symbol> symbol,
     DescriptorIndexNameValue additional_property_to_check,
     const NodeFunction0& regexp_call, const NodeFunction1& generic_call) {
@@ -1144,10 +1144,10 @@ void StringBuiltinsAssembler::MaybeCallFunctionAtSymbol(
   BIND(&out);
 }
 
-const TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
+TNode<Smi> StringBuiltinsAssembler::IndexOfDollarChar(
     const TNode<Context> context, const TNode<String> string) {
-  const TNode<String> dollar_string = HeapConstantNoHole(
-      isolate()->factory()->LookupSingleCharacterStringFromCode('$'));
+  const TNode<String> dollar_string =
+      HeapConstantNoHole(isolate()->factory()->dollar_string());
   const TNode<Smi> dollar_ix = CAST(CallBuiltin(
       Builtin::kStringIndexOf, context, string, dollar_string, SmiConstant(0)));
   return dollar_ix;
@@ -1171,7 +1171,7 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
   // TODO(jgruber): Possibly extend this in the future to handle more complex
   // cases without runtime calls.
 
-  const TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
+  TNode<Smi> dollar_index = IndexOfDollarChar(context, replace_string);
   Branch(SmiIsNegative(dollar_index), &out, &runtime);
 
   BIND(&runtime);
@@ -1197,9 +1197,9 @@ TNode<String> StringBuiltinsAssembler::GetSubstitution(
 TF_BUILTIN(StringPrototypeReplace, StringBuiltinsAssembler) {
   Label out(this);
 
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
-  const auto search = Parameter<Object>(Descriptor::kSearch);
-  const auto replace = Parameter<Object>(Descriptor::kReplace);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
+  const auto search = Parameter<JSAny>(Descriptor::kSearch);
+  const auto replace = Parameter<JSAny>(Descriptor::kReplace);
   auto context = Parameter<Context>(Descriptor::kContext);
 
   const TNode<Smi> smi_zero = SmiConstant(0);
@@ -1361,8 +1361,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   char const* method_name = "String.prototype.matchAll";
 
   auto context = Parameter<Context>(Descriptor::kContext);
-  auto maybe_regexp = Parameter<Object>(Descriptor::kRegexp);
-  auto receiver = Parameter<Object>(Descriptor::kReceiver);
+  auto maybe_regexp = Parameter<JSAny>(Descriptor::kRegexp);
+  auto receiver = Parameter<JSAny>(Descriptor::kReceiver);
   TNode<NativeContext> native_context = LoadNativeContext(context);
 
   // 1. Let O be ? RequireObjectCoercible(this value).
@@ -1382,14 +1382,14 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
     //   iii. If ? ToString(flags) does not contain "g", throw a
     //        TypeError exception.
     GotoIf(TaggedIsSmi(maybe_regexp), &next);
-    TNode<HeapObject> heap_maybe_regexp = CAST(maybe_regexp);
+    TNode<JSAnyNotSmi> heap_maybe_regexp = CAST(maybe_regexp);
     regexp_asm.BranchIfFastRegExpForMatch(context, heap_maybe_regexp, &fast,
                                           &slow);
 
     BIND(&fast);
     {
-      TNode<BoolT> is_global = regexp_asm.FlagGetter(context, heap_maybe_regexp,
-                                                     JSRegExp::kGlobal, true);
+      TNode<BoolT> is_global =
+          regexp_asm.FastFlagGetter(CAST(heap_maybe_regexp), JSRegExp::kGlobal);
       Branch(is_global, &next, &throw_exception);
     }
 
@@ -1446,8 +1446,8 @@ TF_BUILTIN(StringPrototypeMatchAll, StringBuiltinsAssembler) {
   TNode<String> s = ToString_Inline(context, receiver);
 
   // 4. Let rx be ? RegExpCreate(R, "g").
-  TNode<Object> rx = regexp_asm.RegExpCreate(context, native_context,
-                                             maybe_regexp, StringConstant("g"));
+  TNode<JSAny> rx = regexp_asm.RegExpCreate(context, native_context,
+                                            maybe_regexp, StringConstant("g"));
 
   // 5. Return ? Invoke(rx, @@matchAll, « S »).
   TNode<Object> match_all_func =
@@ -1542,9 +1542,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
       UncheckedParameter<Int32T>(Descriptor::kJSActualArgumentsCount));
   CodeStubArguments args(this, argc);
 
-  TNode<Object> receiver = args.GetReceiver();
-  const TNode<Object> separator = args.GetOptionalArgumentValue(kSeparatorArg);
-  const TNode<Object> limit = args.GetOptionalArgumentValue(kLimitArg);
+  TNode<JSAny> receiver = args.GetReceiver();
+  const TNode<JSAny> separator = args.GetOptionalArgumentValue(kSeparatorArg);
+  const TNode<JSAny> limit = args.GetOptionalArgumentValue(kLimitArg);
   auto context = Parameter<NativeContext>(Descriptor::kContext);
 
   TNode<Smi> smi_zero = SmiConstant(0);
@@ -1559,8 +1559,8 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
                                RootIndex::ksplit_symbol,
                                Context::REGEXP_SPLIT_FUNCTION_INDEX},
       [&]() {
-        args.PopAndReturn(CallBuiltin(Builtin::kRegExpSplit, context, separator,
-                                      receiver, limit));
+        args.PopAndReturn(CallBuiltin<JSAny>(Builtin::kRegExpSplit, context,
+                                             separator, receiver, limit));
       },
       [&](TNode<Object> fn) {
         args.PopAndReturn(Call(context, fn, separator, receiver, limit));
@@ -1616,9 +1616,9 @@ TF_BUILTIN(StringPrototypeSplit, StringBuiltinsAssembler) {
     BIND(&next);
   }
 
-  const TNode<Object> result =
-      CallRuntime(Runtime::kStringSplit, context, subject_string,
-                  separator_string, limit_number);
+  const TNode<JSAny> result =
+      CallRuntime<JSAny>(Runtime::kStringSplit, context, subject_string,
+                         separator_string, limit_number);
   args.PopAndReturn(result);
 
   BIND(&return_empty_array);
@@ -1864,10 +1864,13 @@ void StringBuiltinsAssembler::CopyStringCharacters(
 // given character range using CopyStringCharacters.
 // |from_string| must be a sequential string.
 // 0 <= |from_index| <= |from_index| + |character_count| < from_string.length.
+// |character_count| > 0.
 template <typename T>
 TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     TNode<T> from, TNode<BoolT> from_is_one_byte, TNode<IntPtrT> from_index,
     TNode<IntPtrT> character_count) {
+  CSA_DCHECK(this, IntPtrGreaterThan(character_count, IntPtrConstant(0)));
+
   Label end(this), one_byte_sequential(this), two_byte_sequential(this);
   TVARIABLE(String, var_result);
 
@@ -1876,7 +1879,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
   // The subject string is a sequential one-byte string.
   BIND(&one_byte_sequential);
   {
-    TNode<String> result = AllocateSeqOneByteString(
+    TNode<String> result = AllocateNonEmptySeqOneByteString(
         Unsigned(TruncateIntPtrToInt32(character_count)));
     CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                             character_count, String::ONE_BYTE_ENCODING,
@@ -1950,7 +1953,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
     GotoIf(Uint32GreaterThan(var_bits.value(), Uint32Constant(0xFF)), &twobyte);
     // Fallthrough: only one-byte characters in the to-be-copied range.
     {
-      TNode<String> result = AllocateSeqOneByteString(
+      TNode<String> result = AllocateNonEmptySeqOneByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,
@@ -1961,7 +1964,7 @@ TNode<String> StringBuiltinsAssembler::AllocAndCopyStringCharacters(
 
     BIND(&twobyte);
     {
-      TNode<String> result = AllocateSeqTwoByteString(
+      TNode<String> result = AllocateNonEmptySeqTwoByteString(
           Unsigned(TruncateIntPtrToInt32(character_count)));
       CopyStringCharacters<T>(from, result, from_index, IntPtrConstant(0),
                               character_count, String::TWO_BYTE_ENCODING,

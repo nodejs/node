@@ -6,6 +6,7 @@
 #define V8_OBJECTS_PROMISE_INL_H_
 
 #include "src/objects/promise.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-promise-inl.h"
 #include "src/objects/microtask-inl.h"

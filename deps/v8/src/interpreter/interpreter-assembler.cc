@@ -679,7 +679,8 @@ TNode<Uint32T> InterpreterAssembler::BytecodeOperandIntrinsicId(
 TNode<Object> InterpreterAssembler::LoadConstantPoolEntry(TNode<WordT> index) {
   TNode<TrustedFixedArray> constant_pool = CAST(LoadProtectedPointerField(
       BytecodeArrayTaggedPointer(), BytecodeArray::kConstantPoolOffset));
-  return CAST(LoadArrayElement(constant_pool, TrustedFixedArray::kHeaderSize,
+  return CAST(LoadArrayElement(constant_pool,
+                               OFFSET_OF_DATA_START(TrustedFixedArray),
                                UncheckedCast<IntPtrT>(index), 0));
 }
 
@@ -704,7 +705,8 @@ TNode<JSFunction> InterpreterAssembler::LoadFunctionClosure() {
   return CAST(LoadRegister(Register::function_closure()));
 }
 
-TNode<HeapObject> InterpreterAssembler::LoadFeedbackVector() {
+TNode<Union<FeedbackVector, Undefined>>
+InterpreterAssembler::LoadFeedbackVector() {
   return CAST(LoadRegister(Register::feedback_vector()));
 }
 
@@ -725,7 +727,7 @@ void InterpreterAssembler::CallPrologue() {
 void InterpreterAssembler::CallEpilogue() {}
 
 void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
+    TNode<JSAny> function, TNode<Context> context, const RegListNodePair& args,
     ConvertReceiverMode receiver_mode) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK(Bytecodes::IsCallOrConstruct(bytecode_) ||
@@ -749,7 +751,7 @@ void InterpreterAssembler::CallJSAndDispatch(
 }
 
 template <class... TArgs>
-void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
+void InterpreterAssembler::CallJSAndDispatch(TNode<JSAny> function,
                                              TNode<Context> context,
                                              TNode<Word32T> arg_count,
                                              ConvertReceiverMode receiver_mode,
@@ -777,29 +779,30 @@ void InterpreterAssembler::CallJSAndDispatch(TNode<Object> function,
 // Instantiate CallJSAndDispatch() for argument counts used by interpreter
 // generator.
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>);
 template V8_EXPORT_PRIVATE void InterpreterAssembler::CallJSAndDispatch(
-    TNode<Object> function, TNode<Context> context, TNode<Word32T> arg_count,
+    TNode<JSAny> function, TNode<Context> context, TNode<Word32T> arg_count,
     ConvertReceiverMode receiver_mode, TNode<Object>, TNode<Object>,
     TNode<Object>);
 
 void InterpreterAssembler::CallJSWithSpreadAndDispatch(
-    TNode<Object> function, TNode<Context> context, const RegListNodePair& args,
+    TNode<JSAny> function, TNode<Context> context, const RegListNodePair& args,
     TNode<UintPtrT> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   DCHECK_EQ(Bytecodes::GetReceiverMode(bytecode_), ConvertReceiverMode::kAny);
 
 #ifndef V8_JITLESS
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
-  LazyNode<Object> receiver = [=, this] {
-    return LoadRegisterAtOperandIndex(1);
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
+  LazyNode<JSAny> receiver = [=, this] {
+    return CAST(LoadRegisterAtOperandIndex(1));
   };
   CollectCallFeedback(function, receiver, context, maybe_feedback_vector,
                       slot_id);
@@ -818,9 +821,9 @@ void InterpreterAssembler::CallJSWithSpreadAndDispatch(
 }
 
 TNode<Object> InterpreterAssembler::Construct(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     const RegListNodePair& args, TNode<UintPtrT> slot_id,
-    TNode<HeapObject> maybe_feedback_vector) {
+    TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
   TVARIABLE(AllocationSite, var_site);
@@ -876,7 +879,7 @@ TNode<Object> InterpreterAssembler::Construct(
 }
 
 TNode<Object> InterpreterAssembler::ConstructWithSpread(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     const RegListNodePair& args, TNode<UintPtrT> slot_id) {
   // TODO(bmeurer): Unify this with the Construct bytecode feedback
   // above once we have a way to pass the AllocationSite to the Array
@@ -1005,7 +1008,7 @@ TNode<Object> InterpreterAssembler::ConstructWithSpread(
 // TODO(v8:13249): Add a FastConstruct variant to avoid pushing arguments twice
 // (once here, and once again in construct stub).
 TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
-    TNode<Object> target, TNode<Context> context, TNode<Object> new_target,
+    TNode<JSAny> target, TNode<Context> context, TNode<JSAny> new_target,
     TNode<TaggedIndex> slot_id) {
   DCHECK(Bytecodes::MakesCallAlongCriticalPath(bytecode_));
   TVARIABLE(Object, var_result);
@@ -1014,7 +1017,8 @@ TNode<Object> InterpreterAssembler::ConstructForwardAllArgs(
 #ifndef V8_JITLESS
   Label construct(this);
 
-  TNode<HeapObject> maybe_feedback_vector = LoadFeedbackVector();
+  TNode<Union<FeedbackVector, Undefined>> maybe_feedback_vector =
+      LoadFeedbackVector();
   GotoIf(IsUndefined(maybe_feedback_vector), &construct);
 
   CollectConstructFeedback(context, target, new_target, maybe_feedback_vector,
@@ -1406,9 +1410,9 @@ void InterpreterAssembler::OnStackReplacement(
   // Three cases may cause us to attempt OSR, in the following order:
   //
   // 1) Presence of cached OSR Turbofan/Maglev code.
-  // 2) Presence of cached OSR Sparkplug code.
-  // 3) The OSR urgency exceeds the current loop depth - in that case, trigger
-  //    a Turbofan OSR compilation.
+  // 2) The OSR urgency exceeds the current loop depth - in that case, trigger
+  //    a Turbofan/Maglev OSR compilation.
+  // 3) Presence of cached OSR Sparkplug code.
 
   TVARIABLE(Object, maybe_target_code, SmiConstant(0));
   Label osr_to_opt(this), osr_to_sparkplug(this);
@@ -1436,33 +1440,35 @@ void InterpreterAssembler::OnStackReplacement(
   }
 
   // Case 2).
-  if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
-    Goto(&osr_to_sparkplug);
-  } else {
-    DCHECK_EQ(params, OnStackReplacementParams::kDefault);
-    TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
-        LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
-    GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
+  {
+    static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
+    TNode<Int32T> osr_urgency = Word32And(
+        osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
+    GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
 
     // Case 3).
-    {
-      static_assert(FeedbackVector::OsrUrgencyBits::kShift == 0);
-      TNode<Int32T> osr_urgency = Word32And(
-          osr_state, Int32Constant(FeedbackVector::OsrUrgencyBits::kMask));
-      GotoIf(Uint32LessThan(loop_depth, osr_urgency), &osr_to_opt);
+    if (params == OnStackReplacementParams::kBaselineCodeIsCached) {
+      Goto(&osr_to_sparkplug);
+    } else {
+      DCHECK_EQ(params, OnStackReplacementParams::kDefault);
+      TNode<SharedFunctionInfo> sfi = LoadObjectField<SharedFunctionInfo>(
+          LoadFunctionClosure(), JSFunction::kSharedFunctionInfoOffset);
+      GotoIf(SharedFunctionInfoHasBaselineCode(sfi), &osr_to_sparkplug);
       JumpBackward(relative_jump);
     }
   }
 
   BIND(&osr_to_opt);
   {
-    TNode<Uint32T> length =
-        LoadAndUntagBytecodeArrayLength(BytecodeArrayTaggedPointer());
+    TNode<BytecodeArray> bytecode = BytecodeArrayTaggedPointer();
+    TNode<Uint32T> length = LoadAndUntagBytecodeArrayLength(bytecode);
     TNode<Uint32T> weight =
         Uint32Mul(length, Uint32Constant(v8_flags.osr_to_tierup));
     DecreaseInterruptBudget(Signed(weight), kDisableStackCheck);
+    TNode<Smi> expected_param_count =
+        SmiFromInt32(LoadBytecodeArrayParameterCount(bytecode));
     CallBuiltin(Builtin::kInterpreterOnStackReplacement, context,
-                maybe_target_code.value());
+                maybe_target_code.value(), expected_param_count);
     UpdateInterruptBudget(Int32Mul(Signed(weight), Int32Constant(-1)));
     JumpBackward(relative_jump);
   }
@@ -1514,8 +1520,8 @@ void InterpreterAssembler::TraceBytecodeDispatch(TNode<WordT> target_bytecode) {
 bool InterpreterAssembler::TargetSupportsUnalignedAccess() {
 #if V8_TARGET_ARCH_MIPS64 || V8_TARGET_ARCH_RISCV64 || V8_TARGET_ARCH_RISCV32
   return false;
-#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390 || \
-    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 || \
+#elif V8_TARGET_ARCH_IA32 || V8_TARGET_ARCH_X64 || V8_TARGET_ARCH_S390X || \
+    V8_TARGET_ARCH_ARM || V8_TARGET_ARCH_ARM64 || V8_TARGET_ARCH_PPC64 ||  \
     V8_TARGET_ARCH_LOONG64
   return true;
 #else

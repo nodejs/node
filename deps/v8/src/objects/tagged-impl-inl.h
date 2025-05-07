@@ -6,11 +6,13 @@
 #define V8_OBJECTS_TAGGED_IMPL_INL_H_
 
 #include "src/objects/tagged-impl.h"
+// Include the non-inl header before the rest of the headers.
 
 #ifdef V8_COMPRESS_POINTERS
 #include "src/execution/isolate.h"
 #endif
 #include "src/common/ptr-compr-inl.h"
+#include "src/common/ptr-compr.h"
 #include "src/objects/heap-object.h"
 #include "src/objects/smi.h"
 #include "src/roots/roots-inl.h"
@@ -34,8 +36,8 @@ Tagged<Smi> TaggedImpl<kRefType, StorageType>::ToSmi() const {
     return Tagged<Smi>(ptr_);
   }
   // Implementation for compressed pointers.
-  return Tagged<Smi>(
-      CompressionScheme::DecompressTaggedSigned(static_cast<Tagged_t>(ptr_)));
+  return Tagged<Smi>(V8HeapCompressionScheme::DecompressTaggedSigned(
+      static_cast<Tagged_t>(ptr_)));
 }
 
 //
@@ -112,8 +114,8 @@ bool TaggedImpl<kRefType, StorageType>::GetHeapObjectIfStrong(
   if (kIsFull) return GetHeapObjectIfStrong(result);
   // Implementation for compressed pointers.
   if (IsStrong()) {
-    *result =
-        Cast<HeapObject>(Tagged<Object>(CompressionScheme::DecompressTagged(
+    *result = Cast<HeapObject>(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
             isolate, static_cast<Tagged_t>(ptr_))));
     return true;
   }
@@ -138,8 +140,9 @@ Tagged<HeapObject> TaggedImpl<kRefType, StorageType>::GetHeapObjectAssumeStrong(
   if (kIsFull) return GetHeapObjectAssumeStrong();
   // Implementation for compressed pointers.
   DCHECK(IsStrong());
-  return Cast<HeapObject>(Tagged<Object>(CompressionScheme::DecompressTagged(
-      isolate, static_cast<Tagged_t>(ptr_))));
+  return Cast<HeapObject>(
+      Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+          isolate, static_cast<Tagged_t>(ptr_))));
 }
 
 //
@@ -225,12 +228,14 @@ Tagged<HeapObject> TaggedImpl<kRefType, StorageType>::GetHeapObject(
   DCHECK(!IsSmi());
   if (kCanBeWeak) {
     DCHECK(!IsCleared());
-    return Cast<HeapObject>(Tagged<Object>(CompressionScheme::DecompressTagged(
-        isolate, static_cast<Tagged_t>(ptr_) & ~kWeakHeapObjectMask)));
+    return Cast<HeapObject>(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+            isolate, static_cast<Tagged_t>(ptr_) & ~kWeakHeapObjectMask)));
   } else {
     DCHECK(!HAS_WEAK_HEAP_OBJECT_TAG(ptr_));
-    return Cast<HeapObject>(Tagged<Object>(CompressionScheme::DecompressTagged(
-        isolate, static_cast<Tagged_t>(ptr_))));
+    return Cast<HeapObject>(
+        Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
+            isolate, static_cast<Tagged_t>(ptr_))));
   }
 }
 

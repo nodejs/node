@@ -11,7 +11,9 @@
 #include "src/base/small-vector.h"
 #include "src/base/vector.h"
 #include "src/codegen/assembler-inl.h"
+#include "src/codegen/register-configuration.h"
 #include "src/codegen/tick-counter.h"
+#include "src/compiler/backend/register-allocation.h"
 #include "src/compiler/backend/spill-placer.h"
 #include "src/compiler/linkage.h"
 #include "src/strings/string-stream.h"
@@ -1481,7 +1483,8 @@ ConstraintBuilder::ConstraintBuilder(RegisterAllocationData* data)
     : data_(data) {}
 
 InstructionOperand* ConstraintBuilder::AllocateFixed(
-    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input) {
+    UnallocatedOperand* operand, int pos, bool is_tagged, bool is_input,
+    bool is_output) {
   TRACE("Allocating fixed reg for op %d\n", operand->virtual_register());
   DCHECK(operand->HasFixedPolicy());
   InstructionOperand allocated;
@@ -1495,13 +1498,30 @@ InstructionOperand* ConstraintBuilder::AllocateFixed(
                                  operand->fixed_slot_index());
   } else if (operand->HasFixedRegisterPolicy()) {
     DCHECK(!IsFloatingPoint(rep));
-    DCHECK(data()->config()->IsAllocatableGeneralCode(
-        operand->fixed_register_index()));
+    DCHECK_IMPLIES(is_input || is_output,
+                   data()->config()->IsAllocatableGeneralCode(
+                       operand->fixed_register_index()));
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
   } else if (operand->HasFixedFPRegisterPolicy()) {
     DCHECK(IsFloatingPoint(rep));
     DCHECK_NE(InstructionOperand::kInvalidVirtualRegister, virtual_register);
+    if (rep == MachineRepresentation::kFloat16 ||
+        rep == MachineRepresentation::kFloat32) {
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableFloatCode(
+                         operand->fixed_register_index()));
+    } else if (rep == MachineRepresentation::kFloat64) {
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableDoubleCode(
+                         operand->fixed_register_index()));
+    } else if (rep == MachineRepresentation::kSimd128) {
+      DCHECK_IMPLIES(is_input || is_output,
+                     data()->config()->IsAllocatableSimd128Code(
+                         operand->fixed_register_index()));
+    } else {
+      UNREACHABLE();
+    }
     allocated = AllocatedOperand(AllocatedOperand::REGISTER, rep,
                                  operand->fixed_register_index());
   } else {
@@ -1552,7 +1572,7 @@ void ConstraintBuilder::MeetRegisterConstraintsForLastInstructionInBlock(
     TopLevelLiveRange* range = data()->GetLiveRangeFor(output_vreg);
     bool assigned = false;
     if (output->HasFixedPolicy()) {
-      AllocateFixed(output, -1, false, false);
+      AllocateFixed(output, -1, false, false, true);
       // This value is produced on the stack, we never need to spill it.
       if (output->IsStackSlot()) {
         DCHECK(LocationOperand::cast(output)->index() <
@@ -1591,7 +1611,8 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
   // Handle fixed temporaries.
   for (size_t i = 0; i < first->TempCount(); i++) {
     UnallocatedOperand* temp = UnallocatedOperand::cast(first->TempAt(i));
-    if (temp->HasFixedPolicy()) AllocateFixed(temp, instr_index, false, false);
+    if (temp->HasFixedPolicy())
+      AllocateFixed(temp, instr_index, false, false, false);
   }
   // Handle constant/fixed output operands.
   for (size_t i = 0; i < first->OutputCount(); i++) {
@@ -1617,7 +1638,7 @@ void ConstraintBuilder::MeetConstraintsAfter(int instr_index) {
         data()->preassigned_slot_ranges().push_back(
             std::make_pair(range, first_output->GetSecondaryStorage()));
       }
-      AllocateFixed(first_output, instr_index, is_tagged, false);
+      AllocateFixed(first_output, instr_index, is_tagged, false, true);
 
       // This value is produced on the stack, we never need to spill it.
       if (first_output->IsStackSlot()) {
@@ -1690,7 +1711,7 @@ void ConstraintBuilder::MeetConstraintsBefore(int instr_index) {
       UnallocatedOperand input_copy(UnallocatedOperand::REGISTER_OR_SLOT,
                                     input_vreg);
       bool is_tagged = code()->IsReference(input_vreg);
-      AllocateFixed(cur_input, instr_index, is_tagged, true);
+      AllocateFixed(cur_input, instr_index, is_tagged, true, false);
       data()->AddGapMove(instr_index, Instruction::END, input_copy, *cur_input);
     }
   }
@@ -2615,24 +2636,25 @@ bool LiveRangeBundle::TryAddRange(TopLevelLiveRange* range) {
 }
 
 void LiveRangeBundle::AddRange(TopLevelLiveRange* range) {
-  TopLevelLiveRange** insert_it = std::lower_bound(
+  TopLevelLiveRange** range_insert_it = std::lower_bound(
       ranges_.begin(), ranges_.end(), range, LiveRangeOrdering());
-  DCHECK_IMPLIES(insert_it != ranges_.end(), *insert_it != range);
+  DCHECK_IMPLIES(range_insert_it != ranges_.end(), *range_insert_it != range);
   // TODO(dlehmann): We might save some memory by using
   // `DoubleEndedSplitVector::insert<kFront>()` here: Since we add ranges
   // mostly backwards, ranges with an earlier `Start()` are inserted mostly
   // at the front.
-  ranges_.insert(insert_it, 1, range);
+  ranges_.insert(range_insert_it, 1, range);
   range->set_bundle(this);
 
   // We also tried `std::merge`ing the sorted vectors of `intervals_` directly,
   // but it turns out the (always happening) copies are more expensive
   // than the (apparently seldom) copies due to insertion in the middle.
   for (UseInterval interval : range->intervals()) {
-    UseInterval* insert_it =
+    UseInterval* interval_insert_it =
         std::lower_bound(intervals_.begin(), intervals_.end(), interval);
-    DCHECK_IMPLIES(insert_it != intervals_.end(), *insert_it != interval);
-    intervals_.insert(insert_it, 1, interval);
+    DCHECK_IMPLIES(interval_insert_it != intervals_.end(),
+                   *interval_insert_it != interval);
+    intervals_.insert(interval_insert_it, 1, interval);
   }
 }
 
@@ -3271,12 +3293,19 @@ void LinearScanAllocator::ComputeStateFromManyPredecessors(
       used_registers[reg] = 1;
     }
   };
+  struct TopLevelLiveRangeComparator {
+    bool operator()(const TopLevelLiveRange* lhs,
+                    const TopLevelLiveRange* rhs) const {
+      return lhs->vreg() < rhs->vreg();
+    }
+  };
   // Typically this map is very small, e.g., on JetStream2 it has at most 3
   // elements ~80% of the time and at most 8 elements ~94% of the time.
   // Thus use a `SmallZoneMap` to avoid allocations and because linear search
   // in an array is faster than map lookup for such small sizes.
   // We don't want too many inline elements though since `Vote` is pretty large.
-  using RangeVoteMap = SmallZoneMap<TopLevelLiveRange*, Vote, 16>;
+  using RangeVoteMap =
+      SmallZoneMap<TopLevelLiveRange*, Vote, 16, TopLevelLiveRangeComparator>;
   static_assert(sizeof(RangeVoteMap) < 4096, "too large stack allocation");
   RangeVoteMap counts(data()->allocation_zone());
 

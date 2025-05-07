@@ -4,6 +4,7 @@
 
 #include "src/heap/cppgc/heap-object-header.h"
 
+#include "include/cppgc/allocation.h"
 #include "include/cppgc/internal/api-constants.h"
 #include "src/base/macros.h"
 #include "src/base/sanitizer/asan.h"
@@ -45,6 +46,11 @@ HeapObjectName HeapObjectHeader::GetName(
     HeapObjectNameForUnnamedObject heap_object_name) const {
   const GCInfo& gc_info = GlobalGCInfoTable::GCInfoFromIndex(GetGCInfoIndex());
   return gc_info.name(ObjectStart(), heap_object_name);
+}
+
+void HeapObjectHeader::MarkAsFullyConstructed() {
+  MakeGarbageCollectedTraitInternal::MarkObjectAsFullyConstructed(
+      ObjectStart());
 }
 
 }  // namespace internal

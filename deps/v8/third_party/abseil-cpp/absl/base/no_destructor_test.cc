@@ -196,14 +196,10 @@ TEST(NoDestructorTest, StaticPattern) {
   EXPECT_EQ(0, Int());  // should get zero-initialized
 }
 
-#ifdef ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
-// This would fail to compile if Class Template Argument Deduction was not
-// provided for absl::NoDestructor.
 TEST(NoDestructorTest, ClassTemplateArgumentDeduction) {
   absl::NoDestructor i(1);
   static_assert(std::is_same<decltype(i), absl::NoDestructor<int>>::value,
                 "Expected deduced type to be int.");
 }
-#endif
 
 }  // namespace

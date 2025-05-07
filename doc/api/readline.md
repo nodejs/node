@@ -503,7 +503,7 @@ line prompts are included in the calculations.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -710,6 +710,7 @@ added: v17.0.0
     **Default:** `500`.
   * `tabSize` {integer} The number of spaces a tab is equal to (minimum 1).
     **Default:** `8`.
+  * `signal` {AbortSignal} Allows closing the interface using an AbortSignal.
 * Returns: {readlinePromises.Interface}
 
 The `readlinePromises.createInterface()` method creates a new `readlinePromises.Interface`

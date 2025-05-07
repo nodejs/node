@@ -39,7 +39,9 @@ class ManagedWrappableBase
     wrapper_.Reset(isolate, value);
   }
 
-  void Trace(cppgc::Visitor* visitor) const { visitor->Trace(wrapper_); }
+  virtual void Trace(cppgc::Visitor* visitor) const {
+    visitor->Trace(wrapper_);
+  }
 
  private:
   v8::TracedReference<v8::Value> wrapper_;

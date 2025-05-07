@@ -5,8 +5,12 @@
 #ifndef V8_OBJECTS_TURBOFAN_TYPES_INL_H_
 #define V8_OBJECTS_TURBOFAN_TYPES_INL_H_
 
-#include "src/heap/heap-write-barrier.h"
 #include "src/objects/turbofan-types.h"
+// Include the non-inl header before the rest of the headers.
+
+#include "src/heap/heap-layout-inl.h"
+#include "src/heap/heap-write-barrier.h"
+#include "src/objects/objects-inl.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"

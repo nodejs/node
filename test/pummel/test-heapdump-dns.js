@@ -1,19 +1,31 @@
-// Flags: --expose-internals
 'use strict';
-require('../common');
-const { validateSnapshotNodes } = require('../common/heap');
+// This tests heap snapshot integration of dns ChannelWrap.
 
-validateSnapshotNodes('Node / ChannelWrap', []);
+require('../common');
+const { validateByRetainingPath } = require('../common/heap');
+const assert = require('assert');
+
+// Before dns is loaded, no ChannelWrap should be created.
+{
+  const nodes = validateByRetainingPath('Node / ChannelWrap', []);
+  assert.strictEqual(nodes.length, 0);
+}
+
 const dns = require('dns');
-validateSnapshotNodes('Node / ChannelWrap', [{}]);
+
+// Right after dns is loaded, a ChannelWrap should be created for the default
+// resolver, but it has no task list.
+{
+  validateByRetainingPath('Node / ChannelWrap', [
+    { node_name: 'ChannelWrap', edge_name: 'native_to_javascript' },
+  ]);
+}
+
 dns.resolve('localhost', () => {});
-validateSnapshotNodes('Node / ChannelWrap', [
-  {
-    children: [
-      { node_name: 'Node / NodeAresTask::List', edge_name: 'task_list' },
-      // `Node / ChannelWrap` (C++) -> `ChannelWrap` (JS)
-      { node_name: 'ChannelWrap', edge_name: 'native_to_javascript' },
-    ],
-    detachedness: 2,
-  },
-]);
+
+// After dns resolution, the ChannelWrap of the default resolver has the task list.
+{
+  validateByRetainingPath('Node / ChannelWrap', [
+    { node_name: 'Node / NodeAresTask::List', edge_name: 'task_list' },
+  ]);
+}

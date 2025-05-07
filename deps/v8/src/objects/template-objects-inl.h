@@ -6,6 +6,7 @@
 #define V8_OBJECTS_TEMPLATE_OBJECTS_INL_H_
 
 #include "src/objects/template-objects.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/objects/js-array-inl.h"
 

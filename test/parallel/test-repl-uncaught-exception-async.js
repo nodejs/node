@@ -34,9 +34,9 @@ r.write(
   '  throw new RangeError("abc");\n' +
   '}, 1);console.log()\n'
 );
+r.close();
 
 setTimeout(() => {
-  r.close();
   const len = process.listenerCount('uncaughtException');
   process.removeAllListeners('uncaughtException');
   assert.strictEqual(len, 0);

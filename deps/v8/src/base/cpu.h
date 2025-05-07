@@ -2,6 +2,9 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_BASE_CPU_H_
+#define V8_BASE_CPU_H_
+
 // This module contains the architecture-specific code. This make the rest of
 // the code less dependent on differences between different processor
 // architecture.
@@ -9,9 +12,6 @@
 // implementation for a particular architecture is put in cpu_<arch>.cc.
 // The build system then uses the implementation for the target architecture.
 //
-
-#ifndef V8_BASE_CPU_H_
-#define V8_BASE_CPU_H_
 
 #include "src/base/base-export.h"
 #include "src/base/macros.h"
@@ -129,6 +129,9 @@ class V8_BASE_EXPORT CPU final {
 
   // riscv-specific part codes
   bool has_rvv() const { return has_rvv_; }
+  bool has_zba() const { return has_zba_; }
+  bool has_zbb() const { return has_zbb_; }
+  bool has_zbs() const { return has_zbs_; }
   enum class RV_MMU_MODE {
     kRiscvSV39,
     kRiscvSV48,
@@ -196,6 +199,9 @@ class V8_BASE_EXPORT CPU final {
   bool has_msa_;
   RV_MMU_MODE riscv_mmu_;
   bool has_rvv_;
+  bool has_zba_;
+  bool has_zbb_;
+  bool has_zbs_;
 };
 
 }  // namespace base

@@ -125,12 +125,8 @@ static void MakeUtf8String(Isolate* isolate,
   size_t storage = (3 * value_length) + 1;
   target->AllocateSufficientStorage(storage);
 
-  // TODO(@anonrig): Use simdutf to speed up non-one-byte strings once it's
-  // implemented
-  const int flags =
-      String::NO_NULL_TERMINATION | String::REPLACE_INVALID_UTF8;
-  const int length =
-      string->WriteUtf8(isolate, target->out(), storage, nullptr, flags);
+  size_t length = string->WriteUtf8V2(
+      isolate, target->out(), storage, String::WriteFlags::kReplaceInvalidUtf8);
   target->SetLengthAndZeroTerminate(length);
 }
 
@@ -726,12 +722,14 @@ RAIIIsolateWithoutEntering::RAIIIsolateWithoutEntering(const SnapshotData* data)
     SnapshotBuilder::InitializeIsolateParams(data, &params);
   }
   params.array_buffer_allocator = allocator_.get();
+  params.cpp_heap = v8::CppHeap::Create(per_process::v8_platform.Platform(),
+                                        v8::CppHeapCreateParams{{}})
+                        .release();
   Isolate::Initialize(isolate_, params);
 }
 
 RAIIIsolateWithoutEntering::~RAIIIsolateWithoutEntering() {
-  per_process::v8_platform.Platform()->UnregisterIsolate(isolate_);
-  isolate_->Dispose();
+  per_process::v8_platform.Platform()->DisposeIsolate(isolate_);
 }
 
 RAIIIsolate::RAIIIsolate(const SnapshotData* data)

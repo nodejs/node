@@ -274,15 +274,12 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_HAVE_STD_IS_TRIVIALLY_COPYABLE 1
 #endif
 
-
 // ABSL_HAVE_THREAD_LOCAL
 //
-// DEPRECATED - `thread_local` is available on all supported platforms.
-// Checks whether C++11's `thread_local` storage duration specifier is
-// supported.
+// Checks whether the `thread_local` storage duration specifier is supported.
 #ifdef ABSL_HAVE_THREAD_LOCAL
 #error ABSL_HAVE_THREAD_LOCAL cannot be directly set
-#else
+#elif !defined(__XTENSA__)
 #define ABSL_HAVE_THREAD_LOCAL 1
 #endif
 
@@ -380,7 +377,7 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     defined(__asmjs__) || defined(__EMSCRIPTEN__) || defined(__Fuchsia__) || \
     defined(__sun) || defined(__myriad2__) || defined(__HAIKU__) ||          \
     defined(__OpenBSD__) || defined(__NetBSD__) || defined(__QNX__) ||       \
-    defined(__VXWORKS__) || defined(__hexagon__)
+    defined(__VXWORKS__) || defined(__hexagon__) || defined(__XTENSA__)
 #define ABSL_HAVE_MMAP 1
 #endif
 
@@ -469,6 +466,9 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 //
 // Checks the endianness of the platform.
 //
+// Prefer using `std::endian` in C++20, or `absl::endian` from
+// absl/numeric/bits.h prior to C++20.
+//
 // Notes: uses the built in endian macros provided by GCC (since 4.6) and
 // Clang (since 3.2); see
 // https://gcc.gnu.org/onlinedocs/cpp/Common-Predefined-Macros.html.
@@ -520,44 +520,13 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE 0
 #endif
 
-// ABSL_HAVE_STD_ANY
-//
-// Checks whether C++17 std::any is available.
-#ifdef ABSL_HAVE_STD_ANY
-#error "ABSL_HAVE_STD_ANY cannot be directly set."
-#elif defined(__cpp_lib_any) && __cpp_lib_any >= 201606L
+// Deprecated macros for polyfill detection.
 #define ABSL_HAVE_STD_ANY 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_ANY 1
-#endif
-
-// ABSL_HAVE_STD_OPTIONAL
-//
-// Checks whether C++17 std::optional is available.
-#ifdef ABSL_HAVE_STD_OPTIONAL
-#error "ABSL_HAVE_STD_OPTIONAL cannot be directly set."
-#elif defined(__cpp_lib_optional) && __cpp_lib_optional >= 202106L
+#define ABSL_USES_STD_ANY 1
 #define ABSL_HAVE_STD_OPTIONAL 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_OPTIONAL 1
-#endif
-
-// ABSL_HAVE_STD_VARIANT
-//
-// Checks whether C++17 std::variant is available.
-#ifdef ABSL_HAVE_STD_VARIANT
-#error "ABSL_HAVE_STD_VARIANT cannot be directly set."
-#elif defined(__cpp_lib_variant) && __cpp_lib_variant >= 201606L
+#define ABSL_USES_STD_OPTIONAL 1
 #define ABSL_HAVE_STD_VARIANT 1
-#elif defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG >= 201703L && \
-    !ABSL_INTERNAL_APPLE_CXX17_TYPES_UNAVAILABLE
-#define ABSL_HAVE_STD_VARIANT 1
-#endif
+#define ABSL_USES_STD_VARIANT 1
 
 // ABSL_HAVE_STD_STRING_VIEW
 //
@@ -585,51 +554,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
     (defined(ABSL_INTERNAL_CPLUSPLUS_LANG) &&        \
      ABSL_INTERNAL_CPLUSPLUS_LANG >= 202002L)
 #define ABSL_HAVE_STD_ORDERING 1
-#endif
-
-// ABSL_USES_STD_ANY
-//
-// Indicates whether absl::any is an alias for std::any.
-#if !defined(ABSL_OPTION_USE_STD_ANY)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_ANY == 0 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && !defined(ABSL_HAVE_STD_ANY))
-#undef ABSL_USES_STD_ANY
-#elif ABSL_OPTION_USE_STD_ANY == 1 || \
-    (ABSL_OPTION_USE_STD_ANY == 2 && defined(ABSL_HAVE_STD_ANY))
-#define ABSL_USES_STD_ANY 1
-#else
-#error options.h is misconfigured.
-#endif
-
-// ABSL_USES_STD_OPTIONAL
-//
-// Indicates whether absl::optional is an alias for std::optional.
-#if !defined(ABSL_OPTION_USE_STD_OPTIONAL)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_OPTIONAL == 0 || \
-    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && !defined(ABSL_HAVE_STD_OPTIONAL))
-#undef ABSL_USES_STD_OPTIONAL
-#elif ABSL_OPTION_USE_STD_OPTIONAL == 1 || \
-    (ABSL_OPTION_USE_STD_OPTIONAL == 2 && defined(ABSL_HAVE_STD_OPTIONAL))
-#define ABSL_USES_STD_OPTIONAL 1
-#else
-#error options.h is misconfigured.
-#endif
-
-// ABSL_USES_STD_VARIANT
-//
-// Indicates whether absl::variant is an alias for std::variant.
-#if !defined(ABSL_OPTION_USE_STD_VARIANT)
-#error options.h is misconfigured.
-#elif ABSL_OPTION_USE_STD_VARIANT == 0 || \
-    (ABSL_OPTION_USE_STD_VARIANT == 2 && !defined(ABSL_HAVE_STD_VARIANT))
-#undef ABSL_USES_STD_VARIANT
-#elif ABSL_OPTION_USE_STD_VARIANT == 1 || \
-    (ABSL_OPTION_USE_STD_VARIANT == 2 && defined(ABSL_HAVE_STD_VARIANT))
-#define ABSL_USES_STD_VARIANT 1
-#else
-#error options.h is misconfigured.
 #endif
 
 // ABSL_USES_STD_STRING_VIEW
@@ -663,14 +587,6 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 #define ABSL_USES_STD_ORDERING 1
 #else
 #error options.h is misconfigured.
-#endif
-
-// In debug mode, MSVC 2017's std::variant throws a EXCEPTION_ACCESS_VIOLATION
-// SEH exception from emplace for variant<SomeStruct> when constructing the
-// struct can throw. This defeats some of variant_test and
-// variant_exception_safety_test.
-#if defined(_MSC_VER) && _MSC_VER >= 1700 && defined(_DEBUG)
-#define ABSL_INTERNAL_MSVC_2017_DBG_MODE
 #endif
 
 // ABSL_INTERNAL_MANGLED_NS
@@ -813,34 +729,13 @@ static_assert(ABSL_INTERNAL_INLINE_NAMESPACE_STR[0] != 'h' ||
 
 // ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 //
-// Class template argument deduction is a language feature added in C++17.
+// Deprecated: always defined to 1.
+// Class template argument deduction is a language feature added in C++17,
+// which means all versions of C++ supported by Abseil have it.
 #ifdef ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION
 #error "ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION cannot be directly set."
-#elif defined(__cpp_deduction_guides)
+#else
 #define ABSL_HAVE_CLASS_TEMPLATE_ARGUMENT_DEDUCTION 1
-#endif
-
-// ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-//
-// Prior to C++17, static constexpr variables defined in classes required a
-// separate definition outside of the class body, for example:
-//
-// class Foo {
-//   static constexpr int kBar = 0;
-// };
-// constexpr int Foo::kBar;
-//
-// In C++17, these variables defined in classes are considered inline variables,
-// and the extra declaration is redundant. Since some compilers warn on the
-// extra declarations, ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL can be used
-// conditionally ignore them:
-//
-// #ifdef ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL
-// constexpr int Foo::kBar;
-// #endif
-#if defined(ABSL_INTERNAL_CPLUSPLUS_LANG) && \
-    ABSL_INTERNAL_CPLUSPLUS_LANG < 201703L
-#define ABSL_INTERNAL_NEED_REDUNDANT_CONSTEXPR_DECL 1
 #endif
 
 // `ABSL_INTERNAL_HAS_RTTI` determines whether abseil is being compiled with

@@ -38,7 +38,7 @@
 
     # Reset this number to 0 on major V8 upgrades.
     # Increment by one for each non-official patch applied to deps/v8.
-    'v8_embedder_string': '-node.12',
+    'v8_embedder_string': '-node.10',
 
     ##### V8 defaults for Node.js #####
 
@@ -276,6 +276,9 @@
     # Defines these mostly for node-gyp to pickup.
     'defines': [
       '_GLIBCXX_USE_CXX11_ABI=1',
+      # This help forks when building Node.js on a 32-bit arch as
+      # libuv is always compiled with _FILE_OFFSET_BITS=64
+      '_FILE_OFFSET_BITS=64'
     ],
 
     # Forcibly disable -Werror.  We support a wide range of compilers, it's
@@ -568,6 +571,7 @@
           }],
           [ 'node_shared=="true"', {
             'cflags': [ '-fPIC' ],
+            'ldflags': [ '-fPIC' ],
           }],
         ],
       }],

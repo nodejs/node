@@ -150,7 +150,11 @@ class V8_EXPORT_PRIVATE PagedSpaceBase
   // to the available and wasted totals. The free list is cleared as well.
   void ClearAllocatorState() {
     accounting_stats_.ClearSize();
-    free_list_->Reset();
+    if (v8_flags.black_allocated_pages) {
+      free_list_->ResetForNonBlackAllocatedPages();
+    } else {
+      free_list_->Reset();
+    }
   }
 
   // Available bytes without growing.  These are the bytes on the free list.

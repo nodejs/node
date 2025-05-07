@@ -266,8 +266,9 @@ bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
 }
 
 bool LargeObjectSpace::ContainsSlow(Address addr) const {
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (const LargePageMetadata* page : *this) {
-    if (page->Contains(addr)) return true;
+    if (page->Chunk() == chunk) return true;
   }
   return false;
 }
@@ -340,7 +341,7 @@ void LargeObjectSpace::Print() {
 #endif  // DEBUG
 
 void LargeObjectSpace::UpdatePendingObject(Tagged<HeapObject> object) {
-  base::SharedMutexGuard<base::kExclusive> guard(&pending_allocation_mutex_);
+  base::MutexGuard guard(&pending_allocation_mutex_);
   pending_object_.store(object.address(), std::memory_order_release);
 }
 

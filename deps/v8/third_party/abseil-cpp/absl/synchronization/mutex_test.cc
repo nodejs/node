@@ -1357,7 +1357,7 @@ static absl::Duration TimeoutTestAllowedSchedulingDelay() {
 
 // Returns true if `actual_delay` is close enough to `expected_delay` to pass
 // the timeouts/deadlines test.  Otherwise, logs warnings and returns false.
-ABSL_MUST_USE_RESULT
+[[nodiscard]]
 static bool DelayIsWithinBounds(absl::Duration expected_delay,
                                 absl::Duration actual_delay) {
   bool pass = true;
@@ -1725,7 +1725,7 @@ TEST(Mutex, Logging) {
 TEST(Mutex, LoggingAddressReuse) {
   // Repeatedly re-create a Mutex with debug logging at the same address.
   ScopedInvariantDebugging scoped_debugging;
-  alignas(absl::Mutex) char storage[sizeof(absl::Mutex)];
+  alignas(absl::Mutex) unsigned char storage[sizeof(absl::Mutex)];
   auto invariant =
       +[](void *alive) { EXPECT_TRUE(*static_cast<bool *>(alive)); };
   constexpr size_t kIters = 10;

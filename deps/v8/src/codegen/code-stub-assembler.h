@@ -22,6 +22,7 @@
 #include "src/objects/cell.h"
 #include "src/objects/dictionary.h"
 #include "src/objects/feedback-vector.h"
+#include "src/objects/fixed-array.h"
 #include "src/objects/foreign.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/hole.h"
@@ -88,6 +89,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   using AllocationFlags = base::Flags<AllocationFlag>;
 
+  TNode<UintPtrT> ArrayBufferMaxByteLength();
+
   TNode<IntPtrT> ParameterToIntPtr(TNode<Smi> value) { return SmiUntag(value); }
   TNode<IntPtrT> ParameterToIntPtr(TNode<IntPtrT> value) { return value; }
   TNode<IntPtrT> ParameterToIntPtr(TNode<UintPtrT> value) {
@@ -140,7 +143,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<IntPtrT> TaggedIndexToIntPtr(TNode<TaggedIndex> value);
   TNode<TaggedIndex> IntPtrToTaggedIndex(TNode<IntPtrT> value);
-  // TODO(v8:10047): Get rid of these convertions eventually.
+  // TODO(v8:10047): Get rid of these conversions eventually.
   TNode<Smi> TaggedIndexToSmi(TNode<TaggedIndex> value);
   TNode<TaggedIndex> SmiToTaggedIndex(TNode<Smi> value);
 
@@ -188,7 +191,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(heap_object);
   }
 
-  TNode<JSReceiver> HeapObjectToCallable(TNode<HeapObject> heap_object,
+  TNode<JSCallable> HeapObjectToCallable(TNode<HeapObject> heap_object,
                                          Label* fail) {
     GotoIfNot(IsCallable(heap_object), fail);
     return CAST(heap_object);
@@ -640,51 +643,50 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           CodeEntrypointTag tag);
   TNode<BoolT> IsMarkedForDeoptimization(TNode<Code> code);
 
-  void DCheckReceiver(ConvertReceiverMode mode, TNode<Object> receiver);
+  void DCheckReceiver(ConvertReceiverMode mode, TNode<JSAny> receiver);
 
   // The following Call wrappers call an object according to the semantics that
   // one finds in the ECMAScript spec, operating on a Callable (e.g. a
   // JSFunction or proxy) rather than an InstructionStream object.
   template <typename TCallable, class... TArgs>
-  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
-                            ConvertReceiverMode mode, TNode<Object> receiver,
-                            TArgs... args);
+  inline TNode<JSAny> Call(TNode<Context> context, TNode<TCallable> callable,
+                           ConvertReceiverMode mode, TNode<JSAny> receiver,
+                           TArgs... args);
   template <typename TCallable, class... TArgs>
-  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
-                            TNode<JSReceiver> receiver, TArgs... args);
+  inline TNode<JSAny> Call(TNode<Context> context, TNode<TCallable> callable,
+                           TNode<JSReceiver> receiver, TArgs... args);
   template <typename TCallable, class... TArgs>
-  inline TNode<Object> Call(TNode<Context> context, TNode<TCallable> callable,
-                            TNode<Object> receiver, TArgs... args);
+  inline TNode<JSAny> Call(TNode<Context> context, TNode<TCallable> callable,
+                           TNode<JSAny> receiver, TArgs... args);
   template <class... TArgs>
-  inline TNode<Object> CallFunction(TNode<Context> context,
-                                    TNode<JSFunction> callable,
-                                    ConvertReceiverMode mode,
-                                    TNode<Object> receiver, TArgs... args);
+  inline TNode<JSAny> CallFunction(TNode<Context> context,
+                                   TNode<JSFunction> callable,
+                                   ConvertReceiverMode mode,
+                                   TNode<JSAny> receiver, TArgs... args);
   template <class... TArgs>
-  inline TNode<Object> CallFunction(TNode<Context> context,
-                                    TNode<JSFunction> callable,
-                                    TNode<JSReceiver> receiver, TArgs... args);
+  inline TNode<JSAny> CallFunction(TNode<Context> context,
+                                   TNode<JSFunction> callable,
+                                   TNode<JSReceiver> receiver, TArgs... args);
   template <class... TArgs>
-  inline TNode<Object> CallFunction(TNode<Context> context,
-                                    TNode<JSFunction> callable,
-                                    TNode<Object> receiver, TArgs... args);
+  inline TNode<JSAny> CallFunction(TNode<Context> context,
+                                   TNode<JSFunction> callable,
+                                   TNode<JSAny> receiver, TArgs... args);
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
                                 TNode<Int32T> argc, TNode<Object> data,
-                                TNode<Object> holder, TNode<Object> receiver);
+                                TNode<Object> holder, TNode<JSAny> receiver);
 
   TNode<Object> CallApiCallback(TNode<Object> context, TNode<RawPtrT> callback,
                                 TNode<Int32T> argc, TNode<Object> data,
-                                TNode<Object> holder, TNode<Object> receiver,
+                                TNode<Object> holder, TNode<JSAny> receiver,
                                 TNode<Object> value);
 
   TNode<Object> CallRuntimeNewArray(TNode<Context> context,
-                                    TNode<Object> receiver,
-                                    TNode<Object> length,
+                                    TNode<JSAny> receiver, TNode<Object> length,
                                     TNode<Object> new_target,
                                     TNode<Object> allocation_site);
 
-  void TailCallRuntimeNewArray(TNode<Context> context, TNode<Object> receiver,
+  void TailCallRuntimeNewArray(TNode<Context> context, TNode<JSAny> receiver,
                                TNode<Object> length, TNode<Object> new_target,
                                TNode<Object> allocation_site);
 
@@ -693,9 +695,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         TNode<JSReceiver> target,
                                         TNode<JSReceiver> new_target,
                                         TArgs... args) {
-    return CAST(ConstructJSWithTarget(Builtin::kConstruct, context, target,
-                                      new_target,
-                                      implicit_cast<TNode<Object>>(args)...));
+    return CAST(ConstructJS(Builtin::kConstruct, context, target, new_target,
+                            implicit_cast<TNode<Object>>(args)...));
   }
   template <class... TArgs>
   TNode<JSReceiver> Construct(TNode<Context> context,
@@ -705,10 +706,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   template <typename T>
   TNode<T> Select(TNode<BoolT> condition, const NodeGenerator<T>& true_body,
-                  const NodeGenerator<T>& false_body) {
+                  const NodeGenerator<T>& false_body,
+                  BranchHint branch_hint = BranchHint::kNone) {
     TVARIABLE(T, value);
     Label vtrue(this), vfalse(this), end(this);
-    Branch(condition, &vtrue, &vfalse);
+    Branch(condition, &vtrue, &vfalse, branch_hint);
 
     BIND(&vtrue);
     {
@@ -755,13 +757,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   TNode<String> SingleCharacterStringConstant(char const* single_char) {
     DCHECK_EQ(strlen(single_char), 1);
+    DCHECK_LE(single_char[0], String::kMaxOneByteCharCode);
     return HeapConstantNoHole(
         isolate()->factory()->LookupSingleCharacterStringFromCode(
             single_char[0]));
   }
 
-  TNode<Float16T> TruncateFloat32ToFloat16(TNode<Float32T> value);
-  TNode<Float16T> TruncateFloat64ToFloat16(TNode<Float64T> value);
+  TNode<Float16RawBitsT> TruncateFloat32ToFloat16(TNode<Float32T> value);
+  TNode<Float16RawBitsT> TruncateFloat64ToFloat16(TNode<Float64T> value);
 
   TNode<Int32T> TruncateWordToInt32(TNode<WordT> value);
   TNode<Int32T> TruncateIntPtrToInt32(TNode<IntPtrT> value);
@@ -909,18 +912,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // ExternalPointerT-related functionality.
   //
 
-  TNode<RawPtrT> ExternalPointerTableAddress(ExternalPointerTag tag);
+  TNode<RawPtrT> ExternalPointerTableAddress(ExternalPointerTagRange tag_range);
 
   // Load an external pointer value from an object.
-  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               int offset,
-                                               ExternalPointerTag tag) {
-    return LoadExternalPointerFromObject(object, IntPtrConstant(offset), tag);
+  TNode<RawPtrT> LoadExternalPointerFromObject(
+      TNode<HeapObject> object, int offset, ExternalPointerTagRange tag_range) {
+    return LoadExternalPointerFromObject(object, IntPtrConstant(offset),
+                                         tag_range);
   }
 
-  TNode<RawPtrT> LoadExternalPointerFromObject(TNode<HeapObject> object,
-                                               TNode<IntPtrT> offset,
-                                               ExternalPointerTag tag);
+  TNode<RawPtrT> LoadExternalPointerFromObject(
+      TNode<HeapObject> object, TNode<IntPtrT> offset,
+      ExternalPointerTagRange tag_range);
 
   // Store external object pointer to object.
   void StoreExternalPointerToObject(TNode<HeapObject> object, int offset,
@@ -988,9 +991,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<RawPtrT> LoadCodeEntryFromIndirectPointerHandle(
       TNode<IndirectPointerHandleT> handle, CodeEntrypointTag tag);
 
-  TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
-      TNode<JSDispatchHandleT> handle);
+  // Load the value of Code pointer table corresponding to
+  // IsolateGroup::current()->code_pointer_table_.
+  // Only available when the sandbox is enabled.
+  TNode<RawPtrT> LoadCodePointerTableBase();
+
 #endif
+
+  TNode<JSDispatchHandleT> InvalidDispatchHandleConstant();
 
   TNode<Object> LoadProtectedPointerField(TNode<TrustedObject> object,
                                           TNode<IntPtrT> offset) {
@@ -1049,8 +1057,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   }
 
   // Returns WasmImportData or WasmTrustedInstanceData.
-  TNode<TrustedObject> LoadImplicitArgFromWasmInternalFunction(
-      TNode<WasmInternalFunction> object) {
+  TNode<Union<WasmImportData, WasmTrustedInstanceData>>
+  LoadImplicitArgFromWasmInternalFunction(TNode<WasmInternalFunction> object) {
     TNode<Object> obj = LoadProtectedPointerField(
         object, WasmInternalFunction::kProtectedImplicitArgOffset);
     CSA_DCHECK(this, TaggedIsNotSmi(obj));
@@ -1060,11 +1068,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         Word32Or(HasInstanceType(implicit_arg, WASM_TRUSTED_INSTANCE_DATA_TYPE),
                  HasInstanceType(implicit_arg, WASM_IMPORT_DATA_TYPE)));
     return CAST(implicit_arg);
-  }
-
-  TNode<RawPtrT> LoadWasmTypeInfoNativeTypePtr(TNode<WasmTypeInfo> object) {
-    return LoadExternalPointerFromObject(
-        object, WasmTypeInfo::kNativeTypeOffset, kWasmTypeInfoNativeTypeTag);
   }
 
   TNode<WasmInternalFunction> LoadWasmInternalFunctionFromFuncRef(
@@ -1086,6 +1089,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(LoadProtectedPointerField(
         data, WasmExportedFunctionData::kProtectedInstanceDataOffset));
   }
+
+  // Dynamically allocates a buffer of size `size` in C++ on the cppgc heap.
+  TNode<RawPtrT> AllocateBuffer(TNode<IntPtrT> size);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
   TNode<RawPtrT> LoadJSTypedArrayExternalPointerPtr(
@@ -1168,10 +1174,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
         LoadFromObject(MachineType::AnyTagged(), object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
-  TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset) {
+  template <class T>
+  TNode<T> LoadObjectField(TNode<HeapObject> object, TNode<IntPtrT> offset)
+    requires std::is_convertible_v<TNode<T>, TNode<UntaggedT>>
+  {
     return UncheckedCast<T>(
         LoadFromObject(MachineTypeOf<T>::value, object,
                        IntPtrSub(offset, IntPtrConstant(kHeapObjectTag))));
@@ -1215,10 +1221,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     }
   };
 
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value,
-                         int>::type = 0>
-  TNode<T> LoadReference(Reference reference) {
+  template <class T>
+  TNode<T> LoadReference(Reference reference)
+    requires std::is_convertible_v<TNode<T>, TNode<Object>>
+  {
     if (IsMapOffsetConstant(reference.offset)) {
       TNode<Map> map = LoadMap(CAST(reference.object));
       DCHECK((std::is_base_of<T, Map>::value));
@@ -1231,32 +1237,30 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     return CAST(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
-  template <class T,
-            typename std::enable_if<
-                std::is_convertible<TNode<T>, TNode<UntaggedT>>::value ||
-                    std::is_same<T, MaybeObject>::value,
-                int>::type = 0>
-  TNode<T> LoadReference(Reference reference) {
+  template <class T>
+  TNode<T> LoadReference(Reference reference)
+    requires(std::is_convertible_v<TNode<T>, TNode<UntaggedT>> ||
+             is_maybe_weak_v<T>)
+  {
     DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
     return UncheckedCast<T>(
         LoadFromObject(MachineTypeOf<T>::value, reference.object, offset));
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<Object>>::value ||
-                             std::is_same<T, MaybeObject>::value,
-                         int>::type = 0>
-  void StoreReference(Reference reference, TNode<T> value) {
+  template <class T>
+  void StoreReference(Reference reference, TNode<T> value)
+    requires(std::is_convertible_v<TNode<T>, TNode<MaybeObject>>)
+  {
     if (IsMapOffsetConstant(reference.offset)) {
       DCHECK((std::is_base_of<T, Map>::value));
       return StoreMap(CAST(reference.object), ReinterpretCast<Map>(value));
     }
     MachineRepresentation rep = MachineRepresentationOf<T>::value;
     StoreToObjectWriteBarrier write_barrier = StoreToObjectWriteBarrier::kFull;
-    if (std::is_same<T, Smi>::value) {
+    if (std::is_same_v<T, Smi>) {
       write_barrier = StoreToObjectWriteBarrier::kNone;
-    } else if (std::is_same<T, Map>::value) {
+    } else if (std::is_same_v<T, Map>) {
       write_barrier = StoreToObjectWriteBarrier::kMap;
     }
     TNode<IntPtrT> offset =
@@ -1264,10 +1268,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     CSA_DCHECK(this, TaggedIsNotSmi(reference.object));
     StoreToObject(rep, reference.object, offset, value, write_barrier);
   }
-  template <class T, typename std::enable_if<
-                         std::is_convertible<TNode<T>, TNode<UntaggedT>>::value,
-                         int>::type = 0>
-  void StoreReference(Reference reference, TNode<T> value) {
+  template <class T>
+  void StoreReference(Reference reference, TNode<T> value)
+    requires std::is_convertible_v<TNode<T>, TNode<UntaggedT>>
+  {
     DCHECK(!IsMapOffsetConstant(reference.offset));
     TNode<IntPtrT> offset =
         IntPtrSub(reference.offset, IntPtrConstant(kHeapObjectTag));
@@ -1284,6 +1288,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   // Load the floating point value of a HeapNumber.
   TNode<Float64T> LoadHeapNumberValue(TNode<HeapObject> object);
+  TNode<Int32T> LoadHeapInt32Value(TNode<HeapObject> object);
+  void StoreHeapInt32Value(TNode<HeapObject> object, TNode<Int32T> value);
   // Load the Map of an HeapObject.
   TNode<Map> LoadMap(TNode<HeapObject> object);
   // Load the instance type of an HeapObject.
@@ -1314,8 +1320,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the length of a fixed array base instance.
   TNode<Smi> LoadFixedArrayBaseLength(TNode<FixedArrayBase> array);
   template <typename Array>
-  TNode<Smi> LoadArrayCapacity(TNode<Array> array) {
-    return LoadObjectField<Smi>(array, Array::Shape::kCapacityOffset);
+  TNode<Smi> LoadSmiArrayLength(TNode<Array> array) {
+    return LoadObjectField<Smi>(array, offsetof(Array, length_));
   }
   // Load the length of a fixed array base instance.
   TNode<IntPtrT> LoadAndUntagFixedArrayBaseLength(TNode<FixedArrayBase> array);
@@ -1346,7 +1352,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Load the instance descriptors of a map.
   TNode<DescriptorArray> LoadMapDescriptors(TNode<Map> map);
   // Load the prototype of a map.
-  TNode<HeapObject> LoadMapPrototype(TNode<Map> map);
+  TNode<JSPrototype> LoadMapPrototype(TNode<Map> map);
   // Load the instance size of a Map.
   TNode<IntPtrT> LoadMapInstanceSizeInWords(TNode<Map> map);
   // Load the inobject properties start of a Map (valid only for JSObjects).
@@ -1488,7 +1494,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<typename Array::Shape::ElementT> LoadArrayElement(
       TNode<Array> array, TNode<TIndex> index, int additional_offset = 0) {
     return LoadArrayElement<Array, TIndex, typename Array::Shape::ElementT>(
-        array, Array::Shape::kHeaderSize, index, additional_offset);
+        array, OFFSET_OF_DATA_START(Array), index, additional_offset);
   }
 
   template <typename TIndex>
@@ -1546,6 +1552,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<FixedDoubleArray> object, TNode<IntPtrT> index,
       Label* if_hole = nullptr,
       MachineType machine_type = MachineType::Float64());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<Float64T> LoadFixedDoubleArrayElementWithUndefinedCheck(
+      TNode<FixedDoubleArray> object, TNode<IntPtrT> index, Label* if_undefined,
+      Label* if_hole, MachineType machine_type = MachineType::Float64());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
   // Load an array element from a FixedArray, FixedDoubleArray or a
   // NumberDictionary (depending on the |elements_kind|) and return
@@ -1569,12 +1580,21 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                           Label* if_hole = nullptr);
 
   TNode<BoolT> IsDoubleHole(TNode<Object> base, TNode<IntPtrT> offset);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<BoolT> IsDoubleUndefined(TNode<Object> base, TNode<IntPtrT> offset);
+  TNode<BoolT> IsDoubleUndefined(TNode<Float64T> value);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   // Load Float64 value by |base| + |offset| address. If the value is a double
   // hole then jump to |if_hole|. If |machine_type| is None then only the hole
   // check is generated.
   TNode<Float64T> LoadDoubleWithHoleCheck(
       TNode<Object> base, TNode<IntPtrT> offset, Label* if_hole,
       MachineType machine_type = MachineType::Float64());
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  TNode<Float64T> LoadDoubleWithUndefinedAndHoleCheck(
+      TNode<Object> base, TNode<IntPtrT> offset, Label* if_undefined,
+      Label* if_hole, MachineType machine_type = MachineType::Float64());
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   TNode<Numeric> LoadFixedTypedArrayElementAsTagged(TNode<RawPtrT> data_pointer,
                                                     TNode<UintPtrT> index,
                                                     ElementsKind elements_kind);
@@ -1840,7 +1860,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     // StoreFixedArrayOrPropertyArrayElement. We can make it more robust and
     // generic if needed.
     TNode<IntPtrT> offset = ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                                   Array::Shape::kHeaderSize);
+                                                   OFFSET_OF_DATA_START(Array));
     if (barrier_mode == SKIP_WRITE_BARRIER) {
       StoreObjectFieldNoWriteBarrier(object, offset, value);
     } else if (barrier_mode == UPDATE_WRITE_BARRIER) {
@@ -1885,8 +1905,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<Float64T> value, CheckBounds check_bounds = CheckBounds::kAlways);
 
   void StoreDoubleHole(TNode<HeapObject> object, TNode<IntPtrT> offset);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void StoreDoubleUndefined(TNode<HeapObject> object, TNode<IntPtrT> offset);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFixedDoubleArrayHole(TNode<FixedDoubleArray> array,
                                  TNode<IntPtrT> index);
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+  void StoreFixedDoubleArrayUndefined(TNode<FixedDoubleArray> array,
+                                      TNode<IntPtrT> index);
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
   void StoreFeedbackVectorSlot(
       TNode<FeedbackVector> feedback_vector, TNode<UintPtrT> slot,
       TNode<AnyTaggedT> value,
@@ -1946,6 +1973,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapNumber> AllocateHeapNumberWithValue(double value) {
     return AllocateHeapNumberWithValue(Float64Constant(value));
   }
+  TNode<HeapNumber> AllocateHeapInt32WithValue(TNode<Int32T> value);
 
   // Allocate a BigInt with {length} digits. Sets the sign bit to {false}.
   // Does not initialize the digits.
@@ -2295,8 +2323,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       HoleConversionMode convert_holes = HoleConversionMode::kDontConvert,
       TVariable<BoolT>* var_holes_converted = nullptr);
 
-  void JumpIfPointersFromHereAreInteresting(TNode<Object> object,
-                                            Label* interesting);
+  void TrySkipWriteBarrier(TNode<Object> object, Label* if_needs_write_barrier);
 
   // Efficiently copy elements within a single array. The regions
   // [src_index, src_index + length) and [dst_index, dst_index + length)
@@ -2450,7 +2477,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // * |source_map| is the map of |source|. It will be used as the map of the
   // target array if the target can stay a FixedDoubleArray. Otherwise if the
   // target array needs to be a FixedArray, the FixedArrayMap will be used.
-  // * |var_holes_converted| is used to signal whether a FixedAray
+  // * |var_holes_converted| is used to signal whether a FixedArray
   // is produced or not.
   // * |allocation_flags| and |extract_flags| influence how the target array is
   // allocated.
@@ -2532,6 +2559,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<IntPtrT> TryTaggedToInt32AsIntPtr(TNode<Object> value,
                                           Label* if_not_possible);
   TNode<Float64T> TryTaggedToFloat64(TNode<Object> value,
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+                                     Label* if_valueisundefined,
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
                                      Label* if_valueisnotnumber);
   TNode<Float64T> TruncateTaggedToFloat64(TNode<Context> context,
                                           TNode<Object> value);
@@ -2566,13 +2596,18 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Smi> TryHeapNumberToSmi(TNode<HeapNumber> number, Label* not_smi);
   TNode<Smi> TryFloat32ToSmi(TNode<Float32T> number, Label* not_smi);
   TNode<Smi> TryFloat64ToSmi(TNode<Float64T> number, Label* not_smi);
+  TNode<Int32T> TryFloat64ToInt32(TNode<Float64T> number, Label* if_failed);
+  TNode<AdditiveSafeIntegerT> TryFloat64ToAdditiveSafeInteger(
+      TNode<Float64T> number, Label* if_failed);
 
-  TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16T> value);
-  TNode<Float16T> BitcastUint32ToFloat16(TNode<Uint32T> value);
-  TNode<Float16T> RoundInt32ToFloat16(TNode<Int32T> value);
+  TNode<BoolT> IsAdditiveSafeInteger(TNode<Float64T> number);
 
-  TNode<Float64T> ChangeFloat16ToFloat64(TNode<Float16T> value);
-  TNode<Float32T> ChangeFloat16ToFloat32(TNode<Float16T> value);
+  TNode<Uint32T> BitcastFloat16ToUint32(TNode<Float16RawBitsT> value);
+  TNode<Float16RawBitsT> BitcastUint32ToFloat16(TNode<Uint32T> value);
+  TNode<Float16RawBitsT> RoundInt32ToFloat16(TNode<Int32T> value);
+
+  TNode<Float64T> ChangeFloat16ToFloat64(TNode<Float16RawBitsT> value);
+  TNode<Float32T> ChangeFloat16ToFloat32(TNode<Float16RawBitsT> value);
   TNode<Number> ChangeFloat32ToTagged(TNode<Float32T> value);
   TNode<Number> ChangeFloat64ToTagged(TNode<Float64T> value);
   TNode<Number> ChangeInt32ToTagged(TNode<Int32T> value);
@@ -2636,9 +2671,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // Throws a TypeError for {method_name} if {value} is neither of the given
   // {primitive_type} nor a JSPrimitiveWrapper wrapping a value of
   // {primitive_type}, or returns the {value} (or wrapped value) otherwise.
-  TNode<Object> ToThisValue(TNode<Context> context, TNode<Object> value,
-                            PrimitiveType primitive_type,
-                            char const* method_name);
+  TNode<JSAny> ToThisValue(TNode<Context> context, TNode<JSAny> value,
+                           PrimitiveType primitive_type,
+                           char const* method_name);
 
   // Throws a TypeError for {method_name} if {value} is not of the given
   // instance type.
@@ -2665,8 +2700,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void TerminateExecution(TNode<Context> context);
 
-  TNode<HeapObject> GetPendingMessage();
-  void SetPendingMessage(TNode<HeapObject> message);
+  TNode<Union<Hole, JSMessageObject>> GetPendingMessage();
+  void SetPendingMessage(TNode<Union<Hole, JSMessageObject>> message);
   TNode<BoolT> IsExecutionTerminating();
 
   TNode<Object> GetContinuationPreservedEmbedderData();
@@ -2807,7 +2842,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> IsString(TNode<HeapObject> object);
   TNode<Word32T> IsStringWrapper(TNode<HeapObject> object);
   TNode<BoolT> IsSeqOneByteString(TNode<HeapObject> object);
+  TNode<BoolT> IsSequentialString(TNode<HeapObject> object);
 
+  TNode<BoolT> IsSeqOneByteStringMap(TNode<Map> map);
   TNode<BoolT> IsSequentialStringMap(TNode<Map> map);
   TNode<BoolT> IsExternalStringMap(TNode<Map> map);
   TNode<BoolT> IsUncachedExternalStringMap(TNode<Map> map);
@@ -2858,6 +2895,29 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<BoolT> HasSharedStringTableFlag() {
     return LoadRuntimeFlag(
         ExternalReference::address_of_shared_string_table_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapNumberFlag() {
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_number_flag());
+  }
+
+  TNode<BoolT> IsScriptContextMutableHeapInt32Flag() {
+#ifdef SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+    return LoadRuntimeFlag(
+        ExternalReference::script_context_mutable_heap_int32_flag());
+#else
+    return BoolConstant(false);
+#endif  // SUPPORT_SCRIPT_CONTEXT_MUTABLE_HEAP_INT32
+  }
+
+  TNode<BoolT> IsAdditiveSafeIntegerFeedbackEnabled() {
+    if (Is64()) {
+      return LoadRuntimeFlag(
+          ExternalReference::additive_safe_int_feedback_flag());
+    } else {
+      return BoolConstant(false);
+    }
   }
 
   // True iff |object| is a Smi or a HeapNumber or a BigInt.
@@ -3394,7 +3454,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                               TVariable<IntPtrT>* var_entry,
                               Label* if_not_found);
 
-  TNode<Object> BasicLoadNumberDictionaryElement(
+  TNode<JSAny> BasicLoadNumberDictionaryElement(
       TNode<NumberDictionary> dictionary, TNode<IntPtrT> intptr_index,
       Label* not_data, Label* if_hole);
 
@@ -3449,13 +3509,13 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // field it re-wraps value in an immutable heap number. {unique_name} must be
   // a unique name (Symbol or InternalizedString) that is not an array index.
   void TryGetOwnProperty(
-      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Context> context, TNode<JSAny> receiver, TNode<JSReceiver> object,
       TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
       Label* if_found_value, TVariable<Object>* var_value, Label* if_not_found,
       Label* if_bailout,
       ExpectedReceiverMode expected_receiver_mode = kExpectingAnyReceiver);
   void TryGetOwnProperty(
-      TNode<Context> context, TNode<Object> receiver, TNode<JSReceiver> object,
+      TNode<Context> context, TNode<JSAny> receiver, TNode<JSReceiver> object,
       TNode<Map> map, TNode<Int32T> instance_type, TNode<Name> unique_name,
       Label* if_found_value, TVariable<Object>* var_value,
       TVariable<Uint32T>* var_details, TVariable<Object>* var_raw_value,
@@ -3468,29 +3528,28 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
       TNode<PropertyDescriptorObject> descriptor, TNode<Object> value,
       TNode<Uint32T> details, Label* if_bailout);
 
-  TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
-                            Handle<Name> name) {
+  TNode<JSAny> GetProperty(TNode<Context> context, TNode<JSAny> receiver,
+                           Handle<Name> name) {
     return GetProperty(context, receiver, HeapConstantNoHole(name));
   }
 
-  TNode<Object> GetProperty(TNode<Context> context, TNode<Object> receiver,
-                            TNode<Object> name) {
-    return CallBuiltin(Builtin::kGetProperty, context, receiver, name);
+  TNode<JSAny> GetProperty(TNode<Context> context, TNode<JSAny> receiver,
+                           TNode<Object> name) {
+    return CallBuiltin<JSAny>(Builtin::kGetProperty, context, receiver, name);
   }
 
   TNode<BoolT> IsInterestingProperty(TNode<Name> name);
-  TNode<Object> GetInterestingProperty(TNode<Context> context,
-                                       TNode<JSReceiver> receiver,
-                                       TNode<Name> name, Label* if_not_found);
-  TNode<Object> GetInterestingProperty(TNode<Context> context,
-                                       TNode<Object> receiver,
-                                       TVariable<HeapObject>* var_holder,
-                                       TVariable<Map>* var_holder_map,
-                                       TNode<Name> name, Label* if_not_found);
+  TNode<JSAny> GetInterestingProperty(TNode<Context> context,
+                                      TNode<JSReceiver> receiver,
+                                      TNode<Name> name, Label* if_not_found);
+  TNode<JSAny> GetInterestingProperty(TNode<Context> context,
+                                      TNode<JSAny> receiver,
+                                      TVariable<JSAnyNotSmi>* var_holder,
+                                      TVariable<Map>* var_holder_map,
+                                      TNode<Name> name, Label* if_not_found);
 
-  TNode<Object> SetPropertyStrict(TNode<Context> context,
-                                  TNode<Object> receiver, TNode<Object> key,
-                                  TNode<Object> value) {
+  TNode<Object> SetPropertyStrict(TNode<Context> context, TNode<JSAny> receiver,
+                                  TNode<Object> key, TNode<Object> value) {
     return CallBuiltin(Builtin::kSetProperty, context, receiver, key, value);
   }
 
@@ -3501,15 +3560,15 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                        value);
   }
 
-  TNode<Object> GetMethod(TNode<Context> context, TNode<Object> object,
-                          Handle<Name> name, Label* if_null_or_undefined);
+  TNode<JSAny> GetMethod(TNode<Context> context, TNode<JSAny> object,
+                         Handle<Name> name, Label* if_null_or_undefined);
 
-  TNode<Object> GetIteratorMethod(TNode<Context> context,
-                                  TNode<HeapObject> heap_obj,
-                                  Label* if_iteratorundefined);
+  TNode<JSAny> GetIteratorMethod(TNode<Context> context,
+                                 TNode<JSAnyNotSmi> heap_obj,
+                                 Label* if_iteratorundefined);
 
-  TNode<Object> CreateAsyncFromSyncIterator(TNode<Context> context,
-                                            TNode<Object> sync_iterator);
+  TNode<JSAny> CreateAsyncFromSyncIterator(TNode<Context> context,
+                                           TNode<JSAny> sync_iterator);
   TNode<JSObject> CreateAsyncFromSyncIterator(TNode<Context> context,
                                               TNode<JSReceiver> sync_iterator,
                                               TNode<Object> next);
@@ -3589,14 +3648,14 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // This is a type of a lookup property in holder generator function. The {key}
   // is guaranteed to be an unique name.
   using LookupPropertyInHolder = std::function<void(
-      TNode<HeapObject> receiver, TNode<HeapObject> holder, TNode<Map> map,
+      TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder, TNode<Map> map,
       TNode<Int32T> instance_type, TNode<Name> key, Label* next_holder,
       Label* if_bailout)>;
 
   // This is a type of a lookup element in holder generator function. The {key}
   // is an Int32 index.
   using LookupElementInHolder = std::function<void(
-      TNode<HeapObject> receiver, TNode<HeapObject> holder, TNode<Map> map,
+      TNode<JSAnyNotSmi> receiver, TNode<JSAnyNotSmi> holder, TNode<Map> map,
       TNode<Int32T> instance_type, TNode<IntPtrT> key, Label* next_holder,
       Label* if_bailout)>;
 
@@ -3608,7 +3667,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   // to {if_bailout}.
   // If {if_proxy} is nullptr, proxies go to if_bailout.
   void TryPrototypeChainLookup(
-      TNode<Object> receiver, TNode<Object> object, TNode<Object> key,
+      TNode<JSAny> receiver, TNode<JSAny> object, TNode<Object> key,
       const LookupPropertyInHolder& lookup_property_in_holder,
       const LookupElementInHolder& lookup_element_in_holder, Label* if_end,
       Label* if_bailout, Label* if_proxy, bool handle_private_names = false);
@@ -3624,6 +3683,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Boolean> OrdinaryHasInstance(TNode<Context> context,
                                      TNode<Object> callable,
                                      TNode<Object> object);
+
+  TNode<BytecodeArray> LoadBytecodeArrayFromBaseline();
 
   // Load type feedback vector from the stub caller's frame.
   TNode<FeedbackVector> LoadFeedbackVectorForStub();
@@ -3761,10 +3822,19 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> LoadNestedAllocationSite(TNode<AllocationSite> allocation_site);
 
   enum class IndexAdvanceMode { kPre, kPost };
+  enum class IndexAdvanceDirection { kUp, kDown };
   enum class LoopUnrollingMode { kNo, kYes };
 
   template <typename TIndex>
   using FastLoopBody = std::function<void(TNode<TIndex> index)>;
+
+  template <typename TIndex>
+  void BuildFastLoop(const VariableList& vars, TVariable<TIndex>& var_index,
+                     TNode<TIndex> start_index, TNode<TIndex> end_index,
+                     const FastLoopBody<TIndex>& body, TNode<TIndex> increment,
+                     LoopUnrollingMode unrolling_mode,
+                     IndexAdvanceMode advance_mode,
+                     IndexAdvanceDirection advance_direction);
 
   template <typename TIndex>
   void BuildFastLoop(const VariableList& vars, TVariable<TIndex>& var_index,
@@ -3823,7 +3893,8 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   template <typename TIndex>
   TNode<IntPtrT> GetFixedArrayAllocationSize(TNode<TIndex> element_count,
                                              ElementsKind kind) {
-    return GetArrayAllocationSize(element_count, kind, FixedArray::kHeaderSize);
+    return GetArrayAllocationSize(element_count, kind,
+                                  OFFSET_OF_DATA_START(FixedArray));
   }
 
   TNode<IntPtrT> GetPropertyArrayAllocationSize(TNode<IntPtrT> element_count) {
@@ -3962,7 +4033,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   enum HasPropertyLookupMode { kHasProperty, kForInHasProperty };
 
-  TNode<Boolean> HasProperty(TNode<Context> context, TNode<Object> object,
+  TNode<Boolean> HasProperty(TNode<Context> context, TNode<JSAny> object,
                              TNode<Object> key, HasPropertyLookupMode mode);
 
   // Due to naming conflict with the builtin function namespace.
@@ -3986,10 +4057,10 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<HeapObject> GetSuperConstructor(TNode<JSFunction> active_function);
 
   TNode<JSReceiver> SpeciesConstructor(TNode<Context> context,
-                                       TNode<Object> object,
+                                       TNode<JSAny> object,
                                        TNode<JSReceiver> default_constructor);
 
-  TNode<Boolean> InstanceOf(TNode<Object> object, TNode<Object> callable,
+  TNode<Boolean> InstanceOf(TNode<Object> object, TNode<JSAny> callable,
                             TNode<Context> context);
 
   // Debug helpers
@@ -4063,9 +4134,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                         int base_size = 0);
   template <typename Array, typename TIndex>
   TNode<IntPtrT> OffsetOfElementAt(TNode<TIndex> index) {
-    static_assert(Array::Shape::kElementSize == kTaggedSize);
+    static_assert(Array::kElementSize == kTaggedSize);
     return ElementOffsetFromIndex(index, PACKED_ELEMENTS,
-                                  Array::kHeaderSize - kHeapObjectTag);
+                                  OFFSET_OF_DATA_START(Array) - kHeapObjectTag);
   }
 
   // Check that a field offset is within the bounds of the an object.
@@ -4078,15 +4149,41 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
 #ifdef V8_ENABLE_LEAPTIERING
   // Load a builtin's handle into the JSDispatchTable.
+#if V8_STATIC_DISPATCH_HANDLES_BOOL
   TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(
       JSBuiltinDispatchHandleRoot::Idx dispatch_root_idx);
-  inline TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(RootIndex idx) {
-    return LoadBuiltinDispatchHandle(JSBuiltinDispatchHandleRoot::to_idx(idx));
-  }
+#endif  // V8_STATIC_DISPATCH_HANDLES_BOOL
+  TNode<JSDispatchHandleT> LoadBuiltinDispatchHandle(RootIndex idx);
 
-  // Load a Code object from the JSDispatchTable.
-  TNode<Code> ResolveJSDispatchHandle(TNode<JSDispatchHandleT> dispatch_handle);
+  // Load the Code object of a JSDispatchTable entry.
+  TNode<Code> LoadCodeObjectFromJSDispatchTable(
+      TNode<JSDispatchHandleT> dispatch_handle);
+  // Load the parameter count of a JSDispatchTable entry.
+  TNode<Uint16T> LoadParameterCountFromJSDispatchTable(
+      TNode<JSDispatchHandleT> dispatch_handle);
+
+  TNode<UintPtrT> ComputeJSDispatchTableEntryOffset(
+      TNode<JSDispatchHandleT> handle);
 #endif
+
+  // Indicate that this code must support a dynamic parameter count.
+  //
+  // This is used for builtins that must work on functions with different
+  // parameter counts. In that case, the true JS parameter count is only known
+  // at runtime and must be obtained in order to compute the total number of
+  // arguments (which may include padding arguments). The parameter count is
+  // subsequently available through the corresponding CodeAssembler accessors.
+  // The target function object and the dispatch handle need to be passed in
+  // and are used to obtain the actual parameter count of the called function.
+  //
+  // This should generally be invoked directly at the start of the function.
+  //
+  // TODO(saelo): it would be a bit nicer if this would happen automatically in
+  // the function prologue for functions marked as requiring this (e.g. via the
+  // call descriptor). It's not clear if that's worth the effort though for the
+  // handful of builtins that need this.
+  void SetSupportsDynamicParameterCount(
+      TNode<JSFunction> callee, TNode<JSDispatchHandleT> dispatch_handle);
 
   // Figure out the SFI's code object using its data field.
   // If |data_type_out| is provided, the instance type of the function data will
@@ -4148,11 +4245,11 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Map> CheckEnumCache(TNode<JSReceiver> receiver, Label* if_empty,
                             Label* if_runtime);
 
-  TNode<Object> GetArgumentValue(TorqueStructArguments args,
-                                 TNode<IntPtrT> index);
+  TNode<JSAny> GetArgumentValue(TorqueStructArguments args,
+                                TNode<IntPtrT> index);
 
   void SetArgumentValue(TorqueStructArguments args, TNode<IntPtrT> index,
-                        TNode<Object> value);
+                        TNode<JSAny> value);
 
   enum class FrameArgumentsArgcType {
     kCountIncludesReceiver,
@@ -4290,7 +4387,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
 
   void PerformStackCheck(TNode<Context> context);
 
-  void SetPropertyLength(TNode<Context> context, TNode<Object> array,
+  void SetPropertyLength(TNode<Context> context, TNode<JSAny> array,
                          TNode<Number> length);
 
   // Implements DescriptorArray::Search().
@@ -4388,9 +4485,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
                                     Label* bailout);
 
   TNode<Object> CallGetterIfAccessor(
-      TNode<Object> value, TNode<HeapObject> holder, TNode<Uint32T> details,
-      TNode<Context> context, TNode<Object> receiver, TNode<Object> name,
-      Label* if_bailout,
+      TNode<Object> value, TNode<Union<JSReceiver, PropertyCell>> holder,
+      TNode<Uint32T> details, TNode<Context> context, TNode<JSAny> receiver,
+      TNode<Object> name, Label* if_bailout,
       GetOwnPropertyMode mode = kCallJSGetterDontUseCachedName,
       ExpectedReceiverMode expected_receiver_mode = kExpectingJSReceiver);
 
@@ -4404,10 +4501,6 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   TNode<Object> CloneIfMutablePrimitive(TNode<Object> object);
 
   TNode<Smi> RefillMathRandom(TNode<NativeContext> native_context);
-
-  void RemoveFinalizationRegistryCellFromUnregisterTokenMap(
-      TNode<JSFinalizationRegistry> finalization_registry,
-      TNode<WeakCell> weak_cell);
 
   TNode<IntPtrT> FeedbackIteratorEntrySize() {
     return IntPtrConstant(FeedbackIterator::kEntrySize);
@@ -4508,7 +4601,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
-             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+             IntPtrConstant(MemoryChunk::FlagsOffset())));
     return WordNotEqual(WordAnd(flags, IntPtrConstant(mask)),
                         IntPtrConstant(0));
   }
@@ -4517,7 +4610,7 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
     TNode<IntPtrT> header = MemoryChunkFromAddress(object);
     TNode<IntPtrT> flags = UncheckedCast<IntPtrT>(
         Load(MachineType::Pointer(), header,
-             IntPtrConstant(MemoryChunkLayout::kFlagsOffset)));
+             IntPtrConstant(MemoryChunk::FlagsOffset())));
     return WordEqual(WordAnd(flags, IntPtrConstant(mask)), IntPtrConstant(0));
   }
 
@@ -4654,9 +4747,9 @@ class V8_EXPORT_PRIVATE CodeStubAssembler
   void StoreElement(TNode<FixedArrayBase> elements, ElementsKind kind,
                     TNode<TIndex> index, TNode<Float64T> value);
 
-  // Converts {input} to a number if {input} is a plain primitve (i.e. String or
-  // Oddball) and stores the result in {var_result}. Otherwise, it bails out to
-  // {if_bailout}.
+  // Converts {input} to a number if {input} is a plain primitive (i.e. String
+  // or Oddball) and stores the result in {var_result}. Otherwise, it bails out
+  // to {if_bailout}.
   void TryPlainPrimitiveNonNumberToNumber(TNode<HeapObject> input,
                                           TVariable<Number>* var_result,
                                           Label* if_bailout);
@@ -4696,18 +4789,21 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
         base_(torque_arguments.base),
         fp_(torque_arguments.frame) {}
 
-  TNode<Object> GetReceiver() const;
+  // Return true if there may be additional padding arguments, false otherwise.
+  bool MayHavePaddingArguments() const;
+
+  TNode<JSAny> GetReceiver() const;
   // Replaces receiver argument on the expression stack. Should be used only
   // for manipulating arguments in trampoline builtins before tail calling
   // further with passing all the JS arguments as is.
-  void SetReceiver(TNode<Object> object) const;
+  void SetReceiver(TNode<JSAny> object) const;
 
   // Computes address of the index'th argument.
   TNode<RawPtrT> AtIndexPtr(TNode<IntPtrT> index) const;
 
   // |index| is zero-based and does not include the receiver
-  TNode<Object> AtIndex(TNode<IntPtrT> index) const;
-  TNode<Object> AtIndex(int index) const;
+  TNode<JSAny> AtIndex(TNode<IntPtrT> index) const;
+  TNode<JSAny> AtIndex(int index) const;
 
   // Return the number of arguments (excluding the receiver).
   TNode<IntPtrT> GetLengthWithoutReceiver() const;
@@ -4718,19 +4814,19 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
     return TorqueStructArguments{fp_, base_, GetLengthWithoutReceiver(), argc_};
   }
 
-  TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index,
-                                         TNode<Object> default_value);
-  TNode<Object> GetOptionalArgumentValue(TNode<IntPtrT> index) {
+  TNode<JSAny> GetOptionalArgumentValue(TNode<IntPtrT> index,
+                                        TNode<JSAny> default_value);
+  TNode<JSAny> GetOptionalArgumentValue(TNode<IntPtrT> index) {
     return GetOptionalArgumentValue(index, assembler_->UndefinedConstant());
   }
-  TNode<Object> GetOptionalArgumentValue(int index) {
+  TNode<JSAny> GetOptionalArgumentValue(int index) {
     return GetOptionalArgumentValue(assembler_->IntPtrConstant(index));
   }
 
-  void SetArgumentValue(TNode<IntPtrT> index, TNode<Object> value);
+  void SetArgumentValue(TNode<IntPtrT> index, TNode<JSAny> value);
 
   // Iteration doesn't include the receiver. |first| and |last| are zero-based.
-  using ForEachBodyFunction = std::function<void(TNode<Object> arg)>;
+  using ForEachBodyFunction = std::function<void(TNode<JSAny> arg)>;
   void ForEach(const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
                TNode<IntPtrT> last = {}) const {
     CodeStubAssembler::VariableList list(0, assembler_->zone());
@@ -4740,7 +4836,7 @@ class V8_EXPORT_PRIVATE CodeStubArguments {
                const ForEachBodyFunction& body, TNode<IntPtrT> first = {},
                TNode<IntPtrT> last = {}) const;
 
-  void PopAndReturn(TNode<Object> value);
+  void PopAndReturn(TNode<JSAny> value);
 
  private:
   CodeStubAssembler* assembler_;
@@ -4767,6 +4863,10 @@ class ToDirectStringAssembler : public CodeStubAssembler {
   // Jumps to if_bailout if the string if the string is indirect and cannot
   // be unpacked.
   TNode<String> TryToDirect(Label* if_bailout);
+
+  // As above, but flattens in runtime if the string cannot be unpacked
+  // otherwise.
+  TNode<String> ToDirect();
 
   // Returns a pointer to the beginning of the string data.
   // Jumps to if_bailout if the external string cannot be unpacked.

@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_CCTEST_TEST_HELPER_RISCV_H_
-#define V8_CCTEST_TEST_HELPER_RISCV_H_
+#ifndef V8_CCTEST_TEST_HELPER_RISCV32_H_
+#define V8_CCTEST_TEST_HELPER_RISCV32_H_
 
 #include "src/codegen/assembler-inl.h"
 #include "src/codegen/macro-assembler.h"
@@ -338,4 +338,4 @@ T UseCanonicalNan(T x) {
 }  // namespace internal
 }  // namespace v8
 
-#endif  // V8_CCTEST_TEST_HELPER_RISCV_H_
+#endif  // V8_CCTEST_TEST_HELPER_RISCV32_H_

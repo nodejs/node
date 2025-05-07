@@ -12,6 +12,10 @@ namespace v8::internal {
 
 class IsolateGroup;
 
+#ifdef V8_ENABLE_SANDBOX
+class Sandbox;
+#endif  // V8_ENABLE_SANDBOX
+
 // This is just a collection of common compression scheme related functions.
 // Each pointer compression cage then has its own compression scheme, which
 // mainly differes in the cage base address they use.
@@ -78,8 +82,10 @@ using V8HeapCompressionScheme = V8HeapCompressionSchemeImpl<MainCage>;
 class TrustedCage : public AllStatic {
   friend class V8HeapCompressionSchemeImpl<TrustedCage>;
 
-  // The TrustedCage is only used in the shared cage build configuration, so
-  // there is no need for a thread_local version.
+  // Just to unify code with other cages in the multi-cage mode.
+  static V8_EXPORT_PRIVATE Address base_non_inlined();
+  static V8_EXPORT_PRIVATE void set_base_non_inlined(Address base);
+
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
 };
 using TrustedSpaceCompressionScheme = V8HeapCompressionSchemeImpl<TrustedCage>;
@@ -98,18 +104,46 @@ class SmiCompressionScheme : public AllStatic {
   }
 
   static Tagged_t CompressObject(Address tagged) {
-    V8_ASSUME(HAS_SMI_TAG(tagged));
+    DCHECK(HAS_SMI_TAG(tagged));
     return static_cast<Tagged_t>(tagged);
   }
 };
 
 #ifdef V8_EXTERNAL_CODE_SPACE
 // Compression scheme used for fields containing InstructionStream objects
-// (namely for the Code::code field). Same as
-// V8HeapCompressionScheme but with a different base value.
-// TODO(ishell): consider also using V8HeapCompressionSchemeImpl here unless
-// this becomes a different compression scheme that allows crossing the 4GB
-// boundary.
+// (namely for the Code::code field).
+// Unlike the V8HeapCompressionScheme this one allows the cage to cross 4GB
+// boundary at a price of making decompression slightly more complex.
+// The former outweighs the latter because it gives us more flexibility in
+// allocating the code range closer to .text section in the process address
+// space. At the same time decompression of the external code field happens
+// relatively rarely during GC.
+// The base can be any value such that [base, base + 4GB) contains the whole
+// code range.
+//
+// This scheme works as follows:
+//    --|----------{---------|------}--------------|--
+//     4GB         |        4GB     |             4GB
+//                 +-- code range --+
+//                 |
+//             cage base
+//
+// * Cage base value is OS page aligned for simplicity (although it's not
+//   strictly necessary).
+// * Code range size is smaller than or equal to 4GB.
+// * Compression is just a truncation to 32-bits value.
+// * Decompression of a pointer:
+//   - if "compressed" cage base is <= than compressed value then one just
+//     needs to OR the upper 32-bits of the case base to get the decompressed
+//     value.
+//   - if compressed value is smaller than "compressed" cage base then ORing
+//     the upper 32-bits of the cage base is not enough because the resulting
+//     value will be off by 4GB, which has to be added to the result.
+//   - note that decompression doesn't modify the lower 32-bits of the value.
+// * Decompression of Smi values is made a no-op for simplicity given that
+//   on the hot paths of decompressing the Code pointers it's already known
+//   that the value is not a Smi.
+//
 class ExternalCodeCompressionScheme {
  public:
   V8_INLINE static Address PrepareCageBaseAddress(Address on_heap_addr);
@@ -155,8 +189,8 @@ class ExternalCodeCompressionScheme {
  private:
   // These non-inlined accessors to base_ field are used in component builds
   // where cross-component access to thread local variables is not allowed.
-  static Address base_non_inlined();
-  static void set_base_non_inlined(Address base);
+  static V8_EXPORT_PRIVATE Address base_non_inlined();
+  static V8_EXPORT_PRIVATE void set_base_non_inlined(Address base);
 
 #ifdef V8_COMPRESS_POINTERS_IN_SHARED_CAGE
   static V8_EXPORT_PRIVATE uintptr_t base_ V8_CONSTINIT;
@@ -208,25 +242,32 @@ static inline void WriteMaybeUnalignedValue(Address p, V value) {
 // When multi-cage pointer compression mode is enabled this scope object
 // saves current cage's base values and sets them according to given Isolate.
 // For all other configurations this scope object is a no-op.
-class PtrComprCageAccessScope final {
- public:
+// Note: In most cases you want a full `SetCurrentIsolateScope` which also
+// updates TLS to make the isolate the "current" isolate.
 #ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+class V8_NODISCARD PtrComprCageAccessScope final {
+ public:
   V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate);
   V8_INLINE ~PtrComprCageAccessScope();
-#else
-  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
-  V8_INLINE ~PtrComprCageAccessScope() {}
-#endif
 
  private:
-#ifdef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   const Address cage_base_;
 #ifdef V8_EXTERNAL_CODE_SPACE
   const Address code_cage_base_;
 #endif  // V8_EXTERNAL_CODE_SPACE
   IsolateGroup* saved_current_isolate_group_;
+#ifdef V8_ENABLE_SANDBOX
+  Sandbox* saved_current_sandbox_;
 #endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
 };
+#else   // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+class V8_NODISCARD PtrComprCageAccessScope final {
+ public:
+  V8_INLINE explicit PtrComprCageAccessScope(Isolate* isolate) {}
+};
+#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
+
+V8_INLINE PtrComprCageBase GetPtrComprCageBase();
 
 }  // namespace v8::internal
 

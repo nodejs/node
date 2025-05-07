@@ -39,9 +39,9 @@
 #include "src/wasm/wasm-engine.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
 #include "src/diagnostics/etw-jit-win.h"
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
 namespace v8 {
 namespace internal {
@@ -107,12 +107,12 @@ void V8::InitializePlatform(v8::Platform* platform) {
   platform_ = platform;
   v8::base::SetPrintStackTrace(platform_->GetStackTracePrinter());
   v8::tracing::TracingCategoryObserver::SetUp();
-#if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
-    // TODO(sartang@microsoft.com): Move to platform specific diagnostics object
+#if defined(V8_ENABLE_ETW_STACK_WALKING)
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     v8::internal::ETWJITInterface::Register();
   }
-#endif
+#endif  // V8_ENABLE_ETW_STACK_WALKING
 
   // Initialization needs to happen on platform-level, as this sets up some
   // cppgc internals that are needed to allow gracefully failing during cppgc
@@ -131,13 +131,6 @@ void V8::InitializePlatformForTesting(v8::Platform* platform) {
   }
   V8::InitializePlatform(platform);
 }
-
-#define DISABLE_FLAG(flag)                                                    \
-  if (v8_flags.flag) {                                                        \
-    PrintF(stderr,                                                            \
-           "Warning: disabling flag --" #flag " due to conflicting flags\n"); \
-    v8_flags.flag = false;                                                    \
-  }
 
 void V8::Initialize() {
   AdvanceStartupState(V8StartupState::kV8Initializing);
@@ -197,11 +190,8 @@ void V8::Initialize() {
 
 #ifdef V8_ENABLE_SANDBOX
   // If enabled, the sandbox must be initialized first.
-  GetProcessWideSandbox()->Initialize(GetPlatformVirtualAddressSpace());
-  CHECK_EQ(kSandboxSize, GetProcessWideSandbox()->size());
-
-  GetProcessWideCodePointerTable()->Initialize();
-  JSDispatchTable::Initialize();
+  Sandbox::InitializeDefaultOncePerProcess(GetPlatformVirtualAddressSpace());
+  CHECK_EQ(kSandboxSize, Sandbox::current()->size());
 
   // Enable sandbox testing mode if requested.
   //
@@ -242,15 +232,10 @@ void V8::Initialize() {
   wasm::WasmEngine::InitializeOncePerProcess();
 #endif  // V8_ENABLE_WEBASSEMBLY
 
-#ifndef V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
   ExternalReferenceTable::InitializeOncePerIsolateGroup(
       IsolateGroup::current()->external_ref_table());
-#endif  // V8_COMPRESS_POINTERS_IN_MULTIPLE_CAGES
-
   AdvanceStartupState(V8StartupState::kV8Initialized);
 }
-
-#undef DISABLE_FLAG
 
 void V8::Dispose() {
   AdvanceStartupState(V8StartupState::kV8Disposing);
@@ -265,6 +250,7 @@ void V8::Dispose() {
   ElementsAccessor::TearDown();
   RegisteredExtension::UnregisterAll();
   FlagList::ReleaseDynamicAllocations();
+  IsolateGroup::TearDownOncePerProcess();
   AdvanceStartupState(V8StartupState::kV8Disposed);
 }
 
@@ -272,7 +258,8 @@ void V8::DisposePlatform() {
   AdvanceStartupState(V8StartupState::kPlatformDisposing);
   CHECK(platform_);
 #if defined(V8_OS_WIN) && defined(V8_ENABLE_ETW_STACK_WALKING)
-  if (v8_flags.enable_etw_stack_walking) {
+  if (v8_flags.enable_etw_stack_walking ||
+      v8_flags.enable_etw_by_custom_filter_only) {
     v8::internal::ETWJITInterface::Unregister();
   }
 #endif
@@ -280,9 +267,7 @@ void V8::DisposePlatform() {
   v8::base::SetPrintStackTrace(nullptr);
 
 #ifdef V8_ENABLE_SANDBOX
-  // TODO(chromium:1218005) alternatively, this could move to its own
-  // public TearDownSandbox function.
-  GetProcessWideSandbox()->TearDown();
+  Sandbox::TearDownDefault();
 #endif  // V8_ENABLE_SANDBOX
 
   platform_ = nullptr;

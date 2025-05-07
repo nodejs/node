@@ -6,6 +6,7 @@
 #define V8_EXECUTION_ARGUMENTS_INL_H_
 
 #include "src/execution/arguments.h"
+// Include the non-inl header before the rest of the headers.
 
 #include "src/handles/handles-inl.h"
 #include "src/objects/objects-inl.h"  // TODO(jkummerow): Just smi-inl.h.
@@ -19,7 +20,7 @@ Arguments<T>::ChangeValueScope::ChangeValueScope(Isolate* isolate,
                                                  Arguments* args, int index,
                                                  Tagged<Object> value)
     : location_(args->address_of_arg_at(index)) {
-  old_value_ = handle(Tagged<Object>(*location_), isolate);
+  old_value_ = direct_handle(Tagged<Object>(*location_), isolate);
   *location_ = value.ptr();
 }
 

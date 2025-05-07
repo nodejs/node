@@ -24,13 +24,14 @@
 #ifndef ABSL_RANDOM_BIT_GEN_REF_H_
 #define ABSL_RANDOM_BIT_GEN_REF_H_
 
+#include <cstdint>
 #include <limits>
 #include <type_traits>
 #include <utility>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
 #include "absl/base/internal/fast_type_id.h"
-#include "absl/base/macros.h"
 #include "absl/meta/type_traits.h"
 #include "absl/random/internal/distribution_caller.h"
 #include "absl/random/internal/fast_uniform_bits.h"
@@ -87,7 +88,7 @@ class MockHelpers;
 //
 class BitGenRef {
   // SFINAE to detect whether the URBG type includes a member matching
-  // bool InvokeMock(base_internal::FastTypeIdType, void*, void*).
+  // bool InvokeMock(key_id, args_tuple*, result*).
   //
   // These live inside BitGenRef so that they have friend access
   // to MockingBitGen. (see similar methods in DistributionCaller).
@@ -157,19 +158,19 @@ class BitGenRef {
 
   // Get a type-erased InvokeMock pointer.
   template <typename URBG>
-  static bool MockCall(uintptr_t gen_ptr, base_internal::FastTypeIdType type,
+  static bool MockCall(uintptr_t gen_ptr, base_internal::FastTypeIdType key_id,
                        void* result, void* arg_tuple) {
-    return reinterpret_cast<URBG*>(gen_ptr)->InvokeMock(type, result,
+    return reinterpret_cast<URBG*>(gen_ptr)->InvokeMock(key_id, result,
                                                         arg_tuple);
   }
   static bool NotAMock(uintptr_t, base_internal::FastTypeIdType, void*, void*) {
     return false;
   }
 
-  inline bool InvokeMock(base_internal::FastTypeIdType type, void* args_tuple,
+  inline bool InvokeMock(base_internal::FastTypeIdType key_id, void* args_tuple,
                          void* result) {
     if (mock_call_ == NotAMock) return false;  // avoids an indirect call.
-    return mock_call_(t_erased_gen_ptr_, type, args_tuple, result);
+    return mock_call_(t_erased_gen_ptr_, key_id, args_tuple, result);
   }
 
   uintptr_t t_erased_gen_ptr_;

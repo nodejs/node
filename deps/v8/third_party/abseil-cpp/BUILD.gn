@@ -96,6 +96,7 @@ group("absl_component_deps") {
     "//third_party/abseil-cpp/absl/numeric:bits",
     "//third_party/abseil-cpp/absl/numeric:int128",
     "//third_party/abseil-cpp/absl/random",
+    "//third_party/abseil-cpp/absl/random:bit_gen_ref",
     "//third_party/abseil-cpp/absl/random:distributions",
     "//third_party/abseil-cpp/absl/status",
     "//third_party/abseil-cpp/absl/status:statusor",
@@ -120,6 +121,9 @@ group("absl_component_deps") {
     # base/logging.cc uses this non-public absl dependency while there no better
     # alternative to inject abort hook. See notes in `base/logging.cc`.
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
+
+    # absl internal utilities used by protobuf.
+    "//third_party/abseil-cpp/absl/container:layout",
   ]
 
   if (is_component_build) {
@@ -159,6 +163,7 @@ source_set("absl_full") {
       # part of Chrome.
       "//components/optimization_guide/internal/*",
       "//third_party/fuzztest:*",
+      "//third_party/webrtc/*",
 
       # GoogleTest doesn't actually need absl_full, but this makes gn check
       # happier.
@@ -181,11 +186,6 @@ group("absl_full_deps") {
     # those macros.
     "//third_party/abseil-cpp/absl/log",
     "//third_party/abseil-cpp/absl/log:check",
-
-    # TODO(danilchap): Investigate if these targets need to be banned in 3rd party library code.
-    "//third_party/abseil-cpp/absl/log:globals",
-    "//third_party/abseil-cpp/absl/log:initialize",
-    "//third_party/abseil-cpp/absl/random:bit_gen_ref",
   ]
 
   visibility = [
@@ -233,18 +233,6 @@ config("absl_default_cflags_cc") {
   }
 }
 
-config("absl_public_cflags_cc") {
-  # Non-chromium users of abseil have more lax style guides and use additional features in
-  # abseil, Remove a few extra warnings for that use case.
-  if (!build_with_chromium && is_clang) {
-    cflags = [
-      # Allow the use of enable_if()
-      "-Wno-gcc-compat",
-      "-Wno-unreachable-code-break",
-    ]
-  }
-}
-
 config("absl_test_cflags_cc") {
   cflags_cc = []
   if (is_clang || !is_win) {
@@ -287,7 +275,9 @@ if (absl_build_tests) {
       deps = [
         "absl/algorithm:algorithm_test",
         "absl/algorithm:container_test",
+        "absl/base:attributes_test",
         "absl/base:config_test",
+        "absl/base:iterator_traits_test",
         "absl/base:no_destructor_test",
         "absl/base:nullability_default_nonnull_test",
         "absl/base:nullability_test",
@@ -296,9 +286,6 @@ if (absl_build_tests) {
         "absl/base:tracing_internal_strong_test",
         "absl/base:tracing_internal_weak_test",
         "absl/cleanup:cleanup_test",
-
-        # TODO(mbonadei): Fix issue with EXPECT_DEATH and uncomment.
-        # "absl/container:btree_test",
         "absl/container:common_policy_traits_test",
         "absl/container:fixed_array_test",
         "absl/container:flat_hash_map_test",
@@ -309,7 +296,6 @@ if (absl_build_tests) {
         "absl/container:node_hash_set_test",
         "absl/container:node_slot_policy_test",
         "absl/container:raw_hash_set_allocator_test",
-        "absl/container:raw_hash_set_test",
         "absl/container:sample_element_size_test",
         "absl/crc:crc32c_test",
         "absl/crc:crc_cord_state_test",
@@ -343,6 +329,7 @@ if (absl_build_tests) {
         "absl/log:vlog_is_on_test",
         "absl/log/internal:fnmatch_test",
         "absl/log/internal:stderr_log_sink_test",
+        "absl/log/internal:structured_proto_test",
         "absl/memory:memory_test",
         "absl/meta:type_traits_test",
         "absl/numeric:int128_test",
@@ -350,6 +337,7 @@ if (absl_build_tests) {
         "absl/profiling:periodic_sampler_test",
         "absl/random:distributions_test",
         "absl/random:mock_distributions_test",
+        "absl/random/internal:nonsecure_base_test",
         "absl/status:status_matchers_test",
         "absl/status:status_test",
         "absl/status:statusor_test",
@@ -362,9 +350,12 @@ if (absl_build_tests) {
         "absl/strings:cord_rep_btree_reader_test",
         "absl/strings:cord_rep_btree_test",
         "absl/strings:cord_rep_crc_test",
+        "absl/strings:cord_test",
         "absl/strings:cordz_functions_test",
+        "absl/strings:cordz_handle_test",
         "absl/strings:cordz_info_statistics_test",
         "absl/strings:cordz_info_test",
+        "absl/strings:cordz_sample_token_test",
         "absl/strings:cordz_test",
         "absl/strings:cordz_update_scope_test",
         "absl/strings:cordz_update_tracker_test",
@@ -372,6 +363,7 @@ if (absl_build_tests) {
         "absl/strings:has_absl_stringify_test",
         "absl/strings:has_ostream_operator_test",
         "absl/strings:match_test",
+        "absl/strings:str_cat_test",
         "absl/strings:str_format_arg_test",
         "absl/strings:str_format_bind_test",
         "absl/strings:str_format_checker_test",
@@ -389,10 +381,8 @@ if (absl_build_tests) {
         "absl/synchronization:per_thread_sem_test",
         "absl/synchronization:waiter_test",
         "absl/time:time_test",
-        "absl/types:optional_test",
         "absl/types:span_test",
         "absl/types:variant_test",
-        "absl/utility:if_constexpr_test",
         "//third_party/googletest:gtest_main",
       ]
     }

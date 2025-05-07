@@ -27,8 +27,9 @@ no_check_targets = [
 default_args = {
   # Disable js dependencies like the closure compiler.
   enable_js_protobuf = false
+
   # Disable rust dependencies.
-  enable_rust = false
+  enable_rust = true
 }
 
 # These are the list of GN files that run exec_script. This whitelist exists

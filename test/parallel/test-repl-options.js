@@ -136,6 +136,5 @@ r4.close();
   child.stdin.write(
     'assert.ok(util.inspect(repl.repl, {depth: -1}).includes("REPLServer"));\n'
   );
-  child.stdin.write('.exit');
-  child.stdin.end();
+  child.stdin.write('.exit\n');
 }

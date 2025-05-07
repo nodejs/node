@@ -21,9 +21,52 @@
 #include "absl/meta/type_traits.h"
 #include "absl/types/optional.h"
 
+// TODO(b/402804213): Clean up these macros when no longer needed.
+#define ABSL_INTERNAL_SINGLE_ARG(...) __VA_ARGS__
+
+#define ABSL_INTERNAL_IF_true(if_satisfied, ...) if_satisfied
+#define ABSL_INTERNAL_IF_false(if_satisfied, ...) __VA_ARGS__
+
+#define ABSL_INTERNAL_IF_true_AND_true ABSL_INTERNAL_IF_true
+#define ABSL_INTERNAL_IF_false_AND_false ABSL_INTERNAL_IF_false
+#define ABSL_INTERNAL_IF_true_AND_false ABSL_INTERNAL_IF_false_AND_false
+#define ABSL_INTERNAL_IF_false_AND_true ABSL_INTERNAL_IF_false_AND_false
+
+#define ABSL_INTERNAL_IF_true_OR_true ABSL_INTERNAL_IF_true
+#define ABSL_INTERNAL_IF_false_OR_false ABSL_INTERNAL_IF_false
+#define ABSL_INTERNAL_IF_true_OR_false ABSL_INTERNAL_IF_true_OR_true
+#define ABSL_INTERNAL_IF_false_OR_true ABSL_INTERNAL_IF_true_OR_true
+
+#define ABSL_INTERNAL_IF_true_NOR_true ABSL_INTERNAL_IF_false_AND_false
+#define ABSL_INTERNAL_IF_false_NOR_false ABSL_INTERNAL_IF_true_AND_true
+#define ABSL_INTERNAL_IF_true_NOR_false ABSL_INTERNAL_IF_false_AND_true
+#define ABSL_INTERNAL_IF_false_NOR_true ABSL_INTERNAL_IF_true_AND_false
+
+#define ABSL_INTERNAL_COMMA ,
+
 namespace absl {
 ABSL_NAMESPACE_BEGIN
 namespace container_internal {
+
+// TODO(b/402804213): Clean up these traits when no longer needed or
+// deduplicate them with absl::functional_internal::EnableIf.
+template <class Cond>
+using EnableIf = std::enable_if_t<Cond::value, int>;
+
+template <bool Value, class T>
+using HasValue = std::conditional_t<Value, T, absl::negation<T>>;
+
+template <class T>
+struct IfRRef {
+  template <class Other>
+  using AddPtr = Other;
+};
+
+template <class T>
+struct IfRRef<T&&> {
+  template <class Other>
+  using AddPtr = Other*;
+};
 
 template <class, class = void>
 struct IsTransparent : std::false_type {};

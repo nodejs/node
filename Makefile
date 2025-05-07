@@ -175,7 +175,7 @@ out/Makefile: config.gypi common.gypi node.gyp \
 	tools/v8_gypfiles/toolchain.gypi \
 	tools/v8_gypfiles/features.gypi \
 	tools/v8_gypfiles/inspector.gypi tools/v8_gypfiles/v8.gyp
-	$(PYTHON) tools/gyp_node.py -f make
+	$(PYTHON) tools/gyp_node.py -f make -Dpython=$(PYTHON)
 
 # node_version.h is listed because the N-API version is taken from there
 # and included in config.gypi
@@ -238,7 +238,7 @@ coverage-clean: ## Remove coverage artifacts.
 	$(RM) -r node_modules
 	$(RM) -r gcovr
 	$(RM) -r coverage/tmp
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target \( -name "*.gcda" -o -name "*.gcno" \) \
 			-type f | xargs $(RM); \
 	fi
@@ -265,7 +265,7 @@ coverage-build-js: ## Build JavaScript coverage files.
 
 .PHONY: coverage-test
 coverage-test: coverage-build ## Run the tests and generate a coverage report.
-	@if [ -d "out/Release/obj.target" ]; then \
+	@if [ -d "out/$(BUILDTYPE)/obj.target" ]; then \
 		$(FIND) out/$(BUILDTYPE)/obj.target -name "*.gcda" -type f | xargs $(RM); \
 	fi
 	-NODE_V8_COVERAGE=coverage/tmp \
@@ -654,10 +654,6 @@ test-internet: all ## Run internet tests.
 test-tick-processor: all ## Run tick processor tests.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) tick-processor
 
-.PHONY: test-hash-seed
-test-hash-seed: all ## Verifu that the hash seed used by V8 for hashing is random.
-	$(NODE) test/pummel/test-hash-seed.js
-
 .PHONY: test-doc
 test-doc: doc-only lint-md ## Build, lint, and verify the docs.
 	@if [ "$(shell $(node_use_openssl_and_icu))" != "true" ]; then \
@@ -751,8 +747,6 @@ test-v8: v8  ## Run the V8 test suite on deps/v8.
 				mjsunit cctest debugger inspector message preparser \
 				$(TAP_V8)
 	$(call convert_to_junit,$(TAP_V8_JSON))
-	$(info Testing hash seed)
-	$(MAKE) test-hash-seed
 
 test-v8-intl: v8 ## Run the v8 test suite, intl tests.
 	export PATH="$(NO_BIN_OVERRIDE_PATH)" && \
@@ -768,7 +762,7 @@ test-v8-benchmarks: v8 ## Run the v8 test suite, benchmarks.
 				$(TAP_V8_BENCHMARKS)
 	$(call convert_to_junit,$(TAP_V8_BENCHMARKS_JSON))
 
-test-v8-updates: ## Run the v8 test suite, updates.
+test-v8-updates: all ## Run the v8 test suite, updates.
 	$(PYTHON) tools/test.py $(PARALLEL_ARGS) --mode=$(BUILDTYPE_LOWER) v8-updates
 
 test-v8-all: test-v8 test-v8-intl test-v8-benchmarks test-v8-updates ## Run the entire V8 test suite, including intl, benchmarks, and updates.
@@ -949,9 +943,6 @@ else
 ifeq ($(findstring s390x,$(UNAME_M)),s390x)
 DESTCPU ?= s390x
 else
-ifeq ($(findstring s390,$(UNAME_M)),s390)
-DESTCPU ?= s390
-else
 ifeq ($(findstring OS/390,$(shell uname -s)),OS/390)
 DESTCPU ?= s390x
 else
@@ -985,7 +976,6 @@ endif
 endif
 endif
 endif
-endif
 ifeq ($(DESTCPU),x64)
 ARCH=x64
 else
@@ -998,9 +988,6 @@ else
 ifeq ($(DESTCPU),ppc64)
 ARCH=ppc64
 else
-ifeq ($(DESTCPU),s390)
-ARCH=s390
-else
 ifeq ($(DESTCPU),s390x)
 ARCH=s390x
 else
@@ -1011,7 +998,6 @@ ifeq ($(DESTCPU),loong64)
 ARCH=loong64
 else
 ARCH=x86
-endif
 endif
 endif
 endif

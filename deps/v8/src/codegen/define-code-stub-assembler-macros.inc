@@ -59,14 +59,14 @@
   { #name, __FILE__, __LINE__ }
 #define BIND(label) Bind(label, CSA_DEBUG_INFO(label))
 #define TYPED_VARIABLE_DEF(type, name, ...) \
-  TVariable<type> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
+  TVariable<UNPAREN(type)> name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) \
   name(CSA_DEBUG_INFO(name), __VA_ARGS__)
 #else  // DEBUG
 #define CSA_DCHECK(csa, ...) ((void)0)
 #define CSA_DCHECK_JS_ARGC_EQ(csa, expected) ((void)0)
 #define BIND(label) Bind(label)
-#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<type> name(__VA_ARGS__)
+#define TYPED_VARIABLE_DEF(type, name, ...) TVariable<UNPAREN(type)> name(__VA_ARGS__)
 #define TYPED_VARIABLE_CONSTRUCTOR(name, ...) name(__VA_ARGS__)
 #endif  // DEBUG
 

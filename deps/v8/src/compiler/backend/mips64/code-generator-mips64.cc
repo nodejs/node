@@ -552,24 +552,39 @@ void CodeGenerator::AssembleCodeStartRegisterCheck() {
             kJavaScriptCallCodeStartRegister, Operand(kScratchReg));
 }
 
-// Check if the code object is marked for deoptimization. If it is, then it
-// jumps to the CompileLazyDeoptimizedCode builtin. In order to do this we need
-// to:
-//    1. read from memory the word that contains that bit, which can be found in
-//       the flags in the referenced {Code} object;
-//    2. test kMarkedForDeoptimizationBit in those flags; and
-//    3. if it is not zero then it jumps to the builtin.
-void CodeGenerator::BailoutIfDeoptimized() {
-  int offset = InstructionStream::kCodeOffset - InstructionStream::kHeaderSize;
-  __ Ld(kScratchReg, MemOperand(kJavaScriptCallCodeStartRegister, offset));
-  __ Lwu(kScratchReg, FieldMemOperand(kScratchReg, Code::kFlagsOffset));
-  __ And(kScratchReg, kScratchReg,
-         Operand(1 << Code::kMarkedForDeoptimizationBit));
-  __ TailCallBuiltin(Builtin::kCompileLazyDeoptimizedCode, ne, kScratchReg,
-                     Operand(zero_reg));
-}
+#ifdef V8_ENABLE_LEAPTIERING
+// Check that {kJavaScriptCallDispatchHandleRegister} is correct.
+void CodeGenerator::AssembleDispatchHandleRegisterCheck() {
+  DCHECK(linkage()->GetIncomingDescriptor()->IsJSFunctionCall());
+  if (!V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE_BOOL) return;
+  // We currently don't check this for JS builtins as those are sometimes
+  // called directly (e.g. from other builtins) and not through the dispatch
+  // table. This is fine as builtin functions don't use the dispatch handle,
+  // but we could enable this check in the future if we make sure to pass the
+  // kInvalidDispatchHandle whenever we do a direct call to a JS builtin.
+  if (Builtins::IsBuiltinId(info()->builtin())) {
+    return;
+  }
 
+  UseScratchRegisterScope temps(masm());
+  Register actual_parameter_count = temps.Acquire();
+  // For now, we only ensure that the register references a valid dispatch
+  // entry with the correct parameter count. In the future, we may also be able
+  // to check that the entry points back to this code.
+  {
+    UseScratchRegisterScope temps(masm());
+    Register scratch = temps.Acquire();
+    __ LoadParameterCountFromJSDispatchTable(
+        actual_parameter_count, kJavaScriptCallDispatchHandleRegister, scratch);
+  }
+  __ Assert(eq, AbortReason::kWrongFunctionDispatchHandle,
+            actual_parameter_count, Operand(parameter_count_));
+}
+#endif  // V8_ENABLE_LEAPTIERING
+
+void CodeGenerator::BailoutIfDeoptimized() { __ BailoutIfDeoptimized(); }
 // Assembles an instruction after register allocation, producing machine code.
+
 CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
     Instruction* instr) {
   MipsOperandConverter i(this, instr);
@@ -605,27 +620,33 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       break;
     }
 #if V8_ENABLE_WEBASSEMBLY
-    case kArchCallWasmFunction: {
+    case kArchCallWasmFunction:
+    case kArchCallWasmFunctionIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchCallWasmFunction);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Call(wasm_code, constant.rmode());
+      } else if (arch_opcode == kArchCallWasmFunctionIndirect) {
+        __ CallWasmCodePointer(i.InputRegister(0));
       } else {
-        __ daddiu(kScratchReg, i.InputRegister(0), 0);
-        __ Call(kScratchReg);
+        __ Call(i.InputRegister(0));
       }
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
     }
-    case kArchTailCallWasm: {
+    case kArchTailCallWasm:
+    case kArchTailCallWasmIndirect: {
       if (instr->InputAt(0)->IsImmediate()) {
+        DCHECK_EQ(arch_opcode, kArchTailCallWasm);
         Constant constant = i.ToConstant(instr->InputAt(0));
         Address wasm_code = static_cast<Address>(constant.ToInt64());
         __ Jump(wasm_code, constant.rmode());
+      } else if (arch_opcode == kArchTailCallWasmIndirect) {
+        __ CallWasmCodePointer(i.InputRegister(0), CallJumpMode::kTailCall);
       } else {
-        __ daddiu(kScratchReg, i.InputRegister(0), 0);
-        __ Jump(kScratchReg);
+        __ Jump(i.InputRegister(0));
       }
       frame_access_state()->ClearSPDelta();
       frame_access_state()->SetFrameAccessToDefault();
@@ -667,7 +688,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ Assert(eq, AbortReason::kWrongFunctionContext, cp,
                   Operand(kScratchReg));
       }
-      __ CallJSFunction(func);
+      uint32_t num_arguments =
+          i.InputUint32(instr->JSCallArgumentCountInputIndex());
+      __ CallJSFunction(func, num_arguments);
       RecordCallPosition(instr);
       frame_access_state()->ClearSPDelta();
       break;
@@ -4158,7 +4181,7 @@ void CodeGenerator::AssembleConstructFrame() {
     } else {
       __ StubPrologue(info()->GetOutputStackFrameType());
 #if V8_ENABLE_WEBASSEMBLY
-      if (call_descriptor->IsWasmFunctionCall() ||
+      if (call_descriptor->IsAnyWasmFunctionCall() ||
           call_descriptor->IsWasmImportWrapper() ||
           call_descriptor->IsWasmCapiFunction()) {
         // For import wrappers and C-API functions, this stack slot is only used
@@ -4742,7 +4765,7 @@ void CodeGenerator::AssembleSwap(InstructionOperand* source,
   }
 }
 
-void CodeGenerator::AssembleJumpTable(Label** targets, size_t target_count) {
+void CodeGenerator::AssembleJumpTable(base::Vector<Label*> targets) {
   // On 64-bit MIPS we emit the jump tables inline.
   UNREACHABLE();
 }

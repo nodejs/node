@@ -36,9 +36,14 @@
 
 #include "absl/debugging/stacktrace.h"
 
+#include <stdint.h>
+
+#include <algorithm>
 #include <atomic>
 
 #include "absl/base/attributes.h"
+#include "absl/base/config.h"
+#include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/debugging/internal/stacktrace_config.h"
 
@@ -66,59 +71,68 @@ typedef int (*Unwinder)(void**, int*, int, int, const void*, int*);
 std::atomic<Unwinder> custom;
 
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
-ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, int* sizes,
-                                               int max_depth, int skip_count,
-                                               const void* uc,
+ABSL_ATTRIBUTE_ALWAYS_INLINE inline int Unwind(void** result, uintptr_t* frames,
+                                               int* sizes, int max_depth,
+                                               int skip_count, const void* uc,
                                                int* min_dropped_frames) {
-  Unwinder f = &UnwindImpl<IS_STACK_FRAMES, IS_WITH_CONTEXT>;
   Unwinder g = custom.load(std::memory_order_acquire);
-  if (g != nullptr) f = g;
-
+  int size;
   // Add 1 to skip count for the unwinder function itself
-  int size = (*f)(result, sizes, max_depth, skip_count + 1, uc,
-                  min_dropped_frames);
-  // To disable tail call to (*f)(...)
+  ++skip_count;
+  if (g != nullptr) {
+    size = (*g)(result, sizes, max_depth, skip_count, uc, min_dropped_frames);
+    // Frame pointers aren't returned by existing hooks, so clear them.
+    if (frames != nullptr) {
+      std::fill(frames, frames + size, uintptr_t());
+    }
+  } else {
+    size = UnwindImpl<IS_STACK_FRAMES, IS_WITH_CONTEXT>(
+        result, frames, sizes, max_depth, skip_count, uc, min_dropped_frames);
+  }
   ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return size;
 }
 
 }  // anonymous namespace
 
-ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackFrames(
-    void** result, int* sizes, int max_depth, int skip_count) {
-  return Unwind<true, false>(result, sizes, max_depth, skip_count, nullptr,
-                             nullptr);
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+internal_stacktrace::GetStackFrames(void** result, uintptr_t* frames,
+                                    int* sizes, int max_depth, int skip_count) {
+  return Unwind<true, false>(result, frames, sizes, max_depth, skip_count,
+                             nullptr, nullptr);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
-GetStackFramesWithContext(void** result, int* sizes, int max_depth,
-                          int skip_count, const void* uc,
-                          int* min_dropped_frames) {
-  return Unwind<true, true>(result, sizes, max_depth, skip_count, uc,
+internal_stacktrace::GetStackFramesWithContext(void** result, uintptr_t* frames,
+                                               int* sizes, int max_depth,
+                                               int skip_count, const void* uc,
+                                               int* min_dropped_frames) {
+  return Unwind<true, true>(result, frames, sizes, max_depth, skip_count, uc,
                             min_dropped_frames);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int GetStackTrace(
     void** result, int max_depth, int skip_count) {
-  return Unwind<false, false>(result, nullptr, max_depth, skip_count, nullptr,
-                              nullptr);
+  return Unwind<false, false>(result, nullptr, nullptr, max_depth, skip_count,
+                              nullptr, nullptr);
 }
 
 ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
 GetStackTraceWithContext(void** result, int max_depth, int skip_count,
                          const void* uc, int* min_dropped_frames) {
-  return Unwind<false, true>(result, nullptr, max_depth, skip_count, uc,
-                             min_dropped_frames);
+  return Unwind<false, true>(result, nullptr, nullptr, max_depth, skip_count,
+                             uc, min_dropped_frames);
 }
 
 void SetStackUnwinder(Unwinder w) {
   custom.store(w, std::memory_order_release);
 }
 
-int DefaultStackUnwinder(void** pcs, int* sizes, int depth, int skip,
-                         const void* uc, int* min_dropped_frames) {
+ABSL_ATTRIBUTE_ALWAYS_INLINE static inline int DefaultStackUnwinderImpl(
+    void** pcs, uintptr_t* frames, int* sizes, int depth, int skip,
+    const void* uc, int* min_dropped_frames) {
   skip++;  // For this function
-  Unwinder f = nullptr;
+  decltype(&UnwindImpl<false, false>) f;
   if (sizes == nullptr) {
     if (uc == nullptr) {
       f = &UnwindImpl<false, false>;
@@ -132,9 +146,26 @@ int DefaultStackUnwinder(void** pcs, int* sizes, int depth, int skip,
       f = &UnwindImpl<true, true>;
     }
   }
-  volatile int x = 0;
-  int n = (*f)(pcs, sizes, depth, skip, uc, min_dropped_frames);
-  x = 1; (void) x;  // To disable tail call to (*f)(...)
+  return (*f)(pcs, frames, sizes, depth, skip, uc, min_dropped_frames);
+}
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int
+internal_stacktrace::DefaultStackUnwinder(void** pcs, uintptr_t* frames,
+                                          int* sizes, int depth, int skip,
+                                          const void* uc,
+                                          int* min_dropped_frames) {
+  int n = DefaultStackUnwinderImpl(pcs, frames, sizes, depth, skip, uc,
+                                   min_dropped_frames);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
+  return n;
+}
+
+ABSL_ATTRIBUTE_NOINLINE ABSL_ATTRIBUTE_NO_TAIL_CALL int DefaultStackUnwinder(
+    void** pcs, int* sizes, int depth, int skip, const void* uc,
+    int* min_dropped_frames) {
+  int n = DefaultStackUnwinderImpl(pcs, nullptr, sizes, depth, skip, uc,
+                                   min_dropped_frames);
+  ABSL_BLOCK_TAIL_CALL_OPTIMIZATION();
   return n;
 }
 

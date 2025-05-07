@@ -4,6 +4,7 @@
 
 #include "src/maglev/maglev-concurrent-dispatcher.h"
 
+#include "src/base/fpu.h"
 #include "src/codegen/compiler.h"
 #include "src/compiler/compilation-dependencies.h"
 #include "src/compiler/js-heap-broker.h"
@@ -136,6 +137,7 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
   LocalIsolateScope scope{info(), local_isolate};
   if (!maglev::MaglevCompiler::Compile(local_isolate, info())) {
     EndPhaseKind();
+    bailout_reason_ = BailoutReason::kGraphBuildingFailed;
     return CompilationJob::FAILED;
   }
   EndPhaseKind();
@@ -146,14 +148,19 @@ CompilationJob::Status MaglevCompilationJob::ExecuteJobImpl(
 CompilationJob::Status MaglevCompilationJob::FinalizeJobImpl(Isolate* isolate) {
   BeginPhaseKind("V8.MaglevFinalizeJob");
   Handle<Code> code;
-  if (!maglev::MaglevCompiler::GenerateCode(isolate, info()).ToHandle(&code)) {
+  auto [maybe_code, bailout_reason] =
+      maglev::MaglevCompiler::GenerateCode(isolate, info());
+  if (!maybe_code.ToHandle(&code)) {
     EndPhaseKind();
+    bailout_reason_ = bailout_reason;
     return CompilationJob::FAILED;
   }
   // Functions with many inline candidates are sensitive to correct call
   // frequency feedback and should therefore not be tiered up early.
   if (v8_flags.profile_guided_optimization &&
-      info()->could_not_inline_all_candidates()) {
+      info()->could_not_inline_all_candidates() &&
+      info()->toplevel_function()->shared()->cached_tiering_decision() !=
+          CachedTieringDecision::kDelayMaglev) {
     info()->toplevel_function()->shared()->set_cached_tiering_decision(
         CachedTieringDecision::kNormal);
   }
@@ -178,15 +185,15 @@ void MaglevCompilationJob::DisposeOnMainThread(Isolate* isolate) {
   // Drop canonical handles on the main thread, to avoid (in the case of
   // background job destruction) needing to unpark the local isolate on the
   // background thread for unregistering the identity map's strong roots.
-  DCHECK(isolate->IsCurrent());
+  DCHECK_EQ(ThreadId::Current(), isolate->thread_id());
   info()->DetachCanonicalHandles()->Clear();
 }
 
-MaybeHandle<Code> MaglevCompilationJob::code() const {
+MaybeIndirectHandle<Code> MaglevCompilationJob::code() const {
   return info_->get_code();
 }
 
-Handle<JSFunction> MaglevCompilationJob::function() const {
+IndirectHandle<JSFunction> MaglevCompilationJob::function() const {
   return info_->toplevel_function();
 }
 
@@ -265,6 +272,8 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
       return;
     }
     TRACE_EVENT0(TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.MaglevTask");
+    base::FlushDenormalsScope flush_denormals_scope(
+        isolate()->flush_denormals());
     LocalIsolate local_isolate(isolate(), ThreadKind::kBackground);
     DCHECK(local_isolate.heap()->IsParked());
 
@@ -317,7 +326,6 @@ class MaglevConcurrentDispatcher::JobTask final : public v8::JobTask {
   QueueT* destruction_queue() const { return &dispatcher_->destruction_queue_; }
 
   MaglevConcurrentDispatcher* const dispatcher_;
-  const Handle<JSFunction> function_;
 };
 
 MaglevConcurrentDispatcher::MaglevConcurrentDispatcher(Isolate* isolate)
@@ -407,7 +415,9 @@ void MaglevConcurrentDispatcher::AwaitCompileJobs() {
 void MaglevConcurrentDispatcher::Flush(BlockingBehavior behavior) {
   while (!incoming_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
-    incoming_queue_.Dequeue(&job);
+    if (incoming_queue_.Dequeue(&job)) {
+      Compiler::DisposeMaglevCompilationJob(job.get(), isolate_);
+    }
   }
   while (!destruction_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
@@ -418,7 +428,9 @@ void MaglevConcurrentDispatcher::Flush(BlockingBehavior behavior) {
   }
   while (!outgoing_queue_.IsEmpty()) {
     std::unique_ptr<MaglevCompilationJob> job;
-    outgoing_queue_.Dequeue(&job);
+    if (outgoing_queue_.Dequeue(&job)) {
+      Compiler::DisposeMaglevCompilationJob(job.get(), isolate_);
+    }
   }
 }
 

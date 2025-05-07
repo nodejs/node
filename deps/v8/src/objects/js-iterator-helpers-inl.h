@@ -6,6 +6,8 @@
 #define V8_OBJECTS_JS_ITERATOR_HELPERS_INL_H_
 
 #include "src/objects/js-iterator-helpers.h"
+// Include the non-inl header before the rest of the headers.
+
 #include "src/objects/oddball-inl.h"
 
 // Has to be the last include (doesn't have include guards):

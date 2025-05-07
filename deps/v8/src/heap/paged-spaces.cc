@@ -24,6 +24,7 @@
 #include "src/heap/marking-state-inl.h"
 #include "src/heap/memory-allocator.h"
 #include "src/heap/memory-chunk-layout.h"
+#include "src/heap/memory-chunk.h"
 #include "src/heap/mutable-page-metadata-inl.h"
 #include "src/heap/page-metadata-inl.h"
 #include "src/heap/paged-spaces-inl.h"
@@ -95,8 +96,12 @@ void PagedSpaceBase::TearDown() {
   while (!memory_chunk_list_.Empty()) {
     MutablePageMetadata* chunk = memory_chunk_list_.front();
     memory_chunk_list_.Remove(chunk);
-    heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
-                                     chunk);
+    auto mode = (id_ == NEW_SPACE || id_ == OLD_SPACE) &&
+                        !chunk->Chunk()->IsFlagSet(
+                            MemoryChunk::SHRINK_TO_HIGH_WATER_MARK)
+                    ? MemoryAllocator::FreeMode::kPool
+                    : MemoryAllocator::FreeMode::kImmediately;
+    heap()->memory_allocator()->Free(mode, chunk);
   }
   accounting_stats_.Clear();
 }
@@ -183,9 +188,9 @@ void PagedSpaceBase::VerifyCommittedPhysicalMemory() const {
 #endif  // DEBUG
 
 bool PagedSpaceBase::ContainsSlow(Address addr) const {
-  PageMetadata* p = PageMetadata::FromAddress(addr);
+  MemoryChunk* chunk = MemoryChunk::FromAddress(addr);
   for (const PageMetadata* page : *this) {
-    if (page == p) return true;
+    if (page->Chunk() == chunk) return true;
   }
   return false;
 }
@@ -350,7 +355,7 @@ void PagedSpaceBase::ReleasePageImpl(PageMetadata* page,
   DCHECK_IMPLIES(identity() == NEW_SPACE,
                  page->Chunk()->IsFlagSet(MemoryChunk::TO_PAGE));
 
-  memory_chunk_list().Remove(page);
+  memory_chunk_list_.Remove(page);
 
   free_list_->EvictFreeListItems(page);
 
@@ -579,6 +584,13 @@ AllocatorPolicy* PagedSpace::CreateAllocatorPolicy(MainAllocator* allocator) {
 // CompactionSpace implementation
 
 void CompactionSpace::NotifyNewPage(PageMetadata* page) {
+  // Incremental marking can be running on the main thread isolate, so when
+  // allocating a new page for the client's compaction space we can get a black
+  // allocated page. This is fine, since the page is not observed the main
+  // isolate until it's merged.
+  DCHECK_IMPLIES(identity() != SHARED_SPACE ||
+                     destination_heap() != DestinationHeap::kSharedSpaceHeap,
+                 !page->Chunk()->IsFlagSet(MemoryChunk::BLACK_ALLOCATED));
   new_pages_.push_back(page);
 }
 

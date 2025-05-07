@@ -2,12 +2,12 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
+#ifndef V8_COMPILER_TURBOSHAFT_WASM_IN_JS_INLINING_REDUCER_INL_H_
+#define V8_COMPILER_TURBOSHAFT_WASM_IN_JS_INLINING_REDUCER_INL_H_
+
 #if !V8_ENABLE_WEBASSEMBLY
 #error This header should only be included if WebAssembly is enabled.
 #endif  // !V8_ENABLE_WEBASSEMBLY
-
-#ifndef V8_COMPILER_TURBOSHAFT_WASM_IN_JS_INLINING_REDUCER_INL_H_
-#define V8_COMPILER_TURBOSHAFT_WASM_IN_JS_INLINING_REDUCER_INL_H_
 
 #include "src/compiler/js-inlining.h"
 #include "src/compiler/turboshaft/assembler.h"
@@ -15,6 +15,7 @@
 #include "src/compiler/turboshaft/index.h"
 #include "src/compiler/turboshaft/operations.h"
 #include "src/compiler/turboshaft/wasm-assembler-helpers.h"
+#include "src/heap/factory-inl.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/wasm/compilation-environment-inl.h"
 #include "src/wasm/decoder.h"
@@ -81,7 +82,7 @@ class WasmInJSInliningReducer : public Next {
                LoadOp::Kind::RawAligned(), MemoryRepresentation::Int32(),
                compiler::kNoWriteBarrier);
 
-      V<Any> result =
+      result =
           Next::ReduceCall(callee, frame_state, arguments, descriptor, effects);
 
       __ Store(thread_in_wasm_flag_address, __ Word32Constant(0),
@@ -169,9 +170,7 @@ class WasmInJsInliningInterface {
       OpIndex op;
       if (!type.is_defaultable()) {
         DCHECK(type.is_reference());
-        // TODO(jkummerow): Consider using "the hole" instead, to make any
-        // illegal uses more obvious.
-        op = __ Null(type.AsNullable());
+        op = __ RootConstant(RootIndex::kOptimizedOut);
       } else {
         op = DefaultValue(type);
       }
@@ -739,11 +738,11 @@ class WasmInJsInliningInterface {
   }
 
   void StructNew(FullDecoder* decoder, const StructIndexImmediate& imm,
-                 const Value args[], Value* result) {
+                 const Value& descriptor, const Value args[], Value* result) {
     Bailout(decoder);
   }
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
-                        Value* result) {
+                        const Value& descriptor, Value* result) {
     Bailout(decoder);
   }
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -820,16 +819,23 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void RefTest(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefGetDesc(FullDecoder* decoder, const Value& ref, Value* desc) {
+    Bailout(decoder);
+  }
+
+  void RefTest(FullDecoder* decoder, wasm::HeapType target_type,
+               const Value& object, Value* result, bool null_succeeds) {
     Bailout(decoder);
   }
   void RefTestAbstract(FullDecoder* decoder, const Value& object,
                        wasm::HeapType type, Value* result, bool null_succeeds) {
     Bailout(decoder);
   }
-  void RefCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-               Value* result, bool null_succeeds) {
+  void RefCast(FullDecoder* decoder, const Value& object, Value* result) {
+    Bailout(decoder);
+  }
+  void RefCastDesc(FullDecoder* decoder, const Value& object,
+                   const Value& descriptor, Value* result) {
     Bailout(decoder);
   }
   void RefCastAbstract(FullDecoder* decoder, const Value& object,
@@ -917,8 +923,9 @@ class WasmInJsInliningInterface {
     Bailout(decoder);
   }
 
-  void BrOnCast(FullDecoder* decoder, uint32_t ref_index, const Value& object,
-                Value* value_on_branch, uint32_t br_depth, bool null_succeeds) {
+  void BrOnCast(FullDecoder* decoder, wasm::HeapType target_type,
+                const Value& object, Value* value_on_branch, uint32_t br_depth,
+                bool null_succeeds) {
     Bailout(decoder);
   }
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
@@ -926,7 +933,7 @@ class WasmInJsInliningInterface {
                         uint32_t br_depth, bool null_succeeds) {
     Bailout(decoder);
   }
-  void BrOnCastFail(FullDecoder* decoder, uint32_t ref_index,
+  void BrOnCastFail(FullDecoder* decoder, wasm::HeapType target_type,
                     const Value& object, Value* value_on_fallthrough,
                     uint32_t br_depth, bool null_succeeds) {
     Bailout(decoder);
@@ -1119,9 +1126,9 @@ class WasmInJsInliningInterface {
         return __ Simd128Constant(value);
       }
       case wasm::kVoid:
-      case wasm::kRtt:
       case wasm::kRef:
       case wasm::kBottom:
+      case wasm::kTop:
         UNREACHABLE();
     }
   }
@@ -1159,9 +1166,16 @@ V<Any> WasmInJSInliningReducer<Next>::TryInlineWasmCall(
     return OpIndex::Invalid();
   }
 
+  if (func_idx < module->num_imported_functions) {
+    TRACE("- not inlining: call to an imported function");
+    return OpIndex::Invalid();
+  }
+  DCHECK_LT(func_idx - module->num_imported_functions,
+            module->num_declared_functions);
+
   // TODO(42204563): Support shared-everything proposal (at some point, or
   // possibly never).
-  bool is_shared = module->types[func.sig_index].is_shared;
+  bool is_shared = module->type(func.sig_index).is_shared;
   if (is_shared) {
     TRACE("- not inlining: shared everything is not supported");
     return OpIndex::Invalid();

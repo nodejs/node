@@ -73,18 +73,15 @@ using ConstReverseIterator = typename std::reverse_iterator<ConstIterator<A>>;
 template <typename A>
 using MoveIterator = typename std::move_iterator<Iterator<A>>;
 
-template <typename Iterator>
-using IsAtLeastForwardIterator = std::is_convertible<
-    typename std::iterator_traits<Iterator>::iterator_category,
-    std::forward_iterator_tag>;
-
 template <typename A>
 using IsMoveAssignOk = std::is_move_assignable<ValueType<A>>;
 template <typename A>
 using IsSwapOk = absl::type_traits_internal::IsSwappable<ValueType<A>>;
 
-template <typename A, bool IsTriviallyDestructible =
-                          absl::is_trivially_destructible<ValueType<A>>::value>
+template <typename A,
+          bool IsTriviallyDestructible =
+              absl::is_trivially_destructible<ValueType<A>>::value &&
+              std::is_same<A, std::allocator<ValueType<A>>>::value>
 struct DestroyAdapter;
 
 template <typename A>
@@ -232,7 +229,7 @@ class AllocationTransaction {
     return result.data;
   }
 
-  ABSL_MUST_USE_RESULT Allocation<A> Release() && {
+  [[nodiscard]] Allocation<A> Release() && {
     Allocation<A> result = {GetData(), GetCapacity()};
     Reset();
     return result;
@@ -546,7 +543,7 @@ class Storage {
       (std::max)(N, sizeof(Allocated) / sizeof(ValueType<A>));
 
   struct Inlined {
-    alignas(ValueType<A>) char inlined_data[sizeof(
+    alignas(ValueType<A>) unsigned char inlined_data[sizeof(
         ValueType<A>[kOptimalInlinedSize])];
   };
 

@@ -41,6 +41,10 @@ BasicMarkingState::BasicMarkingState(HeapBase& heap,
   }
 }
 
+BasicMarkingState::~BasicMarkingState() {
+  DCHECK_EQ(last_marked_bytes_, marked_bytes_);
+}
+
 void BasicMarkingState::Publish() {
   MarkingStateBase::Publish();
   previously_not_fully_constructed_worklist_.Publish();

@@ -8,6 +8,7 @@
 #include <cstdint>
 
 #include "include/v8-internal.h"
+#include "src/objects/string.h"
 
 namespace v8 {
 namespace internal {
@@ -19,6 +20,12 @@ uintptr_t ArrayIndexOfIncludesSmiOrObject(Address array_start,
 uintptr_t ArrayIndexOfIncludesDouble(Address array_start, uintptr_t array_len,
                                      uintptr_t from_index,
                                      Address search_element);
+Tagged<Object> Uint8ArrayToHex(const char* bytes, size_t length,
+                               DirectHandle<SeqOneByteString> string_output);
+template <typename T>
+bool ArrayBufferFromHex(base::Vector<T> input_vector,
+                        DirectHandle<JSArrayBuffer> buffer,
+                        size_t output_length);
 
 }  // namespace internal
 }  // namespace v8

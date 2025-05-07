@@ -194,7 +194,7 @@ bool TryHandleSignal(int signum, siginfo_t* info, void* context) {
 #elif V8_HOST_ARCH_LOONG64
     auto* fault_address_reg = CONTEXT_REG(t6, 18);
 #elif V8_HOST_ARCH_RISCV64
-    auto* fault_address_reg = CONTEXT_REG(t6, 18);
+    auto* fault_address_reg = CONTEXT_REG(t6, 31);
 #else
 #error "Unsupported architecture."
 #endif

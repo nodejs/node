@@ -18,7 +18,8 @@ class ObjectBuiltinsAssembler : public CodeStubAssembler {
   explicit ObjectBuiltinsAssembler(compiler::CodeAssemblerState* state)
       : CodeStubAssembler(state) {}
 
-  TNode<HeapObject> FromPropertyDescriptor(TNode<Context>, TNode<Object> desc);
+  TNode<Union<Undefined, JSObject>> FromPropertyDescriptor(TNode<Context>,
+                                                           TNode<Object> desc);
 
  protected:
   void ReturnToStringFormat(TNode<Context> context, TNode<String> string);

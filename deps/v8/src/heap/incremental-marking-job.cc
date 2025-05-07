@@ -8,7 +8,7 @@
 
 #include "src/base/platform/mutex.h"
 #include "src/base/platform/time.h"
-#include "src/execution/isolate.h"
+#include "src/execution/isolate-inl.h"
 #include "src/execution/vm-state-inl.h"
 #include "src/flags/flags.h"
 #include "src/heap/base/incremental-marking-schedule.h"
@@ -90,9 +90,9 @@ void IncrementalMarkingJob::Task::RunInternal() {
   VMState<GC> state(isolate());
   TRACE_EVENT_CALL_STATS_SCOPED(isolate(), "v8",
                                 "V8.IncrementalMarkingJob.Task");
-  // In case multi-cage pointer compression mode is enabled ensure that
-  // current thread's cage base values are properly initialized.
-  PtrComprCageAccessScope ptr_compr_cage_access_scope(isolate());
+  // Set the current isolate such that trusted pointer tables etc are
+  // available and the cage base is set correctly for multi-cage mode.
+  SetCurrentIsolateScope isolate_scope(isolate());
 
   isolate()->stack_guard()->ClearStartIncrementalMarking();
 

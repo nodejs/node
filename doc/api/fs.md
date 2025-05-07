@@ -481,7 +481,7 @@ number of bytes read is zero.
 <!-- YAML
 added: v17.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -1077,7 +1077,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -3136,7 +3136,7 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -3589,7 +3589,7 @@ Functions based on `fs.open()` exhibit this behavior as well:
 <!-- YAML
 added: v19.8.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->
@@ -5689,7 +5689,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
   - version:
@@ -6846,7 +6846,7 @@ added:
   - v20.12.0
   - v18.20.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
 -->

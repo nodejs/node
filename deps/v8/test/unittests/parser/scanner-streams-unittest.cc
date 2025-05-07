@@ -764,41 +764,60 @@ TEST_F(ScannerStreamsTest, RelocatingCharacterStream) {
   if (i::v8_flags.single_generation) return;
   i::v8_flags.manual_evacuation_candidates_selection = true;
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
-  v8::HandleScope scope(isolate());
 
   const char* string = "abcd";
   int length = static_cast<int>(strlen(string));
-  std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
-  for (int i = 0; i < length; i++) {
-    uc16_buffer[i] = string[i];
+
+  v8::Global<v8::String> two_byte_string_global;
+  i::Tagged<i::String> raw;
+  {
+    v8::HandleScope scope(isolate());
+    std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
+    for (int i = 0; i < length; i++) {
+      uc16_buffer[i] = string[i];
+    }
+    v8::base::Vector<const v8::base::uc16> two_byte_vector(uc16_buffer.get(),
+                                                           length);
+    i::Handle<i::String> two_byte_string =
+        i_isolate()
+            ->factory()
+            ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
+            .ToHandleChecked();
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+        i::ScannerStream::For(i_isolate(), two_byte_string, 0, length));
+    CHECK_EQ('a', two_byte_string_stream->Advance());
+    CHECK_EQ('b', two_byte_string_stream->Advance());
+    CHECK_EQ(size_t{2}, two_byte_string_stream->pos());
+    two_byte_string_global.Reset(isolate(),
+                                 v8::Utils::ToLocal(two_byte_string));
+    raw = *two_byte_string;
   }
-  v8::base::Vector<const v8::base::uc16> two_byte_vector(uc16_buffer.get(),
-                                                         length);
-  i::Handle<i::String> two_byte_string =
-      i_isolate()
-          ->factory()
-          ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
-          .ToHandleChecked();
-  std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
-      i::ScannerStream::For(i_isolate(), two_byte_string, 0, length));
-  CHECK_EQ('a', two_byte_string_stream->Advance());
-  CHECK_EQ('b', two_byte_string_stream->Advance());
-  CHECK_EQ(size_t{2}, two_byte_string_stream->pos());
-  i::Tagged<i::String> raw = *two_byte_string;
   // We need to invoke GC without stack, otherwise no compaction is performed.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate()->heap());
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
   InvokeMajorGC();
-  i::MemoryChunk::FromHeapObject(*two_byte_string)
-      ->SetFlagNonExecutable(
-          i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  {
+    v8::HandleScope scope(isolate());
+    i::Handle<i::String> two_byte_string =
+        v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
+    i::MemoryChunk::FromHeapObject(*two_byte_string)
+        ->SetFlagNonExecutable(
+            i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  }
   InvokeMajorGC();
-  // GC moved the string.
-  CHECK_NE(raw, *two_byte_string);
-  CHECK_EQ('c', two_byte_string_stream->Advance());
-  CHECK_EQ('d', two_byte_string_stream->Advance());
+  {
+    v8::HandleScope scope(isolate());
+    i::Handle<i::String> two_byte_string =
+        v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+        i::ScannerStream::For(i_isolate(), two_byte_string, 2, length));
+    // GC moved the string.
+    CHECK_NE(raw, *two_byte_string);
+    CHECK_EQ('c', two_byte_string_stream->Advance());
+    CHECK_EQ('d', two_byte_string_stream->Advance());
+  }
 }
 
 TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
@@ -806,47 +825,66 @@ TEST_F(ScannerStreamsTest, RelocatingUnbufferedCharacterStream) {
   if (i::v8_flags.single_generation) return;
   i::v8_flags.manual_evacuation_candidates_selection = true;
   v8::internal::ManualGCScope manual_gc_scope(i_isolate());
-  v8::HandleScope scope(isolate());
 
   const char16_t* string = u"abc\u2603";
   int length = static_cast<int>(std::char_traits<char16_t>::length(string));
-  std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
-  for (int i = 0; i < length; i++) {
-    uc16_buffer[i] = string[i];
+
+  v8::Global<v8::String> two_byte_string_global;
+  i::Tagged<i::String> raw;
+  {
+    v8::HandleScope scope(isolate());
+    std::unique_ptr<v8::base::uc16[]> uc16_buffer(new v8::base::uc16[length]);
+    for (int i = 0; i < length; i++) {
+      uc16_buffer[i] = string[i];
+    }
+    v8::base::Vector<const v8::base::uc16> two_byte_vector(uc16_buffer.get(),
+                                                           length);
+    i::Handle<i::String> two_byte_string =
+        i_isolate()
+            ->factory()
+            ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
+            .ToHandleChecked();
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+        i::ScannerStream::For(i_isolate(), two_byte_string, 0, length));
+
+    // Seek to offset 2 so that the buffer_pos_ is not zero initially.
+    two_byte_string_stream->Seek(2);
+    CHECK_EQ('c', two_byte_string_stream->Advance());
+    CHECK_EQ(size_t{3}, two_byte_string_stream->pos());
+
+    two_byte_string_global.Reset(isolate(),
+                                 v8::Utils::ToLocal(two_byte_string));
+    raw = *two_byte_string;
   }
-  v8::base::Vector<const v8::base::uc16> two_byte_vector(uc16_buffer.get(),
-                                                         length);
-  i::Handle<i::String> two_byte_string =
-      i_isolate()
-          ->factory()
-          ->NewStringFromTwoByte(two_byte_vector, i::AllocationType::kYoung)
-          .ToHandleChecked();
-  std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
-      i::ScannerStream::For(i_isolate(), two_byte_string, 0, length));
-
-  // Seek to offset 2 so that the buffer_pos_ is not zero initially.
-  two_byte_string_stream->Seek(2);
-  CHECK_EQ('c', two_byte_string_stream->Advance());
-  CHECK_EQ(size_t{3}, two_byte_string_stream->pos());
-
-  i::Tagged<i::String> raw = *two_byte_string;
   // We need to invoke GC without stack, otherwise no compaction is performed.
   i::DisableConservativeStackScanningScopeForTesting no_stack_scanning(
       i_isolate()->heap());
   // 1st GC moves `two_byte_string` to old space and 2nd GC evacuates it within
   // old space.
   InvokeMajorGC();
-  i::MemoryChunk::FromHeapObject(*two_byte_string)
-      ->SetFlagNonExecutable(
-          i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  {
+    v8::HandleScope scope(isolate());
+    i::Handle<i::String> two_byte_string =
+        v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
+    i::MemoryChunk::FromHeapObject(*two_byte_string)
+        ->SetFlagNonExecutable(
+            i::MemoryChunk::FORCE_EVACUATION_CANDIDATE_FOR_TESTING);
+  }
   InvokeMajorGC();
-  // GC moved the string and buffer was updated to the correct location.
-  CHECK_NE(raw, *two_byte_string);
+  {
+    v8::HandleScope scope(isolate());
+    i::Handle<i::String> two_byte_string =
+        v8::Utils::OpenHandle(*two_byte_string_global.Get(isolate()));
+    std::unique_ptr<i::Utf16CharacterStream> two_byte_string_stream(
+        i::ScannerStream::For(i_isolate(), two_byte_string, 3, length));
+    // GC moved the string and buffer was updated to the correct location.
+    CHECK_NE(raw, *two_byte_string);
 
-  // Check that we correctly moved based on buffer_pos_, not based on a position
-  // of zero.
-  CHECK_EQ(u'\u2603', two_byte_string_stream->Advance());
-  CHECK_EQ(size_t{4}, two_byte_string_stream->pos());
+    // Check that we correctly moved based on buffer_pos_, not based on a
+    // position of zero.
+    CHECK_EQ(u'\u2603', two_byte_string_stream->Advance());
+    CHECK_EQ(size_t{4}, two_byte_string_stream->pos());
+  }
 }
 
 TEST_F(ScannerStreamsTest, CloneCharacterStreams) {

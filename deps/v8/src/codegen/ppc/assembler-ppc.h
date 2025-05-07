@@ -179,6 +179,10 @@ class Assembler : public AssemblerBase {
   // own buffer. Otherwise it takes ownership of the provided buffer.
   explicit Assembler(const AssemblerOptions&,
                      std::unique_ptr<AssemblerBuffer> = {});
+  // For compatibility with assemblers that require a zone.
+  Assembler(const MaybeAssemblerZone&, const AssemblerOptions& options,
+            std::unique_ptr<AssemblerBuffer> buffer = {})
+      : Assembler(options, std::move(buffer)) {}
 
   virtual ~Assembler() {}
 
@@ -261,6 +265,7 @@ class Assembler : public AssemblerBase {
   V8_INLINE static Address target_address_at(Address pc, Address constant_pool);
   V8_INLINE static void set_target_address_at(
       Address pc, Address constant_pool, Address target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Read/Modify the code target address in the branch/call instruction at pc.
@@ -268,6 +273,7 @@ class Assembler : public AssemblerBase {
                                                       Address constant_pool);
   inline static void set_target_compressed_address_at(
       Address pc, Address constant_pool, Tagged_t target,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   inline Handle<Object> code_target_object_handle_at(Address pc,
@@ -275,24 +281,20 @@ class Assembler : public AssemblerBase {
   inline Handle<HeapObject> compressed_embedded_object_handle_at(
       Address pc, Address constant_pool);
 
-  // This sets the branch destination.
-  // This is for calls and branches within generated code.
-  inline static void deserialization_set_special_target_at(
-      Address instruction_payload, Tagged<Code>, Address target);
-
   // Get the size of the special target encoded at 'instruction_payload'.
   inline static int deserialization_special_target_size(
       Address instruction_payload);
 
   // This sets the internal reference at the pc.
   inline static void deserialization_set_target_internal_reference_at(
-      Address pc, Address target,
+      Address pc, Address target, WritableJitAllocation& jit_allocation,
       RelocInfo::Mode mode = RelocInfo::INTERNAL_REFERENCE);
 
   // Read/modify the uint32 constant used at pc.
   static inline uint32_t uint32_constant_at(Address pc, Address constant_pool);
   static inline void set_uint32_constant_at(
       Address pc, Address constant_pool, uint32_t new_constant,
+      WritableJitAllocation* jit_allocation,
       ICacheFlushMode icache_flush_mode = FLUSH_ICACHE_IF_NEEDED);
 
   // Here we are patching the address in the LUI/ORI instruction pair.
@@ -356,11 +358,11 @@ class Assembler : public AssemblerBase {
 
 #define DECLARE_PPC_X_INSTRUCTIONS_F_FORM(name, instr_name, instr_value)    \
   inline void name(const Register src1, const Register src2,                \
-                   const CRegister cr = cr7, const RCBit rc = LeaveRC) {    \
+                   const CRegister cr = cr0, const RCBit rc = LeaveRC) {    \
     x_form(instr_name, cr, src1, src2, rc);                                 \
   }                                                                         \
   inline void name##w(const Register src1, const Register src2,             \
-                      const CRegister cr = cr7, const RCBit rc = LeaveRC) { \
+                      const CRegister cr = cr0, const RCBit rc = LeaveRC) { \
     x_form(instr_name, cr.code() * B2, src1.code(), src2.code(), LeaveRC);  \
   }
 
@@ -689,7 +691,7 @@ class Assembler : public AssemblerBase {
     return cr;
   }
 
-  void bc_short(Condition cond, Label* L, CRegister cr = cr7,
+  void bc_short(Condition cond, Label* L, CRegister cr = cr0,
                 LKBit lk = LeaveLK) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
@@ -734,7 +736,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  void bclr(Condition cond, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bclr(Condition cond, CRegister cr = cr0, LKBit lk = LeaveLK) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
 
@@ -778,7 +780,7 @@ class Assembler : public AssemblerBase {
 
   void isel(Register rt, Register ra, Register rb, int cb);
   void isel(Condition cond, Register rt, Register ra, Register rb,
-            CRegister cr = cr7) {
+            CRegister cr = cr0) {
     DCHECK(cond != al);
     DCHECK(cr.code() >= 0 && cr.code() <= 7);
 
@@ -820,7 +822,7 @@ class Assembler : public AssemblerBase {
     }
   }
 
-  void b(Condition cond, Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void b(Condition cond, Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     if (cond == al) {
       b(L, lk);
       return;
@@ -838,28 +840,28 @@ class Assembler : public AssemblerBase {
     bind(&skip);
   }
 
-  void bne(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bne(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ne, L, cr, lk);
   }
-  void beq(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void beq(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(eq, L, cr, lk);
   }
-  void blt(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void blt(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(lt, L, cr, lk);
   }
-  void bge(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bge(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ge, L, cr, lk);
   }
-  void ble(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void ble(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(le, L, cr, lk);
   }
-  void bgt(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bgt(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(gt, L, cr, lk);
   }
-  void bunordered(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bunordered(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(unordered, L, cr, lk);
   }
-  void bordered(Label* L, CRegister cr = cr7, LKBit lk = LeaveLK) {
+  void bordered(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
     b(ordered, L, cr, lk);
   }
   void boverflow(Label* L, CRegister cr = cr0, LKBit lk = LeaveLK) {
@@ -919,10 +921,10 @@ class Assembler : public AssemblerBase {
   void oris(Register dst, Register src, const Operand& imm);
   void xori(Register dst, Register src, const Operand& imm);
   void xoris(Register ra, Register rs, const Operand& imm);
-  void cmpi(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmpli(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmpwi(Register src1, const Operand& src2, CRegister cr = cr7);
-  void cmplwi(Register src1, const Operand& src2, CRegister cr = cr7);
+  void cmpi(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmpli(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmpwi(Register src1, const Operand& src2, CRegister cr = cr0);
+  void cmplwi(Register src1, const Operand& src2, CRegister cr = cr0);
   void li(Register dst, const Operand& src);
   void lis(Register dst, const Operand& imm);
   void mr(Register dst, Register src);
@@ -1033,7 +1035,7 @@ class Assembler : public AssemblerBase {
 
   // Exception-generating instructions and debugging support
   void stop(Condition cond = al, int32_t code = kDefaultStopCode,
-            CRegister cr = cr7);
+            CRegister cr = cr0);
 
   void bkpt(uint32_t imm16);  // v5 and above
 
@@ -1062,7 +1064,7 @@ class Assembler : public AssemblerBase {
   void fmul(const DoubleRegister frt, const DoubleRegister fra,
             const DoubleRegister frc, RCBit rc = LeaveRC);
   void fcmpu(const DoubleRegister fra, const DoubleRegister frb,
-             CRegister cr = cr7);
+             CRegister cr = cr0);
   void fmr(const DoubleRegister frt, const DoubleRegister frb,
            RCBit rc = LeaveRC);
   void fctiwz(const DoubleRegister frt, const DoubleRegister frb);

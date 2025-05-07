@@ -447,8 +447,11 @@ class NODE_EXTERN MultiIsolatePlatform : public v8::Platform {
 
   // This function may only be called once per `Isolate`, and discard any
   // pending delayed tasks scheduled for that isolate.
-  // This needs to be called right before calling `Isolate::Dispose()`.
+  // This needs to be called right after calling `Isolate::Dispose()`.
   virtual void UnregisterIsolate(v8::Isolate* isolate) = 0;
+  // This disposes, unregisters and frees up an isolate that's allocated using
+  // v8::Isolate::Allocate() in the correct order to prevent race conditions.
+  void DisposeIsolate(v8::Isolate* isolate);
 
   // The platform should call the passed function once all state associated
   // with the given isolate has been cleaned up. This can, but does not have to,
@@ -489,6 +492,21 @@ struct IsolateSettings {
       allow_wasm_code_generation_callback = nullptr;
   v8::ModifyCodeGenerationFromStringsCallback2
       modify_code_generation_from_strings_callback = nullptr;
+
+  // When the settings is passed to NewIsolate():
+  // - If cpp_heap is not nullptr, this CppHeap will be used to create
+  //   the isolate and its ownership will be passed to V8.
+  // - If this is nullptr, Node.js will create a CppHeap that will be
+  //   owned by V8.
+  //
+  // When the settings is passed to SetIsolateUpForNode():
+  // cpp_heap will be ignored. Embedders must ensure that the
+  // v8::Isolate has a CppHeap attached while it's still used by
+  // Node.js, for example using v8::CreateParams.
+  //
+  // See https://issues.chromium.org/issues/42203693. In future version
+  // of V8, this CppHeap will be created by V8 if not provided.
+  v8::CppHeap* cpp_heap = nullptr;
 };
 
 // Represents a startup snapshot blob, e.g. created by passing
@@ -543,8 +561,8 @@ class EmbedderSnapshotData {
   void ToFile(FILE* out) const;
   std::vector<char> ToBlob() const;
 
-  // Returns whether custom snapshots can be used. Currently, this means
-  // that V8 was configured without the shared-readonly-heap feature.
+  // Returns whether custom snapshots can be used. Currently, this always
+  // returns false since V8 enforces shared readonly-heap.
   static bool CanUseCustomSnapshotPerIsolate();
 
   EmbedderSnapshotData(const EmbedderSnapshotData&) = delete;

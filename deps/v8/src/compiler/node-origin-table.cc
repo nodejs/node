@@ -3,8 +3,9 @@
 // found in the LICENSE file.
 
 #include "src/compiler/node-origin-table.h"
-#include "src/compiler/graph.h"
+
 #include "src/compiler/node-aux-data.h"
+#include "src/compiler/turbofan-graph.h"
 
 namespace v8 {
 namespace internal {
@@ -39,7 +40,7 @@ class NodeOriginTable::Decorator final : public GraphDecorator {
   NodeOriginTable* origins_;
 };
 
-NodeOriginTable::NodeOriginTable(Graph* graph)
+NodeOriginTable::NodeOriginTable(TFGraph* graph)
     : graph_(graph),
       decorator_(nullptr),
       current_origin_(NodeOrigin::Unknown()),

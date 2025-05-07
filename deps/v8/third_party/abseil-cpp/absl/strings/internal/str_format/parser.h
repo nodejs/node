@@ -132,8 +132,10 @@ class ParsedFormatBase {
     has_error_ = other.has_error_;
     items_ = other.items_;
     size_t text_size = items_.empty() ? 0 : items_.back().text_end;
-    data_.reset(new char[text_size]);
-    memcpy(data_.get(), other.data_.get(), text_size);
+    data_ = std::make_unique<char[]>(text_size);
+    if (text_size > 0) {
+      memcpy(data_.get(), other.data_.get(), text_size);
+    }
     return *this;
   }
 

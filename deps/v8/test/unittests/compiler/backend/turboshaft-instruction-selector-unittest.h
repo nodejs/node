@@ -2,8 +2,8 @@
 // Use of this source code is governed by a BSD-style license that can be
 // found in the LICENSE file.
 
-#ifndef V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
-#define V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#ifndef V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
+#define V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
 
 #include <deque>
 #include <set>
@@ -70,6 +70,8 @@ namespace v8::internal::compiler::turboshaft {
   V(Int64AddCheckOverflow)      \
   V(Int32SubCheckOverflow)      \
   V(Int64SubCheckOverflow)      \
+  V(Int32MulCheckOverflow)      \
+  V(Int64MulCheckOverflow)      \
   V(Word32Equal)                \
   V(Word64Equal)                \
   V(Word32NotEqual)             \
@@ -91,9 +93,13 @@ namespace v8::internal::compiler::turboshaft {
   V(Uint64GreaterThanOrEqual)   \
   V(Uint64GreaterThan)          \
   V(Float64Add)                 \
+  V(Float32Add)                 \
   V(Float64Sub)                 \
+  V(Float32Sub)                 \
   V(Float64Mul)                 \
+  V(Float32Mul)                 \
   V(Float64Div)                 \
+  V(Float32Div)                 \
   V(Float64Equal)               \
   V(Float64LessThan)            \
   V(Float64LessThanOrEqual)     \
@@ -247,7 +253,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
           kDefaultCodeEntrypointTag,     // tag
           target_type,                   // target MachineType
           target_loc,                    // target location
-          locations.Build(),             // location_sig
+          locations.Get(),               // location_sig
           0,                             // stack_parameter_count
           Operator::kNoProperties,       // properties
           kCalleeSaveRegisters,          // callee-saved registers
@@ -458,7 +464,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       MachineSignature::Builder builder(zone, 1, sizeof...(ParamT));
       builder.AddReturn(return_type);
       (builder.AddParam(parameter_type), ...);
-      return MakeSimpleCallDescriptor(zone, builder.Build());
+      return MakeSimpleCallDescriptor(zone, builder.Get());
     }
 
     void Init() {
@@ -518,7 +524,8 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return ToConstant(operand).ToInt64();
     }
 
-    Handle<HeapObject> ToHeapObject(const InstructionOperand* operand) const {
+    DirectHandle<HeapObject> ToHeapObject(
+        const InstructionOperand* operand) const {
       return ToConstant(operand).ToHeapObject();
     }
 
@@ -611,4 +618,4 @@ class TurboshaftInstructionSelectorTestWithParam
 
 }  // namespace v8::internal::compiler::turboshaft
 
-#endif  // V8_UNITTESTS_COMPILER_INSTRUCTION_SELECTOR_UNITTEST_H_
+#endif  // V8_UNITTESTS_C_BACKEND_TURBOSHAFT_INSTRUCTION_SELECTOR_UNITTEST_H_
