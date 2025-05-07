@@ -16,26 +16,35 @@ const server = createServer({
   }));
 });
 
-server.listen(0);
+server.listen(0, () => {
+  const client = connect({
+    host: 'localhost',
+    port: server.address().port,
+  }, () => {
+    client.write(
+      'GET / HTTP/1.1\r\n' +
+          'Host: localhost:3000\r\n' +
+          'Content-Length: 0\r\n' +
+          '\r\n'
+    );
 
-const client = connect({
-  host: 'localhost',
-  port: server.address().port,
-}, () => {
-  client.write(
-    'GET / HTTP/1.1\r\n' +
-        'Host: localhost:3000\r\n' +
-        'Content-Length: 0\r\n' +
-        '\r\n'
-  );
+    setTimeout(() => {
+      client.write('\r\n');
+    }, 100);
 
-  setTimeout(() => {
-    client.write('\r\n');
-  }, 100);
+    let responseBuffer = '';
 
-  client.on('data', (data) => {
-    const status = data.toString().split(' ')[1];
-    assert.strictEqual(status, '404');
+    client.on('data', (chunk) => {
+      responseBuffer += chunk.toString();
+
+      // Check if we've received the full header (ending with \r\n\r\n)
+      if (responseBuffer.includes('\r\n\r\n')) {
+        const statusLine = responseBuffer.split('\r\n')[0];
+        const status = statusLine.split(' ')[1];
+        assert.strictEqual(status, '404');
+        client.end();
+      }
+    });
+    client.on('end', common.mustCall());
   });
-  client.on('end', common.mustCall());
 });
