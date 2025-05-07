@@ -1,6 +1,5 @@
 'use strict';
 const common = require('../common.js');
-const { Buffer } = require('buffer');
 
 const types = [
   'BigUInt64LE',
@@ -28,7 +27,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, buf, type }) {
   const buff = buf === 'fast' ?
     Buffer.alloc(8) :
-    Buffer.allocUnsafeSlow(8);
+    require('buffer').SlowBuffer(8);
   const fn = `read${type}`;
 
   buff.writeDoubleLE(0, 0);
