@@ -142,4 +142,32 @@ const test = (handleRequest, testSessionFunc) => new Promise((resolve) => {
     )
   );
 
+  await test(
+    (req, res) => {
+      res.setHeader('Content-Type', 'text/plain');
+      res.writeHead(200);
+      res.end('hello world\n');
+    },
+    common.mustCall((session) =>
+      new Promise((resolve) => {
+        session.on(
+          'Network.responseReceived',
+          common.mustCall(({ params }) => {
+            assert.strictEqual(params.response.mimeType, 'text/plain');
+            assert.strictEqual(params.response.charset, '');
+          })
+        );
+        session.on(
+          'Network.loadingFinished',
+          common.mustCall(({ params }) => {
+            assert.ok(params.requestId.startsWith('node-network-event-'));
+            assert.strictEqual(typeof params.timestamp, 'number');
+            resolve();
+          })
+        );
+      }),
+                    2
+    )
+  );
+
 })().then(common.mustCall());
