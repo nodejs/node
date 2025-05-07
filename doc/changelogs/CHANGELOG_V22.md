@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#22.15.1">22.15.1</a><br/>
 <a href="#22.15.0">22.15.0</a><br/>
 <a href="#22.14.0">22.14.0</a><br/>
 <a href="#22.13.1">22.13.1</a><br/>
@@ -57,6 +58,23 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="22.15.1"></a>
+
+## 2025-05-14, Version 22.15.1 'Jod' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-23166) fix error handling on async crypto operation
+* (CVE-2025-23165) add missing call to uv\_fs\_req\_cleanup
+
+### Commits
+
+* \[[`edaf54da00`](https://github.com/nodejs/node/commit/edaf54da00)] - **fs**: added test for missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`9f403e98ef`](https://github.com/nodejs/node/commit/9f403e98ef)] - **(CVE-2025-23165)** **fs**: add missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`f4494d38f1`](https://github.com/nodejs/node/commit/f4494d38f1)] - **(CVE-2025-23166)** **src**: fix error handling on async crypto operations (RafaelGSS) [nodejs-private/node-private#709](https://github.com/nodejs-private/node-private/pull/709)
 
 <a id="22.15.0"></a>
 
