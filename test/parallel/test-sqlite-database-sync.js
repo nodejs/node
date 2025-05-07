@@ -1,10 +1,13 @@
+// Flags: --expose-internals --allow-natives-syntax
 'use strict';
-require('../common');
+const { isDebug } = require('../common');
 const tmpdir = require('../common/tmpdir');
 const { existsSync } = require('node:fs');
 const { join } = require('node:path');
 const { DatabaseSync, StatementSync } = require('node:sqlite');
 const { suite, test } = require('node:test');
+const assert = require('node:assert');
+const { internalBinding } = require('internal/test/binding');
 let cnt = 0;
 
 tmpdir.refresh();
@@ -359,6 +362,33 @@ suite('DatabaseSync.prototype.isTransaction', () => {
       code: 'ERR_INVALID_STATE',
       message: /database is not open/,
     });
+  });
+
+  test('supports isTransaction fast path', (t) => {
+    const db = new DatabaseSync(':memory:');
+
+    // Only javascript methods can be optimized through %OptimizeFunctionOnNextCall
+    // This is why we surround the C++ method we want to optimize with a JS function.
+    function isTransaction() {
+      return db.isTransaction;
+    }
+
+    t.assert.strictEqual(db.isTransaction, false);
+    db.exec('BEGIN');
+    eval('%PrepareFunctionForOptimization(isTransaction)');
+    t.assert.strictEqual(isTransaction(), true);
+    eval('%OptimizeFunctionOnNextCall(isTransaction)');
+    t.assert.strictEqual(isTransaction(), true);
+
+    if (isDebug) {
+      const { getV8FastApiCallCount } = internalBinding('debug');
+      assert.strictEqual(getV8FastApiCallCount('DatabaseSync.isTransaction'), 1);
+    }
+
+    db.exec('CREATE TABLE foo (id INTEGER PRIMARY KEY)');
+    t.assert.strictEqual(db.isTransaction, true);
+    db.exec('COMMIT');
+    t.assert.strictEqual(db.isTransaction, false);
   });
 });
 
