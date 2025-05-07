@@ -231,7 +231,6 @@ void CipherBase::Initialize(Environment* env, Local<Object> target) {
 
   t->InstanceTemplate()->SetInternalFieldCount(CipherBase::kInternalFieldCount);
 
-  SetProtoMethod(isolate, t, "initiv", InitIv);
   SetProtoMethod(isolate, t, "update", Update);
   SetProtoMethod(isolate, t, "final", Final);
   SetProtoMethod(isolate, t, "setAutoPadding", SetAutoPadding);
@@ -274,7 +273,6 @@ void CipherBase::RegisterExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(New);
 
-  registry->Register(InitIv);
   registry->Register(Update);
   registry->Register(Final);
   registry->Register(SetAutoPadding);
@@ -300,7 +298,39 @@ void CipherBase::RegisterExternalReferences(
 void CipherBase::New(const FunctionCallbackInfo<Value>& args) {
   CHECK(args.IsConstructCall());
   Environment* env = Environment::GetCurrent(args);
-  new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
+  CHECK_EQ(args.Length(), 5);
+
+  CipherBase* cipher =
+      new CipherBase(env, args.This(), args[0]->IsTrue() ? kCipher : kDecipher);
+
+  const Utf8Value cipher_type(env->isolate(), args[1]);
+
+  // The argument can either be a KeyObjectHandle or a byte source
+  // (e.g. ArrayBuffer, TypedArray, etc). Whichever it is, grab the
+  // raw bytes and proceed...
+  const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[2]);
+
+  if (key_buf.size() > INT_MAX) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
+  }
+
+  ArrayBufferOrViewContents<unsigned char> iv_buf(
+      !args[3]->IsNull() ? args[3] : Local<Value>());
+
+  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
+    return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
+  }
+  // Don't assign to cipher->auth_tag_len_ directly; the value might not
+  // represent a valid length at this point.
+  unsigned int auth_tag_len;
+  if (args[4]->IsUint32()) {
+    auth_tag_len = args[4].As<Uint32>()->Value();
+  } else {
+    CHECK(args[4]->IsInt32() && args[4].As<Int32>()->Value() == -1);
+    auth_tag_len = kNoAuthTagLength;
+  }
+
+  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
 void CipherBase::CommonInit(const char* cipher_type,
@@ -389,43 +419,6 @@ void CipherBase::InitIv(const char* cipher_type,
       iv_buf.data(),
       iv_buf.size(),
       auth_tag_len);
-}
-
-void CipherBase::InitIv(const FunctionCallbackInfo<Value>& args) {
-  CipherBase* cipher;
-  ASSIGN_OR_RETURN_UNWRAP(&cipher, args.This());
-  Environment* env = cipher->env();
-
-  CHECK_GE(args.Length(), 4);
-
-  const Utf8Value cipher_type(env->isolate(), args[0]);
-
-  // The argument can either be a KeyObjectHandle or a byte source
-  // (e.g. ArrayBuffer, TypedArray, etc). Whichever it is, grab the
-  // raw bytes and proceed...
-  const ByteSource key_buf = ByteSource::FromSecretKeyBytes(env, args[1]);
-
-  if (key_buf.size() > INT_MAX) [[unlikely]] {
-    return THROW_ERR_OUT_OF_RANGE(env, "key is too big");
-  }
-
-  ArrayBufferOrViewContents<unsigned char> iv_buf(
-      !args[2]->IsNull() ? args[2] : Local<Value>());
-
-  if (!iv_buf.CheckSizeInt32()) [[unlikely]] {
-    return THROW_ERR_OUT_OF_RANGE(env, "iv is too big");
-  }
-  // Don't assign to cipher->auth_tag_len_ directly; the value might not
-  // represent a valid length at this point.
-  unsigned int auth_tag_len;
-  if (args[3]->IsUint32()) {
-    auth_tag_len = args[3].As<Uint32>()->Value();
-  } else {
-    CHECK(args[3]->IsInt32() && args[3].As<Int32>()->Value() == -1);
-    auth_tag_len = kNoAuthTagLength;
-  }
-
-  cipher->InitIv(*cipher_type, key_buf, iv_buf, auth_tag_len);
 }
 
 bool CipherBase::InitAuthenticated(const char* cipher_type,
