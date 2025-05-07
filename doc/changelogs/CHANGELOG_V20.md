@@ -9,6 +9,7 @@
 </tr>
 <tr>
 <td>
+<a href="#20.19.2">20.19.2</a><br/>
 <a href="#20.19.1">20.19.1</a><br/>
 <a href="#20.19.0">20.19.0</a><br/>
 <a href="#20.18.3">20.18.3</a><br/>
@@ -69,6 +70,28 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="20.19.2"></a>
+
+## 2025-05-14, Version 20.19.2 'Iron' (LTS), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-23166) fix error handling on async crypto operation
+* (CVE-2025-23167) (SEMVER-MAJOR) update llhttp to 9.2.0
+* (CVE-2025-23165) add missing call to uv\_fs\_req\_cleanup
+
+### Commits
+
+* \[[`eb25047b1b`](https://github.com/nodejs/node/commit/eb25047b1b)] - **deps**: update llhttp to 9.2.0 (Node.js GitHub Bot) [#51719](https://github.com/nodejs/node/pull/51719)
+* \[[`12dcd8db08`](https://github.com/nodejs/node/commit/12dcd8db08)] - **deps**: update llhttp to 9.1.3 (Node.js GitHub Bot) [#50080](https://github.com/nodejs/node/pull/50080)
+* \[[`190e45a291`](https://github.com/nodejs/node/commit/190e45a291)] - **(SEMVER-MAJOR)** **(CVE-2025-23167)** **deps**: update llhttp to 9.1.2 (Paolo Insogna) [#48981](https://github.com/nodejs/node/pull/48981)
+* \[[`fc68c44e6a`](https://github.com/nodejs/node/commit/fc68c44e6a)] - **fs**: added test for missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`9e13bf0a81`](https://github.com/nodejs/node/commit/9e13bf0a81)] - **(CVE-2025-23165)** **fs**: add missing call to uv\_fs\_req\_cleanup (Justin Nietzel) [#57811](https://github.com/nodejs/node/pull/57811)
+* \[[`bd0aa5d44c`](https://github.com/nodejs/node/commit/bd0aa5d44c)] - **(CVE-2024-27982)** **http**: do not allow OBS fold in headers by default (Paolo Insogna) [nodejs-private/node-private#556](https://github.com/nodejs-private/node-private/pull/556)
+* \[[`6c57465920`](https://github.com/nodejs/node/commit/6c57465920)] - **(CVE-2025-23166)** **src**: fix error handling on async crypto operations (RafaelGSS) [nodejs-private/node-private#710](https://github.com/nodejs-private/node-private/pull/710)
 
 <a id="20.19.1"></a>
 
