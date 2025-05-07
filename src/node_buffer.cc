@@ -107,8 +107,7 @@ class CallbackInfo : public Cleanable {
                       char* data,
                       void* hint);
   Global<ArrayBuffer> persistent_;
-  Mutex mutex_;  // Protects callback_.
-  FreeCallback callback_;
+  std::atomic<FreeCallback> callback_;
   char* const data_;
   void* const hint_;
   Environment* const env_;
@@ -146,14 +145,14 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
 
 
 CallbackInfo::CallbackInfo(Environment* env,
-                           FreeCallback callback,
-                           char* data,
-                           void* hint)
-    : callback_(callback),
+                             FreeCallback callback,
+                             char* data,
+                             void* hint)
+                             : callback_(callback),
       data_(data),
       hint_(hint),
       env_(env) {
-  env->cleanable_queue()->PushFront(this);
+        env->cleanable_queue()->PushFront(static_cast<node::Cleanable*>(this));
   env->external_memory_accounter()->Increase(env->isolate(), sizeof(*this));
 }
 
@@ -173,12 +172,9 @@ void CallbackInfo::Clean() {
 }
 
 void CallbackInfo::CallAndResetCallback() {
-  FreeCallback callback;
-  {
-    Mutex::ScopedLock lock(mutex_);
-    callback = callback_;
-    callback_ = nullptr;
-  }
+  // Atomically grab & clear the callback; lock-free:
+  FreeCallback callback =
+      callback_.exchange(nullptr, std::memory_order_acq_rel);
   if (callback != nullptr) {
     // Clean up all Environment-related state and run the callback.
     cleanable_queue_.Remove();
@@ -191,12 +187,11 @@ void CallbackInfo::CallAndResetCallback() {
 void CallbackInfo::OnBackingStoreFree() {
   // This method should always release the memory for `this`.
   std::unique_ptr<CallbackInfo> self { this };
-  Mutex::ScopedLock lock(mutex_);
   // If callback_ == nullptr, that means that the callback has already run from
   // the cleanup hook, and there is nothing left to do here besides to clean
   // up the memory involved. In particular, the underlying `Environment` may
   // be gone at this point, so don’t attempt to call SetImmediateThreadsafe().
-  if (callback_ == nullptr) return;
+  if (callback_.load(std::memory_order_acquire) == nullptr) return;
 
   env_->SetImmediateThreadsafe([self = std::move(self)](Environment* env) {
     CHECK_EQ(self->env_, env);  // Consistency check.
