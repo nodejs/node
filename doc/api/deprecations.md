@@ -696,9 +696,6 @@ Type: End-of-Life
 <!-- YAML
 changes:
   - version: v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/58008
-    description: End-of-Life.
-  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55175
     description: Runtime deprecation.
   - version: v6.12.0
@@ -709,9 +706,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: End-of-Life
+Type: Runtime
 
-The `SlowBuffer` class has been removed. Please use
+The [`SlowBuffer`][] class is deprecated. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 ### DEP0031: `ecdh.setPublicKey()`
@@ -3921,6 +3918,7 @@ upon `require('node:module').builtinModules`.
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
+[`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert.CallTracker`]: assert.md#class-assertcalltracker

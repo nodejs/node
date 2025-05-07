@@ -1,6 +1,6 @@
 'use strict';
 const common = require('../common.js');
-const { Buffer } = require('buffer');
+const SlowBuffer = require('buffer').SlowBuffer;
 
 const bench = common.createBenchmark(main, {
   type: ['fast', 'slow', 'subarray'],
@@ -8,7 +8,7 @@ const bench = common.createBenchmark(main, {
 });
 
 const buf = Buffer.allocUnsafe(1024);
-const slowBuf = Buffer.allocUnsafeSlow(1024);
+const slowBuf = new SlowBuffer(1024);
 
 function main({ n, type }) {
   const b = type === 'slow' ? slowBuf : buf;

@@ -2,7 +2,7 @@
 
 require('../common');
 const assert = require('assert');
-const { Buffer } = require('buffer');
+const SlowBuffer = require('buffer').SlowBuffer;
 
 // Test failed or zero-sized Buffer allocations not affecting typed arrays.
 // This test exists because of a regression that occurred. Because Buffer
@@ -15,6 +15,7 @@ const zeroArray = new Uint32Array(10).fill(0);
 const sizes = [1e20, 0, 0.1, -1, 'a', undefined, null, NaN];
 const allocators = [
   Buffer,
+  SlowBuffer,
   Buffer.alloc,
   Buffer.allocUnsafe,
   Buffer.allocUnsafeSlow,

@@ -30,7 +30,7 @@ buffer.INSPECT_MAX_BYTES = 2;
 let b = Buffer.allocUnsafe(4);
 b.fill('1234');
 
-let s = Buffer.allocUnsafeSlow(4);
+let s = buffer.SlowBuffer(4);
 s.fill('1234');
 
 let expected = '<Buffer 31 32 ... 2 more bytes>';
@@ -41,7 +41,7 @@ assert.strictEqual(util.inspect(s), expected);
 b = Buffer.allocUnsafe(2);
 b.fill('12');
 
-s = Buffer.allocUnsafeSlow(2);
+s = buffer.SlowBuffer(2);
 s.fill('12');
 
 expected = '<Buffer 31 32>';
