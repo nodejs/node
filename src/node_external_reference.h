@@ -66,6 +66,8 @@ using CFunctionCallbackWithUint8ArrayUint32Int64Bool =
                 v8::FastApiCallbackOptions&);
 using CFunctionWithUint32 = uint32_t (*)(v8::Local<v8::Value>,
                                          const uint32_t input);
+using CFunctionWithReturnUint32 = uint32_t (*)(v8::Local<v8::Value>);
+using CFunctionWithReturnDouble = double (*)(v8::Local<v8::Value>);
 using CFunctionWithDoubleReturnDouble = double (*)(v8::Local<v8::Value>,
                                                    v8::Local<v8::Value>,
                                                    const double);
@@ -107,6 +109,7 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackReturnBool)                                               \
   V(CFunctionCallbackReturnDouble)                                             \
   V(CFunctionCallbackReturnInt32)                                              \
+  V(CFunctionWithReturnUint32)                                                 \
   V(CFunctionCallbackValueReturnDouble)                                        \
   V(CFunctionCallbackValueReturnDoubleUnusedReceiver)                          \
   V(CFunctionCallbackWithInt64)                                                \
