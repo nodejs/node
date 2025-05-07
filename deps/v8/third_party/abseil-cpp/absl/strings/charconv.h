@@ -45,7 +45,7 @@ enum class chars_format {
 // characters that were successfully parsed.  If none was found, `ptr` is set
 // to the `first` argument to from_chars.
 struct from_chars_result {
-  absl::Nonnull<const char*> ptr;
+  const char* absl_nonnull ptr;
   std::errc ec;
 };
 
@@ -77,13 +77,13 @@ struct from_chars_result {
 // format that strtod() accepts, except that a "0x" prefix is NOT matched.
 // (In particular, in `hex` mode, the input "0xff" results in the largest
 // matching pattern "0".)
-absl::from_chars_result from_chars(absl::Nonnull<const char*> first,
-                                   absl::Nonnull<const char*> last,
+absl::from_chars_result from_chars(const char* absl_nonnull first,
+                                   const char* absl_nonnull last,
                                    double& value,  // NOLINT
                                    chars_format fmt = chars_format::general);
 
-absl::from_chars_result from_chars(absl::Nonnull<const char*> first,
-                                   absl::Nonnull<const char*> last,
+absl::from_chars_result from_chars(const char* absl_nonnull first,
+                                   const char* absl_nonnull last,
                                    float& value,  // NOLINT
                                    chars_format fmt = chars_format::general);
 

@@ -328,10 +328,6 @@ using WasmImportedStringsEnabledCallback = bool (*)(Local<Context> context);
 using SharedArrayBufferConstructorEnabledCallback =
     bool (*)(Local<Context> context);
 
-// --- Callback for checking if the compile hints magic comments are enabled ---
-using JavaScriptCompileHintsMagicEnabledCallback =
-    bool (*)(Local<Context> context);
-
 // --- Callback for checking if WebAssembly JSPI is enabled ---
 using WasmJSPIEnabledCallback = bool (*)(Local<Context> context);
 

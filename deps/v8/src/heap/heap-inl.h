@@ -75,11 +75,6 @@ RootsTable& Heap::roots_table() { return isolate()->roots_table(); }
 MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
 
-Tagged<FixedArray> Heap::single_character_string_table() {
-  return Cast<FixedArray>(
-      Tagged<Object>(roots_table()[RootIndex::kSingleCharacterStringTable]));
-}
-
 #define STATIC_ROOTS_FAILED_MSG                                            \
   "Read-only heap layout changed. Run `tools/dev/gen-static-roots.py` to " \
   "update static-roots.h."

@@ -7,6 +7,7 @@
 // compiles with TurboFan, which eventually triggers caching. This was missing
 // support for --single-threaded.
 // Flags: --no-enable-ssse3 --no-wasm-lazy-compilation --single-threaded
+// Flags: --wasm-allow-mixed-eh-for-testing
 
 for (let i = 0; i < 100; i++) {
   %WasmGenerateRandomModule();

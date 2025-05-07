@@ -58,7 +58,6 @@ class EnumSet {
   constexpr EnumSet operator~() const { return EnumSet(~bits_); }
 
   constexpr bool operator==(EnumSet set) const { return bits_ == set.bits_; }
-  constexpr bool operator!=(EnumSet set) const { return bits_ != set.bits_; }
 
   constexpr EnumSet operator|(EnumSet set) const {
     return EnumSet(bits_ | set.bits_);

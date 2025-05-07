@@ -44,9 +44,11 @@ namespace {
 // single generator within a RandenPool<T>. It is an internal implementation
 // detail, and does not aim to conform to [rand.req.urng].
 //
-// NOTE: There are alignment issues when used on ARM, for instance.
-// See the allocation code in PoolAlignedAlloc().
-class RandenPoolEntry {
+// At least 32-byte alignment is required for the state_ array on some ARM
+// platforms.  We also want this aligned to a cacheline to eliminate false
+// sharing.
+class alignas(std::max(size_t{ABSL_CACHELINE_SIZE}, size_t{32}))
+    RandenPoolEntry {
  public:
   static constexpr size_t kState = RandenTraits::kStateBytes / sizeof(uint32_t);
   static constexpr size_t kCapacity =
@@ -74,7 +76,8 @@ class RandenPoolEntry {
 
  private:
   // Randen URBG state.
-  uint32_t state_[kState] ABSL_GUARDED_BY(mu_);  // First to satisfy alignment.
+  // At least 32-byte alignment is required by ARM platform code.
+  alignas(32) uint32_t state_[kState] ABSL_GUARDED_BY(mu_);
   SpinLock mu_;
   const Randen impl_;
   size_t next_ ABSL_GUARDED_BY(mu_);
@@ -148,22 +151,6 @@ size_t GetPoolID() {
 #endif
 }
 
-// Allocate a RandenPoolEntry with at least 32-byte alignment, which is required
-// by ARM platform code.
-RandenPoolEntry* PoolAlignedAlloc() {
-  constexpr size_t kAlignment =
-      ABSL_CACHELINE_SIZE > 32 ? ABSL_CACHELINE_SIZE : 32;
-
-  // Not all the platforms that we build for have std::aligned_alloc, however
-  // since we never free these objects, we can over allocate and munge the
-  // pointers to the correct alignment.
-  uintptr_t x = reinterpret_cast<uintptr_t>(
-      new char[sizeof(RandenPoolEntry) + kAlignment]);
-  auto y = x % kAlignment;
-  void* aligned = reinterpret_cast<void*>(y == 0 ? x : (x + kAlignment - y));
-  return new (aligned) RandenPoolEntry();
-}
-
 // Allocate and initialize kPoolSize objects of type RandenPoolEntry.
 void InitPoolURBG() {
   static constexpr size_t kSeedSize =
@@ -174,7 +161,7 @@ void InitPoolURBG() {
     ThrowSeedGenException();
   }
   for (size_t i = 0; i < kPoolSize; i++) {
-    shared_pools[i] = PoolAlignedAlloc();
+    shared_pools[i] = new RandenPoolEntry();
     shared_pools[i]->Init(
         absl::MakeSpan(&seed_material[i * kSeedSize], kSeedSize));
   }

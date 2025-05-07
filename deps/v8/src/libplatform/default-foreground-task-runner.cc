@@ -113,6 +113,10 @@ bool DefaultForegroundTaskRunner::NonNestableTasksEnabled() const {
   return true;
 }
 
+bool DefaultForegroundTaskRunner::NonNestableDelayedTasksEnabled() const {
+  return true;
+}
+
 bool DefaultForegroundTaskRunner::HasPoppableTaskInQueue() const {
   if (nesting_depth_ == 0) return !task_queue_.empty();
   for (auto it = task_queue_.cbegin(); it != task_queue_.cend(); it++) {

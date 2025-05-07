@@ -20,11 +20,14 @@ class Isolate;
 
 namespace v8::internal::wasm {
 
+class StackMemory;
+
 struct JumpBuffer {
   Address sp;
   Address fp;
   Address pc;
   void* stack_limit;
+  StackMemory* parent = nullptr;
   // We track the state below to prevent stack corruptions under the sandbox
   // security model.
   // Assuming that the external pointer to the jump buffer has been corrupted
@@ -44,21 +47,7 @@ struct JumpBuffer {
     Retired     // A finished stack. The jump buffer is invalid in that state.
   };
   StackState state;
-#if V8_ENABLE_SANDBOX
-  // Store a pointer to the parent jump buffer here, so that we can validate
-  // that it matches the continuation's parent when we return/suspend.
-  JumpBuffer* caller;
-#endif
 };
-
-constexpr int kJmpBufSpOffset = offsetof(JumpBuffer, sp);
-constexpr int kJmpBufFpOffset = offsetof(JumpBuffer, fp);
-constexpr int kJmpBufPcOffset = offsetof(JumpBuffer, pc);
-constexpr int kJmpBufStackLimitOffset = offsetof(JumpBuffer, stack_limit);
-constexpr int kJmpBufStateOffset = offsetof(JumpBuffer, state);
-#if V8_ENABLE_SANDBOX
-constexpr int kJmpBufCaller = offsetof(JumpBuffer, caller);
-#endif
 
 class StackMemory {
  public:
@@ -127,6 +116,7 @@ class StackMemory {
   Address old_fp() { return active_segment_->old_fp; }
   bool Grow(Address current_fp);
   Address Shrink();
+  void ShrinkTo(Address stack_address);
   void Reset();
 
   class StackSegment {
@@ -208,6 +198,19 @@ class StackMemory {
   StackSegment* first_segment_ = nullptr;
   StackSegment* active_segment_ = nullptr;
 };
+
+constexpr int kStackSpOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, sp);
+constexpr int kStackFpOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, fp);
+constexpr int kStackPcOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, pc);
+constexpr int kStackLimitOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, stack_limit);
+constexpr int kStackParentOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, parent);
+constexpr int kStackStateOffset =
+    wasm::StackMemory::jmpbuf_offset() + offsetof(JumpBuffer, state);
 
 // A pool of "finished" stacks, i.e. stacks whose last frame have returned and
 // whose memory can be reused for new suspendable computations.

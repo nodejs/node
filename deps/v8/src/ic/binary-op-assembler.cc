@@ -353,6 +353,108 @@ TNode<Object> BinaryOpAssembler::Generate_AddWithFeedback(
   return var_result.value();
 }
 
+TNode<Object>
+BinaryOpAssembler::Generate_AddLhsIsStringConstantInternalizeWithFeedback(
+    const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
+    TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,
+    UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi) {
+  Label call_with_any_feedback(this), call_add_stub(this),
+      slow(this, Label::kDeferred), end(this);
+  TVARIABLE(Smi, var_type_feedback, SmiConstant(BinaryOperationFeedback::kAny));
+  TVARIABLE(Object, var_result);
+
+  // Lhs is an internalized string constant. Since our cache is stored in the
+  // feedback vector and is thus specific to a particular bytecode, we can
+  // ignore the lhs and use rhs as the cache key instead. This is our
+  // optimization:
+  //
+  //   Instead of: return Internalize(lhs + rhs)
+  //   .. we do:   return cache[rhs]  // .. if possible.
+  CSA_DCHECK(this, Word32BinaryNot(TaggedIsSmi(lhs)));
+  CSA_DCHECK(this,
+             IsInternalizedStringInstanceType(LoadInstanceType(CAST(lhs))));
+
+  // We need the cache slot for our optimization.
+  {
+    Label next(this);
+    GotoIfNot(IsUndefined(maybe_feedback_vector()), &next);
+    // TODO(jgruber): This could be a builtin call. Add a builtin that expects
+    // a possibly-undefined feedback vector.
+    var_result = Generate_AddWithFeedback(context, lhs, rhs, slot_id,
+                                          maybe_feedback_vector,
+                                          update_feedback_mode, rhs_known_smi);
+    Goto(&end);
+    BIND(&next);
+  }
+  TNode<FeedbackVector> fv = CAST(maybe_feedback_vector());
+
+  // Ensure rhs is internalized so we can query the cache.
+  // TODO(jgruber): We could TryInternalize in CSA.
+  {
+    Label set_feedback_to_any_then_slow(this), next(this);
+    GotoIf(TaggedIsSmi(rhs), &set_feedback_to_any_then_slow);
+    TNode<Uint16T> itype = LoadInstanceType(CAST(rhs));
+    GotoIfNot(IsStringInstanceType(itype), &set_feedback_to_any_then_slow);
+
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kString);
+    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(), slot_id,
+                   update_feedback_mode);
+    GotoIfNot(IsInternalizedStringInstanceType(itype), &slow);
+    Goto(&next);
+
+    BIND(&set_feedback_to_any_then_slow);
+    var_type_feedback = SmiConstant(BinaryOperationFeedback::kAny);
+    UpdateFeedback(var_type_feedback.value(), maybe_feedback_vector(), slot_id,
+                   update_feedback_mode);
+    Goto(&slow);
+
+    BIND(&next);
+  }
+  TNode<String> rhs_internalized = CAST(rhs);
+
+  // Get or create the cache object.
+  TNode<SimpleNameDictionary> cache;
+  {
+    Label next(this);
+    static constexpr int kSlotOffset =
+        kAdd_LhsIsStringConstant_Internalize_CacheSlotOffset;
+    TVARIABLE(Object, var_maybe_cache);
+    var_maybe_cache = CAST(LoadFeedbackVectorSlot(
+        fv, UintPtrAdd(slot_id, UintPtrConstant(kSlotOffset))));
+    GotoIf(
+        TaggedNotEqual(var_maybe_cache.value(), UninitializedSymbolConstant()),
+        &next);
+    // TODO(jgruber): Allocate in CSA.
+    Goto(&slow);
+    BIND(&next);
+    cache = CAST(var_maybe_cache.value());
+  }
+
+  {
+    // TODO(jgruber): Fill the cache in CSA.
+    TVARIABLE(IntPtrT, var_entry);
+    Label index_found(this, {&var_entry});
+    NameDictionaryLookup<SimpleNameDictionary>(cache, rhs_internalized,
+                                               &index_found, &var_entry, &slow,
+                                               LookupMode::kFindExisting);
+    BIND(&index_found);
+    var_result =
+        LoadValueByKeyIndex<SimpleNameDictionary>(cache, var_entry.value());
+    Goto(&end);
+  }
+
+  BIND(&slow);
+  {
+    var_result = CallRuntime(
+        Runtime::kStringAdd_LhsIsStringConstant_Internalize, context(), lhs,
+        rhs, maybe_feedback_vector(), IntPtrToTaggedIndex(Signed(slot_id)));
+    Goto(&end);
+  }
+
+  BIND(&end);
+  return var_result.value();
+}
+
 TNode<Object> BinaryOpAssembler::Generate_BinaryOperationWithFeedback(
     const LazyNode<Context>& context, TNode<Object> lhs, TNode<Object> rhs,
     TNode<UintPtrT> slot_id, const LazyNode<HeapObject>& maybe_feedback_vector,

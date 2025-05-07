@@ -1890,17 +1890,11 @@ void WasmEngine::FreeDeadCodeLocked(const DeadCodeMap& dead_code,
     const std::vector<WasmCode*>& code_vec = dead_code_entry.second;
     TRACE_CODE_GC("Freeing %zu code object%s of module %p.\n", code_vec.size(),
                   code_vec.size() == 1 ? "" : "s", native_module);
-#if DEBUG
-    for (WasmCode* code : code_vec) DCHECK(code->is_dying());
-#endif  // DEBUG
     native_module->FreeCode(base::VectorOf(code_vec));
   }
   if (dead_wrappers.size()) {
     TRACE_CODE_GC("Freeing %zu wrapper%s.\n", dead_wrappers.size(),
                   dead_wrappers.size() == 1 ? "" : "s");
-#if DEBUG
-    for (WasmCode* code : dead_wrappers) DCHECK(code->is_dying());
-#endif  // DEBUG
     GetWasmImportWrapperCache()->Free(dead_wrappers);
   }
 }
@@ -2029,7 +2023,7 @@ void WasmEngine::DecodeAllNameSections(CanonicalTypeNamesProvider* target) {
 }
 
 size_t WasmEngine::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8408);
+  UPDATE_WHEN_CLASS_CHANGES(WasmEngine, 8424);
   UPDATE_WHEN_CLASS_CHANGES(IsolateInfo, 168);
   UPDATE_WHEN_CLASS_CHANGES(NativeModuleInfo, 56);
   UPDATE_WHEN_CLASS_CHANGES(CurrentGCInfo, 96);

@@ -77,7 +77,6 @@ class V8_EXPORT_PRIVATE IncrementalMarkingSchedule final {
   // thread owning the schedule. The schedule supports marked bytes being
   // adjusted downwards, i.e., going backwards in the schedule.
   void AddMutatorThreadMarkedBytes(size_t);
-  void RemoveMutatorThreadMarkedBytes(size_t);
 
   // Adds concurrently marked bytes. May be called from any thread. Not required
   // to be complete, i.e., it is okay to not report bytes already marked for the

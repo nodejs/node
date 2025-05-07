@@ -1059,8 +1059,8 @@ Maybe<bool> SourceTextModule::ExecuteAsyncModule(
       isolate->factory()->NewBuiltinContext(
           isolate->native_context(),
           ExecuteAsyncModuleContextSlots::kContextLength);
-  execute_async_module_context->set(ExecuteAsyncModuleContextSlots::kModule,
-                                    *module);
+  execute_async_module_context->SetNoCell(
+      ExecuteAsyncModuleContextSlots::kModule, *module);
 
   // 4. Let fulfilledClosure be a new Abstract Closure with no parameters that
   //    captures module and performs the following steps when called:

@@ -4696,7 +4696,7 @@ void Assembler::WriteBuiltinJumpTableEntry(Label* label, int table_pos) {
   EnsureSpace ensure_space(this);
   CHECK(label->is_bound());
   int32_t value = label->pos() - table_pos;
-  if constexpr (V8_BUILTIN_JUMP_TABLE_INFO_BOOL) {
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
     builtin_jump_table_info_writer_.Add(pc_offset(), label->pos());
   }
   emitl(value);
@@ -4704,7 +4704,7 @@ void Assembler::WriteBuiltinJumpTableEntry(Label* label, int table_pos) {
 
 int Assembler::WriteBuiltinJumpTableInfos() {
   if (builtin_jump_table_info_writer_.entry_count() == 0) return 0;
-  CHECK(V8_BUILTIN_JUMP_TABLE_INFO_BOOL);
+  CHECK(V8_JUMP_TABLE_INFO_BOOL);
   int offset = pc_offset();
   builtin_jump_table_info_writer_.Emit(this);
   int size = pc_offset() - offset;

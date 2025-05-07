@@ -853,7 +853,7 @@
     },
 
     'conservative_stack_scanning': {
-      'gn_args': 'v8_enable_conservative_stack_scanning=true',
+      'gn_args': 'v8_enable_direct_handle=true',
     },
 
     'dcheck_always_on': {

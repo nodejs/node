@@ -143,9 +143,8 @@ ShouldThrow GetShouldThrow(Isolate* isolate, Maybe<ShouldThrow> should_throw) {
   LanguageMode mode = isolate->context()->scope_info()->language_mode();
   if (mode == LanguageMode::kStrict) return kThrowOnError;
 
-  for (StackFrameIterator it(isolate, isolate->thread_local_top(),
-                             StackFrameIterator::NoHandles{});
-       !it.done(); it.Advance()) {
+  for (StackFrameIterator it(isolate, isolate->thread_local_top()); !it.done();
+       it.Advance()) {
     if (!it.frame()->is_javascript()) continue;
 
     // Get the language mode from closure.
@@ -293,7 +292,7 @@ MaybeHandle<JSReceiver> Object::ToObjectImpl(Isolate* isolate,
                       NewTypeError(MessageTemplate::kUndefinedOrNullToObject));
     }
     constructor = direct_handle(
-        Cast<JSFunction>(native_context->get(constructor_function_index)),
+        Cast<JSFunction>(native_context->GetNoCell(constructor_function_index)),
         isolate);
   }
   Handle<JSObject> result = isolate->factory()->NewJSObject(constructor);
@@ -601,12 +600,14 @@ MaybeDirectHandle<String> Object::NoSideEffectsToMaybeString(
     // -- F u n c t i o n
     DirectHandle<String> fun_str;
     if (IsJSBoundFunction(*input)) {
-      fun_str = JSBoundFunction::ToString(Cast<JSBoundFunction>(input));
+      fun_str =
+          JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(input));
     } else if (IsJSWrappedFunction(*input)) {
-      fun_str = JSWrappedFunction::ToString(Cast<JSWrappedFunction>(input));
+      fun_str =
+          JSWrappedFunction::ToString(isolate, Cast<JSWrappedFunction>(input));
     } else {
       DCHECK(IsJSFunction(*input));
-      fun_str = JSFunction::ToString(Cast<JSFunction>(input));
+      fun_str = JSFunction::ToString(isolate, Cast<JSFunction>(input));
     }
 
     if (fun_str->length() > 128) {
@@ -1277,7 +1278,7 @@ MaybeHandle<Object> Object::GetProperty(LookupIterator* it,
         return result;
       }
       case LookupIterator::WASM_OBJECT:
-        return it->isolate()->factory()->undefined_value();
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::INTERCEPTOR: {
         bool done;
         Handle<JSAny> result;
@@ -1915,6 +1916,8 @@ void Smi::SmiPrint(Tagged<Smi> smi, std::ostream& os) { os << smi.value(); }
 
 void Struct::BriefPrintDetails(std::ostream& os) {}
 
+void StructLayout::BriefPrintDetails(std::ostream& os) {}
+
 void Tuple2::BriefPrintDetails(std::ostream& os) {
   os << " " << Brief(value1()) << ", " << Brief(value2());
 }
@@ -2185,6 +2188,9 @@ void HeapObject::RehashBasedOnMap(IsolateT* isolate) {
     case NUMBER_DICTIONARY_TYPE:
       Cast<NumberDictionary>(*this)->Rehash(isolate);
       break;
+    case SIMPLE_NAME_DICTIONARY_TYPE:
+      Cast<SimpleNameDictionary>(*this)->Rehash(isolate);
+      break;
     case SIMPLE_NUMBER_DICTIONARY_TYPE:
       Cast<SimpleNumberDictionary>(*this)->Rehash(isolate);
       break;
@@ -2296,8 +2302,7 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
       }
 
       case LookupIterator::WASM_OBJECT:
-        RETURN_FAILURE(it->isolate(), kThrowOnError,
-                       NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+        continue;  // Continue to the prototype, if present.
 
       case LookupIterator::INTERCEPTOR: {
         if (it->HolderIsReceiverOrHiddenPrototype()) {
@@ -2364,22 +2369,30 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
         // perform the possibly effectful ToNumber (or ToBigInt) operation
         // anyways.
         DirectHandle<JSTypedArray> holder = it->GetHolder<JSTypedArray>();
-        DirectHandle<Object> converted_value;
-        if (holder->type() == kExternalBigInt64Array ||
-            holder->type() == kExternalBigUint64Array) {
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), converted_value,
-              BigInt::FromObject(it->isolate(), value), Nothing<bool>());
-        } else {
-          ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-              it->isolate(), converted_value,
-              Object::ToNumber(it->isolate(), value), Nothing<bool>());
-        }
 
-        // For RAB/GSABs, the above conversion might grow the buffer so that the
-        // index is no longer out of bounds. Redo the bounds check and try
-        // again.
-        it->RecheckTypedArrayBounds();
+        // The index found case uses HolderIsReceiverOrHiddenPrototype()
+        // in below "case LookupIterator::DATA" to check
+        // "i. If SameValue(O, Receiver) is true..." of the spec.
+        // https://tc39.es/ecma262/#sec-typedarray-set
+        if (it->HolderIsReceiver()) {
+          DirectHandle<Object> converted_value;
+
+          if (holder->type() == kExternalBigInt64Array ||
+              holder->type() == kExternalBigUint64Array) {
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                it->isolate(), converted_value,
+                BigInt::FromObject(it->isolate(), value), Nothing<bool>());
+          } else {
+            ASSIGN_RETURN_ON_EXCEPTION_VALUE(
+                it->isolate(), converted_value,
+                Object::ToNumber(it->isolate(), value), Nothing<bool>());
+          }
+          // For RAB/GSABs, the above conversion might grow the buffer so that
+          // the index is no longer out of bounds. Redo the bounds check and try
+          // again.
+          it->RecheckTypedArrayBounds();
+          value = converted_value;
+        }
         if (it->state() != LookupIterator::DATA) {
           // Still out of bounds.
           DCHECK_EQ(it->state(), LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND);
@@ -2394,7 +2407,6 @@ Maybe<bool> Object::SetPropertyInternal(LookupIterator* it,
           // (v8:4901)
           return Just(true);
         }
-        value = converted_value;
         [[fallthrough]];
       }
 
@@ -2696,6 +2708,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
   Isolate* isolate = it->isolate();
 
   if (it->ExtendingNonExtensible(receiver)) {
+    if (IsWasmObject(*receiver)) {
+      RETURN_FAILURE(it->isolate(), kThrowOnError,
+                     NewTypeError(MessageTemplate::kWasmObjectsAreOpaque));
+    }
     bool is_shared_object = IsAlwaysSharedSpaceJSObject(*receiver);
     RETURN_FAILURE(
         isolate, GetShouldThrow(it->isolate(), should_throw),
@@ -2713,7 +2729,7 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
     if (IsJSArray(*receiver)) {
       DirectHandle<JSArray> array = Cast<JSArray>(receiver);
       if (JSArray::WouldChangeReadOnlyLength(array, it->array_index())) {
-        RETURN_FAILURE(isolate, GetShouldThrow(it->isolate(), should_throw),
+        RETURN_FAILURE(isolate, GetShouldThrow(isolate, should_throw),
                        NewTypeError(MessageTemplate::kStrictReadOnlyProperty,
                                     isolate->factory()->length_string(),
                                     Object::TypeOf(isolate, array), array));
@@ -2721,10 +2737,10 @@ Maybe<bool> Object::AddDataProperty(LookupIterator* it,
     }
 
     DirectHandle<JSObject> receiver_obj = Cast<JSObject>(receiver);
-    MAYBE_RETURN(JSObject::AddDataElement(receiver_obj, it->array_index(),
-                                          value, attributes),
+    MAYBE_RETURN(JSObject::AddDataElement(isolate, receiver_obj,
+                                          it->array_index(), value, attributes),
                  Nothing<bool>());
-    JSObject::ValidateElements(*receiver_obj);
+    JSObject::ValidateElements(isolate, *receiver_obj);
     return Just(true);
   }
 
@@ -3286,7 +3302,7 @@ Maybe<bool> JSArray::ArraySetLength(Isolate* isolate, DirectHandle<JSArray> a,
     // (Not needed.)
   }
   // Most of steps 16 through 19 is implemented by JSArray::SetLength.
-  MAYBE_RETURN(JSArray::SetLength(a, new_len), Nothing<bool>());
+  MAYBE_RETURN(JSArray::SetLength(isolate, a, new_len), Nothing<bool>());
   // Steps 19d-ii, 20.
   if (!new_writable) {
     PropertyDescriptor readonly;
@@ -3896,6 +3912,8 @@ void DescriptorArray::Initialize(Tagged<EnumCache> empty_enum_cache,
   set_number_of_descriptors(nof_descriptors);
   set_raw_gc_state(raw_gc_state, kRelaxedStore);
   set_enum_cache(empty_enum_cache, SKIP_WRITE_BARRIER);
+  set_flags(FastIterableBits::encode(FastIterableState::kUnknown),
+            kRelaxedStore);
   MemsetTagged(GetDescriptorSlot(0), undefined_value,
                number_of_all_descriptors() * kEntrySize);
 }
@@ -3907,6 +3925,8 @@ void DescriptorArray::ClearEnumCache() {
 void DescriptorArray::Replace(InternalIndex index, Descriptor* descriptor) {
   descriptor->SetSortedKeyIndex(GetSortedKeyIndex(index.as_int()));
   Set(index, descriptor);
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 // static
@@ -4446,8 +4466,19 @@ void Script::TraceScriptRundownSources() {
   Tagged<String> source = Cast<String>(this->source());
   auto script_id = this->id();
   int32_t source_length = source->length();
-  const int32_t kSplitMaxLength = 1000000;
-  if (source_length <= kSplitMaxLength) {
+
+  const int32_t kSourceMaxLength = 25000000;  // 25mb
+  const int32_t kSplitMaxLength = 1000000;    // 1mb
+  if (source_length > kSourceMaxLength) {
+    auto value = v8::tracing::TracedValue::Create();
+    value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
+    value->SetInteger("scriptId", script_id);
+    value->SetInteger("length", source_length);
+    value->SetInteger("limit", kSourceMaxLength);
+    TRACE_EVENT1(
+        TRACE_DISABLED_BY_DEFAULT("devtools.v8-source-rundown-sources"),
+        "TooLargeScriptCatchup", "data", std::move(value));
+  } else if (source_length <= kSplitMaxLength) {
     auto value = v8::tracing::TracedValue::Create();
     value->SetUnsignedInteger("isolate", isolate->debug()->IsolateId());
     value->SetInteger("scriptId", script_id);
@@ -4800,20 +4831,20 @@ Tagged<Script> Script::Iterator::Next() {
 }
 
 // static
-void JSArray::Initialize(DirectHandle<JSArray> array, int capacity,
-                         int length) {
+void JSArray::Initialize(Isolate* isolate, DirectHandle<JSArray> array,
+                         int capacity, int length) {
   DCHECK_GE(capacity, 0);
-  array->GetIsolate()->factory()->NewJSArrayStorage(
+  isolate->factory()->NewJSArrayStorage(
       array, length, capacity,
       ArrayStorageAllocationMode::INITIALIZE_ARRAY_ELEMENTS_WITH_HOLE);
 }
 
-Maybe<bool> JSArray::SetLength(DirectHandle<JSArray> array,
+Maybe<bool> JSArray::SetLength(Isolate* isolate, DirectHandle<JSArray> array,
                                uint32_t new_length) {
   if (array->SetLengthWouldNormalize(new_length)) {
-    JSObject::NormalizeElements(array);
+    JSObject::NormalizeElements(isolate, array);
   }
-  return array->GetElementsAccessor()->SetLength(array, new_length);
+  return array->GetElementsAccessor()->SetLength(isolate, array, new_length);
 }
 
 // ES6: 9.5.2 [[SetPrototypeOf]] (V)
@@ -4912,8 +4943,9 @@ bool AllocationSite::IsNested() {
   DCHECK(v8_flags.trace_track_allocation_sites);
   Tagged<Object> current = boilerplate()->GetHeap()->allocation_sites_list();
   while (IsAllocationSite(current)) {
-    Tagged<AllocationSite> current_site = Cast<AllocationSite>(current);
-    if (current_site->nested_site() == *this) {
+    Tagged<AllocationSiteWithWeakNext> current_site =
+        Cast<AllocationSiteWithWeakNext>(current);
+    if (current_site->nested_site() == this) {
       return true;
     }
     current = current_site->weak_next();
@@ -5853,6 +5885,13 @@ Handle<SimpleNumberDictionary> SimpleNumberDictionary::Set(
   return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
 }
 
+// static
+Handle<SimpleNameDictionary> SimpleNameDictionary::Set(
+    Isolate* isolate, Handle<SimpleNameDictionary> dictionary,
+    DirectHandle<Name> key, DirectHandle<Object> value) {
+  return AtPut(isolate, dictionary, key, value, PropertyDetails::Empty());
+}
+
 void NumberDictionary::UpdateMaxNumberKey(
     uint32_t key, DirectHandle<JSObject> dictionary_holder) {
   DisallowGarbageCollection no_gc;
@@ -6009,7 +6048,7 @@ Tagged<Object> ObjectHashTableBase<Derived, Shape>::Lookup(
 
 // The implementation should be in sync with
 // CodeStubAssembler::NameToIndexHashTableLookup.
-int NameToIndexHashTable::Lookup(DirectHandle<Name> key) {
+int NameToIndexHashTable::Lookup(Tagged<Name> key) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base = GetPtrComprCageBase(this);
   ReadOnlyRoots roots = GetReadOnlyRoots();
@@ -6835,6 +6874,7 @@ EXTERN_DEFINE_MULTI_OBJECT_BASE_HASH_TABLE(ObjectTwoHashTable, 2)
 
 EXTERN_DEFINE_DICTIONARY(SimpleNumberDictionary, SimpleNumberDictionaryShape)
 EXTERN_DEFINE_DICTIONARY(NumberDictionary, NumberDictionaryShape)
+EXTERN_DEFINE_DICTIONARY(SimpleNameDictionary, SimpleNameDictionaryShape)
 
 template V8_EXPORT_PRIVATE void
 Dictionary<NumberDictionary, NumberDictionaryShape>::UncheckedAdd<

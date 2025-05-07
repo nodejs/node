@@ -117,7 +117,7 @@ void ReadOnlyRoots::InitFromStaticRootsTable(Address cage_base) {
 #if V8_STATIC_ROOTS_BOOL
   RootIndex pos = RootIndex::kFirstReadOnlyRoot;
   for (auto element : StaticReadOnlyRootsPointerTable) {
-    auto ptr = V8HeapCompressionScheme::DecompressTagged(cage_base, element);
+    auto ptr = V8HeapCompressionScheme::DecompressTagged(element);
     DCHECK(!is_initialized(pos));
     read_only_roots_[static_cast<size_t>(pos)] = ptr;
     ++pos;

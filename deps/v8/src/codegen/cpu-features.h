@@ -55,6 +55,11 @@ enum CpuFeature {
   PMULL1Q,
   // Half-precision NEON ops support.
   FP16,
+  SHA3,
+  // Hinted Conditional Branches
+  HBC,
+  // Common short sequence compression instructions
+  CSSC,
 
 #elif V8_TARGET_ARCH_MIPS64
   FPU,

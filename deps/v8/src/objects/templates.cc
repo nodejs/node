@@ -188,6 +188,16 @@ const CFunctionInfo* FunctionTemplateInfo::GetCSignature(Isolate* isolate,
 }
 
 // static
+void ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(
+    Isolate* isolate, DirectHandle<ObjectTemplateInfo> info) {
+  if (info->should_promote_to_read_only()) return;
+  CHECK(!HeapLayout::InReadOnlySpace(*info));
+
+  info->EnsureHasSerialNumber(isolate);
+  info->set_should_promote_to_read_only(true);
+}
+
+// static
 DirectHandle<DictionaryTemplateInfo> DictionaryTemplateInfo::Create(
     Isolate* isolate, const v8::MemorySpan<const std::string_view>& names) {
   DirectHandle<FixedArray> property_names = isolate->factory()->NewFixedArray(

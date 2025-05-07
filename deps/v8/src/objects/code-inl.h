@@ -100,7 +100,11 @@ inline uint16_t Code::parameter_count_without_receiver() const {
 }
 
 inline Tagged<ProtectedFixedArray> Code::deoptimization_data() const {
-  DCHECK(uses_deoptimization_data());
+  // It's important to CHECK that the Code object uses deoptimization data. We
+  // trust optimized code to have deoptimization data here, but the reference to
+  // this code might be corrupted, such that we get type confusion on this field
+  // in cases where we assume that it must be optimized code.
+  SBXCHECK(uses_deoptimization_data());
   return Cast<ProtectedFixedArray>(
       ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset));
 }
@@ -129,7 +133,11 @@ inline bool Code::has_deoptimization_data_or_interpreter_data() const {
 }
 
 Tagged<TrustedObject> Code::bytecode_or_interpreter_data() const {
-  DCHECK_EQ(kind(), CodeKind::BASELINE);
+  // It's important to CHECK that the Code object is baseline code. We trust
+  // baseline code to have bytecode/interpreter data here, but the reference to
+  // this code might be corrupted, such that we get type confusion on this field
+  // in cases where we assume that it must be baseline code.
+  SBXCHECK_EQ(kind(), CodeKind::BASELINE);
   return ReadProtectedPointerField(kDeoptimizationDataOrInterpreterDataOffset);
 }
 void Code::set_bytecode_or_interpreter_data(Tagged<TrustedObject> value,
@@ -541,7 +549,7 @@ inline void Code::SetMarkedForDeoptimization(Isolate* isolate,
           case LazyDeoptimizeReason::kEmptyContextExtensionChange:
           case LazyDeoptimizeReason::kFrameValueMaterialized:
           case LazyDeoptimizeReason::kPropertyCellChange:
-          case LazyDeoptimizeReason::kScriptContextSlotPropertyChange:
+          case LazyDeoptimizeReason::kContextCellChange:
           case LazyDeoptimizeReason::kPrototypeChange:
           case LazyDeoptimizeReason::kExceptionCaught:
           case LazyDeoptimizeReason::kFieldTypeConstChange:
@@ -621,39 +629,37 @@ Address Code::code_comments() const {
 }
 
 int Code::code_comments_size() const {
-  return builtin_jump_table_info_offset() - code_comments_offset();
+  return jump_table_info_offset() - code_comments_offset();
 }
 
 bool Code::has_code_comments() const { return code_comments_size() > 0; }
 
-int32_t Code::builtin_jump_table_info_offset() const {
-  if (!V8_BUILTIN_JUMP_TABLE_INFO_BOOL) {
+int32_t Code::jump_table_info_offset() const {
+  if constexpr (!V8_JUMP_TABLE_INFO_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return unwinding_info_offset();
   }
-  return ReadField<int32_t>(kBuiltinJumpTableInfoOffsetOffset);
+  return ReadField<int32_t>(kJumpTableInfoOffsetOffset);
 }
 
-void Code::set_builtin_jump_table_info_offset(int32_t value) {
-  if (!V8_BUILTIN_JUMP_TABLE_INFO_BOOL) {
+void Code::set_jump_table_info_offset(int32_t value) {
+  if constexpr (!V8_JUMP_TABLE_INFO_BOOL) {
     // Redirection needed since the field doesn't exist in this case.
     return;
   }
   DCHECK_LE(value, metadata_size());
-  WriteField<int32_t>(kBuiltinJumpTableInfoOffsetOffset, value);
+  WriteField<int32_t>(kJumpTableInfoOffsetOffset, value);
 }
 
-Address Code::builtin_jump_table_info() const {
-  return metadata_start() + builtin_jump_table_info_offset();
+Address Code::jump_table_info() const {
+  return metadata_start() + jump_table_info_offset();
 }
 
-int Code::builtin_jump_table_info_size() const {
-  return unwinding_info_offset() - builtin_jump_table_info_offset();
+int Code::jump_table_info_size() const {
+  return unwinding_info_offset() - jump_table_info_offset();
 }
 
-bool Code::has_builtin_jump_table_info() const {
-  return builtin_jump_table_info_size() > 0;
-}
+bool Code::has_jump_table_info() const { return jump_table_info_size() > 0; }
 
 Address Code::unwinding_info_start() const {
   return metadata_start() + unwinding_info_offset();

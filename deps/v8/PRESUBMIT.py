@@ -385,7 +385,7 @@ def _CheckInlineHeadersIncludeNonInlineHeadersFirst(input_api, output_api):
   for f in input_api.AffectedSourceFiles(FilterFile):
     if not os.path.isfile(to_non_inl(f.AbsoluteLocalPath())):
       continue
-    non_inl_header = to_non_inl(f.LocalPath())
+    non_inl_header = to_non_inl(f.LocalPath()).replace(os.sep, '/')
     first_include = None
     for line in f.NewContents():
       if line.startswith('#include '):

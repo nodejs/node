@@ -80,13 +80,6 @@ class V8_EXPORT_PRIVATE MarkingWorklists final {
   // Worklists implicitly check for emptiness on destruction.
   ~MarkingWorklists() = default;
 
-  // Calls the specified callback on each element of the deques and replaces
-  // the element with the result of the callback. If the callback returns
-  // nullptr then the element is removed from the deque.
-  // The callback must accept HeapObject and return HeapObject.
-  template <typename Callback>
-  void Update(Callback callback);
-
   MarkingWorklist* shared() { return &shared_; }
   MarkingWorklist* on_hold() { return &on_hold_; }
   MarkingWorklist* other() { return &other_; }

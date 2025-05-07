@@ -20,7 +20,7 @@ frame size: 4
 parameter count: 1
 bytecode array length: 32
 bytecodes: [
-  /*   56 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   56 S> */ B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(1),
                 B(JumpIfTrue), U8(16),
@@ -57,7 +57,7 @@ bytecode array length: 40
 bytecodes: [
   /*   56 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -95,7 +95,7 @@ frame size: 3
 parameter count: 1
 bytecode array length: 37
 bytecodes: [
-  /*   56 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   56 S> */ B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -141,7 +141,7 @@ bytecode array length: 127
 bytecodes: [
   /*   90 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -163,7 +163,7 @@ bytecodes: [
                 B(Star1),
                 B(LdaSmi), I8(1),
                 B(Star2),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -178,7 +178,7 @@ bytecodes: [
                 B(CallProperty1), R(3), R(0), R(2), U8(5),
   /*  122 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -212,7 +212,7 @@ frame size: 3
 parameter count: 1
 bytecode array length: 37
 bytecodes: [
-  /*   60 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   60 S> */ B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -249,7 +249,7 @@ frame size: 3
 parameter count: 1
 bytecode array length: 37
 bytecodes: [
-  /*   53 S> */ B(LdaCurrentContextSlot), U8(3),
+  /*   53 S> */ B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),
@@ -288,7 +288,7 @@ bytecode array length: 40
 bytecodes: [
   /*   60 S> */ B(LdaImmutableCurrentContextSlot), U8(2),
                 B(Star1),
-                B(LdaCurrentContextSlot), U8(3),
+                B(LdaCurrentContextSlotNoCell), U8(3),
                 B(TestReferenceEqual), R(this),
                 B(Mov), R(this), R(0),
                 B(JumpIfTrue), U8(16),

@@ -226,6 +226,8 @@ namespace compiler {
   V(Arm64Smlal2)                        \
   V(Arm64Sadalp)                        \
   V(Arm64Saddlp)                        \
+  V(Arm64Bcax)                          \
+  V(Arm64Eor3)                          \
   V(Arm64Uadalp)                        \
   V(Arm64Uaddlp)                        \
   V(Arm64Umlal)                         \
@@ -248,6 +250,8 @@ namespace compiler {
   V(Arm64Cnt)                                        \
   V(Arm64Cnt32)                                      \
   V(Arm64Cnt64)                                      \
+  V(Arm64Ctz)                                        \
+  V(Arm64Ctz32)                                      \
   V(Arm64Tst)                                        \
   V(Arm64Tst32)                                      \
   V(Arm64Or)                                         \

@@ -44,10 +44,10 @@ DirectHandle<T> GetLexical(const char* name) {
 
   VariableLookupResult lookup_result;
   if (script_contexts->Lookup(str_name, &lookup_result)) {
-    Tagged<Context> script_context =
-        script_contexts->get(lookup_result.context_index);
-    DirectHandle<Object> result(script_context->get(lookup_result.slot_index),
-                                isolate);
+    DirectHandle<Context> script_context =
+        handle(script_contexts->get(lookup_result.context_index), isolate);
+    DirectHandle<Object> result =
+        Context::Get(script_context, lookup_result.slot_index, isolate);
     return Cast<T>(result);
   }
   return DirectHandle<T>();

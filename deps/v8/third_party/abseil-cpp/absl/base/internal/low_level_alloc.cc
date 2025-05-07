@@ -330,7 +330,7 @@ size_t GetPageSize() {
   GetSystemInfo(&system_info);
   return std::max(system_info.dwPageSize, system_info.dwAllocationGranularity);
 #elif defined(__wasm__) || defined(__asmjs__) || defined(__hexagon__)
-  return getpagesize();
+  return static_cast<size_t>(getpagesize());
 #else
   return static_cast<size_t>(sysconf(_SC_PAGESIZE));
 #endif
@@ -448,8 +448,8 @@ static inline uintptr_t RoundUp(uintptr_t addr, uintptr_t align) {
 // that the freelist is in the correct order, that it
 // consists of regions marked "unallocated", and that no two regions
 // are adjacent in memory (they should have been coalesced).
-// L >= arena->mu
-static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena) {
+static AllocList *Next(int i, AllocList *prev, LowLevelAlloc::Arena *arena)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(arena->mu) {
   ABSL_RAW_CHECK(i < prev->levels, "too few levels in Next()");
   AllocList *next = prev->next[i];
   if (next != nullptr) {
@@ -473,6 +473,7 @@ static void Coalesce(AllocList *a) {
   if (n != nullptr && reinterpret_cast<char *>(a) + a->header.size ==
                           reinterpret_cast<char *>(n)) {
     LowLevelAlloc::Arena *arena = a->header.arena;
+    arena->mu.AssertHeld();
     a->header.size += n->header.size;
     n->header.magic = 0;
     n->header.arena = nullptr;
@@ -486,8 +487,8 @@ static void Coalesce(AllocList *a) {
 }
 
 // Adds block at location "v" to the free list
-// L >= arena->mu
-static void AddToFreelist(void *v, LowLevelAlloc::Arena *arena) {
+static void AddToFreelist(void *v, LowLevelAlloc::Arena *arena)
+    ABSL_EXCLUSIVE_LOCKS_REQUIRED(arena->mu) {
   AllocList *f = reinterpret_cast<AllocList *>(reinterpret_cast<char *>(v) -
                                                sizeof(f->header));
   ABSL_RAW_CHECK(f->header.magic == Magic(kMagicAllocated, &f->header),

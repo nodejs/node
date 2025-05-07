@@ -28,6 +28,7 @@ class SharedFunctionInfo;
 // in OptimizingCompileDispatcher::task_states.
 struct alignas(PROCESSOR_CACHE_LINE_SIZE) OptimizingCompileTaskState {
   Isolate* isolate;
+  TurbofanCompilationJob* job;
 };
 
 // Circular queue of incoming recompilation tasks (including OSR).
@@ -46,7 +47,8 @@ class V8_EXPORT OptimizingCompileInputQueue {
   explicit OptimizingCompileInputQueue(int capacity) : capacity_(capacity) {}
 
   TurbofanCompilationJob* Dequeue(OptimizingCompileTaskState& task_state);
-  TurbofanCompilationJob* DequeueIfIsolateMatches(Isolate* isolate);
+  TurbofanCompilationJob* DequeueIfIsolateMatches(
+      OptimizingCompileTaskState& task_state);
 
   bool Enqueue(std::unique_ptr<TurbofanCompilationJob>& job);
 
@@ -79,15 +81,17 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
   void EnsureInitialized();
 
   // Invokes and runs Turbofan for this particular job.
-  void CompileNext(Isolate* isolate, LocalIsolate& local_isolate,
-                   TurbofanCompilationJob* job);
+  void RunCompilationJob(OptimizingCompileTaskState& task_state,
+                         Isolate* isolate, LocalIsolate& local_isolate,
+                         TurbofanCompilationJob* job);
 
   // Gets the next job from the input queue.
   TurbofanCompilationJob* NextInput(OptimizingCompileTaskState& task_state);
 
   // Gets the next job from the input queue but only if the job is also for the
-  // given isolate.
-  TurbofanCompilationJob* NextInputIfIsolateMatches(Isolate* isolate);
+  // same isolate as in the given `OptimizingCompileTaskState`.
+  TurbofanCompilationJob* NextInputIfIsolateMatches(
+      OptimizingCompileTaskState& task_state);
 
   // Returns true when one of the currently running compilation tasks is
   // operating on the given isolate. If the return value is false, the caller
@@ -100,6 +104,8 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
   // LocalHeap/LocalIsolate for this thread was destroyed as well.
   void ClearTaskState(OptimizingCompileTaskState& task_state);
 
+  void ResetJob(OptimizingCompileTaskState& task_state);
+
   // Tries to append a new compilation job to the input queue. This may fail if
   // the input queue was already full.
   bool TryQueueForOptimization(std::unique_ptr<TurbofanCompilationJob>& job);
@@ -107,6 +113,10 @@ class V8_EXPORT OptimizingCompileTaskExecutor {
   // Waits until all running and queued compilation jobs for this isolate are
   // done.
   void WaitUntilCompilationJobsDoneForIsolate(Isolate* isolate);
+
+  // Cancels all running compilation jobs for this isolate and then waits until
+  // they stop running.
+  void CancelCompilationJobsForIsolate(Isolate* isolate);
 
   // Returns true if there exists a currently running or queued compilation job
   // for this isolate..

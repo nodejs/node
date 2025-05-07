@@ -73,11 +73,10 @@ absl_cc_library(
   HDRS
     "nullability.h"
   SRCS
-    "internal/nullability_impl.h"
+    "internal/nullability_deprecated.h"
   DEPS
     absl::config
     absl::core_headers
-    absl::type_traits
   COPTS
     ${ABSL_DEFAULT_COPTS}
 )
@@ -667,12 +666,11 @@ absl_cc_test(
     GTest::gtest_main
 )
 
-# Internal-only target, do not depend on directly.
 absl_cc_library(
   NAME
     fast_type_id
   HDRS
-    "internal/fast_type_id.h"
+    "fast_type_id.h"
   COPTS
     ${ABSL_DEFAULT_COPTS}
   LINKOPTS
@@ -685,10 +683,11 @@ absl_cc_test(
   NAME
     fast_type_id_test
   SRCS
-    "internal/fast_type_id_test.cc"
+    "fast_type_id_test.cc"
   COPTS
     ${ABSL_TEST_COPTS}
   DEPS
+    absl::core_headers
     absl::fast_type_id
     GTest::gtest_main
 )

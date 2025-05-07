@@ -290,60 +290,60 @@ void Builtins::Generate_LookupGlobalICInsideTypeofBaseline(
   assembler.GenerateLookupGlobalICBaseline(TypeofMode::kInside);
 }
 
+void Builtins::Generate_LookupContextNoCellTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextTrampoline(TypeofMode::kNotInside,
+                                            ContextMode::kNoContextCells);
+}
+
 void Builtins::Generate_LookupContextTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextTrampoline(TypeofMode::kNotInside,
-                                            ContextKind::kDefault);
+                                            ContextMode::kHasContextCells);
 }
 
-void Builtins::Generate_LookupScriptContextTrampoline(
-    compiler::CodeAssemblerState* state) {
-  AccessorAssembler assembler(state);
-  assembler.GenerateLookupContextTrampoline(TypeofMode::kNotInside,
-                                            ContextKind::kScriptContext);
-}
-
-void Builtins::Generate_LookupContextBaseline(
+void Builtins::Generate_LookupContextNoCellBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextBaseline(TypeofMode::kNotInside,
-                                          ContextKind::kDefault);
+                                          ContextMode::kNoContextCells);
 }
 
 void Builtins::Generate_LookupScriptContextBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextBaseline(TypeofMode::kNotInside,
-                                          ContextKind::kScriptContext);
+                                          ContextMode::kHasContextCells);
+}
+
+void Builtins::Generate_LookupContextNoCellInsideTypeofTrampoline(
+    compiler::CodeAssemblerState* state) {
+  AccessorAssembler assembler(state);
+  assembler.GenerateLookupContextTrampoline(TypeofMode::kInside,
+                                            ContextMode::kNoContextCells);
 }
 
 void Builtins::Generate_LookupContextInsideTypeofTrampoline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextTrampoline(TypeofMode::kInside,
-                                            ContextKind::kDefault);
+                                            ContextMode::kHasContextCells);
 }
 
-void Builtins::Generate_LookupScriptContextInsideTypeofTrampoline(
+void Builtins::Generate_LookupContextNoCellInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
-  assembler.GenerateLookupContextTrampoline(TypeofMode::kInside,
-                                            ContextKind::kScriptContext);
+  assembler.GenerateLookupContextBaseline(TypeofMode::kInside,
+                                          ContextMode::kNoContextCells);
 }
 
 void Builtins::Generate_LookupContextInsideTypeofBaseline(
     compiler::CodeAssemblerState* state) {
   AccessorAssembler assembler(state);
   assembler.GenerateLookupContextBaseline(TypeofMode::kInside,
-                                          ContextKind::kDefault);
-}
-
-void Builtins::Generate_LookupScriptContextInsideTypeofBaseline(
-    compiler::CodeAssemblerState* state) {
-  AccessorAssembler assembler(state);
-  assembler.GenerateLookupContextBaseline(TypeofMode::kInside,
-                                          ContextKind::kScriptContext);
+                                          ContextMode::kHasContextCells);
 }
 
 }  // namespace internal

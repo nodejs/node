@@ -606,6 +606,7 @@ cc_library(
         "//absl/crc:crc32c",
         "//absl/crc:crc_cord_state",
         "//absl/functional:function_ref",
+        "//absl/hash:weakly_mixed_integer",
         "//absl/meta:type_traits",
         "//absl/numeric:bits",
         "//absl/types:compare",

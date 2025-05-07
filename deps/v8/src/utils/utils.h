@@ -17,7 +17,7 @@
 #include "src/base/compiler-specific.h"
 #include "src/base/logging.h"
 #include "src/base/macros.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/vector.h"
 #include "src/common/globals.h"
 

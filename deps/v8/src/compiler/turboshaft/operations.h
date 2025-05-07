@@ -7261,10 +7261,12 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::ArrayType* array_type;
+  bool is_shared;
 
   explicit WasmAllocateArrayOp(V<Map> rtt, V<Word32> length,
-                               const wasm::ArrayType* array_type)
-      : Base(rtt, length), array_type(array_type) {}
+                               const wasm::ArrayType* array_type,
+                               bool is_shared)
+      : Base(rtt, length), array_type(array_type), is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
   V<Word32> length() const { return Base::input<Word32>(1); }
@@ -7279,7 +7281,7 @@ struct WasmAllocateArrayOp : FixedArityOperationT<2, WasmAllocateArrayOp> {
                           MaybeRegisterRepresentation::Word32()>();
   }
 
-  auto options() const { return std::tuple{array_type}; }
+  auto options() const { return std::tuple{array_type, is_shared}; }
   void PrintOptions(std::ostream& os) const;
 };
 
@@ -7288,9 +7290,11 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
       OpEffects().CanAllocate().CanLeaveCurrentFunction();
 
   const wasm::StructType* struct_type;
+  bool is_shared;
 
-  explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type)
-      : Base(rtt), struct_type(struct_type) {}
+  explicit WasmAllocateStructOp(V<Map> rtt, const wasm::StructType* struct_type,
+                                bool is_shared)
+      : Base(rtt), struct_type(struct_type), is_shared(is_shared) {}
 
   V<Map> rtt() const { return Base::input<Map>(0); }
 
@@ -7303,7 +7307,7 @@ struct WasmAllocateStructOp : FixedArityOperationT<1, WasmAllocateStructOp> {
     return MaybeRepVector<MaybeRegisterRepresentation::Tagged()>();
   }
 
-  auto options() const { return std::tuple{struct_type}; }
+  auto options() const { return std::tuple{struct_type, is_shared}; }
 };
 
 struct WasmRefFuncOp : FixedArityOperationT<1, WasmRefFuncOp> {
@@ -7579,6 +7583,8 @@ struct Simd128BinopOp : FixedArityOperationT<2, Simd128BinopOp> {
       case Kind::kI16x8Mul:
       case Kind::kF64x2Mul:
       case Kind::kF32x4Mul:
+
+      case Kind::kS128Xor:
         return true;
       default:
         return false;

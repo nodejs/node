@@ -235,11 +235,13 @@ namespace internal {
   /* String helpers */                                                         \
   IF_TSA(TSC, TFC, StringFromCodePointAt, StringAtAsString)                    \
   TFC(StringEqual, StringEqual)                                                \
+  IF_WASM(TFC, WasmJSStringEqual, StringEqual)                                 \
   TFC(StringGreaterThan, CompareNoContext)                                     \
   TFC(StringGreaterThanOrEqual, CompareNoContext)                              \
   TFC(StringLessThan, CompareNoContext)                                        \
   TFC(StringLessThanOrEqual, CompareNoContext)                                 \
   TFC(StringCompare, CompareNoContext)                                         \
+  IF_WASM(TFC, WasmStringCompare, CompareNoContext)                            \
   TFC(StringSubstring, StringSubstring)                                        \
                                                                                \
   /* OrderedHashTable helpers */                                               \
@@ -325,6 +327,7 @@ namespace internal {
   TFC(AllocateInOldGeneration, Allocate)                                       \
   IF_WASM(TFC, WasmAllocateInYoungGeneration, Allocate)                        \
   IF_WASM(TFC, WasmAllocateInOldGeneration, Allocate)                          \
+  IF_WASM(TFC, WasmAllocateInSharedHeap, Allocate)                             \
                                                                                \
   TFC(NewHeapNumber, NewHeapNumber)                                            \
                                                                                \
@@ -777,14 +780,14 @@ namespace internal {
   TFH(DefineKeyedOwnICBaseline, DefineKeyedOwnBaseline)                        \
   TFH(StoreInArrayLiteralIC, StoreWithVector)                                  \
   TFH(StoreInArrayLiteralICBaseline, StoreBaseline)                            \
+  TFH(LookupContextNoCellTrampoline, LookupTrampoline)                         \
   TFH(LookupContextTrampoline, LookupTrampoline)                               \
-  TFH(LookupScriptContextTrampoline, LookupTrampoline)                         \
-  TFH(LookupContextBaseline, LookupBaseline)                                   \
+  TFH(LookupContextNoCellBaseline, LookupBaseline)                             \
   TFH(LookupScriptContextBaseline, LookupBaseline)                             \
+  TFH(LookupContextNoCellInsideTypeofTrampoline, LookupTrampoline)             \
   TFH(LookupContextInsideTypeofTrampoline, LookupTrampoline)                   \
-  TFH(LookupScriptContextInsideTypeofTrampoline, LookupTrampoline)             \
+  TFH(LookupContextNoCellInsideTypeofBaseline, LookupBaseline)                 \
   TFH(LookupContextInsideTypeofBaseline, LookupBaseline)                       \
-  TFH(LookupScriptContextInsideTypeofBaseline, LookupBaseline)                 \
   TFH(LoadGlobalIC, LoadGlobalWithVector)                                      \
   TFH(LoadGlobalICInsideTypeof, LoadGlobalWithVector)                          \
   TFH(LoadGlobalICTrampoline, LoadGlobal)                                      \
@@ -803,6 +806,10 @@ namespace internal {
   TFH(KeyedHasIC, KeyedHasICWithVector)                                        \
   TFH(KeyedHasICBaseline, KeyedHasICBaseline)                                  \
   TFH(KeyedHasIC_Megamorphic, KeyedHasICWithVector)                            \
+  TFH(AddLhsIsStringConstantInternalizeWithVector,                             \
+      AddLhsIsStringConstantInternalizeWithVector)                             \
+  TFH(AddLhsIsStringConstantInternalizeTrampoline,                             \
+      AddLhsIsStringConstantInternalizeTrampoline)                             \
                                                                                \
   /* IterableToList */                                                         \
   /* ES #sec-iterabletolist */                                                 \
@@ -887,6 +894,11 @@ namespace internal {
   TFC(ShiftLeft_WithFeedback, BinaryOp_WithFeedback)                           \
   TFC(ShiftRight_WithFeedback, BinaryOp_WithFeedback)                          \
   TFC(ShiftRightLogical_WithFeedback, BinaryOp_WithFeedback)                   \
+                                                                               \
+  /* Like Add_WithFeedback, but lhs is a known constant and the result is */   \
+  /* used as a property key and thus should be internalized early.        */   \
+  TFC(Add_LhsIsStringConstant_Internalize_WithFeedback, BinaryOp_WithFeedback) \
+  TFC(Add_LhsIsStringConstant_Internalize_Baseline, BinaryOp_Baseline)         \
                                                                                \
   /* Compare ops with feedback collection */                                   \
   TFC(Equal_Baseline, Compare_Baseline)                                        \
@@ -1107,8 +1119,12 @@ namespace internal {
   TFJ(TypedArrayPrototypeMap, kDontAdaptArgumentsSentinel)                     \
   /* proposal-arraybuffer-base64 #sec-uint8array.frombase64 */                 \
   CPP(Uint8ArrayFromBase64, kDontAdaptArgumentsSentinel)                       \
+  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.setfrombase64 */    \
+  CPP(Uint8ArrayPrototypeSetFromBase64, kDontAdaptArgumentsSentinel)           \
   /* proposal-arraybuffer-base64 #sec-uint8array.fromhex */                    \
   CPP(Uint8ArrayFromHex, kDontAdaptArgumentsSentinel)                          \
+  /* proposal-arraybuffer-base64 #sec-uint8array.prototype.setfromhex */       \
+  CPP(Uint8ArrayPrototypeSetFromHex, kDontAdaptArgumentsSentinel)              \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tobase64 */         \
   CPP(Uint8ArrayPrototypeToBase64, kDontAdaptArgumentsSentinel)                \
   /* proposal-arraybuffer-base64 #sec-uint8array.prototype.tohex */            \
@@ -1451,6 +1467,7 @@ namespace internal {
                                                                                \
   /* String helpers */                                                         \
   TFS(StringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)                  \
+  IF_WASM(TFS, WasmStringAdd_CheckNone, NeedsContext::kYes, kLeft, kRight)     \
   TFS(SubString, NeedsContext::kYes, kString, kFrom, kTo)                      \
                                                                                \
   /* Miscellaneous */                                                          \
@@ -2292,6 +2309,7 @@ namespace internal {
   /* ES #sec-string.prototype.touppercase */                                   \
   CPP(StringPrototypeToUpperCaseIntl, kDontAdaptArgumentsSentinel)             \
   TFS(StringToLowerCaseIntl, NeedsContext::kYes, kString)                      \
+  IF_WASM(TFS, WasmStringToLowerCaseIntl, NeedsContext::kYes, kString)         \
                                                                                \
   /* Temporal */                                                               \
   /* Temporal #sec-temporal.calendar.prototype.era */                          \

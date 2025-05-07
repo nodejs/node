@@ -41,6 +41,9 @@
 #include <unistd.h>
 #endif
 
+#include "include/cppgc/allocation.h"
+#include "include/cppgc/persistent.h"
+#include "include/v8-cpp-heap-external.h"
 #include "include/v8-date.h"
 #include "include/v8-extension.h"
 #include "include/v8-fast-api-calls.h"
@@ -64,7 +67,9 @@
 #include "src/execution/protectors-inl.h"
 #include "src/handles/global-handles.h"
 #include "src/heap/heap-inl.h"
+#include "src/heap/heap.h"
 #include "src/heap/incremental-marking.h"
+#include "src/init/v8.h"
 #include "src/logging/metrics.h"
 #include "src/objects/feedback-vector-inl.h"
 #include "src/objects/feedback-vector.h"
@@ -96,6 +101,7 @@ using ::v8::Array;
 using ::v8::Boolean;
 using ::v8::BooleanObject;
 using ::v8::Context;
+using ::v8::CppHeapExternal;
 using ::v8::Extension;
 using ::v8::External;
 using ::v8::FixedArray;
@@ -4006,6 +4012,8 @@ THREADED_TEST(WellKnownSymbols) {
   CheckWellKnownSymbol(v8::Symbol::GetSplit, "Symbol.split");
   CheckWellKnownSymbol(v8::Symbol::GetToPrimitive, "Symbol.toPrimitive");
   CheckWellKnownSymbol(v8::Symbol::GetToStringTag, "Symbol.toStringTag");
+  CheckWellKnownSymbol(v8::Symbol::GetDispose, "Symbol.dispose");
+  CheckWellKnownSymbol(v8::Symbol::GetAsyncDispose, "Symbol.asyncDispose");
 }
 
 
@@ -12081,37 +12089,6 @@ void FastApiCallback_TrivialSignature(
       info[0]->Int32Value(isolate->GetCurrentContext()).FromJust() + 1);
 }
 
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-START_ALLOW_USE_DEPRECATED()
-
-void FastApiCallback_SimpleSignature(
-    const v8::FunctionCallbackInfo<v8::Value>& info) {
-  CHECK(i::ValidateCallbackInfo(info));
-  ApiTestFuzzer::Fuzz();
-  CheckReturnValue(info, FUNCTION_ADDR(FastApiCallback_SimpleSignature));
-  v8::Isolate* isolate = CcTest::isolate();
-  CHECK_EQ(isolate, info.GetIsolate());
-  CHECK(info.This()
-            ->GetPrototype()
-            ->Equals(isolate->GetCurrentContext(), info.This())
-            .FromJust());
-  CHECK(info.Data()
-            ->Equals(isolate->GetCurrentContext(), v8_str("method_data"))
-            .FromJust());
-  // Note, we're using HasRealNamedProperty instead of Has to avoid
-  // invoking the interceptor again.
-  CHECK(info.This()
-            ->HasRealNamedProperty(isolate->GetCurrentContext(), v8_str("foo"))
-            .FromJust());
-  info.GetReturnValue().Set(
-      info[0]->Int32Value(isolate->GetCurrentContext()).FromJust() + 1);
-}
-
-// Allow usages of v8::Object::GetPrototype() for now.
-// TODO(https://crbug.com/333672197): remove.
-END_ALLOW_USE_DEPRECATED()
-
 // Helper to maximize the odds of object moving.
 void GenerateSomeGarbage() {
   CompileRun(
@@ -13570,8 +13547,10 @@ UNINITIALIZED_TEST(TwoIsolateGroups) {
   v8::Isolate::CreateParams create_params_2;
   create_params_2.array_buffer_allocator =
       v8::ArrayBuffer::Allocator::NewDefaultAllocator(groups[1]);
+#ifdef V8_ENABLE_SANDBOX
   CHECK_NE(create_params_1.array_buffer_allocator->GetPageAllocator(),
            create_params_2.array_buffer_allocator->GetPageAllocator());
+#endif
 
   TestAllocateAndNewForTwoIsolateGroups(create_params_1, create_params_2,
                                         groups[0], groups[1]);
@@ -31264,6 +31243,19 @@ TEST(GettingHashSeed) {
   CHECK_GT(isolate->GetHashSeed(), 0);
 }
 
+TEST(CanonicalizingUnicodeLocaleId) {
+  LocalContext env;
+  v8::Isolate* isolate = env->GetIsolate();
+  // Test the function exists, and that if Intl is unsupported, Nothing is
+  // returned. The functionality itself is mostly not useful to test here as
+  // it's locale-dependent.
+#ifdef V8_INTL_SUPPORT
+  CHECK(isolate->ValidateAndCanonicalizeUnicodeLocaleId("en").IsJust());
+#else
+  CHECK(isolate->ValidateAndCanonicalizeUnicodeLocaleId("en").IsNothing());
+#endif
+}
+
 TEST(LocalCasts) {
   LocalContext context;
   v8::Isolate* isolate = context->GetIsolate();
@@ -31343,6 +31335,88 @@ TEST(LocalCasts) {
     v8::MaybeLocal<v8::String>::Cast(no_str);
     v8::MaybeLocal<v8::String>::Cast(no_data);
   }
+}
+
+class TestGarbagedCollectedData
+    : public cppgc::GarbageCollected<TestGarbagedCollectedData> {
+ public:
+  void Trace(cppgc::Visitor*) const {}
+};
+
+class GCedWithCppHeapExternalJSRef
+    : public cppgc::GarbageCollected<GCedWithCppHeapExternalJSRef> {
+ public:
+  GCedWithCppHeapExternalJSRef(v8::Isolate* isolate,
+                               TestGarbagedCollectedData* data)
+      : isolate_(isolate) {
+    v8::HandleScope scope(isolate_);
+    v8::Local<v8::CppHeapExternal> external =
+        v8::CppHeapExternal::New<TestGarbagedCollectedData>(
+            isolate, data, v8::CppHeapPointerTag::kDefaultTag);
+    v8_cpp_heap_external_.Reset(isolate_, external);
+  }
+
+  TestGarbagedCollectedData* GetData() const {
+    v8::HandleScope scope(isolate_);
+    v8::Local<v8::Data> data = v8_cpp_heap_external_.Get(isolate_);
+    CHECK(data->IsCppHeapExternal());
+    auto external = v8::Local<v8::CppHeapExternal>::Cast(data);
+    return external->Value<TestGarbagedCollectedData>(
+        isolate_,
+        v8::CppHeapPointerTagRange(v8::CppHeapPointerTag::kDefaultTag,
+                                   v8::CppHeapPointerTag::kDefaultTag));
+  }
+
+  void Trace(cppgc::Visitor* v) const { v->Trace(v8_cpp_heap_external_); }
+
+ private:
+  // Store as `v8::Data` to test casting.
+  v8::TracedReference<v8::Data> v8_cpp_heap_external_;
+  v8::Isolate* isolate_;
+};
+
+TEST(CppHeapExternal) {
+  v8::Isolate::CreateParams create_params = CreateTestParams();
+  create_params.cpp_heap =
+      v8::CppHeap::Create(::v8::internal::V8::GetCurrentPlatform(),
+                          v8::CppHeapCreateParams({}))
+          .release();
+  v8::Isolate* isolate = v8::Isolate::New(create_params);
+  isolate->Enter();
+  v8::CppHeap* cpp_heap = isolate->GetCppHeap();
+  i::Heap* heap = reinterpret_cast<i::Isolate*>(isolate)->heap();
+
+  cppgc::WeakPersistent<TestGarbagedCollectedData> cpp_object(
+      cppgc::MakeGarbageCollected<TestGarbagedCollectedData>(
+          cpp_heap->GetAllocationHandle()));
+  cppgc::Persistent<GCedWithCppHeapExternalJSRef> holder(
+      cppgc::MakeGarbageCollected<GCedWithCppHeapExternalJSRef>(
+          cpp_heap->GetAllocationHandle(), isolate, cpp_object.Get()));
+
+  CHECK_EQ(cpp_object.Get(), holder->GetData());
+
+  // The `cpp_object` should still exist and match the external after GC.
+  {
+    i::EmbedderStackStateScope stack_scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        v8::StackState::kNoHeapPointers);
+    i::heap::InvokeMajorGC(heap);
+    CHECK(cpp_object.Get());
+    CHECK_EQ(cpp_object.Get(), holder->GetData());
+  }
+  // Clearing the root holding the external should allow the `cpp_object` to be
+  // GCed.
+  holder.Clear();
+  {
+    i::EmbedderStackStateScope stack_scope(
+        heap, i::EmbedderStackStateOrigin::kExplicitInvocation,
+        v8::StackState::kNoHeapPointers);
+    i::heap::InvokeMajorGC(heap);
+    CHECK(!cpp_object.Get());
+  }
+
+  isolate->Exit();
+  isolate->Dispose();
 }
 
 TEST(IsolateFree) {

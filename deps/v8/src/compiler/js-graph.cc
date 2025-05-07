@@ -297,6 +297,9 @@ DEFINE_GETTER(
 DEFINE_GETTER(ExternalObjectMapConstant, Map,
               HeapConstantNoHole(factory()->external_map()))
 
+DEFINE_GETTER(ContextCellMapConstant, Map,
+              HeapConstantNoHole(factory()->context_cell_map()))
+
 #undef DEFINE_GETTER
 #undef GET_CACHED_FIELD
 

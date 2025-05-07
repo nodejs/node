@@ -103,10 +103,19 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     params.page_freeing_mode = base::PageFreeingMode::kDiscard;
   }
 
-#if defined(V8_TARGET_OS_IOS)
+#if defined(V8_TARGET_OS_IOS) || defined(V8_TARGET_OS_CHROMEOS)
+  // iOS:
   // We only get one shot at doing MAP_JIT on iOS. So we need to make it
   // the least restrictive so it succeeds otherwise we will terminate the
   // process on the failed allocation.
+  // ChromeOS:
+  // Chrome on ChromeOS uses libgcc unwinding library which seems to work an
+  // order of magnitude slower if we allocate CodeRange closer to the binary.
+  // In non-official builds Chrome collects a lot of stack traces just in case,
+  // so the slowdown of a single backtrace() call results in a noticeable
+  // increase of test times. As a workaround, do a one shot allocation without
+  // providing a hint.
+  // TODO(https://crbug.com/40096218): investigate this ChromeOS issue.
   params.requested_start_hint = kNullAddress;
   if (!VirtualMemoryCage::InitReservation(params)) return false;
 #else
@@ -178,7 +187,7 @@ bool CodeRange::InitReservation(v8::PageAllocator* page_allocator,
     // We didn't manage to allocate the code range close enough.
     FATAL("Failed to allocate code range close to the .text section");
   }
-#endif  // defined(V8_TARGET_OS_IOS)
+#endif  // defined(V8_TARGET_OS_IOS) || defined(V8_TARGET_OS_CHROMEOS)
 
   // On some platforms, specifically Win64, we need to reserve some pages at
   // the beginning of an executable space. See

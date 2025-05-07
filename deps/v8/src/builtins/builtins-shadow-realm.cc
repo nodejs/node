@@ -166,9 +166,9 @@ BUILTIN(ShadowRealmPrototypeEvaluate) {
     // 7. If strictEval is true, set varEnv to lexEnv.
     DirectHandle<JSFunction> function;
     MaybeDirectHandle<JSFunction> maybe_function =
-        Compiler::GetFunctionFromValidatedString(eval_context, validated_source,
-                                                 NO_PARSE_RESTRICTION,
-                                                 kNoSourcePosition);
+        Compiler::GetFunctionFromValidatedString(
+            isolate, eval_context, validated_source, NO_PARSE_RESTRICTION,
+            kNoSourcePosition);
     if (maybe_function.is_null()) {
       is_parse_failed = true;
     } else {

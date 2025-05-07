@@ -8,6 +8,9 @@
 #include "src/heap/factory-base.h"
 // Include the non-inl header before the rest of the headers.
 
+#include <type_traits>
+
+#include "src/execution/local-isolate-inl.h"
 #include "src/heap/local-heap-inl.h"
 #include "src/numbers/conversions.h"
 #include "src/objects/heap-number.h"
@@ -131,7 +134,12 @@ Tagged<StructType> FactoryBase<Impl>::NewStructInternal(
     InstanceType type, AllocationType allocation) {
   ReadOnlyRoots roots = read_only_roots();
   Tagged<Map> map = Map::GetMapFor(roots, type);
-  int size = StructType::kSize;
+  int size;
+  if constexpr (std::is_base_of_v<StructLayout, StructType>) {
+    size = sizeof(StructType);
+  } else {
+    size = StructType::kSize;
+  }
   return Cast<StructType>(NewStructInternal(roots, map, size, allocation));
 }
 

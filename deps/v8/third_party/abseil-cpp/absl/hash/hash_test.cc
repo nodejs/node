@@ -38,6 +38,7 @@
 #include "gmock/gmock.h"
 #include "gtest/gtest.h"
 #include "absl/base/config.h"
+#include "absl/container/flat_hash_map.h"
 #include "absl/container/flat_hash_set.h"
 #include "absl/hash/hash_testing.h"
 #include "absl/hash/internal/hash_test.h"
@@ -190,9 +191,8 @@ TEST(HashValueTest, PointerAlignment) {
     // Limit the scope to the bits we would be using for Swisstable.
     constexpr size_t kMask = (1 << (kLog2NumValues + 7)) - 1;
     size_t stuck_bits = (~bits_or | bits_and) & kMask;
-    // Test that there are at most 2 stuck bits. Sometimes we see stuck_bits
-    // of 0x3.
-    EXPECT_LE(absl::popcount(stuck_bits), 2) << "0x" << std::hex << stuck_bits;
+    // Test that there are at most 3 stuck bits.
+    EXPECT_LE(absl::popcount(stuck_bits), 3) << "0x" << std::hex << stuck_bits;
   }
 }
 
@@ -400,7 +400,7 @@ TEST(HashValueTest, TestIntrinsicInt128) {
   EXPECT_TRUE((is_hashable<__int128_t>::value));
   EXPECT_TRUE((is_hashable<__uint128_t>::value));
 
-  absl::flat_hash_set<size_t> hashes;
+  absl::flat_hash_map<size_t, int> hash_to_index;
   std::vector<__uint128_t> values;
   for (int i = 0; i < 128; ++i) {
     // Some arbitrary pattern to check if changing each bit changes the hash.
@@ -411,13 +411,14 @@ TEST(HashValueTest, TestIntrinsicInt128) {
     const __int128_t as_signed = static_cast<__int128_t>(value);
 
     values.push_back(value);
-    hashes.insert(absl::Hash<__uint128_t>{}(value));
+    auto [it, inserted] =
+        hash_to_index.insert({absl::Hash<__uint128_t>{}(value), i});
+    ASSERT_TRUE(inserted) << "Duplicate hash: " << i << " vs " << it->second;
 
     // Verify that the fast-path for MixingHashState does not break the hash.
     EXPECT_EQ(absl::HashOf(value), absl::Hash<__uint128_t>{}(value));
     EXPECT_EQ(absl::HashOf(as_signed), absl::Hash<__int128_t>{}(as_signed));
   }
-  EXPECT_THAT(hashes, SizeIs(128));
 
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(values));
   EXPECT_TRUE(absl::VerifyTypeImplementsAbslHashCorrectly(
@@ -706,7 +707,9 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
   //
   // This test is run on a buffer that is a multiple of the stride size, and one
   // that isn't.
-  for (size_t big_buffer_size : {1024u * 2 + 512u, 1024u * 3}) {
+  const size_t kChunkSize = absl::hash_internal::PiecewiseChunkSize();
+  for (size_t big_buffer_size :
+       {2 * kChunkSize + kChunkSize / 2, 3 * kChunkSize}) {
     SCOPED_TRACE(big_buffer_size);
     std::string big_buffer;
     for (size_t i = 0; i < big_buffer_size; ++i) {
@@ -716,8 +719,15 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
     auto big_buffer_hash = hash(PiecewiseHashTester(big_buffer));
 
     const int possible_breaks = 9;
-    size_t breaks[possible_breaks] = {1,    512,  1023, 1024, 1025,
-                                      1536, 2047, 2048, 2049};
+    size_t breaks[possible_breaks] = {1,
+                                      kChunkSize / 2,
+                                      kChunkSize - 1,
+                                      kChunkSize,
+                                      kChunkSize + 1,
+                                      kChunkSize + kChunkSize / 2,
+                                      2 * kChunkSize - 1,
+                                      2 * kChunkSize,
+                                      2 * kChunkSize + 1};
     for (unsigned test_mask = 0; test_mask < (1u << possible_breaks);
          ++test_mask) {
       SCOPED_TRACE(test_mask);
@@ -727,7 +737,7 @@ TEST(HashValueTest, CombinePiecewiseBuffer) {
           break_locations.insert(breaks[j]);
         }
       }
-      EXPECT_EQ(
+      ASSERT_EQ(
           hash(PiecewiseHashTester(big_buffer, std::move(break_locations))),
           big_buffer_hash);
     }
@@ -1211,6 +1221,22 @@ TEST(HashOf, MatchesTypeErasedHashState) {
   std::string s = "s";
   EXPECT_EQ(absl::HashOf(1, s), absl::Hash<TypeErasedHashStateUser>{}(
                                     TypeErasedHashStateUser{1, s}));
+}
+
+struct AutoReturnTypeUser {
+  int a;
+  std::string b;
+
+  template <typename H>
+  friend auto AbslHashValue(H state, const AutoReturnTypeUser& value) {
+    return H::combine(std::move(state), value.a, value.b);
+  }
+};
+
+TEST(HashOf, AutoReturnTypeUser) {
+  std::string s = "s";
+  EXPECT_EQ(absl::HashOf(1, s),
+            absl::Hash<AutoReturnTypeUser>{}(AutoReturnTypeUser{1, s}));
 }
 
 }  // namespace
