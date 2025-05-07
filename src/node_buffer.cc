@@ -143,16 +143,12 @@ Local<ArrayBuffer> CallbackInfo::CreateTrackedArrayBuffer(
   return ab;
 }
 
-
 CallbackInfo::CallbackInfo(Environment* env,
-                             FreeCallback callback,
-                             char* data,
-                             void* hint)
-                             : callback_(callback),
-      data_(data),
-      hint_(hint),
-      env_(env) {
-        env->cleanable_queue()->PushFront(static_cast<node::Cleanable*>(this));
+                           FreeCallback callback,
+                           char* data,
+                           void* hint)
+    : callback_(callback), data_(data), hint_(hint), env_(env) {
+  env->cleanable_queue()->PushFront(static_cast<node::Cleanable*>(this));
   env->external_memory_accounter()->Increase(env->isolate(), sizeof(*this));
 }
 
@@ -186,7 +182,7 @@ void CallbackInfo::CallAndResetCallback() {
 
 void CallbackInfo::OnBackingStoreFree() {
   // This method should always release the memory for `this`.
-  std::unique_ptr<CallbackInfo> self { this };
+  std::unique_ptr<CallbackInfo> self{this};
   // If callback_ == nullptr, that means that the callback has already run from
   // the cleanup hook, and there is nothing left to do here besides to clean
   // up the memory involved. In particular, the underlying `Environment` may
