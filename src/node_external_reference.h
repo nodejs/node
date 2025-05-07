@@ -38,6 +38,10 @@ using CFunctionCallbackReturnInt32 =
                 v8::FastApiCallbackOptions& options);
 using CFunctionCallbackValueReturnDouble =
     double (*)(v8::Local<v8::Value> receiver);
+using CFunctionCallbackValueReturnDoubleOptions =
+    double (*)(v8::Local<v8::Value>,
+               // NOLINTNEXTLINE(runtime/references) This is V8 api.
+               v8::FastApiCallbackOptions&);
 using CFunctionCallbackValueReturnDoubleUnusedReceiver =
     double (*)(v8::Local<v8::Value> unused, v8::Local<v8::Value> receiver);
 using CFunctionCallbackWithInt64 = void (*)(v8::Local<v8::Object> unused,
@@ -111,6 +115,7 @@ class ExternalReferenceRegistry {
   V(CFunctionCallbackReturnInt32)                                              \
   V(CFunctionWithReturnUint32)                                                 \
   V(CFunctionCallbackValueReturnDouble)                                        \
+  V(CFunctionCallbackValueReturnDoubleOptions)                                 \
   V(CFunctionCallbackValueReturnDoubleUnusedReceiver)                          \
   V(CFunctionCallbackWithInt64)                                                \
   V(CFunctionCallbackWithBool)                                                 \

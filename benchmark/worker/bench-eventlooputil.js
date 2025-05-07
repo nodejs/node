@@ -8,7 +8,7 @@ if (process.argv[2] === 'idle cats') {
 }
 
 const bench = common.createBenchmark(main, {
-  n: [1e6],
+  n: [1e7],
   method: [
     'ELU_simple',
     'ELU_passed',
