@@ -59,7 +59,8 @@ release.
 <a href="doc/changelogs/CHANGELOG_V23.md#23.0.0">23.0.0</a><br/>
   </td>
   <td valign="top">
-<b><a href="doc/changelogs/CHANGELOG_V22.md#22.15.0">22.15.0</a></b><br/>
+<b><a href="doc/changelogs/CHANGELOG_V22.md#22.15.1">22.15.1</a></b><br/>
+<a href="doc/changelogs/CHANGELOG_V22.md#22.15.0">22.15.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.14.0">22.14.0</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.13.1">22.13.1</a><br/>
 <a href="doc/changelogs/CHANGELOG_V22.md#22.13.0">22.13.0</a><br/>
