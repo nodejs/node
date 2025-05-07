@@ -2,7 +2,7 @@
 
 const common = require('../common');
 const assert = require('assert');
-const { Buffer } = require('buffer');
+const SlowBuffer = require('buffer').SlowBuffer;
 const vm = require('vm');
 
 [
@@ -24,6 +24,7 @@ const vm = require('vm');
 });
 
 assert(ArrayBuffer.isView(new Buffer(10)));
+assert(ArrayBuffer.isView(new SlowBuffer(10)));
 assert(ArrayBuffer.isView(Buffer.alloc(10)));
 assert(ArrayBuffer.isView(Buffer.allocUnsafe(10)));
 assert(ArrayBuffer.isView(Buffer.allocUnsafeSlow(10)));
