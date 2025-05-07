@@ -1150,10 +1150,13 @@ void Serializer::ObjectSerializer::VisitExternalPointer(
     Tagged<HeapObject> host, ExternalPointerSlot slot) {
   PtrComprCageBase cage_base(isolate());
   InstanceType instance_type = object_->map(cage_base)->instance_type();
+  InstanceType host_instance_type = host->map(cage_base)->instance_type();
+
   if (InstanceTypeChecker::IsForeign(instance_type) ||
       InstanceTypeChecker::IsJSExternalObject(instance_type) ||
       InstanceTypeChecker::IsAccessorInfo(instance_type) ||
-      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type)) {
+      InstanceTypeChecker::IsFunctionTemplateInfo(instance_type) ||
+      InstanceTypeChecker::IsInterceptorInfo(host_instance_type)) {
     // Output raw data payload, if any.
     OutputRawData(slot.address());
     Address value = slot.load(isolate());
