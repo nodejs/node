@@ -7,7 +7,7 @@ import {
 
 export default [
   {
-    files: ['test/**/*.{js,mjs,cjs}'],
+    files: ['test/**/*.{js,mjs,cjs,ts,mts,cts}'],
     languageOptions: {
       globals: {
         ...globals.node,
@@ -137,9 +137,9 @@ export default [
   },
   {
     files: [
-      'test/es-module/**/*.{js,mjs}',
-      'test/parallel/**/*.{js,mjs}',
-      'test/sequential/**/*.{js,mjs}',
+      'test/es-module/**/*.{js,mjs,ts,mts,cts}',
+      'test/parallel/**/*.{js,mjs,ts,mts,cts}',
+      'test/sequential/**/*.{js,mjs,ts,mts,cts}',
     ],
     rules: {
       '@stylistic/js/comma-dangle': [
@@ -156,7 +156,7 @@ export default [
   },
   {
     files: [
-      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
+      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs,ts,mts,cts}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {

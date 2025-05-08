@@ -382,45 +382,67 @@ export default [
     languageOptions: {
       sourceType: 'module',
     },
-    rules: { 'no-restricted-globals': [
-      'error',
-      {
-        name: '__filename',
-        message: 'Use import.meta.url instead.',
-      },
-      {
-        name: '__dirname',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'exports',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'module',
-        message: 'Not available in ESM.',
-      },
-      {
-        name: 'require',
-        message: 'Use import instead.',
-      },
-      {
-        name: 'Buffer',
-        message: "Import 'Buffer' instead of using the global.",
-      },
-      {
-        name: 'process',
-        message: "Import 'process' instead of using the global.",
-      },
-    ] },
+    rules: {
+      'no-restricted-globals': [
+        'error',
+        {
+          name: '__filename',
+          message: 'Use import.meta.url instead.',
+        },
+        {
+          name: '__dirname',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'exports',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'module',
+          message: 'Not available in ESM.',
+        },
+        {
+          name: 'require',
+          message: 'Use import instead.',
+        },
+        {
+          name: 'Buffer',
+          message: "Import 'Buffer' instead of using the global.",
+        },
+        {
+          name: 'process',
+          message: "Import 'process' instead of using the global.",
+        },
+      ],
+    },
   },
-  ...tseslint.configs.recommended,
-  // {
-  //   files: ['**/*.{ts,mts,cts}'],
-  //   // rules: {
+  // #region Typescript rules
+  {
 
-  //   // }
-  // },
+    files: ['**/*.{ts,mts,cts}'],
+    ...tseslint.configs.base,
+    rules: {
+      ...tseslint.configs.eslintRecommended.rules,
+      // Index 0 contains the base configuration,
+      // index 1 provides eslint-specific overrides,
+      // and index 2 includes the recommended rules.
+      ...tseslint.configs.recommended[2].rules,
+      // This is handled by 'no-restricted-globals'
+      '@typescript-eslint/no-require-imports': 'off',
+      // We use ignore comments throughout the codebase
+      '@typescript-eslint/ban-ts-comment': 'off',
+    },
+  },
+  {
+    files: ['typings/**'],
+    rules: {
+      '@typescript-eslint/no-explicit-any': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+
+      'no-use-before-define': 'off',
+    },
+  },
+  // #endregion
   // #endregion
   // #region partials
   ...benchmarkConfig,
