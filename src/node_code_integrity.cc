@@ -5,8 +5,8 @@
 #include "node.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
-#include "v8.h"
 #include "util.h"
+#include "v8.h"
 
 namespace node {
 
@@ -134,8 +134,8 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
 // IsInteractiveModeDisabled
 // Queries operating system code integrity policy to determine if
 // the policy is requesting NodeJS to disable interactive mode.
-static void IsInteractiveModeDisabled(
-    const FunctionCallbackInfo<Value>& args) {
+static void IsInteractiveModeDisabled(const FunctionCallbackInfo<Value>& args) 
+{
   CHECK_EQ(args.Length(), 0);
 
   Environment* env = Environment::GetCurrent(args);
@@ -176,23 +176,21 @@ static void IsInteractiveModeDisabled(
         WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
     ULONG valueSize = sizeof(int);
     int isInteractiveModeDisabled = 0;
-    HRESULT hr = per_process::WldpQuerySecurityPolicy(
-        &providerName,
-        &keyName,
-        &valueName,
-        &valueType,
-        &isInteractiveModeDisabled,
-        &valueSize);
+    HRESULT hr = 
+      per_process::WldpQuerySecurityPolicy(&providerName,
+                                           &keyName,
+                                           &valueName,
+                                           &valueType,
+                                           &isInteractiveModeDisabled,
+                                           &valueSize);
 
     if (FAILED(hr)) {
       args.GetReturnValue().SetFalse();
       return;
     }
 
-    args.GetReturnValue().Set(
-        Boolean::New(
-          env->isolate(),
-          static_cast<bool>(isInteractiveModeDisabled)));
+    args.GetReturnValue().Set(Boolean::New(
+          env->isolate(), static_cast<bool>(isInteractiveModeDisabled)));
   }
 }
 
@@ -239,23 +237,20 @@ static void IsSystemEnforcingCodeIntegrity(
         WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
     ULONG valueSize = sizeof(int);
     int isCodeIntegrityEnforced = 0;
-    HRESULT hr = per_process::WldpQuerySecurityPolicy(
-        &providerName,
-        &keyName,
-        &valueName,
-        &valueType,
-        &isCodeIntegrityEnforced,
-        &valueSize);
+    HRESULT hr = per_process::WldpQuerySecurityPolicy(&providerName,
+                                                      &keyName,
+                                                      &valueName,
+                                                      &valueType,
+                                                      &isCodeIntegrityEnforced,
+                                                      &valueSize);
 
     if (FAILED(hr)) {
       args.GetReturnValue().SetFalse();
       return;
     }
 
-    args.GetReturnValue().Set(
-        Boolean::New(
-          env->isolate(),
-          static_cast<bool>(isCodeIntegrityEnforced)));
+    args.GetReturnValue().Set(Boolean::New(
+          env->isolate(), static_cast<bool>(isCodeIntegrityEnforced)));
   }
 }
 
@@ -268,10 +263,8 @@ void Initialize(Local<Object> target,
             "isFileTrustedBySystemCodeIntegrityPolicy",
             IsFileTrustedBySystemCodeIntegrityPolicy);
 
-  SetMethod(context,
-            target,
-            "isInteractiveModeDisabled",
-            IsInteractiveModeDisabled);
+  SetMethod(
+    context, target, "isInteractiveModeDisabled", IsInteractiveModeDisabled);
 
   SetMethod(context,
             target,
