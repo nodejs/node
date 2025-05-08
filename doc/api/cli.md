@@ -3058,7 +3058,7 @@ This flag cannot be combined with
 
 Note: The `--watch` flag requires a file path as an argument. It does not support
 being used with `--run` or inline script input. If no file is provided, Node.js will
-exit with status code 9.
+exit with status code `9`.
 
 ```bash
 node --watch index.js
