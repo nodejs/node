@@ -22,12 +22,14 @@ function wrapScriptInEvalWorker(script) {
   `;
 }
 
+function convertScriptSourceToDataUrl(script) {
+  return new URL(`data:text/javascript,${encodeURIComponent(script)}`);
+}
+
 function wrapScriptInUrlWorker(script) {
   return `
   import { Worker } from 'node:worker_threads';
-  new Worker(new URL(${JSON.stringify(
-      `data:text/javascript,${encodeURIComponent(script)}`
-    )}));
+  new Worker(new URL("${convertScriptSourceToDataUrl(script)}"));
   `;
 }
 
