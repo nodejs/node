@@ -1,6 +1,7 @@
 import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.js';
 import assert from 'node:assert/strict';
+import { describe, it } from 'node:test';
 
 const importMetaMainScript = `
 import assert from 'node:assert/strict';
@@ -31,45 +32,43 @@ function wrapScriptInUrlWorker(script) {
   `;
 }
 
-async function test_evaluated_script() {
-  const result = await spawnPromisified(
-    process.execPath,
-    ['--input-type=module', '--eval', importMetaMainScript],
-  );
-  assert.deepStrictEqual(result, {
-    stderr: '',
-    stdout: '',
-    code: 0,
-    signal: null,
-  });
-}
+describe("import.meta.main in evaluated scripts", () => {
+  it("should evaluate true in evaluated script", async () => {
+    const result = await spawnPromisified(
+      process.execPath,
+      ['--input-type=module', '--eval', importMetaMainScript],
+    );
+    assert.deepStrictEqual(result, {
+      stderr: '',
+      stdout: '',
+      code: 0,
+      signal: null,
+    });
+  })
 
-async function test_evaluated_script_in_eval_worker() {
-  const result = await spawnPromisified(
-    process.execPath,
-    ['--input-type=module', '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
-  );
-  assert.deepStrictEqual(result, {
-    stderr: '',
-    stdout: '',
-    code: 0,
-    signal: null,
-  });
-}
+  it("should evaluate true in worker instantiated with module source by evaluated script", async () => {
+    const result = await spawnPromisified(
+      process.execPath,
+      ['--input-type=module', '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
+    );
+    assert.deepStrictEqual(result, {
+      stderr: '',
+      stdout: '',
+      code: 0,
+      signal: null,
+    });
+  })
 
-async function test_evaluated_script_in_url_worker() {
-  const result = await spawnPromisified(
-    process.execPath,
-    ['--input-type=module', '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
-  );
-  assert.deepStrictEqual(result, {
-    stderr: '',
-    stdout: '',
-    code: 0,
-    signal: null,
-  });
-}
-
-await test_evaluated_script();
-await test_evaluated_script_in_eval_worker();
-await test_evaluated_script_in_url_worker();
+  it("should evaluate true in worker instantiated with `data:` URL by evaluated script", async () => {
+    const result = await spawnPromisified(
+      process.execPath,
+      ['--input-type=module', '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
+    );
+    assert.deepStrictEqual(result, {
+      stderr: '',
+      stdout: '',
+      code: 0,
+      signal: null,
+    });
+  })
+})
