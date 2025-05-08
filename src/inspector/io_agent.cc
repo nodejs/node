@@ -1,9 +1,7 @@
 #include "io_agent.h"
 #include "crdtp/dispatch.h"
 
-namespace node {
-namespace inspector {
-namespace protocol {
+namespace node::inspector::protocol {
 
 void IoAgent::Wire(UberDispatcher* dispatcher) {
   frontend_ = std::make_shared<IO::Frontend>(dispatcher->channel());
@@ -44,7 +42,4 @@ DispatchResponse IoAgent::close(const String& in_handle) {
   data_map_.erase(in_handle);
   return DispatchResponse::Success();
 }
-
-}  // namespace protocol
-}  // namespace inspector
-}  // namespace node
+}  // namespace node::inspector::protocol
