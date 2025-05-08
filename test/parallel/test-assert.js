@@ -1641,6 +1641,37 @@ test('Assert class basic instance', () => {
               "Received type string ('string')"
     }
   );
+
+  {
+    function thrower(errorConstructor) {
+      throw new errorConstructor({});
+    }
+
+    let threw = false;
+    try {
+      assertInstance.doesNotThrow(() => thrower(TypeError), assertInstance.AssertionError);
+    } catch (e) {
+      threw = true;
+      assertInstance.ok(e instanceof TypeError);
+    }
+    assertInstance.ok(threw, 'assertInstance.doesNotThrow with an explicit error is eating extra errors');
+  }
+  {
+    let threw = false;
+    const rangeError = new RangeError('my range');
+
+    try {
+      assertInstance.doesNotThrow(() => {
+        throw new TypeError('wrong type');
+      }, TypeError, rangeError);
+    } catch (e) {
+      threw = true;
+      assertInstance.ok(e.message.includes(rangeError.message));
+      assertInstance.ok(e instanceof assertInstance.AssertionError);
+      assertInstance.ok(!e.stack.includes('doesNotThrow'), e);
+    }
+    assertInstance.ok(threw);
+  }
 });
 
 /* eslint-enable no-restricted-syntax */
