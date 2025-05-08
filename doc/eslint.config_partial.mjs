@@ -9,7 +9,7 @@ const builtin = builtinModules.filter((name) => !name.startsWith('node:'));
 
 export default [
   {
-    files: ['doc/**/*.md/*.{js,mjs,cjs}'],
+    files: ['doc/**/*.md/*.{js,mjs,cjs,ts,mts,cts}'],
     rules: {
       // Ease some restrictions in doc examples.
       'no-restricted-properties': 'off',
