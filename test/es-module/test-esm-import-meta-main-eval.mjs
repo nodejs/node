@@ -32,8 +32,8 @@ function wrapScriptInUrlWorker(script) {
   `;
 }
 
-describe("import.meta.main in evaluated scripts", () => {
-  it("should evaluate true in evaluated script", async () => {
+describe('import.meta.main in evaluated scripts', () => {
+  it('should evaluate true in evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module', '--eval', importMetaMainScript],
@@ -44,9 +44,9 @@ describe("import.meta.main in evaluated scripts", () => {
       code: 0,
       signal: null,
     });
-  })
+  });
 
-  it("should evaluate true in worker instantiated with module source by evaluated script", async () => {
+  it('should evaluate true in worker instantiated with module source by evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module', '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
@@ -57,9 +57,9 @@ describe("import.meta.main in evaluated scripts", () => {
       code: 0,
       signal: null,
     });
-  })
+  });
 
-  it("should evaluate true in worker instantiated with `data:` URL by evaluated script", async () => {
+  it('should evaluate true in worker instantiated with `data:` URL by evaluated script', async () => {
     const result = await spawnPromisified(
       process.execPath,
       ['--input-type=module', '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
@@ -70,5 +70,5 @@ describe("import.meta.main in evaluated scripts", () => {
       code: 0,
       signal: null,
     });
-  })
-})
+  });
+});
