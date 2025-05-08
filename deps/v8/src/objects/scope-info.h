@@ -193,8 +193,8 @@ class ScopeInfo : public TorqueGeneratedScopeInfo<ScopeInfo, HeapObject> {
   // returns a value < 0. The name must be an internalized string.
   // If the slot is present and mode != nullptr, sets *mode to the corresponding
   // mode for that variable.
-  int ContextSlotIndex(DirectHandle<String> name);
-  int ContextSlotIndex(DirectHandle<String> name,
+  int ContextSlotIndex(Tagged<String> name);
+  int ContextSlotIndex(Tagged<String> name,
                        VariableLookupResult* lookup_result);
 
   // Lookup metadata of a MODULE-allocated variable.  Return 0 if there is no

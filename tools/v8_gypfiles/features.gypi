@@ -209,12 +209,6 @@
     # Enable map packing & unpacking (sets -dV8_MAP_PACKING).
     'v8_enable_map_packing%': 0,
 
-    # Scan the call stack conservatively during garbage collection.
-    'v8_enable_conservative_stack_scanning%': 0,
-
-    # Use direct pointers in local handles.
-    'v8_enable_direct_local%': 0,
-
     # Controls the threshold for on-heap/off-heap Typed Arrays.
     'v8_typed_array_max_size_in_heap%': 64,
 
@@ -461,12 +455,6 @@
       }],
       ['tsan==1', {
         'defines': ['V8_IS_TSAN',],
-      }],
-      ['v8_enable_conservative_stack_scanning==1', {
-        'defines': ['V8_ENABLE_CONSERVATIVE_STACK_SCANNING',],
-      }],
-      ['v8_enable_direct_local==1', {
-        'defines': ['V8_ENABLE_DIRECT_LOCAL',],
       }],
       ['v8_enable_regexp_interpreter_threaded_dispatch==1', {
         'defines': ['V8_ENABLE_REGEXP_INTERPRETER_THREADED_DISPATCH',],

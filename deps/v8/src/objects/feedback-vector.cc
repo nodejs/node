@@ -197,6 +197,8 @@ const char* FeedbackMetadata::Kind2String(FeedbackSlotKind kind) {
       return "CloneObject";
     case FeedbackSlotKind::kJumpLoop:
       return "JumpLoop";
+    case FeedbackSlotKind::kStringAddAndInternalize:
+      return "StringAddAndInternalize";
   }
 }
 
@@ -318,6 +320,9 @@ Handle<FeedbackVector> FeedbackVector::New(
       case FeedbackSlotKind::kDefineKeyedOwnPropertyInLiteral:
       case FeedbackSlotKind::kInstanceOf:
         vector->Set(slot, *uninitialized_sentinel, SKIP_WRITE_BARRIER);
+        break;
+      case FeedbackSlotKind::kStringAddAndInternalize:
+        vector->Set(slot, Smi::zero(), SKIP_WRITE_BARRIER);
         break;
 
       case FeedbackSlotKind::kInvalid:
@@ -696,6 +701,17 @@ bool FeedbackNexus::Clear(ClearBehavior behavior) {
       }
       break;
 
+    case FeedbackSlotKind::kStringAddAndInternalize:
+      if (V8_LIKELY(behavior == ClearBehavior::kDefault)) {
+        // We don't clear these, either.
+      } else if (!IsCleared()) {
+        DCHECK_EQ(behavior, ClearBehavior::kClearAll);
+        SetFeedback(Smi::zero(), SKIP_WRITE_BARRIER, UninitializedSentinel(),
+                    SKIP_WRITE_BARRIER);
+        feedback_updated = true;
+      }
+      break;
+
     case FeedbackSlotKind::kInvalid:
       UNREACHABLE();
   }
@@ -842,7 +858,8 @@ InlineCacheState FeedbackNexus::ic_state() const {
       CHECK_EQ(feedback, UninitializedSentinel());
       return InlineCacheState::UNINITIALIZED;
     }
-    case FeedbackSlotKind::kBinaryOp: {
+    case FeedbackSlotKind::kBinaryOp:
+    case FeedbackSlotKind::kStringAddAndInternalize: {
       BinaryOperationHint hint = GetBinaryOperationFeedback();
       if (hint == BinaryOperationHint::kNone) {
         return InlineCacheState::UNINITIALIZED;
@@ -1370,7 +1387,8 @@ IcCheckType FeedbackNexus::GetKeyType() const {
 }
 
 BinaryOperationHint FeedbackNexus::GetBinaryOperationFeedback() const {
-  DCHECK_EQ(kind(), FeedbackSlotKind::kBinaryOp);
+  DCHECK(kind() == FeedbackSlotKind::kBinaryOp ||
+         kind() == FeedbackSlotKind::kStringAddAndInternalize);
   int feedback = GetFeedback().ToSmi().value();
   return BinaryOperationHintFromFeedback(feedback);
 }

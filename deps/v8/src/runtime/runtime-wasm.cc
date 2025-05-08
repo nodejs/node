@@ -436,7 +436,9 @@ RUNTIME_FUNCTION(Runtime_WasmCompileLazy) {
   SealHandleScope scope(isolate);
 
   DCHECK(isolate->context().is_null());
-  isolate->set_context(trusted_instance_data->native_context());
+  if (trusted_instance_data->has_native_context()) {
+    isolate->set_context(trusted_instance_data->native_context());
+  }
   bool success = wasm::CompileLazy(isolate, trusted_instance_data, func_index);
   if (!success) {
     DCHECK(v8_flags.wasm_lazy_validation);
@@ -544,7 +546,7 @@ void ReplaceJSToWasmWrapper(
   CHECK(func_ref->internal(isolate)->try_get_external(&external_function));
   if (external_function->shared()->HasWasmJSFunctionData()) return;
   CHECK(external_function->shared()->HasWasmExportedFunctionData());
-  external_function->UpdateCode(wrapper_code);
+  external_function->UpdateCode(isolate, wrapper_code);
   Tagged<WasmExportedFunctionData> function_data =
       external_function->shared()->wasm_exported_function_data();
   function_data->set_wrapper_code(wrapper_code);
@@ -1190,13 +1192,14 @@ RUNTIME_FUNCTION(Runtime_WasmArrayCopy) {
 RUNTIME_FUNCTION(Runtime_WasmAllocateDescriptorStruct) {
   ClearThreadInWasmScope flag_scope(isolate);
   HandleScope scope(isolate);
-  DCHECK_EQ(3, args.length());
+  DCHECK_EQ(4, args.length());
   DirectHandle<WasmTrustedInstanceData> trusted_data{
       Cast<WasmTrustedInstanceData>(args[0]), isolate};
   DirectHandle<Map> map{Cast<Map>(args[1]), isolate};
   wasm::ModuleTypeIndex type_index{args.positive_smi_value_at(2)};
-  return *WasmStruct::AllocateDescriptorUninitialized(isolate, trusted_data,
-                                                      type_index, map);
+  DirectHandle<Object> first_field{args[3], isolate};
+  return *WasmStruct::AllocateDescriptorUninitialized(
+      isolate, trusted_data, type_index, map, first_field);
 }
 
 RUNTIME_FUNCTION(Runtime_WasmArrayNewSegment) {
@@ -1360,35 +1363,34 @@ RUNTIME_FUNCTION(Runtime_WasmAllocateSuspender) {
   DirectHandle<WasmSuspenderObject> suspender =
       isolate->factory()->NewWasmSuspenderObject();
 
-  // Update the continuation state.
-  auto parent = direct_handle(Cast<WasmContinuationObject>(isolate->root(
-                                  RootIndex::kActiveContinuation)),
-                              isolate);
+  // Update the stack state.
+  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
   std::unique_ptr<wasm::StackMemory> target_stack =
       isolate->stack_pool().GetOrAllocate();
-  DirectHandle<WasmContinuationObject> target = WasmContinuationObject::New(
-      isolate, target_stack.get(), wasm::JumpBuffer::Suspended, parent);
-  target_stack->set_index(isolate->wasm_stacks().size());
-  isolate->wasm_stacks().emplace_back(std::move(target_stack));
-  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
-    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
-  }
-  isolate->roots_table().slot(RootIndex::kActiveContinuation).store(*target);
+  target_stack->jmpbuf()->parent = active_stack;
+  target_stack->jmpbuf()->stack_limit = target_stack->jslimit();
+  target_stack->jmpbuf()->sp = target_stack->base();
+  target_stack->jmpbuf()->fp = kNullAddress;
+  target_stack->jmpbuf()->state = wasm::JumpBuffer::Suspended;
+  isolate->isolate_data()->set_active_stack(target_stack.get());
 
   // Update the suspender state.
   FullObjectSlot active_suspender_slot =
       isolate->roots_table().slot(RootIndex::kActiveSuspender);
   suspender->set_parent(
       Cast<UnionOf<Undefined, WasmSuspenderObject>>(*active_suspender_slot));
-  suspender->set_continuation(*target);
+  suspender->set_stack(isolate, target_stack.get());
   active_suspender_slot.store(*suspender);
 
+  target_stack->set_index(isolate->wasm_stacks().size());
+  isolate->wasm_stacks().emplace_back(std::move(target_stack));
+  for (size_t i = 0; i < isolate->wasm_stacks().size(); ++i) {
+    SLOW_DCHECK(isolate->wasm_stacks()[i]->index() == i);
+  }
+
   // Stack limit will be updated in WasmReturnPromiseOnSuspendAsm builtin.
-  wasm::StackMemory* stack = reinterpret_cast<wasm::StackMemory*>(
-      parent->ReadExternalPointerField<kWasmStackMemoryTag>(
-          WasmContinuationObject::kStackOffset, isolate));
-  DCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Active);
-  stack->jmpbuf()->state = wasm::JumpBuffer::Inactive;
+  DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
+  active_stack->jmpbuf()->state = wasm::JumpBuffer::Inactive;
 
   return *suspender;
 }

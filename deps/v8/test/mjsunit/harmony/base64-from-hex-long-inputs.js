@@ -56,11 +56,16 @@
       arr_two_byte_64.join(','));
 
   for (let i = 0; i < 0xFF; i++) {
-    if ((i >= 0x30 && i <= 0x39 /* 0-9 */) ||
+    const isValid = (i >= 0x30 && i <= 0x39 /* 0-9 */) ||
         (i >= 0x41 && i <= 0x46 /* A-F */) ||
-        (i >= 0x61 && i <= 0x66 /* a-f */))
-      continue;
+        (i >= 0x61 && i <= 0x66 /* a-f */);
     const str = String.fromCharCode.apply(String, Array(32).fill(i));
-    assertThrows(() => Uint8Array.fromHex(str), SyntaxError);
+    if (isValid) {
+      const byte = parseInt(str.substr(0, 2), 16);
+      const arr = Uint8Array.fromHex(str);
+      assertSame(Array(16).fill(byte).join(','), arr.join(','));
+    } else {
+      assertThrows(() => Uint8Array.fromHex(str), SyntaxError);
+    }
   }
 })();

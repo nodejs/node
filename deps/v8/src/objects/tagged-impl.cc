@@ -23,6 +23,7 @@ namespace internal {
 
 #if defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 bool CheckObjectComparisonAllowed(Address a, Address b) {
+  // LINT.IfChange(CheckObjectComparisonAllowed)
   if (!HAS_STRONG_HEAP_OBJECT_TAG(a) || !HAS_STRONG_HEAP_OBJECT_TAG(b)) {
     return true;
   }
@@ -39,6 +40,7 @@ bool CheckObjectComparisonAllowed(Address a, Address b) {
            HeapLayout::InTrustedSpace(obj_b));
 #endif
   return true;
+  // LINT.ThenChange(src/codegen/code-stub-assembler.cc:CheckObjectComparisonAllowed)
 }
 #endif  // defined(V8_EXTERNAL_CODE_SPACE) || defined(V8_ENABLE_SANDBOX)
 

@@ -393,7 +393,7 @@ Handle<JSObject> CreateObjectLiteral(
           map, number_of_properties, allocation);
 
   // Normalize the elements of the boilerplate to save space if needed.
-  if (!use_fast_elements) JSObject::NormalizeElements(boilerplate);
+  if (!use_fast_elements) JSObject::NormalizeElements(isolate, boilerplate);
 
   // Add the constant properties to the boilerplate.
   int length = object_boilerplate_description->boilerplate_properties_count();

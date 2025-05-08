@@ -176,7 +176,7 @@ TEST(BigUnsigned, MultiplyByBigUnsigned) {
 
 TEST(BigUnsigned, MultiplyByOverflow) {
   {
-    // Check that multiplcation overflow predictably truncates.
+    // Check that multiplication overflow predictably truncates.
 
     // A big int with all bits on.
     BigUnsigned<4> all_bits_on("340282366920938463463374607431768211455");

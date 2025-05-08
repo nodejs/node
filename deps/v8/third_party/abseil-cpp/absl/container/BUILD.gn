@@ -19,6 +19,7 @@ absl_source_set("fixed_array") {
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
     "//third_party/abseil-cpp/absl/base:iterator_traits_internal",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/memory",
   ]
 }
@@ -58,6 +59,7 @@ absl_source_set("inlined_vector") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:iterator_traits_internal",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
   ]
@@ -398,6 +400,19 @@ absl_source_set("hashtable_control_bytes") {
   ]
 }
 
+absl_source_set("raw_hash_set_resize_impl") {
+  public = [ "internal/raw_hash_set_resize_impl.h" ]
+  deps = [ "//third_party/abseil-cpp/absl/base:config" ]
+}
+
+absl_test("raw_hash_set_resize_impl_test") {
+  sources = [ "internal/raw_hash_set_resize_impl_test.cc" ]
+  deps = [
+    ":raw_hash_set_resize_impl",
+    "//third_party/abseil-cpp/absl/base:config",
+  ]
+}
+
 absl_source_set("raw_hash_set") {
   sources = [ "internal/raw_hash_set.cc" ]
   public = [ "internal/raw_hash_set.h" ]
@@ -411,6 +426,7 @@ absl_source_set("raw_hash_set") {
     ":hashtable_control_bytes",
     ":hashtable_debug_hooks",
     ":hashtablez_sampler",
+    ":raw_hash_set_resize_impl",
     "//third_party/abseil-cpp/absl/base:config",
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:dynamic_annotations",
@@ -420,6 +436,7 @@ absl_source_set("raw_hash_set") {
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/functional:function_ref",
     "//third_party/abseil-cpp/absl/hash",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/numeric:bits",
@@ -578,6 +595,7 @@ absl_source_set("btree") {
     "//third_party/abseil-cpp/absl/base:core_headers",
     "//third_party/abseil-cpp/absl/base:raw_logging_internal",
     "//third_party/abseil-cpp/absl/base:throw_delegate",
+    "//third_party/abseil-cpp/absl/hash:weakly_mixed_integer",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/meta:type_traits",
     "//third_party/abseil-cpp/absl/strings:cord",

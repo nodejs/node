@@ -454,6 +454,53 @@
   }
 
 // Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define DECL_LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
+  inline void init_##name();                                                  \
+  inline bool has_##name() const;                                             \
+  inline type name(i::IsolateForSandbox isolate) const;                       \
+  inline void set_##name(i::IsolateForSandbox isolate, const type value);
+
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(      \
+    holder, name, type, offset, tag, get_condition, set_condition)          \
+  void holder::init_##name() {                                              \
+    HeapObject::SetupLazilyInitializedExternalPointerField(offset);         \
+  }                                                                         \
+  bool holder::has_##name() const {                                         \
+    return HeapObject::IsLazilyInitializedExternalPointerFieldInitialized(  \
+        offset);                                                            \
+  }                                                                         \
+  type holder::name(i::IsolateForSandbox isolate) const {                   \
+    DCHECK(get_condition);                                                  \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address result =                                                        \
+        HeapObject::ReadExternalPointerField<tag>(offset, isolate);         \
+    return reinterpret_cast<type>(reinterpret_cast<C2440*>(result));        \
+  }                                                                         \
+  void holder::set_##name(i::IsolateForSandbox isolate, const type value) { \
+    DCHECK(set_condition);                                                  \
+    /* This is a workaround for MSVC error C2440 not allowing  */           \
+    /* reinterpret casts to the same type. */                               \
+    struct C2440 {};                                                        \
+    Address the_value =                                                     \
+        reinterpret_cast<Address>(reinterpret_cast<const C2440*>(value));   \
+    HeapObject::WriteLazilyInitializedExternalPointerField<tag>(            \
+        offset, isolate, the_value);                                        \
+  }
+
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED( \
+    holder, name, type, offset, tag, condition)                       \
+  LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2(      \
+      holder, name, type, offset, tag, condition, condition)
+
+#define LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(    \
+    holder, name, type, offset, tag)                             \
+  LAZY_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST_CHECKED2( \
+      holder, name, type, offset, tag, true, true)
+
+// Host objects in ReadOnlySpace can't define the isolate-less accessor.
 #define DECL_EXTERNAL_POINTER_ACCESSORS_MAYBE_READ_ONLY_HOST(name, type) \
   inline type name(i::IsolateForSandbox isolate) const;                  \
   inline void init_##name(i::IsolateForSandbox isolate,                  \

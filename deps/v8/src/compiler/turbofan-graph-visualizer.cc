@@ -341,6 +341,12 @@ std::unique_ptr<char[]> GetVisualizerLogFileName(OptimizedCompilationInfo* info,
                '_');
   std::replace(filename.begin(), filename.begin() + filename.length(), ':',
                '-');
+#if V8_OS_WIN
+  std::replace(filename.begin(), filename.begin() + filename.length(), '<',
+               '{');
+  std::replace(filename.begin(), filename.begin() + filename.length(), '>',
+               '}');
+#endif  // V8_OS_WIN
 
   base::EmbeddedVector<char, 256> base_dir;
   if (optional_base_dir != nullptr) {

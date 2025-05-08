@@ -266,7 +266,7 @@ MaybeDirectHandle<JSArray> FormattedListToJSArray(
   if (U_FAILURE(status)) {
     THROW_NEW_ERROR(isolate, NewTypeError(MessageTemplate::kIcuError));
   }
-  JSObject::ValidateElements(*array);
+  JSObject::ValidateElements(isolate, *array);
   return array;
 }
 

@@ -15,7 +15,9 @@
 #ifndef ABSL_HASH_HASH_TESTING_H_
 #define ABSL_HASH_HASH_TESTING_H_
 
+#include <cstddef>
 #include <initializer_list>
+#include <string>
 #include <tuple>
 #include <type_traits>
 #include <vector>

@@ -496,6 +496,7 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
+            'fp16',
           ]
         }, {
           'dependencies': [
@@ -509,6 +510,7 @@
             'v8_initializers',
             'v8_libplatform',
             'abseil.gyp:abseil',
+            'fp16',
           ]
         }],
         ['OS=="win" and clang==1', {
@@ -531,9 +533,6 @@
               ],
             },
           ],
-        }],
-        ['OS in "aix os400"', {
-          'dependencies': ['fp16'],
         }],
       ],
     },  # v8_snapshot

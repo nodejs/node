@@ -169,15 +169,25 @@ TEST(Unescape, BasicFunction) {
     EXPECT_TRUE(absl::CUnescape(val.escaped, &out));
     EXPECT_EQ(out, val.unescaped);
   }
-  std::string bad[] = {"\\u1",         // too short
-                       "\\U1",         // too short
-                       "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
-                       "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
-                       "\\uD835",      // surrogate character (D800-DFFF)
-                       "\\U0000DD04",  // surrogate character (D800-DFFF)
-                       "\\777",        // exceeds 0xff
-                       "\\xABCD"};     // exceeds 0xff
-  for (const std::string& e : bad) {
+  constexpr absl::string_view bad[] = {
+      "\\u1",         // too short
+      "\\U1",         // too short
+      "\\Uffffff",    // exceeds 0x10ffff (largest Unicode)
+      "\\U00110000",  // exceeds 0x10ffff (largest Unicode)
+      "\\uD835",      // surrogate character (D800-DFFF)
+      "\\U0000DD04",  // surrogate character (D800-DFFF)
+      "\\777",        // exceeds 0xff
+      "\\xABCD",      // exceeds 0xff
+      "endswith\\",   // ends with "\"
+      "endswith\\x",  // ends with "\x"
+      "endswith\\X",  // ends with "\X"
+      "\\x.2345678",  // non-hex follows "\x"
+      "\\X.2345678",  // non-hex follows "\X"
+      "\\u.2345678",  // non-hex follows "\U"
+      "\\U.2345678",  // non-hex follows "\U"
+      "\\.unknown",   // unknown escape sequence
+  };
+  for (const auto e : bad) {
     std::string error;
     std::string out;
     EXPECT_FALSE(absl::CUnescape(e, &out, &error));

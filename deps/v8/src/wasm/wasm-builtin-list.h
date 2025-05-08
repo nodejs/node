@@ -73,7 +73,7 @@ namespace v8::internal::wasm {
   V(ThrowDataViewOutOfBounds)                                                  \
   V(ThrowIndexOfCalledOnNull)                                                  \
   V(ThrowToLowerCaseCalledOnNull)                                              \
-  IF_INTL(V, StringToLowerCaseIntl)                                            \
+  IF_INTL(V, WasmStringToLowerCaseIntl)                                        \
   IF_TSAN(V, TSANRelaxedStore8IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedStore8SaveFP)                                          \
   IF_TSAN(V, TSANRelaxedStore16IgnoreFP)                                       \
@@ -95,10 +95,13 @@ namespace v8::internal::wasm {
   IF_TSAN(V, TSANRelaxedLoad64IgnoreFP)                                        \
   IF_TSAN(V, TSANRelaxedLoad64SaveFP)                                          \
   V(WasmAllocateArray_Uninitialized)                                           \
+  V(WasmAllocateSharedArray_Uninitialized)                                     \
   V(WasmArrayCopy)                                                             \
   V(WasmArrayNewSegment)                                                       \
   V(WasmArrayInitSegment)                                                      \
   V(WasmAllocateStructWithRtt)                                                 \
+  V(WasmAllocateDescriptorStruct)                                              \
+  V(WasmAllocateSharedStructWithRtt)                                           \
   V(WasmOnStackReplace)                                                        \
   V(WasmReject)                                                                \
   V(WasmStringNewWtf8)                                                         \
@@ -130,13 +133,13 @@ namespace v8::internal::wasm {
   V(WasmStringViewIterAdvance)                                                 \
   V(WasmStringViewIterRewind)                                                  \
   V(WasmStringViewIterSlice)                                                   \
-  V(StringCompare)                                                             \
-  V(StringIndexOf)                                                             \
+  V(WasmStringCompare)                                                         \
+  V(WasmStringIndexOf)                                                         \
   V(WasmStringFromCodePoint)                                                   \
   V(WasmStringHash)                                                            \
   V(WasmAnyConvertExtern)                                                      \
   V(WasmStringFromDataSegment)                                                 \
-  V(StringAdd_CheckNone)                                                       \
+  V(WasmStringAdd_CheckNone)                                                   \
   V(DebugPrintFloat64)                                                         \
   V(DebugPrintWordPtr)                                                         \
   V(WasmFastApiCallTypeCheckAndUpdateIC)                                       \
@@ -148,11 +151,10 @@ namespace v8::internal::wasm {
 // Other wasm builtins that are not called via the far jump table, but need the
 // {is_wasm} assembler option for proper stack-switching support.
 #define WASM_BUILTINS_WITHOUT_JUMP_TABLE_SLOT(V) \
-  V(IterableToFixedArrayForWasm)                 \
   V(WasmAllocateInYoungGeneration)               \
   V(WasmAllocateInOldGeneration)                 \
-  V(WasmAllocateZeroedFixedArray)                \
-  V(WasmSuspend)                                 \
+  V(WasmAllocateInSharedHeap)                    \
+  V(WasmJSStringEqual)                           \
   V(WasmToJsWrapperInvalidSig)                   \
   V(WasmTrap)                                    \
   V(WasmTrapHandlerThrowTrap)

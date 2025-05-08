@@ -87,6 +87,7 @@
 #include "absl/base/config.h"
 #include "absl/functional/function_ref.h"
 #include "absl/hash/internal/hash.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/meta/type_traits.h"
 
 namespace absl {
@@ -356,6 +357,12 @@ class HashState : public hash_internal::HashStateBase<HashState> {
     hash_state.combine_contiguous_(hash_state.state_, first, size);
     return hash_state;
   }
+
+  static HashState combine_weakly_mixed_integer(
+      HashState hash_state, hash_internal::WeaklyMixedInteger value) {
+    hash_state.combine_weakly_mixed_integer_(hash_state.state_, value);
+    return hash_state;
+  }
   using HashState::HashStateBase::combine_contiguous;
 
  private:
@@ -369,6 +376,13 @@ class HashState : public hash_internal::HashStateBase<HashState> {
                                     size_t size) {
     T& state = *static_cast<T*>(p);
     state = T::combine_contiguous(std::move(state), first, size);
+  }
+
+  template <typename T>
+  static void CombineWeaklyMixedIntegerImpl(
+      void* p, hash_internal::WeaklyMixedInteger value) {
+    T& state = *static_cast<T*>(p);
+    state = T::combine_weakly_mixed_integer(std::move(state), value);
   }
 
   static HashState combine_raw(HashState hash_state, uint64_t value) {
@@ -385,6 +399,7 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   template <typename T>
   void Init(T* state) {
     state_ = state;
+    combine_weakly_mixed_integer_ = &CombineWeaklyMixedIntegerImpl<T>;
     combine_contiguous_ = &CombineContiguousImpl<T>;
     combine_raw_ = &CombineRawImpl<T>;
     run_combine_unordered_ = &RunCombineUnorderedImpl<T>;
@@ -424,6 +439,7 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   // Do not erase an already erased state.
   void Init(HashState* state) {
     state_ = state->state_;
+    combine_weakly_mixed_integer_ = state->combine_weakly_mixed_integer_;
     combine_contiguous_ = state->combine_contiguous_;
     combine_raw_ = state->combine_raw_;
     run_combine_unordered_ = state->run_combine_unordered_;
@@ -435,6 +451,8 @@ class HashState : public hash_internal::HashStateBase<HashState> {
   }
 
   void* state_;
+  void (*combine_weakly_mixed_integer_)(
+      void*, absl::hash_internal::WeaklyMixedInteger);
   void (*combine_contiguous_)(void*, const unsigned char*, size_t);
   void (*combine_raw_)(void*, uint64_t);
   HashState (*run_combine_unordered_)(

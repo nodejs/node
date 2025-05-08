@@ -284,6 +284,31 @@ inline void MaglevAssembler::SmiToDouble(DoubleRegister result, Register smi) {
   Int32ToDouble(result, smi);
 }
 
+inline void MaglevAssembler::AssertContextCellState(Register cell,
+                                                    ContextCell::State state,
+                                                    Condition condition) {
+  if (!v8_flags.slow_debug_code) return;
+  TemporaryRegisterScope temps(this);
+  Register scratch = temps.AcquireScratch();
+  LoadContextCellState(scratch, cell);
+  CompareInt32AndAssert(scratch, static_cast<int>(state), condition,
+                        AbortReason::kUnexpectedValue);
+}
+
+inline void MaglevAssembler::LoadContextCellTaggedValue(Register value,
+                                                        Register cell) {
+  static_assert(ContextCell::kConst == 0);
+  static_assert(ContextCell::kSmi == 1);
+  AssertContextCellState(cell, ContextCell::kSmi, kLessThanEqual);
+  LoadTaggedField(value, cell, offsetof(ContextCell, tagged_value_));
+}
+
+inline void MaglevAssembler::StoreContextCellSmiValue(Register cell,
+                                                      Register value) {
+  StoreTaggedFieldNoWriteBarrier(cell, offsetof(ContextCell, tagged_value_),
+                                 value);
+}
+
 #if !defined(V8_TARGET_ARCH_RISCV64)
 
 inline void MaglevAssembler::CompareInstanceTypeAndJumpIf(

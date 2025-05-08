@@ -984,8 +984,8 @@ class SetOrCopyDataPropertiesAssembler : public CodeStubAssembler {
  protected:
   TNode<JSObject> AllocateJsObjectTarget(TNode<Context> context) {
     const TNode<NativeContext> native_context = LoadNativeContext(context);
-    const TNode<JSFunction> object_function = Cast(
-        LoadContextElement(native_context, Context::OBJECT_FUNCTION_INDEX));
+    const TNode<JSFunction> object_function = Cast(LoadContextElementNoCell(
+        native_context, Context::OBJECT_FUNCTION_INDEX));
     const TNode<Map> map =
         Cast(LoadJSFunctionPrototypeOrInitialMap(object_function));
     const TNode<JSObject> target = AllocateJSObjectFromMap(map);
@@ -1381,6 +1381,16 @@ TF_BUILTIN(WasmAllocateInOldGeneration, CodeStubAssembler) {
   TNode<Smi> runtime_flags =
       SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
   TailCallRuntime(Runtime::kAllocateInOldGeneration, NoContextConstant(),
+                  SmiFromIntPtr(requested_size), runtime_flags);
+}
+
+TF_BUILTIN(WasmAllocateInSharedHeap, CodeStubAssembler) {
+  auto requested_size = UncheckedParameter<IntPtrT>(Descriptor::kRequestedSize);
+  CSA_CHECK(this, IsValidPositiveSmi(requested_size));
+
+  TNode<Smi> runtime_flags =
+      SmiConstant(Smi::FromInt(AllocateDoubleAlignFlag::encode(false)));
+  TailCallRuntime(Runtime::kAllocateInSharedHeap, NoContextConstant(),
                   SmiFromIntPtr(requested_size), runtime_flags);
 }
 #endif

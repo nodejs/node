@@ -179,9 +179,7 @@ void TracedHandles::Destroy(TracedNodeBlock& node_block, TracedNode& node) {
   }
 
   if (is_marking_) {
-    // Incremental/concurrent marking is running. This also covers the scavenge
-    // case which prohibits eagerly reclaiming nodes when marking is on during a
-    // scavenge.
+    // Incremental/concurrent marking is running.
     //
     // On-heap traced nodes are released in the atomic pause in
     // `ResetDeadNodes()` when they are discovered as not marked. Eagerly clear
@@ -371,16 +369,11 @@ void TracedHandles::ResetYoungDeadNodes(
 }
 
 bool TracedHandles::SupportsClearingWeakNonLiveWrappers() {
+  DCHECK(!is_marking_);
   if (!v8_flags.reclaim_unmodified_wrappers) {
     return false;
   }
   if (!isolate_->heap()->GetEmbedderRootsHandler()) {
-    return false;
-  }
-  // Treat all objects as roots during incremental marking to avoid corrupting
-  // marking worklists.
-  DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking_);
-  if (is_marking_) {
     return false;
   }
   return true;
@@ -709,14 +702,13 @@ void TracedHandles::IterateYoung(RootVisitor* visitor) {
 }
 
 void TracedHandles::IterateYoungRoots(RootVisitor* visitor) {
+  DCHECK(!is_marking_);
   for (auto* block : young_blocks_) {
     DCHECK(block->InYoungList());
 
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
-
-      CHECK_IMPLIES(is_marking_, !node->is_weak());
 
       if (node->is_weak()) continue;
 
@@ -727,13 +719,12 @@ void TracedHandles::IterateYoungRoots(RootVisitor* visitor) {
 }
 
 void TracedHandles::IterateAndMarkYoungRootsWithOldHosts(RootVisitor* visitor) {
+  DCHECK(!is_marking_);
   for (auto* block : young_blocks_) {
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
       if (!node->has_old_host()) continue;
-
-      CHECK_IMPLIES(is_marking_, !node->is_weak());
 
       if (node->is_weak()) continue;
 
@@ -747,13 +738,12 @@ void TracedHandles::IterateAndMarkYoungRootsWithOldHosts(RootVisitor* visitor) {
 
 void TracedHandles::IterateYoungRootsWithOldHostsForTesting(
     RootVisitor* visitor) {
+  DCHECK(!is_marking_);
   for (auto* block : young_blocks_) {
     for (auto* node : *block) {
       if (!node->is_in_young_list()) continue;
       DCHECK(node->is_in_use());
       if (!node->has_old_host()) continue;
-
-      CHECK_IMPLIES(is_marking_, !node->is_weak());
 
       if (node->is_weak()) continue;
 

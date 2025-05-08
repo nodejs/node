@@ -99,6 +99,11 @@ class NodeHashMapPolicy;
 // In most cases `T` needs only to provide the `absl_container_hash`. In this
 // case `std::equal_to<void>` will be used instead of `eq` part.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a node hash map of three strings (that map to strings)

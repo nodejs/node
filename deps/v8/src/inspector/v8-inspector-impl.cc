@@ -147,6 +147,24 @@ std::unique_ptr<V8StackTrace> V8InspectorImpl::createStackTrace(
 std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
     int contextGroupId, V8Inspector::Channel* channel, StringView state,
     ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  return std::unique_ptr<V8InspectorSession>(connectImpl(
+      contextGroupId, channel, state, client_trust_level, pause_state));
+}
+
+std::shared_ptr<V8InspectorSession> V8InspectorImpl::connectShared(
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
+  std::shared_ptr<V8InspectorSessionImpl> session(connectImpl(
+      contextGroupId, channel, state, client_trust_level, pause_state));
+  // TODO(crbug.com/40071155): Move to V8InspectorSessionImpl::create once the
+  // unique_ptr version is no longer required.
+  session->setWeakThis(session);
+  return session;
+}
+
+V8InspectorSessionImpl* V8InspectorImpl::connectImpl(
+    int contextGroupId, V8Inspector::Channel* channel, StringView state,
+    ClientTrustLevel client_trust_level, SessionPauseState pause_state) {
   int sessionId = ++m_lastSessionId;
   std::shared_ptr<V8DebuggerBarrier> debuggerBarrier;
   if (pause_state == kWaitingForDebugger) {
@@ -162,12 +180,11 @@ std::unique_ptr<V8InspectorSession> V8InspectorImpl::connect(
       m_debuggerBarriers.insert(it, {contextGroupId, debuggerBarrier});
     }
   }
-  std::unique_ptr<V8InspectorSessionImpl> session =
-      V8InspectorSessionImpl::create(this, contextGroupId, sessionId, channel,
-                                     state, client_trust_level,
-                                     std::move(debuggerBarrier));
-  m_sessions[contextGroupId][sessionId] = session.get();
-  return std::move(session);
+  V8InspectorSessionImpl* session = V8InspectorSessionImpl::create(
+      this, contextGroupId, sessionId, channel, state, client_trust_level,
+      std::move(debuggerBarrier));
+  m_sessions[contextGroupId][sessionId] = session;
+  return session;
 }
 
 void V8InspectorImpl::disconnect(V8InspectorSessionImpl* session) {

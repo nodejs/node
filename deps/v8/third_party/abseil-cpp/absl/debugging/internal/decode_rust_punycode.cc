@@ -172,7 +172,7 @@ bool ScanNextDelta(const char*& punycode_begin, const char* const punycode_end,
 
 }  // namespace
 
-absl::Nullable<char*> DecodeRustPunycode(DecodeRustPunycodeOptions options) {
+char* absl_nullable DecodeRustPunycode(DecodeRustPunycodeOptions options) {
   const char* punycode_begin = options.punycode_begin;
   const char* const punycode_end = options.punycode_end;
   char* const out_begin = options.out_begin;

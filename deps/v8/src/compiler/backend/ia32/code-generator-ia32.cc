@@ -938,6 +938,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), ebp);
       }
       break;
+    case kArchRootPointer:
+      __ mov(i.OutputRegister(), kRootRegister);
+      break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       __ mov(i.OutputRegister(), esp);

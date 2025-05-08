@@ -5276,12 +5276,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
   }
 
-  bool should_save_class_variable_index =
-      class_scope->should_save_class_variable_index();
-  if (!class_info.is_anonymous || should_save_class_variable_index) {
+  bool should_save_class_variable = class_scope->should_save_class_variable();
+  if (!class_info.is_anonymous || should_save_class_variable) {
     impl()->DeclareClassVariable(class_scope, name, &class_info,
                                  class_token_pos);
-    if (should_save_class_variable_index) {
+    if (should_save_class_variable) {
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }

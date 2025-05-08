@@ -22,6 +22,29 @@ extern class ScriptContextTable extends HeapObject {
   objects[capacity]: Context;
 }
 
+@cppObjectLayoutDefinition
+extern class ContextCell extends HeapObject {
+  // TODO(victorgomes): Change the type of tagged_value to JSAny.
+  tagged_value: Object;
+  dependent_code: DependentCode;
+  state: int32;
+  @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
+  double_value: float64;
+}
+
+extern operator '.int32_value' macro LoadContextCellInt32Value(ContextCell):
+    int32;
+extern operator '.int32_value=' macro StoreContextCellInt32Value(
+    ContextCell, int32): void;
+
+const kContextCellConst: constexpr int32 generates 'ContextCell::kConst';
+const kContextCellSmi: constexpr int32 generates 'ContextCell::kSmi';
+const kContextCellInt32: constexpr int32 generates 'ContextCell::kInt32';
+const kContextCellFloat64:
+    constexpr int32 generates 'ContextCell::kFloat64';
+const kContextCellDetached:
+    constexpr int32 generates 'ContextCell::kDetached';
+
 extern class AwaitContext extends Context generates 'TNode<Context>';
 extern class BlockContext extends Context generates 'TNode<Context>';
 extern class CatchContext extends Context generates 'TNode<Context>';
@@ -34,11 +57,9 @@ extern class WithContext extends Context generates 'TNode<Context>';
 
 extern class FunctionContext extends Context generates 'TNode<Context>';
 
+extern macro IsEmptyDependentCode(Object): bool;
 extern macro TryFloat64ToInt32(float64): int32 labels Failed;
-extern macro LoadHeapInt32Value(HeapNumber): int32;
-extern macro StoreHeapInt32Value(HeapNumber, int32): void;
-extern macro AllocateHeapInt32WithValue(int32): HeapNumber;
-
+extern macro IsScriptContextCellsFlag(): bool;
 const kInitialContextSlotValue: Smi = 0;
 
 @export
@@ -61,6 +82,10 @@ macro AllocateSyntheticFunctionContext(
   InitContextSlot(result, ContextSlot::SCOPE_INFO_INDEX, kEmptyScopeInfo);
   InitContextSlot(result, ContextSlot::PREVIOUS_INDEX, Undefined);
   return result;
+}
+
+macro HasContextCells(c: Context): bool {
+  return IsScriptContextCellsFlag() && Is<ScriptContext>(c);
 }
 
 extern class NativeContext extends Context;
@@ -190,86 +215,91 @@ extern enum ContextSlot extends intptr constexpr 'Context::Field' {
 
   WRAPPED_FUNCTION_MAP_INDEX: Slot<NativeContext, Map>,
 
-  @sameEnumValueAs(MIN_CONTEXT_SLOTS)
-  CONTEXT_SIDE_TABLE_PROPERTY_INDEX: Slot<Context, HeapObject>,
-
   MIN_CONTEXT_SLOTS,
-  MIN_CONTEXT_EXTENDED_SLOTS,
   ...
 }
 
 @export
+macro LoadContextElementNoCell(c: Context, i: intptr): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: Smi): Object {
+  return LoadContextElementNoCellImpl(c, SmiUntag(i));
+}
+
+@export
+macro LoadContextElementNoCell(c: Context, i: constexpr int32): Object {
+  return LoadContextElementNoCellImpl(c, i);
+}
+
+@export
 macro LoadContextElement(c: Context, i: intptr): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
 }
 
 @export
 macro LoadContextElement(c: Context, i: Smi): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, SmiUntag(i));
 }
 
 @export
 macro LoadContextElement(c: Context, i: constexpr int32): Object {
-  return c.elements[i];
+  return LoadContextElementImpl(c, i);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: intptr): Object {
-  return LoadScriptContextElementImpl(c, i);
+macro StoreContextElementNoCell(c: Context, i: intptr, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: Smi): Object {
-  return LoadScriptContextElementImpl(c, SmiUntag(i));
+macro StoreContextElementNoCell(c: Context, i: Smi, o: Object): void {
+  StoreContextElementNoCellImpl(c, SmiUntag(i), o);
 }
 
 @export
-macro LoadScriptContextElement(c: Context, i: constexpr int32): Object {
-  return LoadScriptContextElementImpl(c, i);
+macro StoreContextElementNoCell(
+    c: Context, i: constexpr int32, o: Object): void {
+  StoreContextElementNoCellImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: intptr, o: Object): void {
-  c.elements[i] = o;
-}
-
-@export
-macro StoreContextElement(c: Context, i: Smi, o: Object): void {
-  c.elements[i] = o;
+  StoreScriptContextElementImpl(c, i, o);
 }
 
 @export
 macro StoreContextElement(c: Context, i: constexpr int32, o: Object): void {
+  StoreScriptContextElementImpl(c, i, o);
+}
+
+macro LoadContextElementNoCellImpl(c: Context, i: intptr): Object {
+  const val = c.elements[i];
+  dcheck(!Is<ContextCell>(val));
+  return val;
+}
+
+macro StoreContextElementNoCellImpl(c: Context, i: intptr, o: Object): void {
+  dcheck(!Is<ContextCell>(c.elements[i]));
   c.elements[i] = o;
 }
 
-@export
-macro StoreContextElementAndUpdateSideData(
-    c: Context, i: intptr, o: Object): void {
-  StoreScriptContextAndUpdateSlotProperty(c, i, o);
-}
-
-@export
-macro StoreContextElementAndUpdateSideData(
-    c: Context, i: constexpr int32, o: Object): void {
-  StoreScriptContextAndUpdateSlotProperty(c, i, o);
-}
-
-builtin AllocateIfMutableHeapNumberScriptContextSlot(
-    n: Object, c: Object, i: Smi): Object {
+builtin LoadFromContextCell(_n: Object, c: Object, i: Smi): Object {
   const context = UnsafeCast<Context>(c);
   const index = SmiUntag(i);
-  return TryLoadMutableHeapNumber(context, index, n);
+  return LoadContextElementImpl(context, index);
 }
 
-builtin StoreCurrentScriptContextSlotBaseline(o: Object, i: Smi): JSAny {
+builtin StoreCurrentContextElementBaseline(o: Object, i: Smi): JSAny {
   const context = internal::LoadContextFromBaseline();
   const index = SmiUntag(i);
-  StoreScriptContextAndUpdateSlotProperty(context, index, o);
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
-builtin StoreScriptContextSlotBaseline(
+builtin StoreContextElementBaseline(
     c: Object, o: Object, i: Smi, d: TaggedIndex): JSAny {
   let context = UnsafeCast<Context>(c);
   let depth = TaggedIndexToIntPtr(d);
@@ -280,251 +310,162 @@ builtin StoreScriptContextSlotBaseline(
   }
 
   const index = SmiUntag(i);
-  StoreScriptContextAndUpdateSlotProperty(context, index, o);
+  StoreScriptContextElementImpl(context, index, o);
   return Undefined;
 }
 
 namespace runtime {
-extern runtime InvalidateDependentCodeForScriptContextSlot(Context, Object):
-    JSAny;
+extern runtime NotifyContextCellStateWillChange(NoContext, ContextCell): JSAny;
 }  // namespace runtime
 
-macro StoreScriptContextAndUpdateSlotProperty(
+macro NotifyContextCellStateWillChange(cell: ContextCell): void {
+  if (!IsEmptyDependentCode(cell.dependent_code)) deferred {
+      runtime::NotifyContextCellStateWillChange(kNoContext, cell);
+    }
+}
+
+macro TransitionContextCellToUntagged(
+    heapNumber: HeapNumber, cell: ContextCell,
+    currentState: constexpr int32): void {
+  try {
+    const int32Value = TryFloat64ToInt32(heapNumber.value) otherwise NotInt32;
+    cell.int32_value = int32Value;
+    cell.state = kContextCellInt32;
+  } label NotInt32 {
+    if constexpr (currentState == kContextCellInt32) {
+      // For states kConst and kSmi, we notify the change before calling
+      // TransitionContextCellToUntagged.
+      NotifyContextCellStateWillChange(cell);
+    }
+    cell.double_value = heapNumber.value;
+    cell.state = kContextCellFloat64;
+  }
+}
+
+macro StoreScriptContextElementImpl(
     c: Context, index: intptr, newValue: Object): void {
-  const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
-
-  const sideData: Object = *ContextSlot(
-      scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
-
-  if (sideData == kEmptyFixedArray) {
-    // No side data (maybe the context was created while the side data
-    // collection was disabled).
+  const oldValue = c.elements[index];
+  if (!HasContextCells(c)) {
     c.elements[index] = newValue;
     return;
   }
 
-  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
-  const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise unreachable;
-
-  const oldValue = c.elements[index];
   if (oldValue == TheHole) {
     // Setting the initial value.
-    dcheck(sideDataFixedArray.objects[sideDataIndex] == Undefined);
-    c.elements[index] = newValue;
-    sideDataFixedArray.objects[sideDataIndex] =
-        SmiTag(kContextSidePropertyConst);
+    c.elements[index] = AllocateContextCell(newValue);
     return;
   }
 
-  // If we are assigning the same value, the property won't change.
-  if (TaggedEqual(oldValue, newValue)) {
+  if (!Is<ContextCell>(oldValue)) {
+    c.elements[index] = newValue;
     return;
   }
-  // If both values are HeapNumbers with the same double value, the property
-  // won't change either.
-  if (Is<HeapNumber>(oldValue) && Is<HeapNumber>(newValue)) {
-    const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
-    const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-    if (oldNumber.value == newNumber.value && oldNumber.value != 0) {
+
+  const cell = Cast<ContextCell>(oldValue) otherwise unreachable;
+  if (cell.state == kContextCellConst) {
+    const constValue = cell.tagged_value;
+    // If we are assigning the same value, the property won't change.
+    if (TaggedEqual(constValue, newValue)) {
       return;
     }
+    // If both values are HeapNumbers with the same double value, the property
+    // won't change either.
+    if (Is<HeapNumber>(constValue) && Is<HeapNumber>(newValue)) {
+      const oldNumber = Cast<HeapNumber>(constValue) otherwise unreachable;
+      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
+      if (oldNumber.value == newNumber.value && oldNumber.value != 0) {
+        return;
+      }
+    }
+    NotifyContextCellStateWillChange(cell);
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.state = kContextCellSmi;
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellConst);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
   }
 
-  // From now on, we know the value is no longer a constant.
-
-  const data = sideDataFixedArray.objects[sideDataIndex];
-  let maybeCell: Undefined|ContextSidePropertyCell;
-  // TODO(victorgomes): Use Smis to avoid untagging.
-  let property: intptr;
-
-  // From now on, we know the value is no longer a constant. If there's a
-  // DependentCode, invalidate it.
-
-  typeswitch (data) {
-    case (property_raw: Smi): {
-      maybeCell = Undefined;
-      property = SmiUntag(property_raw);
+  if (cell.state == kContextCellSmi) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.tagged_value = smiNumber;
+      }
+      case (heapNumber: HeapNumber): {
+        NotifyContextCellStateWillChange(cell);
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellSmi);
+        cell.tagged_value = kZero;
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.tagged_value = kZero;
+        cell.state = kContextCellDetached;
+      }
     }
-    case (cell: ContextSidePropertyCell): {
-      maybeCell = cell;
-      property = SmiUntag(cell.property_details_raw);
+    return;
+  }
+
+  if (cell.state == kContextCellInt32) {
+    typeswitch (newValue) {
+      case (smiNumber: Smi): {
+        cell.int32_value = SmiToInt32(smiNumber);
+      }
+      case (heapNumber: HeapNumber): {
+        TransitionContextCellToUntagged(heapNumber, cell, kContextCellInt32);
+      }
+      case (Object): {
+        NotifyContextCellStateWillChange(cell);
+        c.elements[index] = newValue;
+        cell.state = kContextCellDetached;
+      }
+    }
+    return;
+  }
+
+  dcheck(cell.state == kContextCellFloat64);
+  typeswitch (newValue) {
+    case (smiNumber: Smi): {
+      cell.double_value = SmiToFloat64(smiNumber);
+    }
+    case (heapNumber: HeapNumber): {
+      cell.double_value = heapNumber.value;
     }
     case (Object): {
-      // If this is reached, there's a code path which initializes or assigns a
-      // top-level `let` variable but doesn't update the side data.
-      unreachable;
-    }
-  }
-
-  if (property == kContextSidePropertyConst) {
-    if (maybeCell != Undefined) deferred {
-        runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-      }
-    if (IsScriptContextMutableHeapNumberFlag()) {
-      // It can transition to Smi, MutableInt32, MutableHeapNumber or Other.
-      if (Is<Smi>(newValue)) {
-        c.elements[index] = newValue;
-        sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertySmi);
-      } else if (Is<HeapNumber>(newValue)) {
-        const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-        try {
-          if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
-          const int32Value =
-              TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
-          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
-          sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertyInt32);
-        } label NotInt32 {
-          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
-          sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertyHeapNumber);
-        }
-      } else {
-        c.elements[index] = newValue;
-        sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertyOther);
-      }
-    } else {
-      // MutableHeapNumber is not supported, just transition the property to
-      // kOther.
+      NotifyContextCellStateWillChange(cell);
       c.elements[index] = newValue;
-      sideDataFixedArray.objects[sideDataIndex] =
-          SmiTag(kContextSidePropertyOther);
+      cell.state = kContextCellDetached;
     }
-  } else if (property == kContextSidePropertySmi) {
-    if (Is<Smi>(newValue)) {
-      c.elements[index] = newValue;
-    } else {
-      if (maybeCell != Undefined) deferred {
-          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-        }
-      // It can transition to MutableInt32, MutableHeapNumber or Other.
-      if (Is<HeapNumber>(newValue)) {
-        const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-        try {
-          if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
-          const int32Value =
-              TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
-          c.elements[index] = AllocateHeapInt32WithValue(int32Value);
-          sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertyInt32);
-        } label NotInt32 {
-          c.elements[index] = AllocateHeapNumberWithValue(newNumber.value);
-          sideDataFixedArray.objects[sideDataIndex] =
-              SmiTag(kContextSidePropertyHeapNumber);
-        }
-      } else {
-        c.elements[index] = newValue;
-        sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertyOther);
-      }
-    }
-  } else if (property == kContextSidePropertyInt32) {
-    const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
-    if (Is<Smi>(newValue)) {
-      const newNumber = Cast<Smi>(newValue) otherwise unreachable;
-      StoreHeapInt32Value(oldNumber, SmiToInt32(newNumber));
-    } else if (Is<HeapNumber>(newValue)) {
-      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-      try {
-        if (!IsScriptContextMutableHeapInt32Flag()) goto NotInt32;
-        const int32Value =
-            TryFloat64ToInt32(newNumber.value) otherwise NotInt32;
-        StoreHeapInt32Value(oldNumber, int32Value);
-      } label NotInt32 {
-        if (maybeCell != Undefined) deferred {
-            runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-          }
-        oldNumber.value = newNumber.value;
-        sideDataFixedArray.objects[sideDataIndex] =
-            SmiTag(kContextSidePropertyHeapNumber);
-      }
-    } else {
-      if (maybeCell != Undefined) deferred {
-          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-        }
-      // It can only transition to Other.
-      c.elements[index] = newValue;
-      sideDataFixedArray.objects[sideDataIndex] =
-          SmiTag(kContextSidePropertyOther);
-    }
-  } else if (property == kContextSidePropertyHeapNumber) {
-    // TODO(victorgomes): Add a helper function to avoid duplication.
-    const oldNumber = Cast<HeapNumber>(oldValue) otherwise unreachable;
-    if (Is<Smi>(newValue)) {
-      const newNumber = Cast<Smi>(newValue) otherwise unreachable;
-      oldNumber.value = SmiToFloat64(newNumber);
-    } else if (Is<HeapNumber>(newValue)) {
-      const newNumber = Cast<HeapNumber>(newValue) otherwise unreachable;
-      oldNumber.value = newNumber.value;
-    } else {
-      if (maybeCell != Undefined) deferred {
-          runtime::InvalidateDependentCodeForScriptContextSlot(c, maybeCell);
-        }
-      c.elements[index] = newValue;
-      // It can only transition to Other.
-      sideDataFixedArray.objects[sideDataIndex] =
-          SmiTag(kContextSidePropertyOther);
-    }
-  } else {
-    dcheck(property == kContextSidePropertyOther);
-    // We should not have a code depending on Other.
-    dcheck(IsUndefined(maybeCell));
-    // No need to update side data, this is a sink state...
-    c.elements[index] = newValue;
   }
 }
 
-macro LoadScriptContextElementImpl(c: Context, i: intptr): Object {
-  dcheck(Is<ScriptContext>(c));
+macro LoadContextElementImpl(c: Context, i: intptr): Object {
   const val = c.elements[i];
-  return TryLoadMutableHeapNumber(c, i, val);
-}
-
-macro TryLoadMutableHeapNumber(
-    c: Context, index: intptr, val: Object): Object {
-  if (!Is<HeapNumber>(val)) return val;
-  const scriptContext = Cast<ScriptContext>(c) otherwise unreachable;
-
-  const sideData: Object = *ContextSlot(
-      scriptContext, ContextSlot::CONTEXT_SIDE_TABLE_PROPERTY_INDEX);
-
-  if (sideData == kEmptyFixedArray) {
-    // No side data (maybe the context was created while the side data
-    // collection was disabled).
-    return val;
-  }
-
-  const sideDataIndex = index - ContextSlot::MIN_CONTEXT_EXTENDED_SLOTS;
-  const sideDataFixedArray: FixedArray =
-      Cast<FixedArray>(sideData) otherwise unreachable;
-
-  let property: intptr;
-  typeswitch (sideDataFixedArray.objects[sideDataIndex]) {
-    case (Undefined): {
-      return val;
-    }
-    case (cell: ContextSidePropertyCell): {
-      property = SmiUntag(cell.property_details_raw);
-    }
-    case (smi_property: Smi): {
-      property = SmiUntag(smi_property);
-    }
-    case (Object): {
-      unreachable;
-    }
-  }
-  if (property == kContextSidePropertyInt32) {
-    const number = Cast<HeapNumber>(val) otherwise unreachable;
-    const int32Value = LoadHeapInt32Value(number);
-    return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(int32Value));
-  } else if (property == kContextSidePropertyHeapNumber) {
-    const number = Cast<HeapNumber>(val) otherwise unreachable;
-    return AllocateHeapNumberWithValue(number.value);
+  const cell = Cast<ContextCell>(val) otherwise return val;
+  dcheck(HasContextCells(c));
+  dcheck(kContextCellConst == 0);
+  dcheck(kContextCellSmi == 1);
+  if (cell.state <= kContextCellSmi) {
+    return cell.tagged_value;
+  } else if (cell.state == kContextCellInt32) {
+    // TODO(victorgomes): maybe this has a smi value, so we don't need to
+    // allocate a heap number.
+    return AllocateHeapNumberWithValue(ChangeInt32ToFloat64(cell.int32_value));
   } else {
-    return val;
+    dcheck(cell.state == kContextCellFloat64);
+    // TODO(victorgomes): and in this case tagged_value could have contained the
+    // HeapNumber from which this double_value value was initialized.
+    return AllocateHeapNumberWithValue(cell.double_value);
   }
 }
 

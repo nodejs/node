@@ -1105,6 +1105,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mr(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootPointer:
+      __ mr(i.OutputRegister(), kRootRegister);
+      DCHECK_EQ(LeaveRC, i.OutputRCBit());
+      break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       __ mr(i.OutputRegister(), sp);

@@ -250,7 +250,7 @@ class WasmGraphAssembler : public GraphAssembler {
 
   Node* LoadSharedFunctionInfo(Node* js_function);
 
-  Node* LoadContextFromJSFunction(Node* js_function);
+  Node* LoadContextNoCellFromJSFunction(Node* js_function);
 
   Node* LoadFunctionDataFromJSFunction(Node* js_function);
 

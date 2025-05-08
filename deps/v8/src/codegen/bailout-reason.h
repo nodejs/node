@@ -122,6 +122,7 @@ namespace internal {
   V(kNoReason, "no reason")                                                  \
                                                                              \
   V(kBailedOutDueToDependencyChange, "Bailed out due to dependency change")  \
+  V(kCancelled, "Job got cancelled")                                         \
   V(kConcurrentMapDeprecation, "Maps became deprecated during optimization") \
   V(kCodeGenerationFailed, "Code generation failed")                         \
   V(kFunctionBeingDebugged, "Function is being debugged")                    \

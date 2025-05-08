@@ -64,6 +64,7 @@ cc_library(
         "//absl/base:core_headers",
         "//absl/base:nullability",
         "//absl/base:throw_delegate",
+        "//absl/hash:weakly_mixed_integer",
         "//absl/meta:type_traits",
     ],
 )
@@ -81,6 +82,7 @@ cc_test(
         "//absl/base:exception_testing",
         "//absl/container:fixed_array",
         "//absl/container:inlined_vector",
+        "//absl/hash",
         "//absl/hash:hash_testing",
         "//absl/meta:type_traits",
         "//absl/strings",

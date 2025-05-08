@@ -714,6 +714,10 @@ void CodeAssembler::SetStackPointer(TNode<RawPtrT> ptr) {
 }
 #endif
 
+TNode<Object> CodeAssembler::LoadTaggedFromRootRegister(TNode<IntPtrT> offset) {
+  return BitcastWordToTagged(LoadPointerFromRootRegister(offset));
+}
+
 TNode<RawPtrT> CodeAssembler::LoadPointerFromRootRegister(
     TNode<IntPtrT> offset) {
   return UncheckedCast<RawPtrT>(

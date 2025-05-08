@@ -350,12 +350,12 @@ void CodeEventLogger::RegExpCodeCreateEvent(DirectHandle<AbstractCode> code,
                     name_buffer_->get(), name_buffer_->size());
 }
 
-// Linux perf tool logging support.
-#if V8_OS_LINUX
-class LinuxPerfBasicLogger : public CodeEventLogger {
+// Linux & Darwin perf tool logging support.
+#if V8_OS_LINUX || V8_OS_DARWIN
+class PerfBasicLogger : public CodeEventLogger {
  public:
-  explicit LinuxPerfBasicLogger(Isolate* isolate);
-  ~LinuxPerfBasicLogger() override;
+  explicit PerfBasicLogger(Isolate* isolate);
+  ~PerfBasicLogger() override;
 
   void CodeMoveEvent(Tagged<InstructionStream> from,
                      Tagged<InstructionStream> to) override {}
@@ -388,21 +388,20 @@ class LinuxPerfBasicLogger : public CodeEventLogger {
 };
 
 // Extra space for the "perf-%d.map" filename, including the PID.
-const int LinuxPerfBasicLogger::kFilenameBufferPadding = 32;
+const int PerfBasicLogger::kFilenameBufferPadding = 32;
 
 // static
-base::LazyRecursiveMutex& LinuxPerfBasicLogger::GetFileMutex() {
+base::LazyRecursiveMutex& PerfBasicLogger::GetFileMutex() {
   static base::LazyRecursiveMutex file_mutex = LAZY_RECURSIVE_MUTEX_INITIALIZER;
   return file_mutex;
 }
 
 // The following static variables are protected by
-// LinuxPerfBasicLogger::GetFileMutex().
-uint64_t LinuxPerfBasicLogger::reference_count_ = 0;
-FILE* LinuxPerfBasicLogger::perf_output_handle_ = nullptr;
+// PerfBasicLogger::GetFileMutex().
+uint64_t PerfBasicLogger::reference_count_ = 0;
+FILE* PerfBasicLogger::perf_output_handle_ = nullptr;
 
-LinuxPerfBasicLogger::LinuxPerfBasicLogger(Isolate* isolate)
-    : CodeEventLogger(isolate) {
+PerfBasicLogger::PerfBasicLogger(Isolate* isolate) : CodeEventLogger(isolate) {
   base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
   int process_id_ = base::OS::GetCurrentProcessId();
   reference_count_++;
@@ -424,7 +423,7 @@ LinuxPerfBasicLogger::LinuxPerfBasicLogger(Isolate* isolate)
   }
 }
 
-LinuxPerfBasicLogger::~LinuxPerfBasicLogger() {
+PerfBasicLogger::~PerfBasicLogger() {
   base::LockGuard<base::RecursiveMutex> guard_file(GetFileMutex().Pointer());
   reference_count_--;
 
@@ -436,9 +435,9 @@ LinuxPerfBasicLogger::~LinuxPerfBasicLogger() {
   }
 }
 
-void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address,
-                                                  size_t size, const char* name,
-                                                  size_t name_length) {
+void PerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address, size_t size,
+                                             const char* name,
+                                             size_t name_length) {
   // Linux perf expects hex literals without a leading 0x, while some
   // implementations of printf might prepend one when using the %p format
   // for pointers, leading to wrongly formatted JIT symbols maps. On the other
@@ -456,9 +455,9 @@ void LinuxPerfBasicLogger::WriteLogRecordedBuffer(uintptr_t address,
 #endif
 }
 
-void LinuxPerfBasicLogger::LogRecordedBuffer(
-    Tagged<AbstractCode> code, MaybeDirectHandle<SharedFunctionInfo>,
-    const char* name, size_t length) {
+void PerfBasicLogger::LogRecordedBuffer(Tagged<AbstractCode> code,
+                                        MaybeDirectHandle<SharedFunctionInfo>,
+                                        const char* name, size_t length) {
   DisallowGarbageCollection no_gc;
   PtrComprCageBase cage_base(isolate_);
   if (v8_flags.perf_basic_prof_only_functions &&
@@ -472,13 +471,13 @@ void LinuxPerfBasicLogger::LogRecordedBuffer(
 }
 
 #if V8_ENABLE_WEBASSEMBLY
-void LinuxPerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
-                                             const char* name, size_t length) {
+void PerfBasicLogger::LogRecordedBuffer(const wasm::WasmCode* code,
+                                        const char* name, size_t length) {
   WriteLogRecordedBuffer(static_cast<uintptr_t>(code->instruction_start()),
                          code->instructions().length(), name, length);
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
-#endif  // V8_OS_LINUX
+#endif  // V8_OS_LINUX || V8_OS_DARWIN
 
 // External LogEventListener
 ExternalLogEventListener::ExternalLogEventListener(Isolate* isolate)
@@ -2304,14 +2303,14 @@ bool V8FileLogger::SetUp(Isolate* isolate) {
   PrepareLogFileName(log_file_name, isolate, v8_flags.logfile);
   log_file_ = std::make_unique<LogFile>(this, log_file_name.str());
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_DARWIN
   if (v8_flags.perf_basic_prof) {
-    perf_basic_logger_ = std::make_unique<LinuxPerfBasicLogger>(isolate);
+    perf_basic_logger_ = std::make_unique<PerfBasicLogger>(isolate);
     CHECK(logger()->AddListener(perf_basic_logger_.get()));
   }
 
   if (v8_flags.perf_prof) {
-    perf_jit_logger_ = std::make_unique<LinuxPerfJitLogger>(isolate);
+    perf_jit_logger_ = std::make_unique<PerfJitLogger>(isolate);
     CHECK(logger()->AddListener(perf_jit_logger_.get()));
   }
 #else
@@ -2457,7 +2456,7 @@ FILE* V8FileLogger::TearDownAndGetLogFile() {
   ticker_.reset();
   timer_.Stop();
 
-#if V8_OS_LINUX
+#if V8_OS_LINUX || V8_OS_DARWIN
   if (perf_basic_logger_) {
     CHECK(logger()->RemoveListener(perf_basic_logger_.get()));
     perf_basic_logger_.reset();

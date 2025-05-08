@@ -303,25 +303,41 @@ bool Parser::ShortcutLiteralBinaryExpression(Expression** x, Expression* y,
     }
   }
 
-  // Constant fold string concatenation.
+  // Constant fold string concatenation:
+  //   "abc" + "def" -> "abcdef"
+  // Note that this only works for folding into the LHS of a left-associative
+  // binary expression. String concatenation folding on the RHS is handled by
+  // `CollapseNaryExpression`, which can't re-use this method since non-string
+  // literal concatenation is not commutative.
   if (op == Token::kAdd) {
-    // Only consider string concatenation of two strings.
     // TODO(leszeks): We could also eagerly convert other literals to string if
     // one side of the addition is a string.
-    if (y->IsStringLiteral()) {
-      if ((*x)->IsStringLiteral()) {
-        const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
-        const AstRawString* y_val = y->AsLiteral()->AsRawString();
-        AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
-        *x = factory()->NewConsStringLiteral(cons, (*x)->position());
-        return true;
-      }
-      if ((*x)->IsConsStringLiteral()) {
-        const AstRawString* y_val = y->AsLiteral()->AsRawString();
-        (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
-        return true;
-      }
+    if (ShortcutStringLiteralAppendExpression(x, y)) {
+      return true;
     }
+  }
+  return false;
+}
+
+bool Parser::ShortcutStringLiteralAppendExpression(Expression** x,
+                                                   Expression* y) {
+  if (!y->IsStringLiteral()) return false;
+  const AstRawString* y_val = y->AsLiteral()->AsRawString();
+
+  // Only consider string concatenation of two strings.
+  // TODO(leszeks): We could also eagerly convert other literals to string if
+  // one side of the addition is a string. We'd have to be careful around
+  // associativity though, in case x is the RHS-most expression of an n-ary
+  // addition.
+  if ((*x)->IsStringLiteral()) {
+    const AstRawString* x_val = (*x)->AsLiteral()->AsRawString();
+    AstConsString* cons = ast_value_factory()->NewConsString(x_val, y_val);
+    *x = factory()->NewConsStringLiteral(cons, (*x)->position());
+    return true;
+  }
+  if ((*x)->IsConsStringLiteral()) {
+    (*x)->AsLiteral()->AsConsString()->AddString(zone(), y_val);
+    return true;
   }
   return false;
 }
@@ -377,10 +393,19 @@ bool Parser::CollapseNaryExpression(Expression** x, Expression* y,
     return false;
   }
 
-  // Append our current expression to the nary operation.
-  // TODO(leszeks): Do some literal collapsing here if we're appending Smi or
-  // String literals.
-  nary->AddSubsequent(y, pos);
+  Expression* last = nary->last();
+  // Try to shortcut sequential string literal appends:
+  //  expr + "abc" + "def" -> expr + "abcdef"
+  // Folding on the LHS of expr is handled by the more general
+  // ShortcutLiteralBinaryExpression, this is a special case for RHS string
+  // literal concatenation since this is commutative.
+  if (op == Token::kAdd && ShortcutStringLiteralAppendExpression(&last, y)) {
+    // Append our current expression to the nary operation.
+    nary->UpdateLast(last);
+  } else {
+    // Otherwise append our current expression to the nary operation.
+    nary->AddSubsequent(y, pos);
+  }
   nary->clear_parenthesized();
   AppendNaryOperationSourceRange(nary, range);
 
@@ -691,7 +716,7 @@ void Parser::ParseProgram(Isolate* isolate, DirectHandle<Script> script,
 
   scanner_.Initialize();
   FunctionLiteral* result = DoParseProgram(isolate, info);
-  HandleSourceURLComments(isolate, script);
+  HandleDebugMagicComments(isolate, script);
   if (result == nullptr) return;
   MaybeProcessSourceRanges(info, result, stack_limit_);
   PostProcessParseResult(isolate, info, result);
@@ -3390,8 +3415,8 @@ void Parser::InsertSloppyBlockFunctionVarBindings(DeclarationScope* scope) {
 // Parser support
 
 template <typename IsolateT>
-void Parser::HandleSourceURLComments(IsolateT* isolate,
-                                     DirectHandle<Script> script) {
+void Parser::HandleDebugMagicComments(IsolateT* isolate,
+                                      DirectHandle<Script> script) {
   DirectHandle<String> source_url = scanner_.SourceUrl(isolate);
   if (!source_url.is_null()) {
     script->set_source_url(*source_url);
@@ -3403,12 +3428,17 @@ void Parser::HandleSourceURLComments(IsolateT* isolate,
       IsUndefined(script->source_mapping_url(isolate), isolate)) {
     script->set_source_mapping_url(*source_mapping_url);
   }
+
+  DirectHandle<String> debug_id = scanner_.DebugId(isolate);
+  if (!debug_id.is_null()) {
+    script->set_debug_id(*debug_id);
+  }
 }
 
-template void Parser::HandleSourceURLComments(Isolate* isolate,
-                                              DirectHandle<Script> script);
-template void Parser::HandleSourceURLComments(LocalIsolate* isolate,
-                                              DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(Isolate* isolate,
+                                               DirectHandle<Script> script);
+template void Parser::HandleDebugMagicComments(LocalIsolate* isolate,
+                                               DirectHandle<Script> script);
 
 void Parser::UpdateStatistics(Isolate* isolate, DirectHandle<Script> script) {
   CHECK_NOT_NULL(isolate);
@@ -3509,7 +3539,7 @@ void Parser::ParseOnBackground(LocalIsolate* isolate, ParseInfo* info,
   });
   // We need to unpark by now though, to be able to internalize.
   if (flags().is_toplevel()) {
-    HandleSourceURLComments(isolate, script);
+    HandleDebugMagicComments(isolate, script);
   }
   if (result == nullptr) return;
   PostProcessParseResult(isolate, info, result);

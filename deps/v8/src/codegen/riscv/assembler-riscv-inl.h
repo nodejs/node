@@ -64,10 +64,10 @@ void Assembler::CheckBuffer() {
 void WritableRelocInfo::apply(intptr_t delta) {
   if (IsInternalReference(rmode_) || IsInternalReferenceEncoded(rmode_)) {
     // Absolute code pointer inside code object moves with the code object.
-    Assembler::RelocateInternalReference(rmode_, pc_, delta);
+    Assembler::RelocateInternalReference(rmode_, pc_, delta, &jit_allocation_);
   } else {
     DCHECK(IsRelativeCodeTarget(rmode_) || IsNearBuiltinEntry(rmode_));
-    Assembler::RelocateRelativeReference(rmode_, pc_, delta);
+    Assembler::RelocateRelativeReference(rmode_, pc_, delta, &jit_allocation_);
   }
 }
 
@@ -115,8 +115,9 @@ void Assembler::set_target_compressed_address_at(
     Address pc, Address constant_pool, Tagged_t target,
     WritableJitAllocation* jit_allocation, ICacheFlushMode icache_flush_mode) {
   if (COMPRESS_POINTERS_BOOL) {
-    Assembler::set_uint32_constant_at(pc, constant_pool, target, jit_allocation,
-                                      icache_flush_mode);
+    Assembler::set_uint32_constant_at(pc, constant_pool,
+                                      static_cast<uint32_t>(target),
+                                      jit_allocation, icache_flush_mode);
   } else {
     UNREACHABLE();
   }
@@ -241,7 +242,6 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     return Cast<HeapObject>(
         Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-            cage_base,
             Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return Cast<HeapObject>(
