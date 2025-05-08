@@ -134,7 +134,7 @@ static void IsFileTrustedBySystemCodeIntegrityPolicy(
 // IsInteractiveModeDisabled
 // Queries operating system code integrity policy to determine if
 // the policy is requesting NodeJS to disable interactive mode.
-static void IsInteractiveModeDisabled(const FunctionCallbackInfo<Value>& args) 
+static void IsInteractiveModeDisabled(const FunctionCallbackInfo<Value>& args)
 {
   CHECK_EQ(args.Length(), 0);
 
@@ -176,7 +176,7 @@ static void IsInteractiveModeDisabled(const FunctionCallbackInfo<Value>& args)
         WLDP_SECURE_SETTING_VALUE_TYPE_BOOLEAN;
     ULONG valueSize = sizeof(int);
     int isInteractiveModeDisabled = 0;
-    HRESULT hr = 
+    HRESULT hr =
       per_process::WldpQuerySecurityPolicy(&providerName,
                                            &keyName,
                                            &valueName,
