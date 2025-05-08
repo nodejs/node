@@ -246,6 +246,19 @@ Installation via Linux package manager can be achieved with:
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
+#### Building Node.js on Unix
+
+If the path to your build directory contains a space, the build will likely
+fail.
+
+To build Node.js:
+
+```bash
+export CXX=g++-12
+./configure
+make -j4
+```
+
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 13 for macOS
@@ -258,7 +271,7 @@ installed, you can find them under the menu `Xcode -> Open Developer Tool ->
 More Developer Tools...`. This step will install `clang`, `clang++`, and
 `make`.
 
-#### Building Node.js
+#### Building Node.js on macOS
 
 If the path to your build directory contains a space, the build will likely
 fail.
@@ -266,7 +279,6 @@ fail.
 To build Node.js:
 
 ```bash
-export CXX=g++-12
 ./configure
 make -j4
 ```
