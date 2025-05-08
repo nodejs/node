@@ -26,6 +26,9 @@ const assert = require('assert');
 const util = require('util');
 const errors = require('internal/errors');
 const context = require('vm').runInNewContext;
+const {
+  ErrorIsError
+} = require('internal/test/binding').primordials;
 
 // isArray
 assert.strictEqual(util.isArray([]), true);
@@ -52,30 +55,30 @@ assert.deepStrictEqual(util._extend({ a: 1, b: 2 }, { b: 3 }), { a: 1, b: 3 });
 assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
 
 {
-  assert.strictEqual(util.types.isNativeError(new Error()), true);
-  assert.strictEqual(util.types.isNativeError(new TypeError()), true);
-  assert.strictEqual(util.types.isNativeError(new SyntaxError()), true);
-  assert.strictEqual(util.types.isNativeError(new (context('Error'))()), true);
+  assert.strictEqual(ErrorIsError(new Error()), true);
+  assert.strictEqual(ErrorIsError(new TypeError()), true);
+  assert.strictEqual(ErrorIsError(new SyntaxError()), true);
+  assert.strictEqual(ErrorIsError(new (context('Error'))()), true);
   assert.strictEqual(
-    util.types.isNativeError(new (context('TypeError'))()),
+    ErrorIsError(new (context('TypeError'))()),
     true
   );
   assert.strictEqual(
-    util.types.isNativeError(new (context('SyntaxError'))()),
+    ErrorIsError(new (context('SyntaxError'))()),
     true
   );
-  assert.strictEqual(util.types.isNativeError({}), false);
+  assert.strictEqual(ErrorIsError({}), false);
   assert.strictEqual(
-    util.types.isNativeError({ name: 'Error', message: '' }),
+    ErrorIsError({ name: 'Error', message: '' }),
     false
   );
-  assert.strictEqual(util.types.isNativeError([]), false);
+  assert.strictEqual(ErrorIsError([]), false);
   assert.strictEqual(
-    util.types.isNativeError({ __proto__: Error.prototype }),
+    ErrorIsError({ __proto__: Error.prototype }),
     false
   );
   assert.strictEqual(
-    util.types.isNativeError(new errors.codes.ERR_IPC_CHANNEL_CLOSED()),
+    ErrorIsError(new errors.codes.ERR_IPC_CHANNEL_CLOSED()),
     true
   );
 }
