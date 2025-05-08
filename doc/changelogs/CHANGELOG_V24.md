@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.0.1">24.0.1</a><br/>
 <a href="#24.0.0">24.0.0</a><br/>
 </td>
 </tr>
@@ -38,6 +39,32 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.0.1"></a>
+
+## 2025-05-08, Version 24.0.1 (Current), @aduh95
+
+### Notable Changes
+
+* \[[`2e1d9581e0`](https://github.com/nodejs/node/commit/2e1d9581e0)] - _**Revert**_ "**buffer**: move SlowBuffer to EOL" (Filip Skokan) [#58211](https://github.com/nodejs/node/pull/58211)
+
+### Commits
+
+* \[[`d38e811c5b`](https://github.com/nodejs/node/commit/d38e811c5b)] - **benchmark**: fix typo in method name for error-stack (Miguel Marcondes Filho) [#58128](https://github.com/nodejs/node/pull/58128)
+* \[[`2e1d9581e0`](https://github.com/nodejs/node/commit/2e1d9581e0)] - _**Revert**_ "**buffer**: move SlowBuffer to EOL" (Filip Skokan) [#58211](https://github.com/nodejs/node/pull/58211)
+* \[[`a883b0c979`](https://github.com/nodejs/node/commit/a883b0c979)] - **build**: use //third\_party/simdutf by default in GN (Shelley Vohr) [#58115](https://github.com/nodejs/node/pull/58115)
+* \[[`3d84b5c7a4`](https://github.com/nodejs/node/commit/3d84b5c7a4)] - **doc**: add HBSPS as triager (Wiyeong Seo) [#57980](https://github.com/nodejs/node/pull/57980)
+* \[[`1e57cb686e`](https://github.com/nodejs/node/commit/1e57cb686e)] - **doc**: add history entries to `--input-type` section (Antoine du Hamel) [#58175](https://github.com/nodejs/node/pull/58175)
+* \[[`0b54f06b6f`](https://github.com/nodejs/node/commit/0b54f06b6f)] - **doc**: add ambassaor message (Brian Muenzenmeyer) [#57600](https://github.com/nodejs/node/pull/57600)
+* \[[`46bee52d57`](https://github.com/nodejs/node/commit/46bee52d57)] - **doc**: fix misaligned options in vm.compileFunction() (Jimmy Leung) [#58145](https://github.com/nodejs/node/pull/58145)
+* \[[`e732a8bfdd`](https://github.com/nodejs/node/commit/e732a8bfdd)] - **doc**: fix typo in benchmark script path (Miguel Marcondes Filho) [#58129](https://github.com/nodejs/node/pull/58129)
+* \[[`d49ff34adb`](https://github.com/nodejs/node/commit/d49ff34adb)] - **doc**: add missing options.signal to readlinePromises.createInterface() (Jimmy Leung) [#55456](https://github.com/nodejs/node/pull/55456)
+* \[[`bc9f5a2e79`](https://github.com/nodejs/node/commit/bc9f5a2e79)] - **doc**: fix typo of file `zlib.md` (yusheng chen) [#58093](https://github.com/nodejs/node/pull/58093)
+* \[[`c8e8558958`](https://github.com/nodejs/node/commit/c8e8558958)] - **doc**: clarify future Corepack removal in v25+ (Trivikram Kamat) [#57825](https://github.com/nodejs/node/pull/57825)
+* \[[`b13d5d14bd`](https://github.com/nodejs/node/commit/b13d5d14bd)] - **meta**: bump actions/setup-node from 4.3.0 to 4.4.0 (dependabot\[bot]) [#58111](https://github.com/nodejs/node/pull/58111)
+* \[[`0ebb17a300`](https://github.com/nodejs/node/commit/0ebb17a300)] - **meta**: bump actions/setup-python from 5.5.0 to 5.6.0 (dependabot\[bot]) [#58107](https://github.com/nodejs/node/pull/58107)
+* \[[`5946785bf4`](https://github.com/nodejs/node/commit/5946785bf4)] - **tools**: exclude deps/v8/tools from CodeQL scans (Rich Trott) [#58132](https://github.com/nodejs/node/pull/58132)
+* \[[`0708497c7f`](https://github.com/nodejs/node/commit/0708497c7f)] - **tools**: bump the eslint group in /tools/eslint with 6 updates (dependabot\[bot]) [#58105](https://github.com/nodejs/node/pull/58105)
 
 <a id="24.0.0"></a>
 
