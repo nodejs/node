@@ -313,6 +313,15 @@ const tests = [
     flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
     cwd: fixtures.path('test-runner/coverage-snap'),
   } : false,
+  canColorize ? {
+    name: 'test-runner/output/style-text-output-in-test.mjs',
+    flags: ['--test', '--test-reporter=tap'],
+  } : false,
+  canColorize ? {
+    name: 'test-runner/output/style-text-output-in-test-tty.mjs',
+    flags: ['--test', '--test-reporter=tap'],
+    tty: true,
+  } : false,
 ]
 .filter(Boolean)
 .map(({ flags, name, tty, transform, cwd }) => ({
