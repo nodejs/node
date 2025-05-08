@@ -26,6 +26,6 @@ class IoAgent : public IO::Backend {
   std::unordered_map<std::string, int> offset_map_;
   std::unordered_map<std::string, std::string> data_map_;
 };
-}  // namespace protocol::node::inspector
+}  // namespace node::inspector::protocol
 
 #endif  // SRC_INSPECTOR_IO_AGENT_H_
