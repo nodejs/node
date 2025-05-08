@@ -845,11 +845,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // is security relevant, for Node it's less important.
   V8::SetFlagsFromString("--no-freeze-flags-after-init");
 
-  // These features are completed and enabled by default in Chrome, but not
-  // in V8.
-  V8::SetFlagsFromString("--js-explicit-resource-management");
-  V8::SetFlagsFromString("--js-float16array");
-
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()
   // so the user can disable a flag --foo at run-time by passing
