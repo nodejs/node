@@ -2,8 +2,6 @@ import { spawnPromisified } from '../common/index.mjs';
 import * as fixtures from '../common/fixtures.js';
 import assert from 'node:assert/strict';
 
-const execOptions = ['--input-type', 'module'];
-
 const importMetaMainScript = `
 import assert from 'node:assert/strict';
 
@@ -36,7 +34,7 @@ function wrapScriptInUrlWorker(script) {
 async function test_evaluated_script() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', importMetaMainScript],
+    ['--input-type=module', '--eval', importMetaMainScript],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
@@ -49,7 +47,7 @@ async function test_evaluated_script() {
 async function test_evaluated_script_in_eval_worker() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
+    ['--input-type=module', '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
@@ -62,7 +60,7 @@ async function test_evaluated_script_in_eval_worker() {
 async function test_evaluated_script_in_url_worker() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
+    ['--input-type=module', '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
