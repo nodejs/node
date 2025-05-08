@@ -246,6 +246,12 @@ Installation via Linux package manager can be achieved with:
 
 FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
+If you're getting a warning related to g++ older version, you can use
+
+```bash
+export CXX=g++-12
+```
+
 #### macOS prerequisites
 
 * Xcode Command Line Tools >= 13 for macOS
@@ -266,7 +272,6 @@ fail.
 To build Node.js:
 
 ```bash
-export CXX=g++-12
 ./configure
 make -j4
 ```
