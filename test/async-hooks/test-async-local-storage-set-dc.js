@@ -1,4 +1,5 @@
 'use strict';
+require('../common');
 
 if (process.execArgv.includes('--no-async-context-frame')) {
   // Skipping test as it is only relevant when async_context_frame is not disabled.
@@ -15,7 +16,7 @@ subscribe('async_context_frame.set', () => {
 });
 
 const asyncLocalStorage = new AsyncLocalStorage();
-assert.equal(frameSetCounter, 0);
+assert.strictEqual(frameSetCounter, 0);
 let lastObservedSetCounter = 0;
 
 function assertFrameWasSet() {
