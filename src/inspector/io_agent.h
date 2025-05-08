@@ -4,10 +4,7 @@
 #include <unordered_map>
 #include "node/inspector/protocol/IO.h"
 
-namespace node {
-
-namespace inspector {
-namespace protocol {
+namespace node::inspector::protocol {
 
 class IoAgent : public IO::Backend {
  public:
@@ -29,8 +26,6 @@ class IoAgent : public IO::Backend {
   std::unordered_map<std::string, int> offset_map_;
   std::unordered_map<std::string, std::string> data_map_;
 };
-}  // namespace protocol
-}  // namespace inspector
-}  // namespace node
+}  // namespace protocol::node::inspector
 
 #endif  // SRC_INSPECTOR_IO_AGENT_H_
