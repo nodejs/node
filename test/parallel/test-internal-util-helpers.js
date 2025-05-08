@@ -3,9 +3,11 @@
 
 require('../common');
 const assert = require('assert');
-const { types } = require('util');
 const { assignFunctionName, isError } = require('internal/util');
 const vm = require('vm');
+const {
+  ErrorIsError
+} = require('internal/test/binding').primordials;
 
 // Special cased errors. Test the internal function which is used in
 // `util.inspect()`, the `repl` and maybe more. This verifies that errors from
@@ -15,7 +17,7 @@ const vm = require('vm');
 // actual errors.
 {
   const fake = { [Symbol.toStringTag]: 'Error' };
-  assert(!types.isNativeError(fake));
+  assert(!ErrorIsError(fake));
   assert(!(fake instanceof Error));
   assert(!isError(fake));
 
@@ -24,14 +26,14 @@ const vm = require('vm');
     Object.getPrototypeOf(err),
     Object.getOwnPropertyDescriptors(err));
   Object.defineProperty(err, 'message', { value: err.message });
-  assert(types.isNativeError(err));
-  assert(!types.isNativeError(newErr));
+  assert(ErrorIsError(err));
+  assert(!ErrorIsError(newErr));
   assert(newErr instanceof Error);
   assert(isError(newErr));
 
   const context = vm.createContext({});
   const differentRealmErr = vm.runInContext('new Error()', context);
-  assert(types.isNativeError(differentRealmErr));
+  assert(ErrorIsError(differentRealmErr));
   assert(!(differentRealmErr instanceof Error));
   assert(isError(differentRealmErr));
 }
