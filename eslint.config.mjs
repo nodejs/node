@@ -25,6 +25,8 @@ const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-im
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
 const { default: markdown } = await importEslintTool('eslint-plugin-markdown');
 const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin');
+const { default: stylisticJs } = await importEslintTool('@stylistic/eslint-plugin-js');
+const { default: tseslint } = await importEslintTool('typescript-eslint');
 
 nodeCore.RULES_DIR = fileURLToPath(new URL('./tools/eslint-rules', import.meta.url));
 
@@ -88,7 +90,7 @@ export default [
   js.configs.recommended,
   jsdoc.configs['flat/recommended'],
   {
-    files: ['**/*.{js,cjs}'],
+    files: ['**/*.{js,cjs,ts,cts}'],
     languageOptions: {
       // The default is `commonjs` but it's not supported by the Babel parser.
       sourceType: 'script',
@@ -363,7 +365,7 @@ export default [
     processor: 'markdown/markdown',
   },
   {
-    files: ['**/*.md/*.{js,cjs}'],
+    files: ['**/*.md/*.{js,cjs,ts,cts}'],
     languageOptions: {
       parserOptions: {
         ecmaFeatures: { impliedStrict: true },
@@ -412,6 +414,13 @@ export default [
       },
     ] },
   },
+  ...tseslint.configs.recommended,
+  // {
+  //   files: ['**/*.{ts,mts,cts}'],
+  //   // rules: {
+
+  //   // }
+  // },
   // #endregion
   // #region partials
   ...benchmarkConfig,
