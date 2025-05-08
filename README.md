@@ -755,6 +755,8 @@ maintaining the Node.js project.
   **Gireesh Punathil** <<gpunathi@in.ibm.com>> (he/him)
 * [gurgunday](https://github.com/gurgunday) -
   **Gürgün Dayıoğlu** <<hey@gurgun.day>>
+* [HBSPS](https://github.com/HBSPS) -
+  **Wiyeong Seo** <<hbsps.dev@gmail.com>>
 * [iam-frankqiu](https://github.com/iam-frankqiu) -
   **Frank Qiu** <<iam.frankqiu@gmail.com>> (he/him)
 * [KevinEady](https://github.com/KevinEady) -
