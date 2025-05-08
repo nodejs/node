@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 
 const execOptions = ['--input-type', 'module'];
 
-const script = `
+const importMetaMainScript = `
 import assert from 'node:assert/strict';
 
 assert.strictEqual(import.meta.main, true, 'import.meta.main should evaluate true in main module');
@@ -15,22 +15,26 @@ const { isMain: importedModuleIsMain } = await import(
 assert.strictEqual(importedModuleIsMain, false, 'import.meta.main should evaluate false in imported module');
 `;
 
-const scriptInEvalWorker = `
-import { Worker } from 'node:worker_threads';
-new Worker(${JSON.stringify(script)}, { eval: true });
-`;
+function wrapScriptInEvalWorker(script) {
+  return `
+  import { Worker } from 'node:worker_threads';
+  new Worker(${JSON.stringify(script)}, { eval: true });
+  `;
+}
 
-const scriptInUrlWorker = `
-import { Worker } from 'node:worker_threads';
-new Worker(new URL(${JSON.stringify(
-  `data:text/javascript,${encodeURIComponent(script)}`
-)}));
-`;
+function wrapScriptInUrlWorker(script) {
+  return `
+  import { Worker } from 'node:worker_threads';
+  new Worker(new URL(${JSON.stringify(
+      `data:text/javascript,${encodeURIComponent(script)}`
+    )}));
+  `;
+}
 
 async function test_evaluated_script() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', script],
+    [...execOptions, '--eval', importMetaMainScript],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
@@ -43,7 +47,7 @@ async function test_evaluated_script() {
 async function test_evaluated_script_in_eval_worker() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', scriptInEvalWorker],
+    [...execOptions, '--eval', wrapScriptInEvalWorker(importMetaMainScript)],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
@@ -56,7 +60,7 @@ async function test_evaluated_script_in_eval_worker() {
 async function test_evaluated_script_in_url_worker() {
   const result = await spawnPromisified(
     process.execPath,
-    [...execOptions, '--eval', scriptInUrlWorker],
+    [...execOptions, '--eval', wrapScriptInUrlWorker(importMetaMainScript)],
   );
   assert.deepStrictEqual(result, {
     stderr: '',
