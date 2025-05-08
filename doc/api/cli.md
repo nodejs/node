@@ -3056,9 +3056,9 @@ Use `--watch-path` to specify what paths to watch.
 This flag cannot be combined with
 `--check`, `--eval`, `--interactive`, or the REPL.
 
-Note: The `--watch` flag requires a file path as an argument. It does not support
-being used with `--run` or inline script input. If no file is provided, Node.js will
-exit with status code `9`.
+Note: The `--watch` flag requires a file path as an argument and is incompatible
+with `--run` or inline script input, as `--run` takes precedence and ignores watch
+mode. If no file is provided, Node.js will exit with status code `9`.
 
 ```bash
 node --watch index.js
