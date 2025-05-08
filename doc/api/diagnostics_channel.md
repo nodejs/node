@@ -1109,6 +1109,18 @@ While the diagnostics\_channel API is now considered stable, the built-in
 channels currently available are not. Each channel must be declared stable
 independently.
 
+#### Async Context Frame
+
+`async_context_frame.set`
+
+* `frame` {Object}
+
+Emitted when the async context frame for the current execution context is set.
+This happens in response to [`AsyncLocalStorage.enterWith`][],
+[`AsyncResource.runInAsyncrunInAsyncScope`][], and other transitions. Receives
+the newly set internal `AsyncContextFrame` instance. It is not emitted when
+[`--no-async-context-frame`][] is used.
+
 #### Console
 
 `console.log`
@@ -1329,6 +1341,9 @@ Emitted when a new thread is created.
 
 [TracingChannel Channels]: #tracingchannel-channels
 [`'uncaughtException'`]: process.md#event-uncaughtexception
+[`--no-async-context-frame`]: cli.md#--no-async-context-frame
+[`AsyncLocalStorage.enterWith`]: async_context.md#asynclocalstorageenterwithstore
+[`AsyncResource.runInAsyncrunInAsyncScope`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`TracingChannel`]: #class-tracingchannel
 [`Worker`]: worker_threads.md#class-worker
 [`asyncEnd` event]: #asyncendevent
