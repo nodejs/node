@@ -27,7 +27,7 @@ function convertScriptSourceToDataUrl(script) {
 function wrapScriptInUrlWorker(script) {
   return `
   import { Worker } from 'node:worker_threads';
-  new Worker(new URL("${convertScriptSourceToDataUrl(script)}"));
+  new Worker(new URL(${JSON.stringify(convertScriptSourceToDataUrl(script))}));
   `;
 }
 
