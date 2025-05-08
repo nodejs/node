@@ -5,10 +5,6 @@ prefix parallel
 # sample-test                        : PASS,FLAKY
 
 [true] # This section applies to all platforms
-# https://github.com/nodejs/node/issues/52273
-test-shadow-realm-gc: SKIP
-test-shadow-realm-gc-module: SKIP
-
 # https://github.com/nodejs/node/issues/51862
 test-fs-read-stream-concurrent-reads: PASS, FLAKY
 
