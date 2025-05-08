@@ -110,6 +110,7 @@ class ModuleWrap : public BaseObject {
   static void Instantiate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Evaluate(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetNamespace(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void IsGraphAsync(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetStatus(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetError(const v8::FunctionCallbackInfo<v8::Value>& args);
 
