@@ -1604,18 +1604,18 @@ test('Assert class basic instance', () => {
   assertInstance.ok(true);
   assertInstance.equal(undefined, undefined);
   assertInstance.notEqual(true, false);
-  assert.throws(
+  assertInstance.throws(
     () => assertInstance.deepEqual(/a/),
     { code: 'ERR_MISSING_ARGS' }
   );
-  assert.throws(
+  assertInstance.throws(
     () => assertInstance.notDeepEqual('test'),
     { code: 'ERR_MISSING_ARGS' }
   );
   assertInstance.notStrictEqual(2, '2');
-  assert.throws(() => assertInstance.strictEqual(2, '2'),
-                assertInstance.AssertionError, 'strictEqual(2, \'2\')');
-  assert.throws(
+  assertInstance.throws(() => assertInstance.strictEqual(2, '2'),
+                        assertInstance.AssertionError, 'strictEqual(2, \'2\')');
+  assertInstance.throws(
     () => {
       assertInstance.partialDeepStrictEqual({ a: true }, { a: false }, 'custom message');
     },
@@ -1625,7 +1625,7 @@ test('Assert class basic instance', () => {
       message: 'custom message\n+ actual - expected\n\n  {\n+   a: true\n-   a: false\n  }\n'
     }
   );
-  assert.throws(
+  assertInstance.throws(
     () => assertInstance.match(/abc/, 'string'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
@@ -1633,7 +1633,7 @@ test('Assert class basic instance', () => {
               "Received type string ('string')"
     }
   );
-  assert.throws(
+  assertInstance.throws(
     () => assertInstance.doesNotMatch(/abc/, 'string'),
     {
       code: 'ERR_INVALID_ARG_TYPE',
