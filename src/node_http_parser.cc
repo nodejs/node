@@ -563,7 +563,7 @@ class Parser : public AsyncWrap, public StreamListener {
     new Parser(binding_data, args.This());
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -571,7 +571,7 @@ class Parser : public AsyncWrap, public StreamListener {
     delete parser;
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Free(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -582,6 +582,7 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->EmitDestroy();
   }
 
+  // TODO(@anonrig): Add V8 Fast API
   static void Remove(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -694,6 +695,7 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
+  // TODO(@anonrig): Add V8 Fast API
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
     Environment* env = Environment::GetCurrent(args);
@@ -709,7 +711,7 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Consume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -719,7 +721,7 @@ class Parser : public AsyncWrap, public StreamListener {
     stream->PushStreamListener(parser);
   }
 
-
+  // TODO(@anonrig): Add V8 Fast API
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -742,26 +744,6 @@ class Parser : public AsyncWrap, public StreamListener {
         parser->current_buffer_len_).ToLocalChecked();
 
     args.GetReturnValue().Set(ret);
-  }
-
-  static void Duration(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-
-    if (parser->last_message_start_ == 0) {
-      args.GetReturnValue().Set(0);
-      return;
-    }
-
-    double duration = (uv_hrtime() - parser->last_message_start_) / 1e6;
-    args.GetReturnValue().Set(duration);
-  }
-
-  static void HeadersCompleted(const FunctionCallbackInfo<Value>& args) {
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-
-    args.GetReturnValue().Set(parser->headers_completed_);
   }
 
  protected:
@@ -1316,8 +1298,6 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
   SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
-  SetProtoMethod(isolate, t, "duration", Parser::Duration);
-  SetProtoMethod(isolate, t, "headersCompleted", Parser::HeadersCompleted);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
 
@@ -1387,8 +1367,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
   registry->Register(Parser::GetCurrentBuffer);
-  registry->Register(Parser::Duration);
-  registry->Register(Parser::HeadersCompleted);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
   registry->Register(ConnectionsList::Idle);
