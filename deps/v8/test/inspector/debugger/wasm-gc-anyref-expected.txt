@@ -13,7 +13,7 @@ Setting breakpoint
     scriptId : <scriptId>
 }
 Paused:
-Script wasm://wasm/9b78fa1a byte offset 316: Wasm opcode 0x01 (kExprNop)
+Script wasm://wasm/4ed17ea6 byte offset 316: Wasm opcode 0x01 (kExprNop)
 Scope:
 at $main (0:316):
  - scope (wasm-expression-stack):
