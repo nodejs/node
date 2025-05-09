@@ -52,6 +52,14 @@ ParseResult ConfigReader::ParseNodeOptions(
     std::string prefix = "--";
     auto it = env_options_map.find(prefix.append(key));
     if (it != env_options_map.end()) {
+      // If the option has already been set in the namespace options
+      // we return an invalid content error
+      if (unique_namespace_options_.contains(it->first)) {
+        FPrintF(stderr,
+                "Option %s is already set in namespace options\n",
+                it->first.c_str());
+        return ParseResult::InvalidContent;
+      }
       ParseResult result = ProcessOptionValue(key,
                                               it->first,
                                               ondemand_value,
@@ -288,6 +296,14 @@ ParseResult ConfigReader::ParseNamespaceOptions(
     std::string prefix = "--";
     auto it = options_map.find(prefix.append(key));
     if (it != options_map.end()) {
+      // If the option has already been set in the nodeOptions
+      // we return an invalid content error
+      if (unique_node_options_.contains(it->first)) {
+        FPrintF(stderr,
+                "Option %s is already set in nodeOptions\n",
+                it->first.c_str());
+        return ParseResult::InvalidContent;
+      }
       ParseResult result = ProcessOptionValue(key,
                                               it->first,
                                               ondemand_value,
