@@ -483,6 +483,7 @@ declare namespace primordials {
   export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, "byteLength">;
   export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, "byteOffset">;
   export const TypedArrayPrototypeGetLength: UncurryGetter<TypedArray, "length">;
+  export function TypedArrayPrototypeFill<T extends TypedArray>(self: T, ...args: Parameters<T["fill"]>): ReturnType<T["fill"]>;
   export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown):
     | 'Int8Array'
     | 'Int16Array'
