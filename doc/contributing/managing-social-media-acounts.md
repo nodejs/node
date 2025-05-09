@@ -46,4 +46,11 @@ No project members have access to the Facebook account.
 Day to day management of the LinkedIn account has been
 delegated to the Foundation Staff.
 
-No project members have access to the LinkedIn account.
+Releasers may re-post their release announcements to the LinkedIn account.
+TSC members may re-post an announcement if a Releaser is unable to do it.
+All other content should be handled by the Foundation staff.
+
+LinkedIn allows the addition of content admins. Releasers may
+request access by opening an issue in the nodejs/admin repo
+asking for access. Once approved they should ask @bensternthal
+to add them.
