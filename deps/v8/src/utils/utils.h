@@ -541,15 +541,13 @@ inline int CompareChars(const lchar* lhs, const rchar* rhs, size_t chars) {
 }
 
 // Calculate 10^exponent.
-inline constexpr uint64_t TenToThe(uint32_t exponent) {
-  DCHECK_LE(exponent, 19);
-  DCHECK_GE(exponent, 0);
-  uint64_t answer = 1;
-  for (uint32_t i = 0; i < exponent; i++) answer *= 10;
+inline int TenToThe(int exponent) {
+  DCHECK_LE(exponent, 9);
+  DCHECK_GE(exponent, 1);
+  int answer = 10;
+  for (int i = 1; i < exponent; i++) answer *= 10;
   return answer;
 }
-static_assert(TenToThe(19) < kMaxUInt64);
-static_assert(TenToThe(19) > kMaxUInt64 / 10);
 
 // Bit field extraction.
 inline uint32_t unsigned_bitextract_32(int msb, int lsb, uint32_t x) {

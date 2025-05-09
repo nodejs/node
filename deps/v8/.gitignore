@@ -89,7 +89,6 @@
 /third_party/jsoncpp/source
 !/third_party/llvm-libc
 /third_party/llvm-libc/src
-!/third_party/rapidhash-v8
 !/third_party/re2
 /third_party/re2/src
 !/third_party/siphash
