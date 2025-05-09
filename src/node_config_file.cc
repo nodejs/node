@@ -48,13 +48,13 @@ ParseResult ConfigReader::ProcessOptionValue(
     case options_parser::OptionType::kBoolean: {
       bool result;
       if (ondemand_value.get_bool().get(result)) {
-        FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
+        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
         return ParseResult::InvalidContent;
       }
 
       if (result) {
         // If the value is true, we need to set the flag
-        node_options_.push_back(it->first);
+        node_options_.push_back(option_name);
       }
 
       break;
