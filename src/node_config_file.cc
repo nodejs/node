@@ -52,109 +52,129 @@ ParseResult ConfigReader::ParseNodeOptions(
     std::string prefix = "--";
     auto it = env_options_map.find(prefix.append(key));
     if (it != env_options_map.end()) {
-      switch (it->second) {
-        case options_parser::OptionType::kBoolean: {
-          bool result;
-          if (ondemand_value.get_bool().get(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-            return ParseResult::InvalidContent;
-          }
-
-          if (result) {
-            // If the value is true, we need to set the flag
-            node_options_.push_back(it->first);
-          }
-
-          break;
-        }
-        // String array can allow both string and array types
-        case options_parser::OptionType::kStringList: {
-          simdjson::ondemand::json_type field_type;
-          if (ondemand_value.type().get(field_type)) {
-            return ParseResult::InvalidContent;
-          }
-          switch (field_type) {
-            case simdjson::ondemand::json_type::array: {
-              std::vector<std::string> result;
-              simdjson::ondemand::array raw_imports;
-              if (ondemand_value.get_array().get(raw_imports)) {
-                FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-                return ParseResult::InvalidContent;
-              }
-              for (auto raw_import : raw_imports) {
-                std::string_view import;
-                if (raw_import.get_string(import)) {
-                  FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-                  return ParseResult::InvalidContent;
-                }
-                node_options_.push_back(it->first + "=" + std::string(import));
-              }
-              break;
-            }
-            case simdjson::ondemand::json_type::string: {
-              std::string result;
-              if (ondemand_value.get_string(result)) {
-                FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-                return ParseResult::InvalidContent;
-              }
-              node_options_.push_back(it->first + "=" + result);
-              break;
-            }
-            default:
-              FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-              return ParseResult::InvalidContent;
-          }
-          break;
-        }
-        case options_parser::OptionType::kString: {
-          std::string result;
-          if (ondemand_value.get_string(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-            return ParseResult::InvalidContent;
-          }
-          node_options_.push_back(it->first + "=" + result);
-          break;
-        }
-        case options_parser::OptionType::kInteger: {
-          int64_t result;
-          if (ondemand_value.get_int64().get(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-            return ParseResult::InvalidContent;
-          }
-          node_options_.push_back(it->first + "=" + std::to_string(result));
-          break;
-        }
-        case options_parser::OptionType::kHostPort:
-        case options_parser::OptionType::kUInteger: {
-          uint64_t result;
-          if (ondemand_value.get_uint64().get(result)) {
-            FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
-            return ParseResult::InvalidContent;
-          }
-          node_options_.push_back(it->first + "=" + std::to_string(result));
-          break;
-        }
-        case options_parser::OptionType::kNoOp: {
-          FPrintF(stderr,
-                  "No-op flag %s is currently not supported\n",
-                  it->first.c_str());
-          return ParseResult::InvalidContent;
-          break;
-        }
-        case options_parser::OptionType::kV8Option: {
-          FPrintF(stderr,
-                  "V8 flag %s is currently not supported\n",
-                  it->first.c_str());
-          return ParseResult::InvalidContent;
-        }
-        default:
-          UNREACHABLE();
+      ParseResult result = ProcessOptionValue(key,
+                                              it->first,
+                                              ondemand_value,
+                                              it->second,
+                                              &node_options_,
+                                              &unique_node_options_);
+      if (result != ParseResult::Valid) {
+        return result;
       }
     } else {
       FPrintF(stderr, "Unknown or not allowed option %s\n", key.data());
       return ParseResult::InvalidContent;
     }
   }
+  return ParseResult::Valid;
+}
+
+ParseResult ConfigReader::ProcessOptionValue(
+    const std::string_view& key,
+    const std::string& option_name,
+    simdjson::ondemand::value& ondemand_value,
+    options_parser::OptionType option_type,
+    std::vector<std::string>* output,
+    std::unordered_set<std::string>* unique_options) {
+  switch (option_type) {
+    case options_parser::OptionType::kBoolean: {
+      bool result;
+      if (ondemand_value.get_bool().get(result)) {
+        FPrintF(stderr, "Invalid value for %s\n", it->first.c_str());
+        return ParseResult::InvalidContent;
+      }
+
+      if (result) {
+        // If the value is true, we need to set the flag
+        node_options_.push_back(it->first);
+      }
+
+      break;
+    }
+    // String array can allow both string and array types
+    case options_parser::OptionType::kStringList: {
+      simdjson::ondemand::json_type field_type;
+      if (ondemand_value.type().get(field_type)) {
+        return ParseResult::InvalidContent;
+      }
+      switch (field_type) {
+        case simdjson::ondemand::json_type::array: {
+          std::vector<std::string> result;
+          simdjson::ondemand::array raw_imports;
+          if (ondemand_value.get_array().get(raw_imports)) {
+            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            return ParseResult::InvalidContent;
+          }
+          for (auto raw_import : raw_imports) {
+            std::string_view import;
+            if (raw_import.get_string(import)) {
+              FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+              return ParseResult::InvalidContent;
+            }
+            output->push_back(option_name + "=" + std::string(import));
+          }
+          break;
+        }
+        case simdjson::ondemand::json_type::string: {
+          std::string result;
+          if (ondemand_value.get_string(result)) {
+            FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+            return ParseResult::InvalidContent;
+          }
+          output->push_back(option_name + "=" + result);
+          break;
+        }
+        default:
+          FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+          return ParseResult::InvalidContent;
+      }
+      break;
+    }
+    case options_parser::OptionType::kString: {
+      std::string result;
+      if (ondemand_value.get_string(result)) {
+        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        return ParseResult::InvalidContent;
+      }
+      output->push_back(option_name + "=" + result);
+      break;
+    }
+    case options_parser::OptionType::kInteger: {
+      int64_t result;
+      if (ondemand_value.get_int64().get(result)) {
+        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        return ParseResult::InvalidContent;
+      }
+      output->push_back(option_name + "=" + std::to_string(result));
+      break;
+    }
+    case options_parser::OptionType::kHostPort:
+    case options_parser::OptionType::kUInteger: {
+      uint64_t result;
+      if (ondemand_value.get_uint64().get(result)) {
+        FPrintF(stderr, "Invalid value for %s\n", option_name.c_str());
+        return ParseResult::InvalidContent;
+      }
+      output->push_back(option_name + "=" + std::to_string(result));
+      break;
+    }
+    case options_parser::OptionType::kNoOp: {
+      FPrintF(stderr,
+              "No-op flag %s is currently not supported\n",
+              option_name.c_str());
+      return ParseResult::InvalidContent;
+      break;
+    }
+    case options_parser::OptionType::kV8Option: {
+      FPrintF(stderr,
+              "V8 flag %s is currently not supported\n",
+              option_name.c_str());
+      return ParseResult::InvalidContent;
+    }
+    default:
+      UNREACHABLE();
+  }
+  unique_options->insert(option_name);
   return ParseResult::Valid;
 }
 
@@ -194,44 +214,118 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     }
     return ParseResult::InvalidContent;
   }
-  // Check for nodeOptions object
-  simdjson::ondemand::object node_options_object;
-  auto node_options_error =
-    main_object["nodeOptions"]
-      .get_object()
-      .get(node_options_object);
-  // If no nodeOptions field, return Valid
-  if (node_options_error == simdjson::error_code::NO_SUCH_FIELD) {
-    return ParseResult::Valid;
+
+  // Get all available namespaces for validation
+  std::vector<std::string> available_namespaces =
+      options_parser::MapAvailableNamespaces();
+  // Add "nodeOptions" as a special case for backward compatibility
+  available_namespaces.emplace_back("nodeOptions");
+
+  // Create a set for faster lookup of valid namespaces
+  std::unordered_set<std::string> valid_namespaces(available_namespaces.begin(),
+                                                   available_namespaces.end());
+
+  // Iterate through the main object to find all namespaces
+  for (auto field : main_object) {
+    std::string_view field_name;
+    if (field.unescaped_key().get(field_name)) {
+      return ParseResult::InvalidContent;
+    }
+
+    // Check if this field is a valid namespace
+    std::string namespace_name(field_name);
+    if (valid_namespaces.find(namespace_name) == valid_namespaces.end()) {
+      // If not, skip it
+      continue;
+    }
+
+    // Get the namespace object
+    simdjson::ondemand::object namespace_object;
+    auto field_error = field.value().get_object().get(namespace_object);
+
+    // If namespace value is not an object
+    if (field_error) {
+      FPrintF(stderr,
+              "\"%s\" value unexpected for %s (should be an object)\n",
+              namespace_name.c_str(),
+              config_path.data());
+      return ParseResult::InvalidContent;
+    }
+
+    // Special case for backward compatibility: handle nodeOptions with existing
+    // method
+    if (namespace_name == "nodeOptions") {
+      ParseResult result = ParseNodeOptions(&namespace_object);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+    } else {
+      // Process options for this namespace
+      ParseResult result =
+          ParseNamespaceOptions(&namespace_object, namespace_name);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+    }
   }
-  // If nodeOptions exists but couldn't be parsed as an object
-  if (node_options_error) {
-    FPrintF(
-      stderr,
-      "\"nodeOptions\" value unexpected for %s\n\n",
-      config_path.data());
-    return ParseResult::InvalidContent;
+
+  return ParseResult::Valid;
+}
+
+ParseResult ConfigReader::ParseNamespaceOptions(
+    simdjson::ondemand::object* options_object,
+    const std::string& namespace_name) {
+  auto options_map = options_parser::MapOptionsByNamespace(namespace_name);
+  simdjson::ondemand::value ondemand_value;
+  std::string_view key;
+
+  for (auto field : *options_object) {
+    if (field.unescaped_key().get(key) || field.value().get(ondemand_value)) {
+      return ParseResult::InvalidContent;
+    }
+
+    // The key needs to match the option for this namespace
+    std::string prefix = "--";
+    auto it = options_map.find(prefix.append(key));
+    if (it != options_map.end()) {
+      ParseResult result = ProcessOptionValue(key,
+                                              it->first,
+                                              ondemand_value,
+                                              it->second,
+                                              &namespace_options_,
+                                              &unique_namespace_options_);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+    } else {
+      FPrintF(stderr,
+              "Unknown or not allowed option %s for namespace %s\n",
+              key.data(),
+              namespace_name.c_str());
+      return ParseResult::InvalidContent;
+    }
   }
-  // Process nodeOptions object
-  return ParseNodeOptions(&node_options_object);
+  return ParseResult::Valid;
 }
 
 std::string ConfigReader::AssignNodeOptions() {
-  if (node_options_.empty()) {
-    return "";
-  } else {
-    DCHECK_GT(node_options_.size(), 0);
-    std::string acc;
-    acc.reserve(node_options_.size() * 2);
-    for (size_t i = 0; i < node_options_.size(); ++i) {
-      // The space is necessary at the beginning of the string
-      acc += " " + node_options_[i];
-    }
-    return acc;
+  std::string acc = "";
+  const size_t total_options = node_options_.size() + namespace_options_.size();
+  acc.reserve(total_options * 2);
+  // In order to guarantee the order of the options, we need to iterate
+  // through the node_options_ first, then the namespace_options_
+  // This is needed in order to avoid breaking changes while introducing
+  // config namespaces
+  for (size_t i = 0; i < node_options_.size(); ++i) {
+    acc += " " + node_options_[i];
   }
+  for (size_t i = 0; i < namespace_options_.size(); ++i) {
+    acc += " " + namespace_options_[i];
+  }
+  return acc;
 }
 
 size_t ConfigReader::GetFlagsSize() {
-  return node_options_.size();
+  return node_options_.size() + namespace_options_.size();
 }
 }  // namespace node

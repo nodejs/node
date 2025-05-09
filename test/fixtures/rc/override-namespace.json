@@ -1,0 +1,8 @@
+{
+    "test_runner": {
+        "test-isolation": "process"
+    },
+    "nodeOptions": {
+        "test-isolation": "none"
+    }
+}

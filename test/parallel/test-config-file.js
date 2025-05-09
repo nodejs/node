@@ -3,7 +3,7 @@
 const { spawnPromisified } = require('../common');
 const fixtures = require('../common/fixtures');
 const { match, strictEqual } = require('node:assert');
-const { test } = require('node:test');
+const { test, it, describe } = require('node:test');
 const { chmodSync, constants } = require('node:fs');
 const common = require('../common');
 
@@ -373,4 +373,81 @@ test('should throw an error when the file is non readable', { skip: common.isWin
   strictEqual(result.code, 9);
   chmodSync(fixtures.path('rc/non-readable/node.config.json'),
             constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
+});
+
+describe('namespaced options', () => {
+  it('should parse a namespaced option correctly', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'none\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should throw an error when a namespaced option is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-flag-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    match(result.stderr, /Unknown or not allowed option unknown-flag/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should not throw an error when a namespace is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should handle an empty namespace valid namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/empty-valid-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should override a non-namespaced option with a namespaced option', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'process\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should override a non-namespaced option with a namespaced option inverse order', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-namespace-inverse.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'process\n');
+    strictEqual(result.code, 0);
+  });
 });
