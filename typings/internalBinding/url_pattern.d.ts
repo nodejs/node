@@ -1,12 +1,12 @@
 export class URLPattern {
-  protocol: string
-  username: string
-  password: string
-  hostname: string
-  port: string
-  pathname: string
-  search: string
-  hash: string
+  protocol: string;
+  username: string;
+  password: string;
+  hostname: string;
+  port: string;
+  pathname: string;
+  search: string;
+  hash: string;
 
   constructor(input: Record<string, string> | string, options?: { ignoreCase: boolean });
   constructor(input: Record<string, string> | string, baseUrl?: string, options?: { ignoreCase: boolean });
