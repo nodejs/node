@@ -959,8 +959,19 @@ static ExitCode InitializeNodeWithArgsInternal(
 #endif
 
   if (!(flags & ProcessInitializationFlags::kDisableCLIOptions)) {
-    const ExitCode exit_code =
+    ExitCode exit_code =
         ProcessGlobalArgsInternal(argv, exec_argv, errors, kDisallowedInEnvvar);
+    if (exit_code != ExitCode::kNoFailure) return exit_code;
+
+    // Parse options coming from the command line.
+    // Append here the extra flag that are coming from config file
+    std::vector<std::string> extra_argv =
+        per_process::config_reader.AssignNodeNonEnvOptions();
+    // [0] is expected to be the program name, fill it in from the real argv.
+    extra_argv.insert(extra_argv.begin(), argv->at(0));
+    // Parse the extra argv coming from the config file
+    exit_code = ProcessGlobalArgsInternal(
+        &extra_argv, nullptr, errors, kDisallowedInEnvvar);
     if (exit_code != ExitCode::kNoFailure) return exit_code;
   }
 

@@ -1,0 +1,5 @@
+{
+    "test_runner": {
+       "test-concurrency": 1
+    }
+}
