@@ -17,6 +17,7 @@
 #include <limits>
 #include <sstream>
 #include <string_view>
+#include <vector>
 
 using v8::Boolean;
 using v8::Context;
@@ -722,7 +723,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   // TODO(cjihrig): Remove this alias in a semver major.
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
@@ -1321,6 +1323,49 @@ MapEnvOptionsFlagInputType() {
     }
   }
   return type_map;
+}
+
+std::vector<std::string> MapAvailableNamespaces() {
+  std::vector<std::string> namespaces;
+  const auto& parser = _ppop_instance;
+  for (const auto& item : parser.options_) {
+    if (!item.first.empty() && !item.first.starts_with('[') &&
+        item.second.namespace_id != "" &&
+        item.second.env_setting == kAllowedInEnvvar) {
+      namespaces.push_back(item.second.namespace_id);
+    }
+  }
+  return namespaces;
+}
+
+std::unordered_map<std::string, options_parser::OptionType>
+MapOptionsByNamespace(std::string namespace_name) {
+  std::unordered_map<std::string, options_parser::OptionType> type_map;
+  const auto& parser = _ppop_instance;
+  for (const auto& item : parser.options_) {
+    if (!item.first.empty() && !item.first.starts_with('[') &&
+        item.second.namespace_id == namespace_name &&
+        item.second.env_setting == kAllowedInEnvvar) {
+      type_map[item.first] = item.second.type;
+    }
+  }
+  return type_map;
+}
+
+std::unordered_map<std::string,
+                   std::unordered_map<std::string, options_parser::OptionType>>
+MapNamespaceOptionsAssociations() {
+  std::vector<std::string> available_namespaces =
+      options_parser::MapAvailableNamespaces();
+  std::unordered_map<
+      std::string,
+      std::unordered_map<std::string, options_parser::OptionType>>
+      namespace_option_mapping;
+  for (const std::string& available_namespace : available_namespaces) {
+    namespace_option_mapping[available_namespace] =
+        options_parser::MapOptionsByNamespace(available_namespace);
+  }
+  return namespace_option_mapping;
 }
 
 struct IterateCLIOptionsScope {
