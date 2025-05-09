@@ -18,6 +18,7 @@ using v8::BackingStore;
 using v8::CompiledWasmModule;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -67,6 +68,10 @@ bool Message::IsCloseMessage() const {
 
 namespace {
 
+MaybeLocal<Function> GetDOMException(Local<Context> context);
+
+static const uint32_t kDOMExceptionTag = 0xD011;
+
 // This is used to tell V8 how to read transferred host objects, like other
 // `MessagePort`s and `SharedArrayBuffer`s, and make new JS objects out of them.
 class DeserializerDelegate : public ValueDeserializer::Delegate {
@@ -84,12 +89,63 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
         wasm_modules_(wasm_modules),
         shared_value_conveyor_(shared_value_conveyor) {}
 
+  MaybeLocal<Object> ReadDOMException(Isolate* isolate,
+                                      Local<Context> context,
+                                      v8::ValueDeserializer* deserializer) {
+    Local<Value> name, message, stack;
+    if (!deserializer->ReadValue(context).ToLocal(&name) ||
+        !deserializer->ReadValue(context).ToLocal(&message) ||
+        !deserializer->ReadValue(context).ToLocal(&stack)) {
+      return MaybeLocal<Object>();
+    }
+
+    bool has_code = false;
+    Local<Value> code;
+    has_code = deserializer->ReadValue(context).ToLocal(&code);
+
+    // V8 disallows executing JS code in the deserialization process, so we
+    // cannot create a DOMException object directly. Instead, we create a
+    // placeholder object that will be converted to a DOMException object
+    // later on.
+    Local<Object> placeholder = Object::New(isolate);
+    if (placeholder
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "__domexception_name"),
+                  name)
+            .IsNothing() ||
+        placeholder
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "__domexception_message"),
+                  message)
+            .IsNothing() ||
+        (has_code &&
+         placeholder
+             ->Set(context,
+                   FIXED_ONE_BYTE_STRING(isolate, "__domexception_code"),
+                   code)
+             .IsNothing()) ||
+        placeholder
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "__domexception_stack"),
+                  stack)
+            .IsNothing() ||
+        placeholder
+            ->Set(context,
+                  FIXED_ONE_BYTE_STRING(isolate, "__domexception_placeholder"),
+                  v8::True(isolate))
+            .IsNothing()) {
+      return MaybeLocal<Object>();
+    }
+
+    return placeholder;
+  }
+
   MaybeLocal<Object> ReadHostObject(Isolate* isolate) override {
     // Identifying the index in the message's BaseObject array is sufficient.
     uint32_t id;
     if (!deserializer->ReadUint32(&id))
       return MaybeLocal<Object>();
-    if (id != kNormalObject) {
+    if (id != kNormalObject && id != kDOMExceptionTag) {
       CHECK_LT(id, host_objects_.size());
       Local<Object> object = host_objects_[id]->object(isolate);
       if (env_->js_transferable_constructor_template()->HasInstance(object)) {
@@ -100,6 +156,9 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
     }
     EscapableHandleScope scope(isolate);
     Local<Context> context = isolate->GetCurrentContext();
+    if (id == kDOMExceptionTag) {
+      return ReadDOMException(isolate, context, deserializer);
+    }
     Local<Value> object;
     if (!deserializer->ReadValue(context).ToLocal(&object))
       return MaybeLocal<Object>();
@@ -136,6 +195,72 @@ class DeserializerDelegate : public ValueDeserializer::Delegate {
 };
 
 }  // anonymous namespace
+
+MaybeLocal<Object> ConvertDOMExceptionData(Environment* env,
+                                           Local<Value> dom_exception) {
+  if (!dom_exception->IsObject()) return MaybeLocal<Object>();
+  Local<Object> dom_exception_obj = dom_exception.As<Object>();
+  Local<Context> context = env->context();
+  Isolate* isolate = context->GetIsolate();
+
+  Local<String> marker_key =
+      FIXED_ONE_BYTE_STRING(isolate, "__domexception_placeholder");
+  Local<Value> marker_val;
+  if (!dom_exception_obj->Get(context, marker_key).ToLocal(&marker_val) ||
+      !marker_val->IsTrue()) {
+    return MaybeLocal<Object>();
+  }
+
+  Local<String> name_key =
+      FIXED_ONE_BYTE_STRING(isolate, "__domexception_name");
+  Local<String> message_key =
+      FIXED_ONE_BYTE_STRING(isolate, "__domexception_message");
+  Local<String> code_key =
+      FIXED_ONE_BYTE_STRING(isolate, "__domexception_code");
+  Local<String> stack_key =
+      FIXED_ONE_BYTE_STRING(isolate, "__domexception_stack");
+
+  Local<Value> name, message, code, stack;
+  if (!dom_exception_obj->Get(context, name_key).ToLocal(&name) ||
+      !dom_exception_obj->Get(context, message_key).ToLocal(&message) ||
+      !dom_exception_obj->Get(context, stack_key).ToLocal(&stack)) {
+    return MaybeLocal<Object>();
+  }
+  bool has_code = dom_exception_obj->Get(context, code_key).ToLocal(&code);
+  Local<Function> dom_exception_ctor;
+  if (!GetDOMException(context).ToLocal(&dom_exception_ctor)) {
+    return MaybeLocal<Object>();
+  }
+
+  // Create arguments for the constructor according to the JS implementation
+  // First arg: message
+  // Second arg: options object with name and potentially code
+  Local<Object> options = Object::New(isolate);
+  if (options
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "name"),
+                name)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  if (has_code &&
+      options
+          ->Set(context,
+                FIXED_ONE_BYTE_STRING(isolate, "code"),
+                code)
+          .IsNothing()) {
+    return MaybeLocal<Object>();
+  }
+
+  Local<Value> argv[2] = {message, options};
+  Local<Object> final_dom_exception;
+  if (!dom_exception_ctor->NewInstance(context, 2, argv).ToLocal(&final_dom_exception) ||
+      !final_dom_exception->Set(context, env->stack_string(), stack).IsJust()) {
+    return MaybeLocal<Object>();
+  }
+  return final_dom_exception;
+}
 
 MaybeLocal<Value> Message::Deserialize(Environment* env,
                                        Local<Context> context,
@@ -228,6 +353,12 @@ MaybeLocal<Value> Message::Deserialize(Environment* env,
       return {};
   }
 
+  Local<Object> converted_dom_exception;
+  if (ConvertDOMExceptionData(env, return_value)
+           .ToLocal(&converted_dom_exception)) {
+    return handle_scope.Escape(converted_dom_exception);
+  }
+
   host_objects.clear();
   return handle_scope.Escape(return_value);
 }
@@ -297,6 +428,11 @@ void ThrowDataCloneException(Local<Context> context, Local<String> message) {
   isolate->ThrowException(exception);
 }
 
+Maybe<bool> IsDOMException(Environment* env,
+                           Local<Object> obj) {
+  return obj->HasPrivate(env->context(), env->is_dom_exception());
+}
+
 // This tells V8 how to serialize objects that it does not understand
 // (e.g. C++ objects) into the output buffer, in a way that our own
 // DeserializerDelegate understands how to unpack.
@@ -316,6 +452,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       return Just(true);
     }
 
+    Maybe<bool> is_dom_exception = IsDOMException(env_, object);
+    if (!is_dom_exception.IsNothing() && is_dom_exception.FromJust()) {
+      return Just(true);
+    }
+
     return Just(JSTransferable::IsJSTransferable(env_, context_, object));
   }
 
@@ -329,6 +470,11 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       BaseObjectPtr<JSTransferable> js_transferable =
           JSTransferable::Wrap(env_, object);
       return WriteHostObject(js_transferable);
+    }
+
+    Maybe<bool> is_dom_exception = IsDOMException(env_, object);
+    if (!is_dom_exception.IsNothing() && is_dom_exception.FromJust()) {
+      return WriteDOMException(context_, object);
     }
 
     // Convert process.env to a regular object.
@@ -427,6 +573,28 @@ class SerializerDelegate : public ValueSerializer::Delegate {
   ValueSerializer* serializer = nullptr;
 
  private:
+  Maybe<bool> WriteDOMException(Local<Context> context,
+                                Local<Object> exception) {
+    serializer->WriteUint32(kDOMExceptionTag);
+
+    Local<Value> name_val, message_val, code_val, stack_val;
+    if (!exception->Get(context, env_->name_string()).ToLocal(&name_val) ||
+        !exception->Get(context, env_->message_string())
+             .ToLocal(&message_val) ||
+        !exception->Get(context, env_->stack_string()).ToLocal(&stack_val) ||
+        !exception->Get(context, env_->code_string()).ToLocal(&code_val)) {
+      return Nothing<bool>();
+    }
+
+    if (serializer->WriteValue(context, name_val).IsNothing() ||
+        serializer->WriteValue(context, message_val).IsNothing() ||
+        serializer->WriteValue(context, code_val).IsNothing() ||
+        serializer->WriteValue(context, stack_val).IsNothing()) {
+      return Nothing<bool>();
+    }
+
+    return Just(true);
+  }
   Maybe<bool> WriteHostObject(BaseObjectPtr<BaseObject> host_object) {
     BaseObject::TransferMode mode = host_object->GetTransferMode();
     if (mode == TransferMode::kDisallowCloneAndTransfer) {
