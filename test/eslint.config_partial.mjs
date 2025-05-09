@@ -139,12 +139,27 @@ export default [
   },
   {
     files: [
-      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs,ts,mts,cts}',
+      'test/{common,fixtures,wpt}/**/*.{js,mjs,cjs}',
       'test/eslint.config_partial.mjs',
     ],
     rules: {
       'node-core/required-modules': 'off',
       'node-core/require-common-first': 'off',
+    },
+  },
+  {
+    files: [
+      'test/{common,fixtures,wpt}/**/*.{ts,mts,cts}',
+    ],
+    rules: {
+      'node-core/required-modules': 'off',
+      'node-core/require-common-first': 'off',
+
+      // Fixtures rules off
+      'node-core/async-iife-no-unused-result': 'off',
+      '@typescript-eslint/no-empty-object-type': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      '@stylistic/js/max-len': 'off',
     },
   },
   {
