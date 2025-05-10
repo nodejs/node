@@ -138,17 +138,37 @@ class TracingController;
 
 }
 
-NODE_EXTERN v8::Local<v8::Value> ErrnoException(v8::Isolate* isolate,
-                                                int errorno,
-                                                const char* syscall = nullptr,
-                                                const char* message = nullptr,
-                                                const char* path = nullptr);
-NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
-                                             int errorno,
-                                             const char* syscall = nullptr,
-                                             const char* message = nullptr,
-                                             const char* path = nullptr,
-                                             const char* dest = nullptr);
+NODE_EXTERN v8::MaybeLocal<v8::Value> TryErrnoException(
+    v8::Isolate* isolate,
+    int errorno,
+    const char* syscall = nullptr,
+    const char* message = nullptr,
+    const char* path = nullptr);
+
+NODE_DEPRECATED("Use TryErrnoException(isolate, ...)",
+                NODE_EXTERN v8::Local<v8::Value> ErrnoException(
+                    v8::Isolate* isolate,
+                    int errorno,
+                    const char* syscall = nullptr,
+                    const char* message = nullptr,
+                    const char* path = nullptr));
+
+NODE_EXTERN v8::MaybeLocal<v8::Value> TryUVException(
+    v8::Isolate* isolate,
+    int errorno,
+    const char* syscall = nullptr,
+    const char* message = nullptr,
+    const char* path = nullptr,
+    const char* dest = nullptr);
+
+NODE_DEPRECATED(
+    "Use TryUVException(isolate, ...)",
+    NODE_EXTERN v8::Local<v8::Value> UVException(v8::Isolate* isolate,
+                                                 int errorno,
+                                                 const char* syscall = nullptr,
+                                                 const char* message = nullptr,
+                                                 const char* path = nullptr,
+                                                 const char* dest = nullptr));
 
 NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                 inline v8::Local<v8::Value> ErrnoException(
@@ -163,17 +183,16 @@ NODE_DEPRECATED("Use ErrnoException(isolate, ...)",
                         path);
 })
 
-NODE_DEPRECATED("Use UVException(isolate, ...)",
-                inline v8::Local<v8::Value> UVException(int errorno,
-                                        const char* syscall = nullptr,
-                                        const char* message = nullptr,
-                                        const char* path = nullptr) {
-  return UVException(v8::Isolate::GetCurrent(),
-                     errorno,
-                     syscall,
-                     message,
-                     path);
-})
+NODE_DEPRECATED(
+    "Use UVException(isolate, ...)",
+    inline v8::Local<v8::Value> UVException(int errorno,
+                                            const char* syscall = nullptr,
+                                            const char* message = nullptr,
+                                            const char* path = nullptr) {
+      return TryUVException(
+                 v8::Isolate::GetCurrent(), errorno, syscall, message, path)
+          .ToLocalChecked();
+    })
 
 /*
  * These methods need to be called in a HandleScope.
@@ -1185,12 +1204,20 @@ NODE_EXTERN ssize_t DecodeWrite(v8::Isolate* isolate,
                                 v8::Local<v8::Value>,
                                 enum encoding encoding = LATIN1);
 #ifdef _WIN32
-NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
+NODE_EXTERN v8::MaybeLocal<v8::Value> TryWinapiErrnoException(
     v8::Isolate* isolate,
     int errorno,
     const char* syscall = nullptr,
     const char* msg = "",
     const char* path = nullptr);
+
+NODE_DEPRECATED("Use TryWinapiErrnoException(...) instead",
+                NODE_EXTERN v8::Local<v8::Value> WinapiErrnoException(
+                    v8::Isolate* isolate,
+                    int errorno,
+                    const char* syscall = nullptr,
+                    const char* msg = "",
+                    const char* path = nullptr));
 #endif
 
 const char* signo_string(int errorno);
