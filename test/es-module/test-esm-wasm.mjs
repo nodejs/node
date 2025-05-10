@@ -124,8 +124,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     strictEqual(code, 0);
   });
 
-  // TODO: Enable this once https://github.com/nodejs/node/pull/56842 lands.
-  it.skip('should support dynamic source phase imports', async () => {
+  it('should support dynamic source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-wasm-modules',
@@ -166,8 +165,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     strictEqual(code, 0);
   });
 
-  // TODO: Enable this once https://github.com/nodejs/node/pull/56842 lands.
-  it.skip('should not execute dynamic source phase imports', async () => {
+  it('should not execute dynamic source phase imports', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-wasm-modules',
@@ -181,8 +179,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     strictEqual(code, 0);
   });
 
-  // TODO: Enable this once https://github.com/nodejs/node/pull/56842 lands.
-  it.skip('should throw for dynamic source phase imports not defined', async () => {
+  it('should throw for dynamic source phase imports not defined', async () => {
     const fileUrl = fixtures.fileURL('es-modules/wasm-source-phase.js');
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
@@ -195,6 +192,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
         '  strictEqual(e instanceof SyntaxError, true);',
         '  strictEqual(e.message.includes("Source phase import object is not defined for module"), true);',
         `  strictEqual(e.message.includes(${JSON.stringify(fileUrl)}), true);`,
+        `  return true`,
         '});',
       ].join('\n'),
     ]);
@@ -238,8 +236,7 @@ describe('ESM: WASM modules', { concurrency: !process.env.TEST_PARALLEL }, () =>
     notStrictEqual(code, 0);
   });
 
-  // TODO: Enable this once https://github.com/nodejs/node/pull/56842 lands.
-  it.skip('should throw for vm source phase dynamic import', async () => {
+  it('should throw for vm source phase dynamic import', async () => {
     const { code, stderr, stdout } = await spawnPromisified(execPath, [
       '--no-warnings',
       '--experimental-wasm-modules',
