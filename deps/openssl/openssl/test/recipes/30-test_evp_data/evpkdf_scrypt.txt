@@ -1,0 +1,63 @@
+#
+# Copyright 2001-2021 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = Scrypt tests (from draft-josefsson-id-scrypt-kdf-03 and others)
+
+KDF = id-scrypt
+Ctrl.pass = pass:
+Ctrl.salt = salt:
+Ctrl.N = n:16
+Ctrl.r = r:1
+Ctrl.p = p:1
+Output = 77d6576238657b203b19ca42c18a0497f16b4844e3074ae8dfdffa3fede21442fcd0069ded0948f8326a753a0fc81f17e8d3e0fb2e0d3628cf35e20c38d18906
+
+KDF = id-scrypt
+Ctrl.pass = pass:password
+Ctrl.salt = salt:NaCl
+Ctrl.N = n:1024
+Ctrl.r = r:8
+Ctrl.p = p:16
+Output = fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640
+
+KDF = id-scrypt
+Ctrl.hexpass = hexpass:70617373776f7264
+Ctrl.salt = salt:NaCl
+Ctrl.N = n:1024
+Ctrl.r = r:8
+Ctrl.p = p:16
+Output = fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640
+
+KDF = id-scrypt
+Ctrl.pass = pass:password
+Ctrl.hexsalt = hexsalt:4e61436c
+Ctrl.N = n:1024
+Ctrl.r = r:8
+Ctrl.p = p:16
+Output = fdbabe1c9d3472007856e7190d01e9fe7c6ad7cbc8237830e77376634b3731622eaf30d92e22a3886ff109279d9830dac727afb94a83ee6d8360cbdfa2cc0640
+
+KDF = id-scrypt
+Ctrl.pass = pass:pleaseletmein
+Ctrl.salt = salt:SodiumChloride
+Ctrl.N = n:16384
+Ctrl.r = r:8
+Ctrl.p = p:1
+Output = 7023bdcb3afd7348461c06cd81fd38ebfda8fbba904f8e3ea9b543f6545da1f2d5432955613f0fcf62d49705242a9af9e61e85dc0d651e40dfcf017b45575887
+
+# Out of memory
+KDF = id-scrypt
+Ctrl.pass = pass:pleaseletmein
+Ctrl.salt = salt:SodiumChloride
+Ctrl.N = n:2097152
+Ctrl.r = r:8
+Ctrl.p = p:1
+Result = KDF_DERIVE_ERROR
