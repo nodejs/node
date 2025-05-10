@@ -4187,7 +4187,7 @@ A convenient alias for [`crypto.webcrypto.getRandomValues()`][]. This
 implementation is not compliant with the Web Crypto spec, to write
 web-compatible code use [`crypto.webcrypto.getRandomValues()`][] instead.
 
-### `crypto.hash(algorithm, data[, outputEncoding])`
+### `crypto.hash(algorithm, data[, outputEncoding, outputLength])`
 
 <!-- YAML
 added:
@@ -4205,6 +4205,8 @@ added:
   the encoded `TypedArray` into this API instead.
 * `outputEncoding` {string|undefined}  [Encoding][encoding] used to encode the
   returned digest. **Default:** `'hex'`.
+* `outputLength` {number|undefined} For XOF hash functions such as 'shake256',
+  the outputLength option can be used to specify the desired output length in bytes.
 * Returns: {string|Buffer}
 
 A utility for creating one-shot hash digests of data. It can be faster than
