@@ -249,7 +249,7 @@ KDF_GETTABLE_CTX_PARAMS(scrypt, "SCRYPT")
         (void (*)(void))kdf_##funcname##_settable_ctx_params }, \
         { OSSL_FUNC_KEYEXCH_GETTABLE_CTX_PARAMS, \
         (void (*)(void))kdf_##funcname##_gettable_ctx_params }, \
-        { 0, NULL } \
+        OSSL_DISPATCH_END \
     };
 
 KDF_KEYEXCH_FUNCTIONS(tls1_prf)

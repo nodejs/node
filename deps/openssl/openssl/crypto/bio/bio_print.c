@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -62,7 +62,7 @@ static int _dopr(char **sbuffer, char **buffer,
 #define DP_F_NUM        (1 << 3)
 /* print leading zeroes */
 #define DP_F_ZERO       (1 << 4)
-/* print HEX in UPPPERcase */
+/* print HEX in UPPERcase */
 #define DP_F_UP         (1 << 5)
 /* treat value as unsigned */
 #define DP_F_UNSIGNED   (1 << 6)
@@ -276,7 +276,7 @@ _dopr(char **sbuffer,
                 break;
             case 'E':
                 flags |= DP_F_UP;
-                /* fall thru */
+                /* fall through */
             case 'e':
                 if (cflags == DP_C_LDOUBLE)
                     fvalue = va_arg(args, LDOUBLE);
@@ -288,7 +288,7 @@ _dopr(char **sbuffer,
                 break;
             case 'G':
                 flags |= DP_F_UP;
-                /* fall thru */
+                /* fall through */
             case 'g':
                 if (cflags == DP_C_LDOUBLE)
                     fvalue = va_arg(args, LDOUBLE);
@@ -707,8 +707,6 @@ fmtfp(char **sbuffer,
         fracpart = (fracpart / 10);
     }
 
-    if (fplace == sizeof(fconvert))
-        fplace--;
     fconvert[fplace] = 0;
 
     /* convert exponent part */
@@ -847,10 +845,8 @@ doapr_outch(char **sbuffer,
 
         *maxlen += BUFFER_INC;
         if (*buffer == NULL) {
-            if ((*buffer = OPENSSL_malloc(*maxlen)) == NULL) {
-                ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
+            if ((*buffer = OPENSSL_malloc(*maxlen)) == NULL)
                 return 0;
-            }
             if (*currlen > 0) {
                 if (!ossl_assert(*sbuffer != NULL))
                     return 0;
@@ -861,10 +857,8 @@ doapr_outch(char **sbuffer,
             char *tmpbuf;
 
             tmpbuf = OPENSSL_realloc(*buffer, *maxlen);
-            if (tmpbuf == NULL) {
-                ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
+            if (tmpbuf == NULL)
                 return 0;
-            }
             *buffer = tmpbuf;
         }
     }

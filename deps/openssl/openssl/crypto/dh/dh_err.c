@@ -42,6 +42,7 @@ static const ERR_STRING_DATA DH_str_reasons[] = {
     "invalid parameter nid"},
     {ERR_PACK(ERR_LIB_DH, 0, DH_R_INVALID_PUBKEY), "invalid public key"},
     {ERR_PACK(ERR_LIB_DH, 0, DH_R_INVALID_SECRET), "invalid secret"},
+    {ERR_PACK(ERR_LIB_DH, 0, DH_R_INVALID_SIZE), "invalid size"},
     {ERR_PACK(ERR_LIB_DH, 0, DH_R_KDF_PARAMETER_ERROR), "kdf parameter error"},
     {ERR_PACK(ERR_LIB_DH, 0, DH_R_KEYS_NOT_SET), "keys not set"},
     {ERR_PACK(ERR_LIB_DH, 0, DH_R_MISSING_PUBKEY), "missing pubkey"},

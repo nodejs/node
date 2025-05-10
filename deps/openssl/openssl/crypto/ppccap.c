@@ -1,5 +1,5 @@
 /*
- * Copyright 2009-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2009-2024 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -45,6 +45,7 @@ void OPENSSL_ppc64_probe(void);
 void OPENSSL_altivec_probe(void);
 void OPENSSL_crypto207_probe(void);
 void OPENSSL_madd300_probe(void);
+void OPENSSL_brd31_probe(void);
 
 long OPENSSL_rdtsc_mftb(void);
 long OPENSSL_rdtsc_mfspr268(void);
@@ -98,9 +99,10 @@ size_t OPENSSL_instrument_bus2(unsigned int *out, size_t cnt, size_t max)
 # endif
 #endif
 
-#if defined(__FreeBSD__)
+#if defined(__FreeBSD__) || defined(__OpenBSD__)
 # include <sys/param.h>
-# if __FreeBSD_version >= 1200000
+# if (defined(__FreeBSD__) && __FreeBSD_version >= 1200000) || \
+    (defined(__OpenBSD__) && OpenBSD >= 202409)
 #  include <sys/auxv.h>
 #  define OSSL_IMPLEMENT_GETAUXVAL
 
@@ -117,16 +119,21 @@ static unsigned long getauxval(unsigned long key)
 #endif
 
 /* I wish <sys/auxv.h> was universally available */
-#define HWCAP                   16      /* AT_HWCAP */
+#ifndef AT_HWCAP
+# define AT_HWCAP               16      /* AT_HWCAP */
+#endif
 #define HWCAP_PPC64             (1U << 30)
 #define HWCAP_ALTIVEC           (1U << 28)
 #define HWCAP_FPU               (1U << 27)
 #define HWCAP_POWER6_EXT        (1U << 9)
 #define HWCAP_VSX               (1U << 7)
 
-#define HWCAP2                  26      /* AT_HWCAP2 */
+#ifndef AT_HWCAP2
+# define AT_HWCAP2              26      /* AT_HWCAP2 */
+#endif
 #define HWCAP_VEC_CRYPTO        (1U << 25)
 #define HWCAP_ARCH_3_00         (1U << 23)
+#define HWCAP_ARCH_3_1          (1U << 18)
 
 # if defined(__GNUC__) && __GNUC__>=2
 __attribute__ ((constructor))
@@ -187,6 +194,9 @@ void OPENSSL_cpuid_setup(void)
     if (__power_set(0xffffffffU<<17))           /* POWER9 and later */
         OPENSSL_ppccap_P |= PPC_MADD300;
 
+    if (__power_set(0xffffffffU<<18))           /* POWER10 and later */
+        OPENSSL_ppccap_P |= PPC_BRD31;
+
     return;
 # endif
 #endif
@@ -215,8 +225,8 @@ void OPENSSL_cpuid_setup(void)
 
 #ifdef OSSL_IMPLEMENT_GETAUXVAL
     {
-        unsigned long hwcap = getauxval(HWCAP);
-        unsigned long hwcap2 = getauxval(HWCAP2);
+        unsigned long hwcap = getauxval(AT_HWCAP);
+        unsigned long hwcap2 = getauxval(AT_HWCAP2);
 
         if (hwcap & HWCAP_FPU) {
             OPENSSL_ppccap_P |= PPC_FPU;
@@ -242,6 +252,10 @@ void OPENSSL_cpuid_setup(void)
         if (hwcap2 & HWCAP_ARCH_3_00) {
             OPENSSL_ppccap_P |= PPC_MADD300;
         }
+
+        if (hwcap2 & HWCAP_ARCH_3_1) {
+            OPENSSL_ppccap_P |= PPC_BRD31;
+        }
     }
 #endif
 
@@ -263,7 +277,7 @@ void OPENSSL_cpuid_setup(void)
     sigaction(SIGILL, &ill_act, &ill_oact);
 
 #ifndef OSSL_IMPLEMENT_GETAUXVAL
-    if (sigsetjmp(ill_jmp,1) == 0) {
+    if (sigsetjmp(ill_jmp, 1) == 0) {
         OPENSSL_fpu_probe();
         OPENSSL_ppccap_P |= PPC_FPU;
 

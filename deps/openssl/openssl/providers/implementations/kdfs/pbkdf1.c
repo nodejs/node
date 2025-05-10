@@ -24,6 +24,7 @@
 #include "prov/provider_util.h"
 
 static OSSL_FUNC_kdf_newctx_fn kdf_pbkdf1_new;
+static OSSL_FUNC_kdf_dupctx_fn kdf_pbkdf1_dup;
 static OSSL_FUNC_kdf_freectx_fn kdf_pbkdf1_free;
 static OSSL_FUNC_kdf_reset_fn kdf_pbkdf1_reset;
 static OSSL_FUNC_kdf_derive_fn kdf_pbkdf1_derive;
@@ -59,7 +60,7 @@ static int kdf_pbkdf1_do_derive(const unsigned char *pass, size_t passlen,
 
     ctx = EVP_MD_CTX_new();
     if (ctx == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_PROV, ERR_R_EVP_LIB);
         goto err;
     }
 
@@ -69,7 +70,7 @@ static int kdf_pbkdf1_do_derive(const unsigned char *pass, size_t passlen,
         || !EVP_DigestFinal_ex(ctx, md_tmp, NULL))
         goto err;
     mdsize = EVP_MD_size(md_type);
-    if (mdsize < 0)
+    if (mdsize <= 0)
         goto err;
     if (n > (size_t)mdsize) {
         ERR_raise(ERR_LIB_PROV, PROV_R_LENGTH_TOO_LARGE);
@@ -101,10 +102,8 @@ static void *kdf_pbkdf1_new(void *provctx)
         return NULL;
 
     ctx = OPENSSL_zalloc(sizeof(*ctx));
-    if (ctx == NULL) {
-        ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+    if (ctx == NULL)
         return NULL;
-    }
     ctx->provctx = provctx;
     return ctx;
 }
@@ -136,6 +135,28 @@ static void kdf_pbkdf1_reset(void *vctx)
     ctx->provctx = provctx;
 }
 
+static void *kdf_pbkdf1_dup(void *vctx)
+{
+    const KDF_PBKDF1 *src = (const KDF_PBKDF1 *)vctx;
+    KDF_PBKDF1 *dest;
+
+    dest = kdf_pbkdf1_new(src->provctx);
+    if (dest != NULL) {
+        if (!ossl_prov_memdup(src->salt, src->salt_len,
+                              &dest->salt, &dest->salt_len)
+                || !ossl_prov_memdup(src->pass, src->pass_len,
+                                     &dest->pass , &dest->pass_len)
+                || !ossl_prov_digest_copy(&dest->digest, &src->digest))
+            goto err;
+        dest->iter = src->iter;
+    }
+    return dest;
+
+ err:
+    kdf_pbkdf1_free(dest);
+    return NULL;
+}
+
 static int kdf_pbkdf1_set_membuf(unsigned char **buffer, size_t *buflen,
                              const OSSL_PARAM *p)
 {
@@ -144,10 +165,8 @@ static int kdf_pbkdf1_set_membuf(unsigned char **buffer, size_t *buflen,
     *buflen = 0;
 
     if (p->data_size == 0) {
-        if ((*buffer = OPENSSL_malloc(1)) == NULL) {
-            ERR_raise(ERR_LIB_PROV, ERR_R_MALLOC_FAILURE);
+        if ((*buffer = OPENSSL_malloc(1)) == NULL)
             return 0;
-        }
     } else if (p->data != NULL) {
         if (!OSSL_PARAM_get_octet_string(p, (void **)buffer, 0, buflen))
             return 0;
@@ -193,7 +212,7 @@ static int kdf_pbkdf1_set_ctx_params(void *vctx, const OSSL_PARAM params[])
             return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_SALT)) != NULL)
-        if (!kdf_pbkdf1_set_membuf(&ctx->salt, &ctx->salt_len,p))
+        if (!kdf_pbkdf1_set_membuf(&ctx->salt, &ctx->salt_len, p))
             return 0;
 
     if ((p = OSSL_PARAM_locate_const(params, OSSL_KDF_PARAM_ITER)) != NULL)
@@ -237,6 +256,7 @@ static const OSSL_PARAM *kdf_pbkdf1_gettable_ctx_params(ossl_unused void *ctx,
 
 const OSSL_DISPATCH ossl_kdf_pbkdf1_functions[] = {
     { OSSL_FUNC_KDF_NEWCTX, (void(*)(void))kdf_pbkdf1_new },
+    { OSSL_FUNC_KDF_DUPCTX, (void(*)(void))kdf_pbkdf1_dup },
     { OSSL_FUNC_KDF_FREECTX, (void(*)(void))kdf_pbkdf1_free },
     { OSSL_FUNC_KDF_RESET, (void(*)(void))kdf_pbkdf1_reset },
     { OSSL_FUNC_KDF_DERIVE, (void(*)(void))kdf_pbkdf1_derive },
@@ -246,5 +266,5 @@ const OSSL_DISPATCH ossl_kdf_pbkdf1_functions[] = {
     { OSSL_FUNC_KDF_GETTABLE_CTX_PARAMS,
       (void(*)(void))kdf_pbkdf1_gettable_ctx_params },
     { OSSL_FUNC_KDF_GET_CTX_PARAMS, (void(*)(void))kdf_pbkdf1_get_ctx_params },
-    { 0, NULL }
+    OSSL_DISPATCH_END
 };
