@@ -3,19 +3,19 @@
 import '../../../common/index.mjs';
 
 interface Foo {
-  // line
-  //
-  // blocks
+  /** line
+  *
+  * blocks */
 }
 
 async function Throw() {
   await 0;
-  throw new Error('message');
+  throw new Error('message')
 }
 
 (async function main() {
   await Promise.all([0, 1, 2, Throw()]);
-})();
+})()
 
 // To recreate:
 //
