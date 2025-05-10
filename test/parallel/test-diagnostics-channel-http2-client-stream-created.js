@@ -20,8 +20,10 @@ const clientHttp2StreamCreationCount = 2;
 
 dc.subscribe('http2.client.stream.created', common.mustCall(({ stream, headers }) => {
   // Since ClientHttp2Stream is not exported from any module, this just checks
-  // if the stream is an instance of Duplex.
+  // if the stream is an instance of Duplex and the constructor name is
+  // 'ClientHttp2Stream'.
   assert.ok(stream instanceof Duplex);
+  assert.strictEqual(stream.constructor.name, 'ClientHttp2Stream');
   assert.ok(headers && !Array.isArray(headers) && typeof headers === 'object');
 }, clientHttp2StreamCreationCount));
 
