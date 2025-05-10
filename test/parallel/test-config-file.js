@@ -4,7 +4,7 @@ const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
 skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
 const { match, strictEqual } = require('node:assert');
-const { test } = require('node:test');
+const { test, it, describe } = require('node:test');
 const { chmodSync, constants } = require('node:fs');
 const common = require('../common');
 
@@ -374,4 +374,96 @@ test('should throw an error when the file is non readable', { skip: common.isWin
   strictEqual(result.code, 9);
   chmodSync(fixtures.path('rc/non-readable/node.config.json'),
             constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
+});
+
+describe('namespaced options', () => {
+  it('should parse a namespaced option correctly', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'none\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should throw an error when a namespaced option is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-flag-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    match(result.stderr, /Unknown or not allowed option unknown-flag/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should not throw an error when a namespace is not recognised', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/unknown-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should handle an empty namespace valid namespace', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--experimental-config-file',
+      fixtures.path('rc/empty-valid-namespace.json'),
+      '-p', '"Hello, World!"',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'Hello, World!\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should throw an error if a namespaced option has already been set in node options', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-node-option-with-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    match(result.stderr, /Option --test-isolation is already set in nodeOptions/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should throw an error if a node option has already been set in a namespaced option', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    match(result.stderr, /Option --test-isolation is already set in namespace options/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should allow setting kDisallowedInEnvvar in the config file if part of a namespace', async () => {
+    // This test assumes that the --test-concurrency flag is configured as kDisallowedInEnvVar
+    // and that it is part of at least one namespace.
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, '1\n');
+    strictEqual(result.code, 0);
+  });
 });

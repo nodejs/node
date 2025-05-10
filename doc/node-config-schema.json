@@ -584,6 +584,24 @@
         }
       },
       "type": "object"
+    },
+    "test_runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test": {
+          "type": "boolean"
+        },
+        "test-concurrency": {
+          "type": "number"
+        },
+        "test-global-setup": {
+          "type": "string"
+        },
+        "test-isolation": {
+          "type": "string"
+        }
+      }
     }
   },
   "type": "object"
