@@ -3,9 +3,9 @@
 import '../../../common/index.mjs';
 
 interface Block {
-  // line
-  //
-  // blocks
+  /* line
+  *
+  * blocks */
 }
 
 class Foo {
