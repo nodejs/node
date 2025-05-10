@@ -1846,6 +1846,46 @@ var require_dispatcher_base = __commonJS({
   }
 });
 
+// lib/util/stats.js
+var require_stats = __commonJS({
+  "lib/util/stats.js"(exports2, module2) {
+    "use strict";
+    var {
+      kConnected,
+      kPending,
+      kRunning,
+      kSize,
+      kFree,
+      kQueued
+    } = require_symbols();
+    var ClientStats = class {
+      static {
+        __name(this, "ClientStats");
+      }
+      constructor(client) {
+        this.connected = client[kConnected];
+        this.pending = client[kPending];
+        this.running = client[kRunning];
+        this.size = client[kSize];
+      }
+    };
+    var PoolStats = class {
+      static {
+        __name(this, "PoolStats");
+      }
+      constructor(pool) {
+        this.connected = pool[kConnected];
+        this.free = pool[kFree];
+        this.pending = pool[kPending];
+        this.queued = pool[kQueued];
+        this.running = pool[kRunning];
+        this.size = pool[kSize];
+      }
+    };
+    module2.exports = { ClientStats, PoolStats };
+  }
+});
+
 // lib/dispatcher/fixed-queue.js
 var require_fixed_queue = __commonJS({
   "lib/dispatcher/fixed-queue.js"(exports2, module2) {
@@ -1933,50 +1973,14 @@ var require_fixed_queue = __commonJS({
   }
 });
 
-// lib/dispatcher/pool-stats.js
-var require_pool_stats = __commonJS({
-  "lib/dispatcher/pool-stats.js"(exports2, module2) {
-    "use strict";
-    var { kFree, kConnected, kPending, kQueued, kRunning, kSize } = require_symbols();
-    var kPool = Symbol("pool");
-    var PoolStats = class {
-      static {
-        __name(this, "PoolStats");
-      }
-      constructor(pool) {
-        this[kPool] = pool;
-      }
-      get connected() {
-        return this[kPool][kConnected];
-      }
-      get free() {
-        return this[kPool][kFree];
-      }
-      get pending() {
-        return this[kPool][kPending];
-      }
-      get queued() {
-        return this[kPool][kQueued];
-      }
-      get running() {
-        return this[kPool][kRunning];
-      }
-      get size() {
-        return this[kPool][kSize];
-      }
-    };
-    module2.exports = PoolStats;
-  }
-});
-
 // lib/dispatcher/pool-base.js
 var require_pool_base = __commonJS({
   "lib/dispatcher/pool-base.js"(exports2, module2) {
     "use strict";
+    var { PoolStats } = require_stats();
     var DispatcherBase = require_dispatcher_base();
     var FixedQueue = require_fixed_queue();
     var { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch } = require_symbols();
-    var PoolStats = require_pool_stats();
     var kClients = Symbol("clients");
     var kNeedDrain = Symbol("needDrain");
     var kQueue = Symbol("queue");
@@ -1988,7 +1992,6 @@ var require_pool_base = __commonJS({
     var kGetDispatcher = Symbol("get dispatcher");
     var kAddClient = Symbol("add client");
     var kRemoveClient = Symbol("remove client");
-    var kStats = Symbol("stats");
     var PoolBase = class extends DispatcherBase {
       static {
         __name(this, "PoolBase");
@@ -2028,7 +2031,6 @@ var require_pool_base = __commonJS({
         this[kOnConnectionError] = (origin, targets, err) => {
           pool.emit("connectionError", origin, [pool, ...targets], err);
         };
-        this[kStats] = new PoolStats(this);
       }
       get [kBusy]() {
         return this[kNeedDrain];
@@ -2061,7 +2063,7 @@ var require_pool_base = __commonJS({
         return ret;
       }
       get stats() {
-        return this[kStats];
+        return new PoolStats(this);
       }
       async [kClose]() {
         if (this[kQueue].isEmpty()) {
@@ -7687,11 +7689,13 @@ var require_client_h2 = __commonJS({
         if (Array.isArray(val)) {
           for (let i = 0; i < val.length; i++) {
             if (headers[key]) {
-              headers[key] += `,${val[i]}`;
+              headers[key] += `, ${val[i]}`;
             } else {
               headers[key] = val[i];
             }
           }
+        } else if (headers[key]) {
+          headers[key] += `, ${val}`;
         } else {
           headers[key] = val;
         }
@@ -8066,6 +8070,7 @@ var require_client = __commonJS({
     var net = require("node:net");
     var http = require("node:http");
     var util = require_util();
+    var { ClientStats } = require_stats();
     var { channels } = require_diagnostics();
     var Request = require_request();
     var DispatcherBase = require_dispatcher_base();
@@ -8274,6 +8279,9 @@ var require_client = __commonJS({
       set pipelining(value) {
         this[kPipelining] = value;
         this[kResume](true);
+      }
+      get stats() {
+        return new ClientStats(this);
       }
       get [kPending]() {
         return this[kQueue].length - this[kPendingIdx];
@@ -8652,7 +8660,7 @@ var require_agent = __commonJS({
   "lib/dispatcher/agent.js"(exports2, module2) {
     "use strict";
     var { InvalidArgumentError } = require_errors();
-    var { kClients, kRunning, kClose, kDestroy, kDispatch } = require_symbols();
+    var { kClients, kRunning, kClose, kDestroy, kDispatch, kUrl } = require_symbols();
     var DispatcherBase = require_dispatcher_base();
     var Pool = require_pool();
     var Client = require_client();
@@ -8734,6 +8742,15 @@ var require_agent = __commonJS({
         }
         this[kClients].clear();
         await Promise.all(destroyPromises);
+      }
+      get stats() {
+        const allClientStats = {};
+        for (const client of this[kClients].values()) {
+          if (client.stats) {
+            allClientStats[client[kUrl].origin] = client.stats;
+          }
+        }
+        return allClientStats;
       }
     };
     module2.exports = Agent;

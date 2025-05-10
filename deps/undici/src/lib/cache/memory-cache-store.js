@@ -76,17 +76,9 @@ class MemoryCacheStore {
     const topLevelKey = `${key.origin}:${key.path}`
 
     const now = Date.now()
-    const entry = this.#entries.get(topLevelKey)?.find((entry) => (
-      entry.deleteAt > now &&
-      entry.method === key.method &&
-      (entry.vary == null || Object.keys(entry.vary).every(headerName => {
-        if (entry.vary[headerName] === null) {
-          return key.headers[headerName] === undefined
-        }
+    const entries = this.#entries.get(topLevelKey)
 
-        return entry.vary[headerName] === key.headers[headerName]
-      }))
-    ))
+    const entry = entries ? findEntry(key, entries, now) : null
 
     return entry == null
       ? undefined
@@ -140,10 +132,17 @@ class MemoryCacheStore {
           entries = []
           store.#entries.set(topLevelKey, entries)
         }
-        entries.push(entry)
+        const previousEntry = findEntry(key, entries, Date.now())
+        if (previousEntry) {
+          const index = entries.indexOf(previousEntry)
+          entries.splice(index, 1, entry)
+          store.#size -= previousEntry.size
+        } else {
+          entries.push(entry)
+          store.#count += 1
+        }
 
         store.#size += entry.size
-        store.#count += 1
 
         if (store.#size > store.#maxSize || store.#count > store.#maxCount) {
           for (const [key, entries] of store.#entries) {
@@ -178,6 +177,20 @@ class MemoryCacheStore {
     }
     this.#entries.delete(topLevelKey)
   }
+}
+
+function findEntry (key, entries, now) {
+  return entries.find((entry) => (
+    entry.deleteAt > now &&
+    entry.method === key.method &&
+    (entry.vary == null || Object.keys(entry.vary).every(headerName => {
+      if (entry.vary[headerName] === null) {
+        return key.headers[headerName] === undefined
+      }
+
+      return entry.vary[headerName] === key.headers[headerName]
+    }))
+  ))
 }
 
 module.exports = MemoryCacheStore
