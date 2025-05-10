@@ -486,19 +486,18 @@ class BackupJob : public ThreadPoolWork {
       Local<Function> fn =
           Local<Function>::New(env()->isolate(), progressFunc_);
       if (!fn.IsEmpty()) {
-        Local<Object> progress_info = Object::New(env()->isolate());
-        if (progress_info
-                ->Set(env()->context(),
-                      env()->total_pages_string(),
-                      Integer::New(env()->isolate(), total_pages))
-                .IsNothing() ||
-            progress_info
-                ->Set(env()->context(),
-                      env()->remaining_pages_string(),
-                      Integer::New(env()->isolate(), remaining_pages))
-                .IsNothing()) {
-          return;
-        }
+        Local<Name> keys[] = {env()->total_pages_string(),
+                              env()->remaining_pages_string()};
+        Local<Value> values[] = {
+            Integer::New(env()->isolate(), total_pages),
+            Integer::New(env()->isolate(), remaining_pages)};
+
+        DCHECK_EQ(arraysize(keys), arraysize(values));
+        Local<Object> progress_info = Object::New(env()->isolate(),
+                                                  Null(env()->isolate()),
+                                                  keys,
+                                                  values,
+                                                  arraysize(keys));
 
         Local<Value> argv[] = {progress_info};
         TryCatch try_catch(env()->isolate());
