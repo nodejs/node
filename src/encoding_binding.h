@@ -29,6 +29,10 @@ class BindingData : public SnapshotableObject {
   SET_MEMORY_INFO_NAME(BindingData)
 
   static void EncodeInto(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastEncodeInto(v8::Local<v8::Value> receiver,
+                             v8::Local<v8::Value> source,
+                             v8::Local<v8::Value> dest,
+                             v8::FastApiCallbackOptions& options);
   static void EncodeUtf8String(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecodeUTF8(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void DecodeLatin1(const v8::FunctionCallbackInfo<v8::Value>& args);

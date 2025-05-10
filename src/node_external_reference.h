@@ -92,6 +92,13 @@ using CFunctionBufferCopy = uint32_t (*)(v8::Local<v8::Value>,
                                          uint32_t,
                                          v8::FastApiCallbackOptions&);
 
+using CFunctionEncodeInto =
+    void (*)(v8::Local<v8::Value> receiver,
+             v8::Local<v8::Value> source,
+             v8::Local<v8::Value> dest,
+             // NOLINTNEXTLINE(runtime/references) This is V8 api.
+             v8::FastApiCallbackOptions& options);
+
 // This class manages the external references from the V8 heap
 // to the C++ addresses in Node.js.
 class ExternalReferenceRegistry {
@@ -121,6 +128,7 @@ class ExternalReferenceRegistry {
   V(CFunctionWithBool)                                                         \
   V(CFunctionBufferCopy)                                                       \
   V(CFunctionWriteString)                                                      \
+  V(CFunctionEncodeInto)                                                       \
   V(const v8::CFunctionInfo*)                                                  \
   V(v8::FunctionCallback)                                                      \
   V(v8::AccessorNameGetterCallback)                                            \
