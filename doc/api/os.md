@@ -508,6 +508,29 @@ On POSIX systems, the operating system release is determined by calling
 available, `GetVersionExW()` will be used. See
 <https://en.wikipedia.org/wiki/Uname#Examples> for more information.
 
+## `os.guessFileDescriptorType(fd)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `fd` {integer} The file descriptor number to try and guess the type of.
+
+* Returns: {string}
+
+Returns the type of the file descriptor passed in, or `'INVALID'` if the provided file descriptor
+is invalid.
+
+Currently, the following types for a file descriptor can be returned:
+
+* `'TCP'`
+* `'TTY'`
+* `'UDP'`
+* `'FILE'`
+* `'PIPE'`
+* `'UNKNOWN'`
+* `'INVALID'`
+
 ## OS constants
 
 The following constants are exported by `os.constants`.
