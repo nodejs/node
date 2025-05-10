@@ -307,3 +307,8 @@ test('backup fails when path cannot be opened', async (t) => {
     message: 'unable to open database file'
   });
 });
+
+test('backup has correct name and length', (t) => {
+  t.assert.strictEqual(backup.name, 'backup');
+  t.assert.strictEqual(backup.length, 2);
+});
