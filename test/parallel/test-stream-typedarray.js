@@ -63,7 +63,7 @@ const views = common.getArrayBufferViews(buffer);
         assert.strictEqual(chunk.encoding, 'buffer');
         res += chunk.chunk;
       }
-      assert.strictEqual(res, 'ABCD'.repeat(9));
+      assert.strictEqual(res, 'ABCD'.repeat(views.length));
     }),
 
   });
