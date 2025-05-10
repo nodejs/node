@@ -9,7 +9,7 @@ const builtin = builtinModules.filter((name) => !name.startsWith('node:'));
 
 export default [
   {
-    files: ['doc/**/*.md/*.{js,mjs,cjs,ts,mts,cts}'],
+    files: ['doc/**/*.md/*.{js,mjs,cjs,ts,cts,mts}'],
     rules: {
       // Ease some restrictions in doc examples.
       'no-restricted-properties': 'off',
@@ -22,6 +22,13 @@ export default [
           message: 'Use `node:` prefix.',
         },
       ],
+
+      // Typescript rules
+      '@typescript-eslint/no-unused-expressions': 'off',
+      '@typescript-eslint/no-unused-vars': 'off',
+      // Removed since it is used on how not to use examples.
+      '@typescript-eslint/no-namespace': 'off',
+
       'no-undef': 'off',
       'no-unused-expressions': 'off',
       'no-unused-vars': 'off',
