@@ -47,10 +47,16 @@ assert.strictEqual(flatLongLen.toString(), check);
 {
   const original = Buffer.from('fast');
   const result = Buffer.concat([original], original.length);
-  assert.notStrictEqual(result, original,
-    'Buffer.concat should return a new Buffer instance even with single FastBuffer');
-  assert.deepStrictEqual(result, original,
-    'Buffer.concat output should equal original content');
+  assert.notStrictEqual(
+    result,
+    original,
+    'Buffer.concat should return a new Buffer instance even with single FastBuffer'
+  );
+  assert.deepStrictEqual(
+    result,
+    original,
+    'Buffer.concat output should equal original content'
+  );
 }
 
 [undefined, null, Buffer.from('hello')].forEach((value) => {
