@@ -47,8 +47,8 @@ export default function parseJSAsync(script) {
       workerData: script,
     });
     worker.on('message', resolve);
-    worker.on('error', reject);
-    worker.on('exit', (code) => {
+    worker.once('error', reject);
+    worker.once('exit', (code) => {
       if (code !== 0)
         reject(new Error(`Worker stopped with exit code ${code}`));
     });
@@ -73,8 +73,8 @@ if (isMainThread) {
         workerData: script,
       });
       worker.on('message', resolve);
-      worker.on('error', reject);
-      worker.on('exit', (code) => {
+      worker.once('error', reject);
+      worker.once('exit', (code) => {
         if (code !== 0)
           reject(new Error(`Worker stopped with exit code ${code}`));
       });
@@ -670,7 +670,7 @@ share read and write access to the same set of environment variables.
 import process from 'node:process';
 import { Worker, SHARE_ENV } from 'node:worker_threads';
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
-  .on('exit', () => {
+  .once('exit', () => {
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
@@ -678,9 +678,10 @@ new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
 ```cjs
 'use strict';
 
+const process = require('node:process');
 const { Worker, SHARE_ENV } = require('node:worker_threads');
 new Worker('process.env.SET_IN_WORKER = "foo"', { eval: true, env: SHARE_ENV })
-  .on('exit', () => {
+  .once('exit', () => {
     console.log(process.env.SET_IN_WORKER);  // Prints 'foo'.
   });
 ```
@@ -950,7 +951,7 @@ const { port1, port2 } = new MessageChannel();
 //   foobar
 //   closed!
 port2.on('message', (message) => console.log(message));
-port2.on('close', () => console.log('closed!'));
+port2.once('close', () => console.log('closed!'));
 
 port1.postMessage('foobar');
 port1.close();
@@ -966,7 +967,7 @@ const { port1, port2 } = new MessageChannel();
 //   foobar
 //   closed!
 port2.on('message', (message) => console.log(message));
-port2.on('close', () => console.log('closed!'));
+port2.once('close', () => console.log('closed!'));
 
 port1.postMessage('foobar');
 port1.close();
@@ -1384,7 +1385,7 @@ and what kind of JavaScript values can be successfully transported through
 the thread barrier.
 
 ```mjs
-import assert from 'node:assert';
+import assert from 'node:assert/strict';
 import {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort,
 } from 'node:worker_threads';
@@ -1407,7 +1408,7 @@ if (isMainThread) {
 ```cjs
 'use strict';
 
-const assert = require('node:assert');
+const assert = require('node:assert/strict');
 const {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort,
 } = require('node:worker_threads');
