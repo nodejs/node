@@ -2085,7 +2085,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* Returns: {any}
+* Returns: {number | string | string\[] | undefined}
 
 Reads out a header that's already been queued but not sent to the client.
 The name is case-insensitive. The type of the return value depends
@@ -2220,7 +2220,7 @@ added: v0.4.0
 -->
 
 * `name` {string}
-* `value` {any}
+* `value` {number | string | string\[]}
 * Returns: {http.ServerResponse}
 
 Returns the response object.
@@ -3171,7 +3171,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Name of header
-* Returns: {string | undefined}
+* Returns: {number | string | string\[] | undefined}
 
 Gets the value of the HTTP header with the given name. If that header is not
 set, the returned value will be `undefined`.
@@ -3273,7 +3273,7 @@ added: v0.4.0
 -->
 
 * `name` {string} Header name
-* `value` {any} Header value
+* `value` {number | string | string\[]} Header value
 * Returns: {this}
 
 Sets a single header value. If the header already exists in the to-be-sent
