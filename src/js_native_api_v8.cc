@@ -2526,15 +2526,16 @@ napi_status NAPI_CDECL napi_get_value_string_utf16(napi_env env,
     // V8 assumes UTF-16 length is the same as the number of characters.
     *result = val.As<v8::String>()->Length();
   } else if (bufsize != 0) {
-    int copied = val.As<v8::String>()->Write(env->isolate,
-                                             reinterpret_cast<uint16_t*>(buf),
-                                             0,
-                                             bufsize - 1,
-                                             v8::String::NO_NULL_TERMINATION);
+    size_t n_chars = std::min(
+        bufsize - 1, static_cast<size_t>(val.As<v8::String>()->Length()));
+    val.As<v8::String>()->WriteV2(env->isolate,
+                                  0,
+                                  n_chars,
+                                  reinterpret_cast<uint16_t*>(buf),
+                                  v8::String::WriteFlags::kNullTerminate);
 
-    buf[copied] = '\0';
     if (result != nullptr) {
-      *result = copied;
+      *result = n_chars;
     }
   } else if (result != nullptr) {
     *result = 0;
