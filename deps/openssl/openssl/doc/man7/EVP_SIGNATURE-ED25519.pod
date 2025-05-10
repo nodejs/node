@@ -1,0 +1,182 @@
+=pod
+
+=head1 NAME
+
+EVP_SIGNATURE-ED25519,
+EVP_SIGNATURE-ED448,
+Ed25519,
+Ed448
+- EVP_PKEY Ed25519 and Ed448 support
+
+=head1 DESCRIPTION
+
+The B<Ed25519> and B<Ed448> EVP_PKEY implementation supports key
+generation, one-shot digest-sign and digest-verify using the EdDSA
+signature schemes described in RFC 8032. It has associated private and
+public key formats compatible with RFC 8410.
+
+=head2 EdDSA Instances
+
+RFC 8032 describes five EdDSA instances: Ed25519, Ed25519ctx,
+Ed25519ph, Ed448, Ed448ph.
+
+The instances Ed25519, Ed25519ctx, Ed448 are referred to as B<PureEdDSA>
+schemes.  For these three instances, the sign and verify procedures
+require access to the complete message (not a digest of the message).
+
+The instances Ed25519ph, Ed448ph are referred to as B<HashEdDSA>
+schemes.  For these two instances, the sign and verify procedures do
+not require access to the complete message; they operate on a hash of
+the message.  For Ed25519ph, the hash function is SHA512.  For
+Ed448ph, the hash function is SHAKE256 with an output length of 512
+bits.
+
+The instances Ed25519ctx, Ed25519ph, Ed448, Ed448ph accept an optional
+B<context-string> as input to sign and verify operations (and for
+Ed25519ctx, the context-string must be nonempty).  For the Ed25519
+instance, a nonempty context-string is not permitted.
+
+These instances can be specified as signature parameters when using
+L<EVP_DigestSignInit(3)> and L<EVP_DigestVerifyInit(3)>, see
+L</ED25519 and ED448 Signature Parameters> below.
+
+These instances are also explicitly fetchable as algorithms using
+L<EVP_SIGNATURE_fetch(3)>, which can be used with
+L<EVP_PKEY_sign_init_ex2(3)>, L<EVP_PKEY_verify_init_ex2(3)>,
+L<EVP_PKEY_sign_message_init(3)> and L<EVP_PKEY_verify_message_init(3)>.
+
+=head2 ED25519 and ED448 Signature Parameters
+
+Two parameters can be set during signing or verification: the EdDSA
+B<instance name> and the B<context-string value>.  They can be set by
+passing an OSSL_PARAM array to EVP_DigestSignInit_ex().
+
+=over 4
+
+=item * "instance" (B<OSSL_SIGNATURE_PARAM_INSTANCE>) <utf8 string>
+
+One of the five strings "Ed25519", "Ed25519ctx", "Ed25519ph", "Ed448", "Ed448ph".
+
+"Ed25519", "Ed25519ctx", "Ed25519ph" are valid only for an Ed25519 EVP_PKEY.
+
+"Ed448", "Ed448ph" are valid only for an Ed448 EVP_PKEY.
+
+=item * "context-string" (B<OSSL_SIGNATURE_PARAM_CONTEXT_STRING>) <octet string>
+
+A string of octets with length at most 255.
+
+=back
+
+Both of these parameters are optional.
+
+When using L<EVP_DigestSignInit(3)> or L<EVP_DigestVerifyInit(3)>, the
+signature algorithm is derived from the key type name.  The key type name
+("Ed25519" or "Ed448") is also the default for the instance, but this can be
+changed with the "instance" parameter.
+
+Note that a message digest name must B<NOT> be specified when signing
+or verifying.
+
+When using L<EVP_PKEY_sign_init_ex2(3)>, L<EVP_PKEY_verify_init_ex2(3)>,
+L<EVP_PKEY_sign_message_init(3)> or L<EVP_PKEY_verify_message_init(3)>, the
+instance is the explicit signature algorithm name, and may not be changed
+(trying to give one with the "instance" parameter is therefore an error).
+
+If a context-string is not specified, then an empty context-string is
+used.
+
+See L<EVP_PKEY-X25519(7)> for information related to B<X25519> and B<X448> keys.
+
+The following signature parameters can be retrieved using
+EVP_PKEY_CTX_get_params().
+
+=over 4
+
+=item * "algorithm-id" (B<OSSL_SIGNATURE_PARAM_ALGORITHM_ID>) <octet string>
+
+=item * "instance" (B<OSSL_SIGNATURE_PARAM_INSTANCE>) <utf8 string>
+
+=item * "context-string" (B<OSSL_SIGNATURE_PARAM_CONTEXT_STRING>) <octet string>
+
+=back
+
+The parameters are described in L<provider-signature(7)>.
+
+=head1 NOTES
+
+The PureEdDSA instances do not support the streaming mechanism of
+other signature algorithms using, for example, EVP_DigestUpdate().
+The message to sign or verify must be passed using the one-shot
+EVP_DigestSign() and EVP_DigestVerify() functions.
+
+The HashEdDSA instances do not yet support the streaming mechanisms
+(so the one-shot functions must be used with HashEdDSA as well).
+
+When calling EVP_DigestSignInit() or EVP_DigestVerifyInit(), the
+digest I<type> parameter B<MUST> be set to NULL.
+
+Applications wishing to sign certificates (or other structures such as
+CRLs or certificate requests) using Ed25519 or Ed448 can either use X509_sign()
+or X509_sign_ctx() in the usual way.
+
+Ed25519 or Ed448 private keys can be set directly using
+L<EVP_PKEY_new_raw_private_key(3)> or loaded from a PKCS#8 private key file
+using L<PEM_read_bio_PrivateKey(3)> (or similar function). Completely new keys
+can also be generated (see the example below). Setting a private key also sets
+the associated public key.
+
+Ed25519 or Ed448 public keys can be set directly using
+L<EVP_PKEY_new_raw_public_key(3)> or loaded from a SubjectPublicKeyInfo
+structure in a PEM file using L<PEM_read_bio_PUBKEY(3)> (or similar function).
+
+Ed25519 and Ed448 can be tested with the L<openssl-speed(1)> application
+since version 1.1.1.
+Valid algorithm names are B<ed25519>, B<ed448> and B<eddsa>. If B<eddsa> is
+specified, then both Ed25519 and Ed448 are benchmarked.
+
+=head1 EXAMPLES
+
+To sign a message using an ED25519 EVP_PKEY structure:
+
+    void do_sign(EVP_PKEY *ed_key, unsigned char *msg, size_t msg_len)
+    {
+        size_t sig_len;
+        unsigned char *sig = NULL;
+        EVP_MD_CTX *md_ctx = EVP_MD_CTX_new();
+
+        const OSSL_PARAM params[] = {
+            OSSL_PARAM_utf8_string ("instance", "Ed25519ctx", 10),
+            OSSL_PARAM_octet_string("context-string", (unsigned char *)"A protocol defined context string", 33),
+            OSSL_PARAM_END
+        };
+
+        /* The input "params" is not needed if default options are acceptable.
+           Use NULL in place of "params" in that case. */
+        EVP_DigestSignInit_ex(md_ctx, NULL, NULL, NULL, NULL, ed_key, params);
+        /* Calculate the required size for the signature by passing a NULL buffer. */
+        EVP_DigestSign(md_ctx, NULL, &sig_len, msg, msg_len);
+        sig = OPENSSL_zalloc(sig_len);
+
+        EVP_DigestSign(md_ctx, sig, &sig_len, msg, msg_len);
+        ...
+        OPENSSL_free(sig);
+        EVP_MD_CTX_free(md_ctx);
+    }
+
+=head1 SEE ALSO
+
+L<EVP_PKEY-X25519(7)>
+L<provider-signature(7)>,
+L<EVP_DigestSignInit(3)>,
+L<EVP_DigestVerifyInit(3)>,
+
+=head1 COPYRIGHT
+
+Copyright 2017-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

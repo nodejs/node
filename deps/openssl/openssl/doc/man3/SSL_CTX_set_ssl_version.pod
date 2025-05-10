@@ -1,0 +1,93 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set_ssl_version, SSL_CTX_get_ssl_method, SSL_set_ssl_method, SSL_get_ssl_method
+- choose a new TLS/SSL method
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set_ssl_version(SSL_CTX *ctx, const SSL_METHOD *method);
+ const SSL_METHOD *SSL_CTX_get_ssl_method(const SSL_CTX *ctx);
+
+ int SSL_set_ssl_method(SSL *s, const SSL_METHOD *method);
+ const SSL_METHOD *SSL_get_ssl_method(const SSL *ssl);
+
+=head1 DESCRIPTION
+
+SSL_CTX_set_ssl_version() sets a new default TLS/SSL B<method> for SSL objects
+newly created from this B<ctx>.  Most of the configuration attached to the
+SSL_CTX object is retained, with the exception of the configured TLS ciphers,
+which are reset to the default values.  SSL objects already created from this
+SSL_CTX with L<SSL_new(3)> are not affected, except when L<SSL_clear(3)> is
+being called, as described below.
+
+SSL_CTX_get_ssl_method() returns the SSL_METHOD which was used to construct the
+SSL_CTX.
+
+SSL_set_ssl_method() sets a new TLS/SSL B<method> for a particular B<ssl>
+object. It may be reset, when SSL_clear() is called.
+
+SSL_get_ssl_method() returns a pointer to the TLS/SSL method
+set in B<ssl>.
+
+=head1 NOTES
+
+The available B<method> choices are described in
+L<SSL_CTX_new(3)>.
+
+When L<SSL_clear(3)> is called and no session is connected to
+an SSL object, the method of the SSL object is reset to the method currently
+set in the corresponding SSL_CTX object.
+
+SSL_CTX_set_version() has unusual semantics and no clear use case;
+it would usually be preferable to create a new SSL_CTX object than to
+try to reuse an existing one in this fashion.  Its usage is considered
+deprecated.
+
+SSL_set_ssl_method() cannot be used to change a non-QUIC SSL object to a QUIC
+SSL object or vice versa, or change a QUIC SSL object from one QUIC method to
+another.
+
+=head1 RETURN VALUES
+
+The following return values can occur for SSL_CTX_set_ssl_version()
+and SSL_set_ssl_method():
+
+=over 4
+
+=item Z<>0
+
+The new choice failed, check the error stack to find out the reason.
+
+=item Z<>1
+
+The operation succeeded.
+
+=back
+
+SSL_CTX_get_ssl_method() and SSL_get_ssl_method() always return non-NULL
+pointers.
+
+=head1 SEE ALSO
+
+L<SSL_CTX_new(3)>, L<SSL_new(3)>,
+L<SSL_clear(3)>, L<ssl(7)>,
+L<SSL_set_connect_state(3)>
+
+=head1 HISTORY
+
+SSL_CTX_set_ssl_version() was deprecated in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

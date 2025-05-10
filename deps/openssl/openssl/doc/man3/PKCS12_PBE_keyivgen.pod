@@ -1,0 +1,108 @@
+=pod
+
+=head1 NAME
+
+PKCS12_PBE_keyivgen, PKCS12_PBE_keyivgen_ex,
+PKCS12_pbe_crypt, PKCS12_pbe_crypt_ex - PKCS#12 Password based encryption
+
+=head1 SYNOPSIS
+
+ #include <openssl/evp.h>
+
+ int PKCS12_PBE_keyivgen(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
+                         ASN1_TYPE *param, const EVP_CIPHER *cipher,
+                         const EVP_MD *md_type, int en_de);
+ int PKCS12_PBE_keyivgen_ex(EVP_CIPHER_CTX *ctx, const char *pass, int passlen,
+                            ASN1_TYPE *param, const EVP_CIPHER *cipher,
+                            const EVP_MD *md_type, int en_de,
+                            OSSL_LIB_CTX *libctx, const char *propq);
+ unsigned char *PKCS12_pbe_crypt(const X509_ALGOR *algor,
+                                 const char *pass, int passlen,
+                                 const unsigned char *in, int inlen,
+                                 unsigned char **data, int *datalen,
+                                 int en_de);
+ unsigned char *PKCS12_pbe_crypt_ex(const X509_ALGOR *algor,
+                                    const char *pass, int passlen,
+                                    const unsigned char *in, int inlen,
+                                    unsigned char **data, int *datalen,
+                                    int en_de, OSSL_LIB_CTX *libctx,
+                                    const char *propq);
+
+=head1 DESCRIPTION
+
+PKCS12_PBE_keyivgen() and PKCS12_PBE_keyivgen_ex() take a password I<pass> of
+length I<passlen>, parameters I<param> and a message digest function I<md_type>
+and perform a key derivation according to PKCS#12. The resulting key is
+then used to initialise the cipher context I<ctx> with a cipher I<cipher> for
+encryption (I<en_de>=1) or decryption (I<en_de>=0).
+
+PKCS12_PBE_keyivgen_ex() also allows the application to specify a library context
+I<libctx> and property query I<propq> to select appropriate algorithm
+implementations.
+
+PKCS12_pbe_crypt() and PKCS12_pbe_crypt_ex() will encrypt or decrypt a buffer
+based on the algorithm in I<algor> and password I<pass> of length I<passlen>.
+The input is from I<in> of length I<inlen> and output is into a malloc'd buffer
+returned in I<*data> of length I<datalen>. The operation is determined by I<en_de>,
+encryption (I<en_de>=1) or decryption (I<en_de>=0).
+
+PKCS12_pbe_crypt_ex() allows the application to specify a library context
+I<libctx> and property query I<propq> to select appropriate algorithm
+implementations.
+
+I<pass> is the password used in the derivation of length I<passlen>. I<pass>
+is an optional parameter and can be NULL. If I<passlen> is -1, then the
+function will calculate the length of I<pass> using strlen().
+
+I<salt> is the salt used in the derivation of length I<saltlen>. If the
+I<salt> is NULL, then I<saltlen> must be 0. The function will not
+attempt to calculate the length of the I<salt> because it is not assumed to
+be NULL terminated.
+
+I<iter> is the iteration count and its value should be greater than or
+equal to 1. RFC 2898 suggests an iteration count of at least 1000. Any
+I<iter> less than 1 is treated as a single iteration.
+
+I<digest> is the message digest function used in the derivation.
+
+Functions ending in _ex() take optional parameters I<libctx> and I<propq> which
+are used to select appropriate algorithm implementations.
+
+=head1 NOTES
+
+The functions are typically used in PKCS#12 to encrypt objects.
+
+These functions make no assumption regarding the given password.
+It will simply be treated as a byte sequence.
+
+=head1 RETURN VALUES
+
+PKCS12_PBE_keyivgen(), PKCS12_PBE_keyivgen_ex() return 1 on success or 0 on error.
+
+PKCS12_pbe_crypt() and PKCS12_pbe_crypt_ex() return a buffer containing the
+output or NULL if an error occurred.
+
+=head1 CONFORMING TO
+
+IETF RFC 7292 (L<https://tools.ietf.org/html/rfc7292>)
+
+=head1 SEE ALSO
+
+L<EVP_PBE_CipherInit_ex(3)>,
+L<PKCS8_encrypt_ex(3)>,
+L<passphrase-encoding(7)>
+
+=head1 HISTORY
+
+PKCS12_PBE_keyivgen_ex() and PKCS12_pbe_crypt_ex() were added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2014-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

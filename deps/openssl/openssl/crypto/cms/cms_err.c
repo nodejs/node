@@ -111,6 +111,8 @@ static const ERR_STRING_DATA CMS_str_reasons[] = {
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_NO_PUBLIC_KEY), "no public key"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_NO_RECEIPT_REQUEST), "no receipt request"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_NO_SIGNERS), "no signers"},
+    {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_OPERATION_UNSUPPORTED),
+     "operation unsupported"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_PEER_KEY_ERROR), "peer key error"},
     {ERR_PACK(ERR_LIB_CMS, 0, CMS_R_PRIVATE_KEY_DOES_NOT_MATCH_CERTIFICATE),
      "private key does not match certificate"},

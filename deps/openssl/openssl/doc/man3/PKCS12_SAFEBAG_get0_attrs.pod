@@ -1,0 +1,50 @@
+=pod
+
+=head1 NAME
+
+PKCS12_SAFEBAG_get0_attrs, PKCS12_get_attr_gen
+- Retrieve attributes from a PKCS#12 safeBag
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs12.h>
+
+ const STACK_OF(X509_ATTRIBUTE) *PKCS12_SAFEBAG_get0_attrs(const PKCS12_SAFEBAG *bag);
+
+ ASN1_TYPE *PKCS12_get_attr_gen(const STACK_OF(X509_ATTRIBUTE) *attrs,
+                                int attr_nid);
+
+=head1 DESCRIPTION
+
+PKCS12_SAFEBAG_get0_attrs() retrieves the stack of B<X509_ATTRIBUTE>s from a
+PKCS#12 safeBag. I<bag> is the B<PKCS12_SAFEBAG> to retrieve the attributes from.
+
+PKCS12_get_attr_gen() retrieves an attribute by NID from a stack of
+B<X509_ATTRIBUTE>s. I<attr_nid> is the NID of the attribute to retrieve.
+
+=head1 RETURN VALUES
+
+PKCS12_SAFEBAG_get0_attrs() returns the stack of B<X509_ATTRIBUTE>s from a
+PKCS#12 safeBag, which could be empty.
+
+PKCS12_get_attr_gen() returns an B<ASN1_TYPE> object containing the attribute,
+or NULL if the attribute was either not present or an error occurred.
+
+PKCS12_get_attr_gen() does not allocate a new attribute. The returned attribute
+is still owned by the B<PKCS12_SAFEBAG> in which it resides.
+
+=head1 SEE ALSO
+
+L<PKCS12_get_friendlyname(3)>,
+L<PKCS12_add_friendlyname_asc(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2019-2020 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

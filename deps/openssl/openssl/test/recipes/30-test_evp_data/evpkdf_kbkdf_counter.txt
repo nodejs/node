@@ -1,0 +1,1914 @@
+#
+# Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = KBKDF tests
+
+# Test vectors taken from
+# https://csrc.nist.gov/CSRC/media/Projects/
+#    Cryptographic-Algorithm-Validation-Program/documents/KBKDF800-108/CounterMode.zip
+
+
+# [PRF=CMAC_AES128]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:dff1e50ac0b69dc40f1051d46c2b069c
+Ctrl.hexinfo = hexinfo:c16e6e02c5a3dcc8d78b9ac1306877761310455b4e41469951d9e6c2245a064b33fd8c3b01203a7824485bf0a64060c4648b707d2607935699316ea5
+Output = 8be8f0869b3c0ba97b71863d1b9f7813
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:682e814d872397eba71170a693514904
+Ctrl.hexinfo = hexinfo:e323cdfa7873a0d72cd86ffb4468744f097db60498f7d0e3a43bafd2d1af675e4a88338723b1236199705357c47bf1d89b2f4617a340980e6331625c
+Output = dac9b6ca405749cfb065a0f1e42c7c4224d3d5db32fdafe9dee6ca193316f2c7
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:7aa9973481d560f3be217ac3341144d8
+Ctrl.hexinfo = hexinfo:46f88b5af7fb9e29262dd4e010143a0a9c465c627450ec74ab7251889529193e995c4b56ff55bc2fc8992a0df1ee8056f6816b7614fba4c12d3be1a5
+Output = 1746ae4f09903f74bfbe1b8ae2b79d74576a3b09
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:e91e0d06ab23a4e495bbcc430efddcaf
+Ctrl.hexinfo = hexinfo:24acb8e9227b180f2ccebea48051cbdbcd1be2bf94400d1e92945fe9b887585a295f46c469036107697813a3e12c45ae2ffde9a940f8f8c181018a93
+Output = e81ef2483729d4165aaa4866c17f26496e6c6924e2fe34f608efef0c35835f86df29a1e19ce166a8
+
+
+# [PRF=CMAC_AES128]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:30ec5f6fa1def33cff008178c4454211
+Ctrl.hexinfo = hexinfo:c95e7b1d4f2570259abfc05bb00730f0284c3bb9a61d07259848a1cb57c81d8a6c3382c500bf801dfc8f70726b082cf4c3fa34386c1e7bf0e5471438
+Output = 00018fff9574994f5c4457f461c7a67e
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:145c9e9365041f075ebde8ce26aa2149
+Ctrl.hexinfo = hexinfo:0d39b1c9c34d95b5b521971828c81d9f2dbdbc4af2ddd14f628721117e5c39faa030522b93cc07beb8f142fe36f674942453ec5518ca46c3e6842a73
+Output = 8a204ce7eab882fae3e2b8317fe431dba16dabb8fe5235525e7b61135e1b3c16
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:6f3f8cbf40d2a694274cfa2eb2f265a3
+Ctrl.hexinfo = hexinfo:e7b88baa4a2c22b3d78f41d509996c95468c8cb834b035dd5e09e0a455da254b8b5687a1433861751d2dd603f69b2d4ba4ae47776335d37c98b44b4b
+Output = d147f1c78121c583cbcb9d4b0d3767a357bd7232
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:5e534bea459e54c58a6942abfd4df8ab
+Ctrl.hexinfo = hexinfo:e9a5cc15d223aaa74abd122983b2a10512199b9cc87663fd8a62d417cef53770264fc51f683890fe42da2df7be0f60898c5b09d5c4932137b6b1e06e
+Output = 92480eb4860123ceda76f1e6bf2668520bea49ed72bb900ae50725bb8cfcdb733af1a9de71fe1af5
+
+
+# [PRF=CMAC_AES128]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:ca1cf43e5ccd512cc719a2f9de41734c
+Ctrl.hexinfo = hexinfo:e3884ac963196f02ddd09fc04c20c88b60faa775b5ef6feb1faf8c5e098b5210e2b4e45d62cc0bf907fd68022ee7b15631b5c8daf903d99642c5b831
+Output = 1cb2b12326cc5ec1eba248167f0efd58
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:1bfaf4cd6efd25a132e2a1d41b124465
+Ctrl.hexinfo = hexinfo:b933cfbb223ea65ed0e8db822f83be64ee21d3b9ca1eb0bc32f9d77f145a3e4ed4e2cc72cb3d93ea44824ab81eefdf71bbdb62067e0eb34a79914e4f
+Output = 75f4d20c558d71646ec062d2ca75369a218cedb7104be3abf27026af003e98f3
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:80168f187848a68b0b82a7ef43b4eedc
+Ctrl.hexinfo = hexinfo:9357281df7665ae5ae961fe5f93a3124416cab3deb11583429c5e529af3fc71094aad560cbc279168fe1c3327787f91a414acfff063832bcd78ed1b5
+Output = be4517c9e6de96929e655a08f5b6d5bb77364f85
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:26fa0e32e7e08f9b157ebae9f579710f
+Ctrl.hexinfo = hexinfo:ceab805efbe0c50a8aef62e59d95e7a54daa74ed86aa9b1ae8abf68b985b5af4b0ee150e83e6c063b59c7bf813ede9826af149237aed85b415898fa8
+Output = f1d9138afcc3db6001eb54c4da567a5db3659fc0ed48e664a0408946bcee0742127c17cabf348c7a
+
+
+# [PRF=CMAC_AES128]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:c10b152e8c97b77e18704e0f0bd38305
+Ctrl.hexinfo = hexinfo:98cd4cbbbebe15d17dc86e6dbad800a2dcbd64f7c7ad0e78e9cf94ffdba89d03e97eadf6c4f7b806caf52aa38f09d0eb71d71f497bcc6906b48d36c4
+Output = 26faf61908ad9ee881b8305c221db53f
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:695f1b1a16c949cea51cdf2554ec9d42
+Ctrl.hexinfo = hexinfo:4fce5942832a390aa1cbe8a0bf9d202cb799e986c9d6b51f45e4d597a6b57f06a4ebfec6467335d116b7f5f9c5b954062f661820f5db2a5bbb3e0625
+Output = d34b601ec18c34dfa0f9e0b7523e218bdddb9befe8d08b6c0202d75ace0dba89
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:b523ae21fc36bc58cc46e5a3cda97493
+Ctrl.hexinfo = hexinfo:8dbe6d4d9b09b2eabd165b6e6e97e3bc782f8335cb1ea04ad0403affd88a5071db5f36ce2e84ab296261730b2226a9189d867991fbd4ff86f43a3cfb
+Output = 530211df01975dd6c08064c34105f88a6007f2b2
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:b2fcf854b1029888aeb0274ca09bb21a
+Ctrl.hexinfo = hexinfo:a6b84baae7a6ceb1d63ed704757500c510c0a8bdc22d2f42af09f79c815f37f33b67dad0b30f428fc1e2d355f7f91f65acbedd2fdd5b8c38dd890407
+Output = fe4c2c0242c5a295c008aeb87ae0815171de6173773292347f4f5ec07185c3f860b5667c199aad55
+
+
+# [PRF=CMAC_AES192]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:53d1705caab7b06886e2dbb53eea349aa7419a034e2d92b9
+Ctrl.hexinfo = hexinfo:b120f7ce30235784664deae3c40723ca0539b4521b9aece43501366cc5df1d9ea163c602702d0974665277c8a7f6a057733d66f928eb7548cf43e374
+Output = eae32661a323f6d06d0116bb739bd76a
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:d10046bb18c3f363e87f4e57b961b294d4edf2ca91dc3e38
+Ctrl.hexinfo = hexinfo:2d043069de979bffb1be38a3cef2869dc07d5d3e99bde2e2204f10138081743f423f0c0b1aec0735a25bc61a8e2936dec6a25bb0ae105ab46caf8a2a
+Output = 8991a58882a0488bb5478996f2893989adb66d08d5030ad90f6ce5fdfca7754b
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:bf0abb70098d6c203074f1bce3d7468116cd1e5e8e618f20
+Ctrl.hexinfo = hexinfo:d9ce030a48668ada6c67a2ac163515ec22383c4b5332e18d06901bacbb63dd649c683cfd4fee2f33346817b23cb4c734060a1c727b0c72c12448f4f9
+Output = ecd1eef152b5835376f1a4324cd968bcb0cf850a
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:8725918ca07ad8e108473e5ffdf43eb1cf5c44baf0bd1cec
+Ctrl.hexinfo = hexinfo:f4a57b84a881cf282aac5402cfa8fc4ede0db6f8e902d5c0c41c4712077306484e626e3ffc4129d9b43b46cbb6c53d2838a811dc8aedad7253cf94d4
+Output = 5a795fd0d7661968c478860b526cca40eb8702083fdbff3ff8adfa697e795398ca7106bc950fbb45
+
+
+# [PRF=CMAC_AES192]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:d7e8eefc503a39e70d931f16645958ad06fb789f0cbc518b
+Ctrl.hexinfo = hexinfo:b10ea2d67904a8b3b7ce5eef7d9ee49768e8deb3506ee74a2ad8dd8661146fde74137a8f6dfc69a370945d15335e0d6403fa029da19d34140c7e3da0
+Output = 95278b8883852f6676c587507b0aa162
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:5e6695d7c3f5b156c7b457c8c2b801ba2ae30c9c8a36ee61
+Ctrl.hexinfo = hexinfo:1406756f40efb8e29d5455d2da4bf1993b3c3901d67ec90934895f5de7845f573ae8a0dc8a6ad77d80da29e81329440d61d63dda8eaa7851bc7a172d
+Output = 72046d5eed909f6ab25810ead446ace7422fd87e6bd496ff2e84b115b8e0d27e
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:e3b88f40c9974410955820a8f8392701e9c67cc6efd3b0ff
+Ctrl.hexinfo = hexinfo:a520f36b6b60dfce34dc1d1f6b16132efa82566efa49f3140113fbc59e309c40db42962c06123721f122f433fa417ce3319bca9c58b4184fd8c7be8f
+Output = 134b6236a80c257591cc1437ab007b3fa4bd7191
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:51574d47f2f1d202a30252823b52ba7858b729d5ed4c92f7
+Ctrl.hexinfo = hexinfo:0819c17dd3f9a68493a958c46152d04ba450043908a0016b99cc124d5e75b0d11e7c26f27365609c110eee7f8baa88a7d99fecc690e617150f93bd6c
+Output = c46db4cd822e9841408fba79932d6c748bc7ab17421ed1ad188aed327c2a0d694e380c0cade8b37f
+
+
+# [PRF=CMAC_AES192]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:f7c1e0682a12f1f17d23dc8af5c463b8aa28f87ed82fad22
+Ctrl.hexinfo = hexinfo:890ec4966a8ac3fd635bd264a4c726c87341611c6e282766b7ffe621080d0c00ac9cf8e2784a80166303505f820b2a309e9c3a463d2e3fd4814e3af5
+Output = a71b0cbe30331fdbb63f8d51249ae50b
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:3eeed1560e17aaffe9f6ca9d81815b89a6879a56ebe4182a
+Ctrl.hexinfo = hexinfo:a643378a557af69ce2c606bc623a04b568a848207534d25bfa22664f9148997a6b4c00f4624b5100b4eb01857240b119876c3a86c1e8b02335475939
+Output = 8a1dc0f616353bf3ecf5553d7a7651e9ea6d884a32172d3391ad342bfaf60785
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:c984c3f65cdc32e7503678764a9e84292a1f50e335167a36
+Ctrl.hexinfo = hexinfo:0061cd40f9eef84d6c8b04e0142d70aa50d4690e0a1de8e3ff5f5cea10cd2d28281eb1df90c519b8b51f7aa0d63a313ebbf80538b54dd11a66115be6
+Output = afe93ae91930261344e30ef9e1718e76f74225d9
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:993305e59f34a94f62931fd7662bb5b73c77d8d4bc6a33ba
+Ctrl.hexinfo = hexinfo:fcceb2d7ac6a68717c2490ec95bebea484c4930d156683c43164dc53bff0bafcbfb31e920109927ef08e12f66f258b6f8ba284908faee7d3376e1bac
+Output = 40e358cfdeee0286d152fcb4626ff22e67eea3b65d8750a273001b67645804cbf613832201b0a9ba
+
+
+# [PRF=CMAC_AES192]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:f4267280cb8667c2cf82bb37f389da6391f58cc74deba0cc
+Ctrl.hexinfo = hexinfo:34abbc9f7b12622309a827de5abfdd51fb5bb824838fcde88ca7bc5f3953abdcb445147f13e809e294f75e6d4e3f13b66e47f2dfc881ed392e3a1bf6
+Output = 2d1b4b5694b6741b2ed9c02c05474225
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dc866a038c4f78f22d46caca65892bcdb15c1eb49b275827
+Ctrl.hexinfo = hexinfo:b4a123bad4890c7a791f5e192bd8b6e9c8c3620329f99249f11e1eb517a5b27b9e5b047a6591b45f6fff53e6d04b32d82e052af2eb8519bd21c10f93
+Output = 731a2e23ab2e58551490254041ee8fabd9c5a1918d76307f1048535be0763b20
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dd5e0f1a30b0b722b00626ee663df29601af58082708e18c
+Ctrl.hexinfo = hexinfo:b7c6eb48c80b071080fd07a827d0bfdc781599862084f7ffd968a4cbff0be9a6adef5ea206aa8af4d8a85705953e33cd7c4cbb69969c73698f54c6b8
+Output = 84e1ca286776cda0784c4fc48b054384ca565d17
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES192
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:d64c598436507f4d05d7ebe780092996f281901dc9c8612f
+Ctrl.hexinfo = hexinfo:0ea737cfca2560856917f3a2ff5e2175930d0719bba85a9c8d8cb311a0a1b8caf8ffe03e9a86ab17046670011c9fec5c5cd697d9cd931f615cdfe649
+Output = 3c26968bd3997c653f79bb725c36d784b590d18a64678cf312abe8a57b2891c27282e37b6a49cd73
+
+
+# [PRF=CMAC_AES256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:aeb7201d055f754212b3e497bd0b25789a49e51da9f363df414a0f80e6f4e42c
+Ctrl.hexinfo = hexinfo:11ec30761780d4c44acb1f26ca1eb770f87c0e74505e15b7e456b019ce0c38103c4d14afa1de71d340db51410596627512cf199fffa20ef8c5f4841e
+Output = 2a9e2fe078bd4f5d3076d14d46f39fb2
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:5402c978955128558789bee7b571465174a60582a7640037387f99ac16683173
+Ctrl.hexinfo = hexinfo:5c7eb447481c2884a5398449eaecbb8b55f1f1981ba0fd187818d8b3581b430c3da52ab83d444e003625ff36fcbd160c67b18d85b6c9d00da1a15d15
+Output = f22a4686abe599c2194d21fc9071ffceb023dd9b24c13f05a3d44cfc77fec44a
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:cac968a8ffd81c73948bdfb48bf8a29c1378517d3be294df9a8a80724075bdbd
+Ctrl.hexinfo = hexinfo:08817bcd560edf810aa004194c817e455fb66bbc3b84fef1d66df2d1cebb3403c24231fa822f130c5d8fe886217122dcab15cb725197bbcbeb8010f5
+Output = 651c43e113b32026b204119af394301f0cb9831c
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:9debd1762a9643e967dbc174f2040e177b8053afb0829189a81fed94f8c365ee
+Ctrl.hexinfo = hexinfo:6c4e1e3fdd7f5c97d58bcdda792642cbd271d6968f6a8e368013d88763d0b306c832b7ab46b84d099596972d12220a4e9c81f82d6f5003d18b93c595
+Output = 2518a44ea347e924b03a7b4c966ec4e4bd76c1456d09096be9387638c2737faeebba4e2b921b19db
+
+
+# [PRF=CMAC_AES256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:4df60800bf8e2f6055c5ad6be43ee3deb54e2a445bc88a576e111b9f7f66756f
+Ctrl.hexinfo = hexinfo:962adcaf12764c87dad298dbd9ae234b1ff37fed24baee0649562d466a80c0dcf0a65f04fe5b477fd00db6767199fa4d1b26c68158c8e656e740ab4d
+Output = eca99d4894cdda31fe355b82059a845c
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:4c30b96d9beff5cc3c37527694eeec8207fae2c13ef295556919a7a46e5b90c1
+Ctrl.hexinfo = hexinfo:86e1ad34bd7a998281a822129a23102f799812864cf5349f3f21cec7729f83ad8c8aa6517fafcc9521cde887686629048159ed3f15c01408984f547e
+Output = 815fe232e0e89f7eeaa87c3ba5007694a43c1577657ccb3018076c5a5c035d95
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:e508ce78aca2cc50c80a6cbdb2b178f8ee5e315dad71ddfa700eb6cf503239b3
+Ctrl.hexinfo = hexinfo:28c47ddd23d349e3b30bf97975c5fa591f2158e001dae3faa154d93c615c89fc7449c901a2585e618f68a0b2cbd3f35f53424d5ea015cbf7e8e09f68
+Output = 6bc69b4c11aa7c04ac3c03baa44daeac4a047992
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:ee0a0f88b3b441826264de7a31b890a66edf7c2a28d0286eab285846b586fb8e
+Ctrl.hexinfo = hexinfo:1ea9771ab763056260d885073e80e835e20e5d7ca9659fdf5dd3b7f2ae6286608f8bc7a6728e41346c55544942b1bf06642fb6a6738fb5b7f0128f9c
+Output = 5484f170b6602b505e9e6ccffccf2262b55c3554728244bba94daff0adbc619400b33f38013a2293
+
+
+# [PRF=CMAC_AES256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:1612a40daa7fce6c6788b3b71311188ffb850613fd81d0e87a891831348e2f28
+Ctrl.hexinfo = hexinfo:1696438fcdf9a85284759b2604b64d7ea76199514709e711ecde5a505b5f27ae38d154aba14322481ddc9fd9169364b991460a0c9a05c7fcb2d099c9
+Output = d101f4f2b5e239bae881cb488995bd52
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:77b50e24b859725d1cab531c885a6e60e7d5b0432f37408185ae688dffa5f6a5
+Ctrl.hexinfo = hexinfo:0b2c907499cddaa1fcfb02002ab8b9756c5f1f9fea482d79b8a6aa9fa2fb48e69df94dca4cb6f2e90a462678279ddaacc482fdd76581996b43974a22
+Output = c2a02b3743d506cdc1a41d4c2ae4c67610c5d607df0c26cbf7f4fe2198cb35f1
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:18a5c3e669967b42e9a29bad8fe86699f2b5d496ff767cd3171d1c7195ecef59
+Ctrl.hexinfo = hexinfo:33231c50326592c25ec3eee2c61a3ad4c8a23c098dd83eafe5db411d0948eb122bb6eb7a1d04d2dbcd0b98d0b70b7ff305bb3ef6ac9d4e8e3f7ecd4f
+Output = e80afb5cd274cb5fa4952aa95177ae83337f4c8f
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:0b589e556b7583f0fa9144868603b59262f457dee1e887ffc0e39968218959b9
+Ctrl.hexinfo = hexinfo:1b95b940e0b950a58f09ea09941b80852cb29838940bb146dc3db0ddcd87f72ee28813c09fcef773e95438c0ed3dbcf29e78de0c78377561c5869d5f
+Output = 260aef65eefd58816fe1a77120d047548b00c475c25178a2a33d4c801d49e8a0fb830513d0b3ff17
+
+
+# [PRF=CMAC_AES256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:d0b1b3b70b2393c48ca05159e7e28cbeadea93f28a7cdae964e5136070c45d5c
+Ctrl.hexinfo = hexinfo:dd2f151a3f173492a6fbbb602189d51ddf8ef79fc8e96b8fcbe6dabe73a35b48104f9dff2d63d48786d2b3af177091d646a9efae005bdfacb61a1214
+Output = 8c449fb474d1c1d4d2a33827103b656a
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:d54b6fd94f7cf98fd955517f937e9927f9536caebe148fba1818c1ba46bba3a4
+Ctrl.hexinfo = hexinfo:94c4a0c69526196c1377cebf0a2ae0fb4b57797c61bea8eeb0518ca08652d14a5e1bd1b116b1794ac8a476acbdbbcd4f6142d7b8515bad09ec72f7af
+Output = 2e1efed4aef3fdd324e098c0a07c0d97f8fd2c748a996ce29861ca042474daea
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:99f212241a343c1c8c2104ca6d28062413d985c21e6bba27fde0c622e2e4e6b7
+Ctrl.hexinfo = hexinfo:af8dc1cb7d1f82ca834628c20f0fc81920eb3ff3f75d3f4e3000593e9c15872479711d99d1b7be794f58d80a31bb112219dc16e6354111ab1161e21d
+Output = 7f778c625bf0d083169a51584f6683f24af7c35e
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES256
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dabde95d751ff1c132bd49f80f4ee347bf39218cf8bfec61bc3ad865d9aa1182
+Ctrl.hexinfo = hexinfo:55da554307ed756764d4e97febb77ce85391b53225ee09417ad57def48ead090e3d1e7c2ed04f02462a6324ea0163b18f86201c69db27fd50b4c42c5
+Output = 5cc29221cfa6f3a4ded7afeef5a59c05bac787fc5e98a35ee0c96ba582b05c42f758966566084f69
+
+
+# [PRF=HMAC_SHA1]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:00a39bd547fb88b2d98727cf64c195c61e1cad6c
+Ctrl.hexinfo = hexinfo:98132c1ffaf59ae5cbc0a3133d84c551bb97e0c75ecaddfc30056f6876f59803009bffc7d75c4ed46f40b8f80426750d15bc1ddb14ac5dcb69a68242
+Output = 0611e1903609b47ad7a5fc2c82e47702
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:1ee222f5cdd60b0ae956eeeaa838c51bd767672c
+Ctrl.hexinfo = hexinfo:4b10500ba5c9391da83d2ef78d01bcdccda32ff6f242960323324474b9d0685d99dc9143ac6d667a5b46dcc89784b3a4af7a7684b01efee41b144f48
+Output = 806e342013853083a3f7294c63a9ec9a6dba75b256c62fac1e480ef26276cd4b
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0e71d9e9c9e951978ada75c831d627dd5d3b4c59
+Ctrl.hexinfo = hexinfo:08b6f69698e8eb6c8c63953abd3538531d722cc4e9ca7ffcb68abba4dd4b027b3787efa107902ace8abb54549bede4ffdadabec3f282865b2166d46e
+Output = 86137b96ec15b7954fdc5df8d371ee2d8016e97a
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:f0e5ad280b3465e719afdf86377bbcda59f5c59b
+Ctrl.hexinfo = hexinfo:231b6d83f0194499f27848108fd1fcdcf9520e67522cf54486fb919a839532d165019388242ce373a89ce644d7818e7415f5730a0b743595ab19add4
+Output = 9a9ddd19818bb085d24e48ee99d6e628235a422fb2ae383282b7bbbf0e5f5edf42d7237b8ed6aa1d
+
+
+# [PRF=HMAC_SHA1]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:a510fe5ad1640d345a6dbba65d629c2a2fedd1ae
+Ctrl.hexinfo = hexinfo:9953de43418a85aa8db2278a1e380e83fb1e47744d902e8f0d1b3053f185bbcc734d12f219576e75477d7f7b799b7afed1a4847730be8fd2ef3f342e
+Output = c00707a18c57acdb84f17ef05a322da2
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:abec6c894ae9df32e5afdf5d06a0434e8940ca71
+Ctrl.hexinfo = hexinfo:9a6574a0ea1123ab9580906f8a2c4a0ecba9a8a84079c37a6e283ad4d4e957c3d16db66ae4be99e688b221c359a8dd2505868beb6a49fd7ce6c35df4
+Output = 5b37675aec199c7d08435ef6321cf6235c12453a4530072d4a73ba0ad34634a5
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:df4e835a2f201a3d0f840eab38a18adf72adf9eb
+Ctrl.hexinfo = hexinfo:84c6ca541d24a8b419037b9657ee4e0d5ef96d8b198355940a30b09bf8784e81d3b93558de21c46f04aec4afd610c3b230d17473c80b47b5004955e7
+Output = 1202915544844b1f913caab512c582735bf76fed
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:cbe1d2895640dcd1545e60e04ce9d995707ec539
+Ctrl.hexinfo = hexinfo:c80d735ec5fd0bf811a4a71c55e99373f83f4111194ec24a8e9fe24ef03f56ed15b4e135e02488d96dba8c0d60c26592df55a492691cf3b7eced40d1
+Output = 1fd5a183be95c2d909deed31d686417d5c08bb88e6f75b150df330c8e7703bb8ccdffacb3e9ee3ff
+
+
+# [PRF=HMAC_SHA1]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:928c170199473291bf719a1985a13673afb8f298
+Ctrl.hexinfo = hexinfo:f54388503cde2bf544db4c9510ff7a2759ba9b4e66da3baf41c90ce796d5ea7045bc27424afb03e137abfafe95158954c832090abdba02d86bab569d
+Output = 8c01160c72c925178d616a5c953df0a7
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:df7ecebec20e14be6db5d46af2769fe4e4ed689c
+Ctrl.hexinfo = hexinfo:308ec6953d4945f075d37932d5dd335c7de0d2e7899a8321724a50b52240191fcdf991520c47a25b04ce6eecc835e4265b623c68d687afc615f74ae5
+Output = c2129eeb33ee6783b6b187e5ae884f8f5bd78ca224e5e01c04a68ecef376ea38
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:2539c58bba8ae61be8b867b767ad698eb1f52a0b
+Ctrl.hexinfo = hexinfo:9f6de21c93176f8814e9290a40149f749f946d376eb65f888eddcc4a24a58dbdbb3222fb53487e0abb08efff6d6a43511b18c40f489abe4013647273
+Output = 20bc5ab8c27dd3f6f6fa5485f2eed8bd8b8b3d35
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:66002f224106971edc62a7c6957931b2097aabc3
+Ctrl.hexinfo = hexinfo:f5fe599fac3bac5b10a4296b0783e2fc78cb498347ff3f74e2d9d230dfb6653e1a274e7bc37f0319eac2b0b48533b7be9d3633eed32101837ee460ff
+Output = c195b9139fee020eda70b8a161aef28474977412c0612afafe23b16b1594871548b5889b38e0cf2a
+
+
+# [PRF=HMAC_SHA1]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:f7591733c856593565130975351954d0155abf3c
+Ctrl.hexinfo = hexinfo:8e347ef55d5f5e99eab6de706b51de7ce004f3882889e259ff4e5cff102167a5a4bd711578d4ce17dd9abe56e51c1f2df950e2fc812ec1b217ca08d6
+Output = 34fe44b0d8c41b93f5fa64fb96f00e5b
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:c1efb8d25affc61ed060d994fcd5017c2adfc388
+Ctrl.hexinfo = hexinfo:b92fc055057fec71b9c53e7c44872423a57ed186d6ba66d980fecd1253bf71479320b7bf38d505ef79ca4d62d78ca662642cdcedb99503ea04c1dbe8
+Output = 8db784cf90b573b06f9b7c7dca63a1ea16d93ee7d70ff9d87fa2558e83dc4eaa
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:e02ba5d5c410e855bbd13f840124273e6b864237
+Ctrl.hexinfo = hexinfo:b14e227b4438f973d671141c6246acdc794eee91bc7efd1d5ff02a7b8fb044009fb6f1f0f64f35365fb1098e1995a34f8b70a71ed0265ed17ae7ae40
+Output = f077c2d5d36a658031c74ef5a66aa48b4456530a
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA1
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:693adb9037184627ad300f176985bd379f388a95
+Ctrl.hexinfo = hexinfo:7f09570c2d9304ec743ab845a8761c126c18f5cf72358eada2b5d1deb43dc6a0f4ff8f933bef7af0bcfacb33fa07f8ca04a06afe231835d5075996be
+Output = 52f55f51010e9bd78e4f58cab274ecafa561bd4e0f20da84f0303a1e5ff9bebc514361ec6df5c77e
+
+
+# [PRF=HMAC_SHA224]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:7e2f7a5ab3e82ef927a005308456823da473787bf33d18a864aca63f
+Ctrl.hexinfo = hexinfo:b35695a6e23a765105b87756468d442a53a60cd4225186dc94221c06c5d6f1e98462135656ebca90468a939f29112b811413567d498df9867914d94c
+Output = 10ba5c6ea609da8fa8abe8be552c97a1
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:667f72fc660e32943de386af9670c78e975c838cae91dca97f4f8508
+Ctrl.hexinfo = hexinfo:e713e8c38e92c8ba0f0791cc4a0d00c98d8dda8f3137a775104e7aa65b5f04fed12ee78a88262b2931717b7ac5624162fd5f0307f4faef038dcc210c
+Output = 835b343242a489249eec3cd56384ea2a5b295e29a4430fec2aae0c8b9fa36d20
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:3344fb80fd655b16f08c78150516cbbc009fbdf1b510905f9113d275
+Ctrl.hexinfo = hexinfo:dc2aa42084d645baeb822c0c1d9b8e200737e9a2c7dcd922d8f056d6c02552295d95a488758919724207eebb4c21887f71b51a2a7ce98827cf7af4bb
+Output = e281d09a31c57d053f0c2f902792c8bbb9a0f443
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:eb9386450d7b2da5492da5b139cf4b0b951a5b0c7d40c22ae2c20677
+Ctrl.hexinfo = hexinfo:bd8b73969e3e2d7a943b937c3bffe3a9199d1cf27e289bb10c3b88696a5ae36b3b868b4fc6a20ca93dd0b328f3351f71ce656bb558fa33c74741398d
+Output = bc902dfba79fb4084339b6666c7f72b9f47675229dc24ec61068bb05082717eead35647ff147d7de
+
+
+# [PRF=HMAC_SHA224]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:093b2ce84c6175d1723fbe94b9ee963b6251d018fcf8c05c2e3e9b0b
+Ctrl.hexinfo = hexinfo:083e114aca1f97166551b03f27b135c0c802294aa4845a46170b26ec0549cb59c70a85557a3fc3a37d23eed6947d50f10c15baf5c52a7b918ca80bf5
+Output = 94ced61c3665616d4a368f83a7283648
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:ffb5c9d920522477cb2ecf16ae1e075587b7598348e019df85ca3d43
+Ctrl.hexinfo = hexinfo:252743519ab4e03f8bb0ed137e2d315aac5010b951645c7626c6f5a77c4a6c4e0b0b4030abf937141f7142bcd702678b15d2d4e8850e0570ec782c79
+Output = 3d1813da0322201ed45ac2aaf3542843913bb32fd832a33a5dc94bad964bfe56
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:7f0ea811340cddbbf261d0260b0c98dec790133cffd2b04b8f8be2b1
+Ctrl.hexinfo = hexinfo:0a744543acddf7d8c0a205372a0450e32631a33bb89ad2e3bb2d9766c248ab755fec152a6da866ef50baeab607d88e5177042056970013aa18f9fb1e
+Output = e55120e7848cf61254159e79c2ac47a9a906a73c
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:6e237178c4884e13470b6b4848b40389d9856311735da4eefa2f6f38
+Ctrl.hexinfo = hexinfo:9cd9f9ad88471668f3b25515851fff63d3a886b8c6cf371eae159bab58f997b83eda5815567a142c4264978d8f24d24fe2d513c0eeaff983b86fdbd8
+Output = 1e6638ea717338cfeb7dea373785c3c763bd5e509358e4940e9a4e4fd0a3e0347973858bc20243b8
+
+
+# [PRF=HMAC_SHA224]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:f09e65e8de7500847b43bd95e6c3506e01aadd484e9699b027897542
+Ctrl.hexinfo = hexinfo:c20f6188517b2ca10086b9f7f8d6f2d38d66f24193c037008d035f361c6bd74db26aef588a87aa8a1c3cdad2ba0207f7e7b39def0df797c4cb3bf614
+Output = 73d30c2af54744eb1efb70429f8e303a
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:6079eafeba179a915e194b14e12ffee1e2bad56a62077897a4654e4b
+Ctrl.hexinfo = hexinfo:87686603814d619107aabfab85b4c4fe38ae1a5c2a4d78df12119871b8a4f85d583e7d842ee15e7fe03f61dd02b10784838ed163dc67cca43586d628
+Output = d888a21e1a698654fa46288509ae7a28dc7b05e6fc696a909451c2437097056b
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:2efe2905a1b7e1993da0316f2a747be1e91415ca1e6ad14d04341fee
+Ctrl.hexinfo = hexinfo:4d283c0f6d209379facd8a26aa889780863cf6a81893dc3bd2c928a7f8d922ced9c829bf627d2c556441d0d41a1eb00c0deea78349429de56a275f04
+Output = ec162b6ff6413f5eae9336fd489fab538d042db8
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:0b15638489d3ac7729a7db82797754e7a7c8d52da0cf3638a27a1a9c
+Ctrl.hexinfo = hexinfo:90988848764dacc6eeba817e0b74086b1233bca9d573717b8e3dd3bd23a532aac7db8b196e4c4702f54cc71bb8882dc776b0317457803a632b429776
+Output = 481293e1e621ad8bab5c9f5090594bb2507a1456ee8ffc30db159cb5b02d69110c3e5270880bf4a7
+
+
+# [PRF=HMAC_SHA224]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:f5cb7cc6207f5920dd60155ddb68c3fbbdf5104365305d2c1abcd311
+Ctrl.hexinfo = hexinfo:4e5ac7539803da89581ee088c7d10235a10536360054b72b8e9f18f77c25af01019b290656b60428024ce01fccf49022d831941407e6bd27ff9e2d28
+Output = 0adbaab43edd532b560a322c84ac540e
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:992815121d88ffb26c337606723c02ef317713086e2cfbbd37e1a167
+Ctrl.hexinfo = hexinfo:152d974eb2719b9027d32054a327312361125959df9d96a1832e2056c2571d4f1cf45f6e8f6544c87f15861cef627d2f16e9b0b4ab799bb3362f4aae
+Output = 475eda3a32d569932e043db64dbf0e9bb0945b54dcdfa203be1a28524c147075
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:2eabb6b922c24326ef9ae3c192dfd341caf57efe15dd649772a2ac3b
+Ctrl.hexinfo = hexinfo:c75f6f5a1561aab39ea0e22702a6cf7dba3ca4dd9f046bb0abea2d3284168fd9fb39ff725523a660d21f8c2ade03d18d4273c52fb6f22c9e39d6bc2e
+Output = ae50acebe308a1cf1747b9b178a0720748fa5fe5
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA224
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:9b75e7fa216c884037c7d6953092ed335c4efd88ca57a742d6ac3221
+Ctrl.hexinfo = hexinfo:12bea97865df99315259ff620302432ecafc9dce2619e87dfb4979410456a524434315dd3920e2b1aa1c79d5e07132a758a7b7b71ef10bcf1bb877f3
+Output = 60071bd0ceea0fe0f879223b940d3de7dde02ca6858f8450fb9c0032e49f968ef9cd9b5703163dbc
+
+
+# [PRF=HMAC_SHA256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:3edc6b5b8f7aadbd713732b482b8f979286e1ea3b8f8f99c30c884cfe3349b83
+Ctrl.hexinfo = hexinfo:98e9988bb4cc8b34d7922e1c68ad692ba2a1d9ae15149571675f17a77ad49e80c8d2a85e831a26445b1f0ff44d7084a17206b4896c8112daad18605a
+Output = 6c037652990674a07844732d0ad985f9
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:f109513435d72f14863660dfc027118e47e13995ad44a02415c9c8f63d38675c
+Ctrl.hexinfo = hexinfo:53696208d6f42909136a575010e135e142e31f631d72386a631cc704e5ad4049a889422cd6da7f1805e59a273c6f4fa986bc3082952fca658979f1b0
+Output = 1aaf080fd51b37585ea464a9c617bc3ab859cc78cbe1f2d5d557148ee36821a0
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:6ed1b41a1fc2ca8c7e09d5bccc410661683ec29d41a0fd01dd820a2e824ff672
+Ctrl.hexinfo = hexinfo:f6dc72adbd8ad4ea91259b61237a042a02546f37d58d933d3efadc54a5e1936a8faf70c33e707c473125bd5006b7dfa6883c04bf27cf53010e1d10bc
+Output = 4090ee711fa361f03267a6ff2a5ace977c8c1db5
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:63a657fb6c5bacb9a124d3e7db8bbb7d42bfdfaf8f04cb6359cd888c70669652
+Ctrl.hexinfo = hexinfo:2697b6ec112cab4d6f1714c991c17d44fb36a0b6ef0b0f5451619ab248950f56f403215c78711aa563683ced05be7246f32574fa294f162dbbeb3dee
+Output = 1992e75756fa64734d5caecc5f6420fcb28b8b90421eee97dc8b6140ce18518405688bea489d2aaa
+
+
+# [PRF=HMAC_SHA256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:743434c930fe923c350ec202bef28b768cd6062cf233324e21a86c31f9406583
+Ctrl.hexinfo = hexinfo:9bdb8a454bd55ab30ced3fd420fde6d946252c875bfe986ed34927c7f7f0b106dab9cc85b4c702804965eb24c37ad883a8f695587a7b6094d3335bbc
+Output = 19c8a56db1d2a9afb793dc96fbde4c31
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:365592398d23d31f2cac8bf6211f1ad5f52608efcdc5997b144ea6ded3866cf6
+Ctrl.hexinfo = hexinfo:07dce524556d3f68d2d91d4c15c9c6212635e0df1aef54938490db46f98737064d6a5624d7f938c263af01e632c45d9fe7a871b67f7d4bf110796eb4
+Output = 5624c6911dc1b08e090c8c95347adf17895b696aae211932cde3ec8227fcbea8
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:c104e187e344668997b7bd9c8cdf097320518dd7dbcb541c414418b55b58cbb2
+Ctrl.hexinfo = hexinfo:32f6bd59840c61909f2f92f98f54bd238083577e33c3d071c1abe4c694bd87c1ad235eb9a2d272b3dc67c955574d5e6cad84615120476d6e7e04f51f
+Output = 1b5d9e60aa909aeb973e76d9bf6be208327bb096
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:d4349c26108719debacc04e166a09063ffb5e17bcbaf8738dc2618aa7d1e97ae
+Ctrl.hexinfo = hexinfo:da1f5ed45ead428689b0ecca9dbc2569e76953cda0df085499cca6d5949d8995e1e42bbdc94b0dd78c164867c364a64c894de85294ad89d267ff443d
+Output = 00550ae0f29a2373269af175e7f829ec32c3d05099a39f8c0e02caa00b68afb7457669334383ffb2
+
+
+# [PRF=HMAC_SHA256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:388e93e0273e62f086f52f6f5369d9e4626d143dce3b6afc7caf2c6e7344276b
+Ctrl.hexinfo = hexinfo:697bb34b3fbe6853864cac3e1bc6c8c44a4335565479403d949fcbb5e2c1795f9a3849df743389d1a99fe75ef566e6227c591104122a6477dd8e8c8e
+Output = d697442b3dd51f96cae949586357b9a6
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:f5207566ad012002ae6f2b501f0c24180228345889c20616d043b868a76d015a
+Ctrl.hexinfo = hexinfo:f36dbc8d1dfda60d4ba05214f8773aaa9f01944150bca68812d0d8deb5492f3f68f09809ba5e8b89e9dca86c70f6f353b3d5f49ef27e2fd01cfa911d
+Output = 0faed440796a0685a24a1c5e1cacde566c7a1a4189885229251c6308a53c3f6e
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:e2758918edcf15d957a556055602d283dbdf9c95b6025a3cddf1eeac1e0ac889
+Ctrl.hexinfo = hexinfo:eda2f792580d6129b43e7b89c661786a29ab502ec6198f4a2bec6d0ffca1a75b8807d4313e7bf769a94fbf4b41c4cc309358a211105312c05818d8f3
+Output = 67e3273b2cfa4c663377f5841606679aee420dce
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:c9063598d6cf8660300073b5c25603baf3ade910c182deea15d8107d6f6be295
+Ctrl.hexinfo = hexinfo:22d27eec90c2dd4ae5cf4a705abecfd781b9051ba512b048ea9499364b791e9cdf63215db43680dacffe6f19d77fc93f8a46d84dd52146389d9ec308
+Output = f3a5b521b435a8c83eaf2d264b5b1a6dcc32c21b4897511203f97f01f2a691eef080b4cd7ca4fc38
+
+
+# [PRF=HMAC_SHA256]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dd1d91b7d90b2bd3138533ce92b272fbf8a369316aefe242e659cc0ae238afe0
+Ctrl.hexinfo = hexinfo:01322b96b30acd197979444e468e1c5c6859bf1b1cf951b7e725303e237e46b864a145fab25e517b08f8683d0315bb2911d80a0e8aba17f3b413faac
+Output = 10621342bfb0fd40046c0e29f2cfdbf0
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:e204d6d466aad507ffaf6d6dab0a5b26152c9e21e764370464e360c8fbc765c6
+Ctrl.hexinfo = hexinfo:7b03b98d9f94b899e591f3ef264b71b193fba7043c7e953cde23bc5384bc1a6293580115fae3495fd845dadbd02bd6455cf48d0f62b33e62364a3a80
+Output = 770dfab6a6a4a4bee0257ff335213f78d8287b4fd537d5c1fffa956910e7c779
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dc60338d884eecb72975c603c27b360605011756c697c4fc388f5176ef81efb1
+Ctrl.hexinfo = hexinfo:44d7aa08feba26093c14979c122c2437c3117b63b78841cd10a4bc5ed55c56586ad8986d55307dca1d198edcffbc516a8fbe6152aa428cdd800c062d
+Output = 29ac07dccf1f28d506cd623e6e3fc2fa255bd60b
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:c4bedbddb66493e7c7259a3bbbc25f8c7e0ca7fe284d92d431d9cd99a0d214ac
+Ctrl.hexinfo = hexinfo:1c69c54766791e315c2cc5c47ecd3ffab87d0d273dd920e70955814c220eacace6a5946542da3dfe24ff626b4897898cafb7db83bdff3c14fa46fd4b
+Output = 1da47638d6c9c4d04d74d4640bbd42ab814d9e8cc22f4326695239f96b0693f12d0dd1152cf44430
+
+
+# [PRF=HMAC_SHA384]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0be1999848a7a14a555649048fcadf2f644304d163190dc9b23a21b80e3c8c373515d6267d9c5cfd31b560ffd6a2cd5c
+Ctrl.hexinfo = hexinfo:11340cfbdb40f20f84cac4b8455bdd76c730adcecd0484af9011bacd46e22ff2d87755dfb4d5ba7217c37cb83259bdbe0983cc716adc2e6c826ed53c
+Output = c2ea7454de25afb27065f4676a392385
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:218f47301a3adf39a4e1ddc25a1df2b7db53d7780c207f47ab4cefcaa960ed82cb6cbc34b97b4c332d52ca81cc40cb9a
+Ctrl.hexinfo = hexinfo:60dcb116d7cfd3cca7315c9dc7e9650f886b67d9fbcd98c226239a0f66eff075da23c6cb750a2129ae71b9582934f57423a815249cac2c61f958b35d
+Output = 26b01d94c4dd51a9c8b54f78647257f9e937a8d67dffa78f85749cdfb22db620
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:426c4facbacecb654555bc9843f9864a53e14c9a5e19600abf57b03cf8b6f825f71191eaaf3cfd70961314acbf1e6e29
+Ctrl.hexinfo = hexinfo:d224dc52dd16bde3391fab24fa875b695d63215e182efa970537904f4cd1d7f929f87c17fa97bd490f10cfc3bb80353ea4a4bb403f79e18677c39d29
+Output = 431c73810e9fe4f4982202f55eb5f0212f302142
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:522a72c006a6b77911915c78952dd61848725a4b0789b2cfce3b29d947d9faa145417740c0365bd81a860a600012543b
+Ctrl.hexinfo = hexinfo:4a3cd102c4b95fe193660c4c174f02c725207449b785edb8fa8c4404f01a25bef3238637d3bae370758332c678deb578322e031ec3970876600196d2
+Output = 2f5d52226949aecfe6359561a5fdd87a843457019e24faacacedd34177cda6cba18cc78cc8c78cef
+
+
+# [PRF=HMAC_SHA384]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:26ef897e4b617b597f766ec8d8ccf44c543e790a7d218f029dcb4a3695ae2caccce9d3e935f6741581f2f53e49cd46f8
+Ctrl.hexinfo = hexinfo:bc2c728f9dc6db426dd4e85fdb493826a31fec0607644209f9bf2264b6401b5db3004c1a76aa08d93f08d3d9e2ba434b682e480004fb0d9271a8e8cd
+Output = a43d31f07f0ee484455ae11805803f60
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:269cce234dd4783067ceaa04a70deb1c9700acf705548495767c22f78493851ca9c699077a002874caacb760106016c6
+Ctrl.hexinfo = hexinfo:f64bfb4bdaac81b5801d2f9f08bc2e4d009990b67290fd49b3730c3a145696447aceae6a82f7508a19c396a548c9c33d943dab82b2538c18b8eee871
+Output = ab4182261c5d9c0d23a26477f14a507dd7f5e9550d04f48de29e644ed55f3406
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:ec71de96c9520386f9d11bebe474bae0c0549e2b2e8fda6b2336050ee3acbec38bc57d56e6422d3cd493ead69772a059
+Ctrl.hexinfo = hexinfo:4313d1efba21dded84ce12bf80b1be54400619d3bb1987f18bf85400e335103969e77c819a5360cf1dd3f4addb6b8eec0199508c75adfe2cfc067dc8
+Output = 8e37ecc86dcb5ee7cf48d8a07f06c47cdce624cc
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:afe2d3a4746792908aca8ece67ba8562382000b4e26122414b3ef2e120511bae68448955cf186be87caf69eaced47e87
+Ctrl.hexinfo = hexinfo:1f6dd0b17fed7f479c4f62927291a95292a4e232441c30ffcaa1d347543e50db939360bb37976eacb911f76c38ad8cce12a0c263875bbcd7f6011ffd
+Output = 17b671ca433cea81384b03b69c26a55257085cdfa48e6d8529431464bd439a881de560294afb0073
+
+
+# [PRF=HMAC_SHA384]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:4fab4f1e3512b5f443ec31d2f6425d5f0fc13a5f82c83f72788a48a1bd499495ff18fb7acc0d4c1666c99db12e28f725
+Ctrl.hexinfo = hexinfo:f0f010f99fbd8ec1bd0f23cd12bb41b2b8acb8713bb031f927e439f616e6ae27aed3f5582f8206893deea1204df125cedce35ce2b01b32bcefb388fd
+Output = c3c263b5aa6d0cfe5304a7c9d21a44ba
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:af3cd100d14dcb5e63f8915eced4b59477936c48e0e2b9232449a97d53d3eddf9e00bf44a8f2370c38a13434c13e0977
+Ctrl.hexinfo = hexinfo:81f178f11615309844af84e163ff694f1936f7528aba6f0e60d41b4afac87e9dd48fbb5aebe534733f576950484aab15b386b468a055a1e0be8982c0
+Output = 0b52be4ebd8b2116df895a42317ac78808993673c99da6391f0eee13cc8470fa
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:fc3ba84439d8b7ead37ac6c825e088fc80152788bbc9c68569213dd6189d5fd552c37ab73b3d53ee9809a485194fb3cd
+Ctrl.hexinfo = hexinfo:df5728d5d146898b68d8713aa8053d03db52b7227d502d3effcd51a22d52ecd9175a4b01d2f27ecfc8abf02c1dd80f5c90a5e01396c1107dddb02226
+Output = 87ff36ca26778fcaf4f9209d38095c55c40f5e22
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:08d867a61b13cd8c79d3a1cbec3493925ece900e06993063bc0dfe0247cd059ba50a5fb6afc65ac469793817a1f2dfee
+Ctrl.hexinfo = hexinfo:af0c83a659267869bd7cde387bf1c29c9c0ff3c6cabf512c73fd671748e4e9e49218de9350fc0dde27839eb1e2878f900689abeb7b540c70203e5a95
+Output = 3fef69d875b9b6047c33f295619f6e7c7125c875d55409500100f71bee6551d511327fbde607ac41
+
+
+# [PRF=HMAC_SHA384]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:216ed044769c4c3908188ece61601af8819c30f501d12995df608e06f5e0e607ab54f542ee2da41906dfdb4971f20f9d
+Ctrl.hexinfo = hexinfo:638e9506a2c7be69ea346b84629a010c0e225b7548f508162c89f29c1ddbfd70472c2b58e7dc8aa6a5b06602f1c8ed4948cda79c62708218e26ac0e2
+Output = d4b144bb40c7cabed13963d7d4318e72
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:8fca201473433f2dc8f6ae51e48de1a5654ce687e711d2d65f0dc5da6fee9a6a3db9d8535d3e4455ab53d35850c88272
+Ctrl.hexinfo = hexinfo:195bd88aa2d4211912334fe2fd9bd24522f7d9fb08e04747609bc34f2538089a9d28bbc70b2e1336c3643753cec6e5cd3f246caa915e3c3a6b94d3b6
+Output = f51ac86b0f462388d189ed0197ef99c2ff3a65816d8442e5ea304397b98dd11f
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:bc3157b8932e88d1b1cf8e4622137010a242d3527b1d23d6d9c0db9cc9edfc20e5135de823977bf4defafae44d6cdab6
+Ctrl.hexinfo = hexinfo:b42a8e43cc2d4e5c69ee5e4f6b19ff6b8071d26bab4dfe45650b92b1f47652d25162d4b61441d8448c54918ae568ae2fb53091c624dbfffacee51d88
+Output = 91314bdf542162031643247d6507838eaba50f1a
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA384
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:582f968a54b8797b9ea8c655b42e397adb73d773b1984b1e1c429cd597b8015d2f91d59e4136a9d523bf6491a4733c7a
+Ctrl.hexinfo = hexinfo:e6d3c193eff34e34f8b7b00e66565aeb01f63206bb27e27aa281592afc06ae1ec5b7eb97a39684ce773d7c3528f2667c1f5d428406e78ce4cf39f652
+Output = 691726c111e5030b5f9657069107861ecc18bc5835a814c3d2e5092c901cb1fb6c1a7cd3eb0be2a7
+
+
+# [PRF=HMAC_SHA512]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=8_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:6ea2c385bb3e7bbafc2225cee1d3ee103ce300c1fdf033d0c1e99c57e6a596e037020838e857c0434040b58a5ca5410be672b888ef9955bdd54eb6a67416ff6a
+Ctrl.hexinfo = hexinfo:be119901ed8679b243508b97663f35da322774d7d2012d6557da6657c1176a115ebc73b0f1bfa1dba6b8c3b124f0a47cff2998b230c955b0ea809784
+Output = e0755fa6f116ef7a8e8361f47fd57511
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0ef984d7b4ee76f5c9e080b27f45ccab4ac2362c4cafa68198786b18e239d0f69ee62148373643ad9aa42474700348ef651fee9973130a42e76b7e7633eba1e9
+Ctrl.hexinfo = hexinfo:56ece7c14c1fc5467f8316f3a931a7ddfa490969f442d7a132f3755809f6ca11dbc9c6493a541c244c32be6656e13ef2868cb79415b807b3882f00d2
+Output = 19aa765affdd3cc7294b2c97e1bd5adc368523a3283c387d0719761e938f83db
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:a35728d4ec0d7e94019a45d52264e5cd63c7540c21e30a9882d8d531cbb510edaa78e42c03994c18d8efcf7f826a1a9fdbbbacc55c640e7b532cc08e0615a093
+Ctrl.hexinfo = hexinfo:f501cc527bad6fe5d8e4f1f0f53d416ab17235f380f7e0d1c90dca18206af1fb1d977551e2e0e25c1fe41a8f825fbae2c07c94b768e98ad5ab8ddb2e
+Output = 54cf238101418ce050eee03aae0c39c4602ab838
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:baed493b0294c9a5dbbe4547a30f0602c6124cedb549b45cff0ee4f3689a7ae5b695e5ecdfebf611bba1174e5e3a8824383e555daef396dc58c2842f77d5a674
+Ctrl.hexinfo = hexinfo:1371182cb0725416b1eccf4ac9fb20cf4e0f77e7d006a531e0ab2b2b46e0859473dad9dcae65ba5eb902228787dae19e735d002c919a4b74012f8904
+Output = 09bb55c9f3cee604f4bc5544a802be8b02b34b99f7928ceee696221975f947905f1b5979d9d4c2a1
+
+
+# [PRF=HMAC_SHA512]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=16_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:bb0c55c7201ceb2e1369a6c49e2cdc1ae5e4cd1d64638105072c3a9172b2fa6a127c4d6d55132585fb2644b5ae3cf9d347875e0d0bf80945eaabef3b4319605e
+Ctrl.hexinfo = hexinfo:89bf925033f00635c100e2c88a98ad9f08cd6a002b934617d4ebfffc0fe9bca1d19bd942da3704da127c7493cc62c67f507c415e4cb67d7d0be70005
+Output = 05efd62522beb9bfff6492ecd24501a7
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:393eb889e9c2f251b95aa147d53e4cd029fd0391110be9c6b2f8ba32857864847c448a9a591686de88da7486d0a0f0f8c927560fa8f79c30e66a7efaacaa638f
+Ctrl.hexinfo = hexinfo:116bf7f9e5eb884c86cd0d3a2b33d41de7735677e6bd727e83fbde5c8113de56bf84c9f80610db760ae2df73f4f0db9df0cc1655ea9bc98bb06beeda
+Output = 212e4e4057a6871e166e7563205833bc7f01e86c724b6a61166d9311c55b5044
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:eeec4383a808fae57f24a7a5eb6157cca66483a613590c89ed39f59617ea97fcfa7cdfc83ba8140fa0d8542263d6423a9bcca70e11addb7a646f194ff0878cac
+Ctrl.hexinfo = hexinfo:b2565a20171eef1eaa04728e6c369405b251062bbd0a2b9171c8c6fedf0ff783691db787f153bbf5167301808f768a03df0deec99f2b9efb90cab571
+Output = 4f31b7bcd54c74d8a7d31aca187b8736f0a59db7
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:16
+Ctrl.hexkey = hexkey:62690d8ef259d175911d8eb52a331af29a8e3b797c4b315a67fa5cd1b00e585b2f7d97341284d0fcaa15a080732f7958e3b33e938e730623d1e651dbea9b2233
+Ctrl.hexinfo = hexinfo:266535b58de26ed62f936bc7147c8c3b31ee0c1bb92c5ef63699ac7225e01cec5afd2e6e39cf095882324c7dc94b0daa2befc50f790da0547d7c6184
+Output = 9336a88737d9ae01b5c43be5789c8545689557aad295ea3c03d2a2e0143603365fea1656175c20bf
+
+
+# [PRF=HMAC_SHA512]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=24_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:d10933b0683f6787c33eccea1c311b8444270504fb3980bfd56443ba4068722184c31541d9174f71068b7789440bc34cec456e115067f9c65a5f2883c6868204
+Ctrl.hexinfo = hexinfo:dcb2ea8d715821d6393bd49a3e35f69a6c2519edb614f80fbc3f7ae1d65ff4a04c499e75d08819a09092ddaadba510e03cb2ac898804590dbd61fb7e
+Output = 876d73040d03d569e2fcae33b241d98e
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:44e6e9abd8572a19ba127dfa2ca6a1b53beaef8c19a1ec5b67f1f6f7919671cd80ade7ded7c0f096525936ef427b152339de915f024964ca9ea908a120e2553a
+Ctrl.hexinfo = hexinfo:c2884a0c3ea2ff5b0bc848698f49f2c59eff511d77caddba897dec7714a0984e54f330dd9e9fdca9c033dfbc36d3293eca0ce7601e316463966ad4fd
+Output = b294537440bec490953bf6e9a77c4510536916b84a5a2f45b5bf9f76666d8f12
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:a39131ca2f8df817ea2f155aac72d58a696d915b66b7cbe172a0f48a407aa8af0edbaea051eb027fe8fcc435cc7f160feeb57bd39a39d94104fe35167dac1aae
+Ctrl.hexinfo = hexinfo:52b6d1f6381fc3dd44baf1c9d36f0c313e58bf4fdb936b78103afdb90373079de90e4bb7d7089e65e0aef23f2a34df5198b8392aac705eb998c1f8cd
+Output = e707c910b4db3a648815fcad5ca7af18e5354c2e
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:af5a39f0303b11bca55584ce24162dabd1625aed14ce54f9e407866e03efb24b12a36e164f96faf36bc92a08acd194285107173fb84caef787672d6471028459
+Ctrl.hexinfo = hexinfo:1cd84829b89d3149948967494aece985f1df3d7ec7735e8cc468bb3e6fdb50964d32dcde5521a82402577371047bf77e34714437e9d213561055b9db
+Output = a0e81b336a6f4ab395aada28314d8ba96b9216ae389b01aaec158e166239e554a217e69f603988fb
+
+
+# [PRF=HMAC_SHA512]
+# [CTRLOCATION=BEFORE_FIXED]
+# [RLEN=32_BITS]
+
+# COUNT=0
+# L = 128
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:dd5dbd45593ee2ac139748e7645b450f223d2ff297b73fd71cbcebe71d41653c950b88500de5322d99ef18dfdd30428294c4b3094f4c954334e593bd982ec614
+Ctrl.hexinfo = hexinfo:b50b0c963c6b3034b8cf19cd3f5c4ebe4f4985af0c03e575db62e6fdf1ecfe4f28b95d7ce16df85843246e1557ce95bb26cc9a21974bbd2eb69e8355
+Output = e5993bf9bd2aa1c45746042e12598155
+
+# COUNT=10
+# L = 256
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:5be2bf7f5e2527e15fe65cde4507d98ba55457006867de9e4f36645bcff4ca38754f92898b1c5544718102593b8c26d45d1fceaea27d97ede9de8b9ebfe88093
+Ctrl.hexinfo = hexinfo:004b13c1f628cb7a00d9498937bf437b71fe196cc916c47d298fa296c6b86188073543bbc66b7535eb17b5cf43c37944b6ca1225298a9e563413e5bb
+Output = cee0c11be2d8110b808f738523e718447d785878bbb783fb081a055160590072
+
+# COUNT=20
+# L = 160
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:9dd03864a31aa4156ca7a12000f541680ce0a5f4775eef1088ac13368200b447a78d0bf14416a1d583c54b0f11200ff4a8983dd775ce9c0302d262483e300ae6
+Ctrl.hexinfo = hexinfo:037369f142d669fca9e87e9f37ae8f2c8d506b753fdfe8a3b72f75cac1c50fa1f8620883b8dcb8dcc67adcc95e70aa624adb9fe1b2cb396692b0d2e8
+Output = 96e8d1bc01dc95c0bf42c3c38fc54c090373ced4
+
+# COUNT=30
+# L = 320
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:a9f4a2c5af839867f5db5a1e520ab3cca72a166ca60de512fd7fe7e64cf94f92cf1d8b636175f293e003275e021018c3f0ede495997a505ec9a2afeb0495be57
+Ctrl.hexinfo = hexinfo:8e9db3335779db688bcfe096668d9c3bc64e193e3529c430e68d09d56c837dd6c0f94678f121a68ee1feea4735da85a49d34a5290aa39f7b40de435f
+Output = 6db880daac98b078ee389a2164252ded61322d661e2b49247ea921e544675d8f17af2bf66dd40d81
+
+# Test concat of multiple info (Uses existing test data, and just splits the info into separate fields)
+FIPSversion = >=3.2.0
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:32
+Ctrl.hexkey = hexkey:a9f4a2c5af839867f5db5a1e520ab3cca72a166ca60de512fd7fe7e64cf94f92cf1d8b636175f293e003275e021018c3f0ede495997a505ec9a2afeb0495be57
+Ctrl.hexinfo = hexinfo:8e9db3335779db688bcfe096668d9c3bc64e193e3529c430e68d09d5
+Ctrl.hexinfo = hexinfo:6c837dd6c0f94678f121a68ee1feea4735da85a49d34a5290aa39f7b
+Ctrl.hexinfo = hexinfo:40de435f
+Output = 6db880daac98b078ee389a2164252ded61322d661e2b49247ea921e544675d8f17af2bf66dd40d81
+
+Title = Negative tests for FIPS minimum key length
+
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA512
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0ef9
+Ctrl.hexinfo = hexinfo:56ec
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+Availablein = fips
+FIPSversion = >=3.4.0
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0ef9
+Ctrl.hexinfo = hexinfo:56ec
+Ctrl.key-check = key-check:0
+Unapproved = 1
+Output = 9de01850c9d3d1cd0270b3ea9c9c683d
+
+FIPSversion = >=3.4.0
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.cipher = cipher:AES128
+Ctrl.mac = mac:CMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:24
+Ctrl.hexkey = hexkey:1122334455667788
+Ctrl.hexinfo = hexinfo:1122334455667788
+Result = KDF_CTRL_ERROR
+Reason = invalid key length
+
+Availablein = default
+KDF = KBKDF
+Ctrl.mode = mode:COUNTER
+Ctrl.digest = digest:SHA256
+Ctrl.mac = mac:HMAC
+Ctrl.use-l = use-l:0
+Ctrl.use-separator = use-separator:0
+Ctrl.r = r:8
+Ctrl.hexkey = hexkey:0ef9
+Ctrl.hexinfo = hexinfo:56ec
+Output = 9de01850c9d3d1cd0270b3ea9c9c683d
+

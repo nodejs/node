@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -7,9 +7,11 @@
  * https://www.openssl.org/source/license.html
  */
 
+#include "internal/e_os.h"
+
 #include <stdio.h>
-#include <string.h>
 #include <stdlib.h>
+#include "internal/common.h"
 #include <openssl/bio.h>
 #include <openssl/crypto.h>
 #include <openssl/trace.h>
@@ -157,8 +159,6 @@ static void tracedata_free(tracedata *data)
     OPENSSL_free(data);
 }
 
-static STACK_OF(tracedata) *trace_data_stack;
-
 static void cleanup_trace(void)
 {
     sk_tracedata_pop_free(trace_data_stack, tracedata_free);
@@ -232,6 +232,7 @@ static void setup_trace(const char *str)
 #endif /* OPENSSL_NO_TRACE */
 
 static char *help_argv[] = { "help", NULL };
+static char *version_argv[] = { "version", NULL };
 
 int main(int argc, char *argv[])
 {
@@ -241,6 +242,7 @@ int main(int argc, char *argv[])
     const char *fname;
     ARGS arg;
     int global_help = 0;
+    int global_version = 0;
     int ret = 0;
 
     arg.argv = NULL;
@@ -285,17 +287,26 @@ int main(int argc, char *argv[])
         global_help = argc > 1
             && (strcmp(argv[1], "-help") == 0 || strcmp(argv[1], "--help") == 0
                 || strcmp(argv[1], "-h") == 0 || strcmp(argv[1], "--h") == 0);
+        global_version = argc > 1
+            && (strcmp(argv[1], "-version") == 0 || strcmp(argv[1], "--version") == 0
+                || strcmp(argv[1], "-v") == 0 || strcmp(argv[1], "--v") == 0);
+
         argc--;
         argv++;
-        opt_appname(argc == 1 || global_help ? "help" : argv[0]);
+        opt_appname(argc == 1 || global_help ? "help" : global_version ? "version" : argv[0]);
     } else {
         argv[0] = pname;
     }
 
-    /* If there's a command, run with that, otherwise "help". */
-    ret = argc == 0 || global_help
-        ? do_cmd(prog, 1, help_argv)
-        : do_cmd(prog, argc, argv);
+    /*
+     * If there's no command, assume "help". If there's an override for help
+     * or version run those, otherwise run the command given.
+     */
+    ret =  (argc == 0) || global_help
+            ? do_cmd(prog, 1, help_argv)
+            : global_version
+                ? do_cmd(prog, 1, version_argv)
+                : do_cmd(prog, argc, argv);
 
  end:
     OPENSSL_free(default_config_file);
@@ -325,7 +336,6 @@ const OPTIONS help_options[] = {
     {"command", 0, 0, "Name of command to display help (optional)"},
     {NULL}
 };
-
 
 int help_main(int argc, char **argv)
 {
@@ -357,7 +367,7 @@ int help_main(int argc, char **argv)
         new_argv[2] = NULL;
         return do_cmd(prog_init(), 2, new_argv);
     }
-    if (opt_num_rest() != 0) {
+    if (!opt_check_rest_arg(NULL)) {
         BIO_printf(bio_err, "Usage: %s\n", prog);
         return 1;
     }
@@ -417,12 +427,12 @@ static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
             warn_deprecated(fp);
         return fp->func(argc, argv);
     }
-    if ((strncmp(argv[0], "no-", 3)) == 0) {
+    f.name = argv[0];
+    if (CHECK_AND_SKIP_PREFIX(f.name, "no-")) {
         /*
          * User is asking if foo is unsupported, by trying to "run" the
          * no-foo command.  Strange.
          */
-        f.name = argv[0] + 3;
         if (lh_FUNCTION_retrieve(prog, &f) == NULL) {
             BIO_printf(bio_out, "%s\n", argv[0]);
             return 0;
@@ -436,12 +446,12 @@ static int do_cmd(LHASH_OF(FUNCTION) *prog, int argc, char *argv[])
     return 1;
 }
 
-static int function_cmp(const FUNCTION * a, const FUNCTION * b)
+static int function_cmp(const FUNCTION *a, const FUNCTION *b)
 {
     return strncmp(a->name, b->name, 8);
 }
 
-static unsigned long function_hash(const FUNCTION * a)
+static unsigned long function_hash(const FUNCTION *a)
 {
     return OPENSSL_LH_strhash(a->name);
 }

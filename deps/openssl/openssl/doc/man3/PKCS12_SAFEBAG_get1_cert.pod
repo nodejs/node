@@ -1,0 +1,89 @@
+=pod
+
+=head1 NAME
+
+PKCS12_SAFEBAG_get0_attr, PKCS12_SAFEBAG_get0_type,
+PKCS12_SAFEBAG_get_nid, PKCS12_SAFEBAG_get_bag_nid,
+PKCS12_SAFEBAG_get0_bag_obj, PKCS12_SAFEBAG_get0_bag_type,
+PKCS12_SAFEBAG_get1_cert_ex, PKCS12_SAFEBAG_get1_cert,
+PKCS12_SAFEBAG_get1_crl_ex, PKCS12_SAFEBAG_get1_crl,
+PKCS12_SAFEBAG_get0_safes, PKCS12_SAFEBAG_get0_p8inf,
+PKCS12_SAFEBAG_get0_pkcs8 - Get objects from a PKCS#12 safeBag
+
+=head1 SYNOPSIS
+
+ #include <openssl/pkcs12.h>
+
+ const ASN1_TYPE *PKCS12_SAFEBAG_get0_attr(const PKCS12_SAFEBAG *bag,
+                                           int attr_nid);
+ const ASN1_OBJECT *PKCS12_SAFEBAG_get0_type(const PKCS12_SAFEBAG *bag);
+ int PKCS12_SAFEBAG_get_nid(const PKCS12_SAFEBAG *bag);
+ int PKCS12_SAFEBAG_get_bag_nid(const PKCS12_SAFEBAG *bag);
+ const ASN1_TYPE *PKCS12_SAFEBAG_get0_bag_obj(const PKCS12_SAFEBAG *bag);
+ const ASN1_OBJECT *PKCS12_SAFEBAG_get0_bag_type(const PKCS12_SAFEBAG *bag);
+ X509_CRL *PKCS12_SAFEBAG_get1_cert_ex(const PKCS12_SAFEBAG *bag,
+                                       OSSL_LIB_CTX *libctx, const char *propq);
+ X509 *PKCS12_SAFEBAG_get1_cert(const PKCS12_SAFEBAG *bag);
+ X509_CRL *PKCS12_SAFEBAG_get1_crl_ex(const PKCS12_SAFEBAG *bag,
+                                      OSSL_LIB_CTX *libctx, const char *propq);
+ X509_CRL *PKCS12_SAFEBAG_get1_crl(const PKCS12_SAFEBAG *bag);
+ const STACK_OF(PKCS12_SAFEBAG) *PKCS12_SAFEBAG_get0_safes(const PKCS12_SAFEBAG *bag);
+ const PKCS8_PRIV_KEY_INFO *PKCS12_SAFEBAG_get0_p8inf(const PKCS12_SAFEBAG *bag);
+ const X509_SIG *PKCS12_SAFEBAG_get0_pkcs8(const PKCS12_SAFEBAG *bag);
+
+=head1 DESCRIPTION
+
+PKCS12_SAFEBAG_get0_attr() gets the attribute value corresponding to the B<attr_nid>.
+
+PKCS12_SAFEBAG_get0_type() gets the B<safeBag> type as an OID, whereas
+PKCS12_SAFEBAG_get_nid() gets the B<safeBag> type as an NID, which could be
+B<NID_certBag>, B<NID_crlBag>, B<NID_keyBag>, B<NID_secretBag>, B<NID_safeContentsBag>
+or B<NID_pkcs8ShroudedKeyBag>.
+
+PKCS12_SAFEBAG_get_bag_nid() gets the type of the object contained within the
+B<PKCS12_SAFEBAG>. This corresponds to the bag type for most bags, but can be
+arbitrary for B<secretBag>s. PKCS12_SAFEBAG_get0_bag_type() gets this type as an OID.
+
+PKCS12_SAFEBAG_get0_bag_obj() retrieves the object contained within the safeBag.
+
+PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() return new B<X509> or
+B<X509_CRL> objects from the item in the safeBag. I<libctx> and I<propq> are used when
+fetching algorithms, and may optionally be set to NULL.
+
+PKCS12_SAFEBAG_get1_cert() and PKCS12_SAFEBAG_get1_crl() are the same as
+PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() and set the I<libctx> and
+I<prop> to NULL. This will use the default library context.
+
+PKCS12_SAFEBAG_get0_p8inf() and PKCS12_SAFEBAG_get0_pkcs8() return the PKCS8 object
+from a PKCS8shroudedKeyBag or a keyBag.
+
+PKCS12_SAFEBAG_get0_safes() retrieves the set of B<safeBags> contained within a
+safeContentsBag.
+
+=head1 RETURN VALUES
+
+PKCS12_SAFEBAG_get_nid() and PKCS12_SAFEBAG_get_bag_nid() return the NID of the safeBag
+or bag object, or -1 if there is no corresponding NID.
+Other functions return a valid object of the specified type or NULL if an error occurred.
+
+=head1 SEE ALSO
+
+L<PKCS12_create(3)>,
+L<PKCS12_add_safe(3)>,
+L<PKCS12_add_safes(3)>
+
+=head1 HISTORY
+
+The functions PKCS12_SAFEBAG_get1_cert_ex() and PKCS12_SAFEBAG_get1_crl_ex() were
+added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

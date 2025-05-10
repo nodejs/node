@@ -136,7 +136,8 @@ static int cipher_hw_des_cfb1_cipher(PROV_CIPHER_CTX *ctx, unsigned char *out,
 {
     size_t n, chunk = MAXCHUNK / 8;
     DES_key_schedule *key = &(((PROV_DES_CTX *)ctx)->dks.ks);
-    unsigned char c[1], d[1];
+    unsigned char c[1];
+    unsigned char d[1] = { 0 };
 
     if (inl < chunk)
         chunk = inl;

@@ -1,0 +1,20 @@
+PROGRAMS{noinst} = EVP_MD_demo \
+                   EVP_MD_stdin \
+                   EVP_MD_xof \
+                   BIO_f_md
+
+INCLUDE[EVP_MD_demo]=../../include
+SOURCE[EVP_MD_demo]=EVP_MD_demo.c
+DEPEND[EVP_MD_demo]=../../libcrypto
+
+INCLUDE[EVP_MD_stdin]=../../include
+SOURCE[EVP_MD_stdin]=EVP_MD_stdin.c
+DEPEND[EVP_MD_stdin]=../../libcrypto
+
+INCLUDE[EVP_MD_xof]=../../include
+SOURCE[EVP_MD_xof]=EVP_MD_xof.c
+DEPEND[EVP_MD_xof]=../../libcrypto
+
+INCLUDE[BIO_f_md]=../../include
+SOURCE[BIO_f_md]=BIO_f_md.c
+DEPEND[BIO_f_md]=../../libcrypto

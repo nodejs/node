@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2016 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -37,19 +37,19 @@
                         l1=l2=0; \
                         switch (n) { \
                         case 8: l2 =((DES_LONG)(*(--(c))))<<24L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 7: l2|=((DES_LONG)(*(--(c))))<<16L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 6: l2|=((DES_LONG)(*(--(c))))<< 8L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 5: l2|=((DES_LONG)(*(--(c))));      \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 4: l1 =((DES_LONG)(*(--(c))))<<24L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 3: l1|=((DES_LONG)(*(--(c))))<<16L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 2: l1|=((DES_LONG)(*(--(c))))<< 8L; \
-                        /* fall thru */                          \
+                        /* fall through */                          \
                         case 1: l1|=((DES_LONG)(*(--(c))));      \
                                 } \
                         }
@@ -59,39 +59,24 @@
                          *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
                          *((c)++)=(unsigned char)(((l)>>24L)&0xff))
 
-/*
- * replacements for htonl and ntohl since I have no idea what to do when
- * faced with machines with 8 byte longs.
- */
-
-# define n2l(c,l)        (l =((DES_LONG)(*((c)++)))<<24L, \
-                         l|=((DES_LONG)(*((c)++)))<<16L, \
-                         l|=((DES_LONG)(*((c)++)))<< 8L, \
-                         l|=((DES_LONG)(*((c)++))))
-
-# define l2n(l,c)        (*((c)++)=(unsigned char)(((l)>>24L)&0xff), \
-                         *((c)++)=(unsigned char)(((l)>>16L)&0xff), \
-                         *((c)++)=(unsigned char)(((l)>> 8L)&0xff), \
-                         *((c)++)=(unsigned char)(((l)     )&0xff))
-
 /* NOTE - c is not incremented as per l2c */
 # define l2cn(l1,l2,c,n) { \
                         c+=n; \
                         switch (n) { \
                         case 8: *(--(c))=(unsigned char)(((l2)>>24L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 7: *(--(c))=(unsigned char)(((l2)>>16L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 6: *(--(c))=(unsigned char)(((l2)>> 8L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 5: *(--(c))=(unsigned char)(((l2)     )&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 4: *(--(c))=(unsigned char)(((l1)>>24L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 3: *(--(c))=(unsigned char)(((l1)>>16L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 2: *(--(c))=(unsigned char)(((l1)>> 8L)&0xff); \
-                        /* fall thru */                                     \
+                        /* fall through */                                     \
                         case 1: *(--(c))=(unsigned char)(((l1)     )&0xff); \
                                 } \
                         }
@@ -109,6 +94,19 @@
                                         : "cc");        \
                            ret;                         \
                         })
+#  elif defined(__riscv_zbb) || defined(__riscv_zbkb)
+#   if __riscv_xlen == 64
+#    define ROTATE(x, n) ({ register unsigned int ret; \
+                       asm ("roriw %0, %1, %2"         \
+                       : "=r"(ret)                     \
+                       : "r"(x), "i"(n)); ret; })
+#   endif
+#   if __riscv_xlen == 32
+#    define ROTATE(x, n) ({ register unsigned int ret; \
+                       asm ("rori %0, %1, %2"          \
+                       : "=r"(ret)                     \
+                       : "r"(x), "i"(n)); ret; })
+#   endif
 #  endif
 # endif
 # ifndef ROTATE

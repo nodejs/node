@@ -1,0 +1,41 @@
+=pod
+
+=head1 NAME
+
+GENERAL_NAME,
+GENERAL_NAME_set1_X509_NAME
+- GENERAL_NAME method routines
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509v3.h>
+
+ typedef struct GENERAL_NAME_st GENERAL_NAME;
+
+ int GENERAL_NAME_set1_X509_NAME(GENERAL_NAME **tgt, const X509_NAME *src);
+
+=head1 DESCRIPTION
+
+GENERAL_NAME_set1_X509_NAME() creates a new GENERAL_NAME of type GEN_DIRNAME
+and populates it based on provided X509_NAME I<src> which can be NULL.
+I<tgt> must not be NULL. If successful, I<*tgt> will be set to point
+to the newly created GENERAL_NAME.
+
+=head1 RETURN VALUES
+
+GENERAL_NAME_set1_X509_NAME() return 1 on success, 0 on error.
+
+=head1 HISTORY
+
+GENERAL_NAME_set1_X509_NAME() was added in OpenSSL 3.4.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

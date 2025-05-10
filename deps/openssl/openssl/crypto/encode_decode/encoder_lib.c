@@ -1,11 +1,13 @@
 /*
- * Copyright 2019-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
  * in the file LICENSE in the source distribution or at
  * https://www.openssl.org/source/license.html
  */
+
+#include <ctype.h>
 
 #include <openssl/core_names.h>
 #include <openssl/bio.h>
@@ -14,9 +16,30 @@
 #include <openssl/params.h>
 #include <openssl/provider.h>
 #include <openssl/trace.h>
+#include <crypto/bn.h>
 #include "internal/bio.h"
+#include "internal/ffc.h"
 #include "internal/provider.h"
+#include "internal/encoder.h"
 #include "encoder_local.h"
+
+/* Number of octets per line */
+#define LABELED_BUF_PRINT_WIDTH    15
+
+# ifdef SIXTY_FOUR_BIT_LONG
+#  define BN_FMTu "%lu"
+#  define BN_FMTx "%lx"
+# endif
+
+# ifdef SIXTY_FOUR_BIT
+#  define BN_FMTu "%llu"
+#  define BN_FMTx "%llx"
+# endif
+
+# ifdef THIRTY_TWO_BIT
+#  define BN_FMTu "%u"
+#  define BN_FMTx "%x"
+# endif
 
 struct encoder_process_data_st {
     OSSL_ENCODER_CTX *ctx;
@@ -198,10 +221,8 @@ static OSSL_ENCODER_INSTANCE *ossl_encoder_instance_new(OSSL_ENCODER *encoder,
         return 0;
     }
 
-    if ((encoder_inst = OPENSSL_zalloc(sizeof(*encoder_inst))) == NULL) {
-        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_MALLOC_FAILURE);
+    if ((encoder_inst = OPENSSL_zalloc(sizeof(*encoder_inst))) == NULL)
         return 0;
-    }
 
     if (!OSSL_ENCODER_up_ref(encoder)) {
         ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_INTERNAL_ERROR);
@@ -264,7 +285,7 @@ static int ossl_encoder_ctx_add_encoder_inst(OSSL_ENCODER_CTX *ctx,
     if (ctx->encoder_insts == NULL
         && (ctx->encoder_insts =
             sk_OSSL_ENCODER_INSTANCE_new_null()) == NULL) {
-        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_OSSL_ENCODER, ERR_R_CRYPTO_LIB);
         return 0;
     }
 
@@ -527,7 +548,7 @@ static int encoder_process(struct encoder_process_data_st *data)
 
         OSSL_TRACE_BEGIN(ENCODER) {
             BIO_printf(trc_out,
-                       "[%d]    Skipping because recusion level %d failed\n",
+                       "[%d]    Skipping because recursion level %d failed\n",
                        data->level, new_data.level);
         } OSSL_TRACE_END(ENCODER);
     }
@@ -677,3 +698,161 @@ static int encoder_process(struct encoder_process_data_st *data)
         data->ctx->cleanup(data->ctx->construct_data);
     return ok;
 }
+
+int ossl_bio_print_labeled_bignum(BIO *out, const char *label, const BIGNUM *bn)
+{
+    int ret = 0, use_sep = 0;
+    char *hex_str = NULL, *p;
+    const char spaces[] = "    ";
+    const char *post_label_spc = " ";
+
+    const char *neg = "";
+    int bytes;
+
+    if (bn == NULL)
+        return 0;
+    if (label == NULL) {
+        label = "";
+        post_label_spc = "";
+    }
+
+    if (BN_is_zero(bn))
+        return BIO_printf(out, "%s%s0\n", label, post_label_spc);
+
+    if (BN_num_bytes(bn) <= BN_BYTES) {
+        BN_ULONG *words = bn_get_words(bn);
+
+        if (BN_is_negative(bn))
+            neg = "-";
+
+        return BIO_printf(out, "%s%s%s" BN_FMTu " (%s0x" BN_FMTx ")\n",
+                          label, post_label_spc, neg, words[0], neg, words[0]);
+    }
+
+    hex_str = BN_bn2hex(bn);
+    if (hex_str == NULL)
+        return 0;
+
+    p = hex_str;
+    if (*p == '-') {
+        ++p;
+        neg = " (Negative)";
+    }
+    if (BIO_printf(out, "%s%s\n", label, neg) <= 0)
+        goto err;
+
+    /* Keep track of how many bytes we have printed out so far */
+    bytes = 0;
+
+    if (BIO_printf(out, "%s", spaces) <= 0)
+        goto err;
+
+    /* Add a leading 00 if the top bit is set */
+    if (*p >= '8') {
+        if (BIO_printf(out, "%02x", 0) <= 0)
+            goto err;
+        ++bytes;
+        use_sep = 1;
+    }
+    while (*p != '\0') {
+        /* Do a newline after every 15 hex bytes + add the space indent */
+        if ((bytes % 15) == 0 && bytes > 0) {
+            if (BIO_printf(out, ":\n%s", spaces) <= 0)
+                goto err;
+            use_sep = 0; /* The first byte on the next line doesn't have a : */
+        }
+        if (BIO_printf(out, "%s%c%c", use_sep ? ":" : "",
+                       tolower((unsigned char)p[0]),
+                       tolower((unsigned char)p[1])) <= 0)
+            goto err;
+        ++bytes;
+        p += 2;
+        use_sep = 1;
+    }
+    if (BIO_printf(out, "\n") <= 0)
+        goto err;
+    ret = 1;
+err:
+    OPENSSL_free(hex_str);
+    return ret;
+}
+
+int ossl_bio_print_labeled_buf(BIO *out, const char *label,
+                           const unsigned char *buf, size_t buflen)
+{
+    size_t i;
+
+    if (BIO_printf(out, "%s\n", label) <= 0)
+        return 0;
+
+    for (i = 0; i < buflen; i++) {
+        if ((i % LABELED_BUF_PRINT_WIDTH) == 0) {
+            if (i > 0 && BIO_printf(out, "\n") <= 0)
+                return 0;
+            if (BIO_printf(out, "    ") <= 0)
+                return 0;
+        }
+
+        if (BIO_printf(out, "%02x%s", buf[i],
+                                 (i == buflen - 1) ? "" : ":") <= 0)
+            return 0;
+    }
+    if (BIO_printf(out, "\n") <= 0)
+        return 0;
+
+    return 1;
+}
+
+#if !defined(OPENSSL_NO_DH) || !defined(OPENSSL_NO_DSA)
+int ossl_bio_print_ffc_params(BIO *out, const FFC_PARAMS *ffc)
+{
+    if (ffc->nid != NID_undef) {
+#ifndef OPENSSL_NO_DH
+        const DH_NAMED_GROUP *group = ossl_ffc_uid_to_dh_named_group(ffc->nid);
+        const char *name = ossl_ffc_named_group_get_name(group);
+
+        if (name == NULL)
+            goto err;
+        if (BIO_printf(out, "GROUP: %s\n", name) <= 0)
+            goto err;
+        return 1;
+#else
+        /* How could this be? We should not have a nid in a no-dh build. */
+        goto err;
+#endif
+    }
+
+    if (!ossl_bio_print_labeled_bignum(out, "P:   ", ffc->p))
+        goto err;
+    if (ffc->q != NULL) {
+        if (!ossl_bio_print_labeled_bignum(out, "Q:   ", ffc->q))
+            goto err;
+    }
+    if (!ossl_bio_print_labeled_bignum(out, "G:   ", ffc->g))
+        goto err;
+    if (ffc->j != NULL) {
+        if (!ossl_bio_print_labeled_bignum(out, "J:   ", ffc->j))
+            goto err;
+    }
+    if (ffc->seed != NULL) {
+        if (!ossl_bio_print_labeled_buf(out, "SEED:", ffc->seed, ffc->seedlen))
+            goto err;
+    }
+    if (ffc->gindex != -1) {
+        if (BIO_printf(out, "gindex: %d\n", ffc->gindex) <= 0)
+            goto err;
+    }
+    if (ffc->pcounter != -1) {
+        if (BIO_printf(out, "pcounter: %d\n", ffc->pcounter) <= 0)
+            goto err;
+    }
+    if (ffc->h != 0) {
+        if (BIO_printf(out, "h: %d\n", ffc->h) <= 0)
+            goto err;
+    }
+    return 1;
+err:
+    return 0;
+}
+
+#endif

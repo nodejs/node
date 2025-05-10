@@ -1,0 +1,3 @@
+Content-type: text/plain
+
+Sample OpenSSL Data for CMS encryption

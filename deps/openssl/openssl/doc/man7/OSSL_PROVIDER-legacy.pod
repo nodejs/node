@@ -1,0 +1,135 @@
+=pod
+
+=head1 NAME
+
+OSSL_PROVIDER-legacy - OpenSSL legacy provider
+
+=head1 DESCRIPTION
+
+The OpenSSL legacy provider supplies OpenSSL implementations of algorithms
+that have been deemed legacy.  Such algorithms have commonly fallen out of
+use, have been deemed insecure by the cryptography community, or something
+similar.
+
+We can consider this the retirement home of cryptographic algorithms.
+
+=head2 Properties
+
+The implementations in this provider specifically has this property
+defined:
+
+=over 4
+
+=item "provider=legacy"
+
+=back
+
+It may be used in a property query string with fetching functions such as
+L<EVP_MD_fetch(3)> or L<EVP_CIPHER_fetch(3)>, as well as with other
+functions that take a property query string, such as
+L<EVP_PKEY_CTX_new_from_name(3)>.
+
+It isn't mandatory to query for any of these properties, except to
+make sure to get implementations of this provider and none other.
+
+=head1 OPERATIONS AND ALGORITHMS
+
+The OpenSSL legacy provider supports these operations and algorithms:
+
+=head2 Hashing Algorithms / Message Digests
+
+=over 4
+
+=item MD2, see L<EVP_MD-MD2(7)>
+
+Disabled by default. Use I<enable-md2> config option to enable.
+
+=item MD4, see L<EVP_MD-MD4(7)>
+
+=item MDC2, see L<EVP_MD-MDC2(7)>
+
+=item WHIRLPOOL, see L<EVP_MD-WHIRLPOOL(7)>
+
+=item RIPEMD160, see L<EVP_MD-RIPEMD160(7)>
+
+=back
+
+=head2 Symmetric Ciphers
+
+Not all of these symmetric cipher algorithms are enabled by default.
+
+=over 4
+
+=item Blowfish, see L<EVP_CIPHER-BLOWFISH(7)>
+
+=item CAST, see L<EVP_CIPHER-CAST(7)>
+
+=item DES, see L<EVP_CIPHER-DES(7)>
+
+The algorithm names are: DES_ECB, DES_CBC, DES_OFB, DES_CFB, DES_CFB1, DES_CFB8
+and DESX_CBC.
+
+=item IDEA, see L<EVP_CIPHER-IDEA(7)>
+
+=item RC2, see L<EVP_CIPHER-RC2(7)>
+
+=item RC4, see L<EVP_CIPHER-RC4(7)>
+
+=item RC5, see L<EVP_CIPHER-RC5(7)>
+
+Disabled by default. Use I<enable-rc5> config option to enable.
+
+=item SEED, see L<EVP_CIPHER-SEED(7)>
+
+=back
+
+=head2 Key Derivation Function (KDF)
+
+=over 4
+
+=item PBKDF1
+
+=item PVKKDF
+
+=back
+
+=begin comment
+
+When algorithms for other operations start appearing, the
+following =head2 titles are appropriate to use:
+
+- Message Authentication Code (MAC)
+
+- Key Derivation Function (KDF)
+
+- Key Exchange
+
+- Signature
+
+- Asymmetric Cipher
+
+- Asymmetric Key Management
+
+=end comment
+
+=head1 SEE ALSO
+
+L<OSSL_PARAM(3)>,
+L<openssl-core.h(7)>,
+L<openssl-core_dispatch.h(7)>,
+L<provider(7)>
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

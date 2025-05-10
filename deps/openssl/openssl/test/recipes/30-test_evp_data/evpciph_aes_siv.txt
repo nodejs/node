@@ -1,0 +1,3690 @@
+#
+# Copyright 2018-2025 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+
+Title = RFC5297 AES-SIV
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 85632d07c6e8f37f950acd320a2ecc93
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = 40c02b9690c4dc04daef7f6afe5c
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+Tag = f1c5fdeac1f15a26779c1501f9fb7588
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = 27e946c669088ab06da58c5c831c
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+AAD =
+Tag = d1022f5b3664e5a4dfaf90f85be6f28a
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = b66cff6b8eca0b79f083b39a0901
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD = 102030405060708090a0
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 7bdb6e3b432667eb06f4d14bff2fbd0f
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = cb900f2fddbe404326601965c889bf17dba77ceb094fa663b7a3f748ba8af829ea64ad544a272e9c485b62a3fd5c0d
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD =
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 83ce6593a8fa67eb6fcd2819cedfc011
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = 30d937b42f71f71f93fc2d8d702d3eac8dc7651eefcd81120081ff29d626f97f3de17f2969b691c91b69b652bf3a6d
+
+Cipher = aes-128-siv
+Key = 7f7e7d7c7b7a79787776757473727170404142434445464748494a4b4c4d4e4f
+AAD =
+AAD = 00112233445566778899aabbccddeeffdeaddadadeaddadaffeeddccbbaa99887766554433221100
+AAD = 09f911029d74e35bd84156c5635688c0
+Tag = 77dd4a44f5a6b41302121ee7f378de25
+Plaintext =  7468697320697320736f6d6520706c61696e7465787420746f20656e6372797074207573696e67205349562d414553
+Ciphertext = 0fcd664c922464c88939d71fad7aefb864e501b0848a07d39201c1067a7288f3dadf0131a823a0bc3d588e8564a5fe
+
+Cipher = aes-192-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfefffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 89e869b93256785154f0963962fe0740
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = eff356e42dec1f4febded36642f2
+
+Cipher = aes-256-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfefff0f1f2f3f4f5f6f7f8f9fafbfcfdfefffffefdfcfbfaf9f8f7f6f5f4f3f2f1f0
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 724dfb2eaf94dbb19b0ba3a299a0801e
+Plaintext =  112233445566778899aabbccddee
+Ciphertext = f3b05a55498ec2552690b89810e4
+
+# https://github.com/C2SP/wycheproof/blob/master/testvectors/aes_siv_cmac_test.json
+Title = Wycheproof Test Vectors
+
+Title = RFC 5297
+
+Cipher = aes-128-siv
+Key = fffefdfcfbfaf9f8f7f6f5f4f3f2f1f0f0f1f2f3f4f5f6f7f8f9fafbfcfdfeff
+AAD = 101112131415161718191a1b1c1d1e1f2021222324252627
+Tag = 85632d07c6e8f37f950acd320a2ecc93
+Plaintext = 112233445566778899aabbccddee
+Ciphertext = 40c02b9690c4dc04daef7f6afe5c
+
+Title = empty message
+
+Cipher = aes-128-siv
+Key = 2b27e429fb6c02678e589ccc4437c5adfb44b331ab6d21ea321727e6ec03d354
+AAD =
+Tag = b2b2354e3724dcdaa85ecf029b49a90c
+Plaintext =
+Ciphertext =
+
+Cipher = aes-128-siv
+Key = e40992eb4f649e5d49134652aecc24bafa6b45ce8dd9e9d371ede7d5de84fa72
+AAD = 8268c5194a71aed0fc1dafe3
+Tag = 92bc07ee200fbd488b7f70a10da26a21
+Plaintext =
+Ciphertext =
+
+Cipher = aes-128-siv
+Key = 99037935e620da1d67faf1e26d5a0e2c5ac2eae5eec7cbb7b7a613056f6719e3
+AAD = 24ab40e7966c5bfe8a5d2b0a6a9765
+Tag = f44934d6f5ba77122f198599cd0e5e52
+Plaintext =
+Ciphertext =
+
+Cipher = aes-128-siv
+Key = 7bf9e536b66a215c22233fe2daaa743a898b9acb9f7802de70b40e3d6e43ef97
+AAD = 9ffff196befb5ffba01afa9235418d57
+Tag = c11ab0ae193018d2c9c7985aec3f8a5b
+Plaintext =
+Ciphertext =
+
+Cipher = aes-128-siv
+Key = ea7081db53ce49559f9fd2b53e00f91b68c2bdba946961da1a5bc70918297a43
+AAD = a9efd155159b533f2b649b2e5fbf87e6a2c11ee8
+Tag = cf52a3c9e2d3d99a66f74135f39e28bb
+Plaintext =
+Ciphertext =
+
+Cipher = aes-128-siv
+Key = 1e225cafb90339bba1b24076d4206c3e79c355805d851682bc818baa4f5a7779
+AAD = 896dcdb367f3c76d60093dc5ae09bc4f30e5cb88e3434e6eb0f0700ac752cd97
+Tag = 8f603b65e767ef178b4dd11db6c114c1
+Plaintext =
+Ciphertext =
+
+Title = message size divisible by block size
+
+Cipher = aes-128-siv
+Key = 612e837843ceae7f61d49625faa7e7494f9253e20cb3adcea686512b043936cd
+AAD = 865d39ae9b5e9ff8d6308e00208745bc
+Tag = c79c86cd7509e60a16ca8cec6bcaa1c5
+Plaintext = cc37fae15f745a2f40e2c8b192f2b38d
+Ciphertext = 8fbd6099718991fe775bf5a659d30a24
+
+Cipher = aes-128-siv
+Key = 96e1e4896fb2cd05f133a6a100bc5609a7ac3ca6d81721e922dadd69ad07a892
+AAD = 8ee21f1a5e2b3f8b8f2064e5cecac81d
+Tag = 849195031e8927a1af4f64cbdd804846
+Plaintext = 91a17e4dfcc3166a1add26ff0e7c12056e8a654f28a6de24f4ba739ceb5b5b18
+Ciphertext = 1c03598bfba441312776a4e8ac959bee44c521801287a2fd95e2329b1c694441
+
+Cipher = aes-128-siv
+Key = 649e373e681ef52e3c10ac265484750932a9918f28fb824f7cb50adab39781fe
+AAD = 3a8363f51bce891eba7bcc0aa4311e10
+Tag = 9f66765a019277a7a7acb92e80f8300b
+Plaintext = 39b447bd3a01983c1cb761b456d69000948ceb870562a536126a0d18a8e7e49b16de8fe672f13d0808d8b7d957899917
+Ciphertext = aa724c92560951eb09d855f471fe1b589928e51f7a8a4bbc6cc9f55fabb2eca2ebb4faca14d1ae20cfdc31b9602e9891
+
+Title = small plaintext size
+
+Cipher = aes-128-siv
+Key = 298962335a075e9eacb7a7627beafa4ee5a02242423cdfb0b4f106eb61cf5663
+AAD = 4c375fd3c4d45c5cfff16d55
+Tag = f5c8155c7dd7f47c61d980ccd2175beb
+Plaintext = 49
+Ciphertext = 9b
+
+Cipher = aes-128-siv
+Key = ea1a7831e6fd080456507a996b6d71668c2cec43c757539c3b5342fadbe64dc4
+AAD = 599f61c649e7cc5cbbd7a78f
+Tag = 130e8de11080a3b27cc1ef1272586c24
+Plaintext = 7c0c
+Ciphertext = 717c
+
+Cipher = aes-128-siv
+Key = 009e8288da0a3d22aeaa231fbbfde9ed901d22df9f3ab707e15aa2fc390d0679
+AAD = 9a582245b46c6170e3f5ca53
+Tag = b98902dc89e6811dfba5eafb1561186d
+Plaintext = 2f5c53
+Ciphertext = c1849e
+
+Cipher = aes-128-siv
+Key = b6202ef3dad5a42667f020f0e4bd89d845711da77f98c747eb914de869638bcf
+AAD = eab41f3417c79bc7262c7b64
+Tag = cd824717886f3363622937bcd118960a
+Plaintext = 41ec7178
+Ciphertext = 0e2605fe
+
+Cipher = aes-128-siv
+Key = fa82aef8c8d6e3cd8f8d053ea6b1b07ca3bc0152506d464926630d6fd83e8a72
+AAD = e9a4b08a8e2ebbb13f82f870
+Tag = 85288834b25f27e96083e2f360d3c7e7
+Plaintext = ebe656a97b
+Ciphertext = 486519b4f5
+
+Cipher = aes-128-siv
+Key = 4ed237ae3d066df766bea923116bf9d2ce6f63d34a4f56ed8631baccabd70647
+AAD = fca537f50d5fce3cdc994b70
+Tag = 9acd6ee8a827c2c5d0da7bf7815dbd85
+Plaintext = 82f0d49b77a5
+Ciphertext = 11bd8c5a79c1
+
+Cipher = aes-128-siv
+Key = 56df5d41a110a63acc7b7c045be9f35a8f2faf16d83fb559268eb8963484f552
+AAD = 95dceafcd426a9bcbe99b842
+Tag = f7c739f6a0e20e94265ecbbdaec36cd5
+Plaintext = 1d635248014c3b
+Ciphertext = 97088967917d47
+
+Cipher = aes-128-siv
+Key = 2e94a84c78be80cd598366058d4f6cdf8095666dcac7a00ad832d9f33e20d13c
+AAD = 0c784125715b7f9b1067b077
+Tag = 163833ac904d30589cad9a002bd702f5
+Plaintext = b978587bf028558d
+Ciphertext = c7809b04693fd8fb
+
+Cipher = aes-128-siv
+Key = 60bf711a162cf6a1b108d1351f9fd2ee5022a9df3c5e494268226b17518a93b7
+AAD = 53353976f18ae8c8cbc7e066
+Tag = 87a37e3de3690b11fba089c068e1c1ea
+Plaintext = 078a6a3d7d1d312004
+Ciphertext = 17a4d05ecfb0a97631
+
+Cipher = aes-128-siv
+Key = 5aadf8dd380e4287582155f11165b31dc8ed76946889a2bb8633990fb62fc46f
+AAD = 0baed8c06718697b4e845acb
+Tag = 1ee7891afbc92d52282eb3fdada6f886
+Plaintext = 435e101a1a4416abe5ce
+Ciphertext = ae613f6d60e5d8c1a3a6
+
+Cipher = aes-128-siv
+Key = b099c4a613f5efda82b069d9a76c02a4049c12310e25f272dbd9d155aedd8d52
+AAD = 30699dc6f497215acda15441
+Tag = a78a01331bb6da90967319859434dbfd
+Plaintext = ccb3e3e1bbf6c3b03c257b
+Ciphertext = d2f9b9c68265c190e28ba3
+
+Cipher = aes-128-siv
+Key = dd0655b5099c4acb60c8afacede1b6ac04283c4fcdd1fee2f5aaa6d86bf6c025
+AAD = 164400936032de67a4660b87
+Tag = 1a104a2de459a3aa9f7b501438b12060
+Plaintext = 6c9a0029bfc98973676d4208
+Ciphertext = 2de27a8d259ae4f58ef50294
+
+Cipher = aes-128-siv
+Key = aa6285693fc40a59ebc2bdab16f1e9111ec794ce5ec63b8f89fafe1b7fedfacf
+AAD = 009002fcf132820ad3838938
+Tag = 3d8175b843301690089b8aa54136d698
+Plaintext = 9e9813cd498166220bd0d49da9
+Ciphertext = ccd3d88a5d02a3a65f2b115b00
+
+Cipher = aes-128-siv
+Key = 18a4688da2ad1e112ea56ef6da9107e0f1094eeed3f6b868202952d56e0f8239
+AAD = 52dfc32bab8bc1502d18a334
+Tag = 9fc042a08918741e2b7beab9cd79d762
+Plaintext = 2e7a1b4c808c1cf4e64e8c5ce54f
+Ciphertext = 6214d8960091cf305256e549ee36
+
+Cipher = aes-128-siv
+Key = 95b330aa5fffa6c0e29fd6fa0debdcb9cf6b448820bea24875089ec8ca5a2387
+AAD = 4dbf5c20ce4caeedfefcae1d
+Tag = 91a7f5c4585351b8b76d4a4836a3199a
+Plaintext = c96596ebba6f89761b9d14dfcc8fb4
+Ciphertext = a761e5f9ee1cdd84258a6a3696f7e9
+
+Title = plaintext size > 16
+
+Cipher = aes-128-siv
+Key = b3b7c2c6d3d80918218afcd8bf2a71cf0220e2e8084ead8ba1abfb893ae36d40
+AAD = a5c2f6cf309f29c25f5ce35d
+Tag = 96bf5dd0c28dbd6072b70e2b5b72d3eb
+Plaintext = dbcf98254157727c35f367fe6e15a2d089
+Ciphertext = 9f41adc6d5d877e808fbf15ed4117b5007
+
+Cipher = aes-128-siv
+Key = 2700a20ef5c3eb4df123568d0df042c35d32b42437efb1032a6a1fe5359767cc
+AAD = e40e09fea86442dcf2cd176d
+Tag = be366ca76d9afe36c7d017c1221e1be4
+Plaintext = 3de21865217c94c4f82208ccd62ad57f13ba1f5e
+Ciphertext = 1a594e1d853574c06d235775b71cc0b56a7da631
+
+Cipher = aes-128-siv
+Key = cc5d599aecbed35bb4e13a2f79586dfe42e6382e8fa8326b674f34716d6376f2
+AAD = 34eafb781863d85649f8c9b0
+Tag = 73fb501f903d90c35039c065563a0b8f
+Plaintext = 8a69fb2ab53b995daf2cd43fc316690f71e171ffc5ab84f68bae3c038a9fd7
+Ciphertext = 274610f05b8d988a193460658d325a255e808847f3faf937e0354a93201ab0
+
+Cipher = aes-128-siv
+Key = 71a7adc7222f471c28f682c12d45feed45556000a986035922924ad154ba5fa5
+AAD = 46a65672d2699267ab27da82
+Tag = b30ec3b9c85402c356728391acf04fcc
+Plaintext = 227e714e3efa84e48049142edaa311dab285407f9b628b146f1d6132c2500ca28497fbd6e386679c
+Ciphertext = 0d02ba85b6a9e90cf846155d4ab3158952bd1791885370bf23ba26d8d23359637b6e24e8763ed107
+
+Cipher = aes-128-siv
+Key = 83bc39bf7b5faaf0f9223ed2aa761ab32c04993e3fbccd34ee616ffd28ce5766
+AAD = ed9ec561ecf5e289a1516c9f
+Tag = fafea55bba0680a510ce095d5c8a40a8
+Plaintext = f70ef1598f403902dcab4cc23bb1265f34e825b99abc61b26a22b9bbf478c3c1e61e67e98201bc564d022b87b4106aad0c4ca2d30e8927fba5b52a76971ef79a92a1eb6cf4ef87aea6b551567a2c4c41
+Ciphertext = 4a76071b8938dcfe99c8c73b049230ac52df7e09769852a6057353a7df7b8d18882ce5369c6bb855f271d88108719a1b5ea5765f549c282639c8bfacc34b5b10991b8fbdae2e42429fb7f0554e0e5611
+
+Title = edge case SIV
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 1d7f9cc81b316c518efcd7927e8f7b88
+Ciphertext = f0dcac3115ddbd3d8ec28822e54088d0
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = 00000000000000000000000000000000
+Plaintext = f16d4958e933778c54aabcd6fda1cabc
+Ciphertext = 1cce79a1e7dfa6e05494e366666e39e4
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 110d3aa6f558c30977870672804064e0
+Ciphertext = 01f74b8e43a262001d8357f95489432e
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = fd1fef36075ad8d4add16d36036ed5d4
+Ciphertext = ede59e1eb1a079ddc7d53cbdd7a7f21a
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = c83e256ba8baec0938e51a60bd819cc1
+Ciphertext = d8c454431e404d0052e14beb6948bb0f
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = 242cf0fb5ab8f7d4e2b371243eaf2df5
+Ciphertext = 34d681d3ec4256dd88b720afea660a3b
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = d8c89e8ece83de437eac13ca7b1ebb2c
+Ciphertext = c832efa678797f4a14a84241afd79ce2
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = 34da4b1e3c81c59ea4fa788ef8300a18
+Ciphertext = 24203a368a7b6497cefe29052cf92dd6
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = b076687f33460af32b7f0edc3304bfff
+Ciphertext = e2149531223f5703d3cce887d0dfe544
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = 5c64bdefc144112ef1296598b02a0ecb
+Ciphertext = 0e0640a1d03d4cde099a83c353f15470
+
+Title = Flipped bit 0 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 656a1c3efeb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 45c0cc09b8cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 61e80297b0ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 10ecf972c00209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 1 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 666a1c3efeb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 46c0cc09b8cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 62e80297b0ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 13ecf972c00209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 7 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = e46a1c3efeb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = c4c0cc09b8cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = e0e80297b0ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 91ecf972c00209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 8 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646b1c3efeb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c1cc09b8cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e90297b0ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11edf972c00209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 31 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1cbefeb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc89b8cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80217b0ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf9f2c00209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 32 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3effb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b9cc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b1ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c10209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 33 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efcb7d2589bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09bacc0c37f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b2ba41c54eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c20209652ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 63 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2d89bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0cb7f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41454eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209e52ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 64 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589afdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f9626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54fda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652fa6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 71 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2581bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c3778626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c5ceda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c0020965aea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 77 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bddd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8426b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54efa58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652e86ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 80 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd1892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626a36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda59c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ee4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 96 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892dc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36dbb95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c469502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3a46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 97 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892ec86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36d8b95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c46a502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3946ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 103 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd089acc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b365ab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c4e8502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4abb46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 120 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892cc86922
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36dab95df2
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c468502b33
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3b46ea22
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 121 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892cc86921
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36dab95df1
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c468502b30
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3b46ea21
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 126 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892cc86963
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36dab95db3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c468502b72
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3b46ea63
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 127 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2589bfdd0892cc869a3
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0c37f8626b36dab95d73
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41c54eda58c468502bb2
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209652ea6ef4a3b46eaa3
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 0 and 64 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 656a1c3efeb7d2589afdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 45c0cc09b8cc0c37f9626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 61e80297b0ba41c54fda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 10ecf972c00209652fa6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 31 and 63 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1cbefeb7d2d89bfdd0892cc86923
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc89b8cc0cb7f8626b36dab95df3
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80217b0ba41454eda58c468502b32
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf9f2c00209e52ea6ef4a3b46ea23
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 63 and 127 in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 646a1c3efeb7d2d89bfdd0892cc869a3
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 44c0cc09b8cc0cb7f8626b36dab95d73
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 60e80297b0ba41454eda58c468502bb2
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 11ecf972c00209e52ea6ef4a3b46eaa3
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = all bits of tag flipped
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 9b95e3c101482da764022f76d33796dc
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = bb3f33f64733f3c8079d94c92546a20c
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 9f17fd684f45be3ab125a73b97afd4cd
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ee13068d3ffdf69ad15910b5c4b915dc
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = Tag changed to all zero
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = tag changed to all 1
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = msbs changed in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = e4ea9cbe7e3752d81b7d5009ac48e9a3
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = c4404c89384c8cb778e2ebb65a39dd73
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = e0688217303ac145ce5ad844e8d0abb2
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 916c79f2408289e5ae266fcabbc66aa3
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = lsbs changed in tag
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 656b1d3fffb6d3599afcd1882dc96822
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 45c1cd08b9cd0d36f9636a37dbb85cf2
+Plaintext = 3031323334353637
+Ciphertext = 2aa03ceafa0e45e6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 61e90396b1bb40c44fdb59c569512a33
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = da4e0efa57352f1a114e4b3f0cb234c6
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-128-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f
+AAD =
+Tag = 10edf873c10308642fa7ee4b3a47eb22
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 59e6faebd6af7063c8660362866f1b2af53a989e
+Result = TAG_VALUE_MISMATCH
+
+Title = empty message
+
+Cipher = aes-192-siv
+Key = d3d58a2f21e62f5095542e618168ef040922ab7d80b3840055eb9caf5726a8d4a7f071dc40ddb320effc094211735090
+AAD =
+Tag = 59e0a9a04cdb1d9d7bee6be8bb06fd61
+Plaintext =
+Ciphertext =
+
+Cipher = aes-192-siv
+Key = ad0f7862386c35fee128ae7ff18db084a0f457fcfc7fe1c5370b145f7fa645a97ba3eb4f90e18941b18e8d89494ec796
+AAD = b402ae880487cfaa9314549b
+Tag = b50be5e46a3912dcacff27115e209e24
+Plaintext =
+Ciphertext =
+
+Cipher = aes-192-siv
+Key = 278e770ca600bb23f5d8725bfd0cfc05b91057e79c890a697d41e9ff687c6a14ea48fb228d7f95ab4a93c5ba9d966262
+AAD = 3f33c781ea57ec1c298f402cbbd27e
+Tag = 2aec07db61e8e403fa04659921ccaf65
+Plaintext =
+Ciphertext =
+
+Cipher = aes-192-siv
+Key = 5ad985b9bcb461f9115937b6bde7073fbed9e8bf32245afe5836e8c2f67b3999266ba0d8d9eba6fa978c47ea9ef4690a
+AAD = bd2aa07a70aca69c4621d91a6686f42a
+Tag = 863161c67e86648340fc5eab9fb728a7
+Plaintext =
+Ciphertext =
+
+Cipher = aes-192-siv
+Key = b65c2a4f88f733142cc66ed9aff47e77f3a6339d30e030290d34be40dfa7b33e37bc2f48ea8617f4e7d60c28c0c01a0d
+AAD = 9ce588daa79d6825305a97572d27674a9602bfeb
+Tag = 4c9cb52e91ee8fd784e9901b2bbfd07e
+Plaintext =
+Ciphertext =
+
+Cipher = aes-192-siv
+Key = 4cd9d4d729792e6a599bd59c330ae8a4df4077225c9c633cb59190f3a5d1150fdc38a7fbc687516f82d6354e57281c1a
+AAD = 960dbaaff375101529f193a5b7adc2cd95a36b7222df7e9f6fbf3110e16462a1
+Tag = fffc486f0299703902926186e43932d0
+Plaintext =
+Ciphertext =
+
+Title = message size divisible by block size
+
+Cipher = aes-192-siv
+Key = ca9db62214c3afab385b9086f1cb90d17195d495ef47642dbad06f4e7d0bab136c77885029ad442b30c34c8b5290e7d0
+AAD = d4dbfdce11f1147e29dd062ea3bbbd17
+Tag = a4e08bdd8ab8cbef46e0fdb8a7ca1097
+Plaintext = ded5a13d759903ecd36cb238527776c6
+Ciphertext = a8f963e45e554a5882496270f9fd6de8
+
+Cipher = aes-192-siv
+Key = c4bb58d73a61eeef0ec23490dc3c3a3e140244c9be88209658cc5654a996db2372c2212ffdc260bbdb92a520c86f96d8
+AAD = 2e4b50221284bc07d7e30b1a6621676d
+Tag = 0131705a9a6c645f13fe4679bd03daac
+Plaintext = d0535403fed2c1dec9f858eebd688afe4d0010b2823275d1bacfd564c074415f
+Ciphertext = 234bc11db1f0941be0788c1c14bbf95ef1dbfbdf5af786a5a5a3a7d4f35fd169
+
+Cipher = aes-192-siv
+Key = 9eae72a3964bdf14adef8616aa5441577b7bbc324652516b4c29a7b0f3bfa719be49e3d2ae6297588ada652eb45b0a00
+AAD = 999a35705530c2f6a7f2427d6b258836
+Tag = d237a9dd9ea0f70ebc5526fd5e414f31
+Plaintext = cd9bfe9821b1a5895737a827b41e0ee271ab2687128bb87f173709b73bf18c7c25822f32282895ca8935db00a1d171db
+Ciphertext = 8c8a016bc6ecbcb3de5f0aff9330259e67b4984f13fb7e904ae8ac91d8e35faf41ad860bc9423d2ef596c13e15025cdf
+
+Title = small plaintext size
+
+Cipher = aes-192-siv
+Key = ba783a715ff6ee6d71e3a4a7adb6356687db12cc2954807099f97471c951c7f0c33571d3334d111c4ea33a12365c0061
+AAD = 06b2cd261a3508a7bfd1c049
+Tag = 002abeac978f66d934b9ed06f215c495
+Plaintext = 7e
+Ciphertext = 1d
+
+Cipher = aes-192-siv
+Key = b5ba35a597be37f8f8168a40e9f47b96077ceced6ac0968a4e5ffabc402199267bcd4f740640c6877441c63e8015d86c
+AAD = 90f605a2cf3ff6e79d6ad4b9
+Tag = ae43eb59494a5fe7a7cac8d5d20f7d40
+Plaintext = 5bff
+Ciphertext = 177f
+
+Cipher = aes-192-siv
+Key = 17a44937a1f8b8029a7f64137eaa2d7de950b49b0ef2d83994151c7b9dde2e87c5aa3debfa0ad9f028260c6dc2fc7e01
+AAD = 80235b12c840e3fd50dc62fd
+Tag = 6b8c54cd6d99f5470a2461aef614012c
+Plaintext = 8b2a68
+Ciphertext = ee7341
+
+Cipher = aes-192-siv
+Key = bff684f086ef3314211ba782a2e7e75a60a9a3df9fc505057f54e2b264fbe2e5eae299879fccd26ca39d1e33b883966e
+AAD = 43634a3668f78c0b00597166
+Tag = ad0d302a322ca73b5514d8cfd6d40478
+Plaintext = 41a1241d
+Ciphertext = fc60aee6
+
+Cipher = aes-192-siv
+Key = 379c425581ca8094e47d1ee49fe9a5dd3dd8d68c6c85f8b4cb56849e99698ee73332c8b0cc6da0627c95f2de9ddd0871
+AAD = 26306f1d6a4316522a928715
+Tag = 717e9e25286ac7eb4d5aa50e613046c4
+Plaintext = 22faba3076
+Ciphertext = 296f693bf4
+
+Cipher = aes-192-siv
+Key = 0f11a54e9f03071828944e39a3f5a5538c4c94122e757aa7062afdb90d5e8b4aeb41e681818a149831ab7b25e2ca3b96
+AAD = 8ff666163c2af99f3e653b38
+Tag = c11178fb46a4334df8044ca1746ddd12
+Plaintext = 2ef90d77c725
+Ciphertext = 9ca6185d21e1
+
+Cipher = aes-192-siv
+Key = e959e0c14f3e0d8dd44162d27f4c333a337332550167731949c6732b23a5dbd9aa3dd801b66543755474f44774e5d823
+AAD = e5cb907e8df42f0e568e588a
+Tag = 533fa1781af3a3679e5779c9c7c727fa
+Plaintext = 8f1dbfb8c9dd6a
+Ciphertext = 5a1d20d7a89f6c
+
+Cipher = aes-192-siv
+Key = fe6412c43463c22b98992f8c319b662718255d12277ce62e56ba258ccc7a4694121e6912ed745b4a6e12ff9d38c86ef2
+AAD = 825d771373d6e019043dd2a0
+Tag = 0528c021158609e07d3c71fd363365a6
+Plaintext = 3da09c275906835f
+Ciphertext = 44ca61b932c161ba
+
+Cipher = aes-192-siv
+Key = 71002b321b1e924a45d97302a08f2361af1d2093faf661f04ab47ecca9f5ec9a35be3ccff8a4aed1ff658d195c05aed7
+AAD = 987604cee29b9ee32f26f332
+Tag = 4f4d3533c0a6d2302cc3ce547ca78f1d
+Plaintext = cf1e93a067ed6b4f26
+Ciphertext = 6dce6f333cca0fe889
+
+Cipher = aes-192-siv
+Key = dff1d025a8b62dfbe8fd7d0480e572f1c5e125c1ab4c148e37ff9a8ec5d8a4cf35bc304445be3bc45ed37f92e032af14
+AAD = 80b9534f1e83598235c85690
+Tag = c4c97f0c3530981bcade42a174a65038
+Plaintext = b81cc3a382a1ad29c1dd
+Ciphertext = d8925ed8a5decee8a7c6
+
+Cipher = aes-192-siv
+Key = dae6920703b80500b4197269faf5d74de8e610415e194b423080ebaf6d99873dc307dc4f6d9f32ad0ebad8ad7852690c
+AAD = 1b7a5ce2ff405b019125910b
+Tag = 2d60ae19a38f400e0ed78b65db3df852
+Plaintext = 962c7c7ca5bdfcbcb3eba4
+Ciphertext = f41f0d1e22c917b42e7c5a
+
+Cipher = aes-192-siv
+Key = e69ea366fd385e0ed8b9cbb01700654fa28add8e56b7ea683e1fd718511ab0fb22dcd710c530e00fb66f4584fa21e9e6
+AAD = b55d19772f2776772c04078a
+Tag = b97290f5f225d05b40704c53ee8fdfcf
+Plaintext = 3c32cafeedcce54108e39588
+Ciphertext = fd972185aa96d4db4b8ddb16
+
+Cipher = aes-192-siv
+Key = b60b83856f56cdf89027460a76993fdbde0f2ab01e9dde2fa7c27ef47155ec7caba892b27fd9a31e8923bfc44794cd71
+AAD = b60c69a4befed39eac27790b
+Tag = 0afe675b5b92febddc6bd6d450715ad4
+Plaintext = 550d0e8b8373a27e4072a5b76c
+Ciphertext = da97711bfbf3465da408517401
+
+Cipher = aes-192-siv
+Key = 859698a852a131a3804838f3d012d6088e135b6db160b2ac68e6dfa6ec330dc0d682e406c87c15b9a74affe441749495
+AAD = 29d834bc7bdd2a3e95ae8308
+Tag = 92e143e457be47a18ca6827811320ce9
+Plaintext = c969bd4b5acf1f7b500f8f21f3c9
+Ciphertext = c70a1b4e0ef64cf3658b25cd8f51
+
+Cipher = aes-192-siv
+Key = ebe1c273ba54b877b937e9906c4063e188efd57bd3a32be825369380f1b9f6b8b6a0c2ab1390e589f6101c5ffb7460c7
+AAD = c3f0f5c438de5fd85b7a21af
+Tag = 2eea0115c34a461d4de5de4a41b9654b
+Plaintext = e8d7ac78d2805bfd656634d19b5834
+Ciphertext = 8aa87b4cc944c05057f5b306942a0f
+
+Title = plaintext size > 16
+
+Cipher = aes-192-siv
+Key = 80d50fafb3ede5ddbb5058827303a098bf213e47dcff12ea5338a2a0f914d84bff58c8c69c3b151d6dc380fd8f3e4178
+AAD = b49b12ba140fa8d794a31738
+Tag = adc724b7fabbad1036ded152b968e557
+Plaintext = 340612da2d2dbbd25d7fa05c775a6ecfa8
+Ciphertext = a4a1b3f5014f42f84a21ca45727f4b4339
+
+Cipher = aes-192-siv
+Key = 5f6bfe19987d5bf6471dd9e436094f7fe33f8acca3b8a41e277861e202bd7262fc2b0bd3df9b35fa2fc3c579620f00eb
+AAD = b96c8682cd3ce676b0d79865
+Tag = 8fd1214e80782d7c14007d037feb1ab1
+Plaintext = 1485126d0476bb4b86d087d1892632b53cb4f8a2
+Ciphertext = 81fdcb20985887b5ee8d4acf5589924be644947d
+
+Cipher = aes-192-siv
+Key = 9ea37352e41b57d61ed837b2ace481870d2413d92bf00f30dbb8fe8d250b3cebd0f64d714cf61a0533d02d372284c6c3
+AAD = 0f1eb4eee461615bc0be8474
+Tag = 0da4c7885ffc4125878efe1d14eb5f64
+Plaintext = 80d977965a880bc6bb5e1cc92f234771adb61e7ae7198844623c6b1d1b54ec
+Ciphertext = 740bcaed915088806c89fb2efdde2a5b0d89aeef6a2324ba2626b42113ee27
+
+Cipher = aes-192-siv
+Key = 25b0b404bb1f78446d0e5cde012ee5832cb403398a3e66e9b5a244b59d8994ee10184a5776f3578faab830e865f8133c
+AAD = 7fe497bacf30af3a85662aa1
+Tag = b44039f1e5ba808ca055aea6bc2d819d
+Plaintext = b1b197cd7ff68b62e274f5d1046f42f9817163f0a105a0fb7736fa9e5e8f76944a22282af480ee79
+Ciphertext = 388e3c271cd97c046061e57223bbc2a17aa9b368d5cf281de46f48b34d179c16cc9e9d4600a87af4
+
+Cipher = aes-192-siv
+Key = 7e225cf2004a28a091986f131fd43ed111c0693e63433ffc9dad9029c535096397636e13296eb62143162643b13c7546
+AAD = 01685c58b14805d636541179
+Tag = aa3d2cd732974b733597a369d47a6801
+Plaintext = 81c8a10fcd668100dc762125e03627ac4e68d34c72568be438a7a068c27e2f12e2f17823e41fdd13e53616c622d4f320a38f97c2edead9800ed1091c303f10d172a284284d86708e53dedc82f6a7366b
+Ciphertext = 32dd5a944431231e6f77122d40ae70c5d032cc7d62208f428e6a931c7da6e88364d5ce1a4d9403436740b9e714a2c3b239febe6a6a7b42f78894442c912e6a9c22ea9548ef85540ca76d7c6df42b6534
+
+Title = edge case SIV
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 05ae1ded78b927e7bf5560571e177760
+Ciphertext = 81460aba44a680fc6c776c00a1e94b6b
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = 00000000000000000000000000000000
+Plaintext = 11a7fae3b1b8297b31bdea77a8d6d67c
+Ciphertext = 954fedb48da78e60e29fe6201728ea77
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 3de1fd2ff8d5260005edbf9b59b6cf06
+Ciphertext = e8a56dbae884e990cc0df180d5e456ba
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 29e81a2131d4289c8b0535bbef776e1a
+Ciphertext = fcac8ab42185e70c42e57ba06325f7a6
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = b3c75b1d29b3d5d09501c429c3b8faf2
+Ciphertext = 6683cb8839e21a405ce18a324fea634e
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = a7cebc13e0b2db4c1be94e0975795bee
+Ciphertext = 728a2c86f0e314dcd2090012f92bc252
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = 6a142a8909ed51e7b2d77fd071f230df
+Ciphertext = bf50ba1c19bc9e777b3731cbfda0a963
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = 7e1dcd87c0ec5f7b3c3ff5f0c73391c3
+Ciphertext = ab595d12d0bd90ebf5dfbbeb4b61087f
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = e7202abbfe6fcffa7887a7ef06840040
+Ciphertext = a0d032efc9533bf7bb8ac7af5c9c7cdc
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = f329cdb5376ec166f66f2dcfb045a15c
+Ciphertext = b4d9d5e10052356b35624d8fea5dddc0
+
+Title = Flipped bit 0 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e94dda18e98cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a359304879d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e98ecb00ac9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c259760003211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 1 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ea4dda18e98cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a059304879d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ea8ecb00ac9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c159760003211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 7 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 684dda18e98cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 2259304879d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 688ecb00ac9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 4359760003211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 8 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84cda18e98cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a258304879d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88fcb00ac9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c358760003211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 31 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda98e98cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a25930c879d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb80ac9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359768003211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 32 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e88cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304878d74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ad9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760002211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 33 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18eb8cc8139cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a25930487bd74e14fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ae9a462cdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760001211319acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 63 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8939cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e94fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a46acdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211399acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 64 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139dbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fcf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdde6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319add9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 71 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8131cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e147df520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462c5ce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c3597600032113192cd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 77 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139c9dfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdd520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdcc6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acf9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 80 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfc2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf521588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6252b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d3d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 96 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2270d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588c3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b1a4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8fb260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 97 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2273d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588f3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b194951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8f8260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 103 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd22f1d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520580d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b9b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d87a260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 120 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2271d8bae1
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588d3888f1
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b1b4951e5
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8fa260845
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 121 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2271d8bae2
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588d3888f2
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b1b4951e6
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8fa260846
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 126 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2271d8baa0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588d3888b0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b1b4951a4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8fa260804
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 127 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8139cbdfd2271d8ba60
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e14fdf520588d388870
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a462cdce6242b1b495164
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211319acd9d2d8fa2608c4
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 0 and 64 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e94dda18e98cc8139dbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a359304879d74e14fcf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e98ecb00ac9a462cdde6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c259760003211319add9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 31 and 63 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda98e98cc8939cbdfd2271d8bae0
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a25930c879d74e94fdf520588d3888f0
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb80ac9a46acdce6242b1b4951e4
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359768003211399acd9d2d8fa260844
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 63 and 127 in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e84dda18e98cc8939cbdfd2271d8ba60
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a259304879d74e94fdf520588d388870
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e88ecb00ac9a46acdce6242b1b495164
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c359760003211399acd9d2d8fa2608c4
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = all bits of tag flipped
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 17b225e7167337ec634202dd8e27451f
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 5da6cfb78628b1eb020adfa772c7770f
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 177134ff5365b9d32319dbd4e4b6ae1b
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 3ca689fffcdeece653262d2705d9f7bb
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = Tag changed to all zero
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = tag changed to all 1
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = msbs changed in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 68cd5a98690c48931c3d7da2f1583a60
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 22d9b0c8f957ce947d75a0d80db80870
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 680e4b802c1ac6ac5c66a4ab9bc9d164
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = 43d9f68083a193992c5952587aa688c4
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = lsbs changed in tag
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e94cdb19e88dc9129dbcfc2370d9bbe1
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = a358314978d64f15fcf421598c3989f1
+Plaintext = 3031323334353637
+Ciphertext = 7ab3dd3c6c31a386
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = e98fca01ad9b472ddde7252a1a4850e5
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 738b595aebf6ee3e7be424bfb51bfdee
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-192-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f
+AAD =
+Tag = c258770102201218add8d3d9fb270945
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = 8b0b5df8332150ff0877d85471d540c4cff1e183
+Result = TAG_VALUE_MISMATCH
+
+Title = empty message
+
+Cipher = aes-256-siv
+Key = bc7635c1fd566aa8357fd103714bfaee1c9e5b3c578b3980401a981030254a54b1756a8c96e600b7252fd0aab12f39d115d256b3f3e7c2c41a7fece72ba7c3c4
+AAD =
+Tag = 44b1c6fe8a8c07dee5377b161f283c31
+Plaintext =
+Ciphertext =
+
+Cipher = aes-256-siv
+Key = aff6388fdd2908e0c3b610e3dcd410c8146a268d6befd5c45ffdd23508b5b311cc3a9d8f838f456436b289018682151dd57d8d65d1a823c06eca8ab8ee01da01
+AAD = d0bb2949a411e22d32964526
+Tag = e288d802a0e56ed7544a2e5775459389
+Plaintext =
+Ciphertext =
+
+Cipher = aes-256-siv
+Key = 484261ebf7e1fb66e0bcafe8f4ccf9c5accc908fdb23eb7c5254d614072f26e106b34501d13c1dad1f14648c6a142132dd7f2f1268dd6b70fbcde2fe98f03245
+AAD = 1d5ce9288627a12f8f5d809167a3b2
+Tag = f8083e55307932d971bfc2a8913c1951
+Plaintext =
+Ciphertext =
+
+Cipher = aes-256-siv
+Key = 0b6aaf05f9b5221e539940cd83cb29d2bcc7a0aa472d8fc67bedd0108869394e33c9f233d4b2cc9c6a59e8ce9cd268a0f3f2857e08fe1eb329ef347dace1557d
+AAD = 76aade95964f074c693886f245fa57f9
+Tag = f1ad6ea998a2a438acaf90bad0cb9f9f
+Plaintext =
+Ciphertext =
+
+Cipher = aes-256-siv
+Key = d47ab6d51f99f4249da56c93d1f09e856231f3fed777b303111ad31079270839e4bc4b5d8623162d4738d70803934a75f457fdbf4a277b828cb6e2753e88702a
+AAD = 41257da6108bedbb150d4e290b6b9a76d11092c6
+Tag = a8d27944a84317098eed170631f4c867
+Plaintext =
+Ciphertext =
+
+Cipher = aes-256-siv
+Key = eef6bcf16ef7ae17326a33f22d1406ec1bd3f866505f4b2e4fe8b45bd62ccbd85032a9899facf2db0c93a2345cb8892afb74db549781211dd8881a8c8e25c171
+AAD = e941d15fadebaf4671e0e3d6d835f87bfb1cc7028f149930daa69c3de446c423
+Tag = b754ecb55c1e124de0c8a973d033bd7f
+Plaintext =
+Ciphertext =
+
+Title = message size divisible by block size
+
+Cipher = aes-256-siv
+Key = c25cafc6018b98dfbb79a40ec89c575a4f88c4116489bba27707479800c0130235334a45dbe8d8dae3da8dcb45bbe5dce031b0f68ded544fda7eca30d6749442
+AAD = deeb0ccf3aef47a296ed1ca8f4ae5907
+Tag = 5865208eab9163db85cab9f96d846234
+Plaintext = beec61030fa3d670337196beade6aeaa
+Ciphertext = a2626aae22f5c17c9aad4b501f4416e4
+
+Cipher = aes-256-siv
+Key = 27faf97fb303aa4f2f364edd23997f4c77b8e51ebb8293c59dfb1d24f0fb629f6c820fc2d91bf48f0035eeec347e37ec4fb0cb36102bcdc5a248c47a2f97eab9
+AAD = cc94f64e14df90265f7f12a8a0386d0a
+Tag = d0016d675b49f11ea873707412d45709
+Plaintext = 6b1db0f5a43376885002dc98bd556f1dac9b66b66213a9fa6069df995a123384
+Ciphertext = b7703a028a0cfc312cf61cbe22b91e3cf20b7d4c9308ee15f18b4eba00889284
+
+Cipher = aes-256-siv
+Key = 97bfd0f3e9bb8167bbb55f4cdc14529d8307c0ec2c3fe8bc88522d05c1261ba460c9cb4116f630edd74d413ec417324c6e29b566fb2dd3df18e07b53b1f9f83b
+AAD = 1cda342c166ea208df5c56bcf995a59b
+Tag = d55c5d0af0260dc1123adb5d7869201f
+Plaintext = 48ef10ccb1978b53ae73167abe1cc538fa80da3f5df93e3d5c4e9a9ad1f213504f22a694b98a35ad67620af9d8a29fc7
+Ciphertext = 8ccee46deb66dd695c593cde1d7645c72796e42a1733b6705753631b9b626991ddbd28473ce75cfdc4c14d20e66f212d
+
+Title = small plaintext size
+
+Cipher = aes-256-siv
+Key = e2c5662bb18fbb411d0304e4241db073fe60a4704fee290073513038a22b4cd542580b2b4edbc37e3de01c0cb61abcad46986cdc491ce9e5ae5af223ff58b953
+AAD = fab912dec29a34aabfaef176
+Tag = 1c6969ecb15741a9959b7a8492250e39
+Plaintext = 0d
+Ciphertext = 1a
+
+Cipher = aes-256-siv
+Key = 3ab062dbdd38b951a9fb0d8bb185959a93dab3496b850a3062b93003036c8bd2aabbf37d5d3f6a399d4cedefb70c1b8a7b45639fe118c10e39f36fa58618a84d
+AAD = e8605f13db8c482d48bdba2d
+Tag = fddea9ac778b978a968033ce52ec6116
+Plaintext = 5c6f
+Ciphertext = 2588
+
+Cipher = aes-256-siv
+Key = 9e575cd8991b32f06fbaf55ad79eb74822349e07fa77c409848c86820011569f26dcb49afaea19a52a96b27e67f780ac7a00da9a3054d1678d60417cf34996b1
+AAD = 7f89a3f648c1c7c23edbd5ca
+Tag = 3834fbedc3502227e3c91a861f2e3195
+Plaintext = 35ac33
+Ciphertext = fbb344
+
+Cipher = aes-256-siv
+Key = 6d43cfc930a1e0051f607d0c4a76ad5bec77d9f98bbd9ae5e56a1d65fcf1bf68c7780f727bfe690497bae478afbc4ebf7a89943ee146f72d352940794ff202f4
+AAD = c2b75c998f4cac28b4b69dfb
+Tag = 0d1e1981da44a7d9eda60e48e7ae4f85
+Plaintext = 1d25f833
+Ciphertext = 05d8ba98
+
+Cipher = aes-256-siv
+Key = 673cea582bf3982ce3fba5304de8fe46e316d6804749d6db58b7ab7d64bd4e0af641997975234f8b918cca3247d67cfeac9230d15ed28f8071a85e84fa9ef211
+AAD = f5042d5a5b68b262274974a8
+Tag = 655ef7f09f4cff47b427e9df7fcc6426
+Plaintext = 9e99912c7b
+Ciphertext = 64715ad14c
+
+Cipher = aes-256-siv
+Key = 8f13f2bf02d72360d9958eb8aa90634ae48331e7dfdbf16fc51c7238ae9f9d50d4495d196676ef5259b64a616305ffaae517c587d4e7afba40e4a2c5b0989182
+AAD = 755f50cfdfc849654ad98cc7
+Tag = adee2a373a7f6bbaf4f00e5f3f93435a
+Plaintext = ac598720b96e
+Ciphertext = 09091b5221ae
+
+Cipher = aes-256-siv
+Key = 67b3ab00075a0e3d07f3fe73fabea5d0373206a0aafa9397981924ddaf2cb283c66af61166815dffbe8fafa688b793fd259fad4a1f75a259342e58814448a4b4
+AAD = f8799bc732cbf6a39ae2268e
+Tag = ff6173a70dee05ddbde75a960f84523e
+Plaintext = 8f6b2b21a6dc73
+Ciphertext = 01b30adcac5275
+
+Cipher = aes-256-siv
+Key = a661c6a90fd40d8a734873d66afd4477c5041cdc2b31a3cd0ac3604cac4f74411219e544615b56e17f5774b5085129f6dd69893bb7216b539cf42b79f0068278
+AAD = 7a5dbdbf803b2593d3e17097
+Tag = 2f8b7583773ae03ba7b3952453c81431
+Plaintext = deb2c7c6204496e5
+Ciphertext = 780bfcc9d7df9a43
+
+Cipher = aes-256-siv
+Key = a40b1cc110e1aa28ab86f714abd6d313016989a1c8cfcb62063e2c396ca12a246de3b9bd82994e5f1cb1323f78a9a0ed02fe841976a659423603d91ccf71d58e
+AAD = e482e942ce26d244d4962acf
+Tag = 8185d14ee87cc891bb9bcf3fafde4ed2
+Plaintext = 122d1ba394afad1fe3
+Ciphertext = 46599626211fe04d23
+
+Cipher = aes-256-siv
+Key = 8af0e57998dd68b0f45b58e708405d0ad8269397249295fd336096e065db2bb1e4110d5507c04d73c150f6e7d87ced029ab38661f201ec77874e43953373b38a
+AAD = 89f95250fb66b2cda70b8854
+Tag = c4deca5c53bcfa6208b3374742124185
+Plaintext = 9cab7bde926307386505
+Ciphertext = 41e44d0fbf2de7b48c6f
+
+Cipher = aes-256-siv
+Key = 6e063240d83d4a90e44e56e631fefe9f6c7c7d56518eff3a902ddd5ca9b837a2044b3727571d1ca56a68abfd997da945e4d14f71dc86b0149a19a93d1e5fec85
+AAD = 5c3661f4047454bac445f1ac
+Tag = 67673064fc540ae128232ba87ba2e9bb
+Plaintext = 08eb0a196e8f3cb6428b0a
+Ciphertext = e7d3569dd419bcc52796ec
+
+Cipher = aes-256-siv
+Key = 9593f0d6679e8e18b43cb4d26a7ea9da9d6037fd5a82db0b091a682b6547a77298e4fd1d1481f3603d0b1e7e6dcf27200105af0f844f2aaacd98540ab2b6c8a8
+AAD = 7b3f9591076e32a21766e2bb
+Tag = 56e6fd5a7f449a8e6bafa38f945c70cf
+Plaintext = 0628d19cc94c4b4f3d703e1f
+Ciphertext = 8a534179b3b1f26266fb6b56
+
+Cipher = aes-256-siv
+Key = 77f7dd662a8f0aaf7f19c6614584e4acf5c774d19e10d2070eaa977e9c6ba21ba82f0bc84939cf70283dcac9c645b7423ca0cc94bac827ea378f1ca0c9da0eee
+AAD = a3c4e387bfc005402acd20bb
+Tag = 4e7b642dcc3cbd935d4cda8193982ef7
+Plaintext = a171376f2a66dbdf17f32961e8
+Ciphertext = 240fa47f951ec8b3fd37204a73
+
+Cipher = aes-256-siv
+Key = 8916d0342001561922e674b0cc51c05a935e5dc45a6d6284f34a4c5c79e92062dc3091217584607e9cf9056aa495ca4cd53fd3d4c6a94c4b384007e62174506b
+AAD = 890dcea871da1caff4766d32
+Tag = fbb68324b8c5b3e55ebc1feb4b987615
+Plaintext = 6ad348470891d1babb13f3bf0e8c
+Ciphertext = 21f4aac7eb7b6c0fb0505a08457b
+
+Cipher = aes-256-siv
+Key = 2a93a0c37797bee0c344b9ceed1a609813d8c5ee686d260f3aa6fc2f66dc59f400479d1dfe04e89e6df608a3f699ff1cb4e9bf24a78fb2dfddaa0011a2e40208
+AAD = 6ae54f41ac52baf2f89abe8e
+Tag = 2d344a54038a857f47e0c77eb0834538
+Plaintext = 3fc3bf53bb485c9edcb1d25adb4ca0
+Ciphertext = aaf01e61a8ac82c0012f9dac6f15ef
+
+Title = plaintext size > 16
+
+Cipher = aes-256-siv
+Key = 139383f3f82dc78e0b380027f9e5fcd2ed23716404be5c554452e4dc73d237026594491820c6b8297185cc1fa84f49a5c7d7cd05c5de090ff1c3397bc2740437
+AAD = d39da73ffc03ad0a9213ffc7
+Tag = a9cf73951cb39823777f35c96c845169
+Plaintext = 48604944a80fadf50d55b87727934458c8
+Ciphertext = 476e2ec2317cb6b8dd8b6172fdceabff9d
+
+Cipher = aes-256-siv
+Key = eac96a89b8e0c928a85c91396346efe8287730595064554cd13574f8b340f541c5f0bb55e654e51b05e21ba007942cabab5ee1020922f0dd002196a39d7fda1d
+AAD = 29d614f908593f6a5ab03cea
+Tag = bce886623d11320d22dfdc1defb04d17
+Plaintext = 0c22e4875dcd23de89a6d32f2082dd40e1848fc2
+Ciphertext = bd001d9370a3d8c83aabe4494d16ca75ce534f7c
+
+Cipher = aes-256-siv
+Key = c0f4bede68c6ed5ad14918e2ddeced692dfd5419c04204d5b96f4ca47078b07028c6fb87b1b490d875f070bbe4d790f65e5df19947f02c9d3a4e493b542d0291
+AAD = b411e4d2facca67ea4a9f2a1
+Tag = d27ae26dfe02e3eedf544e1b452cb0f0
+Plaintext = 2f358d4534559ac99dd71798b7925705d6f013f6b848ffe01cc86cef09d88f
+Ciphertext = c9303a4e4819318315ae08839bcce558e4741817ec08dae406bbfc09f59aa9
+
+Cipher = aes-256-siv
+Key = cd8689f821817f59bfaa755131f2565161c7f4489f89b657ac9fa127a9768535a702d001b9b99cc11c3976467b1b45865ff417dc256ebb5079b7f1b3e08307b5
+AAD = b3edffbb89b373fe04da244b
+Tag = 1ac78aae2ede04eb47924d8f9f99fe75
+Plaintext = ebcfb2ffb681cc5dfa0c5c524c1b1cc87cc6b2bfa35dc36d15e80505118b84a072a78a157b4d1837
+Ciphertext = deb61bf693da7f3a2147c05f6d29d17392356fe00f82b24cdbce774fd864561548f33dd3192d806f
+
+Cipher = aes-256-siv
+Key = 72a76714e0171e8213de624f00e273bc900050e69d25c454cc42b61e8b3fbc92d4942e1ae14421e164046c1479a7b9c9f4b50b382cb62dfeaa210b98dec7d937
+AAD = 6a8aaf2c84003e0e6f409658
+Tag = 69f720f36b0da86ec8cc0f46d62835dc
+Plaintext = 92d8f4dc7d41e8b180d66e8994022db79249cdc76fd7f3ea12d9925b51925250cd75a15fcfd78ea85c57fe6196f8d7545086f99ea796a0ea69170db9944200435d9d3d551943892400ce787f703c1105
+Ciphertext = b35ac23f5b891152d861c4e0f0018f19d272ee8b12d83300bfd46aeec0124d5d23b3cb849c1cab1fdf64b70947ebf79f5442e209076dfa9a3f36ab0a6d3cf4a75ddfcdc21837743b20885db4c803ac27
+
+Title = edge case SIV
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 8dbfee9580e7e2bc66100a674497f4e1
+Ciphertext = 7ef8aa7e4dd49d9cfa09e9cb574fd90d
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = 00000000000000000000000000000000
+Plaintext = bfa1733d07afa03cb3f2eeb81bbde037
+Ciphertext = 4ce637d6ca9cdf1c2feb0d140865cddb
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 72543a9a07a3c18a280060653432c05c
+Ciphertext = 3db09cc48f2780859351901d1014ae06
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 404aa73280eb830afde284ba6b18d48a
+Ciphertext = 0fae016c086fc20546b374c24f3ebad0
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = ff4d7cdeb8f3c4e37a05a91ee26e2a84
+Ciphertext = b0a9da80307785ecc1545966c64844de
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffffffffffff7fffffff
+Plaintext = cd53e1763fbb8663afe74dc1bd443e52
+Ciphertext = 82b74728b73fc76c14b6bdb999625008
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = 6eb52fc95a5185a3bd2a30d3058414ab
+Ciphertext = 21518997d2d5c4ac067bc0ab21a27af1
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = ffffffffffffffff7fffffffffffffff
+Plaintext = 5cabb261dd19c72368c8d40c5aae007d
+Ciphertext = 134f143f559d862cd39924747e886e27
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = 114cc36e58faceb2e6a2344a679ea4c3
+Ciphertext = 2f849650d6e89e2668e990219195719c
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD = 000102030405060708090a0b0c0d0e0f
+Tag = fffffffffffffffffffffffffffffffe
+Plaintext = 23525ec6dfb28c323340d09538b4b015
+Ciphertext = 1d9a0bf851a0dca6bd0b74fecebf654a
+
+Title = Flipped bit 0 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ef5b8ef53fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 202e4a8f8b4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 05b4e8166f28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 315d6cf8eeb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 1 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6df5b8ef53fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 232e4a8f8b4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 06b4e8166f28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 325d6cf8eeb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 7 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = eff5b8ef53fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = a12e4a8f8b4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 84b4e8166f28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = b05d6cf8eeb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 8 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff4b8ef53fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212f4a8f8b4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b5e8166f28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305c6cf8eeb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 31 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b86f53fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a0f8b4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8966f28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6c78eeb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 32 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef52fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8a4c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166e28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8efb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 33 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef51fc365606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f894c66788f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166d28082987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8ecb36a37849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 63 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc36d606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66f88f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f2808a987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36ab7849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 64 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365607cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788e3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082986a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37859710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 71 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365686cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66780f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082907a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37049710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 77 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606ed3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f1af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987832cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a3784b710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 80 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3fa047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af330fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32ddaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849711e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 96 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea046374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230fa1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf43deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d0f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 97 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea045374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230f91c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf73deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d3f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 103 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea0c7374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af2307b1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cda753deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e751f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 120 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea047374884
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230fb1c3adb
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf53deb60
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d1f72941
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 121 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea047374887
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230fb1c3ad8
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf53deb63
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d1f72942
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 126 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea0473748c5
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230fb1c3a9a
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf53deb21
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d1f72900
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bit 127 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc365606cd3ea047374805
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66788f3af230fb1c3a5a
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f28082987a32cdaf53debe1
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36a37849710e7d1f729c0
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 0 and 64 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ef5b8ef53fc365607cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 202e4a8f8b4c66788e3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 05b4e8166f28082986a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 315d6cf8eeb36a37859710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 31 and 63 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b86f53fc36d606cd3ea047374885
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a0f8b4c66f88f3af230fb1c3ada
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8966f2808a987a32cdaf53deb61
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6c78eeb36ab7849710e7d1f72940
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Flipped bits 63 and 127 in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ff5b8ef53fc36d606cd3ea047374805
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 212e4a8f8b4c66f88f3af230fb1c3a5a
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 04b4e8166f2808a987a32cdaf53debe1
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 305d6cf8eeb36ab7849710e7d1f729c0
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = all bits of tag flipped
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 900a4710ac03c9a9f932c15fb8c8b77a
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ded1b57074b3998770c50dcf04e3c525
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = fb4b17e990d7f7d6785cd3250ac2149e
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = cfa29307114c95c87b68ef182e08d6bf
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = Tag changed to all zero
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 00000000000000000000000000000000
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = tag changed to all 1
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ffffffffffffffffffffffffffffffff
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = msbs changed in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = ef75386fd37cb6d6864dbe20c7b7c805
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = a1aeca0f0bcce6f80fba72b07b9cba5a
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 84346896efa888a90723ac5a75bd6be1
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = b0ddec786e33eab7041790675177a9c0
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH
+
+Title = lsbs changed in tag
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 6ef4b9ee52fd375707cc3fa146364984
+Plaintext =
+Ciphertext =
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 202f4b8e8a4d67798e3bf331fa1d3bdb
+Plaintext = 3031323334353637
+Ciphertext = 5ead70c7f066d4df
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 05b5e9176e29092886a22ddbf43cea60
+Plaintext = 303132333435363738393a3b3c3d3e3f
+Ciphertext = 211dffad7562c4b924bb79fed73d9ce2
+Result = TAG_VALUE_MISMATCH
+
+Cipher = aes-256-siv
+Key = 000102030405060708090a0b0c0d0e0f101112131415161718191a1b1c1d1e1f202122232425262728292a2b2c2d2e2f303132333435363738393a3b3c3d3e3f
+AAD =
+Tag = 315c6df9efb26b36859611e6d0f62841
+Plaintext = 303132333435363738393a3b3c3d3e3f40414243
+Ciphertext = adfd10a7615d6515b999dbfc5a10f3ae9df5f19a
+Result = TAG_VALUE_MISMATCH

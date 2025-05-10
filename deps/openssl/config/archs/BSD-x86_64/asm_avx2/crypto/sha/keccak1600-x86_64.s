@@ -447,10 +447,12 @@ SHA3_squeeze:
 .cfi_offset	%r14,-32
 
 	shrq	$3,%rcx
-	movq	%rdi,%r8
+	movq	%rdi,%r9
 	movq	%rsi,%r12
 	movq	%rdx,%r13
 	movq	%rcx,%r14
+	btl	$0,%r8d
+	jc	.Lnext_block
 	jmp	.Loop_squeeze
 
 .align	32
@@ -458,8 +460,8 @@ SHA3_squeeze:
 	cmpq	$8,%r13
 	jb	.Ltail_squeeze
 
-	movq	(%r8),%rax
-	leaq	8(%r8),%r8
+	movq	(%r9),%rax
+	leaq	8(%r9),%r9
 	movq	%rax,(%r12)
 	leaq	8(%r12),%r12
 	subq	$8,%r13
@@ -467,14 +469,14 @@ SHA3_squeeze:
 
 	subq	$1,%rcx
 	jnz	.Loop_squeeze
-
+.Lnext_block:
 	call	KeccakF1600
-	movq	%rdi,%r8
+	movq	%rdi,%r9
 	movq	%r14,%rcx
 	jmp	.Loop_squeeze
 
 .Ltail_squeeze:
-	movq	%r8,%rsi
+	movq	%r9,%rsi
 	movq	%r12,%rdi
 	movq	%r13,%rcx
 .byte	0xf3,0xa4
@@ -492,6 +494,7 @@ SHA3_squeeze:
 	.byte	0xf3,0xc3
 .cfi_endproc	
 .size	SHA3_squeeze,.-SHA3_squeeze
+.section	.rodata
 .align	256
 .quad	0,0,0,0,0,0,0,0
 .type	iotas,@object
