@@ -1111,6 +1111,8 @@ independently.
 
 #### Console
 
+> Stability: 1 - Experimental
+
 `console.log`
 
 * `args` {any\[]}
@@ -1147,6 +1149,8 @@ Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
 #### HTTP
+
+> Stability: 1 - Experimental
 
 `http.client.request.created`
 
@@ -1212,6 +1216,8 @@ Emitted when a stream is created on the client.
 
 #### Modules
 
+> Stability: 1 - Experimental
+
 `module.require.start`
 
 * `event` {Object} containing the following properties
@@ -1264,6 +1270,8 @@ Emitted when a `import()` throws an error. See [`error` event][].
 
 #### NET
 
+> Stability: 1 - Experimental
+
 `net.client.socket`
 
 * `socket` {net.Socket}
@@ -1298,6 +1306,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
+> Stability: 1 - Experimental
+
 `udp.socket`
 
 * `socket` {dgram.Socket}
@@ -1305,6 +1315,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 Emitted when a new UDP socket is created.
 
 #### Process
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
@@ -1325,6 +1337,8 @@ Emitted when a new process is created.
 Emitted when [`process.execve()`][] is invoked.
 
 #### Worker Thread
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
