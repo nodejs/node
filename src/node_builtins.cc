@@ -134,6 +134,7 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 #if !HAVE_OPENSSL
         "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
         "_tls_wrap", "internal/tls/secure-pair",
+        "internal/tls/common", "internal/tls/wrap",
         "internal/tls/parse-cert-string", "internal/tls/secure-context",
         "internal/http2/core", "internal/http2/compat",
         "internal/streams/lazy_transform",
