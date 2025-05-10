@@ -1205,6 +1205,17 @@ added: v22.4.0
 
 Enable experimental [`Web Storage`][] support.
 
+### `--experimental-worker-inspection`
+
+<!-- YAML
+added:
+  - REPLACEME
+-->
+
+> Stability: 1.1 - Active Development
+
+Enable experimental support for the worker inspection with Chrome DevTools.
+
 ### `--expose-gc`
 
 <!-- YAML
