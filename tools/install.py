@@ -8,76 +8,73 @@ import platform
 import shutil
 import sys
 import re
+from pathlib import Path
 
 current_system = platform.system()
-
 SYSTEM_AIX = "AIX"
 
 def abspath(*args):
-  path = os.path.join(*args)
-  return os.path.abspath(path)
+  return Path(os.path.join(*args)).absolute()
 
 def is_child_dir(child, parent):
-  p = os.path.abspath(parent)
-  c = os.path.abspath(child)
-  return c.startswith(p) and c != p
+  child_abs = child.absolute()
+  parent_abs = parent.absolute()
+  return str(child_abs).startswith(str(parent_abs)) and child_abs != parent_abs
 
 def try_unlink(path):
   try:
-    os.unlink(path)
-  except OSError as e:
-    if e.errno != errno.ENOENT: raise
+    path.unlink()
+  except FileNotFoundError:
+    pass
 
 def try_symlink(options, source_path, link_path):
   if not options.silent:
-    print('symlinking %s -> %s' % (source_path, link_path))
+    print(f'symlinking {source_path} -> {link_path}')
   try_unlink(link_path)
-  try_mkdir_r(os.path.dirname(link_path))
+  link_path.parent.mkdir(parents=True, exist_ok=True)
   os.symlink(source_path, link_path)
 
 def try_mkdir_r(path):
-  try:
-    os.makedirs(path)
-  except OSError as e:
-    if e.errno != errno.EEXIST: raise
+  path.mkdir(parents=True, exist_ok=True)
 
 def try_rmdir_r(options, path):
-  path = abspath(path)
-  while is_child_dir(path, options.install_path):
+  path = path.absolute()
+  install_path = Path(options.install_path)
+
+  while is_child_dir(path, install_path):
     try:
-      os.rmdir(path)
+      path.rmdir()
     except OSError as e:
-      if e.errno == errno.ENOTEMPTY: return
-      if e.errno == errno.ENOENT: return
-      if e.errno == errno.EEXIST and current_system == SYSTEM_AIX: return
+      if e.errno in (errno.ENOTEMPTY, errno.ENOENT) or \
+         (e.errno == errno.EEXIST and current_system == SYSTEM_AIX):
+        return
       raise
-    path = abspath(path, '..')
+    path = path.parent
 
 def mkpaths(options, path, dest):
-  if dest.endswith('/') or dest.endswith('\\'):
-    target_path = abspath(options.install_path, dest, os.path.basename(path))
+  install_path = Path(options.install_path)
+  if dest.endswith(('/', '\\')):
+    target_path = install_path / dest / Path(path).name
   else:
-    target_path = abspath(options.install_path, dest)
-  if os.path.isabs(path):
-    source_path = path
-  else:
-    source_path = abspath(options.root_dir, path)
+    target_path = install_path / dest
+
+  source_path = Path(path) if os.path.isabs(path) else Path(options.root_dir) / path
   return source_path, target_path
 
 def try_copy(options, path, dest):
   source_path, target_path = mkpaths(options, path, dest)
   if not options.silent:
-    print('installing %s' % target_path)
-  try_mkdir_r(os.path.dirname(target_path))
-  try_unlink(target_path) # prevent ETXTBSY errors
-  return shutil.copy2(source_path, target_path)
+    print(f'installing {target_path}')
+  target_path.parent.mkdir(parents=True, exist_ok=True)
+  try_unlink(target_path)  # prevent ETXTBSY errors
+  return Path(shutil.copy2(source_path, target_path))
 
 def try_remove(options, path, dest):
-  source_path, target_path = mkpaths(options, path, dest)
+  _, target_path = mkpaths(options, path, dest)
   if not options.silent:
-    print('removing %s' % target_path)
+    print(f'removing {target_path}')
   try_unlink(target_path)
-  try_rmdir_r(options, os.path.dirname(target_path))
+  try_rmdir_r(options, target_path.parent)
 
 def install(options, paths, dest):
   for path in paths:
@@ -88,30 +85,34 @@ def uninstall(options, paths, dest):
     try_remove(options, path, dest)
 
 def package_files(options, action, name, bins):
-  target_path = os.path.join('lib/node_modules', name)
+  target_path = Path('lib/node_modules') / name
+  install_path = Path(options.install_path)
 
-  # don't install npm if the target path is a symlink, it probably means
-  # that a dev version of npm is installed there
-  if os.path.islink(abspath(options.install_path, target_path)): return
+  # Don't install if target path is a symlink (likely a dev version)
+  if (install_path / target_path).is_symlink():
+    return
 
-  # npm has a *lot* of files and it'd be a pain to maintain a fixed list here
-  # so we walk its source directory instead...
-  root = os.path.join('deps', name)
+  # Process all files in the package directory
+  root = Path('deps') / name
   for dirname, subdirs, basenames in os.walk(root, topdown=True):
+    # Skip test directories
     subdirs[:] = [subdir for subdir in subdirs if subdir != 'test']
-    paths = [os.path.join(dirname, basename) for basename in basenames]
-    action(options, paths,
-           os.path.join(target_path, dirname[len(root) + 1:]) + os.path.sep)
 
-  # create/remove symlinks
+    # Get paths relative to root
+    rel_dir = Path(dirname).relative_to(root) if dirname != str(root) else Path('.')
+    paths = [Path(dirname) / basename for basename in basenames]
+    target_dir = target_path / rel_dir
+
+    action(options, [str(p) for p in paths], f"{target_dir}/")
+
+  # Create/remove symlinks
   for bin_name, bin_target in bins.items():
-    link_path = abspath(options.install_path, os.path.join('bin', bin_name))
+    link_path = install_path / 'bin' / bin_name
     if action == uninstall:
-      action(options, [link_path], os.path.join('bin', bin_name))
+      action(options, [str(link_path)], f'bin/{bin_name}')
     elif action == install:
-      try_symlink(options, os.path.join('../lib/node_modules', name, bin_target), link_path)
-    else:
-      assert 0  # unhandled action type
+      rel_path = Path('..') / 'lib' / 'node_modules' / name / bin_target
+      try_symlink(options, rel_path, link_path)
 
 def npm_files(options, action):
   package_files(options, action, 'npm', {
@@ -129,81 +130,101 @@ def corepack_files(options, action):
 #   'pnpx': 'dist/pnpx.js',
   })
 
-  # On z/OS, we install node-gyp for convenience, as some vendors don't have
-  # external access and may want to build native addons.
+  # On z/OS, install node-gyp for convenience
   if sys.platform == 'zos':
-    link_path = abspath(options.install_path, 'bin/node-gyp')
+    install_path = Path(options.install_path)
+    link_path = install_path / 'bin' / 'node-gyp'
     if action == uninstall:
-      action(options, [link_path], 'bin/node-gyp')
+      action(options, [str(link_path)], 'bin/node-gyp')
     elif action == install:
-      try_symlink(options, '../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js', link_path)
-    else:
-      assert 0 # unhandled action type
+      try_symlink(options, Path('../lib/node_modules/npm/node_modules/node-gyp/bin/node-gyp.js'), link_path)
 
 def subdir_files(options, path, dest, action):
   source_path, _ = mkpaths(options, path, dest)
-  ret = {}
-  for dirpath, dirnames, filenames in os.walk(source_path):
-    files_in_path = [os.path.join(os.path.relpath(dirpath, options.root_dir), f) for f in filenames if f.endswith('.h')]
-    ret[os.path.join(dest, os.path.relpath(dirpath, source_path))] = files_in_path
-  for subdir, files_in_path in ret.items():
-    action(options, files_in_path, subdir + os.path.sep)
+  file_map = {}
+
+  for dirpath, _, filenames in os.walk(source_path):
+    rel_path = Path(dirpath).relative_to(Path(options.root_dir))
+    header_files = [str(rel_path / f) for f in filenames if f.endswith('.h')]
+    if header_files:
+      rel_to_source = Path(dirpath).relative_to(source_path)
+      dest_subdir = Path(dest) / rel_to_source
+      file_map[str(dest_subdir)] = header_files
+
+  for subdir, files_in_path in file_map.items():
+    action(options, files_in_path, f"{subdir}/")
 
 def files(options, action):
-  node_bin = 'node'
-  if options.is_win:
-    node_bin += '.exe'
-  action(options, [os.path.join(options.build_dir, node_bin)], os.path.join('bin', node_bin))
+  # Install node binary
+  node_bin = 'node.exe' if options.is_win else 'node'
+  action(options, [str(Path(options.build_dir) / node_bin)], f'bin/{node_bin}')
 
-  if 'true' == options.variables.get('node_shared'):
+  # Handle shared library if needed
+  if options.variables.get('node_shared') == 'true':
     if options.is_win:
-      action(options, [os.path.join(options.build_dir, 'libnode.dll')], 'bin/libnode.dll')
-      action(options, [os.path.join(options.build_dir, 'libnode.lib')], 'lib/libnode.lib')
+      action(options, [str(Path(options.build_dir) / 'libnode.dll')], 'bin/libnode.dll')
+      action(options, [str(Path(options.build_dir) / 'libnode.lib')], 'lib/libnode.lib')
     elif sys.platform == 'zos':
-      # GYP will output to lib.target; see _InstallableTargetInstallPath
-      # function in tools/gyp/pylib/gyp/generator/make.py
-      output_prefix = os.path.join(options.build_dir, 'lib.target')
+      # Special handling for z/OS platform
+      output_prefix = Path(options.build_dir) / 'lib.target'
+      output_lib = f"libnode.{options.variables.get('shlib_suffix')}"
+      action(options, [str(output_prefix / output_lib)], f'lib/{output_lib}')
 
-      output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(output_prefix, output_lib)], os.path.join('lib', output_lib))
+      # Create libnode.x referencing libnode.so
+      sidedeck_script = Path(os.path.dirname(os.path.realpath(__file__))) / 'zos/modifysidedeck.sh'
+      os.system(f'{sidedeck_script} '
+                f'{Path(options.install_path) / "lib" / output_lib} '
+                f'{Path(options.install_path) / "lib/libnode.x"} libnode.so')
 
-      # create libnode.x that references libnode.so (C++ addons compat)
-      os.system(os.path.dirname(os.path.realpath(__file__)) +
-                '/zos/modifysidedeck.sh ' +
-                abspath(options.install_path, 'lib', output_lib) + ' ' +
-                abspath(options.install_path, 'lib/libnode.x') + ' libnode.so')
+      # Install libnode.version.so
+      so_name = f"libnode.{re.sub(r'\.x$', '.so', options.variables.get('shlib_suffix'))}"
+      action(options, [str(output_prefix / so_name)], f"{options.variables.get('libdir')}/{so_name}")
 
-      # install libnode.version.so
-      so_name = 'libnode.' + re.sub(r'\.x$', '.so', options.variables.get('shlib_suffix'))
-      action(options, [os.path.join(output_prefix, so_name)], options.variables.get('libdir') + '/' + so_name)
-
-      # create symlink of libnode.so -> libnode.version.so (C++ addons compat)
-      link_path = abspath(options.install_path, 'lib/libnode.so')
-      try_symlink(options, so_name, link_path)
+      # Create symlink of libnode.so -> libnode.version.so
+      link_path = Path(options.install_path) / 'lib/libnode.so'
+      try_symlink(options, Path(so_name), link_path)
     else:
-      output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(options.build_dir, output_lib)],
-             os.path.join(options.variables.get('libdir'), output_lib))
+      # Standard shared library handling for other platforms
+      output_lib = f"libnode.{options.variables.get('shlib_suffix')}"
+      libdir = options.variables.get('libdir')
+      action(options, [str(Path(options.build_dir) / output_lib)], f'{libdir}/{output_lib}')
 
-  action(options, [os.path.join(options.v8_dir, 'tools/gdbinit')], 'share/doc/node/')
-  action(options, [os.path.join(options.v8_dir, 'tools/lldb_commands.py')], 'share/doc/node/')
+  action(options, [str(Path(options.v8_dir) / 'tools/gdbinit')], 'share/doc/node/')
+  action(options, [str(Path(options.v8_dir) / 'tools/lldb_commands.py')], 'share/doc/node/')
 
-  if 'openbsd' in sys.platform:
-    action(options, ['doc/node.1'], 'man/man1/')
-  else:
-    action(options, ['doc/node.1'], 'share/man/man1/')
+  man_dir = 'man/man1/' if 'openbsd' in sys.platform else 'share/man/man1/'
+  action(options, ['doc/node.1'], man_dir)
 
-  if 'true' == options.variables.get('node_install_npm'):
+  if options.variables.get('node_install_npm') == 'true':
     npm_files(options, action)
 
-  if 'true' == options.variables.get('node_install_corepack'):
+  if options.variables.get('node_install_corepack') == 'true':
     corepack_files(options, action)
 
   headers(options, action)
 
 def headers(options, action):
+  # Core Node.js headers
+  action(options, [
+    options.config_gypi_path,
+    'common.gypi',
+    'src/node.h',
+    'src/node_api.h',
+    'src/js_native_api.h',
+    'src/js_native_api_types.h',
+    'src/node_api_types.h',
+    'src/node_buffer.h',
+    'src/node_object_wrap.h',
+    'src/node_version.h',
+  ], 'include/node/')
+
+  # Add the expfile that is created on AIX
+  if sys.platform.startswith('aix') or sys.platform == "os400":
+    action(options, ['out/Release/node.exp'], 'include/node/')
+
+  # V8 headers
   def wanted_v8_headers(options, files_arg, dest):
-    v8_headers = [
+    v8_headers = {
       # The internal cppgc headers are depended on by the public
       # ones, so they need to be included as well.
       'include/cppgc/internal/api-constants.h',
@@ -307,105 +328,95 @@ def headers(options, action):
       'include/v8-weak-callback-info.h',
       'include/v8.h',
       'include/v8config.h',
-    ]
+    }
+
     if sys.platform == 'win32':
-      # Native win32 python uses \ for path separator.
-      v8_headers = [os.path.normpath(path) for path in v8_headers]
+      v8_headers = {os.path.normpath(path) for path in v8_headers}
+
     if os.path.isabs(options.v8_dir):
-      rel_v8_dir = os.path.relpath(options.v8_dir, options.root_dir)
+      rel_v8_dir = Path(options.v8_dir).relative_to(Path(options.root_dir))
     else:
-      rel_v8_dir = options.v8_dir
-    files_arg = [name for name in files_arg if os.path.relpath(name, rel_v8_dir) in v8_headers]
-    action(options, files_arg, dest)
+      rel_v8_dir = Path(options.v8_dir)
+
+    # Filter files to include only the wanted V8 headers
+    filtered_files = [
+      name for name in files_arg
+      if Path(name).relative_to(rel_v8_dir).as_posix() in v8_headers
+    ]
+
+    action(options, filtered_files, dest)
 
   def wanted_zoslib_headers(options, files_arg, dest):
     import glob
-    zoslib_headers = glob.glob(zoslibinc + '/*.h')
-    files_arg = [name for name in files_arg if name in zoslib_headers]
-    action(options, files_arg, dest)
-
-  action(options, [
-    options.config_gypi_path,
-    'common.gypi',
-    'src/node.h',
-    'src/node_api.h',
-    'src/js_native_api.h',
-    'src/js_native_api_types.h',
-    'src/node_api_types.h',
-    'src/node_buffer.h',
-    'src/node_object_wrap.h',
-    'src/node_version.h',
-  ], 'include/node/')
-
-  # Add the expfile that is created on AIX
-  if sys.platform.startswith('aix') or sys.platform == "os400":
-    action(options, ['out/Release/node.exp'], 'include/node/')
+    zoslib_headers = set(glob.glob(f"{zoslibinc}/*.h"))
+    filtered_files = [name for name in files_arg if name in zoslib_headers]
+    action(options, filtered_files, dest)
 
   subdir_files(options, os.path.join(options.v8_dir, 'include'), 'include/node/', wanted_v8_headers)
 
-  if 'false' == options.variables.get('node_shared_libuv'):
+  if options.variables.get('node_shared_libuv') == 'false':
     subdir_files(options, 'deps/uv/include', 'include/node/', action)
 
-  if 'true' == options.variables.get('node_use_openssl') and \
-     'false' == options.variables.get('node_shared_openssl'):
+  if (options.variables.get('node_use_openssl') == 'true' and
+      options.variables.get('node_shared_openssl') == 'false'):
     subdir_files(options, 'deps/openssl/openssl/include/openssl', 'include/node/openssl/', action)
     subdir_files(options, 'deps/openssl/config/archs', 'include/node/openssl/archs', action)
     subdir_files(options, 'deps/openssl/config', 'include/node/openssl', action)
 
-  if 'false' == options.variables.get('node_shared_zlib'):
+  if options.variables.get('node_shared_zlib') == 'false':
     action(options, [
       'deps/zlib/zconf.h',
       'deps/zlib/zlib.h',
     ], 'include/node/')
 
+  # Handle z/OS specific libraries
   if sys.platform == 'zos':
     zoslibinc = os.environ.get('ZOSLIB_INCLUDES')
     if not zoslibinc:
-      raise RuntimeError('Environment variable ZOSLIB_INCLUDES is not set\n')
-    if not os.path.isfile(zoslibinc + '/zos-base.h'):
-      raise RuntimeError('ZOSLIB_INCLUDES is not set to a valid location\n')
+      raise RuntimeError('Environment variable ZOSLIB_INCLUDES is not set')
+    if not os.path.isfile(os.path.join(zoslibinc, 'zos-base.h')):
+      raise RuntimeError('ZOSLIB_INCLUDES is not set to a valid location')
     subdir_files(options, zoslibinc, 'include/node/zoslib/', wanted_zoslib_headers)
 
 def run(options):
   if options.headers_only:
-    if options.command == 'install':
-      headers(options, install)
-      return
-    if options.command == 'uninstall':
-      headers(options, uninstall)
-      return
+    action = install if options.command == 'install' else uninstall
+    headers(options, action)
   else:
-    if options.command == 'install':
-      files(options, install)
-      return
-    if options.command == 'uninstall':
-      files(options, uninstall)
-      return
-
-  raise RuntimeError('Bad command: %s\n' % options.command)
+    action = install if options.command == 'install' else uninstall
+    files(options, action)
 
 def parse_options(args):
   parser = argparse.ArgumentParser(
-      description='Install headers and binaries into filesystem')
+    description='Install headers and binaries into filesystem')
   parser.add_argument('command', choices=['install', 'uninstall'])
-  parser.add_argument('--dest-dir', help='custom install prefix for packagers, i.e. DESTDIR',
+  parser.add_argument('--dest-dir',
+                      help='custom install prefix for packagers, i.e. DESTDIR',
                       default=os.getcwd())
-  parser.add_argument('--prefix', help='custom install prefix, i.e. PREFIX',
+  parser.add_argument('--prefix',
+                      help='custom install prefix, i.e. PREFIX',
                       default='/usr/local')
-  parser.add_argument('--headers-only', help='only install headers',
+  parser.add_argument('--headers-only',
+                      help='only install headers',
                       action='store_true', default=False)
-  parser.add_argument('--root-dir', help='the root directory of source code',
+  parser.add_argument('--root-dir',
+                      help='the root directory of source code',
                       default=os.getcwd())
-  parser.add_argument('--build-dir', help='the location of built binaries',
+  parser.add_argument('--build-dir',
+                      help='the location of built binaries',
                       default='out/Release')
-  parser.add_argument('--v8-dir', help='the location of V8',
+  parser.add_argument('--v8-dir',
+                      help='the location of V8',
                       default='deps/v8')
-  parser.add_argument('--config-gypi-path', help='the location of config.gypi',
+  parser.add_argument('--config-gypi-path',
+                      help='the location of config.gypi',
                       default='config.gypi')
-  parser.add_argument('--is-win', help='build for Windows target',
+  parser.add_argument('--is-win',
+                      help='build for Windows target',
                       action='store_true',
                       default=(sys.platform in ['win32', 'cygwin']))
-  parser.add_argument('--silent', help='do not output log',
+  parser.add_argument('--silent',
+                      help='do not output log',
                       action='store_true', default=False)
   options = parser.parse_args(args)
 
