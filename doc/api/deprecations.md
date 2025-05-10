@@ -3904,6 +3904,20 @@ of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+### DEP0192: `util.types.isNativeError()`
+
+<!-- YAML
+changes:
+  - version:
+    - REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/000000
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The [`util.types.isNativeError`][] API is deprecated. Please use [`Error.isError`][] instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3921,6 +3935,7 @@ upon `require('node:module').builtinModules`.
 [`Buffer.isBuffer()`]: buffer.md#static-method-bufferisbufferobj
 [`Cipheriv`]: crypto.md#class-cipheriv
 [`Decipheriv`]: crypto.md#class-decipheriv
+[`Error.isError`]: https://github.com/tc39/proposal-is-error
 [`REPLServer.clearBufferedCommand()`]: repl.md#replserverclearbufferedcommand
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
@@ -4032,6 +4047,7 @@ upon `require('node:module').builtinModules`.
 [`util.isArray()`]: util.md#utilisarrayobject
 [`util.promisify`]: util.md#utilpromisifyoriginal
 [`util.toUSVString()`]: util.md#utiltousvstringstring
+[`util.types.isNativeError`]: util.md#utiltypesisnativeerrorvalue
 [`util.types`]: util.md#utiltypes
 [`util`]: util.md
 [`worker.exitedAfterDisconnect`]: cluster.md#workerexitedafterdisconnect
