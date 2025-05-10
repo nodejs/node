@@ -7,6 +7,9 @@ import {
 
 export default [
   {
+    ignores: ['test/fixtures/**/*.{ts,mts,cts}'],
+  },
+  {
     files: ['test/**/*.{js,mjs,cjs,ts,mts,cts}'],
     languageOptions: {
       globals: {
@@ -149,17 +152,11 @@ export default [
   },
   {
     files: [
-      'test/{common,fixtures,wpt}/**/*.{ts,mts,cts}',
+      'test/{common,wpt}/**/*.{ts,mts,cts}',
     ],
     rules: {
       'node-core/required-modules': 'off',
       'node-core/require-common-first': 'off',
-
-      // Fixtures rules off
-      'node-core/async-iife-no-unused-result': 'off',
-      '@typescript-eslint/no-empty-object-type': 'off',
-      '@typescript-eslint/no-unused-vars': 'off',
-      '@stylistic/js/max-len': 'off',
     },
   },
   {
