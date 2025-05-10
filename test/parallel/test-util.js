@@ -55,6 +55,7 @@ assert.strictEqual(util.toUSVString('string\ud801'), 'string\ufffd');
   assert.strictEqual(util.types.isNativeError(new Error()), true);
   assert.strictEqual(util.types.isNativeError(new TypeError()), true);
   assert.strictEqual(util.types.isNativeError(new SyntaxError()), true);
+  assert.strictEqual(util.types.isNativeError(new DOMException()), true);
   assert.strictEqual(util.types.isNativeError(new (context('Error'))()), true);
   assert.strictEqual(
     util.types.isNativeError(new (context('TypeError'))()),
