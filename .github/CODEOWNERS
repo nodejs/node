@@ -22,8 +22,6 @@
 /onboarding.md @nodejs/tsc
 
 # nodejs.org website
-/doc/api_assets @nodejs/nodejs-website
-/doc/template.html @nodejs/nodejs-website
 /tools/doc @nodejs/web-infra
 
 # streams
