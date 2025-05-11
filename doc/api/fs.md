@@ -6736,6 +6736,26 @@ provided by the operating system's underlying directory mechanisms.
 Entries added or removed while iterating over the directory might not be
 included in the iteration results.
 
+#### `dir[Symbol.asyncDispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An alias for `dir.close()`.
+
+#### `dir[Symbol.Dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+An alias for `dir.closeSync()`.
+
 ### Class: `fs.Dirent`
 
 <!-- YAML
