@@ -1201,6 +1201,15 @@ The event is emitted before the response is sent.
 
 Emitted when server sends a response.
 
+#### HTTP/2
+
+`http2.client.stream.created`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the client.
+
 #### Modules
 
 `module.require.start`
