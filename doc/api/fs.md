@@ -1078,6 +1078,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -1088,7 +1091,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -3131,6 +3134,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -3142,7 +3148,7 @@ changes:
 * `pattern` {string|string\[]}
 
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
@@ -5682,6 +5688,9 @@ changes:
   - version: REPLACEME
     pr-url: https://github.com/nodejs/node/pull/57513
     description: Marking the API stable.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58182
+    description: Add support for `URL` instances for `cwd` option.
   - version: v22.14.0
     pr-url: https://github.com/nodejs/node/pull/56489
     description: Add support for `exclude` option to accept glob patterns.
@@ -5692,7 +5701,7 @@ changes:
 
 * `pattern` {string|string\[]}
 * `options` {Object}
-  * `cwd` {string} current working directory. **Default:** `process.cwd()`
+  * `cwd` {string|URL} current working directory. **Default:** `process.cwd()`
   * `exclude` {Function|string\[]} Function to filter out files/directories or a
     list of glob patterns to be excluded. If a function is provided, return
     `true` to exclude the item, `false` to include it. **Default:** `undefined`.
