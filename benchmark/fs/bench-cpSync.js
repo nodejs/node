@@ -19,7 +19,7 @@ function prepareTestDirectory() {
 
   fs.symlinkSync(
     path.join(testDir, 'source.txt'),
-    path.join(testDir, 'link.txt')
+    path.join(testDir, 'link.txt'),
   );
 
   return testDir;
@@ -47,7 +47,7 @@ function main({ n, dereference, force }) {
       fs.cpSync(src, dest, options);
     } else {
       const uniqueDest = tmpdir.resolve(
-        `${process.pid}/subdir/cp-bench-${process.pid}-${i}`
+        `${process.pid}/subdir/cp-bench-${process.pid}-${i}`,
       );
       fs.cpSync(src, uniqueDest, options);
     }
