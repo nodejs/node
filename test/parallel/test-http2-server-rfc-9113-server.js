@@ -19,7 +19,7 @@ const server = http2.createServer((req, res) => {
   res.end(body);
 });
 
-const server2 = http2.createServer({ strictHttpFieldValidation: false },(req, res) => {
+const server2 = http2.createServer({ strictHttpFieldValidation: false }, (req, res) => {
   assert.strictEqual(req.headers.foobar, 'baz ');
   assert.strictEqual(req.headers['x-powered-by'], 'node-test\t');
   assert.strictEqual(req.headers['x-h2-header'], '\tconnection-test');
@@ -35,29 +35,27 @@ server.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
     const client2 = http2.connect(`http://localhost:${server2.address().port}`);
     const headers = {
-      ':path': '/', 
-      foobar: 'baz ',
+      'foobar': 'baz ',
+      ':path': '/',
       'x-powered-by': 'node-test\t',
       'x-h2-header': '\tconnection-test',
       'x-h2-header-2': ' connection-test',
       'x-h2-header-3': 'connection-test ',
       'x-h2-header-4': 'connection-test\t'
-     };
+    };
     const req = client.request(headers);
-    
+
     req.setEncoding('utf8');
-  
     req.on('response', common.mustCall(function(headers) {
       assert.strictEqual(headers[':status'], 200);
     }));
-  
+
     let data = '';
     req.on('data', (d) => data += d);
-    
     req.on('end', () => {
       assert.strictEqual(body, data);
       client.close();
-  
+
       const req2 = client2.request(headers);
       let data2 = '';
       req2.setEncoding('utf8');
@@ -72,7 +70,7 @@ server.listen(0, common.mustCall(() => {
       });
       req2.end();
     });
-  
+
     req.end();
   }));
 }));

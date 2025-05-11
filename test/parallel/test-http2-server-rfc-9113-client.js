@@ -32,9 +32,8 @@ server.listen(0, common.mustCall(() => {
     const client2 = http2.connect(`http://localhost:${server2.address().port}`, { strictHttpFieldValidation: false });
     const headers = { ':path': '/' };
     const req = client.request(headers);
-    
+
     req.setEncoding('utf8');
-  
     req.on('response', common.mustCall(function(headers) {
       assert.strictEqual(headers.foobar, undefined);
       assert.strictEqual(headers['x-powered-by'], undefined);
@@ -43,14 +42,13 @@ server.listen(0, common.mustCall(() => {
       assert.strictEqual(headers['x-h2-header-2'], undefined);
       assert.strictEqual(headers['x-h2-header-3'], undefined);
     }));
-  
+
     let data = '';
     req.on('data', (d) => data += d);
-    
     req.on('end', () => {
       assert.strictEqual(body, data);
       client.close();
-  
+
       const req2 = client2.request(headers);
       let data2 = '';
       req2.setEncoding('utf8');
@@ -69,7 +67,7 @@ server.listen(0, common.mustCall(() => {
       });
       req2.end();
     });
-  
+
     req.end();
   }));
 }));

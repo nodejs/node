@@ -162,8 +162,7 @@ Http2Options::Http2Options(Http2State* http2_state, SessionType type) {
   // Validate headers in accordinace to RFC-9113
   if (flags & (1 << IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION)) {
     nghttp2_option_set_no_rfc9113_leading_and_trailing_ws_validation(
-        option,
-        buffer[IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION]);
+        option, buffer[IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION]);
   }
 
   // The padding strategy sets the mechanism by which we determine how much
