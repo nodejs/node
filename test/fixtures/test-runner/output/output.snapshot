@@ -288,10 +288,14 @@ ok 23 - level 0a
   ...
 # Subtest: top level
     # Subtest: +long running
-    ok 1 - +long running
+    not ok 1 - +long running
       ---
       duration_ms: *
       type: 'test'
+      location: '/test/fixtures/test-runner/output/output.js:(LINE):5'
+      failureType: 'cancelledByParent'
+      error: 'test did not finish before its parent and was cancelled'
+      code: 'ERR_TEST_FAILURE'
       ...
     # Subtest: +short running
         # Subtest: ++short running
@@ -307,10 +311,14 @@ ok 23 - level 0a
       type: 'test'
       ...
     1..2
-ok 24 - top level
+not ok 24 - top level
   ---
   duration_ms: *
   type: 'test'
+  location: '/test/fixtures/test-runner/output/output.js:(LINE):1'
+  failureType: 'subtestsFailed'
+  error: '1 subtest failed'
+  code: 'ERR_TEST_FAILURE'
   ...
 # Subtest: invalid subtest - pass but subtest fails
 ok 25 - invalid subtest - pass but subtest fails
@@ -777,9 +785,9 @@ not ok 62 - invalid subtest fail
 # Error: Test "callback async throw after done" at test/fixtures/test-runner/output/output.js:(LINE):1 generated asynchronous activity after the test ended. This activity created the error "Error: thrown from callback async throw after done" and would have caused the test to fail, but instead triggered an uncaughtException event.
 # tests 75
 # suites 0
-# pass 36
-# fail 24
-# cancelled 2
+# pass 34
+# fail 25
+# cancelled 3
 # skipped 9
 # todo 4
 # duration_ms *
