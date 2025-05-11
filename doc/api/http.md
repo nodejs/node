@@ -3322,13 +3322,13 @@ const server = http.createServer((req, res) => {
 });
 ```
 
-### `outgoingMessage.setTimeout(msesc[, callback])`
+### `outgoingMessage.setTimeout(msecs[, callback])`
 
 <!-- YAML
 added: v0.9.12
 -->
 
-* `msesc` {number}
+* `msecs` {number}
 * `callback` {Function} Optional function to be called when a timeout
   occurs. Same as binding to the `timeout` event.
 * Returns: {this}
