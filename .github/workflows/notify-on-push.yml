@@ -32,6 +32,7 @@ jobs:
     name: Notify on Push on `main` that lacks metadata
     if: github.repository == 'nodejs/node'
     permissions:
+      contents: read
       pull-requests: write
     # cannot use ubuntu-slim here because rtCamp/action-slack-notify is dockerized
     runs-on: ubuntu-24.04-arm
