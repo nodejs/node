@@ -105,11 +105,11 @@ top level test with two subtests.
 
 ```js
 test('top level test', async (t) => {
-  t.test('subtest 1', (t) => {
+  await t.test('subtest 1', (t) => {
     assert.strictEqual(1, 1);
   });
 
-  t.test('subtest 2', (t) => {
+  await t.test('subtest 2', (t) => {
     assert.strictEqual(2, 2);
   });
 });
@@ -118,7 +118,12 @@ test('top level test', async (t) => {
 > **Note:** `beforeEach` and `afterEach` hooks are triggered
 > between each subtest execution.
 
-Any subtest failures cause the parent test to fail.
+In this example, `await` is used to ensure that both subtests have completed.
+This is necessary because tests do not wait for their subtests to
+complete, unlike tests created within suites.
+Any subtests that are still outstanding when their parent finishes
+are cancelled and treated as failures. Any subtest failures cause the parent
+test to fail.
 
 ## Skipping tests
 
@@ -236,20 +241,20 @@ that are not executed are omitted from the test runner output.
 // The suite's 'only' option is set, so these tests are run.
 test('this test is run', { only: true }, async (t) => {
   // Within this test, all subtests are run by default.
-  t.test('running subtest');
+  await t.test('running subtest');
 
   // The test context can be updated to run subtests with the 'only' option.
   t.runOnly(true);
-  t.test('this subtest is now skipped');
-  t.test('this subtest is run', { only: true });
+  await t.test('this subtest is now skipped');
+  await t.test('this subtest is run', { only: true });
 
   // Switch the context back to execute all tests.
   t.runOnly(false);
-  t.test('this subtest is now run');
+  await t.test('this subtest is now run');
 
   // Explicitly do not run these tests.
-  t.test('skipped subtest 3', { only: false });
-  t.test('skipped subtest 4', { skip: true });
+  await t.test('skipped subtest 3', { only: false });
+  await t.test('skipped subtest 4', { skip: true });
 });
 
 // The 'only' option is not set, so this test is skipped.
@@ -304,13 +309,13 @@ multiple times (e.g. `--test-name-pattern="test 1"`,
 
 ```js
 test('test 1', async (t) => {
-  t.test('test 2');
-  t.test('test 3');
+  await t.test('test 2');
+  await t.test('test 3');
 });
 
 test('Test 4', async (t) => {
-  t.test('Test 5');
-  t.test('test 6');
+  await t.test('Test 5');
+  await t.test('test 6');
 });
 ```
 
@@ -3388,9 +3393,12 @@ before each subtest of the current test.
 ```js
 test('top level test', async (t) => {
   t.beforeEach((t) => t.diagnostic(`about to run ${t.name}`));
-  t.test('This is a subtest', (t) => {
-    assert.ok('some relevant assertion here');
-  });
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    },
+  );
 });
 ```
 
@@ -3448,9 +3456,12 @@ after each subtest of the current test.
 ```js
 test('top level test', async (t) => {
   t.afterEach((t) => t.diagnostic(`finished running ${t.name}`));
-  t.test('This is a subtest', (t) => {
-    assert.ok('some relevant assertion here');
-  });
+  await t.test(
+    'This is a subtest',
+    (t) => {
+      assert.ok('some relevant assertion here');
+    },
+  );
 });
 ```
 
@@ -3702,8 +3713,10 @@ no-op.
 test('top level test', (t) => {
   // The test context can be set to run subtests with the 'only' option.
   t.runOnly(true);
-  t.test('this subtest is now skipped');
-  t.test('this subtest is run', { only: true });
+  return Promise.all([
+    t.test('this subtest is now skipped'),
+    t.test('this subtest is run', { only: true }),
+  ]);
 });
 ```
 
@@ -3776,10 +3789,6 @@ added:
   - v16.17.0
 changes:
   - version:
-    - v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/56664
-    description: This function no longer returns a `Promise`.
-  - version:
     - v18.8.0
     - v16.18.0
     pr-url: https://github.com/nodejs/node/pull/43554
@@ -3823,13 +3832,14 @@ changes:
   to this function is a [`TestContext`][] object. If the test uses callbacks,
   the callback function is passed as the second argument. **Default:** A no-op
   function.
+* Returns: {Promise} Fulfilled with `undefined` once the test completes.
 
 This function is used to create subtests under the current test. This function
 behaves in the same fashion as the top level [`test()`][] function.
 
 ```js
 test('top level test', async (t) => {
-  t.test(
+  await t.test(
     'This is a subtest',
     { only: false, skip: false, concurrency: 1, todo: false, plan: 1 },
     (t) => {
