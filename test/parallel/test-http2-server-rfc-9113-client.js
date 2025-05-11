@@ -29,7 +29,7 @@ const server2 = http2.createServer((req, res) => {
 server.listen(0, common.mustCall(() => {
   server2.listen(0, common.mustCall(() => {
     const client = http2.connect(`http://localhost:${server.address().port}`);
-    const client2 = http2.connect(`http://localhost:${server2.address().port}`, { strictHttpFieldValidation: false });
+    const client2 = http2.connect(`http://localhost:${server2.address().port}`, { strictFieldWhitespaceValidation: false });
     const headers = { ':path': '/' };
     const req = client.request(headers);
 

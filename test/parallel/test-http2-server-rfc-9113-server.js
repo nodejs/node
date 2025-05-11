@@ -19,7 +19,7 @@ const server = http2.createServer((req, res) => {
   res.end(body);
 });
 
-const server2 = http2.createServer({ strictHttpFieldValidation: false }, (req, res) => {
+const server2 = http2.createServer({ strictFieldWhitespaceValidation: false }, (req, res) => {
   assert.strictEqual(req.headers.foobar, 'baz ');
   assert.strictEqual(req.headers['x-powered-by'], 'node-test\t');
   assert.strictEqual(req.headers['x-h2-header'], '\tconnection-test');
