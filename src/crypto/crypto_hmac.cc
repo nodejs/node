@@ -220,10 +220,10 @@ Maybe<bool> HmacTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool HmacTraits::DeriveBits(
-    Environment* env,
-    const HmacConfig& params,
-    ByteSource* out) {
+bool HmacTraits::DeriveBits(Environment* env,
+                            const HmacConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   HMACCtxPointer ctx(HMAC_CTX_new());
 
   if (!ctx ||

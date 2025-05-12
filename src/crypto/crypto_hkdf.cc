@@ -100,10 +100,10 @@ Maybe<bool> HKDFTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool HKDFTraits::DeriveBits(
-    Environment* env,
-    const HKDFConfig& params,
-    ByteSource* out) {
+bool HKDFTraits::DeriveBits(Environment* env,
+                            const HKDFConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   EVPKeyCtxPointer ctx =
       EVPKeyCtxPointer(EVP_PKEY_CTX_new_id(EVP_PKEY_HKDF, nullptr));
   if (!ctx || !EVP_PKEY_derive_init(ctx.get()) ||

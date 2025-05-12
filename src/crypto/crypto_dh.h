@@ -131,10 +131,10 @@ struct DHBitsTraits final {
       unsigned int offset,
       DHBitsConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const DHBitsConfig& params,
-      ByteSource* out_);
+  static bool DeriveBits(Environment* env,
+                         const DHBitsConfig& params,
+                         ByteSource* out_,
+                         CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,

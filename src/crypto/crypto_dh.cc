@@ -705,10 +705,10 @@ Maybe<bool> DHBitsTraits::EncodeOutput(
   return Just(!result->IsEmpty());
 }
 
-bool DHBitsTraits::DeriveBits(
-    Environment* env,
-    const DHBitsConfig& params,
-    ByteSource* out) {
+bool DHBitsTraits::DeriveBits(Environment* env,
+                              const DHBitsConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   *out = StatelessDiffieHellmanThreadsafe(
       params.private_key->GetAsymmetricKey(),
       params.public_key->GetAsymmetricKey());

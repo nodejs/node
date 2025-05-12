@@ -111,10 +111,10 @@ Maybe<bool> PBKDF2Traits::AdditionalConfig(
   return Just(true);
 }
 
-bool PBKDF2Traits::DeriveBits(
-    Environment* env,
-    const PBKDF2Config& params,
-    ByteSource* out) {
+bool PBKDF2Traits::DeriveBits(Environment* env,
+                              const PBKDF2Config& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   ByteSource::Builder buf(params.length);
 
   // Both pass and salt may be zero length here.

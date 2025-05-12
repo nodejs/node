@@ -124,10 +124,10 @@ Maybe<bool> ScryptTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool ScryptTraits::DeriveBits(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out) {
+bool ScryptTraits::DeriveBits(Environment* env,
+                              const ScryptConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   ByteSource::Builder buf(params.length);
 
   // Both the pass and salt may be zero-length at this point

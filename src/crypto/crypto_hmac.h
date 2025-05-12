@@ -73,10 +73,10 @@ struct HmacTraits final {
       unsigned int offset,
       HmacConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HmacConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HmacConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,

@@ -70,10 +70,10 @@ struct HashTraits final {
       unsigned int offset,
       HashConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const HashConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const HashConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,

@@ -713,11 +713,11 @@ Maybe<bool> SignTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool SignTraits::DeriveBits(
-    Environment* env,
-    const SignConfiguration& params,
-    ByteSource* out) {
-  ClearErrorOnReturn clear_error_on_return;
+bool SignTraits::DeriveBits(Environment* env,
+                            const SignConfiguration& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
+  bool can_throw = mode == CryptoJobMode::kCryptoJobSync;
   EVPMDCtxPointer context(EVP_MD_CTX_new());
   EVP_PKEY_CTX* ctx = nullptr;
 
@@ -729,7 +729,7 @@ bool SignTraits::DeriveBits(
               params.digest,
               nullptr,
               params.key.get())) {
-        crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignInit);
         return false;
       }
       break;
@@ -740,7 +740,7 @@ bool SignTraits::DeriveBits(
               params.digest,
               nullptr,
               params.key.get())) {
-        crypto::CheckThrow(env, SignBase::Error::kSignInit);
+        if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignInit);
         return false;
       }
       break;
@@ -758,7 +758,7 @@ bool SignTraits::DeriveBits(
           ctx,
           padding,
           salt_length)) {
-    crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+    if (can_throw) crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
     return false;
   }
 
@@ -772,7 +772,8 @@ bool SignTraits::DeriveBits(
             &len,
             params.data.data<unsigned char>(),
             params.data.size())) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
         ByteSource::Builder buf(len);
@@ -781,7 +782,8 @@ bool SignTraits::DeriveBits(
                             &len,
                             params.data.data<unsigned char>(),
                             params.data.size())) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
         *out = std::move(buf).release(len);
@@ -792,13 +794,15 @@ bool SignTraits::DeriveBits(
                 params.data.data<unsigned char>(),
                 params.data.size()) ||
             !EVP_DigestSignFinal(context.get(), nullptr, &len)) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
         ByteSource::Builder buf(len);
         if (!EVP_DigestSignFinal(
                 context.get(), buf.data<unsigned char>(), &len)) {
-          crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
+          if (can_throw)
+            crypto::CheckThrow(env, SignBase::Error::kSignPrivateKey);
           return false;
         }
 

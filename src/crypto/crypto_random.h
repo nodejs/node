@@ -32,10 +32,10 @@ struct RandomBytesTraits final {
       unsigned int offset,
       RandomBytesConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const RandomBytesConfig& params,
-      ByteSource* out_);
+  static bool DeriveBits(Environment* env,
+                         const RandomBytesConfig& params,
+                         ByteSource* out_,
+                         CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,
@@ -72,7 +72,8 @@ struct RandomPrimeTraits final {
   static bool DeriveBits(
       Environment* env,
       const RandomPrimeConfig& params,
-      ByteSource* out_);
+      ByteSource* out_,
+      CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,
@@ -105,10 +106,10 @@ struct CheckPrimeTraits final {
       unsigned int offset,
       CheckPrimeConfig* params);
 
-  static bool DeriveBits(
-      Environment* env,
-      const CheckPrimeConfig& params,
-      ByteSource* out);
+  static bool DeriveBits(Environment* env,
+                         const CheckPrimeConfig& params,
+                         ByteSource* out,
+                         CryptoJobMode mode);
 
   static v8::Maybe<bool> EncodeOutput(
       Environment* env,

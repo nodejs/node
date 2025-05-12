@@ -501,10 +501,10 @@ Maybe<bool> HashTraits::AdditionalConfig(
   return Just(true);
 }
 
-bool HashTraits::DeriveBits(
-    Environment* env,
-    const HashConfig& params,
-    ByteSource* out) {
+bool HashTraits::DeriveBits(Environment* env,
+                            const HashConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   EVPMDCtxPointer ctx(EVP_MD_CTX_new());
 
   if (UNLIKELY(!ctx ||
