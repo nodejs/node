@@ -1201,6 +1201,8 @@ Emitted when server sends a response.
 
 #### HTTP/2
 
+> Stability: 1 - Experimental
+
 `http2.client.stream.created`
 
 * `stream` {ClientHttp2Stream}
