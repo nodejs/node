@@ -3900,7 +3900,7 @@ console.log(key.export().toString('hex'));  // e89..........41e
 The size of a generated HMAC key should not exceed the block size of the
 underlying hash function. See [`crypto.createHmac()`][] for more information.
 
-### `crypto.generatePrime(size[, options[, callback]])`
+### `crypto.generatePrime(size[, options], callback)`
 
 <!-- YAML
 added: v15.8.0
