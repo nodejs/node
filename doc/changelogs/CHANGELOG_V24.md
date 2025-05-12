@@ -8,6 +8,7 @@
 </tr>
 <tr>
 <td>
+<a href="#24.0.2">24.0.2</a><br/>
 <a href="#24.0.1">24.0.1</a><br/>
 <a href="#24.0.0">24.0.0</a><br/>
 </td>
@@ -39,6 +40,20 @@
   * [0.10.x](CHANGELOG_V010.md)
   * [io.js](CHANGELOG_IOJS.md)
   * [Archive](CHANGELOG_ARCHIVE.md)
+
+<a id="24.0.2"></a>
+
+## 2025-05-14, Version 24.0.2 (Current), @RafaelGSS
+
+This is a security release.
+
+### Notable Changes
+
+* (CVE-2025-23166) fix error handling on async crypto operation
+
+### Commits
+
+* \[[`7d0c17b2ad`](https://github.com/nodejs/node/commit/7d0c17b2ad)] - **(CVE-2025-23166)** **src**: fix error handling on async crypto operations (RafaelGSS) [nodejs-private/node-private#688](https://github.com/nodejs-private/node-private/pull/688)
 
 <a id="24.0.1"></a>
 
