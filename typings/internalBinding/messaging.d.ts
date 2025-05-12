@@ -23,7 +23,6 @@ export interface MessagingBinding {
   MessagePort: typeof InternalMessagingBinding.MessagePort;
   JSTransferable: typeof InternalMessagingBinding.JSTransferable;
   stopMessagePort(port: typeof InternalMessagingBinding.MessagePort): void;
-  checkMessagePort(port: unknown): boolean;
   drainMessagePort(port: typeof InternalMessagingBinding.MessagePort): void;
   receiveMessageOnPort(port: typeof InternalMessagingBinding.MessagePort): any;
   moveMessagePortToContext(port: typeof InternalMessagingBinding.MessagePort, context: any): typeof InternalMessagingBinding.MessagePort;
