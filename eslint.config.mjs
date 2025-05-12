@@ -18,6 +18,8 @@ import nodeCore from './tools/eslint/eslint-plugin-node-core.js';
 const { globalIgnores } = await importEslintTool('eslint/config');
 const { default: js } = await importEslintTool('@eslint/js');
 const { default: babelEslintParser } = await importEslintTool('@babel/eslint-parser');
+const babelPluginProposalExplicitResourceManagement =
+  resolveEslintTool('@babel/plugin-proposal-explicit-resource-management');
 const babelPluginSyntaxImportAttributes = resolveEslintTool('@babel/plugin-syntax-import-attributes');
 const babelPluginSyntaxImportSource = resolveEslintTool('@babel/plugin-syntax-import-source');
 const { default: jsdoc } = await importEslintTool('eslint-plugin-jsdoc');
@@ -103,6 +105,7 @@ export default [
       parserOptions: {
         babelOptions: {
           plugins: [
+            babelPluginProposalExplicitResourceManagement,
             babelPluginSyntaxImportAttributes,
             babelPluginSyntaxImportSource,
           ],
