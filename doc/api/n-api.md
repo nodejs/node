@@ -3688,8 +3688,9 @@ napi_status napi_get_value_string_latin1(napi_env env,
   passed in, the length of the string in bytes and excluding the null terminator
   is returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated if possible,
-  i.e., it is null-terminated if `bufsize` is not zero.
+  insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3720,8 +3721,9 @@ napi_status napi_get_value_string_utf8(napi_env env,
   in, the length of the string in bytes and excluding the null terminator is
   returned in `result`.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated if possible,
-  i.e., it is null-terminated if `bufsize` is not zero.
+  insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of bytes copied into the buffer, excluding the null
   terminator.
 
@@ -3751,8 +3753,9 @@ napi_status napi_get_value_string_utf16(napi_env env,
   passed in, the length of the string in 2-byte code units and excluding the
   null terminator is returned.
 * `[in] bufsize`: Size of the destination buffer. When this value is
-  insufficient, the returned string is truncated and null-terminated if possible,
-  i.e., it is null-terminated if `bufsize` is not zero.
+  insufficient, the returned string is truncated and null-terminated.
+  If this value is zero, then the string is not returned and no changes are done
+  to the buffer.
 * `[out] result`: Number of 2-byte code units copied into the buffer, excluding
   the null terminator.
 
