@@ -2276,7 +2276,7 @@ configure_library('nghttp2', output, pkgname='libnghttp2')
 configure_library('nghttp3', output, pkgname='libnghttp3')
 configure_library('ngtcp2', output, pkgname='libngtcp2')
 configure_sqlite(output);
-configure_library('uvwasi', output, pkgname='libuvwasi')
+configure_library('uvwasi', output)
 configure_library('zstd', output, pkgname='libzstd')
 configure_v8(output, configurations)
 configure_openssl(output)
