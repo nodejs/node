@@ -1643,7 +1643,9 @@ For example: `'http:'`.
 The `query` property is either the query string without the leading ASCII
 question mark (`?`), or an object returned by the [`querystring`][] module's
 `parse()` method. Whether the `query` property is a string or object is
-determined by the `parseQueryString` argument passed to `url.parse()`.
+determined by the `parseQueryString` argument passed to `url.parse()`. Think
+of `parseQueryString` as "`query` should be an Object". If omitted, it
+defaults to false so `query` will be a string.
 
 For example: `'query=string'` or `{'query': 'string'}`.
 
