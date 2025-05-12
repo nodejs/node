@@ -3379,26 +3379,21 @@ static void CpSyncOverrideFile(const FunctionCallbackInfo<Value>& args) {
 
   std::error_code error;
 
-  std::filesystem::remove(*dest, error);
-  if (error) {
-    std::string message = "operation not permitted, unlink";
-    return env->ThrowErrnoException(
-        EPERM, "unlink", message.c_str(), dest.out());
+  if (!std::filesystem::remove(*dest, error)) {
+    return env->ThrowStdErrException(error, "unlink", *dest);
   }
 
   if (mode == 0) {
     // if no mode is specified use the faster std::filesystem API
-    std::filesystem::copy_file(
-        *src, *dest, std::filesystem::copy_options::none, error);
-    if (error) {
-      return env->ThrowError(error.message().c_str());
+    if (!std::filesystem::copy_file(*src, *dest, error)) {
+      return env->ThrowStdErrException(error, "cp", *dest);
     }
   } else {
     uv_fs_t req;
     auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-    int result = uv_fs_copyfile(nullptr, &req, *src, *dest, mode, nullptr);
+    auto result = uv_fs_copyfile(nullptr, &req, *src, *dest, mode, nullptr);
     if (is_uv_error(result)) {
-      return env->ThrowUVException(result, "copyfile", nullptr, *src, *dest);
+      return env->ThrowUVException(result, "cp", nullptr, *src, *dest);
     }
   }
 
