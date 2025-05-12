@@ -144,6 +144,7 @@
       'src/node_report.cc',
       'src/node_report_module.cc',
       'src/node_report_utils.cc',
+      'src/node_runtime_api.cc',
       'src/node_sea.cc',
       'src/node_sea_bin.cc',
       'src/node_serdes.cc',
@@ -238,6 +239,7 @@
       'src/module_wrap.h',
       'src/node.h',
       'src/node_api.h',
+      'src/node_api_internals.h',
       'src/node_api_types.h',
       'src/node_binding.h',
       'src/node_blob.h',
@@ -282,6 +284,7 @@
       'src/node_report.h',
       'src/node_revert.h',
       'src/node_root_certs.h',
+      'src/node_runtime_api.h',
       'src/node_sea.h',
       'src/node_shadow_realm.h',
       'src/node_snapshotable.h',
@@ -1389,6 +1392,8 @@
       'sources': [
         'src/node_snapshot_stub.cc',
         'test/embedding/embedtest.cc',
+        'test/embedding/embedtest_c_api_main.c',
+        'test/embedding/embedtest_main.cc',
       ],
 
       'conditions': [
