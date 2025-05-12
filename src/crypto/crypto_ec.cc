@@ -450,7 +450,8 @@ Maybe<void> ECDHBitsTraits::AdditionalConfig(
 
 bool ECDHBitsTraits::DeriveBits(Environment* env,
                                 const ECDHBitsConfig& params,
-                                ByteSource* out) {
+                                ByteSource* out,
+                                CryptoJobMode mode) {
   size_t len = 0;
   const auto& m_privkey = params.private_.GetAsymmetricKey();
   const auto& m_pubkey = params.public_.GetAsymmetricKey();

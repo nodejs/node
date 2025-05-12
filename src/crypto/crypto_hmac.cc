@@ -221,10 +221,10 @@ Maybe<void> HmacTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HmacTraits::DeriveBits(
-    Environment* env,
-    const HmacConfig& params,
-    ByteSource* out) {
+bool HmacTraits::DeriveBits(Environment* env,
+                            const HmacConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   HMACCtxPointer ctx(HMAC_CTX_new());
 
   if (!ctx || !HMAC_Init_ex(ctx.get(),

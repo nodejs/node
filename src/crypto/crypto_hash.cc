@@ -502,10 +502,10 @@ Maybe<void> HashTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool HashTraits::DeriveBits(
-    Environment* env,
-    const HashConfig& params,
-    ByteSource* out) {
+bool HashTraits::DeriveBits(Environment* env,
+                            const HashConfig& params,
+                            ByteSource* out,
+                            CryptoJobMode mode) {
   EVPMDCtxPointer ctx(EVP_MD_CTX_new());
 
   if (!ctx || EVP_DigestInit_ex(ctx.get(), params.digest, nullptr) <= 0 ||
