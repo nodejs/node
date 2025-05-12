@@ -1139,13 +1139,6 @@ void MessagePort::Stop(const FunctionCallbackInfo<Value>& args) {
   port->Stop();
 }
 
-void MessagePort::CheckType(const FunctionCallbackInfo<Value>& args) {
-  Environment* env = Environment::GetCurrent(args);
-  args.GetReturnValue().Set(
-      GetMessagePortConstructorTemplate(env->isolate_data())
-          ->HasInstance(args[0]));
-}
-
 void MessagePort::Drain(const FunctionCallbackInfo<Value>& args) {
   MessagePort* port;
   ASSIGN_OR_RETURN_UNWRAP(&port, args[0].As<Object>());
@@ -1731,7 +1724,6 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
   // These are not methods on the MessagePort prototype, because
   // the browser equivalents do not provide them.
   SetMethod(isolate, target, "stopMessagePort", MessagePort::Stop);
-  SetMethod(isolate, target, "checkMessagePort", MessagePort::CheckType);
   SetMethod(isolate, target, "drainMessagePort", MessagePort::Drain);
   SetMethod(
       isolate, target, "receiveMessageOnPort", MessagePort::ReceiveMessage);
@@ -1767,7 +1759,6 @@ static void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(MessagePort::PostMessage);
   registry->Register(MessagePort::Start);
   registry->Register(MessagePort::Stop);
-  registry->Register(MessagePort::CheckType);
   registry->Register(MessagePort::Drain);
   registry->Register(MessagePort::ReceiveMessage);
   registry->Register(MessagePort::MoveToContext);
