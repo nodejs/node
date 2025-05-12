@@ -64,7 +64,7 @@ subSystemLabels:
   /^tools\/(?:certdata|mkssldef|mk-ca-bundle)/: tools, openssl, tls
   /^tools\/msvs\//: tools, windows, install, needs-ci
   /^tools\/[^/]+\.bat$/: tools, windows, needs-ci
-  /^tools\/make-v8/: tools, v8 engine, needs-ci
+  /^tools\/build_v8/: tools, v8 engine, needs-ci
   /^tools\/v8_gypfiles/: tools, v8 engine, needs-ci
   /^tools\/snapshot/: needs-ci
   /^tools\/build-addons.mjs/: needs-ci
