@@ -15,5 +15,4 @@ export interface BlobBinding {
   FixedSizeBlobCopyJob: typeof InternalBlobBinding.FixedSizeBlobCopyJob;
   getDataObject(id: string): [handle: InternalBlobBinding.BlobHandle | undefined, length: number, type: string] | undefined;
   storeDataObject(id: string, handle: InternalBlobBinding.BlobHandle, size: number, type: string): void;
-  revokeDataObject(id: string): void;
 }
