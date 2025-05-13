@@ -1457,6 +1457,7 @@ numeric stream identifier.
 
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
 
 * `options` {Object}
@@ -1473,6 +1474,9 @@ added: v8.4.0
     sending a `PRIORITY` frame to the connected peer.
 
 Updates the priority for this `Http2Stream` instance.
+
+The support for priority signaling has been deprecated in the [RFC 9113][], and
+will be removed in future versions of Node.js.
 
 #### `http2stream.rstCode`
 
@@ -1583,8 +1587,11 @@ Provides miscellaneous information about the current state of the
     remotely.
   * `sumDependencyWeight` {number} The sum weight of all `Http2Stream`
     instances that depend on this `Http2Stream` as specified using
-    `PRIORITY` frames.
-  * `weight` {number} The priority weight of this `Http2Stream`.
+    `PRIORITY` frames. This has been **deprecated** in [RFC 9113][], and
+    support for it will be removed in future versions of Node.js.
+  * `weight` {number} The priority weight of this `Http2Stream`. This has been
+    **deprecated** in [RFC 9113][], and support for it will be removed in future
+    versions of Node.js.
 
 A current state of this `Http2Stream`.
 
@@ -4883,6 +4890,7 @@ you need to implement any fall-back behavior yourself.
 [RFC 7838]: https://tools.ietf.org/html/rfc7838
 [RFC 8336]: https://tools.ietf.org/html/rfc8336
 [RFC 8441]: https://tools.ietf.org/html/rfc8441
+[RFC 9113]: https://datatracker.ietf.org/doc/html/rfc9113#section-5.3.1
 [Sensitive headers]: #sensitive-headers
 [`'checkContinue'`]: #event-checkcontinue
 [`'connect'`]: #event-connect
