@@ -57,14 +57,29 @@ static int wasm_on_headers_complete_wrap(llhttp_t* p) {
 }
 
 const llhttp_settings_t wasm_settings = {
-  .on_message_begin = wasm_on_message_begin,
-  .on_url = wasm_on_url,
-  .on_status = wasm_on_status,
-  .on_header_field = wasm_on_header_field,
-  .on_header_value = wasm_on_header_value,
-  .on_headers_complete = wasm_on_headers_complete_wrap,
-  .on_body = wasm_on_body,
-  .on_message_complete = wasm_on_message_complete,
+  wasm_on_message_begin,
+  wasm_on_url,
+  wasm_on_status,
+  NULL,
+  NULL,
+  wasm_on_header_field,
+  wasm_on_header_value,
+  NULL,
+  NULL,
+  wasm_on_headers_complete_wrap,
+  wasm_on_body,
+  wasm_on_message_complete,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
+  NULL,
 };
 
 
@@ -322,20 +337,6 @@ void llhttp_set_lenient_spaces_after_chunk_size(llhttp_t* parser, int enabled) {
 int llhttp__on_message_begin(llhttp_t* s, const char* p, const char* endp) {
   int err;
   CALLBACK_MAYBE(s, on_message_begin);
-  return err;
-}
-
-
-int llhttp__on_protocol(llhttp_t* s, const char* p, const char* endp) {
-  int err;
-  SPAN_CALLBACK_MAYBE(s, on_protocol, p, endp - p);
-  return err;
-}
-
-
-int llhttp__on_protocol_complete(llhttp_t* s, const char* p, const char* endp) {
-  int err;
-  CALLBACK_MAYBE(s, on_protocol_complete);
   return err;
 }
 
