@@ -174,13 +174,6 @@ inline bool TickInfo::has_rejection_to_warn() const {
   return fields_[kHasRejectionToWarn] == 1;
 }
 
-inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
-  if (!isolate->InContext()) [[unlikely]]
-    return nullptr;
-  v8::HandleScope handle_scope(isolate);
-  return GetCurrent(isolate->GetCurrentContext());
-}
-
 inline Environment* Environment::GetCurrent(v8::Local<v8::Context> context) {
   if (!ContextEmbedderTag::IsNodeContext(context)) [[unlikely]] {
     return nullptr;
