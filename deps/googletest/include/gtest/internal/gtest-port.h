@@ -282,10 +282,14 @@
 
 // Detect C++ feature test macros as gracefully as possible.
 // MSVC >= 19.15, Clang >= 3.4.1, and GCC >= 4.1.2 support feature test macros.
-#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L && \
-    (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<version>))
-#include <version>  // C++20 and later
-#elif (!defined(__has_include) || GTEST_INTERNAL_HAS_INCLUDE(<ciso646>))
+//
+// GCC15 warns that <ciso646> is deprecated in C++17 and suggests using
+// <version> instead, even though <version> is not available in C++17 mode prior
+// to GCC9.
+#if GTEST_INTERNAL_CPLUSPLUS_LANG >= 202002L || \
+    GTEST_INTERNAL_HAS_INCLUDE(<version>)
+#include <version>  // C++20 or <version> support.
+#else
 #include <ciso646>  // Pre-C++20
 #endif
 
