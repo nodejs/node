@@ -109,8 +109,7 @@ const test = (handleRequest, testSessionFunc) => new Promise((resolve) => {
             resolve();
           })
         );
-      }),
-                    2
+      }), 2
     )
   );
 
@@ -137,8 +136,7 @@ const test = (handleRequest, testSessionFunc) => new Promise((resolve) => {
             resolve();
           })
         );
-      }),
-                    2
+      }), 2
     )
   );
 
@@ -165,8 +163,7 @@ const test = (handleRequest, testSessionFunc) => new Promise((resolve) => {
             resolve();
           })
         );
-      }),
-                    2
+      }), 2
     )
   );
 
