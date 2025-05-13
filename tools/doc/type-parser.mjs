@@ -106,7 +106,7 @@ const customTypesMap = {
   'AesKeyAlgorithm': 'webcrypto.html#class-aeskeyalgorithm',
   'AesKeyGenParams': 'webcrypto.html#class-aeskeygenparams',
   'RsaHashedKeyAlgorithm':
-    'webcrypto.html#class-rsahashedkeygenparams',
+    'webcrypto.html#class-rsahashedkeyalgorithm',
   'RsaHashedKeyGenParams':
     'webcrypto.html#class-rsahashedkeygenparams',
   'EcKeyAlgorithm': 'webcrypto.html#class-eckeyalgorithm',
