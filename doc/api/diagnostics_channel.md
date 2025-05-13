@@ -1102,13 +1102,9 @@ for the sync error and one for the async error.
 
 ### Built-in Channels
 
-> Stability: 1 - Experimental
-
-While the diagnostics\_channel API is now considered stable, the built-in
-channels currently available are not. Each channel must be declared stable
-independently.
-
 #### Console
+
+> Stability: 1 - Experimental
 
 `console.log`
 
@@ -1146,6 +1142,8 @@ Emitted when `console.error()` is called. Receives and array of the arguments
 passed to `console.error()`.
 
 #### HTTP
+
+> Stability: 1 - Experimental
 
 `http.client.request.created`
 
@@ -1202,6 +1200,8 @@ Emitted when server sends a response.
 
 #### HTTP/2
 
+> Stability: 1 - Experimental
+
 `http2.client.stream.created`
 
 * `stream` {ClientHttp2Stream}
@@ -1210,6 +1210,8 @@ Emitted when server sends a response.
 Emitted when a stream is created on the client.
 
 #### Modules
+
+> Stability: 1 - Experimental
 
 `module.require.start`
 
@@ -1263,6 +1265,8 @@ Emitted when a `import()` throws an error. See [`error` event][].
 
 #### NET
 
+> Stability: 1 - Experimental
+
 `net.client.socket`
 
 * `socket` {net.Socket}
@@ -1297,6 +1301,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 
 #### UDP
 
+> Stability: 1 - Experimental
+
 `udp.socket`
 
 * `socket` {dgram.Socket}
@@ -1304,6 +1310,8 @@ Emitted when [`net.Server.listen()`][] is returning an error.
 Emitted when a new UDP socket is created.
 
 #### Process
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
@@ -1324,6 +1332,8 @@ Emitted when a new process is created.
 Emitted when [`process.execve()`][] is invoked.
 
 #### Worker Thread
+
+> Stability: 1 - Experimental
 
 <!-- YAML
 added: v16.18.0
