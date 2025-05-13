@@ -25,9 +25,14 @@ const assert = require('assert');
 
 // If child process output to console and exit
 // The console.log statements here are part of the test.
+// Note: This test verifies specific behavior that is *not* guaranteed
+// by Node.js's API contract. See https://nodejs.org/api/process.html#processexitcode.
+// We are still generally interested in knowing when this test breaks,
+// since applications may rely on the implicit behavior of stdout having
+// a buffer size up to which they can write data synchronously.
 if (process.argv[2] === 'child') {
   console.log('hello');
-  for (let i = 0; i < 200; i++) {
+  for (let i = 0; i < 100; i++) {
     console.log('filler');
   }
   console.log('goodbye');
