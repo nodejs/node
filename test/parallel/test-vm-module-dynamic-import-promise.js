@@ -22,7 +22,7 @@ async function testScript() {
   const script2 = new Script(`
     const promise = import("mod1");
     if (Object.getPrototypeOf(promise) !== Promise.prototype) {
-      throw new Error('Expected promise to be a Promise');
+      throw new Error('Expected promise to be created in the current context');
     }
     globalThis.__result = promise;
   `, {
@@ -47,23 +47,22 @@ async function testScriptImportFailed() {
   // No import statements, so must not link statically.
   await mod1.link(common.mustNotCall());
 
+  const err = new Error('import failed');
   const script2 = new Script(`
     const promise = import("mod1");
     if (Object.getPrototypeOf(promise) !== Promise.prototype) {
-      throw new Error('Expected promise to be a Promise');
+      throw new Error('Expected promise to be created in the current context');
     }
     globalThis.__result = promise;
   `, {
     importModuleDynamically: common.mustCall((specifier, referrer) => {
-      throw new Error('import failed');
+      throw err;
     }),
   });
   script2.runInContext(ctx);
 
   // Wait for the promise to reject.
-  await assert.rejects(ctx.__result, {
-    message: 'import failed',
-  });
+  await assert.rejects(ctx.__result, err);
 }
 
 async function testModule() {
@@ -78,7 +77,7 @@ async function testModule() {
   const mod2 = new SourceTextModule(`
     const promise = import("mod1");
     if (Object.getPrototypeOf(promise) !== Promise.prototype) {
-      throw new Error('Expected promise to be a Promise');
+      throw new Error('Expected promise to be created in the current context');
     }
     await promise;
   `, {
@@ -103,22 +102,24 @@ async function testModuleImportFailed() {
   // No import statements, so must not link statically.
   await mod1.link(common.mustNotCall());
 
+  const err = new Error('import failed');
+  ctx.__err = err;
   const mod2 = new SourceTextModule(`
     const promise = import("mod1");
     if (Object.getPrototypeOf(promise) !== Promise.prototype) {
-      throw new Error('Expected promise to be a Promise');
+      throw new Error('Expected promise to be created in the current context');
     }
     await promise.then(() => {
       throw new Error('Expected promise to be rejected');
     }, (e) => {
-      if (e.message !== 'import failed') {
+      if (e !== globalThis.__err) {
         throw new Error('Expected promise to be rejected with "import failed"');
       }
     });
   `, {
     context: ctx,
     importModuleDynamically: common.mustCall((specifier, referrer) => {
-      throw new Error('import failed');
+      throw err;
     }),
   });
   // No import statements, so must not link statically.
