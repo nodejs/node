@@ -295,6 +295,10 @@ li.picker-header a span {
   line-height: 1.5;
 }
 
+#api-section-documentation .api_stability {
+  position: static;
+}
+
 .api_stability * {
   color: var(--white) !important;
 }
