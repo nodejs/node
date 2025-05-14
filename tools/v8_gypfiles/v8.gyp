@@ -2291,7 +2291,7 @@
           ['v8_target_arch=="s390x"', {
             'defines': ['HWY_BROKEN_EMU128=0',],
           }],
-          ['OS == "aix"', {
+          ['OS in "aix os400"', {
             'defines': ['HWY_BROKEN_EMU128=0',],
           }],
           ['v8_target_arch=="arm" and arm_version==7', {
