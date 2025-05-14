@@ -1358,6 +1358,7 @@ const char* X509Pointer::ErrorCode(int32_t err) {  // NOLINT(runtime/int)
     CASE(CERT_UNTRUSTED)
     CASE(CERT_REJECTED)
     CASE(HOSTNAME_MISMATCH)
+    CASE(CA_MD_TOO_WEAK)
   }
 #undef CASE
   return "UNSPECIFIED";
