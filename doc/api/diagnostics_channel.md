@@ -1209,6 +1209,13 @@ Emitted when server sends a response.
 
 Emitted when a stream is created on the client.
 
+`http2.client.stream.start`
+
+* `stream` {ClientHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the client.
+
 #### Modules
 
 > Stability: 1 - Experimental
