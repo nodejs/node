@@ -106,8 +106,8 @@ The valid arguments for both flags are:
 
 * `*` - To allow all `FileSystemRead` or `FileSystemWrite` operations,
   respectively.
-* Paths delimited by comma (`,`) to allow only matching `FileSystemRead` or
-  `FileSystemWrite` operations, respectively.
+* Relative paths to the current working directory.
+* Absolute paths.
 
 Example:
 
