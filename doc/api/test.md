@@ -1048,7 +1048,8 @@ added:
 changes:
   - version: v23.0.0
     pr-url: https://github.com/nodejs/node/pull/54548
-    description: The default reporter is now `spec` unconditionally, even when not in a TTY.
+    description: The default reporter on non-TTY stdout is changed from `tap` to
+                 `spec`, aligning with TTY stdout.
   - version:
     - v19.9.0
     - v18.17.0
