@@ -12,7 +12,7 @@ if (!common.enoughTestMem) {
 
 const assert = require('assert');
 const {
-  SlowBuffer,
+  Buffer,
   constants: {
     MAX_STRING_LENGTH,
   },
@@ -24,7 +24,7 @@ const message = {
   name: 'Error',
 };
 assert.throws(() => Buffer(len).toString('utf8'), message);
-assert.throws(() => SlowBuffer(len).toString('utf8'), message);
+assert.throws(() => Buffer.allocUnsafeSlow(len).toString('utf8'), message);
 assert.throws(() => Buffer.alloc(len).toString('utf8'), message);
 assert.throws(() => Buffer.allocUnsafe(len).toString('utf8'), message);
 assert.throws(() => Buffer.allocUnsafeSlow(len).toString('utf8'), message);

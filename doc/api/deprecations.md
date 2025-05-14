@@ -695,6 +695,9 @@ Type: End-of-Life
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58220
+    description: End-of-Life.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/55175
     description: Runtime deprecation.
@@ -706,9 +709,9 @@ changes:
     description: Documentation-only deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The [`SlowBuffer`][] class is deprecated. Please use
+The `SlowBuffer` class has been removed. Please use
 [`Buffer.allocUnsafeSlow(size)`][] instead.
 
 ### DEP0031: `ecdh.setPublicKey()`
@@ -3901,6 +3904,20 @@ of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+### DEP0192: `require('node:_tls_common')` and `require('node:_tls_wrap')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57643
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3922,7 +3939,6 @@ upon `require('node:module').builtinModules`.
 [`ReadStream.open()`]: fs.md#class-fsreadstream
 [`Server.getConnections()`]: net.md#servergetconnectionscallback
 [`Server.listen({fd: <number>})`]: net.md#serverlistenhandle-backlog-callback
-[`SlowBuffer`]: buffer.md#class-slowbuffer
 [`String.prototype.toWellFormed`]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/String/toWellFormed
 [`WriteStream.open()`]: fs.md#class-fswritestream
 [`assert`]: assert.md

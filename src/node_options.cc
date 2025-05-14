@@ -642,6 +642,9 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--experimental-network-inspection",
             "experimental network inspection support",
             &EnvironmentOptions::experimental_network_inspection);
+  AddOption("--experimental-worker-inspection",
+            "experimental worker inspection support",
+            &EnvironmentOptions::experimental_worker_inspection);
   AddOption(
       "--heap-prof",
       "Start the V8 heap profiler on start up, and write the heap profile "
@@ -1052,8 +1055,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             &PerProcessOptions::v8_thread_pool_size,
             kAllowedInEnvvar);
   AddOption("--zero-fill-buffers",
-            "automatically zero-fill all newly allocated Buffer and "
-            "SlowBuffer instances",
+            "automatically zero-fill all newly allocated Buffer instances",
             &PerProcessOptions::zero_fill_all_buffers,
             kAllowedInEnvvar);
   AddOption("--debug-arraybuffer-allocations",

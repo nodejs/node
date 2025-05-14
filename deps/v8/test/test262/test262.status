@@ -1277,6 +1277,10 @@
   # May OOM fatally
   'staging/sm/regress/regress-610026': [SKIP],
 
+  # https://github.com/rbuckton/ecma262/pull/14
+  'staging/explicit-resource-management/await-using-in-switch-case-block': [SKIP],
+  'staging/explicit-resource-management/call-dispose-methods': [SKIP],
+
   ############################ SLOW TESTS #############################
 
   'annexB/built-ins/RegExp/RegExp-leading-escape-BMP': [PASS, SLOW],
@@ -2496,7 +2500,6 @@
   'staging/sm/Temporal/PlainMonthDay/from-coptic': [FAIL],
   'staging/sm/Temporal/PlainMonthDay/from-gregory': [FAIL],
   'staging/sm/Temporal/PlainMonthDay/result-not-after-1972-dec-31': [FAIL],
-  'staging/sm/Math/f16round': [FAIL],
   'staging/sm/RegExp/unicode-ignoreCase': [FAIL],
   'staging/sm/String/string-code-point-upper-lower-mapping': [FAIL],
   'staging/sm/String/string-upper-lower-mapping': [FAIL],
@@ -2507,13 +2510,10 @@
   'staging/sm/TypedArray/prototype-constructor-identity': [FAIL],
   'staging/sm/TypedArray/set-detached-bigint': [FAIL],
   'staging/sm/TypedArray/seal-and-freeze': [FAIL],
-  'staging/sm/TypedArray/sort-negative-nan': [FAIL],
-  'staging/sm/TypedArray/sort_small': [FAIL],
   'staging/sm/TypedArray/test-integrity-level': [FAIL],
   'staging/sm/TypedArray/test-integrity-level-detached': [FAIL],
   'staging/sm/TypedArray/toReversed-detached': [FAIL],
   'staging/sm/TypedArray/toSorted-detached': [FAIL],
-  'staging/sm/TypedArray/toString': [FAIL],
   'staging/sm/TypedArray/with': [FAIL],
   'staging/sm/TypedArray/with-detached': [FAIL],
 }],

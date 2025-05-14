@@ -4,6 +4,7 @@ import { resolve, dirname, sep, relative, join, isAbsolute } from 'node:path';
 import { mkdir, writeFile, symlink, glob as asyncGlob } from 'node:fs/promises';
 import { glob, globSync, Dirent } from 'node:fs';
 import { test, describe } from 'node:test';
+import { pathToFileURL } from 'node:url';
 import { promisify } from 'node:util';
 import assert from 'node:assert';
 
@@ -331,6 +332,39 @@ describe('fsPromises glob', function() {
     test(pattern, async () => {
       const actual = [];
       for await (const item of asyncGlob(pattern, { cwd: fixtureDir })) actual.push(item);
+      actual.sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('glob - with file: URL as cwd', function() {
+  const promisified = promisify(glob);
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = (await promisified(pattern, { cwd: pathToFileURL(fixtureDir) })).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('globSync - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, () => {
+      const actual = globSync(pattern, { cwd: pathToFileURL(fixtureDir) }).sort();
+      const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
+      assert.deepStrictEqual(actual, normalized);
+    });
+  }
+});
+
+describe('fsPromises.glob - with file: URL as cwd', function() {
+  for (const [pattern, expected] of Object.entries(patterns)) {
+    test(pattern, async () => {
+      const actual = [];
+      for await (const item of asyncGlob(pattern, { cwd: pathToFileURL(fixtureDir) })) actual.push(item);
       actual.sort();
       const normalized = expected.filter(Boolean).map((item) => item.replaceAll('/', sep)).sort();
       assert.deepStrictEqual(actual, normalized);
