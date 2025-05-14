@@ -2146,7 +2146,7 @@ added:
 
 <!--lint disable maximum-line-length remark-lint-->
 
-* `algorithm`: {AlgorithmIdentifier|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
+* `algorithm`: {string|Algorithm|RsaHashedImportParams|EcKeyImportParams|HmacImportParams}
 
 <!--lint enable maximum-line-length remark-lint-->
 
