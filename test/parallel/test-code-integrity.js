@@ -5,12 +5,13 @@
 const common = require('../common');
 const assert = require('node:assert');
 const { describe, it } = require('node:test');
-const ci = require('internal/code_integrity');
 
 // This functionality is currently only on Windows
 if (!common.isWindows) {
   common.skip('Windows specific test.');
 }
+
+const ci = require('internal/code_integrity');
 
 describe('cjs loader code integrity integration tests', () => {
   it('should throw an error if a .js file does not pass code integrity policy',
