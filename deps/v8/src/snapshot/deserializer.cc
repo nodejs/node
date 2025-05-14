@@ -275,7 +275,11 @@ int Deserializer<IsolateT>::WriteExternalPointer(Tagged<HeapObject> host,
   }
 #endif  // V8_ENABLE_SANDBOX
 
-  dest.init(main_thread_isolate(), host, value, tag);
+  if (tag == kExternalPointerNullTag && value == kNullAddress) {
+    dest.init_lazily_initialized();
+  } else {
+    dest.init(main_thread_isolate(), host, value, tag);
+  }
 
 #ifdef V8_ENABLE_SANDBOX
   if (managed_resource) {

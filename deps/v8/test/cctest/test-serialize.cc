@@ -5203,6 +5203,77 @@ UNINITIALIZED_TEST(SnapshotCreatorIncludeGlobalProxy) {
   FreeCurrentEmbeddedBlob();
 }
 
+UNINITIALIZED_TEST(SnapshotCreatorSerializeInterceptorInOldSpace) {
+  DisableAlwaysOpt();
+  DisableEmbeddedBlobRefcounting();
+  v8::StartupData blob;
+
+  {
+    SnapshotCreatorParams testing_params(original_external_references);
+    v8::SnapshotCreator creator(testing_params.create_params);
+    v8::Isolate* isolate = creator.GetIsolate();
+
+    {
+      v8::HandleScope handle_scope(isolate);
+
+      v8::Local<v8::ObjectTemplate> global_template =
+          v8::ObjectTemplate::New(isolate);
+
+      NamedPropertyHandlerConfiguration config(
+          NamedPropertyGetterForSerialization, {}, {}, {}, {}, {}, {},
+          v8_str("test"),  // Stop it from being promoted to RO space.
+          PropertyHandlerFlags::kHasNoSideEffect);
+
+      global_template->SetHandler(config);
+
+      v8::Local<v8::Context> context =
+          v8::Context::New(isolate, nullptr, global_template);
+      v8::Context::Scope context_scope(context);
+      ExpectInt32("x", 2016);
+      creator.SetDefaultContext(context);
+    }
+
+    blob =
+        creator.CreateBlob(v8::SnapshotCreator::FunctionCodeHandling::kClear);
+  }
+
+  {
+    v8::Isolate::CreateParams params;
+    params.snapshot_blob = &blob;
+    params.array_buffer_allocator = CcTest::array_buffer_allocator();
+    params.external_references = original_external_references;
+    // Test-appropriate equivalent of v8::Isolate::New.
+    v8::Isolate* isolate = TestSerializer::NewIsolate(params);
+    {
+      v8::Isolate::Scope isolate_scope(isolate);
+      v8::HandleScope handle_scope(isolate);
+
+      v8::Local<v8::Context> context = v8::Context::New(isolate);
+      v8::Context::Scope context_scope(context);
+
+      // Check that the InterceptorInfo is not promoted to RO space after
+      // deserialization.
+      i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(isolate);
+      CHECK(i_isolate->global_object()->map()->has_named_interceptor());
+      CHECK(i_isolate->heap()->InOldSpace(
+          i_isolate->global_object()->GetNamedInterceptor()));
+
+      ExpectInt32("x", 2016);  // Check deserialized getter.
+      // Check the unset interceptors.
+      CompileRun(
+          "Object.defineProperty(globalThis, 'test', {"
+          "  value: 0, enumerable: true"
+          "})");
+      ExpectFalse("delete globalThis.test");
+      ExpectTrue("Object.keys(globalThis).includes('test')");
+    }
+
+    isolate->Dispose();
+  }
+  delete[] blob.data;
+  FreeCurrentEmbeddedBlob();
+}
+
 UNINITIALIZED_TEST(ReinitializeHashSeedJSCollectionRehashable) {
   DisableAlwaysOpt();
   i::v8_flags.rehash_snapshot = true;
