@@ -299,6 +299,10 @@ li.picker-header a span {
   z-index: 1;
 }
 
+#api-section-documentation .api_stability {
+  position: static;
+}
+
 .api_stability * {
   color: var(--white) !important;
 }
