@@ -48,6 +48,9 @@ server.listen(0, common.mustCall(() => {
     req.on('end', () => {
       assert.strictEqual(body, data);
       client.close();
+      client.on('close', common.mustCall(() => {
+        server.close();
+      }))
 
       const req2 = client2.request(headers);
       let data2 = '';
@@ -63,7 +66,9 @@ server.listen(0, common.mustCall(() => {
       req2.on('end', () => {
         assert.strictEqual(body, data2);
         client2.close();
-        server.close();
+        client2.on('close', common.mustCall(() => {
+          server2.close();
+        }));
       });
       req2.end();
     });
