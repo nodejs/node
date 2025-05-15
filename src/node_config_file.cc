@@ -37,46 +37,6 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
   return std::nullopt;
 }
 
-ParseResult ConfigReader::ParseNodeOptions(
-    simdjson::ondemand::object* node_options_object) {
-  auto env_options_map = options_parser::MapEnvOptionsFlagInputType();
-  simdjson::ondemand::value ondemand_value;
-  std::string_view key;
-
-  for (auto field : *node_options_object) {
-    if (field.unescaped_key().get(key) || field.value().get(ondemand_value)) {
-      return ParseResult::InvalidContent;
-    }
-
-    // The key needs to match the CLI option
-    std::string prefix = "--";
-    auto it = env_options_map.find(prefix.append(key));
-    if (it != env_options_map.end()) {
-      // If the option has already been set in the namespace options
-      // we return an invalid content error
-      if (unique_namespace_options_.contains(it->first)) {
-        FPrintF(stderr,
-                "Option %s is already set in namespace options\n",
-                it->first.c_str());
-        return ParseResult::InvalidContent;
-      }
-      ParseResult result = ProcessOptionValue(key,
-                                              it->first,
-                                              ondemand_value,
-                                              it->second,
-                                              &node_options_,
-                                              &unique_node_options_);
-      if (result != ParseResult::Valid) {
-        return result;
-      }
-    } else {
-      FPrintF(stderr, "Unknown or not allowed option %s\n", key.data());
-      return ParseResult::InvalidContent;
-    }
-  }
-  return ParseResult::Valid;
-}
-
 ParseResult ConfigReader::ProcessOptionValue(
     const std::string_view& key,
     const std::string& option_name,
@@ -186,6 +146,90 @@ ParseResult ConfigReader::ProcessOptionValue(
   return ParseResult::Valid;
 }
 
+ParseResult ConfigReader::ParseNodeOptions(
+  simdjson::ondemand::object* node_options_object) {
+auto env_options_map = options_parser::MapEnvOptionsFlagInputType();
+simdjson::ondemand::value ondemand_value;
+std::string_view key;
+
+for (auto field : *node_options_object) {
+  if (field.unescaped_key().get(key) || field.value().get(ondemand_value)) {
+    return ParseResult::InvalidContent;
+  }
+
+  // The key needs to match the CLI option
+  std::string prefix = "--";
+  auto it = env_options_map.find(prefix.append(key));
+  if (it != env_options_map.end()) {
+    // If the option has already been set in the namespace options
+    // we return an invalid content error
+    if (unique_namespace_options_.contains(it->first)) {
+      FPrintF(stderr,
+              "Option %s is already set in namespace options\n",
+              it->first.c_str());
+      return ParseResult::InvalidContent;
+    }
+    ParseResult result = ProcessOptionValue(key,
+                                            it->first,
+                                            ondemand_value,
+                                            it->second,
+                                            &node_options_,
+                                            &unique_node_options_);
+    if (result != ParseResult::Valid) {
+      return result;
+    }
+  } else {
+    FPrintF(stderr, "Unknown or not allowed option %s\n", key.data());
+    return ParseResult::InvalidContent;
+  }
+}
+return ParseResult::Valid;
+}
+
+ParseResult ConfigReader::ParseNamespaceOptions(
+    simdjson::ondemand::object* options_object,
+    const std::string& namespace_name) {
+  auto options_map = options_parser::MapOptionsByNamespace(namespace_name);
+  simdjson::ondemand::value ondemand_value;
+  std::string_view key;
+
+  for (auto field : *options_object) {
+    if (field.unescaped_key().get(key) || field.value().get(ondemand_value)) {
+      return ParseResult::InvalidContent;
+    }
+
+    // The key needs to match the option for this namespace
+    std::string prefix = "--";
+    auto it = options_map.find(prefix.append(key));
+    if (it != options_map.end()) {
+      // If the option has already been set in the nodeOptions
+      // we return an invalid content error
+      if (unique_node_options_.contains(it->first)) {
+        FPrintF(stderr,
+                "Option %s is already set in nodeOptions\n",
+                it->first.c_str());
+        return ParseResult::InvalidContent;
+      }
+      ParseResult result = ProcessOptionValue(key,
+                                              it->first,
+                                              ondemand_value,
+                                              it->second,
+                                              &namespace_options_,
+                                              &unique_namespace_options_);
+      if (result != ParseResult::Valid) {
+        return result;
+      }
+    } else {
+      FPrintF(stderr,
+              "Unknown or not allowed option %s for namespace %s\n",
+              key.data(),
+              namespace_name.c_str());
+      return ParseResult::InvalidContent;
+    }
+  }
+  return ParseResult::Valid;
+}
+
 ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   std::string file_content;
   // Read the configuration file
@@ -280,58 +324,10 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   return ParseResult::Valid;
 }
 
-ParseResult ConfigReader::ParseNamespaceOptions(
-    simdjson::ondemand::object* options_object,
-    const std::string& namespace_name) {
-  auto options_map = options_parser::MapOptionsByNamespace(namespace_name);
-  simdjson::ondemand::value ondemand_value;
-  std::string_view key;
-
-  for (auto field : *options_object) {
-    if (field.unescaped_key().get(key) || field.value().get(ondemand_value)) {
-      return ParseResult::InvalidContent;
-    }
-
-    // The key needs to match the option for this namespace
-    std::string prefix = "--";
-    auto it = options_map.find(prefix.append(key));
-    if (it != options_map.end()) {
-      // If the option has already been set in the nodeOptions
-      // we return an invalid content error
-      if (unique_node_options_.contains(it->first)) {
-        FPrintF(stderr,
-                "Option %s is already set in nodeOptions\n",
-                it->first.c_str());
-        return ParseResult::InvalidContent;
-      }
-      ParseResult result = ProcessOptionValue(key,
-                                              it->first,
-                                              ondemand_value,
-                                              it->second,
-                                              &namespace_options_,
-                                              &unique_namespace_options_);
-      if (result != ParseResult::Valid) {
-        return result;
-      }
-    } else {
-      FPrintF(stderr,
-              "Unknown or not allowed option %s for namespace %s\n",
-              key.data(),
-              namespace_name.c_str());
-      return ParseResult::InvalidContent;
-    }
-  }
-  return ParseResult::Valid;
-}
-
 std::string ConfigReader::AssignNodeOptions() {
   std::string acc = "";
   const size_t total_options = node_options_.size() + namespace_options_.size();
   acc.reserve(total_options * 2);
-  // In order to guarantee the order of the options, we need to iterate
-  // through the node_options_ first, then the namespace_options_
-  // This is needed in order to avoid breaking changes while introducing
-  // config namespaces
   for (size_t i = 0; i < node_options_.size(); ++i) {
     acc += " " + node_options_[i];
   }
