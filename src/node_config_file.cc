@@ -219,32 +219,15 @@ ParseResult ConfigReader::ParseNamespaceOptions(
                 it->first.c_str());
         return ParseResult::InvalidContent;
       }
-
-      bool is_allowed_in_envvar =
-          env_options_map_.find(it->first) != env_options_map_.end();
-      if (is_allowed_in_envvar) {
-        // Process the option for env options
-        ParseResult result = ProcessOptionValue(key,
-                                                it->first,
-                                                ondemand_value,
-                                                it->second,
-                                                &namespace_options_,
-                                                &unique_namespace_options_);
-        if (result != ParseResult::Valid) {
-          return result;
-        }
-      } else {
-        // Process the option for non-env options (don't add to
-        // unique_namespace_options_)
-        ParseResult result = ProcessOptionValue(key,
-                                                it->first,
-                                                ondemand_value,
-                                                it->second,
-                                                &namespace_non_env_options_,
-                                                nullptr);
-        if (result != ParseResult::Valid) {
-          return result;
-        }
+      // Process the option for env options
+      ParseResult result = ProcessOptionValue(key,
+                                              it->first,
+                                              ondemand_value,
+                                              it->second,
+                                              &namespace_non_env_options_,
+                                              &unique_namespace_options_);
+      if (result != ParseResult::Valid) {
+        return result;
       }
     } else {
       FPrintF(stderr,
@@ -353,13 +336,10 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
 
 std::string ConfigReader::AssignNodeOptions() {
   std::string acc = "";
-  const size_t total_options = node_options_.size() + namespace_options_.size();
+  const size_t total_options = node_options_.size();
   acc.reserve(total_options * 2);
   for (size_t i = 0; i < node_options_.size(); ++i) {
     acc += " " + node_options_[i];
-  }
-  for (size_t i = 0; i < namespace_options_.size(); ++i) {
-    acc += " " + namespace_options_[i];
   }
   return acc;
 }
@@ -369,6 +349,6 @@ std::vector<std::string> ConfigReader::AssignNodeNonEnvOptions() {
 }
 
 size_t ConfigReader::GetFlagsSize() {
-  return node_options_.size() + namespace_options_.size();
+  return node_options_.size();
 }
 }  // namespace node
