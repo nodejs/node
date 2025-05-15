@@ -50,7 +50,7 @@ server.listen(0, common.mustCall(() => {
       client.close();
       client.on('close', common.mustCall(() => {
         server.close();
-      }))
+      }));
 
       const req2 = client2.request(headers);
       let data2 = '';
