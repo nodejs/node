@@ -451,4 +451,19 @@ describe('namespaced options', () => {
     strictEqual(result.stdout, '');
     strictEqual(result.code, 9);
   });
+
+  it('should allow setting kDisallowedInEnvvar in the config file if part of a namespace', async () => {
+    // This test assumes that the --test-concurrency flag is configured as kDisallowedInEnvVar
+    // and that it is part of at least one namespace.
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, '1\n');
+    strictEqual(result.code, 0);
+  });
 });

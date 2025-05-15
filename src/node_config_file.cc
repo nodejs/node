@@ -43,7 +43,7 @@ ParseResult ConfigReader::ProcessOptionValue(
     simdjson::ondemand::value& ondemand_value,
     options_parser::OptionType option_type,
     std::vector<std::string>* output,
-    std::unordered_set<std::string>* unique_options) {
+    std::unordered_set<std::string>* unique_options = nullptr) {
   switch (option_type) {
     case options_parser::OptionType::kBoolean: {
       bool result;
@@ -142,7 +142,9 @@ ParseResult ConfigReader::ProcessOptionValue(
     default:
       UNREACHABLE();
   }
-  unique_options->insert(option_name);
+  if (unique_options != nullptr) {
+    unique_options->insert(option_name);
+  }
   return ParseResult::Valid;
 }
 
@@ -189,7 +191,14 @@ return ParseResult::Valid;
 ParseResult ConfigReader::ParseNamespaceOptions(
     simdjson::ondemand::object* options_object,
     const std::string& namespace_name) {
+  // MapOptions could send also options non settable via nodeOptions
   auto options_map = options_parser::MapOptionsByNamespace(namespace_name);
+
+  if (!env_options_initialized_) {
+    env_options_map_ = options_parser::MapEnvOptionsFlagInputType();
+    env_options_initialized_ = true;
+  }
+
   simdjson::ondemand::value ondemand_value;
   std::string_view key;
 
@@ -210,14 +219,32 @@ ParseResult ConfigReader::ParseNamespaceOptions(
                 it->first.c_str());
         return ParseResult::InvalidContent;
       }
-      ParseResult result = ProcessOptionValue(key,
-                                              it->first,
-                                              ondemand_value,
-                                              it->second,
-                                              &namespace_options_,
-                                              &unique_namespace_options_);
-      if (result != ParseResult::Valid) {
-        return result;
+
+      bool is_allowed_in_envvar =
+          env_options_map_.find(it->first) != env_options_map_.end();
+      if (is_allowed_in_envvar) {
+        // Process the option for env options
+        ParseResult result = ProcessOptionValue(key,
+                                                it->first,
+                                                ondemand_value,
+                                                it->second,
+                                                &namespace_options_,
+                                                &unique_namespace_options_);
+        if (result != ParseResult::Valid) {
+          return result;
+        }
+      } else {
+        // Process the option for non-env options (don't add to
+        // unique_namespace_options_)
+        ParseResult result = ProcessOptionValue(key,
+                                                it->first,
+                                                ondemand_value,
+                                                it->second,
+                                                &namespace_non_env_options_,
+                                                nullptr);
+        if (result != ParseResult::Valid) {
+          return result;
+        }
       }
     } else {
       FPrintF(stderr,
@@ -335,6 +362,10 @@ std::string ConfigReader::AssignNodeOptions() {
     acc += " " + namespace_options_[i];
   }
   return acc;
+}
+
+std::vector<std::string> ConfigReader::AssignNodeNonEnvOptions() {
+  return namespace_non_env_options_;
 }
 
 size_t ConfigReader::GetFlagsSize() {

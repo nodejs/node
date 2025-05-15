@@ -753,10 +753,15 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_default_config_file);
   AddOption("--test",
             "launch test runner on startup",
-            &EnvironmentOptions::test_runner);
+            &EnvironmentOptions::test_runner,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--test-concurrency",
             "specify test runner concurrency",
-            &EnvironmentOptions::test_runner_concurrency);
+            &EnvironmentOptions::test_runner_concurrency,
+            kDisallowedInEnvvar,
+            "test_runner");
   AddOption("--test-force-exit",
             "force test runner to exit upon completion",
             &EnvironmentOptions::test_runner_force_exit);
@@ -827,7 +832,8 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-global-setup",
             "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-udp-no-try-send", "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send);
   AddOption("--throw-deprecation",
@@ -1405,8 +1411,7 @@ MapOptionsByNamespace(std::string namespace_name) {
   const auto& parser = _ppop_instance;
   for (const auto& item : parser.options_) {
     if (!item.first.empty() && !item.first.starts_with('[') &&
-        item.second.namespace_id == namespace_name &&
-        item.second.env_setting == kAllowedInEnvvar) {
+        item.second.namespace_id == namespace_name) {
       type_map[item.first] = item.second.type;
     }
   }

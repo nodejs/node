@@ -5,6 +5,7 @@
 
 #include <map>
 #include <string>
+#include <unordered_map>
 #include <unordered_set>
 #include <variant>
 #include <vector>
@@ -32,6 +33,7 @@ class ConfigReader {
       const std::vector<std::string>& args);
 
   std::string AssignNodeOptions();
+  std::vector<std::string> AssignNodeNonEnvOptions();
 
   size_t GetFlagsSize();
 
@@ -56,6 +58,11 @@ class ConfigReader {
   std::vector<std::string> node_options_;
   std::unordered_set<std::string> unique_namespace_options_;
   std::vector<std::string> namespace_options_;
+  std::vector<std::string> namespace_non_env_options_;
+
+  // Cache for fast lookup of environment options
+  std::unordered_map<std::string, options_parser::OptionType> env_options_map_;
+  bool env_options_initialized_ = false;
 };
 
 }  // namespace node
