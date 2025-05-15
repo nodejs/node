@@ -25,7 +25,7 @@ const IDX_OPTIONS_MAX_SESSION_MEMORY = 8;
 const IDX_OPTIONS_MAX_SETTINGS = 9;
 const IDX_OPTIONS_STREAM_RESET_RATE = 10;
 const IDX_OPTIONS_STREAM_RESET_BURST = 11;
-const IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION = 12;
+const IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION = 12;
 const IDX_OPTIONS_FLAGS = 13;
 
 {
@@ -42,7 +42,7 @@ const IDX_OPTIONS_FLAGS = 13;
     maxSettings: 10,
     streamResetRate: 11,
     streamResetBurst: 12,
-    strictHttpHeaderFieldValidation: false
+    strictFieldWhitespaceValidation: false
   });
 
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_DEFLATE_DYNAMIC_TABLE_SIZE], 1);
@@ -57,7 +57,7 @@ const IDX_OPTIONS_FLAGS = 13;
   strictEqual(optionsBuffer[IDX_OPTIONS_MAX_SETTINGS], 10);
   strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_RATE], 11);
   strictEqual(optionsBuffer[IDX_OPTIONS_STREAM_RESET_BURST], 12);
-  strictEqual(optionsBuffer[IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION], 1);
+  strictEqual(optionsBuffer[IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION], 1);
 
   const flags = optionsBuffer[IDX_OPTIONS_FLAGS];
 
@@ -72,7 +72,7 @@ const IDX_OPTIONS_FLAGS = 13;
   ok(flags & (1 << IDX_OPTIONS_MAX_SETTINGS));
   ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_RATE));
   ok(flags & (1 << IDX_OPTIONS_STREAM_RESET_BURST));
-  ok(flags & (1 << IDX_OPTIONS_STRICT_HTTP_HEADER_FIELD_VALIDATION));
+  ok(flags & (1 << IDX_OPTIONS_STRICT_HTTP_FIELD_WHITESPACE_VALIDATION));
 }
 
 {
