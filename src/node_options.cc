@@ -754,9 +754,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test",
             "launch test runner on startup",
             &EnvironmentOptions::test_runner,
-            kDisallowedInEnvvar,
-            false,
-            "test_runner");
+            kDisallowedInEnvvar);
   AddOption("--test-concurrency",
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency,
@@ -764,28 +762,42 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "test_runner");
   AddOption("--test-force-exit",
             "force test runner to exit upon completion",
-            &EnvironmentOptions::test_runner_force_exit);
+            &EnvironmentOptions::test_runner_force_exit,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--test-timeout",
             "specify test runner timeout",
-            &EnvironmentOptions::test_runner_timeout);
+            &EnvironmentOptions::test_runner_timeout,
+            kDisallowedInEnvvar,
+            "test_runner");
   AddOption("--test-update-snapshots",
             "regenerate test snapshots",
-            &EnvironmentOptions::test_runner_update_snapshots);
+            &EnvironmentOptions::test_runner_update_snapshots,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
-            &EnvironmentOptions::test_runner_coverage);
+            &EnvironmentOptions::test_runner_coverage,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--test-coverage-branches",
             "the branch coverage minimum threshold",
             &EnvironmentOptions::test_coverage_branches,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-coverage-functions",
             "the function coverage minimum threshold",
             &EnvironmentOptions::test_coverage_functions,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-coverage-lines",
             "the line coverage minimum threshold",
             &EnvironmentOptions::test_coverage_lines,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
@@ -795,47 +807,67 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
-            &EnvironmentOptions::test_runner_module_mocks);
-  AddOption("--experimental-test-snapshots", "", NoOp{});
+            &EnvironmentOptions::test_runner_module_mocks,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
+  AddOption("--experimental-test-snapshots",
+            "",
+            NoOp{},
+            kDisallowedInEnvvar,
+            "test_runner");
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-reporter-destination",
             "report given reporter to the given destination",
             &EnvironmentOptions::test_reporter_destination,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--test-shard",
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-skip-pattern",
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            "test_runner");
   AddOption("--test-global-setup",
             "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar,
             "test_runner");
-  AddOption("--test-udp-no-try-send", "",  // For testing only.
-            &EnvironmentOptions::test_udp_no_try_send);
+  AddOption("--test-udp-no-try-send",
+            "",  // For testing only.
+            &EnvironmentOptions::test_udp_no_try_send,
+            kDisallowedInEnvvar,
+            false,
+            "test_runner");
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
