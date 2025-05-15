@@ -376,8 +376,8 @@ test('should throw an error when the file is non readable', { skip: common.isWin
             constants.S_IRWXU | constants.S_IRWXG | constants.S_IRWXO);
 });
 
-describe('namespaced options', () => {
-  it('should parse a namespaced option correctly', async () => {
+describe('namespace-scoped options', () => {
+  it('should parse a namespace-scoped option correctly', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -390,7 +390,7 @@ describe('namespaced options', () => {
     strictEqual(result.code, 0);
   });
 
-  it('should throw an error when a namespaced option is not recognised', async () => {
+  it('should throw an error when a namespace-scoped option is not recognised', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--experimental-config-file',
@@ -426,7 +426,7 @@ describe('namespaced options', () => {
     strictEqual(result.code, 0);
   });
 
-  it('should throw an error if a namespaced option has already been set in node options', async () => {
+  it('should throw an error if a namespace-scoped option has already been set in node options', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -439,7 +439,7 @@ describe('namespaced options', () => {
     strictEqual(result.code, 9);
   });
 
-  it('should throw an error if a node option has already been set in a namespaced option', async () => {
+  it('should throw an error if a node option has already been set in a namespace-scoped option', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -466,4 +466,36 @@ describe('namespaced options', () => {
     strictEqual(result.stdout, '1\n');
     strictEqual(result.code, 0);
   });
+
+  it('should prioritise CLI namespace-scoped options over config file options', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--test-isolation', 'process',
+      '--experimental-config-file',
+      fixtures.path('rc/namespaced/node.config.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, 'process\n');
+    strictEqual(result.code, 0);
+  });
+
+  it('should override namespace-scoped config file options with CLI options in case of kDisallowedInEnvVar options', async () => {
+    // This test assumes that the --test-concurrency flag is configured as kDisallowedInEnvVar
+    // and that it is part of at least one namespace.
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--test-concurrency', '2',
+      '--experimental-config-file',
+      fixtures.path('rc/namespace-with-disallowed-envvar.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-concurrency")',
+    ]);
+    strictEqual(result.stderr, '');
+    strictEqual(result.stdout, '2\n');
+    strictEqual(result.code, 0);
+  })
+
+  it.todo('should override namespace-scoped config file options with CLI options in case of array');
 });
