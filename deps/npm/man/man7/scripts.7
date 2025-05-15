@@ -1,9 +1,9 @@
-.TH "SCRIPTS" "7" "April 2025" "NPM@11.3.0" ""
+.TH "SCRIPTS" "7" "May 2025" "NPM@11.4.0" ""
 .SH "NAME"
 \fBscripts\fR - How npm handles the "scripts" field
 .SS "Description"
 .P
-The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run-script <stage>\fR or \fBnpm run <stage>\fR for short. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
+The \fB"scripts"\fR property of your \fBpackage.json\fR file supports a number of built-in scripts and their preset life cycle events as well as arbitrary scripts. These all can be executed by running \fBnpm run <stage>\fR or \fBnpm run <stage>\fR for short. \fIPre\fR and \fIpost\fR commands with matching names will be run for those as well (e.g. \fBpremyscript\fR, \fBmyscript\fR, \fBpostmyscript\fR). Scripts from dependencies can be run with \fBnpm explore <pkg> -- npm run <stage>\fR.
 .SS "Pre & Post Scripts"
 .P
 To create "pre" or "post" scripts for any scripts defined in the \fB"scripts"\fR section of the \fBpackage.json\fR, simply create another script \fIwith a matching name\fR and add "pre" or "post" to the beginning of them.
@@ -38,6 +38,8 @@ Runs BEFORE the package is packed, i.e. during \fBnpm publish\fR and \fBnpm pack
 Runs on local \fBnpm install\fR without any arguments
 .IP \(bu 4
 Runs AFTER \fBprepublish\fR, but BEFORE \fBprepublishOnly\fR
+.IP \(bu 4
+Runs for a package if it's being installed as a link through \fBnpm install <folder>\fR
 .IP \(bu 4
 NOTE: If a package being installed through git contains a \fBprepare\fR script, its \fBdependencies\fR and \fBdevDependencies\fR will be installed, and the prepare script will be run, before the package is packaged and installed.
 .IP \(bu 4
@@ -227,7 +229,7 @@ If there is a \fBrestart\fR script defined, these events are run, otherwise \fBs
 \fBpostrestart\fR
 .RE 0
 
-.SS "\fB\fBnpm run <user defined>\fR\fR \fI\(la/commands/npm-run-script\(ra\fR"
+.SS "\fB\fBnpm run <user defined>\fR\fR \fI\(la/commands/npm-run\(ra\fR"
 .RS 0
 .IP \(bu 4
 \fBpre<user-defined>\fR
@@ -396,7 +398,7 @@ Scripts are run from the root of the package folder, regardless of what the curr
 .SS "See Also"
 .RS 0
 .IP \(bu 4
-npm help run-script
+npm help run
 .IP \(bu 4
 \fBpackage.json\fR \fI\(la/configuring-npm/package-json\(ra\fR
 .IP \(bu 4

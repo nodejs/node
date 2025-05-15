@@ -9,7 +9,7 @@ description: How npm handles the "scripts" field
 The `"scripts"` property of your `package.json` file supports a number
 of built-in scripts and their preset life cycle events as well as
 arbitrary scripts. These all can be executed by running
-`npm run-script <stage>` or `npm run <stage>` for short. *Pre* and *post*
+`npm run <stage>` or `npm run <stage>` for short. *Pre* and *post*
 commands with matching names will be run for those as well (e.g. `premyscript`,
 `myscript`, `postmyscript`). Scripts from dependencies can be run with
 `npm explore <pkg> -- npm run <stage>`.
@@ -46,6 +46,7 @@ situations. These scripts happen in addition to the `pre<event>`, `post<event>`,
     and `npm pack`
 * Runs on local `npm install` without any arguments
 * Runs AFTER `prepublish`, but BEFORE `prepublishOnly`
+* Runs for a package if it's being installed as a link through `npm install <folder>`
 
 * NOTE: If a package being installed through git contains a `prepare`
  script, its `dependencies` and `devDependencies` will be installed, and
@@ -179,7 +180,7 @@ If there is a `restart` script defined, these events are run, otherwise
 * `restart`
 * `postrestart`
 
-#### [`npm run <user defined>`](/commands/npm-run-script)
+#### [`npm run <user defined>`](/commands/npm-run)
 
 * `pre<user-defined>`
 * `<user-defined>`
@@ -357,7 +358,7 @@ file.
 
 ### See Also
 
-* [npm run-script](/commands/npm-run-script)
+* [npm run](/commands/npm-run)
 * [package.json](/configuring-npm/package-json)
 * [npm developers](/using-npm/developers)
 * [npm install](/commands/npm-install)
