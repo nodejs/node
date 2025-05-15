@@ -426,7 +426,20 @@ describe('namespaced options', () => {
     strictEqual(result.code, 0);
   });
 
-  it('should override a non-namespaced option with a namespaced option', async () => {
+  it('should throw an error if a namespaced option has already been set in node options', async () => {
+    const result = await spawnPromisified(process.execPath, [
+      '--no-warnings',
+      '--expose-internals',
+      '--experimental-config-file',
+      fixtures.path('rc/override-node-option-with-namespace.json'),
+      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
+    ]);
+    match(result.stderr, /Option --test-isolation is already set in nodeOptions/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
+  });
+
+  it('should throw an error if a node option has already been set in a namespaced option', async () => {
     const result = await spawnPromisified(process.execPath, [
       '--no-warnings',
       '--expose-internals',
@@ -434,21 +447,8 @@ describe('namespaced options', () => {
       fixtures.path('rc/override-namespace.json'),
       '-p', 'require("internal/options").getOptionValue("--test-isolation")',
     ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'process\n');
-    strictEqual(result.code, 0);
-  });
-
-  it('should override a non-namespaced option with a namespaced option inverse order', async () => {
-    const result = await spawnPromisified(process.execPath, [
-      '--no-warnings',
-      '--expose-internals',
-      '--experimental-config-file',
-      fixtures.path('rc/override-namespace-inverse.json'),
-      '-p', 'require("internal/options").getOptionValue("--test-isolation")',
-    ]);
-    strictEqual(result.stderr, '');
-    strictEqual(result.stdout, 'process\n');
-    strictEqual(result.code, 0);
+    match(result.stderr, /Option --test-isolation is already set in namespace options/);
+    strictEqual(result.stdout, '');
+    strictEqual(result.code, 9);
   });
 });
