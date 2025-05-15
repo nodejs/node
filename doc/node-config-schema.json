@@ -584,6 +584,18 @@
         }
       },
       "type": "object"
+    },
+    "test_runner": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "test-coverage-lines": {
+          "type": "number"
+        },
+        "test-isolation": {
+          "type": "string"
+        }
+      }
     }
   },
   "type": "object"
