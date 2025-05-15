@@ -165,7 +165,10 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
   if (r != 0) {
     const char* err = uv_strerror(r);
     FPrintF(
-        stderr, "Cannot read configuration from %s: %s\n", config_path, err);
+      stderr,
+      "Cannot read configuration from %s: %s\n",
+      config_path,
+      err);
     return ParseResult::FileError;
   }
 
@@ -177,34 +180,40 @@ ParseResult ConfigReader::ParseConfig(const std::string_view& config_path) {
     return ParseResult::InvalidContent;
   }
 
+  // Validate config is an object
   simdjson::ondemand::object main_object;
-  // If document is not an object, throw an error.
-  if (auto root_error = document.get_object().get(main_object)) {
+  auto root_error = document.get_object().get(main_object);
+  if (root_error) {
     if (root_error == simdjson::error_code::INCORRECT_TYPE) {
-      FPrintF(stderr,
-              "Root value unexpected not an object for %s\n\n",
-              config_path.data());
+      FPrintF(
+        stderr,
+        "Root value unexpected not an object for %s\n\n",
+        config_path.data());
     } else {
       FPrintF(stderr, "Can't parse %s\n", config_path.data());
     }
     return ParseResult::InvalidContent;
   }
-
+  // Check for nodeOptions object
   simdjson::ondemand::object node_options_object;
-  //  If "nodeOptions" is an object, parse it
-  if (auto node_options_error =
-          main_object["nodeOptions"].get_object().get(node_options_object)) {
-    if (node_options_error != simdjson::error_code::NO_SUCH_FIELD) {
-      FPrintF(stderr,
-              "\"nodeOptions\" value unexpected for %s\n\n",
-              config_path.data());
-      return ParseResult::InvalidContent;
-    }
-  } else {
-    return ParseNodeOptions(&node_options_object);
+  auto node_options_error =
+    main_object["nodeOptions"]
+      .get_object()
+      .get(node_options_object);
+  // If no nodeOptions field, return Valid
+  if (node_options_error == simdjson::error_code::NO_SUCH_FIELD) {
+    return ParseResult::Valid;
   }
-
-  return ParseResult::Valid;
+  // If nodeOptions exists but couldn't be parsed as an object
+  if (node_options_error) {
+    FPrintF(
+      stderr,
+      "\"nodeOptions\" value unexpected for %s\n\n",
+      config_path.data());
+    return ParseResult::InvalidContent;
+  }
+  // Process nodeOptions object
+  return ParseNodeOptions(&node_options_object);
 }
 
 std::string ConfigReader::AssignNodeOptions() {
