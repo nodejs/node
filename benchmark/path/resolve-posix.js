@@ -6,6 +6,7 @@ const bench = common.createBenchmark(main, {
   paths: [
     'empty',
     '',
+    '.',
     ['', ''].join('|'),
     ['foo/bar', '/tmp/file/', '..', 'a/../subfile'].join('|'),
     ['a/b/c/', '../../..'].join('|'),
