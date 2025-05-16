@@ -1757,7 +1757,7 @@ void Debug::DiscardBaselineCode(Tagged<SharedFunctionInfo> shared) {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = Cast<JSFunction>(obj);
       if (fun->shared() == shared && fun->ActiveTierIsBaseline(isolate_)) {
-        fun->UpdateCode(*trampoline);
+        fun->UpdateCode(isolate_, *trampoline);
       }
     }
   }
@@ -1775,7 +1775,7 @@ void Debug::DiscardAllBaselineCode() {
     if (IsJSFunction(obj)) {
       Tagged<JSFunction> fun = Cast<JSFunction>(obj);
       if (fun->ActiveTierIsBaseline(isolate_)) {
-        fun->UpdateCode(*trampoline);
+        fun->UpdateCode(isolate_, *trampoline);
       }
     } else if (IsSharedFunctionInfo(obj)) {
       Tagged<SharedFunctionInfo> shared = Cast<SharedFunctionInfo>(obj);
@@ -1896,7 +1896,7 @@ void Debug::InstallDebugBreakTrampoline() {
         if (!fun->is_compiled(isolate_)) {
           needs_compile.push_back(handle(fun, isolate_));
         } else {
-          fun->UpdateCode(*trampoline);
+          fun->UpdateCode(isolate_, *trampoline);
         }
       } else if (IsJSObject(obj)) {
         Tagged<JSObject> object = Cast<JSObject>(obj);
@@ -1933,13 +1933,13 @@ void Debug::InstallDebugBreakTrampoline() {
     DirectHandle<Object> getter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_GETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *getter)) {
-      Cast<JSFunction>(getter)->UpdateCode(*trampoline);
+      Cast<JSFunction>(getter)->UpdateCode(isolate_, *trampoline);
     }
 
     DirectHandle<Object> setter = AccessorPair::GetComponent(
         isolate_, native_context, accessor_pair, ACCESSOR_SETTER);
     if (IsJSFunctionAndNeedsTrampoline(isolate_, *setter)) {
-      Cast<JSFunction>(setter)->UpdateCode(*trampoline);
+      Cast<JSFunction>(setter)->UpdateCode(isolate_, *trampoline);
     }
   }
 
@@ -1950,7 +1950,7 @@ void Debug::InstallDebugBreakTrampoline() {
     Compiler::Compile(isolate_, fun, Compiler::CLEAR_EXCEPTION,
                       &is_compiled_scope);
     DCHECK(is_compiled_scope.is_compiled());
-    fun->UpdateCode(*trampoline);
+    fun->UpdateCode(isolate_, *trampoline);
   }
 }
 
@@ -3320,7 +3320,7 @@ bool Debug::PerformSideEffectCheckAtBytecode(InterpretedFrame* frame) {
   }
   interpreter::Register reg;
   switch (bytecode) {
-    case Bytecode::kStaCurrentContextSlot:
+    case Bytecode::kStaCurrentContextSlotNoCell:
       reg = interpreter::Register::current_context();
       break;
     default:

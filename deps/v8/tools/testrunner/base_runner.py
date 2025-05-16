@@ -36,57 +36,58 @@ DEFAULT_OUT_GN = Path('out.gn')
 # The mapping from names used here to GN targets (which must stay in sync)
 # is defined in infra/mb/gn_isolate_map.pyl.
 TEST_MAP = {
-  # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
-  "bot_default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "webkit",
-    "mkgrokdump",
-    "wasm-js",
-    "fuzzer",
-    "message",
-    "intl",
-    "unittests",
-    "wasm-api-tests",
-  ],
-  # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
-  "default": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "wasm-spec-tests",
-    "inspector",
-    "mkgrokdump",
-    "wasm-js",
-    "fuzzer",
-    "message",
-    "intl",
-    "unittests",
-    "wasm-api-tests",
-  ],
-  # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
-  "d8_default": [
-    "debugger",
-    "mjsunit",
-    "webkit",
-    "message",
-    "intl",
-  ],
-  # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
-  "optimize_for_size": [
-    "debugger",
-    "mjsunit",
-    "cctest",
-    "inspector",
-    "webkit",
-    "intl",
-  ],
-  "unittests": [
-    "unittests",
-  ],
+    # This needs to stay in sync with group("v8_bot_default") in test/BUILD.gn.
+    "bot_default": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "wasm-spec-tests",
+        "inspector",
+        "webkit",
+        "mkgrokdump",
+        "wasm-js",
+        "fuzzer",
+        "message",
+        "intl",
+        "unittests",
+        "wasm-api-tests",
+        "filecheck",
+    ],
+    # This needs to stay in sync with group("v8_default") in test/BUILD.gn.
+    "default": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "wasm-spec-tests",
+        "inspector",
+        "mkgrokdump",
+        "wasm-js",
+        "fuzzer",
+        "message",
+        "intl",
+        "unittests",
+        "wasm-api-tests",
+        "filecheck",
+    ],
+    # This needs to stay in sync with group("v8_d8_default") in test/BUILD.gn.
+    "d8_default": [
+        "debugger",
+        "mjsunit",
+        "webkit",
+        "message",
+        "intl",
+        "filecheck",
+    ],
+    # This needs to stay in sync with "v8_optimize_for_size" in test/BUILD.gn.
+    "optimize_for_size": [
+        "debugger",
+        "mjsunit",
+        "cctest",
+        "inspector",
+        "webkit",
+        "intl",
+    ],
+    "unittests": ["unittests",],
 }
 
 DEFAULT_FLAGS = {

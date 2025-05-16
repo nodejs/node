@@ -120,7 +120,7 @@ struct FloatTraits<double> {
   // Parsing a smaller N will produce something finite.
   static constexpr int kEiselLemireMaxExclusiveExp10 = 309;
 
-  static double MakeNan(absl::Nonnull<const char*> tagp) {
+  static double MakeNan(const char* absl_nonnull tagp) {
 #if ABSL_HAVE_BUILTIN(__builtin_nan)
     // Use __builtin_nan() if available since it has a fix for
     // https://bugs.llvm.org/show_bug.cgi?id=37778
@@ -193,7 +193,7 @@ struct FloatTraits<float> {
   static constexpr int kEiselLemireMinInclusiveExp10 = -46 - 18;
   static constexpr int kEiselLemireMaxExclusiveExp10 = 39;
 
-  static float MakeNan(absl::Nonnull<const char*> tagp) {
+  static float MakeNan(const char* absl_nonnull tagp) {
 #if ABSL_HAVE_BUILTIN(__builtin_nanf)
     // Use __builtin_nanf() if available since it has a fix for
     // https://bugs.llvm.org/show_bug.cgi?id=37778
@@ -345,7 +345,7 @@ int NormalizedShiftSize(int mantissa_width, int binary_exponent) {
 // `value` must be wider than the requested bit width.
 //
 // Returns the number of bits shifted.
-int TruncateToBitWidth(int bit_width, absl::Nonnull<uint128*> value) {
+int TruncateToBitWidth(int bit_width, uint128* absl_nonnull value) {
   const int current_bit_width = BitWidth(*value);
   const int shift = current_bit_width - bit_width;
   *value >>= shift;
@@ -357,7 +357,7 @@ int TruncateToBitWidth(int bit_width, absl::Nonnull<uint128*> value) {
 // the appropriate double, and returns true.
 template <typename FloatType>
 bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
-                    absl::Nonnull<FloatType*> value) {
+                    FloatType* absl_nonnull value) {
   if (input.type == strings_internal::FloatType::kNan) {
     // A bug in gcc would cause the compiler to optimize away the buffer we are
     // building below.  Declaring the buffer volatile avoids the issue, and has
@@ -403,8 +403,8 @@ bool HandleEdgeCase(const strings_internal::ParsedFloat& input, bool negative,
 // number is stored in *value.
 template <typename FloatType>
 void EncodeResult(const CalculatedFloat& calculated, bool negative,
-                  absl::Nonnull<absl::from_chars_result*> result,
-                  absl::Nonnull<FloatType*> value) {
+                  absl::from_chars_result* absl_nonnull result,
+                  FloatType* absl_nonnull value) {
   if (calculated.exponent == kOverflow) {
     result->ec = std::errc::result_out_of_range;
     *value = negative ? -std::numeric_limits<FloatType>::max()
@@ -450,7 +450,7 @@ void EncodeResult(const CalculatedFloat& calculated, bool negative,
 // Zero and negative values of `shift` are accepted, in which case the word is
 // shifted left, as necessary.
 uint64_t ShiftRightAndRound(uint128 value, int shift, bool input_exact,
-                            absl::Nonnull<bool*> output_exact) {
+                            bool* absl_nonnull output_exact) {
   if (shift <= 0) {
     *output_exact = input_exact;
     return static_cast<uint64_t>(value << -shift);
@@ -684,8 +684,7 @@ CalculatedFloat CalculateFromParsedDecimal(
 // this function returns false) is both fast and correct.
 template <typename FloatType>
 bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
-                 absl::Nonnull<FloatType*> value,
-                 absl::Nonnull<std::errc*> ec) {
+                 FloatType* absl_nonnull value, std::errc* absl_nonnull ec) {
   uint64_t man = input.mantissa;
   int exp10 = input.exponent;
   if (exp10 < FloatTraits<FloatType>::kEiselLemireMinInclusiveExp10) {
@@ -858,9 +857,9 @@ bool EiselLemire(const strings_internal::ParsedFloat& input, bool negative,
 }
 
 template <typename FloatType>
-from_chars_result FromCharsImpl(absl::Nonnull<const char*> first,
-                                absl::Nonnull<const char*> last,
-                                FloatType& value, chars_format fmt_flags) {
+from_chars_result FromCharsImpl(const char* absl_nonnull first,
+                                const char* absl_nonnull last, FloatType& value,
+                                chars_format fmt_flags) {
   from_chars_result result;
   result.ptr = first;  // overwritten on successful parse
   result.ec = std::errc();
@@ -945,14 +944,14 @@ from_chars_result FromCharsImpl(absl::Nonnull<const char*> first,
 }
 }  // namespace
 
-from_chars_result from_chars(absl::Nonnull<const char*> first,
-                             absl::Nonnull<const char*> last, double& value,
+from_chars_result from_chars(const char* absl_nonnull first,
+                             const char* absl_nonnull last, double& value,
                              chars_format fmt) {
   return FromCharsImpl(first, last, value, fmt);
 }
 
-from_chars_result from_chars(absl::Nonnull<const char*> first,
-                             absl::Nonnull<const char*> last, float& value,
+from_chars_result from_chars(const char* absl_nonnull first,
+                             const char* absl_nonnull last, float& value,
                              chars_format fmt) {
   return FromCharsImpl(first, last, value, fmt);
 }

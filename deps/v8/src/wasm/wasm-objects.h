@@ -473,7 +473,7 @@ class WasmGlobalObject
 class V8_EXPORT_PRIVATE WasmTrustedInstanceData : public ExposedTrustedObject {
  public:
   DECL_OPTIONAL_ACCESSORS(instance_object, Tagged<WasmInstanceObject>)
-  DECL_ACCESSORS(native_context, Tagged<Context>)
+  DECL_OPTIONAL_ACCESSORS(native_context, Tagged<Context>)
   DECL_ACCESSORS(memory_objects, Tagged<FixedArray>)
 #if V8_ENABLE_DRUMBRAKE
   DECL_OPTIONAL_ACCESSORS(interpreter_object, Tagged<Tuple2>)
@@ -818,6 +818,9 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static const uint32_t kInvalidFunctionIndex = UINT_MAX;
 #endif  // V8_ENABLE_DRUMBRAKE
 
+  // Indicate whether we are modifying an existing entry (for which we might
+  // have to update the ref count), or if we are initializing a slot for the
+  // first time (in which case we should not read the uninitialized memory).
   enum NewOrExistingEntry : bool { kNewEntry, kExistingEntry };
 
   class BodyDescriptor;
@@ -860,7 +863,7 @@ class WasmDispatchTable : public ExposedTrustedObject {
   static_assert(IsAligned(kTargetBias, kTaggedSize));
   static_assert(IsAligned(kImplicitArgBias, kTaggedSize));
 
-  // TODO(clemensb): If we ever enable allocation alignment we will needs to add
+  // TODO(clemensb): If we ever enable allocation alignment we will need to add
   // more padding to make the "target" fields system-pointer-size aligned.
   static_assert(!USE_ALLOCATION_ALIGNMENT_BOOL);
 
@@ -907,30 +910,26 @@ class WasmDispatchTable : public ExposedTrustedObject {
 
   // Set an entry for indirect calls that don't go to a WasmToJS wrapper.
   // Wrappers are special since we own the CPT entries for the wrappers.
-  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData, or
-  // Smi::zero().
-  void V8_EXPORT_PRIVATE SetForNonWrapper(int index,
-                                          Tagged<Object> implicit_arg,
-                                          WasmCodePointer call_target,
-                                          wasm::CanonicalTypeIndex sig_id,
+  // {implicit_arg} has to be a WasmTrustedInstanceData, or Smi::zero() for
+  // clearing the slot.
+  void V8_EXPORT_PRIVATE SetForNonWrapper(
+      int index, Tagged<Union<Smi, WasmTrustedInstanceData>> implicit_arg,
+      WasmCodePointer call_target, wasm::CanonicalTypeIndex sig_id,
 #if V8_ENABLE_DRUMBRAKE
-                                          uint32_t function_index,
+      uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                          NewOrExistingEntry new_or_existing);
+      NewOrExistingEntry new_or_existing);
 
   // Set an entry for indirect calls to a WasmToJS wrapper.
-  // {implicit_arg} has to be a WasmImportData, a WasmTrustedInstanceData.
   // {compiled_wrapper} needs to be set to the corresponding WasmCode, or
   // nullptr in case of the generic wrapper.
-  void V8_EXPORT_PRIVATE SetForWrapper(int index, Tagged<Object> implicit_arg,
-                                       Address call_target,
-                                       wasm::CanonicalTypeIndex sig_id,
-                                       uint64_t signature_hash,
+  void V8_EXPORT_PRIVATE SetForWrapper(
+      int index, Tagged<WasmImportData> implicit_arg, Address call_target,
+      wasm::CanonicalTypeIndex sig_id, uint64_t signature_hash,
 #if V8_ENABLE_DRUMBRAKE
-                                       uint32_t function_index,
+      uint32_t function_index,
 #endif  // V8_ENABLE_DRUMBRAKE
-                                       wasm::WasmCode* compiled_wrapper,
-                                       NewOrExistingEntry new_or_existing);
+      wasm::WasmCode* compiled_wrapper, NewOrExistingEntry new_or_existing);
 
 #if V8_ENABLE_DRUMBRAKE
   inline uint32_t function_index(int index) const;
@@ -953,7 +952,8 @@ class WasmDispatchTable : public ExposedTrustedObject {
       Isolate* isolate, DirectHandle<WasmDispatchTable> dispatch_table);
 
   static V8_EXPORT_PRIVATE V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable>
-  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type);
+  New(Isolate* isolate, int length, wasm::CanonicalValueType table_type,
+      bool shared);
   static V8_WARN_UNUSED_RESULT DirectHandle<WasmDispatchTable> Grow(
       Isolate*, DirectHandle<WasmDispatchTable>, uint32_t new_length);
 
@@ -1435,7 +1435,8 @@ class WasmStruct : public TorqueGeneratedWasmStruct<WasmStruct, WasmObject> {
   // Only for structs whose type describes another type.
   static DirectHandle<WasmStruct> AllocateDescriptorUninitialized(
       Isolate* isolate, DirectHandle<WasmTrustedInstanceData> trusted_data,
-      wasm::ModuleTypeIndex index, DirectHandle<Map> map);
+      wasm::ModuleTypeIndex index, DirectHandle<Map> map,
+      DirectHandle<Object> first_field);
   inline Tagged<Map> get_described_rtt() const;
   inline void set_described_rtt(Tagged<Map> rtt);
 
@@ -1512,30 +1513,14 @@ class WasmArray : public TorqueGeneratedWasmArray<WasmArray, WasmObject> {
   TQ_OBJECT_CONSTRUCTORS(WasmArray)
 };
 
-// A wasm delimited continuation.
-class WasmContinuationObject
-    : public TorqueGeneratedWasmContinuationObject<WasmContinuationObject,
-                                                   HeapObject> {
+class WasmDescriptorOptions
+    : public TorqueGeneratedWasmDescriptorOptions<WasmDescriptorOptions,
+                                                  JSObject> {
  public:
-  static DirectHandle<WasmContinuationObject> New(
-      Isolate* isolate, wasm::StackMemory* stack,
-      wasm::JumpBuffer::StackState state,
-      AllocationType allocation_type = AllocationType::kYoung);
-  static DirectHandle<WasmContinuationObject> New(
-      Isolate* isolate, wasm::StackMemory* stack,
-      wasm::JumpBuffer::StackState state, DirectHandle<HeapObject> parent,
-      AllocationType allocation_type = AllocationType::kYoung);
-
-  DECL_EXTERNAL_POINTER_ACCESSORS(stack, Address)
-
-  DECL_PRINTER(WasmContinuationObject)
-
-  using BodyDescriptor = StackedBodyDescriptor<
-      FixedBodyDescriptorFor<WasmContinuationObject>,
-      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
-
- private:
-  TQ_OBJECT_CONSTRUCTORS(WasmContinuationObject)
+  static DirectHandle<WasmDescriptorOptions> New(
+      Isolate* isolate, DirectHandle<Object> prototype);
+  DECL_PRINTER(WasmDescriptorOptions)
+  TQ_OBJECT_CONSTRUCTORS(WasmDescriptorOptions)
 };
 
 // The suspender object provides an API to suspend and resume wasm code using
@@ -1544,8 +1529,11 @@ class WasmSuspenderObject
     : public TorqueGeneratedWasmSuspenderObject<WasmSuspenderObject,
                                                 HeapObject> {
  public:
-  using BodyDescriptor = FixedBodyDescriptorFor<WasmSuspenderObject>;
+  using BodyDescriptor = StackedBodyDescriptor<
+      FixedBodyDescriptorFor<WasmSuspenderObject>,
+      WithExternalPointer<kStackOffset, kWasmStackMemoryTag>>;
   enum State : int { kInactive = 0, kActive, kSuspended };
+  DECL_EXTERNAL_POINTER_ACCESSORS(stack, wasm::StackMemory*)
   DECL_PRINTER(WasmSuspenderObject)
   TQ_OBJECT_CONSTRUCTORS(WasmSuspenderObject)
 };
@@ -1588,9 +1576,13 @@ class WasmNull : public TorqueGeneratedWasmNull<WasmNull, HeapObject> {
 
 #undef DECL_OPTIONAL_ACCESSORS
 
-DirectHandle<Map> CreateStructMap(Isolate* isolate,
-                                  wasm::CanonicalTypeIndex type,
-                                  DirectHandle<Map> opt_rtt_parent);
+// If {opt_native_context} is not null, creates a contextful map bound to
+// that context; otherwise creates a context-independent map (which must then
+// not point to any context-specific objects!).
+DirectHandle<Map> CreateStructMap(
+    Isolate* isolate, wasm::CanonicalTypeIndex type,
+    DirectHandle<Map> opt_rtt_parent,
+    DirectHandle<NativeContext> opt_native_context);
 
 DirectHandle<Map> CreateArrayMap(Isolate* isolate,
                                  wasm::CanonicalTypeIndex array_index,
@@ -1598,7 +1590,8 @@ DirectHandle<Map> CreateArrayMap(Isolate* isolate,
 
 DirectHandle<Map> CreateFuncRefMap(Isolate* isolate,
                                    wasm::CanonicalTypeIndex type,
-                                   DirectHandle<Map> opt_rtt_parent);
+                                   DirectHandle<Map> opt_rtt_parent,
+                                   bool shared);
 
 namespace wasm {
 // Takes a {value} in the JS representation and typechecks it according to

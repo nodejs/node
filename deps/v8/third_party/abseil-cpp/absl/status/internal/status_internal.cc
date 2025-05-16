@@ -189,7 +189,7 @@ bool StatusRep::operator==(const StatusRep& other) const {
   return true;
 }
 
-absl::Nonnull<StatusRep*> StatusRep::CloneAndUnref() const {
+StatusRep* absl_nonnull StatusRep::CloneAndUnref() const {
   // Optimization: no need to create a clone if we already have a refcount of 1.
   if (ref_.load(std::memory_order_acquire) == 1) {
     // All StatusRep instances are heap allocated and mutable, therefore this
@@ -235,9 +235,8 @@ absl::StatusCode MapToLocalCode(int value) {
   }
 }
 
-absl::Nonnull<const char*> MakeCheckFailString(
-    absl::Nonnull<const absl::Status*> status,
-    absl::Nonnull<const char*> prefix) {
+const char* absl_nonnull MakeCheckFailString(
+    const absl::Status* absl_nonnull status, const char* absl_nonnull prefix) {
   // There's no need to free this string since the process is crashing.
   return absl::IgnoreLeak(
              new std::string(absl::StrCat(

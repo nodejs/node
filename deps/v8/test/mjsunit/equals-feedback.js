@@ -98,10 +98,10 @@ testLoose(21, false, false, 'NumberOrBoolean');
 testStrict(20, true, false, 'Any');
 testStrict(21, false, false, 'Any');
 
-// These should actually be NumberOrOddball, but detecting it is not
-// implemented (unclear if implementing it will improve performance).
-test(22, null, false, 'Any');
-test(23, undefined, false, 'Any');
+testLoose(22, null, false, 'NumberOrOddball');
+testStrict(22, null, false, 'Any');
+testLoose(23, undefined, false, 'NumberOrOddball');
+testStrict(23, undefined, false, 'Any');
 
 // SMI, internalized string
 testLoose(24, '24', true, 'Any');
@@ -145,10 +145,10 @@ testLoose(3.21, false, false, 'NumberOrBoolean');
 testStrict(3.20, true, false, 'Any');
 testStrict(3.21, false, false, 'Any');
 
-// These should actually be NumberOrOddball, but detecting it is not
-// implemented (unclear if implementing it will improve performance).
-test(3.22, null, false, 'Any');
-test(3.23, undefined, false, 'Any');
+testLoose(3.22, null, false, 'NumberOrOddball');
+testStrict(3.22, null, false, 'Any');
+testLoose(3.23, undefined, false, 'NumberOrOddball');
+testStrict(3.23, undefined, false, 'Any');
 
 // HeapNumber, internalized string
 testLoose(3.24, '3.24', true, 'Any');
@@ -261,11 +261,11 @@ testOneWay(false, undefined, '===', false, 'Any');
 testOneWay(undefined, false, '===', false, 'ReceiverOrNullOrUndefined');
 
 // TODO(397375000): These should be NumberOrOddball.
-testOneWay(true, null, '==', false, 'Any');
+testOneWay(true, null, '==', false, 'NumberOrOddball');
 testOneWay(null, true, '===', false, 'ReceiverOrNullOrUndefined');
-testLoose(true, undefined, false, 'Any');
-testLoose(false, null, false, 'Any');
-testLoose(false, undefined, false, 'Any');
+testLoose(true, undefined, false, 'NumberOrOddball');
+testLoose(false, null, false, 'NumberOrOddball');
+testLoose(false, undefined, false, 'NumberOrOddball');
 
 test(undefined, undefined, true, 'ReceiverOrNullOrUndefined');
 testLoose(undefined, null, true, 'ReceiverOrNullOrUndefined');

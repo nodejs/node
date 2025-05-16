@@ -112,8 +112,6 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
   BuildFunctionTargetAndImplicitArg(V<WasmInternalFunction> internal_function);
 
   RegisterRepresentation RepresentationFor(ValueTypeBase type);
-  V<WasmTrustedInstanceData> LoadTrustedDataFromInstanceObject(
-      V<HeapObject> instance_object);
 
   OpIndex CallC(const MachineSignature* sig, ExternalReference ref,
                 std::initializer_list<OpIndex> args);
@@ -123,6 +121,11 @@ class V8_EXPORT_PRIVATE WasmGraphBuilderBase {
                 OpIndex arg) {
     return CallC(sig, ref, {arg});
   }
+
+  void BuildSetNewStackLimit(V<WordPtr> old_limit, V<WordPtr> new_limit);
+  V<WordPtr> BuildSwitchToTheCentralStack(V<WordPtr> old_limit);
+  std::pair<V<WordPtr>, V<WordPtr>> BuildSwitchToTheCentralStackIfNeeded();
+  void BuildSwitchBackFromCentralStack(V<WordPtr> old_sp, V<WordPtr> old_limit);
 
   Assembler& Asm() { return asm_; }
 

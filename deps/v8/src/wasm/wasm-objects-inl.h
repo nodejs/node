@@ -45,7 +45,6 @@ namespace v8::internal {
 TQ_OBJECT_CONSTRUCTORS_IMPL(AsmWasmData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmArray)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmCapiFunctionData)
-TQ_OBJECT_CONSTRUCTORS_IMPL(WasmContinuationObject)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExceptionTag)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmExportedFunctionData)
 TQ_OBJECT_CONSTRUCTORS_IMPL(WasmFunctionData)
@@ -231,8 +230,8 @@ PRIMITIVE_ACCESSORS(WasmTrustedInstanceData, break_on_entry, uint8_t,
 
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, instance_object,
                    Tagged<WasmInstanceObject>, kInstanceObjectOffset)
-ACCESSORS(WasmTrustedInstanceData, native_context, Tagged<Context>,
-          kNativeContextOffset)
+OPTIONAL_ACCESSORS(WasmTrustedInstanceData, native_context, Tagged<Context>,
+                   kNativeContextOffset)
 ACCESSORS(WasmTrustedInstanceData, memory_objects, Tagged<FixedArray>,
           kMemoryObjectsOffset)
 OPTIONAL_ACCESSORS(WasmTrustedInstanceData, untagged_globals_buffer,
@@ -822,12 +821,12 @@ int WasmArray::DecodeElementSizeFromMap(Tagged<Map> map) {
   return map->WasmByte1();
 }
 
+EXTERNAL_POINTER_ACCESSORS(WasmSuspenderObject, stack, wasm::StackMemory*,
+                           kStackOffset, kWasmStackMemoryTag)
+
 TRUSTED_POINTER_ACCESSORS(WasmTagObject, trusted_data, WasmTrustedInstanceData,
                           kTrustedDataOffset,
                           kWasmTrustedInstanceDataIndirectPointerTag)
-
-EXTERNAL_POINTER_ACCESSORS(WasmContinuationObject, stack, Address, kStackOffset,
-                           kWasmStackMemoryTag)
 
 #include "src/objects/object-macros-undef.h"
 

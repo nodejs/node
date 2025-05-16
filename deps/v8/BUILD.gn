@@ -25,12 +25,6 @@ if (is_ios) {
   import("//build/config/apple/mobile_config.gni")  # For `target_platform`.
 }
 
-# Specifies if the target build is a simulator build. Comparing target cpu
-# with v8 target cpu to not affect simulator builds for making cross-compile
-# snapshots.
-target_is_simulator = (target_cpu != v8_target_cpu && !v8_multi_arch_build) ||
-                      (current_cpu != v8_current_cpu && v8_multi_arch_build)
-
 # For faster Windows builds. See https://crbug.com/v8/8475.
 emit_builtins_as_inline_asm = is_win && is_clang
 
@@ -323,10 +317,11 @@ declare_args() {
 
   # Enable control-flow integrity features, such as pointer authentication for
   # ARM64. Enable it by default for simulator builds and when native code
-  # supports it as well.
-  v8_control_flow_integrity =
-      v8_current_cpu == "arm64" &&
-      (target_is_simulator || arm_control_flow_integrity != "none")
+  # supports it as well. On Mac, control-flow integrity does not work so we
+  # avoid enabling it when using the simulator.
+  v8_control_flow_integrity = v8_current_cpu == "arm64" &&
+                              ((v8_target_is_simulator && target_os != "mac") ||
+                               arm_control_flow_integrity != "none")
 
   # Enable heap reservation of size 4GB. Only possible for 64bit archs.
   cppgc_enable_caged_heap =
@@ -360,6 +355,10 @@ declare_args() {
   # Experimental feature for collecting per-class zone memory stats.
   # Requires use_rtti = true
   v8_enable_precise_zone_stats = false
+
+  # Set this if V8 monolithic static library is going to be linked into
+  # another shared library.
+  v8_monolithic_for_shared_library = false
 
   # Experimental feature that uses SwissNameDictionary instead of NameDictionary
   # as the backing store for all dictionary mode objects.
@@ -739,7 +738,8 @@ if (v8_builtins_profiling_log_file == "default") {
   }
 }
 
-if (v8_enable_webassembly && !target_is_simulator && v8_current_cpu == "x64") {
+if (v8_enable_webassembly && !v8_target_is_simulator &&
+    v8_current_cpu == "x64") {
   v8_enable_wasm_simd256_revec = true
 }
 
@@ -989,7 +989,6 @@ external_v8_defines = [
   "V8_USE_PERFETTO",
   "V8_MAP_PACKING",
   "V8_IS_TSAN",
-  "V8_ENABLE_CONSERVATIVE_STACK_SCANNING",
   "V8_ENABLE_DIRECT_HANDLE",
   "V8_MINORMS_STRING_SHORTCUTTING",
   "V8_HAVE_TARGET_OS",
@@ -1043,9 +1042,6 @@ if (v8_enable_map_packing) {
 }
 if (is_tsan) {
   enabled_external_v8_defines += [ "V8_IS_TSAN" ]
-}
-if (v8_enable_conservative_stack_scanning) {
-  enabled_external_v8_defines += [ "V8_ENABLE_CONSERVATIVE_STACK_SCANNING" ]
 }
 if (v8_enable_direct_handle) {
   enabled_external_v8_defines += [ "V8_ENABLE_DIRECT_HANDLE" ]
@@ -1182,6 +1178,10 @@ config("features") {
 
   if (cppgc_allow_allocations_in_prefinalizers) {
     defines += [ "CPPGC_ALLOW_ALLOCATIONS_IN_PREFINALIZERS" ]
+  }
+
+  if (v8_monolithic && v8_monolithic_for_shared_library) {
+    defines += [ "V8_TLS_USED_IN_LIBRARY" ]
   }
 
   if (v8_enable_pointer_compression &&
@@ -1447,6 +1447,9 @@ config("features") {
   if (v8_lower_limits_mode) {
     defines += [ "V8_LOWER_LIMITS_MODE" ]
   }
+  if (v8_target_is_simulator) {
+    defines += [ "USE_SIMULATOR" ]
+  }
 }
 
 config("toolchain") {
@@ -1497,7 +1500,7 @@ config("toolchain") {
   }
 
   # Mips64el simulators.
-  if (target_is_simulator && v8_current_cpu == "mips64el") {
+  if (v8_target_is_simulator && v8_current_cpu == "mips64el") {
     defines += [ "_MIPS_TARGET_SIMULATOR" ]
   }
 
@@ -1530,7 +1533,7 @@ config("toolchain") {
   }
 
   # loong64 simulators.
-  if (target_is_simulator && v8_current_cpu == "loong64") {
+  if (v8_target_is_simulator && v8_current_cpu == "loong64") {
     defines += [ "_LOONG64_TARGET_SIMULATOR" ]
   }
   if (v8_current_cpu == "loong64") {
@@ -1563,10 +1566,10 @@ config("toolchain") {
 
   # Under simulator build, compiler will not provide __riscv_xlen. Define here
   if (v8_current_cpu == "riscv64" || v8_current_cpu == "riscv32") {
-    if (target_is_simulator) {
+    if (v8_target_is_simulator) {
       defines += [ "_RISCV_TARGET_SIMULATOR" ]
     }
-    if (riscv_use_rvv || target_is_simulator) {
+    if (riscv_use_rvv || v8_target_is_simulator) {
       defines += [ "CAN_USE_RVV_INSTRUCTIONS" ]
       defines += [ "RVV_VLEN=${riscv_rvv_vlen}" ]
     }
@@ -1823,6 +1826,10 @@ if (v8_postmortem_support) {
       "src/objects/casting-inl.h",
       "src/objects/code.h",
       "src/objects/code-inl.h",
+      "src/objects/cpp-heap-external-object.h",
+      "src/objects/cpp-heap-external-object-inl.h",
+      "src/objects/cpp-heap-object-wrapper.h",
+      "src/objects/cpp-heap-object-wrapper-inl.h",
       "src/objects/data-handler.h",
       "src/objects/data-handler-inl.h",
       "src/objects/deoptimization-data.h",
@@ -2061,6 +2068,7 @@ torque_files = [
   "src/objects/cell.tq",
   "src/objects/bytecode-array.tq",
   "src/objects/contexts.tq",
+  "src/objects/cpp-heap-external-object.tq",
   "src/objects/data-handler.tq",
   "src/objects/debug-objects.tq",
   "src/objects/descriptor-array.tq",
@@ -2546,7 +2554,7 @@ template("run_mksnapshot") {
     # This is needed to distinguish between generating code for the simulator
     # and cross-compiling. The latter may need to run code on the host with the
     # simulator but cannot use simulator-specific instructions.
-    if (target_is_simulator) {
+    if (v8_target_is_simulator) {
       args += [ "--target_is_simulator" ]
     }
 
@@ -2788,7 +2796,6 @@ action("v8_dump_build_config") {
     "code_comments=$v8_code_comments",
     "component_build=$is_component_build",
     "concurrent_marking=$v8_enable_concurrent_marking",
-    "conservative_stack_scanning=$v8_enable_conservative_stack_scanning",
     "current_cpu=\"$current_cpu\"",
     "dcheck_always_on=$v8_dcheck_always_on",
     "debug_code=$v8_enable_debug_code",
@@ -2854,8 +2861,6 @@ generated_file("v8_generate_features_json") {
   contents = {
     v8_deprecation_warnings = v8_deprecation_warnings
     v8_enable_31bit_smis_on_64bit_arch = v8_enable_31bit_smis_on_64bit_arch
-    v8_enable_conservative_stack_scanning =
-        v8_enable_conservative_stack_scanning
     v8_enable_direct_handle = v8_enable_direct_handle
     v8_enable_extensible_ro_snapshot = v8_enable_extensible_ro_snapshot
     v8_enable_gdbjit = v8_enable_gdbjit
@@ -3176,6 +3181,7 @@ v8_header_set("v8_headers") {
     "include/v8-callbacks.h",
     "include/v8-container.h",
     "include/v8-context.h",
+    "include/v8-cpp-heap-external.h",
     "include/v8-cppgc.h",
     "include/v8-data.h",
     "include/v8-date.h",
@@ -3380,6 +3386,7 @@ v8_header_set("v8_internal_headers") {
     "src/codegen/handler-table.h",
     "src/codegen/interface-descriptors-inl.h",
     "src/codegen/interface-descriptors.h",
+    "src/codegen/jump-table-info.h",
     "src/codegen/label.h",
     "src/codegen/linkage-location.h",
     "src/codegen/machine-type.h",
@@ -3773,7 +3780,6 @@ v8_header_set("v8_internal_headers") {
     "src/heap/heap-write-barrier-inl.h",
     "src/heap/heap-write-barrier.h",
     "src/heap/heap.h",
-    "src/heap/incremental-marking-inl.h",
     "src/heap/incremental-marking-job.h",
     "src/heap/incremental-marking.h",
     "src/heap/index-generator.h",
@@ -3937,6 +3943,10 @@ v8_header_set("v8_internal_headers") {
     "src/objects/compressed-slots.h",
     "src/objects/contexts-inl.h",
     "src/objects/contexts.h",
+    "src/objects/cpp-heap-external-object-inl.h",
+    "src/objects/cpp-heap-external-object.h",
+    "src/objects/cpp-heap-object-wrapper-inl.h",
+    "src/objects/cpp-heap-object-wrapper.h",
     "src/objects/data-handler-inl.h",
     "src/objects/data-handler.h",
     "src/objects/debug-objects-inl.h",
@@ -4610,7 +4620,6 @@ v8_header_set("v8_internal_headers") {
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.h",
       "src/codegen/x64/assembler-x64-inl.h",
       "src/codegen/x64/assembler-x64.h",
-      "src/codegen/x64/builtin-jump-table-info-x64.h",
       "src/codegen/x64/constants-x64.h",
       "src/codegen/x64/fma-instr.h",
       "src/codegen/x64/interface-descriptors-x64-inl.h",
@@ -4711,8 +4720,10 @@ v8_header_set("v8_internal_headers") {
           (current_cpu == "x64" && (is_linux || is_chromeos || is_mac))) {
         sources += [ "src/trap-handler/handler-inside-posix.h" ]
       }
-      if (current_cpu == "x64" &&
-          (is_linux || is_chromeos || is_mac || is_win)) {
+      if ((current_cpu == "x64" &&
+           (is_linux || is_chromeos || is_mac || is_win)) ||
+          (current_cpu == "arm64" && v8_target_is_simulator &&
+           (is_linux || is_mac))) {
         sources += [ "src/trap-handler/trap-handler-simulator.h" ]
       }
     }
@@ -5401,6 +5412,7 @@ v8_source_set("v8_base_without_compiler") {
     "src/codegen/flush-instruction-cache.cc",
     "src/codegen/handler-table.cc",
     "src/codegen/interface-descriptors.cc",
+    "src/codegen/jump-table-info.cc",
     "src/codegen/machine-type.cc",
     "src/codegen/macro-assembler-base.cc",
     "src/codegen/maglev-safepoint-table.cc",
@@ -5984,7 +5996,6 @@ v8_source_set("v8_base_without_compiler") {
       ### gcmole(x64) ###
       "src/codegen/shared-ia32-x64/macro-assembler-shared-ia32-x64.cc",
       "src/codegen/x64/assembler-x64.cc",
-      "src/codegen/x64/builtin-jump-table-info-x64.cc",
       "src/codegen/x64/cpu-x64.cc",
       "src/codegen/x64/macro-assembler-x64.cc",
       "src/deoptimizer/x64/deoptimizer-x64.cc",
@@ -6065,7 +6076,7 @@ v8_source_set("v8_base_without_compiler") {
           "src/trap-handler/handler-outside-win.cc",
         ]
       }
-      if (current_cpu == "x64" &&
+      if ((current_cpu == "x64" || current_cpu == "arm64") &&
           (is_linux || is_chromeos || is_mac || is_win)) {
         sources += [ "src/trap-handler/handler-outside-simulator.cc" ]
       }
@@ -6529,6 +6540,25 @@ v8_component("v8_libbase") {
     "src/base/numbers/fixed-dtoa.h",
     "src/base/numbers/strtod.cc",
     "src/base/numbers/strtod.h",
+    "src/base/numerics/angle_conversions.h",
+    "src/base/numerics/basic_ops_impl.h",
+    "src/base/numerics/byte_conversions.h",
+    "src/base/numerics/checked_math.h",
+    "src/base/numerics/checked_math_impl.h",
+    "src/base/numerics/clamped_math.h",
+    "src/base/numerics/clamped_math_impl.h",
+    "src/base/numerics/integral_constant_like.h",
+    "src/base/numerics/math_constants.h",
+    "src/base/numerics/ostream_operators.h",
+    "src/base/numerics/ranges.h",
+    "src/base/numerics/safe_conversions.h",
+    "src/base/numerics/safe_conversions_arm_impl.h",
+    "src/base/numerics/safe_conversions_impl.h",
+    "src/base/numerics/safe_math.h",
+    "src/base/numerics/safe_math_arm_impl.h",
+    "src/base/numerics/safe_math_clang_gcc_impl.h",
+    "src/base/numerics/safe_math_shared_impl.h",
+    "src/base/numerics/wrapping_math.h",
     "src/base/once.cc",
     "src/base/once.h",
     "src/base/overflowing-math.h",
@@ -6554,9 +6584,6 @@ v8_component("v8_libbase") {
     "src/base/region-allocator.cc",
     "src/base/region-allocator.h",
     "src/base/ring-buffer.h",
-    "src/base/safe_conversions.h",
-    "src/base/safe_conversions_arm_impl.h",
-    "src/base/safe_conversions_impl.h",
     "src/base/sanitizer/asan.h",
     "src/base/sanitizer/lsan-page-allocator.cc",
     "src/base/sanitizer/lsan-page-allocator.h",
@@ -7010,6 +7037,7 @@ v8_header_set("cppgc_headers") {
     "include/cppgc/process-heap-statistics.h",
     "include/cppgc/sentinel-pointer.h",
     "include/cppgc/source-location.h",
+    "include/cppgc/tagged-member.h",
 
     # TODO(v8:11952): Remove the testing header here once depending on both,
     # //v8:v8 and //v8:v8_for_testing does not result in ODR violations.

@@ -278,8 +278,8 @@ uint32_t RegisteredSymbolTableShape::HashForObject(ReadOnlyRoots roots,
   return Cast<String>(object)->EnsureHash();
 }
 
-bool NameToIndexShape::IsMatch(DirectHandle<Name> key, Tagged<Object> other) {
-  return *key == other;
+bool NameToIndexShape::IsMatch(Tagged<Name> key, Tagged<Object> other) {
+  return key == other;
 }
 
 uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots,
@@ -287,7 +287,7 @@ uint32_t NameToIndexShape::HashForObject(ReadOnlyRoots roots,
   return Cast<Name>(other)->hash();
 }
 
-uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, DirectHandle<Name> key) {
+uint32_t NameToIndexShape::Hash(ReadOnlyRoots roots, Tagged<Name> key) {
   return key->hash();
 }
 
@@ -307,7 +307,7 @@ Handle<NameToIndexHashTable> NameToIndexHashTable::Add(
     DirectHandle<Name> key, int32_t index) {
   DCHECK_GE(index, 0);
   // Validate that the key is absent.
-  SLOW_DCHECK(table->FindEntry(isolate, key).is_not_found());
+  SLOW_DCHECK(table->FindEntry(isolate, *key).is_not_found());
   // Check whether the dictionary should be extended.
   table = EnsureCapacity(isolate, table);
   DisallowGarbageCollection no_gc;

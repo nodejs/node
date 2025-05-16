@@ -220,6 +220,7 @@ constexpr size_t kCodeHeaderSize = sizeof(uint8_t) +  // code kind
                                    sizeof(int) +  // offset of safepoint table
                                    sizeof(int) +  // offset of handler table
                                    sizeof(int) +  // offset of code comments
+                                   sizeof(int) +  // offset of jump table info
                                    sizeof(int) +  // unpadded binary size
                                    sizeof(int) +  // stack slots
                                    sizeof(int) +  // ool slots
@@ -448,6 +449,7 @@ void NativeModuleSerializer::WriteCode(
   writer->Write(code->safepoint_table_offset());
   writer->Write(code->handler_table_offset());
   writer->Write(code->code_comments_offset());
+  writer->Write(code->jump_table_info_offset());
   writer->Write(code->unpadded_binary_size());
   writer->Write(code->stack_slots());
   writer->Write(code->ool_spills());
@@ -908,6 +910,7 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   int safepoint_table_offset = reader->Read<int>();
   int handler_table_offset = reader->Read<int>();
   int code_comment_offset = reader->Read<int>();
+  int jump_table_info_offset = reader->Read<int>();
   int unpadded_binary_size = reader->Read<int>();
   int stack_slot_count = reader->Read<int>();
   int ool_spill_count = reader->Read<int>();
@@ -954,9 +957,9 @@ DeserializationUnit NativeModuleDeserializer::ReadCode(int fn_index,
   unit.code = native_module_->AddDeserializedCode(
       fn_index, instructions, stack_slot_count, ool_spill_count,
       tagged_parameter_slots, safepoint_table_offset, handler_table_offset,
-      constant_pool_offset, code_comment_offset, unpadded_binary_size,
-      protected_instructions, reloc_info, source_pos, inlining_pos, deopt_data,
-      kind, tier);
+      constant_pool_offset, code_comment_offset, jump_table_info_offset,
+      unpadded_binary_size, protected_instructions, reloc_info, source_pos,
+      inlining_pos, deopt_data, kind, tier);
   unit.jump_tables = current_jump_tables_;
   return unit;
 }

@@ -88,6 +88,15 @@ TF_BUILTIN(StringToLowerCaseIntl, IntlBuiltinsAssembler) {
                   [this](TNode<Object> ret) { Return(ret); });
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+TF_BUILTIN(WasmStringToLowerCaseIntl, IntlBuiltinsAssembler) {
+  const auto string = Parameter<String>(Descriptor::kString);
+  ToLowerCaseImpl(string, TNode<Object>() /*maybe_locales*/, TNode<Context>(),
+                  ToLowerCaseKind::kToLowerCase,
+                  [this](TNode<Object> ret) { Return(ret); });
+}
+#endif
+
 TF_BUILTIN(StringPrototypeToLowerCaseIntl, IntlBuiltinsAssembler) {
   auto maybe_string = Parameter<Object>(Descriptor::kReceiver);
   auto context = Parameter<Context>(Descriptor::kContext);

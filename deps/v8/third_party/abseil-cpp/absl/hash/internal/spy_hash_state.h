@@ -16,12 +16,14 @@
 #define ABSL_HASH_INTERNAL_SPY_HASH_STATE_H_
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdint>
 #include <ostream>
 #include <string>
 #include <vector>
 
 #include "absl/hash/hash.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/strings/match.h"
 #include "absl/strings/str_format.h"
 #include "absl/strings/str_join.h"
@@ -165,6 +167,11 @@ class SpyHashStateImpl : public HashStateBase<SpyHashStateImpl<T>> {
           reinterpret_cast<const char*>(begin), size);
     }
     return hash_state;
+  }
+
+  static SpyHashStateImpl combine_weakly_mixed_integer(
+      SpyHashStateImpl hash_state, WeaklyMixedInteger value) {
+    return combine(std::move(hash_state), value.value);
   }
 
   using SpyHashStateImpl::HashStateBase::combine_contiguous;

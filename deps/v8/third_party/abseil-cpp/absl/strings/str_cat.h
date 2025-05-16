@@ -213,7 +213,7 @@ struct Hex {
                               !std::is_pointer<Int>::value>::type* = nullptr)
       : Hex(spec, static_cast<uint64_t>(v)) {}
   template <typename Pointee>
-  explicit Hex(absl::Nullable<Pointee*> v, PadSpec spec = absl::kNoPad)
+  explicit Hex(Pointee* absl_nullable v, PadSpec spec = absl::kNoPad)
       : Hex(spec, reinterpret_cast<uintptr_t>(v)) {}
 
   template <typename S>
@@ -359,7 +359,7 @@ class AlphaNum {
           ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(&buf.data[0], buf.size) {}
 
-  AlphaNum(absl::Nullable<const char*> c_str  // NOLINT(runtime/explicit)
+  AlphaNum(const char* absl_nullable c_str  // NOLINT(runtime/explicit)
                ABSL_ATTRIBUTE_LIFETIME_BOUND)
       : piece_(NullSafeStringView(c_str)) {}
   AlphaNum(absl::string_view pc  // NOLINT(runtime/explicit)
@@ -392,7 +392,7 @@ class AlphaNum {
   AlphaNum& operator=(const AlphaNum&) = delete;
 
   absl::string_view::size_type size() const { return piece_.size(); }
-  absl::Nullable<const char*> data() const { return piece_.data(); }
+  const char* absl_nullable data() const { return piece_.data(); }
   absl::string_view Piece() const { return piece_; }
 
   // Match unscoped enums.  Use integral promotion so that a `char`-backed
@@ -462,7 +462,7 @@ namespace strings_internal {
 
 // Do not call directly - this is not part of the public API.
 std::string CatPieces(std::initializer_list<absl::string_view> pieces);
-void AppendPieces(absl::Nonnull<std::string*> dest,
+void AppendPieces(std::string* absl_nonnull dest,
                   std::initializer_list<absl::string_view> pieces);
 
 template <typename Integer>
@@ -592,18 +592,18 @@ template <typename... AV>
 //   absl::string_view p = s;
 //   StrAppend(&s, p);
 
-inline void StrAppend(absl::Nonnull<std::string*>) {}
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+inline void StrAppend(std::string* absl_nonnull) {}
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a);
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b, const AlphaNum& c);
-void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                const AlphaNum& b, const AlphaNum& c, const AlphaNum& d);
 
 // Support 5 or more arguments
 template <typename... AV>
-inline void StrAppend(absl::Nonnull<std::string*> dest, const AlphaNum& a,
+inline void StrAppend(std::string* absl_nonnull dest, const AlphaNum& a,
                       const AlphaNum& b, const AlphaNum& c, const AlphaNum& d,
                       const AlphaNum& e, const AV&... args) {
   strings_internal::AppendPieces(

@@ -855,6 +855,7 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void SetStackPointer(TNode<RawPtrT> ptr);
 #endif  // V8_ENABLE_WEBASSEMBLY
 
+  TNode<Object> LoadTaggedFromRootRegister(TNode<IntPtrT> offset);
   TNode<RawPtrT> LoadPointerFromRootRegister(TNode<IntPtrT> offset);
   TNode<Uint8T> LoadUint8FromRootRegister(TNode<IntPtrT> offset);
 
@@ -1380,6 +1381,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
   void TailCallBuiltin(Builtin id, TNode<Object> context, TArgs... args) {
     DCHECK_WITH_MSG(!Builtins::HasJSLinkage(id),
                     "Use TailCallJSBuiltin instead");
+#if V8_ENABLE_WEBASSEMBLY
+    // Tail calling from a wasm builtin to a non-wasm builtin is not supported
+    // because of stack switching. Use a call instead so that we switch to the
+    // central stack and back if needed.
+    DCHECK(!wasm::BuiltinLookup::IsWasmBuiltinId(builtin()) ||
+           wasm::BuiltinLookup::IsWasmBuiltinId(id));
+#endif
     Callable callable = Builtins::CallableFor(isolate(), id);
     TNode<Code> target = HeapConstantNoHole(callable.code());
     TailCallStub(callable.descriptor(), target, context, args...);
@@ -1433,6 +1441,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
     DCHECK(Builtins::HasJSLinkage(builtin));
     // The receiver is also passed on the stack so needs to be included.
     DCHECK_EQ(Builtins::GetStackParameterCount(builtin), 1 + sizeof...(args));
+#if V8_ENABLE_WEBASSEMBLY
+    // Unimplemented. Add code for switching to the central stack here if
+    // needed. See {CallBuiltin} for example.
+    DCHECK(!wasm::BuiltinLookup::IsWasmBuiltinId(this->builtin()) ||
+           wasm::BuiltinLookup::IsWasmBuiltinId(builtin));
+#endif
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);
@@ -1451,6 +1465,13 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                          TNode<Int32T> arg_count,
                          TNode<JSDispatchHandleT> dispatch_handle) {
     DCHECK(Builtins::HasJSLinkage(id));
+#if V8_ENABLE_WEBASSEMBLY
+    // Tail calling from a wasm builtin to a JS builtin is not supported because
+    // of stack switching. Use a call instead so that we switch to the central
+    // stack and back if needed.
+    DCHECK(!wasm::BuiltinLookup::IsWasmBuiltinId(builtin()) ||
+           wasm::BuiltinLookup::IsWasmBuiltinId(id));
+#endif
     Callable callable = Builtins::CallableFor(isolate(), id);
     TNode<Code> target = HeapConstantNoHole(callable.code());
 #ifdef V8_JS_LINKAGE_INCLUDES_DISPATCH_HANDLE
@@ -1468,6 +1489,12 @@ class V8_EXPORT_PRIVATE CodeAssembler {
                       TNode<Object> function, TNode<JSAny> receiver,
                       TArgs... args) {
     DCHECK(Builtins::IsAnyCall(builtin));
+#if V8_ENABLE_WEBASSEMBLY
+    // Unimplemented. Add code for switching to the central stack here if
+    // needed. See {CallBuiltin} for example.
+    DCHECK(!wasm::BuiltinLookup::IsWasmBuiltinId(this->builtin()) ||
+           wasm::BuiltinLookup::IsWasmBuiltinId(builtin));
+#endif
     Callable callable = Builtins::CallableFor(isolate(), builtin);
     int argc = JSParameterCount(static_cast<int>(sizeof...(args)));
     TNode<Int32T> arity = Int32Constant(argc);

@@ -6,7 +6,10 @@
 #define V8_OBJECTS_CONTEXTS_H_
 
 #include "include/v8-promise.h"
+#include "src/common/globals.h"
+#include "src/execution/frames.h"
 #include "src/handles/handles.h"
+#include "src/objects/dependent-code.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/function-kind.h"
 #include "src/objects/ordered-hash-table.h"
@@ -18,13 +21,21 @@
 namespace v8 {
 namespace internal {
 
-class ContextSidePropertyCell;
+namespace maglev {
+class MaglevGraphBuilder;
+class MaglevAssembler;
+}  // namespace maglev
 class JSGlobalObject;
 class JSGlobalProxy;
 class MicrotaskQueue;
 class NativeContext;
 class RegExpMatchInfo;
 struct VariableLookupResult;
+namespace compiler {
+class ContextRef;
+}
+class V8HeapExplorer;
+class JavaScriptFrame;
 
 enum ContextLookupFlags {
   FOLLOW_CONTEXT_CHAIN = 1 << 0,
@@ -315,6 +326,7 @@ enum ContextLookupFlags {
   V(SLOW_TEMPLATE_INSTANTIATIONS_CACHE_INDEX, EphemeronHashTable,              \
     slow_template_instantiations_cache)                                        \
   V(ATOMICS_WAITASYNC_PROMISES, OrderedHashSet, atomics_waitasync_promises)    \
+  V(SET_UINT8_ARRAY_RESULT_MAP, Map, set_unit8_array_result_map)               \
   V(WASM_DEBUG_MAPS, FixedArray, wasm_debug_maps)                              \
   /* Fast Path Protectors */                                                   \
   V(REGEXP_SPECIES_PROTECTOR_INDEX, PropertyCell, regexp_species_protector)    \
@@ -364,6 +376,8 @@ enum ContextLookupFlags {
   V(WASM_SUSPENDING_PROTOTYPE, JSObject, wasm_suspending_prototype)            \
   V(WASM_MEMORY_MAP_DESCRIPTOR_CONSTRUCTOR_INDEX, JSFunction,                  \
     wasm_memory_map_descriptor_constructor)                                    \
+  V(WASM_DESCRIPTOR_OPTIONS_CONSTRUCTOR_INDEX, JSFunction,                     \
+    wasm_descriptor_options_constructor)                                       \
   V(TEMPLATE_WEAKMAP_INDEX, HeapObject, template_weakmap)                      \
   V(TYPED_ARRAY_FUN_INDEX, JSFunction, typed_array_function)                   \
   V(TYPED_ARRAY_PROTOTYPE_INDEX, JSObject, typed_array_prototype)              \
@@ -474,19 +488,23 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   using TorqueGeneratedContext::set_length;  // Non-atomic.
   DECL_RELAXED_INT_ACCESSORS(length)
 
-  // Setter and getter for elements.
-  // Note the plain accessors use relaxed semantics.
-  // TODO(jgruber): Make that explicit through tags.
-  V8_INLINE Tagged<Object> get(int index) const;
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index) const;
-  V8_INLINE void set(int index, Tagged<Object> value,
-                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
-  // Accessors with acquire-release semantics.
-  V8_INLINE Tagged<Object> get(int index, AcquireLoadTag) const;
-  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
-                               AcquireLoadTag) const;
-  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
-                     ReleaseStoreTag);
+  V8_INLINE bool IsElementTheHole(int index);
+
+  template <typename MemoryTag>
+  V8_INLINE Tagged<Object> GetNoCell(int index, MemoryTag tag);
+  template <typename MemoryTag>
+  V8_INLINE void SetNoCell(int index, Tagged<Object> value, MemoryTag tag,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  V8_INLINE Tagged<Object> GetNoCell(int index);
+  V8_INLINE void SetNoCell(int index, Tagged<Object> value,
+                           WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  V8_EXPORT_PRIVATE static DirectHandle<Object> Get(
+      DirectHandle<Context> context, int index, Isolate* isolate);
+  V8_EXPORT_PRIVATE static void Set(DirectHandle<Context> context, int index,
+                                    DirectHandle<Object> new_value,
+                                    Isolate* isolate);
 
   static const int kScopeInfoOffset = kElementsOffset;
   static const int kPreviousOffset = kScopeInfoOffset + kTaggedSize;
@@ -556,9 +574,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
     // These slots hold values in debug evaluate contexts.
     WRAPPED_CONTEXT_INDEX = MIN_CONTEXT_EXTENDED_SLOTS,
-
-    // This slot holds the const tracking let side data.
-    CONTEXT_SIDE_TABLE_PROPERTY_INDEX = MIN_CONTEXT_SLOTS,
   };
 
   static const int kExtensionSize =
@@ -628,6 +643,7 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
   inline bool IsModuleContext() const;
   inline bool IsEvalContext() const;
   inline bool IsScriptContext() const;
+  inline bool HasContextCells() const;
 
   inline bool HasSameSecurityTokenAs(Tagged<Context> that) const;
 
@@ -680,21 +696,6 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 
   inline Tagged<Map> GetInitialJSArrayMap(ElementsKind kind) const;
 
-  static Tagged<ContextSidePropertyCell> GetOrCreateContextSidePropertyCell(
-      DirectHandle<Context> context, size_t index,
-      ContextSidePropertyCell::Property property, Isolate* isolate);
-
-  std::optional<ContextSidePropertyCell::Property> GetScriptContextSideProperty(
-      size_t index) const;
-
-  static DirectHandle<Object> LoadScriptContextElement(
-      DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> new_value, Isolate* isolate);
-
-  static void StoreScriptContextAndUpdateSlotProperty(
-      DirectHandle<Context> script_context, int index,
-      DirectHandle<Object> new_value, Isolate* isolate);
-
   static const int kNotFound = -1;
 
   // Dispatched behavior.
@@ -706,6 +707,29 @@ class Context : public TorqueGeneratedContext<Context, HeapObject> {
 #ifdef VERIFY_HEAP
   V8_EXPORT_PRIVATE void VerifyExtensionSlot(Tagged<HeapObject> extension);
 #endif
+
+ protected:
+  // Setter and getter for elements.
+  template <typename MemoryTag>
+  Tagged<Object> get(int index, MemoryTag tag) const;
+
+  // Accessors use relaxed semantics.
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               RelaxedLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value,
+                     WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
+                     RelaxedStoreTag);
+  // Accessors with acquire-release semantics.
+  V8_INLINE Tagged<Object> get(PtrComprCageBase cage_base, int index,
+                               AcquireLoadTag) const;
+  V8_INLINE void set(int index, Tagged<Object> value, WriteBarrierMode mode,
+                     ReleaseStoreTag);
+
+  // These classes can load an element with a context cell.
+  friend class compiler::ContextRef;
+  friend class JavaScriptFrame;
+  friend class V8HeapExplorer;
 
  private:
 #ifdef DEBUG
@@ -859,6 +883,65 @@ class ScriptContextTable
 };
 
 using ContextField = Context::Field;
+
+V8_OBJECT class ContextCell : public HeapObjectLayout {
+ public:
+  enum State : int32_t {
+    kConst = 0,
+    kSmi = 1,
+    kInt32 = 2,
+    kFloat64 = 3,
+    kDetached = 4,  // The context cell is not attached to a context anymore.
+  };
+
+  DECL_VERIFIER(ContextCell)
+  DECL_PRINTER(ContextCell)
+
+  inline State state() const;
+  inline void set_state(State state);
+
+  inline Tagged<DependentCode> dependent_code() const;
+  inline void set_dependent_code(Tagged<DependentCode> value,
+                                 WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+
+  inline Tagged<JSAny> tagged_value() const;
+  inline void set_tagged_value(Tagged<JSAny> value,
+                               WriteBarrierMode mode = UPDATE_WRITE_BARRIER);
+  inline void clear_tagged_value();
+
+  inline void set_smi_value(Tagged<Smi> value);
+
+  inline int32_t int32_value() const;
+  inline void set_int32_value(int32_t value);
+
+  inline double float64_value() const;
+  inline void set_float64_value(double value);
+
+  inline void clear_padding();
+
+ private:
+  friend class CodeStubAssembler;
+  friend struct ObjectTraits<ContextCell>;
+  friend class TorqueGeneratedContextCellAsserts;
+  friend class maglev::MaglevGraphBuilder;
+  friend class maglev::MaglevAssembler;
+  friend class compiler::AccessBuilder;
+
+  TaggedMember<JSAny> tagged_value_;
+  TaggedMember<DependentCode> dependent_code_;
+  std::atomic<State> state_;
+#if TAGGED_SIZE_8_BYTES
+  uint32_t optional_padding_;
+#endif  // TAGGED_SIZE_8_BYTES
+  UnalignedDoubleMember double_value_;
+} V8_OBJECT_END;
+
+template <>
+struct ObjectTraits<ContextCell> {
+  using BodyDescriptor =
+      FixedBodyDescriptor<offsetof(ContextCell, tagged_value_),
+                          offsetof(ContextCell, state_), sizeof(ContextCell)>;
+};
 
 }  // namespace internal
 }  // namespace v8

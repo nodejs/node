@@ -100,7 +100,7 @@ RUNTIME_FUNCTION(Runtime_InstallBaselineCode) {
     }
     DisallowGarbageCollection no_gc;
     Tagged<Code> baseline_code = sfi->baseline_code(kAcquireLoad);
-    function->UpdateCodeKeepTieringRequests(baseline_code);
+    function->UpdateCodeKeepTieringRequests(isolate, baseline_code);
 #ifdef V8_ENABLE_LEAPTIERING
     return baseline_code;
   }
@@ -125,7 +125,7 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
     Tagged<Code> sfi_code = sfi->GetCode(isolate);
     if (V8_LIKELY(sfi_code->kind() != CodeKind::BASELINE ||
                   function->has_feedback_vector())) {
-      function->UpdateCode(sfi_code);
+      function->UpdateCode(isolate, sfi_code);
       return sfi_code;
     }
   }
@@ -137,7 +137,7 @@ RUNTIME_FUNCTION(Runtime_InstallSFICode) {
   JSFunction::CreateAndAttachFeedbackVector(isolate, function,
                                             &is_compiled_scope);
   Tagged<Code> sfi_code = function->shared()->GetCode(isolate);
-  function->UpdateCode(sfi_code);
+  function->UpdateCode(isolate, sfi_code);
   return sfi_code;
 }
 
@@ -391,7 +391,7 @@ RUNTIME_FUNCTION(Runtime_InstantiateAsmJs) {
   shared->set_is_asm_wasm_broken(true);
 #endif
   DCHECK_EQ(function->code(isolate), *BUILTIN_CODE(isolate, InstantiateAsmJs));
-  function->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
+  function->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
   DCHECK(!isolate->has_exception());
   return Smi::zero();
 }
@@ -666,7 +666,7 @@ Tagged<Object> CompileOptimizedOSR(Isolate* isolate,
 
 #ifndef V8_ENABLE_LEAPTIERING
     if (!function->HasAttachedOptimizedCode(isolate)) {
-      function->UpdateCode(function->shared()->GetCode(isolate));
+      function->UpdateCode(isolate, function->shared()->GetCode(isolate));
     }
 #endif  // V8_ENABLE_LEAPTIERING
 
@@ -849,9 +849,9 @@ static Tagged<Object> CompileGlobalEval(
   }
   ASSIGN_RETURN_ON_EXCEPTION_VALUE(
       isolate, compiled,
-      Compiler::GetFunctionFromEval(source.ToHandleChecked(), outer_info,
-                                    context, language_mode, restriction,
-                                    kNoSourcePosition, eval_position),
+      Compiler::GetFunctionFromEval(
+          isolate, source.ToHandleChecked(), outer_info, context, language_mode,
+          restriction, kNoSourcePosition, eval_position),
       ReadOnlyRoots(isolate).exception());
   return *compiled;
 }

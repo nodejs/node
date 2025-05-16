@@ -423,6 +423,19 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // which all subtypes of a given supertype use contiguous tags. This struct can
 // then be used to represent such a type range.
 //
+// As an example, consider the following type hierarchy:
+//
+//          A     F
+//         / \
+//        B   E
+//       / \
+//      C   D
+//
+// A potential type id assignment for range-based type checks is
+// {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5}. With that, the type check for type A
+// would check for the range [A, E], while the check for B would check range
+// [B, D], and for F it would simply check [F, F].
+//
 // In addition, there is an option for performance tweaks: if the size of the
 // type range corresponding to a supertype is a power of two and starts at a
 // power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
@@ -560,7 +573,28 @@ enum ExternalPointerTag : uint16_t {
   kFunctionTemplateInfoCallbackTag = kFirstMaybeReadOnlyExternalPointerTag,
   kAccessorInfoGetterTag,
   kAccessorInfoSetterTag,
-  kLastMaybeReadOnlyExternalPointerTag = kAccessorInfoSetterTag,
+
+  // InterceptorInfo external pointers.
+  kFirstInterceptorInfoExternalPointerTag,
+  kApiNamedPropertyQueryCallbackTag = kFirstInterceptorInfoExternalPointerTag,
+  kApiNamedPropertyGetterCallbackTag,
+  kApiNamedPropertySetterCallbackTag,
+  kApiNamedPropertyDescriptorCallbackTag,
+  kApiNamedPropertyDefinerCallbackTag,
+  kApiNamedPropertyDeleterCallbackTag,
+  kApiNamedPropertyEnumeratorCallbackTag,
+  kApiIndexedPropertyQueryCallbackTag,
+  kApiIndexedPropertyGetterCallbackTag,
+  kApiIndexedPropertySetterCallbackTag,
+  kApiIndexedPropertyDescriptorCallbackTag,
+  kApiIndexedPropertyDefinerCallbackTag,
+  kApiIndexedPropertyDeleterCallbackTag,
+  kApiIndexedPropertyEnumeratorCallbackTag,
+  kLastInterceptorInfoExternalPointerTag =
+      kApiIndexedPropertyEnumeratorCallbackTag,
+
+  kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
+
   kWasmInternalFunctionCallTargetTag,
   kWasmTypeInfoNativeTypeTag,
   kWasmExportedFunctionDataSignatureTag,
@@ -570,19 +604,7 @@ enum ExternalPointerTag : uint16_t {
   // Foreigns
   kFirstForeignExternalPointerTag,
   kGenericForeignTag = kFirstForeignExternalPointerTag,
-  kApiNamedPropertyQueryCallbackTag,
-  kApiNamedPropertyGetterCallbackTag,
-  kApiNamedPropertySetterCallbackTag,
-  kApiNamedPropertyDescriptorCallbackTag,
-  kApiNamedPropertyDefinerCallbackTag,
-  kApiNamedPropertyDeleterCallbackTag,
-  kApiIndexedPropertyQueryCallbackTag,
-  kApiIndexedPropertyGetterCallbackTag,
-  kApiIndexedPropertySetterCallbackTag,
-  kApiIndexedPropertyDescriptorCallbackTag,
-  kApiIndexedPropertyDefinerCallbackTag,
-  kApiIndexedPropertyDeleterCallbackTag,
-  kApiIndexedPropertyEnumeratorCallbackTag,
+
   kApiAccessCheckCallbackTag,
   kApiAbortScriptExecutionCallbackTag,
   kSyntheticModuleTag,
@@ -636,6 +658,9 @@ constexpr ExternalPointerTagRange kAnySharedExternalPointerTagRange(
     kFirstSharedExternalPointerTag, kLastSharedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyForeignExternalPointerTagRange(
     kFirstForeignExternalPointerTag, kLastForeignExternalPointerTag);
+constexpr ExternalPointerTagRange kAnyInterceptorInfoExternalPointerTagRange(
+    kFirstInterceptorInfoExternalPointerTag,
+    kLastInterceptorInfoExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyManagedExternalPointerTagRange(
     kFirstManagedExternalPointerTag, kLastManagedExternalPointerTag);
 constexpr ExternalPointerTagRange kAnyMaybeReadOnlyExternalPointerTagRange(
@@ -678,7 +703,8 @@ V8_INLINE static constexpr bool IsManagedExternalPointerType(
 V8_INLINE static constexpr bool ExternalPointerCanBeEmpty(
     ExternalPointerTagRange tag_range) {
   return tag_range.Contains(kArrayBufferExtensionTag) ||
-         tag_range.Contains(kEmbedderDataSlotPayloadTag);
+         tag_range.Contains(kEmbedderDataSlotPayloadTag) ||
+         kAnyInterceptorInfoExternalPointerTagRange.Contains(tag_range);
 }
 
 // Indirect Pointers.
@@ -1331,7 +1357,7 @@ class BackingStoreBase {};
 
 // The maximum value in enum GarbageCollectionReason, defined in heap.h.
 // This is needed for histograms sampling garbage collection reasons.
-constexpr int kGarbageCollectionReasonMaxValue = 29;
+constexpr int kGarbageCollectionReasonMaxValue = 30;
 
 // Base class for the address block allocator compatible with standard
 // containers, which registers its allocated range as strong roots.

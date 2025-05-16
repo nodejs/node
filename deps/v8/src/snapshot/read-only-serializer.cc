@@ -25,6 +25,7 @@ class ObjectPreProcessor final {
 
 #define PRE_PROCESS_TYPE_LIST(V) \
   V(AccessorInfo)                \
+  V(InterceptorInfo)             \
   V(JSExternalObject)            \
   V(FunctionTemplateInfo)        \
   V(Code)
@@ -70,6 +71,18 @@ class ObjectPreProcessor final {
         o->getter(isolate_));  // Pass the non-redirected value.
     EncodeExternalPointerSlot(o->RawExternalPointerField(
         AccessorInfo::kSetterOffset, kAccessorInfoSetterTag));
+  }
+  void PreProcessInterceptorInfo(Tagged<InterceptorInfo> o) {
+    const bool is_named = o->is_named();
+
+#define PROCESS_FIELD(Name, name)                       \
+  EncodeExternalPointerSlot(o->RawExternalPointerField( \
+      InterceptorInfo::k##Name##Offset,                 \
+      is_named ? kApiNamedProperty##Name##CallbackTag   \
+               : kApiIndexedProperty##Name##CallbackTag));
+
+    INTERCEPTOR_INFO_CALLBACK_LIST(PROCESS_FIELD)
+#undef PROCESS_FIELD
   }
   void PreProcessJSExternalObject(Tagged<JSExternalObject> o) {
     EncodeExternalPointerSlot(

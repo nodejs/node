@@ -67,6 +67,11 @@ class V8_EXPORT_PRIVATE HeapAllocator final {
       AllocationOrigin origin = AllocationOrigin::kRuntime,
       AllocationAlignment alignment = kTaggedAligned);
 
+  // Returns true if a large object can be resized in-place to
+  // |new_object_size|. On failure the return value is false.
+  bool TryResizeLargeObject(Tagged<HeapObject> object, size_t old_object_size,
+                            size_t new_object_size);
+
   V8_INLINE bool CanAllocateInReadOnlySpace() const;
 
 #ifdef V8_ENABLE_ALLOCATION_TIMEOUT

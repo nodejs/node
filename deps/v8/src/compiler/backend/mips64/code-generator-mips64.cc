@@ -860,6 +860,9 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootPointer:
+      __ mov(i.OutputRegister(), kRootRegister);
+      break;
     case kArchTruncateDoubleToI:
       __ TruncateDoubleToI(isolate(), zone(), i.OutputRegister(),
                            i.InputDoubleRegister(0), DetermineStubCallMode());
@@ -1076,13 +1079,13 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64And32:
-        __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ And(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or:
       __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Or32:
-        __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ Or(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Nor:
       if (instr->InputAt(1)->IsRegister()) {
@@ -1104,8 +1107,8 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
       __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
       break;
     case kMips64Xor32:
-        __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
-        __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
+      __ Xor(i.OutputRegister(), i.InputRegister(0), i.InputOperand(1));
+      __ sll(i.OutputRegister(), i.OutputRegister(), 0x0);
       break;
     case kMips64Clz:
       __ Clz(i.OutputRegister(), i.InputRegister(0));

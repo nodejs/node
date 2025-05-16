@@ -39,8 +39,8 @@ void TypedArrayBuiltinsAssembler::SetupTypedArrayEmbedderFields(
 TNode<JSArrayBuffer> TypedArrayBuiltinsAssembler::AllocateEmptyOnHeapBuffer(
     TNode<Context> context) {
   TNode<NativeContext> native_context = LoadNativeContext(context);
-  TNode<Map> map =
-      CAST(LoadContextElement(native_context, Context::ARRAY_BUFFER_MAP_INDEX));
+  TNode<Map> map = CAST(LoadContextElementNoCell(
+      native_context, Context::ARRAY_BUFFER_MAP_INDEX));
   TNode<FixedArray> empty_fixed_array = EmptyFixedArrayConstant();
 
   TNode<JSArrayBuffer> buffer = UncheckedCast<JSArrayBuffer>(
@@ -269,8 +269,8 @@ TNode<JSFunction> TypedArrayBuiltinsAssembler::GetDefaultConstructor(
         context_slot = IntPtrConstant(typed_array_function_index);
       });
 
-  return CAST(
-      LoadContextElement(LoadNativeContext(context), context_slot.value()));
+  return CAST(LoadContextElementNoCell(LoadNativeContext(context),
+                                       context_slot.value()));
 }
 
 TNode<JSTypedArray> TypedArrayBuiltinsAssembler::ValidateTypedArray(

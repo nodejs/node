@@ -581,6 +581,8 @@ V8_OBJECT class String : public Name {
                                    length);
   }
 
+  static bool DoesNotContainEscapeCharacters(Tagged<String> string);
+
   static inline uint32_t NonOneByteStart(const base::uc16* chars,
                                          uint32_t length) {
     DCHECK(IsAligned(reinterpret_cast<Address>(chars), sizeof(base::uc16)));

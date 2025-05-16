@@ -159,11 +159,6 @@ class EvalCacheKey : public HashTableKey {
 
   bool IsMatch(Tagged<Object> other) override {
     DisallowGarbageCollection no_gc;
-    if (!IsFixedArray(other)) {
-      DCHECK(IsNumber(other));
-      uint32_t other_hash = static_cast<uint32_t>(Object::NumberValue(other));
-      return Hash() == other_hash;
-    }
     Tagged<FixedArray> other_array = Cast<FixedArray>(other);
     DCHECK(IsSharedFunctionInfo(other_array->get(0)));
     if (*shared_ != other_array->get(0)) return false;
@@ -563,6 +558,25 @@ DirectHandle<CompilationCacheTable> CompilationCacheTable::PutScript(
   return cache;
 }
 
+void CompilationCacheTable::UpdateEval(
+    DirectHandle<CompilationCacheTable> table, DirectHandle<String> src,
+    DirectHandle<SharedFunctionInfo> outer_info,
+    DirectHandle<NativeContext> native_context,
+    DirectHandle<FeedbackCell> feedback_cell, LanguageMode language_mode,
+    int position) {
+  Isolate* isolate = native_context->GetIsolate();
+  src = String::Flatten(isolate, src);
+
+  EvalCacheKey key(src, outer_info, language_mode, position);
+  InternalIndex entry = table->FindEntry(isolate, &key);
+  if (entry.is_not_found()) return;
+
+  if (!IsFixedArray(table->KeyAt(entry))) return;
+  Tagged<Object> obj = table->PrimaryValueAt(entry);
+  if (!IsSharedFunctionInfo(obj)) return;
+  AddToFeedbackCellsMap(table, entry, native_context, feedback_cell);
+}
+
 DirectHandle<CompilationCacheTable> CompilationCacheTable::PutEval(
     DirectHandle<CompilationCacheTable> cache, DirectHandle<String> src,
     DirectHandle<SharedFunctionInfo> outer_info,
@@ -573,36 +587,17 @@ DirectHandle<CompilationCacheTable> CompilationCacheTable::PutEval(
   src = String::Flatten(isolate, src);
   EvalCacheKey key(src, outer_info, value->language_mode(), position);
 
-  // This block handles 'real' insertions, i.e. the initial dummy insert
-  // (below) has already happened earlier.
-  {
-    DirectHandle<Object> k = key.AsHandle(isolate);
-    InternalIndex entry = cache->FindEntry(isolate, &key);
-    if (entry.is_found()) {
-      cache->SetKeyAt(entry, *k);
-      if (cache->PrimaryValueAt(entry) != *value) {
-        cache->SetPrimaryValueAt(entry, *value);
-        // The SFI is changing because the code was aged. Nuke existing feedback
-        // since it can't be reused after this point.
-        cache->SetEvalFeedbackValueAt(entry,
-                                      ReadOnlyRoots(isolate).the_hole_value());
-      }
-      // AddToFeedbackCellsMap may allocate a new sub-array to live in the
-      // entry, but it won't change the cache array. Therefore EntryToIndex
-      // and entry remains correct.
-      AddToFeedbackCellsMap(cache, entry, native_context, feedback_cell);
-      // Add hash again even on cache hit to avoid unnecessary cache delay in
-      // case of hash collisions.
-    }
-  }
-
   // Create a dummy entry to mark that this key has already been inserted once.
   cache = EnsureCapacity(isolate, cache);
   InternalIndex entry = cache->FindInsertionEntry(isolate, key.Hash());
-  DirectHandle<Object> k =
-      isolate->factory()->NewNumber(static_cast<double>(key.Hash()));
+  DirectHandle<Object> k = key.AsHandle(isolate);
   cache->SetKeyAt(entry, *k);
-  cache->SetPrimaryValueAt(entry, Smi::FromInt(kHashGenerations));
+  cache->SetPrimaryValueAt(entry, *value);
+  cache->SetEvalFeedbackValueAt(entry, ReadOnlyRoots(isolate).the_hole_value());
+  // AddToFeedbackCellsMap may allocate a new sub-array to live in the
+  // entry, but it won't change the cache array. Therefore EntryToIndex
+  // and entry remains correct.
+  AddToFeedbackCellsMap(cache, entry, native_context, feedback_cell);
   cache->ElementAdded();
   return cache;
 }

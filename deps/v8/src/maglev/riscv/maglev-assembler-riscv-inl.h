@@ -824,6 +824,9 @@ inline void MaglevAssembler::Move(Register dst, int32_t i) {
 inline void MaglevAssembler::Move(Register dst, uint32_t i) {
   li(dst, Operand(i));
 }
+inline void MaglevAssembler::Move(Register dst, intptr_t p) {
+  li(dst, Operand(p));
+}
 inline void MaglevAssembler::Move(Register dst, IndirectPointerTag i) {
   li(dst, Operand(i));
 }
@@ -1902,20 +1905,35 @@ inline void MaglevAssembler::TestUint8AndJumpIfAllClear(
   MacroAssembler::Branch(target, kZero, scratch, Operand(zero_reg), distance);
 }
 
+inline void MaglevAssembler::LoadContextCellState(Register state,
+                                                  Register cell) {
+  Lwu(state, FieldMemOperand(cell, offsetof(ContextCell, state_)));
+}
+inline void MaglevAssembler::LoadContextCellInt32Value(Register value,
+                                                       Register cell) {
+  AssertContextCellState(cell, ContextCell::kInt32);
+  Lwu(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::LoadContextCellFloat64Value(DoubleRegister value,
+                                                         Register cell) {
+  AssertContextCellState(cell, ContextCell::kFloat64);
+  LoadDouble(value,
+             FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::StoreContextCellInt32Value(Register cell,
+                                                        Register value) {
+  Sw(value, FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+inline void MaglevAssembler::StoreContextCellFloat64Value(
+    Register cell, DoubleRegister value) {
+  StoreDouble(value,
+              FieldMemOperand(cell, offsetof(ContextCell, double_value_)));
+}
+
 inline void MaglevAssembler::LoadHeapNumberValue(DoubleRegister result,
                                                  Register heap_number) {
   LoadDouble(result,
              FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
-}
-
-inline void MaglevAssembler::LoadHeapInt32Value(Register result,
-                                                Register heap_number) {
-  Load32U(result, FieldMemOperand(heap_number, offsetof(HeapNumber, value_)));
-}
-
-inline void MaglevAssembler::StoreHeapInt32Value(Register value,
-                                                 Register heap_number) {
-  Sw(value, (FieldMemOperand(heap_number, offsetof(HeapNumber, value_))));
 }
 
 inline void MaglevAssembler::Int32ToDouble(DoubleRegister result,

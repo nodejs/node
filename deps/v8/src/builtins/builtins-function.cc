@@ -86,7 +86,7 @@ MaybeDirectHandle<Object> CreateDynamicFunction(Isolate* isolate,
     ASSIGN_RETURN_ON_EXCEPTION(
         isolate, function,
         Compiler::GetFunctionFromString(
-            direct_handle(target->native_context(), isolate),
+            isolate, direct_handle(target->native_context(), isolate),
             indirect_handle(source, isolate), parameters_end_pos,
             is_code_like));
     DirectHandle<Object> result;
@@ -255,10 +255,10 @@ BUILTIN(FunctionPrototypeToString) {
   HandleScope scope(isolate);
   DirectHandle<Object> receiver = args.receiver();
   if (IsJSBoundFunction(*receiver)) {
-    return *JSBoundFunction::ToString(Cast<JSBoundFunction>(receiver));
+    return *JSBoundFunction::ToString(isolate, Cast<JSBoundFunction>(receiver));
   }
   if (IsJSFunction(*receiver)) {
-    return *JSFunction::ToString(Cast<JSFunction>(receiver));
+    return *JSFunction::ToString(isolate, Cast<JSFunction>(receiver));
   }
   // With the revised toString behavior, all callable objects are valid
   // receivers for this method.

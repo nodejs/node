@@ -137,6 +137,7 @@ enum class RefSerializationKind {
   BACKGROUND_SERIALIZED(FixedArrayBase)                                       \
   NEVER_SERIALIZED(FunctionTemplateInfo)                                      \
   NEVER_SERIALIZED(HeapNumber)                                                \
+  NEVER_SERIALIZED(ContextCell)                                               \
   BACKGROUND_SERIALIZED(JSReceiver)                                           \
   BACKGROUND_SERIALIZED(Map)                                                  \
   NEVER_SERIALIZED(Name)                                                      \
@@ -700,6 +701,16 @@ class HeapNumberRef : public HeapObjectRef {
   uint64_t value_as_bits() const;
 };
 
+class ContextCellRef : public HeapObjectRef {
+ public:
+  DEFINE_REF_CONSTRUCTOR(ContextCell, HeapObjectRef)
+
+  IndirectHandle<ContextCell> object() const;
+
+  ContextCell::State state() const;
+  OptionalObjectRef tagged_value(JSHeapBroker* broker) const;
+};
+
 class ContextRef : public HeapObjectRef {
  public:
   DEFINE_REF_CONSTRUCTOR(Context, HeapObjectRef)
@@ -715,9 +726,6 @@ class ContextRef : public HeapObjectRef {
   OptionalObjectRef get(JSHeapBroker* broker, int index) const;
 
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
-
-  // Only returns a value if the index is valid for this ContextRef.
-  OptionalObjectRef TryGetSideData(JSHeapBroker* broker, int index) const;
 };
 
 #define BROKER_NATIVE_CONTEXT_FIELDS(V)          \
@@ -904,6 +912,7 @@ class V8_EXPORT_PRIVATE MapRef : public HeapObjectRef {
   bool is_abandoned_prototype_map() const;
   bool IsTwoByteStringMap() const;
   bool IsThinStringMap() const;
+  bool IsStringWrapperMap() const;
 
   OddballType oddball_type(JSHeapBroker* broker) const;
 
@@ -1098,9 +1107,6 @@ class ScopeInfoRef : public HeapObjectRef {
 };
 
 #define BROKER_SFI_FIELDS(V)                               \
-  V(int, internal_formal_parameter_count_with_receiver)    \
-  V(int, internal_formal_parameter_count_without_receiver) \
-  V(bool, IsDontAdaptArguments)                            \
   V(bool, has_simple_parameters)                           \
   V(bool, has_duplicate_parameters)                        \
   V(int, function_map_index)                               \
@@ -1131,6 +1137,13 @@ class V8_EXPORT_PRIVATE SharedFunctionInfoRef : public HeapObjectRef {
   OptionalFunctionTemplateInfoRef function_template_info(
       JSHeapBroker* broker) const;
   ScopeInfoRef scope_info(JSHeapBroker* broker) const;
+
+  // TODO(370343328): The compiler should not rely on the parameter count
+  // stored on the SFI but instead use the parameter count from the
+  // BytecodeArray or JSDispatchTable. Once remaining uses of the field are
+  // gone, these accessors should probably be removed.
+  int internal_formal_parameter_count_with_receiver_deprecated() const;
+  int internal_formal_parameter_count_without_receiver_deprecated() const;
 
 #define DECL_ACCESSOR(type, name) type name() const;
   BROKER_SFI_FIELDS(DECL_ACCESSOR)
@@ -1193,6 +1206,11 @@ class JSTypedArrayRef : public JSObjectRef {
   ElementsKind elements_kind(JSHeapBroker* broker) const;
   void* data_ptr() const;
   HeapObjectRef buffer(JSHeapBroker* broker) const;
+
+  bool is_off_heap_non_rab_gsab(JSHeapBroker* broker) const {
+    return !is_on_heap() &&
+           !IsRabGsabTypedArrayElementsKind(elements_kind(broker));
+  }
 };
 
 class JSPrimitiveWrapperRef : public JSObjectRef {

@@ -35,7 +35,7 @@ void ICStats::End() {
 }
 
 void ICStats::Reset() {
-  for (auto ic_info : ic_infos_) {
+  for (auto& ic_info : ic_infos_) {
     ic_info.Reset();
   }
   pos_ = 0;

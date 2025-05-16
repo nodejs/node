@@ -490,6 +490,10 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
       return instructions_[index];
     }
 
+    const InstructionBlock* BlockAt(size_t index) {
+      return instruction_blocks_->at(index);
+    }
+
     bool IsDouble(const InstructionOperand* operand) const {
       return IsDouble(ToVreg(operand));
     }
@@ -596,6 +600,7 @@ class TurboshaftInstructionSelectorTest : public TestWithNativeContextAndZone {
     ConstantMap constants_;
     ConstantMap immediates_;
     std::deque<Instruction*> instructions_;
+    InstructionBlocks* instruction_blocks_;
     std::set<int> doubles_;
     std::set<int> references_;
     VirtualRegisters virtual_registers_;

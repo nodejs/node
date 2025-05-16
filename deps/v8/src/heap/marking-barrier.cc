@@ -12,7 +12,6 @@
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap-write-barrier.h"
 #include "src/heap/heap.h"
-#include "src/heap/incremental-marking-inl.h"
 #include "src/heap/incremental-marking.h"
 #include "src/heap/mark-compact-inl.h"
 #include "src/heap/mark-compact.h"
@@ -179,12 +178,6 @@ void MarkingBarrier::Write(Tagged<DescriptorArray> descriptor_array,
     worklist = current_worklists_.get();
   }
 
-  // The DescriptorArray needs to be marked black here to ensure that slots
-  // are recorded by the Scavenger in case the DescriptorArray is promoted
-  // while incremental marking is running. This is needed as the regular
-  // marking visitor does not re-process any already marked descriptors. If we
-  // don't mark it black here, the Scavenger may promote a DescriptorArray and
-  // any already marked descriptors will not have any slots recorded.
   if (v8_flags.black_allocated_pages) {
     // Make sure to only mark the descriptor array for non black allocated
     // pages. The atomic pause will fix it afterwards.

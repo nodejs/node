@@ -53,22 +53,6 @@ constexpr const char* ToString(StepOrigin step_origin) {
 
 class V8_EXPORT_PRIVATE IncrementalMarking final {
  public:
-  class V8_NODISCARD V8_EXPORT_PRIVATE PauseBlackAllocationScope final {
-   public:
-    explicit PauseBlackAllocationScope(IncrementalMarking* marking);
-    ~PauseBlackAllocationScope();
-
-    PauseBlackAllocationScope(const PauseBlackAllocationScope&) = delete;
-    PauseBlackAllocationScope& operator=(const PauseBlackAllocationScope&) =
-        delete;
-
-   private:
-    IncrementalMarking* const marking_;
-    bool paused_ = false;
-  };
-
-  V8_INLINE void TransferColor(Tagged<HeapObject> from, Tagged<HeapObject> to);
-
   IncrementalMarking(Heap* heap, WeakObjects* weak_objects);
 
   IncrementalMarking(const IncrementalMarking&) = delete;
@@ -100,10 +84,6 @@ class V8_EXPORT_PRIVATE IncrementalMarking final {
              GarbageCollectionReason gc_reason);
   // Returns true if incremental marking was running and false otherwise.
   bool Stop();
-
-  void UpdateMarkingWorklistAfterScavenge();
-  void UpdateExternalPointerTableAfterScavenge();
-  void UpdateMarkedBytesAfterScavenge(size_t dead_bytes_in_new_space);
 
   // Performs incremental marking step and finalizes marking if complete.
   void AdvanceAndFinalizeIfComplete();

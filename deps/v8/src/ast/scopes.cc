@@ -256,7 +256,7 @@ Scope::Scope(Zone* zone, ScopeType scope_type,
     // object variable (we don't store it explicitly).
     DCHECK_NOT_NULL(ast_value_factory);
     int home_object_index = scope_info->ContextSlotIndex(
-        ast_value_factory->dot_home_object_string()->string());
+        *ast_value_factory->dot_home_object_string()->string());
     DCHECK_IMPLIES(home_object_index >= 0,
                    scope_type == CLASS_SCOPE || scope_type == BLOCK_SCOPE);
     if (home_object_index >= 0) {
@@ -974,7 +974,7 @@ Variable* Scope::LookupInScopeInfo(const AstRawString* name, Scope* cache) {
 
   {
     location = VariableLocation::CONTEXT;
-    index = scope_info->ContextSlotIndex(name->string(), &lookup_result);
+    index = scope_info->ContextSlotIndex(name_handle, &lookup_result);
     found = index >= 0;
   }
 
@@ -2003,9 +2003,8 @@ void Scope::Print(int n) {
       Indent(n1, "// class var");
       PrintF("%s%s:\n",
              class_scope->class_variable()->is_used() ? ", used" : ", unused",
-             class_scope->should_save_class_variable_index()
-                 ? ", index saved"
-                 : ", index not saved");
+             class_scope->should_save_class_variable() ? ", saved"
+                                                       : ", not saved");
       PrintVar(n1, class_scope->class_variable());
     }
   }
@@ -2815,6 +2814,13 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 it->second->Equals(scope_info, parse_info_sfi->live_edited(),
                                    &last_checked_field_index);
 
+            std::unique_ptr<char[]> script_name_or_url;
+            size_t script_name_or_url_length = 0;
+            if (IsString(script->GetNameOrSourceURL())) {
+              script_name_or_url = Cast<String>(script->GetNameOrSourceURL())
+                                       ->ToCString(&script_name_or_url_length);
+            }
+
             std::unique_ptr<char[]> script_source;
             size_t script_source_length = 0;
             std::unique_ptr<char[]> function_source;
@@ -2875,7 +2881,11 @@ void DeclarationScope::AllocateScopeInfos(ParseInfo* parse_info,
                 function_source_length,
                 reinterpret_cast<Address>(function_source.get() +
                                           function_source_length),
-
+                0xcafe0006,
+                script_name_or_url_length,
+                reinterpret_cast<Address>(script_name_or_url.get()),
+                reinterpret_cast<Address>(script_name_or_url.get() +
+                                          script_name_or_url_length),
                 0xcafeffff,
             };
 
@@ -3043,7 +3053,7 @@ Variable* ClassScope::LookupPrivateNameInScopeInfo(const AstRawString* name) {
   DisallowGarbageCollection no_gc;
 
   VariableLookupResult lookup_result;
-  int index = scope_info_->ContextSlotIndex(name->string(), &lookup_result);
+  int index = scope_info_->ContextSlotIndex(*name->string(), &lookup_result);
   if (index < 0) {
     return nullptr;
   }

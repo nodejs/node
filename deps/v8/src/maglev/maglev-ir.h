@@ -141,6 +141,7 @@ class ExceptionHandlerInfo;
   V(Float64Constant)                \
   V(Int32Constant)                  \
   V(Uint32Constant)                 \
+  V(IntPtrConstant)                 \
   V(RootConstant)                   \
   V(SmiConstant)                    \
   V(TaggedIndexConstant)            \
@@ -204,7 +205,6 @@ class ExceptionHandlerInfo;
   V(LoadTaggedFieldForProperty)                     \
   V(LoadTaggedFieldForContextSlot)                  \
   V(LoadTaggedFieldForScriptContextSlot)            \
-  V(LoadHeapInt32)                                  \
   V(LoadDoubleField)                                \
   V(LoadFloat64)                                    \
   V(LoadInt32)                                      \
@@ -219,6 +219,9 @@ class ExceptionHandlerInfo;
   V(LoadSignedIntTypedArrayElement)                 \
   V(LoadUnsignedIntTypedArrayElement)               \
   V(LoadDoubleTypedArrayElement)                    \
+  V(LoadSignedIntConstantTypedArrayElement)         \
+  V(LoadUnsignedIntConstantTypedArrayElement)       \
+  V(LoadDoubleConstantTypedArrayElement)            \
   V(LoadEnumCacheLength)                            \
   V(LoadGlobal)                                     \
   V(LoadNamedGeneric)                               \
@@ -356,7 +359,6 @@ class ExceptionHandlerInfo;
   V(TryOnStackReplacement)                    \
   V(StoreMap)                                 \
   V(StoreDoubleField)                         \
-  V(StoreHeapInt32)                           \
   V(StoreFixedArrayElementWithWriteBarrier)   \
   V(StoreFixedArrayElementNoWriteBarrier)     \
   V(StoreFixedDoubleArrayElement)             \
@@ -364,11 +366,13 @@ class ExceptionHandlerInfo;
   V(StoreFloat64)                             \
   V(StoreIntTypedArrayElement)                \
   V(StoreDoubleTypedArrayElement)             \
+  V(StoreIntConstantTypedArrayElement)        \
+  V(StoreDoubleConstantTypedArrayElement)     \
   V(StoreSignedIntDataViewElement)            \
   V(StoreDoubleDataViewElement)               \
   V(StoreTaggedFieldNoWriteBarrier)           \
   V(StoreTaggedFieldWithWriteBarrier)         \
-  V(StoreScriptContextSlotWithWriteBarrier)   \
+  V(StoreContextSlotWithWriteBarrier)         \
   V(StoreTrustedPointerFieldWithWriteBarrier) \
   V(HandleNoHeapWritesInterrupt)              \
   V(ReduceInterruptBudgetForLoop)             \
@@ -548,8 +552,7 @@ constexpr bool IsSimpleFieldStore(Opcode opcode) {
   return opcode == Opcode::kStoreTaggedFieldWithWriteBarrier ||
          opcode == Opcode::kStoreTaggedFieldNoWriteBarrier ||
          opcode == Opcode::kStoreDoubleField ||
-         opcode == Opcode::kStoreHeapInt32 || opcode == Opcode::kStoreFloat64 ||
-         opcode == Opcode::kStoreInt32 ||
+         opcode == Opcode::kStoreFloat64 || opcode == Opcode::kStoreInt32 ||
          opcode == Opcode::kUpdateJSArrayLength ||
          opcode == Opcode::kStoreFixedArrayElementWithWriteBarrier ||
          opcode == Opcode::kStoreFixedArrayElementNoWriteBarrier ||
@@ -572,7 +575,7 @@ constexpr bool CanBeStoreToNonEscapedObject(Opcode opcode) {
     case Opcode::kStoreTrustedPointerFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldWithWriteBarrier:
     case Opcode::kStoreTaggedFieldNoWriteBarrier:
-    case Opcode::kStoreScriptContextSlotWithWriteBarrier:
+    case Opcode::kStoreContextSlotWithWriteBarrier:
     case Opcode::kStoreFloat64:
       return true;
     default:
@@ -613,71 +616,44 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 #endif
 }
 
-/*
- * NodeType lattice.
- *
- * Maglev node types are intersection types. As an example consider
- *
- *     Boolen = Oddball & NumberOrBoolean
- *
- * The individual bits can be thought of as atomic propositions. An object of
- * type boolean is an object for which the Oddball as well as the
- * NumberOrBoolean proposition holds.
- *
- * The literals in the NODE_TYPE_LIST form a semi-lattice.
- *
- * For efficiency often used intersections (i.e., the join operation using `&`)
- * should be added as NodeType.
- *
- * Here is a diagram of the relations between the types:
- *
- *
- *            .----------- Unknown ---------------------.
- *            |                                         |
- *            |              .---.-----.------- AnyHeapObject ---------.
- *            |             /   /      |                |              |
- *            |            /   /       |                |              |
- *            |            |  |    JSReceiver           |              |
- *            |            |  |  .-OrNullOrUndefined    |              |
- *            |            |  | |        |              |              |
- *      NumberOrOddball   /   | |     JSReceiver     StringOr          Name
- *         /      \      /   /  |    /     |    \    StringWrapper     /  \
- *        /        \    /   /   |   /      |     \     /        \     /    \
- * NumberOrBoolean Oddball /    | Callable JSArray  String      String   Symbol
- *      /      \   /   \  /     |                   Wrapper         |
- *   Number   Boolean   \/      |                               NonThin
- *    /  \              /\      |                               String
- * Smi    \            /  \     |                                   |
- *          HeapNumber     --- NullOrUndefined                 Internalized
- *                                                             String
- *
- * Ensure that each super-type mentioned in the following NODE_TYPE_LIST
- * corresponds to exactly one arrow in the above diagram.
- *
- * TODO(olivf): Rename Unknown to Any.
- */
-#define NODE_TYPE_LIST(V)                                     \
-  V(Unknown, 0)                                               \
-  V(NumberOrOddball, (1 << 1) | kUnknown)                     \
-  V(NumberOrBoolean, (1 << 2) | kNumberOrOddball)             \
-  V(Number, (1 << 3) | kNumberOrBoolean)                      \
-  V(Smi, (1 << 4) | kNumber)                                  \
-  V(AnyHeapObject, (1 << 5) | kUnknown)                       \
-  V(HeapNumber, kAnyHeapObject | kNumber)                     \
-  V(Oddball, (1 << 6) | kAnyHeapObject | kNumberOrOddball)    \
-  V(Boolean, kOddball | kNumberOrBoolean)                     \
-  V(JSReceiverOrNullOrUndefined, (1 << 7) | kAnyHeapObject)   \
-  V(NullOrUndefined, kOddball | kJSReceiverOrNullOrUndefined) \
-  V(Name, (1 << 8) | kAnyHeapObject)                          \
-  V(StringOrStringWrapper, (1 << 9) | kAnyHeapObject)         \
-  V(String, kName | kStringOrStringWrapper)                   \
-  V(NonThinString, (1 << 10) | kString)                       \
-  V(InternalizedString, (1 << 11) | kNonThinString)           \
-  V(Symbol, (1 << 12) | kName)                                \
-  V(JSReceiver, (1 << 13) | kJSReceiverOrNullOrUndefined)     \
-  V(JSArray, (1 << 14) | kJSReceiver)                         \
-  V(Callable, (1 << 15) | kJSReceiver)                        \
-  V(StringWrapper, kStringOrStringWrapper | kJSReceiver)
+// TODO(olivf): Rename Unknown to Any.
+
+/* Every object should belong to exactly one of these.*/
+#define LEAF_NODE_TYPE_LIST(V)       \
+  V(Smi, (1 << 0))                   \
+  V(HeapNumber, (1 << 1))            \
+  V(NullOrUndefined, (1 << 2))       \
+  V(Boolean, (1 << 3))               \
+  V(Symbol, (1 << 4))                \
+  V(InternalizedString, (1 << 5))    \
+  V(NonInternalizedString, (1 << 6)) \
+  V(StringWrapper, (1 << 7))         \
+  V(JSArray, (1 << 8))               \
+  V(Callable, (1 << 9))              \
+  V(OtherJSReceiver, (1 << 10))      \
+  V(OtherHeapObject, (1 << 11))
+
+#define COUNT(...) +1
+static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
+#undef COUNT
+
+#define COMBINED_NODE_TYPE_LIST(V)                                        \
+  /* A value which has all the above bits set */                          \
+  V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(Oddball, kNullOrUndefined | kBoolean)                                 \
+  V(Number, kSmi | kHeapNumber)                                           \
+  V(NumberOrBoolean, kNumber | kBoolean)                                  \
+  V(NumberOrOddball, kNumber | kOddball)                                  \
+  V(String, kNonInternalizedString | kInternalizedString)                 \
+  V(StringOrStringWrapper, kString | kStringWrapper)                      \
+  V(Name, kString | kSymbol)                                              \
+  V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
+  V(JSReceiverOrNullOrUndefined, kJSReceiver | kNullOrUndefined)          \
+  V(AnyHeapObject, kUnknown - kSmi)
+
+#define NODE_TYPE_LIST(V) \
+  LEAF_NODE_TYPE_LIST(V)  \
+  COMBINED_NODE_TYPE_LIST(V)
 
 enum class NodeType : uint32_t {
 #define DEFINE_NODE_TYPE(Name, Value) k##Name = Value,
@@ -685,136 +661,125 @@ enum class NodeType : uint32_t {
 #undef DEFINE_NODE_TYPE
 };
 
+inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
+
 inline constexpr NodeType CombineType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) |
+  return static_cast<NodeType>(static_cast<int>(left) &
                                static_cast<int>(right));
 }
 inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) &
+  return static_cast<NodeType>(static_cast<int>(left) |
                                static_cast<int>(right));
 }
 inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
   int right = static_cast<int>(to_check);
-  return (static_cast<int>(type) & right) == right;
+  return (static_cast<int>(type) & (~right)) == 0;
 }
+
+// Assert that the Unknown type is constructed correctly.
+#define ADD_STATIC_ASSERT(Name, Value) \
+  static_assert(NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
+LEAF_NODE_TYPE_LIST(ADD_STATIC_ASSERT)
+#undef ADD_STATIC_ASSERT
 
 inline NodeType StaticTypeForMap(compiler::MapRef map,
                                  compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsStringMap()) {
     if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
-    if (!map.IsThinStringMap()) return NodeType::kNonThinString;
     return NodeType::kString;
   }
-  if (map.IsNameMap()) return NodeType::kName;
-  if (map.IsJSPrimitiveWrapperMap() &&
-      IsStringWrapperElementsKind(map.elements_kind())) {
-    return NodeType::kStringWrapper;
-  }
+  if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
   if (map.IsSymbolMap()) return NodeType::kSymbol;
-  if (map.IsJSArrayMap()) return NodeType::kJSArray;
   if (map.IsBooleanMap(broker)) return NodeType::kBoolean;
-  if (map.IsOddballMap()) return NodeType::kNullOrUndefined;
-  if (map.IsCallableJSFunctionMap()) return NodeType::kCallable;
-  if (map.IsJSReceiverMap()) return NodeType::kJSReceiver;
-  return NodeType::kAnyHeapObject;
+  if (map.IsOddballMap()) {
+    // Oddball but not a Boolean.
+    return NodeType::kNullOrUndefined;
+  }
+  if (map.IsJSArrayMap()) return NodeType::kJSArray;
+  if (map.is_callable()) {
+    return NodeType::kCallable;
+  }
+  if (map.IsJSReceiverMap()) {
+    // JSReceiver but not any of the above.
+    return NodeType::kOtherJSReceiver;
+  }
+  return NodeType::kOtherHeapObject;
 }
 
-// Conservatively find types which are guaranteed to have no instances.
-// Currently we search for some common contradicting properties.
-// TODO(olivf): Find a better way of doing this. Alternatives considered are,
-// * ensure that every inhabited type is also a NodeType. This would blow up the
-//   lattice quite a bit.
-// * ensure that every possible leaf type exists in the lattice and check if the
-//   type is reachable from a leaf. This is difficult to test for correctness
-//   and also more expensive to compute.
-constexpr static std::initializer_list<std::pair<NodeType, NodeType>>
-    kNodeTypeExclusivePairs{
-        {NodeType::kAnyHeapObject, NodeType::kSmi},
-        {NodeType::kNumberOrOddball, NodeType::kName},
-        {NodeType::kNumberOrOddball, NodeType::kJSReceiver},
-        {NodeType::kJSReceiver, NodeType::kName},
-    };
-inline constexpr bool NodeTypeCannotHaveInstances(NodeType type) {
-  for (auto types : kNodeTypeExclusivePairs) {
-    if (NodeTypeIs(type, types.first) && NodeTypeIs(type, types.second)) {
-      return true;
-    }
-  }
-  return false;
+inline constexpr bool IsEmptyNodeType(NodeType type) {
+  // No bits are set.
+  return static_cast<int>(type) == 0;
 }
 
 inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
                                       compiler::ObjectRef ref) {
   if (ref.IsSmi()) return NodeType::kSmi;
   NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
-  DCHECK(!NodeTypeCannotHaveInstances(type));
+  DCHECK(!IsEmptyNodeType(type));
   return type;
+}
+
+inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
+                                     compiler::JSHeapBroker* broker) {
+  switch (type) {
+    case NodeType::kSmi:
+      return false;
+    case NodeType::kHeapNumber:
+      return map.IsHeapNumberMap();
+    case NodeType::kNullOrUndefined:
+      return map.IsOddballMap() && !map.IsBooleanMap(broker);
+    case NodeType::kBoolean:
+      return map.IsBooleanMap(broker);
+    case NodeType::kSymbol:
+      return map.IsSymbolMap();
+    case NodeType::kInternalizedString:
+      return map.IsStringMap() && map.IsInternalizedStringMap();
+    case NodeType::kNonInternalizedString:
+      return map.IsStringMap() && !map.IsInternalizedStringMap();
+    case NodeType::kStringWrapper:
+      return map.IsStringWrapperMap();
+    case NodeType::kJSArray:
+      return map.IsJSArrayMap();
+    case NodeType::kCallable:
+      return map.is_callable();
+    case NodeType::kOtherJSReceiver:
+      return map.IsJSReceiverMap() && !map.IsJSArrayMap() &&
+             !map.is_callable() && !map.IsStringWrapperMap();
+    case NodeType::kOtherHeapObject:
+      return !map.IsHeapNumberMap() && !map.IsOddballMap() &&
+             !map.IsSymbolMap() && !map.IsStringMap() && !map.IsJSReceiverMap();
+    default:
+      UNREACHABLE();
+  }
 }
 
 inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
                                  compiler::JSHeapBroker* broker) {
   switch (type) {
-    case NodeType::kUnknown:
-      return true;
-    case NodeType::kNumberOrBoolean:
-      return map.IsHeapNumberMap() || map.IsBooleanMap(broker);
-    case NodeType::kNumberOrOddball:
-      return map.IsHeapNumberMap() || map.IsOddballMap();
-    case NodeType::kSmi:
-      return false;
-    case NodeType::kNumber:
-    case NodeType::kHeapNumber:
-      return map.IsHeapNumberMap();
-    case NodeType::kAnyHeapObject:
-      return true;
-    case NodeType::kOddball:
-      return map.IsOddballMap();
-    case NodeType::kBoolean:
-      return map.IsBooleanMap(broker);
-    case NodeType::kName:
-      return map.IsNameMap();
-    case NodeType::kNonThinString:
-      return map.IsStringMap() && !map.IsThinStringMap();
-    case NodeType::kString:
-      return map.IsStringMap();
-    case NodeType::kStringWrapper:
-      return map.IsJSPrimitiveWrapperMap() &&
-             IsStringWrapperElementsKind(map.elements_kind());
-    case NodeType::kStringOrStringWrapper:
-      return map.IsStringMap() ||
-             (map.IsJSPrimitiveWrapperMap() &&
-              IsStringWrapperElementsKind(map.elements_kind()));
-    case NodeType::kInternalizedString:
-      return map.IsInternalizedStringMap();
-    case NodeType::kSymbol:
-      return map.IsSymbolMap();
-    case NodeType::kJSReceiver:
-      return map.IsJSReceiverMap();
-    case NodeType::kJSArray:
-      return map.IsJSArrayMap();
-    case NodeType::kCallable:
-      return map.is_callable();
-    case NodeType::kNullOrUndefined:
-      return map.IsOddballMap() && !map.IsBooleanMap(broker);
-    case NodeType::kJSReceiverOrNullOrUndefined:
-      return map.IsJSReceiverMap() || map.is_undetectable();
-  }
-
-    // This is some composed type. We could speed this up by exploiting the tree
-    // structure of the types.
-#define CASE(Name, _)                                            \
-  if (NodeTypeIs(type, NodeType::k##Name)) {                     \
-    if (!IsInstanceOfNodeType(map, NodeType::k##Name, broker)) { \
-      return false;                                              \
-    }                                                            \
-  }
-  NODE_TYPE_LIST(CASE)
+#define CASE(Name, _) case NodeType::k##Name:
+    LEAF_NODE_TYPE_LIST(CASE)
 #undef CASE
-  return true;
+    return IsInstanceOfLeafNodeType(map, type, broker);
+    default:
+      // This is some a composed type.
+#define CASE(Name, _)                                               \
+  if (NodeTypeIs(NodeType::k##Name, type)) {                        \
+    if (IsInstanceOfLeafNodeType(map, NodeType::k##Name, broker)) { \
+      return true;                                                  \
+    }                                                               \
+  }
+      LEAF_NODE_TYPE_LIST(CASE)
+#undef CASE
+      return false;
+  }
 }
 
 inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
+  if (IsEmptyNodeType(type)) {
+    out << "Empty";
+    return out;
+  }
   switch (type) {
 #define CASE(Name, _)     \
   case NodeType::k##Name: \
@@ -824,12 +789,12 @@ inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
 #undef CASE
     default:
 #define CASE(Name, _)                                        \
-  if (NodeTypeIs(type, NodeType::k##Name)) {                 \
+  if (NodeTypeIs(NodeType::k##Name, type)) {                 \
     if constexpr (NodeType::k##Name != NodeType::kUnknown) { \
-      out << #Name ",";                                      \
+      out << #Name "|";                                      \
     }                                                        \
   }
-      NODE_TYPE_LIST(CASE)
+      LEAF_NODE_TYPE_LIST(CASE)
 #undef CASE
   }
   return out;
@@ -843,11 +808,8 @@ NODE_TYPE_LIST(DEFINE_NODE_TYPE_CHECK)
 #undef DEFINE_NODE_TYPE_CHECK
 
 inline bool NodeTypeMayBeNullOrUndefined(NodeType type) {
-  if (NodeTypeIsBoolean(type)) return false;
-  if (NodeTypeIsNumber(type)) return false;
-  if (NodeTypeIsJSReceiver(type)) return false;
-  if (NodeTypeIsName(type)) return false;
-  return true;
+  return (static_cast<int>(type) &
+          static_cast<int>(NodeType::kNullOrUndefined)) != 0;
 }
 
 enum class TaggedToFloat64ConversionType : uint8_t {
@@ -3782,6 +3744,32 @@ class Uint32Constant : public FixedInputValueNodeT<0, Uint32Constant> {
   const uint32_t value_;
 };
 
+class IntPtrConstant : public FixedInputValueNodeT<0, IntPtrConstant> {
+  using Base = FixedInputValueNodeT<0, IntPtrConstant>;
+
+ public:
+  using OutputRegister = Register;
+
+  explicit IntPtrConstant(uint64_t bitfield, intptr_t value)
+      : Base(bitfield), value_(value) {}
+
+  static constexpr OpProperties kProperties = OpProperties::IntPtr();
+
+  intptr_t value() const { return value_; }
+
+  bool ToBoolean(LocalIsolate* local_isolate) const { return value_ != 0; }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
+
+  void DoLoadToRegister(MaglevAssembler*, OutputRegister);
+  DirectHandle<Object> DoReify(LocalIsolate* isolate) const;
+
+ private:
+  const intptr_t value_;
+};
+
 class Float64Constant : public FixedInputValueNodeT<0, Float64Constant> {
   using Base = FixedInputValueNodeT<0, Float64Constant>;
 
@@ -4685,8 +4673,9 @@ class StringEqual : public FixedInputValueNodeT<2, StringEqual> {
 
  public:
   explicit StringEqual(uint64_t bitfield) : Base(bitfield) {}
-  static constexpr OpProperties kProperties =
-      OpProperties::Call() | OpProperties::LazyDeopt();
+  static constexpr OpProperties kProperties = OpProperties::Call() |
+                                              OpProperties::LazyDeopt() |
+                                              OpProperties::CanAllocate();
 
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
@@ -4965,8 +4954,7 @@ class TryOnStackReplacement : public FixedInputNodeT<1, TryOnStackReplacement> {
 
   static constexpr OpProperties kProperties =
       OpProperties::DeferredCall() | OpProperties::EagerDeopt() |
-      OpProperties::Call() | OpProperties::CanAllocate() |
-      OpProperties::NotIdempotent();
+      OpProperties::CanAllocate() | OpProperties::NotIdempotent();
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
@@ -7909,33 +7897,6 @@ class LoadFloat64 : public FixedInputValueNodeT<1, LoadFloat64> {
   const int offset_;
 };
 
-class LoadHeapInt32 : public FixedInputValueNodeT<1, LoadHeapInt32> {
-  using Base = FixedInputValueNodeT<1, LoadHeapInt32>;
-
- public:
-  explicit LoadHeapInt32(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
-
-  static constexpr OpProperties kProperties =
-      OpProperties::CanRead() | OpProperties::Int32();
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  int offset() const { return offset_; }
-
-  static constexpr int kObjectIndex = 0;
-  Input& object_input() { return input(kObjectIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
-  auto options() const { return std::tuple{offset()}; }
-
- private:
-  const int offset_;
-};
-
 class LoadInt32 : public FixedInputValueNodeT<1, LoadInt32> {
   using Base = FixedInputValueNodeT<1, LoadInt32>;
 
@@ -8389,6 +8350,57 @@ LOAD_TYPED_ARRAY(LoadDoubleTypedArrayElement, OpProperties::Float64(),
 
 #undef LOAD_TYPED_ARRAY
 
+#define LOAD_CONSTANT_TYPED_ARRAY(name, properties, ...)                      \
+  class name : public FixedInputValueNodeT<1, name> {                         \
+    using Base = FixedInputValueNodeT<1, name>;                               \
+                                                                              \
+   public:                                                                    \
+    explicit name(uint64_t bitfield, compiler::JSTypedArrayRef typed_array,   \
+                  ElementsKind elements_kind)                                 \
+        : Base(bitfield),                                                     \
+          typed_array_(typed_array),                                          \
+          elements_kind_(elements_kind) {                                     \
+      DCHECK(elements_kind ==                                                 \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));        \
+    }                                                                         \
+                                                                              \
+    static constexpr OpProperties kProperties =                               \
+        OpProperties::CanRead() | properties;                                 \
+    static constexpr                                                          \
+        typename Base::InputTypes kInputTypes{ValueRepresentation::kUint32};  \
+                                                                              \
+    static constexpr int kIndexIndex = 0;                                     \
+    Input& index_input() { return input(kIndexIndex); }                       \
+                                                                              \
+    void SetValueLocationConstraints();                                       \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);              \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}            \
+                                                                              \
+    auto options() const { return std::tuple{typed_array_, elements_kind_}; } \
+                                                                              \
+    ElementsKind elements_kind() const { return elements_kind_; }             \
+    compiler::JSTypedArrayRef typed_array() const { return typed_array_; }    \
+                                                                              \
+   private:                                                                   \
+    compiler::JSTypedArrayRef typed_array_;                                   \
+    ElementsKind elements_kind_;                                              \
+  };
+
+LOAD_CONSTANT_TYPED_ARRAY(LoadSignedIntConstantTypedArrayElement,
+                          OpProperties::Int32(), INT8_ELEMENTS, INT16_ELEMENTS,
+                          INT32_ELEMENTS)
+
+LOAD_CONSTANT_TYPED_ARRAY(LoadUnsignedIntConstantTypedArrayElement,
+                          OpProperties::Uint32(), UINT8_ELEMENTS,
+                          UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
+                          UINT16_ELEMENTS, UINT32_ELEMENTS)
+
+LOAD_CONSTANT_TYPED_ARRAY(LoadDoubleConstantTypedArrayElement,
+                          OpProperties::Float64(), FLOAT32_ELEMENTS,
+                          FLOAT64_ELEMENTS)
+
+#undef LOAD_CONSTANT_TYPED_ARRAY
+
 #define STORE_TYPED_ARRAY(name, properties, type, ...)                     \
   class name : public FixedInputNodeT<3, name> {                           \
     using Base = FixedInputNodeT<3, name>;                                 \
@@ -8429,6 +8441,53 @@ STORE_TYPED_ARRAY(StoreDoubleTypedArrayElement, OpProperties::CanWrite(),
                   ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
                   FLOAT64_ELEMENTS)
 #undef STORE_TYPED_ARRAY
+
+#define STORE_CONSTANT_TYPED_ARRAY(name, properties, type, ...)             \
+  class name : public FixedInputNodeT<2, name> {                            \
+    using Base = FixedInputNodeT<2, name>;                                  \
+                                                                            \
+   public:                                                                  \
+    explicit name(uint64_t bitfield, compiler::JSTypedArrayRef typed_array, \
+                  ElementsKind elements_kind)                               \
+        : Base(bitfield),                                                   \
+          typed_array_(typed_array),                                        \
+          elements_kind_(elements_kind) {                                   \
+      DCHECK(elements_kind ==                                               \
+             v8::internal::compiler::turboshaft::any_of(__VA_ARGS__));      \
+    }                                                                       \
+                                                                            \
+    static constexpr OpProperties kProperties = properties;                 \
+    static constexpr typename Base::InputTypes kInputTypes{                 \
+        ValueRepresentation::kUint32, type};                                \
+                                                                            \
+    static constexpr int kIndexIndex = 0;                                   \
+    static constexpr int kValueIndex = 1;                                   \
+    Input& index_input() { return input(kIndexIndex); }                     \
+    Input& value_input() { return input(kValueIndex); }                     \
+                                                                            \
+    void SetValueLocationConstraints();                                     \
+    void GenerateCode(MaglevAssembler*, const ProcessingState&);            \
+    void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}          \
+                                                                            \
+    ElementsKind elements_kind() const { return elements_kind_; }           \
+    compiler::JSTypedArrayRef typed_array() const { return typed_array_; }  \
+                                                                            \
+   private:                                                                 \
+    compiler::JSTypedArrayRef typed_array_;                                 \
+    ElementsKind elements_kind_;                                            \
+  };
+
+STORE_CONSTANT_TYPED_ARRAY(StoreIntConstantTypedArrayElement,
+                           OpProperties::CanWrite(),
+                           ValueRepresentation::kInt32, INT8_ELEMENTS,
+                           INT16_ELEMENTS, INT32_ELEMENTS, UINT8_ELEMENTS,
+                           UINT8_CLAMPED_ELEMENTS, UINT16_ELEMENTS,
+                           UINT16_ELEMENTS, UINT32_ELEMENTS)
+STORE_CONSTANT_TYPED_ARRAY(StoreDoubleConstantTypedArrayElement,
+                           OpProperties::CanWrite(),
+                           ValueRepresentation::kHoleyFloat64, FLOAT32_ELEMENTS,
+                           FLOAT64_ELEMENTS)
+#undef STORE_CONSTANT_TYPED_ARRAY
 
 class StoreSignedIntDataViewElement
     : public FixedInputNodeT<4, StoreSignedIntDataViewElement> {
@@ -8514,32 +8573,6 @@ class StoreDoubleField : public FixedInputNodeT<2, StoreDoubleField> {
   static constexpr OpProperties kProperties = OpProperties::CanWrite();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kFloat64};
-
-  int offset() const { return offset_; }
-
-  static constexpr int kObjectIndex = 0;
-  static constexpr int kValueIndex = 1;
-  Input& object_input() { return input(kObjectIndex); }
-  Input& value_input() { return input(kValueIndex); }
-
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
-
- private:
-  const int offset_;
-};
-
-class StoreHeapInt32 : public FixedInputNodeT<2, StoreHeapInt32> {
-  using Base = FixedInputNodeT<2, StoreHeapInt32>;
-
- public:
-  explicit StoreHeapInt32(uint64_t bitfield, int offset)
-      : Base(bitfield), offset_(offset) {}
-
-  static constexpr OpProperties kProperties = OpProperties::CanWrite();
-  static constexpr typename Base::InputTypes kInputTypes{
-      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
 
   int offset() const { return offset_; }
 
@@ -8753,12 +8786,12 @@ class StoreTaggedFieldWithWriteBarrier
   const int offset_;
 };
 
-class StoreScriptContextSlotWithWriteBarrier
-    : public FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier> {
-  using Base = FixedInputNodeT<2, StoreScriptContextSlotWithWriteBarrier>;
+class StoreContextSlotWithWriteBarrier
+    : public FixedInputNodeT<2, StoreContextSlotWithWriteBarrier> {
+  using Base = FixedInputNodeT<2, StoreContextSlotWithWriteBarrier>;
 
  public:
-  explicit StoreScriptContextSlotWithWriteBarrier(uint64_t bitfield, int index)
+  explicit StoreContextSlotWithWriteBarrier(uint64_t bitfield, int index)
       : Base(bitfield), index_(index) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite() |

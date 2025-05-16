@@ -104,6 +104,11 @@ struct FlatHashMapPolicy;
 // If your types are not moveable or you require pointer stability for keys,
 // consider `absl::node_hash_map`.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a flat hash map of three strings (that map to strings)

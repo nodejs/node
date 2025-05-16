@@ -320,7 +320,7 @@ RUNTIME_FUNCTION(Runtime_AddPrivateBrand) {
   DCHECK_GE(depth, 0);
   for (; depth > 0; depth--) {
     context = direct_handle(
-        Cast<Context>(context->get(Context::PREVIOUS_INDEX)), isolate);
+        Cast<Context>(context->GetNoCell(Context::PREVIOUS_INDEX)), isolate);
   }
   DCHECK_EQ(context->scope_info()->scope_type(), ScopeType::CLASS_SCOPE);
   Maybe<bool> added_brand = Object::AddDataProperty(
@@ -697,7 +697,8 @@ RUNTIME_FUNCTION(Runtime_GetProperty) {
         if (Smi::ToInt(*key_obj) >= lookup_start_object->elements()->length()) {
           elements_kind = IsHoleyElementsKind(elements_kind) ? HOLEY_ELEMENTS
                                                              : PACKED_ELEMENTS;
-          JSObject::TransitionElementsKind(lookup_start_object, elements_kind);
+          JSObject::TransitionElementsKind(isolate, lookup_start_object,
+                                           elements_kind);
         }
       } else {
         DCHECK(IsSmiOrObjectElementsKind(elements_kind) ||
@@ -974,7 +975,7 @@ RUNTIME_FUNCTION(Runtime_SetFunctionName) {
   auto function = Cast<JSFunction>(value);
   DCHECK(!function->shared()->HasSharedName());
   DirectHandle<Map> function_map(function->map(), isolate);
-  if (!JSFunction::SetName(function, name,
+  if (!JSFunction::SetName(isolate, function, name,
                            isolate->factory()->empty_string())) {
     return ReadOnlyRoots(isolate).exception();
   }
@@ -1022,7 +1023,7 @@ RUNTIME_FUNCTION(Runtime_DefineKeyedOwnPropertyInLiteral) {
     auto function = Cast<JSFunction>(value);
     DCHECK(!function->shared()->HasSharedName());
     DirectHandle<Map> function_map(function->map(), isolate);
-    if (!JSFunction::SetName(function, Cast<Name>(name),
+    if (!JSFunction::SetName(isolate, function, Cast<Name>(name),
                              isolate->factory()->empty_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
@@ -1080,7 +1081,8 @@ RUNTIME_FUNCTION(Runtime_DefineGetterPropertyUnchecked) {
 
   if (Cast<String>(getter->shared()->Name())->length() == 0) {
     DirectHandle<Map> getter_map(getter->map(), isolate);
-    if (!JSFunction::SetName(getter, name, isolate->factory()->get_string())) {
+    if (!JSFunction::SetName(isolate, getter, name,
+                             isolate->factory()->get_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
     CHECK_EQ(*getter_map, getter->map());
@@ -1226,7 +1228,8 @@ RUNTIME_FUNCTION(Runtime_DefineSetterPropertyUnchecked) {
 
   if (Cast<String>(setter->shared()->Name())->length() == 0) {
     DirectHandle<Map> setter_map(setter->map(), isolate);
-    if (!JSFunction::SetName(setter, name, isolate->factory()->set_string())) {
+    if (!JSFunction::SetName(isolate, setter, name,
+                             isolate->factory()->set_string())) {
       return ReadOnlyRoots(isolate).exception();
     }
     CHECK_EQ(*setter_map, setter->map());
@@ -1369,14 +1372,14 @@ void CollectPrivateMethodsAndAccessorsFromContext(
     std::vector<PrivateMember>* results) {
   DirectHandle<ScopeInfo> scope_info(context->scope_info(), isolate);
   VariableLookupResult lookup_result;
-  int context_index = scope_info->ContextSlotIndex(desc, &lookup_result);
+  int context_index = scope_info->ContextSlotIndex(*desc, &lookup_result);
   if (context_index == -1 ||
       !IsPrivateMethodOrAccessorVariableMode(lookup_result.mode) ||
       lookup_result.is_static_flag != is_static_flag) {
     return;
   }
 
-  Handle<Object> slot_value(context->get(context_index), isolate);
+  Handle<Object> slot_value(context->GetNoCell(context_index), isolate);
   DCHECK_IMPLIES(lookup_result.mode == VariableMode::kPrivateMethod,
                  IsJSFunction(*slot_value));
   DCHECK_IMPLIES(lookup_result.mode != VariableMode::kPrivateMethod,

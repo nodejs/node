@@ -970,7 +970,6 @@ TEST_F(BackgroundMergeTest, GCDuringMerge) {
 
   // Compile the script once to warm up the compilation cache.
   IndirectHandle<JSFunction> old_g;
-  IsCompiledScope old_g_bytecode_keepalive;
   ([&]() V8_NOINLINE {
     // Compile in a new handle scope inside a non-inlined function, so that the
     // script can die while select inner functions stay alive.

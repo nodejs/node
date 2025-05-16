@@ -6,6 +6,7 @@
 
 #include <stdlib.h>  // For free, malloc.
 
+#include "src/base/address-region.h"
 #include "src/base/bits.h"
 #include "src/base/bounded-page-allocator.h"
 #include "src/base/lazy-instance.h"
@@ -248,6 +249,18 @@ bool VirtualMemory::RecommitPages(Address address, size_t size,
   bool result = page_allocator_->RecommitPages(reinterpret_cast<void*>(address),
                                                size, access);
   return result;
+}
+
+bool VirtualMemory::Resize(Address address, size_t new_size,
+                           PageAllocator::Permission access) {
+  DCHECK(IsAligned(new_size, page_allocator_->CommitPageSize()));
+  DCHECK_LE(region_.size(), new_size);
+  if (!page_allocator_->ResizeAllocationAt(reinterpret_cast<void*>(address),
+                                           region_.size(), new_size, access)) {
+    return false;
+  }
+  region_.set_size(new_size);
+  return true;
 }
 
 bool VirtualMemory::DiscardSystemPages(Address address, size_t size) {

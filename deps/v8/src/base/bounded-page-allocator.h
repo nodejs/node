@@ -106,6 +106,9 @@ class V8_BASE_EXPORT BoundedPageAllocator : public v8::PageAllocator {
   // Allocates pages at given address, returns true on success.
   bool AllocatePagesAt(Address address, size_t size, Permission access);
 
+  bool ResizeAllocationAt(void* address, size_t old_size, size_t new_size,
+                          Permission access) override;
+
   bool FreePages(void* address, size_t size) override;
 
   bool ReleasePages(void* address, size_t size, size_t new_size) override;

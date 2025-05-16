@@ -44,10 +44,10 @@ ABSL_NAMESPACE_BEGIN
 // sink instead which writes them to `stderr`.
 //
 // Do not call these inside `absl::LogSink::Send`.
-inline void AddLogSink(absl::Nonnull<absl::LogSink*> sink) {
+inline void AddLogSink(absl::LogSink* absl_nonnull sink) {
   log_internal::AddLogSink(sink);
 }
-inline void RemoveLogSink(absl::Nonnull<absl::LogSink*> sink) {
+inline void RemoveLogSink(absl::LogSink* absl_nonnull sink) {
   log_internal::RemoveLogSink(sink);
 }
 

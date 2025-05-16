@@ -53,30 +53,47 @@ FieldAccess AccessBuilder::ForHeapNumberValue() {
 }
 
 // static
-FieldAccess AccessBuilder::ForHeapInt32Value() {
+FieldAccess AccessBuilder::ForContextCellState() {
   FieldAccess access = {
-      kTaggedBase,
-      offsetof(HeapNumber, value_) + kIeeeDoubleMantissaWordOffset,
-      MaybeHandle<Name>(),
-      OptionalMapRef(),
-      TypeCache::Get()->kInt32,
-      MachineType::Int32(),
-      kNoWriteBarrier,
-      "HeapInt32Value"};
+      kTaggedBase,      offsetof(ContextCell, state_), MaybeHandle<Name>(),
+      OptionalMapRef(), TypeCache::Get()->kInt32,      MachineType::Int32(),
+      kNoWriteBarrier,  "ForContextCellState"};
   return access;
 }
 
 // static
-FieldAccess AccessBuilder::ForHeapInt32UpperValue() {
+FieldAccess AccessBuilder::ForContextCellTaggedValue() {
   FieldAccess access = {
-      kTaggedBase,
-      offsetof(HeapNumber, value_) + kIeeeDoubleExponentWordOffset,
-      MaybeHandle<Name>(),
-      OptionalMapRef(),
-      TypeCache::Get()->kInt32,
-      MachineType::Int32(),
-      kNoWriteBarrier,
-      "HeapInt32ValueUpperValue"};
+      kTaggedBase,         offsetof(ContextCell, tagged_value_),
+      MaybeHandle<Name>(), OptionalMapRef(),
+      Type::Any(),         MachineType::AnyTagged(),
+      kFullWriteBarrier,   "ForContextCellTaggedValue"};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForContextCellInt32Value() {
+  FieldAccess access = {kTaggedBase,
+                        offsetof(ContextCell, double_value_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kInt32,
+                        MachineType::Int32(),
+                        kNoWriteBarrier,
+                        "ForContextCellInt32Value"};
+  return access;
+}
+
+// static
+FieldAccess AccessBuilder::ForContextCellFloat64Value() {
+  FieldAccess access = {kTaggedBase,
+                        offsetof(ContextCell, double_value_),
+                        MaybeHandle<Name>(),
+                        OptionalMapRef(),
+                        TypeCache::Get()->kFloat64,
+                        MachineType::Float64(),
+                        kNoWriteBarrier,
+                        "ContextCellFloat64Value"};
   return access;
 }
 
@@ -1587,16 +1604,6 @@ FieldAccess AccessBuilder::ForWasmDispatchTableLength() {
           "WasmDispatchTableLength"};
 }
 #endif  // V8_ENABLE_WEBASSEMBLY
-
-// static
-FieldAccess AccessBuilder::ForContextSideProperty() {
-  FieldAccess access = {
-      kTaggedBase,         ContextSidePropertyCell::kPropertyDetailsRawOffset,
-      MaybeHandle<Name>(), OptionalMapRef(),
-      Type::SignedSmall(), MachineType::TaggedSigned(),
-      kNoWriteBarrier,     "ContextSidePropertyDetails"};
-  return access;
-}
 
 }  // namespace compiler
 }  // namespace internal
