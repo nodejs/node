@@ -27,6 +27,13 @@
 #include <assert.h>
 #include <errno.h>
 
+#include <sys/types.h>
+#include <sys/socket.h>
+
+/* ifaddrs is not implemented on AIX and IBM i PASE */
+#if !defined(_AIX)
+#include <ifaddrs.h>
+#endif
 
 static int maybe_bind_socket(int fd) {
   union uv__sockaddr s;
@@ -160,6 +167,12 @@ int uv__tcp_bind(uv_tcp_t* tcp,
   if (setsockopt(tcp->io_watcher.fd, SOL_SOCKET, SO_REUSEADDR, &on, sizeof(on)))
     return UV__ERR(errno);
 
+  if (flags & UV_TCP_REUSEPORT) {
+    err = uv__sock_reuseport(tcp->io_watcher.fd);
+    if (err)
+      return err;
+  }
+
 #ifndef __OpenBSD__
 #ifdef IPV6_V6ONLY
   if (addr->sa_family == AF_INET6) {
@@ -198,11 +211,75 @@ int uv__tcp_bind(uv_tcp_t* tcp,
 }
 
 
+static int uv__is_ipv6_link_local(const struct sockaddr* addr) {
+  const struct sockaddr_in6* a6;
+  uint8_t b[2];
+
+  if (addr->sa_family != AF_INET6)
+    return 0;
+
+  a6 = (const struct sockaddr_in6*) addr;
+  memcpy(b, &a6->sin6_addr, sizeof(b));
+
+  return b[0] == 0xFE && b[1] == 0x80;
+}
+
+
+static int uv__ipv6_link_local_scope_id(void) {
+  struct sockaddr_in6* a6;
+  int rv;
+#if defined(_AIX)
+  /* AIX & IBM i do not have ifaddrs
+   * so fallback to use uv_interface_addresses */
+  uv_interface_address_t* interfaces;
+  uv_interface_address_t* ifa;
+  int count, i;
+
+  if (uv_interface_addresses(&interfaces, &count))
+    return 0;
+
+  rv = 0;
+
+  for (ifa = interfaces; ifa != &interfaces[count]; ifa++) {
+    if (uv__is_ipv6_link_local((struct sockaddr*) &ifa->address)) {
+      rv = ifa->address.address6.sin6_scope_id;
+      break;
+    }
+  }
+
+  uv_free_interface_addresses(interfaces, count);
+
+#else
+  struct ifaddrs* ifa;
+  struct ifaddrs* p;
+
+  if (getifaddrs(&ifa))
+    return 0;
+
+  for (p = ifa; p != NULL; p = p->ifa_next)
+    if (p->ifa_addr != NULL)
+      if (uv__is_ipv6_link_local(p->ifa_addr))
+        break;
+
+  rv = 0;
+  if (p != NULL) {
+    a6 = (struct sockaddr_in6*) p->ifa_addr;
+    rv = a6->sin6_scope_id;
+  }
+
+  freeifaddrs(ifa);
+#endif /* defined(_AIX) */
+
+  return rv;
+}
+
+
 int uv__tcp_connect(uv_connect_t* req,
                     uv_tcp_t* handle,
                     const struct sockaddr* addr,
                     unsigned int addrlen,
                     uv_connect_cb cb) {
+  struct sockaddr_in6 tmp6;
   int err;
   int r;
 
@@ -219,6 +296,14 @@ int uv__tcp_connect(uv_connect_t* req,
                          UV_HANDLE_READABLE | UV_HANDLE_WRITABLE);
   if (err)
     return err;
+
+  if (uv__is_ipv6_link_local(addr)) {
+    memcpy(&tmp6, addr, sizeof(tmp6));
+    if (tmp6.sin6_scope_id == 0) {
+      tmp6.sin6_scope_id = uv__ipv6_link_local_scope_id();
+      addr = (void*) &tmp6;
+    }
+  }
 
   do {
     errno = 0;
@@ -373,32 +458,121 @@ int uv__tcp_nodelay(int fd, int on) {
 }
 
 
+#if (defined(UV__SOLARIS_11_4) && !UV__SOLARIS_11_4) || \
+    (defined(__DragonFly__) && __DragonFly_version < 500702)
+/* DragonFlyBSD <500702 and Solaris <11.4 require millisecond units
+ * for TCP keepalive options. */
+#define UV_KEEPALIVE_FACTOR(x) (x *= 1000)
+#else
+#define UV_KEEPALIVE_FACTOR(x)
+#endif
 int uv__tcp_keepalive(int fd, int on, unsigned int delay) {
+  int idle;
+  int intvl;
+  int cnt;
+
+  (void) &idle;
+  (void) &intvl;
+  (void) &cnt;
+
   if (setsockopt(fd, SOL_SOCKET, SO_KEEPALIVE, &on, sizeof(on)))
     return UV__ERR(errno);
 
-#ifdef TCP_KEEPIDLE
-  if (on) {
-    int intvl = 1;  /*  1 second; same as default on Win32 */
-    int cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &delay, sizeof(delay)))
-      return UV__ERR(errno);
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
-      return UV__ERR(errno);
-    if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
-      return UV__ERR(errno);
-  }
-#endif
+  if (!on)
+    return 0;
 
-  /* Solaris/SmartOS, if you don't support keep-alive,
-   * then don't advertise it in your system headers...
+  if (delay < 1)
+    return UV_EINVAL;
+
+#ifdef __sun
+  /* The implementation of TCP keep-alive on Solaris/SmartOS is a bit unusual
+   * compared to other Unix-like systems.
+   * Thus, we need to specialize it on Solaris.
+   *
+   * There are two keep-alive mechanisms on Solaris:
+   * - By default, the first keep-alive probe is sent out after a TCP connection is idle for two hours.
+   * If the peer does not respond to the probe within eight minutes, the TCP connection is aborted.
+   * You can alter the interval for sending out the first probe using the socket option TCP_KEEPALIVE_THRESHOLD
+   * in milliseconds or TCP_KEEPIDLE in seconds.
+   * The system default is controlled by the TCP ndd parameter tcp_keepalive_interval. The minimum value is ten seconds.
+   * The maximum is ten days, while the default is two hours. If you receive no response to the probe,
+   * you can use the TCP_KEEPALIVE_ABORT_THRESHOLD socket option to change the time threshold for aborting a TCP connection.
+   * The option value is an unsigned integer in milliseconds. The value zero indicates that TCP should never time out and
+   * abort the connection when probing. The system default is controlled by the TCP ndd parameter tcp_keepalive_abort_interval.
+   * The default is eight minutes.
+   *
+   * - The second implementation is activated if socket option TCP_KEEPINTVL and/or TCP_KEEPCNT are set.
+   * The time between each consequent probes is set by TCP_KEEPINTVL in seconds.
+   * The minimum value is ten seconds. The maximum is ten days, while the default is two hours.
+   * The TCP connection will be aborted after certain amount of probes, which is set by TCP_KEEPCNT, without receiving response.
    */
-  /* FIXME(bnoordhuis) That's possibly because sizeof(delay) should be 1. */
-#if defined(TCP_KEEPALIVE) && !defined(__sun)
-  if (on && setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &delay, sizeof(delay)))
+
+  idle = delay;
+  /* Kernel expects at least 10 seconds. */
+  if (idle < 10)
+    idle = 10;
+  /* Kernel expects at most 10 days. */
+  if (idle > 10*24*60*60)
+    idle = 10*24*60*60;
+
+  UV_KEEPALIVE_FACTOR(idle);
+
+  /* `TCP_KEEPIDLE`, `TCP_KEEPINTVL`, and `TCP_KEEPCNT` were not available on Solaris
+   * until version 11.4, but let's take a chance here. */
+#if defined(TCP_KEEPIDLE) && defined(TCP_KEEPINTVL) && defined(TCP_KEEPCNT)
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+    return UV__ERR(errno);
+
+  intvl = 10; /* required at least 10 seconds */
+  UV_KEEPALIVE_FACTOR(intvl);
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+    return UV__ERR(errno);
+
+  cnt = 1; /* 1 retry, ensure (TCP_KEEPINTVL * TCP_KEEPCNT) is 10 seconds */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+    return UV__ERR(errno);
+#else
+  /* Fall back to the first implementation of tcp-alive mechanism for older Solaris,
+   * simulate the tcp-alive mechanism on other platforms via `TCP_KEEPALIVE_THRESHOLD` + `TCP_KEEPALIVE_ABORT_THRESHOLD`.
+   */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_THRESHOLD, &idle, sizeof(idle)))
+    return UV__ERR(errno);
+
+  /* Note that the consequent probes will not be sent at equal intervals on Solaris,
+   * but will be sent using the exponential backoff algorithm. */
+  int time_to_abort = 10; /* 10 seconds */
+  UV_KEEPALIVE_FACTOR(time_to_abort);
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE_ABORT_THRESHOLD, &time_to_abort, sizeof(time_to_abort)))
     return UV__ERR(errno);
 #endif
 
+#else  /* !defined(__sun) */
+
+  idle = delay;
+  UV_KEEPALIVE_FACTOR(idle);
+#ifdef TCP_KEEPIDLE
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPIDLE, &idle, sizeof(idle)))
+    return UV__ERR(errno);
+#elif defined(TCP_KEEPALIVE)
+  /* Darwin/macOS uses TCP_KEEPALIVE in place of TCP_KEEPIDLE. */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPALIVE, &idle, sizeof(idle)))
+    return UV__ERR(errno);
+#endif
+
+#ifdef TCP_KEEPINTVL
+  intvl = 1;  /* 1 second; same as default on Win32 */
+  UV_KEEPALIVE_FACTOR(intvl);
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPINTVL, &intvl, sizeof(intvl)))
+    return UV__ERR(errno);
+#endif
+
+#ifdef TCP_KEEPCNT
+  cnt = 10;  /* 10 retries; same as hardcoded on Win32 */
+  if (setsockopt(fd, IPPROTO_TCP, TCP_KEEPCNT, &cnt, sizeof(cnt)))
+    return UV__ERR(errno);
+#endif
+
+#endif  /* !defined(__sun) */
   return 0;
 }
 
@@ -456,7 +630,7 @@ void uv__tcp_close(uv_tcp_t* handle) {
 int uv_socketpair(int type, int protocol, uv_os_sock_t fds[2], int flags0, int flags1) {
   uv_os_sock_t temp[2];
   int err;
-#if defined(__FreeBSD__) || defined(__linux__)
+#if defined(SOCK_NONBLOCK) && defined(SOCK_CLOEXEC)
   int flags;
 
   flags = type | SOCK_CLOEXEC;

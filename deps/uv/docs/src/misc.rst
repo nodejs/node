@@ -199,6 +199,18 @@ Data types
             char* homedir;
         } uv_passwd_t;
 
+.. c:type:: uv_group_t
+
+    Data type for group file information.
+
+    ::
+
+        typedef struct uv_group_s {
+          char* groupname;
+          unsigned long gid;
+          char** members;
+        } uv_group_t;
+
 .. c:type:: uv_utsname_t
 
     Data type for operating system name and version information.
@@ -346,6 +358,17 @@ API
 
     .. note::
         On Windows not all fields are set, the unsupported fields are filled with zeroes.
+        See :c:type:`uv_rusage_t` for more details.
+
+.. c:function:: int uv_getrusage_thread(uv_rusage_t* rusage)
+
+    Gets the resource usage measures for the calling thread.
+
+    .. versionadded:: 1.50.0
+
+    .. note::
+        Not supported on all platforms. May return `UV_ENOTSUP`.
+        On macOS and Windows not all fields are set, the unsupported fields are filled with zeroes.
         See :c:type:`uv_rusage_t` for more details.
 
 .. c:function:: uv_pid_t uv_os_getpid(void)
@@ -565,6 +588,35 @@ API
     :c:func:`uv_os_free_passwd`.
 
     .. versionadded:: 1.9.0
+
+.. c:function:: int uv_os_get_passwd2(uv_passwd_t* pwd, uv_uid_t uid)
+
+    Gets a subset of the password file entry for the provided uid.
+    The populated data includes the username, euid, gid, shell,
+    and home directory. On non-Windows systems, all data comes from
+    :man:`getpwuid_r(3)`. On Windows, uid and gid are set to -1 and have no
+    meaning, and shell is `NULL`. After successfully calling this function, the
+    memory allocated to `pwd` needs to be freed with
+    :c:func:`uv_os_free_passwd`.
+
+    .. versionadded:: 1.45.0
+
+.. c:function:: int uv_os_get_group(uv_group_t* group, uv_uid_t gid)
+
+    Gets a subset of the group file entry for the provided uid.
+    The populated data includes the group name, gid, and members. On non-Windows
+    systems, all data comes from :man:`getgrgid_r(3)`. On Windows, uid and gid
+    are set to -1 and have no meaning. After successfully calling this function,
+    the memory allocated to `group` needs to be freed with
+    :c:func:`uv_os_free_group`.
+
+    .. versionadded:: 1.45.0
+
+.. c:function:: void uv_os_free_group(uv_passwd_t* pwd)
+
+    Frees the memory previously allocated with :c:func:`uv_os_get_group`.
+
+    .. versionadded:: 1.45.0
 
 .. c:function:: void uv_os_free_passwd(uv_passwd_t* pwd)
 
@@ -839,3 +891,50 @@ API
     Causes the calling thread to sleep for `msec` milliseconds.
 
     .. versionadded:: 1.34.0
+
+String manipulation functions
+-----------------------------
+
+These string utilities are needed internally for dealing with Windows, and are
+exported to allow clients to work uniformly with this data when the libuv API
+is not complete.
+
+.. c:function:: size_t uv_utf16_length_as_wtf8(const uint16_t* utf16, ssize_t utf16_len)
+
+    Get the length of a UTF-16 (or UCS-2) `utf16` value after converting it to
+    WTF-8. If `utf16` is NUL terminated, `utf16_len` can be set to -1,
+    otherwise it must be specified.
+
+    .. versionadded:: 1.47.0
+
+.. c:function:: int uv_utf16_to_wtf8(const uint16_t* utf16, ssize_t utf16_len, char** wtf8_ptr, size_t* wtf8_len_ptr)
+
+    Convert UTF-16 (or UCS-2) data in `utf16` to WTF-8 data in `*wtf8_ptr`. The
+    `utf16_len` count (in characters) gives the length of `utf16`. If `utf16`
+    is NUL terminated, `utf16_len` can be set to -1, otherwise it must be
+    specified. If `wtf8_ptr` is `NULL`, no result will be computed, but the
+    length (equal to `uv_utf16_length_as_wtf8`) will be stored in `wtf8_ptr`.
+    If `*wtf8_ptr` is `NULL`, space for the conversion will be allocated and
+    returned in `wtf8_ptr` and the length will be returned in `wtf8_len_ptr`.
+    Otherwise, the length of `*wtf8_ptr` must be passed in `wtf8_len_ptr`. The
+    `wtf8_ptr` must contain an extra space for an extra NUL after the result.
+    If the result is truncated, `UV_ENOBUFS` will be returned and
+    `wtf8_len_ptr` will be the length of the required `wtf8_ptr` to contain the
+    whole result.
+
+    .. versionadded:: 1.47.0
+
+.. c:function:: ssize_t uv_wtf8_length_as_utf16(const char* wtf8)
+
+    Get the length in characters of a NUL-terminated WTF-8 `wtf8` value
+    after converting it to UTF-16 (or UCS-2), including NUL terminator.
+
+    .. versionadded:: 1.47.0
+
+.. c:function:: void uv_wtf8_to_utf16(const char* utf8, uint16_t* utf16, size_t utf16_len)
+
+    Convert NUL-terminated WTF-8 data in `wtf8` to UTF-16 (or UCS-2) data
+    in `utf16`. The `utf16_len` count (in characters) must include space
+    for the NUL terminator.
+
+    .. versionadded:: 1.47.0

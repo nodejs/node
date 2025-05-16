@@ -211,8 +211,16 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
 
   which[1] = HW_CPUSPEED;
   size = sizeof(cpuspeed);
-  if (sysctl(which, ARRAY_SIZE(which), &cpuspeed, &size, NULL, 0))
+  cpuspeed = 0;
+  /*
+   * HW_CPUSPEED can return EOPNOTSUPP if cpuspeed is 0,
+   * so ignore that and continue the flow, because we
+   * still care about the rest of the CPU info.
+   */
+  if (sysctl(which, ARRAY_SIZE(which), &cpuspeed, &size, NULL, 0) &&
+      (errno != EOPNOTSUPP)) {
     goto error;
+  }
 
   size = sizeof(info);
   for (i = 0; i < numcpus; i++) {
