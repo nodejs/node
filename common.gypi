@@ -120,7 +120,7 @@
       ['target_arch in "ppc64 s390x"', {
         'v8_enable_backtrace': 1,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         'node_section_ordering_info%': ''
       }],
       ['OS == "zos"', {
@@ -202,7 +202,7 @@
               'LLVM_LTO': 'YES',
             },
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['node_section_ordering_info!=""', {
                 'cflags': [
@@ -230,7 +230,7 @@
             # frames otherwise, even with --call-graph dwarf.
             'cflags': [ '-fno-omit-frame-pointer' ],
           }],
-          ['OS=="linux"', {
+          ['OS=="linux" or OS=="openharmony"', {
             'conditions': [
               ['enable_pgo_generate=="true"', {
                 'cflags': ['<(pgo_generate)'],
@@ -498,11 +498,11 @@
           'NOMINMAX',
         ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris aix os400"', {
+      [ 'OS in "linux freebsd openbsd solaris aix os400 openharmony"', {
         'cflags': [ '-pthread' ],
         'ldflags': [ '-pthread' ],
       }],
-      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi"', {
+      [ 'OS in "linux freebsd openbsd solaris android aix os400 cloudabi openharmony"', {
         'cflags': [ '-Wall', '-Wextra', '-Wno-unused-parameter', ],
         'cflags_cc': [
           '-fno-rtti',
@@ -535,7 +535,7 @@
                 'cflags': [ '-m64', '-mminimal-toc' ],
                 'ldflags': [ '-m64' ],
               }],
-              [ 'host_arch=="s390x" and OS=="linux"', {
+              [ 'host_arch=="s390x" and (OS=="linux" or OS=="openharmony")', {
                 'cflags': [ '-m64', '-march=z196' ],
                 'ldflags': [ '-m64', '-march=z196' ],
               }],
@@ -555,7 +555,7 @@
                 'cflags': [ '-m64', '-mminimal-toc' ],
                 'ldflags': [ '-m64' ],
               }],
-              [ 'target_arch=="s390x" and OS=="linux"', {
+              [ 'target_arch=="s390x" and (OS=="linux" or OS=="openharmony")', {
                 'cflags': [ '-m64', '-march=z196' ],
                 'ldflags': [ '-m64', '-march=z196' ],
               }],
