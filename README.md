@@ -363,6 +363,8 @@ For information about the governance of the Node.js project, see
   **Jason Zhang** <<xzha4350@gmail.com>> (he/him)
 * [jkrems](https://github.com/jkrems) -
   **Jan Martin** <<jan.krems@gmail.com>> (he/him)
+* [JonasBa](https://github.com/JonasBa) -
+  **Jonas Badalic** <<jonas.badalic@gmail.com>> (he/him)
 * [joyeecheung](https://github.com/joyeecheung) -
   **Joyee Cheung** <<joyeec9h3@gmail.com>> (she/her)
 * [juanarbol](https://github.com/juanarbol) -
