@@ -2520,21 +2520,23 @@ napi_status NAPI_CDECL napi_get_value_string_utf16(napi_env env,
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
+  v8::Local<v8::String> str = val.As<v8::String>();
 
   if (!buf) {
     CHECK_ARG(env, result);
     // V8 assumes UTF-16 length is the same as the number of characters.
-    *result = val.As<v8::String>()->Length();
+    *result = str->Length();
   } else if (bufsize != 0) {
-    int copied = val.As<v8::String>()->Write(env->isolate,
-                                             reinterpret_cast<uint16_t*>(buf),
-                                             0,
-                                             bufsize - 1,
-                                             v8::String::NO_NULL_TERMINATION);
+    uint32_t length = static_cast<uint32_t>(
+        std::min(bufsize - 1, static_cast<size_t>(str->Length())));
+    str->WriteV2(env->isolate,
+                 0,
+                 length,
+                 reinterpret_cast<uint16_t*>(buf),
+                 v8::String::WriteFlags::kNullTerminate);
 
-    buf[copied] = '\0';
     if (result != nullptr) {
-      *result = copied;
+      *result = length;
     }
   } else if (result != nullptr) {
     *result = 0;
