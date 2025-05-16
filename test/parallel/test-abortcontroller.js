@@ -81,6 +81,7 @@ test('AbortSignal is impossible to construct manually', () => {
   // Tests that AbortSignal is impossible to construct manually
   const ac = new AbortController();
   throws(() => new ac.signal.constructor(), {
+    name: 'TypeError',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 });

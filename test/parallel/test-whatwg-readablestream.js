@@ -1444,14 +1444,17 @@ class Source {
   });
 
   assert.throws(() => new ReadableStreamBYOBRequest(), {
+    name: 'TypeError',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 
   assert.throws(() => new ReadableStreamDefaultController(), {
+    name: 'TypeError',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 
   assert.throws(() => new ReadableByteStreamController(), {
+    name: 'TypeError',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 }
