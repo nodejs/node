@@ -11,6 +11,7 @@
 #include "permission/permission_base.h"
 #include "permission/wasi_permission.h"
 #include "permission/worker_permission.h"
+#include "permission/net_permission.h"
 #include "v8.h"
 
 #include <string_view>
@@ -44,6 +45,23 @@ namespace permission {
       return __VA_ARGS__;                                                      \
     }                                                                          \
   } while (0)
+
+#define ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(                         \
+    env, perm_, resource_, args, ...)                                          \
+  do {                                                                         \
+    if (!env->permission()->is_granted(env, perm_, resource_)) [[unlikely]] {  \
+      Local<Value> err_access;                                                 \
+      if (permission::CreateAccessDeniedError(                                 \
+              env, perm_, resource_)               \
+              .ToLocal(&err_access)) {                                         \
+        args.GetReturnValue().Set(err_access);                                 \
+      } else {                                                                 \
+          args.GetReturnValue().Set(UV_EACCES);                                \
+        }                                                                      \
+        return __VA_ARGS__;                                                    \
+      }                                                                        \
+    }                                                                          \
+    while (0)
 
 class Permission {
  public:
@@ -90,6 +108,10 @@ class Permission {
   std::unordered_map<PermissionScope, std::shared_ptr<PermissionBase>> nodes_;
   bool enabled_;
 };
+
+v8::MaybeLocal<v8::Value> CreateAccessDeniedError(Environment* env,
+                                                  PermissionScope perm,
+                                                  const std::string_view& res);
 
 }  // namespace permission
 

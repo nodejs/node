@@ -503,6 +503,10 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "allow use of child process when any permissions are set",
             &EnvironmentOptions::allow_child_process,
             kAllowedInEnvvar);
+  AddOption("--allow-net",
+            "allow use of network when any permissions are set",
+            &EnvironmentOptions::allow_net,
+            kAllowedInEnvvar);
   AddOption("--allow-wasi",
             "allow wasi when any permissions are set",
             &EnvironmentOptions::allow_wasi,

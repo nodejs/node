@@ -12,6 +12,7 @@
 #include "node.h"
 #include "node_internals.h"
 #include "util.h"
+#include "permission/permission.h"
 
 #include "ares.h"
 #include "v8.h"
@@ -249,6 +250,15 @@ class QueryWrap final : public AsyncWrap {
   void AresQuery(const char* name,
                  ares_dns_class_t dnsclass,
                  ares_dns_rec_type_t type) {
+    permission::PermissionScope scope = permission::PermissionScope::kNet;
+    Environment* env_holder = env();
+
+    if (!env_holder->permission()->is_granted(
+          env_holder, scope, name)) [[unlikely]] {
+      QueuePermissionModelResponseCallback(name);
+      return;
+    }
+
     channel_->EnsureServers();
     TRACE_EVENT_NESTABLE_ASYNC_BEGIN1(
       TRACING_CATEGORY_NODE2(dns, native), trace_name_, this,
@@ -260,6 +270,17 @@ class QueryWrap final : public AsyncWrap {
                       Callback,
                       MakeCallbackPointer(),
                       nullptr);
+  }
+
+  void InsufficientPermissionError(std::string resource) {
+    v8::HandleScope handle_scope(env()->isolate());
+    v8::Context::Scope context_scope(env()->context());
+    v8::Local<v8::Value> arg;
+    if (!permission::CreateAccessDeniedError(env(), permission::PermissionScope::kNet, resource)
+        .ToLocal(&arg)) {
+      // TODO: handle error?
+    }
+    MakeCallback(env()->oncomplete_string(), 1, &arg);
   }
 
   void ParseError(int status) {
@@ -354,6 +375,20 @@ class QueryWrap final : public AsyncWrap {
     data->is_host = true;
 
     wrap->QueueResponseCallback(status);
+  }
+
+  void QueuePermissionModelResponseCallback(const char* resource) {
+    BaseObjectPtr<QueryWrap<Traits>> strong_ref{this};
+    const std::string res{resource};
+    env()->SetImmediate([this, strong_ref, res](Environment*) {
+      InsufficientPermissionError(res);
+
+      // Delete once strong_ref goes out of scope.
+      Detach();
+    });
+
+    channel_->set_query_last_ok(true);
+    channel_->ModifyActivityQueryCount(-1);
   }
 
   void QueueResponseCallback(int status) {
