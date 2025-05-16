@@ -319,26 +319,26 @@ TEST_F(JSTypedLoweringTest, JSShiftRightLogicalWithUnsigned32AndUnsigned32) {
   EXPECT_THAT(r.replacement(), IsNumberShiftRightLogical(lhs, rhs));
 }
 
-
 // -----------------------------------------------------------------------------
-// JSLoadContext
+// JSLoadContextNoCell
 
-
-TEST_F(JSTypedLoweringTest, JSLoadContext) {
+TEST_F(JSTypedLoweringTest, JSLoadContextNoCell) {
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   static bool kBooleans[] = {false, true};
   TRACED_FOREACH(size_t, index, kIndices) {
     TRACED_FOREACH(bool, immutable, kBooleans) {
-      Reduction const r1 = Reduce(graph()->NewNode(
-          javascript()->LoadContext(0, index, immutable), context, effect));
+      Reduction const r1 = Reduce(
+          graph()->NewNode(javascript()->LoadContextNoCell(0, index, immutable),
+                           context, effect));
       ASSERT_TRUE(r1.Changed());
       EXPECT_THAT(r1.replacement(),
                   IsLoadField(AccessBuilder::ForContextSlot(index), context,
                               effect, graph()->start()));
 
-      Reduction const r2 = Reduce(graph()->NewNode(
-          javascript()->LoadContext(1, index, immutable), context, effect));
+      Reduction const r2 = Reduce(
+          graph()->NewNode(javascript()->LoadContextNoCell(1, index, immutable),
+                           context, effect));
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(
           r2.replacement(),
@@ -351,12 +351,10 @@ TEST_F(JSTypedLoweringTest, JSLoadContext) {
   }
 }
 
-
 // -----------------------------------------------------------------------------
-// JSStoreContext
+// JSStoreContextNoCell
 
-
-TEST_F(JSTypedLoweringTest, JSStoreContext) {
+TEST_F(JSTypedLoweringTest, JSStoreContextNoCell) {
   Node* const context = Parameter(Type::Any());
   Node* const effect = graph()->start();
   Node* const control = graph()->start();
@@ -365,16 +363,16 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
       Node* const value = Parameter(type);
 
       Reduction const r1 =
-          Reduce(graph()->NewNode(javascript()->StoreContext(0, index), value,
-                                  context, effect, control));
+          Reduce(graph()->NewNode(javascript()->StoreContextNoCell(0, index),
+                                  value, context, effect, control));
       ASSERT_TRUE(r1.Changed());
       EXPECT_THAT(r1.replacement(),
                   IsStoreField(AccessBuilder::ForContextSlot(index), context,
                                value, effect, control));
 
       Reduction const r2 =
-          Reduce(graph()->NewNode(javascript()->StoreContext(1, index), value,
-                                  context, effect, control));
+          Reduce(graph()->NewNode(javascript()->StoreContextNoCell(1, index),
+                                  value, context, effect, control));
       ASSERT_TRUE(r2.Changed());
       EXPECT_THAT(
           r2.replacement(),
@@ -386,7 +384,6 @@ TEST_F(JSTypedLoweringTest, JSStoreContext) {
     }
   }
 }
-
 
 // -----------------------------------------------------------------------------
 // JSLoadNamed

@@ -14,6 +14,7 @@
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap-layout-inl.h"
 #include "src/heap/heap.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/profiler/allocation-tracker.h"
 #include "src/profiler/heap-snapshot-generator-inl.h"
@@ -59,7 +60,7 @@ std::vector<v8::Local<v8::Value>> HeapProfiler::GetDetachedJSWrapperObjects() {
     if (HeapLayout::InCodeSpace(obj)) continue;
     if (!IsJSApiWrapperObject(obj)) continue;
     // Ensure object is wrappable, otherwise GetDetachedness() can crash
-    JSApiWrapper wrapper = JSApiWrapper(Cast<JSObject>(obj));
+    CppHeapObjectWrapper wrapper = CppHeapObjectWrapper(Cast<JSObject>(obj));
     if (!wrapper.GetCppHeapWrappable(isolate(), kAnyCppHeapPointer)) continue;
 
     v8::Local<v8::Value> data(

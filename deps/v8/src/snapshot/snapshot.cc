@@ -277,7 +277,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
       if (!IsJSFunction(o, cage_base)) continue;
 
       i::Tagged<i::JSFunction> fun = i::Cast<i::JSFunction>(o);
-      fun->CompleteInobjectSlackTrackingIfActive();
+      fun->CompleteInobjectSlackTrackingIfActive(isolate);
 
       i::Tagged<i::SharedFunctionInfo> shared = fun->shared();
       if (IsScript(shared->script(cage_base), cage_base) &&
@@ -288,7 +288,7 @@ void Snapshot::ClearReconstructableDataForSerialization(
 
       // Also, clear out feedback vectors and recompilable code.
       if (fun->CanDiscardCompiled(isolate)) {
-        fun->UpdateCode(*BUILTIN_CODE(isolate, CompileLazy));
+        fun->UpdateCode(isolate, *BUILTIN_CODE(isolate, CompileLazy));
       }
       if (!IsUndefined(fun->raw_feedback_cell(cage_base)->value(cage_base))) {
         fun->raw_feedback_cell(cage_base)->set_value(

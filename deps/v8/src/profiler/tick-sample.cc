@@ -261,13 +261,9 @@ bool TickSample::GetStackSample(Isolate* v8_isolate, RegisterState* regs,
   // With stack-switching, the js_entry_sp and current sp may be in different
   // stacks. Use the active stack base instead as the upper bound to correctly
   // validate addresses in the stack frame iterator.
-  Tagged<Object> cont_obj = isolate->root(RootIndex::kActiveContinuation);
-  if (!IsUndefined(cont_obj)) {
-    auto cont = Cast<WasmContinuationObject>(cont_obj);
-    if (!IsUndefined(cont->parent())) {
-      auto* stack = reinterpret_cast<wasm::StackMemory*>(cont->stack());
-      js_entry_sp = stack->base();
-    }
+  wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
+  if (stack != nullptr && stack->jmpbuf()->parent != nullptr) {
+    js_entry_sp = stack->base();
   }
 #endif
 

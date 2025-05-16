@@ -627,7 +627,7 @@ TEST_F(ObjectTest, ConstructorInstanceTypes) {
 
   DisallowGarbageCollection no_gc;
   for (int i = 0; i < Context::NATIVE_CONTEXT_SLOTS; i++) {
-    Tagged<Object> value = context->get(i);
+    Tagged<Object> value = context->GetNoCell(i);
     if (!IsJSFunction(value)) continue;
     InstanceType instance_type =
         Cast<JSFunction>(value)->map()->instance_type();

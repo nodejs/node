@@ -168,8 +168,9 @@ void MessageHandler::ReportMessageNoExceptions(
       if (!(message_levels & error_level)) {
         continue;
       }
-      v8::MessageCallback callback = FUNCTION_CAST<v8::MessageCallback>(
-          callback_obj->foreign_address<kMessageListenerTag>());
+      v8::MessageCallback callback =
+          v8::ToCData<v8::MessageCallback, kMessageListenerTag>(isolate,
+                                                                callback_obj);
       DirectHandle<Object> callback_data(listener->get(1), isolate);
       {
         RCS_SCOPE(isolate, RuntimeCallCounterId::kMessageListenerCallback);

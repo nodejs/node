@@ -1082,24 +1082,6 @@ TEST_F(DeclsTest, TestUsing) {
                   EXPECT_ERROR);
     context.Check("{var using; \n using = 42;}", EXPECT_RESULT,
                   Number::New(isolate(), 42));
-    context.Check(
-        "let label = \"1\"; \n switch (label) { \n case 1: \n let y = 2; \n"
-        "using x = { \n "
-        "     value: 1, \n "
-        "      [Symbol.dispose]() { \n "
-        "       return 42; \n "
-        "     } \n "
-        "   };  }",
-        EXPECT_ERROR);
-    context.Check(
-        "let label = \"1\"; \n switch (label) { \n case 1: {\n let y = 2; \n"
-        "using x = { \n "
-        "     value: 1, \n "
-        "      [Symbol.dispose]() { \n "
-        "       return 42; \n "
-        "     } \n "
-        "   };  } }",
-        EXPECT_RESULT, Undefined(isolate()));
   }
 }
 
@@ -1161,17 +1143,6 @@ TEST_F(DeclsTest, TestAwaitUsing) {
         " } \n "
         " } } \n "
         " f(); ",
-        EXPECT_ERROR);
-    context.Check(
-        "async function f() {let label = \"1\"; \n switch (label){ \n case 1: "
-        "\n let y = 2;"
-        "\n await using x = { \n "
-        "     value: 1, \n "
-        "      [Symbol.asyncDispose]() { \n "
-        "       classStaticBlockBodyValues.push(42); \n "
-        "     } \n "
-        "   }; \n }"
-        "} \n f();",
         EXPECT_ERROR);
   }
 }

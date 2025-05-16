@@ -102,7 +102,8 @@ static bool InsideSignalStack(void** ptr, const StackInfo* stack_info) {
 // "STRICT_UNWINDING") to reduce the chance that a bad pointer is returned.
 template<bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
-ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY  // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_frame_pointer, const void *uc,
                              const StackInfo *stack_info) {
   void **new_frame_pointer = reinterpret_cast<void**>(*old_frame_pointer);
@@ -185,6 +186,7 @@ template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NOINLINE
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
                       int max_depth, int skip_count, const void *ucp,
                       int *min_dropped_frames) {

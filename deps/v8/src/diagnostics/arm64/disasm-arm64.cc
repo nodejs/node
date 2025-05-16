@@ -566,6 +566,9 @@ void DisassemblingDecoder::VisitConditionalBranch(Instruction* instr) {
     case B_cond:
       Format(instr, "b.'CBrn", "'TImmCond");
       break;
+    case BC_cond:
+      Format(instr, "bc.'CBrn", "'TImmCond");
+      break;
     default:
       UNREACHABLE();
   }
@@ -628,6 +631,9 @@ void DisassemblingDecoder::VisitDataProcessing1Source(Instruction* instr) {
     FORMAT(REV, "rev");
     FORMAT(CLZ, "clz");
     FORMAT(CLS, "cls");
+    FORMAT(CTZ, "ctz");
+    FORMAT(CNT, "cnt");
+    FORMAT(ABS, "abs");
 #undef FORMAT
     case REV32_x:
       mnemonic = "rev32";
@@ -3035,6 +3041,24 @@ void DisassemblingDecoder::VisitNEONModifiedImmediate(Instruction* instr) {
         }
       }
     }
+  }
+  Format(instr, mnemonic, nfd.Substitute(form));
+}
+
+void DisassemblingDecoder::VisitNEONSHA3(Instruction* instr) {
+  const char* mnemonic = "unimplemented";
+  const char* form = "'Vd.%s, 'Vn.%s, 'Vm.%s, 'Va.%s";
+  NEONFormatDecoder nfd(instr);
+
+  switch (instr->Mask(NEONSHA3Mask)) {
+    case NEON_BCAX:
+      mnemonic = "bcax";
+      break;
+    case NEON_EOR3:
+      mnemonic = "eor3";
+      break;
+    default:
+      form = "(NEONSHA3)";
   }
   Format(instr, mnemonic, nfd.Substitute(form));
 }

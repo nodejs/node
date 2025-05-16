@@ -863,14 +863,6 @@ void ConcurrentMarking::FlushMemoryChunkData() {
   total_marked_bytes_ = 0;
 }
 
-void ConcurrentMarking::ClearMemoryChunkData(MutablePageMetadata* chunk) {
-  DCHECK(!job_handle_ || !job_handle_->IsValid());
-  for (auto& task_state : task_state_) {
-    task_state->memory_chunk_live_bytes_map.Erase(chunk);
-    DCHECK(!task_state->memory_chunk_typed_slots_map.contains(chunk));
-  }
-}
-
 size_t ConcurrentMarking::TotalMarkedBytes() {
   size_t result = 0;
   for (size_t i = 1; i < task_state_.size(); i++) {
@@ -879,22 +871,6 @@ size_t ConcurrentMarking::TotalMarkedBytes() {
   }
   result += total_marked_bytes_;
   return result;
-}
-
-ConcurrentMarking::PauseScope::PauseScope(ConcurrentMarking* concurrent_marking)
-    : concurrent_marking_(concurrent_marking),
-      resume_on_exit_(v8_flags.concurrent_marking &&
-                      concurrent_marking_->Pause()) {
-  DCHECK(!v8_flags.minor_ms);
-  DCHECK_IMPLIES(resume_on_exit_, v8_flags.concurrent_marking);
-}
-
-ConcurrentMarking::PauseScope::~PauseScope() {
-  if (resume_on_exit_) {
-    DCHECK_EQ(concurrent_marking_->garbage_collector_,
-              GarbageCollector::MARK_COMPACTOR);
-    concurrent_marking_->Resume();
-  }
 }
 
 }  // namespace internal

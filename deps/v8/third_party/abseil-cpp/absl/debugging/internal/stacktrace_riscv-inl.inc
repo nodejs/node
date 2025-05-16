@@ -56,6 +56,7 @@ static inline ptrdiff_t ComputeStackFrameSize(const T *low, const T *high) {
 template <bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void ** NextStackFrame(void **old_frame_pointer, const void *uc,
                               const std::pair<size_t, size_t> range) {
   //               .
@@ -118,6 +119,7 @@ static void ** NextStackFrame(void **old_frame_pointer, const void *uc,
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
                       int max_depth, int skip_count, const void *ucp,
                       int *min_dropped_frames) {

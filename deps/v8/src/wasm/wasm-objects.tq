@@ -165,13 +165,8 @@ extern class WasmResumeData extends HeapObject {
   on_resume: Smi;  // See wasm::OnResume enum.
 }
 
-extern class WasmContinuationObject extends HeapObject {
-  parent: WasmContinuationObject|Undefined;
-  stack: ExternalPointer;
-}
-
 extern class WasmSuspenderObject extends HeapObject {
-  continuation: WasmContinuationObject|Undefined;
+  stack: ExternalPointer;
   parent: WasmSuspenderObject|Undefined;
   promise: JSPromise;
   resume: JSObject|Undefined;
@@ -299,6 +294,10 @@ extern class WasmArray extends WasmObject {
 
   @if(TAGGED_SIZE_8_BYTES) optional_padding: uint32;
   @ifnot(TAGGED_SIZE_8_BYTES) optional_padding: void;
+}
+
+extern class WasmDescriptorOptions extends JSObject {
+  prototype: Object;
 }
 
 class WasmStringViewIter extends HeapObject {

@@ -1027,7 +1027,8 @@ bool Shell::ExecuteString(Isolate* isolate, Local<String> source,
   MaybeLocal<Value> maybe_result = script->Run(realm);
 
   if (options.code_cache_options ==
-      ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute) {
+          ShellOptions::CodeCacheOptions::kProduceCacheAfterExecute &&
+      !isolate->IsExecutionTerminating()) {
     // Serialize and store it in memory for the next execution.
     ScriptCompiler::CachedData* cached_data =
         ScriptCompiler::CreateCodeCache(script->GetUnboundScript());
@@ -3595,18 +3596,40 @@ void Shell::QuitOnce(v8::FunctionCallbackInfo<v8::Value>* info) {
   base::OS::ExitProcess(exit_code);
 }
 
-void Shell::Terminate(const v8::FunctionCallbackInfo<v8::Value>& info) {
-  DCHECK(i::ValidateCallbackInfo(info));
+namespace {
+
+bool SkipTerminationForFuzzing() {
   // Triggering termination from JS can cause some non-determinism thus we
   // skip it for correctness fuzzing.
+  if (i::v8_flags.correctness_fuzzer_suppressions) return true;
   // Termination also currently breaks Fuzzilli's REPRL mechanism as the
   // scheduled termination will prevent the next testcase sent by Fuzzilli from
   // being processed. This will in turn desynchronize the communication
   // between d8 and Fuzzilli, leading to a crash.
-  if (!i::v8_flags.correctness_fuzzer_suppressions && !fuzzilli_reprl) {
-    auto v8_isolate = info.GetIsolate();
-    if (!v8_isolate->IsExecutionTerminating()) v8_isolate->TerminateExecution();
+  if (fuzzilli_reprl) return true;
+  return false;
+}
+
+}  // namespace
+
+void Shell::TerminateNow(const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  if (SkipTerminationForFuzzing()) return;
+  auto v8_isolate = info.GetIsolate();
+  if (!v8_isolate->IsExecutionTerminating()) {
+    // Force a termination exception for immediate termination.
+    i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(info.GetIsolate());
+    i_isolate->TerminateExecution();
   }
+}
+
+void Shell::ScheduleTermination(
+    const v8::FunctionCallbackInfo<v8::Value>& info) {
+  DCHECK(i::ValidateCallbackInfo(info));
+  if (SkipTerminationForFuzzing()) return;
+  auto v8_isolate = info.GetIsolate();
+  // Schedule a termination request, handled by an interrupt later.
+  if (!v8_isolate->IsExecutionTerminating()) v8_isolate->TerminateExecution();
 }
 
 void Shell::Quit(const v8::FunctionCallbackInfo<v8::Value>& info) {
@@ -4163,8 +4186,10 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
       isolate, "getContinuationPreservedEmbedderDataViaAPIForTesting",
       FunctionTemplate::New(isolate, GetContinuationPreservedEmbedderData));
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
+  d8_template->Set(isolate, "terminateNow",
+                   FunctionTemplate::New(isolate, TerminateNow));
   d8_template->Set(isolate, "terminate",
-                   FunctionTemplate::New(isolate, Terminate));
+                   FunctionTemplate::New(isolate, ScheduleTermination));
   d8_template->Set(isolate, "getExtrasBindingObject",
                    FunctionTemplate::New(isolate, GetExtrasBindingObject));
   if (!options.omit_quit) {

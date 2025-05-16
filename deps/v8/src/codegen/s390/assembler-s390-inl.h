@@ -147,7 +147,6 @@ Tagged<HeapObject> RelocInfo::target_object(PtrComprCageBase cage_base) {
   if (IsCompressedEmbeddedObject(rmode_)) {
     return Cast<HeapObject>(
         Tagged<Object>(V8HeapCompressionScheme::DecompressTagged(
-            cage_base,
             Assembler::target_compressed_address_at(pc_, constant_pool_))));
   } else {
     return Cast<HeapObject>(

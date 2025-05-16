@@ -90,14 +90,14 @@ int V8ContextInfo::executionContextId(v8::Local<v8::Context> context) {
   return InspectedContext::contextId(context);
 }
 
-std::unique_ptr<V8InspectorSessionImpl> V8InspectorSessionImpl::create(
+V8InspectorSessionImpl* V8InspectorSessionImpl::create(
     V8InspectorImpl* inspector, int contextGroupId, int sessionId,
     V8Inspector::Channel* channel, StringView state,
     V8Inspector::ClientTrustLevel clientTrustLevel,
     std::shared_ptr<V8DebuggerBarrier> debuggerBarrier) {
-  return std::unique_ptr<V8InspectorSessionImpl>(new V8InspectorSessionImpl(
-      inspector, contextGroupId, sessionId, channel, state, clientTrustLevel,
-      std::move(debuggerBarrier)));
+  return new V8InspectorSessionImpl(inspector, contextGroupId, sessionId,
+                                    channel, state, clientTrustLevel,
+                                    std::move(debuggerBarrier));
 }
 
 V8InspectorSessionImpl::V8InspectorSessionImpl(
@@ -359,6 +359,8 @@ void V8InspectorSessionImpl::reportAllContexts(V8RuntimeAgentImpl* agent) {
 }
 
 void V8InspectorSessionImpl::dispatchProtocolMessage(StringView message) {
+  KeepSessionAliveScope keepAlive(*this);
+
   using v8_crdtp::span;
   using v8_crdtp::SpanFrom;
   span<uint8_t> cbor;

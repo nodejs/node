@@ -262,7 +262,7 @@ TF_BUILTIN(FastNewClosure, ConstructorBuiltinsAssembler) {
   // as the map of the allocated object.
   const TNode<NativeContext> native_context = LoadNativeContext(context);
   const TNode<Map> function_map =
-      CAST(LoadContextElement(native_context, function_map_index));
+      CAST(LoadContextElementNoCell(native_context, function_map_index));
 
   // Create a new closure from the given function info in new space
   TNode<IntPtrT> instance_size_in_bytes =
@@ -411,7 +411,7 @@ TNode<Context> ConstructorBuiltinsAssembler::FastNewFunctionContext(
     default:
       UNREACHABLE();
   }
-  TNode<Map> map = CAST(LoadContextElement(native_context, index));
+  TNode<Map> map = CAST(LoadContextElementNoCell(native_context, index));
   // Set up the header.
   StoreMapNoWriteBarrier(function_context, map);
   TNode<IntPtrT> min_context_slots = IntPtrConstant(Context::MIN_CONTEXT_SLOTS);
@@ -464,7 +464,7 @@ TNode<JSRegExp> ConstructorBuiltinsAssembler::CreateRegExpLiteral(
     TNode<HeapObject> new_object = Allocate(JSRegExp::Size());
 
     // Initialize Object fields.
-    TNode<JSFunction> regexp_function = CAST(LoadContextElement(
+    TNode<JSFunction> regexp_function = CAST(LoadContextElementNoCell(
         LoadNativeContext(context), Context::REGEXP_FUNCTION_INDEX));
     TNode<Map> initial_map = CAST(LoadObjectField(
         regexp_function, JSFunction::kPrototypeOrInitialMapOffset));
@@ -665,7 +665,7 @@ TNode<HeapObject> ConstructorBuiltinsAssembler::CreateShallowObjectLiteral(
     // Prepare for inner-allocating the AllocationMemento.
     allocation_size = IntPtrAdd(aligned_instance_size,
                                 IntPtrConstant(ALIGN_TO_ALLOCATION_ALIGNMENT(
-                                    AllocationMemento::kSize)));
+                                    sizeof(AllocationMemento))));
   }
 
   TNode<HeapObject> copy =

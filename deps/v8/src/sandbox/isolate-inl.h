@@ -87,12 +87,12 @@ V8_INLINE IsolateForSandbox GetIsolateForSandbox(Tagged<HeapObject> object) {
     allow_isolate_sharing = true;
   }
   if (allow_isolate_sharing) {
-    // TODO(396607238): Make this a `SBXCHECK`.
-    DCHECK(IsolateForSandbox{isolate}.SharesPointerTablesWith(
+    // See the TODO above: The isolate returned here must match TLS.
+    CHECK(IsolateForSandbox{isolate}.SharesPointerTablesWith(
         Isolate::TryGetCurrent()));
   } else {
-    // TODO(396607238): Make this a `SBXCHECK`.
-    DCHECK_EQ(isolate, Isolate::TryGetCurrent());
+    // See the TODO above: The isolate returned here must match TLS.
+    CHECK_EQ(isolate, Isolate::TryGetCurrent());
   }
   return isolate;
 }

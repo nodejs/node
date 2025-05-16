@@ -30,10 +30,13 @@ default_args = {
 
   # Disable rust dependencies.
   enable_rust = true
+
+  # Needed only for std::atomic_ref<T> for large Ts http://crbug.com/402171653
+  use_llvm_libatomic = false
 }
 
 # These are the list of GN files that run exec_script. This whitelist exists
 # to force additional review for new uses of exec_script, which is strongly
 # discouraged except for gypi_to_gn calls.
-exec_script_whitelist = build_dotfile_settings.exec_script_whitelist +
+exec_script_allowlist = build_dotfile_settings.exec_script_allowlist +
                         [ "//build_overrides/build.gni" ]

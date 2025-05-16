@@ -10,7 +10,7 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/common/assert-scope.h"
 #include "src/execution/pointer-authentication.h"
 #include "src/numbers/conversions.h"
@@ -983,25 +983,13 @@ double flat_string_to_f64(Address string_address) {
                             std::numeric_limits<double>::quiet_NaN());
 }
 
-void switch_stacks(Isolate* isolate, Address old_continuation) {
-  DisallowGarbageCollection no_gc;
-  Tagged<Object> active_continuation =
-      isolate->root(RootIndex::kActiveContinuation);
-  isolate->SwitchStacks(
-      Cast<WasmContinuationObject>(Tagged<Object>{old_continuation}),
-      Cast<WasmContinuationObject>(active_continuation));
+void switch_stacks(Isolate* isolate, wasm::StackMemory* from) {
+  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
 }
 
-void return_switch(Isolate* isolate, Address raw_old_continuation) {
-  DisallowGarbageCollection no_gc;
-
-  Tagged<WasmContinuationObject> old_continuation =
-      Cast<WasmContinuationObject>(Tagged<Object>{raw_old_continuation});
-  Tagged<Object> active_continuation =
-      isolate->root(RootIndex::kActiveContinuation);
-  isolate->SwitchStacks(old_continuation,
-                        Cast<WasmContinuationObject>(active_continuation));
-  isolate->RetireWasmStack(old_continuation);
+void return_switch(Isolate* isolate, wasm::StackMemory* from) {
+  isolate->SwitchStacks(from, isolate->isolate_data()->active_stack());
+  isolate->RetireWasmStack(from);
 }
 
 intptr_t switch_to_the_central_stack(Isolate* isolate, uintptr_t current_sp) {
@@ -1038,11 +1026,9 @@ void switch_from_the_central_stack(Isolate* isolate) {
 }
 
 intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
-  auto active_continuation = Cast<WasmContinuationObject>(
-      isolate->root(RootIndex::kActiveContinuation));
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   StackGuard* stack_guard = isolate->stack_guard();
-  auto* stack = reinterpret_cast<StackMemory*>(active_continuation->stack());
+  wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
   Address central_stack_sp = thread_local_top->central_stack_sp_;
   stack->set_stack_switch_info(fp, central_stack_sp);
   stack_guard->SetStackLimitForStackSwitching(
@@ -1053,9 +1039,7 @@ intptr_t switch_to_the_central_stack_for_js(Isolate* isolate, Address fp) {
 
 void switch_from_the_central_stack_for_js(Isolate* isolate) {
   // The stack only contains wasm frames after this JS call.
-  auto active_continuation = Cast<WasmContinuationObject>(
-      isolate->root(RootIndex::kActiveContinuation));
-  auto* stack = reinterpret_cast<StackMemory*>(active_continuation->stack());
+  wasm::StackMemory* stack = isolate->isolate_data()->active_stack();
   stack->clear_stack_switch_info();
   ThreadLocalTop* thread_local_top = isolate->thread_local_top();
   thread_local_top->is_on_central_stack_flag_ = false;
@@ -1070,21 +1054,17 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
   // Check if this is a real stack overflow.
   StackLimitCheck check(isolate);
   if (check.WasmHasOverflowed(gap)) {
-    Tagged<WasmContinuationObject> current_continuation =
-        Cast<WasmContinuationObject>(
-            isolate->root(RootIndex::kActiveContinuation));
     // If there is no parent, then the current stack is the main isolate stack.
-    if (IsUndefined(current_continuation->parent())) {
+    wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
+    if (active_stack->jmpbuf()->parent == nullptr) {
       return 0;
     }
-    auto stack =
-        reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
-    DCHECK(stack->IsActive());
-    if (!stack->Grow(current_fp)) {
+    DCHECK(active_stack->IsActive());
+    if (!active_stack->Grow(current_fp)) {
       return 0;
     }
 
-    Address new_sp = stack->base() - frame_size;
+    Address new_sp = active_stack->base() - frame_size;
     // Here we assume stack values don't refer other moved stack slots.
     // A stack grow event happens right in the beginning of the function
     // call so moved slots contain only incoming params and frame header.
@@ -1104,7 +1084,7 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
 #endif
 
     isolate->stack_guard()->SetStackLimitForStackSwitching(
-        reinterpret_cast<uintptr_t>(stack->jslimit()));
+        reinterpret_cast<uintptr_t>(active_stack->jslimit()));
     return new_sp;
   }
 
@@ -1112,35 +1092,27 @@ Address grow_stack(Isolate* isolate, void* current_sp, size_t frame_size,
 }
 
 Address shrink_stack(Isolate* isolate) {
-  Tagged<WasmContinuationObject> current_continuation =
-      Cast<WasmContinuationObject>(
-          isolate->root(RootIndex::kActiveContinuation));
   // If there is no parent, then the current stack is the main isolate stack.
-  if (IsUndefined(current_continuation->parent())) {
+  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
+  if (active_stack->jmpbuf()->parent == nullptr) {
     return 0;
   }
-  auto stack =
-      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
-  DCHECK(stack->IsActive());
-  Address old_fp = stack->Shrink();
+  DCHECK(active_stack->IsActive());
+  Address old_fp = active_stack->Shrink();
 
   isolate->stack_guard()->SetStackLimitForStackSwitching(
-      reinterpret_cast<uintptr_t>(stack->jslimit()));
+      reinterpret_cast<uintptr_t>(active_stack->jslimit()));
   return old_fp;
 }
 
 Address load_old_fp(Isolate* isolate) {
-  Tagged<WasmContinuationObject> current_continuation =
-      Cast<WasmContinuationObject>(
-          isolate->root(RootIndex::kActiveContinuation));
   // If there is no parent, then the current stack is the main isolate stack.
-  if (IsUndefined(current_continuation->parent())) {
+  wasm::StackMemory* active_stack = isolate->isolate_data()->active_stack();
+  if (active_stack->jmpbuf()->parent == nullptr) {
     return 0;
   }
-  auto stack =
-      reinterpret_cast<wasm::StackMemory*>(current_continuation->stack());
-  DCHECK_EQ(stack->jmpbuf()->state, wasm::JumpBuffer::Active);
-  return stack->old_fp();
+  DCHECK_EQ(active_stack->jmpbuf()->state, wasm::JumpBuffer::Active);
+  return active_stack->old_fp();
 }
 
 }  // namespace v8::internal::wasm

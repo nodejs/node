@@ -329,8 +329,16 @@ class Simulator : public SimulatorBase {
     }
 
     explicit CallArgument(float argument) {
-      // TODO(all): CallArgument(float) is untested.
-      UNIMPLEMENTED();
+      // Make the FPU register a NaN to try to trap errors if the callee expects
+      // a double. If it expects a float, the callee should ignore the top word.
+      double sNaN = std::numeric_limits<double>::signaling_NaN();
+      DCHECK(sizeof(sNaN) == sizeof(bits_));
+      memcpy(&bits_, &sNaN, sizeof(sNaN));
+
+      // Write the float payload to the FPU register.
+      DCHECK(sizeof(argument) <= sizeof(bits_));
+      memcpy(&bits_, &argument, sizeof(argument));
+      type_ = FP_ARG;
     }
 
     // This indicates the end of the arguments list, so that CallArgument

@@ -970,6 +970,7 @@ void LiveEdit::PatchScript(Isolate* isolate, Handle<Script> script,
       constants->set(i, *new_sfi);
     }
   }
+  isolate->LocalsBlockListCacheRehash();
   for (const auto& mapping : changed) {
     FunctionData* data = nullptr;
     if (!function_data_map.Lookup(new_script, mapping.second, &data)) continue;

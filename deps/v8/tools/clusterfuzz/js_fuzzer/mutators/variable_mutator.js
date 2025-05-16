@@ -81,11 +81,22 @@ class VariableMutator extends mutator.Mutator {
 
         const newName = randVar.name;
 
-        // Don't assign to loop variables.
+        // Check changes to LHS of assignments.
         if (babelTypes.isAssignmentExpression(path.parent) &&
-            path.parent.left == path.node &&
-            thisMutator.context.loopVariables.has(newName) &&
-            random.choose(module.exports.SKIP_LOOP_VAR_PROB)) {
+            path.parent.left == path.node) {
+          // Don't assign to loop variables.
+          if (thisMutator.context.loopVariables.has(newName) &&
+              random.choose(module.exports.SKIP_LOOP_VAR_PROB)) {
+            return;
+          }
+          // Don't assign to const variables.
+          if (common.isConst(path, newName)) {
+            return;
+          }
+        }
+
+        // No-op.
+        if (path.node.name == newName) {
           return;
         }
 

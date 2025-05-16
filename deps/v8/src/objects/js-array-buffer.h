@@ -314,6 +314,7 @@ class JSArrayBufferView
   DEFINE_TORQUE_GENERATED_JS_ARRAY_BUFFER_VIEW_FLAGS()
 
   inline bool WasDetached() const;
+  inline bool IsDetachedOrOutOfBounds() const;
 
   DECL_BOOLEAN_ACCESSORS(is_length_tracking)
   DECL_BOOLEAN_ACCESSORS(is_backed_by_rab)
@@ -368,7 +369,6 @@ class JSTypedArray
   inline size_t GetLength() const;
   inline size_t GetByteLength() const;
   inline bool IsOutOfBounds() const;
-  inline bool IsDetachedOrOutOfBounds() const;
 
   static inline void ForFixedTypedArray(ExternalArrayType array_type,
                                         size_t* element_size,

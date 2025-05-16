@@ -108,6 +108,12 @@ class Intl {
 
   static Maybe<std::string> ToLanguageTag(const icu::Locale& locale);
 
+  // Validate and canonicalize the locale.
+  // https://tc39.es/ecma402/#sec-isstructurallyvalidlanguagetag
+  // https://tc39.es/ecma402/#sec-canonicalizeunicodelocaleid
+  static Maybe<std::string> ValidateAndCanonicalizeUnicodeLocaleId(
+      Isolate* isolate, std::string_view locale);
+
   // Get the name of the numbering system from locale.
   // ICU doesn't expose numbering system in any way, so we have to assume that
   // for given locale NumberingSystem constructor produces the same digits as

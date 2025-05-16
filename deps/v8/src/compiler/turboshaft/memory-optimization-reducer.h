@@ -222,7 +222,21 @@ class MemoryOptimizationReducer : public Next {
   }
 
   V<HeapObject> REDUCE(Allocate)(V<WordPtr> size, AllocationType type) {
-    DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld));
+    DCHECK_EQ(type, any_of(AllocationType::kYoung, AllocationType::kOld,
+                           AllocationType::kSharedOld));
+
+#if V8_ENABLE_WEBASSEMBLY
+    if (type == AllocationType::kSharedOld) {
+      DCHECK_EQ(isolate_, nullptr);  // Only possible in wasm.
+      DCHECK(analyzer_->is_wasm);
+      static_assert(std::is_same<Smi, BuiltinPtr>(), "BuiltinPtr must be Smi");
+      OpIndex allocate_builtin = __ NumberConstant(
+          static_cast<int>(Builtin::kWasmAllocateInSharedHeap));
+      OpIndex allocated =
+          __ Call(allocate_builtin, {size}, AllocateBuiltinDescriptor());
+      return allocated;
+    }
+#endif
 
     if (v8_flags.single_generation && type == AllocationType::kYoung) {
       type = AllocationType::kOld;

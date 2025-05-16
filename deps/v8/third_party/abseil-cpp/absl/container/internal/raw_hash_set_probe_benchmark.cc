@@ -245,13 +245,28 @@ struct PtrIdentity {
   }
 };
 
-constexpr char kStringFormat[] = "/path/to/file/name-%07d-of-9999999.txt";
+enum class StringSize { kSmall, kMedium, kLarge, kExtraLarge };
+constexpr char kStringFormat[] = "%s/name-%07d-of-9999999.txt";
 
-template <bool small>
+template <StringSize size>
 struct String {
   std::string value;
   static std::string Make(uint32_t v) {
-    return {small ? absl::StrCat(v) : absl::StrFormat(kStringFormat, v)};
+    switch (size) {
+      case StringSize::kSmall:
+        return absl::StrCat(v);
+      case StringSize::kMedium:  // < 32 bytes
+        return absl::StrFormat(kStringFormat, "/path", v);
+      case StringSize::kLarge:  // 33-64 bytes
+        return absl::StrFormat(kStringFormat, "/path/to/file", v);
+      case StringSize::kExtraLarge:  // > 64 bytes
+        return absl::StrFormat(kStringFormat,
+                               "/path/to/a/very/long/file/name/so/that/total/"
+                               "length/is/larger/than/64/bytes",
+                               v);
+      default:
+        return "";
+    }
   }
 };
 
@@ -285,10 +300,9 @@ struct Sequential<Ptr<Align>*> {
   mutable uintptr_t current = PointerForAlignment<Align>();
 };
 
-
-template <bool small>
-struct Sequential<String<small>> {
-  std::string operator()() const { return String<small>::Make(current++); }
+template <StringSize size>
+struct Sequential<String<size>> {
+  std::string operator()() const { return String<size>::Make(current++); }
   mutable uint32_t current = 0;
 };
 
@@ -389,10 +403,10 @@ struct Random<PtrIdentity<Align>, Dist> {
   }
 };
 
-template <class Dist, bool small>
-struct Random<String<small>, Dist> {
+template <class Dist, StringSize size>
+struct Random<String<size>, Dist> {
   std::string operator()() const {
-    return String<small>::Make(Random<uint32_t, Dist>{}());
+    return String<size>::Make(Random<uint32_t, Dist>{}());
   }
 };
 
@@ -421,9 +435,20 @@ std::string Name(PtrIdentity<Align>*) {
   return absl::StrCat("PtrIdentity", Align);
 }
 
-template <bool small>
-std::string Name(String<small>*) {
-  return small ? "StrS" : "StrL";
+template <StringSize size>
+std::string Name(String<size>*) {
+  switch (size) {
+    case StringSize::kSmall:
+      return "StrS";
+    case StringSize::kMedium:
+      return "StrM";
+    case StringSize::kLarge:
+      return "StrL";
+    case StringSize::kExtraLarge:
+      return "StrXL";
+    default:
+      return "";
+  }
 }
 
 template <class T, class U>
@@ -543,12 +568,18 @@ int main(int argc, char** argv) {
   RunForType<PtrIdentity<32>>(results);
   RunForType<PtrIdentity<64>>(results);
   RunForType<std::pair<uint32_t, uint32_t>>(results);
-  RunForType<String<true>>(results);
-  RunForType<String<false>>(results);
-  RunForType<std::pair<uint64_t, String<true>>>(results);
-  RunForType<std::pair<String<true>, uint64_t>>(results);
-  RunForType<std::pair<uint64_t, String<false>>>(results);
-  RunForType<std::pair<String<false>, uint64_t>>(results);
+  RunForType<String<StringSize::kSmall>>(results);
+  RunForType<String<StringSize::kMedium>>(results);
+  RunForType<String<StringSize::kLarge>>(results);
+  RunForType<String<StringSize::kExtraLarge>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kSmall>>>(results);
+  RunForType<std::pair<String<StringSize::kSmall>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kMedium>>>(results);
+  RunForType<std::pair<String<StringSize::kMedium>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kLarge>>>(results);
+  RunForType<std::pair<String<StringSize::kLarge>, uint64_t>>(results);
+  RunForType<std::pair<uint64_t, String<StringSize::kExtraLarge>>>(results);
+  RunForType<std::pair<String<StringSize::kExtraLarge>, uint64_t>>(results);
 
   switch (output()) {
     case OutputStyle::kRegular:

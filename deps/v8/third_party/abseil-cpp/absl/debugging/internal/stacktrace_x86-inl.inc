@@ -164,6 +164,7 @@ static uintptr_t GetFP(const void *vuc) {
 template <bool STRICT_UNWINDING, bool WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_fp, const void *uc,
                              size_t stack_low, size_t stack_high) {
   void **new_fp = (void **)*old_fp;
@@ -327,6 +328,7 @@ static void **NextStackFrame(void **old_fp, const void *uc,
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 ABSL_ATTRIBUTE_NOINLINE
 static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
                       int max_depth, int skip_count, const void *ucp,

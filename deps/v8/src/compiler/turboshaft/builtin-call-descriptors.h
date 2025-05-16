@@ -343,6 +343,23 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmStringAdd_CheckNone : public Descriptor<WasmStringAdd_CheckNone> {
+    static constexpr auto kFunction = Builtin::kWasmStringAdd_CheckNone;
+    using arguments_t = std::tuple<V<String>, V<String>>;
+    using results_t = std::tuple<V<String>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoWrite;
+    // This will only write in a fresh object, so the writes are not visible
+    // from Turboshaft, and CanAllocate is enough.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+#endif
+
   struct StringEqual : public Descriptor<StringEqual> {
     static constexpr auto kFunction = Builtin::kStringEqual;
     using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
@@ -437,6 +454,64 @@ struct BuiltinCallDescriptor {
         base_effects.CanReadMemory().CanAllocateWithoutIdentity();
   };
 #endif  // V8_INTL_SUPPORT
+
+#if V8_ENABLE_WEBASSEMBLY
+  struct WasmJSStringEqual : public Descriptor<WasmJSStringEqual> {
+    static constexpr auto kFunction = Builtin::kWasmJSStringEqual;
+    using arguments_t = std::tuple<V<String>, V<String>, V<WordPtr>>;
+    using results_t = std::tuple<V<Boolean>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    // If the strings aren't flat, StringEqual could flatten them, which will
+    // allocate new strings.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct WasmStringCompare : public Descriptor<WasmStringCompare> {
+    static constexpr auto kFunction = Builtin::kWasmStringCompare;
+    using arguments_t = std::tuple<V<String>, V<String>>;
+    using results_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+  struct WasmStringIndexOf : public Descriptor<WasmStringIndexOf> {
+    static constexpr auto kFunction = Builtin::kWasmStringIndexOf;
+    using arguments_t = std::tuple<V<String>, V<String>, V<Smi>>;
+    using results_t = std::tuple<V<Smi>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = false;
+    static constexpr Operator::Properties kProperties = Operator::kEliminatable;
+    // StringIndexOf does a ToString on the receiver, which can allocate a new
+    // string.
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+
+#ifdef V8_INTL_SUPPORT
+  struct WasmStringToLowerCaseIntl
+      : public Descriptor<WasmStringToLowerCaseIntl> {
+    static constexpr auto kFunction = Builtin::kWasmStringToLowerCaseIntl;
+    using arguments_t = std::tuple<V<String>>;
+    using results_t = std::tuple<V<String>>;
+
+    static constexpr bool kNeedsFrameState = false;
+    static constexpr bool kNeedsContext = true;
+    static constexpr Operator::Properties kProperties =
+        Operator::kNoDeopt | Operator::kNoThrow;
+    static constexpr OpEffects kEffects =
+        base_effects.CanReadMemory().CanAllocateWithoutIdentity();
+  };
+#endif
+#endif
 
   struct StringToNumber : public Descriptor<StringToNumber> {
     static constexpr auto kFunction = Builtin::kStringToNumber;
@@ -615,7 +690,7 @@ struct BuiltinCallDescriptor {
   struct WasmAllocateDescriptorStruct
       : public Descriptor<WasmAllocateDescriptorStruct> {
     static constexpr auto kFunction = Builtin::kWasmAllocateDescriptorStruct;
-    using arguments_t = std::tuple<V<Map>, V<Word32>>;
+    using arguments_t = std::tuple<V<Map>, V<Word32>, V<Object>>;
     using results_t = std::tuple<V<WasmStruct>>;
 
     static constexpr bool kNeedsFrameState = false;

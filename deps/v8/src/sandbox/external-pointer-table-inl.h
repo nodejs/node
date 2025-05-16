@@ -366,7 +366,17 @@ void ExternalPointerTable::FreeManagedResourceIfPresent(uint32_t entry_index) {
   // does not attempt to zap its entry when it is eventually destroyed.
   if (Address addr = at(entry_index).ExtractManagedResourceOrNull()) {
     ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
-    DCHECK_EQ(resource->ept_entry_, IndexToHandle(entry_index));
+
+    // This can currently only happen during snapshot stress mode as we cannot
+    // normally serialized managed resources. In snapshot stress mode, the new
+    // isolate will be destroyed and the old isolate (really, the old isolate's
+    // external pointer table) therefore effectively retains ownership of the
+    // resource. As such, we need to save and restore the relevant fields of
+    // the external resource. Once the external pointer table itself destroys
+    // the managed resource when freeing the corresponding table entry, this
+    // workaround can be removed again.
+    DCHECK_IMPLIES(!v8_flags.stress_snapshot,
+                   resource->ept_entry_ == IndexToHandle(entry_index));
     resource->ept_entry_ = kNullExternalPointerHandle;
   }
 }

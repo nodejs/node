@@ -18,7 +18,7 @@ namespace internal {
 MaybeHandle<Code> Maglev::Compile(Isolate* isolate, Handle<JSFunction> function,
                                   BytecodeOffset osr_offset) {
   DCHECK(v8_flags.maglev);
-  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeNonConcurrentMaglev);
+  RCS_SCOPE(isolate, RuntimeCallCounterId::kOptimizeSynchronousMaglev);
   std::unique_ptr<maglev::MaglevCompilationInfo> info =
       maglev::MaglevCompilationInfo::New(isolate, function, osr_offset);
   if (!maglev::MaglevCompiler::Compile(isolate->main_thread_local_isolate(),

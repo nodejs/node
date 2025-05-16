@@ -3,6 +3,7 @@
 // found in the LICENSE file.
 
 #include "src/codegen/code-factory.h"
+#include "src/codegen/interface-descriptors-inl.h"
 #include "src/codegen/macro-assembler.h"
 #include "src/codegen/signature.h"
 #include "src/execution/frame-constants.h"
@@ -421,8 +422,7 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
                             kArgsOffset));
 
   Register valuetype = r12;
-  __ movl(valuetype,
-          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
 
   // -------------------------------------------
   // Param conversion.
@@ -440,18 +440,15 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   __ SmiUntag(param);
   // Zero extend.
   __ movl(param, param);
-  // Place the param into the proper slot in Integer section.
-  __ movq(MemOperand(current_param_slot, 0), param);
+  // Place the param into the proper slot.
+  __ movl(MemOperand(current_param_slot, 0), param);
   __ addq(current_param_slot, Immediate(sizeof(int32_t)));
   __ jmp(&param_conversion_done);
 
   Label handle_ref_param;
   __ bind(&check_ref_param);
-  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-  __ j(equal, &handle_ref_param);
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-  __ j(not_equal, &convert_param);
+  __ testl(valuetype, Immediate(1));
+  __ j(equal, &convert_param);
 
   // Place the reference param into the proper slot.
   __ bind(&handle_ref_param);
@@ -569,7 +566,7 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   PrepareForBuiltinCall(masm, array_start, return_count, wasm_instance);
   __ movq(rax, return_count);
   __ SmiTag(rax);
-  // Create JSArray to hold results.
+  // Create JSArray to hold results. Possible GC here.
   __ Call(BUILTIN_CODE(masm->isolate(), WasmAllocateJSArray),
           RelocInfo::CODE_TARGET);
   __ movq(jsarray, rax);
@@ -697,7 +694,7 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   RestoreAfterJsToWasmConversionBuiltinCall(
       masm, function_data, wasm_instance, valuetypes_array_ptr,
       current_param_slot, param_count, array_start);
-  __ Movsd(MemOperand(current_param_slot, 0), xmm0);
+  __ Movss(MemOperand(current_param_slot, 0), xmm0);
   __ addq(current_param_slot, Immediate(sizeof(float)));
   __ jmp(&param_conversion_done);
 
@@ -727,8 +724,7 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
 
   __ movq(valuetypes_array_ptr, MemOperand(rbp, kValueTypesArrayStartOffset));
   // The first valuetype of the array is the return's valuetype.
-  __ movl(valuetype,
-          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
 
   Label return_kWasmI32;
   Label return_kWasmI64;
@@ -748,11 +744,8 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &return_kWasmF64);
 
-  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-  __ j(equal, &return_kWasmRef);
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-  __ j(equal, &return_kWasmRef);
+  __ testl(valuetype, Immediate(1));
+  __ j(not_equal, &return_kWasmRef);
 
   // Invalid type. Wasm cannot return Simd results to JavaScript.
   __ int3();
@@ -849,11 +842,24 @@ void Builtins::Generate_GenericJSToWasmInterpreterWrapper(
   __ cmpq(fixed_array, Immediate(0));
   __ j(equal, &next_return_value);
 
-  // Store result in JSArray
+  // Store result into JSArray.
   __ StoreTaggedField(FieldOperand(fixed_array, result_index,
                                    static_cast<ScaleFactor>(kTaggedSizeLog2),
                                    OFFSET_OF_DATA_START(FixedArray)),
                       return_value);
+  PrepareForWasmToJsConversionBuiltinCall(
+      masm, return_count, result_index, current_return_slot,
+      valuetypes_array_ptr, wasm_instance, fixed_array, jsarray);
+  Register slot_address = WriteBarrierDescriptor::SlotAddressRegister();
+  __ leaq(slot_address, FieldOperand(fixed_array, result_index,
+                                     static_cast<ScaleFactor>(kTaggedSizeLog2),
+                                     OFFSET_OF_DATA_START(FixedArray)));
+  __ RecordWrite(fixed_array, slot_address, return_value,
+                 SaveFPRegsMode::kIgnore);
+  RestoreAfterWasmToJsConversionBuiltinCall(
+      masm, jsarray, fixed_array, wasm_instance, valuetypes_array_ptr,
+      current_return_slot, result_index, return_count);
+
   __ jmp(&next_return_value);
 }
 
@@ -1193,13 +1199,9 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
     Label loop_copy_param_ref, load_ref_param, set_and_move;
 
     __ bind(&loop_copy_param_ref);
-    __ movl(valuetype,
-            Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
-    __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-    __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-    __ j(equal, &load_ref_param);
-    __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-    __ j(equal, &load_ref_param);
+    __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
+    __ testl(valuetype, Immediate(1));
+    __ j(not_equal, &load_ref_param);
 
     // Initialize non-ref type slots to zero since they can be visited by GC
     // when converting wasm numbers into heap numbers.
@@ -1257,8 +1259,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   Label loop_through_params;
   __ bind(&loop_through_params);
 
-  __ movl(valuetype,
-          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
 
   // -------------------------------------------
   // Param conversion.
@@ -1295,11 +1296,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   // Skip Ref params. We already copied reference params in the first loop.
   __ bind(&check_ref_param);
-  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-  __ j(equal, &skip_ref_param);
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-  __ j(not_equal, &convert_param);
+  __ testl(valuetype, Immediate(1));
+  __ j(equal, &convert_param);
 
   __ bind(&skip_ref_param);
   __ addq(current_param_slot_offset, Immediate(kSystemPointerSize));
@@ -1402,14 +1400,18 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // rsi: context.
   __ movq(rbx, MemOperand(rbp, kReturnCountOffset));
   __ addq(rbx, rbx);
+  __ pushq(return_reg);  // result
   __ pushq(context);
+
+  // We can have a GC here!
   __ Call(BUILTIN_CODE(masm->isolate(), IterableToFixedArrayForWasm),
           RelocInfo::CODE_TARGET);
   __ movq(MemOperand(rbp,
                      WasmToJSInterpreterFrameConstants::kGCScanSlotLimitOffset),
           rsp);
-  __ popq(context);
   __ movq(fixed_array, rax);
+  __ popq(context);
+  __ popq(return_reg);
   __ movq(return_count, MemOperand(rbp, kReturnCountOffset));
   __ movq(packed_args, MemOperand(rbp, kPackedArrayOffset));
   __ movq(signature, MemOperand(rbp, kSignatureOffset));
@@ -1467,14 +1469,10 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
 
   // Copy if the current return value is a ref type.
   __ bind(&copy_return_if_ref);
-  __ movl(valuetype,
-          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
 
-  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-  __ j(equal, &copy_return_ref);
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-  __ j(equal, &copy_return_ref);
+  __ testl(valuetype, Immediate(1));
+  __ j(not_equal, &copy_return_ref);
 
   Label inc_result_32bit;
   __ cmpq(valuetype, Immediate(wasm::kWasmI32.raw_bit_field()));
@@ -1530,7 +1528,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // Deconstruct the stack frame.
   __ LeaveFrame(StackFrame::WASM_TO_JS);
 
-  __ xorq(rax, rax);
+  __ movq(rax, Immediate(WasmToJSInterpreterFrameConstants::kSuccess));
   __ ret(0);
 
   // --------------------------------------------------------------------------
@@ -1641,8 +1639,7 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   // The builtin expects the parameter to be in register param = rax.
 
   // The first valuetype of the array is the return's valuetype.
-  __ movl(valuetype,
-          Operand(valuetypes_array_ptr, wasm::ValueType::bit_field_offset()));
+  __ movl(valuetype, Operand(valuetypes_array_ptr, 0));
 
   Label return_kWasmI32;
   Label return_kWasmI32_not_smi;
@@ -1665,11 +1662,8 @@ void Builtins::Generate_GenericWasmToJSInterpreterWrapper(
   __ cmpq(valuetype, Immediate(wasm::kWasmF64.raw_bit_field()));
   __ j(equal, &return_kWasmF64);
 
-  __ andl(valuetype, Immediate(wasm::kWasmValueKindBitsMask));
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRefNull));
-  __ j(equal, &return_kWasmRef);
-  __ cmpq(valuetype, Immediate(wasm::ValueKind::kRef));
-  __ j(equal, &return_kWasmRef);
+  __ testl(valuetype, Immediate(1));
+  __ j(not_equal, &return_kWasmRef);
 
   // Invalid type. JavaScript cannot return Simd results to WebAssembly.
   __ int3();

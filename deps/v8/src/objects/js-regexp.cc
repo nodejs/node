@@ -31,7 +31,7 @@ DirectHandle<JSRegExpResultIndices> JSRegExpResultIndices::BuildIndices(
   int num_results = num_indices >> 1;
   DirectHandle<FixedArray> indices_array =
       isolate->factory()->NewFixedArray(num_results);
-  JSArray::SetContent(indices, indices_array);
+  JSArray::SetContent(isolate, indices, indices_array);
 
   for (int i = 0; i < num_results; i++) {
     const int start_offset =

@@ -82,10 +82,6 @@ class FunctionRef;
 //   // replaced by an `absl::FunctionRef`:
 //   bool Visitor(absl::FunctionRef<void(my_proto&, absl::string_view)>
 //                  callback);
-//
-// Note: the assignment operator within an `absl::FunctionRef` is intentionally
-// deleted to prevent misuse; because the `absl::FunctionRef` does not own the
-// underlying type, assignment likely indicates misuse.
 template <typename R, typename... Args>
 class FunctionRef<R(Args...)> {
  private:
@@ -121,9 +117,7 @@ class FunctionRef<R(Args...)> {
     ptr_.fun = reinterpret_cast<decltype(ptr_.fun)>(f);
   }
 
-  // To help prevent subtle lifetime bugs, FunctionRef is not assignable.
-  // Typically, it should only be used as an argument type.
-  FunctionRef& operator=(const FunctionRef& rhs) = delete;
+  FunctionRef& operator=(const FunctionRef& rhs) = default;
   FunctionRef(const FunctionRef& rhs) = default;
 
   // Call the underlying object.

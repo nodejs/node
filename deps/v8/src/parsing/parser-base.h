@@ -1165,18 +1165,16 @@ class ParserBase {
   }
   bool is_using_allowed() const {
     // UsingDeclaration and AwaitUsingDeclaration are Syntax Errors if the goal
-    // symbol is Script. UsingDeclaration and AwaitUsingDeclaration are Syntax
-    // Errors if they are not contained, either directly or indirectly, within a
-    // Block, ForStatement, ForInOfStatement, FunctionBody, GeneratorBody,
+    // symbol is Script. UsingDeclaration and AwaitUsingDeclaration are not
+    // contained, either directly or indirectly, within a Block, CaseBlock,
+    // ForStatement, ForInOfStatement, FunctionBody, GeneratorBody,
     // AsyncGeneratorBody, AsyncFunctionBody, ClassStaticBlockBody, or
-    // ClassBody. They are disallowed in 'bare' switch cases.
-    // Unless the current scope's ScopeType is ScriptScope, the
+    // ClassBody. Unless the current scope's ScopeType is ScriptScope, the
     // current position is directly or indirectly within one of the productions
     // listed above since they open a new scope.
-    return (((scope()->scope_type() != SCRIPT_SCOPE &&
-              scope()->scope_type() != EVAL_SCOPE) ||
-             scope()->scope_type() == REPL_MODE_SCOPE) &&
-            !scope()->is_nonlinear());
+    return ((scope()->scope_type() != SCRIPT_SCOPE &&
+             scope()->scope_type() != EVAL_SCOPE) ||
+            scope()->scope_type() == REPL_MODE_SCOPE);
   }
   bool IsNextUsingKeyword(Token::Value token_after_using, bool is_await_using) {
     // using and await using declarations in for-of statements must be followed
@@ -5278,12 +5276,11 @@ typename ParserBase<Impl>::ExpressionT ParserBase<Impl>::ParseClassLiteral(
         class_scope->DeclareStaticHomeObjectVariable(ast_value_factory());
   }
 
-  bool should_save_class_variable_index =
-      class_scope->should_save_class_variable_index();
-  if (!class_info.is_anonymous || should_save_class_variable_index) {
+  bool should_save_class_variable = class_scope->should_save_class_variable();
+  if (!class_info.is_anonymous || should_save_class_variable) {
     impl()->DeclareClassVariable(class_scope, name, &class_info,
                                  class_token_pos);
-    if (should_save_class_variable_index) {
+    if (should_save_class_variable) {
       class_scope->class_variable()->set_is_used();
       class_scope->class_variable()->ForceContextAllocation();
     }

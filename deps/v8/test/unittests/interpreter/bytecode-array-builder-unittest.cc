@@ -33,9 +33,7 @@ class BytecodeArrayBuilderTest : public TestWithIsolateAndZone {
 using ToBooleanMode = BytecodeArrayBuilder::ToBooleanMode;
 
 TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
-  FlagScope<bool> const_tracking_let(&i::v8_flags.const_tracking_let, true);
-  FlagScope<bool> script_context_mutable_heap_number(
-      &i::v8_flags.script_context_mutable_heap_number, true);
+  FlagScope<bool> script_context_cells(&i::v8_flags.script_context_cells, true);
 
   FeedbackVectorSpec feedback_spec(zone());
   BytecodeArrayBuilder builder(zone(), 1, 131, &feedback_spec);
@@ -138,13 +136,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .StoreGlobal(name, sloppy_store_global_slot.ToInt());
 
   // Emit context operations.
-  Variable var1(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var1(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var1.AllocateTo(VariableLocation::CONTEXT, 1);
-  Variable var2(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var2(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var2.AllocateTo(VariableLocation::CONTEXT, 1);
-  Variable var3(&scope, name, VariableMode::kVar, VariableKind::NORMAL_VARIABLE,
+  Variable var3(&scope, name, VariableMode::kLet, VariableKind::NORMAL_VARIABLE,
                 InitializationFlag::kCreatedInitialized);
   var3.AllocateTo(VariableLocation::CONTEXT, 3);
 
@@ -230,13 +228,13 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
   // Emit load / store lookup slots with context fast paths.
   builder
       .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kDefault, 1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kInside, ContextKind::kDefault,
-                             1, 0)
-      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
-                             ContextKind::kScriptContext, 1, 0)
+                             ContextMode::kNoContextCells, 1, 0)
       .LoadLookupContextSlot(name, TypeofMode::kInside,
-                             ContextKind::kScriptContext, 1, 0);
+                             ContextMode::kNoContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kNotInside,
+                             ContextMode::kHasContextCells, 1, 0)
+      .LoadLookupContextSlot(name, TypeofMode::kInside,
+                             ContextMode::kHasContextCells, 1, 0);
 
   // Emit load / store lookup slots with global fast paths.
   builder.LoadLookupGlobalSlot(name, TypeofMode::kNotInside, 1, 0)
@@ -282,6 +280,8 @@ TEST_F(BytecodeArrayBuilderTest, AllBytecodesGenerated) {
       .BinaryOperation(Token::kDiv, reg, 4)
       .BinaryOperation(Token::kMod, reg, 5)
       .BinaryOperation(Token::kExp, reg, 6);
+
+  builder.Add_LhsIsStringConstant_Internalize(Token::kAdd, reg, 1);
 
   // Emit bitwise operator invocations
   builder.BinaryOperation(Token::kBitOr, reg, 6)

@@ -30,10 +30,10 @@ namespace {
 
 // This is significantly faster for case-sensitive matches with very
 // few possible matches.
-absl::Nullable<const char*> memmatch(absl::Nullable<const char*> phaystack,
-                                     size_t haylen,
-                                     absl::Nullable<const char*> pneedle,
-                                     size_t neelen) {
+const char* absl_nullable memmatch(const char* absl_nullable phaystack,
+                                   size_t haylen,
+                                   const char* absl_nullable pneedle,
+                                   size_t neelen) {
   if (0 == neelen) {
     return phaystack;  // even if haylen is 0
   }

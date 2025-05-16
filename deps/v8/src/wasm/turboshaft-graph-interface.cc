@@ -151,8 +151,8 @@ OpIndex WasmGraphBuilderBase::CallRuntime(
   const Runtime::Function* fun = Runtime::FunctionForId(f);
   OpIndex isolate_root = __ LoadRootRegister();
   DCHECK_EQ(1, fun->result_size);
-  int builtin_slot_offset = IsolateData::BuiltinSlotOffset(
-      Builtin::kCEntry_Return1_ArgvOnStack_NoBuiltinExit);
+  int builtin_slot_offset =
+      IsolateData::BuiltinSlotOffset(Builtin::kWasmCEntry);
   OpIndex centry_stub =
       __ Load(isolate_root, LoadOp::Kind::RawAligned(),
               MemoryRepresentation::UintPtr(), builtin_slot_offset);
@@ -290,16 +290,6 @@ RegisterRepresentation WasmGraphBuilderBase::RepresentationFor(
   }
 }
 
-// Load the trusted data from a WasmInstanceObject.
-V<WasmTrustedInstanceData>
-WasmGraphBuilderBase::LoadTrustedDataFromInstanceObject(
-    V<HeapObject> instance_object) {
-  return V<WasmTrustedInstanceData>::Cast(__ LoadTrustedPointerField(
-      instance_object, LoadOp::Kind::TaggedBase().Immutable(),
-      kWasmTrustedInstanceDataIndirectPointerTag,
-      WasmInstanceObject::kTrustedDataOffset));
-}
-
 void WasmGraphBuilderBase::BuildModifyThreadInWasmFlagHelper(
     Zone* zone, OpIndex thread_in_wasm_flag_address, bool new_value) {
   if (v8_flags.debug_code) {
@@ -354,6 +344,99 @@ OpIndex WasmGraphBuilderBase::CallC(const MachineSignature* sig,
       __ graph_zone());
   return __ Call(function, OpIndex::Invalid(), base::VectorOf(args),
                  ts_call_descriptor);
+}
+
+void WasmGraphBuilderBase::BuildSetNewStackLimit(V<WordPtr> old_limit,
+                                                 V<WordPtr> new_limit) {
+  // Set the new interrupt limit and real limit. Use a compare-and-swap for
+  // the interrupt limit to avoid overwriting a pending interrupt.
+  __ AtomicCompareExchange(
+      __ IsolateField(IsolateFieldId::kJsLimitAddress), __ UintPtrConstant(0),
+      old_limit, new_limit, RegisterRepresentation::WordPtr(),
+      MemoryRepresentation::UintPtr(), compiler::MemoryAccessKind::kNormal);
+  __ Store(__ LoadRootRegister(), new_limit, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           IsolateData::real_jslimit_offset());
+}
+
+V<WordPtr> WasmGraphBuilderBase::BuildSwitchToTheCentralStack(
+    V<WordPtr> old_limit) {
+  // Set the is_on_central_stack flag.
+  OpIndex isolate_root = __ LoadRootRegister();
+  __ Store(isolate_root, __ Word32Constant(1), LoadOp::Kind::RawAligned(),
+           MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+           IsolateData::is_on_central_stack_flag_offset());
+
+  // Save the old fp and the target sp in the StackMemory's stack switch info.
+  // We are not on the main stack, so the active stack must be set.
+  V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                    MemoryRepresentation::UintPtr(),
+                                    IsolateData::active_stack_offset());
+  __ Store(active_stack, __ FramePointer(), StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_source_fp_offset());
+  V<WordPtr> central_stack_sp = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_sp_offset());
+  __ Store(active_stack, central_stack_sp, StoreOp::Kind::RawAligned(),
+           MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+           StackMemory::stack_switch_target_sp_offset());
+
+  // Switch the stack limit and the stack pointer.
+  V<WordPtr> central_stack_limit = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
+      Isolate::central_stack_limit_offset());
+  BuildSetNewStackLimit(old_limit, central_stack_limit);
+  OpIndex old_sp = __ LoadStackPointer();
+  __ SetStackPointer(central_stack_sp);
+  return old_sp;
+}
+
+// Returns the old (secondary stack's) sp and stack limit.
+std::pair<V<WordPtr>, V<WordPtr>>
+WasmGraphBuilderBase::BuildSwitchToTheCentralStackIfNeeded() {
+  V<WordPtr> isolate_root = __ LoadRootRegister();
+  V<Word32> is_on_central_stack_flag = __ Load(
+      isolate_root, LoadOp::Kind::RawAligned(), MemoryRepresentation::Uint8(),
+      IsolateData::is_on_central_stack_flag_offset());
+  ScopedVar<WordPtr> old_sp_var(this, __ IntPtrConstant(0));
+  ScopedVar<WordPtr> old_limit_var(this, __ IntPtrConstant(0));
+  IF_NOT (LIKELY(is_on_central_stack_flag)) {
+    V<WordPtr> old_limit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                   MemoryRepresentation::UintPtr(),
+                                   IsolateData::real_jslimit_offset());
+    V<WordPtr> old_sp = BuildSwitchToTheCentralStack(old_limit);
+    old_sp_var = old_sp;
+    old_limit_var = old_limit;
+  }
+  return {old_sp_var, old_limit_var};
+}
+
+void WasmGraphBuilderBase::BuildSwitchBackFromCentralStack(
+    V<WordPtr> old_sp, V<WordPtr> old_limit) {
+  IF_NOT (LIKELY(__ WordPtrEqual(old_sp, __ IntPtrConstant(0)))) {
+    // Reset is_on_central_stack flag.
+    V<WordPtr> isolate_root = __ LoadRootRegister();
+    __ Store(isolate_root, __ Word32Constant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::Uint8(), compiler::kNoWriteBarrier,
+             IsolateData::is_on_central_stack_flag_offset());
+
+    // Clear stack switch info.
+    // We are not on the main stack, so the active stack must be set.
+    V<WordPtr> active_stack = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::active_stack_offset());
+    __ Store(active_stack, __ UintPtrConstant(0), StoreOp::Kind::RawAligned(),
+             MemoryRepresentation::UintPtr(), compiler::kNoWriteBarrier,
+             StackMemory::stack_switch_source_fp_offset());
+
+    // Restore the old stack limit and stack pointer.
+    V<WordPtr> real_jslimit = __ Load(isolate_root, LoadOp::Kind::RawAligned(),
+                                      MemoryRepresentation::UintPtr(),
+                                      IsolateData::real_jslimit_offset());
+    BuildSetNewStackLimit(real_jslimit, old_limit);
+    __ SetStackPointer(old_sp);
+  }
 }
 
 class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
@@ -1571,12 +1654,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       wasm::kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
 
     V<WordPtr> mem_start = MemStart(imm.memory->index);
 
@@ -1619,12 +1704,14 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     MemoryRepresentation repr =
         MemoryRepresentation::FromMachineRepresentation(type.mem_rep());
 
+    compiler::EnforceBoundsCheck enforce_bounds_check =
+        (wasm::kPartialOOBWritesAreNoops || type.size() == 1)
+            ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
+            : compiler::EnforceBoundsCheck::kNeedsBoundsCheck;
+
     auto [final_index, strategy] =
         BoundsCheckMem(imm.memory, repr, index.op, imm.offset,
-                       kPartialOOBWritesAreNoops
-                           ? compiler::EnforceBoundsCheck::kCanOmitBoundsCheck
-                           : compiler::EnforceBoundsCheck::kNeedsBoundsCheck,
-                       compiler::AlignmentCheck::kNo);
+                       enforce_bounds_check, compiler::AlignmentCheck::kNo);
     Simd128LaneMemoryOp::Kind kind = GetMemoryAccessKind(repr, strategy);
 
     Simd128LaneMemoryOp::LaneKind lane_kind;
@@ -1737,7 +1824,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     BuildModifyThreadInWasmFlag(decoder->zone(), false);
 
     V<Smi> result_value =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringIndexOf>(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringIndexOf>(
             decoder, {string, search, start_smi});
     BuildModifyThreadInWasmFlag(decoder->zone(), true);
 
@@ -1748,7 +1835,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   V<String> CallStringToLowercase(FullDecoder* decoder, V<String> string) {
     BuildModifyThreadInWasmFlag(decoder->zone(), false);
     OpIndex result = CallBuiltinThroughJumptable<
-        BuiltinCallDescriptor::StringToLowerCaseIntl>(
+        BuiltinCallDescriptor::WasmStringToLowerCaseIntl>(
         decoder, __ NoContextConstant(), {string});
     BuildModifyThreadInWasmFlag(decoder->zone(), true);
     return result;
@@ -2163,8 +2250,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
              StoreOp::Kind::RawAligned(), MemoryRepresentation::UintPtr(),
              compiler::kNoWriteBarrier, Isolate::context_offset());
     BuildModifyThreadInWasmFlag(__ graph_zone(), false);
+    auto [old_sp, old_limit] = BuildSwitchToTheCentralStackIfNeeded();
     OpIndex ret_val = __ Call(target_address, OpIndex::Invalid(),
                               base::VectorOf(inputs), ts_call_descriptor);
+    BuildSwitchBackFromCentralStack(old_sp, old_limit);
 
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
@@ -2269,9 +2358,9 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       case WKI::kStringCompare: {
         V<String> a_string = ExternRefToString(args[0]);
         V<String> b_string = ExternRefToString(args[1]);
-        result = __ UntagSmi(
-            CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringCompare>(
-                decoder, {a_string, b_string}));
+        result = __ UntagSmi(CallBuiltinThroughJumptable<
+                             BuiltinCallDescriptor::WasmStringCompare>(
+            decoder, {a_string, b_string}));
         decoder->detected_->add_imported_strings();
         break;
       }
@@ -2280,7 +2369,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
         V<String> tail_string = ExternRefToString(args[1]);
         V<HeapObject> native_context = instance_cache_.native_context();
         V<String> result_value = CallBuiltinThroughJumptable<
-            BuiltinCallDescriptor::StringAdd_CheckNone>(
+            BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
             decoder, V<Context>::Cast(native_context),
             {head_string, tail_string});
         result = __ AnnotateWasmType(result_value, kWasmRefExternString);
@@ -3912,6 +4001,42 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     ThrowRef(decoder, value->op);
   }
 
+  void ContNew(FullDecoder* decoder, const ContIndexImmediate& imm,
+               const Value& func_ref, Value* result) {
+    UNIMPLEMENTED();
+  }
+
+  void ContBind(FullDecoder* decoder, const ContIndexImmediate& orig_imm,
+                Value input_cont, const Value args[],
+                const ContIndexImmediate& new_imm, Value* result) {
+    UNIMPLEMENTED();
+  }
+
+  void Resume(FullDecoder* decoder, const ContIndexImmediate& imm,
+              base::Vector<HandlerCase> handlers, const Value args[],
+              const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void ResumeThrow(FullDecoder* decoder,
+                   const wasm::ContIndexImmediate& cont_imm,
+                   const TagIndexImmediate& exc_imm,
+                   base::Vector<wasm::HandlerCase> handlers, const Value args[],
+                   const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void Switch(FullDecoder* decoder, const TagIndexImmediate& tag_imm,
+              const ContIndexImmediate& con_imm, const Value& cont_ref,
+              const Value args[], Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
+  void Suspend(FullDecoder* decoder, const TagIndexImmediate& imm,
+               const Value args[], const Value returns[]) {
+    UNIMPLEMENTED();
+  }
+
   void AtomicNotify(FullDecoder* decoder, const MemoryAccessImmediate& imm,
                     OpIndex index, OpIndex num_waiters_to_wake, Value* result) {
     V<WordPtr> converted_index;
@@ -4458,7 +4583,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     for (uint32_t i = 0; i < field_count; ++i) {
       args_vector[i] = args[i].op;
     }
-    result->op = StructNewImpl(decoder, imm, descriptor, args_vector.data());
+    result->op =
+        StructNewImpl(decoder, imm, descriptor, args_vector.data(), true);
   }
 
   void StructNewDefault(FullDecoder* decoder, const StructIndexImmediate& imm,
@@ -4469,7 +4595,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
       ValueType field_type = imm.struct_type->field(i);
       args[i] = DefaultValue(field_type);
     }
-    result->op = StructNewImpl(decoder, imm, descriptor, args.data());
+    result->op = StructNewImpl(decoder, imm, descriptor, args.data(), false);
   }
 
   void StructGet(FullDecoder* decoder, const Value& struct_object,
@@ -4650,7 +4776,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Initialize the array header.
     bool shared = decoder->module_->type(array_imm.index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), array_imm.index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, element_count, type, shared);
     // Initialize all elements.
     for (int i = 0; i < element_count; i++) {
       __ ArraySet(array, __ Word32Constant(i), elements[i].op, element_type);
@@ -4858,6 +4984,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                         null_succeeds);
   }
 
+  void BrOnCastDesc(FullDecoder* decoder, HeapType target_type,
+                    const Value& object, const Value& descriptor,
+                    Value* value_on_branch, uint32_t br_depth,
+                    bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
+    return BrOnCastImpl(decoder, rtt, config, object, value_on_branch, br_depth,
+                        null_succeeds);
+  }
+
   void BrOnCastAbstract(FullDecoder* decoder, const Value& object,
                         HeapType type, Value* value_on_branch,
                         uint32_t br_depth, bool null_succeeds) {
@@ -4878,6 +5017,19 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
                              target_type.ref_index());
     compiler::WasmTypeCheckConfig config{object.type, target,
                                          GetExactness(decoder, target_type)};
+    return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
+                            br_depth, null_succeeds);
+  }
+
+  void BrOnCastDescFail(FullDecoder* decoder, HeapType target_type,
+                        const Value& object, const Value& descriptor,
+                        Value* value_on_fallthrough, uint32_t br_depth,
+                        bool null_succeeds) {
+    ValueType target = ValueType::RefMaybeNull(
+        target_type, null_succeeds ? kNullable : kNonNullable);
+    V<Map> rtt = GetRttFromDescriptor(descriptor);
+    compiler::WasmTypeCheckConfig config{object.type, target,
+                                         compiler::kExactMatchOnly};
     return BrOnCastFailImpl(decoder, rtt, config, object, value_on_fallthrough,
                             br_depth, null_succeeds);
   }
@@ -5103,11 +5255,10 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
   void StringConcat(FullDecoder* decoder, const Value& head, const Value& tail,
                     Value* result) {
     V<NativeContext> native_context = instance_cache_.native_context();
-    V<String> result_value =
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringAdd_CheckNone>(
-            decoder, native_context,
-            {V<String>::Cast(NullCheck(head)),
-             V<String>::Cast(NullCheck(tail))});
+    V<String> result_value = CallBuiltinThroughJumptable<
+        BuiltinCallDescriptor::WasmStringAdd_CheckNone>(
+        decoder, native_context,
+        {V<String>::Cast(NullCheck(head)), V<String>::Cast(NullCheck(tail))});
     result->op = __ AnnotateWasmType(result_value, result->type);
   }
 
@@ -5136,7 +5287,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     V<WordPtr> length = __ ChangeInt32ToIntPtr(a_length);
     V<Boolean> result =
-        CallBuiltinByPointer<BuiltinCallDescriptor::StringEqual>(
+        CallBuiltinByPointer<BuiltinCallDescriptor::WasmJSStringEqual>(
             decoder, {a, b, length});
 
     GOTO(done, __ IsRootConstant(result, RootIndex::kTrueValue));
@@ -5407,7 +5558,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     V<String> lhs_val = V<String>::Cast(NullCheck(lhs));
     V<String> rhs_val = V<String>::Cast(NullCheck(rhs));
     result->op = __ UntagSmi(
-        CallBuiltinThroughJumptable<BuiltinCallDescriptor::StringCompare>(
+        CallBuiltinThroughJumptable<BuiltinCallDescriptor::WasmStringCompare>(
             decoder, {lhs_val, rhs_val}));
   }
 
@@ -8050,7 +8201,7 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
     // Initialize the array header.
     bool shared = decoder->module_->type(index).is_shared;
     V<Map> rtt = __ RttCanon(managed_object_maps(shared), index);
-    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type);
+    V<WasmArray> array = __ WasmAllocateArray(rtt, length, array_type, shared);
     // Initialize the elements.
     ArrayFillImpl(array, __ Word32Constant(0), initial_value, length,
                   array_type, false);
@@ -8083,7 +8234,8 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
   V<WasmStruct> StructNewImpl(FullDecoder* decoder,
                               const StructIndexImmediate& imm,
-                              const Value& descriptor, OpIndex args[]) {
+                              const Value& descriptor, OpIndex args[],
+                              bool has_nondefault_args) {
     const TypeDefinition& type = decoder->module_->type(imm.index);
     DCHECK_EQ(type.has_descriptor(), descriptor.op.valid());
     V<Map> rtt;
@@ -8095,11 +8247,18 @@ class TurboshaftGraphBuildingInterface : public WasmGraphBuilderBase {
 
     V<WasmStruct> struct_value;
     if (type.is_descriptor()) {
+      bool pass_potential_prototype =
+          has_nondefault_args &&
+          imm.struct_type->first_field_can_be_prototype();
+      V<Object> first_field =
+          pass_potential_prototype ? args[0] : __ SmiZeroConstant();
+
       struct_value = CallBuiltinThroughJumptable<
           BuiltinCallDescriptor::WasmAllocateDescriptorStruct>(
-          decoder, {rtt, __ Word32Constant(imm.index.index)});
+          decoder, {rtt, __ Word32Constant(imm.index.index), first_field});
     } else {
-      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type);
+      const bool shared = type.is_shared;
+      struct_value = __ WasmAllocateStruct(rtt, imm.struct_type, shared);
     }
 
     for (uint32_t i = 0; i < imm.struct_type->field_count(); ++i) {

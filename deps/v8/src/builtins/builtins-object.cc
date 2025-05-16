@@ -152,6 +152,7 @@ Tagged<Object> ObjectLookupAccessor(Isolate* isolate,
         return ObjectLookupAccessor(isolate, prototype, key, component);
       }
       case LookupIterator::WASM_OBJECT:
+        continue;  // Continue to the prototype, if present.
       case LookupIterator::TYPED_ARRAY_INDEX_NOT_FOUND:
       case LookupIterator::DATA:
       case LookupIterator::NOT_FOUND:

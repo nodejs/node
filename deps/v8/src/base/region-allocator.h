@@ -105,6 +105,10 @@ class V8_BASE_EXPORT RegionAllocator final {
   // frees the region.
   size_t TrimRegion(Address address, size_t new_size);
 
+  // Tries to grow the region at |address| to the size |new_size|. Returns true
+  // on success.
+  bool TryGrowRegion(Address address, size_t new_size);
+
   // If there is a used region starting at given address returns its size
   // otherwise 0.
   size_t CheckRegion(Address address);

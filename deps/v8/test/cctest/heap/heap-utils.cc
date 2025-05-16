@@ -283,7 +283,7 @@ void SimulateIncrementalMarking(i::Heap* heap, bool force_completion) {
     // because of the AdvanceForTesting call in this function which is currently
     // only possible for MajorMC.
     heap->CollectGarbage(NEW_SPACE,
-                         GarbageCollectionReason::kFinalizeConcurrentMinorMS);
+                         GarbageCollectionReason::kFinalizeMinorMSForMajorGC);
   }
 
   if (marking->IsStopped()) {
@@ -382,19 +382,9 @@ bool InCorrectGeneration(Tagged<HeapObject> object) {
                                     : i::HeapLayout::InYoungGeneration(object);
 }
 
-void GrowNewSpace(Heap* heap) {
-  IsolateSafepointScope scope(heap);
-  heap->ExpandNewSpaceSizeForTesting();
-  CHECK(heap->new_space()->EnsureCurrentCapacity());
-}
-
 void GrowNewSpaceToMaximumCapacity(Heap* heap) {
   IsolateSafepointScope scope(heap);
-  NewSpace* new_space = heap->new_space();
-  while (new_space->TotalCapacity() < new_space->MaximumCapacity()) {
-    heap->ExpandNewSpaceSizeForTesting();
-  }
-  CHECK(new_space->EnsureCurrentCapacity());
+  heap->new_space()->GrowToMaximumCapacityForTesting();
 }
 
 }  // namespace heap

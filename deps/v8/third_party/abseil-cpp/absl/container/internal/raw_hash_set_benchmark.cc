@@ -418,7 +418,17 @@ void BM_ReserveIntTable(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_ReserveIntTable)->Range(1, 64);
+BENCHMARK(BM_ReserveIntTable)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(64)
+    ->Arg(128)
+    ->Arg(256)
+    ->Arg(512);
 
 void BM_ReserveStringTable(benchmark::State& state) {
   constexpr size_t kBatchSize = 1024;
@@ -437,7 +447,17 @@ void BM_ReserveStringTable(benchmark::State& state) {
     }
   }
 }
-BENCHMARK(BM_ReserveStringTable)->Range(1, 64);
+BENCHMARK(BM_ReserveStringTable)
+    ->Arg(1)
+    ->Arg(2)
+    ->Arg(4)
+    ->Arg(8)
+    ->Arg(16)
+    ->Arg(32)
+    ->Arg(64)
+    ->Arg(128)
+    ->Arg(256)
+    ->Arg(512);
 
 // Like std::iota, except that ctrl_t doesn't support operator++.
 template <typename CtrlIter>

@@ -16,6 +16,7 @@ class V8InspectorSession;
 
 String16 findSourceURL(const String16& content, bool multiline);
 String16 findSourceMapURL(const String16& content, bool multiline);
+String16 findDebugId(const String16& content, bool multiline);
 std::vector<std::unique_ptr<protocol::Debugger::SearchMatch>>
 searchInTextByLinesImpl(V8InspectorSession*, const String16& text,
                         const String16& query, bool caseSensitive,

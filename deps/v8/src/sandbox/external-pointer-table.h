@@ -434,10 +434,6 @@ class V8_EXPORT_PRIVATE ExternalPointerTable
   uint32_t SweepAndCompact(Space* space, Counters* counters);
   uint32_t Sweep(Space* space, Counters* counters);
 
-  // Updates all evacuation entries with new handle locations. The function
-  // takes the old hanlde location and returns the new one.
-  void UpdateAllEvacuationEntries(Space*, std::function<Address(Address)>);
-
   inline bool Contains(Space* space, ExternalPointerHandle handle) const;
 
   // A resource outside of the V8 heap whose lifetime is tied to something

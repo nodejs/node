@@ -65,11 +65,13 @@ SemiSpaceObjectIterator::SemiSpaceObjectIterator(const SemiSpaceNewSpace* space)
     : current_(space->first_allocatable_address()) {}
 
 Tagged<HeapObject> SemiSpaceObjectIterator::Next() {
+  if (!current_) return {};
+
   while (true) {
     if (PageMetadata::IsAlignedToPageSize(current_)) {
       PageMetadata* page = PageMetadata::FromAllocationAreaAddress(current_);
       page = page->next_page();
-      if (page == nullptr) return Tagged<HeapObject>();
+      if (page == nullptr) return {};
       current_ = page->area_start();
     }
     Tagged<HeapObject> object = HeapObject::FromAddress(current_);

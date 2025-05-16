@@ -115,6 +115,7 @@ void MemoryAnalyzer::ProcessAllocation(const AllocateOp& alloc) {
       state.last_allocation && new_size.has_value() &&
       state.reserved_size.has_value() &&
       alloc.type == state.last_allocation->type &&
+      alloc.type != AllocationType::kSharedOld &&
       *new_size <= kMaxRegularHeapObjectSize - *state.reserved_size) {
     state.reserved_size =
         static_cast<uint32_t>(*state.reserved_size + *new_size);

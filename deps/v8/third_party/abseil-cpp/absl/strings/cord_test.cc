@@ -2518,6 +2518,10 @@ static void VerifyCharIterator(const absl::Cord& cord) {
   absl::Cord::CharRange range = cord.Chars();
   EXPECT_EQ(range.begin() == range.end(), cord.empty());
   EXPECT_EQ(range.begin() != range.end(), !cord.empty());
+  EXPECT_EQ(absl::Cord::Distance(range.begin(), range.end()),
+            static_cast<ptrdiff_t>(cord.size()));
+  EXPECT_EQ(absl::Cord::Distance(range.end(), range.begin()),
+            -static_cast<ptrdiff_t>(cord.size()));
 
   size_t i = 0;
   absl::Cord::CharIterator pre_iter = cord.char_begin();
@@ -2548,19 +2552,29 @@ static void VerifyCharIterator(const absl::Cord& cord) {
     absl::Cord::CharIterator advance_iter = range.begin();
     absl::Cord::Advance(&advance_iter, i);
     EXPECT_EQ(pre_iter, advance_iter);
+    EXPECT_EQ(absl::Cord::Distance(range.begin(), advance_iter),
+              static_cast<ptrdiff_t>(i));
 
     advance_iter = range.begin();
     EXPECT_EQ(absl::Cord::AdvanceAndRead(&advance_iter, i), cord.Subcord(0, i));
     EXPECT_EQ(pre_iter, advance_iter);
+    EXPECT_EQ(absl::Cord::Distance(range.begin(), advance_iter),
+              static_cast<ptrdiff_t>(i));
 
     advance_iter = pre_iter;
     absl::Cord::Advance(&advance_iter, cord.size() - i);
     EXPECT_EQ(range.end(), advance_iter);
+    EXPECT_EQ(absl::Cord::Distance(range.begin(), advance_iter),
+              static_cast<ptrdiff_t>(cord.size()));
+    EXPECT_EQ(absl::Cord::Distance(advance_iter, range.end()), 0);
 
     advance_iter = pre_iter;
     EXPECT_EQ(absl::Cord::AdvanceAndRead(&advance_iter, cord.size() - i),
               cord.Subcord(i, cord.size() - i));
     EXPECT_EQ(range.end(), advance_iter);
+    EXPECT_EQ(absl::Cord::Distance(range.begin(), advance_iter),
+              static_cast<ptrdiff_t>(cord.size()));
+    EXPECT_EQ(absl::Cord::Distance(advance_iter, range.end()), 0);
 
     ++i;
     ++pre_iter;
@@ -2642,16 +2656,25 @@ TEST_P(CordTest, CharIteratorAdvanceAndRead) {
 
   MaybeHarden(cord);
 
+
   for (size_t chunk_size :
        {kChunkSize1, kChunkSize2, kChunkSize3, kChunkSize4}) {
     absl::Cord::CharIterator it = cord.char_begin();
+    size_t it_remaining = cord.size();
+    size_t it_advanced = 0;
     size_t offset = 0;
     while (offset < data.length()) {
+      EXPECT_EQ(absl::Cord::Distance(it, cord.char_end()), it_remaining);
+      EXPECT_EQ(absl::Cord::Distance(cord.char_begin(), it), it_advanced);
       const size_t n = std::min<size_t>(data.length() - offset, chunk_size);
       absl::Cord chunk = cord.AdvanceAndRead(&it, n);
       ASSERT_EQ(chunk.size(), n);
       ASSERT_EQ(chunk.Compare(data.substr(offset, n)), 0);
       offset += n;
+      it_remaining -= n;
+      it_advanced += n;
+      EXPECT_EQ(absl::Cord::Distance(it, cord.char_end()), it_remaining);
+      EXPECT_EQ(absl::Cord::Distance(cord.char_begin(), it), it_advanced);
     }
   }
 }

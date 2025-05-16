@@ -341,6 +341,7 @@ class ValueTypeBase {
   static const uint32_t kIsRefBit = value_type_impl::IsRefField::kMask;
   static const uint32_t kIsNullableBit =
       value_type_impl::IsNullableField::kMask;
+  static const uint32_t kIsSharedBit = value_type_impl::IsSharedField::kMask;
   static const uint32_t kHasIndexBit =
       value_type_impl::HasIndexOrSentinelField::kMask;
   static const uint32_t kRefKindBits = value_type_impl::RefTypeKindField::kMask;

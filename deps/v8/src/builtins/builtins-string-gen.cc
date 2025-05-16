@@ -937,6 +937,38 @@ TF_BUILTIN(StringGreaterThanOrEqual, StringBuiltinsAssembler) {
                                      StringComparison::kGreaterThanOrEqual);
 }
 
+#if V8_ENABLE_WEBASSEMBLY
+// Duplicate of string builtins for wasm. The only difference is that these
+// builtins are listed in WASM_BUILTIN_LIST. Builtins in this list are
+// instrumented to check if they are running on a secondary stack and switch
+// back to the central stack before calling a runtime function or a JS builtin
+// if needed.
+TF_BUILTIN(WasmJSStringEqual, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  auto length = UncheckedParameter<IntPtrT>(Descriptor::kLength);
+  // Callers must handle the case where {lhs} and {rhs} refer to the same
+  // String object.
+  CSA_DCHECK(this, TaggedNotEqual(left, right));
+  GenerateStringEqual(left, right, length);
+}
+
+TF_BUILTIN(WasmStringAdd_CheckNone, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  TNode<ContextOrEmptyContext> context =
+      UncheckedParameter<ContextOrEmptyContext>(Descriptor::kContext);
+  CSA_DCHECK(this, IsZeroOrContext(context));
+  Return(StringAdd(context, left, right));
+}
+
+TF_BUILTIN(WasmStringCompare, StringBuiltinsAssembler) {
+  auto left = Parameter<String>(Descriptor::kLeft);
+  auto right = Parameter<String>(Descriptor::kRight);
+  GenerateStringRelationalComparison(left, right, StringComparison::kCompare);
+}
+#endif
+
 #ifndef V8_ENABLE_EXPERIMENTAL_TSA_BUILTINS
 
 // NOTE: This needs to be kept in sync with the Turboshaft implementation in
@@ -1488,7 +1520,6 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
     TNode<RawPtrT> string_data =
         to_direct.PointerToData(&fill_thehole_and_call_runtime);
     TNode<IntPtrT> string_data_offset = to_direct.offset();
-    TNode<FixedArray> cache = SingleCharacterStringTableConstant();
 
     BuildFastLoop<IntPtrT>(
         IntPtrConstant(0), length,
@@ -1498,14 +1529,13 @@ TNode<JSArray> StringBuiltinsAssembler::StringToArray(
           // ToDirectStringAssembler.PointerToData().
           CSA_DCHECK(this, WordEqual(to_direct.PointerToData(&call_runtime),
                                      string_data));
-          TNode<Int32T> char_code =
-              UncheckedCast<Int32T>(Load(MachineType::Uint8(), string_data,
-                                         IntPtrAdd(index, string_data_offset)));
-          TNode<UintPtrT> code_index = ChangeUint32ToWord(char_code);
-          TNode<Object> entry = LoadFixedArrayElement(cache, code_index);
+          TNode<Uint8T> char_code =
+              Load<Uint8T>(string_data, IntPtrAdd(index, string_data_offset));
+          TNode<String> entry = StringFromSingleOneByteCharCode(char_code);
 
-          CSA_DCHECK(this, Word32BinaryNot(IsUndefined(entry)));
-
+          // TODO(ishell): make it possible to skip write barriers here.
+          // The single-character strings are in RO space so it should
+          // be safe to skip the write barriers.
           StoreFixedArrayElement(elements, index, entry);
         },
         1, LoopUnrollingMode::kNo, IndexAdvanceMode::kPost);

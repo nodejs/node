@@ -43,6 +43,7 @@ void AddAndSetEntry(PositionTableEntry* value,
   value->source_position += other.source_position;
   DCHECK_LE(0, value->source_position);
   value->is_statement = other.is_statement;
+  value->is_breakable = other.is_breakable;
 }
 
 // Helper: Subtract the offsets from 'other' from 'value'.
@@ -52,23 +53,29 @@ void SubtractFromEntry(PositionTableEntry* value,
   value->source_position -= other.source_position;
 }
 
+template <typename T>
+inline void EncodeUInt(ZoneVector<uint8_t>* bytes, T value) {
+  bool more;
+  do {
+    more = value > ValueBits::kMax;
+    uint8_t current =
+        MoreBit::encode(more) | ValueBits::encode(value & ValueBits::kMask);
+    bytes->push_back(current);
+    value >>= ValueBits::kSize;
+  } while (more);
+}
+
 // Helper: Encode an integer.
 template <typename T>
-void EncodeInt(ZoneVector<uint8_t>* bytes, T value) {
+inline void EncodeInt(ZoneVector<uint8_t>* bytes, T value) {
   using unsigned_type = std::make_unsigned_t<T>;
   // Zig-zag encoding.
   static constexpr int kShift = sizeof(T) * kBitsPerByte - 1;
   value = ((static_cast<unsigned_type>(value) << 1) ^ (value >> kShift));
   DCHECK_GE(value, 0);
   unsigned_type encoded = static_cast<unsigned_type>(value);
-  bool more;
-  do {
-    more = encoded > ValueBits::kMax;
-    uint8_t current =
-        MoreBit::encode(more) | ValueBits::encode(encoded & ValueBits::kMask);
-    bytes->push_back(current);
-    encoded >>= ValueBits::kSize;
-  } while (more);
+
+  EncodeUInt(bytes, encoded);
 }
 
 // Encode a PositionTableEntry.
@@ -79,15 +86,17 @@ void EncodeEntry(ZoneVector<uint8_t>* bytes, const PositionTableEntry& entry) {
   // the same position).
   // TODO(11496): This DCHECK fails tests.
   // DCHECK_IMPLIES(!bytes->empty(), entry.code_offset > 0);
-  // Since code_offset is not negative, we use sign to encode is_statement.
-  EncodeInt(bytes,
-            entry.is_statement ? entry.code_offset : -entry.code_offset - 1);
+  // The least significant bit is used to encode is_breakable.
+  // The second least significant bit is used to encode is_statement.
+  uint32_t encoded_entry = (entry.code_offset << 2) |
+                           (entry.is_breakable << 1) | (entry.is_statement);
+
+  EncodeUInt(bytes, encoded_entry);
   EncodeInt(bytes, entry.source_position);
 }
 
-// Helper: Decode an integer.
 template <typename T>
-T DecodeInt(base::Vector<const uint8_t> bytes, int* index) {
+T DecodeUInt(base::Vector<const uint8_t> bytes, int* index) {
   uint8_t current;
   int shift = 0;
   T decoded = 0;
@@ -100,20 +109,27 @@ T DecodeInt(base::Vector<const uint8_t> bytes, int* index) {
     shift += ValueBits::kSize;
   } while (more);
   DCHECK_GE(decoded, 0);
-  decoded = (decoded >> 1) ^ (-(decoded & 1));
   return decoded;
+}
+
+// Helper: Decode an integer.
+template <typename T>
+T DecodeInt(base::Vector<const uint8_t> bytes, int* index) {
+  using unsigned_type = std::make_unsigned_t<T>;
+
+  unsigned_type zigzag_value = DecodeUInt<unsigned_type>(bytes, index);
+  T result = static_cast<T>((zigzag_value >> 1) ^ (-(zigzag_value & 1)));
+  return result;
 }
 
 void DecodeEntry(base::Vector<const uint8_t> bytes, int* index,
                  PositionTableEntry* entry) {
-  int tmp = DecodeInt<int>(bytes, index);
-  if (tmp >= 0) {
-    entry->is_statement = true;
-    entry->code_offset = tmp;
-  } else {
-    entry->is_statement = false;
-    entry->code_offset = -(tmp + 1);
-  }
+  // The least significant bit is used to encode is_breakable.
+  // The second least significant bit is used to encode is_statement.
+  int tmp = DecodeUInt<int>(bytes, index);
+  entry->code_offset = tmp >> 2;
+  entry->is_breakable = (tmp & 0b10) >> 1;
+  entry->is_statement = tmp & 1;
   entry->source_position = DecodeInt<int64_t>(bytes, index);
 }
 
@@ -152,11 +168,12 @@ SourcePositionTableBuilder::SourcePositionTableBuilder(
 
 void SourcePositionTableBuilder::AddPosition(size_t code_offset,
                                              SourcePosition source_position,
-                                             bool is_statement) {
+                                             bool is_statement,
+                                             bool is_breakable) {
   if (Omit()) return;
   DCHECK(source_position.IsKnown());
   int offset = static_cast<int>(code_offset);
-  AddEntry({offset, source_position.raw(), is_statement});
+  AddEntry({offset, source_position.raw(), is_statement, is_breakable});
 }
 
 V8_INLINE void SourcePositionTableBuilder::AddEntry(

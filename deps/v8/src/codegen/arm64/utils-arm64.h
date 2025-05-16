@@ -38,6 +38,13 @@ inline static int CountLeadingZeros(uint64_t value, int width) {
   }
   return base::bits::CountLeadingZeros64(value << (64 - width));
 }
+inline static int CountTrailingZeros(uint64_t value, int width) {
+  DCHECK(base::bits::IsPowerOfTwo(width) && (width <= 64));
+  if (value == 0) {
+    return width;
+  }
+  return base::bits::CountTrailingZeros(value);
+}
 int CountLeadingSignBits(int64_t value, int width);
 V8_EXPORT_PRIVATE int CountSetBits(uint64_t value, int width);
 int LowestSetBitPosition(uint64_t value);

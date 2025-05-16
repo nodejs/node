@@ -20,7 +20,7 @@
 #include "src/objects/call-site-info.h"
 #include "src/objects/cell-inl.h"
 #include "src/objects/contexts.h"
-#include "src/objects/data-handler.h"
+#include "src/objects/data-handler-inl.h"
 #include "src/objects/debug-objects.h"
 #include "src/objects/descriptor-array.h"
 #include "src/objects/dictionary.h"
@@ -149,17 +149,27 @@ constexpr bool is_important_struct(InstanceType type) {
   return type == ENUM_CACHE_TYPE || type == CALL_SITE_INFO_TYPE;
 }
 
+template <typename StructType>
+constexpr int StructSize() {
+  if constexpr (std::is_base_of_v<StructLayout, StructType>) {
+    return sizeof(StructType);
+  } else {
+    return StructType::kSize;
+  }
+}
+
+using AllocationSiteWithoutWeakNext = AllocationSite;
 constexpr std::initializer_list<StructInit> kStructTable{
 #define STRUCT_TABLE_ELEMENT(TYPE, Name, name) \
-  {TYPE, Name::kSize, RootIndex::k##Name##Map},
+  {TYPE, StructSize<Name>(), RootIndex::k##Name##Map},
     STRUCT_LIST(STRUCT_TABLE_ELEMENT)
 #undef STRUCT_TABLE_ELEMENT
 #define ALLOCATION_SITE_ELEMENT(_, TYPE, Name, Size, name) \
-  {TYPE, Name::kSize##Size, RootIndex::k##Name##Size##Map},
+  {TYPE, sizeof(Name##Size), RootIndex::k##Name##Size##Map},
         ALLOCATION_SITE_LIST(ALLOCATION_SITE_ELEMENT, /* not used */)
 #undef ALLOCATION_SITE_ELEMENT
 #define DATA_HANDLER_ELEMENT(_, TYPE, Name, Size, name) \
-  {TYPE, Name::kSizeWithData##Size, RootIndex::k##Name##Size##Map},
+  {TYPE, Name::SizeFor(Size), RootIndex::k##Name##Size##Map},
             DATA_HANDLER_LIST(DATA_HANDLER_ELEMENT, /* not used */)
 #undef DATA_HANDLER_ELEMENT
 };
@@ -198,7 +208,6 @@ bool Heap::CreateReadOnlyHeapObjects() {
 #endif
 
   if (!CreateLateReadOnlyNonJSReceiverMaps()) return false;
-  CreateReadOnlyApiObjects();
   if (!CreateReadOnlyObjects()) return false;
 
   // Order is important. JSReceiver maps must come after all non-JSReceiver maps
@@ -207,6 +216,8 @@ bool Heap::CreateReadOnlyHeapObjects() {
   //
   // See InstanceTypeChecker::kNonJsReceiverMapLimit.
   if (!CreateLateReadOnlyJSReceiverMaps()) return false;
+
+  CreateReadOnlyApiObjects();
 
 #ifdef DEBUG
   ReadOnlyRoots roots(isolate());
@@ -426,7 +437,10 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
       Tagged<Map> map = UncheckedCast<Map>(roots.object_at(entry.index));
       InitializePartialMap(isolate(), map, meta_map, entry.type, entry.size);
       map->SetConstructorFunctionIndex(Context::STRING_FUNCTION_INDEX);
-      if (StringShape(entry.type).IsCons()) map->mark_unstable();
+      // Strings change maps in-place (e.g., when internalizing them). Thus they
+      // are marked unstable to let the compilers not depend on them not
+      // changing.
+      map->mark_unstable();
     }
     InitializePartialMap(isolate(), symbol_map, meta_map, SYMBOL_TYPE,
                          sizeof(Symbol));
@@ -565,6 +579,7 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     Tagged<DescriptorArray> array = Cast<DescriptorArray>(obj);
     array->Initialize(roots.empty_enum_cache(), roots.undefined_value(), 0, 0,
                       DescriptorArrayMarkingState::kInitialGCState);
+    array->set_fast_iterable(DescriptorArray::FastIterableState::kJsonFast);
   }
   set_empty_descriptor_array(Cast<DescriptorArray>(obj));
 
@@ -685,6 +700,8 @@ bool Heap::CreateEarlyReadOnlyMapsAndObjects() {
     ALLOCATE_VARSIZE_MAP(ARRAY_LIST_TYPE, array_list)
 
     ALLOCATE_MAP(ACCESSOR_INFO_TYPE, AccessorInfo::kSize, accessor_info)
+    ALLOCATE_MAP(INTERCEPTOR_INFO_TYPE, InterceptorInfo::kSize,
+                 interceptor_info)
 
     ALLOCATE_VARSIZE_MAP(PREPARSE_DATA_TYPE, preparse_data)
     ALLOCATE_MAP(SHARED_FUNCTION_INFO_TYPE, SharedFunctionInfo::kSize,
@@ -726,6 +743,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
 
     ALLOCATE_VARSIZE_MAP(SIMPLE_NUMBER_DICTIONARY_TYPE,
                          simple_number_dictionary)
+    ALLOCATE_VARSIZE_MAP(SIMPLE_NAME_DICTIONARY_TYPE, simple_name_dictionary)
     ALLOCATE_VARSIZE_MAP(NAME_TO_INDEX_HASH_TABLE_TYPE,
                          name_to_index_hash_table)
 
@@ -750,9 +768,7 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
     ALLOCATE_MAP(SYNTHETIC_MODULE_TYPE, SyntheticModule::kSize,
                  synthetic_module)
 
-    ALLOCATE_MAP(CONTEXT_SIDE_PROPERTY_CELL_TYPE,
-                 ContextSidePropertyCell::kSize,
-                 global_context_side_property_cell)
+    ALLOCATE_MAP(CONTEXT_CELL_TYPE, sizeof(ContextCell), context_cell)
 
     IF_WASM(ALLOCATE_MAP, WASM_IMPORT_DATA_TYPE, WasmImportData::kSize,
             wasm_import_data)
@@ -771,8 +787,6 @@ bool Heap::CreateLateReadOnlyNonJSReceiverMaps() {
             WasmSuspenderObject::kSize, wasm_suspender_object)
     IF_WASM(ALLOCATE_MAP, WASM_TYPE_INFO_TYPE, kVariableSizeSentinel,
             wasm_type_info)
-    IF_WASM(ALLOCATE_MAP, WASM_CONTINUATION_OBJECT_TYPE,
-            WasmContinuationObject::kSize, wasm_continuation_object)
     IF_WASM(ALLOCATE_MAP, WASM_NULL_TYPE, kVariableSizeSentinel, wasm_null);
     IF_WASM(ALLOCATE_MAP, WASM_TRUSTED_INSTANCE_DATA_TYPE,
             WasmTrustedInstanceData::kSize, wasm_trusted_instance_data);
@@ -824,6 +838,9 @@ bool Heap::CreateLateReadOnlyJSReceiverMaps() {
                  external)
     roots.external_map()->SetEnumLength(0);
     roots.external_map()->set_is_extensible(false);
+
+    ALLOCATE_MAP(CPP_HEAP_EXTERNAL_OBJECT_TYPE,
+                 CppHeapExternalObject::kHeaderSize, cpp_heap_external)
   }
 
   // Shared space object maps are immutable and can be in RO space.
@@ -1087,17 +1104,6 @@ bool Heap::CreateReadOnlyObjects() {
       /* not used */)
 #undef ENSURE_SINGLE_CHAR_STRINGS_ARE_SINGLE_CHAR
 
-  // Allocate and initialize table for single character one byte strings.
-  int table_size = String::kMaxOneByteCharCode + 1;
-  set_single_character_string_table(
-      *factory->NewFixedArray(table_size, AllocationType::kReadOnly));
-  for (int i = 0; i < table_size; ++i) {
-    DirectHandle<String> str = Cast<String>(
-        roots_table().handle_at(RootsTable::SingleCharacterStringIndex(i)));
-    DCHECK(ReadOnlyHeap::Contains(*str));
-    single_character_string_table()->set(i, *str);
-  }
-
   // Finish initializing oddballs after creating the string table.
   Oddball::Initialize(isolate(), factory->undefined_value(), "undefined",
                       factory->nan_value(), "undefined", Oddball::kUndefined);
@@ -1330,10 +1336,13 @@ void Heap::CreateMutableApiObjects() {
 
 void Heap::CreateReadOnlyApiObjects() {
   HandleScope scope(isolate());
-  auto info = Cast<InterceptorInfo>(isolate()->factory()->NewStruct(
-      INTERCEPTOR_INFO_TYPE, AllocationType::kReadOnly));
-  info->set_flags(0);
+  auto info =
+      isolate()->factory()->NewInterceptorInfo(AllocationType::kReadOnly);
   set_noop_interceptor_info(*info);
+  // Make sure read only heap layout does not depend on the size of
+  // ExternalPointer fields.
+  StaticRootsEnsureAllocatedSize(info,
+                                 3 * kTaggedSize + 7 * kSystemPointerSize);
 }
 
 void Heap::CreateInitialMutableObjects() {
@@ -1371,7 +1380,6 @@ void Heap::CreateInitialMutableObjects() {
   set_shared_wasm_memories(roots.empty_weak_array_list());
   set_locals_block_list_cache(roots.undefined_value());
 #ifdef V8_ENABLE_WEBASSEMBLY
-  set_active_continuation(roots.undefined_value());
   set_active_suspender(roots.undefined_value());
   set_js_to_wasm_wrappers(roots.empty_weak_fixed_array());
   set_wasm_canonical_rtts(roots.empty_weak_fixed_array());

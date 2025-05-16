@@ -41,7 +41,7 @@ enum class WasmValueType {
 // A set of bit fields representing Smi handlers for loads and a HeapObject
 // that represents load handlers that can't be encoded in a Smi.
 // TODO(ishell): move to load-handler.h
-class LoadHandler final : public DataHandler {
+V8_OBJECT class LoadHandler final : public DataHandler {
  public:
   DECL_PRINTER(LoadHandler)
   DECL_VERIFIER(LoadHandler)
@@ -232,14 +232,12 @@ class LoadHandler final : public DataHandler {
 #if defined(OBJECT_PRINT)
   static void PrintHandler(Tagged<Object> handler, std::ostream& os);
 #endif  // defined(OBJECT_PRINT)
-
-  OBJECT_CONSTRUCTORS(LoadHandler, DataHandler);
-};
+} V8_OBJECT_END;
 
 // A set of bit fields representing Smi handlers for stores and a HeapObject
 // that represents store handlers that can't be encoded in a Smi.
 // TODO(ishell): move to store-handler.h
-class StoreHandler final : public DataHandler {
+V8_OBJECT class StoreHandler final : public DataHandler {
  public:
   DECL_PRINTER(StoreHandler)
   DECL_VERIFIER(StoreHandler)
@@ -381,9 +379,7 @@ class StoreHandler final : public DataHandler {
   static inline Handle<Smi> StoreField(Isolate* isolate, Kind kind,
                                        int descriptor, FieldIndex field_index,
                                        Representation representation);
-
-  OBJECT_CONSTRUCTORS(StoreHandler, DataHandler);
-};
+} V8_OBJECT_END;
 
 inline const char* WasmValueType2String(WasmValueType type);
 

@@ -206,7 +206,7 @@ void Accessors::ArrayLengthSetter(
     return;
   }
 
-  if (JSArray::SetLength(array, length).IsNothing()) {
+  if (JSArray::SetLength(isolate, array, length).IsNothing()) {
     // TODO(victorgomes): AccessorNameBooleanSetterCallback does not handle
     // exceptions.
     FATAL("Fatal JavaScript invalid array length %u", length);
@@ -326,7 +326,7 @@ static DirectHandle<Object> GetFunctionPrototype(
     DisableTemporaryObjectTracking no_temp_tracking(isolate->debug());
     DirectHandle<JSObject> proto =
         isolate->factory()->NewFunctionPrototype(function);
-    JSFunction::SetPrototype(function, proto);
+    JSFunction::SetPrototype(isolate, function, proto);
   }
   return DirectHandle<Object>(function->prototype(), isolate);
 }
@@ -353,7 +353,7 @@ void Accessors::FunctionPrototypeSetter(
   DirectHandle<JSFunction> object =
       Cast<JSFunction>(Utils::OpenDirectHandle(*info.Holder()));
   DCHECK(object->has_prototype_property());
-  JSFunction::SetPrototype(object, value);
+  JSFunction::SetPrototype(isolate, object, value);
   info.GetReturnValue().Set(true);
 }
 

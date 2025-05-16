@@ -164,7 +164,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
 
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
-  GetFunctionFromEval(DirectHandle<String> source,
+  GetFunctionFromEval(Isolate* isolate, DirectHandle<String> source,
                       DirectHandle<SharedFunctionInfo> outer_info,
                       DirectHandle<Context> context, LanguageMode language_mode,
                       ParseRestriction restriction, int parameters_end_pos,
@@ -175,14 +175,14 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   // Create a function that results from wrapping |source| in a function,
   // with |arguments| being a list of parameters for that function.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction> GetWrappedFunction(
-      Handle<String> source, DirectHandle<Context> context,
+      Isolate* isolate, Handle<String> source, DirectHandle<Context> context,
       const ScriptDetails& script_details, AlignedCachedData* cached_data,
       v8::ScriptCompiler::CompileOptions compile_options,
       v8::ScriptCompiler::NoCacheReason no_cache_reason);
 
   // Create a (bound) function for a String source within a context for eval.
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
-  GetFunctionFromString(DirectHandle<NativeContext> context,
+  GetFunctionFromString(Isolate* isolate, DirectHandle<NativeContext> context,
                         Handle<i::Object> source, int parameters_end_pos,
                         bool is_code_like);
 
@@ -194,7 +194,8 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
                                    Handle<i::Object> source_object,
                                    bool is_code_like = false);
   V8_WARN_UNUSED_RESULT static MaybeDirectHandle<JSFunction>
-  GetFunctionFromValidatedString(DirectHandle<NativeContext> context,
+  GetFunctionFromValidatedString(Isolate* isolate,
+                                 DirectHandle<NativeContext> context,
                                  MaybeDirectHandle<String> source,
                                  ParseRestriction restriction,
                                  int parameters_end_pos);
@@ -263,6 +264,7 @@ class V8_EXPORT_PRIVATE Compiler : public AllStatic {
   GetSharedFunctionInfoForStreamedScript(
       Isolate* isolate, Handle<String> source,
       const ScriptDetails& script_details, ScriptStreamingData* streaming_data,
+      IsCompiledScope* is_compiled_scope,
       ScriptCompiler::CompilationDetails* compilation_details);
 
   // Create a shared function info object for the given function literal
@@ -490,6 +492,8 @@ class TurbofanCompilationJob : public OptimizedCompilationJob {
   uint64_t trace_id() const;
 
   Isolate* isolate() const { return isolate_; }
+
+  void Cancel();
 
  private:
   Isolate* const isolate_;

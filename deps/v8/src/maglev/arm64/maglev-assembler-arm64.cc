@@ -261,9 +261,10 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
     Assert(ls, AbortReason::kUnexpectedValue);
   }
   Register table = scratch;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         OFFSET_OF_DATA_START(FixedArray));
+  Add(table, kRootRegister,
+      Operand(RootRegisterOffsetForRootIndex(
+          RootIndex::kFirstSingleCharacterString)));
+  Ldr(result, MemOperand(table, char_code, LSL, kSystemPointerSizeLog2));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,

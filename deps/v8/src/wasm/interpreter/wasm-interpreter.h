@@ -654,7 +654,7 @@ class V8_EXPORT_PRIVATE WasmInterpreter {
   // {InterpreterCode} vector in the {CodeMap}. It is also passed to
   // {WasmDecoder} used to parse the 'locals' in a Wasm function.
   Zone zone_;
-  DirectHandle<WasmInstanceObject> instance_object_;
+  IndirectHandle<WasmInstanceObject> instance_object_;
 
   // Create a copy of the module bytes for the interpreter, since the passed
   // pointer might be invalidated after constructing the interpreter.
@@ -1058,11 +1058,13 @@ enum ExternalCallResult {
   EXTERNAL_EXCEPTION
 };
 
+constexpr uint32_t kBranchOnCastDataTargetTypeBitSize = 30;
 struct BranchOnCastData {
   uint32_t label_depth;
-  uint32_t src_is_null : 1;   //  BrOnCastFlags
-  uint32_t res_is_null : 1;   //  BrOnCastFlags
-  uint32_t target_type : 30;  //  HeapType
+  uint32_t src_is_null : 1;  //  BrOnCastFlags
+  uint32_t res_is_null : 1;  //  BrOnCastFlags
+  uint32_t target_type_bit_fields
+      : kBranchOnCastDataTargetTypeBitSize;  //  HeapType bit_fields
 };
 
 struct WasmInstruction {
@@ -1086,6 +1088,7 @@ struct WasmInstruction {
       ModuleTypeIndex sig_index;
       uint32_t value_type_bitfield;  // return type or kVoid if no return type
                                      // or kBottom if sig_index is valid.
+      constexpr bool is_bottom() const { return value_type().is_bottom(); }
       constexpr ValueType value_type() const {
         return ValueType::FromRawBitField(value_type_bitfield);
       }
@@ -1114,12 +1117,10 @@ struct WasmInstruction {
     } gc_memory_immediate;
     struct GC_HeapTypeImmediate {
       uint32_t length;
-      HeapType::Representation type_representation;
-      // This is incorrect; it's just the smallest possible fix to make
-      // the header-includes bot green which needs this file to compile.
-      // It'd probably be a good idea to store a HeapType instead of a
-      // HeapType::Representation above.
-      constexpr HeapType type() const { return kWasmAnyRef; }
+      uint32_t heap_type_bit_field;
+      constexpr HeapType type() const {
+        return HeapType::FromBits(heap_type_bit_field);
+      }
     } gc_heap_type_immediate;
     struct GC_ArrayNewFixed {
       uint32_t array_index;
@@ -1135,7 +1136,7 @@ struct WasmInstruction {
     } gc_array_copy;
     BranchOnCastData br_on_cast_data;
     size_t simd_immediate_index;
-    HeapType::Representation ref_type;
+    uint32_t ref_type_bit_field;
   };
 
   WasmInstruction()
@@ -1343,6 +1344,7 @@ class WasmBytecode {
  public:
   WasmBytecode(int func_index, const uint8_t* code_data, size_t code_length,
                uint32_t stack_frame_size, const FunctionSig* signature,
+               const CanonicalSig* canonical_signature,
                const InterpreterCode* interpreter_code, size_t blocks_count,
                const uint8_t* const_slots_data, size_t const_slots_length,
                uint32_t ref_slots_count, const WasmEHData&& eh_data,
@@ -1360,6 +1362,9 @@ class WasmBytecode {
   inline uint32_t GetBlocksCount() const { return blocks_count_; }
 
   inline const FunctionSig* GetFunctionSignature() const { return signature_; }
+  inline const CanonicalSig* GetCanonicalFunctionSignature() const {
+    return canonical_signature_;
+  }
   inline ValueType return_type(size_t index) const;
   inline ValueType arg_type(size_t index) const;
   inline ValueType local_type(size_t index) const;
@@ -1416,6 +1421,7 @@ class WasmBytecode {
   std::vector<uint8_t> code_;
   const uint8_t* code_bytes_;
   const FunctionSig* signature_;
+  const CanonicalSig* canonical_signature_;
   const InterpreterCode* interpreter_code_;
   std::vector<uint8_t> const_slots_values_;
 

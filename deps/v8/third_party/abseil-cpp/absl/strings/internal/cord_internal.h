@@ -635,7 +635,7 @@ class InlineData {
     poison();
   }
 
-  void CopyInlineToString(absl::Nonnull<std::string*> dst) const {
+  void CopyInlineToString(std::string* absl_nonnull dst) const {
     assert(!is_tree());
     // As Cord can store only 15 bytes it is smaller than std::string's
     // small string optimization buffer size. Therefore we will always trigger

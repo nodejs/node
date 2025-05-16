@@ -24,6 +24,7 @@
 #include <stdint.h>
 
 #include <atomic>
+#include <cstddef>
 #include <cstring>
 
 #include "absl/base/attributes.h"
@@ -77,7 +78,8 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
 
   int size;
   uintptr_t pc = emscripten_stack_snapshot();
-  size = emscripten_stack_unwind_buffer(pc, stack, kStackLength);
+  size =
+      static_cast<int>(emscripten_stack_unwind_buffer(pc, stack, kStackLength));
 
   int result_count = size - skip_count;
   if (result_count < 0) result_count = 0;
@@ -87,10 +89,10 @@ static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
   if (IS_STACK_FRAMES) {
     // No implementation for finding out the stack frames yet.
     if (frames != nullptr) {
-      memset(frames, 0, sizeof(*frames) * result_count);
+      memset(frames, 0, sizeof(*frames) * static_cast<size_t>(result_count));
     }
     if (sizes != nullptr) {
-      memset(sizes, 0, sizeof(*sizes) * result_count);
+      memset(sizes, 0, sizeof(*sizes) * static_cast<size_t>(result_count));
     }
   }
   if (min_dropped_frames != nullptr) {

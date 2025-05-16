@@ -69,6 +69,7 @@ static inline void **StacktracePowerPCGetLRPtr(void **sp) {
 template<bool STRICT_UNWINDING, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static void **NextStackFrame(void **old_sp, const void *uc) {
   void **new_sp = (void **) *old_sp;
   enum { kStackAlignment = 16 };
@@ -164,6 +165,7 @@ ABSL_ATTRIBUTE_NOINLINE static void AbslStacktracePowerPCDummyFunction() {
 template <bool IS_STACK_FRAMES, bool IS_WITH_CONTEXT>
 ABSL_ATTRIBUTE_NO_SANITIZE_ADDRESS  // May read random elements from stack.
 ABSL_ATTRIBUTE_NO_SANITIZE_MEMORY   // May read random elements from stack.
+ABSL_ATTRIBUTE_NO_SANITIZE_THREAD   // May read random elements from stack.
 static int UnwindImpl(void **result, uintptr_t *frames, int *sizes,
                       int max_depth, int skip_count, const void *ucp,
                       int *min_dropped_frames) {

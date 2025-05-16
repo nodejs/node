@@ -86,6 +86,12 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
                       DirectHandle<NativeContext> native_context,
                       LanguageMode language_mode, int position);
 
+  void UpdateEval(DirectHandle<String> source,
+                  DirectHandle<SharedFunctionInfo> outer_info,
+                  DirectHandle<NativeContext> native_context,
+                  DirectHandle<FeedbackCell> new_feedback_cell,
+                  LanguageMode language_mode, int position);
+
   void Put(DirectHandle<String> source,
            DirectHandle<SharedFunctionInfo> outer_info,
            DirectHandle<SharedFunctionInfo> function_info,
@@ -101,7 +107,7 @@ class CompilationCacheEval : public CompilationCacheEvalOrScript {
 // Sub-cache for regular expressions.
 class CompilationCacheRegExp {
  public:
-  CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
+  explicit CompilationCacheRegExp(Isolate* isolate) : isolate_(isolate) {}
 
   MaybeDirectHandle<RegExpData> Lookup(DirectHandle<String> source,
                                        JSRegExp::Flags flags);
@@ -158,6 +164,12 @@ class V8_EXPORT_PRIVATE CompilationCache {
                           DirectHandle<SharedFunctionInfo> outer_info,
                           DirectHandle<Context> context,
                           LanguageMode language_mode, int position);
+
+  void UpdateEval(DirectHandle<String> source,
+                  DirectHandle<SharedFunctionInfo> outer_info,
+                  DirectHandle<Context> context,
+                  DirectHandle<FeedbackCell> new_feedback_cell,
+                  LanguageMode language_mode, int position);
 
   // Returns the regexp data associated with the given regexp if it
   // is in cache, otherwise an empty handle.

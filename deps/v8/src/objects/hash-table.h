@@ -518,13 +518,12 @@ class V8_EXPORT_PRIVATE ObjectHashSet
   inline bool Has(Isolate* isolate, DirectHandle<Object> key);
 };
 
-class NameToIndexShape : public BaseShape<DirectHandle<Name>> {
+class NameToIndexShape : public BaseShape<Tagged<Name>> {
  public:
-  static inline bool IsMatch(DirectHandle<Name> key, Tagged<Object> other);
-  static inline uint32_t Hash(ReadOnlyRoots roots, DirectHandle<Name> key);
+  static inline bool IsMatch(Tagged<Name> key, Tagged<Object> other);
+  static inline uint32_t Hash(ReadOnlyRoots roots, Tagged<Name> key);
   static inline uint32_t HashForObject(ReadOnlyRoots roots,
                                        Tagged<Object> object);
-  static inline DirectHandle<Object> AsHandle(DirectHandle<Name> key);
   static const int kPrefixSize = 0;
   static const int kEntryValueIndex = 1;
   static const int kEntrySize = 2;
@@ -539,7 +538,7 @@ class V8_EXPORT_PRIVATE NameToIndexHashTable
   static const int kEntryValueIndex = NameToIndexShape::kEntryValueIndex;
 
   inline static DirectHandle<Map> GetMap(RootsTable& roots);
-  int Lookup(DirectHandle<Name> key);
+  int Lookup(Tagged<Name> key);
 
   // Returns the value at entry.
   Tagged<Object> ValueAt(InternalIndex entry);
