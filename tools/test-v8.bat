@@ -6,8 +6,8 @@ set path=%DEPOT_TOOLS_PATH%;%path%
 pushd .
 
 set ERROR_STATUS=0
-echo calling: tools\make-v8.sh
-sh tools\make-v8.sh
+echo calling: tools\build_v8.py
+python3 tools\build_v8.py
 if errorlevel 1 set ERROR_STATUS=1&goto test-v8-exit
 cd %~dp0
 cd deps\v8
