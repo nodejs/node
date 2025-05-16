@@ -45,6 +45,9 @@
             }
           ]
         },
+        "allow-net": {
+          "type": "boolean"
+        },
         "allow-wasi": {
           "type": "boolean"
         },

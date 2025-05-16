@@ -263,6 +263,38 @@ When passing a single flag with a comma a warning will be displayed.
 
 Examples can be found in the [File System Permissions][] documentation.
 
+### `--allow-net`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1.1 - Active development
+
+When using the [Permission Model][], the process will not be able to access
+network by default.
+Attempts to do so will throw an `ERR_ACCESS_DENIED` unless the
+user explicitly passes the `--allow-net` flag when starting Node.js.
+
+Example:
+
+```js
+const http = require('node:http');
+// Attempt to bypass the permission
+const req = http.get('http://example.com', () => {});
+
+req.on('error', (err) => {
+  console.log('err', err);
+});
+```
+
+```console
+$ node --permission index.js
+Error: connect ERR_ACCESS_DENIED Access to this API has been restricted. Use --allow-net to manage permissions.
+  code: 'ERR_ACCESS_DENIED',
+}
+```
+
 ### `--allow-wasi`
 
 <!-- YAML
@@ -1932,6 +1964,7 @@ following permissions are restricted:
 
 * File System - manageable through
   [`--allow-fs-read`][], [`--allow-fs-write`][] flags
+* Network - manageable through [`--allow-net`][] flag
 * Child Process - manageable through [`--allow-child-process`][] flag
 * Worker Threads - manageable through [`--allow-worker`][] flag
 * WASI - manageable through [`--allow-wasi`][] flag
@@ -3278,6 +3311,7 @@ one is included in the list below.
 * `--allow-child-process`
 * `--allow-fs-read`
 * `--allow-fs-write`
+* `--allow-net`
 * `--allow-wasi`
 * `--allow-worker`
 * `--conditions`, `-C`
@@ -3880,6 +3914,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`--allow-child-process`]: #--allow-child-process
 [`--allow-fs-read`]: #--allow-fs-read
 [`--allow-fs-write`]: #--allow-fs-write
+[`--allow-net`]: #--allow-net
 [`--allow-wasi`]: #--allow-wasi
 [`--allow-worker`]: #--allow-worker
 [`--build-snapshot`]: #--build-snapshot

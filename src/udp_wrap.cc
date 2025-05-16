@@ -26,6 +26,7 @@
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_sockaddr-inl.h"
+#include "permission/permission.h"
 #include "req_wrap-inl.h"
 #include "util-inl.h"
 
@@ -306,6 +307,13 @@ void UDPWrap::DoBind(const FunctionCallbackInfo<Value>& args, int family) {
   CHECK_EQ(args.Length(), 3);
 
   node::Utf8Value address(args.GetIsolate(), args[0]);
+
+  // Check for network permission
+  Environment* env = wrap->env();
+
+  ERR_ACCESS_DENIED_IF_INSUFFICIENT_PERMISSIONS(
+      env, permission::PermissionScope::kNet, address.ToStringView(), args);
+
   Local<Context> ctx = args.GetIsolate()->GetCurrentContext();
   uint32_t port, flags;
   if (!args[1]->Uint32Value(ctx).To(&port) ||
@@ -330,6 +338,13 @@ void UDPWrap::DoConnect(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+
+  // Check for network permission
+  Environment* env = wrap->env();
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kNet,
+                                    "",
+                                    args.GetReturnValue().Set(UV_EACCES));
 
   CHECK_EQ(args.Length(), 2);
 
@@ -521,6 +536,12 @@ void UDPWrap::DoSend(const FunctionCallbackInfo<Value>& args, int family) {
   UDPWrap* wrap;
   ASSIGN_OR_RETURN_UNWRAP(
       &wrap, args.This(), args.GetReturnValue().Set(UV_EBADF));
+
+  // Check for network permission
+  THROW_IF_INSUFFICIENT_PERMISSIONS(env,
+                                    permission::PermissionScope::kNet,
+                                    "",
+                                    args.GetReturnValue().Set(UV_EACCES));
 
   CHECK(args.Length() == 4 || args.Length() == 6);
   CHECK(args[0]->IsObject());
