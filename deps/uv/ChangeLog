@@ -1,4 +1,175 @@
-2024.10.18, Version 1.49.2 (Stable)
+2025.04.25, Version 1.51.0 (Stable)
+
+Changes since version 1.50.0:
+
+* win: fix leak in uv_os_tmpdir (Saúl Ibarra Corretgé)
+
+* docs: fix RTD build (Saúl Ibarra Corretgé)
+
+* win: lazy-load [GS]etThreadDescription symbols (Ben Noordhuis)
+
+* linux: try preadv64/pwritev64 before preadv/pwritev (Ben Noordhuis)
+
+* win: check cwd length before spawning a child process (Morten Engelhardt
+  Olsen)
+
+* macos,bsd: handle missing /dev/null in chroot env (Andrey)
+
+* doc: fix README link text (Julio Jordán)
+
+* win: fix order of FILE_STAT_BASIC_INFORMATION struct fields (Hüseyin Açacak)
+
+* macos: increase child process stdio buffer size (Jinho Jang)
+
+* doc: add C3 bindings to LINKS.md (Velikiy Kirill)
+
+* unix: remove unnecessary errno.h include in poll.c (Juan José Arboleda)
+
+* win: fix the inconsistency in volume serial number (Hüseyin Açacak)
+
+* unix: add thread affinity support on openharmony (rainlow)
+
+* unix: enable getrusage for SunOS (Paolo Insogna)
+
+* unix,win: accept NAN/INFINITY as file timestamps (Ben Noordhuis)
+
+* win: add ENABLE_VIRTUAL_TERMINAL_INPUT raw tty mode (Anna Henningsen)
+
+* test: handle UV_ENOTSUP in platform_output (cjihrig)
+
+* doc: fix rendering of threading.html (Tobias Nießen)
+
+* unix,sunos: enable use of sendmmsg on Solaris and Illumos (Stacey Marshall)
+
+* unix: handle out of memory in iface name copy (Ben Noordhuis)
+
+* openbsd: do not error out if cpuspeed is not available (Robert Nagy)
+
+* test: skip thread_name_threadpool on AIX/IBMi (Abdirahim Musse)
+
+* aix,ibmi: fix undeclared identifiers (Richard Lau)
+
+* unix,sunos: prefer SO_REUSEPORT for load balancing (Stacey Marshall)
+
+* doc: free lib pointer before function return (mugitya03)
+
+* test: link with libm (Juan José Arboleda)
+
+* style: rename parameter to match definition (Mohammed Keyvanzadeh)
+
+* test: support partial output lines in test runner (cjihrig)
+
+* build: switch from c90 to c11 (Ben Noordhuis)
+
+* linux: allow nul bytes in abstract socket address (Itay Bookstein)
+
+* sunos: use pipe2 on solaris and illumos (Andy Pan)
+
+* unix: remove TOCTOU issues from uv_pipe_chmod (Ben Noordhuis)
+
+* unix: use pipe_fname if getsockname returns nothing (crupest)
+
+* haiku: use uint32 instead of uint32_t (AE1020)
+
+* doc: update thread pool stack size comment (Ben Noordhuis)
+
+* unix: improve uv_loop_init OOM handling (Ben Noordhuis)
+
+* test: merge uv_tcp_connect callbacks (Juan José Arboleda)
+
+* test: skip multievent tests on macOS with TSAN enabled (Juan José Arboleda)
+
+* linux: align CPU quota calculation with Rust (Juan José Arboleda)
+
+* kqueue: improve fs event watcher OOM handling (Juan José Arboleda)
+
+* sunos: improve fs event watcher OOM handling (Juan José Arboleda)
+
+* build: shorten instructions for cmake build (Juan José Arboleda)
+
+
+2025.01.15, Version 1.50.0 (Stable), 8fb9cb919489a48880680a56efecff6a7dfb4504
+
+Changes since version 1.49.2:
+
+* ci: run macOS and iOS tests also on macOS 14 (Saúl Ibarra Corretgé)
+
+* unix,win: map ENOEXEC errno (Saúl Ibarra Corretgé)
+
+* test: skip multicast join test on ENOEXEC (Saúl Ibarra Corretgé)
+
+* ci: make sure the macOS firewall is disabled (Saúl Ibarra Corretgé)
+
+* darwin,test: squelch EBUSY error on multicast join (Saúl Ibarra Corretgé)
+
+* build: update minimum cmake to 3.10 (Ben Noordhuis)
+
+* kqueue: use EVFILT_USER for async if available (Jameson Nash)
+
+* unix,win: fix off-by-one in uv_wtf8_to_utf16() (Ben Noordhuis)
+
+* doc: add scala-native-loop to LINKS.md (Julian A Avar C)
+
+* unix: fix build breakage on haiku, openbsd, etc (Jeffrey H. Johnson)
+
+* kqueue: lower overhead in uv__io_check_fd (Andy Pan)
+
+* doc: move cjihrig back to active maintainers (cjihrig)
+
+* build(deps): bump actions/checkout from 3 to 4 (dependabot[bot])
+
+* unix,pipe: fix handling null buffer in uv_pipe_get{sock,peer}name (Saúl
+  Ibarra Corretgé)
+
+* unix,win: harmonize buffer checking (Saúl Ibarra Corretgé)
+
+* unix,win: add support for detached threads (Juan José Arboleda)
+
+* src: add uv_thread_set/getname() methods (Santiago Gimeno)
+
+* build: fix qemu builds (Ben Noordhuis)
+
+* win: drop support for windows 8 (Ben Noordhuis)
+
+* linux: fix uv_cpu_info() arm cpu model detection (Ben Noordhuis)
+
+* linux: always use io_uring for epoll batching (Ben Noordhuis)
+
+* doc: clarify repeating timer behavior more (Ben Noordhuis)
+
+* unix,win: handle nbufs=0 in uv_udp_try_send (Ben Noordhuis)
+
+* win: use GetQueuedCompletionStatusEx directly (Saúl Ibarra Corretgé)
+
+* win: enable uv_thread_{get,set}name on MinGW (Saúl Ibarra Corretgé)
+
+* win: drop support for the legacy MinGW (Saúl Ibarra Corretgé)
+
+* win,fs: get (most) fstat when no permission (Jameson Nash)
+
+* win: plug uv_fs_event_start memory leak (amcgoogan)
+
+* test: address FreeBSD kernel bug causing NULL path in fsevents (Juan José
+  Arboleda)
+
+* unix: refactor udp sendmsg code (Ben Noordhuis)
+
+* unix,win: add uv_udp_try_send2 (Ben Noordhuis)
+
+* test: fix flaky flaky udp_mmsg test (Juan José Arboleda)
+
+* build: enable fdsan in Android (Juan José Arboleda)
+
+* test: fix udp-multicast-join for FreeBSD (Juan José Arboleda)
+
+* win: fix leak processing fs event (Saúl Ibarra Corretgé)
+
+* src: set a default thread name for workers (Rafael Gonzaga)
+
+* misc: implement uv_getrusage_thread (Juan José Arboleda)
+
+
+2024.10.18, Version 1.49.2 (Stable), e1095c7a4373ce00cd8874d8e820de5afb25776e
 
 Changes since version 1.49.1:
 

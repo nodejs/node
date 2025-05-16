@@ -1,4 +1,4 @@
-/* Copyright Joyent, Inc. and other Node contributors. All rights reserved.
+/* Copyright libuv contributors. All rights reserved.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
  * of this software and associated documentation files (the "Software"), to
@@ -19,25 +19,44 @@
  * IN THE SOFTWARE.
  */
 
-#ifndef UV_VERSION_H
-#define UV_VERSION_H
+#include "uv.h"
+#include "task.h"
+#include <stdlib.h>
+#include <string.h>
 
- /*
- * Versions with the same major number are ABI stable. API is allowed to
- * evolve between minor releases, but only in a backwards compatible way.
- * Make sure you update the -soname directives in configure.ac
- * whenever you bump UV_VERSION_MAJOR or UV_VERSION_MINOR (but
- * not UV_VERSION_PATCH.)
- */
+static int limit;
+static int alloc;
 
-#define UV_VERSION_MAJOR 1
-#define UV_VERSION_MINOR 51
-#define UV_VERSION_PATCH 0
-#define UV_VERSION_IS_RELEASE 1
-#define UV_VERSION_SUFFIX ""
+static void* t_realloc(void* p, size_t n) {
+  alloc += n;
+  if (alloc > limit)
+    return NULL;
+  p = realloc(p, n);
+  ASSERT_NOT_NULL(p);
+  return p;
+}
 
-#define UV_VERSION_HEX  ((UV_VERSION_MAJOR << 16) | \
-                         (UV_VERSION_MINOR <<  8) | \
-                         (UV_VERSION_PATCH))
+static void* t_calloc(size_t m, size_t n) {
+  return t_realloc(NULL, m * n);
+}
 
-#endif /* UV_VERSION_H */
+static void* t_malloc(size_t n) {
+  return t_realloc(NULL, n);
+}
+
+TEST_IMPL(loop_init_oom) {
+  uv_loop_t loop;
+  int err;
+
+  ASSERT_OK(uv_replace_allocator(t_malloc, t_realloc, t_calloc, free));
+  for (;;) {
+    err = uv_loop_init(&loop);
+    if (err == 0)
+      break;
+    ASSERT_EQ(err, UV_ENOMEM);
+    limit += 8;
+    alloc = 0;
+  }
+  ASSERT_OK(uv_loop_close(&loop));
+  return 0;
+}
