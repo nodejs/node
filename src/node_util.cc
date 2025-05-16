@@ -205,7 +205,7 @@ static uint32_t GetUVHandleTypeCode(const uv_handle_type type) {
       return 5;
     default:
       // For an unhandled handle type, we want to return `UNKNOWN` instead of
-      // `INVALID` since the type is "known" by UV, just not exposed further to
+      // `null` since the type is "known" by UV, just not exposed further to
       // JS land
       return 5;
   }
@@ -218,7 +218,7 @@ static void GuessHandleType(const FunctionCallbackInfo<Value>& args) {
   if (!args[0]->Int32Value(env->context()).To(&fd)) return;
 
   // If the provided file descriptor is not valid, we return `-1`, which in JS
-  // land will be marked as "INVALID"
+  // land will be marked as null
   if (fd < 0) [[unlikely]] {
     args.GetReturnValue().Set(-1);
     return;
