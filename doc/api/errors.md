@@ -189,7 +189,7 @@ a string representing the location in the code at which
 ```js
 const myObject = {};
 Error.captureStackTrace(myObject);
-myObject.stack;  // Similar to `new Error().stack`
+myObject.stack; // Similar to `new Error().stack`
 ```
 
 The first line of the trace will be prefixed with
@@ -600,7 +600,7 @@ Indicates that a provided argument is not an allowable type. For example,
 passing a function to a parameter which expects a string would be a `TypeError`.
 
 ```js
-require('node:url').parse(() => { });
+require('node:url').parse(() => {});
 // Throws TypeError, since it expected a string.
 ```
 
@@ -1120,6 +1120,17 @@ added:
 -->
 
 An attempt to invoke an unsupported crypto operation was made.
+
+<a id="ERR_CWD_DELETED"></a>
+
+### `ERR_CWD_DELETED`
+
+<!-- YAML
+added:
+  - v25.0.0
+-->
+
+`process.cwd()` was called on a directory that no longer exists.
 
 <a id="ERR_DEBUGGER_ERROR"></a>
 
@@ -2935,7 +2946,7 @@ The context must be a `SecureContext`.
 
 ### `ERR_TLS_INVALID_PROTOCOL_METHOD`
 
-The specified  `secureProtocol` method is invalid. It is  either unknown, or
+The specified `secureProtocol` method is invalid. It is either unknown, or
 disabled because it is insecure.
 
 <a id="ERR_TLS_INVALID_PROTOCOL_VERSION"></a>

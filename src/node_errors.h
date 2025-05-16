@@ -71,6 +71,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, Error)                                        \
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, Error)                                   \
   V(ERR_CRYPTO_JOB_INIT_FAILED, Error)                                         \
+  V(ERR_CWD_DELETED, Error)                                         \
   V(ERR_DLOPEN_DISABLED, Error)                                                \
   V(ERR_DLOPEN_FAILED, Error)                                                  \
   V(ERR_ENCODING_INVALID_ENCODED_DATA, TypeError)                              \
@@ -203,6 +204,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_UNKNOWN_DH_GROUP, "Unknown DH group")                           \
   V(ERR_CRYPTO_UNSUPPORTED_OPERATION, "Unsupported crypto operation")          \
   V(ERR_CRYPTO_JOB_INIT_FAILED, "Failed to initialize crypto job config")      \
+  V(ERR_CWD_DELETED, "Current working directory has been deleted")      \
   V(ERR_DLOPEN_FAILED, "DLOpen failed")                                        \
   V(ERR_EXECUTION_ENVIRONMENT_NOT_AVAILABLE,                                   \
     "Context not associated with Node.js environment")                         \

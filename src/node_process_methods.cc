@@ -163,6 +163,10 @@ static void Cwd(const FunctionCallbackInfo<Value>& args) {
   size_t cwd_len = sizeof(buf);
   int err = uv_cwd(buf, &cwd_len);
   if (err) {
+    if (err == UV_ENOENT) {
+      return THROW_ERR_CWD_DELETED(env);
+    }
+
     return env->ThrowUVException(err, "uv_cwd");
   }
 
