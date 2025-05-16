@@ -277,7 +277,7 @@ shared_optgroup.add_argument('--shared-http-parser-includes',
 shared_optgroup.add_argument('--shared-http-parser-libname',
     action='store',
     dest='shared_http_parser_libname',
-    default='http_parser',
+    default='llhttp',
     help='alternative lib name to link to [default: %(default)s]')
 
 shared_optgroup.add_argument('--shared-http-parser-libpath',
@@ -2265,7 +2265,7 @@ configure_node_lib_files(output)
 configure_node_cctest_sources(output)
 configure_napi(output)
 configure_library('zlib', output)
-configure_library('http_parser', output)
+configure_library('http_parser', output, pkgname='libllhttp')
 configure_library('libuv', output)
 configure_library('ada', output)
 configure_library('simdjson', output)
