@@ -2441,21 +2441,21 @@ napi_status NAPI_CDECL napi_get_value_string_latin1(
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
+  v8::Local<v8::String> str = val.As<v8::String>();
 
   if (!buf) {
     CHECK_ARG(env, result);
-    *result = val.As<v8::String>()->Length();
+    *result = str->Length();
   } else if (bufsize != 0) {
-    int copied =
-        val.As<v8::String>()->WriteOneByte(env->isolate,
-                                           reinterpret_cast<uint8_t*>(buf),
-                                           0,
-                                           bufsize - 1,
-                                           v8::String::NO_NULL_TERMINATION);
-
-    buf[copied] = '\0';
+    uint32_t length = static_cast<uint32_t>(
+        std::min(bufsize - 1, static_cast<size_t>(str->Length())));
+    str->WriteOneByteV2(env->isolate,
+                        0,
+                        length,
+                        reinterpret_cast<uint8_t*>(buf),
+                        v8::String::WriteFlags::kNullTerminate);
     if (result != nullptr) {
-      *result = copied;
+      *result = length;
     }
   } else if (result != nullptr) {
     *result = 0;
@@ -2479,12 +2479,12 @@ napi_status NAPI_CDECL napi_get_value_string_utf8(
 
   v8::Local<v8::Value> val = v8impl::V8LocalValueFromJsValue(value);
   RETURN_STATUS_IF_FALSE(env, val->IsString(), napi_string_expected);
+  v8::Local<v8::String> str = val.As<v8::String>();
 
   if (!buf) {
     CHECK_ARG(env, result);
-    *result = val.As<v8::String>()->Utf8LengthV2(env->isolate);
+    *result = str->Utf8LengthV2(env->isolate);
   } else if (bufsize != 0) {
-    auto str = val.As<v8::String>();
     size_t copied =
         str->WriteUtf8V2(env->isolate,
                          buf,
