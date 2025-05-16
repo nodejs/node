@@ -19,7 +19,7 @@ diagnosticsChannel.channel('undici:request:create').subscribe(({ request }) => {
   console.log('completed', request.completed)
   console.log('method', request.method)
   console.log('path', request.path)
-  console.log('headers') // array of strings, e.g: ['foo', 'bar']
+  console.log('headers', request.headers) // array of strings, e.g: ['foo', 'bar']
   request.addHeader('hello', 'world')
   console.log('headers', request.headers) // e.g. ['foo', 'bar', 'hello', 'world']
 })

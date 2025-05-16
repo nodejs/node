@@ -16,11 +16,12 @@ const {
   kMockAgentIsCallHistoryEnabled,
   kMockAgentAddCallHistoryLog,
   kMockAgentMockCallHistoryInstance,
+  kMockAgentAcceptsNonStandardSearchParameters,
   kMockCallHistoryAddLog
 } = require('./mock-symbols')
 const MockClient = require('./mock-client')
 const MockPool = require('./mock-pool')
-const { matchValue, buildAndValidateMockOptions } = require('./mock-utils')
+const { matchValue, normalizeSearchParams, buildAndValidateMockOptions } = require('./mock-utils')
 const { InvalidArgumentError, UndiciError } = require('../core/errors')
 const Dispatcher = require('../dispatcher/dispatcher')
 const PendingInterceptorsFormatter = require('./pending-interceptors-formatter')
@@ -35,6 +36,7 @@ class MockAgent extends Dispatcher {
     this[kNetConnect] = true
     this[kIsMockActive] = true
     this[kMockAgentIsCallHistoryEnabled] = mockOptions?.enableCallHistory ?? false
+    this[kMockAgentAcceptsNonStandardSearchParameters] = mockOptions?.acceptNonStandardSearchParameters ?? false
 
     // Instantiate Agent and encapsulate
     if (opts?.agent && typeof opts.agent.dispatch !== 'function') {
@@ -67,7 +69,17 @@ class MockAgent extends Dispatcher {
 
     this[kMockAgentAddCallHistoryLog](opts)
 
-    return this[kAgent].dispatch(opts, handler)
+    const acceptNonStandardSearchParameters = this[kMockAgentAcceptsNonStandardSearchParameters]
+
+    const dispatchOpts = { ...opts }
+
+    if (acceptNonStandardSearchParameters && dispatchOpts.path) {
+      const [path, searchParams] = dispatchOpts.path.split('?')
+      const normalizedSearchParams = normalizeSearchParams(searchParams, acceptNonStandardSearchParameters)
+      dispatchOpts.path = `${path}?${normalizedSearchParams}`
+    }
+
+    return this[kAgent].dispatch(dispatchOpts, handler)
   }
 
   async close () {

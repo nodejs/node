@@ -92,13 +92,42 @@ function matchHeaders (mockDispatch, headers) {
   return true
 }
 
+function normalizeSearchParams (query) {
+  if (typeof query !== 'string') {
+    return query
+  }
+
+  const originalQp = new URLSearchParams(query)
+  const normalizedQp = new URLSearchParams()
+
+  for (let [key, value] of originalQp.entries()) {
+    key = key.replace('[]', '')
+
+    const valueRepresentsString = /^(['"]).*\1$/.test(value)
+    if (valueRepresentsString) {
+      normalizedQp.append(key, value)
+      continue
+    }
+
+    if (value.includes(',')) {
+      const values = value.split(',')
+      for (const v of values) {
+        normalizedQp.append(key, v)
+      }
+      continue
+    }
+
+    normalizedQp.append(key, value)
+  }
+
+  return normalizedQp
+}
+
 function safeUrl (path) {
   if (typeof path !== 'string') {
     return path
   }
-
   const pathSegments = path.split('?', 3)
-
   if (pathSegments.length !== 2) {
     return path
   }
@@ -376,6 +405,10 @@ function buildAndValidateMockOptions (opts) {
       throw new InvalidArgumentError('options.enableCallHistory must to be a boolean')
     }
 
+    if ('acceptNonStandardSearchParameters' in mockOptions && typeof mockOptions.acceptNonStandardSearchParameters !== 'boolean') {
+      throw new InvalidArgumentError('options.acceptNonStandardSearchParameters must to be a boolean')
+    }
+
     return mockOptions
   }
 }
@@ -395,5 +428,6 @@ module.exports = {
   checkNetConnect,
   buildAndValidateMockOptions,
   getHeaderByName,
-  buildHeadersFromArray
+  buildHeadersFromArray,
+  normalizeSearchParams
 }
