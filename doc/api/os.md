@@ -516,9 +516,9 @@ added: REPLACEME
 
 * `fd` {integer} The file descriptor number to try and guess the type of.
 
-* Returns: {string}
+* Returns: {string|null}
 
-Returns the type of the file descriptor passed in, or `'INVALID'` if the provided file descriptor
+Returns the type of the file descriptor passed in, or `null` if the provided file descriptor
 is invalid.
 
 Currently, the following types for a file descriptor can be returned:
@@ -529,7 +529,6 @@ Currently, the following types for a file descriptor can be returned:
 * `'FILE'`
 * `'PIPE'`
 * `'UNKNOWN'`
-* `'INVALID'`
 
 ## OS constants
 
