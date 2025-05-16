@@ -1,5 +1,5 @@
 /*
- * Copyright 2019-2021 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2019-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,11 +11,31 @@
 #include "prov/blake2.h"        /* diverse BLAKE2 macros */
 #include "legacy_meth.h"
 
-#define ossl_blake2b_init ossl_blake2b512_init
-#define ossl_blake2s_init ossl_blake2s256_init
+/*
+ * Local hack to adapt the BLAKE2 init functions to what the
+ * legacy function signatures demand.
+ */
+static int blake2s_init(BLAKE2S_CTX *C)
+{
+    BLAKE2S_PARAM P;
 
-IMPLEMENT_LEGACY_EVP_MD_METH_LC(blake2s_int, ossl_blake2s)
-IMPLEMENT_LEGACY_EVP_MD_METH_LC(blake2b_int, ossl_blake2b)
+    ossl_blake2s_param_init(&P);
+    return ossl_blake2s_init(C, &P);
+}
+static int blake2b_init(BLAKE2B_CTX *C)
+{
+    BLAKE2B_PARAM P;
+
+    ossl_blake2b_param_init(&P);
+    return ossl_blake2b_init(C, &P);
+}
+#define blake2s_update ossl_blake2s_update
+#define blake2b_update ossl_blake2b_update
+#define blake2s_final ossl_blake2s_final
+#define blake2b_final ossl_blake2b_final
+
+IMPLEMENT_LEGACY_EVP_MD_METH_LC(blake2s_int, blake2s)
+IMPLEMENT_LEGACY_EVP_MD_METH_LC(blake2b_int, blake2b)
 
 static const EVP_MD blake2b_md = {
     NID_blake2b512,

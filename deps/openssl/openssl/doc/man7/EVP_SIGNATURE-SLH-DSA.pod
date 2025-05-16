@@ -1,0 +1,136 @@
+=pod
+
+=head1 NAME
+
+EVP_SIGNATURE-SLH-DSA,
+EVP_SIGNATURE-SLH-DSA-SHA2-128s, EVP_SIGNATURE-SLH-DSA-SHA2-128f,
+EVP_SIGNATURE-SLH-DSA-SHA2-192s, EVP_SIGNATURE-SLH-DSA-SHA2-192f,
+EVP_SIGNATURE-SLH-DSA-SHA2-256s, EVP_SIGNATURE-SLH-DSA-SHA2-256f,
+EVP_SIGNATURE-SLH-DSA-SHAKE-128s, EVP_SIGNATURE-SLH-DSA-SHAKE-128f,
+EVP_SIGNATURE-SLH-DSA-SHAKE-192s, EVP_SIGNATURE-SLH-DSA-SHAKE-192f,
+EVP_SIGNATURE-SLH-DSA-SHAKE-256s, EVP_SIGNATURE-SLH-DSA-SHAKE-256f
+- EVP_PKEY SLH-DSA support
+
+=head1 DESCRIPTION
+
+The B<SLH-DSA-SHA2-128s>, B<EVP_PKEY-SLH-DSA-SHA2-128f>,
+B<SLH-DSA-SHA2-192s>, B<EVP_PKEY-SLH-DSA-SHA2-192f>,
+B<SLH-DSA-SHA2-256s>, B<EVP_PKEY-SLH-DSA-SHA2-256f>,
+B<SLH-DSA-SHAKE-128s>, B<EVP_PKEY-SLH-DSA-SHAKE-128f>,
+B<SLH-DSA-SHAKE-192s>, B<EVP_PKEY-SLH-DSA-SHAKE-192f>,
+B<SLH-DSA-SHAKE-256s> and B<EVP_PKEY-SLH-DSA-SHAKE-256f> EVP_PKEY implementations
+supports key generation, one-shot sign and verify using the SLH-DSA
+signature schemes described in FIPS 205.
+
+The different algorithms names correspond to the parameter sets defined in
+FIPS 205 Section 11 Table 2.
+C<s> types have smaller signature sizes, and the C<f> variants are faster,
+(The signatures range from ~8K to ~50K depending on the type chosen). There are
+3 different security categories also depending on the type.
+
+L<EVP_SIGNATURE_fetch(3)> can be used to explicitely fetch one of the 12
+algorithms which can then be used with L<EVP_PKEY_sign_message_init(3)>,
+L<EVP_PKEY_sign(3)>, L<EVP_PKEY_verify_message_init(3)>, and
+L<EVP_PKEY_verify(3)> to perform one-shot message signing or verification.
+
+The normal signing process (called Pure SLH-DSA Signature Generation)
+encodes the message internally as 0x00 || len(ctx) || ctx || message.
+where B<ctx> is some optional value of size 0x00..0xFF.
+OpenSSL also allows the message to not be encoded which is required for
+testing. OpenSSL does not support Pre Hash SLH-DSA Signature Generation, but this
+may be done by the user by doing Pre hash encoding externally and then chosing
+the option to not encode the message.
+
+=head2 SLH-DSA Signature Parameters
+
+The C<context-string> parameter, described below, can be used for both signing
+and verification.
+It may be set by passing an OSSL_PARAM array to L<EVP_PKEY_sign_init_ex2(3)> or
+L<EVP_PKEY_verify_init_ex2(3)>
+
+=over 4
+
+=item "context-string" (B<OSSL_SIGNATURE_PARAM_CONTEXT_STRING>) <octet string>
+
+A string of octets with length at most 255. By default it is the empty string.
+
+=back
+
+The following parameters can be used when signing:
+They can be set by passing an OSSL_PARAM array to L<EVP_PKEY_sign_init_ex2(3)>.
+
+=over 4
+
+=item "message-encoding" (B<OSSL_SIGNATURE_PARAM_MESSAGE_ENCODING>) <integer>
+
+The default value of 1 uses 'Pure SLH-DSA Signature Generation' as described
+above. Setting it to 0 does not encode the message, which is used for testing,
+but can also be used for 'Pre Hash SLH-DSA Signature Generation'.
+
+=item "test-entropy" (B<OSSL_SIGNATURE_PARAM_TEST_ENTROPY <octet string>
+
+Used for testing to pass a optional random value.
+
+=item "deterministic" (B<OSSL_SIGNATURE_PARAM_DETERMINISTIC>) <integer>
+
+The default value of 0 generates a random value (using a DRBG) this is used when
+processing the message. Setting this to 1 causes the private key seed to be used
+instead. This value is ignored if "test-entropy" is set.
+
+=back
+
+See L<EVP_PKEY-SLH-DSA(7)> for information related to B<SLH-DSA> keys.
+
+=head1 NOTES
+
+For backwards compatibility reasons EVP_DigestSignInit_ex(), EVP_DigestSign(),
+EVP_DigestVerifyInit_ex() and EVP_DigestVerify() may also be used, but the digest
+passed in I<mdname> must be NULL.
+
+=head1 EXAMPLES
+
+To sign a message using an SLH-DSA EVP_PKEY structure:
+
+    void do_sign(EVP_PKEY *key, unsigned char *msg, size_t msg_len)
+    {
+        size_t sig_len;
+        unsigned char *sig = NULL;
+        const OSSL_PARAM params[] = {
+            OSSL_PARAM_octet_string("context-string", (unsigned char *)"A context string", 33),
+            OSSL_PARAM_END
+        };
+        EVP_PKEY_CTX *sctx = EVP_PKEY_CTX_new_from_pkey(NULL, pkey, NULL);
+        EVP_SIGNATURE *sig_alg = EVP_SIGNATURE_fetch(NULL, "SLH-DSA-SHA2-128s", NULL);
+
+        EVP_PKEY_sign_message_init(sctx, sig_alg, params);
+        /* Calculate the required size for the signature by passing a NULL buffer. */
+        EVP_PKEY_sign(sctx, NULL, &sig_len, msg, msg_len);
+        sig = OPENSSL_zalloc(sig_len);
+        EVP_PKEY_sign(sctx, sig, &sig_len, msg, msg_len);
+        ...
+        OPENSSL_free(sig);
+        EVP_SIGNATURE(sig_alg);
+        EVP_PKEY_CTX_free(sctx);
+    }
+
+=head1 SEE ALSO
+
+L<EVP_PKEY-SLH-DSA(7)>
+L<provider-signature(7)>,
+L<EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)>,
+
+=head1 HISTORY
+
+This functionality was added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

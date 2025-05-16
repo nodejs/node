@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+bio - Basic I/O abstraction
+
+=head1 SYNOPSIS
+
+=for openssl generic
+
+ #include <openssl/bio.h>
+
+=head1 DESCRIPTION
+
+A BIO is an I/O abstraction, it hides many of the underlying I/O
+details from an application. If an application uses a BIO for its
+I/O it can transparently handle SSL connections, unencrypted network
+connections and file I/O.
+
+There are two types of BIO, a source/sink BIO and a filter BIO.
+
+As its name implies a source/sink BIO is a source and/or sink of data,
+examples include a socket BIO and a file BIO.
+
+A filter BIO takes data from one BIO and passes it through to
+another, or the application. The data may be left unmodified (for
+example a message digest BIO) or translated (for example an
+encryption BIO). The effect of a filter BIO may change according
+to the I/O operation it is performing: for example an encryption
+BIO will encrypt data if it is being written to and decrypt data
+if it is being read from.
+
+BIOs can be joined together to form a chain (a single BIO is a chain
+with one component). A chain normally consists of one source/sink
+BIO and one or more filter BIOs. Data read from or written to the
+first BIO then traverses the chain to the end (normally a source/sink
+BIO).
+
+Some BIOs (such as memory BIOs) can be used immediately after calling
+BIO_new(). Others (such as file BIOs) need some additional initialization,
+and frequently a utility function exists to create and initialize such BIOs.
+
+If BIO_free() is called on a BIO chain it will only free one BIO resulting
+in a memory leak.
+
+Calling BIO_free_all() on a single BIO has the same effect as calling
+BIO_free() on it other than the discarded return value.
+
+Normally the I<type> argument is supplied by a function which returns a
+pointer to a BIO_METHOD. There is a naming convention for such functions:
+a source/sink BIO typically starts with I<BIO_s_> and
+a filter BIO with I<BIO_f_>.
+
+=head2 TCP Fast Open
+
+TCP Fast Open (RFC7413), abbreviated "TFO", is supported by the BIO
+interface since OpenSSL 3.2. TFO is supported in the following operating systems:
+
+=over 4
+
+=item * Linux kernel 3.13 and later, where TFO is enabled by default.
+
+=item * Linux kernel 4.11 and later, using TCP_FASTOPEN_CONNECT.
+
+=item * FreeBSD 10.3 to 11.4, supports server TFO only.
+
+=item * FreeBSD 12.0 and later, supports both client and server TFO.
+
+=item * macOS 10.14 and later.
+
+=back
+
+Each operating system has a slightly different API for TFO. Please
+refer to the operating systems' API documentation when using
+sockets directly.
+
+=head1 EXAMPLES
+
+Create a memory BIO:
+
+ BIO *mem = BIO_new(BIO_s_mem());
+
+=head1 SEE ALSO
+
+L<BIO_ctrl(3)>,
+L<BIO_f_base64(3)>, L<BIO_f_buffer(3)>,
+L<BIO_f_cipher(3)>, L<BIO_f_md(3)>,
+L<BIO_f_null(3)>, L<BIO_f_ssl(3)>,
+L<BIO_f_readbuffer(3)>,
+L<BIO_find_type(3)>,
+L<BIO_get_conn_mode(3)>,
+L<BIO_new(3)>,
+L<BIO_new_bio_pair(3)>,
+L<BIO_push(3)>, L<BIO_read_ex(3)>,
+L<BIO_s_accept(3)>, L<BIO_s_bio(3)>,
+L<BIO_s_connect(3)>, L<BIO_s_fd(3)>,
+L<BIO_s_file(3)>, L<BIO_s_mem(3)>,
+L<BIO_s_null(3)>, L<BIO_s_socket(3)>,
+L<BIO_set_callback(3)>,
+L<BIO_set_conn_mode(3)>,
+L<BIO_set_tfo(3)>,
+L<BIO_set_tfo_accept(3)>,
+L<BIO_should_retry(3)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

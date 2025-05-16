@@ -1,0 +1,14 @@
+#
+# To run the demo when linked with a shared library (default) ensure that
+# libcrypto and libssl are on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../../.. ./server 4444 \
+#        ../../../test/certs/servercert.pem \
+#        ../../../test/certs/serverkey.pem
+
+
+PROGRAMS{noinst} = server
+
+INCLUDE[server]=../../../include
+SOURCE[server]=server.c
+DEPEND[server]=../../../libcrypto ../../../libssl

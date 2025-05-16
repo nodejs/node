@@ -32,7 +32,7 @@ typedef struct {
     union {
         /*
          * These fields are never directly addressed, but their sizes are
-         * imporant so that all native types can be copied here without overrun.
+         * important so that all native types can be copied here without overrun.
          */
         ossl_intmax_t i;
         ossl_uintmax_t u;
@@ -49,15 +49,13 @@ struct ossl_param_bld_st {
 };
 
 static OSSL_PARAM_BLD_DEF *param_push(OSSL_PARAM_BLD *bld, const char *key,
-                                      int size, size_t alloc, int type,
+                                      size_t size, size_t alloc, int type,
                                       int secure)
 {
     OSSL_PARAM_BLD_DEF *pd = OPENSSL_zalloc(sizeof(*pd));
 
-    if (pd == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
+    if (pd == NULL)
         return NULL;
-    }
     pd->key = key;
     pd->type = type;
     pd->size = size;
@@ -78,8 +76,10 @@ static int param_push_num(OSSL_PARAM_BLD *bld, const char *key,
 {
     OSSL_PARAM_BLD_DEF *pd = param_push(bld, key, size, size, type, 0);
 
-    if (pd == NULL)
+    if (pd == NULL) {
+        ERR_raise(ERR_LIB_CRYPTO, ERR_R_PASSED_NULL_PARAMETER);
         return 0;
+    }
     if (size > sizeof(pd->num)) {
         ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_TOO_MANY_BYTES);
         return 0;
@@ -190,23 +190,20 @@ int OSSL_PARAM_BLD_push_double(OSSL_PARAM_BLD *bld, const char *key,
     return param_push_num(bld, key, &num, sizeof(num), OSSL_PARAM_REAL);
 }
 
-int OSSL_PARAM_BLD_push_BN(OSSL_PARAM_BLD *bld, const char *key,
-                           const BIGNUM *bn)
-{
-    return OSSL_PARAM_BLD_push_BN_pad(bld, key, bn,
-                                      bn == NULL ? 0 : BN_num_bytes(bn));
-}
-
-int OSSL_PARAM_BLD_push_BN_pad(OSSL_PARAM_BLD *bld, const char *key,
-                               const BIGNUM *bn, size_t sz)
+static int push_BN(OSSL_PARAM_BLD *bld, const char *key,
+                   const BIGNUM *bn, size_t sz, int type)
 {
     int n, secure = 0;
     OSSL_PARAM_BLD_DEF *pd;
 
+    if (!ossl_assert(type == OSSL_PARAM_UNSIGNED_INTEGER
+                     || type == OSSL_PARAM_INTEGER))
+        return 0;
+
     if (bn != NULL) {
-        if (BN_is_negative(bn)) {
+        if (type == OSSL_PARAM_UNSIGNED_INTEGER && BN_is_negative(bn)) {
             ERR_raise_data(ERR_LIB_CRYPTO, ERR_R_UNSUPPORTED,
-                           "Negative big numbers are unsupported for OSSL_PARAM");
+                           "Negative big numbers are unsupported for OSSL_PARAM_UNSIGNED_INTEGER");
             return 0;
         }
 
@@ -226,11 +223,30 @@ int OSSL_PARAM_BLD_push_BN_pad(OSSL_PARAM_BLD *bld, const char *key,
         if (sz == 0)
             sz++;
     }
-    pd = param_push(bld, key, sz, sz, OSSL_PARAM_UNSIGNED_INTEGER, secure);
+    pd = param_push(bld, key, sz, sz, type, secure);
     if (pd == NULL)
         return 0;
     pd->bn = bn;
     return 1;
+}
+
+int OSSL_PARAM_BLD_push_BN(OSSL_PARAM_BLD *bld, const char *key,
+                           const BIGNUM *bn)
+{
+    if (bn != NULL && BN_is_negative(bn))
+        return push_BN(bld, key, bn, BN_num_bytes(bn) + 1,
+                       OSSL_PARAM_INTEGER);
+    return push_BN(bld, key, bn, bn == NULL ? 0 : BN_num_bytes(bn),
+                   OSSL_PARAM_UNSIGNED_INTEGER);
+}
+
+int OSSL_PARAM_BLD_push_BN_pad(OSSL_PARAM_BLD *bld, const char *key,
+                               const BIGNUM *bn, size_t sz)
+{
+    if (bn != NULL && BN_is_negative(bn))
+        return push_BN(bld, key, bn, BN_num_bytes(bn),
+                       OSSL_PARAM_INTEGER);
+    return push_BN(bld, key, bn, sz, OSSL_PARAM_UNSIGNED_INTEGER);
 }
 
 int OSSL_PARAM_BLD_push_utf8_string(OSSL_PARAM_BLD *bld, const char *key,
@@ -241,10 +257,6 @@ int OSSL_PARAM_BLD_push_utf8_string(OSSL_PARAM_BLD *bld, const char *key,
 
     if (bsize == 0)
         bsize = strlen(buf);
-    if (bsize > INT_MAX) {
-        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_STRING_TOO_LONG);
-        return 0;
-    }
     secure = CRYPTO_secure_allocated(buf);
     pd = param_push(bld, key, bsize, bsize + 1, OSSL_PARAM_UTF8_STRING, secure);
     if (pd == NULL)
@@ -260,10 +272,6 @@ int OSSL_PARAM_BLD_push_utf8_ptr(OSSL_PARAM_BLD *bld, const char *key,
 
     if (bsize == 0)
         bsize = strlen(buf);
-    if (bsize > INT_MAX) {
-        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_STRING_TOO_LONG);
-        return 0;
-    }
     pd = param_push(bld, key, bsize, sizeof(buf), OSSL_PARAM_UTF8_PTR, 0);
     if (pd == NULL)
         return 0;
@@ -277,10 +285,6 @@ int OSSL_PARAM_BLD_push_octet_string(OSSL_PARAM_BLD *bld, const char *key,
     OSSL_PARAM_BLD_DEF *pd;
     int secure;
 
-    if (bsize > INT_MAX) {
-        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_STRING_TOO_LONG);
-        return 0;
-    }
     secure = CRYPTO_secure_allocated(buf);
     pd = param_push(bld, key, bsize, bsize, OSSL_PARAM_OCTET_STRING, secure);
     if (pd == NULL)
@@ -294,10 +298,6 @@ int OSSL_PARAM_BLD_push_octet_ptr(OSSL_PARAM_BLD *bld, const char *key,
 {
     OSSL_PARAM_BLD_DEF *pd;
 
-    if (bsize > INT_MAX) {
-        ERR_raise(ERR_LIB_CRYPTO, CRYPTO_R_STRING_TOO_LONG);
-        return 0;
-    }
     pd = param_push(bld, key, bsize, sizeof(buf), OSSL_PARAM_OCTET_PTR, 0);
     if (pd == NULL)
         return 0;
@@ -330,7 +330,10 @@ static OSSL_PARAM *param_bld_convert(OSSL_PARAM_BLD *bld, OSSL_PARAM *param,
         param[i].data = p;
         if (pd->bn != NULL) {
             /* BIGNUM */
-            BN_bn2nativepad(pd->bn, (unsigned char *)p, pd->size);
+            if (pd->type == OSSL_PARAM_UNSIGNED_INTEGER)
+                BN_bn2nativepad(pd->bn, (unsigned char *)p, pd->size);
+            else
+                BN_signed_bn2native(pd->bn, (unsigned char *)p, pd->size);
         } else if (pd->type == OSSL_PARAM_OCTET_PTR
                    || pd->type == OSSL_PARAM_UTF8_PTR) {
             /* PTR */
@@ -373,7 +376,6 @@ OSSL_PARAM *OSSL_PARAM_BLD_to_param(OSSL_PARAM_BLD *bld)
     }
     params = OPENSSL_malloc(total);
     if (params == NULL) {
-        ERR_raise(ERR_LIB_CRYPTO, ERR_R_MALLOC_FAILURE);
         OPENSSL_secure_free(s);
         return NULL;
     }

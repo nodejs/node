@@ -22,6 +22,14 @@ PROV_CIPHER_FUNC(void, xts_stream,
                   const AES_KEY *key1, const AES_KEY *key2,
                   const unsigned char iv[16]));
 
+#if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
+typedef struct S390X_km_xts_params_st {
+    unsigned char key[64];
+    unsigned char tweak[16];
+    unsigned char nap[16];
+} S390X_KM_XTS_PARAMS;
+#endif
+
 typedef struct prov_aes_xts_ctx_st {
     PROV_CIPHER_CTX base;      /* Must be first */
     union {
@@ -30,6 +38,23 @@ typedef struct prov_aes_xts_ctx_st {
     } ks1, ks2;                /* AES key schedules to use */
     XTS128_CONTEXT xts;
     OSSL_xts_stream_fn stream;
+
+    /* Platform specific data */
+    union {
+        int dummy;
+#if defined(OPENSSL_CPUID_OBJ) && defined(__s390__)
+        struct {
+            union {
+                OSSL_UNION_ALIGN;
+                S390X_KM_XTS_PARAMS km;
+            } param;
+            size_t offset;
+            unsigned int fc;
+            unsigned int iv_set : 1;
+            unsigned int key_set : 1;
+        } s390x;
+#endif
+    } plat;
 } PROV_AES_XTS_CTX;
 
 const PROV_CIPHER_HW *ossl_prov_cipher_hw_aes_xts(size_t keybits);

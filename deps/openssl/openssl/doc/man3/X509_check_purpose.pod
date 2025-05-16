@@ -1,0 +1,181 @@
+=pod
+
+=head1 NAME
+
+X509_check_purpose,
+X509_PURPOSE_get_count,
+X509_PURPOSE_get_unused_id,
+X509_PURPOSE_get_by_sname,
+X509_PURPOSE_get_by_id,
+X509_PURPOSE_add,
+X509_PURPOSE_cleanup,
+X509_PURPOSE_get0,
+X509_PURPOSE_get_id,
+X509_PURPOSE_get0_name,
+X509_PURPOSE_get0_sname,
+X509_PURPOSE_get_trust,
+X509_PURPOSE_set - functions related to checking the purpose of a certificate
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509v3.h>
+
+ int X509_check_purpose(X509 *x, int id, int ca);
+
+ int X509_PURPOSE_get_count(void);
+ int X509_PURPOSE_get_unused_id(OSSL_LIB_CTX *libctx);
+ int X509_PURPOSE_get_by_sname(const char *sname);
+ int X509_PURPOSE_get_by_id(int id);
+ int X509_PURPOSE_add(int id, int trust, int flags,
+                      int (*ck) (const X509_PURPOSE *, const X509 *, int),
+                      const char *name, const char *sname, void *arg);
+ void X509_PURPOSE_cleanup(void);
+
+ X509_PURPOSE *X509_PURPOSE_get0(int idx);
+ int X509_PURPOSE_get_id(const X509_PURPOSE *);
+ char *X509_PURPOSE_get0_name(const X509_PURPOSE *xp);
+ char *X509_PURPOSE_get0_sname(const X509_PURPOSE *xp);
+ int X509_PURPOSE_get_trust(const X509_PURPOSE *xp);
+ int X509_PURPOSE_set(int *p, int purpose);
+
+=head1 DESCRIPTION
+
+X509_check_purpose() checks if certificate I<x> was created with the purpose
+represented by I<id>. If I<ca> is nonzero, then certificate I<x> is
+checked to determine if it's a possible CA with various levels of certainty
+possibly returned. The certificate I<x> must be a complete certificate
+otherwise the function returns an error.
+
+Below are the potential ID's that can be checked:
+
+ # define X509_PURPOSE_SSL_CLIENT        1
+ # define X509_PURPOSE_SSL_SERVER        2
+ # define X509_PURPOSE_NS_SSL_SERVER     3
+ # define X509_PURPOSE_SMIME_SIGN        4
+ # define X509_PURPOSE_SMIME_ENCRYPT     5
+ # define X509_PURPOSE_CRL_SIGN          6
+ # define X509_PURPOSE_ANY               7
+ # define X509_PURPOSE_OCSP_HELPER       8
+ # define X509_PURPOSE_TIMESTAMP_SIGN    9
+ # define X509_PURPOSE_CODE_SIGN        10
+
+The checks performed take into account the X.509 extensions
+keyUsage, extendedKeyUsage, and basicConstraints.
+
+X509_PURPOSE_get_count() returns the number of currently defined purposes.
+
+X509_PURPOSE_get_unused_id() returns the smallest purpose id not yet used,
+which is guaranteed to be unique and larger than B<X509_PURPOSE_MAX>.
+The I<libctx> parameter should be used to provide the library context.
+It is currently ignored as the purpose mapping table is global.
+
+X509_PURPOSE_get_by_sname() returns the index of
+the purpose with the given short name or -1 if not found.
+
+X509_PURPOSE_get_by_id() returns the index of
+the purpose with the given id or -1 if not found.
+
+X509_PURPOSE_add() adds or modifies a purpose entry identified by I<sname>.
+Unless the id stays the same for an existing entry, I<id> must be fresh,
+which can be achieved by using the result of X509_PURPOSE_get_unused_id().
+The function also sets in the entry the trust id I<trust>, the given I<flags>,
+the purpose (long) name I<name>, the short name I<sname>, the purpose checking
+funktion I<ck> of type B<int (*) (const X509_PURPOSE *, const X509 *, int)>,
+and its user data I<arg> which may be retrieved via the B<X509_PURPOSE> pointer.
+
+X509_PURPOSE_cleanup() removes all purposes that are not pre-defined.
+
+X509_PURPOSE_get0() returns an B<X509_PURPOSE> pointer or NULL on error.
+
+X509_PURPOSE_get_id() returns the id of the given B<X509_PURPOSE> structure.
+
+X509_PURPOSE_get0_name() returns the (long) name of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_get0_sname() returns the short name of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_get_trust() returns the trust id of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_set() assigns the given I<purpose> id to the location pointed at by
+I<p>.
+This resets to the any purpose if I<purpose> is B<X509_PURPOSE_DEFAULT_ANY>.
+
+=head1 RETURN VALUES
+
+X509_check_purpose() returns the following values.
+For non-CA checks
+
+=over 4
+
+=item -1 an error condition has occurred
+
+=item E<32>1 if the certificate was created to perform the purpose represented by I<id>
+
+=item E<32>0 if the certificate was not created to perform the purpose represented by I<id>
+
+=back
+
+For CA checks the below integers could be returned with the following meanings:
+
+=over 4
+
+=item -1 an error condition has occurred
+
+=item E<32>0 not a CA or does not have the purpose represented by I<id>
+
+=item E<32>1 is a CA.
+
+=item E<32>2 Only possible in old versions of openSSL when basicConstraints are absent.
+         New versions will not return this value. May be a CA
+
+=item E<32>3 basicConstraints absent but self signed V1.
+
+=item E<32>4 basicConstraints absent but keyUsage present and keyCertSign asserted.
+
+=item E<32>5 legacy Netscape specific CA Flags present
+
+=back
+
+X509_PURPOSE_get_count() returns the number of currently defined purposes.
+
+X509_PURPOSE_get_unused_id() returns the smallest purpose id not yet used.
+
+X509_PURPOSE_get_by_sname() returns the index of
+the purpose with the given short name or -1 if not found.
+
+X509_PURPOSE_get_by_id() returns the index of
+the purpose with the given id or -1 if not found.
+
+int X509_PURPOSE_add() returns 1 on success, 0 on error.
+
+X509_PURPOSE_cleanup() does not return anything.
+
+X509_PURPOSE_get0() returns an B<X509_PURPOSE> pointer or NULL on error.
+
+X509_PURPOSE_get_id() returns the id of the given B<X509_PURPOSE> structure.
+
+X509_PURPOSE_get0_name() returns the (long) name of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_get0_sname() returns the short name of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_get_trust() returns the trust id of the given B<X509_PURPOSE>.
+
+X509_PURPOSE_set() returns 1 on success, 0 on error.
+
+=head1 BUGS
+
+The X509_PURPOSE implementation so far is not thread-safe.
+There may be race conditions retrieving purpose information while
+X509_PURPOSE_add() or X509_PURPOSE_cleanup(void) is being called.
+
+=head1 HISTORY
+
+X509_PURPOSE_get_unused_id() was added in OpensSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2019-2025 The OpenSSL Project Authors. All Rights Reserved.
+Licensed under the Apache License 2.0 (the "License"). You may not use this
+file except in compliance with the License. You can obtain a copy in the file
+LICENSE in the source distribution or at L<https://www.openssl.org/source/license.html>.
+
+=cut

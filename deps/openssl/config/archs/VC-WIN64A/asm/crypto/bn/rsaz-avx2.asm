@@ -1832,6 +1832,7 @@ rsaz_avx2_eligible:
 	DB	0F3h,0C3h		;repret
 
 
+section	.rdata rdata align=64
 ALIGN	64
 $L$and_mask:
 	DQ	0x1fffffff,0x1fffffff,0x1fffffff,0x1fffffff
@@ -1843,6 +1844,7 @@ $L$inc:
 	DD	0,0,0,0,1,1,1,1
 	DD	2,2,2,2,3,3,3,3
 	DD	4,4,4,4,4,4,4,4
+section .text
 ALIGN	64
 EXTERN	__imp_RtlVirtualUnwind
 

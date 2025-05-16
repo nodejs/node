@@ -1,5 +1,5 @@
 /*
- * Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2001-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -11,7 +11,7 @@
 
 #ifdef OPENSSL_SYS_VMS
   /* So fd_set and friends get properly defined on OpenVMS */
-# define _XOPEN_SOURCE_EXTENDED 1
+# define _XOPEN_SOURCE_EXTENDED
 #endif
 
 #include <stdio.h>
@@ -32,12 +32,6 @@
 #include <openssl/evp.h>
 #include <openssl/bn.h>
 #include <openssl/x509v3.h>
-
-#if defined(__TANDEM)
-# if defined(OPENSSL_TANDEM_FLOSS)
-#  include <floss.h(floss_fork)>
-# endif
-#endif
 
 #if defined(OPENSSL_SYS_VXWORKS)
 /* not supported */
@@ -76,7 +70,7 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
 
 static char **lookup_serial(CA_DB *db, ASN1_INTEGER *ser);
 static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
-                        const char *port, int timeout);
+                        int timeout);
 static int send_ocsp_response(BIO *cbio, const OCSP_RESPONSE *resp);
 static char *prog;
 
@@ -136,7 +130,7 @@ const OPTIONS ocsp_options[] = {
      "Don't include any certificates in signed request"},
     {"badsig", OPT_BADSIG, '-',
         "Corrupt last byte of loaded OCSP response signature (for test)"},
-    {"CA", OPT_CA, '<', "CA certificate"},
+    {"CA", OPT_CA, '<', "CA certificates"},
     {"nmin", OPT_NMIN, 'p', "Number of minutes before next update"},
     {"nrequest", OPT_REQUEST, 'p',
      "Number of requests to accept (default unlimited)"},
@@ -196,8 +190,10 @@ const OPTIONS ocsp_options[] = {
     {"VAfile", OPT_VAFILE, '<', "Validator certificates file"},
     {"verify_other", OPT_VERIFY_OTHER, '<',
      "Additional certificates to search for signer"},
-    {"cert", OPT_CERT, '<', "Certificate to check"},
-    {"serial", OPT_SERIAL, 's', "Serial number to check"},
+    {"cert", OPT_CERT, '<',
+     "Certificate to check; may be given multiple times"},
+    {"serial", OPT_SERIAL, 's',
+     "Serial number to check; may be given multiple times"},
     {"validity_period", OPT_VALIDITY_PERIOD, 'u',
      "Maximum validity discrepancy in seconds"},
     {"signkey", OPT_SIGNKEY, 's', "Private key to sign OCSP request with"},
@@ -228,7 +224,7 @@ int ocsp_main(int argc, char **argv)
     STACK_OF(X509) *sign_other = NULL, *verify_other = NULL, *rother = NULL;
     STACK_OF(X509) *issuers = NULL;
     X509 *issuer = NULL, *cert = NULL;
-    STACK_OF(X509) *rca_cert = NULL;
+    STACK_OF(X509) *rca_certs = NULL;
     EVP_MD *resp_certid_md = NULL;
     X509 *signer = NULL, *rsigner = NULL;
     X509_STORE *store = NULL;
@@ -261,6 +257,7 @@ int ocsp_main(int argc, char **argv)
             || (vpm = X509_VERIFY_PARAM_new()) == NULL)
         goto end;
 
+    opt_set_unknown_name("digest");
     prog = opt_init(argc, argv, ocsp_options);
     while ((o = opt_next()) != OPT_EOF) {
         switch (o) {
@@ -436,6 +433,7 @@ int ocsp_main(int argc, char **argv)
                 goto end;
             break;
         case OPT_CERT:
+            reset_unknown();
             X509_free(cert);
             cert = load_cert(opt_arg(), FORMAT_UNDEF, "certificate");
             if (cert == NULL)
@@ -449,6 +447,7 @@ int ocsp_main(int argc, char **argv)
             trailing_md = 0;
             break;
         case OPT_SERIAL:
+            reset_unknown();
             if (cert_id_md == NULL)
                 cert_id_md = (EVP_MD *)EVP_sha1();
             if (!add_ocsp_serial(&req, opt_arg(), cert_id_md, issuer, ids))
@@ -524,7 +523,7 @@ int ocsp_main(int argc, char **argv)
             break;
         case OPT_MULTI:
 #ifdef HTTP_DAEMON
-            multi = atoi(opt_arg());
+            n_responders = atoi(opt_arg());
 #endif
             break;
         case OPT_PROV_CASES:
@@ -535,8 +534,7 @@ int ocsp_main(int argc, char **argv)
     }
 
     /* No extra arguments. */
-    argc = opt_num_rest();
-    if (argc != 0)
+    if (!opt_check_rest_arg(NULL))
         goto opthelp;
 
     if (trailing_md) {
@@ -555,10 +553,6 @@ int ocsp_main(int argc, char **argv)
         && respin == NULL && !(port != NULL && ridx_filename != NULL))
         goto opthelp;
 
-    out = bio_open_default(outfile, 'w', FORMAT_TEXT);
-    if (out == NULL)
-        goto end;
-
     if (req == NULL && (add_nonce != 2))
         add_nonce = 0;
 
@@ -576,7 +570,7 @@ int ocsp_main(int argc, char **argv)
 
     if (req == NULL && port != NULL) {
 #ifndef OPENSSL_NO_SOCK
-        acbio = http_server_init_bio(prog, port);
+        acbio = http_server_init(prog, port, -1);
         if (acbio == NULL)
             goto end;
 #else
@@ -593,7 +587,7 @@ int ocsp_main(int argc, char **argv)
             BIO_printf(bio_err, "Error loading responder certificate\n");
             goto end;
         }
-        if (!load_certs(rca_filename, 0, &rca_cert, NULL, "CA certificates"))
+        if (!load_certs(rca_filename, 0, &rca_certs, NULL, "CA certificates"))
             goto end;
         if (rcertfile != NULL) {
             if (!load_certs(rcertfile, 0, &rother, NULL,
@@ -611,7 +605,7 @@ int ocsp_main(int argc, char **argv)
     }
 
     if (ridx_filename != NULL
-        && (rkey == NULL || rsigner == NULL || rca_cert == NULL)) {
+        && (rkey == NULL || rsigner == NULL || rca_certs == NULL)) {
         BIO_printf(bio_err,
                    "Responder mode requires certificate, key, and CA.\n");
         goto end;
@@ -629,14 +623,15 @@ int ocsp_main(int argc, char **argv)
     }
 
 #ifdef HTTP_DAEMON
-    if (multi && acbio != NULL)
+    if (n_responders != 0 && acbio != NULL)
         spawn_loop(prog);
     if (acbio != NULL && req_timeout > 0)
         signal(SIGALRM, socket_timeout);
 #endif
 
     if (acbio != NULL)
-        log_message(prog, LOG_INFO, "waiting for OCSP client connections...");
+        trace_log_message(-1, prog,
+                          LOG_INFO, "waiting for OCSP client connections...");
 
 redo_accept:
 
@@ -650,14 +645,15 @@ redo_accept:
                 rdb = newrdb;
             } else {
                 free_index(newrdb);
-                log_message(prog, LOG_ERR, "error reloading updated index: %s",
-                            ridx_filename);
+                trace_log_message(-1, prog,
+                                  LOG_ERR, "error reloading updated index: %s",
+                                  ridx_filename);
             }
         }
 #endif
 
         req = NULL;
-        res = do_responder(&req, &cbio, acbio, port, req_timeout);
+        res = do_responder(&req, &cbio, acbio, req_timeout);
         if (res == 0)
             goto redo_accept;
 
@@ -709,6 +705,10 @@ redo_accept:
         }
     }
 
+    out = bio_open_default(outfile, 'w', FORMAT_TEXT);
+    if (out == NULL)
+        goto end;
+
     if (req_text && req != NULL)
         OCSP_REQUEST_print(out, req, 0);
 
@@ -721,7 +721,7 @@ redo_accept:
     }
 
     if (rdb != NULL) {
-        make_ocsp_response(bio_err, &resp, req, rdb, rca_cert, rsigner, rkey,
+        make_ocsp_response(bio_err, &resp, req, rdb, rca_certs, rsigner, rkey,
                            rsign_md, rsign_sigopts, rother, rflags, nmin, ndays,
                            badsig, resp_certid_md);
         if (resp == NULL)
@@ -858,9 +858,9 @@ redo_accept:
     EVP_MD_free(rsign_md);
     EVP_MD_free(resp_certid_md);
     X509_free(cert);
-    sk_X509_pop_free(issuers, X509_free);
+    OSSL_STACK_OF_X509_free(issuers);
     X509_free(rsigner);
-    sk_X509_pop_free(rca_cert, X509_free);
+    OSSL_STACK_OF_X509_free(rca_certs);
     free_index(rdb);
     BIO_free_all(cbio);
     BIO_free_all(acbio);
@@ -870,8 +870,8 @@ redo_accept:
     OCSP_BASICRESP_free(bs);
     sk_OPENSSL_STRING_free(reqnames);
     sk_OCSP_CERTID_free(ids);
-    sk_X509_pop_free(sign_other, X509_free);
-    sk_X509_pop_free(verify_other, X509_free);
+    OSSL_STACK_OF_X509_free(sign_other);
+    OSSL_STACK_OF_X509_free(verify_other);
     sk_CONF_VALUE_pop_free(headers, X509V3_conf_free);
     OPENSSL_free(thost);
     OPENSSL_free(tport);
@@ -1049,6 +1049,10 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
     }
 
     bs = OCSP_BASICRESP_new();
+    if (bs == NULL) {
+        *resp = OCSP_response_create(OCSP_RESPONSE_STATUS_INTERNALERROR, bs);
+        goto end;
+    }
     thisupd = X509_gmtime_adj(NULL, 0);
     if (ndays != -1)
         nextupd = X509_time_adj_ex(NULL, ndays, nmin * 60, NULL);
@@ -1139,7 +1143,7 @@ static void make_ocsp_response(BIO *err, OCSP_RESPONSE **resp, OCSP_REQUEST *req
     OCSP_copy_nonce(bs, req);
 
     mctx = EVP_MD_CTX_new();
-    if ( mctx == NULL || !EVP_DigestSignInit(mctx, &pkctx, rmd, NULL, rkey)) {
+    if (mctx == NULL || !EVP_DigestSignInit(mctx, &pkctx, rmd, NULL, rkey)) {
         *resp = OCSP_response_create(OCSP_RESPONSE_STATUS_INTERNALERROR, NULL);
         goto end;
     }
@@ -1197,13 +1201,13 @@ static char **lookup_serial(CA_DB *db, ASN1_INTEGER *ser)
 }
 
 static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
-                        const char *port, int timeout)
+                        int timeout)
 {
 #ifndef OPENSSL_NO_SOCK
     return http_server_get_asn1_req(ASN1_ITEM_rptr(OCSP_REQUEST),
                                     (ASN1_VALUE **)preq, NULL, pcbio, acbio,
                                     NULL /* found_keep_alive */,
-                                    prog, port, 1 /* accept_get */, timeout);
+                                    prog, 1 /* accept_get */, timeout);
 #else
     BIO_printf(bio_err,
                "Error getting OCSP request - sockets not supported\n");
@@ -1215,7 +1219,7 @@ static int do_responder(OCSP_REQUEST **preq, BIO **pcbio, BIO *acbio,
 static int send_ocsp_response(BIO *cbio, const OCSP_RESPONSE *resp)
 {
 #ifndef OPENSSL_NO_SOCK
-    return http_server_send_asn1_resp(cbio,
+    return http_server_send_asn1_resp(prog, cbio,
                                       0 /* no keep-alive */,
                                       "application/ocsp-response",
                                       ASN1_ITEM_rptr(OCSP_RESPONSE),

@@ -1,0 +1,260 @@
+=pod
+
+=head1 NAME
+
+provider-kem - The kem library E<lt>-E<gt> provider functions
+
+=head1 SYNOPSIS
+
+=for openssl multiple includes
+
+ #include <openssl/core_dispatch.h>
+ #include <openssl/core_names.h>
+
+ /*
+  * None of these are actual functions, but are displayed like this for
+  * the function signatures for functions that are offered as function
+  * pointers in OSSL_DISPATCH arrays.
+  */
+
+ /* Context management */
+ void *OSSL_FUNC_kem_newctx(void *provctx);
+ void OSSL_FUNC_kem_freectx(void *ctx);
+ void *OSSL_FUNC_kem_dupctx(void *ctx);
+
+ /* Encapsulation */
+ int OSSL_FUNC_kem_encapsulate_init(void *ctx, void *provkey,
+                                    const OSSL_PARAM params[]);
+ int OSSL_FUNC_kem_auth_encapsulate_init(void *ctx, void *provkey,
+                                         void *provauthkey,
+                                         const OSSL_PARAM params[]);
+ int OSSL_FUNC_kem_encapsulate(void *ctx, unsigned char *out, size_t *outlen,
+                               unsigned char *secret, size_t *secretlen);
+
+ /* Decapsulation */
+ int OSSL_FUNC_kem_decapsulate_init(void *ctx, void *provkey);
+ int OSSL_FUNC_kem_auth_decapsulate_init(void *ctx, void *provkey,
+                                         void *provauthkey,
+                                         const OSSL_PARAM params[]);
+ int OSSL_FUNC_kem_decapsulate(void *ctx, unsigned char *out, size_t *outlen,
+                               const unsigned char *in, size_t inlen);
+
+ /* KEM parameters */
+ int OSSL_FUNC_kem_get_ctx_params(void *ctx, OSSL_PARAM params[]);
+ const OSSL_PARAM *OSSL_FUNC_kem_gettable_ctx_params(void *ctx, void *provctx);
+ int OSSL_FUNC_kem_set_ctx_params(void *ctx, const OSSL_PARAM params[]);
+ const OSSL_PARAM *OSSL_FUNC_kem_settable_ctx_params(void *ctx, void *provctx);
+
+=head1 DESCRIPTION
+
+This documentation is primarily aimed at provider authors. See L<provider(7)>
+for further information.
+
+The asymmetric kem (OSSL_OP_KEM) operation enables providers to
+implement asymmetric kem algorithms and make them available to applications
+via the API functions L<EVP_PKEY_encapsulate(3)>,
+L<EVP_PKEY_decapsulate(3)> and other related functions.
+
+All "functions" mentioned here are passed as function pointers between
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
+provider_query_operation() function
+(see L<provider-base(7)/Provider Functions>).
+
+All these "functions" have a corresponding function type definition
+named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
+function pointer from an L<OSSL_DISPATCH(3)> element named
+B<OSSL_FUNC_{name}>.
+For example, the "function" OSSL_FUNC_kem_newctx() has these:
+
+ typedef void *(OSSL_FUNC_kem_newctx_fn)(void *provctx);
+ static ossl_inline OSSL_FUNC_kem_newctx_fn
+     OSSL_FUNC_kem_newctx(const OSSL_DISPATCH *opf);
+
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
+macros in L<openssl-core_dispatch.h(7)>, as follows:
+
+ OSSL_FUNC_kem_newctx                OSSL_FUNC_KEM_NEWCTX
+ OSSL_FUNC_kem_freectx               OSSL_FUNC_KEM_FREECTX
+ OSSL_FUNC_kem_dupctx                OSSL_FUNC_KEM_DUPCTX
+
+ OSSL_FUNC_kem_encapsulate_init      OSSL_FUNC_KEM_ENCAPSULATE_INIT
+ OSSL_FUNC_kem_auth_encapsulate_init OSSL_FUNC_KEM_AUTH_ENCAPSULATE_INIT
+ OSSL_FUNC_kem_encapsulate           OSSL_FUNC_KEM_ENCAPSULATE
+
+ OSSL_FUNC_kem_decapsulate_init      OSSL_FUNC_KEM_DECAPSULATE_INIT
+ OSSL_FUNC_kem_auth_decapsulate_init OSSL_FUNC_KEM_AUTH_DECAPSULATE_INIT
+ OSSL_FUNC_kem_decapsulate           OSSL_FUNC_KEM_DECAPSULATE
+
+ OSSL_FUNC_kem_get_ctx_params        OSSL_FUNC_KEM_GET_CTX_PARAMS
+ OSSL_FUNC_kem_gettable_ctx_params   OSSL_FUNC_KEM_GETTABLE_CTX_PARAMS
+ OSSL_FUNC_kem_set_ctx_params        OSSL_FUNC_KEM_SET_CTX_PARAMS
+ OSSL_FUNC_kem_settable_ctx_params   OSSL_FUNC_KEM_SETTABLE_CTX_PARAMS
+
+An asymmetric kem algorithm implementation may not implement all of these
+functions.
+In order to be a consistent set of functions a provider must implement
+OSSL_FUNC_kem_newctx and OSSL_FUNC_kem_freectx.
+It must also implement both of OSSL_FUNC_kem_encapsulate_init and
+OSSL_FUNC_kem_encapsulate, or both of OSSL_FUNC_kem_decapsulate_init and
+OSSL_FUNC_kem_decapsulate.
+OSSL_FUNC_kem_auth_encapsulate_init is optional but if it is present then so
+must OSSL_FUNC_kem_auth_decapsulate_init.
+OSSL_FUNC_kem_get_ctx_params is optional but if it is present then so must
+OSSL_FUNC_kem_gettable_ctx_params.
+Similarly, OSSL_FUNC_kem_set_ctx_params is optional but if it is present then
+OSSL_FUNC_kem_settable_ctx_params must also be present.
+
+An asymmetric kem algorithm must also implement some mechanism for generating,
+loading or importing keys via the key management (OSSL_OP_KEYMGMT) operation.
+See L<provider-keymgmt(7)> for further details.
+
+=head2 Context Management Functions
+
+OSSL_FUNC_kem_newctx() should create and return a pointer to a provider side
+structure for holding context information during an asymmetric kem operation.
+A pointer to this context will be passed back in a number of the other
+asymmetric kem operation function calls.
+The parameter I<provctx> is the provider context generated during provider
+initialisation (see L<provider(7)>).
+
+OSSL_FUNC_kem_freectx() is passed a pointer to the provider side asymmetric
+kem context in the I<ctx> parameter.
+This function should free any resources associated with that context.
+
+OSSL_FUNC_kem_dupctx() should duplicate the provider side asymmetric kem
+context in the I<ctx> parameter and return the duplicate copy.
+
+=head2 Asymmetric Key Encapsulation Functions
+
+OSSL_FUNC_kem_encapsulate_init() initialises a context for an asymmetric
+encapsulation given a provider side asymmetric kem context in the I<ctx>
+parameter, a pointer to a provider key object in the I<provkey> parameter and
+the I<name> of the algorithm.
+The I<params>, if not NULL, should be set on the context in a manner similar to
+using OSSL_FUNC_kem_set_ctx_params().
+The key object should have been previously generated, loaded or imported into
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+provider-keymgmt(7)>.
+
+OSSL_FUNC_kem_auth_encapsulate_init() is similar to
+OSSL_FUNC_kem_encapsulate_init(), but also passes an additional authentication
+key I<provauthkey> which cannot be NULL.
+
+OSSL_FUNC_kem_encapsulate() performs the actual encapsulation itself.
+A previously initialised asymmetric kem context is passed in the I<ctx>
+parameter.
+Unless I<out> is NULL, the data to be encapsulated is internally generated,
+and returned into the buffer pointed to by the I<secret> parameter and the
+encapsulated data should also be written to the location pointed to by the
+I<out> parameter. The length of the encapsulated data should be written to
+I<*outlen> and the length of the generated secret should be written to
+I<*secretlen>.
+
+If I<out> is NULL then the maximum length of the encapsulated data should be
+written to I<*outlen>, and the maximum length of the generated secret should be
+written to I<*secretlen>.
+
+=head2 Decapsulation Functions
+
+OSSL_FUNC_kem_decapsulate_init() initialises a context for an asymmetric
+decapsulation given a provider side asymmetric kem context in the I<ctx>
+parameter, a pointer to a provider key object in the I<provkey> parameter, and
+a I<name> of the algorithm.
+The key object should have been previously generated, loaded or imported into
+the provider using the key management (OSSL_OP_KEYMGMT) operation (see
+provider-keymgmt(7)>.
+
+OSSL_FUNC_kem_auth_decapsulate_init() is similar to
+OSSL_FUNC_kem_decapsulate_init(), but also passes an additional authentication
+key I<provauthkey> which cannot be NULL.
+
+OSSL_FUNC_kem_decapsulate() performs the actual decapsulation itself.
+A previously initialised asymmetric kem context is passed in the I<ctx>
+parameter.
+The data to be decapsulated is pointed to by the I<in> parameter which is I<inlen>
+bytes long.
+Unless I<out> is NULL, the decapsulated data should be written to the location
+pointed to by the I<out> parameter.
+The length of the decapsulated data should be written to I<*outlen>.
+If I<out> is NULL then the maximum length of the decapsulated data should be
+written to I<*outlen>.
+
+=head2 Asymmetric Key Encapsulation Parameters
+
+See L<OSSL_PARAM(3)> for further details on the parameters structure used by
+the OSSL_FUNC_kem_get_ctx_params() and OSSL_FUNC_kem_set_ctx_params()
+functions.
+
+The OpenSSL FIPS provider also supports the following parameters:
+
+=over 4
+
+=item "fips-indicator" (B<OSSL_KEM_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+A getter that returns 1 if the operation is FIPS approved, or 0 otherwise.
+This may be used after calling either OSSL_FUNC_kem_encapsulate() or 
+OSSL_FUNC_kem_decapsulate(). It may return 0 if the "key-check" is set to 0.
+
+=item "key-check" (B<OSSL_KEM_PARAM_FIPS_KEY_CHECK>) <integer>
+
+If required this parameter should be set using OSSL_FUNC_kem_encapsulate_init()
+or OSSL_FUNC_kem_decapsulate_init().
+The default value of 1 causes an error during the init if the key is not FIPS
+approved (e.g. The key has a security strength of less than 112 bits). Setting
+this to 0 will ignore the error and set the approved "fips-indicator" to 0.
+This option breaks FIPS compliance if it causes the approved "fips-indicator"
+to return 0.
+
+=back
+
+=head2 Asymmetric Key Encapsulation Parameter Functions
+
+OSSL_FUNC_kem_get_ctx_params() gets asymmetric KEM parameters associated
+with the given provider side asymmetric kem context I<ctx> and stores them in
+I<params>.
+Passing NULL for I<params> should return true.
+
+OSSL_FUNC_kem_set_ctx_params() sets the asymmetric KEM parameters associated
+with the given provider side asymmetric kem context I<ctx> to I<params>.
+Any parameter settings are additional to any that were previously set.
+Passing NULL for I<params> should return true.
+
+No parameters are currently recognised by built-in asymmetric kem algorithms.
+
+OSSL_FUNC_kem_gettable_ctx_params() and OSSL_FUNC_kem_settable_ctx_params()
+get a constant L<OSSL_PARAM(3)> array that describes the gettable and settable
+parameters, i.e. parameters that can be used with OSSL_FUNC_kem_get_ctx_params()
+and OSSL_FUNC_kem_set_ctx_params() respectively.
+
+=head1 RETURN VALUES
+
+OSSL_FUNC_kem_newctx() and OSSL_FUNC_kem_dupctx() should return the newly
+created provider side asymmetric kem context, or NULL on failure.
+
+All other functions should return 1 for success or 0 on error.
+
+=head1 SEE ALSO
+
+L<provider(7)>
+
+=head1 HISTORY
+
+The provider KEM interface was introduced in OpenSSL 3.0.
+
+OSSL_FUNC_kem_auth_encapsulate_init() and OSSL_FUNC_kem_auth_decapsulate_init()
+were added in OpenSSL 3.2.
+
+The Asymmetric Key Encapsulation Parameters "fips-indicator" and "key-check"
+were added in OpenSSL 3.4.
+
+=head1 COPYRIGHT
+
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

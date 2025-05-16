@@ -1,0 +1,372 @@
+=pod
+
+=begin comment
+
+NB: Changes to the source code samples in this file should also be reflected in
+demos/guide/quic-server-non-block.c
+
+=end comment
+
+=head1 NAME
+
+ossl-guide-quic-server-non-block
+- OpenSSL Guide: Writing a simple nonblocking QUIC server
+
+=head1 SIMPLE NONBLOCKING QUIC SERVER EXAMPLE
+
+This page presents various source code samples demonstrating how to write a
+simple, non-concurrent, QUIC "echo" server application which accepts one client
+connection at a time, echoing input from the client back to the same client.
+Once the current client disconnects, the next client connection is accepted.
+
+The server only accepts C<http/1.0> and C<hq-interop> ALPN's and doesn't actually
+implement HTTP but only does a simple echo.  This is non-standard and will not
+be supported by real world servers.  This is for demonstration purposes only.
+
+There are various methods to test this server: B<quic-client-block.c> and
+B<quic-client-non-block.c> will send a basic HTTP/1.0 request, which the server
+will echo back.  You can also test this server by running
+C<openssl s_client -connect localhost:4443 -4 -quic -alpn http/1.0> and entering
+text that will be echoed back by the server.
+
+Both the listening socket and connected socket are "nonblocking".  However,
+we use select() to make the listening socket block when it cannot read/write.
+Rather than stopping and waiting, your application may need to go and do other
+tasks whilst the B<SSL> object is unable to read/write.  For example: updating a
+GUI or performing operations on some other connection or stream.
+
+The complete source code for this example nonblocking QUIC server is available
+in the B<demos/guide> directory of the OpenSSL source distribution in the file
+B<quic-server-non-block.c>.  It is also available online at
+L<https://github.com/openssl/openssl/blob/master/demos/guide/quic-server-non-block.c>.
+
+We assume that you already have OpenSSL installed on your system; that you
+already have some fundamental understanding of OpenSSL concepts and QUIC (see
+L<ossl-guide-libraries-introduction(7)> and L<ossl-guide-quic-introduction(7)>);
+and that you know how to write and build C code and link it against the
+libcrypto and libssl libraries that are provided by OpenSSL.  It also assumes
+that you have a basic understanding of UDP/IP and sockets.
+
+=head2 Creating the SSL_CTX and SSL objects
+
+The first step is to create an B<SSL_CTX> object for our server.  We use the
+L<SSL_CTX_new(3)> function for this purpose.  We pass as an argument the return
+value of the function L<OSSL_QUIC_server_method(3)>.  You should use this method
+whenever you are writing a QUIC server.
+
+    /*
+     * An SSL_CTX holds shared configuration information for multiple
+     * subsequent per-client SSL connections. We specifically load a QUIC
+     * server method here.
+     */
+    ctx = SSL_CTX_new(OSSL_QUIC_server_method());
+    if (ctx == NULL)
+        goto err;
+
+Servers need a private key and certificate.  Intermediate issuer CA
+certificates are often required, and both the server (end-entity or EE)
+certificate and the issuer ("chain") certificates are most easily configured in
+a single "chain file".  Below we load such a chain file (the EE certificate
+must appear first), and then load the corresponding private key, checking that
+it matches the server certificate.  No checks are performed to check the
+integrity of the chain (CA signatures or certificate expiration dates, for
+example), but we do verify the consistency of the private key with the
+corresponding certificate.
+
+    /*
+     * Load the server's certificate *chain* file (PEM format), which includes
+     * not only the leaf (end-entity) server certificate, but also any
+     * intermediate issuer-CA certificates.  The leaf certificate must be the
+     * first certificate in the file.
+     *
+     * In advanced use-cases this can be called multiple times, once per public
+     * key algorithm for which the server has a corresponding certificate.
+     * However, the corresponding private key (see below) must be loaded first,
+     * *before* moving on to the next chain file.
+     */
+    if (SSL_CTX_use_certificate_chain_file(ctx, cert_path) <= 0) {
+        fprintf(stderr, "couldn't load certificate file: %s\n", cert_path);
+        goto err;
+    }
+
+    /*
+     * Load the corresponding private key, this also checks that the private
+     * key matches the just loaded end-entity certificate.  It does not check
+     * whether the certificate chain is valid, the certificates could be
+     * expired, or may otherwise fail to form a chain that a client can
+     * validate.
+     */
+    if (SSL_CTX_use_PrivateKey_file(ctx, key_path, SSL_FILETYPE_PEM) <= 0) {
+        fprintf(stderr, "couldn't load key file: %s\n", key_path);
+        goto err;
+    }
+
+Most servers, including this one, do not solicit client certificates.  We
+therefore do not need a "trust store" and allow the handshake to complete even
+when the client does not present a certificate.  Note: Even if a client did
+present a trusted certificate, for it to be useful, the server application
+would still need custom code to use the verified identity to grant nondefault
+access to that particular client.  Some servers grant access to all clients
+with certificates from a private CA, this then requires processing of
+certificate revocation lists to deauthorise a client.  It is often simpler and
+more secure to instead keep a list of authorised public keys.
+
+Though this is the default setting, we explicitly call the
+L<SSL_CTX_set_verify(3)> function and pass the B<SSL_VERIFY_NONE> value to it.
+The final argument to this function is a callback that you can optionally
+supply to override the default handling for certificate verification.  Most
+applications do not need to do this so this can safely be set to NULL to get
+the default handling.
+
+    /*
+     * Clients rarely employ certificate-based authentication, and so we don't
+     * require "mutual" TLS authentication (indeed there's no way to know
+     * whether or how the client authenticated the server, so the term "mutual"
+     * is potentially misleading).
+     *
+     * Since we're not soliciting or processing client certificates, we don't
+     * need to configure a trusted-certificate store, so no call to
+     * SSL_CTX_set_default_verify_paths() is needed.  The server's own
+     * certificate chain is assumed valid.
+     */
+    SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+
+
+QUIC also dictates using Application-Layer Protocol Negotiation (ALPN) to select
+an application protocol.  We use L<SSL_CTX_set_alpn_select_cb(3)> for this
+purpose.  We can pass a callback which will be called for each connection to
+select an ALPN the server considers acceptable.
+
+    /* Setup ALPN negotiation callback to decide which ALPN is accepted. */
+    SSL_CTX_set_alpn_select_cb(ctx, select_alpn, NULL);
+
+In this case, we only accept "http/1.0" and "hq-interop".
+
+    /*
+    * ALPN strings for TLS handshake. Only 'http/1.0' and 'hq-interop'
+    * are accepted.
+    */
+    static const unsigned char alpn_ossltest[] = {
+        8,  'h', 't', 't', 'p', '/', '1', '.', '0',
+        10, 'h', 'q', '-', 'i', 'n', 't', 'e', 'r', 'o', 'p',
+    };
+
+    static int select_alpn(SSL *ssl, const unsigned char **out,
+                           unsigned char *out_len, const unsigned char *in,
+                           unsigned int in_len, void *arg)
+    {
+        if (SSL_select_next_proto((unsigned char **)out, out_len, alpn_ossltest,
+                                  sizeof(alpn_ossltest), in,
+                                  in_len) == OPENSSL_NPN_NEGOTIATED)
+            return SSL_TLSEXT_ERR_OK;
+        return SSL_TLSEXT_ERR_ALERT_FATAL;
+    }
+
+That is all the setup that we need to do for the B<SSL_CTX>.  Next, we create a
+UDP socket and bind to it on localhost.
+
+    /* Retrieve the file descriptor for a new UDP socket */
+    if ((fd = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        fprintf(stderr, "cannot create socket");
+        return -1;
+    }
+
+    sa.sin_family = AF_INET;
+    sa.sin_port = htons(port);
+
+    /* Bind to the new UDP socket on localhost */
+    if (bind(fd, (const struct sockaddr *)&sa, sizeof(sa)) < 0) {
+        fprintf(stderr, "cannot bind to %u\n", port);
+        BIO_closesocket(fd);
+        return -1;
+    }
+
+    /* Set port to nonblocking mode */
+    if (BIO_socket_nbio(fd, 1) <= 0) {
+        fprintf(stderr, "Unable to set port to nonblocking mode");
+        BIO_closesocket(fd);
+        return -1;
+    }
+
+To run the QUIC server, we create an B<SSL_LISTENER> to listen for incoming
+connections.  We provide it with the bound UDP port to then explicitly begin
+listening for new connections.
+
+    /* Create a new QUIC listener */
+    if ((listener = SSL_new_listener(ctx, 0)) == NULL)
+        goto err;
+
+    /* Provide the listener with our UDP socket. */
+    if (!SSL_set_fd(listener, fd))
+        goto err;
+
+    /* Set the listener mode to nonblocking, which is inherited by
+     * child objects.
+     */
+    if (!SSL_set_blocking_mode(listener, 0))
+        goto err;
+
+    /*
+     * Begin listening. Note that is not usually needed as SSL_accept_connection
+     * will implicitly start listening. It is only needed if a server wishes to
+     * ensure it has started to accept incoming connections but does not wish to
+     * actually call SSL_accept_connection yet.
+     */
+    if (!SSL_listen(listener))
+        goto err;
+
+=head2 Server loop
+
+The server now enters a "forever" loop, handling one client connection at a
+time.  Before each connection, we clear the OpenSSL error stack so that any
+error reports are related to just the new connection.
+
+    /* Pristine error stack for each new connection */
+    ERR_clear_error();
+
+We then wait until a connection is ready for reading.
+It uses the select function to wait until the socket is either readable
+or writable, depending on what the SSL connection requires.
+
+We then accept a new connection in which the handshake will have already
+occurred. However, since we are in nonblocking mode, L<SSL_accept_connection(3)>
+will return immediately. Therefore, we use a helper function to essentially
+block until a connection is established.
+
+    printf("Waiting for connection\n");
+    while ((conn = SSL_accept_connection(listener, 0)) == NULL) {
+        wait_for_activity(listener);
+    }
+    printf("Accepted new connection\n");
+
+The helper function wait_for_activity uses select() to block until the file
+descriptor belonging to the passed SSL object is readable. As mentioned earlier,
+a more real-world application would likely use this time to perform other tasks.
+
+    /* Initialize the fd_set structure */
+    FD_ZERO(&read_fd);
+    FD_ZERO(&write_fd);
+
+    /*
+     * Determine if we would like to write to the socket, read from it, or both.
+     */
+    if (SSL_net_write_desired(ssl))
+        FD_SET(sock, &write_fd);
+    if (SSL_net_read_desired(ssl))
+        FD_SET(sock, &read_fd);
+
+    /*
+     * Find out when OpenSSL would next like to be called, regardless of
+     * whether the state of the underlying socket has changed or not.
+     */
+    if (SSL_get_event_timeout(ssl, &tv, &isinfinite) && !isinfinite)
+        tvp = &tv;
+
+    /*
+     * Wait until the socket is writeable or readable. We use select here
+     * for the sake of simplicity and portability, but you could equally use
+     * poll/epoll or similar functions
+     *
+     * NOTE: For the purposes of this demonstration code this effectively
+     * makes this demo block until it has something more useful to do. In a
+     * real application you probably want to go and do other work here (e.g.
+     * update a GUI, or service other connections).
+     *
+     * Let's say for example that you want to update the progress counter on
+     * a GUI every 100ms. One way to do that would be to use the timeout in
+     * the last parameter to "select" below. If the tvp value is greater
+     * than 100ms then use 100ms instead. Then, when select returns, you
+     * check if it did so because of activity on the file descriptors or
+     * because of the timeout. If the 100ms GUI timeout has expired but the
+     * tvp timeout has not then go and update the GUI and then restart the
+     * "select" (with updated timeouts).
+     */
+
+    select(sock + 1, &read_fd, &write_fd, NULL, tvp);
+
+With the handshake complete, the server reads all the client input.
+
+    /* Read from client until the client sends a end of stream packet */
+    while (!eof) {
+        ret = SSL_read_ex(conn, buf + total_read, sizeof(buf) - total_read,
+                          &nread);
+        total_read += nread;
+        if (total_read >= 8192) {
+            fprintf(stderr, "Could not fit all data into buffer\n");
+            goto err;
+        }
+        switch (handle_io_failure(conn, ret)) {
+        case 1:
+            continue; /* Retry */
+        case 0:
+            /* Reached end of stream */
+            if (!SSL_has_pending(conn))
+                eof = 1;
+            break;
+        default:
+            fprintf(stderr, "Failed reading remaining data\n");
+            goto err;
+        }
+    }
+
+Finally, we echo the received data back to the client.  We can use
+L<SSL_write_ex2(3)> to pass in a special flag SSL_WRITE_FLAG_CONCLUDE that will
+send a FIN packet once the write has successfully finished writing all the data
+to the peer.
+
+    /* Echo client input */
+    while (!SSL_write_ex2(conn, buf,
+                          total_read,
+                          SSL_WRITE_FLAG_CONCLUDE, &total_written)) {
+        if (handle_io_failure(conn, 0) == 1)
+            continue;
+        fprintf(stderr, "Failed to write data\n");
+        goto err;
+    }
+
+We then shut down the connection with L<SSL_shutdown(3)>, which may need
+to be called multiple times to ensure the connection is shutdown completely.
+
+    /*
+     * Shut down the connection. We may need to call this multiple times
+     * to ensure the connection is shutdown completely.
+     */
+    while ((ret = SSL_shutdown(conn)) != 1) {
+        if (ret < 0 && handle_io_failure(conn, ret) == 1)
+            continue; /* Retry */
+    }
+
+Finally, we free the SSL connection, and the server is now ready to accept the
+next client connection.
+
+    SSL_free(conn);
+
+=head2 Final clean up
+
+If the server somehow manages to break out of the infinite loop and
+be ready to exit, it would deallocate the constructed B<SSL>.
+
+    SSL_free(listener);
+
+And in the main function, it would deallocate the constructed B<SSL_CTX>.
+
+    SSL_CTX_free(ctx);
+    BIO_closesocket(fd);
+
+=head1 SEE ALSO
+
+L<ossl-guide-introduction(7)>, L<ossl-guide-libraries-introduction(7)>,
+L<ossl-guide-libssl-introduction(7)>, L<ossl-guide-quic-introduction(7)>,
+L<ossl-guide-quic-client-non-block(7)>, L<ossl-guide-quic-client-block(7)>,
+L<ossl-guide-tls-server-block(7)>, L<ossl-guide-quic-server-block(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,133 @@
+=pod
+
+=head1 NAME
+
+OSSL_CMP_ITAV_create,
+OSSL_CMP_ITAV_set0,
+OSSL_CMP_ITAV_get0_type,
+OSSL_CMP_ITAV_get0_value,
+OSSL_CMP_ITAV_push0_stack_item,
+OSSL_CMP_ITAV_new0_certProfile,
+OSSL_CMP_ITAV_get0_certProfile
+- OSSL_CMP_ITAV utility functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/cmp.h>
+
+ OSSL_CMP_ITAV *OSSL_CMP_ITAV_create(ASN1_OBJECT *type, ASN1_TYPE *value);
+ void OSSL_CMP_ITAV_set0(OSSL_CMP_ITAV *itav, ASN1_OBJECT *type,
+                         ASN1_TYPE *value);
+ ASN1_OBJECT *OSSL_CMP_ITAV_get0_type(const OSSL_CMP_ITAV *itav);
+ ASN1_TYPE *OSSL_CMP_ITAV_get0_value(const OSSL_CMP_ITAV *itav);
+ int OSSL_CMP_ITAV_push0_stack_item(STACK_OF(OSSL_CMP_ITAV) **itav_sk_p,
+                                    OSSL_CMP_ITAV *itav);
+ OSSL_CMP_ITAV
+ *OSSL_CMP_ITAV_new0_certProfile(STACK_OF(ASN1_UTF8STRING) *certProfile);
+ int OSSL_CMP_ITAV_get0_certProfile(const OSSL_CMP_ITAV *itav,
+                                    STACK_OF(ASN1_UTF8STRING) **out);
+
+=head1 DESCRIPTION
+
+ITAV is short for InfoTypeAndValue. This type is defined in RFC 4210
+section 5.3.19 and Appendix F. It is used at various places in CMP messages,
+e.g., in the generalInfo PKIHeader field, to hold a key-value pair.
+
+OSSL_CMP_ITAV_create() creates a new B<OSSL_CMP_ITAV> structure and fills it in.
+It combines OSSL_CMP_ITAV_new() and OSSL_CMP_ITAV_set0().
+
+OSSL_CMP_ITAV_set0() sets the I<itav> with an infoType of I<type> and an
+infoValue of I<value>. This function uses the pointers I<type> and I<value>
+internally, so they must B<not> be freed up after the call.
+
+OSSL_CMP_ITAV_get0_type() returns a direct pointer to the infoType in the
+I<itav>.
+
+OSSL_CMP_ITAV_get0_value() returns a direct pointer to the infoValue in
+the I<itav> as generic B<ASN1_TYPE> pointer.
+
+OSSL_CMP_ITAV_push0_stack_item() pushes I<itav> to the stack pointed to
+by I<*itav_sk_p>. It creates a new stack if I<*itav_sk_p> points to NULL.
+
+OSSL_CMP_ITAV_new0_certProfile() creates a new B<OSSL_CMP_ITAV> structure
+of type B<certProfile> that includes the optionally given list of profile names.
+On success, ownership of the list is with the new B<OSSL_CMP_ITAV> structure.
+
+OSSL_CMP_ITAV_get0_certProfile() on success assigns to I<*out>
+an internal pointer to the
+list of certificate profile names contained in the infoValue field of I<itav>.
+The pointer may be NULL if no profile name is included.
+It is an error if the infoType of I<itav> is not B<certProfile>.
+
+=head1 NOTES
+
+CMP is defined in RFC 4210 and RFC 9480 (and CRMF in RFC 4211).
+
+OIDs to use as types in B<OSSL_CMP_ITAV> can be found at
+L<https://datatracker.ietf.org/doc/html/rfc9480#section-4.2.2>.
+The respective OpenSSL NIDs, such as B<NID_id_it_certProfile>,
+are defined in the F<< <openssl/obj_mac.h> >> header file.
+
+=head1 RETURN VALUES
+
+OSSL_CMP_ITAV_create() and OSSL_CMP_ITAV_new0_certProfile()
+return a pointer to an ITAV structure on success, or NULL on error.
+
+OSSL_CMP_ITAV_set0() does not return a value.
+
+OSSL_CMP_ITAV_get0_type() and OSSL_CMP_ITAV_get0_value()
+return the respective pointer or NULL if their input is NULL.
+
+OSSL_CMP_ITAV_push0_stack_item() and OSSL_CMP_ITAV_get0_certProfile()
+return 1 on success, 0 on error.
+
+=head1 EXAMPLES
+
+The following code creates and sets a structure representing a generic
+InfoTypeAndValue sequence, using an OID created from text as type, and an
+integer as value. Afterwards, it is pushed to the B<OSSL_CMP_CTX> to be later
+included in the requests' PKIHeader's genInfo field.
+
+    ASN1_OBJECT *type = OBJ_txt2obj("1.2.3.4.5", 1);
+    if (type == NULL) ...
+
+    ASN1_INTEGER *asn1int = ASN1_INTEGER_new();
+    if (asn1int == NULL || !ASN1_INTEGER_set(asn1int, 12345)) ...
+
+    ASN1_TYPE *val = ASN1_TYPE_new();
+    if (val == NULL) ...
+    ASN1_TYPE_set(val, V_ASN1_INTEGER, asn1int);
+
+    OSSL_CMP_ITAV *itav = OSSL_CMP_ITAV_create(type, val);
+    if (itav == NULL) ...
+
+    if (!OSSL_CMP_CTX_push0_geninfo_ITAV(ctx, itav)) {
+        OSSL_CMP_ITAV_free(itav); /* also frees type and val */
+        ...
+    }
+
+    ...
+
+    OSSL_CMP_CTX_free(ctx); /* also frees itav */
+
+=head1 SEE ALSO
+
+L<OSSL_CMP_CTX_new(3)>, L<OSSL_CMP_CTX_free(3)>, L<ASN1_TYPE_set(3)>
+
+=head1 HISTORY
+
+The OpenSSL CMP support was added in OpenSSL 3.0.
+
+OSSL_CMP_ITAV_new0_certProfile() and OSSL_CMP_ITAV_get0_certProfile()
+were added in OpenSSL 3.3.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2021 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

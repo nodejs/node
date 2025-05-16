@@ -1,0 +1,69 @@
+=pod
+
+=head1 NAME
+
+X509V3_set_ctx,
+X509V3_set_issuer_pkey - X.509 v3 extension generation utilities
+
+=head1 SYNOPSIS
+
+ #include <openssl/x509v3.h>
+
+ void X509V3_set_ctx(X509V3_CTX *ctx, X509 *issuer, X509 *subject,
+                     X509_REQ *req, X509_CRL *crl, int flags);
+ int X509V3_set_issuer_pkey(X509V3_CTX *ctx, EVP_PKEY *pkey);
+
+=head1 DESCRIPTION
+
+X509V3_set_ctx() fills in the basic fields of I<ctx> of type B<X509V3_CTX>,
+providing details potentially needed by functions producing X509 v3 extensions.
+These may make use of fields of the certificate I<subject>, the certification
+request I<req>, or the certificate revocation list I<crl>.
+At most one of these three parameters can be non-NULL.
+When constructing the subject key identifier of a certificate by computing a
+hash value of its public key, the public key is taken from I<subject> or I<req>.
+Similarly, when constructing subject alternative names from any email addresses
+contained in a subject DN, the subject DN is taken from I<subject> or I<req>.
+If I<subject> or I<crl> is provided, I<issuer> should point to its issuer, for
+instance as a reference for generating the authority key identifier extension.
+I<issuer> may be the same pointer value as I<subject> (which usually is an
+indication that the I<subject> certificate is self-issued or even self-signed).
+In this case the fallback source for generating the authority key identifier
+extension will be taken from any value provided using X509V3_set_issuer_pkey().
+I<flags> may be 0
+or contain B<X509V3_CTX_TEST>, which means that just the syntax of
+extension definitions is to be checked without actually producing any extension,
+or B<X509V3_CTX_REPLACE>, which means that each X.509v3 extension added as
+defined in some configuration section shall replace any already existing
+extension with the same OID.
+
+X509V3_set_issuer_pkey() explicitly sets the issuer private key of
+the subject certificate that has been provided in I<ctx>.
+This should be done in case the I<issuer> and I<subject> arguments to
+X509V3_set_ctx() have the same pointer value
+to provide fallback data for the authority key identifier extension.
+
+=head1 RETURN VALUES
+
+X509V3_set_issuer_pkey() returns 1 on success and 0 on error.
+
+=head1 SEE ALSO
+
+L<X509_add_ext(3)>
+
+=head1 HISTORY
+
+X509V3_set_issuer_pkey() was added in OpenSSL 3.0.
+
+CTX_TEST was deprecated in OpenSSL 3.0; use X509V3_CTX_TEST instead.
+
+=head1 COPYRIGHT
+
+Copyright 2015-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

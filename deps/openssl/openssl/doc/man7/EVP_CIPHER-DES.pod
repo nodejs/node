@@ -1,0 +1,78 @@
+=pod
+
+=head1 NAME
+
+EVP_CIPHER-DES - The DES EVP_CIPHER implementations
+
+=head1 DESCRIPTION
+
+Support for DES symmetric encryption using the B<EVP_CIPHER> API.
+
+=head2 Algorithm Names
+
+The following algorithms are available in the FIPS provider as well as the
+default provider:
+
+=over 4
+
+=item "DES-EDE3-ECB" or "DES-EDE3"
+
+=item "DES-EDE3-CBC" or "DES3"
+
+=back
+
+The following algorithms are available in the default provider, but not the
+FIPS provider:
+
+=over 4
+
+=item "DES-EDE3-CFB8" and "DES-EDE3-CFB1"
+
+=item "DES-EDE-ECB" or "DES-EDE"
+
+=item "DES-EDE-CBC"
+
+=item "DES-EDE-OFB"
+
+=item "DES-EDE-CFB"
+
+=item "DES3-WRAP"
+
+=back
+
+The following algorithms are available in the legacy provider:
+
+=over 4
+
+=item "DES-ECB"
+
+=item "DES-CBC"
+
+=item "DES-OFB"
+
+=item "DES-CFB", "DES-CFB1" and "DES-CFB8"
+
+=item "DESX-CBC"
+
+=back
+
+=head2 Parameters
+
+This implementation supports the parameters described in
+L<EVP_EncryptInit(3)/PARAMETERS> including "encrypt-check" and "fips-indicator".
+
+=head1 SEE ALSO
+
+L<provider-cipher(7)>, L<OSSL_PROVIDER-FIPS(7)>, L<OSSL_PROVIDER-default(7)>,
+L<OSSL_PROVIDER-legacy(7)>,
+
+=head1 COPYRIGHT
+
+Copyright 2021-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -124,7 +124,7 @@ int ossl_dsa_check_pairwise(const DSA *dsa)
     /* recalculate the public key = (g ^ priv) mod p */
     if (!ossl_dsa_generate_public_key(ctx, dsa, dsa->priv_key, pub_key))
         goto err;
-    /* check it matches the existing pubic_key */
+    /* check it matches the existing public_key */
     ret = BN_cmp(pub_key, dsa->pub_key) == 0;
 err:
     BN_free(pub_key);

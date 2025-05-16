@@ -1,0 +1,114 @@
+=pod
+
+=head1 NAME
+
+EVP_SIGNATURE-ECDSA - The EVP_PKEY ECDSA signature implementation.
+
+=head1 DESCRIPTION
+
+Support for computing ECDSA signatures.
+See L<EVP_PKEY-EC(7)> for information related to EC keys.
+
+=head2 Algorithm Names
+
+In this list, names are grouped together to signify that they are the same
+algorithm having multiple names.  This also includes the OID in canonical
+decimal form (which means that they are possible to fetch if the caller has a
+mere OID which came out in this form after a call to L<OBJ_obj2txt(3)>).
+
+=over 4
+
+=item "ECDSA"
+
+The base signature algorithm, supported explicitly fetched with
+L<EVP_PKEY_sign_init_ex2(3)>, and implicitly fetched (through
+L<EC keys|EVP_PKEY-EC(7)>) with L<EVP_DigestSignInit(3)> and
+L<EVP_DigestVerifyInit(3)>.
+
+It can't be used with L<EVP_PKEY_sign_message_init(3)>
+
+=item "ECDSA-SHA1", "ECDSA-SHA-1", "ecdsa-with-SHA1", "1.2.840.10045.4.1"
+
+=item "ECDSA-SHA2-224", "ECDSA-SHA224", "ecdsa-with-SHA224", "1.2.840.10045.4.3.1"
+
+=item "ECDSA-SHA2-256", "ECDSA-SHA256", "ecdsa-with-SHA256", "1.2.840.10045.4.3.2"
+
+=item "ECDSA-SHA2-384", "ECDSA-SHA384", "ecdsa-with-SHA384", "1.2.840.10045.4.3.3"
+
+=item "ECDSA-SHA2-512", "ECDSA-SHA512", "ecdsa-with-SHA512", "1.2.840.10045.4.3.4"
+
+=item "ECDSA-SHA3-224", "ecdsa_with_SHA3-224", "id-ecdsa-with-sha3-224", "2.16.840.1.101.3.4.3.9"
+
+=item "ECDSA-SHA3-256", "ecdsa_with_SHA3-256", "id-ecdsa-with-sha3-256", "2.16.840.1.101.3.4.3.10"
+
+=item "ECDSA-SHA3-384", "ecdsa_with_SHA3-384", "id-ecdsa-with-sha3-384", "2.16.840.1.101.3.4.3.11"
+
+=item "ECDSA-SHA3-512", "ecdsa_with_SHA3-512", "id-ecdsa-with-sha3-512", "2.16.840.1.101.3.4.3.12"
+
+ECDSA signature schemes with diverse message digest algorithms.  They are all
+supported explicitly fetched with L<EVP_PKEY_sign_init_ex2(3)> and
+L<EVP_PKEY_sign_message_init(3)>.
+
+=back
+
+=head2 ECDSA Signature Parameters
+
+The following signature parameters can be set using EVP_PKEY_CTX_set_params().
+This may be called after EVP_PKEY_sign_init() or EVP_PKEY_verify_init(),
+and before calling EVP_PKEY_sign() or EVP_PKEY_verify().
+
+=over 4
+
+=item "digest" (B<OSSL_SIGNATURE_PARAM_DIGEST>) <UTF8 string>
+
+=item "properties" (B<OSSL_SIGNATURE_PARAM_PROPERTIES>) <UTF8 string>
+
+These two are not supported with the ECDSA signature schemes that already
+include a message digest algorithm, See L</Algorithm Names> above.
+
+=item "nonce-type" (B<OSSL_SIGNATURE_PARAM_NONCE_TYPE>) <unsigned integer>
+
+=item "key-check" (B<OSSL_SIGNATURE_PARAM_FIPS_KEY_CHECK>) <integer>
+
+=item "digest-check" (B<OSSL_SIGNATURE_PARAM_FIPS_DIGEST_CHECK>) <integer>
+
+These parameters are described in L<provider-signature(7)>.
+
+=back
+
+The following signature parameters can be retrieved using
+EVP_PKEY_CTX_get_params().
+
+=over 4
+
+=item "algorithm-id" (B<OSSL_SIGNATURE_PARAM_ALGORITHM_ID>) <octet string>
+
+=item "digest" (B<OSSL_SIGNATURE_PARAM_DIGEST>) <UTF8 string>
+
+=item "nonce-type" (B<OSSL_SIGNATURE_PARAM_NONCE_TYPE>) <unsigned integer>
+
+=item "fips-indicator" (B<OSSL_SIGNATURE_PARAM_FIPS_APPROVED_INDICATOR>) <integer>
+
+=item "verify-message" (B<OSSL_SIGNATURE_PARAM_FIPS_VERIFY_MESSAGE> <integer>
+
+The parameters are described in L<provider-signature(7)>.
+
+=back
+
+=head1 SEE ALSO
+
+L<EVP_PKEY_CTX_set_params(3)>,
+L<EVP_PKEY_sign(3)>,
+L<EVP_PKEY_verify(3)>,
+L<provider-signature(7)>,
+
+=head1 COPYRIGHT
+
+Copyright 2020-2024 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

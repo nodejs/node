@@ -40,10 +40,8 @@ int RSA_sign_ASN1_OCTET_STRING(int type,
         return 0;
     }
     s = OPENSSL_malloc((unsigned int)j + 1);
-    if (s == NULL) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+    if (s == NULL)
         return 0;
-    }
     p = s;
     i2d_ASN1_OCTET_STRING(&sig, &p);
     i = RSA_private_encrypt(i, s, sigret, rsa, RSA_PKCS1_PADDING);
@@ -72,10 +70,8 @@ int RSA_verify_ASN1_OCTET_STRING(int dtype,
     }
 
     s = OPENSSL_malloc((unsigned int)siglen);
-    if (s == NULL) {
-        ERR_raise(ERR_LIB_RSA, ERR_R_MALLOC_FAILURE);
+    if (s == NULL)
         goto err;
-    }
     i = RSA_public_decrypt((int)siglen, sigbuf, s, rsa, RSA_PKCS1_PADDING);
 
     if (i <= 0)
