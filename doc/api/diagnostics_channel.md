@@ -1217,6 +1217,13 @@ Emitted when a stream is created on the client.
 
 Emitted when a stream is started on the client.
 
+`http2.client.stream.error`
+
+* `stream` {ClientHttp2Stream}
+* `error` {Error}
+
+Emitted when an error occurs during the processing of a stream on the client.
+
 #### Modules
 
 > Stability: 1 - Experimental
