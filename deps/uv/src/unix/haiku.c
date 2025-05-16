@@ -120,7 +120,7 @@ int uv_cpu_info(uv_cpu_info_t** cpu_infos, int* count) {
   int i;
   status_t status;
   system_info system;
-  uint32_t topology_count;
+  uint32 topology_count;  /* Haiku expects address of uint32, not uint32_t */
   uint64_t cpuspeed;
   uv_cpu_info_t* cpu_info;
 

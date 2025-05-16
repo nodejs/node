@@ -108,3 +108,5 @@
    * [node.pas](https://github.com/vovach777/node.pas) NodeJS-like ecosystem
 * Haskell
    * [Z.Haskell](https://z.haskell.world)
+* C3
+   * [libuv.c3l](https://github.com/velikoss/libuv.c3l)   

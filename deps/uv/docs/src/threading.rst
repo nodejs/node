@@ -146,6 +146,8 @@ Threads
     a thread name can be: Linux, IBM i (16), macOS (64), Windows (32767), and NetBSD (32), etc. `uv_thread_setname()`
     will truncate it in case `name` is larger than the limit of the platform.
 
+    Not supported on Windows Server 2016, returns `UV_ENOSYS`.
+
     .. versionadded:: 1.50.0
 
 .. c:function:: int uv_thread_getname(uv_thread_t* tid, char* name, size_t* size)
@@ -155,9 +157,12 @@ Threads
     The buffer should be large enough to hold the name of the thread plus the trailing NUL, or it will be truncated to fit
     with the trailing NUL.
 
+    Not supported on Windows Server 2016, returns `UV_ENOSYS`.
+
     .. versionadded:: 1.50.0
 
 .. c:function:: int uv_thread_setpriority(uv_thread_t tid, int priority)
+
     If the function succeeds, the return value is 0.
     If the function fails, the return value is less than zero.
     Sets the scheduling priority of the thread specified by tid. It requires elevated
@@ -165,7 +170,9 @@ Threads
     The priority can be set to the following constants. UV_THREAD_PRIORITY_HIGHEST, 
     UV_THREAD_PRIORITY_ABOVE_NORMAL, UV_THREAD_PRIORITY_NORMAL, 
     UV_THREAD_PRIORITY_BELOW_NORMAL, UV_THREAD_PRIORITY_LOWEST.
+
 .. c:function:: int uv_thread_getpriority(uv_thread_t tid, int* priority)
+
     If the function succeeds, the return value is 0.
     If the function fails, the return value is less than zero.
     Retrieves the scheduling priority of the thread specified by tid. The value in the
