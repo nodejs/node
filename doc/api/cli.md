@@ -2259,6 +2259,10 @@ different folders where multiple `node_modules` directories are present, if
 
 `--run` executes the command in the directory containing the related `package.json`.
 
+Note: This option only has an effect when used with either `--watch` or `--watch-path`.
+Without one of these flags, `--run` will be ignored during process restarts.
+
+
 For example, the following command will run the `test` script of
 the `package.json` in the current folder:
 
