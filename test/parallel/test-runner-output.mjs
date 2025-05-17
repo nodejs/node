@@ -134,12 +134,19 @@ const tests = [
   },
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=20',
+    ],
   },
   // --test-timeout should work with or without --test flag
   {
     name: 'test-runner/output/test-timeout-flag.js',
-    flags: ['--test-reporter=tap', '--test'],
+    flags: [
+      '--test-reporter=tap',
+      '--test-timeout=20',
+      '--test',
+    ],
   },
   {
     name: 'test-runner/output/hooks-with-no-global-test.js',
@@ -206,6 +213,10 @@ const tests = [
   },
   {
     name: 'test-runner/output/unfinished-suite-async-error.js',
+    flags: ['--test-reporter=tap'],
+  },
+  {
+    name: 'test-runner/output/unresolved_promise.js',
     flags: ['--test-reporter=tap'],
   },
   { name: 'test-runner/output/default_output.js', transform: specTransform, tty: true },
