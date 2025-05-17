@@ -117,8 +117,8 @@ platforms. This is true regardless of entries in the table below.
 | GNU/Linux        | loong64          | kernel >= 5.19, glibc >= 2.36     | Experimental |                                      |
 | Windows          | x64              | >= Windows 10/Server 2016         | Tier 1       | [^2],[^3]                            |
 | Windows          | arm64            | >= Windows 10                     | Tier 2       |                                      |
-| macOS            | x64              | >= 13.5                           | Tier 1       | For notes about compilation see [^4] |
-| macOS            | arm64            | >= 13.5                           | Tier 1       |                                      |
+| macOS            | x64              | >= 15.2                           | Tier 1       | For notes about compilation see [^4] |
+| macOS            | arm64            | >= 15.2                           | Tier 1       |                                      |
 | SmartOS          | x64              | >= 18                             | Tier 2       |                                      |
 | AIX              | ppc64be >=power8 | >= 7.2 TL04                       | Tier 2       |                                      |
 | FreeBSD          | x64              | >= 13.2                           | Experimental |                                      |
@@ -156,7 +156,7 @@ Depending on the host platform, the selection of toolchains may vary.
 | ---------------- | -------------------------------------------------------------- |
 | Linux            | GCC >= 12.2                                                    |
 | Windows          | Visual Studio >= 2022 with the Windows 10 SDK on a 64-bit host |
-| macOS            | Xcode >= 16.1 (Apple LLVM >= 17)                               |
+| macOS            | Xcode >= 16.3 (Apple LLVM >= 19)                               |
 
 ### Official binary platforms and toolchains
 
@@ -248,7 +248,7 @@ FreeBSD and OpenBSD users may also need to install `libexecinfo`.
 
 #### macOS prerequisites
 
-* Xcode Command Line Tools >= 13 for macOS
+* Xcode Command Line Tools >= 16.3 for macOS
 * [A supported version of Python][Python versions]
   * For test coverage, your Python installation must include pip.
 
