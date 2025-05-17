@@ -561,17 +561,14 @@ for (const test of TEST_CASES) {
   const iv = Buffer.alloc(12);
   const opts = { authTagLength: 10 };
 
-  for (const cipher of [
-    crypto.createCipheriv(algo, key, iv, opts),
-  ]) {
-    assert.throws(() => {
-      cipher.final();
-    }, hasOpenSSL3 ? {
-      code: 'ERR_OSSL_TAG_NOT_SET'
-    } : {
-      message: /Unsupported state/
-    });
-  }
+  const cipher = crypto.createCipheriv(algo, key, iv, opts);
+  assert.throws(() => {
+    cipher.final();
+  }, hasOpenSSL3 ? {
+    code: 'ERR_OSSL_TAG_NOT_SET'
+  } : {
+    message: /Unsupported state/
+  });
 }
 
 {
