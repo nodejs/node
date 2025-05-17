@@ -618,6 +618,30 @@ void SetProtoMethod(v8::Isolate* isolate,
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
+void SetFastProtoMethod(Isolate* isolate,
+                        Local<FunctionTemplate> that,
+                        const std::string_view name,
+                        v8::FunctionCallback slow_callback,
+                        const v8::CFunction* c_function) {
+  Local<v8::Signature> signature = v8::Signature::New(isolate, that);
+  Local<FunctionTemplate> t =
+      FunctionTemplate::New(isolate,
+                            slow_callback,
+                            Local<Value>(),
+                            signature,
+                            0,
+                            v8::ConstructorBehavior::kThrow,
+                            v8::SideEffectType::kHasSideEffect,
+                            c_function);
+  // kInternalized strings are created in the old space.
+  const v8::NewStringType type = v8::NewStringType::kInternalized;
+  Local<v8::String> name_string =
+      v8::String::NewFromUtf8(isolate, name.data(), type, name.size())
+          .ToLocalChecked();
+  that->PrototypeTemplate()->Set(name_string, t);
+  t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
+}
+
 void SetProtoMethodNoSideEffect(v8::Isolate* isolate,
                                 Local<v8::FunctionTemplate> that,
                                 const std::string_view name,
