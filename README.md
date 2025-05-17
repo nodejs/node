@@ -32,6 +32,7 @@ that discourage, exhaust, or otherwise negatively affect other participants.
   * [Collaborators](#collaborators)
   * [Triagers](#triagers)
   * [Release keys](#release-keys)
+* [Quick Example](#quick-example)
 * [License](#license)
 
 ## Support
@@ -135,6 +136,26 @@ source and a list of supported platforms.
 
 For information on reporting security vulnerabilities in Node.js, see
 [SECURITY.md](./SECURITY.md).
+
+## Quick Example
+
+Here's a simple HTTP server example that responds with "Hello World":
+
+```javascript
+const http = require('http');
+
+const server = http.createServer((req, res) => {
+  res.statusCode = 200;
+  res.setHeader('Content-Type', 'text/plain');
+  res.end('Hello World\n');
+});
+
+server.listen(3000, '127.0.0.1', () => {
+  console.log('Server running at http://127.0.0.1:3000/');
+});
+```
+
+Save this code to a file (e.g., `hello-world.js`) and run it with `node hello-world.js`.
 
 ## Contributing to Node.js
 
