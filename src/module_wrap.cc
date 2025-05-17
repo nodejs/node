@@ -1065,10 +1065,8 @@ void ModuleWrap::SetImportModuleDynamicallyCallback(
   realm->set_host_import_module_dynamically_callback(import_callback);
 
   isolate->SetHostImportModuleDynamicallyCallback(ImportModuleDynamically);
-  // TODO(guybedford): Enable this once
-  //                   https://github.com/nodejs/node/pull/56842 lands.
-  // isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
-  //     ImportModuleDynamicallyWithPhase);
+  isolate->SetHostImportModuleWithPhaseDynamicallyCallback(
+      ImportModuleDynamicallyWithPhase);
 }
 
 void ModuleWrap::HostInitializeImportMetaObjectCallback(

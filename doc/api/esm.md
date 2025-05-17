@@ -722,6 +722,17 @@ const instance2 = await WebAssembly.instantiate(libraryModule, {
 });
 ```
 
+In addition to the static source phase, there is also a dynamic variant of the
+source phase via the `import.source` dynamic phase import syntax:
+
+```js
+const dynamicLibrary = await import.source('./library.wasm');
+
+const instance = await WebAssembly.instantiate(dynamicLibrary, {
+  custom: importObj,
+});
+```
+
 <i id="esm_experimental_top_level_await"></i>
 
 ## Top-level `await`
