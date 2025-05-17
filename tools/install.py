@@ -182,7 +182,7 @@ def files(options, action):
       try_symlink(options, so_name, link_path)
     else:
       output_lib = 'libnode.' + options.variables.get('shlib_suffix')
-      action(options, [os.path.join(options.build_dir, output_lib)],
+      action(options, [os.path.join(options.build_dir, 'lib', output_lib)],
              os.path.join(options.variables.get('libdir'), output_lib))
 
   action(options, [os.path.join(options.v8_dir, 'tools/gdbinit')], 'share/doc/node/')
