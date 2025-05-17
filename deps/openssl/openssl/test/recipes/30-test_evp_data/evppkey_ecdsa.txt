@@ -1,0 +1,231 @@
+#
+# Copyright 2001-2024 The OpenSSL Project Authors. All Rights Reserved.
+#
+# Licensed under the Apache License 2.0 (the "License").  You may not use
+# this file except in compliance with the License.  You can obtain a copy
+# in the file LICENSE in the source distribution or at
+# https://www.openssl.org/source/license.html
+
+# Tests start with one of these keywords
+#       Cipher Decrypt Derive Digest Encoding KDF MAC PBE
+#       PrivPubKeyPair Sign Verify VerifyRecover
+# and continue until a blank line. Lines starting with a pound sign are ignored.
+# The keyword Availablein must appear before the test name if needed.
+
+# Public key algorithm tests
+
+# Private keys used for PKEY operations.
+
+# EC P-256 key
+
+PrivateKey=P-256
+-----BEGIN PRIVATE KEY-----
+MIGHAgEAMBMGByqGSM49AgEGCCqGSM49AwEHBG0wawIBAQQgiocvtiiTxNH/xbnw
++RdYBp+DUuCPoFpJ+NuSbLVyhyWhRANCAAQsFQ9CnOcPIWwlLPXgYs4fY5zV0WXH
++JQkBywnGX14szuSDpXNtmTpkNzwz+oNlOKo5q+dDlgFbmUxBJJbn+bJ
+-----END PRIVATE KEY-----
+
+# EC public key for above
+
+PublicKey=P-256-PUBLIC
+-----BEGIN PUBLIC KEY-----
+MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAELBUPQpznDyFsJSz14GLOH2Oc1dFl
+x/iUJAcsJxl9eLM7kg6VzbZk6ZDc8M/qDZTiqOavnQ5YBW5lMQSSW5/myQ==
+-----END PUBLIC KEY-----
+
+PrivPubKeyPair = P-256:P-256-PUBLIC
+
+Title = ECDSA tests
+
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
+
+# Digest too long
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF12345"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
+Result = VERIFY_ERROR
+
+# Digest too short
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF123"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
+Result = VERIFY_ERROR
+
+# Digest invalid
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1235"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
+Result = VERIFY_ERROR
+
+# Invalid signature
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec7
+Result = VERIFY_ERROR
+
+# Garbage after signature
+Availablein = default
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec800
+Result = VERIFY_ERROR
+
+# BER signature
+Verify = P-256
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Output = 3080022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec80000
+Result = VERIFY_ERROR
+
+Verify = P-256-PUBLIC
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Output = 3045022100b1d1cb1a577035bccdd5a86c6148c2cc7c633cd42b7234139b593076d041e15202201898cdd52b41ca502098184b409cf83a21bc945006746e3b7cea52234e043ec8
+
+Title = DigestSign and DigestVerify
+
+DigestVerify = SHA256
+Key = P-256-PUBLIC
+Input = "Hello World"
+Output = 3046022100e7515177ec3817b77a4a94066ab3070817b7aa9d44a8a09f040da250116e8972022100ba59b0f631258e59a9026be5d84f60685f4cf22b9165a0c2736d5c21c8ec1862
+
+PublicKey=P-384-PUBLIC
+-----BEGIN PUBLIC KEY-----
+MHYwEAYHKoZIzj0CAQYFK4EEACIDYgAES/TlL5WEJ+u1kV+4yVlVUbTTo/2rZ7rd
+nWwwk/QlukNjDfcfQvDrfOqpTZ9kSKhd0wMxWIJJ/S/cCzCex+2EgbwW8ngAwT19
+twD8guGxyFRaoMDTtW47/nifwYqRaIfC
+-----END PUBLIC KEY-----
+
+DigestVerify = SHA384
+Key = P-384-PUBLIC
+Input = "123400"
+Output = 304d0218389cb27e0bc8d21fa7e5f24cb74f58851313e696333ad68b023100ffffffffffffffffffffffffffffffffffffffffffffffffc7634d81f4372ddf581a0db248b0a77aecec196accc52970
+
+# Oneshot tests
+OneShotDigestVerify = SHA256
+Key = P-256-PUBLIC
+Input = "Hello World"
+Output = 3046022100e7515177ec3817b77a4a94066ab3070817b7aa9d44a8a09f040da250116e8972022100ba59b0f631258e59a9026be5d84f60685f4cf22b9165a0c2736d5c21c8ec1862
+
+# Test that mdsize != tbssize fails
+Sign = P-256
+Ctrl = digest:SHA256
+Input = "0123456789ABCDEF1234"
+Result = KEYOP_ERROR
+
+PrivateKey = P-256_NAMED_CURVE_EXPLICIT
+-----BEGIN PRIVATE KEY-----
+MIIBeQIBADCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAAB
+AAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA
+///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMV
+AMSdNgiG5wSTamZ44ROdJreBn36QBEEEaxfR8uEsQkf4vOblY6RA8ncDfYEt6zOg
+9KE5RdiYwpZP40Li/hp/m47n60p8D54WK84zV2sxXs7LtkBoN79R9QIhAP////8A
+AAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBBG0wawIBAQQgiUTxtr5vLVjj
+0BOXUa/4r82DJ30QoupYS/wlilW4gWehRANCAATM0n3q2UaDyaQ7OxzJM3B6prhW
+3ev1gTwRBduzqqlwd54AUSgI+pjttW8zrWNitO8H1sf59MPWOESKxNtZ1+Nl
+-----END PRIVATE KEY-----
+
+PrivateKey = EC_EXPLICIT
+-----BEGIN PRIVATE KEY-----
+MIIBeQIBADCCAQMGByqGSM49AgEwgfcCAQEwLAYHKoZIzj0BAQIhAP////8AAAAB
+AAAAAAAAAAAAAAAA////////////////MFsEIP////8AAAABAAAAAAAAAAAAAAAA
+///////////////8BCBaxjXYqjqT57PrvVV2mIa8ZR0GsMxTsPY7zjw+J9JgSwMV
+AMSdNgiG5wSTamZ44ROdJreBn36QBEEE5JcIvn36opqjEm/k59Al40rBAxWM2TPG
+l0L13Je51zHpfXQ9Z2o7IQicMXP4wSfJ0qCgg2bgydqoxlYrlLGuVQIhAP////8A
+AAAA//////////+85vqtpxeehPO5ysL8YyVRAgEBBG0wawIBAQQgec92jwduadCk
+OjoNRI+YT5Be5TkzZXzYCyTLkMOikDmhRANCAATtECEhQbLEaiUj/Wu0qjcr81lL
+46dx5zYgArz/iaSNJ3W80oO+F7v04jlQ7wxQzg96R0bwKiMeq5CcW9ZFt6xg
+-----END PRIVATE KEY-----
+
+PrivateKey = B-163
+-----BEGIN PRIVATE KEY-----
+MGMCAQAwEAYHKoZIzj0CAQYFK4EEAA8ETDBKAgEBBBUDnQW0mLiHVha/jqFznX/K
+DnVlDgChLgMsAAQB1qZ00fPIct+QN8skv1XIHtBNp3EGLytJV0tsAUTYtGhtrzRj
+e3GzYyg=
+-----END PRIVATE KEY-----
+
+PrivateKey = secp256k1
+-----BEGIN PRIVATE KEY-----
+MIGEAgEAMBAGByqGSM49AgEGBSuBBAAKBG0wawIBAQQgsLpFV9joHc0bisyV53XL
+mrG6/Gu6ZaHoXtKP/VFX44ehRANCAARLYWGgp5nP4N8guypLSbYGCVN6ZPCnWW4x
+srYkcpdbxr4neRT3zC62keCKgPbJf5SIHkJ2Tcaw6hVSrBOUFtix
+-----END PRIVATE KEY-----
+
+Title = FIPS tests
+
+# Test that a nist curve with < 112 bits is allowed in fips mode for verifying
+DigestVerify = SHA256
+Key = B-163
+Input = "Hello World"
+Output = 302e0215027bb891747468b4b59ca2a2bf8f42d29d08866cf5021502cc311b25e9a2168e42240b07a6071070f687eb3b
+
+# Test that a nist curve with SHA3 is allowed in fips mode
+# The sign will get a mismatch error since the output signature changes on each run 
+DigestSign = SHA3-512
+Key = P-256
+Input = "Hello World"
+Result = SIGNATURE_MISMATCH
+
+# Test that a explicit curve that is a named curve is allowed in fips mode
+DigestVerify = SHA256
+Key = P-256_NAMED_CURVE_EXPLICIT
+Input = "Hello World"
+Output = 30450220796fcf472882ed5779226dcd0217b9d2b9acfe4fa2fb0109c8ee63c63adc1033022100e306c69f7e31b9a5d54eb12ba813cddf4de4af933e4f6cea38a0817d9d831d91
+
+Title = FIPS Negative tests (using different curves and digests)
+
+# Test that a explicit curve is not allowed in fips mode
+Availablein = fips
+DigestVerify = SHA256
+Securitycheck = 1
+Key = EC_EXPLICIT
+Input = "Hello World"
+Result = DIGESTVERIFYINIT_ERROR
+
+# Test that a curve with < 112 bits is not allowed in fips mode for signing
+Availablein = fips
+DigestSign = SHA3-512
+Securitycheck = 1
+Key = B-163
+Input = "Hello World"
+Result = DIGESTSIGNINIT_ERROR
+
+# Test that a non nist curve is not allowed in fips mode
+Availablein = fips
+DigestSign = SHA3-512
+Securitycheck = 1
+Key = secp256k1
+Input = "Hello World"
+Result = DIGESTSIGNINIT_ERROR
+
+# Test that SHA1 is not allowed in fips mode for signing
+Availablein = fips
+DigestSign = SHA1
+Securitycheck = 1
+Key = B-163
+Input = "Hello World"
+Result = DIGESTSIGNINIT_ERROR
+
+# Test that SHA1 is not allowed in fips mode for signing
+Availablein = fips
+FIPSversion = <3.4.0
+Sign = P-256
+Securitycheck = 1
+Ctrl = digest:SHA1
+Input = "0123456789ABCDEF1234"
+Result = PKEY_CTRL_ERROR
+
+# Invalid non-approved digest
+Availablein = fips
+DigestVerify = MD5
+Securitycheck = 1
+Key = P-256-PUBLIC
+Result = DIGESTVERIFYINIT_ERROR
