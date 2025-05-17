@@ -4,7 +4,9 @@ const { win32 } = require('path');
 
 const bench = common.createBenchmark(main, {
   paths: [
+    'empty',
     '',
+    '.',
     ['', ''].join('|'),
     ['c:/ignore', 'd:\\a/b\\c/d', '\\e.exe'].join('|'),
     ['c:/blah\\blah', 'd:/games', 'c:../a'].join('|'),
@@ -13,14 +15,14 @@ const bench = common.createBenchmark(main, {
 });
 
 function main({ n, paths }) {
-  const args = paths.split('|');
+  const args = paths === 'empty' ? [] : paths.split('|');
   const copy = [...args];
-  const orig = copy[0];
+  const orig = copy[0] ?? '';
 
   bench.start();
   for (let i = 0; i < n; i++) {
-    if (i % 3 === 0) {
-      copy[0] = `${orig}${i}`;
+    if (i % 5 === 0) {
+      copy[0] = `${orig}\\${i}`;
       win32.resolve(...copy);
     } else {
       win32.resolve(...args);
