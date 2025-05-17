@@ -208,17 +208,18 @@ const EVP_MD* GetDigestImplementation(Environment* env,
 }
 
 // crypto.digest(algorithm, algorithmId, algorithmCache,
-//               input, outputEncoding, outputEncodingId)
+//               input, outputEncoding, outputEncodingId, outputLength)
 void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
-  CHECK_EQ(args.Length(), 6);
+  CHECK_EQ(args.Length(), 7);
   CHECK(args[0]->IsString());                                  // algorithm
   CHECK(args[1]->IsInt32());                                   // algorithmId
   CHECK(args[2]->IsObject());                                  // algorithmCache
   CHECK(args[3]->IsString() || args[3]->IsArrayBufferView());  // input
   CHECK(args[4]->IsString());                                  // outputEncoding
   CHECK(args[5]->IsUint32() || args[5]->IsUndefined());  // outputEncodingId
+  CHECK(args[6]->IsUint32() || args[6]->IsUndefined());  // outputLength
 
   const EVP_MD* md = GetDigestImplementation(env, args[0], args[1], args[2]);
   if (md == nullptr) [[unlikely]] {
@@ -230,21 +231,32 @@ void Hash::OneShotDigest(const FunctionCallbackInfo<Value>& args) {
 
   enum encoding output_enc = ParseEncoding(isolate, args[4], args[5], HEX);
 
-  DataPointer output = ([&] {
+  DataPointer output = ([&]() -> DataPointer {
+    Utf8Value utf8(isolate, args[3]);
+    ncrypto::Buffer<const unsigned char> buf;
     if (args[3]->IsString()) {
-      Utf8Value utf8(isolate, args[3]);
-      ncrypto::Buffer<const unsigned char> buf{
+      buf = {
           .data = reinterpret_cast<const unsigned char*>(utf8.out()),
           .len = utf8.length(),
       };
-      return ncrypto::hashDigest(buf, md);
+    } else {
+      ArrayBufferViewContents<unsigned char> input(args[3]);
+      buf = {
+          .data = reinterpret_cast<const unsigned char*>(input.data()),
+          .len = input.length(),
+      };
     }
 
-    ArrayBufferViewContents<unsigned char> input(args[3]);
-    ncrypto::Buffer<const unsigned char> buf{
-        .data = reinterpret_cast<const unsigned char*>(input.data()),
-        .len = input.length(),
-    };
+    if (!args[6]->IsUndefined()) {
+      bool isXOF = (EVP_MD_flags(md) & EVP_MD_FLAG_XOF) != 0;
+      int output_length = args[6].As<Uint32>()->Value();
+      if (isXOF) {
+        return ncrypto::xofHashDigest(buf, md, output_length);
+      } else if (!isXOF && output_length != EVP_MD_get_size(md)) {
+        ThrowCryptoError(env, ERR_get_error(), "Invalid length or not XOF");
+        return {};
+      }
+    }
     return ncrypto::hashDigest(buf, md);
   })();
 
