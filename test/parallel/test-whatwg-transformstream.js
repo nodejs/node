@@ -196,6 +196,7 @@ class Source {
   });
 
   assert.throws(() => new TransformStreamDefaultController(), {
+    name: 'TypeError',
     code: 'ERR_ILLEGAL_CONSTRUCTOR',
   });
 }
