@@ -56,6 +56,7 @@ void OOMErrorHandler(const char* location, const v8::OOMDetails& details);
   V(ERR_CRYPTO_INVALID_DIGEST, TypeError)                                      \
   V(ERR_CRYPTO_INVALID_IV, TypeError)                                          \
   V(ERR_CRYPTO_INVALID_JWK, TypeError)                                         \
+  V(ERR_CRYPTO_INVALID_KDF_PARAMS, RangeError)                                 \
   V(ERR_CRYPTO_INVALID_KEYLEN, RangeError)                                     \
   V(ERR_CRYPTO_INVALID_KEYPAIR, RangeError)                                    \
   V(ERR_CRYPTO_INVALID_KEYTYPE, RangeError)                                    \
@@ -188,6 +189,7 @@ ERRORS_WITH_CODE(V)
   V(ERR_CRYPTO_INVALID_DIGEST, "Invalid digest")                               \
   V(ERR_CRYPTO_INVALID_IV, "Invalid initialization vector")                    \
   V(ERR_CRYPTO_INVALID_JWK, "Invalid JWK format")                              \
+  V(ERR_CRYPTO_INVALID_KDF_PARAMS, "Invalid kdf params")                       \
   V(ERR_CRYPTO_INVALID_KEYLEN, "Invalid key length")                           \
   V(ERR_CRYPTO_INVALID_KEYPAIR, "Invalid key pair")                            \
   V(ERR_CRYPTO_INVALID_KEYTYPE, "Invalid key type")                            \

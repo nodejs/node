@@ -45,6 +45,7 @@ namespace crypto {
   V(Hash)                                                                      \
   V(HKDFJob)                                                                   \
   V(Hmac)                                                                      \
+  V(KDFJob)                                                                    \
   V(Keygen)                                                                    \
   V(Keys)                                                                      \
   V(NativeKeyObject)                                                           \
