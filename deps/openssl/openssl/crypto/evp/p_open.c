@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2020 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -34,7 +34,7 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
         return 1;
 
     if ((pctx = EVP_PKEY_CTX_new(priv, NULL)) == NULL) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_EVP, ERR_R_EVP_LIB);
         goto err;
     }
 
@@ -42,10 +42,8 @@ int EVP_OpenInit(EVP_CIPHER_CTX *ctx, const EVP_CIPHER *type,
         || EVP_PKEY_decrypt(pctx, NULL, &keylen, ek, ekl) <= 0)
         goto err;
 
-    if ((key = OPENSSL_malloc(keylen)) == NULL) {
-        ERR_raise(ERR_LIB_EVP, ERR_R_MALLOC_FAILURE);
+    if ((key = OPENSSL_malloc(keylen)) == NULL)
         goto err;
-    }
 
     if (EVP_PKEY_decrypt(pctx, key, &keylen, ek, ekl) <= 0)
         goto err;

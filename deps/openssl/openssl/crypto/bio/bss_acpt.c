@@ -1,5 +1,5 @@
 /*
- * Copyright 1995-2023 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 1995-2025 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -92,10 +92,8 @@ static BIO_ACCEPT *BIO_ACCEPT_new(void)
 {
     BIO_ACCEPT *ret;
 
-    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL) {
-        ERR_raise(ERR_LIB_BIO, ERR_R_MALLOC_FAILURE);
+    if ((ret = OPENSSL_zalloc(sizeof(*ret))) == NULL)
         return NULL;
-    }
     ret->accept_family = BIO_FAMILY_IPANY;
     ret->accept_sock = (int)INVALID_SOCKET;
     return ret;
@@ -188,7 +186,7 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
                               * at least the "else" part will always be
                               * compiled.
                               */
-#ifdef AF_INET6
+#if OPENSSL_USE_IPV6
                         family = AF_INET6;
                     } else {
 #endif
@@ -358,7 +356,7 @@ static int acpt_state(BIO *b, BIO_ACCEPT *c)
         BIO_free(bio);
     else if (s >= 0)
         BIO_closesocket(s);
-  end:
+ end:
     return ret;
 }
 
@@ -452,10 +450,14 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
                 data->bio_chain = (BIO *)ptr;
             } else if (num == 4) {
                 data->accept_family = *(int *)ptr;
+            } else if (num == 5) {
+                data->bind_mode |= BIO_SOCK_TFO;
             }
         } else {
             if (num == 2) {
                 data->bind_mode &= ~BIO_SOCK_NONBLOCK;
+            } else if (num == 5) {
+                data->bind_mode &= ~BIO_SOCK_TFO;
             }
         }
         break;
@@ -497,7 +499,7 @@ static long acpt_ctrl(BIO *b, int cmd, long num, void *ptr)
                 *pp = data->cache_peer_serv;
             } else if (num == 4) {
                 switch (BIO_ADDRINFO_family(data->addr_iter)) {
-#ifdef AF_INET6
+#if OPENSSL_USE_IPV6
                 case AF_INET6:
                     ret = BIO_FAMILY_IPV6;
                     break;

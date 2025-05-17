@@ -13,7 +13,7 @@
 # defined.
 HOME			= .
 
- # Use this in order to automatically load providers.
+# Use this in order to automatically load providers.
 openssl_conf = openssl_init
 
 # Comment out the next line to ignore configuration errors
@@ -92,7 +92,7 @@ serial		= $dir/serial 		# The current serial number
 crlnumber	= $dir/crlnumber	# the current crl number
 					# must be commented out to leave a V1 CRL
 crl		= $dir/crl.pem 		# The current CRL
-private_key	= $dir/private/cakey.pem# The private key
+private_key	= $dir/private/cakey.pem # The private key
 
 x509_extensions	= usr_cert		# The extensions to add to the cert
 
@@ -330,8 +330,8 @@ tsa_name		= yes	# Must the TSA name be included in the reply?
 				# (optional, default: no)
 ess_cert_id_chain	= no	# Must the ESS cert id chain be included?
 				# (optional, default: no)
-ess_cert_id_alg		= sha1	# algorithm to compute certificate
-				# identifier (optional, default: sha1)
+ess_cert_id_alg		= sha256	# algorithm to compute certificate
+				# identifier (optional, default: sha256)
 
 [insta] # CMP using Insta Demo CA
 # Message transfer
@@ -342,8 +342,8 @@ path = pkix/
 
 # Server authentication
 recipient = "/C=FI/O=Insta Demo/CN=Insta Demo CA" # or set srvcert or issuer
-ignore_keyusage = 1 # potentially needed quirk
-unprotected_errors = 1 # potentially needed quirk
+ignore_keyusage = 1 # quirk needed to accept Insta CA cert not including digitalsignature
+unprotected_errors = 1 # quirk needed to accept negative responses possibly not protected
 extracertsout = insta.extracerts.pem
 
 # Client authentication

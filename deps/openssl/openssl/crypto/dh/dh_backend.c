@@ -1,5 +1,5 @@
 /*
- * Copyright 2020-2022 The OpenSSL Project Authors. All Rights Reserved.
+ * Copyright 2020-2023 The OpenSSL Project Authors. All Rights Reserved.
  *
  * Licensed under the Apache License 2.0 (the "License").  You may not use
  * this file except in compliance with the License.  You can obtain a copy
@@ -31,13 +31,7 @@
 static int dh_ffc_params_fromdata(DH *dh, const OSSL_PARAM params[])
 {
     int ret;
-    FFC_PARAMS *ffc;
-
-    if (dh == NULL)
-        return 0;
-    ffc = ossl_dh_get0_params(dh);
-    if (ffc == NULL)
-        return 0;
+    FFC_PARAMS *ffc = ossl_dh_get0_params(dh);
 
     ret = ossl_ffc_params_fromdata(ffc, params);
     if (ret)

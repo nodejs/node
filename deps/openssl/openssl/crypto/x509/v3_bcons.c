@@ -61,7 +61,7 @@ static BASIC_CONSTRAINTS *v2i_BASIC_CONSTRAINTS(X509V3_EXT_METHOD *method,
     int i;
 
     if ((bcons = BASIC_CONSTRAINTS_new()) == NULL) {
-        ERR_raise(ERR_LIB_X509V3, ERR_R_MALLOC_FAILURE);
+        ERR_raise(ERR_LIB_X509V3, ERR_R_ASN1_LIB);
         return NULL;
     }
     for (i = 0; i < sk_CONF_VALUE_num(values); i++) {

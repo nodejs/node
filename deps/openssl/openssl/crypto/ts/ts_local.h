@@ -110,7 +110,7 @@ struct TS_resp_ctx {
     ASN1_INTEGER *seconds;      /* accuracy, 0 means not specified. */
     ASN1_INTEGER *millis;       /* accuracy, 0 means not specified. */
     ASN1_INTEGER *micros;       /* accuracy, 0 means not specified. */
-    unsigned clock_precision_digits; /* fraction of seconds in time stamp
+    unsigned clock_precision_digits; /* fraction of seconds in timestamp
                                       * token. */
     unsigned flags;             /* Optional info, see values above. */
     /* Callback functions. */
