@@ -230,10 +230,16 @@ function runTest(assertCleaned) {
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize: historySize
   });
 
-  repl.setupHistory(historyFile, function(err, repl) {
+  repl.setupHistory({
+    historySize,
+    historyFile,
+    onHistoryFileLoaded,
+    removeHistoryDuplicates: false
+  });
+
+  function onHistoryFileLoaded(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
@@ -262,5 +268,5 @@ function runTest(assertCleaned) {
     }
 
     repl.inputStream.run(test);
-  });
+  }
 }
