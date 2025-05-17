@@ -1628,6 +1628,9 @@ def get_asan_state(vm, context):
   asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout.strip()
   return "on" if asan == "1" else "off"
 
+def get_pointer_compression_state(vm, context):
+  pointer_compression = Execute([vm, '-p', 'process.config.variables.v8_enable_pointer_compression'], context).stdout.strip()
+  return "on" if pointer_compression == "1" else "off"
 
 def Main():
   parser = BuildOptions()
@@ -1726,6 +1729,7 @@ def Main():
           'arch': vmArch,
           'type': get_env_type(vm, options.type, context),
           'asan': get_asan_state(vm, context),
+          'pointer_compression': get_pointer_compression_state(vm, context),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list
