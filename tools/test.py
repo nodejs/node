@@ -1706,6 +1706,7 @@ def Main():
           print("Can't find shell executable: '%s'" % vm)
           continue
         archEngineContext = Execute([vm, "-p", "process.arch"], context)
+        print(archEngineContext.stdout)
         vmArch = archEngineContext.stdout.rstrip()
         if archEngineContext.exit_code != 0 or vmArch == "undefined":
           print("Can't determine the arch of: '%s'" % vm)
