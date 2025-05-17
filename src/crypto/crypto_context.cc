@@ -2009,8 +2009,11 @@ int SecureContext::TicketKeyCallback(SSL* ssl,
   }
 
   ArrayBufferViewContents<unsigned char> hmac_buf(hmac);
-  HMAC_Init_ex(
-      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr);
+
+  if (!HMAC_Init_ex(
+      hctx, hmac_buf.data(), hmac_buf.length(), Digest::SHA256, nullptr)) {
+    return -1;
+  }
 
   ArrayBufferViewContents<unsigned char> aes_key(aes.As<ArrayBufferView>());
   if (enc) {
