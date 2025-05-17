@@ -580,6 +580,8 @@
   'regress/wasm/regress-362539773': [SKIP],
   'regress/wasm/regress-382547695': [SKIP],
   'regress/wasm/regress-384974501': [SKIP],
+  'regress/wasm/regress-390675703': [SKIP],
+  'regress/wasm/regress-393632542': [SKIP],
   'wasm/call-ref': [SKIP],
   'wasm/exceptions-type-reflection': [SKIP],
   'wasm/externref-table': [SKIP],
@@ -604,6 +606,7 @@
   'wasm/gc-casts-exnref': [SKIP],
   'wasm/gc-casts-invalid': [SKIP],
   'wasm/js-wrapper-typechecks': [SKIP],
+  'wasm/mixed-eh-invalid': [SKIP],
   'wasm/wasm-inlining-catch-unreachable': [SKIP],
 
   #--experimental-wasm-ref-cast-nop
@@ -636,6 +639,8 @@
   'regress/wasm/regress-324690505': [SKIP],
   'regress/wasm/regress-330580823': [SKIP],
   'regress/wasm/regress-336007398': [SKIP],
+  'regress/wasm/regress-390467420': [SKIP],
+  'regress/wasm/regress-399497254': [SKIP],
   'regress/wasm/regress-crbug-1463232': [SKIP],
   'regress/wasm/regress-crbug-1466312': [SKIP],
   'regress/wasm/regress-v8-14710': [SKIP],
@@ -661,6 +666,7 @@
   'regress/wasm/regress-9017': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-366350772': [SKIP],
+  'regress/wasm/regress-397043084': [SKIP],
   'wasm/denormals': [SKIP],
   'wasm/deopt/*': [SKIP],
   'wasm/enter-debug-state': [SKIP],
@@ -711,15 +717,44 @@
   'wasm/shared-everything/basic': [SKIP],
 
   # --experimental-wasm-jspi
+  'regress/regress-333926321': [SKIP],
+  'regress/wasm/regress-331383939': [SKIP],
+  'regress/wasm/regress-336358915': [SKIP],
   'regress/wasm/regress-336852356': [SKIP],
   'regress/wasm/regress-342522151': [SKIP],
+  'regress/wasm/regress-348473836-*': [SKIP],
   'regress/wasm/regress-349640002': [SKIP],
   'regress/wasm/regress-361717714': [SKIP],
   'regress/wasm/regress-361123483': [SKIP],
   'regress/wasm/regress-364667545': [SKIP],
+  'regress/wasm/regress-365376497': [SKIP],
+  'regress/wasm/regress-381917890': [SKIP],
+  'regress/wasm/regress-392928805': [SKIP],
+  'regress/wasm/regress-406043349': [SKIP],
+  'regress/wasm/regress-407298298': [SKIP],
 
   # --experimental-wasm-fp16
   'wasm/simd-fp16': [SKIP],
+
+  # --experimental-wasm-simd-opt
+  'wasm/redundant-shuffle-lanes': [SKIP],
+
+  # --experimental-wasm-rab-integration
+  'wasm/grow-huge-memory-resizable-buffer*': [SKIP],
+  'wasm/grow-memory-detaching-resizable-buffer': [SKIP],
+  'wasm/grow-memory-in-branch-resizable-buffer': [SKIP],
+  'wasm/grow-memory-in-call-resizable-buffer': [SKIP],
+  'wasm/grow-memory-in-loop-resizable-buffer': [SKIP],
+  'wasm/grow-memory-resizable-buffer': [SKIP],
+  'wasm/grow-shared-memory-resizable-buffer': [SKIP],
+  'wasm/memory-resizable-buffer*': [SKIP],
+  'wasm/memory-toresizable-tofixedlength': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array*': [SKIP],
+  'wasm/shared-memory-resizable-buffer-errors': [SKIP],
+
+  # --experimental-wasm-custom-descriptors
+  'wasm/custom-descriptors*': [SKIP],
+  'wasm/exact-types': [SKIP],
 
   # --wasm-deopt
   'regress/wasm/regress-363826217': [SKIP],
@@ -739,6 +774,7 @@
 
   # Other tests that require compilation.
   'compiler/fast-api-calls-wasm': [SKIP],
+  'regress/wasm/regress-403308742': [SKIP],
   'wasm/async-compile': [SKIP],
   'wasm/log-code-after-post-message': [SKIP],
   'wasm/multiple-code-spaces': [SKIP],
@@ -789,6 +825,7 @@
 
   # Tests using %WasmGenerateRandomModule() (require compilation)
   'regress/wasm/regress-369652650': [SKIP],
+  'regress/wasm/regress-388934347-a': [SKIP],
 
   # --wasm_tier_up
   'wasm/graceful_shutdown_during_tierup': [SKIP],
@@ -930,10 +967,16 @@
 ['full_debug', {
   # Tests too slow in non-optimized debug mode.
   'es6/super-ic': [SKIP],
+  'es6/typedarray-of': [SKIP],
   'regress/regress-1122': [SKIP],
   'regress/regress-2790': [SKIP],
   'regress/regress-740784': [SKIP],
   'regress/regress-992389': [SKIP],
+  'regress/regress-crbug-1276923': [SKIP],
+  'wasm/memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/memory-resizable-buffer-array-from-grows-detaches': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-flat-flatmap-from': [SKIP],
+  'wasm/shared-memory-resizable-buffer-array-from-grows': [SKIP],
   'wasm/shared-memory-worker-gc': [SKIP],
 }],  # 'full_debug'
 
@@ -1607,7 +1650,9 @@
   'compiler/array-slice-clone': [SKIP],
 
   # Times out with asan.
+  'regress/regress-524': [PASS, ['asan', SKIP]],
   'wasm/max-wasm-functions': [PASS, ['asan', SKIP]],
+  'wasm/user-properties-module': [PASS, ['asan', SKIP]],
 }],  # 'gc_fuzzer'
 
 ##############################################################################
@@ -1951,10 +1996,6 @@
   'wasm/wasm-dynamic-tiering': [SKIP],
   'regress/wasm/regress-1179065': [SKIP],
   'regress/wasm/regress-334687959': [SKIP],
-
-  # Only implemented in turboshaft for now.
-  # TODO(14616): Enable again when implemented in liftoff.
-  'wasm/shared-everything/basic': [SKIP],
 }],  # variant == nooptimization
 
 ##############################################################################
@@ -2120,10 +2161,6 @@
 
   # https://crbug.com/v8/13181
   'maglev/get-template-object': [SKIP],
-
-  # Flaky and failing under this variant. https://crbug.com/380912397
-  'regress/regress-372298921': [SKIP],
-  'regress/regress-333926321': [SKIP],
 
   # Failing under this variant. https://crbug.com/401016020
   'regress/regress-340921322': [SKIP],
@@ -2360,14 +2397,20 @@
   # TODO(v8:14581): Re-enable this test once TransitionElementsKindOrCheckMap is
   # supported by the Maglev->Turboshaft graph builder.
   'turboshaft/maglev-frontend/*': [SKIP],
+
+  # TODO(42204563): These tests rely on the shared heap which is incompatible
+  # with single generation.
+  'wasm/custom-descriptors-validity': [SKIP],
+  'wasm/shared-everything/*': [SKIP],
+  'wasm/subtyping-invalid': [SKIP],
 }], # single_generation
 
 ################################################################################
-['conservative_stack_scanning', {
+['direct_handle', {
   # These tests are known to timeout with CSS, especially with variants that
   # stress the GC.
   'regress/regress-crbug-820312': [SKIP],
-}], # conservative_stack_scanning
+}], # direct_handle
 
 ##############################################################################
 ['arch == mips64el', {
@@ -2421,10 +2464,11 @@
 }],
 
 ##############################################################################
-# TODO(mliedtke): Support deopts on all platforms.
-['arch != x64 and arch != arm64 and arch != ia32 and arch != arm and arch != loong64 and arch != mips64el', {
-  # --wasm-deopt implementation experimental and not ported to most
-  # architectures, yet.
+# TODO(ports): Support Wasm deopts on all platforms.
+# If you need to add your architecture here, you will need to disable the
+# wasm_deopt flag by default on your platform as well!
+['arch in [riscv32, riscv64, mips64, ppc64, s390x]', {
+  # --wasm-deopt implementation not ported to all  architectures, yet.
   'wasm/deopt/*': [SKIP],
   'regress/wasm/regress-350779988': [SKIP],
   'regress/wasm/regress-353582136': [SKIP],

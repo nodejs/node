@@ -257,9 +257,11 @@ void MaglevAssembler::LoadSingleCharacterString(Register result,
                            Operand(String::kMaxOneByteCharCode));
   }
   Register table = scratch;
-  LoadRoot(table, RootIndex::kSingleCharacterStringTable);
-  LoadTaggedFieldByIndex(result, table, char_code, kTaggedSize,
-                         OFFSET_OF_DATA_START(FixedArray));
+  AddWord(table, kRootRegister,
+          Operand(RootRegisterOffsetForRootIndex(
+              RootIndex::kFirstSingleCharacterString)));
+  CalcScaledAddress(table, table, char_code, kSystemPointerSizeLog2);
+  LoadWord(result, MemOperand(table, 0));
 }
 
 void MaglevAssembler::StringFromCharCode(RegisterSnapshot register_snapshot,

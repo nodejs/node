@@ -4,8 +4,8 @@
 
 #include <type_traits>
 
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/codegen/cpu-features.h"
 #include "src/common/globals.h"
 #include "src/wasm/compilation-environment.h"

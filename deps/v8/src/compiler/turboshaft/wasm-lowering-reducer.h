@@ -324,7 +324,8 @@ class WasmLoweringReducer : public Next {
   }
 
   V<WasmArray> REDUCE(WasmAllocateArray)(V<Map> rtt, V<Word32> length,
-                                         const wasm::ArrayType* array_type) {
+                                         const wasm::ArrayType* array_type,
+                                         bool is_shared) {
     __ TrapIfNot(
         __ Uint32LessThanOrEqual(
             length, __ Word32Constant(WasmArray::MaxLength(array_type))),
@@ -342,12 +343,15 @@ class WasmLoweringReducer : public Next {
     Uninitialized<WasmArray> a = __ template Allocate<WasmArray>(
         __ ChangeUint32ToUintPtr(__ Word32Add(
             padded_length, __ Word32Constant(WasmArray::kHeaderSize))),
-        AllocationType::kYoung);
+        is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
 
     // TODO(14108): The map and empty fixed array initialization should be an
     // immutable store.
-    __ InitializeField(a, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
+    __ InitializeField(
+        a,
+        AccessBuilder::ForMap(is_shared ? compiler::kMapWriteBarrier
+                                        : compiler::kNoWriteBarrier),
+        rtt);
     __ InitializeField(a, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        LOAD_ROOT(EmptyFixedArray));
     __ InitializeField(a, AccessBuilder::ForWasmArrayLength(), length);
@@ -358,13 +362,18 @@ class WasmLoweringReducer : public Next {
     return array;
   }
 
-  V<WasmStruct> REDUCE(WasmAllocateStruct)(
-      V<Map> rtt, const wasm::StructType* struct_type) {
+  V<WasmStruct> REDUCE(WasmAllocateStruct)(V<Map> rtt,
+                                           const wasm::StructType* struct_type,
+                                           bool is_shared) {
     int size = WasmStruct::Size(struct_type);
-    Uninitialized<WasmStruct> s =
-        __ template Allocate<WasmStruct>(size, AllocationType::kYoung);
-    __ InitializeField(s, AccessBuilder::ForMap(compiler::kNoWriteBarrier),
-                       rtt);
+    Uninitialized<WasmStruct> s = __ template Allocate<WasmStruct>(
+        size, is_shared ? AllocationType::kSharedOld : AllocationType::kYoung);
+    // Objects allocated into old-space need a write barrier for initialization.
+    __ InitializeField(
+        s,
+        AccessBuilder::ForMap(is_shared ? compiler::kMapWriteBarrier
+                                        : compiler::kNoWriteBarrier),
+        rtt);
     __ InitializeField(s, AccessBuilder::ForJSObjectPropertiesOrHash(),
                        LOAD_ROOT(EmptyFixedArray));
     // Note: Struct initialization isn't finished here, the user defined fields

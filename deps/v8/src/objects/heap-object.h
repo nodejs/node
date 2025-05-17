@@ -37,6 +37,8 @@ V8_OBJECT class HeapObjectLayout {
   inline Tagged<Map> map() const;
   inline Tagged<Map> map(AcquireLoadTag) const;
 
+  inline MapWord map_word(RelaxedLoadTag) const;
+
   inline void set_map(Isolate* isolate, Tagged<Map> value);
   template <typename IsolateT>
   inline void set_map(IsolateT* isolate, Tagged<Map> value, ReleaseStoreTag);
@@ -323,6 +325,14 @@ class HeapObject : public TaggedImpl<HeapObjectReferenceType::STRONG, Address> {
   // the sandbox is disabled, this is equivalent to InitExternalPointerField
   // with a nullptr value.
   inline void SetupLazilyInitializedExternalPointerField(size_t offset);
+
+  // Returns true if the lazily-initializer external pointer field still
+  // contains the initial value. If the sandbox is enabled, returns true if
+  // the field is not equal to kNullExternalPointerHandle (this check will
+  // *not* try to read the actual value from the table). If the sandbox
+  // is disabled, returns true if the field is not equal to kNullAddress.
+  inline bool IsLazilyInitializedExternalPointerFieldInitialized(
+      size_t offset) const;
 
   // Writes and possibly initializes a lazily-initialized external pointer
   // field. When the sandbox is enabled, a lazily initialized external pointer

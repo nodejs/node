@@ -1880,6 +1880,28 @@ RUNTIME_FUNCTION(Runtime_RegExpSplit) {
   return *NewJSArrayWithElements(isolate, elems, num_elems);
 }
 
+namespace {
+
+template <typename Char>
+inline bool IsContainFlagImpl(Isolate* isolate, base::Vector<const Char> flags,
+                              const char* target,
+                              DisallowGarbageCollection& no_gc) {
+  StringSearch<uint8_t, Char> search(isolate, base::OneByteVector(target));
+  return search.Search(flags, 0) >= 0;
+}
+
+inline bool IsContainFlag(Isolate* isolate, String::FlatContent& flags,
+                          const char* target,
+                          DisallowGarbageCollection& no_gc) {
+  return flags.IsOneByte()
+             ? IsContainFlagImpl<uint8_t>(isolate, flags.ToOneByteVector(),
+                                          target, no_gc)
+             : IsContainFlagImpl<base::uc16>(isolate, flags.ToUC16Vector(),
+                                             target, no_gc);
+}
+
+}  // namespace
+
 // Slow path for:
 // ES#sec-regexp.prototype-@@replace
 // RegExp.prototype [ @@replace ] ( string, replaceValue )
@@ -1917,21 +1939,37 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
   }
 
   const uint32_t length = string->length();
+  bool global = false;
+  bool fullUnicode = false;
 
-  DirectHandle<Object> global_obj;
+  DirectHandle<Object> flags_obj;
+  DirectHandle<String> flag_str;
+
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-      isolate, global_obj,
-      JSReceiver::GetProperty(isolate, recv, factory->global_string()));
-  const bool global = Object::BooleanValue(*global_obj, isolate);
+      isolate, flags_obj,
+      JSReceiver::GetProperty(isolate, recv, factory->flags_string()));
 
-  bool unicode = false;
+  // 7. Let flags be ? ToString(? Get(rx, "flags")).
+  // 8. If flags contains "g", let global be true. Otherwise, let global be
+  // false.
+  ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, flag_str,
+                                     Object::ToString(isolate, flags_obj));
+  flag_str = String::Flatten(isolate, flag_str);
+  {
+    DisallowGarbageCollection no_gc;
+    String::FlatContent flat_flag = flag_str->GetFlatContent(no_gc);
+
+    global = IsContainFlag(isolate, flat_flag, "g", no_gc);
+
+    if (global) {
+      // b. If flags contains "u" or flags contains "v", let fullUnicode be
+      // true. Otherwise, let fullUnicode be false.
+      fullUnicode = IsContainFlag(isolate, flat_flag, "u", no_gc) ||
+                    IsContainFlag(isolate, flat_flag, "v", no_gc);
+    }
+  }
+
   if (global) {
-    DirectHandle<Object> unicode_obj;
-    ASSIGN_RETURN_FAILURE_ON_EXCEPTION(
-        isolate, unicode_obj,
-        JSReceiver::GetProperty(isolate, recv, factory->unicode_string()));
-    unicode = Object::BooleanValue(*unicode_obj, isolate);
-
     RETURN_FAILURE_ON_EXCEPTION(isolate,
                                 RegExpUtils::SetLastIndex(isolate, recv, 0));
   }
@@ -1968,7 +2006,7 @@ RUNTIME_FUNCTION(Runtime_RegExpReplaceRT) {
       if (match->length() == 0) {
         RETURN_FAILURE_ON_EXCEPTION(
             isolate, RegExpUtils::SetAdvancedStringIndex(isolate, recv, string,
-                                                         unicode));
+                                                         fullUnicode));
       }
     }
   }

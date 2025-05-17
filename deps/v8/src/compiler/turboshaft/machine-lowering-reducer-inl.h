@@ -3475,16 +3475,12 @@ class MachineLoweringReducer : public Next {
 
     // Check if the {code} is a one byte character.
     IF (LIKELY(__ Uint32LessThanOrEqual(code, String::kMaxOneByteCharCode))) {
-      // Load the isolate wide single character string table.
-      V<FixedArray> table = __ SingleCharacterStringTableConstant();
-
-      // Compute the {table} index for {code}.
+      // Load the string for the {code} directly from the roots table.
       V<WordPtr> index = __ ChangeUint32ToUintPtr(code);
-
-      // Load the string for the {code} from the single character string
-      // table.
-      V<String> entry = __ LoadElement(
-          table, AccessBuilderTS::ForFixedArrayElement<String>(), index);
+      V<String> entry = __ LoadOffHeap(
+          __ LoadRootRegister(), index,
+          IsolateData::root_slot_offset(RootIndex::kFirstSingleCharacterString),
+          MemoryRepresentation::UncompressedTaggedPointer());
 
       // Use the {entry} from the {table}.
       GOTO(done, entry);

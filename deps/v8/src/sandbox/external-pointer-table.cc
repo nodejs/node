@@ -175,13 +175,7 @@ uint32_t ExternalPointerTable::EvacuateAndSweepAndCompact(Space* space,
         // field that owns the entry that is to be evacuated.
         Address handle_location =
             payload.ExtractEvacuationEntryHandleLocation();
-
-        // The evacuation entry may be invalidated by the Scavenger that has
-        // freed the object.
-        if (handle_location == kNullAddress) {
-          AddToFreelist(i);
-          continue;
-        }
+        DCHECK_NE(handle_location, kNullAddress);
 
         // The external pointer field may have been invalidated in the meantime
         // (for example if the host object has been in-place converted to a
@@ -308,40 +302,6 @@ void ExternalPointerTable::ResolveEvacuationEntryDuringSweeping(
     ManagedResource* resource = reinterpret_cast<ManagedResource*>(addr);
     DCHECK_EQ(resource->ept_entry_, old_handle);
     resource->ept_entry_ = new_handle;
-  }
-}
-
-void ExternalPointerTable::UpdateAllEvacuationEntries(
-    Space* space, std::function<Address(Address)> function) {
-  DCHECK(space->BelongsTo(this));
-  DCHECK(!space->is_internal_read_only_space());
-
-  if (!space->IsCompacting()) return;
-
-  // Lock the space. Technically this is not necessary since no other thread can
-  // allocate entries at this point, but some of the methods we call on the
-  // space assert that the lock is held.
-  base::MutexGuard guard(&space->mutex_);
-  // Same for the invalidated fields mutex.
-  base::MutexGuard invalidated_fields_guard(&space->invalidated_fields_mutex_);
-
-  const uint32_t start_of_evacuation_area =
-      space->start_of_evacuation_area_.load(std::memory_order_relaxed);
-
-  // Iterate until the start of evacuation area.
-  for (auto& segment : space->segments_) {
-    if (segment.first_entry() == start_of_evacuation_area) return;
-    for (uint32_t i = segment.first_entry(); i < segment.last_entry() + 1;
-         ++i) {
-      ExternalPointerTableEntry& entry = at(i);
-      ExternalPointerTableEntry::Payload payload = entry.GetRawPayload();
-      if (!payload.ContainsEvacuationEntry()) {
-        continue;
-      }
-      Address new_location =
-          function(payload.ExtractEvacuationEntryHandleLocation());
-      entry.MakeEvacuationEntry(new_location);
-    }
   }
 }
 

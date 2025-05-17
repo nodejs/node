@@ -673,7 +673,7 @@ InstructionBlock::InstructionBlock(Zone* zone, RpoNumber rpo_number,
       dominator_(dominator),
       deferred_(deferred),
       handler_(handler),
-      switch_target_(false),
+      table_switch_target_(false),
       code_target_alignment_(false),
       loop_header_alignment_(false),
       needs_frame_(!v8_flags.turbo_elide_frames),
@@ -730,10 +730,6 @@ static InstructionBlock* InstructionBlockFor(Zone* zone,
   for (BasicBlock* predecessor : block->predecessors()) {
     instr_block->predecessors().push_back(GetRpo(predecessor));
   }
-  if (block->PredecessorCount() == 1 &&
-      block->predecessors()[0]->control() == BasicBlock::Control::kSwitch) {
-    instr_block->set_switch_target(true);
-  }
   return instr_block;
 }
 
@@ -747,13 +743,6 @@ static InstructionBlock* InstructionBlockFor(
   InstructionBlock* instr_block = zone->New<InstructionBlock>(
       zone, GetRpo(block), GetRpo(loop_header), GetLoopEndRpo(block),
       GetRpo(block->GetDominator()), deferred, is_handler);
-  if (block->PredecessorCount() == 1) {
-    const turboshaft::Block* predecessor = block->LastPredecessor();
-    if (V8_UNLIKELY(
-            predecessor->LastOperation(graph).Is<turboshaft::SwitchOp>())) {
-      instr_block->set_switch_target(true);
-    }
-  }
   // Map successors and predecessors.
   base::SmallVector<turboshaft::Block*, 4> succs =
       turboshaft::SuccessorBlocks(block->LastOperation(graph));
@@ -931,7 +920,8 @@ void InstructionSequence::ComputeAssemblyOrder() {
         // Perform loop rotation for non-deferred loops.
         InstructionBlock* loop_end =
             instruction_blocks_->at(block->loop_end().ToSize() - 1);
-        if (loop_end->SuccessorCount() == 1 && /* ends with goto */
+        if (!loop_end->IsDeferred() &&         /* Ignore deferred loop ends */
+            loop_end->SuccessorCount() == 1 && /* ends with goto */
             loop_end != block /* not a degenerate infinite loop */) {
           // If the last block has an unconditional jump back to the header,
           // then move it to be in front of the header in the assembly order.
@@ -946,7 +936,7 @@ void InstructionSequence::ComputeAssemblyOrder() {
       }
       block->set_loop_header_alignment(header_align);
     }
-    if (block->loop_header().IsValid() && block->IsSwitchTarget()) {
+    if (block->loop_header().IsValid() && block->IsTableSwitchTarget()) {
       block->set_code_target_alignment(true);
     }
     block->set_ao_number(RpoNumber::FromInt(ao++));

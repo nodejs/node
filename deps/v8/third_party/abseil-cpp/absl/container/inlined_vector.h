@@ -53,6 +53,7 @@
 #include "absl/base/optimization.h"
 #include "absl/base/port.h"
 #include "absl/container/internal/inlined_vector.h"
+#include "absl/hash/internal/weakly_mixed_integer.h"
 #include "absl/memory/memory.h"
 #include "absl/meta/type_traits.h"
 
@@ -1008,7 +1009,8 @@ bool operator>=(const absl::InlinedVector<T, N, A>& a,
 template <typename H, typename T, size_t N, typename A>
 H AbslHashValue(H h, const absl::InlinedVector<T, N, A>& a) {
   auto size = a.size();
-  return H::combine(H::combine_contiguous(std::move(h), a.data(), size), size);
+  return H::combine(H::combine_contiguous(std::move(h), a.data(), size),
+                    hash_internal::WeaklyMixedInteger{size});
 }
 
 ABSL_NAMESPACE_END

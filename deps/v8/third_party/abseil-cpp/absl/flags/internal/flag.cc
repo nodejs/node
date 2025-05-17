@@ -34,6 +34,7 @@
 #include "absl/base/config.h"
 #include "absl/base/const_init.h"
 #include "absl/base/dynamic_annotations.h"
+#include "absl/base/fast_type_id.h"
 #include "absl/base/no_destructor.h"
 #include "absl/base/optimization.h"
 #include "absl/base/thread_annotations.h"
@@ -59,7 +60,7 @@ namespace {
 // Currently we only validate flag values for user-defined flag types.
 bool ShouldValidateFlagValue(FlagFastTypeId flag_type_id) {
 #define DONT_VALIDATE(T, _) \
-  if (flag_type_id == base_internal::FastTypeId<T>()) return false;
+  if (flag_type_id == absl::FastTypeId<T>()) return false;
   ABSL_FLAGS_INTERNAL_SUPPORTED_TYPES(DONT_VALIDATE)
 #undef DONT_VALIDATE
 

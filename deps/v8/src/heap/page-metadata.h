@@ -58,7 +58,8 @@ class PageMetadata : public MutablePageMetadata {
     return MemoryChunk::IsAligned(addr);
   }
 
-  static PageMetadata* ConvertNewToOld(PageMetadata* old_page);
+  static PageMetadata* ConvertNewToOld(PageMetadata* old_page,
+                                       FreeMode free_mode);
 
   V8_EXPORT_PRIVATE void MarkNeverAllocateForTesting();
   inline void MarkEvacuationCandidate();
@@ -91,8 +92,6 @@ class PageMetadata : public MutablePageMetadata {
   FreeListCategory* free_list_category(FreeListCategoryType type) {
     return categories_[type];
   }
-
-  V8_EXPORT_PRIVATE size_t ShrinkToHighWaterMark();
 
   V8_EXPORT_PRIVATE void CreateBlackArea(Address start, Address end);
   void DestroyBlackArea(Address start, Address end);

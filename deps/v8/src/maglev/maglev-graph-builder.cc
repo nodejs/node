@@ -50,6 +50,7 @@
 #include "src/objects/feedback-vector.h"
 #include "src/objects/fixed-array.h"
 #include "src/objects/heap-number-inl.h"
+#include "src/objects/heap-object.h"
 #include "src/objects/instance-type-inl.h"
 #include "src/objects/js-array.h"
 #include "src/objects/js-function.h"
@@ -1519,15 +1520,22 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     return alt;
   }
 
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `value` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
   switch (representation) {
     case ValueRepresentation::kInt32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagInt32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Int32ToNumber>({value}));
     }
     case ValueRepresentation::kUint32: {
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagUint32>({value}));
       }
       return alternative.set_tagged(AddNewNode<Uint32ToNumber>({value}));
@@ -1542,7 +1550,8 @@ ValueNode* MaglevGraphBuilder::GetTaggedValue(
     }
 
     case ValueRepresentation::kIntPtr:
-      if (NodeTypeIsSmi(node_info->type())) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIsSmi(node_info->type())) {
         return alternative.set_tagged(AddNewNode<UnsafeSmiTagIntPtr>({value}));
       }
       return alternative.set_tagged(AddNewNode<IntPtrToNumber>({value}));
@@ -1838,7 +1847,7 @@ ValueNode* MaglevGraphBuilder::GetInt32(ValueNode* value,
       return alternative.set_int32(BuildSmiUntag(value));
     }
     case ValueRepresentation::kUint32: {
-      if (node_info->is_smi()) {
+      if (!IsEmptyNodeType(GetType(value)) && node_info->is_smi()) {
         return alternative.set_int32(
             AddNewNode<TruncateUint32ToInt32>({value}));
       }
@@ -1931,21 +1940,29 @@ ValueNode* MaglevGraphBuilder::GetFloat64ForToNumber(
     return alt;
   }
 
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `value` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
   switch (representation) {
     case ValueRepresentation::kTagged: {
       auto combined_type = CombineType(allowed_input_type, node_info->type());
-      if (NodeTypeIs(combined_type, NodeType::kSmi)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kSmi)) {
         // Get the float64 value of a Smi value its int32 representation.
         return GetFloat64(GetInt32(value));
       }
-      if (NodeTypeIs(combined_type, NodeType::kNumber)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kNumber)) {
         // Number->Float64 conversions are exact alternatives, so they can
         // also become the canonical float64_alternative.
         return alternative.set_float64(BuildNumberOrOddballToFloat64(
             value, NodeType::kNumber,
             TaggedToFloat64ConversionType::kOnlyNumber));
       }
-      if (NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
+      if (!IsEmptyNodeType(node_info->type()) &&
+          NodeTypeIs(combined_type, NodeType::kNumberOrOddball)) {
         // NumberOrOddball->Float64 conversions are not exact alternatives,
         // since they lose the information that this is an oddball, so they
         // can only become the canonical float64_alternative if they are a
@@ -2797,9 +2814,16 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNewConsString(
       });
 }
 
+// TODO(olivf): It's unclear if this unwrapping actually makes sense or if we
+// should rather let it be unwrapped lazily once we flatten the string.
 ValueNode* MaglevGraphBuilder::BuildUnwrapThinString(ValueNode* input) {
   DCHECK(NodeTypeIs(GetType(input), NodeType::kString));
-  if (NodeTypeIs(GetType(input), NodeType::kNonThinString)) return input;
+  if (input->Is<UnwrapThinString>()) return input;
+  if (auto obj = input->TryCast<InlinedAllocation>()) {
+    // Generally string types can change in-place. But as long as the object
+    // does not escape we know it is not thin.
+    if (obj->object()->type() == VirtualObject::kConsString) return input;
+  }
   return AddNewNode<UnwrapThinString>({input});
 }
 
@@ -2813,20 +2837,20 @@ ReduceResult MaglevGraphBuilder::BuildStringConcat(ValueNode* left,
                                                    ValueNode* right) {
   if (RootConstant* root_constant = left->TryCast<RootConstant>()) {
     if (root_constant->index() == RootIndex::kempty_string) {
-      BuildCheckString(right);
+      RETURN_IF_ABORT(BuildCheckString(right));
       SetAccumulator(right);
       return ReduceResult::Done();
     }
   }
   if (RootConstant* root_constant = right->TryCast<RootConstant>()) {
     if (root_constant->index() == RootIndex::kempty_string) {
-      BuildCheckString(left);
+      RETURN_IF_ABORT(BuildCheckString(left));
       SetAccumulator(left);
       return ReduceResult::Done();
     }
   }
-  BuildCheckString(left);
-  BuildCheckString(right);
+  RETURN_IF_ABORT(BuildCheckString(left));
+  RETURN_IF_ABORT(BuildCheckString(right));
   PROCESS_AND_RETURN_IF_DONE(TryBuildNewConsString(left, right),
                              SetAccumulator);
   SetAccumulator(AddNewNode<StringConcat>({left, right}));
@@ -2878,8 +2902,8 @@ ReduceResult MaglevGraphBuilder::VisitBinaryOperation() {
                 ->DependOnStringWrapperToPrimitiveProtector()) {
           ValueNode* left = LoadRegister(0);
           ValueNode* right = GetAccumulator();
-          BuildCheckStringOrStringWrapper(left);
-          BuildCheckStringOrStringWrapper(right);
+          RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(left));
+          RETURN_IF_ABORT(BuildCheckStringOrStringWrapper(right));
           left = BuildUnwrapStringWrapper(left);
           right = BuildUnwrapStringWrapper(right);
           return BuildStringConcat(left, right);
@@ -3237,8 +3261,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckSymbol(left);
-      BuildCheckSymbol(right);
+      RETURN_IF_ABORT(BuildCheckSymbol(left));
+      RETURN_IF_ABORT(BuildCheckSymbol(right));
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
@@ -3246,8 +3270,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
     case CompareOperationHint::kString: {
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckString(left);
-      BuildCheckString(right);
+      RETURN_IF_ABORT(BuildCheckString(left));
+      RETURN_IF_ABORT(BuildCheckString(right));
 
       ValueNode* result;
       if (TryConstantFoldEqual(left, right)) return ReduceResult::Done();
@@ -3291,8 +3315,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckJSReceiverOrNullOrUndefined(left);
-      BuildCheckJSReceiverOrNullOrUndefined(right);
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(left));
+      RETURN_IF_ABORT(BuildCheckJSReceiverOrNullOrUndefined(right));
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
     }
@@ -3302,8 +3326,8 @@ ReduceResult MaglevGraphBuilder::VisitCompareOperation() {
 
       ValueNode* left = LoadRegister(0);
       ValueNode* right = GetAccumulator();
-      BuildCheckJSReceiver(left);
-      BuildCheckJSReceiver(right);
+      RETURN_IF_ABORT(BuildCheckJSReceiver(left));
+      RETURN_IF_ABORT(BuildCheckJSReceiver(right));
       SetAccumulator(BuildTaggedEqual(left, right));
       return ReduceResult::Done();
     }
@@ -3391,79 +3415,58 @@ bool MaglevGraphBuilder::TrySpecializeLoadContextSlotToFunctionContext(
   return true;
 }
 
-ValueNode* MaglevGraphBuilder::TrySpecializeLoadScriptContextSlot(
+ValueNode* MaglevGraphBuilder::TrySpecializeLoadContextSlot(
     ValueNode* context_node, int index) {
   if (!context_node->Is<Constant>()) return {};
   compiler::ContextRef context =
       context_node->Cast<Constant>()->ref().AsContext();
-  DCHECK(context.object()->IsScriptContext());
-  auto maybe_property = context.object()->GetScriptContextSideProperty(index);
-  if (!maybe_property) return {};
-  auto property = maybe_property.value();
+  auto maybe_value = context.get(broker(), index);
+  if (!maybe_value || maybe_value->IsTheHole()) return {};
   int offset = Context::OffsetOfElementAt(index);
-  switch (property) {
-    case ContextSidePropertyCell::kConst: {
-      compiler::OptionalObjectRef constant = context.get(broker(), index);
+  if (!maybe_value->IsContextCell()) {
+    // No need to check for extended context slots anymore.
+    return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
+                                                               offset);
+  }
+  compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
+  ContextCell::State state = slot_ref.state();
+  switch (state) {
+    case ContextCell::kConst: {
+      auto constant = slot_ref.tagged_value(broker());
       if (!constant.has_value()) {
         return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
                                                                    offset);
       }
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context, index, property, broker());
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
       return GetConstant(*constant);
     }
-    case ContextSidePropertyCell::kSmi: {
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context, index, property, broker());
-      ValueNode* value = BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(
-          context_node, offset);
+    case ContextCell::kSmi: {
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      ValueNode* value = BuildLoadTaggedField(
+          GetConstant(slot_ref), offsetof(ContextCell, tagged_value_));
       EnsureType(value, NodeType::kSmi);
       return value;
     }
-    case ContextSidePropertyCell::kMutableInt32:
-      if (auto mutable_heap_number = context.get(broker(), index)) {
-        if (!mutable_heap_number->IsHeapNumber()) {
-          // TODO(victorgomes): In case the tag is out of date by now we could
-          // retry this reduction.
-          break;
-        }
-        broker()->dependencies()->DependOnScriptContextSlotProperty(
-            context, index, property, broker());
-        return AddNewNode<LoadInt32>(
-            {GetConstant(*mutable_heap_number)},
-            static_cast<int>(offsetof(HeapNumber, value_)));
-      }
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context, index, property, broker());
-      return AddNewNode<LoadHeapInt32>({context_node}, offset);
-    case ContextSidePropertyCell::kMutableHeapNumber:
-      if (auto mutable_heap_number = context.get(broker(), index)) {
-        if (!mutable_heap_number->IsHeapNumber()) {
-          // TODO(victorgomes): In case the tag is out of date by now we could
-          // retry this reduction.
-          break;
-        }
-        broker()->dependencies()->DependOnScriptContextSlotProperty(
-            context, index, property, broker());
-        return AddNewNode<LoadFloat64>(
-            {GetConstant(*mutable_heap_number)},
-            static_cast<int>(offsetof(HeapNumber, value_)));
-      }
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context, index, property, broker());
-      return AddNewNode<LoadDoubleField>({context_node}, offset);
-    case ContextSidePropertyCell::kOther:
-      break;
-    default:
-      UNREACHABLE();
+    case ContextCell::kInt32:
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      return AddNewNode<LoadInt32>(
+          {GetConstant(slot_ref)},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
+    case ContextCell::kFloat64:
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      return AddNewNode<LoadFloat64>(
+          {GetConstant(slot_ref)},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
+    case ContextCell::kDetached:
+      return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
+                                                                 offset);
   }
-  return BuildLoadTaggedField<LoadTaggedFieldForContextSlot>(context_node,
-                                                             offset);
+  UNREACHABLE();
 }
 
 ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     ValueNode* context, int index, ContextSlotMutability slot_mutability,
-    ContextKind context_kind) {
+    ContextMode context_mode) {
   int offset = Context::OffsetOfElementAt(index);
   ValueNode*& cached_value =
       slot_mutability == kMutable
@@ -3479,12 +3482,10 @@ ValueNode* MaglevGraphBuilder::LoadAndCacheContextSlot(
     return cached_value;
   }
   known_node_aspects().UpdateMayHaveAliasingContexts(context);
-  if (context_kind == ContextKind::kScriptContext &&
-      (v8_flags.script_context_mutable_heap_number ||
-       v8_flags.const_tracking_let) &&
-      slot_mutability == kMutable) {
+  if (context_mode == ContextMode::kHasContextCells &&
+      v8_flags.script_context_cells && slot_mutability == kMutable) {
     // We collect feedback only for mutable context slots.
-    cached_value = TrySpecializeLoadScriptContextSlot(context, index);
+    cached_value = TrySpecializeLoadContextSlot(context, index);
     if (cached_value) return cached_value;
     return cached_value =
                BuildLoadTaggedField<LoadTaggedFieldForScriptContextSlot>(
@@ -3510,116 +3511,88 @@ bool MaglevGraphBuilder::ContextMayAlias(
   return scope_info->equals(*other);
 }
 
-MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreScriptContextSlot(
+MaybeReduceResult MaglevGraphBuilder::TrySpecializeStoreContextSlot(
     ValueNode* context, int index, ValueNode* value, Node** store) {
   DCHECK_NOT_NULL(store);
-  DCHECK(v8_flags.script_context_mutable_heap_number ||
-         v8_flags.const_tracking_let);
+  DCHECK(v8_flags.script_context_cells);
   if (!context->Is<Constant>()) {
-    *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
-        {context, value}, index);
+    *store =
+        AddNewNode<StoreContextSlotWithWriteBarrier>({context, value}, index);
     return ReduceResult::Done();
   }
 
   compiler::ContextRef context_ref =
       context->Cast<Constant>()->ref().AsContext();
-  DCHECK(context_ref.object()->IsScriptContext());
-  auto maybe_property =
-      context_ref.object()->GetScriptContextSideProperty(index);
-  if (!maybe_property) {
-    *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
-        {context, value}, index);
+  auto maybe_value = context_ref.get(broker(), index);
+  if (!maybe_value || maybe_value->IsTheHole()) {
+    *store =
+        AddNewNode<StoreContextSlotWithWriteBarrier>({context, value}, index);
     return ReduceResult::Done();
   }
-  auto property = maybe_property.value();
-  int offset = Context::OffsetOfElementAt(index);
-  if (property == ContextSidePropertyCell::kConst) {
-    compiler::OptionalObjectRef constant = context_ref.get(broker(), index);
-    if (!constant.has_value() ||
-        (constant->IsString() && !constant->IsInternalizedString())) {
-      *store = AddNewNode<StoreScriptContextSlotWithWriteBarrier>(
-          {context, value}, index);
-      return ReduceResult::Done();
-    }
-    broker()->dependencies()->DependOnScriptContextSlotProperty(
-        context_ref, index, property, broker());
-    return BuildCheckNumericalValueOrByReference(
-        value, *constant, DeoptimizeReason::kStoreToConstant);
-  }
 
-  if (!v8_flags.script_context_mutable_heap_number) {
+  int offset = Context::OffsetOfElementAt(index);
+  if (!maybe_value->IsContextCell()) {
     *store = BuildStoreTaggedField(context, value, offset,
                                    StoreTaggedMode::kDefault);
     return ReduceResult::Done();
   }
 
-  switch (property) {
-    case ContextSidePropertyCell::kConst:
-      UNREACHABLE();
-    case ContextSidePropertyCell::kSmi:
+  compiler::ContextCellRef slot_ref = maybe_value->AsContextCell();
+  ContextCell::State state = slot_ref.state();
+  switch (state) {
+    case ContextCell::kConst: {
+      auto constant = slot_ref.tagged_value(broker());
+      if (!constant.has_value() ||
+          (constant->IsString() && !constant->IsInternalizedString())) {
+        *store = AddNewNode<StoreContextSlotWithWriteBarrier>({context, value},
+                                                              index);
+        return ReduceResult::Done();
+      }
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      return BuildCheckNumericalValueOrByReference(
+          value, *constant, DeoptimizeReason::kStoreToConstant);
+    }
+    case ContextCell::kSmi:
       RETURN_IF_ABORT(BuildCheckSmi(value));
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context_ref, index, property, broker());
-      *store = BuildStoreTaggedField(context, value, offset,
-                                     StoreTaggedMode::kDefault);
-      break;
-    case ContextSidePropertyCell::kMutableInt32:
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      *store = BuildStoreTaggedFieldNoWriteBarrier(
+          GetConstant(slot_ref), value, offsetof(ContextCell, tagged_value_),
+          StoreTaggedMode::kDefault);
+      return ReduceResult::Done();
+    case ContextCell::kInt32:
       EnsureInt32(value, true);
-      if (auto mutable_heap_number = context_ref.get(broker(), index)) {
-        if (!mutable_heap_number->IsHeapNumber()) {
-          // TODO(victorgomes): In case the tag is out of date by now we could
-          // retry this reduction.
-          return {};
-        }
-        *store = AddNewNode<StoreInt32>(
-            {GetConstant(*mutable_heap_number), value},
-            static_cast<int>(offsetof(HeapNumber, value_)));
-      } else {
-        *store = AddNewNode<StoreHeapInt32>({context, value}, offset);
-      }
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context_ref, index, property, broker());
-      break;
-    case ContextSidePropertyCell::kMutableHeapNumber:
-      BuildCheckNumber(value);
-      if (auto mutable_heap_number = context_ref.get(broker(), index)) {
-        if (!mutable_heap_number->IsHeapNumber()) {
-          // TODO(victorgomes): In case the tag is out of date by now we could
-          // retry this reduction.
-          return {};
-        }
-        *store = AddNewNode<StoreFloat64>(
-            {GetConstant(*mutable_heap_number), value},
-            static_cast<int>(offsetof(HeapNumber, value_)));
-      } else {
-        *store = AddNewNode<StoreDoubleField>({context, value}, offset);
-      }
-      broker()->dependencies()->DependOnScriptContextSlotProperty(
-          context_ref, index, property, broker());
-      break;
-    case ContextSidePropertyCell::kOther:
+      *store = AddNewNode<StoreInt32>(
+          {GetConstant(slot_ref), value},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      return ReduceResult::Done();
+    case ContextCell::kFloat64:
+      RETURN_IF_ABORT(BuildCheckNumber(value));
+      *store = AddNewNode<StoreFloat64>(
+          {GetConstant(slot_ref), value},
+          static_cast<int>(offsetof(ContextCell, double_value_)));
+      broker()->dependencies()->DependOnContextCell(slot_ref, state);
+      return ReduceResult::Done();
+    case ContextCell::kDetached:
       *store = BuildStoreTaggedField(context, value, offset,
                                      StoreTaggedMode::kDefault);
-      break;
-    default:
-      UNREACHABLE();
+      return ReduceResult::Done();
   }
-  return ReduceResult::Done();
+  UNREACHABLE();
 }
 
 ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
-    ValueNode* context, int index, ValueNode* value, ContextKind context_kind) {
+    ValueNode* context, int index, ValueNode* value, ContextMode context_mode) {
   int offset = Context::OffsetOfElementAt(index);
   DCHECK_EQ(
       known_node_aspects().loaded_context_constants.count({context, offset}),
       0);
 
   Node* store = nullptr;
-  if ((v8_flags.script_context_mutable_heap_number ||
-       v8_flags.const_tracking_let) &&
-      context_kind == ContextKind::kScriptContext) {
+  if (v8_flags.script_context_cells &&
+      context_mode == ContextMode::kHasContextCells) {
     MaybeReduceResult result =
-        TrySpecializeStoreScriptContextSlot(context, index, value, &store);
+        TrySpecializeStoreContextSlot(context, index, value, &store);
     RETURN_IF_ABORT(result);
     if (!store && result.IsDone()) {
       // If we didn't need to emit any store, there is nothing to cache.
@@ -3696,7 +3669,7 @@ ReduceResult MaglevGraphBuilder::StoreAndCacheContextSlot(
 
 void MaglevGraphBuilder::BuildLoadContextSlot(
     ValueNode* context, size_t depth, int slot_index,
-    ContextSlotMutability slot_mutability, ContextKind context_kind) {
+    ContextSlotMutability slot_mutability, ContextMode context_mode) {
   context = GetContextAtDepth(context, depth);
   if (compilation_unit_->info()->specialize_to_function_context() &&
       TrySpecializeLoadContextSlotToFunctionContext(context, slot_index,
@@ -3709,30 +3682,30 @@ void MaglevGraphBuilder::BuildLoadContextSlot(
   // initialized, so we can't safely assume that the load can be cached in case
   // it's a load before initialization (e.g. var a = a + 42).
   current_interpreter_frame_.set_accumulator(
-      LoadAndCacheContextSlot(context, slot_index, kMutable, context_kind));
+      LoadAndCacheContextSlot(context, slot_index, kMutable, context_mode));
 }
 
 ReduceResult MaglevGraphBuilder::BuildStoreContextSlot(
     ValueNode* context, size_t depth, int slot_index, ValueNode* value,
-    ContextKind context_kind) {
+    ContextMode context_mode) {
   context = GetContextAtDepth(context, depth);
-  return StoreAndCacheContextSlot(context, slot_index, value, context_kind);
+  return StoreAndCacheContextSlot(context, slot_index, value, context_mode);
 }
 
+ReduceResult MaglevGraphBuilder::VisitLdaContextSlotNoCell() {
+  ValueNode* context = LoadRegister(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+  BuildLoadContextSlot(context, depth, slot_index, kMutable,
+                       ContextMode::kNoContextCells);
+  return ReduceResult::Done();
+}
 ReduceResult MaglevGraphBuilder::VisitLdaContextSlot() {
   ValueNode* context = LoadRegister(0);
   int slot_index = iterator_.GetIndexOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kMutable,
-                       ContextKind::kDefault);
-  return ReduceResult::Done();
-}
-ReduceResult MaglevGraphBuilder::VisitLdaScriptContextSlot() {
-  ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
-  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
-  BuildLoadContextSlot(context, depth, slot_index, kMutable,
-                       ContextKind::kScriptContext);
+                       ContextMode::kHasContextCells);
   return ReduceResult::Done();
 }
 ReduceResult MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
@@ -3740,28 +3713,43 @@ ReduceResult MaglevGraphBuilder::VisitLdaImmutableContextSlot() {
   int slot_index = iterator_.GetIndexOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   BuildLoadContextSlot(context, depth, slot_index, kImmutable,
-                       ContextKind::kDefault);
+                       ContextMode::kNoContextCells);
+  return ReduceResult::Done();
+}
+ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlotNoCell() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+  BuildLoadContextSlot(context, 0, slot_index, kMutable,
+                       ContextMode::kNoContextCells);
   return ReduceResult::Done();
 }
 ReduceResult MaglevGraphBuilder::VisitLdaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
-  BuildLoadContextSlot(context, 0, slot_index, kMutable, ContextKind::kDefault);
-  return ReduceResult::Done();
-}
-ReduceResult MaglevGraphBuilder::VisitLdaCurrentScriptContextSlot() {
-  ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kMutable,
-                       ContextKind::kScriptContext);
+                       ContextMode::kHasContextCells);
   return ReduceResult::Done();
 }
 ReduceResult MaglevGraphBuilder::VisitLdaImmutableCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
   BuildLoadContextSlot(context, 0, slot_index, kImmutable,
-                       ContextKind::kDefault);
+                       ContextMode::kNoContextCells);
   return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::VisitStaContextSlotNoCell() {
+  ValueNode* context = LoadRegister(0);
+  int slot_index = iterator_.GetIndexOperand(1);
+  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
+  return BuildStoreContextSlot(context, depth, slot_index, GetAccumulator(),
+                               ContextMode::kNoContextCells);
+}
+ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlotNoCell() {
+  ValueNode* context = GetContext();
+  int slot_index = iterator_.GetIndexOperand(0);
+  return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
+                               ContextMode::kNoContextCells);
 }
 
 ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
@@ -3769,28 +3757,14 @@ ReduceResult MaglevGraphBuilder::VisitStaContextSlot() {
   int slot_index = iterator_.GetIndexOperand(1);
   size_t depth = iterator_.GetUnsignedImmediateOperand(2);
   return BuildStoreContextSlot(context, depth, slot_index, GetAccumulator(),
-                               ContextKind::kDefault);
+                               ContextMode::kHasContextCells);
 }
+
 ReduceResult MaglevGraphBuilder::VisitStaCurrentContextSlot() {
   ValueNode* context = GetContext();
   int slot_index = iterator_.GetIndexOperand(0);
   return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
-                               ContextKind::kDefault);
-}
-
-ReduceResult MaglevGraphBuilder::VisitStaScriptContextSlot() {
-  ValueNode* context = LoadRegister(0);
-  int slot_index = iterator_.GetIndexOperand(1);
-  size_t depth = iterator_.GetUnsignedImmediateOperand(2);
-  return BuildStoreContextSlot(context, depth, slot_index, GetAccumulator(),
-                               ContextKind::kScriptContext);
-}
-
-ReduceResult MaglevGraphBuilder::VisitStaCurrentScriptContextSlot() {
-  ValueNode* context = GetContext();
-  int slot_index = iterator_.GetIndexOperand(0);
-  return BuildStoreContextSlot(context, 0, slot_index, GetAccumulator(),
-                               ContextKind::kScriptContext);
+                               ContextMode::kHasContextCells);
 }
 
 ReduceResult MaglevGraphBuilder::VisitStar() {
@@ -4025,7 +3999,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextStore(
   auto script_context = GetConstant(global_access_feedback.script_context());
   return StoreAndCacheContextSlot(
       script_context, global_access_feedback.slot_index(), GetAccumulator(),
-      ContextKind::kScriptContext);
+      ContextMode::kHasContextCells);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
@@ -4079,7 +4053,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellStore(
         compiler::MapRef property_cell_value_map =
             property_cell_value.AsHeapObject().map(broker());
         broker()->dependencies()->DependOnStableMap(property_cell_value_map);
-        BuildCheckHeapObject(value);
+        RETURN_IF_ABORT(BuildCheckHeapObject(value));
         RETURN_IF_ABORT(
             BuildCheckMaps(value, base::VectorOf({property_cell_value_map})));
       } else {
@@ -4127,7 +4101,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildScriptContextLoad(
       global_access_feedback.immutable() ? kImmutable : kMutable;
   return LoadAndCacheContextSlot(script_context,
                                  global_access_feedback.slot_index(),
-                                 mutability, ContextKind::kScriptContext);
+                                 mutability, ContextMode::kHasContextCells);
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildPropertyCellLoad(
@@ -4253,6 +4227,17 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupSlot() {
   return ReduceResult::Done();
 }
 
+ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCell() {
+  // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth =
+      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(BuildCallBuiltin<Builtin::kLookupContextNoCellTrampoline>(
+      {name, depth, slot}));
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlot() {
   // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
@@ -4261,17 +4246,6 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlot() {
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
       BuildCallBuiltin<Builtin::kLookupContextTrampoline>({name, depth, slot}));
-  return ReduceResult::Done();
-}
-
-ReduceResult MaglevGraphBuilder::VisitLdaLookupScriptContextSlot() {
-  // LdaLookupContextSlot <name_index> <feedback_slot> <depth>
-  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
-  SetAccumulator(BuildCallBuiltin<Builtin::kLookupScriptContextTrampoline>(
-      {name, depth, slot}));
   return ReduceResult::Done();
 }
 
@@ -4302,8 +4276,9 @@ bool MaglevGraphBuilder::CheckContextExtensions(size_t depth) {
       // optimization.
       if (!extension_ref) return false;
       if (!extension_ref->IsUndefined()) return false;
-      ValueNode* extension = LoadAndCacheContextSlot(
-          context, Context::EXTENSION_INDEX, kMutable, ContextKind::kDefault);
+      ValueNode* extension =
+          LoadAndCacheContextSlot(context, Context::EXTENSION_INDEX, kMutable,
+                                  ContextMode::kNoContextCells);
       AddNewNode<CheckValue>({extension}, broker()->undefined_value(),
                              DeoptimizeReason::kUnexpectedContextExtension);
     }
@@ -4349,6 +4324,18 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupSlotInsideTypeof() {
   return ReduceResult::Done();
 }
 
+ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotNoCellInsideTypeof() {
+  // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
+  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
+  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
+  ValueNode* depth =
+      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
+  SetAccumulator(
+      BuildCallBuiltin<Builtin::kLookupContextNoCellInsideTypeofTrampoline>(
+          {name, depth, slot}));
+  return ReduceResult::Done();
+}
+
 ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
   // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
   ValueNode* name = GetConstant(GetRefOperand<Name>(0));
@@ -4357,18 +4344,6 @@ ReduceResult MaglevGraphBuilder::VisitLdaLookupContextSlotInsideTypeof() {
       GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
   SetAccumulator(
       BuildCallBuiltin<Builtin::kLookupContextInsideTypeofTrampoline>(
-          {name, depth, slot}));
-  return ReduceResult::Done();
-}
-
-ReduceResult MaglevGraphBuilder::VisitLdaLookupScriptContextSlotInsideTypeof() {
-  // LdaLookupContextSlotInsideTypeof <name_index> <context_slot> <depth>
-  ValueNode* name = GetConstant(GetRefOperand<Name>(0));
-  ValueNode* slot = GetTaggedIndexConstant(iterator_.GetIndexOperand(1));
-  ValueNode* depth =
-      GetTaggedIndexConstant(iterator_.GetUnsignedImmediateOperand(2));
-  SetAccumulator(
-      BuildCallBuiltin<Builtin::kLookupScriptContextInsideTypeofTrampoline>(
           {name, depth, slot}));
   return ReduceResult::Done();
 }
@@ -4459,7 +4434,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
       } else {
         switch (obj->type()) {
           case VirtualObject::kConsString:
-            return NodeType::kNonThinString;
+            return NodeType::kString;
           case VirtualObject::kDefault:
           case VirtualObject::kHeapNumber:
           case VirtualObject::kFixedDoubleArray:
@@ -4496,10 +4471,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kToString:
     case Opcode::kNumberToString:
     case Opcode::kUnwrapStringWrapper:
+    case Opcode::kUnwrapThinString:
       return NodeType::kString;
     case Opcode::kStringConcat:
-    case Opcode::kUnwrapThinString:
-      return NodeType::kNonThinString;
     case Opcode::kCheckedInternalizedString:
       return NodeType::kInternalizedString;
     case Opcode::kToObject:
@@ -4584,7 +4558,6 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kLoadDoubleField:
     case Opcode::kLoadFloat64:
     case Opcode::kLoadInt32:
-    case Opcode::kLoadHeapInt32:
     case Opcode::kLoadTaggedFieldByFieldIndex:
     case Opcode::kLoadFixedArrayElement:
     case Opcode::kLoadFixedDoubleArrayElement:
@@ -4596,6 +4569,9 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kLoadSignedIntTypedArrayElement:
     case Opcode::kLoadUnsignedIntTypedArrayElement:
     case Opcode::kLoadDoubleTypedArrayElement:
+    case Opcode::kLoadSignedIntConstantTypedArrayElement:
+    case Opcode::kLoadUnsignedIntConstantTypedArrayElement:
+    case Opcode::kLoadDoubleConstantTypedArrayElement:
     case Opcode::kLoadEnumCacheLength:
     case Opcode::kLoadGlobal:
     case Opcode::kLoadNamedGeneric:
@@ -4653,6 +4629,7 @@ NodeType StaticTypeForNode(compiler::JSHeapBroker* broker,
     case Opcode::kFloat64Constant:
     case Opcode::kInt32Constant:
     case Opcode::kUint32Constant:
+    case Opcode::kIntPtrConstant:
     case Opcode::kTaggedIndexConstant:
     case Opcode::kTrustedConstant:
     case Opcode::kInt32AbsWithOverflow:
@@ -4806,12 +4783,10 @@ bool MaglevGraphBuilder::HaveDisjointTypes(ValueNode* lhs, ValueNode* rhs) {
   return HasDisjointType(lhs, GetType(rhs));
 }
 
-// Note: this is conservative, ie, returns true if {lhs} cannot be {rhs}.
-// It might return false even if {lhs} is not {rhs}.
 bool MaglevGraphBuilder::HasDisjointType(ValueNode* lhs, NodeType rhs_type) {
   NodeType lhs_type = GetType(lhs);
   NodeType meet = CombineType(lhs_type, rhs_type);
-  return NodeTypeCannotHaveInstances(meet);
+  return IsEmptyNodeType(meet);
 }
 
 bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
@@ -4823,7 +4798,12 @@ bool MaglevGraphBuilder::MayBeNullOrUndefined(ValueNode* node) {
 }
 
 ValueNode* MaglevGraphBuilder::BuildSmiUntag(ValueNode* node) {
-  if (EnsureType(node, NodeType::kSmi)) {
+  // This is called when converting inputs in AddNewNode. We might already have
+  // an empty type for `node` here. Make sure we don't add unsafe conversion
+  // nodes in that case by checking for the empty node type explicitly.
+  // TODO(marja): The checks can be removed after we're able to bail out
+  // earlier.
+  if (!IsEmptyNodeType(GetType(node)) && EnsureType(node, NodeType::kSmi)) {
     if (SmiValuesAre31Bits()) {
       if (auto phi = node->TryCast<Phi>()) {
         phi->SetUseRequires31BitValue();
@@ -4854,8 +4834,10 @@ ValueNode* MaglevGraphBuilder::BuildNumberOrOddballToFloat64(
 ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
                                                bool elidable) {
   if (CheckStaticType(object, NodeType::kSmi)) return object;
-  if (CheckType(object, NodeType::kAnyHeapObject)) {
-    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASmi);
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSmi))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
   }
   if (EnsureType(object, NodeType::kSmi) && elidable) return object;
   switch (object->value_representation()) {
@@ -4881,49 +4863,100 @@ ReduceResult MaglevGraphBuilder::BuildCheckSmi(ValueNode* object,
   return object;
 }
 
-void MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
-  if (EnsureType(object, NodeType::kAnyHeapObject)) return;
+ReduceResult MaglevGraphBuilder::BuildCheckHeapObject(ValueNode* object) {
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kAnyHeapObject))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kSmi);
+  }
+  if (EnsureType(object, NodeType::kAnyHeapObject)) return ReduceResult::Done();
   AddNewNode<CheckHeapObject>({object});
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
+ReduceResult MaglevGraphBuilder::BuildCheckString(ValueNode* object) {
   NodeType known_type;
-  if (EnsureType(object, NodeType::kString, &known_type)) return;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kString))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAString);
+  }
+  if (EnsureType(object, NodeType::kString, &known_type)) {
+    return ReduceResult::Done();
+  }
   AddNewNode<CheckString>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
-void MaglevGraphBuilder::BuildCheckStringOrStringWrapper(ValueNode* object) {
-  NodeType known_type;
-  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type)) return;
-  AddNewNode<CheckStringOrStringWrapper>({object}, GetCheckType(known_type));
-}
-
-void MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
-  if (EnsureType(object, NodeType::kNumber)) return;
-  AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
-}
-
-void MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
-  NodeType known_type;
-  if (EnsureType(object, NodeType::kSymbol, &known_type)) return;
-  AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
-}
-
-void MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
-  NodeType known_type;
-  if (EnsureType(object, NodeType::kJSReceiver, &known_type)) return;
-  AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
-                                FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
-}
-
-void MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
+ReduceResult MaglevGraphBuilder::BuildCheckStringOrStringWrapper(
     ValueNode* object) {
   NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(
+          CombineType(GetType(object), NodeType::kStringOrStringWrapper))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotAStringOrStringWrapper);
+  }
+  if (EnsureType(object, NodeType::kStringOrStringWrapper, &known_type))
+    return ReduceResult::Done();
+  AddNewNode<CheckStringOrStringWrapper>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckNumber(ValueNode* object) {
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kNumber))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotANumber);
+  }
+  if (EnsureType(object, NodeType::kNumber)) return ReduceResult::Done();
+  AddNewNode<CheckNumber>({object}, Object::Conversion::kToNumber);
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckSymbol(ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kSymbol))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kNotASymbol);
+  }
+  if (EnsureType(object, NodeType::kSymbol, &known_type))
+    return ReduceResult::Done();
+  AddNewNode<CheckSymbol>({object}, GetCheckType(known_type));
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckJSReceiver(ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object), NodeType::kJSReceiver))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongInstanceType);
+  }
+  if (EnsureType(object, NodeType::kJSReceiver, &known_type))
+    return ReduceResult::Done();
+  AddNewNode<CheckInstanceType>({object}, GetCheckType(known_type),
+                                FIRST_JS_RECEIVER_TYPE, LAST_JS_RECEIVER_TYPE);
+  return ReduceResult::Done();
+}
+
+ReduceResult MaglevGraphBuilder::BuildCheckJSReceiverOrNullOrUndefined(
+    ValueNode* object) {
+  NodeType known_type;
+  // Check for the empty type first so that we catch the case where
+  // GetType(object) is already empty.
+  if (IsEmptyNodeType(CombineType(GetType(object),
+                                  NodeType::kJSReceiverOrNullOrUndefined))) {
+    return EmitUnconditionalDeopt(
+        DeoptimizeReason::kNotAJavaScriptObjectOrNullOrUndefined);
+  }
   if (EnsureType(object, NodeType::kJSReceiverOrNullOrUndefined, &known_type)) {
-    return;
+    return ReduceResult::Done();
   }
   AddNewNode<CheckJSReceiverOrNullOrUndefined>({object},
                                                GetCheckType(known_type));
+  return ReduceResult::Done();
 }
 
 namespace {
@@ -4962,7 +4995,7 @@ class KnownMapsMerger {
         }
       }
       if (intersect_set_.is_empty()) {
-        node_type_ = NodeType::kUnknown;
+        node_type_ = EmptyNodeType();
       }
     } else {
       // A missing entry here means the universal set, i.e., we don't know
@@ -5031,7 +5064,7 @@ class KnownMapsMerger {
   bool existing_known_maps_found_ = true;
   bool emit_check_with_migration_ = false;
   bool any_map_is_unstable_ = false;
-  NodeType node_type_ = static_cast<NodeType>(-1);
+  NodeType node_type_ = EmptyNodeType();
 
   Zone* zone() const { return zone_; }
 
@@ -5083,6 +5116,10 @@ ReduceResult MaglevGraphBuilder::BuildCheckMaps(
   // whether we should emit check with migration.
   KnownMapsMerger merger(broker(), zone(), maps);
   merger.IntersectWithKnownNodeAspects(object, known_node_aspects());
+
+  if (IsEmptyNodeType(CombineType(merger.node_type(), GetType(object)))) {
+    return EmitUnconditionalDeopt(DeoptimizeReason::kWrongMap);
+  }
 
   // If the known maps are the subset of the maps to check, we are done.
   if (merger.known_maps_are_subset_of_requested_maps()) {
@@ -5248,7 +5285,7 @@ AllocationBlock* GetAllocation(ValueNode* object) {
 bool MaglevGraphBuilder::CanElideWriteBarrier(ValueNode* object,
                                               ValueNode* value) {
   if (value->Is<RootConstant>() || value->Is<ConsStringMap>()) return true;
-  if (CheckType(value, NodeType::kSmi)) {
+  if (!IsEmptyNodeType(GetType(value)) && CheckType(value, NodeType::kSmi)) {
     RecordUseReprHintIfPhi(value, UseRepresentation::kTagged);
     return true;
   }
@@ -5431,6 +5468,8 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
   // may allocate, and are not used to set a VO.
   DCHECK_IMPLIES(store_mode != StoreTaggedMode::kInitializing,
                  !value->properties().is_conversion());
+  // TODO(marja): Bail out if `value` has the empty type. This requires that
+  // BuildInlinedAllocation can bail out.
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
@@ -5455,7 +5494,7 @@ Node* MaglevGraphBuilder::BuildStoreTaggedField(ValueNode* object,
   }
 }
 
-void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
+Node* MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
     ValueNode* object, ValueNode* value, int offset,
     StoreTaggedMode store_mode) {
   // The value may be used to initialize a VO, which can leak to IFS.
@@ -5468,8 +5507,8 @@ void MaglevGraphBuilder::BuildStoreTaggedFieldNoWriteBarrier(
   if (store_mode != StoreTaggedMode::kInitializing) {
     TryBuildStoreTaggedFieldToAllocation(object, value, offset);
   }
-  AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
-                                             store_mode);
+  return AddNewNode<StoreTaggedFieldNoWriteBarrier>({object, value}, offset,
+                                                    store_mode);
 }
 
 void MaglevGraphBuilder::BuildStoreTrustedPointerField(
@@ -5906,7 +5945,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildStoreField(
         RETURN_IF_ABORT(BuildCheckMaps(
             value, base::VectorOf({access_info.field_map().value()})));
       } else {
-        BuildCheckHeapObject(value);
+        RETURN_IF_ABORT(BuildCheckHeapObject(value));
       }
     }
   }
@@ -6185,9 +6224,9 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildNamedAccess(
       // Check for string maps before checking if we need to do an access
       // check. Primitive strings always get the prototype from the native
       // context they're operated on, so they don't need the access check.
-      BuildCheckString(lookup_start_object);
+      RETURN_IF_ABORT(BuildCheckString(lookup_start_object));
     } else if (HasOnlyNumberMaps(maps)) {
-      BuildCheckNumber(lookup_start_object);
+      RETURN_IF_ABORT(BuildCheckNumber(lookup_start_object));
     } else {
       RETURN_IF_ABORT(
           BuildCheckMaps(lookup_start_object, maps, {},
@@ -6294,7 +6333,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnString(
   }
 
   // Ensure that {object} is actually a String.
-  BuildCheckString(object);
+  RETURN_IF_ABORT(BuildCheckString(object));
 
   ValueNode* length = BuildLoadStringLength(object);
   ValueNode* index = GetInt32ElementIndex(index_object);
@@ -6444,6 +6483,21 @@ ReduceResult MaglevGraphBuilder::BuildLoadTypedArrayLength(
   bool is_variable_length = IsRabGsabTypedArrayElementsKind(elements_kind);
 
   if (!is_variable_length) {
+    if (auto const_object = TryGetConstant(broker(), local_isolate(), object)) {
+      // TODO(marja): Add TryGetConstant<JSTypedArray>().
+      if (const_object->IsJSTypedArray()) {
+        auto const_typed_array = const_object->AsJSTypedArray();
+        if (!const_typed_array.is_on_heap() &&
+            !IsRabGsabTypedArrayElementsKind(
+                const_typed_array.elements_kind(broker()))) {
+          size_t length = const_typed_array.length();
+          static_assert(ArrayBuffer::kMaxByteLength <=
+                        std::numeric_limits<intptr_t>::max());
+          return GetIntPtrConstant(static_cast<intptr_t>(length));
+        }
+      }
+    }
+
     // Note: We can't use broker()->length_string() here, because it could
     // conflict with redefinitions of the TypedArray length property.
     RETURN_IF_DONE(TryFindLoadedProperty(
@@ -6485,6 +6539,32 @@ ValueNode* MaglevGraphBuilder::BuildLoadTypedArrayElement(
 #undef BUILD_AND_RETURN_LOAD_TYPED_ARRAY
 }
 
+ValueNode* MaglevGraphBuilder::BuildLoadConstantTypedArrayElement(
+    compiler::JSTypedArrayRef typed_array, ValueNode* index,
+    ElementsKind elements_kind) {
+#define BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Type)    \
+  return AddNewNode<Load##Type##ConstantTypedArrayElement>( \
+      {index}, typed_array, elements_kind);
+
+  switch (elements_kind) {
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(SignedInt);
+    case UINT8_CLAMPED_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(UnsignedInt);
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_AND_RETURN_LOAD_CONSTANT_TYPED_ARRAY(Double);
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_AND_RETURN_LOAD_CONSTANTTYPED_ARRAY
+}
+
 void MaglevGraphBuilder::BuildStoreTypedArrayElement(
     ValueNode* object, ValueNode* index, ElementsKind elements_kind) {
 #define BUILD_STORE_TYPED_ARRAY(Type, value)                           \
@@ -6521,6 +6601,46 @@ void MaglevGraphBuilder::BuildStoreTypedArrayElement(
       UNREACHABLE();
   }
 #undef BUILD_STORE_TYPED_ARRAY
+}
+
+void MaglevGraphBuilder::BuildStoreConstantTypedArrayElement(
+    compiler::JSTypedArrayRef typed_array, ValueNode* index,
+    ElementsKind elements_kind) {
+#define BUILD_STORE_CONSTANT_TYPED_ARRAY(Type, value) \
+  AddNewNode<Store##Type##ConstantTypedArrayElement>( \
+      {index, (value)}, typed_array, elements_kind);
+
+  // TODO(leszeks): These operations have a deopt loop when the ToNumber
+  // conversion sees a type other than number or oddball. Turbofan has the same
+  // deopt loop, but ideally we'd avoid it.
+  switch (elements_kind) {
+    case UINT8_CLAMPED_ELEMENTS: {
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(Int,
+                                       GetAccumulatorUint8ClampedForToNumber())
+      break;
+    }
+    case INT8_ELEMENTS:
+    case INT16_ELEMENTS:
+    case INT32_ELEMENTS:
+    case UINT8_ELEMENTS:
+    case UINT16_ELEMENTS:
+    case UINT32_ELEMENTS:
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(
+          Int, GetAccumulatorTruncatedInt32ForToNumber(
+                   NodeType::kNumberOrOddball,
+                   TaggedToFloat64ConversionType::kNumberOrOddball))
+      break;
+    case FLOAT32_ELEMENTS:
+    case FLOAT64_ELEMENTS:
+      BUILD_STORE_CONSTANT_TYPED_ARRAY(
+          Double, GetAccumulatorHoleyFloat64ForToNumber(
+                      NodeType::kNumberOrOddball,
+                      TaggedToFloat64ConversionType::kNumberOrOddball))
+      break;
+    default:
+      UNREACHABLE();
+  }
+#undef BUILD_STORE_CONSTANT_TYPED_ARRAY
 }
 
 MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
@@ -6565,9 +6685,28 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccessOnTypedArray(
   switch (keyed_mode.access_mode()) {
     case compiler::AccessMode::kLoad:
       DCHECK(!LoadModeHandlesOOB(keyed_mode.load_mode()));
+      if (auto constant = object->TryCast<Constant>()) {
+        compiler::HeapObjectRef constant_object = constant->object();
+        if (constant_object.IsJSTypedArray() &&
+            constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
+                broker())) {
+          return BuildLoadConstantTypedArrayElement(
+              constant_object.AsJSTypedArray(), index, elements_kind);
+        }
+      }
       return BuildLoadTypedArrayElement(object, index, elements_kind);
     case compiler::AccessMode::kStore:
       DCHECK(StoreModeIsInBounds(keyed_mode.store_mode()));
+      if (auto constant = object->TryCast<Constant>()) {
+        compiler::HeapObjectRef constant_object = constant->object();
+        if (constant_object.IsJSTypedArray() &&
+            constant_object.AsJSTypedArray().is_off_heap_non_rab_gsab(
+                broker())) {
+          BuildStoreConstantTypedArrayElement(constant_object.AsJSTypedArray(),
+                                              index, elements_kind);
+          return ReduceResult::Done();
+        }
+      }
       BuildStoreTypedArrayElement(object, index, elements_kind);
       return ReduceResult::Done();
     case compiler::AccessMode::kHas:
@@ -6895,7 +7034,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildElementAccess(
       }
 #endif  // DEBUG
 
-      BuildCheckHeapObject(object);
+      RETURN_IF_ABORT(BuildCheckHeapObject(object));
       ValueNode* object_map =
           BuildLoadTaggedField(object, HeapObject::kMapOffset);
 
@@ -6937,7 +7076,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicElementAccess(
   std::optional<MaglevSubGraphBuilder::Label> done;
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
-  BuildCheckHeapObject(object);
+  RETURN_IF_ABORT(BuildCheckHeapObject(object));
   ValueNode* object_map = BuildLoadTaggedField(object, HeapObject::kMapOffset);
 
   // TODO(pthier): We could do better here than just emitting code for each map,
@@ -7062,7 +7201,7 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
     GenericAccessFunc&& build_generic_access) {
   const bool is_any_store = compiler::IsAnyStore(access_mode);
   const int access_info_count = static_cast<int>(access_infos.size());
-  int number_map_index = -1;
+  int number_map_index_for_smi = -1;
 
   bool needs_migration = false;
   bool has_deprecated_map_without_migration_target =
@@ -7080,9 +7219,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
         KnownMapsMerger merger(broker(), zone(), base::VectorOf(known_maps));
         merger.IntersectWithKnownNodeAspects(lookup_start_object,
                                              known_node_aspects());
-        if (!merger.intersect_set().is_empty()) {
-          DCHECK_EQ(number_map_index, -1);
-          number_map_index = i;
+        if (!merger.intersect_set().is_empty() &&
+            !IsEmptyNodeType(
+                CombineType(GetType(lookup_start_object), NodeType::kSmi))) {
+          DCHECK_EQ(number_map_index_for_smi, -1);
+          number_map_index_for_smi = i;
         }
       }
     }
@@ -7095,11 +7236,11 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
   std::optional<MaglevSubGraphBuilder::Label> is_number;
   std::optional<MaglevSubGraphBuilder::Label> generic_access;
 
-  if (number_map_index >= 0) {
+  if (number_map_index_for_smi >= 0) {
     is_number.emplace(&sub_graph, 2);
     sub_graph.GotoIfTrue<BranchIfSmi>(&*is_number, {lookup_start_object});
   } else {
-    BuildCheckHeapObject(lookup_start_object);
+    RETURN_IF_ABORT(BuildCheckHeapObject(lookup_start_object));
   }
   ValueNode* lookup_start_object_map =
       BuildLoadTaggedField(lookup_start_object, HeapObject::kMapOffset);
@@ -7128,11 +7269,12 @@ MaybeReduceResult MaglevGraphBuilder::TryBuildPolymorphicPropertyAccess(
                            base::VectorOf(maps), &sub_graph, check_next_map);
     }
     if (map_check_result.IsDoneWithAbort()) {
+      DCHECK_NE(i, number_map_index_for_smi);
       // We know from known possible maps that this branch is not reachable,
       // so don't emit any code for it.
       continue;
     }
-    if (i == number_map_index) {
+    if (i == number_map_index_for_smi) {
       DCHECK(is_number.has_value());
       sub_graph.Goto(&*is_number);
       sub_graph.Bind(&*is_number);
@@ -7474,7 +7616,7 @@ ReduceResult MaglevGraphBuilder::VisitGetNamedPropertyFromSuper() {
   return ReduceResult::Done();
 }
 
-bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
+MaybeReduceResult MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
     ValueNode* object, const compiler::FeedbackSource& feedback_source,
     const compiler::ProcessedFeedback& processed_feedback) {
   if (current_for_in_state.index != nullptr &&
@@ -7488,9 +7630,11 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
       // the enum cache if the map match the {cache_type}.
       if (processed_feedback.kind() !=
           compiler::ProcessedFeedback::kInsufficient) {
-        return false;
+        return MaybeReduceResult::Fail();
       }
-      BuildCheckHeapObject(object);
+      if (BuildCheckHeapObject(object).IsDoneWithAbort()) {
+        return ReduceResult::DoneWithAbort();
+      }
       speculating_receiver_map_matches = true;
     }
 
@@ -7509,18 +7653,16 @@ bool MaglevGraphBuilder::TryBuildGetKeyedPropertyWithEnumeratedKey(
         current_for_in_state.enum_cache_indices, current_for_in_state.index);
     SetAccumulator(
         AddNewNode<LoadTaggedFieldByFieldIndex>({object, field_index}));
-    return true;
+    return ReduceResult::Done();
   }
-  return false;
+  return MaybeReduceResult::Fail();
 }
 
 ReduceResult MaglevGraphBuilder::BuildGetKeyedProperty(
     ValueNode* object, const compiler::FeedbackSource& feedback_source,
     const compiler::ProcessedFeedback& processed_feedback) {
-  if (TryBuildGetKeyedPropertyWithEnumeratedKey(object, feedback_source,
-                                                processed_feedback)) {
-    return ReduceResult::Done();
-  }
+  RETURN_IF_DONE(TryBuildGetKeyedPropertyWithEnumeratedKey(
+      object, feedback_source, processed_feedback));
 
   auto build_generic_access = [this, object, &feedback_source]() {
     ValueNode* context = GetContext();
@@ -7615,8 +7757,9 @@ ReduceResult MaglevGraphBuilder::VisitLdaModuleVariable() {
   size_t depth = iterator_.GetUnsignedImmediateOperand(1);
   ValueNode* context = GetContextAtDepth(GetContext(), depth);
 
-  ValueNode* module = LoadAndCacheContextSlot(
-      context, Context::EXTENSION_INDEX, kImmutable, ContextKind::kDefault);
+  ValueNode* module =
+      LoadAndCacheContextSlot(context, Context::EXTENSION_INDEX, kImmutable,
+                              ContextMode::kNoContextCells);
   ValueNode* exports_or_imports;
   if (cell_index > 0) {
     exports_or_imports =
@@ -7649,7 +7792,7 @@ ValueNode* MaglevGraphBuilder::GetContextAtDepth(ValueNode* context,
 
   for (size_t i = 0; i < depth; i++) {
     context = LoadAndCacheContextSlot(context, Context::PREVIOUS_INDEX,
-                                      kImmutable, ContextKind::kDefault);
+                                      kImmutable, ContextMode::kNoContextCells);
   }
   return context;
 }
@@ -7667,8 +7810,9 @@ ReduceResult MaglevGraphBuilder::VisitStaModuleVariable() {
   size_t depth = iterator_.GetUnsignedImmediateOperand(1);
   ValueNode* context = GetContextAtDepth(GetContext(), depth);
 
-  ValueNode* module = LoadAndCacheContextSlot(
-      context, Context::EXTENSION_INDEX, kImmutable, ContextKind::kDefault);
+  ValueNode* module =
+      LoadAndCacheContextSlot(context, Context::EXTENSION_INDEX, kImmutable,
+                              ContextMode::kNoContextCells);
   ValueNode* exports =
       BuildLoadTaggedField(module, SourceTextModule::kRegularExportsOffset);
   // The actual array index is (cell_index - 1).
@@ -7887,6 +8031,25 @@ ReduceResult MaglevGraphBuilder::VisitDefineKeyedOwnPropertyInLiteral() {
 ReduceResult MaglevGraphBuilder::VisitAdd() {
   return VisitBinaryOperation<Operation::kAdd>();
 }
+ReduceResult MaglevGraphBuilder::VisitAdd_LhsIsStringConstant_Internalize() {
+  ValueNode* left = LoadRegister(0);
+  ValueNode* right = GetAccumulator();
+  FeedbackNexus nexus = FeedbackNexusForOperand(1);
+  ValueNode* slot = GetSmiConstant(nexus.slot().ToInt());
+  ValueNode* result;
+  if (is_inline()) {
+    ValueNode* vector = GetConstant(feedback());
+    result =
+        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeWithVector>(
+            {left, right, slot, vector});
+  } else {
+    result =
+        BuildCallBuiltin<Builtin::kAddLhsIsStringConstantInternalizeTrampoline>(
+            {left, right, slot});
+  }
+  SetAccumulator(result);
+  return ReduceResult::Done();
+}
 ReduceResult MaglevGraphBuilder::VisitSub() {
   return VisitBinaryOperation<Operation::kSubtract>();
 }
@@ -8008,11 +8171,11 @@ ReduceResult MaglevGraphBuilder::VisitTypeOf() {
       return EmitUnconditionalDeopt(
           DeoptimizeReason::kInsufficientTypeFeedbackForTypeOf);
     case TypeOfFeedback::kNumber:
-      BuildCheckNumber(value);
+      RETURN_IF_ABORT(BuildCheckNumber(value));
       SetAccumulator(GetRootConstant(RootIndex::knumber_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kString:
-      BuildCheckString(value);
+      RETURN_IF_ABORT(BuildCheckString(value));
       SetAccumulator(GetRootConstant(RootIndex::kstring_string));
       return ReduceResult::Done();
     case TypeOfFeedback::kFunction:
@@ -9247,7 +9410,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCharCodeAt(
   }
 
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -9271,7 +9434,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeCodePointAt(
   }
   // Any other argument is ignored.
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   // And index is below length.
   ValueNode* length = BuildLoadStringLength(receiver);
   RETURN_IF_ABORT(TryBuildCheckInt32Condition(
@@ -9287,7 +9450,7 @@ MaybeReduceResult MaglevGraphBuilder::TryReduceStringPrototypeIterator(
   if (!CanSpeculateCall()) return {};
   ValueNode* receiver = GetValueOrUndefined(args.receiver());
   // Ensure that {receiver} is actually a String.
-  BuildCheckString(receiver);
+  RETURN_IF_ABORT(BuildCheckString(receiver));
   compiler::MapRef map =
       broker()->target_native_context().initial_string_iterator_map(broker());
   VirtualObject* string_iterator = CreateJSStringIterator(map, receiver);
@@ -10510,7 +10673,7 @@ ValueNode* MaglevGraphBuilder::BuildCallSelf(
   graph()->set_has_recursive_calls(true);
   DCHECK_EQ(
       compilation_unit_->info()->toplevel_compilation_unit()->parameter_count(),
-      shared.internal_formal_parameter_count_with_receiver());
+      shared.internal_formal_parameter_count_with_receiver_deprecated());
   return AddNewNode<CallSelf>(
       input_count,
       [&](CallSelf* call) {
@@ -11381,8 +11544,8 @@ ReduceResult MaglevGraphBuilder::VisitCallJSRuntime() {
   compiler::NativeContextRef native_context = broker()->target_native_context();
   ValueNode* context = GetConstant(native_context);
   uint32_t slot = iterator_.GetNativeContextIndexOperand(0);
-  ValueNode* callee =
-      LoadAndCacheContextSlot(context, slot, kMutable, ContextKind::kDefault);
+  ValueNode* callee = LoadAndCacheContextSlot(context, slot, kMutable,
+                                              ContextMode::kNoContextCells);
   // Call the function.
   interpreter::RegisterList reglist = iterator_.GetRegisterListOperand(1);
   CallArguments args(ConvertReceiverMode::kNullOrUndefined, reglist,

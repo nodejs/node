@@ -23,8 +23,7 @@ void FinalizationRegistryCleanupTask::SlowAssertNoActiveJavaScript() {
   class NoActiveJavaScript : public ThreadVisitor {
    public:
     void VisitThread(Isolate* isolate, ThreadLocalTop* top) override {
-      for (StackFrameIterator it(isolate, top, StackFrameIterator::NoHandles{});
-           !it.done(); it.Advance()) {
+      for (StackFrameIterator it(isolate, top); !it.done(); it.Advance()) {
         DCHECK(!it.frame()->is_javascript());
       }
     }

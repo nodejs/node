@@ -105,6 +105,8 @@ class V8_EXPORT_PRIVATE LargeObjectSpace : public Space {
 
   base::Mutex* pending_allocation_mutex() { return &pending_allocation_mutex_; }
 
+  void UpdateAccountingAfterResizingObject(size_t old_size, size_t new_size);
+
   void set_objects_size(size_t objects_size) { objects_size_ = objects_size; }
 
  protected:

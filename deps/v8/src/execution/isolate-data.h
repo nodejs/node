@@ -26,6 +26,10 @@ namespace internal {
 class Isolate;
 class TrustedPointerPublishingScope;
 
+namespace wasm {
+class StackMemory;
+}
+
 #if V8_HOST_ARCH_64_BIT
 // In kSystemPointerSize.
 static constexpr int kFastCCallAlignmentPaddingCount = 5;
@@ -156,6 +160,7 @@ struct JSBuiltinDispatchHandleRoot {
   V(BuiltinEntryTable, Builtins::kBuiltinCount* kSystemPointerSize,            \
     builtin_entry_table)                                                       \
   V(BuiltinTable, Builtins::kBuiltinCount* kSystemPointerSize, builtin_table)  \
+  V(ActiveStack, kSystemPointerSize, active_stack)                             \
   ISOLATE_DATA_FIELDS_LEAPTIERING(V)
 
 #ifdef V8_COMPRESS_POINTERS
@@ -327,6 +332,8 @@ class IsolateData final {
   ThreadLocalTop const& thread_local_top() const { return thread_local_top_; }
   Address* builtin_entry_table() { return builtin_entry_table_; }
   Address* builtin_table() { return builtin_table_; }
+  wasm::StackMemory* active_stack() { return active_stack_; }
+  void set_active_stack(wasm::StackMemory* stack) { active_stack_ = stack; }
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   JSDispatchHandle builtin_dispatch_handle(Builtin builtin) {
     return builtin_dispatch_table_[JSBuiltinDispatchHandleRoot::to_idx(
@@ -523,6 +530,8 @@ class IsolateData final {
 
   // The entries in this array are tagged pointers to Code objects.
   Address builtin_table_[Builtins::kBuiltinCount] = {};
+
+  wasm::StackMemory* active_stack_ = nullptr;
 
 #if V8_ENABLE_LEAPTIERING_BOOL && !V8_STATIC_DISPATCH_HANDLES_BOOL
   // The entries in this array are dispatch handles for builtins with SFI's.

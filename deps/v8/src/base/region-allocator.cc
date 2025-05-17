@@ -176,8 +176,14 @@ bool RegionAllocator::AllocateRegionAt(Address requested_address, size_t size,
   DCHECK_NE(region_state, RegionState::kFree);
 
   Address requested_end = requested_address + size;
-  DCHECK_LE(requested_end, end());
 
+  // Fail if the region would outgrow the total reservation or the addition
+  // overflows.
+  if (requested_end > end() || requested_end < requested_address) {
+    return false;
+  }
+
+  DCHECK_LE(requested_end, end());
   Region* region;
   {
     AllRegionsSet::iterator region_iter = FindRegion(requested_address);
@@ -319,6 +325,33 @@ size_t RegionAllocator::TrimRegion(Address address, size_t new_size) {
   }
   FreeListAddRegion(region);
   return size;
+}
+
+bool RegionAllocator::TryGrowRegion(Address address, size_t new_size) {
+  DCHECK(IsAligned(new_size, page_size_));
+
+  AllRegionsSet::iterator region_iter = FindRegion(address);
+  if (region_iter == all_regions_.end()) {
+    return false;
+  }
+  Region* region = *region_iter;
+  if (region->begin() != address || !region->is_allocated()) {
+    return false;
+  }
+
+  // The region must not be in the free list.
+  DCHECK_EQ(free_regions_.find(*region_iter), free_regions_.end());
+  DCHECK_LT(region->size(), new_size);
+
+  if (!AllocateRegionAt(region->end(), new_size - region->size())) {
+    return false;
+  }
+
+  AllRegionsSet::iterator new_region_iter = std::next(region_iter);
+  DCHECK_NE(new_region_iter, all_regions_.end());
+
+  Merge(region_iter, new_region_iter);
+  return true;
 }
 
 size_t RegionAllocator::CheckRegion(Address address) {

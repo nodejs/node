@@ -70,6 +70,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 #if defined(__ARM_FEATURE_DOTPROD)
   features |= 1u << DOTPROD;
 #endif
+#if defined(__ARM_FEATURE_SHA3)
+  features |= 1u << SHA3;
+#endif
 #if defined(__ARM_FEATURE_ATOMICS)
   features |= 1u << LSE;
 #endif
@@ -77,6 +80,9 @@ constexpr unsigned CpuFeaturesFromCompiler() {
 // covers the FEAT_PMULL feature too.
 #if defined(__ARM_FEATURE_AES)
   features |= 1u << PMULL1Q;
+#endif
+#if defined(__ARM_FEATURE_HBC)
+  features |= 1u << HBC;
 #endif
   return features;
 }
@@ -124,6 +130,9 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   if (cpu.has_dot_prod()) {
     runtime |= 1u << DOTPROD;
   }
+  if (cpu.has_sha3()) {
+    runtime |= 1u << SHA3;
+  }
   if (cpu.has_lse()) {
     runtime |= 1u << LSE;
   }
@@ -132,6 +141,12 @@ void CpuFeatures::ProbeImpl(bool cross_compile) {
   }
   if (cpu.has_fp16()) {
     runtime |= 1u << FP16;
+  }
+  if (cpu.has_hbc()) {
+    runtime |= 1u << HBC;
+  }
+  if (cpu.has_cssc()) {
+    runtime |= 1u << CSSC;
   }
 
   // Use the best of the features found by CPU detection and those inferred from
@@ -447,7 +462,8 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   ForceConstantPoolEmissionWithoutJump();
   DCHECK(constpool_.IsEmpty());
 
-  int code_comments_size = WriteCodeComments();
+  const int code_comments_size = WriteCodeComments();
+  const int jump_table_info_size = WriteJumpTableInfos();
 
   AllocateAndInstallRequestedHeapNumbers(isolate);
 
@@ -456,12 +472,9 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
   // this point to make CodeDesc initialization less fiddly.
 
   static constexpr int kConstantPoolSize = 0;
-  static constexpr int kBuiltinJumpTableInfoSize = 0;
   const int instruction_size = pc_offset();
-  const int builtin_jump_table_info_offset =
-      instruction_size - kBuiltinJumpTableInfoSize;
-  const int code_comments_offset =
-      builtin_jump_table_info_offset - code_comments_size;
+  const int jump_table_info_offset = instruction_size - jump_table_info_size;
+  const int code_comments_offset = jump_table_info_offset - code_comments_size;
   const int constant_pool_offset = code_comments_offset - kConstantPoolSize;
   const int handler_table_offset2 = (handler_table_offset == kNoHandlerTable)
                                         ? constant_pool_offset
@@ -474,7 +487,7 @@ void Assembler::GetCode(LocalIsolate* isolate, CodeDesc* desc,
       static_cast<int>(reloc_info_writer.pos() - buffer_->start());
   CodeDesc::Initialize(desc, this, safepoint_table_offset,
                        handler_table_offset2, constant_pool_offset,
-                       code_comments_offset, builtin_jump_table_info_offset,
+                       code_comments_offset, jump_table_info_offset,
                        reloc_info_offset);
 }
 
@@ -879,6 +892,14 @@ void Assembler::b(int imm19, Condition cond) {
 
 void Assembler::b(Label* label, Condition cond) {
   b(LinkAndGetBranchInstructionOffsetTo(label), cond);
+}
+
+void Assembler::bc(int imm19, Condition cond) {
+  Emit(BC_cond | ImmCondBranch(imm19) | cond);
+}
+
+void Assembler::bc(Label* label, Condition cond) {
+  bc(LinkAndGetBranchInstructionOffsetTo(label), cond);
 }
 
 void Assembler::bl(int imm26) { Emit(BL | ImmUncondBranch(imm26)); }
@@ -1297,6 +1318,27 @@ void Assembler::clz(const Register& rd, const Register& rn) {
 
 void Assembler::cls(const Register& rd, const Register& rn) {
   DataProcessing1Source(rd, rn, CLS);
+}
+
+void Assembler::abs(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac02000 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::cnt(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01c00 | SF(rd) | Rd(rd) | Rn(rn));
+}
+
+void Assembler::ctz(const Register& rd, const Register& rn) {
+  DCHECK(IsEnabled(CSSC));
+  DCHECK(rd.IsSameSizeAndType(rn));
+
+  Emit(0x5ac01800 | SF(rd) | Rd(rd) | Rn(rn));
 }
 
 void Assembler::pacib1716() { Emit(PACIB1716); }
@@ -3401,6 +3443,20 @@ NEON_3SAME_LIST(DEFINE_ASM_FUNC)
 NEON_FP3SAME_LIST_V2(DEFINE_ASM_FUNC)
 #undef DEFINE_ASM_FUNC
 
+void Assembler::bcax(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B());
+  Emit(NEON_BCAX | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
+void Assembler::eor3(const VRegister& vd, const VRegister& vn,
+                     const VRegister& vm, const VRegister& va) {
+  DCHECK(IsEnabled(SHA3));
+  DCHECK(vd.Is16B() && vn.Is16B() && vm.Is16B() && va.Is16B());
+  Emit(NEON_EOR3 | Rd(vd) | Rn(vn) | Rm(vm) | Ra(va));
+}
+
 void Assembler::addp(const VRegister& vd, const VRegister& vn) {
   DCHECK((vd.Is1D() && vn.Is2D()));
   Emit(SFormat(vd) | NEON_ADDP_scalar | Rn(vn) | Rd(vd));
@@ -3932,6 +3988,23 @@ void Assembler::EmitStringData(const char* string) {
   static_assert(sizeof(pad) == kInstrSize,
                 "Size of padding must match instruction size.");
   EmitData(pad, RoundUp(pc_offset(), kInstrSize) - pc_offset());
+}
+
+void Assembler::WriteJumpTableEntry(Label* label, int table_pos) {
+  if constexpr (V8_JUMP_TABLE_INFO_BOOL) {
+    jump_table_info_writer_.Add(pc_offset(), label->pos());
+  }
+  dc32(label->pos() - table_pos);
+}
+
+int Assembler::WriteJumpTableInfos() {
+  if constexpr (!V8_JUMP_TABLE_INFO_BOOL) return 0;
+  if (jump_table_info_writer_.entry_count() == 0) return 0;
+  int offset = pc_offset();
+  jump_table_info_writer_.Emit(this);
+  int size = pc_offset() - offset;
+  DCHECK_EQ(size, jump_table_info_writer_.size_in_bytes());
+  return size;
 }
 
 void Assembler::debug(const char* message, uint32_t code, Instr params) {

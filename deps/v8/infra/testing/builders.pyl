@@ -109,7 +109,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 6},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
   'v8_linux_gc_stress_dbg': {
@@ -1375,7 +1375,7 @@
       'os': 'Ubuntu-22.04',
     },
     'tests': [
-      {'name': 'v8testing', 'variant': 'default', 'shards': 7},
+      {'name': 'v8testing', 'variant': 'default', 'shards': 8},
     ],
   },
   'V8 Linux - gc stress': {

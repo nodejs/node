@@ -725,7 +725,7 @@ void SimplifiedLoweringVerifier::VisitNode(Node* node,
       CASE(JSGetImportMeta)
       CASE(JSGeneratorStore)
       CASE(JSGeneratorRestoreContinuation)
-      CASE(JSGeneratorRestoreContext)
+      CASE(JSGeneratorRestoreContextNoCell)
       CASE(JSGeneratorRestoreRegister)
       CASE(JSGeneratorRestoreInputOrDebugPos)
       CASE(JSFulfillPromise)

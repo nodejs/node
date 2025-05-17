@@ -1139,6 +1139,22 @@ size_t String::WriteUtf8(Isolate* isolate, DirectHandle<String> string,
   return encoding_result.bytes_written;
 }
 
+// LINT.IfChange(StringDoesNotContainEscapeCharacters)
+// static
+bool String::DoesNotContainEscapeCharacters(Tagged<String> string) {
+  // This method is not optimized. It is only meant to be used in verification
+  // code.
+  bool requires_escape = false;
+  StringCharacterStream stream(string);
+  while (stream.HasMore() && !requires_escape) {
+    uint16_t c = stream.GetNext();
+    requires_escape =
+        c < 0x20 || c == 0x22 || c == 0x5c || (c >= 0xD800 && c <= 0xDFFF);
+  }
+  return !requires_escape;
+}
+// LINT.ThenChange(/src/json/json-stringifier.cc:StringDoesNotContainEscapeCharacters)
+
 template <typename SourceChar>
 static void CalculateLineEndsImpl(String::LineEndsVector* line_ends,
                                   base::Vector<const SourceChar> src,
@@ -1321,10 +1337,6 @@ bool String::SlowEquals(Isolate* isolate, DirectHandle<String> one,
 #endif
     if (one_hash != two_hash) return false;
   }
-
-  // We know the strings are both non-empty. Compare the first chars
-  // before we try to flatten the strings.
-  if (one->Get(0) != two->Get(0)) return false;
 
   one = String::Flatten(isolate, one);
   two = String::Flatten(isolate, two);

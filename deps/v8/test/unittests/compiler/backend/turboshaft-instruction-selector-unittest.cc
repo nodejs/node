@@ -73,6 +73,7 @@ TurboshaftInstructionSelectorTest::StreamBuilder::Build(
   }
   Stream s;
   s.virtual_registers_ = selector.GetVirtualRegistersForTesting();
+  s.instruction_blocks_ = instruction_blocks;
   // Map virtual registers.
   for (Instruction* const instr : sequence) {
     if (instr->opcode() < 0) continue;

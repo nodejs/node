@@ -50,9 +50,6 @@ class TransitionArray;
 // 1) Type of the worklist entry.
 // 2) Lower-case name of the worklsit.
 // 3) Capitalized name of the worklist.
-//
-// If you add a new entry, then you also need to implement the corresponding
-// Update*() function in the cc file for updating pointers after Scavenge.
 #define WEAK_OBJECT_WORKLISTS_GENERIC(F)                                      \
   F(Tagged<TransitionArray>, transition_arrays, TransitionArrays)             \
   /* Keep track of all EphemeronHashTables in the heap to process             \
@@ -116,19 +113,7 @@ class WeakObjects final {
   WEAK_OBJECT_WORKLISTS(DECLARE_WORKLIST)
 #undef DECLARE_WORKLIST
 
-  void UpdateAfterScavenge();
   void Clear();
-
- private:
-#define DECLARE_UPDATE_METHODS(Type, _, Name) \
-  static void Update##Name(WeakObjectWorklist<Type>&);
-  WEAK_OBJECT_WORKLISTS(DECLARE_UPDATE_METHODS)
-#undef DECLARE_UPDATE_METHODS
-
-#ifdef DEBUG
-  template <typename Type>
-  static bool ContainsYoungObjects(WeakObjectWorklist<Tagged<Type>>& worklist);
-#endif
 };
 
 }  // namespace internal

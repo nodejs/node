@@ -126,7 +126,7 @@ void AddToDescriptorArrayTemplate(
         descriptor_array_template->Set(entry, &d);
         pair = *new_pair;
       }
-      SetAccessorPlaceholderIndices(*pair, value_kind, Cast<Smi>(*value),
+      SetAccessorPlaceholderIndices(pair, value_kind, Cast<Smi>(*value),
                                     kReleaseStore);
     }
   }

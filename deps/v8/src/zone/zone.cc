@@ -153,6 +153,9 @@ void Zone::Expand(size_t size) {
   // strategy, where we increase the segment size every time we expand
   // except that we employ a maximum segment size when we delete. This
   // is to avoid excessive malloc() and free() overhead.
+  //
+  // TODO(409953791): This can be simplified when using the page pool for
+  // managing zone memory as it works with equal-sized segments.
   Segment* head = segment_head_;
   const size_t old_size = head ? head->total_size() : 0;
   static const size_t kSegmentOverhead = sizeof(Segment) + kAlignmentInBytes;

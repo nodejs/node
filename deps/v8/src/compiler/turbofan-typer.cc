@@ -722,7 +722,9 @@ Type Typer::Visitor::ObjectIsArrayBufferView(Type type, Typer* t) {
   // TODO(turbofan): Introduce a Type::ArrayBufferView?
   CHECK(!type.IsNone());
   if (type.Is(Type::TypedArray())) return t->singleton_true_;
-  if (!type.Maybe(Type::TypedArray())) return t->singleton_false_;
+  if (!type.Maybe(Type::TypedArray()) && !type.Maybe(Type::OtherObject())) {
+    return t->singleton_false_;
+  }
   return Type::Boolean();
 }
 
@@ -1764,6 +1766,17 @@ Type Typer::Visitor::TypeJSHasContextExtension(Node* node) {
   return Type::Boolean();
 }
 
+Type Typer::Visitor::TypeJSLoadContextNoCell(Node* node) {
+  ContextAccess const& access = ContextAccessOf(node->op());
+  switch (access.index()) {
+    case Context::PREVIOUS_INDEX:
+    case Context::SCOPE_INFO_INDEX:
+      return Type::OtherInternal();
+    default:
+      return Type::Any();
+  }
+}
+
 Type Typer::Visitor::TypeJSLoadContext(Node* node) {
   ContextAccess const& access = ContextAccessOf(node->op());
   switch (access.index()) {
@@ -1775,21 +1788,9 @@ Type Typer::Visitor::TypeJSLoadContext(Node* node) {
   }
 }
 
-Type Typer::Visitor::TypeJSLoadScriptContext(Node* node) {
-  ContextAccess const& access = ContextAccessOf(node->op());
-  switch (access.index()) {
-    case Context::PREVIOUS_INDEX:
-    case Context::SCOPE_INFO_INDEX:
-    case Context::CONTEXT_SIDE_TABLE_PROPERTY_INDEX:
-      return Type::OtherInternal();
-    default:
-      return Type::Any();
-  }
-}
+Type Typer::Visitor::TypeJSStoreContextNoCell(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSStoreContext(Node* node) { UNREACHABLE(); }
-
-Type Typer::Visitor::TypeJSStoreScriptContext(Node* node) { UNREACHABLE(); }
 
 Type Typer::Visitor::TypeJSCreateFunctionContext(Node* node) {
   return Type::OtherInternal();
@@ -2203,7 +2204,7 @@ Type Typer::Visitor::TypeJSGeneratorRestoreContinuation(Node* node) {
   return Type::SignedSmall();
 }
 
-Type Typer::Visitor::TypeJSGeneratorRestoreContext(Node* node) {
+Type Typer::Visitor::TypeJSGeneratorRestoreContextNoCell(Node* node) {
   return Type::Any();
 }
 

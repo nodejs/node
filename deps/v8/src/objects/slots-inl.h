@@ -194,6 +194,14 @@ void FullHeapObjectSlot::StoreHeapObject(Tagged<HeapObject> value) const {
   *location() = value.ptr();
 }
 
+void ExternalPointerSlot::init_lazily_initialized() {
+#ifdef V8_ENABLE_SANDBOX
+  Relaxed_StoreHandle(kNullExternalPointerHandle);
+#else
+  WriteMaybeUnalignedValue<Address>(address(), kNullAddress);
+#endif  // V8_ENABLE_SANDBOX
+}
+
 void ExternalPointerSlot::init(IsolateForSandbox isolate,
                                Tagged<HeapObject> host, Address value,
                                ExternalPointerTag tag) {
@@ -246,6 +254,17 @@ void ExternalPointerSlot::store(IsolateForSandbox isolate, Address value,
   table.Set(handle, value, tag);
 #else
   WriteMaybeUnalignedValue<Address>(address(), value);
+#endif  // V8_ENABLE_SANDBOX
+}
+
+ExternalPointerTag ExternalPointerSlot::load_tag(IsolateForSandbox isolate) {
+#ifdef V8_ENABLE_SANDBOX
+  const ExternalPointerTable& table =
+      isolate.GetExternalPointerTableFor(tag_range_);
+  ExternalPointerHandle handle = Relaxed_LoadHandle();
+  return table.GetTag(handle);
+#else
+  return kExternalPointerNullTag;
 #endif  // V8_ENABLE_SANDBOX
 }
 

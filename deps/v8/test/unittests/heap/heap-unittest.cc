@@ -287,7 +287,7 @@ void ShrinkNewSpace(NewSpace* new_space) {
     stats_collector->NotifySweepingCompleted(
         cppgc::Heap::SweepingType::kAtomic);
   }
-  tracer->NotifyFullSweepingCompleted();
+  tracer->NotifyFullSweepingCompletedAndStopCycleIfFinished();
 }
 }  // namespace
 
@@ -314,9 +314,8 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
   // Explicitly growing should double the space capacity.
   size_t old_capacity, new_capacity;
   old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
+  GrowNewSpaceToMaximumCapacity();
   new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
 
   old_capacity = new_space->TotalCapacity();
   {
@@ -345,7 +344,7 @@ TEST_F(HeapTest, GrowAndShrinkNewSpace) {
     // objects.
     CHECK_GE(old_capacity, new_capacity);
   } else {
-    CHECK_EQ(old_capacity, 2 * new_capacity);
+    CHECK_EQ(new_capacity, new_space->MinimumCapacity());
   }
 
   // Consecutive shrinking should not affect space capacity.
@@ -367,18 +366,13 @@ TEST_F(HeapTest, CollectingAllAvailableGarbageShrinksNewSpace) {
   v8::Isolate* iso = reinterpret_cast<v8::Isolate*>(isolate());
   v8::HandleScope scope(iso);
   NewSpace* new_space = heap()->new_space();
-  size_t old_capacity, new_capacity;
-  old_capacity = new_space->TotalCapacity();
-  GrowNewSpace();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(2 * old_capacity, new_capacity);
+  GrowNewSpaceToMaximumCapacity();
   {
     v8::HandleScope temporary_scope(iso);
     SimulateFullSpace(new_space);
   }
   InvokeMemoryReducingMajorGCs();
-  new_capacity = new_space->TotalCapacity();
-  CHECK_EQ(old_capacity, new_capacity);
+  CHECK_EQ(new_space->TotalCapacity(), new_space->MinimumCapacity());
 }
 
 // Test that HAllocateObject will always return an object in new-space.
@@ -457,8 +451,7 @@ TEST_F(HeapTest, RememberedSet_InsertOnPromotingObjectToOld) {
     SimulateFullSpace(new_space, &handles);
     IsolateSafepointScope scope(heap);
     // New empty pages should remain in new space.
-    heap->ExpandNewSpaceSizeForTesting();
-    CHECK(new_space->EnsureCurrentCapacity());
+    GrowNewSpaceToMaximumCapacity();
   }
   InvokeMinorGC();
   CHECK(HeapLayout::InYoungGeneration(*arr));
@@ -529,7 +522,6 @@ TEST_F(HeapTest, SemiSpaceNewSpaceGrowsDuringFullGCIncrementalMarking) {
   if (!v8_flags.incremental_marking) return;
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
-  v8_flags.separate_gc_phases = true;
   ManualGCScope manual_gc_scope(isolate());
 
   HandleScope handle_scope(isolate());
@@ -717,79 +709,9 @@ TEST_F(HeapTest, ContainsSlow) {
   CHECK(!heap->lo_space()->ContainsSlow(0));
 }
 
-#if defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
-TEST_F(HeapTest, Regress364396306) {
-  if (v8_flags.single_generation) return;
-  if (v8_flags.separate_gc_phases) return;
-  if (v8_flags.minor_ms) return;
-
-  auto* iso = i_isolate();
-  auto* heap = iso->heap();
-  auto* space = heap->young_external_pointer_space();
-  ManualGCScope manual_gc_scope(iso);
-
-  int* external_int = new int;
-
-  {
-    {
-      // Almost fill a segment with unreachable entries. Leave behind one unused
-      // entry.
-      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
-      do {
-        iso->factory()->NewExternal(external_int);
-      } while (space->freelist_length() > 1);
-    }
-    {
-      v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(iso));
-      // Allocate one reachable entry on the same segment to prevent discarding
-      // the segment.
-      iso->factory()->NewExternal(external_int);
-      CHECK_EQ(1, space->NumSegmentsForTesting());
-      // Allocate an entry on a new segment that will later be evacuated.
-      DirectHandle<JSObject> to_be_evacuated =
-          iso->factory()->NewExternal(external_int);
-      CHECK_EQ(2, space->NumSegmentsForTesting());
-      CHECK(HeapLayout::InYoungGeneration(*to_be_evacuated));
-      // Unmark to-be-evacuated entry and populate the freelist.
-      InvokeMinorGC();
-      CHECK(HeapLayout::InYoungGeneration(*to_be_evacuated));
-      // Set up a global to make sure `to_be_evacuated` is visited before the
-      // atomic pause.
-      Global<JSObject> global_to_be_evacuated(
-          v8_isolate(), Utils::Convert<JSObject, JSObject>(to_be_evacuated));
-      // Make sure compaction is enabled for the space so that an evacuation
-      // entry is created for `to_be_evacuated`.
-      bool old_stress_compaction_flag =
-          std::exchange(v8_flags.stress_compaction, true);
-      heap->StartIncrementalMarking(GCFlag::kNoFlags,
-                                    GarbageCollectionReason::kTesting);
-      // Finish all available marking work to make sure the to-be-evacuated
-      // entry is already marked.
-      heap->incremental_marking()->AdvanceForTesting(
-          v8::base::TimeDelta::Max());
-      // Reset the `stress_compaction` flag. If it remains enabled, the minor
-      // GCs below will be overriden with full GCs.
-      v8_flags.stress_compaction = old_stress_compaction_flag;
-    }
-
-    // The to-be-evacuated entry is no longer reachable. Scavenger will override
-    // the evacuation entry with a null address.
-    InvokeMinorGC();
-    // Iterating over segments again should not crash because of the null
-    // address set by the previous Scavenger.
-    InvokeMinorGC();
-  }
-
-  // Finalize the incremental GC so there are no references to `external_int`
-  // before we free it.
-  InvokeMajorGC();
-
-  delete external_int;
-}
-#endif  // defined(V8_COMPRESS_POINTERS) && defined(V8_ENABLE_SANDBOX)
-
-TEST_F(HeapTest,
-       PinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
+TEST_F(
+    HeapTest,
+    ConservativePinningScavengerDoesntMoveObjectReachableFromStackNoPromotion) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;
@@ -823,7 +745,8 @@ TEST_F(HeapTest,
   CHECK_NE(number_address, number->address());
 }
 
-TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
+TEST_F(HeapTest,
+       ConservativePinningScavengerDoesntMoveObjectReachableFromStack) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;
@@ -851,7 +774,7 @@ TEST_F(HeapTest, PinningScavengerDoesntMoveObjectReachableFromStack) {
   CHECK_EQ(number_address, number->address());
 }
 
-TEST_F(HeapTest, PinningScavengerObjectWithSelfReference) {
+TEST_F(HeapTest, ConservativePinningScavengerObjectWithSelfReference) {
   if (v8_flags.single_generation) return;
   if (v8_flags.minor_ms) return;
   v8_flags.scavenger_conservative_object_pinning = true;

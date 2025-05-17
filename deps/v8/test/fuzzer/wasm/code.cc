@@ -30,7 +30,10 @@ class WasmCodeFuzzer : public WasmExecutionFuzzer {
 };
 
 extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
-  return WasmCodeFuzzer().FuzzWasmModule({data, size});
+  // Differently to fuzzers generating "always valid" wasm modules, also mark
+  // invalid modules as interesting to have coverage-guidance for invalid cases.
+  USE(WasmCodeFuzzer().FuzzWasmModule({data, size}));
+  return 0;
 }
 
 }  // namespace v8::internal::wasm::fuzzing

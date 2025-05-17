@@ -57,14 +57,15 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
         DCHECK(local_isolate.heap()->IsParked());
 
         do {
-          RunCompilationJob(isolate, local_isolate, job);
+          task_executor_->RunCompilationJob(task_state, isolate, local_isolate,
+                                            job);
 
           should_yield = delegate->ShouldYield();
           if (should_yield) break;
 
           // Reuse the LocalIsolate if the next worklist item has the same
           // isolate.
-          job = task_executor_->NextInputIfIsolateMatches(isolate);
+          job = task_executor_->NextInputIfIsolateMatches(task_state);
         } while (job);
       }
 
@@ -79,24 +80,6 @@ class OptimizingCompileTaskExecutor::CompileTask : public v8::JobTask {
     // only this thread here will ever change this field and the main thread
     // will only ever read it.
     DCHECK_NULL(task_state.isolate);
-  }
-
-  void RunCompilationJob(Isolate* isolate, LocalIsolate& local_isolate,
-                         TurbofanCompilationJob* job) {
-    TRACE_EVENT_WITH_FLOW0(
-        TRACE_DISABLED_BY_DEFAULT("v8.compile"), "V8.OptimizeBackground",
-        job->trace_id(), TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
-    TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
-
-    if (task_executor_->recompilation_delay_ != 0) {
-      base::OS::Sleep(base::TimeDelta::FromMilliseconds(
-          task_executor_->recompilation_delay_));
-    }
-
-    RCS_SCOPE(&local_isolate,
-              RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
-
-    task_executor_->CompileNext(isolate, local_isolate, job);
   }
 
   size_t GetMaxConcurrency(size_t worker_count) const override {
@@ -151,19 +134,33 @@ TurbofanCompilationJob* OptimizingCompileTaskExecutor::NextInput(
 }
 
 TurbofanCompilationJob*
-OptimizingCompileTaskExecutor::NextInputIfIsolateMatches(Isolate* isolate) {
-  return input_queue_.DequeueIfIsolateMatches(isolate);
+OptimizingCompileTaskExecutor::NextInputIfIsolateMatches(
+    OptimizingCompileTaskState& task_state) {
+  return input_queue_.DequeueIfIsolateMatches(task_state);
 }
 
-void OptimizingCompileTaskExecutor::CompileNext(Isolate* isolate,
-                                                LocalIsolate& local_isolate,
-                                                TurbofanCompilationJob* job) {
-  DCHECK_NOT_NULL(job);
+void OptimizingCompileTaskExecutor::RunCompilationJob(
+    OptimizingCompileTaskState& task_state, Isolate* isolate,
+    LocalIsolate& local_isolate, TurbofanCompilationJob* job) {
+  TRACE_EVENT_WITH_FLOW0(TRACE_DISABLED_BY_DEFAULT("v8.compile"),
+                         "V8.OptimizeBackground", job->trace_id(),
+                         TRACE_EVENT_FLAG_FLOW_IN | TRACE_EVENT_FLAG_FLOW_OUT);
+  TimerEventScope<TimerEventRecompileConcurrent> timer(isolate);
+
+  if (recompilation_delay_ != 0) {
+    base::OS::Sleep(base::TimeDelta::FromMilliseconds(recompilation_delay_));
+  }
+
+  RCS_SCOPE(&local_isolate, RuntimeCallCounterId::kOptimizeBackgroundTurbofan);
 
   // The function may have already been optimized by OSR.  Simply continue.
   CompilationJob::Status status =
       job->ExecuteJob(local_isolate.runtime_call_stats(), &local_isolate);
   USE(status);  // Prevent an unused-variable error.
+
+  // Remove the job first from task_state before adding it to the output queue.
+  // As soon as the job is in the output queue it could be deleted any moment.
+  ResetJob(task_state);
 
   isolate->optimizing_compile_dispatcher()->QueueFinishedJob(job);
 }
@@ -192,7 +189,16 @@ void OptimizingCompileTaskExecutor::ClearTaskState(
   base::MutexGuard guard(input_queue_.mutex_);
   DCHECK_NOT_NULL(task_state.isolate);
   task_state.isolate = nullptr;
+  DCHECK_NULL(task_state.job);
   input_queue_.task_finished_.NotifyAll();
+}
+
+void OptimizingCompileTaskExecutor::ResetJob(
+    OptimizingCompileTaskState& task_state) {
+  base::MutexGuard guard(input_queue_.mutex_);
+  DCHECK_NOT_NULL(task_state.isolate);
+  DCHECK_NOT_NULL(task_state.job);
+  task_state.job = nullptr;
 }
 
 bool OptimizingCompileTaskExecutor::TryQueueForOptimization(
@@ -224,6 +230,18 @@ void OptimizingCompileTaskExecutor::WaitUntilCompilationJobsDoneForIsolate(
   while (input_queue_.HasJobForIsolate(isolate) ||
          IsTaskRunningForIsolate(isolate)) {
     input_queue_.task_finished_.Wait(&input_queue_.mutex_);
+  }
+}
+
+void OptimizingCompileTaskExecutor::CancelCompilationJobsForIsolate(
+    Isolate* isolate) {
+  base::MutexGuard guard(&input_queue_.mutex_);
+  DCHECK(!input_queue_.HasJobForIsolate(isolate));
+
+  for (auto& task_state : task_states_) {
+    if (task_state.isolate == isolate && task_state.job) {
+      task_state.job->Cancel();
+    }
   }
 }
 
@@ -271,6 +289,7 @@ void OptimizingCompileDispatcher::WaitUntilCompilationJobsDone() {
 void OptimizingCompileDispatcher::FlushQueues(
     BlockingBehavior blocking_behavior) {
   FlushInputQueue();
+  task_executor_->CancelCompilationJobsForIsolate(isolate_);
   if (blocking_behavior == BlockingBehavior::kBlock) {
     WaitUntilCompilationJobsDone();
   }
@@ -290,6 +309,8 @@ void OptimizingCompileDispatcher::Flush(BlockingBehavior blocking_behavior) {
 void OptimizingCompileDispatcher::StartTearDown() {
   HandleScope handle_scope(isolate_);
   FlushInputQueue();
+
+  task_executor_->CancelCompilationJobsForIsolate(isolate_);
 }
 
 void OptimizingCompileDispatcher::InstallOptimizedFunctions() {
@@ -401,16 +422,19 @@ TurbofanCompilationJob* OptimizingCompileInputQueue::Dequeue(
   queue_.pop_front();
   DCHECK_NOT_NULL(job);
   task_state.isolate = job->isolate();
+  task_state.job = job;
   return job;
 }
 
 TurbofanCompilationJob* OptimizingCompileInputQueue::DequeueIfIsolateMatches(
-    Isolate* isolate) {
+    OptimizingCompileTaskState& task_state) {
   base::MutexGuard access(&mutex_);
   if (queue_.empty()) return nullptr;
   TurbofanCompilationJob* job = queue_.front();
   DCHECK_NOT_NULL(job);
-  if (job->isolate() != isolate) return nullptr;
+  if (job->isolate() != task_state.isolate) return nullptr;
+  DCHECK_NULL(task_state.job);
+  task_state.job = job;
   queue_.pop_front();
   return job;
 }

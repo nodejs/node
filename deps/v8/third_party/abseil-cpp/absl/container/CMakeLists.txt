@@ -41,6 +41,7 @@ absl_cc_library(
     absl::strings
     absl::throw_delegate
     absl::type_traits
+    absl::weakly_mixed_integer
 )
 
 # Internal-only target, do not depend on directly.
@@ -134,6 +135,7 @@ absl_cc_library(
     absl::iterator_traits_internal
     absl::throw_delegate
     absl::memory
+    absl::weakly_mixed_integer
   PUBLIC
 )
 
@@ -202,6 +204,7 @@ absl_cc_library(
     absl::throw_delegate
     absl::memory
     absl::type_traits
+    absl::weakly_mixed_integer
   PUBLIC
 )
 
@@ -790,6 +793,7 @@ absl_cc_library(
     absl::prefetch
     absl::raw_logging_internal
     absl::utility
+    absl::weakly_mixed_integer
   PUBLIC
 )
 
@@ -825,6 +829,32 @@ absl_cc_test(
     absl::test_allocator
     absl::test_instance_tracker
     absl::type_traits
+    GTest::gmock_main
+)
+
+# Internal-only target, do not depend on directly.
+absl_cc_library(
+  NAME
+    raw_hash_set_resize_impl
+  HDRS
+    "internal/raw_hash_set_resize_impl.h"
+  COPTS
+    ${ABSL_DEFAULT_COPTS}
+  DEPS
+    absl::config
+  PUBLIC
+)
+
+absl_cc_test(
+  NAME
+    raw_hash_set_resize_impl_test
+  SRCS
+    "internal/raw_hash_set_resize_impl_test.cc"
+  COPTS
+    ${ABSL_TEST_COPTS}
+  DEPS
+    absl::config
+    absl::raw_hash_set_resize_impl
     GTest::gmock_main
 )
 

@@ -24,8 +24,7 @@ Address TaggedMember<T, CompressionScheme>::tagged_to_full(
     DCHECK(HAS_SMI_TAG(tagged_value));
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
   } else {
-    return CompressionScheme::DecompressTagged(CompressionScheme::base(),
-                                               tagged_value);
+    return CompressionScheme::DecompressTagged(tagged_value);
   }
 #else
   return tagged_value;
@@ -189,7 +188,7 @@ Address TaggedField<T, kFieldOffset, CompressionScheme>::tagged_to_full(
     DCHECK(HAS_SMI_TAG(tagged_value));
     return CompressionScheme::DecompressTaggedSigned(tagged_value);
   } else {
-    return CompressionScheme::DecompressTagged(on_heap_addr, tagged_value);
+    return CompressionScheme::DecompressTagged(tagged_value);
   }
 #else
   return tagged_value;

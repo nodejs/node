@@ -36,10 +36,10 @@
 #include "src/api/api-natives.h"
 #include "src/base/hashing.h"
 #include "src/base/logging.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/platform/memory.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/base/vector.h"
 #include "src/builtins/accessors.h"
@@ -86,6 +86,7 @@
 #include "src/objects/api-callbacks.h"
 #include "src/objects/backing-store.h"
 #include "src/objects/contexts.h"
+#include "src/objects/cpp-heap-object-wrapper-inl.h"
 #include "src/objects/embedder-data-array-inl.h"
 #include "src/objects/embedder-data-slot-inl.h"
 #include "src/objects/hash-table-inl.h"
@@ -152,6 +153,10 @@
 #include "src/wasm/wasm-result.h"
 #include "src/wasm/wasm-serialization.h"
 #endif  // V8_ENABLE_WEBASSEMBLY
+
+#ifdef V8_INTL_SUPPORT
+#include "src/objects/intl-objects.h"
+#endif  // V8_INTL_SUPPORT
 
 #if V8_OS_LINUX || V8_OS_DARWIN || V8_OS_FREEBSD
 #include <signal.h>
@@ -815,6 +820,10 @@ bool Data::IsContext() const {
   return i::IsContext(*Utils::OpenDirectHandle(this));
 }
 
+bool Data::IsCppHeapExternal() const {
+  return IsCppHeapExternalObject(*Utils::OpenDirectHandle(this));
+}
+
 void Context::Enter() {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::NativeContext> env = *Utils::OpenDirectHandle(this);
@@ -1470,52 +1479,26 @@ template <PropertyType property_type, typename Getter, typename Setter,
           typename Enumerator, typename Definer>
 i::DirectHandle<i::InterceptorInfo> CreateInterceptorInfo(
     i::Isolate* i_isolate, Getter getter, Setter setter, Query query,
-    Descriptor descriptor, Deleter remover, Enumerator enumerator,
+    Descriptor descriptor, Deleter deleter, Enumerator enumerator,
     Definer definer, Local<Value> data,
     base::Flags<PropertyHandlerFlags> flags) {
   // TODO(saelo): instead of an in-sandbox struct with a lot of external
   // pointers (with different tags), consider creating an object in trusted
   // space instead. That way, only a single reference going out of the sandbox
   // would be required.
-  auto obj = i::Cast<i::InterceptorInfo>(i_isolate->factory()->NewStruct(
-      i::INTERCEPTOR_INFO_TYPE, i::AllocationType::kOld));
-  obj->set_flags(0);
+  auto obj = i_isolate->factory()->NewInterceptorInfo();
+  obj->set_is_named(property_type == PropertyType::kNamed);
 
-#define CALLBACK_TAG(NAME)                             \
-  property_type == PropertyType::kNamed                \
-      ? internal::kApiNamedProperty##NAME##CallbackTag \
-      : internal::kApiIndexedProperty##NAME##CallbackTag;
-
-  if (getter != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Getter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_getter, getter, tag);
+#define SET_CALLBACK_FIELD(Name, name)                                        \
+  if (name != nullptr) {                                                      \
+    if constexpr (property_type == PropertyType::kNamed) {                    \
+      obj->set_named_##name(i_isolate, reinterpret_cast<i::Address>(name));   \
+    } else {                                                                  \
+      obj->set_indexed_##name(i_isolate, reinterpret_cast<i::Address>(name)); \
+    }                                                                         \
   }
-  if (setter != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Setter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_setter, setter, tag);
-  }
-  if (query != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Query);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_query, query, tag);
-  }
-  if (descriptor != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Descriptor);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_descriptor, descriptor, tag);
-  }
-  if (remover != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Deleter);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_deleter, remover, tag);
-  }
-  if (enumerator != nullptr) {
-    SET_FIELD_WRAPPED(i_isolate, obj, set_enumerator, enumerator,
-                      internal::kApiIndexedPropertyEnumeratorCallbackTag);
-  }
-  if (definer != nullptr) {
-    constexpr internal::ExternalPointerTag tag = CALLBACK_TAG(Definer);
-    SET_FIELD_WRAPPED(i_isolate, obj, set_definer, definer, tag);
-  }
-
-#undef CALLBACK_TAG
+  INTERCEPTOR_INFO_CALLBACK_LIST(SET_CALLBACK_FIELD)
+#undef SET_CALLBACK_FIELD
 
   obj->set_can_intercept_symbols(
       !(flags & PropertyHandlerFlags::kOnlyInterceptStrings));
@@ -1539,7 +1522,6 @@ i::DirectHandle<i::InterceptorInfo> CreateNamedInterceptorInfo(
   auto interceptor = CreateInterceptorInfo<PropertyType::kNamed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
-  interceptor->set_is_named(true);
   return interceptor;
 }
 
@@ -1553,7 +1535,6 @@ i::DirectHandle<i::InterceptorInfo> CreateIndexedInterceptorInfo(
   auto interceptor = CreateInterceptorInfo<PropertyType::kIndexed>(
       i_isolate, getter, setter, query, descriptor, remover, enumerator,
       definer, data, flags);
-  interceptor->set_is_named(false);
   return interceptor;
 }
 
@@ -2553,8 +2534,8 @@ V8_WARN_UNUSED_RESULT MaybeLocal<Function> ScriptCompiler::CompileFunction(
   i::DirectHandle<i::JSFunction> result;
   has_exception =
       !i::Compiler::GetWrappedFunction(
-           Utils::OpenHandle(*source->source_string), context, script_details,
-           cached_data.get(), options, no_cache_reason)
+           i_isolate, Utils::OpenHandle(*source->source_string), context,
+           script_details, cached_data.get(), options, no_cache_reason)
            .ToHandle(&result);
   if (options & kConsumeCodeCache) {
     source->cached_data->rejected = cached_data->rejected();
@@ -2649,8 +2630,10 @@ i::MaybeDirectHandle<i::SharedFunctionInfo> CompileStreamedSource(
                        origin.ColumnOffset(), origin.SourceMapUrl(),
                        origin.GetHostDefinedOptions(), origin.Options());
   i::ScriptStreamingData* data = v8_source->impl();
+  i::IsCompiledScope is_compiled_scope;
   return i::Compiler::GetSharedFunctionInfoForStreamedScript(
-      i_isolate, str, script_details, data, &v8_source->compilation_details());
+      i_isolate, str, script_details, data, &is_compiled_scope,
+      &v8_source->compilation_details());
 }
 
 }  // namespace
@@ -4020,6 +4003,11 @@ void v8::WasmMemoryMapDescriptor::CheckCast(Value* that) {
 void v8::WasmModuleObject::CheckCast(Value* that) {
   Utils::ApiCheck(that->IsWasmModuleObject(), "v8::WasmModuleObject::Cast",
                   "Value is not a WasmModuleObject");
+}
+
+void v8::CppHeapExternal::CheckCast(v8::Data* that) {
+  Utils::ApiCheck(that->IsCppHeapExternal(), "v8::CppHeapExternal::Cast",
+                  "Value is not a CppHeapExternal");
 }
 
 v8::BackingStore::~BackingStore() {
@@ -5498,7 +5486,8 @@ Local<Value> Function::GetDebugName() const {
     return ToApiHandle<Primitive>(i_isolate->factory()->undefined_value());
   }
   auto func = i::Cast<i::JSFunction>(self);
-  i::DirectHandle<i::String> name = i::JSFunction::GetDebugName(func);
+  i::DirectHandle<i::String> name =
+      i::JSFunction::GetDebugName(i_isolate, func);
   return Utils::ToLocal(i::direct_handle(*name, i_isolate));
 }
 
@@ -6394,7 +6383,7 @@ void v8::Object::SetAlignedPointerInInternalFields(int argc, int indices[],
 void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
                          CppHeapPointerTagRange tag_range) {
   DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
-  return i::JSApiWrapper(
+  return i::CppHeapObjectWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .GetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
@@ -6402,7 +6391,7 @@ void* v8::Object::Unwrap(v8::Isolate* isolate, i::Address wrapper_obj,
 // static
 void v8::Object::Wrap(v8::Isolate* isolate, i::Address wrapper_obj,
                       CppHeapPointerTag tag, void* wrappable) {
-  return i::JSApiWrapper(
+  return i::CppHeapObjectWrapper(
              i::Cast<i::JSObject>(i::Tagged<i::Object>(wrapper_obj)))
       .SetCppHeapWrappable(reinterpret_cast<i::Isolate*>(isolate), wrappable,
                            tag);
@@ -6904,7 +6893,8 @@ bool RequiresEmbedderSupportToFreeze(i::InstanceType obj_type) {
 
   return (i::InstanceTypeChecker::IsJSApiObject(obj_type) ||
           i::InstanceTypeChecker::IsJSExternalObject(obj_type) ||
-          i::InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(obj_type));
+          i::InstanceTypeChecker::IsJSAPIObjectWithEmbedderSlots(obj_type) ||
+          i::InstanceTypeChecker::IsCppHeapExternalObject(obj_type));
 }
 
 bool IsJSReceiverSafeToFreeze(i::InstanceType obj_type) {
@@ -7501,6 +7491,12 @@ bool FunctionTemplate::IsLeafTemplateForApiObject(
   return self->IsLeafTemplateForApiObject(object);
 }
 
+void ObjectTemplate::SealAndPrepareForPromotionToReadOnly() {
+  auto self = Utils::OpenDirectHandle(this);
+  i::Isolate* i_isolate = self->GetIsolateChecked();
+  i::ObjectTemplateInfo::SealAndPrepareForPromotionToReadOnly(i_isolate, self);
+}
+
 void FunctionTemplate::SealAndPrepareForPromotionToReadOnly() {
   auto self = Utils::OpenDirectHandle(this);
   i::Isolate* i_isolate = self->GetIsolateChecked();
@@ -7527,6 +7523,26 @@ void* External::Value() const {
   i::IsolateForSandbox isolate = i::GetCurrentIsolateForSandbox();
   return i::Cast<i::JSExternalObject>(*Utils::OpenDirectHandle(this))
       ->value(isolate);
+}
+
+Local<CppHeapExternal> v8::CppHeapExternal::NewImpl(Isolate* v8_isolate,
+                                                    void* value,
+                                                    CppHeapPointerTag tag) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
+  API_RCS_SCOPE(i_isolate, CppHeapExternal, New);
+  ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
+  i::DirectHandle<i::CppHeapExternalObject> external =
+      i_isolate->factory()->NewCppHeapExternal();
+  i::CppHeapObjectWrapper(*external).SetCppHeapWrappable(i_isolate, value, tag);
+  return Utils::CppHeapExternalToLocal(external);
+}
+
+void* CppHeapExternal::ValueImpl(v8::Isolate* isolate,
+                                 CppHeapPointerTagRange tag_range) const {
+  DCHECK_LE(tag_range.lower_bound, tag_range.upper_bound);
+  auto self = Utils::OpenDirectHandle(this);
+  return i::CppHeapObjectWrapper(*self).GetCppHeapWrappable(
+      reinterpret_cast<i::Isolate*>(isolate), tag_range);
 }
 
 // anonymous namespace for string creation helper functions
@@ -8906,9 +8922,9 @@ MaybeLocal<WasmModuleObject> WasmModuleObject::Compile(
 #if V8_ENABLE_WEBASSEMBLY
   base::OwnedVector<const uint8_t> bytes = base::OwnedCopyOf(wire_bytes);
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(v8_isolate);
-  if (!i::wasm::IsWasmCodegenAllowed(i_isolate, i_isolate->native_context())) {
-    return MaybeLocal<WasmModuleObject>();
-  }
+  // We don't check for `IsWasmCodegenAllowed` here, because this function is
+  // used for ESM integration, which in terms of security is equivalent to
+  // <script> tags rather than to {eval}.
   i::MaybeDirectHandle<i::WasmModuleObject> maybe_compiled;
   {
     i::wasm::ErrorThrower thrower(i_isolate, "WasmModuleObject::Compile()");
@@ -9231,7 +9247,7 @@ v8::MemorySpan<uint8_t> v8::ArrayBufferView::GetContents(
     v8::MemorySpan<uint8_t> storage) {
   internal::DisallowGarbageCollection no_gc;
   auto self = Utils::OpenDirectHandle(this);
-  if (self->WasDetached()) {
+  if (self->IsDetachedOrOutOfBounds()) {
     return {};
   }
   if (internal::IsJSTypedArray(*self)) {
@@ -9272,13 +9288,13 @@ bool v8::ArrayBufferView::HasBuffer() const {
 
 size_t v8::ArrayBufferView::ByteOffset() {
   auto obj = Utils::OpenDirectHandle(this);
-  return obj->WasDetached() ? 0 : obj->byte_offset();
+  return obj->IsDetachedOrOutOfBounds() ? 0 : obj->byte_offset();
 }
 
 size_t v8::ArrayBufferView::ByteLength() {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::JSArrayBufferView> obj = *Utils::OpenDirectHandle(this);
-  if (obj->WasDetached()) {
+  if (obj->IsDetachedOrOutOfBounds()) {
     return 0;
   }
   if (i::IsJSTypedArray(obj)) {
@@ -9293,7 +9309,7 @@ size_t v8::ArrayBufferView::ByteLength() {
 size_t v8::TypedArray::Length() {
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::JSTypedArray> obj = *Utils::OpenDirectHandle(this);
-  return obj->WasDetached() ? 0 : obj->GetLength();
+  return obj->IsDetachedOrOutOfBounds() ? 0 : obj->GetLength();
 }
 
 static_assert(v8::TypedArray::kMaxByteLength == i::JSTypedArray::kMaxByteLength,
@@ -9548,7 +9564,9 @@ Local<Symbol> v8::Symbol::ForApi(Isolate* v8_isolate, Local<String> name) {
   V(Split, split)                             \
   V(ToPrimitive, to_primitive)                \
   V(ToStringTag, to_string_tag)               \
-  V(Unscopables, unscopables)
+  V(Unscopables, unscopables)                 \
+  V(Dispose, dispose)                         \
+  V(AsyncDispose, async_dispose)
 
 #define SYMBOL_GETTER(Name, name)                                      \
   Local<Symbol> v8::Symbol::Get##Name(Isolate* v8_isolate) {           \
@@ -10821,12 +10839,6 @@ CALLBACK_SETTER(SharedArrayBufferConstructorEnabledCallback,
                 SharedArrayBufferConstructorEnabledCallback,
                 sharedarraybuffer_constructor_enabled_callback)
 
-// TODO(42203853): Remove this after the deprecated API is removed. Right now,
-// the embedder can still set the callback, but it's never called.
-CALLBACK_SETTER(JavaScriptCompileHintsMagicEnabledCallback,
-                JavaScriptCompileHintsMagicEnabledCallback,
-                compile_hints_magic_enabled_callback)
-
 CALLBACK_SETTER(IsJSApiWrapperNativeErrorCallback,
                 IsJSApiWrapperNativeErrorCallback,
                 is_js_api_wrapper_native_error_callback)
@@ -10868,11 +10880,11 @@ bool Isolate::IsDead() {
   return i_isolate->IsDead();
 }
 
-bool Isolate::AddMessageListener(MessageCallback that, Local<Value> data) {
-  return AddMessageListenerWithErrorLevel(that, kMessageError, data);
+bool Isolate::AddMessageListener(MessageCallback callback, Local<Value> data) {
+  return AddMessageListenerWithErrorLevel(callback, kMessageError, data);
 }
 
-bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
+bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback callback,
                                                int message_levels,
                                                Local<Value> data) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
@@ -10882,10 +10894,11 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
       i_isolate->factory()->message_listeners();
   i::DirectHandle<i::FixedArray> listener =
       i_isolate->factory()->NewFixedArray(3);
-  i::DirectHandle<i::Foreign> foreign =
-      i_isolate->factory()->NewForeign<internal::kMessageListenerTag>(
-          FUNCTION_ADDR(that));
-  listener->set(0, *foreign);
+
+  i::DirectHandle<i::Object> callback_obj =
+      FromCData<internal::kMessageListenerTag>(i_isolate, callback);
+
+  listener->set(0, *callback_obj);
   listener->set(1, data.IsEmpty()
                        ? i::ReadOnlyRoots(i_isolate).undefined_value()
                        : *Utils::OpenDirectHandle(*data));
@@ -10895,22 +10908,24 @@ bool Isolate::AddMessageListenerWithErrorLevel(MessageCallback that,
   return true;
 }
 
-void Isolate::RemoveMessageListeners(MessageCallback that) {
+void Isolate::RemoveMessageListeners(MessageCallback callback) {
   i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
   ENTER_V8_NO_SCRIPT_NO_EXCEPTION(i_isolate);
   i::HandleScope scope(i_isolate);
   i::DisallowGarbageCollection no_gc;
   i::Tagged<i::ArrayList> listeners = i_isolate->heap()->message_listeners();
+  i::ReadOnlyRoots roots(i_isolate);
   for (int i = 0; i < listeners->length(); i++) {
-    if (i::IsUndefined(listeners->get(i), i_isolate)) {
+    if (i::IsUndefined(listeners->get(i), roots)) {
       continue;  // skip deleted ones
     }
     i::Tagged<i::FixedArray> listener =
         i::Cast<i::FixedArray>(listeners->get(i));
-    i::Tagged<i::Foreign> callback_obj = i::Cast<i::Foreign>(listener->get(0));
-    if (callback_obj->foreign_address<internal::kMessageListenerTag>() ==
-        FUNCTION_ADDR(that)) {
-      listeners->set(i, i::ReadOnlyRoots(i_isolate).undefined_value());
+    v8::MessageCallback cur_callback =
+        v8::ToCData<v8::MessageCallback, i::kMessageListenerTag>(
+            i_isolate, listener->get(0));
+    if (cur_callback == callback) {
+      listeners->set(i, roots.undefined_value());
     }
   }
 }
@@ -10973,6 +10988,27 @@ std::string Isolate::GetDefaultLocale() {
   return i_isolate->DefaultLocale();
 #else
   return std::string();
+#endif
+}
+
+Maybe<std::string> Isolate::ValidateAndCanonicalizeUnicodeLocaleId(
+    std::string_view tag) {
+  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(this);
+  ENTER_V8_NO_SCRIPT(i_isolate, this->GetCurrentContext(), Isolate,
+                     ValidateAndCanonicalizeUnicodeLocaleId, i::HandleScope);
+  // has_exception is unused here because when Intl support is enabled, all work
+  // is forwarded to i::Intl::ValidateAndCanonicalizeUnicodeLocaleId, which
+  // encapsulates all exception handling, and when Intl support is disabled,
+  // this method unconditionally throws.
+  USE(has_exception);
+#ifdef V8_INTL_SUPPORT
+  return i::Intl::ValidateAndCanonicalizeUnicodeLocaleId(i_isolate, tag);
+#else
+  THROW_NEW_ERROR_RETURN_VALUE(
+      i_isolate,
+      NewRangeError(i::MessageTemplate::kInvalidLanguageTag,
+                    i_isolate->factory()->NewStringFromAsciiChecked(tag)),
+      Nothing<std::string>());
 #endif
 }
 

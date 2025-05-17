@@ -649,7 +649,7 @@ domain Debugger
       Runtime.ExecutionContextId executionContextId
       # Content hash of the script, SHA-256.
       string hash
-      # For Wasm modules, the content of the `build_id` custom section.
+      # For Wasm modules, the content of the `build_id` custom section. For JavaScript the `debugId` magic comment.
       string buildId
       # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object executionContextAuxData
@@ -690,7 +690,7 @@ domain Debugger
       Runtime.ExecutionContextId executionContextId
       # Content hash of the script, SHA-256.
       string hash
-      # For Wasm modules, the content of the `build_id` custom section.
+      # For Wasm modules, the content of the `build_id` custom section. For JavaScript the `debugId` magic comment.
       string buildId
       # Embedder-specific auxiliary data likely matching {isDefault: boolean, type: 'default'|'isolated'|'worker', frameId: string}
       optional object executionContextAuxData

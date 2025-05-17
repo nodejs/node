@@ -919,6 +919,10 @@ CodeGenerator::CodeGenResult CodeGenerator::AssembleArchInstruction(
         __ mov(i.OutputRegister(), fp);
       }
       break;
+    case kArchRootPointer:
+      __ mov(i.OutputRegister(), kRootRegister);
+      DCHECK_EQ(LeaveCC, i.OutputSBit());
+      break;
 #if V8_ENABLE_WEBASSEMBLY
     case kArchStackPointer:
       // The register allocator expects an allocatable register for the output,

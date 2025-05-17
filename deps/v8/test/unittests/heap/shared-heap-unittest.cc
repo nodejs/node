@@ -759,8 +759,6 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleParked, ToEachTheirOwn,
 TEST_ALL_SCENARIA(SharedHeapTestStateWithHandleUnparked, ToEachTheirOwn,
                   ToEachTheirOwnWithHandle)
 
-#ifdef V8_ENABLE_CONSERVATIVE_STACK_SCANNING
-
 namespace {
 
 // Testing the shared heap using raw pointers.
@@ -790,6 +788,8 @@ using SharedHeapTestStateWithRawPointerUnparked =
 
 template <typename TestType, AllocationType allocation, AllocationSpace space>
 void ToEachTheirOwnWithRawPointer(TestType* test) {
+  if (!v8_flags.conservative_stack_scanning) return;
+
   using ThreadType = typename TestType::ThreadType;
   ThreadType* thread = test->thread();
 
@@ -836,8 +836,6 @@ TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerParked, ToEachTheirOwn,
                   ToEachTheirOwnWithRawPointer)
 TEST_ALL_SCENARIA(SharedHeapTestStateWithRawPointerUnparked, ToEachTheirOwn,
                   ToEachTheirOwnWithRawPointer)
-
-#endif  // V8_ENABLE_CONSERVATIVE_STACK_SCANNING
 
 #undef TEST_SCENARIO
 #undef TEST_ALL_SCENARIA

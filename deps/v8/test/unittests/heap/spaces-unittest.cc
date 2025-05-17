@@ -64,7 +64,7 @@ TEST_F(SpacesTest, CompactionSpaceMerge) {
   for (PageMetadata* p : *old_space) {
     // Unlink free lists from the main space to avoid reusing the memory for
     // compaction spaces.
-    old_space->UnlinkFreeListCategories(p);
+    old_space->free_list()->EvictFreeListItems(p);
   }
 
   // Cannot loop until "Available()" since we initially have 0 bytes available

@@ -281,10 +281,6 @@ class Heap final {
     std::atomic<uint64_t> low_since_mark_compact_{0};
   };
 
-  // Taking this mutex prevents the GC from entering a phase that relocates
-  // object references.
-  base::Mutex* relocation_mutex() { return &relocation_mutex_; }
-
   // Support for context snapshots.  After calling this we have a linear
   // space to write objects in each space.
   struct Chunk {
@@ -467,10 +463,14 @@ class Heap final {
         native_contexts_list_.load(std::memory_order_acquire));
   }
 
-  void set_allocation_sites_list(Tagged<Object> object) {
+  void set_allocation_sites_list(
+      Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>> object) {
     allocation_sites_list_ = object;
   }
-  Tagged<Object> allocation_sites_list() { return allocation_sites_list_; }
+  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
+  allocation_sites_list() {
+    return allocation_sites_list_;
+  }
 
   void set_dirty_js_finalization_registries_list(Tagged<Object> object) {
     dirty_js_finalization_registries_list_ = object;
@@ -798,6 +798,7 @@ class Heap final {
   // ===========================================================================
 
   GCTracer* tracer() { return tracer_.get(); }
+  const GCTracer* tracer() const { return tracer_.get(); }
 
   MemoryAllocator* memory_allocator() { return memory_allocator_.get(); }
   const MemoryAllocator* memory_allocator() const {
@@ -853,8 +854,6 @@ class Heap final {
 #define ROOT_ACCESSOR(type, name, CamelName) inline Tagged<type> name();
   MUTABLE_ROOT_LIST(ROOT_ACCESSOR)
 #undef ROOT_ACCESSOR
-
-  V8_INLINE Tagged<FixedArray> single_character_string_table();
 
   V8_INLINE void SetRootMaterializedObjects(Tagged<FixedArray> objects);
   V8_INLINE void SetRootScriptList(Tagged<Object> value);
@@ -1549,6 +1548,7 @@ class Heap final {
   V8_EXPORT_PRIVATE void EnsureSweepingCompleted(
       SweepingForcedFinalizationMode mode);
   void EnsureYoungSweepingCompleted();
+  void EnsureQuarantinedPagesSweepingCompleted();
 
   // =============================================================================
 
@@ -1986,7 +1986,7 @@ class Heap final {
   // GC Tasks. =================================================================
   // ===========================================================================
 
-  V8_EXPORT_PRIVATE void StartMinorMSIncrementalMarkingIfNeeded();
+  V8_EXPORT_PRIVATE void StartMinorMSConcurrentMarkingIfNeeded();
   bool MinorMSSizeTaskTriggerReached() const;
 
   MinorGCJob* minor_gc_job() { return minor_gc_job_.get(); }
@@ -2230,7 +2230,8 @@ class Heap final {
   // {native_contexts_list_} is an Address instead of an Object to allow the use
   // of atomic accessors.
   std::atomic<Address> native_contexts_list_;
-  Tagged<Object> allocation_sites_list_ = Smi::zero();
+  Tagged<UnionOf<Smi, Undefined, AllocationSiteWithWeakNext>>
+      allocation_sites_list_ = Smi::zero();
   Tagged<Object> dirty_js_finalization_registries_list_ = Smi::zero();
   // Weak list tails.
   Tagged<Object> dirty_js_finalization_registries_list_tail_ = Smi::zero();
@@ -2361,8 +2362,6 @@ class Heap final {
   ExternalStringTable external_string_table_;
 
   const AllocationType allocation_type_for_in_place_internalizable_strings_;
-
-  base::Mutex relocation_mutex_;
 
   std::unique_ptr<CollectionBarrier> collection_barrier_;
 
