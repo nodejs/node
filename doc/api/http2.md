@@ -1457,6 +1457,13 @@ numeric stream identifier.
 
 <!-- YAML
 added: v8.4.0
+deprecated:
+  - REPLACEME
+changes:
+  - version:
+      - REPLACEME
+    pr-url: REPLACEME
+    description: Following the update of nghttp2 to v1.65.0, this is now a no-op.
 -->
 
 * `options` {Object}
@@ -1473,6 +1480,7 @@ added: v8.4.0
     sending a `PRIORITY` frame to the connected peer.
 
 Updates the priority for this `Http2Stream` instance.
+The priority is ignored.
 
 #### `http2stream.rstCode`
 
@@ -1568,6 +1576,12 @@ req.setTimeout(5000, () => req.close(NGHTTP2_CANCEL));
 
 <!-- YAML
 added: v8.4.0
+changes:
+  - version:
+    - REPLACEME
+    pr-url: REPLACEME
+    description: Following the change in nghttp2 v1.65.0, the `state.weight` property is
+      now always set to 16.
 -->
 
 Provides miscellaneous information about the current state of the
@@ -1584,7 +1598,8 @@ Provides miscellaneous information about the current state of the
   * `sumDependencyWeight` {number} The sum weight of all `Http2Stream`
     instances that depend on this `Http2Stream` as specified using
     `PRIORITY` frames.
-  * `weight` {number} The priority weight of this `Http2Stream`.
+  * `weight` {number} The priority weight of this `Http2Stream`. This weight is now
+    always set to `16`.
 
 A current state of this `Http2Stream`.
 
