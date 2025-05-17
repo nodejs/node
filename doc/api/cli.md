@@ -688,9 +688,12 @@ process is lower than what the V8 WebAssembly memory cage needs.
 added: v9.8.0
 -->
 
-Make built-in language features like `eval` and `new Function` that generate
-code from strings throw an exception instead. This does not affect the Node.js
-`node:vm` module.
+Make built-in language features that generate code from strings, and guarded by
+[`HostEnsureCanCompileStrings`][], like `eval` and `new Function`, throw an
+exception instead.
+
+This does not affect the `node:vm` module, `node:module` module, and Node.js
+module system, like `import` and `require`.
 
 ### `--dns-result-order=order`
 
@@ -3904,6 +3907,7 @@ node --stack-trace-limit=12 -p -e "Error.stackTraceLimit" # prints 12
 [`CRYPTO_secure_malloc_init`]: https://www.openssl.org/docs/man3.0/man3/CRYPTO_secure_malloc_init.html
 [`ERR_INVALID_TYPESCRIPT_SYNTAX`]: errors.md#err_invalid_typescript_syntax
 [`ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX`]: errors.md#err_unsupported_typescript_syntax
+[`HostEnsureCanCompileStrings`]: https://tc39.es/ecma262/#sec-hostensurecancompilestrings
 [`NODE_OPTIONS`]: #node_optionsoptions
 [`NO_COLOR`]: https://no-color.org
 [`Web Storage`]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Storage_API
