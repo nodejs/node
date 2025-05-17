@@ -395,6 +395,12 @@ enum OptionType {
   kStringList,
 };
 std::unordered_map<std::string, OptionType> MapEnvOptionsFlagInputType();
+std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
+    std::string namespace_name);
+std::unordered_map<std::string,
+                   std::unordered_map<std::string, options_parser::OptionType>>
+MapNamespaceOptionsAssociations();
+std::vector<std::string> MapAvailableNamespaces();
 
 template <typename Options>
 class OptionsParser {
@@ -417,35 +423,43 @@ class OptionsParser {
                  const char* help_text,
                  bool Options::*field,
                  OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
-                 bool default_is_true = false);
+                 bool default_is_true = false,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  uint64_t Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  int64_t Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  std::string Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  std::vector<std::string> Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  HostPort Options::*field,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  NoOp no_op_tag,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
   void AddOption(const char* name,
                  const char* help_text,
                  V8Option v8_option_tag,
-                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar);
+                 OptionEnvvarSettings env_setting = kDisallowedInEnvvar,
+                 const char* namespace_id = nullptr);
 
   // Adds aliases. An alias can be of the form "--option-a" -> "--option-b",
   // or have a more complex group expansion, like
@@ -535,12 +549,15 @@ class OptionsParser {
   // - A type.
   // - A way to store/access the property value.
   // - The information of whether it may occur in an env var or not.
+  // - A default value (if applicable).
+  // - A namespace ID (optional) to allow for namespacing of options.
   struct OptionInfo {
     OptionType type;
     std::shared_ptr<BaseOptionField> field;
     OptionEnvvarSettings env_setting;
     std::string help_text;
     bool default_is_true = false;
+    std::string namespace_id;
   };
 
   // An implied option is composed of the information on where to store a
@@ -581,6 +598,9 @@ class OptionsParser {
   friend std::string GetBashCompletion();
   friend std::unordered_map<std::string, OptionType>
   MapEnvOptionsFlagInputType();
+  friend std::unordered_map<std::string, OptionType> MapOptionsByNamespace(
+      std::string namespace_name);
+  friend std::vector<std::string> MapAvailableNamespaces();
   friend void GetEnvOptionsInputType(
       const v8::FunctionCallbackInfo<v8::Value>& args);
 };
