@@ -118,7 +118,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate,
                                             const char* message) {
   Local<String> js_msg;
   Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (!String::NewFromUtf8(isolate, message).ToLocal(&js_msg) ||
       !Exception::Error(js_msg)
            ->ToObject(isolate->GetCurrentContext())
@@ -136,7 +136,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, int errcode) {
   const char* errstr = sqlite3_errstr(errcode);
   Local<String> js_errmsg;
   Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
       !CreateSQLiteError(isolate, errstr).ToLocal(&e) ||
       e->Set(env->context(),
@@ -155,7 +155,7 @@ inline MaybeLocal<Object> CreateSQLiteError(Isolate* isolate, sqlite3* db) {
   const char* errmsg = sqlite3_errmsg(db);
   Local<String> js_errmsg;
   Local<Object> e;
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   if (!String::NewFromUtf8(isolate, errstr).ToLocal(&js_errmsg) ||
       !CreateSQLiteError(isolate, errmsg).ToLocal(&e) ||
       e->Set(isolate->GetCurrentContext(),
@@ -225,7 +225,7 @@ inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, const char* message) {
 inline void THROW_ERR_SQLITE_ERROR(Isolate* isolate, int errcode) {
   const char* errstr = sqlite3_errstr(errcode);
 
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   Local<Object> error;
   if (CreateSQLiteError(isolate, errstr).ToLocal(&error) &&
       error

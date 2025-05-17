@@ -25,7 +25,7 @@ Local<Value> ErrnoException(Isolate* isolate,
                             const char* syscall,
                             const char* msg,
                             const char* path) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
 
   Local<Value> e;
@@ -94,7 +94,7 @@ Local<Value> UVException(Isolate* isolate,
                          const char* msg,
                          const char* path,
                          const char* dest) {
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   CHECK_NOT_NULL(env);
 
   if (!msg || !msg[0])

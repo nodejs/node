@@ -14,8 +14,8 @@
 #include <Windows.h>
 #else  // !_WIN32
 #include <cxxabi.h>
-#include <sys/resource.h>
 #include <dlfcn.h>
+#include <sys/resource.h>
 #endif
 
 #include <cstring>
@@ -965,7 +965,7 @@ std::string TriggerNodeReport(Isolate* isolate,
                               Local<Value> error) {
   Environment* env = nullptr;
   if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
+    env = Environment::GetCurrent(isolate->GetCurrentContext());
   }
   return TriggerNodeReport(isolate, env, message, trigger, name, error);
 }
@@ -992,7 +992,7 @@ void GetNodeReport(Isolate* isolate,
                    std::ostream& out) {
   Environment* env = nullptr;
   if (isolate != nullptr) {
-    env = Environment::GetCurrent(isolate);
+    env = Environment::GetCurrent(isolate->GetCurrentContext());
   }
   bool exclude_network = env != nullptr ? env->options()->report_exclude_network
                                         : per_process::cli_options->per_isolate
