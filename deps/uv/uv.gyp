@@ -173,7 +173,7 @@
         ],
         'include_dirs': [ 'include' ],
         'conditions': [
-          ['OS == "linux"', {
+          ['OS == "linux" or OS=="openharmony"', {
             'defines': [ '_POSIX_C_SOURCE=200112' ],
           }],
         ],
@@ -255,7 +255,7 @@
             }],
           ],
         }],
-        [ 'OS in "linux mac ios android zos"', {
+        [ 'OS in "linux mac ios android zos openharmony"', {
           'sources': [ 'src/unix/proctitle.c' ],
         }],
         [ 'OS != "zos"', {
@@ -279,7 +279,7 @@
             '_DARWIN_UNLIMITED_SELECT=1',
           ]
         }],
-        [ 'OS=="linux"', {
+        [ 'OS=="linux" or OS=="openharmony"', {
           'defines': [ '_GNU_SOURCE' ],
           'sources': [
             '<@(uv_sources_linux)',

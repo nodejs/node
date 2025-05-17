@@ -73,7 +73,7 @@
       }, {
         'v8_enable_etw_stack_walking': 0,
       }],
-      ['OS=="linux"', {
+      ['OS=="linux" or OS=="openharmony"', {
         # Sets -dV8_ENABLE_PRIVATE_MAPPING_FORK_OPTIMIZATION.
         #
         # This flag speeds up the performance of fork/execve on Linux systems for
