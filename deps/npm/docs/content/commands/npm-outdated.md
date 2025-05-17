@@ -39,6 +39,7 @@ In the output:
   included in `package.json` are always marked `dependencies`.
 * `homepage` (when using `--long` / `-l`) is the `homepage` value contained
   in the package's packument
+* `depended by location` (when using `--long` / `-l`) shows location of the package that depends on the displayed dependency
 * Red means there's a newer version matching your semver requirements, so
   you should update now.
 * Yellow indicates that there's a newer version _above_ your semver

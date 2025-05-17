@@ -141,23 +141,23 @@ npm command-line interface
 
 <section id="content">
 <header class="title">
-<h1 id="----scripts----1130">
+<h1 id="----scripts----1140">
     <span>scripts</span>
-    <span class="version">@11.3.0</span>
+    <span class="version">@11.4.0</span>
 </h1>
 <span class="description">How npm handles the "scripts" field</span>
 </header>
 
 <section id="table_of_contents">
 <h2 id="table-of-contents">Table of contents</h2>
-<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li><li><a href="#dependencies">Dependencies</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li><li><a href="#npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></a></li><li><a href="#a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
+<div id="_table_of_contents"><ul><li><a href="#description">Description</a></li><li><a href="#pre--post-scripts">Pre &amp; Post Scripts</a></li><li><a href="#life-cycle-scripts">Life Cycle Scripts</a></li><ul><li><a href="#prepare-and-prepublish">Prepare and Prepublish</a></li><li><a href="#dependencies">Dependencies</a></li></ul><li><a href="#life-cycle-operation-order">Life Cycle Operation Order</a></li><ul><li><a href="#npm-cache-add"><a href="../commands/npm-cache.html"><code>npm cache add</code></a></a></li><li><a href="#npm-ci"><a href="../commands/npm-ci.html"><code>npm ci</code></a></a></li><li><a href="#npm-diff"><a href="../commands/npm-diff.html"><code>npm diff</code></a></a></li><li><a href="#npm-install"><a href="../commands/npm-install.html"><code>npm install</code></a></a></li><li><a href="#npm-pack"><a href="../commands/npm-pack.html"><code>npm pack</code></a></a></li><li><a href="#npm-publish"><a href="../commands/npm-publish.html"><code>npm publish</code></a></a></li><li><a href="#npm-rebuild"><a href="../commands/npm-rebuild.html"><code>npm rebuild</code></a></a></li><li><a href="#npm-restart"><a href="../commands/npm-restart.html"><code>npm restart</code></a></a></li><li><a href="#npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></a></li><li><a href="#npm-start"><a href="../commands/npm-start.html"><code>npm start</code></a></a></li><li><a href="#npm-stop"><a href="../commands/npm-stop.html"><code>npm stop</code></a></a></li><li><a href="#npm-test"><a href="../commands/npm-test.html"><code>npm test</code></a></a></li><li><a href="#npm-version"><a href="../commands/npm-version.html"><code>npm version</code></a></a></li><li><a href="#a-note-on-a-lack-of-npm-uninstall-scripts">A Note on a lack of <a href="../commands/npm-uninstall.html"><code>npm uninstall</code></a> scripts</a></li></ul><li><a href="#user">User</a></li><li><a href="#environment">Environment</a></li><ul><li><a href="#path">path</a></li><li><a href="#packagejson-vars">package.json vars</a></li><li><a href="#current-lifecycle-event">current lifecycle event</a></li></ul><li><a href="#examples">Examples</a></li><li><a href="#exiting">Exiting</a></li><li><a href="#best-practices">Best Practices</a></li><li><a href="#see-also">See Also</a></li></ul></div>
 </section>
 
 <div id="_content"><h3 id="description">Description</h3>
 <p>The <code>"scripts"</code> property of your <code>package.json</code> file supports a number
 of built-in scripts and their preset life cycle events as well as
 arbitrary scripts. These all can be executed by running
-<code>npm run-script &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em>
+<code>npm run &lt;stage&gt;</code> or <code>npm run &lt;stage&gt;</code> for short. <em>Pre</em> and <em>post</em>
 commands with matching names will be run for those as well (e.g. <code>premyscript</code>,
 <code>myscript</code>, <code>postmyscript</code>). Scripts from dependencies can be run with
 <code>npm explore &lt;pkg&gt; -- npm run &lt;stage&gt;</code>.</p>
@@ -193,6 +193,9 @@ and <code>npm pack</code></p>
 </li>
 <li>
 <p>Runs AFTER <code>prepublish</code>, but BEFORE <code>prepublishOnly</code></p>
+</li>
+<li>
+<p>Runs for a package if it's being installed as a link through <code>npm install &lt;folder&gt;</code></p>
 </li>
 <li>
 <p>NOTE: If a package being installed through git contains a <code>prepare</code>
@@ -319,7 +322,7 @@ linked packages)</p>
 <li><code>restart</code></li>
 <li><code>postrestart</code></li>
 </ul>
-<h4 id="npm-run-user-defined"><a href="../commands/npm-run-script.html"><code>npm run &lt;user defined&gt;</code></a></h4>
+<h4 id="npm-run-user-defined"><a href="../commands/npm-run.html"><code>npm run &lt;user defined&gt;</code></a></h4>
 <ul>
 <li><code>pre&lt;user-defined&gt;</code></li>
 <li><code>&lt;user-defined&gt;</code></li>
@@ -464,14 +467,14 @@ were in when you ran <code>npm run</code>.</li>
 </ul>
 <h3 id="see-also">See Also</h3>
 <ul>
-<li><a href="../commands/npm-run-script.html">npm run-script</a></li>
+<li><a href="../commands/npm-run.html">npm run</a></li>
 <li><a href="../configuring-npm/package-json.html">package.json</a></li>
 <li><a href="../using-npm/developers.html">npm developers</a></li>
 <li><a href="../commands/npm-install.html">npm install</a></li>
 </ul></div>
 
 <footer id="edit">
-<a href="https://github.com/npm/cli/edit/latest/docs/content/using-npm/scripts.md">
+<a href="https://github.com/npm/cli/edit/latest/docs/lib/content/using-npm/scripts.md">
 <svg role="img" viewBox="0 0 16 16" width="16" height="16" fill="currentcolor" style="vertical-align: text-bottom; margin-right: 0.3em;">
 <path fill-rule="evenodd" d="M11.013 1.427a1.75 1.75 0 012.474 0l1.086 1.086a1.75 1.75 0 010 2.474l-8.61 8.61c-.21.21-.47.364-.756.445l-3.251.93a.75.75 0 01-.927-.928l.929-3.25a1.75 1.75 0 01.445-.758l8.61-8.61zm1.414 1.06a.25.25 0 00-.354 0L10.811 3.75l1.439 1.44 1.263-1.263a.25.25 0 000-.354l-1.086-1.086zM11.189 6.25L9.75 4.81l-6.286 6.287a.25.25 0 00-.064.108l-.558 1.953 1.953-.558a.249.249 0 00.108-.064l6.286-6.286z"></path>
 </svg>
