@@ -6,3 +6,4 @@ Makefile
 gyp-mac-tool
 /*/build
 /esm/node_modules/*/build
+/*/logs

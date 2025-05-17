@@ -54,18 +54,26 @@ def rebuild_addons(args):
           '--nodedir', headers_dir,
           '--python', sys.executable,
           '--loglevel', args.loglevel,
-      ], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+      ], stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
 
       # We buffer the output and print it out once the process is done in order
       # to avoid interleaved output from multiple builds running at once.
       return_code = process.wait()
       stdout, stderr = process.communicate()
       if return_code != 0:
-        print(f'Failed to build addon in {test_dir}:')
+        print(f'Failed to build addon in {test_dir}. Check build.log for details.')
+
+      build_dir = os.path.join(test_dir, 'logs')
+      os.makedirs(build_dir, exist_ok=True)
+      log_file_path = os.path.join(build_dir, 'build.log')
+      with open(log_file_path, 'w') as log_file:
         if stdout:
-          print(stdout.decode())
+          print(stdout)
+          log_file.write(stdout)
         if stderr:
-          print(stderr.decode())
+          print(stderr)
+          log_file.write(stderr)
+
       return return_code
 
     except Exception as e:
