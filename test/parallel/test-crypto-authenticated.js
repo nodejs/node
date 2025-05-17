@@ -245,7 +245,7 @@ for (const test of TEST_CASES) {
   assert.strictEqual(text.toString('utf8'), 'node');
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM and an invalid
+// Test that create(De|C)ipheriv throws if the mode is CCM and an invalid
 // authentication tag length has been specified.
 {
   for (const authTagLength of [-1, true, false, NaN, 5.5]) {
@@ -303,7 +303,7 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM or OCB and no
+// Test that create(De|C)ipheriv throws if the mode is CCM or OCB and no
 // authentication tag has been specified.
 {
   for (const mode of ['ccm', 'ocb']) {
@@ -315,7 +315,7 @@ for (const test of TEST_CASES) {
       message: `authTagLength required for aes-256-${mode}`
     });
 
-    // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
+    // CCM decryption is unsupported in FIPS mode.
     if (!isFipsEnabled) {
       assert.throws(() => {
         crypto.createDecipheriv(`aes-256-${mode}`,
