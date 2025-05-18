@@ -708,7 +708,10 @@ CipherBase::UpdateResult CipherBase::Update(
     *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
   } else if (static_cast<size_t>(buf_len) != (*out)->ByteLength()) {
     std::unique_ptr<BackingStore> old_out = std::move(*out);
-    *out = ArrayBuffer::NewBackingStore(env()->isolate(), buf_len);
+    *out = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        buf_len,
+        BackingStoreInitializationMode::kUninitialized);
     memcpy((*out)->Data(), old_out->Data(), buf_len);
   }
 
@@ -804,7 +807,10 @@ bool CipherBase::Final(std::unique_ptr<BackingStore>* out) {
       *out = ArrayBuffer::NewBackingStore(env()->isolate(), 0);
     } else if (static_cast<size_t>(out_len) != (*out)->ByteLength()) {
       std::unique_ptr<BackingStore> old_out = std::move(*out);
-      *out = ArrayBuffer::NewBackingStore(env()->isolate(), out_len);
+      *out = ArrayBuffer::NewBackingStore(
+          env()->isolate(),
+          out_len,
+          BackingStoreInitializationMode::kUninitialized);
       memcpy((*out)->Data(), old_out->Data(), out_len);
     }
 
@@ -880,7 +886,10 @@ bool PublicKeyCipher::Cipher(
   if (buf.size() == 0) {
     *out = ArrayBuffer::NewBackingStore(env->isolate(), 0);
   } else {
-    *out = ArrayBuffer::NewBackingStore(env->isolate(), buf.size());
+    *out = ArrayBuffer::NewBackingStore(
+        env->isolate(),
+        buf.size(),
+        BackingStoreInitializationMode::kUninitialized);
     memcpy((*out)->Data(), buf.get(), buf.size());
   }
 

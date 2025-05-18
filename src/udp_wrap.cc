@@ -35,6 +35,7 @@ using errors::TryCatchScope;
 using v8::Array;
 using v8::ArrayBuffer;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Boolean;
 using v8::Context;
 using v8::DontDelete;
@@ -759,7 +760,8 @@ void UDPWrap::OnRecv(ssize_t nread,
   } else if (static_cast<size_t>(nread) != bs->ByteLength()) {
     CHECK_LE(static_cast<size_t>(nread), bs->ByteLength());
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(isolate, nread);
+    bs = ArrayBuffer::NewBackingStore(
+        isolate, nread, BackingStoreInitializationMode::kUninitialized);
     memcpy(bs->Data(), old_bs->Data(), nread);
   }
 
