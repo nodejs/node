@@ -926,6 +926,16 @@ void SetMethodNoSideEffect(v8::Isolate* isolate,
                            const std::string_view name,
                            v8::FunctionCallback callback);
 
+// Set the Symbol.dispose method on the prototype of the class.
+void SetProtoDispose(v8::Isolate* isolate,
+                     v8::Local<v8::FunctionTemplate> that,
+                     v8::FunctionCallback callback);
+
+// Set the Symbol.asyncDispose method on the prototype of the class.
+void SetProtoAsyncDispose(v8::Isolate* isolate,
+                          v8::Local<v8::FunctionTemplate> that,
+                          v8::FunctionCallback callback);
+
 enum class SetConstructorFunctionFlag {
   NONE,
   SET_CLASS_NAME,
