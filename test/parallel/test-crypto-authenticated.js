@@ -304,7 +304,7 @@ for (const test of TEST_CASES) {
 }
 
 // Test that create(De|C)ipheriv throws if the mode is CCM or OCB and no
-// authentication tag has been specified.
+// authentication tag length has been specified.
 {
   for (const mode of ['ccm', 'ocb']) {
     assert.throws(() => {
@@ -316,7 +316,7 @@ for (const test of TEST_CASES) {
     });
 
     // CCM decryption is unsupported in FIPS mode.
-    if (!isFipsEnabled) {
+    if (!isFipsEnabled || mode !== 'ccm') {
       assert.throws(() => {
         crypto.createDecipheriv(`aes-256-${mode}`,
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
