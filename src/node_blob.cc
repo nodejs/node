@@ -21,6 +21,7 @@ using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
+using v8::BackingStoreInitializationMode;
 using v8::Context;
 using v8::Function;
 using v8::FunctionCallbackInfo;
@@ -82,8 +83,8 @@ void Concat(const FunctionCallbackInfo<Value>& args) {
     }
   }
 
-  std::shared_ptr<BackingStore> store =
-      ArrayBuffer::NewBackingStore(env->isolate(), total);
+  std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+      env->isolate(), total, BackingStoreInitializationMode::kUninitialized);
   uint8_t* ptr = static_cast<uint8_t*>(store->Data());
   for (size_t n = 0; n < views.size(); n++) {
     uint8_t* from =
@@ -210,8 +211,8 @@ void Blob::New(const FunctionCallbackInfo<Value>& args) {
       }
 
       // If the ArrayBuffer is not detachable, we will copy from it instead.
-      std::shared_ptr<BackingStore> store =
-          ArrayBuffer::NewBackingStore(isolate, byte_length);
+      std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+          isolate, byte_length, BackingStoreInitializationMode::kUninitialized);
       uint8_t* ptr = static_cast<uint8_t*>(buf->Data()) + byte_offset;
       std::copy(ptr, ptr + byte_length, static_cast<uint8_t*>(store->Data()));
       return DataQueue::CreateInMemoryEntryFromBackingStore(
@@ -375,8 +376,10 @@ void Blob::Reader::Pull(const FunctionCallbackInfo<Value>& args) {
       size_t total = 0;
       for (size_t n = 0; n < count; n++) total += vecs[n].len;
 
-      std::shared_ptr<BackingStore> store =
-          ArrayBuffer::NewBackingStore(env->isolate(), total);
+      std::shared_ptr<BackingStore> store = ArrayBuffer::NewBackingStore(
+          env->isolate(),
+          total,
+          BackingStoreInitializationMode::kUninitialized);
       auto ptr = static_cast<uint8_t*>(store->Data());
       for (size_t n = 0; n < count; n++) {
         std::copy(vecs[n].base, vecs[n].base + vecs[n].len, ptr);

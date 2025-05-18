@@ -99,7 +99,10 @@ std::unique_ptr<BackingStore> Node_SignFinal(Environment* env,
       [[likely]] {
     CHECK_LE(sig_buf.len, sig->ByteLength());
     if (sig_buf.len < sig->ByteLength()) {
-      auto new_sig = ArrayBuffer::NewBackingStore(env->isolate(), sig_buf.len);
+      auto new_sig = ArrayBuffer::NewBackingStore(
+          env->isolate(),
+          sig_buf.len,
+          BackingStoreInitializationMode::kUninitialized);
       if (sig_buf.len > 0) [[likely]] {
         memcpy(new_sig->Data(), sig->Data(), sig_buf.len);
       }
