@@ -1,7 +1,7 @@
 'use strict'
 
 const { InvalidArgumentError } = require('../core/errors')
-const { kClients, kRunning, kClose, kDestroy, kDispatch } = require('../core/symbols')
+const { kClients, kRunning, kClose, kDestroy, kDispatch, kUrl } = require('../core/symbols')
 const DispatcherBase = require('./dispatcher-base')
 const Pool = require('./pool')
 const Client = require('./client')
@@ -109,6 +109,16 @@ class Agent extends DispatcherBase {
     this[kClients].clear()
 
     await Promise.all(destroyPromises)
+  }
+
+  get stats () {
+    const allClientStats = {}
+    for (const client of this[kClients].values()) {
+      if (client.stats) {
+        allClientStats[client[kUrl].origin] = client.stats
+      }
+    }
+    return allClientStats
   }
 }
 
