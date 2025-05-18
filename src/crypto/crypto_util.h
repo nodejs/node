@@ -185,7 +185,7 @@ class ByteSource final {
   // Creates a v8::BackingStore that takes over responsibility for
   // any allocated data. The ByteSource will be reset with size = 0
   // after being called.
-  std::unique_ptr<v8::BackingStore> ReleaseToBackingStore();
+  std::unique_ptr<v8::BackingStore> ReleaseToBackingStore(Environment* env);
 
   v8::Local<v8::ArrayBuffer> ToArrayBuffer(Environment* env);
 

@@ -114,7 +114,7 @@ napi_status NewExternalString(napi_env env,
   CHECK_NEW_STRING_ARGS(env, str, length, result);
 
   napi_status status;
-#if defined(V8_ENABLE_SANDBOX)
+#ifdef V8_ENABLE_SANDBOX
   status = create_api(env, str, length, result);
   if (status == napi_ok) {
     if (copied != nullptr) {
