@@ -2104,7 +2104,10 @@ void Http2Session::OnStreamRead(ssize_t nread, const uv_buf_t& buf_) {
       [[likely]] {
     // Shrink to the actual amount of used data.
     std::unique_ptr<BackingStore> old_bs = std::move(bs);
-    bs = ArrayBuffer::NewBackingStore(env()->isolate(), nread);
+    bs = ArrayBuffer::NewBackingStore(
+        env()->isolate(),
+        nread,
+        BackingStoreInitializationMode::kUninitialized);
     memcpy(bs->Data(), old_bs->Data(), nread);
   } else {
     // This is a very unlikely case, and should only happen if the ReadStart()
