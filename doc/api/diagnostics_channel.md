@@ -1291,9 +1291,9 @@ Emitted when a `import()` throws an error. See [`error` event][].
 
 `net.client.socket`
 
-* `socket` {net.Socket}
+* `socket` {net.Socket|tls.TLSSocket}
 
-Emitted when a new TCP or pipe client socket is created.
+Emitted when a new TCP or pipe client socket connection is created.
 
 `net.server.socket`
 
