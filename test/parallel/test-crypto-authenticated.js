@@ -450,32 +450,63 @@ for (const test of TEST_CASES) {
 // Test that the authentication tag can be set at any point before calling
 // final() in GCM mode, OCB mode, and for ChaCha20-Poly1305.
 {
+  const aad = Buffer.from('Shared', 'utf8');
   const plain = Buffer.from('Hello world', 'utf8');
   const key = Buffer.from('0123456789abcdefghijklmnopqrstuv', 'utf8');
   const iv = Buffer.from('0123456789ab', 'utf8');
 
-  for (const alg of ['aes-256-gcm', 'aes-256-ocb', 'chacha20-poly1305']) {
-    for (const authTagLength of alg === 'aes-256-gcm' ? [undefined, 8] : [8]) {
-      const cipher = crypto.createCipheriv(alg, key, iv, {
+  function testAllOrders({ alg, authTagLength, useAAD, useMessage }) {
+    // Encrypt the message first to obtain ciphertext and authTag.
+    const cipher = crypto.createCipheriv(alg, key, iv, {
+      authTagLength
+    });
+    if (useAAD) {
+      cipher.setAAD(aad);
+    }
+    const ciphertext = useMessage ? Buffer.concat([cipher.update(plain), cipher.final()]) : cipher.final();
+    const authTag = cipher.getAuthTag();
+    assert.strictEqual(authTag.length, authTagLength ?? 16);
+
+    // Test decryption with each possible order of operations.
+    for (const authTagTime of ['beforeAAD', 'beforeUpdate', 'afterUpdate']) {
+      const decipher = crypto.createDecipheriv(alg, key, iv, {
         authTagLength
       });
-      const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
-      const authTag = cipher.getAuthTag();
+      if (authTagTime === 'beforeAAD') {
+        decipher.setAuthTag(authTag);
+      }
+      if (useAAD) {
+        decipher.setAAD(aad);
+      }
+      if (authTagTime === 'beforeUpdate') {
+        decipher.setAuthTag(authTag);
+      }
+      const resultBuffers = [];
+      if (useMessage) {
+        resultBuffers.push(decipher.update(ciphertext));
+      }
+      if (authTagTime === 'afterUpdate') {
+        decipher.setAuthTag(authTag);
+      }
+      resultBuffers.push(decipher.final());
+      const result = Buffer.concat(resultBuffers);
+      if (useMessage) {
+        assert.deepStrictEqual(result, plain);
+      } else {
+        assert.strictEqual(result.length, 0);
+      }
+    }
+  }
 
-      for (const authTagBeforeUpdate of [true, false]) {
-        const decipher = crypto.createDecipheriv(alg, key, iv, {
-          authTagLength
-        });
-        if (authTagBeforeUpdate) {
-          decipher.setAuthTag(authTag);
-        }
-        const resultUpdate = decipher.update(ciphertext);
-        if (!authTagBeforeUpdate) {
-          decipher.setAuthTag(authTag);
-        }
-        const resultFinal = decipher.final();
-        const result = Buffer.concat([resultUpdate, resultFinal]);
-        assert(result.equals(plain));
+  for (const alg of ['aes-256-gcm', 'aes-256-ocb', 'chacha20-poly1305']) {
+    for (const authTagLength of alg === 'aes-256-gcm' ? [undefined, 8] : [8]) {
+      for (const [useAAD, useMessage] of [
+        [false, false],  // No AAD, no update.
+        [true, false],   // Only AAD (e.g., GMAC).
+        [false, true],   // No AAD, only message.
+        [true, true],    // Both AAD and message.
+      ]) {
+        testAllOrders({ alg, authTagLength, useAAD, useMessage });
       }
     }
   }
