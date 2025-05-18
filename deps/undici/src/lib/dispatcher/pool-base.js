@@ -1,9 +1,9 @@
 'use strict'
 
+const { PoolStats } = require('../util/stats.js')
 const DispatcherBase = require('./dispatcher-base')
 const FixedQueue = require('./fixed-queue')
 const { kConnected, kSize, kRunning, kPending, kQueued, kBusy, kFree, kUrl, kClose, kDestroy, kDispatch } = require('../core/symbols')
-const PoolStats = require('./pool-stats')
 
 const kClients = Symbol('clients')
 const kNeedDrain = Symbol('needDrain')
@@ -16,7 +16,6 @@ const kOnConnectionError = Symbol('onConnectionError')
 const kGetDispatcher = Symbol('get dispatcher')
 const kAddClient = Symbol('add client')
 const kRemoveClient = Symbol('remove client')
-const kStats = Symbol('stats')
 
 class PoolBase extends DispatcherBase {
   constructor () {
@@ -67,8 +66,6 @@ class PoolBase extends DispatcherBase {
     this[kOnConnectionError] = (origin, targets, err) => {
       pool.emit('connectionError', origin, [pool, ...targets], err)
     }
-
-    this[kStats] = new PoolStats(this)
   }
 
   get [kBusy] () {
@@ -108,7 +105,7 @@ class PoolBase extends DispatcherBase {
   }
 
   get stats () {
-    return this[kStats]
+    return new PoolStats(this)
   }
 
   async [kClose] () {

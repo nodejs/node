@@ -12,13 +12,11 @@ function makeCacheKey (opts) {
     throw new Error('opts.origin is undefined')
   }
 
-  const headers = normaliseHeaders(opts)
-
   return {
     origin: opts.origin.toString(),
     method: opts.method,
     path: opts.path,
-    headers
+    headers: opts.headers
   }
 }
 
