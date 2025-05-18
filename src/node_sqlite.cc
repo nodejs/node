@@ -1005,6 +1005,14 @@ void DatabaseSync::Close(const FunctionCallbackInfo<Value>& args) {
   db->connection_ = nullptr;
 }
 
+void DatabaseSync::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
+}
+
 void DatabaseSync::Prepare(const FunctionCallbackInfo<Value>& args) {
   DatabaseSync* db;
   ASSIGN_OR_RETURN_UNWRAP(&db, args.This());
@@ -2577,6 +2585,7 @@ Local<FunctionTemplate> Session::GetConstructorTemplate(Environment* env) {
     SetProtoMethod(
         isolate, tmpl, "patchset", Session::Changeset<sqlite3session_patchset>);
     SetProtoMethod(isolate, tmpl, "close", Session::Close);
+    SetProtoDispose(isolate, tmpl, Session::Dispose);
     env->set_sqlite_session_constructor_template(tmpl);
   }
   return tmpl;
@@ -2621,6 +2630,14 @@ void Session::Close(const FunctionCallbackInfo<Value>& args) {
   session->Delete();
 }
 
+void Session::Dispose(const v8::FunctionCallbackInfo<v8::Value>& args) {
+  v8::TryCatch try_catch(args.GetIsolate());
+  Close(args);
+  if (try_catch.HasCaught()) {
+    CHECK(try_catch.CanContinue());
+  }
+}
+
 void Session::Delete() {
   if (!database_ || !database_->connection_ || session_ == nullptr) return;
   sqlite3session_delete(session_);
@@ -2656,6 +2673,7 @@ static void Initialize(Local<Object> target,
 
   SetProtoMethod(isolate, db_tmpl, "open", DatabaseSync::Open);
   SetProtoMethod(isolate, db_tmpl, "close", DatabaseSync::Close);
+  SetProtoDispose(isolate, db_tmpl, DatabaseSync::Dispose);
   SetProtoMethod(isolate, db_tmpl, "prepare", DatabaseSync::Prepare);
   SetProtoMethod(isolate, db_tmpl, "exec", DatabaseSync::Exec);
   SetProtoMethod(isolate, db_tmpl, "function", DatabaseSync::CustomFunction);
@@ -2686,6 +2704,8 @@ static void Initialize(Local<Object> target,
                          target,
                          "StatementSync",
                          StatementSync::GetConstructorTemplate(env));
+  SetConstructorFunction(
+      context, target, "Session", Session::GetConstructorTemplate(env));
 
   target->Set(context, env->constants_string(), constants).Check();
 
