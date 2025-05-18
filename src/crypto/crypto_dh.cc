@@ -22,6 +22,8 @@ using ncrypto::DHPointer;
 using ncrypto::EVPKeyCtxPointer;
 using ncrypto::EVPKeyPointer;
 using v8::ArrayBuffer;
+using v8::BackingStoreInitializationMode;
+using v8::BackingStoreOnFailureMode;
 using v8::ConstructorBehavior;
 using v8::Context;
 using v8::DontDelete;
@@ -58,6 +60,20 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
   struct Flag {
     bool secure;
   };
+#ifdef V8_ENABLE_SANDBOX
+  auto backing = ArrayBuffer::NewBackingStore(
+      env->isolate(),
+      data.size(),
+      BackingStoreInitializationMode::kUninitialized,
+      BackingStoreOnFailureMode::kReturnNull);
+  if (!backing) {
+    THROW_ERR_MEMORY_ALLOCATION_FAILED(env);
+    return MaybeLocal<Value>();
+  }
+  if (data.size() > 0) {
+    memcpy(backing->Data(), data.get(), data.size());
+  }
+#else
   auto backing = ArrayBuffer::NewBackingStore(
       data.get(),
       data.size(),
@@ -67,6 +83,7 @@ MaybeLocal<Value> DataPointerToBuffer(Environment* env, DataPointer&& data) {
       },
       new Flag{data.isSecure()});
   data.release();
+#endif  // V8_ENABLE_SANDBOX
 
   auto ab = ArrayBuffer::New(env->isolate(), std::move(backing));
   return Buffer::New(env, ab, 0, ab->ByteLength()).FromMaybe(Local<Value>());
