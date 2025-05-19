@@ -13,7 +13,7 @@ namespace node::quic {
 // ============================================================================
 // CID
 
-CID::CID() : ptr_(&cid_) {
+CID::CID() : cid_{}, ptr_(&cid_) {
   cid_.datalen = 0;
 }
 
@@ -24,7 +24,7 @@ CID::CID(const uint8_t* data, size_t len) : CID() {
   ngtcp2_cid_init(&cid_, data, len);
 }
 
-CID::CID(const ngtcp2_cid* cid) : ptr_(cid) {
+CID::CID(const ngtcp2_cid* cid) : cid_{}, ptr_(cid) {
   CHECK_NOT_NULL(cid);
   DCHECK_LE(cid->datalen, kMaxLength);
 }
