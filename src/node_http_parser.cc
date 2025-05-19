@@ -52,6 +52,7 @@ namespace http_parser {  // NOLINT(build/namespaces)
 
 using v8::Array;
 using v8::Boolean;
+using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
 using v8::Exception;
@@ -68,6 +69,7 @@ using v8::MaybeLocal;
 using v8::Number;
 using v8::Object;
 using v8::ObjectTemplate;
+using v8::PropertyAttribute;
 using v8::String;
 using v8::Uint32;
 using v8::Undefined;
@@ -102,7 +104,7 @@ const uint32_t kLenientAll =
     kLenientOptionalLFAfterCR | kLenientOptionalCRLFAfterChunk |
     kLenientOptionalCRBeforeLF | kLenientSpacesAfterChunkSize;
 
-inline bool IsOWS(char c) {
+constexpr bool IsOWS(char c) {
   return c == ' ' || c == '\t';
 }
 
@@ -563,7 +565,6 @@ class Parser : public AsyncWrap, public StreamListener {
     new Parser(binding_data, args.This());
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   static void Close(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -571,10 +572,20 @@ class Parser : public AsyncWrap, public StreamListener {
     delete parser;
   }
 
-  // TODO(@anonrig): Add V8 Fast API
-  static void Free(const FunctionCallbackInfo<Value>& args) {
+  static void FastClose(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
+
+    delete parser;
+  }
+
+  static void Free(const FunctionCallbackInfo<Value>& args) {
+    FastFree(args.This());
+  }
+
+  static void FastFree(Local<Value> receiver) {
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     // Since the Parser destructor isn't going to run the destroy() callbacks
     // it needs to be triggered manually.
@@ -582,10 +593,13 @@ class Parser : public AsyncWrap, public StreamListener {
     parser->EmitDestroy();
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   static void Remove(const FunctionCallbackInfo<Value>& args) {
+    FastRemove(args.This());
+  }
+
+  static void FastRemove(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     if (parser->connectionsList_ != nullptr) {
       parser->connectionsList_->Pop(parser);
@@ -695,15 +709,15 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
-    Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-    // Should always be called from the same context.
-    CHECK_EQ(env, parser->env());
+    FastPause<should_pause>(args.This());
+  }
 
+  template <bool should_pause>
+  static void FastPause(Local<Value> receiver) {
+    Parser* parser;
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
     if constexpr (should_pause) {
       llhttp_pause(&parser->parser_);
     } else {
@@ -711,20 +725,26 @@ class Parser : public AsyncWrap, public StreamListener {
     }
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   static void Consume(const FunctionCallbackInfo<Value>& args) {
+    FastConsume(args.This(), args[0]);
+  }
+
+  static void FastConsume(Local<Value> receiver, Local<Value> obj) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
-    CHECK(args[0]->IsObject());
-    StreamBase* stream = StreamBase::FromObject(args[0].As<Object>());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
+    CHECK(obj->IsObject());
+    StreamBase* stream = StreamBase::FromObject(obj.As<Object>());
     CHECK_NOT_NULL(stream);
     stream->PushStreamListener(parser);
   }
 
-  // TODO(@anonrig): Add V8 Fast API
   static void Unconsume(const FunctionCallbackInfo<Value>& args) {
+    FastUnconsume(args.This());
+  }
+
+  static void FastUnconsume(Local<Value> receiver) {
     Parser* parser;
-    ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
+    ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
 
     // Already unconsumed
     if (parser->stream_ == nullptr)
@@ -732,8 +752,6 @@ class Parser : public AsyncWrap, public StreamListener {
 
     parser->stream_->RemoveStreamListener(parser);
   }
-
-
   static void GetCurrentBuffer(const FunctionCallbackInfo<Value>& args) {
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
@@ -1047,6 +1065,14 @@ class Parser : public AsyncWrap, public StreamListener {
   static const llhttp_settings_t settings;
 };
 
+CFunction fast_close(CFunction::Make(&Parser::FastClose));
+CFunction fast_free(CFunction::Make(&Parser::FastFree));
+CFunction fast_remove(CFunction::Make(&Parser::FastRemove));
+CFunction fast_pause(CFunction::Make(&Parser::FastPause<true>));
+CFunction fast_resume(CFunction::Make(&Parser::FastPause<false>));
+CFunction fast_unconsume(CFunction::Make(&Parser::FastUnconsume));
+CFunction fast_consume(CFunction::Make(&Parser::FastConsume));
+
 bool ParserComparator::operator()(const Parser* lhs, const Parser* rhs) const {
   if (lhs->last_message_start_ == 0 && rhs->last_message_start_ == 0) {
     // When both parsers are idle, guarantee strict order by
@@ -1246,58 +1272,48 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
          Integer::New(isolate, HTTP_REQUEST));
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "RESPONSE"),
          Integer::New(isolate, HTTP_RESPONSE));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnMessageBegin"),
-         Integer::NewFromUnsigned(isolate, kOnMessageBegin));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnHeaders"),
-         Integer::NewFromUnsigned(isolate, kOnHeaders));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnHeadersComplete"),
-         Integer::NewFromUnsigned(isolate, kOnHeadersComplete));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnBody"),
-         Integer::NewFromUnsigned(isolate, kOnBody));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnMessageComplete"),
-         Integer::NewFromUnsigned(isolate, kOnMessageComplete));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnExecute"),
-         Integer::NewFromUnsigned(isolate, kOnExecute));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kOnTimeout"),
-         Integer::NewFromUnsigned(isolate, kOnTimeout));
 
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientNone"),
-         Integer::NewFromUnsigned(isolate, kLenientNone));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientHeaders"),
-         Integer::NewFromUnsigned(isolate, kLenientHeaders));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientChunkedLength"),
-         Integer::NewFromUnsigned(isolate, kLenientChunkedLength));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientKeepAlive"),
-         Integer::NewFromUnsigned(isolate, kLenientKeepAlive));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientTransferEncoding"),
-         Integer::NewFromUnsigned(isolate, kLenientTransferEncoding));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientVersion"),
-         Integer::NewFromUnsigned(isolate, kLenientVersion));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientDataAfterClose"),
-         Integer::NewFromUnsigned(isolate, kLenientDataAfterClose));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalLFAfterCR"),
-         Integer::NewFromUnsigned(isolate, kLenientOptionalLFAfterCR));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalCRLFAfterChunk"),
-         Integer::NewFromUnsigned(isolate, kLenientOptionalCRLFAfterChunk));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientOptionalCRBeforeLF"),
-         Integer::NewFromUnsigned(isolate, kLenientOptionalCRBeforeLF));
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientSpacesAfterChunkSize"),
-         Integer::NewFromUnsigned(isolate, kLenientSpacesAfterChunkSize));
+#define PARSER_EVENTS(V)                                                       \
+  V(kOnMessageBegin)                                                           \
+  V(kOnHeaders)                                                                \
+  V(kOnHeadersComplete)                                                        \
+  V(kOnBody)                                                                   \
+  V(kOnMessageComplete)                                                        \
+  V(kOnExecute)                                                                \
+  V(kOnTimeout)                                                                \
+  V(kLenientNone)                                                              \
+  V(kLenientHeaders)                                                           \
+  V(kLenientChunkedLength)                                                     \
+  V(kLenientKeepAlive)                                                         \
+  V(kLenientTransferEncoding)                                                  \
+  V(kLenientVersion)                                                           \
+  V(kLenientDataAfterClose)                                                    \
+  V(kLenientOptionalLFAfterCR)                                                 \
+  V(kLenientOptionalCRLFAfterChunk)                                            \
+  V(kLenientOptionalCRBeforeLF)                                                \
+  V(kLenientSpacesAfterChunkSize)                                              \
+  V(kLenientAll)
+#define V(Name)                                                                \
+  t->Set(FIXED_ONE_BYTE_STRING(isolate, #Name),                                \
+         Integer::NewFromUnsigned(isolate, Name),                              \
+         PropertyAttribute::ReadOnly);
+  PARSER_EVENTS(V)
+#undef PARSER_EVENTS
 
-  t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
-         Integer::NewFromUnsigned(isolate, kLenientAll));
+  auto tmpl = t->InstanceTemplate();
 
   t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
-  SetProtoMethod(isolate, t, "close", Parser::Close);
-  SetProtoMethod(isolate, t, "free", Parser::Free);
-  SetProtoMethod(isolate, t, "remove", Parser::Remove);
+  SetFastMethod(isolate, tmpl, "close", Parser::Close, &fast_close);
+  SetFastMethod(isolate, tmpl, "free", Parser::Free, &fast_free);
+  SetFastMethod(isolate, tmpl, "remove", Parser::Remove, &fast_remove);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
   SetProtoMethod(isolate, t, "initialize", Parser::Initialize);
-  SetProtoMethod(isolate, t, "pause", Parser::Pause<true>);
-  SetProtoMethod(isolate, t, "resume", Parser::Pause<false>);
-  SetProtoMethod(isolate, t, "consume", Parser::Consume);
-  SetProtoMethod(isolate, t, "unconsume", Parser::Unconsume);
+  SetFastMethod(isolate, tmpl, "pause", Parser::Pause<true>, &fast_pause);
+  SetFastMethod(isolate, tmpl, "resume", Parser::Pause<false>, &fast_resume);
+  SetFastMethod(isolate, tmpl, "consume", Parser::Consume, &fast_consume);
+  SetFastMethod(isolate, tmpl, "unconsume", Parser::Unconsume, &fast_unconsume);
+
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);
@@ -1367,6 +1383,20 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Parser::Pause<false>);
   registry->Register(Parser::Consume);
   registry->Register(Parser::Unconsume);
+  registry->Register(Parser::FastClose);
+  registry->Register(Parser::FastFree);
+  registry->Register(Parser::FastRemove);
+  registry->Register(Parser::FastPause<true>);
+  registry->Register(Parser::FastPause<false>);
+  registry->Register(Parser::FastConsume);
+  registry->Register(Parser::FastUnconsume);
+  registry->Register(fast_close.GetTypeInfo());
+  registry->Register(fast_free.GetTypeInfo());
+  registry->Register(fast_remove.GetTypeInfo());
+  registry->Register(fast_pause.GetTypeInfo());
+  registry->Register(fast_resume.GetTypeInfo());
+  registry->Register(fast_consume.GetTypeInfo());
+  registry->Register(fast_unconsume.GetTypeInfo());
   registry->Register(Parser::GetCurrentBuffer);
   registry->Register(ConnectionsList::New);
   registry->Register(ConnectionsList::All);
