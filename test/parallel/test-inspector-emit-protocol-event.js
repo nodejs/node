@@ -58,6 +58,11 @@ const EXPECTED_EVENTS = {
       }
     },
     {
+      name: 'dataReceived',
+      // Network.dataReceived is buffered until Network.streamResourceContent is invoked.
+      skip: true,
+    },
+    {
       name: 'loadingFinished',
       params: {
         requestId: 'request-id-1',
@@ -81,8 +86,8 @@ for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
   if (!(domain in inspector)) {
     assert.fail(`Expected domain ${domain} to be present in inspector`);
   }
-  const actualEventNames = Object.keys(inspector[domain]);
-  const expectedEventNames = events.map((event) => event.name);
+  const actualEventNames = Object.keys(inspector[domain]).sort();
+  const expectedEventNames = events.map((event) => event.name).sort();
   assert.deepStrictEqual(actualEventNames, expectedEventNames, `Expected ${domain} to have events ${expectedEventNames}, but got ${actualEventNames}`);
 }
 
@@ -105,6 +110,9 @@ const runAsyncTest = async () => {
   await session.post('Network.enable');
   for (const [domain, events] of Object.entries(EXPECTED_EVENTS)) {
     for (const event of events) {
+      if (event.skip) {
+        continue;
+      }
       session.on(`${domain}.${event.name}`, common.mustCall(({ params }) => {
         if (event.name === 'requestWillBeSent') {
           // Initiator is automatically captured and contains caller info.
