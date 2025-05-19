@@ -17,7 +17,7 @@ const bench = common.createBenchmark(main, {
 function main({ n, path }) {
   bench.start();
   for (let i = 0; i < n; i++) {
-    win32.normalize(i % 3 === 0 ? `${path}${i}` : path);
+    win32.normalize(i % 5 === 0 ? `${path}\\${i}` : path);
   }
   bench.end(n);
 }
