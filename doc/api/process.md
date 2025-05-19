@@ -1130,7 +1130,7 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
   - version: v22.0.0
@@ -1152,7 +1152,7 @@ information.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -2279,7 +2279,7 @@ added:
   - v17.3.0
   - v16.14.0
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
 -->

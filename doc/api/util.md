@@ -2719,7 +2719,7 @@ added:
  - v19.7.0
  - v18.16.0
 changes:
- - version: REPLACEME
+ - version: v22.16.0
    pr-url: https://github.com/nodejs/node/pull/57765
    description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -3093,7 +3093,7 @@ For further information on `napi_create_external`, refer to
 ### `util.types.isFloat16Array(value)`
 
 <!-- YAML
-added: REPLACEME
+added: v22.16.0
 -->
 
 * `value` {any}

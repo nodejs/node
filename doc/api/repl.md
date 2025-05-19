@@ -666,7 +666,7 @@ with REPL instances programmatically.
 
 <!-- YAML
 added: v14.5.0
-deprecated: REPLACEME
+deprecated: v22.16.0
 -->
 
 > Stability: 0 - Deprecated. Use [`module.builtinModules`][] instead.

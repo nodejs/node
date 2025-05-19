@@ -3753,7 +3753,7 @@ When an `args` array is passed to [`child_process.execFile`][] or [`child_proces
 
 <!-- YAML
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57508
     description: Documentation-only deprecation
                  with `--pending-deprecation` support.

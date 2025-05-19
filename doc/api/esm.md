@@ -348,7 +348,7 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
@@ -366,7 +366,7 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version: v22.16.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
