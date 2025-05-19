@@ -912,7 +912,9 @@ Enable experimental import support for `.node` addons.
 ### `--experimental-config-file=config`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 > Stability: 1.0 - Early development
@@ -974,7 +976,9 @@ so **NEVER** use untrusted configuration files.
 ### `--experimental-default-config-file`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 > Stability: 1.0 - Early development

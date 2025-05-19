@@ -2395,7 +2395,9 @@ of an asynchronous operation.
 ### `ERR_OPTIONS_BEFORE_BOOTSTRAPPING`
 
 <!-- YAML
-added: v23.10.0
+added:
+ - v23.10.0
+ - v22.16.0
 -->
 
 An attempt was made to get options before the bootstrapping was completed.

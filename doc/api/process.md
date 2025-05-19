@@ -1136,7 +1136,9 @@ added:
   - v19.6.0
   - v18.15.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
   - version:
@@ -1162,7 +1164,9 @@ added:
   - v22.0.0
   - v20.13.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
 -->
@@ -2305,7 +2309,9 @@ added:
   - v17.3.0
   - v16.14.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57765
     description: Change stability index for this feature from Experimental to Stable.
 -->

@@ -1641,7 +1641,9 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 ### `worker.getHeapStatistics()`
 
 <!-- YAML
-added: v24.0.0
+added:
+- v24.0.0
+- v22.16.0
 -->
 
 * Returns: {Promise}

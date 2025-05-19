@@ -78,7 +78,9 @@ console.log(query.all());
 <!-- YAML
 added: v22.5.0
 changes:
-  - version: v24.0.0
+  - version:
+    - v24.0.0
+    - v22.16.0
     pr-url: https://github.com/nodejs/node/pull/57752
     description: Add `timeout` option.
   - version:
@@ -130,7 +132,9 @@ Constructs a new `DatabaseSync` instance.
 ### `database.aggregate(name, options)`
 
 <!-- YAML
-added: v24.0.0
+added:
+ - v24.0.0
+ - v22.16.0
 -->
 
 Registers a new aggregate function with the SQLite database. This method is a wrapper around
@@ -246,7 +250,9 @@ loading extensions for security reasons.
 ### `database.location([dbName])`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * `dbName` {string} Name of the database. This can be `'main'` (the default primary database) or any other
@@ -311,7 +317,9 @@ added:
 ### `database.isTransaction`
 
 <!-- YAML
-added: v24.0.0
+added:
+  - v24.0.0
+  - v22.16.0
 -->
 
 * {boolean} Whether the database is currently within a transaction. This method
@@ -508,7 +516,9 @@ the values in `namedParameters` and `anonymousParameters`.
 ### `statement.columns()`
 
 <!-- YAML
-added: v23.11.0
+added:
+  - v23.11.0
+  - v22.16.0
 -->
 
 * Returns: {Array} An array of objects. Each object corresponds to a column
@@ -714,7 +724,9 @@ exception.
 ## `sqlite.backup(sourceDb, path[, options])`
 
 <!-- YAML
-added: v23.8.0
+added:
+  - v23.8.0
+  - v22.16.0
 changes:
   - version: v23.10.0
     pr-url: https://github.com/nodejs/node/pull/56991
