@@ -28,6 +28,20 @@ void ProtocolTypeTraits<std::string>::Serialize(const std::string& value,
   cbor::EncodeString8(SpanFrom(value), bytes);
 }
 
+bool ProtocolTypeTraits<node::inspector::protocol::Binary>::Deserialize(
+    DeserializerState* state, node::inspector::protocol::Binary* value) {
+  CHECK(state->tokenizer()->TokenTag() == cbor::CBORTokenTag::BINARY);
+  span<uint8_t> cbor_span = state->tokenizer()->GetBinary();
+  *value = node::inspector::protocol::Binary::fromSpan(cbor_span);
+  return true;
+}
+
+void ProtocolTypeTraits<node::inspector::protocol::Binary>::Serialize(
+    const node::inspector::protocol::Binary& value,
+    std::vector<uint8_t>* bytes) {
+  cbor::EncodeString8(SpanFrom(value.toBase64()), bytes);
+}
+
 }  // namespace crdtp
 
 namespace node {
@@ -91,6 +105,58 @@ size_t StringUtil::CharacterCount(const std::string_view s) {
   // `v8_inspector::StringView`, for UTF16, return the length of the
   // underlying uint16_t store.
   return s.length();
+}
+
+String Binary::toBase64() const {
+  MaybeStackBuffer<char> buffer;
+  size_t str_len = simdutf::base64_length_from_binary(bytes_->size());
+  buffer.SetLength(str_len);
+
+  size_t len =
+      simdutf::binary_to_base64(reinterpret_cast<const char*>(bytes_->data()),
+                                bytes_->size(),
+                                buffer.out());
+  CHECK_EQ(len, str_len);
+  return buffer.ToString();
+}
+
+// static
+Binary Binary::concat(const std::vector<Binary>& binaries) {
+  size_t total_size = 0;
+  for (const auto& binary : binaries) {
+    total_size += binary.size();
+  }
+  auto bytes = std::make_shared<std::vector<uint8_t>>(total_size);
+  uint8_t* data_ptr = bytes->data();
+  for (const auto& binary : binaries) {
+    memcpy(data_ptr, binary.data(), binary.size());
+    data_ptr += binary.size();
+  }
+  return Binary(bytes);
+}
+
+// static
+Binary Binary::fromBase64(const String& base64, bool* success) {
+  Binary binary{};
+  size_t base64_len = simdutf::maximal_binary_length_from_base64(
+      base64.data(), base64.length());
+  binary.bytes_->resize(base64_len);
+
+  simdutf::result result;
+  result =
+      simdutf::base64_to_binary(base64.data(),
+                                base64.length(),
+                                reinterpret_cast<char*>(binary.bytes_->data()));
+  CHECK_EQ(result.error, simdutf::error_code::SUCCESS);
+  return binary;
+}
+
+// static
+Binary Binary::fromUint8Array(v8::Local<v8::Uint8Array> data) {
+  auto bytes = std::make_shared<std::vector<uint8_t>>(data->ByteLength());
+  size_t size = data->CopyContents(bytes->data(), data->ByteLength());
+  CHECK_EQ(size, data->ByteLength());
+  return Binary(bytes);
 }
 
 }  // namespace protocol
