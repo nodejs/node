@@ -1509,15 +1509,15 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
 void ConcatNative(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> ctx = isolate->GetCurrentContext();
-  Environment* env = Environment::GetCurrent(args);
 
   if (!args[0]->IsArray()) {
     isolate->ThrowException(Exception::TypeError(
-        v8::String::NewFromUtf8(
-            isolate,
-            "First argument must be an Array of Buffer or Uint8Array",
-            v8::NewStringType::kNormal)
-            .ToLocalChecked()));
+      v8::String::NewFromUtf8(
+        isolate,
+        "First argument must be an Array of Buffer or Uint8Array",
+        v8::NewStringType::kNormal
+      ).ToLocalChecked()
+    ));
     return;
   }
   Local<Array> list = args[0].As<Array>();
@@ -1546,9 +1546,12 @@ void ConcatNative(const FunctionCallbackInfo<Value>& args) {
       std::string msg = "Element at index " + std::to_string(i) +
                         " is not a Buffer or Uint8Array";
       isolate->ThrowException(Exception::TypeError(
-          v8::String::NewFromUtf8(
-              isolate, msg.c_str(), v8::NewStringType::kNormal)
-              .ToLocalChecked()));
+        v8::String::NewFromUtf8(
+          isolate,
+          msg.c_str(),
+          v8::NewStringType::kNormal
+        ).ToLocalChecked()
+      ));
       return;
     }
     Local<Object> obj = v.As<Object>();
