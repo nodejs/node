@@ -55,6 +55,7 @@
 namespace node {
 namespace Buffer {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
@@ -62,6 +63,7 @@ using v8::BackingStoreInitializationMode;
 using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::FastApiCallbackOptions;
 using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
@@ -83,8 +85,6 @@ using v8::Uint32;
 using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
-using v8::Array;
-using v8::Exception;
 
 
 namespace {
