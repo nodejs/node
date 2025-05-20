@@ -171,12 +171,12 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 
   protocol::String mimeType;
   if (!ObjectGetProtocolString(context, response, "mimeType").To(&mimeType)) {
-    return {};
+    mimeType = protocol::String("");
   }
 
   protocol::String charset = protocol::String();
   if (!ObjectGetProtocolString(context, response, "charset").To(&charset)) {
-    return {};
+    charset = protocol::String("");
   }
 
   return protocol::Network::Response::create()
