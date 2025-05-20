@@ -982,6 +982,28 @@ $ bash -c 'exec -a customArgv0 ./node'
 'customArgv0'
 ```
 
+## `process.availableMemory()`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+changes:
+  - version:
+    - v24.0.0
+    - v22.16.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
+-->
+
+* {number}
+
+Gets the amount of free memory that is still available to the process
+(in bytes).
+
+See [`uv_get_available_memory`][uv_get_available_memory] for more
+information.
+
 ## `process.channel`
 
 <!-- YAML
@@ -1155,28 +1177,6 @@ limits imposed by the OS. If there is no such constraint, or the constraint
 is unknown, `0` is returned.
 
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
-information.
-
-## `process.availableMemory()`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.13.0
-changes:
-  - version:
-    - v24.0.0
-    - v22.16.0
-    pr-url: https://github.com/nodejs/node/pull/57765
-    description: Change stability index for this feature from Experimental to Stable.
--->
-
-* {number}
-
-Gets the amount of free memory that is still available to the process
-(in bytes).
-
-See [`uv_get_available_memory`][uv_get_available_memory] for more
 information.
 
 ## `process.cpuUsage([previousValue])`
