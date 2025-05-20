@@ -86,7 +86,6 @@ using v8::Uint32Array;
 using v8::Uint8Array;
 using v8::Value;
 
-
 namespace {
 
 class CallbackInfo : public Cleanable {
