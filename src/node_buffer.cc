@@ -1512,12 +1512,11 @@ void ConcatNative(const FunctionCallbackInfo<Value>& args) {
 
   if (!args[0]->IsArray()) {
     isolate->ThrowException(Exception::TypeError(
-      v8::String::NewFromUtf8(
-        isolate,
-        "First argument must be an Array of Buffer or Uint8Array",
-        v8::NewStringType::kNormal
-      ).ToLocalChecked()
-    ));
+        v8::String::NewFromUtf8(
+            isolate,
+            "First argument must be an Array of Buffer or Uint8Array",
+            v8::NewStringType::kNormal)
+            .ToLocalChecked()));
     return;
   }
   Local<Array> list = args[0].As<Array>();
@@ -1546,12 +1545,9 @@ void ConcatNative(const FunctionCallbackInfo<Value>& args) {
       std::string msg = "Element at index " + std::to_string(i) +
                         " is not a Buffer or Uint8Array";
       isolate->ThrowException(Exception::TypeError(
-        v8::String::NewFromUtf8(
-          isolate,
-          msg.c_str(),
-          v8::NewStringType::kNormal
-        ).ToLocalChecked()
-      ));
+          v8::String::NewFromUtf8(
+              isolate, msg.c_str(), v8::NewStringType::kNormal)
+              .ToLocalChecked()));
       return;
     }
     Local<Object> obj = v.As<Object>();
