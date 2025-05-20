@@ -682,7 +682,7 @@ A list of the names of some Node.js modules, e.g., `'http'`.
 <!-- YAML
 added: v0.1.91
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58003
     description: Added the possibility to add/edit/remove multilines
                  while adding a multiline command.

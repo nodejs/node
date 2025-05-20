@@ -1077,7 +1077,7 @@ behavior is similar to `cp dir1/ dir2/`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
@@ -3139,7 +3139,7 @@ descriptor. See [`fs.utimes()`][].
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
@@ -5695,7 +5695,7 @@ Synchronous version of [`fs.futimes()`][]. Returns `undefined`.
 <!-- YAML
 added: v22.0.0
 changes:
-  - version: REPLACEME
+  - version: v24.1.0
     pr-url: https://github.com/nodejs/node/pull/58182
     description: Add support for `URL` instances for `cwd` option.
   - version: v24.0.0
@@ -6752,7 +6752,7 @@ included in the iteration results.
 #### `dir[Symbol.asyncDispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.1.0
 -->
 
 > Stability: 1 - Experimental
@@ -6762,7 +6762,7 @@ An alias for `dir.close()`.
 #### `dir[Symbol.Dispose]()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.1.0
 -->
 
 > Stability: 1 - Experimental

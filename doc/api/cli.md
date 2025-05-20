@@ -1213,7 +1213,7 @@ Enable experimental [`Web Storage`][] support.
 
 <!-- YAML
 added:
-  - REPLACEME
+  - v24.1.0
 -->
 
 > Stability: 1.1 - Active Development
