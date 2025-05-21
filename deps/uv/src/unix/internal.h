@@ -359,7 +359,11 @@ int uv__slurp(const char* filename, char* buf, size_t len);
 /* tcp */
 int uv__tcp_listen(uv_tcp_t* tcp, int backlog, uv_connection_cb cb);
 int uv__tcp_nodelay(int fd, int on);
-int uv__tcp_keepalive(int fd, int on, unsigned int delay);
+int uv__tcp_keepalive(int fd,
+                      int on,
+                      unsigned int idle,
+                      unsigned int intvl,
+                      unsigned int cnt);
 
 /* tty */
 void uv__tty_close(uv_tty_t* handle);
