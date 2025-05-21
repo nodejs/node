@@ -1385,7 +1385,7 @@ and what kind of JavaScript values can be successfully transported through
 the thread barrier.
 
 ```mjs
-import assert from 'node:assert/strict';
+import assert from 'node:assert';
 import {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort,
 } from 'node:worker_threads';
@@ -1408,7 +1408,7 @@ if (isMainThread) {
 ```cjs
 'use strict';
 
-const assert = require('node:assert/strict');
+const assert = require('node:assert');
 const {
   Worker, MessageChannel, MessagePort, isMainThread, parentPort,
 } = require('node:worker_threads');
