@@ -38,10 +38,6 @@
 # define SO_UPDATE_CONNECT_CONTEXT 0x7010
 #endif
 
-#ifndef TCP_KEEPALIVE
-# define TCP_KEEPALIVE 3
-#endif
-
 #ifndef IPV6_V6ONLY
 # define IPV6_V6ONLY 27
 #endif
@@ -60,6 +56,30 @@
 
 #ifndef MCAST_LEAVE_SOURCE_GROUP
 # define MCAST_LEAVE_SOURCE_GROUP 46
+#endif
+
+#ifndef SIO_KEEPALIVE_VALS
+#define SIO_KEEPALIVE_VALS    _WSAIOW(IOC_VENDOR,4)
+struct tcp_keepalive {
+  u_long onoff;
+  u_long keepalivetime;
+  u_long keepaliveinterval;
+};
+#endif
+
+/*
+ * TCP keepalive definitions on MinGW are located in <netinet/tcp.h>.
+ */
+#ifndef TCP_KEEPIDLE
+#define TCP_KEEPIDLE 0x03 /* start keepalives after this period */
+#endif
+
+#ifndef TCP_KEEPINTVL
+#define TCP_KEEPINTVL 0x11 /* interval between keepalives */
+#endif
+
+#ifndef TCP_KEEPCNT
+#define TCP_KEEPCNT 0x10 /* number of keepalives before death */
 #endif
 
 /*
