@@ -14,7 +14,7 @@
       'link_settings': {
         'libraries': ['<@(openssl_cli_libraries_win)'],
       },
-    }, 'OS in "linux android"', {
+    }, 'OS in "linux android openharmony"', {
       'link_settings': {
         'libraries': [
           '-ldl',
