@@ -75,7 +75,7 @@
                 ['OS=="android"', {
                   'defines': [ 'ARMV8_OS_ANDROID' ],
                 }],
-                ['OS=="linux"', {
+                ['OS=="linux" or OS=="openharmony"', {
                   'defines': [ 'ARMV8_OS_LINUX' ],
                 }],
                 ['OS=="mac"', {
@@ -93,7 +93,7 @@
                   ['OS=="android"', {
                     'defines': [ 'ARMV8_OS_ANDROID' ],
                   }],
-                  ['OS=="linux"', {
+                  ['OS=="linux" or OS=="openharmony"', {
                     'defines': [ 'ARMV8_OS_LINUX' ],
                   }],
                   ['OS=="mac"', {
