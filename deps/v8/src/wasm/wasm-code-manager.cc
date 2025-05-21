@@ -75,7 +75,7 @@ using trap_handler::ProtectedInstructionData;
 // Increase the limit if needed, but first check if the size increase is
 // justified.
 #ifndef V8_GC_MOLE
-static_assert(sizeof(WasmCode) <= 104);
+static_assert(sizeof(WasmCode) <= 112);
 #endif
 
 base::AddressRegion DisjointAllocationPool::Merge(
@@ -194,8 +194,17 @@ Address WasmCode::code_comments() const {
 }
 
 int WasmCode::code_comments_size() const {
-  DCHECK_GE(unpadded_binary_size_, code_comments_offset_);
-  return static_cast<int>(unpadded_binary_size_ - code_comments_offset_);
+  DCHECK_GE(jump_table_info_offset_, code_comments_offset_);
+  return static_cast<int>(jump_table_info_offset_ - code_comments_offset_);
+}
+
+Address WasmCode::jump_table_info() const {
+  return instruction_start() + jump_table_info_offset_;
+}
+
+int WasmCode::jump_table_info_size() const {
+  DCHECK_GE(unpadded_binary_size_, jump_table_info_offset_);
+  return static_cast<int>(unpadded_binary_size_ - jump_table_info_offset_);
 }
 
 std::unique_ptr<const uint8_t[]> WasmCode::ConcatenateBytes(
@@ -613,7 +622,7 @@ std::tuple<int, bool, SourcePosition> WasmCode::GetInliningPosition(
 }
 
 size_t WasmCode::EstimateCurrentMemoryConsumption() const {
-  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 104);
+  UPDATE_WHEN_CLASS_CHANGES(WasmCode, 112);
   size_t result = sizeof(WasmCode);
   // For meta_data_.
   result += protected_instructions_size_ + reloc_info_size_ +
@@ -1059,6 +1068,8 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
   const int handler_table_offset = base_offset + code->handler_table_offset();
   const int constant_pool_offset = base_offset + code->constant_pool_offset();
   const int code_comments_offset = base_offset + code->code_comments_offset();
+  const int jump_table_info_offset =
+      base_offset + code->jump_table_info_offset();
 
   base::RecursiveMutexGuard guard{&allocation_mutex_};
   base::Vector<uint8_t> dst_code_bytes =
@@ -1120,6 +1131,7 @@ WasmCode* NativeModule::AddCodeForTesting(DirectHandle<Code> code,
                    handler_table_offset,     // handler_table_offset
                    constant_pool_offset,     // constant_pool_offset
                    code_comments_offset,     // code_comments_offset
+                   jump_table_info_offset,   // jump_table_info_offset
                    instructions.length(),    // unpadded_binary_size
                    {},                       // protected_instructions
                    reloc_info.as_vector(),   // reloc_info
@@ -1288,6 +1300,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
   const int handler_table_offset = desc.handler_table_offset;
   const int constant_pool_offset = desc.constant_pool_offset;
   const int code_comments_offset = desc.code_comments_offset;
+  const int jump_table_info_offset = desc.jump_table_info_offset;
   const int instr_size = desc.instr_size;
 
   {
@@ -1353,6 +1366,7 @@ std::unique_ptr<WasmCode> NativeModule::AddCodeWithCodeSpace(
                                               handler_table_offset,
                                               constant_pool_offset,
                                               code_comments_offset,
+                                              jump_table_info_offset,
                                               instr_size,
                                               protected_instructions_data,
                                               reloc_info,
@@ -1572,7 +1586,8 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
     int index, base::Vector<uint8_t> instructions, int stack_slots,
     int ool_spills, uint32_t tagged_parameter_slots, int safepoint_table_offset,
     int handler_table_offset, int constant_pool_offset,
-    int code_comments_offset, int unpadded_binary_size,
+    int code_comments_offset, int jump_table_info_offset,
+    int unpadded_binary_size,
     base::Vector<const uint8_t> protected_instructions_data,
     base::Vector<const uint8_t> reloc_info,
     base::Vector<const uint8_t> source_position_table,
@@ -1594,6 +1609,7 @@ std::unique_ptr<WasmCode> NativeModule::AddDeserializedCode(
                                                 handler_table_offset,
                                                 constant_pool_offset,
                                                 code_comments_offset,
+                                                jump_table_info_offset,
                                                 unpadded_binary_size,
                                                 protected_instructions_data,
                                                 reloc_info,
@@ -1708,6 +1724,7 @@ WasmCode* NativeModule::CreateEmptyJumpTableInRegionLocked(
                    jump_table_size,       // handler_table_offset
                    jump_table_size,       // constant_pool_offset
                    jump_table_size,       // code_comments_offset
+                   jump_table_size,       // jump_table_info_offset
                    jump_table_size,       // unpadded_binary_size
                    {},                    // protected_instructions
                    {},                    // reloc_info
@@ -2726,22 +2743,26 @@ std::pair<size_t, size_t> NativeModule::RemoveCompiledCode(
     RemoveFilter filter) {
   const uint32_t num_imports = module_->num_imported_functions;
   const uint32_t num_functions = module_->num_declared_functions;
-  base::RecursiveMutexGuard guard(&allocation_mutex_);
   size_t removed_codesize = 0;
   size_t removed_metadatasize = 0;
-  for (uint32_t i = 0; i < num_functions; i++) {
-    WasmCode* code = code_table_[i];
-    if (code && ShouldRemoveCode(code, filter)) {
-      removed_codesize += code->instructions_size();
-      removed_metadatasize += code->EstimateCurrentMemoryConsumption();
-      code_table_[i] = nullptr;
-      // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop to
-      // zero here. It might in the {WasmCodeRefScope} destructor, though.
-      WasmCodeRefScope::AddRef(code);
-      code->DecRefOnLiveCode();
-      uint32_t func_index = i + num_imports;
-      UseLazyStubLocked(func_index);
+  {
+    base::RecursiveMutexGuard guard(&allocation_mutex_);
+    for (uint32_t i = 0; i < num_functions; i++) {
+      WasmCode* code = code_table_[i];
+      if (code && ShouldRemoveCode(code, filter)) {
+        removed_codesize += code->instructions_size();
+        removed_metadatasize += code->EstimateCurrentMemoryConsumption();
+        code_table_[i] = nullptr;
+        // Add the code to the {WasmCodeRefScope}, so the ref count cannot drop
+        // to zero here. It might in the {WasmCodeRefScope} destructor, though.
+        WasmCodeRefScope::AddRef(code);
+        code->DecRefOnLiveCode();
+        uint32_t func_index = i + num_imports;
+        UseLazyStubLocked(func_index);
+      }
     }
+    // To avoid lock order inversion, release the {allocation_mutex_} before
+    // acquiring the {type_feedback.mutex} inside {AllowAnother...} below.
   }
   // When resuming optimized execution after a debugging session ends, or when
   // discarding optimized code that made outdated assumptions, allow another
@@ -2776,6 +2797,10 @@ void NativeModule::FreeCode(base::Vector<WasmCode* const> codes) {
   // Free the {WasmCode} objects. This will also unregister trap handler data.
   for (WasmCode* code : codes) {
     DCHECK_EQ(1, owned_code_.count(code->instruction_start()));
+    // TODO(407003348): Drop this check if it doesn't trigger in the wild.
+    CHECK_EQ(WasmCode::refcount(
+                 code->ref_count_bitfield_.load(std::memory_order_acquire)),
+             0);
     owned_code_.erase(code->instruction_start());
   }
   // Remove debug side tables for all removed code objects, after releasing our
@@ -2993,6 +3018,16 @@ void WasmCodeRefScope::AddRef(WasmCode* code) {
   DCHECK_NOT_NULL(current_scope);
   current_scope->code_ptrs_.push_back(code);
   code->IncRef();
+}
+
+// static
+WasmCode* WasmCodeRefScope::AddRefIfNotDying(WasmCode* code) {
+  DCHECK_NOT_NULL(code);
+  WasmCodeRefScope* current_scope = current_code_refs_scope;
+  DCHECK_NOT_NULL(current_scope);
+  if (!code->IncRefIfNotDying()) return nullptr;
+  current_scope->code_ptrs_.push_back(code);
+  return code;
 }
 
 void WasmCodeLookupCache::Flush() {

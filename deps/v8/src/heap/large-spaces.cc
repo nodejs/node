@@ -255,6 +255,20 @@ void LargeObjectSpace::ShrinkPageToObjectSize(LargePageMetadata* page,
   DCHECK_EQ(object_size, page->area_size());
 }
 
+void LargeObjectSpace::UpdateAccountingAfterResizingObject(
+    size_t old_object_size, size_t new_object_size) {
+  DCHECK_GE(new_object_size, old_object_size);
+  size_t old_size_committed =
+      ::RoundUp(old_object_size, MemoryAllocator::GetCommitPageSize());
+  size_t new_size_committed =
+      ::RoundUp(new_object_size, MemoryAllocator::GetCommitPageSize());
+  DCHECK_GE(new_size_committed, old_size_committed);
+
+  size_ += new_size_committed - old_size_committed;
+  AccountCommitted(new_size_committed - old_size_committed);
+  objects_size_.fetch_add(new_object_size - old_object_size);
+}
+
 bool LargeObjectSpace::Contains(Tagged<HeapObject> object) const {
   MemoryChunkMetadata* chunk = MemoryChunkMetadata::FromHeapObject(object);
 
@@ -366,8 +380,7 @@ AllocationResult NewLargeObjectSpace::AllocateRaw(LocalHeap* local_heap,
 
   // Allocation for the first object must succeed independent from the capacity.
   if (SizeOfObjects() > 0 && static_cast<size_t>(object_size) > Available()) {
-    if (!v8_flags.separate_gc_phases ||
-        !heap()->ShouldExpandYoungGenerationOnSlowAllocation(object_size)) {
+    if (!heap()->ShouldExpandYoungGenerationOnSlowAllocation(object_size)) {
       return AllocationResult::Failure();
     }
   }
@@ -409,9 +422,7 @@ void NewLargeObjectSpace::Flip() {
 
 void NewLargeObjectSpace::FreeDeadObjects(
     const std::function<bool(Tagged<HeapObject>)>& is_dead) {
-  bool is_marking = heap()->incremental_marking()->IsMarking();
-  DCHECK_IMPLIES(v8_flags.minor_ms, !is_marking);
-  DCHECK_IMPLIES(is_marking, heap()->incremental_marking()->IsMajorMarking());
+  DCHECK(!heap()->incremental_marking()->IsMarking());
   size_t surviving_object_size = 0;
   PtrComprCageBase cage_base(heap()->isolate());
   for (auto it = begin(); it != end();) {
@@ -420,9 +431,6 @@ void NewLargeObjectSpace::FreeDeadObjects(
     Tagged<HeapObject> object = page->GetObject();
     if (is_dead(object)) {
       RemovePage(page);
-      if (v8_flags.concurrent_marking && is_marking) {
-        heap()->concurrent_marking()->ClearMemoryChunkData(page);
-      }
       heap()->memory_allocator()->Free(MemoryAllocator::FreeMode::kImmediately,
                                        page);
     } else {

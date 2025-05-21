@@ -241,7 +241,7 @@ call :getnodeversion || exit /b 1
 set NODE_MAJOR_VERSION=
 for /F "tokens=1 delims=." %%i in ("%NODE_VERSION%") do set "NODE_MAJOR_VERSION=%%i"
 if %NODE_MAJOR_VERSION% GEQ 24 (
-  echo Using ClangCL because the Node.js version being compiled is >= 24.
+  echo Using ClangCL because the Node.js version being compiled is ^>= 24.
   set clang_cl=1
 )
 

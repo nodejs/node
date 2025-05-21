@@ -44,6 +44,7 @@ cc_library(
     deps = [
         ":city",
         ":low_level_hash",
+        ":weakly_mixed_integer",
         "//absl/base:config",
         "//absl/base:core_headers",
         "//absl/base:endian",
@@ -86,6 +87,7 @@ cc_test(
         ":hash_testing",
         ":spy_hash_state",
         "//absl/base:config",
+        "//absl/container:flat_hash_map",
         "//absl/container:flat_hash_set",
         "//absl/memory",
         "//absl/meta:type_traits",
@@ -150,6 +152,7 @@ cc_library(
     visibility = ["//visibility:private"],
     deps = [
         ":hash",
+        ":weakly_mixed_integer",
         "//absl/strings",
         "//absl/strings:str_format",
     ],
@@ -195,6 +198,21 @@ cc_library(
         "//absl/base:endian",
         "//absl/base:prefetch",
         "//absl/numeric:int128",
+    ],
+)
+
+cc_library(
+    name = "weakly_mixed_integer",
+    hdrs = ["internal/weakly_mixed_integer.h"],
+    copts = ABSL_DEFAULT_COPTS,
+    linkopts = ABSL_DEFAULT_LINKOPTS,
+    visibility = [
+        "//absl/container:__pkg__",
+        "//absl/strings:__pkg__",
+        "//absl/types:__pkg__",
+    ],
+    deps = [
+        "//absl/base:config",
     ],
 )
 

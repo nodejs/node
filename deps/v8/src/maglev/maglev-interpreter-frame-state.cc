@@ -1096,9 +1096,13 @@ ValueNode* MergePointInterpreterFrameState::MergeValue(
         // happened to be true before allowing the loop to conclude in
         // `TryMergeLoop`. Some types which are known to cause issues are
         // generalized here.
-        NodeType initial_optimistic_type =
-            (unmerged_type == NodeType::kInternalizedString) ? NodeType::kString
-                                                             : unmerged_type;
+        NodeType initial_optimistic_type = unmerged_type;
+        if (!IsEmptyNodeType(CombineType(unmerged_type, NodeType::kString))) {
+          // Make sure we don't depend on something being an internalized string
+          // in particular, by making the type cover all String subtypes.
+          initial_optimistic_type =
+              IntersectType(unmerged_type, NodeType::kString);
+        }
         result->set_type(initial_optimistic_type);
       }
     } else {

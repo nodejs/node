@@ -1,6 +1,8 @@
 import { URL } from 'url'
 import Pool from './pool'
 import Dispatcher from './dispatcher'
+import TClientStats from './client-stats'
+import TPoolStats from './pool-stats'
 
 export default Agent
 
@@ -12,6 +14,8 @@ declare class Agent extends Dispatcher {
   destroyed: boolean
   /** Dispatches a request. */
   dispatch (options: Agent.DispatchOptions, handler: Dispatcher.DispatchHandler): boolean
+  /** Aggregate stats for a Agent by origin. */
+  readonly stats: Record<string, TClientStats | TPoolStats>
 }
 
 declare namespace Agent {

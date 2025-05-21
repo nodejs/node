@@ -70,7 +70,6 @@ class CipherBase : public BaseObject {
   bool MaybePassAuthTagToOpenSSL();
 
   static void New(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void InitIv(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Update(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Final(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void SetAutoPadding(const v8::FunctionCallbackInfo<v8::Value>& args);

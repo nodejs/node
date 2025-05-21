@@ -313,6 +313,15 @@ const tests = [
     flags: ['--test-reporter=tap', '--test-coverage-exclude=../output/**'],
     cwd: fixtures.path('test-runner/coverage-snap'),
   } : false,
+  process.features.inspector ? {
+    name: 'test-runner/output/typescript-coverage.mts',
+    flags: ['--disable-warning=ExperimentalWarning',
+            '--test-reporter=tap',
+            '--experimental-transform-types',
+            '--experimental-test-module-mocks',
+            '--experimental-test-coverage',
+            '--test-coverage-exclude=!test/**']
+  } : false,
 ]
 .filter(Boolean)
 .map(({ flags, name, tty, transform, cwd }) => ({

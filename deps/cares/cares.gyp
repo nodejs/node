@@ -248,6 +248,10 @@
               '-lnsl'
             ]
           }
+        }],
+        [ 'OS=="openharmony"', {
+          'include_dirs': [ 'config/openharmony' ],
+          'sources': [ 'config/openharmony/ares_config.h' ],
         }]
       ]
     }

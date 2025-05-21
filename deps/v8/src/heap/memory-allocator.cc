@@ -8,6 +8,7 @@
 #include <optional>
 
 #include "src/base/address-region.h"
+#include "src/base/macros.h"
 #include "src/common/globals.h"
 #include "src/execution/isolate.h"
 #include "src/flags/flags.h"
@@ -15,6 +16,7 @@
 #include "src/heap/gc-tracer.h"
 #include "src/heap/heap-inl.h"
 #include "src/heap/heap.h"
+#include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/page-pool.h"
@@ -81,26 +83,6 @@ size_t MemoryAllocator::GetTotalPooledChunksCount() {
 
 void MemoryAllocator::ReleasePooledChunksImmediately() {
   pool()->ReleaseImmediately(isolate_);
-}
-
-bool MemoryAllocator::CommitMemory(VirtualMemory* reservation,
-                                   Executability executable) {
-  Address base = reservation->address();
-  size_t size = reservation->size();
-  if (!reservation->SetPermissions(base, size, PageAllocator::kReadWrite)) {
-    return false;
-  }
-  UpdateAllocatedSpaceLimits(base, base + size, executable);
-  return true;
-}
-
-bool MemoryAllocator::UncommitMemory(VirtualMemory* reservation) {
-  size_t size = reservation->size();
-  if (!reservation->SetPermissions(reservation->address(), size,
-                                   PageAllocator::kNoAccess)) {
-    return false;
-  }
-  return true;
 }
 
 void MemoryAllocator::FreeMemoryRegion(v8::PageAllocator* page_allocator,
@@ -359,22 +341,25 @@ void MemoryAllocator::Free(MemoryAllocator::FreeMode mode,
                            MutablePageMetadata* chunk_metadata) {
   MemoryChunk* chunk = chunk_metadata->Chunk();
   RecordMemoryChunkDestroyed(chunk);
+  PreFreeMemory(chunk_metadata);
 
   switch (mode) {
     case FreeMode::kImmediately:
-      PreFreeMemory(chunk_metadata);
       PerformFreeMemory(chunk_metadata);
       break;
     case FreeMode::kPostpone:
-      PreFreeMemory(chunk_metadata);
       // Record page to be freed later.
       queued_pages_to_be_freed_.push_back(chunk_metadata);
       break;
     case FreeMode::kPool:
+      // Ensure that we only ever put pages with their markbits cleared into the
+      // pool. This is necessary because `PreFreeMemory` doesn't clear the
+      // marking bitmap and the marking bitmap is reused when this page is taken
+      // out of the pool again.
+      DCHECK(chunk_metadata->IsLivenessClear());
       DCHECK_EQ(chunk_metadata->size(),
                 static_cast<size_t>(MutablePageMetadata::kPageSize));
       DCHECK_EQ(chunk->executable(), NOT_EXECUTABLE);
-      PreFreeMemory(chunk_metadata);
       // The chunks added to this queue will be cached until memory reducing GC.
       pool()->Add(isolate_, chunk_metadata);
       break;
@@ -436,6 +421,7 @@ PageMetadata* MemoryAllocator::AllocatePage(
   if (chunk->executable()) RegisterExecutableMemoryChunk(metadata);
 #endif  // DEBUG
 
+  DCHECK(metadata->IsLivenessClear());
   space->InitializePage(metadata);
   RecordMemoryChunkCreated(chunk);
   return metadata;
@@ -504,6 +490,46 @@ LargePageMetadata* MemoryAllocator::AllocateLargePage(
 
   RecordMemoryChunkCreated(chunk);
   return metadata;
+}
+
+bool MemoryAllocator::ResizeLargePage(LargePageMetadata* page,
+                                      size_t old_object_size,
+                                      size_t new_object_size) {
+  const size_t old_reservation_size = page->reservation_.size();
+  const size_t old_page_end = page->reservation_.end();
+  const Address new_area_end = page->area_start() + new_object_size;
+  const Address new_page_end = RoundUp(new_area_end, GetCommitPageSize());
+  const size_t new_page_size = new_page_end - page->ChunkAddress();
+
+  if (old_page_end == new_page_end) {
+    // We were able to grow the object without growing its owning page.
+    page->set_area_end(new_area_end);
+    return true;
+  }
+
+  // Currently we only support growing.
+  DCHECK_LT(old_page_end, new_page_end);
+
+  if (!page->reservation_.Resize(page->ChunkAddress(), new_page_size,
+                                 PageAllocator::kReadWrite)) {
+    return false;
+  }
+
+  page->set_area_end(new_area_end);
+  page->set_size(new_page_size);
+
+#if DEBUG
+  AllocationSpace space = page->owner_identity();
+  DCHECK(space == NEW_LO_SPACE || space == LO_SPACE);
+#endif  // DEBUG
+
+  UpdateAllocatedSpaceLimits(page->ChunkAddress(), new_page_end,
+                             Executability::NOT_EXECUTABLE);
+
+  size_ -= old_reservation_size;
+  size_ += page->reservation_.size();
+
+  return true;
 }
 
 std::optional<MemoryAllocator::MemoryChunkAllocationResult>

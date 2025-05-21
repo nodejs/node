@@ -50,7 +50,8 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   // Initialize the array with the given capacity. The function may
   // fail due to out-of-memory situations, but only if the requested
   // capacity is non-zero.
-  V8_EXPORT_PRIVATE static void Initialize(DirectHandle<JSArray> array,
+  V8_EXPORT_PRIVATE static void Initialize(Isolate* isolate,
+                                           DirectHandle<JSArray> array,
                                            int capacity, int length = 0);
 
   // If the JSArray has fast elements, and new_length would result in
@@ -59,11 +60,12 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
   static inline bool SetLengthWouldNormalize(Heap* heap, uint32_t new_length);
 
   // Initializes the array to a certain length.
-  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(DirectHandle<JSArray> array,
+  V8_EXPORT_PRIVATE static Maybe<bool> SetLength(Isolate* isolate,
+                                                 DirectHandle<JSArray> array,
                                                  uint32_t length);
 
   // Set the content of the array to the content of storage.
-  static inline void SetContent(DirectHandle<JSArray> array,
+  static inline void SetContent(Isolate* isolate, DirectHandle<JSArray> array,
                                 DirectHandle<FixedArrayBase> storage);
 
   // ES6 9.4.2.1
@@ -143,7 +145,7 @@ class JSArray : public TorqueGeneratedJSArray<JSArray, JSObject> {
 
   static const int kInitialMaxFastElementArray =
       (kMaxRegularHeapObjectSize - sizeof(FixedArray) - kHeaderSize -
-       AllocationMemento::kSize) >>
+       sizeof(AllocationMemento)) >>
       kDoubleSizeLog2;
 
   TQ_OBJECT_CONSTRUCTORS(JSArray)

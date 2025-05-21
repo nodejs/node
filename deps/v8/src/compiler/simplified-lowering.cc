@@ -2435,6 +2435,24 @@ class RepresentationSelector {
         }
       } else {
         InsertUnreachableIfNecessary<T>(node);
+        if (node->op()->ValueOutputCount() > 0 &&
+            node->op()->ControlOutputCount() == 0 &&
+            node->opcode() != IrOpcode::kPhi &&
+            node->opcode() != IrOpcode::kStateValues &&
+            node->opcode() != IrOpcode::kFrameState) {
+          for (int i = 0; i < node->op()->ValueInputCount(); i++) {
+            Node* input = node->InputAt(i);
+            // If one of the node's inputs produces a None-type, we don't need
+            // to lower the node.
+            if (TypeOf(input).IsNone()) {
+              DeferReplacement(
+                  node, graph()->NewNode(common()->DeadValue(
+                                             GetInfo(node)->representation()),
+                                         input));
+              return;
+            }
+          }
+        }
       }
     }
 
@@ -2742,8 +2760,7 @@ class RepresentationSelector {
         } else if (lhs_type.Is(Type::Boolean()) &&
                    rhs_type.Is(Type::Boolean())) {
           VisitBinop<T>(node, UseInfo::Bool(), MachineRepresentation::kBit);
-          if (lower<T>())
-            ChangeToPureOp(node, lowering->machine()->Word32Equal());
+          if (lower<T>()) ChangeToPureOp(node, Int32Op(node));
           return;
         }
         // Try to use type feedback.

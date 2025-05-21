@@ -1265,3 +1265,12 @@ TEST(ArrayBufferView_GetContentsDetached) {
       "data_view";
   TestArrayBufferViewGetContent(source, nullptr);
 }
+
+TEST(ArrayBufferView_GetContentsOutOfBounds) {
+  const char* source =
+      "let ab = new ArrayBuffer(100, {maxByteLength: 200}); "
+      "let ta = new Uint8Array(ab, 2); "
+      "ab.resize(1); "
+      "ta";
+  TestArrayBufferViewGetContent(source, nullptr);
+}

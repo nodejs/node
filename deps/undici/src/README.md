@@ -261,12 +261,22 @@ const readableWebStream = response.body
 const readableNodeStream = Readable.fromWeb(readableWebStream)
 ```
 
-#### Specification Compliance
+## Specification Compliance
 
-This section documents parts of the [Fetch Standard](https://fetch.spec.whatwg.org) that Undici does
+This section documents parts of the [HTTP/1.1](https://www.rfc-editor.org/rfc/rfc9110.html) and [Fetch Standard](https://fetch.spec.whatwg.org) that Undici does
 not support or does not fully implement.
 
-##### Garbage Collection
+#### CORS
+
+Unlike browsers, Undici does not implement CORS (Cross-Origin Resource Sharing) checks by default. This means:
+
+- No preflight requests are automatically sent for cross-origin requests
+- No validation of `Access-Control-Allow-Origin` headers is performed
+- Requests to any origin are allowed regardless of the source
+
+This behavior is intentional for server-side environments where CORS restrictions are typically unnecessary. If your application requires CORS-like protections, you will need to implement these checks manually.
+
+#### Garbage Collection
 
 * https://fetch.spec.whatwg.org/#garbage-collection
 
@@ -307,7 +317,7 @@ const headers = await fetch(url, { method: 'HEAD' })
   .then(res => res.headers)
 ```
 
-##### Forbidden and Safelisted Header Names
+#### Forbidden and Safelisted Header Names
 
 * https://fetch.spec.whatwg.org/#cors-safelisted-response-header-name
 * https://fetch.spec.whatwg.org/#forbidden-header-name
@@ -316,7 +326,7 @@ const headers = await fetch(url, { method: 'HEAD' })
 
 The [Fetch Standard](https://fetch.spec.whatwg.org) requires implementations to exclude certain headers from requests and responses. In browser environments, some headers are forbidden so the user agent remains in full control over them. In Undici, these constraints are removed to give more control to the user.
 
-### `undici.upgrade([url, options]): Promise`
+#### `undici.upgrade([url, options]): Promise`
 
 Upgrade to a different protocol. See [MDN - HTTP - Protocol upgrade mechanism](https://developer.mozilla.org/en-US/docs/Web/HTTP/Protocol_upgrade_mechanism) for more details.
 
@@ -378,12 +388,7 @@ Returns: `URL`
 * **protocol** `string` (optional)
 * **search** `string` (optional)
 
-## Specification Compliance
-
-This section documents parts of the HTTP/1.1 specification that Undici does
-not support or does not fully implement.
-
-### Expect
+#### Expect
 
 Undici does not support the `Expect` request header field. The request
 body is  always immediately sent and the `100 Continue` response will be
@@ -391,7 +396,7 @@ ignored.
 
 Refs: https://tools.ietf.org/html/rfc7231#section-5.1.1
 
-### Pipelining
+#### Pipelining
 
 Undici will only use pipelining if configured with a `pipelining` factor
 greater than `1`. Also it is important to pass `blocking: false` to the
@@ -412,7 +417,7 @@ aborted.
 * Refs: https://tools.ietf.org/html/rfc2616#section-8.1.2.2
 * Refs: https://tools.ietf.org/html/rfc7230#section-6.3.2
 
-### Manual Redirect
+#### Manual Redirect
 
 Since it is not possible to manually follow an HTTP redirect on the server-side,
 Undici returns the actual response instead of an `opaqueredirect` filtered one
@@ -421,9 +426,9 @@ implementations in Deno and Cloudflare Workers.
 
 Refs: https://fetch.spec.whatwg.org/#atomic-http-redirect-handling
 
-## Workarounds
+### Workarounds
 
-### Network address family autoselection.
+#### Network address family autoselection.
 
 If you experience problem when connecting to a remote server that is resolved by your DNS servers to a IPv6 (AAAA record)
 first, there are chances that your local router or ISP might have problem connecting to IPv6 networks. In that case

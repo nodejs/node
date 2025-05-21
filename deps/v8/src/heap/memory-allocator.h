@@ -21,6 +21,7 @@
 #include "src/base/platform/semaphore.h"
 #include "src/common/globals.h"
 #include "src/heap/code-range.h"
+#include "src/heap/large-page-metadata.h"
 #include "src/heap/memory-chunk-metadata.h"
 #include "src/heap/mutable-page-metadata.h"
 #include "src/heap/spaces.h"
@@ -95,6 +96,9 @@ class MemoryAllocator {
 
   V8_EXPORT_PRIVATE LargePageMetadata* AllocateLargePage(
       LargeObjectSpace* space, size_t object_size, Executability executable);
+
+  bool ResizeLargePage(LargePageMetadata* page, size_t old_object_size,
+                       size_t new_object_size);
 
   ReadOnlyPageMetadata* AllocateReadOnlyPage(ReadOnlySpace* space,
                                              Address hint = kNullAddress);
@@ -262,19 +266,11 @@ class MemoryAllocator {
                                 Executability executable, void* hint,
                                 VirtualMemory* controller);
 
-  // Commit memory region owned by given reservation object.  Returns true if
-  // it succeeded and false otherwise.
-  bool CommitMemory(VirtualMemory* reservation, Executability executable);
-
   // Sets memory permissions on executable memory chunks. This entails page
   // header (RW), guard pages (no access) and the object area (code modification
   // permissions).
   V8_WARN_UNUSED_RESULT bool SetPermissionsOnExecutableMemoryChunk(
       VirtualMemory* vm, Address start, size_t reserved_size);
-
-  // Disallows any access on memory region owned by given reservation object.
-  // Returns true if it succeeded and false otherwise.
-  bool UncommitMemory(VirtualMemory* reservation);
 
   // Frees the given memory region.
   void FreeMemoryRegion(v8::PageAllocator* page_allocator, Address addr,

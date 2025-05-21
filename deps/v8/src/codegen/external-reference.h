@@ -116,6 +116,7 @@ enum class IsolateFieldId : uint8_t;
     "v8_flags.mock_arraybuffer_allocator")                                     \
   V(address_of_one_half, "LDoubleConstant::one_half")                          \
   V(address_of_runtime_stats_flag, "TracingFlags::runtime_stats")              \
+  V(address_of_script_context_cells_flag, "v8_flags.script_context_cells")     \
   V(address_of_shared_string_table_flag, "v8_flags.shared_string_table")       \
   V(address_of_the_hole_nan, "the_hole_nan")                                   \
   V(address_of_uint32_bias, "uint32_bias")                                     \
@@ -232,10 +233,6 @@ enum class IsolateFieldId : uint8_t;
   V(search_string_raw_two_two, "search_string_raw_two_two")                    \
   V(string_write_to_flat_one_byte, "string_write_to_flat_one_byte")            \
   V(string_write_to_flat_two_byte, "string_write_to_flat_two_byte")            \
-  V(script_context_mutable_heap_number_flag,                                   \
-    "v8_flags.script_context_mutable_heap_number")                             \
-  V(script_context_mutable_heap_int32_flag,                                    \
-    "v8_flags.script_context_mutable_heap_int32")                              \
   V(additive_safe_int_feedback_flag, "v8_flags.additive_safe_int_feedback")    \
   V(external_one_byte_string_get_chars, "external_one_byte_string_get_chars")  \
   V(external_two_byte_string_get_chars, "external_two_byte_string_get_chars")  \

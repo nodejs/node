@@ -712,9 +712,11 @@ void ResetStdio() {
       while (err == -1 && errno == EINTR);  // NOLINT
       CHECK_EQ(0, pthread_sigmask(SIG_UNBLOCK, &sa, nullptr));
 
-      // Normally we expect err == 0. But if macOS App Sandbox is enabled,
-      // tcsetattr will fail with err == -1 and errno == EPERM.
-      CHECK_IMPLIES(err != 0, err == -1 && errno == EPERM);
+      // We don't check the return value of tcsetattr() because it can fail
+      // for a number of reasons, none that we can do anything about. Examples:
+      // - if macOS App Sandbox is enabled, tcsetattr fails with EPERM
+      // - if the process group is orphaned, e.g. because the user logged out,
+      //   tcsetattr fails with EIO
     }
   }
 #endif  // __POSIX__
@@ -844,11 +846,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // Hence do not freeze flags when initializing V8. In a browser setting, this
   // is security relevant, for Node it's less important.
   V8::SetFlagsFromString("--no-freeze-flags-after-init");
-
-  // These features are completed and enabled by default in Chrome, but not
-  // in V8.
-  V8::SetFlagsFromString("--js-explicit-resource-management");
-  V8::SetFlagsFromString("--js-float16array");
 
 #if defined(NODE_V8_OPTIONS)
   // Should come before the call to V8::SetFlagsFromCommandLine()

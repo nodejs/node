@@ -130,9 +130,22 @@ Address StackMemory::Shrink() {
   return old_fp;
 }
 
+void StackMemory::ShrinkTo(Address stack_address) {
+  DCHECK_NOT_NULL(active_segment_);
+  while (active_segment_) {
+    if (stack_address <= active_segment_->base() &&
+        stack_address >= reinterpret_cast<Address>(active_segment_->limit_)) {
+      return;
+    }
+    Shrink();
+  }
+  UNREACHABLE();
+}
+
 void StackMemory::Reset() {
   active_segment_ = first_segment_;
   size_ = active_segment_->size_;
+  clear_stack_switch_info();
 }
 
 std::unique_ptr<StackMemory> StackPool::GetOrAllocate() {

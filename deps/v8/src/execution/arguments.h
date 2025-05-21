@@ -142,6 +142,7 @@ FullObjectSlot Arguments<T>::slot_from_address_at(int index, int offset) const {
   RUNTIME_ENTRY_WITH_RCS(Type, InternalType, Convert, Name)                \
   Type Name(int args_length, Address* args_object, Isolate* isolate) {     \
     DCHECK(isolate->context().is_null() || IsContext(isolate->context())); \
+    DCHECK(isolate->IsOnCentralStack());                                   \
     CLOBBER_DOUBLE_REGISTERS();                                            \
     TEST_AND_CALL_RCS(Name)                                                \
     RuntimeArguments args(args_length, args_object);                       \

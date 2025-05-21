@@ -12,7 +12,7 @@
 #include "include/v8-function.h"
 #include "include/v8-inspector.h"
 #include "include/v8-microtask-queue.h"
-#include "src/base/safe_conversions.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/debug/debug-interface.h"
 #include "src/inspector/crc32.h"
 #include "src/inspector/injected-script.h"
@@ -400,7 +400,8 @@ Response isValidPosition(protocol::Debugger::ScriptPosition* position) {
   return Response::Success();
 }
 
-Response isValidRangeOfPositions(std::vector<std::pair<int, int>>& positions) {
+Response isValidRangeOfPositions(
+    const std::vector<std::pair<int, int>>& positions) {
   for (size_t i = 1; i < positions.size(); ++i) {
     if (positions[i - 1].first < positions[i].first) continue;
     if (positions[i - 1].first == positions[i].first &&
@@ -1947,6 +1948,7 @@ void V8DebuggerAgentImpl::didParseSource(
     String16 scriptSource = script->source(0);
     script->setSourceURL(findSourceURL(scriptSource, false));
     script->setSourceMappingURL(findSourceMapURL(scriptSource, false));
+    script->setBuildId(findDebugId(scriptSource, false));
   }
 
   int contextId = script->executionContextId();
@@ -2400,7 +2402,7 @@ Response V8DebuggerAgentImpl::processSkipList(
 
   // Verify that the skipList is sorted, and that all ranges
   // are properly defined (start comes before end).
-  for (auto skipListPair : skipListInit) {
+  for (const auto& skipListPair : skipListInit) {
     Response res = isValidRangeOfPositions(skipListPair.second);
     if (res.IsError()) return res;
   }

@@ -3,6 +3,7 @@ const common = require('../common');
 if (!common.hasCrypto)
   common.skip('missing crypto');
 
+const { hasOpenSSL3 } = require('../common/crypto');
 const assert = require('assert');
 const util = require('util');
 const crypto = require('crypto');
@@ -140,4 +141,29 @@ test('dsa_public.pem', 'dsa_private.pem', 'sha256', false,
     ]).then(common.mustCall());
   })
   .catch(common.mustNotCall());
+}
+
+{
+  const untrustedKey = `-----BEGIN PUBLIC KEY-----
+MCowBQYDK2VuAyEA6pwGRbadNQAI/tYN8+/p/0/hbsdHfOEGr1ADiLVk/Gc=
+-----END PUBLIC KEY-----`;
+  const data = crypto.randomBytes(32);
+  const signature = crypto.randomBytes(16);
+
+  const expected = hasOpenSSL3 ? /operation not supported for this keytype/ : /no default digest/;
+
+  crypto.verify(undefined, data, untrustedKey, signature, common.mustCall((err) => {
+    assert.ok(err);
+    assert.match(err.message, expected);
+  }));
+}
+
+{
+  const { privateKey } = crypto.generateKeyPairSync('rsa', {
+    modulusLength: 512
+  });
+  crypto.sign('sha512', 'message', privateKey, common.mustCall((err) => {
+    assert.ok(err);
+    assert.match(err.message, /digest too big for rsa key/);
+  }));
 }

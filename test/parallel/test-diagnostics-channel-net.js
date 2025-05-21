@@ -1,5 +1,6 @@
 'use strict';
 const common = require('../common');
+const Countdown = require('../common/countdown');
 const assert = require('assert');
 const net = require('net');
 const dc = require('diagnostics_channel');
@@ -18,19 +19,23 @@ function testDiagnosticChannel(subscribers, test, after) {
 
 const testSuccessfulListen = common.mustCall(() => {
   let cb;
-  const server = net.createServer(common.mustCall((socket) => {
-    socket.destroy();
+  const netClientSocketCount = 3;
+  const countdown = new Countdown(netClientSocketCount, () => {
     server.close();
     cb();
-  }));
+  });
+  const server = net.createServer(common.mustCall((socket) => {
+    socket.destroy();
+    countdown.dec();
+  }, netClientSocketCount));
 
   dc.subscribe('net.client.socket', common.mustCall(({ socket }) => {
     assert.strictEqual(isNetSocket(socket), true);
-  }));
+  }, netClientSocketCount));
 
   dc.subscribe('net.server.socket', common.mustCall(({ socket }) => {
     assert.strictEqual(isNetSocket(socket), true);
-  }));
+  }, netClientSocketCount));
 
   testDiagnosticChannel(
     {
@@ -48,8 +53,13 @@ const testSuccessfulListen = common.mustCall(() => {
     common.mustCall((callback) => {
       cb = callback;
       server.listen({ port: 0, customOption: true }, () => {
+        // All supported ways of creating a net client socket connection.
         const { port } = server.address();
         net.connect(port);
+
+        net.createConnection(port);
+
+        new net.Socket().connect(port);
       });
     }),
     testFailingListen

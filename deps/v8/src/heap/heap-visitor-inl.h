@@ -176,6 +176,11 @@ size_t HeapVisitor<ConcreteVisitor>::Visit(Tagged<Map> map,
       return visitor->VisitJSApiObject(
           map, ConcreteVisitor::template Cast<JSObject>(object, heap_),
           maybe_object_size);
+    case kVisitCppHeapExternalObject:
+      return visitor->VisitCppHeapExternalObject(
+          map,
+          ConcreteVisitor::template Cast<CppHeapExternalObject>(object, heap_),
+          maybe_object_size);
     case kVisitStruct:
       return visitor->VisitStruct(map, object, maybe_object_size);
     case kVisitFiller:
@@ -297,6 +302,22 @@ size_t HeapVisitor<ConcreteVisitor>::VisitJSApiObject(
       ->template VisitJSObjectSubclass<
           JSObject, JSAPIObjectWithEmbedderSlots::BodyDescriptor>(
           map, object, maybe_object_size);
+}
+
+template <typename ConcreteVisitor>
+size_t HeapVisitor<ConcreteVisitor>::VisitCppHeapExternalObject(
+    Tagged<Map> map, Tagged<CppHeapExternalObject> object,
+    MaybeObjectSize maybe_object_size) {
+  ConcreteVisitor* visitor = static_cast<ConcreteVisitor*>(this);
+  const size_t size =
+      ConcreteVisitor::UsePrecomputedObjectSize()
+          ? maybe_object_size.AssumeSize()
+          : CppHeapExternalObject::BodyDescriptor::SizeOf(map, object);
+  visitor->template VisitMapPointerIfNeeded<
+      VisitorId::kVisitCppHeapExternalObject>(object);
+  CppHeapExternalObject::BodyDescriptor::IterateBody(
+      map, object, static_cast<int>(size), visitor);
+  return size;
 }
 
 template <typename ConcreteVisitor>

@@ -75,7 +75,6 @@
   V(serdes)                                                                    \
   V(signal_wrap)                                                               \
   V(spawn_sync)                                                                \
-  V(sqlite)                                                                    \
   V(stream_pipe)                                                               \
   V(stream_wrap)                                                               \
   V(string_decoder)                                                            \
@@ -95,7 +94,6 @@
   V(wasi)                                                                      \
   V(wasm_web_api)                                                              \
   V(watchdog)                                                                  \
-  V(webstorage)                                                                \
   V(worker)                                                                    \
   V(zlib)
 
@@ -105,7 +103,8 @@
   NODE_BUILTIN_ICU_BINDINGS(V)                                                 \
   NODE_BUILTIN_PROFILER_BINDINGS(V)                                            \
   NODE_BUILTIN_DEBUG_BINDINGS(V)                                               \
-  NODE_BUILTIN_QUIC_BINDINGS(V)
+  NODE_BUILTIN_QUIC_BINDINGS(V)                                                \
+  NODE_BUILTIN_SQLITE_BINDINGS(V)
 
 // This is used to load built-in bindings. Instead of using
 // __attribute__((constructor)), we call the _register_<modname>

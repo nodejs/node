@@ -1884,21 +1884,6 @@ bool ShouldRetryAsESM(Realm* realm,
   return false;
 }
 
-static void ShouldRetryAsESM(const FunctionCallbackInfo<Value>& args) {
-  Realm* realm = Realm::GetCurrent(args);
-
-  CHECK_EQ(args.Length(), 3);  // message, code, resource_name
-  CHECK(args[0]->IsString());
-  Local<String> message = args[0].As<String>();
-  CHECK(args[1]->IsString());
-  Local<String> code = args[1].As<String>();
-  CHECK(args[2]->IsString());
-  Local<String> resource_name = args[2].As<String>();
-
-  args.GetReturnValue().Set(
-      ShouldRetryAsESM(realm, message, code, resource_name));
-}
-
 static void ContainsModuleSyntax(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
   Local<Context> context = isolate->GetCurrentContext();
@@ -2003,7 +1988,6 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
             CompileFunctionForCJSLoader);
 
   SetMethod(isolate, target, "containsModuleSyntax", ContainsModuleSyntax);
-  SetMethod(isolate, target, "shouldRetryAsESM", ShouldRetryAsESM);
 }
 
 static void CreatePerContextProperties(Local<Object> target,
@@ -2049,7 +2033,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(WatchdogHasPendingSigint);
   registry->Register(MeasureMemory);
   registry->Register(ContainsModuleSyntax);
-  registry->Register(ShouldRetryAsESM);
 }
 }  // namespace contextify
 }  // namespace node

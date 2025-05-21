@@ -40,6 +40,7 @@ RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_all_descriptors,
 RELAXED_INT16_ACCESSORS(DescriptorArray, number_of_descriptors,
                         kNumberOfDescriptorsOffset)
 RELAXED_UINT32_ACCESSORS(DescriptorArray, raw_gc_state, kRawGcStateOffset)
+RELAXED_UINT32_ACCESSORS(DescriptorArray, flags, kFlagsOffset)
 
 inline int16_t DescriptorArray::number_of_slack_descriptors() const {
   return number_of_all_descriptors() - number_of_descriptors();
@@ -47,6 +48,25 @@ inline int16_t DescriptorArray::number_of_slack_descriptors() const {
 
 inline int DescriptorArray::number_of_entries() const {
   return number_of_descriptors();
+}
+
+DescriptorArray::FastIterableState DescriptorArray::fast_iterable() const {
+  return FastIterableBits::decode(flags(kRelaxedLoad));
+}
+
+void DescriptorArray::set_fast_iterable(FastIterableState value) {
+  uint32_t f = flags(kRelaxedLoad);
+  f = FastIterableBits::update(f, value);
+  set_flags(f, kRelaxedStore);
+}
+
+void DescriptorArray::set_fast_iterable_if(FastIterableState new_value,
+                                           FastIterableState if_value) {
+  uint32_t f = flags(kRelaxedLoad);
+  if (FastIterableBits::decode(f) == if_value) {
+    f = FastIterableBits::update(f, new_value);
+    set_flags(f, kRelaxedStore);
+  }
 }
 
 void DescriptorArray::CopyEnumCacheFrom(Tagged<DescriptorArray> array) {
@@ -211,6 +231,8 @@ void DescriptorArray::SetKey(InternalIndex descriptor_number,
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryKeyField::Relaxed_Store(*this, entry_offset, key);
   WRITE_BARRIER(*this, entry_offset + kEntryKeyOffset, key);
+  // Conservatively assume that the new key might break fast iteration.
+  set_fast_iterable(FastIterableState::kUnknown);
 }
 
 int DescriptorArray::GetSortedKeyIndex(int descriptor_number) {
@@ -275,6 +297,10 @@ void DescriptorArray::SetDetails(InternalIndex descriptor_number,
   DCHECK_LT(descriptor_number.as_int(), number_of_descriptors());
   int entry_offset = OffsetOfDescriptorAt(descriptor_number.as_int());
   EntryDetailsField::Relaxed_Store(*this, entry_offset, details.AsSmi());
+  // Note: fast_iteration depends on PropertyDetails::location().
+  // However we don't reset it here as all path either go through SetKey(),
+  // which invalidates fast_iteration, or don't change the location
+  // (GeneralizeAllFields()).
 }
 
 int DescriptorArray::GetFieldIndex(InternalIndex descriptor_number) {
@@ -301,12 +327,16 @@ void DescriptorArray::Set(InternalIndex descriptor_number, Tagged<Name> key,
   SetKey(descriptor_number, key);
   SetDetails(descriptor_number, details);
   SetValue(descriptor_number, value);
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 void DescriptorArray::Set(InternalIndex descriptor_number, Descriptor* desc) {
   Tagged<Name> key = *desc->GetKey();
   Tagged<MaybeObject> value = *desc->GetValue();
   Set(descriptor_number, key, value, desc->GetDetails());
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 }
 
 void DescriptorArray::Append(Descriptor* desc) {
@@ -330,6 +360,9 @@ void DescriptorArray::Append(Descriptor* desc) {
   }
 
   SetSortedKey(insertion, descriptor_number);
+
+  // Resetting the fast iterable state is bottlenecked in SetKey().
+  DCHECK_EQ(fast_iterable(), FastIterableState::kUnknown);
 
   if (V8_LIKELY(collision_hash != desc_hash)) return;
 

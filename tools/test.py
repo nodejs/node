@@ -602,12 +602,21 @@ class TestCase(object):
 
   def Run(self):
     try:
-      result = self.RunCommand(self.GetCommand(), {
+      run_configuration = self.GetRunConfiguration()
+      command = run_configuration['command']
+      envs = {}
+      if 'envs' in run_configuration:
+        envs.update(run_configuration['envs'])
+      envs.update({
         "TEST_SERIAL_ID": "%d" % self.serial_id,
         "TEST_THREAD_ID": "%d" % self.thread_id,
         "TEST_PARALLEL" : "%d" % self.parallel,
         "GITHUB_STEP_SUMMARY": "",
       })
+      result = self.RunCommand(
+        command,
+        envs
+      )
     finally:
       # Tests can leave the tty in non-blocking mode. If the test runner
       # tries to print to stdout/stderr after that and the tty buffer is
@@ -1619,6 +1628,9 @@ def get_asan_state(vm, context):
   asan = Execute([vm, '-p', 'process.config.variables.asan'], context).stdout.strip()
   return "on" if asan == "1" else "off"
 
+def get_pointer_compression_state(vm, context):
+  pointer_compression = Execute([vm, '-p', 'process.config.variables.v8_enable_pointer_compression'], context).stdout.strip()
+  return "on" if pointer_compression == "1" else "off"
 
 def Main():
   parser = BuildOptions()
@@ -1717,6 +1729,7 @@ def Main():
           'arch': vmArch,
           'type': get_env_type(vm, options.type, context),
           'asan': get_asan_state(vm, context),
+          'pointer_compression': get_pointer_compression_state(vm, context),
         }
         test_list = root.ListTests([], path, context, arch, mode)
         unclassified_tests += test_list

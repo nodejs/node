@@ -26,6 +26,11 @@ class BinaryOpAssembler : public CodeStubAssembler {
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
       UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
 
+  TNode<Object> Generate_AddLhsIsStringConstantInternalizeWithFeedback(
+      const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
+      TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,
+      UpdateFeedbackMode update_feedback_mode, bool rhs_known_smi);
+
   TNode<Object> Generate_SubtractWithFeedback(
       const LazyNode<Context>& context, TNode<Object> left, TNode<Object> right,
       TNode<UintPtrT> slot, const LazyNode<HeapObject>& maybe_feedback_vector,

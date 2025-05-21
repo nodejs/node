@@ -108,9 +108,10 @@ namespace internal {
   V(Cell)                                       \
   V(CompilationCacheTable)                      \
   V(ConsString)                                 \
-  V(ContextSidePropertyCell)                    \
   V(Context)                                    \
+  V(ContextCell)                                \
   V(CoverageInfo)                               \
+  V(CppHeapExternalObject)                      \
   V(DataHandler)                                \
   V(DeoptimizationData)                         \
   V(DependentCode)                              \
@@ -132,6 +133,7 @@ namespace internal {
   V(GcSafeCode)                                 \
   V(GlobalDictionary)                           \
   V(HeapNumber)                                 \
+  V(InterceptorInfo)                            \
   V(InternalizedString)                         \
   V(JSArgumentsObject)                          \
   V(JSArray)                                    \
@@ -236,6 +238,7 @@ namespace internal {
   V(SeqString)                                  \
   V(SeqTwoByteString)                           \
   V(SharedFunctionInfo)                         \
+  V(SimpleNameDictionary)                       \
   V(SimpleNumberDictionary)                     \
   V(SlicedString)                               \
   V(SmallOrderedHashMap)                        \
@@ -267,7 +270,6 @@ namespace internal {
   V(TurboshaftWord64SetType)                    \
   V(TurboshaftWord64Type)                       \
   IF_WASM(V, WasmArray)                         \
-  IF_WASM(V, WasmContinuationObject)            \
   IF_WASM(V, WasmExceptionPackage)              \
   IF_WASM(V, WasmFuncRef)                       \
   IF_WASM(V, WasmGlobalObject)                  \
@@ -279,6 +281,7 @@ namespace internal {
   IF_WASM(V, WasmObject)                        \
   IF_WASM(V, WasmResumeData)                    \
   IF_WASM(V, WasmStruct)                        \
+  IF_WASM(V, WasmDescriptorOptions)             \
   IF_WASM(V, WasmSuspenderObject)               \
   IF_WASM(V, WasmSuspendingObject)              \
   IF_WASM(V, WasmTableObject)                   \
@@ -410,11 +413,13 @@ namespace internal {
   V(CallableJSFunction)                      \
   V(CallableJSProxy)                         \
   V(CatchContext)                            \
+  V(CppHeapPointerWrapperObject)             \
   V(DebugEvaluateContext)                    \
   V(EvalContext)                             \
   V(FreeSpaceOrFiller)                       \
   V(FunctionContext)                         \
   V(JSApiObject)                             \
+  V(JSApiWrapperObject)                      \
   V(JSClassConstructor)                      \
   V(JSLastDummyApiObject)                    \
   V(JSPromiseConstructor)                    \

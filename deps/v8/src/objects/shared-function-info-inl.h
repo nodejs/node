@@ -528,11 +528,6 @@ void SharedFunctionInfo::DontAdaptArguments() {
   TorqueGeneratedClass::set_formal_parameter_count(kDontAdaptArgumentsSentinel);
 }
 
-bool SharedFunctionInfo::IsDontAdaptArguments() const {
-  return TorqueGeneratedClass::formal_parameter_count() ==
-         kDontAdaptArgumentsSentinel;
-}
-
 DEF_ACQUIRE_GETTER(SharedFunctionInfo, scope_info, Tagged<ScopeInfo>) {
   Tagged<Object> maybe_scope_info = name_or_scope_info(cage_base, kAcquireLoad);
   if (IsScopeInfo(maybe_scope_info, cage_base)) {
@@ -656,33 +651,74 @@ IsCompiledScope SharedFunctionInfo::is_compiled_scope(IsolateT* isolate) const {
 }
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
-                                 Isolate* isolate)
-    : is_compiled_(shared->is_compiled()) {
-  if (shared->HasBaselineCode()) {
-    retain_code_ = handle(shared->baseline_code(kAcquireLoad), isolate);
-  } else if (shared->HasBytecodeArray()) {
-    retain_code_ = handle(shared->GetBytecodeArray(isolate), isolate);
+                                 Isolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
+    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
+      DCHECK_EQ(code->kind(), CodeKind::BASELINE);
+      data = code->bytecode_or_interpreter_data();
+    }
+    // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
+    // there is DebugInfo, then it will hold both the debug and original
+    // BytecodeArray strongly, so it doesn't matter which of those we hold.
+    if (Tagged<BytecodeArray> bytecode;
+        TryCast<BytecodeArray>(data, &bytecode)) {
+      retain_code_ = handle(bytecode, isolate);
+      is_compiled_ = true;
+    } else if (Tagged<InterpreterData> interpreter_data;
+               TryCast<InterpreterData>(data, &interpreter_data)) {
+      retain_code_ = handle(interpreter_data->bytecode_array(), isolate);
+      is_compiled_ = true;
+    } else if (Is<UncompiledData>(data)) {
+      retain_code_ = {};
+      is_compiled_ = false;
+    } else {
+      retain_code_ = {};
+      is_compiled_ = shared->is_compiled();
+    }
   } else {
-    retain_code_ = MaybeHandle<HeapObject>();
+    retain_code_ = {};
+    is_compiled_ = shared->is_compiled();
   }
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
+  DCHECK_EQ(shared->is_compiled(), is_compiled());
 }
 
 IsCompiledScope::IsCompiledScope(const Tagged<SharedFunctionInfo> shared,
-                                 LocalIsolate* isolate)
-    : is_compiled_(shared->is_compiled()) {
-  if (shared->HasBaselineCode()) {
-    retain_code_ = isolate->heap()->NewPersistentHandle(
-        shared->baseline_code(kAcquireLoad));
-  } else if (shared->HasBytecodeArray()) {
-    retain_code_ =
-        isolate->heap()->NewPersistentHandle(shared->GetBytecodeArray(isolate));
+                                 LocalIsolate* isolate) {
+  Tagged<Object> data_obj = shared->GetTrustedData();
+  if (Tagged<HeapObject> data; TryCast<HeapObject>(data_obj, &data)) {
+    if (Tagged<Code> code; TryCast<Code>(data, &code)) {
+      DCHECK(code->kind() == CodeKind::BASELINE);
+      data = code->bytecode_or_interpreter_data();
+    }
+    // Unlike GetBytecodeArray, we don't bother checking for DebugInfo here. If
+    // there is DebugInfo, then it will hold both the debug and original
+    // BytecodeArray strongly, so it doesn't matter which of those we hold.
+    if (Tagged<BytecodeArray> bytecode;
+        TryCast<BytecodeArray>(data, &bytecode)) {
+      retain_code_ = isolate->heap()->NewPersistentHandle(bytecode);
+      is_compiled_ = true;
+    } else if (Tagged<InterpreterData> interpreter_data;
+               TryCast<InterpreterData>(data, &interpreter_data)) {
+      retain_code_ = isolate->heap()->NewPersistentHandle(
+          interpreter_data->bytecode_array());
+      is_compiled_ = true;
+    } else if (Is<UncompiledData>(data)) {
+      retain_code_ = {};
+      is_compiled_ = false;
+    } else {
+      retain_code_ = {};
+      is_compiled_ = shared->is_compiled();
+    }
   } else {
-    retain_code_ = MaybeHandle<HeapObject>();
+    retain_code_ = {};
+    is_compiled_ = shared->is_compiled();
   }
 
   DCHECK_IMPLIES(!retain_code_.is_null(), is_compiled());
+  DCHECK_EQ(shared->is_compiled(), is_compiled());
 }
 
 bool SharedFunctionInfo::has_simple_parameters() {

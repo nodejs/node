@@ -203,40 +203,34 @@ static size_t keep_buflen_in_range(size_t len) {
   return len;
 }
 
-size_t StringBytes::WriteUCS2(
-    Isolate* isolate, char* buf, size_t buflen, Local<String> str, int flags) {
+size_t StringBytes::WriteUCS2(Isolate* isolate,
+                              char* buf,
+                              size_t buflen,
+                              Local<String> str) {
   uint16_t* const dst = reinterpret_cast<uint16_t*>(buf);
 
-  size_t max_chars = buflen / sizeof(*dst);
-  if (max_chars == 0) {
+  const size_t max_chars = buflen / sizeof(*dst);
+  const size_t nchars = std::min(max_chars, static_cast<size_t>(str->Length()));
+  if (nchars == 0) {
     return 0;
   }
 
   uint16_t* const aligned_dst = nbytes::AlignUp(dst, sizeof(*dst));
-  size_t nchars;
-  if (aligned_dst == dst) {
-    nchars = str->Write(isolate, dst, 0, max_chars, flags);
-    return nchars * sizeof(*dst);
-  }
-
   CHECK_EQ(reinterpret_cast<uintptr_t>(aligned_dst) % sizeof(*dst), 0);
+  if (aligned_dst == dst) {
+    str->WriteV2(isolate, 0, nchars, dst);
+  } else {
+    // Write all but the last char.
+    str->WriteV2(isolate, 0, nchars - 1, aligned_dst);
 
-  // Write all but the last char
-  max_chars = std::min(max_chars, static_cast<size_t>(str->Length()));
-  if (max_chars == 0) {
-    return 0;
+    // Shift everything to unaligned-left.
+    memmove(dst, aligned_dst, (nchars - 1) * sizeof(*dst));
+
+    // One more char to be written.
+    uint16_t last;
+    str->WriteV2(isolate, nchars - 1, 1, &last);
+    memcpy(dst + nchars - 1, &last, sizeof(last));
   }
-  nchars = str->Write(isolate, aligned_dst, 0, max_chars - 1, flags);
-  CHECK_EQ(nchars, max_chars - 1);
-
-  // Shift everything to unaligned-left
-  memmove(dst, aligned_dst, nchars * sizeof(*dst));
-
-  // One more char to be written
-  uint16_t last;
-  CHECK_EQ(str->Write(isolate, &last, nchars, 1, flags), 1);
-  memcpy(buf + nchars * sizeof(*dst), &last, sizeof(last));
-  nchars++;
 
   return nchars * sizeof(*dst);
 }
@@ -253,10 +247,6 @@ size_t StringBytes::Write(Isolate* isolate,
   Local<String> str = val.As<String>();
   String::ValueView input_view(isolate, str);
 
-  int flags = String::HINT_MANY_WRITES_EXPECTED |
-              String::NO_NULL_TERMINATION |
-              String::REPLACE_INVALID_UTF8;
-
   switch (encoding) {
     case ASCII:
     case LATIN1:
@@ -265,6 +255,9 @@ size_t StringBytes::Write(Isolate* isolate,
         memcpy(buf, input_view.data8(), nbytes);
       } else {
         uint8_t* const dst = reinterpret_cast<uint8_t*>(buf);
+        const int flags = String::HINT_MANY_WRITES_EXPECTED |
+                          String::NO_NULL_TERMINATION |
+                          String::REPLACE_INVALID_UTF8;
         nbytes = str->WriteOneByte(isolate, dst, 0, buflen, flags);
       }
       break;
@@ -276,7 +269,7 @@ size_t StringBytes::Write(Isolate* isolate,
       break;
 
     case UCS2: {
-      nbytes = WriteUCS2(isolate, buf, buflen, str, flags);
+      nbytes = WriteUCS2(isolate, buf, buflen, str);
 
       // Node's "ucs2" encoding wants LE character data stored in
       // the Buffer, so we need to reorder on BE platforms.  See

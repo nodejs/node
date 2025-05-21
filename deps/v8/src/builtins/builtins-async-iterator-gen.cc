@@ -150,8 +150,8 @@ void AsyncFromSyncBuiltinsAssembler::Generate_AsyncFromSyncIteratorMethod(
       LoadIteratorResult(context, native_context, iter_result.value(),
                          &maybe_close_sync_then_reject_promise, &var_exception);
 
-  const TNode<JSFunction> promise_fun =
-      CAST(LoadContextElement(native_context, Context::PROMISE_FUNCTION_INDEX));
+  const TNode<JSFunction> promise_fun = CAST(LoadContextElementNoCell(
+      native_context, Context::PROMISE_FUNCTION_INDEX));
   CSA_DCHECK(this, IsConstructor(promise_fun));
 
   // 6. Let valueWrapper be PromiseResolve(%Promise%, « value »).
@@ -233,8 +233,8 @@ AsyncFromSyncBuiltinsAssembler::LoadIteratorResult(
   const TNode<Map> iter_result_map = LoadMap(CAST(iter_result));
   GotoIfNot(JSAnyIsNotPrimitiveMap(iter_result_map), &if_notanobject);
 
-  const TNode<Object> fast_iter_result_map =
-      LoadContextElement(native_context, Context::ITERATOR_RESULT_MAP_INDEX);
+  const TNode<Object> fast_iter_result_map = LoadContextElementNoCell(
+      native_context, Context::ITERATOR_RESULT_MAP_INDEX);
 
   TVARIABLE(Object, var_value);
   TVARIABLE(Object, var_done);
@@ -442,7 +442,7 @@ TF_BUILTIN(AsyncFromSyncIteratorCloseSyncAndRethrow,
   auto error = Parameter<Object>(Descriptor::kError);
   auto context = Parameter<Context>(Descriptor::kContext);
 
-  const TNode<JSReceiver> sync_iterator = CAST(LoadContextElement(
+  const TNode<JSReceiver> sync_iterator = CAST(LoadContextElementNoCell(
       context, AsyncFromSyncIteratorCloseSyncAndRethrowContext::kSyncIterator));
   // iterator.next field is not used by IteratorCloseOnException.
   TorqueStructIteratorRecord sync_iterator_record = {sync_iterator, {}};

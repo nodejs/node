@@ -203,7 +203,7 @@ std::optional<int> InspectorIsolateData::ConnectSession(
   // inspector will already send notifications.
   auto* c = channel.get();
   ChannelHolder::AddChannel(session_id, std::move(channel));
-  sessions_[session_id] = inspector_->connect(
+  sessions_[session_id] = inspector_->connectShared(
       context_group_id, c, state,
       is_fully_trusted ? v8_inspector::V8Inspector::kFullyTrusted
                        : v8_inspector::V8Inspector::kUntrusted,

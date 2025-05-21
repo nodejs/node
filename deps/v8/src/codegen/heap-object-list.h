@@ -74,6 +74,7 @@
     EmptySwissPropertyDictionary)                                            \
   V(EmptySlowElementDictionary, empty_slow_element_dictionary,               \
     EmptySlowElementDictionary)                                              \
+  V(EmptyWeakArrayList, empty_weak_array_list, EmptyWeakArrayList)           \
   V(empty_string, empty_string, EmptyString)                                 \
   V(error_to_string, error_to_string, ErrorToString)                         \
   V(error_string, error_string, ErrorString)                                 \
@@ -135,8 +136,6 @@
   V(resolve_string, resolve_string, ResolveString)                           \
   V(return_string, return_string, ReturnString)                              \
   V(search_symbol, search_symbol, SearchSymbol)                              \
-  V(SingleCharacterStringTable, single_character_string_table,               \
-    SingleCharacterStringTable)                                              \
   V(size_string, size_string, SizeString)                                    \
   V(species_symbol, species_symbol, SpeciesSymbol)                           \
   V(StaleRegister, stale_register, StaleRegister)                            \

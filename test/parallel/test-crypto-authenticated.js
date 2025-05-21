@@ -245,7 +245,7 @@ for (const test of TEST_CASES) {
   assert.strictEqual(text.toString('utf8'), 'node');
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM and an invalid
+// Test that create(De|C)ipheriv throws if the mode is CCM and an invalid
 // authentication tag length has been specified.
 {
   for (const authTagLength of [-1, true, false, NaN, 5.5]) {
@@ -303,8 +303,8 @@ for (const test of TEST_CASES) {
   }
 }
 
-// Test that create(De|C)ipher(iv)? throws if the mode is CCM or OCB and no
-// authentication tag has been specified.
+// Test that create(De|C)ipheriv throws if the mode is CCM or OCB and no
+// authentication tag length has been specified.
 {
   for (const mode of ['ccm', 'ocb']) {
     assert.throws(() => {
@@ -315,8 +315,8 @@ for (const test of TEST_CASES) {
       message: `authTagLength required for aes-256-${mode}`
     });
 
-    // CCM decryption and create(De|C)ipher are unsupported in FIPS mode.
-    if (!isFipsEnabled) {
+    // CCM decryption is unsupported in FIPS mode.
+    if (!isFipsEnabled || mode !== 'ccm') {
       assert.throws(() => {
         crypto.createDecipheriv(`aes-256-${mode}`,
                                 'FxLKsqdmv0E9xrQhp0b1ZgI0K7JFZJM8',
@@ -448,22 +448,22 @@ for (const test of TEST_CASES) {
 }
 
 // Test that the authentication tag can be set at any point before calling
-// final() in GCM or OCB mode.
+// final() in GCM mode, OCB mode, and for ChaCha20-Poly1305.
 {
   const plain = Buffer.from('Hello world', 'utf8');
-  const key = Buffer.from('0123456789abcdef', 'utf8');
+  const key = Buffer.from('0123456789abcdefghijklmnopqrstuv', 'utf8');
   const iv = Buffer.from('0123456789ab', 'utf8');
 
-  for (const mode of ['gcm', 'ocb']) {
-    for (const authTagLength of mode === 'gcm' ? [undefined, 8] : [8]) {
-      const cipher = crypto.createCipheriv(`aes-128-${mode}`, key, iv, {
+  for (const alg of ['aes-256-gcm', 'aes-256-ocb', 'chacha20-poly1305']) {
+    for (const authTagLength of alg === 'aes-256-gcm' ? [undefined, 8] : [8]) {
+      const cipher = crypto.createCipheriv(alg, key, iv, {
         authTagLength
       });
       const ciphertext = Buffer.concat([cipher.update(plain), cipher.final()]);
       const authTag = cipher.getAuthTag();
 
       for (const authTagBeforeUpdate of [true, false]) {
-        const decipher = crypto.createDecipheriv(`aes-128-${mode}`, key, iv, {
+        const decipher = crypto.createDecipheriv(alg, key, iv, {
           authTagLength
         });
         if (authTagBeforeUpdate) {
@@ -561,17 +561,14 @@ for (const test of TEST_CASES) {
   const iv = Buffer.alloc(12);
   const opts = { authTagLength: 10 };
 
-  for (const cipher of [
-    crypto.createCipheriv(algo, key, iv, opts),
-  ]) {
-    assert.throws(() => {
-      cipher.final();
-    }, hasOpenSSL3 ? {
-      code: 'ERR_OSSL_TAG_NOT_SET'
-    } : {
-      message: /Unsupported state/
-    });
-  }
+  const cipher = crypto.createCipheriv(algo, key, iv, opts);
+  assert.throws(() => {
+    cipher.final();
+  }, hasOpenSSL3 ? {
+    code: 'ERR_OSSL_TAG_NOT_SET'
+  } : {
+    message: /Unsupported state/
+  });
 }
 
 {

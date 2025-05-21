@@ -113,10 +113,10 @@ Maybe<void> ScryptTraits::AdditionalConfig(
   return JustVoid();
 }
 
-bool ScryptTraits::DeriveBits(
-    Environment* env,
-    const ScryptConfig& params,
-    ByteSource* out) {
+bool ScryptTraits::DeriveBits(Environment* env,
+                              const ScryptConfig& params,
+                              ByteSource* out,
+                              CryptoJobMode mode) {
   // If the params.length is zero-length, just return an empty buffer.
   // It's useless, yes, but allowed via the API.
   if (params.length == 0) {

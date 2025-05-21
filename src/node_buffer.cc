@@ -742,7 +742,7 @@ uint32_t FastByteLengthUtf8(
   Local<String> sourceStr = sourceValue.As<String>();
 
   if (!sourceStr->IsExternalOneByte()) {
-    return sourceStr->Utf8Length(isolate);
+    return sourceStr->Utf8LengthV2(isolate);
   }
   auto source = sourceStr->GetExternalOneByteStringResource();
   // For short inputs, the function call overhead to simdutf is maybe
@@ -1452,9 +1452,9 @@ uint32_t WriteOneByteString(const char* src,
     return 0;
   }
 
-  if (encoding == UTF8) {
+  if constexpr (encoding == UTF8) {
     return simdutf::convert_latin1_to_utf8_safe(src, src_len, dst, dst_len);
-  } else if (encoding == LATIN1 || encoding == ASCII) {
+  } else if constexpr (encoding == LATIN1 || encoding == ASCII) {
     const auto size = std::min(src_len, dst_len);
     memcpy(dst, src, size);
     return size;

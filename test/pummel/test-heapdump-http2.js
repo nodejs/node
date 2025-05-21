@@ -48,10 +48,9 @@ server.listen(0, () => {
       { node_name: 'TCP', edge_name: 'native_to_javascript' },
     ]);
 
-    // `Node / StreamPipe` (C++) -> StreamPipe (JS)
-    validateByRetainingPathFromNodes(nodes, 'Node / StreamPipe', [
-      { node_name: 'StreamPipe', edge_name: 'native_to_javascript' },
-    ]);
+    // We don't necessarily have Node / StreamPipe here because by the time the
+    // response event is emitted, the file may have already been fully piped here
+    // and the stream pipe may have been destroyed.
 
     // `Node / Http2Session` (C++) -> Http2Session (JS)
     const sessions = validateByRetainingPathFromNodes(nodes, 'Node / Http2Session', []);

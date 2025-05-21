@@ -127,9 +127,10 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
 
 #if !HAVE_OPENSSL
         "crypto", "crypto/promises", "https", "http2", "tls", "_tls_common",
-        "_tls_wrap", "internal/tls/parse-cert-string",
-        "internal/tls/secure-context", "internal/http2/core",
-        "internal/http2/compat", "internal/streams/lazy_transform",
+        "_tls_wrap", "internal/tls/parse-cert-string", "internal/tls/common",
+        "internal/tls/wrap", "internal/tls/secure-context",
+        "internal/http2/core", "internal/http2/compat",
+        "internal/streams/lazy_transform",
 #endif           // !HAVE_OPENSSL
 #if !NODE_OPENSSL_HAS_QUIC
         "internal/quic/quic", "internal/quic/symbols", "internal/quic/stats",
@@ -139,6 +140,9 @@ BuiltinLoader::BuiltinCategories BuiltinLoader::GetBuiltinCategories() const {
         "sqlite",  // Experimental.
         "sys",     // Deprecated.
         "wasi",    // Experimental.
+#if !HAVE_SQLITE
+        "internal/webstorage",  // Experimental.
+#endif
         "internal/test/binding", "internal/v8_prof_polyfill",
         "internal/v8_prof_processor",
   };
@@ -686,8 +690,8 @@ void BuiltinLoader::CompileFunction(const FunctionCallbackInfo<Value>& args) {
 void BuiltinLoader::HasCachedBuiltins(const FunctionCallbackInfo<Value>& args) {
   auto instance = Environment::GetCurrent(args)->builtin_loader();
   RwLock::ScopedReadLock lock(instance->code_cache_->mutex);
-  args.GetReturnValue().Set(Boolean::New(
-      args.GetIsolate(), instance->code_cache_->has_code_cache));
+  args.GetReturnValue().Set(
+      Boolean::New(args.GetIsolate(), instance->code_cache_->has_code_cache));
 }
 
 void SetInternalLoaders(const FunctionCallbackInfo<Value>& args) {

@@ -23,9 +23,6 @@ const BABYLON_RELAXED_SUPER_OPTIONS = Object.assign(
     {}, sourceHelpers.BABYLON_OPTIONS);
 BABYLON_RELAXED_SUPER_OPTIONS['allowSuperOutsideMethod'] = true;
 
-// Drop desired try-catch wrapping only with a small probability.
-const WRAP_TC_IF_NEEDED_PROB = 0.8;
-
 /**
  * Check if a snippet containing `super` can be inserted at `path`
  * without creating a syntax error.
@@ -57,28 +54,6 @@ function validateSuper(path, source) {
   const surroundingClass = surroundingMethod.findParent(x => x.isClass());
   return surroundingClass && surroundingClass.node.superClass &&
          (!call || surroundingMethod.node.kind == 'constructor');
-}
-
-/**
- * Checks if the expression contains a member expression with an identifier.
- *
- * These get extra try-catch wrapping as such accesses are often wrong out of
- * context. The try-catch mutator doesn't always wrap all expressions.
- */
-function needsTryCatch(source) {
-  const ast = babylon.parse(source, BABYLON_RELAXED_SUPER_OPTIONS);
-
-  // TODO(389069288): We could precalculate this and store it in the DB
-  // together with the snippets.
-  let member = false;
-  babelTraverse(ast, {
-    MemberExpression(path) {
-      if (babelTypes.isIdentifier(path.node.property)) {
-        member = true;
-      }
-    },
-  });
-  return member;
 }
 
 class CrossOverMutator extends mutator.Mutator {
@@ -129,8 +104,7 @@ class CrossOverMutator extends mutator.Mutator {
       return undefined;
     }
 
-    if (random.choose(WRAP_TC_IF_NEEDED_PROB) &&
-        needsTryCatch(expression.source)) {
+    if (expression.needsTryCatch) {
       toInsert = tryCatch.wrapTryCatch(toInsert);
     }
 

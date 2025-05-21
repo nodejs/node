@@ -227,19 +227,21 @@ BUILTIN(DatePrototypeSetDate) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setDate");
   DirectHandle<Object> value = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToNumber(isolate, value));
-  double time_val = date->value();
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, month, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-    time_val = MakeDate(MakeDay(year, month, Object::NumberValue(*value)),
-                        time_within_day);
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int time_within_day = isolate->date_cache()->TimeInDay(local_time_ms, days);
+  int year, month, day;
+  isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
+  time_val = MakeDate(MakeDay(year, month, Object::NumberValue(*value)),
+                      time_within_day);
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -288,10 +290,10 @@ BUILTIN(DatePrototypeSetHours) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setHours");
   int const argc = args.length() - 1;
   DirectHandle<Object> hour = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
   double const h = Object::NumberValue(*hour);
-  double time_val = date->value();
   std::optional<double> m;
   std::optional<double> s;
   std::optional<double> milli;
@@ -315,17 +317,19 @@ BUILTIN(DatePrototypeSetHours) {
     }
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int const time_within_day =
-        isolate->date_cache()->TimeInDay(local_time_ms, day);
-    time_val = MakeDate(
-        day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
-                      s.value_or((time_within_day / 1000) % 60),
-                      milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int const time_within_day =
+      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  time_val = MakeDate(
+      day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
+                    s.value_or((time_within_day / 1000) % 60),
+                    milli.value_or(time_within_day % 1000)));
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -334,20 +338,22 @@ BUILTIN(DatePrototypeSetMilliseconds) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setMilliseconds");
   DirectHandle<Object> ms = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
                                      Object::ToNumber(isolate, ms));
-  double time_val = date->value();
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int const time_within_day =
-        isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    int const m = (time_within_day / (60 * 1000)) % 60;
-    int const s = (time_within_day / 1000) % 60;
-    time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int const time_within_day =
+      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  int const m = (time_within_day / (60 * 1000)) % 60;
+  int const s = (time_within_day / 1000) % 60;
+  time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
+
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -357,9 +363,9 @@ BUILTIN(DatePrototypeSetMinutes) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setMinutes");
   int const argc = args.length() - 1;
   DirectHandle<Object> min = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
-  double time_val = date->value();
   std::optional<double> s;
   std::optional<double> milli;
 
@@ -376,18 +382,20 @@ BUILTIN(DatePrototypeSetMinutes) {
     }
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int const time_within_day =
-        isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    double const m = Object::NumberValue(*min);
-    time_val =
-        MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
-                               milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int const time_within_day =
+      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  double const m = Object::NumberValue(*min);
+  time_val =
+      MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
+                             milli.value_or(time_within_day % 1000)));
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -397,9 +405,9 @@ BUILTIN(DatePrototypeSetMonth) {
   CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setMonth");
   int const argc = args.length() - 1;
   DirectHandle<Object> month = args.atOrUndefined(isolate, 1);
+  double time_val = this_date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = this_date->value();
   std::optional<double> dt;
 
   if (argc >= 2) {
@@ -409,17 +417,20 @@ BUILTIN(DatePrototypeSetMonth) {
     dt = Object::NumberValue(*date);
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int const time_within_day =
-        isolate->date_cache()->TimeInDay(local_time_ms, days);
-    int year, unused, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
-    double const m = Object::NumberValue(*month);
-    time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const days = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int const time_within_day =
+      isolate->date_cache()->TimeInDay(local_time_ms, days);
+  int year, unused, day;
+  isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
+  double const m = Object::NumberValue(*month);
+  time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
+
   return SetLocalDateValue(isolate, this_date, time_val);
 }
 
@@ -429,9 +440,9 @@ BUILTIN(DatePrototypeSetSeconds) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setSeconds");
   int const argc = args.length() - 1;
   DirectHandle<Object> sec = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
-  double time_val = date->value();
   std::optional<double> milli;
 
   if (argc >= 2) {
@@ -441,18 +452,20 @@ BUILTIN(DatePrototypeSetSeconds) {
     milli = Object::NumberValue(*ms);
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
-    int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
-    int const time_within_day =
-        isolate->date_cache()->TimeInDay(local_time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    double const m = (time_within_day / (60 * 1000)) % 60;
-    double const s = Object::NumberValue(*sec);
-    time_val = MakeDate(
-        day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int64_t const local_time_ms = isolate->date_cache()->ToLocal(time_ms);
+  int const day = isolate->date_cache()->DaysFromTime(local_time_ms);
+  int const time_within_day =
+      isolate->date_cache()->TimeInDay(local_time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  double const m = (time_within_day / (60 * 1000)) % 60;
+  double const s = Object::NumberValue(*sec);
+  time_val =
+      MakeDate(day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
   return SetLocalDateValue(isolate, date, time_val);
 }
 
@@ -488,16 +501,20 @@ BUILTIN(DatePrototypeSetUTCDate) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCDate");
   DirectHandle<Object> value = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, value,
                                      Object::ToNumber(isolate, value));
-  if (std::isnan(date->value())) return ReadOnlyRoots(isolate).nan_value();
-  int64_t const time_ms = static_cast<int64_t>(date->value());
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
+  }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
   int const days = isolate->date_cache()->DaysFromTime(time_ms);
   int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
   int year, month, day;
   isolate->date_cache()->YearMonthDayFromDays(days, &year, &month, &day);
-  double const time_val = MakeDate(
-      MakeDay(year, month, Object::NumberValue(*value)), time_within_day);
+  time_val = MakeDate(MakeDay(year, month, Object::NumberValue(*value)),
+                      time_within_day);
   return SetDateValue(isolate, date, time_val);
 }
 
@@ -545,6 +562,7 @@ BUILTIN(DatePrototypeSetUTCHours) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCHours");
   int const argc = args.length() - 1;
   DirectHandle<Object> hour = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, hour,
                                      Object::ToNumber(isolate, hour));
   double const h = Object::NumberValue(*hour);
@@ -571,16 +589,17 @@ BUILTIN(DatePrototypeSetUTCHours) {
     }
   }
 
-  double time_val = date->value();
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int const day = isolate->date_cache()->DaysFromTime(time_ms);
-    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    time_val = MakeDate(
-        day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
-                      s.value_or((time_within_day / 1000) % 60),
-                      milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int const day = isolate->date_cache()->DaysFromTime(time_ms);
+  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  time_val = MakeDate(
+      day, MakeTime(h, m.value_or((time_within_day / (60 * 1000)) % 60),
+                    s.value_or((time_within_day / 1000) % 60),
+                    milli.value_or(time_within_day % 1000)));
   return SetDateValue(isolate, date, time_val);
 }
 
@@ -589,18 +608,21 @@ BUILTIN(DatePrototypeSetUTCMilliseconds) {
   HandleScope scope(isolate);
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCMilliseconds");
   DirectHandle<Object> ms = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, ms,
                                      Object::ToNumber(isolate, ms));
-  double time_val = date->value();
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int const day = isolate->date_cache()->DaysFromTime(time_ms);
-    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    int const m = (time_within_day / (60 * 1000)) % 60;
-    int const s = (time_within_day / 1000) % 60;
-    time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int const day = isolate->date_cache()->DaysFromTime(time_ms);
+  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  int const m = (time_within_day / (60 * 1000)) % 60;
+  int const s = (time_within_day / 1000) % 60;
+  time_val = MakeDate(day, MakeTime(h, m, s, Object::NumberValue(*ms)));
+
   return SetDateValue(isolate, date, time_val);
 }
 
@@ -610,9 +632,9 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCMinutes");
   int const argc = args.length() - 1;
   DirectHandle<Object> min = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, min,
                                      Object::ToNumber(isolate, min));
-  double time_val = date->value();
   std::optional<double> s;
   std::optional<double> milli;
 
@@ -629,16 +651,18 @@ BUILTIN(DatePrototypeSetUTCMinutes) {
     }
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int const day = isolate->date_cache()->DaysFromTime(time_ms);
-    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    double const m = Object::NumberValue(*min);
-    time_val =
-        MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
-                               milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int const day = isolate->date_cache()->DaysFromTime(time_ms);
+  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  double const m = Object::NumberValue(*min);
+  time_val =
+      MakeDate(day, MakeTime(h, m, s.value_or((time_within_day / 1000) % 60),
+                             milli.value_or(time_within_day % 1000)));
   return SetDateValue(isolate, date, time_val);
 }
 
@@ -648,9 +672,9 @@ BUILTIN(DatePrototypeSetUTCMonth) {
   CHECK_RECEIVER(JSDate, this_date, "Date.prototype.setUTCMonth");
   int const argc = args.length() - 1;
   DirectHandle<Object> month = args.atOrUndefined(isolate, 1);
+  double time_val = this_date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, month,
                                      Object::ToNumber(isolate, month));
-  double time_val = this_date->value();
   std::optional<double> dt;
   if (argc >= 2) {
     DirectHandle<Object> date = args.at(2);
@@ -659,15 +683,18 @@ BUILTIN(DatePrototypeSetUTCMonth) {
     dt = Object::NumberValue(*date);
   }
 
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int const days = isolate->date_cache()->DaysFromTime(time_ms);
-    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
-    int year, unused, day;
-    isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
-    double const m = Object::NumberValue(*month);
-    time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int const days = isolate->date_cache()->DaysFromTime(time_ms);
+  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, days);
+  int year, unused, day;
+  isolate->date_cache()->YearMonthDayFromDays(days, &year, &unused, &day);
+  double const m = Object::NumberValue(*month);
+  time_val = MakeDate(MakeDay(year, m, dt.value_or(day)), time_within_day);
+
   return SetDateValue(isolate, this_date, time_val);
 }
 
@@ -677,9 +704,9 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
   CHECK_RECEIVER(JSDate, date, "Date.prototype.setUTCSeconds");
   int const argc = args.length() - 1;
   DirectHandle<Object> sec = args.atOrUndefined(isolate, 1);
+  double time_val = date->value();
   ASSIGN_RETURN_FAILURE_ON_EXCEPTION(isolate, sec,
                                      Object::ToNumber(isolate, sec));
-  double time_val = date->value();
   std::optional<double> milli;
   if (argc >= 2) {
     DirectHandle<Object> ms = args.at(2);
@@ -687,16 +714,18 @@ BUILTIN(DatePrototypeSetUTCSeconds) {
                                        Object::ToNumber(isolate, ms));
     milli = Object::NumberValue(*ms);
   }
-  if (!std::isnan(time_val)) {
-    int64_t const time_ms = static_cast<int64_t>(time_val);
-    int const day = isolate->date_cache()->DaysFromTime(time_ms);
-    int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
-    int const h = time_within_day / (60 * 60 * 1000);
-    double const m = (time_within_day / (60 * 1000)) % 60;
-    double const s = Object::NumberValue(*sec);
-    time_val = MakeDate(
-        day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
+  if (std::isnan(time_val)) {
+    return ReadOnlyRoots(isolate).nan_value();
   }
+
+  int64_t const time_ms = static_cast<int64_t>(time_val);
+  int const day = isolate->date_cache()->DaysFromTime(time_ms);
+  int const time_within_day = isolate->date_cache()->TimeInDay(time_ms, day);
+  int const h = time_within_day / (60 * 60 * 1000);
+  double const m = (time_within_day / (60 * 1000)) % 60;
+  double const s = Object::NumberValue(*sec);
+  time_val =
+      MakeDate(day, MakeTime(h, m, s, milli.value_or(time_within_day % 1000)));
   return SetDateValue(isolate, date, time_val);
 }
 

@@ -2747,7 +2747,7 @@ A file imported from a source map was not found.
 ### `ERR_SOURCE_PHASE_NOT_DEFINED`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 The provided module import does not provide a source phase imports representation for source phase

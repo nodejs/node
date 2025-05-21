@@ -123,7 +123,7 @@ added:
  - v13.10.0
  - v12.17.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57766
    description: Add `defaultValue` and `name` options.
  - version:
@@ -300,7 +300,7 @@ asyncLocalStorage.getStore(); // Returns the same object
 ### `asyncLocalStorage.name`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * {string}

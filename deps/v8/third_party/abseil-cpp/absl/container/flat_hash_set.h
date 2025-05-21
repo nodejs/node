@@ -103,6 +103,11 @@ struct FlatHashSetPolicy;
 // `absl::flat_hash_set<std::unique_ptr<T>>`. If your type is not moveable and
 // you require pointer stability, consider `absl::node_hash_set` instead.
 //
+// PERFORMANCE WARNING: Erasure & sparsity can negatively affect performance:
+//  * Iteration takes O(capacity) time, not O(size).
+//  * erase() slows down begin() and ++iterator.
+//  * Capacity only shrinks on rehash() or clear() -- not on erase().
+//
 // Example:
 //
 //   // Create a flat hash set of three strings

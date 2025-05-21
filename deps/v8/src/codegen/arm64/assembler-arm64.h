@@ -16,6 +16,7 @@
 #include "src/codegen/arm64/register-arm64.h"
 #include "src/codegen/assembler.h"
 #include "src/codegen/constant-pool.h"
+#include "src/codegen/jump-table-info.h"
 #include "src/common/globals.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone-containers.h"
@@ -168,10 +169,14 @@ class AssemblerZone {
  public:
   explicit AssemblerZone(const MaybeAssemblerZone& zone)
       // Create a fresh Zone unless one is already provided.
-      : maybe_local_zone_(),
+      : maybe_local_zone_(
+            std::holds_alternative<Zone*>(zone)
+                ? std::nullopt
+                : std::make_optional<Zone>(std::get<AccountingAllocator*>(zone),
+                                           ZONE_NAME)),
         zone_(std::holds_alternative<Zone*>(zone)
                   ? std::get<Zone*>(zone)
-                  : &maybe_local_zone_.emplace(std::get<AccountingAllocator*>(zone), ZONE_NAME)) {}
+                  : &maybe_local_zone_.value()) {}
 
   Zone* get() const { return zone_; }
 
@@ -411,6 +416,12 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
 
   // Conditional branch to PC offset.
   void b(int imm19, Condition cond);
+
+  // Conditional branch consistent to label.
+  void bc(Label* label, Condition cond);
+
+  // Conditional branch consistent to PC offset.
+  void bc(int imm19, Condition cond);
 
   // Branch-link to label / pc offset.
   void bl(Label* label);
@@ -807,6 +818,15 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void rev(const Register& rd, const Register& rn);
   void clz(const Register& rd, const Register& rn);
   void cls(const Register& rd, const Register& rn);
+
+  // Absolute value.
+  void abs(const Register& rd, const Register& rn);
+
+  // Count bits.
+  void cnt(const Register& rd, const Register& rn);
+
+  // Count Trailing Zeros.
+  void ctz(const Register& rd, const Register& rn);
 
   // Pointer Authentication InstructionStream for Instruction address, using key
   // B, with address in x17 and modifier in x16 [Armv8.3].
@@ -2706,10 +2726,21 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // Emit an address in the instruction stream.
   void dcptr(Label* label);
 
+  // SHA3 instructions
+  // Bit Clear and exclusive-OR.
+  void bcax(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
+  // Three-way Exclusive-OR.
+  void eor3(const VRegister& vd, const VRegister& vn, const VRegister& vm,
+            const VRegister& va);
+
   // Copy a string into the instruction stream, including the terminating
   // nullptr character. The instruction pointer (pc_) is then aligned correctly
   // for subsequent instructions.
   void EmitStringData(const char* string);
+
+  void WriteJumpTableEntry(Label* label, int table_pos);
 
   // Pseudo-instructions ------------------------------------------------------
 
@@ -3418,6 +3449,10 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   // veneer margin (or kMaxInt if there are no unresolved branches).
   int next_veneer_pool_check_;
 
+  // Record jump table locations, this is only used when the disassembler is
+  // enabled.
+  JumpTableInfoWriter jump_table_info_writer_;
+
 #if defined(V8_OS_WIN)
   std::unique_ptr<win64_unwindinfo::XdataEncoder> xdata_encoder_;
 #endif
@@ -3440,6 +3475,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase {
   void AllocateAndInstallRequestedHeapNumbers(LocalIsolate* isolate);
 
   int WriteCodeComments();
+  int WriteJumpTableInfos();
 
   // The pending constant pool.
   ConstantPool constpool_;

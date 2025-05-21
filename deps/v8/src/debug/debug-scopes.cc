@@ -8,7 +8,6 @@
 
 #include "src/ast/ast.h"
 #include "src/ast/scopes.h"
-#include "src/common/globals.h"
 #include "src/debug/debug.h"
 #include "src/execution/frames-inl.h"
 #include "src/objects/js-generator-inl.h"
@@ -45,7 +44,8 @@ ScopeIterator::ScopeIterator(Isolate* isolate, FrameInspector* frame_inspector,
 ScopeIterator::~ScopeIterator() = default;
 
 DirectHandle<Object> ScopeIterator::GetFunctionDebugName() const {
-  if (!function_.is_null()) return JSFunction::GetDebugName(function_);
+  if (!function_.is_null())
+    return JSFunction::GetDebugName(isolate_, function_);
 
   if (!IsNativeContext(*context_)) {
     DisallowGarbageCollection no_gc;
@@ -364,7 +364,7 @@ void ScopeIterator::UnwrapEvaluationContext() {
   if (!context_->IsDebugEvaluateContext()) return;
   Tagged<Context> current = *context_;
   do {
-    Tagged<Object> wrapped = current->get(Context::WRAPPED_CONTEXT_INDEX);
+    Tagged<Object> wrapped = current->GetNoCell(Context::WRAPPED_CONTEXT_INDEX);
     if (IsContext(wrapped)) {
       current = Cast<Context>(wrapped);
     } else {
@@ -764,7 +764,7 @@ void ScopeIterator::DebugPrint() {
     case ScopeIterator::ScopeTypeCatch:
       os << "Catch:\n";
       Print(context_->extension(), os);
-      Print(context_->get(Context::THROWN_OBJECT_INDEX), os);
+      Print(context_->GetNoCell(Context::THROWN_OBJECT_INDEX), os);
       break;
 
     case ScopeIterator::ScopeTypeClosure:
@@ -851,13 +851,8 @@ bool ScopeIterator::VisitContextLocals(const Visitor& visitor,
     Handle<String> name(it->name(), isolate_);
     if (ScopeInfo::VariableIsSynthetic(*name)) continue;
     int context_index = scope_info->ContextHeaderLength() + it->index();
-    Handle<Object> value(context->get(context_index), isolate_);
-    if (v8_flags.script_context_mutable_heap_number &&
-        context->IsScriptContext()) {
-      value = indirect_handle(Context::LoadScriptContextElement(
-                                  context, context_index, value, isolate_),
-                              isolate_);
-    }
+    Handle<Object> value = indirect_handle(
+        Context::Get(context, context_index, isolate_), isolate_);
     if (visitor(name, value, scope_type)) return true;
   }
   return false;
@@ -873,7 +868,7 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
     auto this_var = current_scope_->AsDeclarationScope()->receiver();
     Handle<Object> receiver =
         this_var->location() == VariableLocation::CONTEXT
-            ? handle(context_->get(this_var->index()), isolate_)
+            ? handle(context_->GetNoCell(this_var->index()), isolate_)
         : frame_inspector_ == nullptr ? handle(generator_->receiver(), isolate_)
                                       : frame_inspector_->GetReceiver();
     if (visitor(isolate_->factory()->this_string(), receiver, scope_type))
@@ -963,16 +958,10 @@ bool ScopeIterator::VisitLocals(const Visitor& visitor, Mode mode,
       case VariableLocation::CONTEXT:
         if (mode == Mode::STACK) continue;
         DCHECK(var->IsContextSlot());
-
-        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(var->name()), index);
-        value = handle(context_->get(index), isolate_);
-
-        if (v8_flags.script_context_mutable_heap_number &&
-            context_->IsScriptContext()) {
-          value = indirect_handle(Context::LoadScriptContextElement(
-                                      context_, index, value, isolate_),
-                                  isolate_);
-        }
+        DCHECK_EQ(context_->scope_info()->ContextSlotIndex(*var->name()),
+                  index);
+        value =
+            indirect_handle(Context::Get(context_, index, isolate_), isolate_);
         break;
 
       case VariableLocation::MODULE: {
@@ -1128,19 +1117,11 @@ bool ScopeIterator::SetLocalVariableValue(DirectHandle<String> variable_name,
           // don't match (https://crbug.com/753338).
           // Skip the write if the context's ScopeInfo doesn't know anything
           // about this variable.
-          if (context_->scope_info()->ContextSlotIndex(variable_name) !=
+          if (context_->scope_info()->ContextSlotIndex(*variable_name) !=
               index) {
             return false;
           }
-          if ((v8_flags.script_context_mutable_heap_number ||
-               v8_flags.const_tracking_let) &&
-              context_->IsScriptContext()) {
-            Context::StoreScriptContextAndUpdateSlotProperty(
-                context_, index, new_value, isolate_);
-          } else {
-            context_->set(index, *new_value);
-          }
-
+          Context::Set(context_, index, new_value, isolate_);
           return true;
 
         case VariableLocation::MODULE:
@@ -1173,9 +1154,9 @@ bool ScopeIterator::SetContextExtensionValue(DirectHandle<String> variable_name,
 
 bool ScopeIterator::SetContextVariableValue(DirectHandle<String> variable_name,
                                             DirectHandle<Object> new_value) {
-  int slot_index = context_->scope_info()->ContextSlotIndex(variable_name);
+  int slot_index = context_->scope_info()->ContextSlotIndex(*variable_name);
   if (slot_index < 0) return false;
-  context_->set(slot_index, *new_value);
+  context_->SetNoCell(slot_index, *new_value);
   return true;
 }
 
@@ -1208,13 +1189,7 @@ bool ScopeIterator::SetScriptVariableValue(DirectHandle<String> variable_name,
   if (script_contexts->Lookup(variable_name, &lookup_result)) {
     DirectHandle<Context> script_context(
         script_contexts->get(lookup_result.context_index), isolate_);
-    if (v8_flags.script_context_mutable_heap_number ||
-        v8_flags.const_tracking_let) {
-      Context::StoreScriptContextAndUpdateSlotProperty(
-          script_context, lookup_result.slot_index, new_value, isolate_);
-    } else {
-      script_context->set(lookup_result.slot_index, *new_value);
-    }
+    Context::Set(script_context, lookup_result.slot_index, new_value, isolate_);
     return true;
   }
 

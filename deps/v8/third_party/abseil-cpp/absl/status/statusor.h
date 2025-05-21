@@ -93,7 +93,7 @@ class BadStatusOrAccess : public std::exception {
   //
   // The pointer of this string is guaranteed to be valid until any non-const
   // function is invoked on the exception object.
-  absl::Nonnull<const char*> what() const noexcept override;
+  const char* absl_nonnull what() const noexcept override;
 
   // BadStatusOrAccess::status()
   //
@@ -756,13 +756,13 @@ T&& StatusOr<T>::operator*() && {
 }
 
 template <typename T>
-absl::Nonnull<const T*> StatusOr<T>::operator->() const {
+const T* absl_nonnull StatusOr<T>::operator->() const {
   this->EnsureOk();
   return &this->data_;
 }
 
 template <typename T>
-absl::Nonnull<T*> StatusOr<T>::operator->() {
+T* absl_nonnull StatusOr<T>::operator->() {
   this->EnsureOk();
   return &this->data_;
 }

@@ -575,8 +575,8 @@ class PromiseBuiltinReducerAssembler : public JSCallReducerAssembler {
         outer_context, effect(), control()));
   }
 
-  void StoreContextSlot(TNode<Context> context, size_t slot_index,
-                        TNode<Object> value) {
+  void StoreContextNoCellSlot(TNode<Context> context, size_t slot_index,
+                              TNode<Object> value) {
     StoreField(AccessBuilder::ForContextSlot(slot_index), context, value);
   }
 
@@ -2354,7 +2354,8 @@ FrameState PromiseConstructorFrameState(
     const PromiseCtorFrameStateParams& params, CommonOperatorBuilder* common,
     TFGraph* graph) {
   DCHECK_EQ(1,
-            params.shared.internal_formal_parameter_count_without_receiver());
+            params.shared
+                .internal_formal_parameter_count_without_receiver_deprecated());
   return CreateConstructInvokeStubFrameState(
       params.node_ptr, params.outer_frame_state, params.shared, params.context,
       common, graph);
@@ -2440,11 +2441,12 @@ TNode<Object> PromiseBuiltinReducerAssembler::ReducePromiseConstructor(
   // Allocate a promise context for the closures below.
   TNode<Context> promise_context = CreateFunctionContext(
       native_context, context, PromiseBuiltins::kPromiseContextLength);
-  StoreContextSlot(promise_context, PromiseBuiltins::kPromiseSlot, promise);
-  StoreContextSlot(promise_context, PromiseBuiltins::kAlreadyResolvedSlot,
-                   FalseConstant());
-  StoreContextSlot(promise_context, PromiseBuiltins::kDebugEventSlot,
-                   TrueConstant());
+  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kPromiseSlot,
+                         promise);
+  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kAlreadyResolvedSlot,
+                         FalseConstant());
+  StoreContextNoCellSlot(promise_context, PromiseBuiltins::kDebugEventSlot,
+                         TrueConstant());
 
   // Allocate closures for the resolve and reject cases.
   SharedFunctionInfoRef resolve_sfi =
@@ -4324,7 +4326,7 @@ JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpreadOfCreateArguments(
     }
     formal_parameter_count =
         MakeRef(broker(), shared)
-            .internal_formal_parameter_count_without_receiver();
+            .internal_formal_parameter_count_without_receiver_deprecated();
   }
 
   if (type == CreateArgumentsType::kMappedArguments) {
@@ -4465,7 +4467,6 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   DCHECK_EQ(arguments_list->opcode(), IrOpcode::kJSCreateLiteralArray);
-  int new_argument_count;
 
   // Find array length and elements' kind from the feedback's allocation
   // site's boilerplate JSArray.
@@ -4482,13 +4483,15 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   JSArrayRef boilerplate_array = site.boilerplate(broker())->AsJSArray();
   int const array_length =
       boilerplate_array.GetBoilerplateLength(broker()).AsSmi();
+  SBXCHECK_GE(array_length, 0);
 
   // We'll replace the arguments_list input with {array_length} element loads.
-  new_argument_count = argument_count - 1 + array_length;
+  uint32_t new_argument_count =
+      static_cast<uint32_t>(array_length) + argument_count - 1;
 
   // Do not optimize calls with a large number of arguments.
   // Arbitrarily sets the limit to 32 arguments.
-  const int kMaxArityForOptimizedFunctionApply = 32;
+  const uint32_t kMaxArityForOptimizedFunctionApply = 32;
   if (new_argument_count > kMaxArityForOptimizedFunctionApply) {
     return NoChange();
   }
@@ -4544,10 +4547,10 @@ Reduction JSCallReducer::ReduceCallOrConstructWithArrayLikeOrSpread(
   }
 
   NodeProperties::ChangeOp(
-      node,
-      javascript()->Call(JSCallNode::ArityForArgc(new_argument_count),
-                         frequency, feedback_source, ConvertReceiverMode::kAny,
-                         speculation_mode, CallFeedbackRelation::kUnrelated));
+      node, javascript()->Call(
+                JSCallNode::ArityForArgc(static_cast<int>(new_argument_count)),
+                frequency, feedback_source, ConvertReceiverMode::kAny,
+                speculation_mode, CallFeedbackRelation::kUnrelated));
   NodeProperties::ReplaceEffectInput(node, effect);
   return Changed(node).FollowedBy(ReduceJSCall(node));
 }

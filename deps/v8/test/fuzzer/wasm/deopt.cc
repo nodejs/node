@@ -217,6 +217,10 @@ void ConfigureFlags(v8::Isolate* isolate) {
       v8_flags.wasm_inlining_budget = v8_flags.wasm_inlining_budget * 5;
       v8_flags.wasm_inlining_max_size = v8_flags.wasm_inlining_max_size * 5;
       v8_flags.wasm_inlining_factor = v8_flags.wasm_inlining_factor * 5;
+      // Allow mixed old and new EH instructions in the same module for fuzzing,
+      // to help us test the interaction between the two EH proposals without
+      // requiring multiple modules.
+      v8_flags.wasm_allow_mixed_eh_for_testing = true;
       // Enable other staged or experimental features and enforce flag
       // implications.
       EnableExperimentalWasmFeatures(isolate);

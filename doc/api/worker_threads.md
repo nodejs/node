@@ -1274,7 +1274,7 @@ added:
   - v18.1.0
   - v16.17.0
 changes:
- - version: REPLACEME
+ - version: v24.0.0
    pr-url: https://github.com/nodejs/node/pull/57513
    description: Marking the API stable.
 -->
@@ -1641,7 +1641,7 @@ immediately with an [`ERR_WORKER_NOT_RUNNING`][] error.
 ### `worker.getHeapStatistics()`
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 * Returns: {Promise}

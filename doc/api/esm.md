@@ -351,7 +351,7 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
@@ -369,7 +369,7 @@ added:
   - v21.2.0
   - v20.11.0
 changes:
-  - version: REPLACEME
+  - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/58011
     description: This property is no longer experimental.
 -->
@@ -697,7 +697,7 @@ would provide the exports interface for the instantiation of `library.wasm`.
 ### Wasm Source Phase Imports
 
 <!-- YAML
-added: REPLACEME
+added: v24.0.0
 -->
 
 The [Source Phase Imports][] proposal allows the `import source` keyword

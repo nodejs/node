@@ -1,6 +1,7 @@
 'use strict';
 
-const { spawnPromisified } = require('../common');
+const { spawnPromisified, skipIfSQLiteMissing } = require('../common');
+skipIfSQLiteMissing();
 const fixtures = require('../common/fixtures');
 const { match, strictEqual } = require('node:assert');
 const { test } = require('node:test');

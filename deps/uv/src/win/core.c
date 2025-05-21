@@ -114,7 +114,7 @@ static int uv__loops_add(uv_loop_t* loop) {
 
 failed_loops_realloc:
   uv_mutex_unlock(&uv__loops_lock);
-  return ERROR_OUTOFMEMORY;
+  return UV_ENOMEM;
 }
 
 

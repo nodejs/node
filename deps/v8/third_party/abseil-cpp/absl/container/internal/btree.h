@@ -225,7 +225,7 @@ struct key_compare_adapter {
 
    public:
     using Base::Base;
-    checked_compare(Compare comp) : Base(std::move(comp)) {}  // NOLINT
+    checked_compare(Compare cmp) : Base(std::move(cmp)) {}  // NOLINT
 
     // Allow converting to Compare for use in key_comp()/value_comp().
     explicit operator Compare() const { return comp(); }

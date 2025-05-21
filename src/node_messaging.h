@@ -261,7 +261,6 @@ class MessagePort : public HandleWrap {
   static void PostMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Start(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Stop(const v8::FunctionCallbackInfo<v8::Value>& args);
-  static void CheckType(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void Drain(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void ReceiveMessage(const v8::FunctionCallbackInfo<v8::Value>& args);
 

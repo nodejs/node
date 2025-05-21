@@ -773,8 +773,10 @@ void SharedFunctionInfo::UpdateFromFunctionLiteralForLiveEdit(
     // Updating the ScopeInfo is safe since they are identical modulo
     // source positions.
     Tagged<ScopeInfo> new_scope_info = *lit->scope()->scope_info();
-    DCHECK(new_scope_info->Equals(Cast<ScopeInfo>(maybe_scope_info), true));
-    SetScopeInfo(new_scope_info);
+    Tagged<ScopeInfo> old_scope_info = Cast<ScopeInfo>(maybe_scope_info);
+    DCHECK(new_scope_info->Equals(old_scope_info, true));
+    old_scope_info->SetPositionInfo(new_scope_info->position_info_start(),
+                                    new_scope_info->position_info_end());
   } else if (!is_compiled()) {
     CHECK(HasUncompiledData());
     if (HasUncompiledDataWithPreparseData()) {
@@ -891,5 +893,39 @@ bool SharedFunctionInfo::UniqueIdsAreUnique(Isolate* isolate) {
   return true;
 }
 #endif  // DEBUG
+
+std::ostream& operator<<(std::ostream& os,
+                         SharedFunctionInfo::Inlineability i) {
+  switch (i) {
+    case SharedFunctionInfo::Inlineability::kHasNoScript:
+      os << "has no script";
+      break;
+    case SharedFunctionInfo::Inlineability::kNeedsBinaryCoverage:
+      os << "needs binary coverage";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsBuiltin:
+      os << "is builtin";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsNotUserCode:
+      os << "is not user code";
+      break;
+    case SharedFunctionInfo::Inlineability::kHasNoBytecode:
+      os << "has no bytecode";
+      break;
+    case SharedFunctionInfo::Inlineability::kExceedsBytecodeLimit:
+      os << "exceeds bytecode limit";
+      break;
+    case SharedFunctionInfo::Inlineability::kMayContainBreakPoints:
+      os << "may contain breakpoints";
+      break;
+    case SharedFunctionInfo::Inlineability::kHasOptimizationDisabled:
+      os << "has optimization disabled";
+      break;
+    case SharedFunctionInfo::Inlineability::kIsInlineable:
+      os << "is inlineable (!)";
+      break;
+  }
+  return os;
+}
 
 }  // namespace v8::internal

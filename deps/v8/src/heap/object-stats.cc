@@ -858,8 +858,8 @@ void ObjectStatsCollectorImpl::CollectStatistics(
 void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
   // Iterate boilerplates first to disambiguate them from regular JS objects.
   Tagged<Object> list = heap_->allocation_sites_list();
-  while (IsAllocationSite(list, cage_base())) {
-    Tagged<AllocationSite> site = Cast<AllocationSite>(list);
+  Tagged<AllocationSiteWithWeakNext> site;
+  while (TryCast(list, &site)) {
     RecordVirtualAllocationSiteDetails(site);
     list = site->weak_next();
   }
@@ -869,9 +869,6 @@ void ObjectStatsCollectorImpl::CollectGlobalStatistics() {
                                  StatsEnum::SERIALIZED_OBJECTS_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->number_string_cache(),
                                  StatsEnum::NUMBER_STRING_CACHE_TYPE);
-  RecordSimpleVirtualObjectStats(HeapObject(),
-                                 heap_->single_character_string_table(),
-                                 StatsEnum::SINGLE_CHARACTER_STRING_TABLE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->string_split_cache(),
                                  StatsEnum::STRING_SPLIT_CACHE_TYPE);
   RecordSimpleVirtualObjectStats(HeapObject(), heap_->regexp_multiple_cache(),

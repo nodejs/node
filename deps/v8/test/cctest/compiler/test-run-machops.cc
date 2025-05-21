@@ -8,8 +8,8 @@
 
 #include "src/base/bits.h"
 #include "src/base/ieee754.h"
+#include "src/base/numerics/safe_conversions.h"
 #include "src/base/overflowing-math.h"
-#include "src/base/safe_conversions.h"
 #include "src/base/utils/random-number-generator.h"
 #include "src/builtins/builtins.h"
 #include "src/common/ptr-compr-inl.h"
