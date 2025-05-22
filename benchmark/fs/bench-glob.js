@@ -28,12 +28,12 @@ async function main(config) {
   const callback = (resolve, reject) => {
     glob(pattern, options, (err, matches) => {
       if (err) {
-        reject(err)
+        reject(err);
       } else {
         resolve(matches);
       }
     });
-  }
+  };
 
   let noDead;
   bench.start();
