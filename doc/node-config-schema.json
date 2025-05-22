@@ -709,9 +709,6 @@
         "test-timeout": {
           "type": "number"
         },
-        "test-udp-no-try-send": {
-          "type": "boolean"
-        },
         "test-update-snapshots": {
           "type": "boolean"
         }

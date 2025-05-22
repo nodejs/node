@@ -865,9 +865,7 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
   AddOption("--test-udp-no-try-send",
             "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send,
-            kDisallowedInEnvvar,
-            false,
-            "test_runner");
+            kDisallowedInEnvvar);
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
@@ -1429,8 +1427,7 @@ std::vector<std::string> MapAvailableNamespaces() {
   const auto& parser = _ppop_instance;
   for (const auto& item : parser.options_) {
     if (!item.first.empty() && !item.first.starts_with('[') &&
-        item.second.namespace_id != "" &&
-        item.second.env_setting == kAllowedInEnvvar) {
+        item.second.namespace_id != "") {
       namespaces.push_back(item.second.namespace_id);
     }
   }
