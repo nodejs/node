@@ -35,16 +35,16 @@ let iter = 0;
 
 const errorHandler = common.mustCall((err) => {
   let expectedErrorCode = 'ERR_SSL_WRONG_VERSION_NUMBER';
-  let expectedErrorReason = 'wrong version number';
+  let expectedErrorReason = /wrong[\s_]version[\s_]number/i;
   if (hasOpenSSL(3, 2)) {
     expectedErrorCode = 'ERR_SSL_PACKET_LENGTH_TOO_LONG';
-    expectedErrorReason = 'packet length too long';
+    expectedErrorReason = /packet[\s_]length[\s_]too[\s_]long/i;
   };
 
   assert.strictEqual(err.code, expectedErrorCode);
   assert.strictEqual(err.library, 'SSL routines');
   if (!hasOpenSSL3) assert.strictEqual(err.function, 'ssl3_get_record');
-  assert.strictEqual(err.reason, expectedErrorReason);
+  assert.match(err.reason, expectedErrorReason);
   errorReceived = true;
   if (canCloseServer())
     server.close();
@@ -98,15 +98,15 @@ function sendBADTLSRecord() {
   }));
   client.on('error', common.mustCall((err) => {
     let expectedErrorCode = 'ERR_SSL_TLSV1_ALERT_PROTOCOL_VERSION';
-    let expectedErrorReason = 'tlsv1 alert protocol version';
+    let expectedErrorReason = /tlsv1[\s_]alert[\s_]protocol[\s_]version/i;
     if (hasOpenSSL(3, 2)) {
       expectedErrorCode = 'ERR_SSL_TLSV1_ALERT_RECORD_OVERFLOW';
-      expectedErrorReason = 'tlsv1 alert record overflow';
+      expectedErrorReason = /tlsv1[\s_]alert[\s_]record[\s_]overflow/i;
     }
     assert.strictEqual(err.code, expectedErrorCode);
     assert.strictEqual(err.library, 'SSL routines');
     if (!hasOpenSSL3)
       assert.strictEqual(err.function, 'ssl3_read_bytes');
-    assert.strictEqual(err.reason, expectedErrorReason);
+    assert.match(err.reason, expectedErrorReason);
   }));
 }
