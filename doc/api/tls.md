@@ -2332,6 +2332,23 @@ may include certificates loaded from the system store (if `--use-system-ca` is u
 or loaded from a file indicated by `NODE_EXTRA_CA_CERTS`, use
 [`tls.getCACertificates()`][].
 
+## `tls.convertALPNProtocols(protocols, out)`
+
+<!-- YAML
+added: v6.0.0
+-->
+
+* `protocols`: {string\[]|Buffer\[]|TypedArray\[]|DataView\[]|Buffer|
+  TypedArray|DataView}
+  An array of strings, `Buffer`s, `TypedArray`s, or `DataView`s, or a
+  single `Buffer`, `TypedArray`, or `DataView` containing the supported ALPN
+  protocols. `Buffer`s should have the format `[len][name][len][name]...`
+  e.g. `'\x08http/1.1\x08http/1.0'`, where the `len` byte is the length of the
+  next protocol name. Passing an array is usually much simpler, e.g.
+  `['http/1.1', 'http/1.0']`. Protocols earlier in the list have higher
+  preference than those later.
+* `out` {Object} A output variable supplied by users, in which the converted `protocols` result `out.ALPNProtocols`.
+
 ## `tls.DEFAULT_ECDH_CURVE`
 
 <!-- YAML
