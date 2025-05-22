@@ -9,6 +9,10 @@ const assert = require('node:assert');
 const fixtures = require('../common/fixtures');
 const envSuffix = common.isWindows ? '-windows' : '';
 
+const path = require('node:path');
+const nodeDir = path.dirname(process.execPath);
+const env = { ...process.env, PATH: `${nodeDir}${path.delimiter}${process.env.PATH}` };
+
 describe('node --run [command]', () => {
   it('returns error on non-existent file', async () => {
     const child = await common.spawnPromisified(
@@ -25,6 +29,7 @@ describe('node --run [command]', () => {
 
   it('runs a valid command', async () => {
     // Run a script that just log `no test specified`
+    // Scripts take precedence over bins
     const child = await common.spawnPromisified(
       process.execPath,
       [ '--run', 'test', '--no-warnings'],
@@ -212,14 +217,76 @@ describe('node --run [command]', () => {
     assert.strictEqual(child.code, 1);
   });
 
-  it('returns error when there is no "scripts" field file', async () => {
+  it('returns error when there is no "scripts" and "bin" fields in file', async () => {
     const child = await common.spawnPromisified(
       process.execPath,
       [ '--run', 'test'],
-      { cwd: fixtures.path('run-script/cannot-find-script') },
+      { cwd: fixtures.path('run-script/cannot-find-script-and-bin') },
     );
-    assert.match(child.stderr, /Can't find "scripts" field in/);
+    assert.match(child.stderr, /Can't find "scripts" or "bin" fields in/);
     assert.strictEqual(child.stdout, '');
     assert.strictEqual(child.code, 1);
+  });
+
+  it('print avilables scripts and bins when command not found', async () => {
+    const child = await common.spawnPromisified(
+      process.execPath,
+      [ '--run', 'tmp'],
+      { cwd: fixtures.path('run-script') },
+    );
+    assert.match(child.stderr, /Unknown script or bin entry "tmp"/);
+    assert.match(child.stderr, /Available scripts:\n/);
+    assert.match(child.stderr, /ada: ada\n/);
+    assert.match(child.stderr, /Available bins:\n/);
+    assert.match(child.stderr, /bin-test: \.\/test\.js\n/);
+  });
+
+  describe('Bin scripts use cases', () => {
+    it('runs a bin from package.json object format', async () => {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        ['--run', 'bin-test'],
+        { cwd: fixtures.path('run-script'), env },
+      );
+      assert.match(child.stdout, /bin-test script/);
+    });
+
+    it('handles error with invalid bin value in object format', async () => {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        ['--run', 'invalid-bin'],
+        { cwd: fixtures.path('run-script/invalid-bin-value'), env },
+      );
+      assert.match(child.stderr, /Bin "invalid-bin" is unexpectedly not a string/);
+    });
+
+    it('runs a bin from package.json string format', async () => {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        ['--run', 'bin-test'],
+        { cwd: fixtures.path('run-script/bin-string'), env },
+      );
+      assert.match(child.stdout, /bin-test script/);
+    });
+
+    it('handles error with invalid bin value in string format', async () => {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        ['--run', 'invalid-bin'],
+        { cwd: fixtures.path('run-script/invalid-schema'), env }
+      );
+      assert.match(child.stderr, /Bin "invalid-bin" is unexpectedly not a string/);
+    });
+
+    it('adds node_modules/.bin to path', async () => {
+      const child = await common.spawnPromisified(
+        process.execPath,
+        ['--run', `bin-ada${envSuffix}`],
+        { cwd: fixtures.path('run-script') },
+      );
+      assert.match(child.stdout, /06062023/);
+      assert.strictEqual(child.stderr, '');
+      assert.strictEqual(child.code, 0);
+    });
   });
 });
