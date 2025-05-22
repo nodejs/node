@@ -508,16 +508,28 @@ declare namespace primordials {
     | typeof BigInt64Array.prototype
     | typeof BigUint64Array.prototype
     | typeof Uint8ClampedArray.prototype;
-  export const TypedArrayPrototypeGetBuffer: UncurryGetter<TypedArray, "buffer">;
-  export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, "byteLength">;
-  export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, "byteOffset">;
-  export const TypedArrayPrototypeGetLength: UncurryGetter<TypedArray, "length">;
-  export function TypedArrayPrototypeAt<T extends TypedArray>(self: T, ...args: Parameters<T["at"]>): ReturnType<T["at"]>;
-  export function TypedArrayPrototypeIncludes<T extends TypedArray>(self: T, ...args: Parameters<T["includes"]>): ReturnType<T["includes"]>;
-  export function TypedArrayPrototypeFill<T extends TypedArray>(self: T, ...args: Parameters<T["fill"]>): ReturnType<T["fill"]>;
-  export function TypedArrayPrototypeSet<T extends TypedArray>(self: T, ...args: Parameters<T["set"]>): ReturnType<T["set"]>;
-  export function TypedArrayPrototypeSubarray<T extends TypedArray>(self: T, ...args: Parameters<T["subarray"]>): ReturnType<T["subarray"]>;
-  export function TypedArrayPrototypeSlice<T extends TypedArray>(self: T, ...args: Parameters<T["slice"]>): ReturnType<T["slice"]>;
+  export const TypedArrayPrototypeGetBuffer: UncurryGetter<TypedArray, 'buffer'>;
+  export const TypedArrayPrototypeGetByteLength: UncurryGetter<TypedArray, 'byteLength'>;
+  export const TypedArrayPrototypeGetByteOffset: UncurryGetter<TypedArray, 'byteOffset'>;
+  export const TypedArrayPrototypeGetLength: UncurryGetter<TypedArray, 'length'>;
+  export function TypedArrayPrototypeAt<T extends TypedArray>(
+    self: T, ...args: Parameters<T['at']>
+  ): ReturnType<T['at']>;
+  export function TypedArrayPrototypeIncludes<T extends TypedArray>(
+    self: T, ...args: Parameters<T['includes']>
+  ): ReturnType<T['includes']>;
+  export function TypedArrayPrototypeFill<T extends TypedArray>(
+    self: T, ...args: Parameters<T['fill']>
+  ): ReturnType<T['fill']>;
+  export function TypedArrayPrototypeSet<T extends TypedArray>(
+    self: T, ...args: Parameters<T['set']>
+  ): ReturnType<T['set']>;
+  export function TypedArrayPrototypeSubarray<T extends TypedArray>(
+    self: T, ...args: Parameters<T['subarray']>
+  ): ReturnType<T['subarray']>;
+  export function TypedArrayPrototypeSlice<T extends TypedArray>(
+    self: T, ...args: Parameters<T['slice']>
+  ): ReturnType<T['slice']>;
   export function TypedArrayPrototypeGetSymbolToStringTag(self: unknown):
     | 'Int8Array'
     | 'Int16Array'
