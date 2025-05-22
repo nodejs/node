@@ -58,7 +58,7 @@ jobs:
       - name: Set up sccache
         uses: Mozilla-Actions/sccache-action@7d986dd989559c6ecdb630a3fd2557667be217ad  # v0.0.9
         with:
-          version: v0.8.1
+          version: v0.10.0
       - name: Environment Information
         run: npx envinfo
       # The `npm ci` for this step fails a lot as part of the Test step. Run it
