@@ -9,13 +9,8 @@ process.on('uncaughtException', mustCall((err) => {
 }));
 
 {
-  let callCount = 0;
-  const callback = mustCall(() => {
-    if (callCount++ === 0) {
-      throw new Error('blep');
-    }
-  });
-
   // Test that if callback throws, it's not getting called again
-  glob('a/b/c', callback);
+  glob('a/b/c', mustCall(() => {
+    throw new Error('blep');
+  }));
 }
