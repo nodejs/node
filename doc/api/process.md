@@ -982,6 +982,26 @@ $ bash -c 'exec -a customArgv0 ./node'
 'customArgv0'
 ```
 
+## `process.availableMemory()`
+
+<!-- YAML
+added:
+  - v22.0.0
+  - v20.13.0
+changes:
+  - version: v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/57765
+    description: Change stability index for this feature from Experimental to Stable.
+-->
+
+* {number}
+
+Gets the amount of free memory that is still available to the process
+(in bytes).
+
+See [`uv_get_available_memory`][uv_get_available_memory] for more
+information.
+
 ## `process.channel`
 
 <!-- YAML
@@ -1153,26 +1173,6 @@ limits imposed by the OS. If there is no such constraint, or the constraint
 is unknown, `0` is returned.
 
 See [`uv_get_constrained_memory`][uv_get_constrained_memory] for more
-information.
-
-## `process.availableMemory()`
-
-<!-- YAML
-added:
-  - v22.0.0
-  - v20.13.0
-changes:
-  - version: v24.0.0
-    pr-url: https://github.com/nodejs/node/pull/57765
-    description: Change stability index for this feature from Experimental to Stable.
--->
-
-* {number}
-
-Gets the amount of free memory that is still available to the process
-(in bytes).
-
-See [`uv_get_available_memory`][uv_get_available_memory] for more
 information.
 
 ## `process.cpuUsage([previousValue])`
@@ -1775,6 +1775,35 @@ that started the Node.js process. Symbolic links, if any, are resolved.
 ```js
 '/usr/local/bin/node'
 ```
+
+## `process.execve(file[, args[, env]])`
+
+<!-- YAML
+added:
+  - v23.11.0
+  - v22.15.0
+-->
+
+> Stability: 1 - Experimental
+
+* `file` {string} The name or path of the executable file to run.
+* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
+* `env` {Object} Environment key-value pairs.
+  No key or value can contain a null-byte (`\u0000`).
+  **Default:** `process.env`.
+
+Replaces the current process with a new process.
+
+This is achieved by using the `execve` POSIX function and therefore no memory or other
+resources from the current process are preserved, except for the standard input,
+standard output and standard error file descriptor.
+
+All other resources are discarded by the system when the processes are swapped, without triggering
+any exit or close events and without running any cleanup handler.
+
+This function will never return, unless an error occurred.
+
+This function is not available on Windows or IBM i.
 
 ## `process.exit([code])`
 
@@ -3353,35 +3382,6 @@ tarball.
 In custom builds from non-release versions of the source tree, only the
 `name` property may be present. The additional properties should not be
 relied upon to exist.
-
-## `process.execve(file[, args[, env]])`
-
-<!-- YAML
-added:
-  - v23.11.0
-  - v22.15.0
--->
-
-> Stability: 1 - Experimental
-
-* `file` {string} The name or path of the executable file to run.
-* `args` {string\[]} List of string arguments. No argument can contain a null-byte (`\u0000`).
-* `env` {Object} Environment key-value pairs.
-  No key or value can contain a null-byte (`\u0000`).
-  **Default:** `process.env`.
-
-Replaces the current process with a new process.
-
-This is achieved by using the `execve` POSIX function and therefore no memory or other
-resources from the current process are preserved, except for the standard input,
-standard output and standard error file descriptor.
-
-All other resources are discarded by the system when the processes are swapped, without triggering
-any exit or close events and without running any cleanup handler.
-
-This function will never return, unless an error occurred.
-
-This function is not available on Windows or IBM i.
 
 ## `process.report`
 
