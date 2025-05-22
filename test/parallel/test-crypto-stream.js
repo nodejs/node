@@ -74,14 +74,14 @@ const decipher = crypto.createDecipheriv('aes-128-cbc', badkey, iv);
 
 cipher.pipe(decipher)
   .on('error', common.expectsError(hasOpenSSL3 ? {
-    message: /bad decrypt/,
+    message: /bad[\s_]decrypt/,
     library: 'Provider routines',
-    reason: 'bad decrypt',
+    reason: /bad[\s_]decrypt/i,
   } : {
-    message: /bad decrypt/,
+    message: /bad[\s_]decrypt/i,
     function: 'EVP_DecryptFinal_ex',
     library: 'digital envelope routines',
-    reason: 'bad decrypt',
+    reason: /bad[\s_]decrypt/i,
   }));
 
 cipher.end('Papaya!');  // Should not cause an unhandled exception.
