@@ -1,0 +1,361 @@
+=pod
+
+=head1 NAME
+
+SSL_CTX_set1_groups, SSL_CTX_set1_groups_list, SSL_set1_groups,
+SSL_set1_groups_list, SSL_get1_groups, SSL_get0_iana_groups,
+SSL_get_shared_group, SSL_get_negotiated_group, SSL_CTX_set1_curves,
+SSL_CTX_set1_curves_list, SSL_set1_curves, SSL_set1_curves_list,
+SSL_get1_curves, SSL_get_shared_curve, SSL_CTX_get0_implemented_groups
+- EC supported curve functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_CTX_set1_groups(SSL_CTX *ctx, int *glist, int glistlen);
+ int SSL_CTX_set1_groups_list(SSL_CTX *ctx, char *list);
+
+ int SSL_set1_groups(SSL *ssl, int *glist, int glistlen);
+ int SSL_set1_groups_list(SSL *ssl, char *list);
+
+ int SSL_get1_groups(SSL *ssl, int *groups);
+ int SSL_get0_iana_groups(SSL *ssl, uint16_t **out);
+ int SSL_get_shared_group(SSL *s, int n);
+ int SSL_get_negotiated_group(SSL *s);
+
+ int SSL_CTX_set1_curves(SSL_CTX *ctx, int *clist, int clistlen);
+ int SSL_CTX_set1_curves_list(SSL_CTX *ctx, char *list);
+
+ int SSL_set1_curves(SSL *ssl, int *clist, int clistlen);
+ int SSL_set1_curves_list(SSL *ssl, char *list);
+
+ int SSL_get1_curves(SSL *ssl, int *curves);
+ int SSL_get_shared_curve(SSL *s, int n);
+
+ int SSL_CTX_get0_implemented_groups(SSL_CTX *ctx, int all,
+                                     STACK_OF(OPENSSL_CSTRING) *names);
+
+=head1 DESCRIPTION
+
+For all of the functions below that set the supported groups there must be at
+least one group in the list. A number of these functions identify groups via a
+unique integer NID value. However, support for some groups may be added by
+external providers. In this case there will be no NID assigned for the group.
+When setting such groups applications should use the "list" form of these
+functions (i.e. SSL_CTX_set1_groups_list() and SSL_set1_groups_list()).
+
+SSL_CTX_set1_groups() sets the supported groups for B<ctx> to B<glistlen>
+groups in the array B<glist>. The array consist of all NIDs of supported groups.
+The supported groups for B<TLSv1.3> include:
+B<NID_X9_62_prime256v1>,
+B<NID_secp384r1>,
+B<NID_secp521r1>,
+B<NID_X25519>,
+B<NID_X448>,
+B<NID_brainpoolP256r1tls13>,
+B<NID_brainpoolP384r1tls13>,
+B<NID_brainpoolP512r1tls13>,
+B<NID_ffdhe2048>,
+B<NID_ffdhe3072>,
+B<NID_ffdhe4096>,
+B<NID_ffdhe6144>, and
+B<NID_ffdhe8192>.
+OpenSSL will use this array in different ways based on the TLS version, and
+whether the groups are used in a client or server.
+
+For a TLS client, the groups are used directly in the supported groups
+extension. The extension's preference order, to be evaluated by the server, is
+determined by the order of the elements in the array.
+
+For a TLS 1.2 server, the groups determine the selected group. If
+B<SSL_OP_CIPHER_SERVER_PREFERENCE> is set, the order of the elements in the
+array determines the selected group. Otherwise, the order is ignored and the
+client's order determines the selection.
+
+For a TLS 1.3 server, the groups determine the selected group, but
+selection is more complex. A TLS 1.3 client sends both a group list as well as a
+predicted subset of groups. Choosing a group outside the predicted subset incurs
+an extra roundtrip. However, in some situations, the most preferred group may
+not be predicted. OpenSSL considers all supported groups in I<clist> to be comparable
+in security and prioritizes avoiding roundtrips above either client or server
+preference order. If an application uses an external provider to extend OpenSSL
+with, e.g., a post-quantum algorithm, this behavior may allow a network attacker
+to downgrade connections to a weaker algorithm. It is therefore recommended
+to use SSL_CTX_set1_groups_list() with the ability to specify group tuples.
+
+SSL_CTX_set1_groups_list() sets the supported groups for B<ctx> to
+string I<list>. In contrast to SSL_CTX_set1_groups(), the names of the
+groups, rather than their NIDs, are used.
+
+The commands below list the available groups for TLS 1.2 and TLS 1.3,
+respectively:
+
+    $ openssl list -tls1_2 -tls-groups
+    $ openssl list -tls1_3 -tls-groups
+
+Each group can be either the B<NIST> name (e.g. B<P-256>), some other commonly
+used name where applicable (e.g. B<X25519>, B<ffdhe2048>) or an OpenSSL OID name
+(e.g. B<prime256v1>).
+Group names are case-insensitive in OpenSSL 3.5 and later.
+The preferred group names are those defined by
+L<IANA|https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-parameters-8>.
+
+The I<list> can be used to define several group tuples of comparable security
+levels, and can specify which key shares should be sent by a client.
+The specified list elements can optionally be ignored, if not implemented
+(listing unknown groups otherwise results in error).
+It is also possible to specify the built-in default set of groups, and to explicitly
+remove a group from that list.
+
+In its simplest form, the string I<list> is just a colon separated list
+of group names, for example "P-521:P-384:P-256:X25519:ffdhe2048". The first
+group listed will also be used for the B<key_share> sent by a client in a
+TLSv1.3 B<ClientHello>. For servers note the discussion above. The list should
+be in order of preference with the most preferred group first.
+
+Group tuples of comparable security are defined by separating them from each
+other by a tuple separator C</>. Keyshares to be sent by a client are specified
+by prepending a C<*> to the group name, while any C<*> will be ignored by a
+server. The following string I<list> for example defines three tuples when
+used on the server-side, and triggers the generation of three key shares
+when used on the client-side: P-521:*P-256/*P-384/*X25519:P-384:ffdhe2048.
+
+If a group name is preceded with the C<?> character, it will be ignored if an
+implementation is missing. If a group name is preceded with the C<-> character, it
+will be removed from the list of groups if present (including not sending a
+key share for this group), ignored otherwise. The pseudo group name
+C<DEFAULT> can be used to select the OpenSSL built-in default list of groups.
+
+For a TLS 1.3 client, all the groups in the string I<list> are added to the
+supported groups extension of a C<ClientHello>, in the order in which they are listed,
+thereby interpreting tuple separators as group separators. The extension's
+preference order, to be evaluated by the server, is determined by the
+order of the elements in the array, see below.
+
+If a group name is preceded by C<*>, a key share will be sent for this group.
+When preceding C<DEFAULT> with C<*>, a key share will be sent for the first group
+of the OpenSSL built-in default list of groups. If no C<*> is used anywhere in the list,
+a single key share for the leftmost valid group is sent. A maximum of 4 key shares
+are supported. Example: "P-521:*P-256/*P-384" will add P-521, P-256 and P-384 to the
+supported groups extension in a C<ClientHello> and will send key shares for P-256 and P-384.
+
+For a TLS 1.3 server, the groups in the string I<list> will be used to determine which group
+is used for the key agreement. The preference order of the group tuples is determined
+by the order of the tuples in the array, and the preference order of the groups within
+a group tuple is determined by the order of the groups in the tuple. Server preference
+can be enforced by setting B<SSL_OP_CIPHER_SERVER_PREFERENCE> using
+B<SSL_set_options> (default: client preference).
+
+The server will select the group to be used for a key agreement using the following
+pseudo-code algorithm:
+
+ FOR each group tuple
+     IF client preference (= default)
+         FOR each client key-share group
+             IF current key-share group is also part of current group tuple: SH, return success
+         FOR each client supported groups
+             IF current supported group is also part of current group tuple: HRR, return success
+     ELSE (= server preference = with SSL_OP_CIPHER_SERVER_PREFERENCE option set)
+         FOR each group in current tuple
+             IF current group is also part of client key-share groups: SH, return success
+         FOR each group in current tuple
+             IF current group is also part of client supported groups: HRR, return success
+ return failure
+
+ with : SH:  Server hello with current group
+        HRR: Server retry request with current group
+
+Hence, if a client supports a group in a server group tuple, but does not send a key
+share for this group, a Hello Retry Request (HRR) is triggered, asking the client
+to send a new Hello message with a more preferred keyshare. See examples below.
+
+A group name can optionally be preceded by any of C<*>, C<?> or C<->, in any order, with
+the exception that only C<*> is allowed to precede C<DEFAULT>. Separator characters
+C<:> and C</> are only allowed inside the I<list> and not at the very beginning or end.
+
+SSL_set1_groups() and SSL_set1_groups_list() are similar except they set
+supported groups for the SSL structure B<ssl>.
+
+SSL_get1_groups() returns the set of supported groups sent by a client
+in the supported groups extension. It returns the total number of
+supported groups. The B<groups> parameter can be B<NULL> to simply
+return the number of groups for memory allocation purposes. The
+B<groups> array is in the form of a set of group NIDs in preference
+order. It can return zero if the client did not send a supported groups
+extension. If a supported group NID is unknown then the value is set to the
+bitwise OR of TLSEXT_nid_unknown (0x1000000) and the id of the group.
+
+SSL_get0_iana_groups() retrieves the list of groups sent by the
+client in the supported_groups extension.  The B<*out> array of bytes
+is populated with the host-byte-order representation of the uint16_t group
+identifiers, as assigned by IANA.  The group list is returned in the same order
+that was received in the ClientHello.  The return value is the number of groups,
+not the number of bytes written.
+
+SSL_get_shared_group() returns the NID of the shared group B<n> for a
+server-side SSL B<ssl>. If B<n> is -1 then the total number of shared groups is
+returned, which may be zero. Other than for diagnostic purposes,
+most applications will only be interested in the first shared group
+so B<n> is normally set to zero. If the value B<n> is out of range,
+NID_undef is returned. If the NID for the shared group is unknown then the value
+is set to the bitwise OR of TLSEXT_nid_unknown (0x1000000) and the id of the
+group.
+
+SSL_get_negotiated_group() returns the NID of the negotiated group used for
+the handshake key exchange process.  For TLSv1.3 connections this typically
+reflects the state of the current connection, though in the case of PSK-only
+resumption, the returned value will be from a previous connection.  For earlier
+TLS versions, when a session has been resumed, it always reflects the group
+used for key exchange during the initial handshake (otherwise it is from the
+current, non-resumption, connection).  This can be called by either client or
+server. If the NID for the shared group is unknown then the value is set to the
+bitwise OR of TLSEXT_nid_unknown (0x1000000) and the id of the group. See also
+L<SSL_get0_group_name(3)> which returns the name of the negotiated group
+directly and is generally preferred over SSL_get_negotiated_group().
+
+SSL_CTX_get0_implemented_groups() populates a stack with the names of TLS
+groups that are compatible with the TLS version of the B<ctx> argument.
+The returned names are references to internal constants and must not be
+modified or freed.  When B<all> is nonzero, the returned list includes not
+only the preferred IANA names of the groups, but also any associated aliases.
+If the SSL_CTX is version-flexible, the groups will be those compatible
+with any configured minimum and maximum protocol versions.
+The B<names> stack should be allocated by the caller and be empty, the
+matching group names are appended to the provided stack.
+The B<-tls-groups> and B<-all-tls-groups> options of the
+L<openssl list|openssl-list(1)> command output these lists for either
+TLS 1.2 or TLS 1.3 (by default).
+
+All these functions are implemented as macros.
+
+The curve functions are synonyms for the equivalently named group functions and
+are identical in every respect. They exist because, prior to TLS1.3, there was
+only the concept of supported curves. In TLS1.3 this was renamed to supported
+groups, and extended to include Diffie Hellman groups. The group functions
+should be used in preference.
+
+=head1 NOTES
+
+If an application wishes to make use of several of these functions for
+configuration purposes either on a command line or in a file it should
+consider using the SSL_CONF interface instead of manually parsing options.
+
+=head1 RETURN VALUES
+
+SSL_CTX_set1_groups(), SSL_CTX_set1_groups_list(), SSL_set1_groups(),
+SSL_set1_groups_list(), and SSL_CTX_get0_implemented_groups() return 1 for
+success and 0 for failure.
+
+SSL_get1_groups() returns the number of groups, which may be zero.
+
+SSL_get0_iana_groups() returns the number of (uint16_t) groups, which may be zero.
+
+SSL_get_shared_group() returns the NID of shared group B<n> or NID_undef if there
+is no shared group B<n>; or the total number of shared groups if B<n>
+is -1.
+
+When called on a client B<ssl>, SSL_get_shared_group() has no meaning and
+returns -1.
+
+SSL_get_negotiated_group() returns the NID of the negotiated group used for
+key exchange, or NID_undef if there was no negotiated group.
+
+=head1 EXAMPLES
+
+Assume the server I<list> is "P-521:P-256/P-384/X25519:ffdhe2048" and client
+I<list> is "P-521:*P-384" when connecting to such a server, meaning that the
+client supports C<P-521> but does not send a key share for this group to the
+server, and the client supports C<P-384> including key share for this group.
+With both server and client preference, an HRR will be triggered for C<P-521>
+despite the availability of a key share for P-384, which overlaps with a lower
+priority server-side tuple.
+
+As a separate example, consider a server I<list> "A:B/C:D/E:F". Listed in order
+of highest preference to least, 3 group tuples are created: "A:B", "C:D", and
+"E:F". Here are some examples of a client I<list> where setting server/client
+preference will not change the outcome:
+
+- "A:D:*F": Both prefer "A", but the server didn't receive a keyshare for the
+most-preferred tuple in which there's at least one group supported by both.
+Therefore, an HRR is triggered for "A".
+
+- "B:*C": Both prefer "B" from the first group tuple "A:B", so an HRR is
+triggered for "B".
+
+- "C:*F": Both prefer "C" from the second group tuple "C:D", so an HRR is
+triggered for "C".
+
+- "C:*D": Even though both prefer "C" over "D", the server will accept
+the key share for "D". Within a tuple, existing keyshares trump preference
+order.
+
+- "*C:*D": The server accepts the "C" key share.
+
+- "F": Even though it is not prepended with a "*", the client will send a key
+share for "F". The server will then accept the key share for "F".
+
+- "*E:C:A": The server prefers "A" from the "A:B" group tuple, so an HRR is
+triggered for "A".
+
+- "*E:B:*A": The server uses the key share for "A".
+
+Here are some examples where setting server/client preference will change the
+result:
+
+- "*D:*C"
+  - Client preference: The server uses the key share for "D".
+  - Server preference: The server uses the key share for "C".
+
+- "B:A:*C"
+  - Client preference: The server triggers an HRR for "B". For the server,
+"A" and "B" are considered comparable in security. But because the client
+prefers "B", the server will trigger an HRR for "B".
+  - Server preference: The server triggers an HRR for "A".
+
+=head1 SEE ALSO
+
+L<ssl(7)>,
+L<SSL_CTX_add_extra_chain_cert(3)>,
+L<SSL_get0_group_name(3)>
+
+=head1 HISTORY
+
+The curve functions were added in OpenSSL 1.0.2. The equivalent group
+functions were added in OpenSSL 1.1.1. The SSL_get_negotiated_group() function
+was added in OpenSSL 3.0.0.
+
+Support for ignoring unknown groups in SSL_CTX_set1_groups_list() and
+SSL_set1_groups_list() was added in OpenSSL 3.3.
+
+Support for B<ML-KEM> was added in OpenSSL 3.5.
+
+OpenSSL 3.5 also introduces support for three I<hybrid> ECDH PQ key exchange
+TLS groups: B<X25519MLKEM768>, B<SecP256r1MLKEM768> and
+B<SecP384r1MLKEM1024>.
+They offer CPU performance comparable to the associated ECDH group, though at
+the cost of significantly larger key exchange messages.
+The third group, B<SecP384r1MLKEM1024> is substantially more CPU-intensive,
+largely as a result of the high CPU cost of ECDH for the underlying B<P-384>
+group.
+Also its key exchange messages at close to 1700 bytes are larger than the
+roughly 1200 bytes for the first two groups.
+
+As of OpenSSL 3.5 key exchange group names are case-insensitive.
+
+B<SSL_CTX_get0_implemented_groups> was first implemented in OpenSSL 3.5.
+
+Earlier versions of this document described the list as a preference order.
+However, OpenSSL's behavior as a TLS 1.3 server is to consider I<all>
+supported groups as comparable in security.
+
+=head1 COPYRIGHT
+
+Copyright 2013-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

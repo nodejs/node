@@ -1,0 +1,151 @@
+expected,description, -section,val, -cmd,val,val2, -cacertsout,val,val2, -infotype,val,val2, -oldcert,val, -revreason,int, -geninfo,val,
+,,,,Generic,message options:,,,,,,,,,,,,,,Misc,request options:,,
+,,,,,,,,,,,,,,,,,
+1,minimum options, -section,, -cmd,ir,,BLANK,,,BLANK,,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,
+0,no cmd, -section,,BLANK,,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,cmd missing arg, -section,, -cmd,,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,cmd undefined , -section,, -cmd,abc,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,cmd incomplete, -section,, -cmd,i,,BLANK,,,BLANK,,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,
+1,no cacertsout, -section,, -cmd,ir,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,cacertsout given, -section,, -cmd,ir,, -cacertsout,_RESULT_DIR/test.cacerts1.pem,,BLANK,,,BLANK,,BLANK,
+1,use cacerts, -section,, -cmd,ir,,BLANK,,,BLANK,,,BLANK,,BLANK, -trusted,_RESULT_DIR/test.cacerts1.pem
+0,cacertsout missing arg, -section,, -cmd,ir,, -cacertsout,,,BLANK,,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason unspecified, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,0
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason keyCompromise, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,1
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason CACompromise, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,2
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason affiliationChanged, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,3
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason superseded, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,4
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason cessationOfOperation, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,5
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason certificateHold, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,6
+1,revreason removeFromCRL, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,8
+0,revreason 7 (invalid), -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,7
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason priviligeWithdrawn, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,9
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,revreason AACompromise, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,10
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1, --- use csr for revocation ----, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,0,,, -csr,csr.pem
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,without oldcert, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,oldcert file nonexistent, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,idontexist,BLANK,
+0,empty oldcert file, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,empty.txt,BLANK,
+0,oldcert and key do not match, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,trusted.crt, -revreason,0
+0,revreason 11 (invalid), -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,11
+0,revreason string, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,abc
+0,revreason out of integer range, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,_RESULT_DIR/test.cert.pem, -revreason,010000000000000000000
+1,use csr for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,0, -csr,csr.pem
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+1,use issuer and serial for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""",-issuer,/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=subinterCA,-serial,0xA44DB0329A714A8D
+1, --- get certificate for revocation ----, -section,, -cmd,cr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,use issuer but no serial for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""",-issuer,/C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=subinterCA,BLANK,
+0,use serial but no issuer for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""", -issuer, """", -serial, 0xA44DB0329A714A8D
+0,wrong issuer for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""", -issuer, /C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=wrongCA, -serial, 0xA44DB0329A714A8D
+0,bad issuer DN for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""", -issuer, "'XYZ'", -serial, 0xA44DB0329A714A8D
+0,wrong serial for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""", -issuer, /C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=subinterCA, -serial, 0xA44DB0329A714A00
+0,bad serial for revocation, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,, -revreason,-1,BLANK,,, -expect_sender,"""", -issuer, /C=AU/ST=Some-State/O=Internet Widgits Pty Ltd/CN=subinterCA, -serial, xyz
+0,rr without oldcert/csr/issuer/serial, -section,, -cmd,rr,,BLANK,,,BLANK,,,BLANK,,BLANK,
+0,rr with oldcert file nonexistent, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,idontexist,BLANK,
+0,rr with empty oldcert file, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,empty.txt,BLANK,
+0,rr where oldcert and key do not match, -section,, -cmd,rr,,BLANK,,,BLANK,,, -oldcert,trusted.crt, -revreason,0
+,,,,,,,,,,,,,,,,,
+1,ir + infotype, -section,, -cmd,ir,,BLANK,,, -infotype,signKeyPairTypes,,BLANK,,BLANK,
+1,genm without -infotype, -section,, -cmd,genm,,BLANK,,, BLANK,,,BLANK,,BLANK,
+0,genm with missing infotype value, -section,, -cmd,genm,,BLANK,,, -infotype,,,BLANK,,BLANK,
+0,genm with invalid infotype value, -section,, -cmd,genm,,BLANK,,, -infotype,asdf,,BLANK,,BLANK,
+1,genm with infotype signKeyPairTypes, -section,, -cmd,genm,,BLANK,,, -infotype,signKeyPairTypes,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,,,,,,
+1,genm caCerts                           , -section,, -cmd,genm,, -cacertsout,_RESULT_DIR/test.cacerts.pem,, -infotype,caCerts,,BLANK,,BLANK,
+0,genm caCerts missing cacertsout option , -section,, -cmd,genm,, BLANK      ,                            ,, -infotype,caCerts,,BLANK,,BLANK,
+0,genm caCerts missing cacertsout arg    , -section,, -cmd,genm,, -cacertsout,BLANK                       ,, -infotype,caCerts,,BLANK,,BLANK,
+
+
+0,genm caCerts extra cacertsout arg      , -section,, -cmd,genm,, -cacertsout,_RESULT_DIR/test.cacerts.pem,_RESULT_DIR/test.cacerts.pem, -infotype,caCerts,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,,,,,,
+1,genm rootCaCert with oldwithold        , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew0.pem
+1,genm rootCaCert without oldwithold     , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, BLANK      ,               , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+0,genm rootCaCert oldwithold missing arg , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold,               , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+0,genm rootCaCert oldwithold empty file  , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, empty.txt     , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+0,genm rootCaCert oldwithold random file , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, random.bin    , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+0,genm rootCaCert oldwithold nonexistent , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, idontexist    , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+1,genm rootCaCert oldwithold different   , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, signer.crt    , -newwithnew, _RESULT_DIR/test.newwithnew.pem
+0,genm rootCaCert missing newwithnew     , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, BLANK      ,,
+0,genm rootCaCert newwithnew missing arg , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew,,
+1,genm rootCaCert with oldwithnew        , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew1.pem, -oldwithnew, _RESULT_DIR/test.oldwithnew1.pem
+0,genm rootCaCert oldwithnew missing arg , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew.pem, -oldwithnew,,
+1,genm rootCaCert newwithnew oldwithnew newwithold  , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew2.pem, -oldwithnew, _RESULT_DIR/test.oldwithnew2.pem, -newwithold, _RESULT_DIR/test.newwithold1.pem
+0,genm rootCaCert newwithold missig arg  , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew.pem, -oldwithnew, _RESULT_DIR/test.oldwithnew.pem, -newwithold,,
+1,genm rootCaCert newwithnew newwithold  , -section,, -cmd,genm,, BLANK,,, -infotype,rootCaCert,, -oldwithold, oldWithOld.pem, -newwithnew, _RESULT_DIR/test.newwithnew3.pem, -newwithold, _RESULT_DIR/test.newwithold2.pem
+,,,,,,,,,,,,,,,,,,,,,,
+1,genm crlStatusList with crlcert        , -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -crlcert, signer_only.crt,,,,, -crlout, _RESULT_DIR/test.crlout1.pem
+1,genm crlStatusList with old crl        , -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -oldcrl, oldcrl.pem,,,,, -crlout, _RESULT_DIR/test.crlout2.pem
+1,genm crlStatusList with crlcert and old crl , -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -crlcert, signer_only.crt, -oldcrl, oldcrl.pem,,, -crlout, _RESULT_DIR/test.crlout3.pem
+1,genm crlStatusList with latest crl     , -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -oldcrl, _RESULT_DIR/test.crlout3.pem,,,,, -crlout, _RESULT_DIR/test.crlout4.pem
+0,genm crlStatusList with -oldcrl referring to nonexisting file due to empty CRL response message in previous test case, -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -oldcrl, _RESULT_DIR/test.crlout4.pem,,,,, -crlout, _RESULT_DIR/test.crlout5.pem
+0,genm crlStatusList with -crlcert nonexistent, -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -crlcert, idontexist,,,,, -crlout, _RESULT_DIR/test.crlout.pem
+0,genm crlStatusList with wrong issuer, -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -crlcert, server.crt,,,,, -crlout, _RESULT_DIR/test.crlout.pem
+0,genm crlStatusList missing -crlcert & -oldcrl, -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,,,,,,,, -crlout, _RESULT_DIR/test.crlout.pem
+0,genm crlStatusList with wrong cert and correct crl, -section,, -cmd,genm,, BLANK,,, -infotype,crlStatusList,, -crlcert, server.crt, -oldcrl, oldcrl.pem,,, -crlout, _RESULT_DIR/test.crlout.pem
+,,,,,,,,,,,,,,,,,,,,,,
+1,genm certReqTemplate, -section,, -cmd,genm,, -template,_RESULT_DIR/test.template.der, -keyspec,_RESULT_DIR/test.keyspec.der, -infotype,certReqTemplate,,BLANK,,BLANK,,BLANK,,, -expect_sender, """"
+0,genm certReqTemplate missing template option, -section,, -cmd,genm,, -template,"""", -keyspec,_RESULT_DIR/test.keyspec.der, -infotype,certReqTemplate,,BLANK,,BLANK,
+1,genm certReqTemplate without optional keyspec option, -section,, -cmd,genm,, -template,_RESULT_DIR/test.template.der, -keyspec,"""",, -infotype,certReqTemplate,,BLANK,,BLANK,
+0,genm certReqTemplate missing template arg   , -section,, -cmd,genm,, -template,BLANK, -keyspec,_RESULT_DIR/test.keyspec.der, -infotype,certReqTemplate,,BLANK,,BLANK,
+0,genm certReqTemplate template extra arg     , -section,, -cmd,genm,, -template,_RESULT_DIR/test.template.der,_RESULT_DIR/test.template.der, -infotype,certReqTemplate,,BLANK,,BLANK,
+0,genm certReqTemplate template arg non-ex dir, -section,, -cmd,genm,, -template,idontexist/idontexist,, -infotype,certReqTemplate,,BLANK,,BLANK,
+0,genm certReqTemplate keyspec arg non-ex dir, -section,, -cmd,genm,, -template,_RESULT_DIR/test.template.der, -keyspec,idontexist/idontexist,, -infotype,certReqTemplate,,BLANK,,BLANK,
+,,,,,,,,,,,,,,,,,,,,,,
+1,profile, -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -profile,profile1,BLANK,,BLANK,
+0,profile wrong value, -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -profile,profile2,BLANK,,BLANK,
+0,profile missing argument, -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -profile,,,,,
+0,profile extra argument, -section,, -cmd,cr,, -cert,signer.crt, -key,signer.p12, -keypass,pass:12345,BLANK,, -profile,profile1,profile2,,,
+,,,,,,,,,,,,,,,,,,,,,,
+1,geninfo int,                        -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.3:int:987
+1,geninfo str,                        -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,id-kp:str:name
+1,geninfo empty str,                  -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,id-kp:str:
+1,geninfo str and int,                -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo, 'id-kp:str:name, 1.3:int:987'
+0,geninfo missing argument,           -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,,,,,
+0,geninfo bad OID num: leading '.',   -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,.1.2.3:int:987
+0,geninfo invalid OID number string,  -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.333:int:987
+1,geninfo unknown OID number string,  -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.33:int:987
+0,geninfo bad OID name: trailing '_', -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,id-kp_:int:987
+0,geninfo bad syntax: missing ':int', -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.2.3,,,,
+0,geninfo bad type tag,               -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:xyz:987,,,,
+0,geninfo bad syntax: missing ':',    -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:int987,,,,
+0,geninfo bad int syntax: double ':', -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:int::987,,,,
+0,geninfo bad int syntax: extra char, -section,, -cmd,cr,, -cert,signer.crt,, -key,signer.p12,, -keypass,pass:12345,BLANK,, -geninfo,1.2.3:int:987@,,,,
+,,,,,,,,,,,,,,,,,,,
+1,reqout ir+certConf rspout ip+pkiConf, -section,, -cmd,ir,,-reqout,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,-rspout,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK,
+1,reqout cr rspout cp, -section,, -cmd,cr,,-reqout,_RESULT_DIR/cr.der,,-rspout,_RESULT_DIR/cp.der,,BLANK,,BLANK,
+1,reqin old tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
+1,reqin new tid, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,-reqin_new_tid
+0,reqin wrong req, -section,, -cmd,ir,,-reqin,_RESULT_DIR/cr.der _RESULT_DIR/certConf.der,,BLANK,,,BLANK,,BLANK,BLANK
+1,rspin, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der _RESULT_DIR/pkiConf.der,,BLANK,,BLANK
+0,rspin too few files - server must reject, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK,-secret,_PBM_SECRET
+0,rspin too few files - no server, -section,, -cmd,ir,,BLANK,,,-rspin,_RESULT_DIR/ip.der,,BLANK,,BLANK, -server,""""
+1,reqout_only ir - no server, -section,, -cmd,ir,,-reqout_only,_RESULT_DIR/ir2.der,,BLANK,,BLANK, -server,""""
+0,reqout_only non-existing directory and file, -section,, -cmd,ir,,-reqout_only,idontexist/idontexist,,BLANK,,BLANK, -server,""""
+0,reqin ir - no newkey, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir2.der,,-newkey,"""",-newkey,"""",-key,"""",-cert,"""",-secret,_PBM_SECRET
+1,reqin ir and rspout - using no newkey and -popo 0 as workaround, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir2.der,,-rspout,_RESULT_DIR/ip2.der,-newkey,"""", -popo,0
+1,reqin ip and rspin  - using no newkey and -popo 0 as workaround, -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir2.der,,-rspin,_RESULT_DIR/ip2.der,,-newkey,"""",-server,"""",-disable_confirm, -popo,0
+1,reqout_only ir - no server with -popo -1 (same as -centralkeygen), -section,, -cmd,ir,,-reqout_only,_RESULT_DIR/ir3.der,,BLANK,,BLANK, -server,"""", -popo,-1, -newkeyout,_RESULT_DIR/dummyout.pem
+1,reqin ir and rspout - using no newkey and -popo -1 (same as -centralkeygen), -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir3.der,,-rspout,_RESULT_DIR/ip3.der,-newkey,"""", -popo,-1, -newkeyout,_RESULT_DIR/newkeyout.pem
+1,reqin ip and rspin  - using no newkey and -popo -1 (same as -centralkeygen), -section,, -cmd,ir,,-reqin,_RESULT_DIR/ir3.der,,-rspin,_RESULT_DIR/ip3.der,,-newkey,"""",-server,"""",-disable_confirm, -popo,-1, -newkeyout,_RESULT_DIR/newkeyout.pem
+,,,,,,,,,,,,,,,,,,,
+1,central key generation, -section,, -cmd,cr,, -centralkeygen, -newkeyout,_RESULT_DIR/newkeyout1.pem
+0,central key generation missing newkeyout, -section,, -cmd,cr,, -centralkeygen,,BLANK,,BLANK,,BLANK,,BLANK,
+0,using popo 1 with -centralkeygen, -section,, -cmd,cr,, -centralkeygen, -popo,1, -newkeyout,_RESULT_DIR/newkeyout.pem
+1, using popo -1 redundantly with -centralkeygen, -section,, -cmd,cr,, -centralkeygen, -popo,-1, -newkeyout,_RESULT_DIR/newkeyout2.pem
+1, using popo -1 alternatively to -centralkeygen, -section,, -cmd,cr,, -popo,-1, -newkeyout,_RESULT_DIR/newkeyout3.pem, -newkeypass,pass:12345, -certout,_RESULT_DIR/test.cert3.pem
+1, using centrally generated key (and cert) , -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:12345
+0, using centrally generated key with wrong password, -section,, -cmd,cr,,-cert,_RESULT_DIR/test.cert3.pem, -key,_RESULT_DIR/newkeyout3.pem, -keypass,pass:wrong
+0, using popo -1 (instead of -centralkeygen) without -newkeyout, -section,, -cmd,cr,, -popo,-1,,BLANK,,BLANK,,BLANK,,BLANK

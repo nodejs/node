@@ -1,0 +1,183 @@
+=pod
+
+=head1 NAME
+
+OSSL_FUNC_SSL_QUIC_TLS_crypto_send_fn,
+OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd_fn,
+OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd_fn,
+OSSL_FUNC_SSL_QUIC_TLS_yield_secret_fn,
+OSSL_FUNC_SSL_QUIC_TLS_got_transport_params_fn,
+OSSL_FUNC_SSL_QUIC_TLS_alert_fn,
+SSL_set_quic_tls_cbs,
+SSL_set_quic_tls_transport_params,
+SSL_set_quic_tls_early_data_enabled
+- Use the OpenSSL TLS implementation for a third party QUIC implementation
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ /* QUIC TLS callbacks available via an OSSL_DISPATCH table */
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_SEND */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_crypto_send_fn)(SSL *s,
+                                                      const unsigned char *buf,
+                                                      size_t buf_len,
+                                                      size_t *consumed,
+                                                      void *arg);
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RECV_RCD */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd_fn)(SSL *s,
+                                                    const unsigned char **buf,
+                                                    size_t *bytes_read,
+                                                    void *arg);
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RELEASE_RCD */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd_fn)(SSL *,
+                                                             size_t bytes_read,
+                                                             void *arg);
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_YIELD_SECRET */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_yield_secret_fn)(SSL *s,
+                                                    uint32_t prot_level,
+                                                    int direction,
+                                                    const unsigned char *secret,
+                                                    size_t secret_len,
+                                                    void *arg);
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_GOT_TRANSPORT_PARAMS */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_got_transport_params_fn)(SSL *s,
+                                                    const unsigned char *params,
+                                                    size_t params_len,
+                                                    void *arg);
+
+ /* Function id: OSSL_FUNC_SSL_QUIC_TLS_ALERT */
+ typedef int (*OSSL_FUNC_SSL_QUIC_TLS_alert_fn)(SSL *s,
+                                                unsigned char alert_code,
+                                                void *arg);
+
+ int SSL_set_quic_tls_cbs(SSL *s, const OSSL_DISPATCH *qtdis, void *arg);
+ int SSL_set_quic_tls_transport_params(SSL *s,
+                                       const unsigned char *params,
+                                       size_t params_len);
+ int SSL_set_quic_tls_early_data_enabled(SSL *s, int enabled);
+
+=head1 DESCRIPTION
+
+SSL_set_quic_tls_cbs() can be used to replace the standard TLS record layer with
+a custom record layer for use by a third party QUIC implementation. For the
+given SSL object I<s>, a set of callbacks are supplied in an B<OSSL_DISPATCH>
+table via I<qtdis>. The I<arg> parameter will be passed as an argument when the
+various callbacks are called.
+
+An B<OSSL_DISPATCH> table should consist of an array of B<OSSL_DISPATCH> entries
+where each entry is a function id, and a function pointer. The array should be
+terminated with an empty entry (i.e. a 0 function id, and a NULL function
+pointer).
+
+Calling the SSL_set_quic_tls_cbs() function will switch off the
+B<SSL_OP_ENABLE_MIDDLEBOX_COMPAT> option (if set). See L<SSL_set_options(3)>.
+Additionally the minimum TLS protocol version will be set to TLS1_3_VERSION. It
+is an error to call this function with anything other than a TLS connection SSL
+object.
+
+The OSSL_FUNC_SSL_QUIC_TLS_crypto_send_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_SEND>) is called when CRYPTO frame data should
+be sent to the peer. The data to be sent is supplied in the buffer I<buf> which
+is of length I<buf_len>. The callback may choose to consume less data than was
+supplied in the buffer. On successful completion of the callback the I<consumed>
+parameter should be populated with the amount of data that the callback
+consumed. This should be less than or equal to the value in I<buf_len>. CRYPTO
+data should be sent using the most recent write encryption level set via the
+OSSL_FUNC_SSL_QUIC_TLS_yield_secret_fn callback (if it has been called).
+
+The OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RECV_RCD>) is used to receive CRYPTO frame data
+from the peer. When OpenSSL wants to read data from the peer this callback is
+called. The callback should populate I<*buf> with a pointer to a buffer
+containing CRYPTO data that has been received from the peer. The size of the
+buffer should be populated in I<*bytes_read>. The buffer should remain valid
+until OpenSSL calls the OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd_fn callback.
+CRYPTO frame data is assumed to have been decrypted using the most recent read
+protection level set via the yield_secret_cb callback (if it has been called).
+
+The OSSL_FUNC_SSL_QUIC_TLS_crypto_release_rcd_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RELEASE_RCD>) is called when data previously
+read via OSSL_FUNC_SSL_QUIC_TLS_crypto_recv_rcd_fn is no longer required. The
+I<bytes_read> argument is always equal to the size of the buffer previously
+provided in the crypto_receive_rcd_cb callback. Only one record at a time will
+ever be read by OpenSSL.
+
+The OSSL_FUNC_SSL_QUIC_TLS_yield_secret_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_YIELD_SECRET>) is called when a new secret has been
+established. The I<prot_level> argument identies the TLS protection level and
+will be one of B<OSSL_RECORD_PROTECTION_LEVEL_NONE>,
+B<OSSL_RECORD_PROTECTION_LEVEL_EARLY>, B<OSSL_RECORD_PROTECTION_LEVEL_HANDSHAKE>
+or B<OSSL_RECORD_PROTECTION_LEVEL_APPLICATION>. The I<direction> will either be
+0 (for the read secret) or 1 (for the write secret). The secret itself will
+be in the buffer pointed to by I<secret> and the buffer will be of length
+I<secret_len>.
+
+The OSSL_FUNC_SSL_QUIC_TLS_got_transport_params_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_GOT_TRANSPORT_PARAMS>) is called when transport
+parameters have been received from the peer. The parameters are held in the
+I<params> buffer which is of length I<params_len>.
+
+The OSSL_FUNC_SSL_QUIC_TLS_alert_fn callback (function id
+B<OSSL_FUNC_SSL_QUIC_TLS_ALERT>) is called when OpenSSL is attempting to send an
+alert to the peer. The code for the alert is supplied in I<alert_code>.
+
+The SSL_set_quic_tls_transport_params() function is used to set the transport
+parameters to be sent by this endpoint. The parameters are in the I<params>
+buffer which should be of length I<params_len>. The buffer containing the
+parameters should remain valid until after the parameters have been sent. This
+function must have been called by the time the transport parameters need to be
+sent. For a client this will be before the connection has been initiated. For a
+server this might typically occur during the got_transport_params_cb.
+
+The SSL_set_quic_tls_early_data_enabled() function is used to enable the 0-RTT
+feature for a third party QUIC implementation.
+
+=head1 RETURN VALUES
+
+These functions return 1 on success and 0 on failure.
+
+All of the callbacks should also return 1 on success and 0 on failure. A
+failure response is fatal to the connection.
+
+=head1 EXAMPLES
+
+A call to SSL_set_quic_tls_cbs() might look something like the following, given
+suitable definitions of the various callback functions:
+
+ const OSSL_DISPATCH qtdis[] = {
+     {OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_SEND, (void (*)(void))crypto_send_cb},
+     {OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RECV_RCD,
+         (void (*)(void))crypto_recv_rcd_cb},
+     {OSSL_FUNC_SSL_QUIC_TLS_CRYPTO_RELEASE_RCD,
+         (void (*)(void))crypto_release_rcd_cb},
+     {OSSL_FUNC_SSL_QUIC_TLS_YIELD_SECRET,
+         (void (*)(void))yield_secret_cb},
+     {OSSL_FUNC_SSL_QUIC_TLS_GOT_TRANSPORT_PARAMS,
+         (void (*)(void))got_transport_params_cb},
+     {OSSL_FUNC_SSL_QUIC_TLS_ALERT, (void (*)(void))alert_cb},
+     {0, NULL}
+  };
+
+ if (!SSL_set_quic_tls_cbs(ssl, qtdis, NULL))
+     goto err;
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

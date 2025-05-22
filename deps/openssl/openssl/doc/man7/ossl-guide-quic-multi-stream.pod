@@ -1,0 +1,402 @@
+=pod
+
+=begin comment
+
+NB: Changes to the source code samples in this file should also be reflected in
+demos/guide/quic-multi-stream.c
+
+=end comment
+
+=head1 NAME
+
+ossl-guide-quic-multi-stream
+- OpenSSL Guide: Writing a simple multi-stream QUIC client
+
+=head1 INTRODUCTION
+
+This page will introduce some important concepts required to write a simple
+QUIC multi-stream application. It assumes a basic understanding of QUIC and how
+it is used in OpenSSL. See L<ossl-guide-quic-introduction(7)> and
+L<ossl-guide-quic-client-block(7)>.
+
+=head1 QUIC STREAMS
+
+In a QUIC multi-stream application we separate out the concepts of a QUIC
+"connection" and a QUIC "stream". A connection object represents the overarching
+details of the connection between a client and a server including all its
+negotiated and configured parameters. We use the B<SSL> object for that in an
+OpenSSL application (known as the connection B<SSL> object). It is created by an
+application calling L<SSL_new(3)>.
+
+Separately a connection can have zero or more streams associated with it
+(although a connection with zero streams is probably not very useful, so
+normally you would have at least one). A stream is used to send and receive
+data between the two peers. Each stream is also represented by an B<SSL>
+object. A stream is logically independent of all the other streams associated
+with the same connection. Data sent on a stream is guaranteed to be delivered
+in the order that it was sent within that stream. The same is not true across
+streams, e.g. if an application sends data on stream 1 first and then sends some
+more data on stream 2 second, then the remote peer may receive the data sent on
+stream 2 before it receives the data sent on stream 1.
+
+Once the connection B<SSL> object has completed its handshake (i.e.
+L<SSL_connect(3)> has returned 1), stream B<SSL> objects are created by the
+application calling L<SSL_new_stream(3)> or L<SSL_accept_stream(3)> (see
+L</CREATING NEW STREAMS> below).
+
+The same threading rules apply to B<SSL> objects as for most OpenSSL objects
+(see L<ossl-guide-libraries-introduction(7)>). In particular most OpenSSL
+functions are thread safe, but the B<SSL> object is not. This means that you can
+use an B<SSL> object representing one stream at the same time as another thread
+is using a different B<SSL> object for a different stream on the same
+connection. But you cannot use the same B<SSL> object on two different threads
+at the same time (without additional application level locking).
+
+=head1 THE DEFAULT STREAM
+
+A connection B<SSL> object may also (optionally) be associated with a stream.
+This stream is known as the default stream. The default stream is automatically
+created and associated with the B<SSL> object when the application calls
+L<SSL_read_ex(3)>, L<SSL_read(3)>, L<SSL_write_ex(3)> or L<SSL_write(3)> and
+passes the connection B<SSL> object as a parameter.
+
+If a client application calls L<SSL_write_ex(3)> or L<SSL_write(3)> first then
+(by default) the default stream will be a client-initiated bi-directional
+stream. If a client application calls L<SSL_read_ex(3)> or L<SSL_read(3)>
+first then the first stream initiated by the server will be used as the default
+stream (whether it is bi-directional or uni-directional).
+
+This behaviour can be controlled via the default stream mode. See
+L<SSL_set_default_stream_mode(3)> for further details.
+
+It is recommended that new multi-stream applications should not use a default
+stream at all and instead should use a separate stream B<SSL> object for each
+stream that is used. This requires calling L<SSL_set_default_stream_mode(3)>
+and setting the mode to B<SSL_DEFAULT_STREAM_MODE_NONE>.
+
+=head1 CREATING NEW STREAMS
+
+An endpoint can create a new stream by calling L<SSL_new_stream(3)>. This
+creates a locally initiated stream. In order to do so you must pass the QUIC
+connection B<SSL> object as a parameter. You can also specify whether you want a
+bi-directional or a uni-directional stream.
+
+The function returns a new QUIC stream B<SSL> object for sending and receiving
+data on that stream.
+
+The peer may also initiate streams. An application can use the function
+L<SSL_get_accept_stream_queue_len(3)> to determine the number of streams that
+the peer has initiated that are waiting for the application to handle. An
+application can call L<SSL_accept_stream(3)> to create a new B<SSL> object for
+a remotely initiated stream. If the peer has not initiated any then this call
+will block until one is available if the connection object is in blocking mode
+(see L<SSL_set_blocking_mode(3)>).
+
+When using a default stream OpenSSL will prevent new streams from being
+accepted. To override this behaviour you must call
+L<SSL_set_incoming_stream_policy(3)> to set the policy to
+B<SSL_INCOMING_STREAM_POLICY_ACCEPT>. See the man page for further details. This
+is not relevant if the default stream has been disabled as described in
+L</THE DEFAULT STREAM> above.
+
+Any stream may be bi-directional or uni-directional. If it is uni-directional
+then the initiator can write to it but not read from it, and vice-versa for the
+peer. You can determine what type of stream an B<SSL> object represents by
+calling L<SSL_get_stream_type(3)>. See the man page for further details.
+
+=head1 USING A STREAM TO SEND AND RECEIVE DATA
+
+Once you have a stream B<SSL> object (which includes the connection B<SSL>
+object if a default stream is in use) then you can send and receive data over it
+using the L<SSL_write_ex(3)>, L<SSL_write(3)>, L<SSL_read_ex(3)> or
+L<SSL_read(3)> functions. See the man pages for further details.
+
+In the event of one of these functions not returning a success code then
+you should call L<SSL_get_error(3)> to find out further details about the error.
+In blocking mode this will either be a fatal error (e.g. B<SSL_ERROR_SYSCALL>
+or B<SSL_ERROR_SSL>), or it will be B<SSL_ERROR_ZERO_RETURN> which can occur
+when attempting to read data from a stream and the peer has indicated that the
+stream is concluded (i.e. "FIN" has been signalled on the stream). This means
+that the peer will send no more data on that stream. Note that the
+interpretation of B<SSL_ERROR_ZERO_RETURN> is slightly different for a QUIC
+application compared to a TLS application. In TLS it occurs when the connection
+has been shutdown by the peer. In QUIC this only tells you that the current
+stream has been concluded by the peer. It tells you nothing about the underlying
+connection. If the peer has concluded the stream then no more data will be
+received on it, however an application can still send data to the peer until
+the send side of the stream has also been concluded. This can happen by the
+application calling L<SSL_stream_conclude(3)>. It is an error to attempt to
+send more data on a stream after L<SSL_stream_conclude(3)> has been called.
+
+It is also possible to abandon a stream abnormally by calling
+L<SSL_stream_reset(3)>.
+
+Once a stream object is no longer needed it should be freed via a call to
+L<SSL_free(3)>. An application should not call L<SSL_shutdown(3)> on it since
+this is only meaningful for connection level B<SSL> objects. Freeing the stream
+will automatically signal STOP_SENDING to the peer.
+
+=head1 STREAMS AND CONNECTIONS
+
+Given a stream object it is possible to get the B<SSL> object corresponding to
+the connection via a call to L<SSL_get0_connection(3)>. Multi-threaded
+restrictions apply so care should be taken when using the returned connection
+object. Specifically, if you are handling each of your stream objects in a
+different thread and call L<SSL_get0_connection(3)> from within that thread then
+you must be careful to not to call any function that uses the connection object
+at the same time as one of the other threads is also using that connection
+object (with the exception of L<SSL_accept_stream(3)> and
+L<SSL_get_accept_stream_queue_len(3)> which are thread-safe).
+
+A stream object does not inherit all its settings and values from its parent
+B<SSL> connection object. Therefore certain function calls that are relevant to
+the connection as a whole will not work on a stream. For example the function
+L<SSL_get_certificate(3)> can be used to obtain a handle on the peer certificate
+when called with a connection B<SSL> object. When called with a stream B<SSL>
+object it will return NULL.
+
+=head1 SIMPLE MULTI-STREAM QUIC CLIENT EXAMPLE
+
+This section will present various source code samples demonstrating how to write
+a simple multi-stream QUIC client application which connects to a server, send
+some HTTP/1.0 requests to it, and read back the responses. Note that HTTP/1.0
+over QUIC is non-standard and will not be supported by real world servers. This
+is for demonstration purposes only.
+
+We will build on the example code for the simple blocking QUIC client that is
+covered on the L<ossl-guide-quic-client-block(7)> page and we assume that you
+are familiar with it. We will only describe the differences between the simple
+blocking QUIC client and the multi-stream QUIC client. Although the example code
+uses blocking B<SSL> objects, you can equally use nonblocking B<SSL> objects.
+See L<ossl-guide-quic-client-non-block(7)> for more information about writing a
+nonblocking QUIC client.
+
+The complete source code for this example multi-stream QUIC client is available
+in the C<demos/guide> directory of the OpenSSL source distribution in the file
+C<quic-multi-stream.c>. It is also available online at
+L<https://github.com/openssl/openssl/blob/master/demos/guide/quic-multi-stream.c>.
+
+=head2 Disabling the default stream
+
+As discussed above in L</THE DEFAULT STREAM> we will follow the recommendation
+to disable the default stream for our multi-stream client. To do this we call
+the L<SSL_set_default_stream_mode(3)> function and pass in our connection B<SSL>
+object and the value B<SSL_DEFAULT_STREAM_MODE_NONE>.
+
+    /*
+     * We will use multiple streams so we will disable the default stream mode.
+     * This is not a requirement for using multiple streams but is recommended.
+     */
+    if (!SSL_set_default_stream_mode(ssl, SSL_DEFAULT_STREAM_MODE_NONE)) {
+        printf("Failed to disable the default stream mode\n");
+        goto end;
+    }
+
+=head2 Creating the request streams
+
+For the purposes of this example we will create two different streams to send
+two different HTTP requests to the server. For the purposes of demonstration the
+first of these will be a bi-directional stream and the second one will be a
+uni-directional one:
+
+    /*
+     * We create two new client initiated streams. The first will be
+     * bi-directional, and the second will be uni-directional.
+     */
+    stream1 = SSL_new_stream(ssl, 0);
+    stream2 = SSL_new_stream(ssl, SSL_STREAM_FLAG_UNI);
+    if (stream1 == NULL || stream2 == NULL) {
+        printf("Failed to create streams\n");
+        goto end;
+    }
+
+=head2 Writing data to the streams
+
+Once the streams are successfully created we can start writing data to them. In
+this example we will be sending a different HTTP request on each stream. To
+avoid repeating too much code we write a simple helper function to send an HTTP
+request to a stream:
+
+    int write_a_request(SSL *stream, const char *request_start,
+                        const char *hostname)
+    {
+        const char *request_end = "\r\n\r\n";
+        size_t written;
+
+        if (!SSL_write_ex(stream, request_start, strlen(request_start), &written))
+            return 0;
+        if (!SSL_write_ex(stream, hostname, strlen(hostname), &written))
+            return 0;
+        if (!SSL_write_ex(stream, request_end, strlen(request_end), &written))
+            return 0;
+
+        return 1;
+    }
+
+We assume the strings B<request1_start> and B<request2_start> hold the
+appropriate HTTP requests. We can then call our helper function above to send
+the requests on the two streams. For the sake of simplicity this example does
+this sequentially, writing to B<stream1> first and, when this is successful,
+writing to B<stream2> second. Remember that our client is blocking so these
+calls will only return once they have been successfully completed. A real
+application would not need to do these writes sequentially or in any particular
+order. For example we could start two threads (one for each stream) and write
+the requests to each stream simultaneously.
+
+    /* Write an HTTP GET request on each of our streams to the peer */
+    if (!write_a_request(stream1, request1_start, hostname)) {
+        printf("Failed to write HTTP request on stream 1\n");
+        goto end;
+    }
+
+    if (!write_a_request(stream2, request2_start, hostname)) {
+        printf("Failed to write HTTP request on stream 2\n");
+        goto end;
+    }
+
+=head2 Reading data from a stream
+
+In this example B<stream1> is a bi-directional stream so, once we have sent the
+request on it, we can attempt to read the response from the server back. Here
+we just repeatedly call L<SSL_read_ex(3)> until that function fails (indicating
+either that there has been a problem, or that the peer has signalled the stream
+as concluded).
+
+    printf("Stream 1 data:\n");
+    /*
+     * Get up to sizeof(buf) bytes of the response from stream 1 (which is a
+     * bidirectional stream). We keep reading until the server closes the
+     * connection.
+     */
+    while (SSL_read_ex(stream1, buf, sizeof(buf), &readbytes)) {
+        /*
+        * OpenSSL does not guarantee that the returned data is a string or
+        * that it is NUL terminated so we use fwrite() to write the exact
+        * number of bytes that we read. The data could be non-printable or
+        * have NUL characters in the middle of it. For this simple example
+        * we're going to print it to stdout anyway.
+        */
+        fwrite(buf, 1, readbytes, stdout);
+    }
+    /* In case the response didn't finish with a newline we add one now */
+    printf("\n");
+
+In a blocking application like this one calls to L<SSL_read_ex(3)> will either
+succeed immediately returning data that is already available, or they will block
+waiting for more data to become available and return it when it is, or they will
+fail with a 0 response code.
+
+Once we exit the while loop above we know that the last call to
+L<SSL_read_ex(3)> gave a 0 response code so we call the L<SSL_get_error(3)>
+function to find out more details. Since this is a blocking application this
+will either return B<SSL_ERROR_SYSCALL> or B<SSL_ERROR_SSL> indicating a
+fundamental problem, or it will return B<SSL_ERROR_ZERO_RETURN> indicating that
+the stream is concluded and there will be no more data available to read from
+it. Care must be taken to distinguish between an error at the stream level (i.e.
+a stream reset) and an error at the connection level (i.e. a connection closed).
+The L<SSL_get_stream_read_state(3)> function can be used to distinguish between
+these different cases.
+
+    /*
+     * Check whether we finished the while loop above normally or as the
+     * result of an error. The 0 argument to SSL_get_error() is the return
+     * code we received from the SSL_read_ex() call. It must be 0 in order
+     * to get here. Normal completion is indicated by SSL_ERROR_ZERO_RETURN. In
+     * QUIC terms this means that the peer has sent FIN on the stream to
+     * indicate that no further data will be sent.
+     */
+    switch (SSL_get_error(stream1, 0)) {
+    case SSL_ERROR_ZERO_RETURN:
+        /* Normal completion of the stream */
+        break;
+
+    case SSL_ERROR_SSL:
+        /*
+         * Some stream fatal error occurred. This could be because of a stream
+         * reset - or some failure occurred on the underlying connection.
+         */
+        switch (SSL_get_stream_read_state(stream1)) {
+        case SSL_STREAM_STATE_RESET_REMOTE:
+            printf("Stream reset occurred\n");
+            /* The stream has been reset but the connection is still healthy. */
+            break;
+
+        case SSL_STREAM_STATE_CONN_CLOSED:
+            printf("Connection closed\n");
+            /* Connection is already closed. Skip SSL_shutdown() */
+            goto end;
+
+        default:
+            printf("Unknown stream failure\n");
+            break;
+        }
+        break;
+
+    default:
+        /* Some other unexpected error occurred */
+        printf ("Failed reading remaining data\n");
+        break;
+    }
+
+=head2 Accepting an incoming stream
+
+Our B<stream2> object that we created above was a uni-directional stream so it
+cannot be used to receive data from the server. In this hypothetical example
+we assume that the server initiates a new stream to send us back the data that
+we requested. To do that we call L<SSL_accept_stream(3)>. Since this is a
+blocking application this will wait indefinitely until the new stream has
+arrived and is available for us to accept. In the event of an error it will
+return B<NULL>.
+
+    /*
+     * In our hypothetical HTTP/1.0 over QUIC protocol that we are using we
+     * assume that the server will respond with a server initiated stream
+     * containing the data requested in our uni-directional stream. This doesn't
+     * really make sense to do in a real protocol, but its just for
+     * demonstration purposes.
+     *
+     * We're using blocking mode so this will block until a stream becomes
+     * available. We could override this behaviour if we wanted to by setting
+     * the SSL_ACCEPT_STREAM_NO_BLOCK flag in the second argument below.
+     */
+    stream3 = SSL_accept_stream(ssl, 0);
+    if (stream3 == NULL) {
+        printf("Failed to accept a new stream\n");
+        goto end;
+    }
+
+We can now read data from the stream in the same way that we did for B<stream1>
+above. We won't repeat that here.
+
+=head2 Cleaning up the streams
+
+Once we have finished using our streams we can simply free them by calling
+L<SSL_free(3)>. Optionally we could call L<SSL_stream_conclude(3)> on them if
+we want to indicate to the peer that we won't be sending them any more data, but
+we don't do that in this example because we assume that the HTTP application
+protocol supplies sufficient information for the peer to know when we have
+finished sending request data.
+
+We should not call L<SSL_shutdown(3)> or L<SSL_shutdown_ex(3)> on the stream
+objects since those calls should not be used for streams.
+
+    SSL_free(stream1);
+    SSL_free(stream2);
+    SSL_free(stream3);
+
+=head1 SEE ALSO
+
+L<ossl-guide-introduction(7)>, L<ossl-guide-libraries-introduction(7)>,
+L<ossl-guide-libssl-introduction(7)> L<ossl-guide-quic-introduction(7)>,
+L<ossl-guide-quic-client-block(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

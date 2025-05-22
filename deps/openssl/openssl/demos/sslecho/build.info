@@ -1,0 +1,11 @@
+#
+# To run the demos when linked with a shared library (default) ensure that
+# libcrypto and libssl are on the library path. For example:
+#
+#    LD_LIBRARY_PATH=../.. ./sslecho
+
+PROGRAMS{noinst} = sslecho
+
+INCLUDE[sslecho]=../../include
+SOURCE[sslecho]=main.c
+DEPEND[sslecho]=../../libcrypto ../../libssl

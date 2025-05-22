@@ -1,0 +1,71 @@
+=pod
+
+=head1 NAME
+
+SSL_get0_peer_signature_name, SSL_get_peer_signature_nid,
+SSL_get_peer_signature_type_nid, SSL_get0_signature_name,
+SSL_get_signature_nid, SSL_get_signature_type_nid -
+get TLS message signing types
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ int SSL_get0_peer_signature_name(const SSL *ssl, const char **sigalg);
+ int SSL_get_peer_signature_nid(SSL *ssl, int *psig_nid);
+ int SSL_get_peer_signature_type_nid(const SSL *ssl, int *psigtype_nid);
+ int SSL_get0_signature_name(SSL *ssl, const char **sigalg);
+ int SSL_get_signature_nid(SSL *ssl, int *psig_nid);
+ int SSL_get_signature_type_nid(const SSL *ssl, int *psigtype_nid);
+
+=head1 DESCRIPTION
+
+SSL_get0_peer_signature_name() sets I<*sigalg> to the IANA name of the
+L<signature scheme|https://www.iana.org/assignments/tls-parameters/tls-parameters.xhtml#tls-signaturescheme>
+used by the peer to sign the TLS handshake.
+The caller must not free the returned pointer.
+The returned string should be copied if it is to be retained beyond the
+lifetime of the SSL connection.
+
+SSL_get_peer_signature_nid() sets B<*psig_nid> to the NID of the digest used
+by the peer to sign TLS messages. It is implemented as a macro.
+
+SSL_get_peer_signature_type_nid() sets B<*psigtype_nid> to the signature
+type used by the peer to sign TLS messages. Currently the signature type
+is the NID of the public key type used for signing except for PSS signing
+where it is B<EVP_PKEY_RSA_PSS>. To differentiate between
+B<rsa_pss_rsae_*> and B<rsa_pss_pss_*> signatures, it's necessary to check
+the type of public key in the peer's certificate.
+
+SSL_get0_signature_name(), SSL_get_signature_nid() and
+SSL_get_signature_type_nid() return the equivalent information for the local
+end of the connection.
+
+=head1 RETURN VALUES
+
+These functions return 1 for success and 0 for failure. There are several
+possible reasons for failure: the peer or local end is a client and did not
+sign the handshake (did not use a client certificate), the cipher suite has no
+signature (e.g. it uses RSA key exchange or is anonymous), the TLS version is
+below 1.2 or the functions were called too early, e.g. before the peer signed a
+message.
+
+=head1 SEE ALSO
+
+L<ssl(7)>, L<SSL_get_peer_certificate(3)>,
+
+=head1 HISTORY
+
+The SSL_get0_peer_signature_name() and SSL_get0_signature_name() functions were
+added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2017-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

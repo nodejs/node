@@ -1,0 +1,115 @@
+=pod
+
+=head1 NAME
+
+ossl-guide-libssl-introduction, ssl
+- OpenSSL Guide: An introduction to libssl
+
+=head1 INTRODUCTION
+
+The OpenSSL C<libssl> library provides implementations of several secure network
+communications protocols. Specifically it provides SSL/TLS (SSLv3, TLSv1,
+TLSv1.1, TLSv1.2 and TLSv1.3), DTLS (DTLSv1 and DTLSv1.2) and QUIC (client side
+only). The library depends on C<libcrypto> for its underlying cryptographic
+operations (see L<ossl-guide-libcrypto-introduction(7)>).
+
+The set of APIs supplied by C<libssl> is common across all of these different
+network protocols, so a developer familiar with writing applications using one
+of these protocols should be able to transition to using another with relative
+ease.
+
+An application written to use C<libssl> will include the F<< <openssl/ssl.h> >>
+header file and will typically use two main data structures, i.e. B<SSL> and
+B<SSL_CTX>.
+
+An B<SSL> object is used to represent a connection to a remote peer. Once a
+connection with a remote peer has been established data can be exchanged with
+that peer.
+
+When using DTLS any data that is exchanged uses "datagram" semantics, i.e.
+the packets of data can be delivered in any order, and they are not guaranteed
+to arrive at all. In this case the B<SSL> object used for the connection is also
+used for exchanging data with the peer.
+
+Both TLS and QUIC support the concept of a "stream" of data. Data sent via a
+stream is guaranteed to be delivered in order without any data loss. A stream
+can be uni- or bi-directional.
+
+SSL/TLS only supports one stream of data per connection and it is always
+bi-directional. In this case the B<SSL> object used for the connection also
+represents that stream. See L<ossl-guide-tls-introduction(7)> for more
+information.
+
+The QUIC protocol can support multiple streams per connection and they can be
+uni- or bi-directional. In this case an B<SSL> object can represent the
+underlying connection, or a stream, or both. Where multiple streams are in use
+a separate B<SSL> object is used for each one. See
+L<ossl-guide-quic-introduction(7)> for more information.
+
+An B<SSL_CTX> object is used to create the B<SSL> object for the underlying
+connection. A single B<SSL_CTX> object can be used to create many connections
+(each represented by a separate B<SSL> object). Many API functions in libssl
+exist in two forms: one that takes an B<SSL_CTX> and one that takes an B<SSL>.
+Typically settings that you apply to the B<SSL_CTX> will then be inherited by
+any B<SSL> object that you create from it. Alternatively you can apply settings
+directly to the B<SSL> object without affecting other B<SSL> objects. Note that
+you should not normally make changes to an B<SSL_CTX> after the first B<SSL>
+object has been created from it.
+
+=head1 DATA STRUCTURES
+
+As well as B<SSL_CTX> and B<SSL> there are a number of other data structures
+that an application may need to use. They are summarised below.
+
+=over 4
+
+=item B<SSL_METHOD> (SSL Method)
+
+This structure is used to indicate the kind of connection you want to make, e.g.
+whether it is to represent the client or the server, and whether it is to use
+SSL/TLS, DTLS or QUIC. It is passed as a parameter when creating
+the B<SSL_CTX>.
+
+=item B<SSL_SESSION> (SSL Session)
+
+After establishing a connection with a peer the agreed cryptographic material
+can be reused to create future connections with the same peer more rapidly. The
+set of data used for such a future connection establishment attempt is collected
+together into an B<SSL_SESSION> object. A single successful connection with a
+peer may generate zero or more such B<SSL_SESSION> objects for use in future
+connection attempts.
+
+=item B<SSL_CIPHER> (SSL Cipher)
+
+During connection establishment the client and server agree upon cryptographic
+algorithms they are going to use for encryption and other uses. A single set
+of cryptographic algorithms that are to be used together is known as a
+ciphersuite. Such a set is represented by an B<SSL_CIPHER> object.
+
+The set of available ciphersuites that can be used are configured in the
+B<SSL_CTX> or B<SSL>.
+
+=back
+
+=head1 FURTHER READING
+
+See L<ossl-guide-tls-introduction(7)> for an introduction to the SSL/TLS
+protocol and L<ossl-guide-quic-introduction(7)> for an introduction to QUIC.
+
+See L<ossl-guide-libcrypto-introduction(7)> for an introduction to C<libcrypto>.
+
+=head1 SEE ALSO
+
+L<ossl-guide-libcrypto-introduction(7)>, L<ossl-guide-tls-introduction(7)>,
+L<ossl-guide-quic-introduction(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2000-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

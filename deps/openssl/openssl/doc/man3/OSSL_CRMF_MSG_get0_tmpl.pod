@@ -1,0 +1,168 @@
+=pod
+
+=head1 NAME
+
+OSSL_CRMF_MSG_get0_tmpl,
+OSSL_CRMF_CERTTEMPLATE_get0_publicKey,
+OSSL_CRMF_CERTTEMPLATE_get0_subject,
+OSSL_CRMF_CERTTEMPLATE_get0_issuer,
+OSSL_CRMF_CERTTEMPLATE_get0_serialNumber,
+OSSL_CRMF_CERTTEMPLATE_get0_extensions,
+OSSL_CRMF_CERTID_get0_serialNumber,
+OSSL_CRMF_CERTID_get0_issuer,
+OSSL_CRMF_ENCRYPTEDKEY_get1_encCert,
+OSSL_CRMF_ENCRYPTEDKEY_get1_pkey,
+OSSL_CRMF_ENCRYPTEDKEY_init_envdata,
+OSSL_CRMF_ENCRYPTEDVALUE_decrypt,
+OSSL_CRMF_ENCRYPTEDVALUE_get1_encCert,
+OSSL_CRMF_MSG_get_certReqId,
+OSSL_CRMF_MSG_centralkeygen_requested
+- functions reading from CRMF CertReqMsg structures
+
+=head1 SYNOPSIS
+
+ #include <openssl/crmf.h>
+
+ OSSL_CRMF_CERTTEMPLATE *OSSL_CRMF_MSG_get0_tmpl(const OSSL_CRMF_MSG *crm);
+ X509_PUBKEY
+ *OSSL_CRMF_CERTTEMPLATE_get0_publicKey(const OSSL_CRMF_CERTTEMPLATE *tmpl);
+ const X509_NAME
+ *OSSL_CRMF_CERTTEMPLATE_get0_subject(const OSSL_CRMF_CERTTEMPLATE *tmpl);
+ const X509_NAME
+ *OSSL_CRMF_CERTTEMPLATE_get0_issuer(const OSSL_CRMF_CERTTEMPLATE *tmpl);
+ const ASN1_INTEGER
+ *OSSL_CRMF_CERTTEMPLATE_get0_serialNumber(const OSSL_CRMF_CERTTEMPLATE *tmpl);
+ X509_EXTENSIONS
+ *OSSL_CRMF_CERTTEMPLATE_get0_extensions(const OSSL_CRMF_CERTTEMPLATE *tmpl);
+
+ const ASN1_INTEGER
+ *OSSL_CRMF_CERTID_get0_serialNumber(const OSSL_CRMF_CERTID *cid);
+ const X509_NAME *OSSL_CRMF_CERTID_get0_issuer(const OSSL_CRMF_CERTID *cid);
+
+ X509 *OSSL_CRMF_ENCRYPTEDKEY_get1_encCert(const OSSL_CRMF_ENCRYPTEDKEY *ecert,
+                                           OSSL_LIB_CTX *libctx, const char *propq,
+                                           EVP_PKEY *pkey, unsigned int flags);
+ EVP_PKEY
+ *OSSL_CRMF_ENCRYPTEDKEY_get1_pkey(OSSL_CRMF_ENCRYPTEDKEY *encryptedKey,
+                                   X509_STORE *ts, STACK_OF(X509) *extra,
+                                   EVP_PKEY *pkey, X509 *cert,
+                                   ASN1_OCTET_STRING *secret,
+                                   OSSL_LIB_CTX *libctx, const char *propq);
+ OSSL_CRMF_ENCRYPTEDKEY
+ *OSSL_CRMF_ENCRYPTEDKEY_init_envdata(CMS_EnvelopedData *envdata);
+
+ unsigned char
+ *OSSL_CRMF_ENCRYPTEDVALUE_decrypt(const OSSL_CRMF_ENCRYPTEDVALUE *enc,
+                                   OSSL_LIB_CTX *libctx, const char *propq,
+                                   EVP_PKEY *pkey, int *outlen);
+ X509
+ *OSSL_CRMF_ENCRYPTEDVALUE_get1_encCert(const OSSL_CRMF_ENCRYPTEDVALUE *ecert,
+                                        OSSL_LIB_CTX *libctx, const char *propq,
+                                        EVP_PKEY *pkey);
+
+ int OSSL_CRMF_MSG_get_certReqId(const OSSL_CRMF_MSG *crm);
+ int OSSL_CRMF_MSG_centralkeygen_requested(const OSSL_CRMF_MSG *crm,
+                                           const X509_REQ *p10cr);
+
+=head1 DESCRIPTION
+
+OSSL_CRMF_MSG_get0_tmpl() retrieves the certificate template of I<crm>.
+
+OSSL_CRMF_CERTTEMPLATE_get0_publicKey() retrieves the public key of the
+given certificate template I<tmpl>.
+
+OSSL_CRMF_CERTTEMPLATE_get0_subject() retrieves the subject name of the
+given certificate template I<tmpl>.
+
+OSSL_CRMF_CERTTEMPLATE_get0_issuer() retrieves the issuer name of the
+given certificate template I<tmpl>.
+
+OSSL_CRMF_CERTTEMPLATE_get0_serialNumber() retrieves the serialNumber of the
+given certificate template I<tmpl>.
+
+OSSL_CRMF_CERTTEMPLATE_get0_extensions() retrieves the X.509 extensions
+of the given certificate template I<tmpl>, or NULL if not present.
+
+OSSL_CRMF_CERTID_get0_serialNumber retrieves the serialNumber
+of the given CertId I<cid>.
+
+OSSL_CRMF_CERTID_get0_issuer retrieves the issuer name
+of the given CertId I<cid>, which must be of ASN.1 type GEN_DIRNAME.
+
+OSSL_CRMF_ENCRYPTEDKEY_get1_encCert() decrypts the certificate in the given
+encryptedKey I<ecert>, using the private key I<pkey>, library context
+I<libctx> and property query string I<propq> (see L<OSSL_LIB_CTX(3)>).
+This is needed for the indirect POPO method as in RFC 4210 section 5.2.8.2.
+The function returns the decrypted certificate as a copy, leaving its ownership
+with the caller, who is responsible for freeing it.
+
+OSSL_CRMF_ENCRYPTEDKEY_get1_pkey() decrypts the private key in I<encryptedKey>.
+If I<encryptedKey> is not of type B<OSSL_CRMF_ENCRYPTEDKEY_ENVELOPEDDATA>,
+decryption uses the private key I<pkey>.
+The library context I<libctx> and property query I<propq> are taken into account as usual.
+The rest of this paragraph is relevant only if CMS support not disabled for the OpenSSL build
+and I<encryptedKey> is of type case B<OSSL_CRMF_ENCRYPTEDKEY_ENVELOPEDDATA>.
+Decryption uses the I<secret> parameter if not NULL;
+otherwise uses the private key <pkey> and the certificate I<cert> 
+related to I<pkey>, where I<cert> is recommended to be given if available.
+On success, the function verifies the decrypted data as signed data,
+using the trust store I<ts> and any untrusted certificates in I<extra>.
+Doing so, it checks for the purpose "CMP Key Generation Authority" (cmKGA).
+
+OSSL_CRMF_ENCRYPTEDKEY_init_envdata() returns I<OSSL_CRMF_ENCRYPTEDKEY>, intialized with 
+the enveloped data I<envdata>.
+
+OSSL_CRMF_ENCRYPTEDVALUE_decrypt() decrypts the encrypted value in the given
+encryptedValue I<enc>, using the private key I<pkey>, library context
+I<libctx> and property query string I<propq> (see L<OSSL_LIB_CTX(3)>).
+
+OSSL_CRMF_ENCRYPTEDVALUE_get1_encCert() decrypts the certificate in the given
+encryptedValue I<ecert>, using the private key I<pkey>, library context
+I<libctx> and property query string I<propq> (see L<OSSL_LIB_CTX(3)>).
+This is needed for the indirect POPO method as in RFC 4210 section 5.2.8.2.
+The function returns the decrypted certificate as a copy, leaving its ownership
+with the caller, who is responsible for freeing it.
+
+OSSL_CRMF_MSG_get_certReqId() retrieves the certReqId of I<crm>.
+
+OSSL_CRMF_MSG_centralkeygen_requested() returns 1 if central key generation
+is requested i.e., the public key in the certificate request (I<crm> is taken if it is non-NULL,
+otherwise I<p10cr>) is NULL or has an empty key value (with length zero).
+In case I<crm> is non-NULL, this is checked for consistency with its B<popo> field
+(must be NULL if and only if central key generation is requested).
+Otherwise it returns 0, and on error a negative value.
+
+=head1 RETURN VALUES
+
+OSSL_CRMF_MSG_get_certReqId() returns the certificate request ID as a
+nonnegative integer or -1 on error.
+
+OSSL_CRMF_MSG_centralkeygen_requested() returns 1 if central key generation
+is requested, 0 if it is not requested, and a negative value on error.
+
+All other functions return a pointer with the intended result or NULL on error.
+
+=head1 SEE ALSO
+
+RFC 4211
+
+=head1 HISTORY
+
+The OpenSSL CRMF support was added in OpenSSL 3.0.
+
+OSSL_CRMF_CERTTEMPLATE_get0_publicKey() was added in OpenSSL 3.2.
+
+OSSL_CRMF_ENCRYPTEDKEY_get1_encCert(), OSSL_CRMF_ENCRYPTEDKEY_get1_pkey(),
+OSSL_CRMF_ENCRYPTEDKEY_init_envdata(), OSSL_CRMF_ENCRYPTEDVALUE_decrypt()
+and OSSL_CRMF_MSG_centralkeygen_requested() were added in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2007-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

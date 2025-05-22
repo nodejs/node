@@ -1,0 +1,70 @@
+=pod
+
+=head1 NAME
+
+BIO_f_prefix, BIO_set_prefix, BIO_set_indent, BIO_get_indent
+- prefix BIO filter
+
+=head1 SYNOPSIS
+
+ #include <openssl/bio.h>
+
+ const BIO_METHOD *BIO_f_prefix(void);
+ long BIO_set_prefix(BIO *b, const char *prefix);
+ long BIO_set_indent(BIO *b, long indent);
+ long BIO_get_indent(BIO *b);
+
+=head1 DESCRIPTION
+
+BIO_f_cipher() returns the prefix BIO method. This is a filter for
+text output, where each line gets automatically prefixed and indented
+according to user input.
+
+The prefix and the indentation are combined.  For each line of output
+going through this filter, the prefix is output first, then the amount
+of additional spaces indicated by the indentation, and then the line
+itself.
+
+By default, there is no prefix, and indentation is set to 0.
+
+BIO_set_prefix() sets the prefix to be used for future lines of
+text, using I<prefix>.  I<prefix> may be NULL, signifying that there
+should be no prefix.  If I<prefix> isn't NULL, this function makes a
+copy of it.
+
+BIO_set_indent() sets the indentation to be used for future lines of
+text, using I<indent>.  Negative values are not allowed.
+
+BIO_get_indent() gets the current indentation.
+
+=head1 NOTES
+
+BIO_set_prefix(), BIO_set_indent() and BIO_get_indent() are
+implemented as macros.
+
+=head1 RETURN VALUES
+
+BIO_f_prefix() returns the prefix BIO method.
+
+BIO_set_prefix() returns 1 if the prefix was correctly set, or <=0 on
+failure.
+
+BIO_set_indent() returns 1 if the prefix was correctly set, or <=0 on
+failure.
+
+BIO_get_indent() returns the current indentation, or a negative value for failure.
+
+=head1 SEE ALSO
+
+L<bio(7)>
+
+=head1 COPYRIGHT
+
+Copyright 2019 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,110 @@
+=pod
+
+=head1 NAME
+
+SSL_get_stream_id, SSL_get_stream_type, SSL_STREAM_TYPE_NONE,
+SSL_STREAM_TYPE_READ, SSL_STREAM_TYPE_WRITE, SSL_STREAM_TYPE_BIDI,
+SSL_is_stream_local - get QUIC stream ID and stream type information
+
+=head1 SYNOPSIS
+
+ #include <openssl/ssl.h>
+
+ uint64_t SSL_get_stream_id(SSL *ssl);
+
+ #define SSL_STREAM_TYPE_NONE
+ #define SSL_STREAM_TYPE_BIDI
+ #define SSL_STREAM_TYPE_READ
+ #define SSL_STREAM_TYPE_WRITE
+ int SSL_get_stream_type(SSL *ssl);
+
+ int SSL_is_stream_local(SSL *ssl);
+
+=head1 DESCRIPTION
+
+The SSL_get_stream_id() function returns the QUIC stream ID for a QUIC stream
+SSL object, or for a QUIC connection SSL object which has a default stream
+attached.
+
+The SSL_get_stream_type() function identifies what operations can be performed
+on the stream, and returns one of the following values:
+
+=over 4
+
+=item B<SSL_STREAM_TYPE_NONE>
+
+The SSL object is a QUIC connection SSL object without a default stream
+attached.
+
+=item B<SSL_STREAM_TYPE_BIDI>
+
+The SSL object is a non-QUIC SSL object, or is a QUIC stream object (or QUIC
+connection SSL object with a default stream attached), and that stream is a
+bidirectional QUIC stream.
+
+=item B<SSL_STREAM_TYPE_READ>
+
+The SSL object is a QUIC stream object (or QUIC connection SSL object with a
+default stream attached), and that stream is a unidirectional QUIC stream which
+was initiated by the remote peer; thus, it can be read from, but not written to.
+
+=item B<SSL_STREAM_TYPE_WRITE>
+
+The SSL object is a QUIC stream object (or QUIC connection SSL object with a
+default stream attached), and that stream is a unidirectional QUIC stream which
+was initiated by the local application; thus, it can be written to, but not read
+from.
+
+=back
+
+The SSL_is_stream_local() function determines whether a stream was locally
+created.
+
+=head1 NOTES
+
+While QUICv1 assigns specific meaning to the low two bits of a QUIC stream ID,
+QUIC stream IDs in future versions of QUIC are not required to have the same
+semantics. Do not determine stream properties using these bits. Instead, use
+SSL_get_stream_type() to determine the stream type and SSL_get_stream_is_local()
+to determine the stream initiator.
+
+The SSL_get_stream_type() identifies the type of a QUIC stream based on its
+identity, and does not indicate whether an operation can currently be
+successfully performed on a stream. For example, you might locally initiate a
+unidirectional stream, write to it, and then conclude the stream using
+L<SSL_stream_conclude(3)>, meaning that it can no longer be written to, but
+SSL_get_stream_type() would still return B<SSL_STREAM_TYPE_WRITE>. The value
+returned by SSL_get_stream_type() does not vary over the lifespan of a stream.
+
+=head1 RETURN VALUES
+
+SSL_get_stream_id() returns a QUIC stream ID, or B<UINT64_MAX> if called on an
+SSL object which is not a QUIC SSL object, or if called on a QUIC connection SSL
+object without a default stream attached. Note that valid QUIC stream IDs are
+always below 2**62.
+
+SSL_get_stream_type() returns one of the B<SSL_STREAM_TYPE> values.
+
+SSL_is_stream_local() returns 1 if called on a QUIC stream SSL object which
+represents a stream which was locally initiated. It returns 0 if called on a
+QUIC stream SSL object which represents a stream which was remotely initiated by
+a peer, and -1 if called on any other kind of SSL object.
+
+=head1 SEE ALSO
+
+L<SSL_new_stream(3)>, L<SSL_accept_stream(3)>
+
+=head1 HISTORY
+
+These functions were added in OpenSSL 3.2.
+
+=head1 COPYRIGHT
+
+Copyright 2002-2023 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

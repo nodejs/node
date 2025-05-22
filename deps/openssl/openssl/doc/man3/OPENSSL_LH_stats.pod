@@ -1,0 +1,80 @@
+=pod
+
+=head1 NAME
+
+OPENSSL_LH_stats, OPENSSL_LH_node_stats, OPENSSL_LH_node_usage_stats,
+OPENSSL_LH_stats_bio,
+OPENSSL_LH_node_stats_bio, OPENSSL_LH_node_usage_stats_bio - LHASH statistics
+
+=head1 SYNOPSIS
+
+ #include <openssl/lhash.h>
+
+The following functions have been deprecated since OpenSSL 3.1, and can be
+hidden entirely by defining B<OPENSSL_API_COMPAT> with a suitable version value,
+see L<openssl_user_macros(7)>:
+
+ void OPENSSL_LH_node_stats(LHASH *table, FILE *out);
+ void OPENSSL_LH_node_usage_stats(LHASH *table, FILE *out);
+
+ void OPENSSL_LH_node_stats_bio(LHASH *table, BIO *out);
+ void OPENSSL_LH_node_usage_stats_bio(LHASH *table, BIO *out);
+
+ void OPENSSL_LH_stats(LHASH *table, FILE *out);
+ void OPENSSL_LH_stats_bio(LHASH *table, BIO *out);
+
+=head1 DESCRIPTION
+
+The B<LHASH> structure records statistics about most aspects of
+accessing the hash table.
+
+OPENSSL_LH_stats() prints out statistics on the size of the hash table and how
+many entries are in it. For historical reasons, this function also outputs a
+number of additional statistics, but the tracking of these statistics is no
+longer supported and these statistics are always reported as zero.
+
+OPENSSL_LH_node_stats() prints the number of entries for each 'bucket' in the
+hash table.
+
+OPENSSL_LH_node_usage_stats() prints out a short summary of the state of the
+hash table.  It prints the 'load' and the 'actual load'.  The load is
+the average number of data items per 'bucket' in the hash table.  The
+'actual load' is the average number of items per 'bucket', but only
+for buckets which contain entries.  So the 'actual load' is the
+average number of searches that will need to find an item in the hash
+table, while the 'load' is the average number that will be done to
+record a miss.
+
+OPENSSL_LH_stats_bio(), OPENSSL_LH_node_stats_bio() and OPENSSL_LH_node_usage_stats_bio()
+are the same as the above, except that the output goes to a B<BIO>.
+
+These functions are deprecated and should no longer be used.
+
+=head1 RETURN VALUES
+
+These functions do not return values.
+
+=head1 NOTE
+
+These calls should be made under a read lock. Refer to
+L<OPENSSL_LH_COMPFUNC(3)/NOTE> for more details about the locks required
+when using the LHASH data structure.
+
+=head1 SEE ALSO
+
+L<bio(7)>, L<OPENSSL_LH_COMPFUNC(3)>
+
+=head1 HISTORY
+
+These functions were deprecated in version 3.1.
+
+=head1 COPYRIGHT
+
+Copyright 2000-2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut

@@ -1,0 +1,200 @@
+=pod
+
+=head1 NAME
+
+provider-skeymgmt - The SKEYMGMT library E<lt>-E<gt> provider functions
+
+=head1 SYNOPSIS
+
+ #include <openssl/core_dispatch.h>
+
+ /*
+  * None of these are actual functions, but are displayed like this for
+  * the function signatures for functions that are offered as function
+  * pointers in OSSL_DISPATCH arrays.
+  */
+
+ /* Key object destruction */
+ void OSSL_FUNC_skeymgmt_free(void *keydata);
+
+ /* Key object import and export functions */
+ void *OSSL_FUNC_skeymgmt_import(void *provctx, int selection,
+                                 const OSSL_PARAM params[]);
+ int OSSL_FUNC_skeymgmt_export(void *keydata, int selection,
+                               OSSL_CALLBACK *param_cb, void *cbarg);
+ void *OSSL_FUNC_skeymgmt_generate(void *provctx,
+                                   const OSSL_PARAM params[]);
+ const OSSL_PARAM *OSSL_FUNC_skeymgmt_gen_settable_params(void *provctx);
+ const OSSL_PARAM *OSSL_FUNC_skeymgmt_imp_settable_params(void *provctx);
+ const char *OSSL_FUNC_skeymgmt_get_key_id(void *keydata);
+
+=head1 DESCRIPTION
+
+The SKEYMGMT operation doesn't have much public visibility in the OpenSSL
+libraries, rather it is an internal operation that is designed to work
+with operations that use opaque symmetric keys objects.
+
+The SKEYMGMT operation shares knowledge with the operations it works with,
+therefore the SKEYMGMT and the algorithms which use it must belong to the same
+provider.  The OpenSSL libraries will ensure that they do.
+
+The primary responsibility of the SKEYMGMT operation is to hold the
+provider side key data for the OpenSSL library EVP_SKEY structure.
+
+All "functions" mentioned here are passed as function pointers between
+F<libcrypto> and the provider in L<OSSL_DISPATCH(3)> arrays via
+L<OSSL_ALGORITHM(3)> arrays that are returned by the provider's
+provider_query_operation() function
+(see L<provider-base(7)/Provider Functions>).
+
+All these "functions" have a corresponding function type definition
+named B<OSSL_FUNC_{name}_fn>, and a helper function to retrieve the
+function pointer from a L<OSSL_DISPATCH(3)> element named
+B<OSSL_FUNC_{name}>.
+
+L<OSSL_DISPATCH(3)> arrays are indexed by numbers that are provided as
+macros in L<openssl-core_dispatch.h(7)>, as follows:
+
+ OSSL_FUNC_skeymgmt_free                 OSSL_FUNC_SKEYMGMT_FREE
+
+ OSSL_FUNC_skeymgmt_import               OSSL_FUNC_SKEYMGMT_IMPORT
+ OSSL_FUNC_skeymgmt_export               OSSL_FUNC_SKEYMGMT_EXPORT
+
+ OSSL_FUNC_skeymgmt_generate             OSSL_FUNC_SKEYMGMT_GENERATE
+
+ OSSL_FUNC_skeymgmt_get_key_id           OSSL_FUNC_SKEYMGMT_GET_KEY_ID
+ OSSL_FUNC_skeymgmt_imp_settable_params  OSSL_FUNC_SKEYMGMT_IMP_SETTABLE_PARAMS
+ OSSL_FUNC_skeymgmt_gen_settable_params  OSSL_FUNC_SKEYMGMT_GEN_SETTABLE_PARAMS
+
+The SKEYMGMT management is inspired by KEYMGMT but is simpler.
+
+=head2 Key Objects
+
+A key object is a collection of data for an symmetric key, and is
+represented as I<keydata> in this manual.
+
+The exact contents of a key object are defined by the provider, and it
+is assumed that different operations in one and the same provider use
+the exact same structure to represent this collection of data, so that
+for example, a key object that has been created using the SKEYMGMT
+interface can be passed as is to other algorithms from the same provider
+operations, such as OSSL_FUNC_mac_init_opaque() (see
+L<provider-mac(7)>).
+
+With the export SKEYMGMT function, it's possible to select a specific
+subset of data to handle, governed by the bits in a I<selection>
+indicator.  The bits are:
+
+=over 4
+
+=item B<OSSL_SKEYMGMT_SELECT_SECRET_KEY>
+
+Indicating that the secret key raw bytes in a key object should be
+included.
+
+=item B<OSSL_SKEYMGMT_SELECT_PARAMETERS>
+
+Indicating that the parameters in a key object should be
+included.
+
+=back
+
+Combined selector bits are also defined for easier use:
+
+=over 4
+
+=item B<OSSL_SKEYMGMT_SELECT_ALL>
+
+Indicating that everything in a key object should be included.
+
+=back
+
+The exact interpretation of those bits or how they combine is left to
+each function where you can specify a selector.
+
+=head2 Destructing Function
+
+OSSL_FUNC_skeymgmt_free() should free the passed I<keydata>.
+
+=head2 Key Object Import and Export Functions
+
+OSSL_FUNC_skeymgmt_import() should import data into I<keydata> with values
+taken from the L<OSSL_PARAM(3)> array I<params>. It allocates the I<keydata>
+object (there is no separate allocation function).
+
+OSSL_FUNC_skeymgmt_imp_settable_params() returns a list of parameters that can
+be provided to the OSSL_FUNC_skeymgmt_import() function.
+
+OSSL_FUNC_skeymgmt_export() should extract values indicated by I<selection>
+from I<keydata>, create an L<OSSL_PARAM(3)> array with them and call
+I<param_cb> with that array as well as the given I<cbarg>.
+The passed L<OSSL_PARAM(3)> array is transient and is freed upon the return from I<param_cb>.
+
+=head2 Key Object Generation Functions
+
+OSSL_FUNC_skeymgmt_generate() creates a new key according to the values
+taken from the L<OSSL_PARAM(3)> array I<params>. It allocates the I<keydata>
+object.
+
+OSSL_FUNC_skeymgmt_gen_settable_params() returns a list of parameters that can
+be provided to the OSSL_FUNC_skeymgmt_generate() function.
+
+=head2 Key Object Information functions
+
+OSSL_FUNC_skeymgmt_get_key_id() returns a NUL-terminated string identifying the
+particular key. The returned string will be freed by a call to EVP_SKEY_free()
+so callers need to copy it themselves if they want to preserve the value past
+the key lifetime.  The purpose of this function is providing a printable string
+that can help users to access the specific key.  The content of this string is
+provider-specific.
+
+=head2 Common Import and Export Parameters
+
+See L<OSSL_PARAM(3)> for further details on the parameters structure.
+
+Common information parameters currently recognised by built-in
+skeymgmt algorithms are as follows:
+
+=over 4
+
+=item "raw-bytes" (B<SKEY_PARAM_RAW_BYTES>) <octet string>
+
+The value represents symmetric key as a byte array.
+
+=item "key-length" (B<SKEY_PARAM_KEY_LENGTH>) <integer>
+
+The value is the byte length of the given key.
+
+=back
+
+=head1 RETURN VALUES
+
+OSSL_FUNC_skeymgmt_import() and OSSL_FUNC_skeymgmt_generate() return a pointer
+to an allocated object on success and NULL on error.
+
+OSSL_FUNC_skeymgmt_export() returns 1 for success or 0 on error.
+
+OSSL_FUNC_skeymgmt_get_key_id() returns a pointer to a 0-terminated string or NULL.
+
+OSSL_FUNC_skeymgmt_gen_settable_params() and OSSL_FUNC_skeymgmt_imp_settable_params()
+return references to an array of B<OSSL_PARAM> which can be NULL if there are
+no settable parameters.
+
+=head1 SEE ALSO
+
+L<provider(7)>, L<EVP_SKEY(3)>, L<EVP_KEYMGMT(3)>
+
+=head1 HISTORY
+
+The SKEYMGMT interface was introduced in OpenSSL 3.5.
+
+=head1 COPYRIGHT
+
+Copyright 2024-2025 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
