@@ -4,6 +4,7 @@ const common = require('../common');
 const assert = require('assert');
 const fs = require('fs');
 const path = require('path');
+const test = require('node:test');
 
 const tmpdir = require('../common/tmpdir');
 
@@ -287,3 +288,54 @@ doConcurrentAsyncMixedOps().then(common.mustCall());
   dir.closeSync();
   assert.rejects(dir.close(), dirclosedError).then(common.mustCall());
 }
+
+test('fs.opendir should not double callback if user callback throws', async (t) => {
+  let readCallbackInvokedCount = 0;
+  let userErrorThrown = false;
+
+  const dir = await fs.promises.opendir('.');
+
+  t.after(() => dir.close().catch((err) => console.error('Error closing dir in t.after:', err)));
+
+  await new Promise((resolve, reject) => {
+    const operationTimeout = setTimeout(() => {
+      if (userErrorThrown && readCallbackInvokedCount === 1) {
+        resolve(); // User error handled, no double callback
+      } else if (readCallbackInvokedCount === 0) {
+        reject(new Error('dir.read callback was never invoked.'));
+      } else {
+        reject(new Error('Test timeout reached in an unexpected state.'));
+      }
+    }, 1000);
+
+    dir.read((err, dirent) => {
+      readCallbackInvokedCount++;
+
+      if (err) {
+        // This is an error from dir.read() itself, not the user error we're testing.
+        clearTimeout(operationTimeout);
+        return reject(new Error(`dir.read reported an error: ${err.message}`));
+      }
+
+      if (readCallbackInvokedCount === 1) {
+        userErrorThrown = true;
+        // Simulate the user's code throwing an error.
+        // A robust fs.Dir should catch this internally and not call this callback again.
+        throw new Error('Simulated user error in dir.read callback');
+      }
+
+      if (readCallbackInvokedCount > 1) {
+        clearTimeout(operationTimeout);
+        return reject(new Error('dir.read callback was invoked multiple times.'));
+      }
+
+      // If dirent is null and it's the first call, and no user error was meant to be thrown yet,
+      // it implies an empty directory or an issue with the test setup if we expected more entries.
+      // For this specific test, we expect the user error to be thrown on the first entry.
+      if (dirent === null && readCallbackInvokedCount === 1 && !userErrorThrown) {
+        clearTimeout(operationTimeout);
+        return reject(new Error('Directory reading finished before user error could be simulated.'));
+      }
+    });
+  });
+});
