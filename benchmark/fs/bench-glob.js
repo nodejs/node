@@ -11,7 +11,7 @@ const configs = {
   n: [1e3],
   dir: ['lib'],
   pattern: ['**/*', '*.js', '**/**.js'],
-  mode: ['async', 'sync'],
+  mode: ['sync', 'promise', 'callback'],
   recursive: ['true', 'false'],
 };
 
@@ -25,10 +25,26 @@ async function main(config) {
   bench.start();
 
   for (let i = 0; i < config.n; i++) {
-    if (mode === 'async') {
-      noDead = await fs.promises.glob(pattern, { cwd: fullPath, recursive });
-    } else {
-      noDead = fs.globSync(pattern, { cwd: fullPath, recursive });
+    switch (mode) {
+      case 'sync':
+        noDead = fs.globSync(pattern, { cwd: fullPath, recursive });
+        break;
+      case 'promise':
+        noDead = await fs.promises.glob(pattern, { cwd: fullPath, recursive });
+        break;
+      case 'callback':
+        noDead = await new Promise((resolve, reject) => {
+          fs.glob(pattern, { cwd: fullPath, recursive }, (err, matches) => {
+            if (err) {
+              reject(err);
+            } else {
+              resolve(matches);
+            }
+          });
+        });
+        break;
+      default:
+        throw new Error(`Unknown mode: ${mode}`);
     }
   }
 
