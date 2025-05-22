@@ -585,7 +585,7 @@
       },
       "type": "object"
     },
-    "test_runner": {
+    "testRunner": {
       "type": "object",
       "additionalProperties": false,
       "properties": {

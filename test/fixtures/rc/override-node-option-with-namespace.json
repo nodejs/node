@@ -2,7 +2,7 @@
     "nodeOptions": {
         "test-isolation": "none"
     },
-    "test_runner": {
+    "testRunner": {
         "test-isolation": "process"
     }
 }

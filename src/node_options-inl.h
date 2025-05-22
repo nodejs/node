@@ -34,17 +34,14 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        bool Options::*field,
                                        OptionEnvvarSettings env_setting,
                                        bool default_is_true,
-                                       const char* namespace_id) {
-  // Create the OptionInfo object correctly with the namespace_id included
-  // This avoids trying to modify the map entry after insertion
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(name,
                    OptionInfo{kBoolean,
                               std::make_shared<SimpleOptionField<bool>>(field),
                               env_setting,
                               help_text,
                               default_is_true,
-                              namespace_id_str});
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -52,8 +49,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        uint64_t Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kUInteger,
@@ -61,7 +57,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  env_setting,
                  help_text,
                  false,
-                 namespace_id_str});
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -69,8 +65,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        int64_t Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kInteger,
@@ -78,7 +73,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  env_setting,
                  help_text,
                  false,
-                 namespace_id_str});
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -86,8 +81,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        std::string Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kString,
@@ -95,7 +89,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  env_setting,
                  help_text,
                  false,
-                 namespace_id_str});
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -103,8 +97,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        std::vector<std::string> Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{
@@ -113,7 +106,7 @@ void OptionsParser<Options>::AddOption(const char* name,
           env_setting,
           help_text,
           false,
-          namespace_id_str});
+          NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -121,8 +114,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        HostPort Options::*field,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
+                                       OptionNamespaces namespace_id) {
   options_.emplace(
       name,
       OptionInfo{kHostPort,
@@ -130,7 +122,7 @@ void OptionsParser<Options>::AddOption(const char* name,
                  env_setting,
                  help_text,
                  false,
-                 namespace_id_str});
+                 NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -138,12 +130,14 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        NoOp no_op_tag,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
-  options_.emplace(
-      name,
-      OptionInfo{
-          kNoOp, nullptr, env_setting, help_text, false, namespace_id_str});
+                                       OptionNamespaces namespace_id) {
+  options_.emplace(name,
+                   OptionInfo{kNoOp,
+                              nullptr,
+                              env_setting,
+                              help_text,
+                              false,
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>
@@ -151,12 +145,14 @@ void OptionsParser<Options>::AddOption(const char* name,
                                        const char* help_text,
                                        V8Option v8_option_tag,
                                        OptionEnvvarSettings env_setting,
-                                       const char* namespace_id) {
-  std::string namespace_id_str = namespace_id != nullptr ? namespace_id : "";
-  options_.emplace(
-      name,
-      OptionInfo{
-          kV8Option, nullptr, env_setting, help_text, false, namespace_id_str});
+                                       OptionNamespaces namespace_id) {
+  options_.emplace(name,
+                   OptionInfo{kV8Option,
+                              nullptr,
+                              env_setting,
+                              help_text,
+                              false,
+                              NamespaceEnumToString(namespace_id)});
 }
 
 template <typename Options>

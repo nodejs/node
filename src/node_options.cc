@@ -759,50 +759,50 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             "specify test runner concurrency",
             &EnvironmentOptions::test_runner_concurrency,
             kDisallowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-force-exit",
             "force test runner to exit upon completion",
             &EnvironmentOptions::test_runner_force_exit,
             kDisallowedInEnvvar,
             false,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-timeout",
             "specify test runner timeout",
             &EnvironmentOptions::test_runner_timeout,
             kDisallowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-update-snapshots",
             "regenerate test snapshots",
             &EnvironmentOptions::test_runner_update_snapshots,
             kDisallowedInEnvvar,
             false,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
             &EnvironmentOptions::test_runner_coverage,
             kDisallowedInEnvvar,
             false,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-branches",
             "the branch coverage minimum threshold",
             &EnvironmentOptions::test_coverage_branches,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-functions",
             "the function coverage minimum threshold",
             &EnvironmentOptions::test_coverage_functions,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-lines",
             "the line coverage minimum threshold",
             &EnvironmentOptions::test_coverage_lines,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   // TODO(cjihrig): Remove this alias in a semver major.
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
@@ -810,58 +810,58 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::test_runner_module_mocks,
             kDisallowedInEnvvar,
             false,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--experimental-test-snapshots",
             "",
             NoOp{},
             kDisallowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-reporter-destination",
             "report given reporter to the given destination",
             &EnvironmentOptions::test_reporter_destination,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
             kAllowedInEnvvar,
             false,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-shard",
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-skip-pattern",
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-global-setup",
             "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
             kAllowedInEnvvar,
-            "test_runner");
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-udp-no-try-send",
             "",  // For testing only.
             &EnvironmentOptions::test_udp_no_try_send,
@@ -1423,15 +1423,17 @@ MapEnvOptionsFlagInputType() {
 }
 
 std::vector<std::string> MapAvailableNamespaces() {
-  std::vector<std::string> namespaces;
-  const auto& parser = _ppop_instance;
-  for (const auto& item : parser.options_) {
-    if (!item.first.empty() && !item.first.starts_with('[') &&
-        item.second.namespace_id != "") {
-      namespaces.push_back(item.second.namespace_id);
+  std::vector<std::string> namespaceNames;
+  auto avilableNamespaces = AllNamespaces();
+  for (size_t i = 1; i < avilableNamespaces.size(); i++) {
+    OptionNamespaces ns = avilableNamespaces[i];
+    const char* ns_string = NamespaceEnumToString(ns);
+    if (ns_string[0] != '\0') {
+      namespaceNames.push_back(ns_string);
     }
   }
-  return namespaces;
+
+  return namespaceNames;
 }
 
 std::unordered_map<std::string, options_parser::OptionType>
