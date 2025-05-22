@@ -167,8 +167,51 @@ int RunNodeInstance(MultiIsolatePlatform* platform,
 }
 ```
 
+# C embedder API
+
+<!--introduced_in=REPLACEME-->
+
+While Node.js provides an extensive C++ embedding API that can be used from C++
+applications, the C-based API is useful when Node.js is embedded as a shared
+libnode library into C++ or non-C++ applications.
+
+## API design overview
+
+One of the goals for the C based embedder API is to be ABI stable. It means that
+applications must be able to use newer libnode versions without recompilation.
+The following design principles are targeting to achieve that goal.
+
+- Follow the best practices for the [node-api][] design and build on top of
+  the [node-api][].
+
+## API reference
+
+#### Functions
+
+##### `node_embedding_main`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+Runs Node.js runtime instance.
+
+```c
+int32_t NAPI_CDECL node_embedding_main(
+  int32_t argc,
+  char* argv[]);
+```
+
+- `[in] argc`: Number of items in the `argv` array.
+- `[in] argv`: CLI arguments as an array of zero terminated strings.
+
+Returns `int32_t` with instance exit code.
+
 [CLI options]: cli.md
 [`process.memoryUsage()`]: process.md#processmemoryusage
 [deprecation policy]: deprecations.md
 [embedtest.cc]: https://github.com/nodejs/node/blob/HEAD/test/embedding/embedtest.cc
+[node-api]: n-api.md
 [src/node.h]: https://github.com/nodejs/node/blob/HEAD/src/node.h
