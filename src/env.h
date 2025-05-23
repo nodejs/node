@@ -850,6 +850,9 @@ class Environment final : public MemoryRetainer {
   inline void ThrowError(const char* errmsg);
   inline void ThrowTypeError(const char* errmsg);
   inline void ThrowRangeError(const char* errmsg);
+  inline void ThrowStdErrException(std::error_code error_code,
+                                   const char* syscall,
+                                   const char* path = nullptr);
   inline void ThrowErrnoException(int errorno,
                                   const char* syscall = nullptr,
                                   const char* message = nullptr,
