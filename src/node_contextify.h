@@ -146,7 +146,7 @@ class ContextifyContext final : CPPGC_MIXIN(ContextifyContext) {
   static void IsContext(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void CompileFunction(
       const v8::FunctionCallbackInfo<v8::Value>& args);
-  static v8::Local<v8::Object> CompileFunctionAndCacheResult(
+  static v8::MaybeLocal<v8::Object> CompileFunctionAndCacheResult(
       Environment* env,
       v8::Local<v8::Context> parsing_context,
       v8::ScriptCompiler::Source* source,

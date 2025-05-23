@@ -1511,22 +1511,20 @@ void ContextifyContext::CompileFunction(
   }
 
   TryCatchScope try_catch(env);
-  Local<Object> result = CompileFunctionAndCacheResult(env,
-                                                       parsing_context,
-                                                       &source,
-                                                       params,
-                                                       context_extensions,
-                                                       options,
-                                                       produce_cached_data,
-                                                       id_symbol,
-                                                       try_catch);
-
-  if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+  MaybeLocal<Object> maybe_result =
+      CompileFunctionAndCacheResult(env,
+                                    parsing_context,
+                                    &source,
+                                    params,
+                                    context_extensions,
+                                    options,
+                                    produce_cached_data,
+                                    id_symbol,
+                                    try_catch);
+  Local<Object> result;
+  if (!maybe_result.ToLocal(&result)) {
+    CHECK(try_catch.HasCaught());
     try_catch.ReThrow();
-    return;
-  }
-
-  if (result.IsEmpty()) {
     return;
   }
   args.GetReturnValue().Set(result);
@@ -1544,7 +1542,7 @@ static LocalVector<String> GetCJSParameters(IsolateData* data) {
   return result;
 }
 
-Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
+MaybeLocal<Object> ContextifyContext::CompileFunctionAndCacheResult(
     Environment* env,
     Local<Context> parsing_context,
     ScriptCompiler::Source* source,
@@ -1566,28 +1564,29 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
 
   Local<Function> fn;
   if (!maybe_fn.ToLocal(&fn)) {
-    if (try_catch.HasCaught() && !try_catch.HasTerminated()) {
+    CHECK(try_catch.HasCaught());
+    if (!try_catch.HasTerminated()) {
       errors::DecorateErrorStack(env, try_catch);
-      return Object::New(env->isolate());
     }
+    return {};
   }
 
   Local<Context> context = env->context();
   if (fn->SetPrivate(context, env->host_defined_option_symbol(), id_symbol)
           .IsNothing()) {
-    return Object::New(env->isolate());
+    return {};
   }
 
   Isolate* isolate = env->isolate();
   Local<Object> result = Object::New(isolate);
   if (result->Set(parsing_context, env->function_string(), fn).IsNothing())
-    return Object::New(env->isolate());
+    return {};
   if (result
           ->Set(parsing_context,
                 env->source_map_url_string(),
                 fn->GetScriptOrigin().SourceMapUrl())
           .IsNothing())
-    return Object::New(env->isolate());
+    return {};
 
   std::unique_ptr<ScriptCompiler::CachedData> new_cached_data;
   if (produce_cached_data) {
@@ -1600,7 +1599,7 @@ Local<Object> ContextifyContext::CompileFunctionAndCacheResult(
                            produce_cached_data,
                            std::move(new_cached_data))
           .IsNothing()) {
-    return Object::New(env->isolate());
+    return {};
   }
 
   return result;
