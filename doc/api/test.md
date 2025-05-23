@@ -2240,6 +2240,46 @@ test('mocks a builtin module in both module systems', async (t) => {
 });
 ```
 
+### `mock.value(object, valueName, value)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `object` {Object} The object whose value is being mocked.
+* `valueName` {string|symbol} The identifier of the value on object to mock.
+* `value` {any} A value used as the mock value for `object[valueName]`.
+
+Creates a mock for a property value on an object. This allows you to track and control access to a specific property, including how many times it is read (getter) or written (setter), and to restore the original value after mocking.
+
+```js
+test('mocks a property value', (t) => {
+  const obj = { foo: 42 };
+  const valueMock = t.mock.value(obj, 'foo', 100);
+
+  assert.strictEqual(obj.foo, 100);
+  assert.strictEqual(valueMock.callGetterCount(), 1);
+
+  obj.foo = 200;
+  assert.strictEqual(obj.foo, 200);
+  assert.strictEqual(valueMock.callSetterCount(), 1);
+
+  valueMock.restore();
+  assert.strictEqual(obj.foo, 42);
+});
+```
+
+The returned mock object provides the following methods:
+
+- `callGetterCount()`: Retrieves the number of times the property was read.
+- `callSetterCount()`: Retrieves the number of times the property was written.
+- `callCount()`: Retrieves the total number of times the property was accessed (getter or setter).
+- `mockValue(value)`: Sets the current mock value.
+- `resetCallGetters()`: Resets only the getter call count.
+- `resetCallSetters()`: Resets only the setter call count.
+- `resetCalls()`: Resets both getter and setter call counts.
+- `restore()`: Restores the original property value and descriptor.
+
 ### `mock.reset()`
 
 <!-- YAML

@@ -1054,3 +1054,68 @@ test('setter() fails if getter options is true', (t) => {
     t.mock.setter({}, 'method', { getter: true });
   }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });
+
+test('spies on a property value', (t) => {
+  const obj = { foo: 42 };
+  const valueMock = t.mock.value(obj, 'foo', 100);
+
+  assert.strictEqual(obj.foo, 100);
+  assert.strictEqual(valueMock.callCount(), 1);
+  assert.strictEqual(valueMock.callGetterCount(), 1);
+  assert.strictEqual(valueMock.callSetterCount(), 0);
+
+  obj.foo = 200;
+  assert.strictEqual(obj.foo, 200);
+  assert.strictEqual(valueMock.callCount(), 3);
+  assert.strictEqual(valueMock.callGetterCount(), 2);
+  assert.strictEqual(valueMock.callSetterCount(), 1);
+
+  obj.foo = 300;
+  assert.strictEqual(obj.foo, 300);
+  assert.strictEqual(valueMock.callSetterCount(), 2);
+
+  valueMock.mockValue(400);
+  assert.strictEqual(obj.foo, 400);
+  assert.strictEqual(valueMock.callGetterCount(), 4);
+
+  valueMock.resetCalls();
+  assert.strictEqual(valueMock.callCount(), 0);
+  assert.strictEqual(valueMock.callGetterCount(), 0);
+  assert.strictEqual(valueMock.callSetterCount(), 0);
+
+  obj.foo = 500;
+  assert.strictEqual(valueMock.callSetterCount(), 1);
+
+  valueMock.resetCallSetters();
+  assert.strictEqual(valueMock.callSetterCount(), 0);
+
+  assert.strictEqual(obj.foo, 500);
+  assert.strictEqual(valueMock.callGetterCount(), 1);
+
+  valueMock.resetCallGetters();
+  assert.strictEqual(valueMock.callGetterCount(), 0);
+
+  valueMock.restore();
+  assert.strictEqual(obj.foo, 42);
+
+  obj.foo = 600;
+  assert.strictEqual(obj.foo, 600);
+  assert.strictEqual(valueMock.callCount(), 0);
+});
+
+test('spies on a non-writable property value', (t) => {
+  const obj = {};
+  Object.defineProperty(obj, 'bar', {
+    value: 1,
+    writable: false,
+    configurable: true,
+    enumerable: true,
+  });
+
+  const valueMock = t.mock.value(obj, 'bar', 2);
+  assert.strictEqual(obj.bar, 2);
+  assert.throws(() => { obj.bar = 3; }, /cannot be set/);
+
+  valueMock.restore();
+  assert.strictEqual(obj.bar, 1);
+});
