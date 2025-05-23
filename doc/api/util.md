@@ -2483,6 +2483,8 @@ console.log(
 );
 ```
 
+The special format value `none` applies no additional styling to the text.
+
 The full list of formats can be found in [modifiers][].
 
 ## Class: `util.TextDecoder`
