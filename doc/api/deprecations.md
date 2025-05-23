@@ -3920,6 +3920,21 @@ Type: Runtime
 The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
 an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
 
+### DEP0193: `require('node:_stream_*')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58337
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, `node:_stream_transform`,
+`node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:stream` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
