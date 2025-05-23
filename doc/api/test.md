@@ -2272,14 +2272,14 @@ test('mocks a property value', (t) => {
 
 The returned mock object provides the following methods:
 
-- `callGetterCount()`: Retrieves the number of times the property was read.
-- `callSetterCount()`: Retrieves the number of times the property was written.
-- `callCount()`: Retrieves the total number of times the property was accessed (getter or setter).
-- `mockValue(value)`: Sets the current mock value.
-- `resetCallGetters()`: Resets only the getter call count.
-- `resetCallSetters()`: Resets only the setter call count.
-- `resetCalls()`: Resets both getter and setter call counts.
-- `restore()`: Restores the original property value and descriptor.
+* `callGetterCount()`: Retrieves the number of times the property was read.
+* `callSetterCount()`: Retrieves the number of times the property was written.
+* `callCount()`: Retrieves the total number of times the property was accessed (getter or setter).
+* `mockValue(value)`: Sets the current mock value.
+* `resetCallGetters()`: Resets only the getter call count.
+* `resetCallSetters()`: Resets only the setter call count.
+* `resetCalls()`: Resets both getter and setter call counts.
+* `restore()`: Restores the original property value and descriptor.
 
 ### `mock.reset()`
 
