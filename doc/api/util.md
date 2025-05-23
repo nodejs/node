@@ -2394,6 +2394,9 @@ added:
   - v21.7.0
   - v20.12.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58437
+    description: Added the `'none'` format as a non-op format.
   - version: v22.13.0
     pr-url: https://github.com/nodejs/node/pull/56265
     description: styleText is now stable.
@@ -2466,6 +2469,8 @@ console.log(
   util.styleText(['red', 'green'], 'text'), // green
 );
 ```
+
+The special format value `none` applies no additional styling to the text.
 
 The full list of formats can be found in [modifiers][].
 
