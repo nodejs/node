@@ -59,7 +59,7 @@ static void pipe_client_connect_cb(uv_connect_t* req, int status) {
   ASSERT_OK(r);
 
   if (*buf == '\0') {  /* Linux abstract socket. */
-    const char expected[] = "\0" TEST_PIPENAME;
+    const char expected[] = "\0" TEST_PIPENAME "\0";
     ASSERT_EQ(len, sizeof(expected) - 1);
     ASSERT_MEM_EQ(buf, expected, len);
   } else {
@@ -154,6 +154,15 @@ TEST_IMPL(pipe_getsockname) {
   ASSERT_STR_EQ(pipe_server.pipe_fname, TEST_PIPENAME);
 #endif
 
+  r = uv_pipe_getsockname(&pipe_server, NULL, &len);
+  ASSERT_EQ(r, UV_EINVAL);
+
+  r = uv_pipe_getsockname(&pipe_server, buf, NULL);
+  ASSERT_EQ(r, UV_EINVAL);
+
+  r = uv_pipe_getsockname(&pipe_server, NULL, NULL);
+  ASSERT_EQ(r, UV_EINVAL);
+
   len = sizeof(TEST_PIPENAME) - 1;
   ASSERT_EQ(UV_ENOBUFS, uv_pipe_getsockname(&pipe_server, buf, &len));
 
@@ -214,7 +223,7 @@ TEST_IMPL(pipe_getsockname) {
 
 TEST_IMPL(pipe_getsockname_abstract) {
   /* TODO(bnoordhuis) Use unique name, susceptible to concurrent test runs. */
-  static const char name[] = "\0" TEST_PIPENAME;
+  static const char name[] = "\0" TEST_PIPENAME "\0";
 #if defined(__linux__)
   char buf[256];
   size_t buflen;

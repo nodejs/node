@@ -32,7 +32,7 @@
 static uv_fs_event_t fs_event;
 static const char file_prefix[] = "fsevent-";
 static const int fs_event_file_count = 16;
-#if defined(__APPLE__) || defined(_WIN32)
+#if (defined(__APPLE__) && !defined(__TSAN__)) || defined(_WIN32)
 static const char file_prefix_in_subdir[] = "subdir";
 static int fs_multievent_cb_called;
 #endif
@@ -153,7 +153,14 @@ static void fs_event_cb_del_dir(uv_fs_event_t* handle,
   ASSERT_PTR_EQ(handle, &fs_event);
   ASSERT_OK(status);
   ASSERT(events == UV_CHANGE || events == UV_RENAME);
+  /* There is a bug in the FreeBSD kernel where the filename is sometimes NULL.
+   * Refs: https://github.com/libuv/libuv/issues/4606
+   */
+  #if defined(__FreeBSD__)
+  ASSERT(filename == NULL || strcmp(filename, "watch_del_dir") == 0);
+  #else
   ASSERT_OK(strcmp(filename, "watch_del_dir"));
+  #endif
   ASSERT_OK(uv_fs_event_stop(handle));
   uv_close((uv_handle_t*)handle, close_cb);
 }
@@ -243,7 +250,7 @@ static void fs_event_cb_dir_multi_file(uv_fs_event_t* handle,
   }
 }
 
-#if defined(__APPLE__) || defined(_WIN32)
+#if (defined(__APPLE__) && !defined(__TSAN__)) || defined(_WIN32)
 static const char* fs_event_get_filename_in_subdir(int i) {
   snprintf(fs_event_filename,
            sizeof(fs_event_filename),
@@ -1121,7 +1128,7 @@ TEST_IMPL(fs_event_getpath) {
     ASSERT_EQ(r, UV_EINVAL);
     r = uv_fs_event_start(&fs_event, fail_cb, watch_dir[i], 0);
     ASSERT_OK(r);
-    len = 0;
+    len = 1;
     r = uv_fs_event_getpath(&fs_event, buf, &len);
     ASSERT_EQ(r, UV_ENOBUFS);
     ASSERT_LT(len, sizeof buf); /* sanity check */

@@ -31,6 +31,7 @@
 #include <stdarg.h>
 #include <stddef.h>
 #include <stdint.h>
+#include <string.h>
 
 #include "uv.h"
 #include "uv/tree.h"
@@ -125,7 +126,7 @@ enum {
 
   /* Only used by uv_tty_t handles. */
   UV_HANDLE_TTY_READABLE                = 0x01000000,
-  UV_HANDLE_TTY_RAW                     = 0x02000000,
+  UV_HANDLE_UNUSED0                     = 0x02000000,
   UV_HANDLE_TTY_SAVED_POSITION          = 0x04000000,
   UV_HANDLE_TTY_SAVED_ATTRIBUTES        = 0x08000000,
 
@@ -139,6 +140,10 @@ enum {
   /* Only used by uv_process_t handles. */
   UV_HANDLE_REAP                        = 0x10000000
 };
+
+static inline int uv__is_raw_tty_mode(uv_tty_mode_t m) {
+  return m == UV_TTY_MODE_RAW || m == UV_TTY_MODE_RAW_VT;
+}
 
 int uv__loop_configure(uv_loop_t* loop, uv_loop_option option, va_list ap);
 
@@ -190,6 +195,12 @@ int uv__udp_try_send(uv_udp_t* handle,
                      unsigned int nbufs,
                      const struct sockaddr* addr,
                      unsigned int addrlen);
+
+int uv__udp_try_send2(uv_udp_t* handle,
+                      unsigned int count,
+                      uv_buf_t* bufs[/*count*/],
+                      unsigned int nbufs[/*count*/],
+                      struct sockaddr* addrs[/*count*/]);
 
 int uv__udp_recv_start(uv_udp_t* handle, uv_alloc_cb alloccb,
                        uv_udp_recv_cb recv_cb);
@@ -427,5 +438,37 @@ struct uv__loop_internal_fields_s {
   void* inv;  /* used by uv__platform_invalidate_fd() */
 #endif  /* __linux__ */
 };
+
+#if defined(_WIN32)
+# define UV_PTHREAD_MAX_NAMELEN_NP 32767
+#elif defined(__APPLE__)
+# define UV_PTHREAD_MAX_NAMELEN_NP 64
+#elif defined(__NetBSD__) || defined(__illumos__)
+# define UV_PTHREAD_MAX_NAMELEN_NP PTHREAD_MAX_NAMELEN_NP
+#elif defined (__linux__)
+# define UV_PTHREAD_MAX_NAMELEN_NP 16
+#elif defined(__FreeBSD__) || defined(__OpenBSD__) || defined(__DragonFly__)
+# define UV_PTHREAD_MAX_NAMELEN_NP (MAXCOMLEN + 1)
+#else
+# define UV_PTHREAD_MAX_NAMELEN_NP 16
+#endif
+
+/* Open-coded so downstream users don't have to link libm. */
+static inline int uv__isinf(double d) {
+  uint64_t v;
+
+  STATIC_ASSERT(sizeof(v) == sizeof(d));
+  memcpy(&v, &d, sizeof(v));
+  return (v << 1 >> 53) == 2047 && !(v << 12);
+}
+
+/* Open-coded so downstream users don't have to link libm. */
+static inline int uv__isnan(double d) {
+  uint64_t v;
+
+  STATIC_ASSERT(sizeof(v) == sizeof(d));
+  memcpy(&v, &d, sizeof(v));
+  return (v << 1 >> 53) == 2047 && !!(v << 12);
+}
 
 #endif /* UV_COMMON_H_ */
