@@ -2250,7 +2250,8 @@ added: REPLACEME
 * `valueName` {string|symbol} The identifier of the value on object to mock.
 * `value` {any} A value used as the mock value for `object[valueName]`.
 
-Creates a mock for a property value on an object. This allows you to track and control access to a specific property, including how many times it is read (getter) or written (setter), and to restore the original value after mocking.
+Creates a mock for a property value on an object. This allows you to track and control access to a specific property,
+including how many times it is read (getter) or written (setter), and to restore the original value after mocking.
 
 ```js
 test('mocks a property value', (t) => {
