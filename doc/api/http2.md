@@ -1457,6 +1457,7 @@ numeric stream identifier.
 
 <!-- YAML
 added: v8.4.0
+deprecated: REPLACEME
 -->
 
 * `options` {Object}
@@ -1473,6 +1474,8 @@ added: v8.4.0
     sending a `PRIORITY` frame to the connected peer.
 
 Updates the priority for this `Http2Stream` instance.
+The support for priority weights has been removed in [latest versions of nghttp2 (1.65.0)][nghttp2-priority],
+and therefore this method is deprecated.
 
 #### `http2stream.rstCode`
 
@@ -1585,6 +1588,8 @@ Provides miscellaneous information about the current state of the
     instances that depend on this `Http2Stream` as specified using
     `PRIORITY` frames.
   * `weight` {number} The priority weight of this `Http2Stream`.
+    The support for priority weights has been removed in [latest versions of nghttp2 (1.65.0)][nghttp2-priority],
+    and therefore this property is deprecated and it should be ignored.
 
 A current state of this `Http2Stream`.
 
@@ -4929,3 +4934,4 @@ you need to implement any fall-back behavior yourself.
 [`tls.createServer()`]: tls.md#tlscreateserveroptions-secureconnectionlistener
 [`writable.writableFinished`]: stream.md#writablewritablefinished
 [error code]: #error-codes-for-rst_stream-and-goaway
+[nghttp2-priority]: https://github.com/nghttp2/nghttp2/releases/tag/v1.65.0
