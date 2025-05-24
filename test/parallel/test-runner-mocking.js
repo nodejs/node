@@ -391,7 +391,7 @@ test('spies on async static class methods', async (t) => {
 
 });
 
-test('given null to a mock.method it throws a invalid argument error', (t) => {
+test('given null to a mock.method it throws an invalid argument error', (t) => {
   assert.throws(() => t.mock.method(null, {}), { code: 'ERR_INVALID_ARG_TYPE' });
 });
 
@@ -1057,53 +1057,68 @@ test('setter() fails if getter options is true', (t) => {
 
 test('spies on a property value', (t) => {
   const obj = { foo: 42 };
-  const valueMock = t.mock.value(obj, 'foo', 100);
+  const prop = t.mock.property(obj, 'foo', 100);
 
   assert.strictEqual(obj.foo, 100);
-  assert.strictEqual(valueMock.callCount(), 1);
-  assert.strictEqual(valueMock.callGetterCount(), 1);
-  assert.strictEqual(valueMock.callSetterCount(), 0);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+  assert.strictEqual(prop.mock.accesses[0].value, 100);
 
   obj.foo = 200;
   assert.strictEqual(obj.foo, 200);
-  assert.strictEqual(valueMock.callCount(), 3);
-  assert.strictEqual(valueMock.callGetterCount(), 2);
-  assert.strictEqual(valueMock.callSetterCount(), 1);
+  assert.strictEqual(prop.mock.accesses.length, 3);
+  assert.strictEqual(prop.mock.accesses[1].type, 'set');
+  assert.strictEqual(prop.mock.accesses[1].value, 200);
+  assert.strictEqual(prop.mock.accesses[2].type, 'get');
+  assert.strictEqual(prop.mock.accesses[2].value, 200);
 
   obj.foo = 300;
   assert.strictEqual(obj.foo, 300);
-  assert.strictEqual(valueMock.callSetterCount(), 2);
+  assert.strictEqual(prop.mock.accessCount(), 5);
+  assert.strictEqual(prop.mock.accesses[3].type, 'set');
+  assert.strictEqual(prop.mock.accesses[3].value, 300);
+  assert.strictEqual(prop.mock.accesses[4].type, 'get');
+  assert.strictEqual(prop.mock.accesses[4].value, 300);
 
-  valueMock.mockValue(400);
-  assert.strictEqual(obj.foo, 400);
-  assert.strictEqual(valueMock.callGetterCount(), 4);
-
-  valueMock.resetCalls();
-  assert.strictEqual(valueMock.callCount(), 0);
-  assert.strictEqual(valueMock.callGetterCount(), 0);
-  assert.strictEqual(valueMock.callSetterCount(), 0);
+  prop.mock.resetAccesses();
+  assert.strictEqual(prop.mock.accessCount(), 0);
 
   obj.foo = 500;
-  assert.strictEqual(valueMock.callSetterCount(), 1);
+  assert.strictEqual(obj.foo, 500);
+  assert.strictEqual(prop.mock.accessCount(), 2);
+  assert.strictEqual(prop.mock.accesses[0].type, 'set');
+  assert.strictEqual(prop.mock.accesses[1].type, 'get');
 
-  valueMock.resetCallSetters();
-  assert.strictEqual(valueMock.callSetterCount(), 0);
+  prop.mock.resetAccesses();
+  assert.strictEqual(prop.mock.accessCount(), 0);
 
   assert.strictEqual(obj.foo, 500);
-  assert.strictEqual(valueMock.callGetterCount(), 1);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
 
-  valueMock.resetCallGetters();
-  assert.strictEqual(valueMock.callGetterCount(), 0);
-
-  valueMock.restore();
+  prop.mock.restore();
   assert.strictEqual(obj.foo, 42);
-
-  obj.foo = 600;
-  assert.strictEqual(obj.foo, 600);
-  assert.strictEqual(valueMock.callCount(), 0);
 });
 
-test('spies on a non-writable property value', (t) => {
+test('property() works with symbol property names', (t) => {
+  const symbol = Symbol('foo');
+  const obj = { [symbol]: 123 };
+  const prop = t.mock.property(obj, symbol, 456);
+
+  assert.strictEqual(obj[symbol], 456);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+
+  obj[symbol] = 789;
+  assert.strictEqual(obj[symbol], 789);
+  assert.strictEqual(prop.mock.accessCount(), 3);
+  assert.strictEqual(prop.mock.accesses[1].type, 'set');
+  assert.strictEqual(prop.mock.accesses[2].type, 'get');
+
+  prop.mock.restore();
+  assert.strictEqual(obj[symbol], 123);
+});
+
+test('throws if attempting to change a property which is not writable', (t) => {
   const obj = {};
   Object.defineProperty(obj, 'bar', {
     value: 1,
@@ -1112,10 +1127,91 @@ test('spies on a non-writable property value', (t) => {
     enumerable: true,
   });
 
-  const valueMock = t.mock.value(obj, 'bar', 2);
+  t.mock.property(obj, 'bar', 2);
   assert.strictEqual(obj.bar, 2);
-  assert.throws(() => { obj.bar = 3; }, /cannot be set/);
 
-  valueMock.restore();
-  assert.strictEqual(obj.bar, 1);
+  assert.throws(() => { obj.bar = 3; }, { code: 'ERR_INVALID_ARG_VALUE' });
+});
+
+test('mock property can be changed dynamically', (t) => {
+  const obj = { foo: 1 };
+
+  const prop = t.mock.property(obj, 'foo', 2);
+  assert.strictEqual(obj.foo, 2);
+
+  prop.mock.mockImplementation(99);
+  assert.strictEqual(obj.foo, 99);
+
+  prop.mock.mockImplementation(undefined);
+  assert.strictEqual(obj.foo, undefined);
+});
+
+test('resetAccesses does not affect property value', (t) => {
+  const obj = { foo: 1 };
+  const prop = t.mock.property(obj, 'foo', 2);
+
+  obj.foo = 5;
+  assert.strictEqual(obj.foo, 5);
+  assert.strictEqual(prop.mock.accessCount(), 2);
+
+  prop.mock.resetAccesses();
+  assert.strictEqual(obj.foo, 5);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+});
+
+test('restore resets to the original value', (t) => {
+  const obj = {
+    foo: 10,
+  };
+
+  const prop = t.mock.property(obj, 'foo', 20);
+  assert.strictEqual(obj.foo, 20);
+
+  prop.mock.restore();
+  assert.strictEqual(obj.foo, 10);
+});
+
+test('given a property name that does not exist, it throws an invalid argument value error', (t) => {
+  assert.throws(() => {
+    t.mock.property({}, 'doesNotExist', 1);
+  }, { code: 'ERR_INVALID_ARG_VALUE' });
+});
+
+test('given null instead of an object, mock.property throws an invalid argument type error', (t) => {
+  assert.throws(() => {
+    t.mock.property(null, 'foo', 1);
+  }, { code: 'ERR_INVALID_ARG_TYPE' });
+});
+
+test('local property mocks are auto restored after the test finishes', async (t) => {
+  const obj = { foo: 111, bar: 222 };
+
+  assert.strictEqual(obj.foo, 111);
+  assert.strictEqual(obj.bar, 222);
+
+  t.mock.property(obj, 'foo', 888);
+
+  assert.strictEqual(obj.foo, 888);
+  assert.strictEqual(obj.bar, 222);
+
+  t.beforeEach(() => {
+    assert.strictEqual(obj.foo, 888);
+    assert.strictEqual(obj.bar, 222);
+  });
+
+  t.afterEach(() => {
+    assert.strictEqual(obj.foo, 888);
+    assert.strictEqual(obj.bar, 999);
+  });
+
+  await t.test('creates property mocks that are auto restored', (t) => {
+    t.mock.property(obj, 'bar', 999);
+
+    assert.strictEqual(obj.foo, 888);
+    assert.strictEqual(obj.bar, 999);
+  });
+
+  assert.strictEqual(obj.foo, 888);
+  assert.strictEqual(obj.bar, 222);
 });
