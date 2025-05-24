@@ -231,6 +231,9 @@ An alias of [`assert.ok()`][].
 <!-- YAML
 added: v0.1.21
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -422,6 +425,9 @@ parameter is an instance of {Error} then it will be thrown instead of the
 <!-- YAML
 added: v1.2.0
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
   - version: v24.0.0
     pr-url: https://github.com/nodejs/node/pull/57622
     description: Recursion now stops when either side encounters a circular
@@ -2278,9 +2284,12 @@ added:
   - v23.4.0
   - v22.13.0
 changes:
- - version: v24.0.0
-   pr-url: https://github.com/nodejs/node/pull/57370
-   description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57627
+    description: Invalid dates are now considered equal.
+  - version: v24.0.0
+    pr-url: https://github.com/nodejs/node/pull/57370
+    description: partialDeepStrictEqual is now Stable. Previously, it had been Experimental.
 -->
 
 * `actual` {any}
