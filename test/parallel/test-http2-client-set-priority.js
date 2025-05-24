@@ -9,7 +9,9 @@ const http2 = require('http2');
 const checkWeight = (actual, expect) => {
   const server = http2.createServer();
   server.on('stream', common.mustCall((stream, headers, flags) => {
-    assert.strictEqual(stream.state.weight, expect);
+    // Priority has been removed from nghttp2, so this is always 16
+    // starting from nghttp2 1.65.0
+    assert.strictEqual(stream.state.weight, 16);
     stream.respond();
     stream.end('test');
   }));
