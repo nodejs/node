@@ -6,7 +6,7 @@ const { pathToFileURL } = require('url');
 
 assert.rejects(
   import('data:text/javascript,require;'),
-  /require is not defined in ES module scope, you can use import instead$/
+  /require is not defined in ES module scope, use a static or dynamic import instead\.$/
 ).then(common.mustCall());
 assert.rejects(
   import('data:text/javascript,exports={};'),
