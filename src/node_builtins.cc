@@ -64,6 +64,10 @@ BuiltinLoader::BuiltinLoader()
 #endif  // HAVE_AMARO
 }
 
+auto BuiltinLoader::GetBuiltinIds() const -> decltype(auto) {
+  return std::views::keys(*source_.read());
+}
+
 bool BuiltinLoader::Exists(const char* id) {
   auto source = source_.read();
   return source->find(id) != source->end();

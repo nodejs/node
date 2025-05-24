@@ -127,9 +127,7 @@ class NODE_EXTERN_PRIVATE BuiltinLoader {
 
   void CopySourceAndCodeCacheReferenceFrom(const BuiltinLoader* other);
 
-  [[nodiscard]] auto GetBuiltinIds() const {
-    return std::views::keys(*source_.read());
-  }
+  [[nodiscard]] auto GetBuiltinIds() const -> decltype(auto);
 
   void SetEagerCompile() { should_eager_compile_ = true; }
 
