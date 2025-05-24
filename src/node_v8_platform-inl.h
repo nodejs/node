@@ -38,31 +38,11 @@ class NodeTraceStateObserver
     TRACE_EVENT_METADATA1(
         "__metadata", "thread_name", "name", "JavaScriptMainThread");
 
-    auto trace_process = tracing::TracedValue::Create();
-    trace_process->BeginDictionary("versions");
-
-#define V(key)                                                                 \
-  trace_process->SetString(#key, per_process::metadata.versions.key.c_str());
-
-    NODE_VERSIONS_KEYS(V)
-#undef V
-
-    trace_process->EndDictionary();
-
-    trace_process->SetString("arch", per_process::metadata.arch.c_str());
-    trace_process->SetString("platform",
-                             per_process::metadata.platform.c_str());
-
-    trace_process->BeginDictionary("release");
-    trace_process->SetString("name",
-                             per_process::metadata.release.name.c_str());
-#if NODE_VERSION_IS_LTS
-    trace_process->SetString("lts", per_process::metadata.release.lts.c_str());
-#endif
-    trace_process->EndDictionary();
-    TRACE_EVENT_METADATA1(
-        "__metadata", "node", "process", std::move(trace_process));
-
+    tracing::ProcessMeta trace_process;
+    TRACE_EVENT_METADATA1("__metadata",
+                          "node",
+                          "process",
+                          tracing::CastTracedValue(trace_process));
     // This only runs the first time tracing is enabled
     controller_->RemoveTraceStateObserver(this);
   }
