@@ -73,8 +73,8 @@ Object {
   "rb": "rebuild",
   "remove": "uninstall",
   "rm": "uninstall",
-  "rum": "run-script",
-  "run": "run-script",
+  "rum": "run",
+  "run-script": "run",
   "s": "search",
   "se": "search",
   "show": "view",
@@ -86,7 +86,7 @@ Object {
   "unlink": "uninstall",
   "up": "update",
   "upgrade": "update",
-  "urn": "run-script",
+  "urn": "run",
   "v": "view",
   "verison": "version",
   "why": "explain",
@@ -143,7 +143,7 @@ Array [
   "repo",
   "restart",
   "root",
-  "run-script",
+  "run",
   "sbom",
   "search",
   "set",
@@ -743,10 +743,10 @@ library.
 * Default: false
 * Type: Boolean
 
-If true, npm will not exit with an error code when \`run-script\` is invoked
-for a script that isn't defined in the \`scripts\` section of \`package.json\`.
-This option can be used when it's desirable to optionally run a script when
-it's present and fail if the script fails. This is useful, for example, when
+If true, npm will not exit with an error code when \`run\` is invoked for a
+script that isn't defined in the \`scripts\` section of \`package.json\`. This
+option can be used when it's desirable to optionally run a script when it's
+present and fail if the script fails. This is useful, for example, when
 running scripts that may only apply for some builds in an otherwise generic
 CI setup.
 
@@ -760,9 +760,9 @@ This value is not exported to the environment for child processes.
 If true, npm does not run scripts specified in package.json files.
 
 Note that commands explicitly intended to run a particular script, such as
-\`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm run-script\`
-will still run their intended script if \`ignore-scripts\` is set, but they
-will *not* run any pre- or post-scripts.
+\`npm start\`, \`npm stop\`, \`npm restart\`, \`npm test\`, and \`npm run\` will still
+run their intended script if \`ignore-scripts\` is set, but they will *not*
+run any pre- or post-scripts.
 
 
 
@@ -851,6 +851,15 @@ A module that will be loaded by the \`npm init\` command. See the
 documentation for the
 [init-package-json](https://github.com/npm/init-package-json) module for
 more information, or [npm init](/commands/npm-init).
+
+
+
+#### \`init-private\`
+
+* Default: false
+* Type: Boolean
+
+The value \`npm init\` should use by default for the package's private flag.
 
 
 
@@ -1400,7 +1409,7 @@ Ignored if \`--save-peer\` is set, since peerDependencies cannot be bundled.
 
 Save installed packages to a package.json file as \`devDependencies\`.
 
-
+This config can not be used with: \`save-optional\`, \`save-peer\`, \`save-prod\`
 
 #### \`save-exact\`
 
@@ -1419,7 +1428,7 @@ rather than using npm's default semver range operator.
 
 Save installed packages to a package.json file as \`optionalDependencies\`.
 
-
+This config can not be used with: \`save-dev\`, \`save-peer\`, \`save-prod\`
 
 #### \`save-peer\`
 
@@ -1428,7 +1437,7 @@ Save installed packages to a package.json file as \`optionalDependencies\`.
 
 Save installed packages to a package.json file as \`peerDependencies\`
 
-
+This config can not be used with: \`save-dev\`, \`save-optional\`, \`save-prod\`
 
 #### \`save-prefix\`
 
@@ -1457,7 +1466,7 @@ you want to move it to be a non-optional production dependency.
 This is the default behavior if \`--save\` is true, and neither \`--save-dev\`
 or \`--save-optional\` are true.
 
-
+This config can not be used with: \`save-dev\`, \`save-optional\`, \`save-peer\`
 
 #### \`sbom-format\`
 
@@ -2148,6 +2157,7 @@ Array [
   "init-module",
   "init-type",
   "init-version",
+  "init-private",
   "init.author.email",
   "init.author.name",
   "init.author.url",
@@ -2301,6 +2311,7 @@ Array [
   "include",
   "include-staged",
   "include-workspace-root",
+  "init-private",
   "install-links",
   "install-strategy",
   "json",
@@ -2456,6 +2467,7 @@ Object {
   "ignoreScripts": false,
   "includeStaged": false,
   "includeWorkspaceRoot": false,
+  "initPrivate": false,
   "installLinks": false,
   "installStrategy": "hoisted",
   "json": false,
@@ -3245,7 +3257,7 @@ npm init <@scope> (same as \`npx <@scope>/create\`)
 Options:
 [--init-author-name <name>] [--init-author-url <url>] [--init-license <license>]
 [--init-module <module>] [--init-type <type>] [--init-version <version>]
-[-y|--yes] [-f|--force] [--scope <@scope>]
+[--init-private] [-y|--yes] [-f|--force] [--scope <@scope>]
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [--workspaces] [--no-workspaces-update] [--include-workspace-root]
 
@@ -3266,6 +3278,7 @@ aliases: create, innit
 #### \`init-module\`
 #### \`init-type\`
 #### \`init-version\`
+#### \`init-private\`
 #### \`yes\`
 #### \`force\`
 #### \`scope\`
@@ -4016,25 +4029,25 @@ Note: This command is unaware of workspaces.
 #### \`global\`
 `
 
-exports[`test/lib/docs.js TAP usage run-script > must match snapshot 1`] = `
+exports[`test/lib/docs.js TAP usage run > must match snapshot 1`] = `
 Run arbitrary package scripts
 
 Usage:
-npm run-script <command> [-- <args>]
+npm run <command> [-- <args>]
 
 Options:
 [-w|--workspace <workspace-name> [-w|--workspace <workspace-name> ...]]
 [--workspaces] [--include-workspace-root] [--if-present] [--ignore-scripts]
 [--foreground-scripts] [--script-shell <script-shell>]
 
-aliases: run, rum, urn
+aliases: run-script, rum, urn
 
-Run "npm help run-script" for more info
+Run "npm help run" for more info
 
 \`\`\`bash
-npm run-script <command> [-- <args>]
+npm run <command> [-- <args>]
 
-aliases: run, rum, urn
+aliases: run-script, rum, urn
 \`\`\`
 
 #### \`workspace\`
