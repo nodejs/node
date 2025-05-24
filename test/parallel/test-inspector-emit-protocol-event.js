@@ -42,7 +42,9 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           status: 200,
           statusText: '',
-          headers: { host: 'nodejs.org' }
+          headers: { host: 'nodejs.org' },
+          mimeType: 'text/html',
+          charset: 'utf-8'
         }
       },
       expected: {
@@ -53,7 +55,9 @@ const EXPECTED_EVENTS = {
           url: 'https://nodejs.org/en',
           status: 200,
           statusText: '',
-          headers: { host: 'nodejs.org' }
+          headers: { host: 'nodejs.org' },
+          mimeType: 'text/html',
+          charset: 'utf-8'
         }
       }
     },
