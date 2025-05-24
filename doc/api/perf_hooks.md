@@ -1973,6 +1973,23 @@ added: v11.10.0
 Enables the update interval timer. Returns `true` if the timer was
 started, `false` if it was already started.
 
+### `histogram[Symbol.dispose]()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+Disables the update interval timer when the histogram is disposed.
+
+```js
+const { monitorEventLoopDelay } = require('node:perf_hooks');
+{
+  using hist = monitorEventLoopDelay({ resolution: 20 });
+  hist.enable();
+  // The histogram will be disabled when the block is exited.
+}
+```
+
 ### Cloning an `IntervalHistogram`
 
 {IntervalHistogram} instances can be cloned via {MessagePort}. On the receiving
