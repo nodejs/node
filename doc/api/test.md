@@ -2292,9 +2292,10 @@ added: REPLACEME
 
 * `object` {Object} The object whose value is being mocked.
 * `propertyName` {string|symbol} The identifier of the property on `object` to mock.
-* `value` {any} An optional value used as the mock value for `object[valueName]`. **Default:** The original property value.
+* `value` {any} An optional value used as the mock value
+  for `object[valueName]`. **Default:** The original property value.
 * Returns: {Proxy} A proxy to the mocked object. The mocked object contains a
-  special `mock` property, which is an instance of [`MockPropertyContext`], and
+  special `mock` property, which is an instance of [`MockPropertyContext`][], and
   can be used for inspecting and changing the behavior of the mocked property.
 
 Creates a mock for a property value on an object. This allows you to track and control access to a specific property,
@@ -3857,7 +3858,6 @@ Can be used to abort test subtasks when the test has been aborted.
 [`MockPropertyContext`]: #class-mockpropertycontext
 [`MockTimers`]: #class-mocktimers
 [`MockTracker.method`]: #mockmethodobject-methodname-implementation-options
-[`MockTracker.property`]: #mockpropertyobject-propertyName-value
 [`MockTracker`]: #class-mocktracker
 [`NODE_V8_COVERAGE`]: cli.md#node_v8_coveragedir
 [`SuiteContext`]: #class-suitecontext
