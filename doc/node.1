@@ -701,6 +701,14 @@ Enable the
 .Sy module compile cache
 for the Node.js instance.
 .
+.It Ev NODE_COMPILE_CACHE_PORTABLE
+When set to '1' or 'true', the
+.Sy module compile cache
+uses relative paths when computing cache keys. This makes the cache
+portable across directories etc.
+This can be used in conjunction with .Ev NODE_COMPILE_CACHE
+to enable on-disk caching with relative path resolution.
+.
 .It Ev NODE_DEBUG Ar modules...
 Comma-separated list of core modules that should print debug information.
 .
