@@ -2,10 +2,12 @@
 #include "ada.h"
 #include "env-inl.h"
 #include "node_buffer.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "simdutf.h"
 #include "string_bytes.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
 
 #include <cstdint>
@@ -16,7 +18,9 @@ namespace encoding_binding {
 using v8::ArrayBuffer;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
+using v8::CFunction;
 using v8::Context;
+using v8::FastApiCallbackOptions;
 using v8::FunctionCallbackInfo;
 using v8::HandleScope;
 using v8::Isolate;
@@ -111,6 +115,42 @@ void BindingData::EncodeInto(const FunctionCallbackInfo<Value>& args) {
   binding_data->encode_into_results_buffer_[0] = nchars;
   binding_data->encode_into_results_buffer_[1] = written;
 }
+
+void BindingData::FastEncodeInto(
+    Local<Value> receiver,
+    Local<Value> source,
+    Local<Value> dest,
+    // NOLINTNEXTLINE(runtime/references) This is V8 api.
+    FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("encoding_binding.encodeInto");
+  CHECK(source->IsString());
+  CHECK(dest->IsUint8Array());
+
+  HandleScope scope(options.isolate);
+  auto context = options.isolate->GetCurrentContext();
+  Realm* realm = Realm::GetCurrent(context);
+  BindingData* binding_data = realm->GetBindingData<BindingData>();
+
+  auto source_ = source.As<String>();
+  auto dest_ = dest.As<Uint8Array>();
+  Local<ArrayBuffer> buf = dest_->Buffer();
+  char* write_result = static_cast<char*>(buf->Data()) + dest_->ByteOffset();
+  size_t dest_length = dest_->ByteLength();
+
+  size_t nchars;
+  size_t written = source_->WriteUtf8V2(
+      options.isolate,
+      write_result,
+      dest_length,
+      String::WriteFlags::kReplaceInvalidUtf8,
+      &nchars);
+
+  binding_data->encode_into_results_buffer_[0] = nchars;
+  binding_data->encode_into_results_buffer_[1] = written;
+}
+
+static CFunction fast_encode_into_ =
+    CFunction::Make(BindingData::FastEncodeInto);
 
 // Encode a single string to a UTF-8 Uint8Array (not Buffer).
 // Used in TextEncoder.prototype.encode.
@@ -217,7 +257,7 @@ void BindingData::ToUnicode(const FunctionCallbackInfo<Value>& args) {
 void BindingData::CreatePerIsolateProperties(IsolateData* isolate_data,
                                              Local<ObjectTemplate> target) {
   Isolate* isolate = isolate_data->isolate();
-  SetMethod(isolate, target, "encodeInto", EncodeInto);
+  SetFastMethod(isolate, target, "encodeInto", EncodeInto, &fast_encode_into_);
   SetMethodNoSideEffect(isolate, target, "encodeUtf8String", EncodeUtf8String);
   SetMethodNoSideEffect(isolate, target, "decodeUTF8", DecodeUTF8);
   SetMethodNoSideEffect(isolate, target, "toASCII", ToASCII);
@@ -236,6 +276,8 @@ void BindingData::CreatePerContextProperties(Local<Object> target,
 void BindingData::RegisterTimerExternalReferences(
     ExternalReferenceRegistry* registry) {
   registry->Register(EncodeInto);
+  registry->Register(FastEncodeInto);
+  registry->Register(fast_encode_into_.GetTypeInfo());
   registry->Register(EncodeUtf8String);
   registry->Register(DecodeUTF8);
   registry->Register(ToASCII);
