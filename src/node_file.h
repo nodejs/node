@@ -531,6 +531,7 @@ int SyncCallAndThrowOnError(Environment* env,
                             FSReqWrapSync* req_wrap,
                             Func fn,
                             Args... args);
+
 }  // namespace fs
 
 }  // namespace node
