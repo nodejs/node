@@ -65,7 +65,9 @@ struct CompileCacheEnableResult {
 class CompileCacheHandler {
  public:
   explicit CompileCacheHandler(Environment* env);
-  CompileCacheEnableResult Enable(Environment* env, const std::string& dir);
+  CompileCacheEnableResult Enable(Environment* env,
+                                  const std::string& dir,
+                                  bool use_relative);
 
   void Persist();
 
@@ -103,6 +105,8 @@ class CompileCacheHandler {
   bool is_debug_ = false;
 
   std::string compile_cache_dir_;
+  std::string absolute_compile_cache_dir_;
+  bool use_relative_ = false;
   std::unordered_map<uint32_t, std::unique_ptr<CompileCacheEntry>>
       compiler_cache_store_;
 };
