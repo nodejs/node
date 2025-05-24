@@ -87,6 +87,7 @@ namespace node {
 #define NODE_ASYNC_CRYPTO_PROVIDER_TYPES(V)                                   \
   V(CHECKPRIMEREQUEST)                                                        \
   V(PBKDF2REQUEST)                                                            \
+  V(KDFREQUEST)                                                               \
   V(KEYPAIRGENREQUEST)                                                        \
   V(KEYGENREQUEST)                                                            \
   V(KEYEXPORTREQUEST)                                                         \
