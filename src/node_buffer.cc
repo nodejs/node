@@ -55,6 +55,7 @@
 namespace node {
 namespace Buffer {
 
+using v8::Array;
 using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
@@ -62,6 +63,7 @@ using v8::BackingStoreInitializationMode;
 using v8::CFunction;
 using v8::Context;
 using v8::EscapableHandleScope;
+using v8::Exception;
 using v8::FastApiCallbackOptions;
 using v8::FastOneByteString;
 using v8::FunctionCallbackInfo;
@@ -1517,6 +1519,87 @@ void SlowWriteString(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(written);
 }
 
+void ConcatNative(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> ctx = isolate->GetCurrentContext();
+
+  if (!args[0]->IsArray()) {
+    isolate->ThrowException(Exception::TypeError(
+        v8::String::NewFromUtf8(
+            isolate,
+            "First argument must be an Array of Buffer or Uint8Array",
+            v8::NewStringType::kNormal)
+            .ToLocalChecked()));
+    return;
+  }
+  Local<Array> list = args[0].As<Array>();
+  const uint32_t n = list->Length();
+
+  size_t total = 0;
+  bool hasProvided = false;
+  if (args.Length() >= 2 && args[1]->IsUint32()) {
+    total = args[1].As<Uint32>()->Value();
+    hasProvided = true;
+    if (total > kMaxLength) {
+      isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+      return;
+    }
+  }
+
+  std::vector<char*> ptrs;
+  std::vector<size_t> lens;
+  ptrs.reserve(n);
+  lens.reserve(n);
+
+  for (uint32_t i = 0; i < n; ++i) {
+    Local<Value> v;
+    if (!list->Get(ctx, i).ToLocal(&v)) return;
+    if (!node::Buffer::HasInstance(v)) {
+      std::string msg = "Element at index " + std::to_string(i) +
+                        " is not a Buffer or Uint8Array";
+      isolate->ThrowException(Exception::TypeError(
+          v8::String::NewFromUtf8(
+              isolate, msg.c_str(), v8::NewStringType::kNormal)
+              .ToLocalChecked()));
+      return;
+    }
+    Local<Object> obj = v.As<Object>();
+    char* data = node::Buffer::Data(obj);
+    size_t len = node::Buffer::Length(obj);
+
+    if (!hasProvided) {
+      if (total > kMaxLength - len) {
+        isolate->ThrowException(ERR_BUFFER_TOO_LARGE(isolate));
+        return;
+      }
+      total += len;
+    }
+
+    ptrs.push_back(data);
+    lens.push_back(len);
+  }
+
+  MaybeLocal<Object> mb = node::Buffer::New(isolate, total);
+  Local<Object> result;
+  if (!mb.ToLocal(&result)) return;
+  char* dest = node::Buffer::Data(result);
+
+  size_t remaining = total;
+  char* write_ptr = dest;
+  for (size_t i = 0; i < ptrs.size() && remaining > 0; ++i) {
+    size_t toCopy = lens[i] < remaining ? lens[i] : remaining;
+    memcpy(write_ptr, ptrs[i], toCopy);
+    write_ptr += toCopy;
+    remaining -= toCopy;
+  }
+
+  if (remaining > 0) {
+    memset(write_ptr, 0, remaining);
+  }
+
+  args.GetReturnValue().Set(result);
+}
+
 template <encoding encoding>
 uint32_t FastWriteString(Local<Value> receiver,
                          Local<Value> dst_obj,
@@ -1596,6 +1679,7 @@ void Initialize(Local<Object> target,
       .Check();
 
   SetMethodNoSideEffect(context, target, "asciiSlice", StringSlice<ASCII>);
+  SetMethod(context, target, "concatNative", ConcatNative);
   SetMethodNoSideEffect(context, target, "base64Slice", StringSlice<BASE64>);
   SetMethodNoSideEffect(
       context, target, "base64urlSlice", StringSlice<BASE64URL>);
@@ -1687,6 +1771,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
 
   registry->Register(Atob);
   registry->Register(Btoa);
+  registry->Register(ConcatNative);
 }
 
 }  // namespace Buffer
