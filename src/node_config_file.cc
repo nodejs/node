@@ -23,7 +23,7 @@ std::optional<std::string_view> ConfigReader::GetDataFromArgs(
     } else if (it->starts_with(flag_path)) {
       // Case: "--experimental-config-file=foo"
       if (it->size() > flag_path.size() && (*it)[flag_path.size()] == '=') {
-        return it->substr(flag_path.size() + 1);
+        return std::string_view(*it).substr(flag_path.size() + 1);
       }
     } else if (*it == default_file || it->starts_with(default_file)) {
       has_default_config_file = true;
