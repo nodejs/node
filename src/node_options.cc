@@ -81,6 +81,8 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
   }
 
   // Any value less than 2 disables use of the secure heap.
+#ifndef V8_ENABLE_SANDBOX
+  // The secure heap is not supported when V8_ENABLE_SANDBOX is enabled.
   if (secure_heap >= 2) {
     if ((secure_heap & (secure_heap - 1)) != 0)
       errors->push_back("--secure-heap must be a power of 2");
@@ -93,6 +95,7 @@ void PerProcessOptions::CheckOptions(std::vector<std::string>* errors,
     if ((secure_heap_min & (secure_heap_min - 1)) != 0)
       errors->push_back("--secure-heap-min must be a power of 2");
   }
+#endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
 
   if (use_largepages != "off" &&
@@ -1172,6 +1175,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "force FIPS crypto (cannot be disabled)",
             &PerProcessOptions::force_fips_crypto,
             kAllowedInEnvvar);
+#ifndef V8_ENABLE_SANDBOX
   AddOption("--secure-heap",
             "total size of the OpenSSL secure heap",
             &PerProcessOptions::secure_heap,
@@ -1180,6 +1184,7 @@ PerProcessOptionsParser::PerProcessOptionsParser(
             "minimum allocation size from the OpenSSL secure heap",
             &PerProcessOptions::secure_heap_min,
             kAllowedInEnvvar);
+#endif  // V8_ENABLE_SANDBOX
 #endif  // HAVE_OPENSSL
 #if OPENSSL_VERSION_MAJOR >= 3
   AddOption("--openssl-legacy-provider",
