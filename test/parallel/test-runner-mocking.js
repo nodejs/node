@@ -1055,7 +1055,7 @@ test('setter() fails if getter options is true', (t) => {
   }, /The property 'options\.setter' cannot be used with 'options\.getter'/);
 });
 
-test('spies on a property value', (t) => {
+test('spies on a property', (t) => {
   const obj = { foo: 42 };
   const prop = t.mock.property(obj, 'foo', 100);
 
@@ -1100,7 +1100,28 @@ test('spies on a property value', (t) => {
   assert.strictEqual(obj.foo, 42);
 });
 
-test('property() works with symbol property names', (t) => {
+test('spies on a property without providing a value', (t) => {
+  const obj = { foo: 123 };
+  const prop = t.mock.property(obj, 'foo');
+
+  assert.strictEqual(obj.foo, 123);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+  assert.strictEqual(prop.mock.accesses[0].value, 123);
+
+  obj.foo = 456;
+  assert.strictEqual(obj.foo, 456);
+  assert.strictEqual(prop.mock.accessCount(), 3);
+  assert.strictEqual(prop.mock.accesses[1].type, 'set');
+  assert.strictEqual(prop.mock.accesses[1].value, 456);
+  assert.strictEqual(prop.mock.accesses[2].type, 'get');
+  assert.strictEqual(prop.mock.accesses[2].value, 456);
+
+  prop.mock.restore();
+  assert.strictEqual(obj.foo, 123);
+});
+
+test('spies on a symbol property', (t) => {
   const symbol = Symbol('foo');
   const obj = { [symbol]: 123 };
   const prop = t.mock.property(obj, symbol, 456);
@@ -1118,22 +1139,7 @@ test('property() works with symbol property names', (t) => {
   assert.strictEqual(obj[symbol], 123);
 });
 
-test('throws if attempting to change a property which is not writable', (t) => {
-  const obj = {};
-  Object.defineProperty(obj, 'bar', {
-    value: 1,
-    writable: false,
-    configurable: true,
-    enumerable: true,
-  });
-
-  t.mock.property(obj, 'bar', 2);
-  assert.strictEqual(obj.bar, 2);
-
-  assert.throws(() => { obj.bar = 3; }, { code: 'ERR_INVALID_ARG_VALUE' });
-});
-
-test('mock property can be changed dynamically', (t) => {
+test('changes mocked property value dynamically', (t) => {
   const obj = { foo: 1 };
 
   const prop = t.mock.property(obj, 'foo', 2);
@@ -1160,7 +1166,7 @@ test('resetAccesses does not affect property value', (t) => {
   assert.strictEqual(prop.mock.accesses[0].type, 'get');
 });
 
-test('restore resets to the original value', (t) => {
+test('restores original property value', (t) => {
   const obj = {
     foo: 10,
   };
@@ -1172,13 +1178,28 @@ test('restore resets to the original value', (t) => {
   assert.strictEqual(obj.foo, 10);
 });
 
-test('given a property name that does not exist, it throws an invalid argument value error', (t) => {
+test('throws if setting a non-writable property', (t) => {
+  const obj = {};
+  Object.defineProperty(obj, 'bar', {
+    value: 1,
+    writable: false,
+    configurable: true,
+    enumerable: true,
+  });
+
+  t.mock.property(obj, 'bar', 2);
+  assert.strictEqual(obj.bar, 2);
+
+  assert.throws(() => { obj.bar = 3; }, { code: 'ERR_INVALID_ARG_VALUE' });
+});
+
+test('throws if property does not exist', (t) => {
   assert.throws(() => {
     t.mock.property({}, 'doesNotExist', 1);
   }, { code: 'ERR_INVALID_ARG_VALUE' });
 });
 
-test('given null instead of an object, mock.property throws an invalid argument type error', (t) => {
+test('throws if object is null', (t) => {
   assert.throws(() => {
     t.mock.property(null, 'foo', 1);
   }, { code: 'ERR_INVALID_ARG_TYPE' });
