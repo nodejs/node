@@ -1246,6 +1246,13 @@ closing the stream can be retrieved using the `stream.rstCode` property.
 
 Emitted when a stream is created on the server.
 
+`http2.server.stream.start`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is started on the server.
+
 #### Modules
 
 > Stability: 1 - Experimental
