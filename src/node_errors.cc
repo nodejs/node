@@ -101,7 +101,7 @@ static std::string GetErrorSource(Isolate* isolate,
 
   // If source maps have been enabled, the exception line will instead be
   // added in the JavaScript context:
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(context);
   const bool has_source_map_url =
       !message->GetScriptOrigin().SourceMapUrl().IsEmpty() &&
       !message->GetScriptOrigin().SourceMapUrl()->IsUndefined();
@@ -1017,9 +1017,10 @@ const char* errno_string(int errorno) {
 
 void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
   Isolate* isolate = message->GetIsolate();
+  auto context = isolate->GetCurrentContext();
   switch (message->ErrorLevel()) {
     case Isolate::MessageErrorLevel::kMessageWarning: {
-      Environment* env = Environment::GetCurrent(isolate);
+      Environment* env = Environment::GetCurrent(context);
       if (!env) {
         break;
       }
@@ -1028,7 +1029,7 @@ void PerIsolateMessageListener(Local<Message> message, Local<Value> error) {
       std::stringstream warning;
       warning << *filename;
       warning << ":";
-      warning << message->GetLineNumber(env->context()).FromMaybe(-1);
+      warning << message->GetLineNumber(context).FromMaybe(-1);
       warning << " ";
       v8::String::Utf8Value msg(isolate, message->Get());
       warning << *msg;
@@ -1086,7 +1087,7 @@ static void NoSideEffectsToString(const FunctionCallbackInfo<Value>& args) {
 
 static void TriggerUncaughtException(const FunctionCallbackInfo<Value>& args) {
   Isolate* isolate = args.GetIsolate();
-  Environment* env = Environment::GetCurrent(isolate);
+  Environment* env = Environment::GetCurrent(isolate->GetCurrentContext());
   Local<Value> exception = args[0];
   Local<Message> message = Exception::CreateMessage(isolate, exception);
   if (env != nullptr && env->abort_on_uncaught_exception()) {
