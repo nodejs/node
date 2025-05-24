@@ -1,0 +1,81 @@
+=pod
+
+=head1 NAME
+
+OSSL_DISPATCH - OpenSSL Core type to define a dispatchable function table
+
+=head1 SYNOPSIS
+
+ #include <openssl/core.h>
+
+ typedef struct ossl_dispatch_st OSSL_DISPATCH;
+ struct ossl_dispatch_st {
+     int function_id;
+     void (*function)(void);
+ };
+
+=head1 DESCRIPTION
+
+This type is a tuple of function identity and function pointer.
+Arrays of this type are passed between the OpenSSL libraries and the
+providers to describe what functionality one side provides to the other.
+
+Arrays of this type must be terminated with a tuple having function identity
+zero and function pointer NULL.
+
+=head2 B<OSSL_DISPATCH> fields
+
+=over 4
+
+=item I<function_id>
+
+OpenSSL defined function identity of the implemented function.
+
+=item I<function>
+
+Pointer to the implemented function itself.  Despite the generic definition
+of this field, the implemented function it points to must have a function
+signature that corresponds to the I<function_id>
+
+=back
+
+Available function identities and corresponding function signatures are
+defined in L<openssl-core_dispatch.h(7)>.
+Furthermore, the chosen function identities and associated function
+signature must be chosen specifically for the operation that it's intended
+for, as determined by the intended L<OSSL_ALGORITHM(3)> array.
+
+Any function identity not recognised by the recipient of this type
+will be ignored.
+This ensures that providers built with one OpenSSL version in mind
+will work together with any other OpenSSL version that supports this
+mechanism.
+
+=begin comment RETURN VALUES doesn't make sense for a manual that only
+describes a type, but document checkers still want that section, and
+to have more than just the section title.
+
+=head1 RETURN VALUES
+
+txt
+
+=end comment
+
+=head1 SEE ALSO
+
+L<crypto(7)>, L<openssl-core_dispatch.h(7)>, L<OSSL_ALGORITHM(3)>
+
+=head1 HISTORY
+
+B<OSSL_DISPATCH> was added in OpenSSL 3.0.
+
+=head1 COPYRIGHT
+
+Copyright 2022 The OpenSSL Project Authors. All Rights Reserved.
+
+Licensed under the Apache License 2.0 (the "License").  You may not use
+this file except in compliance with the License.  You can obtain a copy
+in the file LICENSE in the source distribution or at
+L<https://www.openssl.org/source/license.html>.
+
+=cut
