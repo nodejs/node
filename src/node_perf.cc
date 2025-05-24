@@ -4,6 +4,7 @@
 #include "histogram-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_buffer.h"
+#include "node_debug.h"
 #include "node_external_reference.h"
 #include "node_internals.h"
 #include "node_process-inl.h"
@@ -17,6 +18,7 @@ namespace performance {
 using v8::Array;
 using v8::Context;
 using v8::DontDelete;
+using v8::FastApiCallbackOptions;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::GCCallbackFlags;
@@ -263,6 +265,17 @@ void LoopIdleTime(const FunctionCallbackInfo<Value>& args) {
   args.GetReturnValue().Set(1.0 * idle_time / NANOS_PER_MILLIS);
 }
 
+static double FastLoopIdleTime(
+    v8::Local<v8::Value> receiver,
+    FastApiCallbackOptions& options) {  // NOLINT(runtime/references)
+  TRACK_V8_FAST_API_CALL("performance.loopIdleTime");
+  Environment* env = Environment::GetCurrent(options.isolate);
+  uint64_t idle_time = uv_metrics_idle_time(env->event_loop());
+  return 1.0 * idle_time / NANOS_PER_MILLIS;
+}
+
+static v8::CFunction fast_loop_idle_time(v8::CFunction::Make(FastLoopIdleTime));
+
 void UvMetricsInfo(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   Isolate* isolate = env->isolate();
@@ -338,7 +351,8 @@ static void CreatePerIsolateProperties(IsolateData* isolate_data,
             "removeGarbageCollectionTracking",
             RemoveGarbageCollectionTracking);
   SetMethod(isolate, target, "notify", Notify);
-  SetMethod(isolate, target, "loopIdleTime", LoopIdleTime);
+  SetFastMethodNoSideEffect(
+      isolate, target, "loopIdleTime", LoopIdleTime, &fast_loop_idle_time);
   SetMethod(isolate, target, "createELDHistogram", CreateELDHistogram);
   SetMethod(isolate, target, "markBootstrapComplete", MarkBootstrapComplete);
   SetMethod(isolate, target, "uvMetricsInfo", UvMetricsInfo);
@@ -406,6 +420,8 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(RemoveGarbageCollectionTracking);
   registry->Register(Notify);
   registry->Register(LoopIdleTime);
+  registry->Register(FastLoopIdleTime);
+  registry->Register(fast_loop_idle_time.GetTypeInfo());
   registry->Register(CreateELDHistogram);
   registry->Register(MarkBootstrapComplete);
   registry->Register(UvMetricsInfo);
