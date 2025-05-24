@@ -414,9 +414,8 @@ class SerializerDelegate : public ValueSerializer::Delegate {
       if (!host_objects_[i]->NestedTransferables().To(&nested_transferables))
         return Nothing<bool>();
       for (auto& nested_transferable : nested_transferables) {
-        if (std::find(host_objects_.begin(),
-                      host_objects_.end(),
-                      nested_transferable) == host_objects_.end()) {
+        if (std::ranges::find(host_objects_, nested_transferable) ==
+            host_objects_.end()) {
           AddHostObject(nested_transferable);
         }
       }
@@ -517,8 +516,7 @@ Maybe<bool> Message::Serialize(Environment* env,
         ThrowDataCloneException(context, env->transfer_unsupported_type_str());
         return Nothing<bool>();
       }
-      if (std::find(array_buffers.begin(), array_buffers.end(), ab) !=
-          array_buffers.end()) {
+      if (std::ranges::find(array_buffers, ab) != array_buffers.end()) {
         ThrowDataCloneException(
             context,
             FIXED_ONE_BYTE_STRING(
@@ -564,9 +562,8 @@ Maybe<bool> Message::Serialize(Environment* env,
               "MessagePort in transfer list is already detached"));
       return Nothing<bool>();
     }
-    if (std::find(delegate.host_objects_.begin(),
-                  delegate.host_objects_.end(),
-                  host_object) != delegate.host_objects_.end()) {
+    if (std::ranges::find(delegate.host_objects_, host_object) !=
+        delegate.host_objects_.end()) {
       ThrowDataCloneException(
           context,
           String::Concat(
