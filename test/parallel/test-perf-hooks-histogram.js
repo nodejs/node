@@ -98,6 +98,17 @@ const { inspect } = require('util');
 }
 
 {
+  // Tests that the ELD histogram is disposable
+  let histogram;
+  {
+    using hi = monitorEventLoopDelay();
+    histogram = hi;
+  }
+  // The histogram should already be disabled.
+  strictEqual(histogram.disable(), false);
+}
+
+{
   const h = createHistogram();
   ok(inspect(h, { depth: null }).startsWith('Histogram'));
   strictEqual(inspect(h, { depth: -1 }), '[RecordableHistogram]');
