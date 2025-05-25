@@ -1,6 +1,7 @@
 'use strict'
 
 const { Writable } = require('node:stream')
+const { EventEmitter } = require('node:events')
 const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
 
 /**
@@ -12,8 +13,9 @@ const { assertCacheKey, assertCacheValue } = require('../util/cache.js')
 
 /**
  * @implements {CacheStore}
+ * @extends {EventEmitter}
  */
-class MemoryCacheStore {
+class MemoryCacheStore extends EventEmitter {
   #maxCount = Infinity
   #maxSize = Infinity
   #maxEntrySize = Infinity
@@ -21,11 +23,13 @@ class MemoryCacheStore {
   #size = 0
   #count = 0
   #entries = new Map()
+  #hasEmittedMaxSizeEvent = false
 
   /**
    * @param {import('../../types/cache-interceptor.d.ts').default.MemoryCacheStoreOpts | undefined} [opts]
    */
   constructor (opts) {
+    super()
     if (opts) {
       if (typeof opts !== 'object') {
         throw new TypeError('MemoryCacheStore options must be an object')
@@ -64,6 +68,22 @@ class MemoryCacheStore {
         this.#maxEntrySize = opts.maxEntrySize
       }
     }
+  }
+
+  /**
+   * Get the current size of the cache in bytes
+   * @returns {number} The current size of the cache in bytes
+   */
+  get size () {
+    return this.#size
+  }
+
+  /**
+   * Check if the cache is full (either max size or max count reached)
+   * @returns {boolean} True if the cache is full, false otherwise
+   */
+  isFull () {
+    return this.#size >= this.#maxSize || this.#count >= this.#maxCount
   }
 
   /**
@@ -144,7 +164,20 @@ class MemoryCacheStore {
 
         store.#size += entry.size
 
+        // Check if cache is full and emit event if needed
         if (store.#size > store.#maxSize || store.#count > store.#maxCount) {
+          // Emit maxSizeExceeded event if we haven't already
+          if (!store.#hasEmittedMaxSizeEvent) {
+            store.emit('maxSizeExceeded', {
+              size: store.#size,
+              maxSize: store.#maxSize,
+              count: store.#count,
+              maxCount: store.#maxCount
+            })
+            store.#hasEmittedMaxSizeEvent = true
+          }
+
+          // Perform eviction
           for (const [key, entries] of store.#entries) {
             for (const entry of entries.splice(0, entries.length / 2)) {
               store.#size -= entry.size
@@ -153,6 +186,11 @@ class MemoryCacheStore {
             if (entries.length === 0) {
               store.#entries.delete(key)
             }
+          }
+
+          // Reset the event flag after eviction
+          if (store.#size < store.#maxSize && store.#count < store.#maxCount) {
+            store.#hasEmittedMaxSizeEvent = false
           }
         }
 

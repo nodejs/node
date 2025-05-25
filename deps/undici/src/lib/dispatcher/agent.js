@@ -45,22 +45,35 @@ class Agent extends DispatcherBase {
     }
 
     this[kOnConnect] = (origin, targets) => {
+      const result = this[kClients].get(origin)
+      if (result) {
+        result.count += 1
+      }
       this.emit('connect', origin, [this, ...targets])
     }
 
     this[kOnDisconnect] = (origin, targets, err) => {
+      const result = this[kClients].get(origin)
+      if (result) {
+        result.count -= 1
+        if (result.count <= 0) {
+          this[kClients].delete(origin)
+          result.dispatcher.destroy()
+        }
+      }
       this.emit('disconnect', origin, [this, ...targets], err)
     }
 
     this[kOnConnectionError] = (origin, targets, err) => {
+      // TODO: should this decrement result.count here?
       this.emit('connectionError', origin, [this, ...targets], err)
     }
   }
 
   get [kRunning] () {
     let ret = 0
-    for (const client of this[kClients].values()) {
-      ret += client[kRunning]
+    for (const { dispatcher } of this[kClients].values()) {
+      ret += dispatcher[kRunning]
     }
     return ret
   }
@@ -73,8 +86,8 @@ class Agent extends DispatcherBase {
       throw new InvalidArgumentError('opts.origin must be a non-empty string or URL.')
     }
 
-    let dispatcher = this[kClients].get(key)
-
+    const result = this[kClients].get(key)
+    let dispatcher = result && result.dispatcher
     if (!dispatcher) {
       dispatcher = this[kFactory](opts.origin, this[kOptions])
         .on('drain', this[kOnDrain])
@@ -82,10 +95,7 @@ class Agent extends DispatcherBase {
         .on('disconnect', this[kOnDisconnect])
         .on('connectionError', this[kOnConnectionError])
 
-      // This introduces a tiny memory leak, as dispatchers are never removed from the map.
-      // TODO(mcollina): remove te timer when the client/pool do not have any more
-      // active connections.
-      this[kClients].set(key, dispatcher)
+      this[kClients].set(key, { count: 0, dispatcher })
     }
 
     return dispatcher.dispatch(opts, handler)
@@ -93,8 +103,8 @@ class Agent extends DispatcherBase {
 
   async [kClose] () {
     const closePromises = []
-    for (const client of this[kClients].values()) {
-      closePromises.push(client.close())
+    for (const { dispatcher } of this[kClients].values()) {
+      closePromises.push(dispatcher.close())
     }
     this[kClients].clear()
 
@@ -103,8 +113,8 @@ class Agent extends DispatcherBase {
 
   async [kDestroy] (err) {
     const destroyPromises = []
-    for (const client of this[kClients].values()) {
-      destroyPromises.push(client.destroy(err))
+    for (const { dispatcher } of this[kClients].values()) {
+      destroyPromises.push(dispatcher.destroy(err))
     }
     this[kClients].clear()
 
@@ -113,9 +123,9 @@ class Agent extends DispatcherBase {
 
   get stats () {
     const allClientStats = {}
-    for (const client of this[kClients].values()) {
-      if (client.stats) {
-        allClientStats[client[kUrl].origin] = client.stats
+    for (const { dispatcher } of this[kClients].values()) {
+      if (dispatcher.stats) {
+        allClientStats[dispatcher[kUrl].origin] = dispatcher.stats
       }
     }
     return allClientStats

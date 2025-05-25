@@ -8570,7 +8570,8 @@ var require_pool = __commonJS({
       kClients,
       kNeedDrain,
       kAddClient,
-      kGetDispatcher
+      kGetDispatcher,
+      kRemoveClient
     } = require_pool_base();
     var Client = require_client();
     var {
@@ -8601,6 +8602,7 @@ var require_pool = __commonJS({
         autoSelectFamily,
         autoSelectFamilyAttemptTimeout,
         allowH2,
+        clientTtl,
         ...options
       } = {}) {
         if (connections != null && (!Number.isFinite(connections) || connections < 0)) {
@@ -8626,9 +8628,16 @@ var require_pool = __commonJS({
         }
         this[kConnections] = connections || null;
         this[kUrl] = util.parseOrigin(origin);
-        this[kOptions] = { ...util.deepClone(options), connect, allowH2 };
+        this[kOptions] = { ...util.deepClone(options), connect, allowH2, clientTtl };
         this[kOptions].interceptors = options.interceptors ? { ...options.interceptors } : void 0;
         this[kFactory] = factory;
+        this.on("connect", (origin2, targets) => {
+          if (clientTtl != null && clientTtl > 0) {
+            for (const target of targets) {
+              Object.assign(target, { ttl: Date.now() });
+            }
+          }
+        });
         this.on("connectionError", (origin2, targets, error) => {
           for (const target of targets) {
             const idx = this[kClients].indexOf(target);
@@ -8639,8 +8648,11 @@ var require_pool = __commonJS({
         });
       }
       [kGetDispatcher]() {
+        const clientTtlOption = this[kOptions].clientTtl;
         for (const client of this[kClients]) {
-          if (!client[kNeedDrain]) {
+          if (clientTtlOption != null && clientTtlOption > 0 && client.ttl && Date.now() - client.ttl > clientTtlOption) {
+            this[kRemoveClient](client);
+          } else if (!client[kNeedDrain]) {
             return client;
           }
         }
@@ -8697,9 +8709,21 @@ var require_agent = __commonJS({
           this.emit("drain", origin, [this, ...targets]);
         };
         this[kOnConnect] = (origin, targets) => {
+          const result = this[kClients].get(origin);
+          if (result) {
+            result.count += 1;
+          }
           this.emit("connect", origin, [this, ...targets]);
         };
         this[kOnDisconnect] = (origin, targets, err) => {
+          const result = this[kClients].get(origin);
+          if (result) {
+            result.count -= 1;
+            if (result.count <= 0) {
+              this[kClients].delete(origin);
+              result.dispatcher.destroy();
+            }
+          }
           this.emit("disconnect", origin, [this, ...targets], err);
         };
         this[kOnConnectionError] = (origin, targets, err) => {
@@ -8708,8 +8732,8 @@ var require_agent = __commonJS({
       }
       get [kRunning]() {
         let ret = 0;
-        for (const client of this[kClients].values()) {
-          ret += client[kRunning];
+        for (const { dispatcher } of this[kClients].values()) {
+          ret += dispatcher[kRunning];
         }
         return ret;
       }
@@ -8720,34 +8744,35 @@ var require_agent = __commonJS({
         } else {
           throw new InvalidArgumentError("opts.origin must be a non-empty string or URL.");
         }
-        let dispatcher = this[kClients].get(key);
+        const result = this[kClients].get(key);
+        let dispatcher = result && result.dispatcher;
         if (!dispatcher) {
           dispatcher = this[kFactory](opts.origin, this[kOptions]).on("drain", this[kOnDrain]).on("connect", this[kOnConnect]).on("disconnect", this[kOnDisconnect]).on("connectionError", this[kOnConnectionError]);
-          this[kClients].set(key, dispatcher);
+          this[kClients].set(key, { count: 0, dispatcher });
         }
         return dispatcher.dispatch(opts, handler);
       }
       async [kClose]() {
         const closePromises = [];
-        for (const client of this[kClients].values()) {
-          closePromises.push(client.close());
+        for (const { dispatcher } of this[kClients].values()) {
+          closePromises.push(dispatcher.close());
         }
         this[kClients].clear();
         await Promise.all(closePromises);
       }
       async [kDestroy](err) {
         const destroyPromises = [];
-        for (const client of this[kClients].values()) {
-          destroyPromises.push(client.destroy(err));
+        for (const { dispatcher } of this[kClients].values()) {
+          destroyPromises.push(dispatcher.destroy(err));
         }
         this[kClients].clear();
         await Promise.all(destroyPromises);
       }
       get stats() {
         const allClientStats = {};
-        for (const client of this[kClients].values()) {
-          if (client.stats) {
-            allClientStats[client[kUrl].origin] = client.stats;
+        for (const { dispatcher } of this[kClients].values()) {
+          if (dispatcher.stats) {
+            allClientStats[dispatcher[kUrl].origin] = dispatcher.stats;
           }
         }
         return allClientStats;
@@ -8794,19 +8819,21 @@ var require_global2 = __commonJS({
 var require_proxy_agent = __commonJS({
   "lib/dispatcher/proxy-agent.js"(exports2, module2) {
     "use strict";
-    var { kProxy, kClose, kDestroy } = require_symbols();
+    var { kProxy, kClose, kDestroy, kDispatch, kConnector } = require_symbols();
     var { URL: URL2 } = require("node:url");
     var Agent = require_agent();
     var Pool = require_pool();
     var DispatcherBase = require_dispatcher_base();
     var { InvalidArgumentError, RequestAbortedError, SecureProxyConnectionError } = require_errors();
     var buildConnector = require_connect();
+    var Client = require_client();
     var kAgent = Symbol("proxy agent");
     var kClient = Symbol("proxy client");
     var kProxyHeaders = Symbol("proxy headers");
     var kRequestTls = Symbol("request tls settings");
     var kProxyTls = Symbol("proxy tls settings");
     var kConnectEndpoint = Symbol("connect endpoint function");
+    var kTunnelProxy = Symbol("tunnel proxy");
     function defaultProtocolPort(protocol) {
       return protocol === "https:" ? 443 : 80;
     }
@@ -8817,6 +8844,58 @@ var require_proxy_agent = __commonJS({
     __name(defaultFactory, "defaultFactory");
     var noop = /* @__PURE__ */ __name(() => {
     }, "noop");
+    var ProxyClient = class extends DispatcherBase {
+      static {
+        __name(this, "ProxyClient");
+      }
+      #client = null;
+      constructor(origin, opts) {
+        if (typeof origin === "string") {
+          origin = new URL2(origin);
+        }
+        if (origin.protocol !== "http:" && origin.protocol !== "https:") {
+          throw new InvalidArgumentError("ProxyClient only supports http and https protocols");
+        }
+        super();
+        this.#client = new Client(origin, opts);
+      }
+      async [kClose]() {
+        await this.#client.close();
+      }
+      async [kDestroy]() {
+        await this.#client.destroy();
+      }
+      async [kDispatch](opts, handler) {
+        const { method, origin } = opts;
+        if (method === "CONNECT") {
+          this.#client[kConnector](
+            {
+              origin,
+              port: opts.port || defaultProtocolPort(opts.protocol),
+              path: opts.host,
+              signal: opts.signal,
+              headers: {
+                ...this[kProxyHeaders],
+                host: opts.host
+              },
+              servername: this[kProxyTls]?.servername || opts.servername
+            },
+            (err, socket) => {
+              if (err) {
+                handler.callback(err);
+              } else {
+                handler.callback(null, { socket, statusCode: 200 });
+              }
+            }
+          );
+          return;
+        }
+        if (typeof origin === "string") {
+          opts.origin = new URL2(origin);
+        }
+        return this.#client.dispatch(opts, handler);
+      }
+    };
     var ProxyAgent = class extends DispatcherBase {
       static {
         __name(this, "ProxyAgent");
@@ -8829,6 +8908,7 @@ var require_proxy_agent = __commonJS({
         if (typeof clientFactory !== "function") {
           throw new InvalidArgumentError("Proxy opts.clientFactory must be a function.");
         }
+        const { proxyTunnel = true } = opts;
         super();
         const url = this.#getUrl(opts);
         const { href, origin, port, protocol, username, password, hostname: proxyHostname } = url;
@@ -8845,9 +8925,16 @@ var require_proxy_agent = __commonJS({
         } else if (username && password) {
           this[kProxyHeaders]["proxy-authorization"] = `Basic ${Buffer.from(`${decodeURIComponent(username)}:${decodeURIComponent(password)}`).toString("base64")}`;
         }
+        const factory = !proxyTunnel && protocol === "http:" ? (origin2, options) => {
+          if (origin2.protocol === "http:") {
+            return new ProxyClient(origin2, options);
+          }
+          return new Client(origin2, options);
+        } : void 0;
         const connect = buildConnector({ ...opts.proxyTls });
         this[kConnectEndpoint] = buildConnector({ ...opts.requestTls });
-        this[kClient] = clientFactory(url, { connect });
+        this[kClient] = clientFactory(url, { connect, factory });
+        this[kTunnelProxy] = proxyTunnel;
         this[kAgent] = new Agent({
           ...opts,
           connect: /* @__PURE__ */ __name(async (opts2, callback) => {
@@ -8899,6 +8986,9 @@ var require_proxy_agent = __commonJS({
           const { host } = new URL2(opts.origin);
           headers.host = host;
         }
+        if (!this.#shouldConnect(new URL2(opts.origin))) {
+          opts.path = opts.origin + opts.path;
+        }
         return this[kAgent].dispatch(
           {
             ...opts,
@@ -8927,6 +9017,18 @@ var require_proxy_agent = __commonJS({
       async [kDestroy]() {
         await this[kAgent].destroy();
         await this[kClient].destroy();
+      }
+      #shouldConnect(uri) {
+        if (typeof uri === "string") {
+          uri = new URL2(uri);
+        }
+        if (this[kTunnelProxy]) {
+          return true;
+        }
+        if (uri.protocol !== "http:" || this[kProxy].protocol !== "http:") {
+          return true;
+        }
+        return false;
       }
     };
     function buildHeaders(headers) {

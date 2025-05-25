@@ -25,6 +25,7 @@ For detailed information on the parsing process and potential validation errors,
 * **clientFactory** `(origin: URL, opts: Object) => Dispatcher` (optional) - Default: `(origin, opts) => new Pool(origin, opts)`
 * **requestTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the request. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
 * **proxyTls** `BuildOptions` (optional) - Options object passed when creating the underlying socket via the connector builder for the proxy server. It extends from [`Client#ConnectOptions`](/docs/docs/api/Client.md#parameter-connectoptions).
+* **proxyTunnel** `boolean` (optional) - By default, ProxyAgent will request that the Proxy facilitate a tunnel between the endpoint and the agent. Setting `proxyTunnel` to false avoids issuing a CONNECT extension, and includes the endpoint domain and path in each request.
 
 Examples:
 
