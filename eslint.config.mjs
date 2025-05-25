@@ -120,6 +120,7 @@ export default [
   {
     languageOptions: {
       globals: {
+        AsyncDisposableStack: 'readonly',
         ByteLengthQueuingStrategy: 'readonly',
         CompressionStream: 'readonly',
         CountQueuingStrategy: 'readonly',
@@ -128,6 +129,7 @@ export default [
         Crypto: 'readonly',
         CryptoKey: 'readonly',
         DecompressionStream: 'readonly',
+        DisposableStack: 'readonly',
         EventSource: 'readable',
         fetch: 'readonly',
         Float16Array: 'readonly',
