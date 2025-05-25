@@ -861,7 +861,8 @@ added:
 
 > Stability: 1 - Experimental
 
-An alias for `filehandle.close()`.
+Calls `filehandle.close()` and returns a promise that fulfills when the
+filehandle is closed.
 
 ### `fsPromises.access(path[, mode])`
 
@@ -6745,7 +6746,8 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An alias for `dir.close()`.
+Calls `dir.close()` and returns a promise that fulfills when the
+dir is closed.
 
 #### `dir[Symbol.Dispose]()`
 
@@ -6755,7 +6757,7 @@ added: REPLACEME
 
 > Stability: 1 - Experimental
 
-An alias for `dir.closeSync()`.
+Calls `dir.closeSync()` and returns `undefined`.
 
 ### Class: `fs.Dirent`
 
