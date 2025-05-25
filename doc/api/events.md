@@ -1085,6 +1085,54 @@ newListeners[0]();
 emitter.emit('log');
 ```
 
+### `emitter.use(eventName, listener)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `eventName` {string|symbol} The name of the event.
+* `listener` {Function} The callback function
+* Returns: {Object} A disposable object
+
+The `emitter.use(...)` method adds a listener to the emitter and returns a
+disposable object (usable with the `using` keyword) that will automatically
+unregister the listener when the object is disposed.
+
+```mjs
+import { EventEmitter } from 'node:events';
+const myEmitter = new EventEmitter();
+{
+  using handle = myEmitter.use('event', console.log);
+  console.log(myEmitter.listenerCount('event')); // Prints: 1
+}
+console.log(myEmitter.listenerCount('event')); // Prints: 0
+```
+
+### `emitter.useOnce(eventName, listener)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `eventName` {string|symbol} The name of the event.
+* `listener` {Function} The callback function
+* Returns: {Object} A disposable object
+
+The `emitter.use(...)` method adds a once listener to the emitter and returns a
+disposable object (usable with the `using` keyword) that will automatically
+unregister the listener when the object is disposed.
+
+```mjs
+import { EventEmitter } from 'node:events';
+const myEmitter = new EventEmitter();
+{
+  using handle = myEmitter.useOnce('event', console.log);
+  console.log(myEmitter.listenerCount('event')); // Prints: 1
+}
+console.log(myEmitter.listenerCount('event')); // Prints: 0
+```
+
 ### `emitter[Symbol.for('nodejs.rejection')](err, eventName[, ...args])`
 
 <!-- YAML
