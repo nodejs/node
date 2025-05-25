@@ -1610,6 +1610,8 @@ DEFINE_BOOL_READONLY(turboshaft_trace_emitted, false,
                      "trace emitted Turboshaft instructions")
 DEFINE_BOOL_READONLY(turboshaft_trace_intermediate_reductions, false,
                      "trace intermediate Turboshaft reduction steps")
+DEFINE_BOOL_READONLY(turboshaft_trace_load_elimination, false,
+                     "trace Turboshaft's late load elimination")
 #endif  // DEBUG
 
 DEFINE_BOOL(profile_guided_optimization, true, "profile guided optimization")
