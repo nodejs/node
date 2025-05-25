@@ -136,12 +136,6 @@ STIN uint16_t ntohs(uint16_t netshort) {
 const uint8_t *nghttp3_get_varint(int64_t *dest, const uint8_t *p);
 
 /*
- * nghttp3_get_varint_fb reads first byte of encoded variable-length
- * integer from |p|.
- */
-int64_t nghttp3_get_varint_fb(const uint8_t *p);
-
-/*
  * nghttp3_get_varintlen returns the required number of bytes to read
  * variable-length integer starting at |p|.
  */
