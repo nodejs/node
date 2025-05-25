@@ -373,7 +373,10 @@ class CustomAggregate {
       result = Local<Value>::New(isolate, agg->value);
     }
 
-    JSValueToSQLiteResult(isolate, ctx, result);
+    if (!result.IsEmpty()) {
+      JSValueToSQLiteResult(isolate, ctx, result);
+    }
+
     if (is_final) {
       DestroyAggregateData(ctx);
     }
