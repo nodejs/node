@@ -1238,6 +1238,13 @@ Emitted when a stream is received on the client.
 Emitted when a stream is closed on the client. The HTTP/2 error code used when
 closing the stream can be retrieved using the `stream.rstCode` property.
 
+`http2.server.stream.created`
+
+* `stream` {ServerHttp2Stream}
+* `headers` {HTTP/2 Headers Object}
+
+Emitted when a stream is created on the server.
+
 #### Modules
 
 > Stability: 1 - Experimental
