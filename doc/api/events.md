@@ -504,6 +504,33 @@ changes:
 
 The `'removeListener'` event is emitted _after_ the `listener` is removed.
 
+### `emitter.addDisposableListener(eventName, listener[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* `eventName` {string|symbol} The name of the event.
+* `listener` {Function} The callback function
+* `options` {Object}
+  * `once` {boolean} If `true`, the listener will be removed after being called
+    once.
+* Returns: {Object} An object with a dispose method that will remove the listener.
+  The function will also have a `Symbol.dispose` method so the function can
+  be used with the `using` keyword.
+
+```mjs
+import { EventEmitter } from 'node:events';
+const myEmitter = new EventEmitter();
+{
+  using disposer = myEmitter.addDisposableListener('event', console.log);
+  console.log(myEmitter.listenerCount('event')); // Prints: 1
+}
+console.log(myEmitter.listenerCount('event')); // Prints: 0
+```
+
 ### `emitter.addListener(eventName, listener)`
 
 <!-- YAML
