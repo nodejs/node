@@ -78,6 +78,7 @@ declare namespace InternalFSBinding {
 
   function cpSyncCheckPaths(src: StringOrBuffer, dest: StringOrBuffer, dereference: boolean, recursive: boolean): void;
   function cpSyncOverrideFile(src: StringOrBuffer, dest: StringOrBuffer, mode: number, preserveTimestamps: boolean): void;
+  function cpSyncCopyDir(src: StringOrBuffer, dest: StringOrBuffer, force: boolean, errorOnExist: boolean, verbatimSymlinks: boolean, dereference: boolean): void;
 
   function fchmod(fd: number, mode: number, req: FSReqCallback): void;
   function fchmod(fd: number, mode: number): void;
@@ -262,6 +263,7 @@ export interface FsBinding {
   copyFile: typeof InternalFSBinding.copyFile;
   cpSyncCheckPaths: typeof InternalFSBinding.cpSyncCheckPaths;
   cpSyncOverrideFile: typeof InternalFSBinding.cpSyncOverrideFile;
+  cpSyncCopyDir: typeof InternalFSBinding.cpSyncCopyDir;
   fchmod: typeof InternalFSBinding.fchmod;
   fchown: typeof InternalFSBinding.fchown;
   fdatasync: typeof InternalFSBinding.fdatasync;
