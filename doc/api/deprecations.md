@@ -1770,7 +1770,7 @@ not handle all certificate subjects correctly and should not be used.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58473
     description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/13948
