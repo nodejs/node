@@ -812,7 +812,7 @@ doc-only: tools/doc/node_modules \
 			--ignore $(skip_apidoc_files) \
 			-o out/doc/api/ \
 			--no-lint \
-			-c file://$(PWD)/CHANGELOG.md \
+			-c $(call available-node, -p 'url.pathToFileURL("CHANGELOG.md")') \
 			-v $(VERSION) \
 			-p $(DOC_THREADS) \
 		) \
@@ -832,13 +832,10 @@ out/doc/api: doc/api
 	cp -r doc/api out/doc
 
 # For generating individual doc files instead of all at once
-out/doc/api:
-  mkdir -p $@
-
-out/doc/api/%.html: doc/api/%.md tools/doc/node_modules | out/doc/api
+out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out/doc/api
 	$(call available-node, \
 		$(NPX) --prefix tools/doc api-docs-tooling generate \
-		-t legacy-html \
+		-t $(subst .,legacy-, $(suffix $@)) \
 		-i $< \
 		-i lib/*.js \
 		--ignore $(skip_apidoc_files) \
@@ -848,25 +845,8 @@ out/doc/api/%.html: doc/api/%.md tools/doc/node_modules | out/doc/api
 		-v $(VERSION) \
 	) \
 
-# For generating individual doc files instead of all at once
-out/doc/api/%.json:
-	mkdir -p $(dir $@)
 
-	$(call available-node, \
-		$(NPX) --prefix tools/doc api-docs-tooling generate \
-		-t legacy-json \
-		-i $(patsubst out/doc/api/%.json, doc/api/%.md, $@) \
-		-i lib/*.js \
-		--ignore $(skip_apidoc_files) \
-		-o out/doc/api/ \
-		--no-lint \
-		-c file://$(PWD)/CHANGELOG.md \
-		-v $(VERSION) \
-	) \
-
-out/doc/api/all.html: doc-only
-
-out/doc/api/all.json: doc-only
+out/doc/api/all.html out/doc/api/all.json: doc-only
 
 .PHONY: docopen
 docopen: doc-only ## Open the documentation in a web browser.
