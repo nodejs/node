@@ -114,3 +114,14 @@ describe('webstorage quota for localStorage and sessionStorage', () => {
     assert.match(cp.stderr, /QuotaExceededError/);
   });
 });
+
+test('disabled with --no-experimental-webstorage', async () => {
+  for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
+    const cp = await spawnPromisified(process.execPath, ['--no-experimental-webstorage', '-e', api]);
+
+    assert.strictEqual(cp.code, 1);
+    assert.strictEqual(cp.signal, null);
+    assert.strictEqual(cp.stdout, '');
+    assert(cp.stderr.includes(`ReferenceError: ${api} is not defined`));
+  }
+});
