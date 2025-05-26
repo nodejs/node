@@ -828,7 +828,37 @@ out/doc/api: doc/api
 	mkdir -p $@
 	cp -r doc/api out/doc
 
-out/doc/api/%.json out/doc/api/%.html: doc-only
+# For generating individual doc files instead of all at once
+out/doc/api/%.html:
+	mkdir -p $(dir $@)
+
+	$(call available-node, \
+		$(NPX) --prefix tools/doc api-docs-tooling generate \
+		-t legacy-html \
+		-i $(patsubst out/doc/api/%.html, doc/api/%.md, $@) \
+		-i lib/*.js \
+		--ignore $(skip_apidoc_files) \
+		-o out/doc/api/ \
+		--no-lint \
+		-c file://$(PWD)/CHANGELOG.md \
+		-v $(VERSION) \
+	) \
+
+# For generating individual doc files instead of all at once
+out/doc/api/%.json:
+	mkdir -p $(dir $@)
+
+	$(call available-node, \
+		$(NPX) --prefix tools/doc api-docs-tooling generate \
+		-t legacy-json \
+		-i $(patsubst out/doc/api/%.json, doc/api/%.md, $@) \
+		-i lib/*.js \
+		--ignore $(skip_apidoc_files) \
+		-o out/doc/api/ \
+		--no-lint \
+		-c file://$(PWD)/CHANGELOG.md \
+		-v $(VERSION) \
+	) \
 
 out/doc/api/all.html: doc-only
 
