@@ -3602,9 +3602,10 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           const double source_mtime =
               s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
 
+          const char* dest_path = dest_entry_path.c_str();
           int utime_result = uv_fs_utime(nullptr,
                                          &req,
-                                         dest_entry_path.c_str(),
+                                         dest_path,
                                          source_atime,
                                          source_mtime,
                                          nullptr);
