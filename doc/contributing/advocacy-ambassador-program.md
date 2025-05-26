@@ -291,3 +291,31 @@ with projects learning from one another and their users.
 ##### Project contacts
 
 * @bmuenzenmeyer
+
+## Active Programs
+
+### Recurring Monthly Livestreams 
+
+As part of our ongoing community engagement strategy, we are launching a **recurring monthly livestream** on the Node.js [YouTube channel](https://www.youtube.com/@nodejs-foundation). This livestream will occur around every new major release and serve the following purposes:
+
+* **Break down new features**: What’s new, how to use it, and how to give feedback.
+* **Contributor highlights**: Interviews with contributors and deep dives into features they’ve worked on.
+* **Live tutorials**: Hands-on demonstrations of new features with calls for community feedback.
+
+### Host & Promotion
+
+Each livestream will be promoted with a structured social media campaign, including:
+
+* **Scheduling the event** no later than 2 weeks in advance.
+* **Social media reminders** posted:
+
+  * 2 weeks before the event
+  * 1 week before the event
+  * 1 day before the event
+  * 1 hour before the event
+
+All posts will be prepared in advance on a Pull Request in the [Node.js ambassadors repo](https://github.com/nodejs/nodejs-ambassadors) and shared for approval and scheduling.
+
+##### Project contacts
+
+* @ErickWendel
