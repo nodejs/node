@@ -1152,6 +1152,19 @@ test('changes mocked property value dynamically', (t) => {
   assert.strictEqual(obj.foo, undefined);
 });
 
+test('mocks property value to undefined', (t) => {
+  const obj = { foo: 123 };
+  const prop = t.mock.property(obj, 'foo', undefined);
+
+  assert.strictEqual(obj.foo, undefined);
+  assert.strictEqual(prop.mock.accessCount(), 1);
+  assert.strictEqual(prop.mock.accesses[0].type, 'get');
+  assert.strictEqual(prop.mock.accesses[0].value, undefined);
+
+  prop.mock.restore();
+  assert.strictEqual(obj.foo, 123);
+});
+
 test('resetAccesses does not affect property value', (t) => {
   const obj = { foo: 1 };
   const prop = t.mock.property(obj, 'foo', 2);
