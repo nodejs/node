@@ -401,8 +401,6 @@ For information about the governance of the Node.js project, see
   **Xuguang Mei** <<meixuguang@gmail.com>> (he/him)
 * [mhdawson](https://github.com/mhdawson) -
   **Michael Dawson** <<midawson@redhat.com>> (he/him)
-* [mildsunrise](https://github.com/mildsunrise) -
-  **Alba Mendez** <<me@alba.sh>> (she/her)
 * [MoLow](https://github.com/MoLow) -
   **Moshe Atlow** <<moshe@atlow.co.il>> (he/him)
 * [MrJithil](https://github.com/MrJithil) -
@@ -611,6 +609,8 @@ For information about the governance of the Node.js project, see
   **Mikeal Rogers** <<mikeal.rogers@gmail.com>>
 * [miladfarca](https://github.com/miladfarca) -
   **Milad Fa** <<mfarazma@redhat.com>> (he/him)
+* [mildsunrise](https://github.com/mildsunrise) -
+  **Alba Mendez** <<me@alba.sh>> (she/her)
 * [misterdjules](https://github.com/misterdjules) -
   **Julien Gilli** <<jgilli@netflix.com>>
 * [mmarchini](https://github.com/mmarchini) -
