@@ -2978,6 +2978,15 @@ category.
 The `node:trace_events` module could not be loaded because Node.js was compiled
 with the `--without-v8-platform` flag.
 
+<a id="ERR_TRAILING_JUNK_AFTER_STREAM_END"></a>
+
+### `ERR_TRAILING_JUNK_AFTER_STREAM_END`
+
+Trailing junk found after the end of the compressed stream.
+This error is thrown when extra, unexpected data is detected
+after the end of a compressed stream (for example, in zlib
+or gzip decompression).
+
 <a id="ERR_TRANSFORM_ALREADY_TRANSFORMING"></a>
 
 ### `ERR_TRANSFORM_ALREADY_TRANSFORMING`
