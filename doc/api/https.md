@@ -139,7 +139,7 @@ See [`server.close()`][] in the `node:http` module.
 added: v20.4.0
 changes:
  - version: REPLACEME
-   pr-url: https://github.com/nodejs/node/pull/00000
+   pr-url: https://github.com/nodejs/node/pull/58467
    description: No longer experimental.
 -->
 
