@@ -17,6 +17,7 @@
 #include <limits>
 #include <sstream>
 #include <string_view>
+#include <vector>
 
 using v8::Boolean;
 using v8::Context;
@@ -240,6 +241,64 @@ void EnvironmentOptions::CheckOptions(std::vector<std::string>* errors,
 }
 
 namespace options_parser {
+
+// Helper function to convert option types to their string representation
+// and add them to a V8 Map
+static bool AddOptionTypeToMap(Isolate* isolate,
+                               Local<Context> context,
+                               Local<Map> map,
+                               const std::string& option_name,
+                               const OptionType& option_type) {
+  std::string type;
+  switch (static_cast<int>(option_type)) {
+    case 0:   // No-op
+    case 1:   // V8 flags
+      break;  // V8 and NoOp flags are not supported
+
+    case 2:
+      type = "boolean";
+      break;
+    case 3:  // integer
+    case 4:  // unsigned integer
+    case 6:  // host port
+      type = "number";
+      break;
+    case 5:  // string
+      type = "string";
+      break;
+    case 7:  // string array
+      type = "array";
+      break;
+    default:
+      UNREACHABLE();
+  }
+
+  if (type.empty()) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  Local<String> option_key;
+  if (!String::NewFromUtf8(isolate,
+                           option_name.data(),
+                           v8::NewStringType::kNormal,
+                           option_name.size())
+           .ToLocal(&option_key)) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  Local<String> type_value;
+  if (!String::NewFromUtf8(
+           isolate, type.data(), v8::NewStringType::kNormal, type.size())
+           .ToLocal(&type_value)) {
+    return true;  // Skip this entry but continue processing
+  }
+
+  if (map->Set(context, option_key, type_value).IsEmpty()) {
+    return false;  // Error occurred, stop processing
+  }
+
+  return true;
+}
 
 class DebugOptionsParser : public OptionsParser<DebugOptions> {
  public:
@@ -694,82 +753,119 @@ EnvironmentOptionsParser::EnvironmentOptionsParser() {
             &EnvironmentOptions::experimental_default_config_file);
   AddOption("--test",
             "launch test runner on startup",
-            &EnvironmentOptions::test_runner);
+            &EnvironmentOptions::test_runner,
+            kDisallowedInEnvvar);
   AddOption("--test-concurrency",
             "specify test runner concurrency",
-            &EnvironmentOptions::test_runner_concurrency);
+            &EnvironmentOptions::test_runner_concurrency,
+            kDisallowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-force-exit",
             "force test runner to exit upon completion",
-            &EnvironmentOptions::test_runner_force_exit);
+            &EnvironmentOptions::test_runner_force_exit,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-timeout",
             "specify test runner timeout",
-            &EnvironmentOptions::test_runner_timeout);
+            &EnvironmentOptions::test_runner_timeout,
+            kDisallowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-update-snapshots",
             "regenerate test snapshots",
-            &EnvironmentOptions::test_runner_update_snapshots);
+            &EnvironmentOptions::test_runner_update_snapshots,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--experimental-test-coverage",
             "enable code coverage in the test runner",
-            &EnvironmentOptions::test_runner_coverage);
+            &EnvironmentOptions::test_runner_coverage,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-branches",
             "the branch coverage minimum threshold",
             &EnvironmentOptions::test_coverage_branches,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-functions",
             "the function coverage minimum threshold",
             &EnvironmentOptions::test_coverage_functions,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-lines",
             "the line coverage minimum threshold",
             &EnvironmentOptions::test_coverage_lines,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-isolation",
             "configures the type of test isolation used in the test runner",
             &EnvironmentOptions::test_isolation,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   // TODO(cjihrig): Remove this alias in a semver major.
   AddAlias("--experimental-test-isolation", "--test-isolation");
   AddOption("--experimental-test-module-mocks",
             "enable module mocking in the test runner",
-            &EnvironmentOptions::test_runner_module_mocks);
-  AddOption("--experimental-test-snapshots", "", NoOp{});
+            &EnvironmentOptions::test_runner_module_mocks,
+            kDisallowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--experimental-test-snapshots",
+            "",
+            NoOp{},
+            kDisallowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-name-pattern",
             "run tests whose name matches this regular expression",
             &EnvironmentOptions::test_name_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-reporter",
             "report test output using the given reporter",
             &EnvironmentOptions::test_reporter,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-reporter-destination",
             "report given reporter to the given destination",
             &EnvironmentOptions::test_reporter_destination,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-only",
             "run tests with 'only' option set",
             &EnvironmentOptions::test_only,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            false,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-shard",
             "run test at specific shard",
             &EnvironmentOptions::test_shard,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-skip-pattern",
             "run tests whose name do not match this regular expression",
             &EnvironmentOptions::test_skip_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-include",
             "include files in coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_include_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-coverage-exclude",
             "exclude files from coverage report that match this glob pattern",
             &EnvironmentOptions::coverage_exclude_pattern,
-            kAllowedInEnvvar);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
   AddOption("--test-global-setup",
             "specifies the path to the global setup file",
             &EnvironmentOptions::test_global_setup_path,
-            kAllowedInEnvvar);
-  AddOption("--test-udp-no-try-send", "",  // For testing only.
-            &EnvironmentOptions::test_udp_no_try_send);
+            kAllowedInEnvvar,
+            OptionNamespaces::kTestRunnerNamespace);
+  AddOption("--test-udp-no-try-send",
+            "",  // For testing only.
+            &EnvironmentOptions::test_udp_no_try_send,
+            kDisallowedInEnvvar);
   AddOption("--throw-deprecation",
             "throw an exception on deprecations",
             &EnvironmentOptions::throw_deprecation,
@@ -1326,6 +1422,49 @@ MapEnvOptionsFlagInputType() {
   return type_map;
 }
 
+std::vector<std::string> MapAvailableNamespaces() {
+  std::vector<std::string> namespaceNames;
+  auto availableNamespaces = AllNamespaces();
+  for (size_t i = 1; i < availableNamespaces.size(); i++) {
+    OptionNamespaces ns = availableNamespaces[i];
+    std::string ns_string = NamespaceEnumToString(ns);
+    if (!ns_string.empty()) {
+      namespaceNames.push_back(ns_string);
+    }
+  }
+
+  return namespaceNames;
+}
+
+std::unordered_map<std::string, options_parser::OptionType>
+MapOptionsByNamespace(std::string namespace_name) {
+  std::unordered_map<std::string, options_parser::OptionType> type_map;
+  const auto& parser = _ppop_instance;
+  for (const auto& item : parser.options_) {
+    if (!item.first.empty() && !item.first.starts_with('[') &&
+        item.second.namespace_id == namespace_name) {
+      type_map[item.first] = item.second.type;
+    }
+  }
+  return type_map;
+}
+
+std::unordered_map<std::string,
+                   std::unordered_map<std::string, options_parser::OptionType>>
+MapNamespaceOptionsAssociations() {
+  std::vector<std::string> available_namespaces =
+      options_parser::MapAvailableNamespaces();
+  std::unordered_map<
+      std::string,
+      std::unordered_map<std::string, options_parser::OptionType>>
+      namespace_option_mapping;
+  for (const std::string& available_namespace : available_namespaces) {
+    namespace_option_mapping[available_namespace] =
+        options_parser::MapOptionsByNamespace(available_namespace);
+  }
+  return namespace_option_mapping;
+}
+
 struct IterateCLIOptionsScope {
   explicit IterateCLIOptionsScope(Environment* env) {
     // Temporarily act as if the current Environment's/IsolateData's options
@@ -1593,56 +1732,71 @@ void GetEnvOptionsInputType(const FunctionCallbackInfo<Value>& args) {
   for (const auto& item : _ppop_instance.options_) {
     if (!item.first.empty() && !item.first.starts_with('[') &&
         item.second.env_setting == kAllowedInEnvvar) {
-      std::string type;
-      switch (static_cast<int>(item.second.type)) {
-        case 0:   // No-op
-        case 1:   // V8 flags
-          break;  // V8 and NoOp flags are not supported
-
-        case 2:
-          type = "boolean";
-          break;
-        case 3:  // integer
-        case 4:  // unsigned integer
-        case 6:  // host port
-          type = "number";
-          break;
-        case 5:  // string
-          type = "string";
-          break;
-        case 7:  // string array
-          type = "array";
-          break;
-        default:
-          UNREACHABLE();
-      }
-
-      if (type.empty()) {
-        continue;
-      }
-
-      Local<String> value;
-      if (!String::NewFromUtf8(
-               isolate, type.data(), v8::NewStringType::kNormal, type.size())
-               .ToLocal(&value)) {
-        continue;
-      }
-
-      Local<String> field;
-      if (!String::NewFromUtf8(isolate,
-                               item.first.data(),
-                               v8::NewStringType::kNormal,
-                               item.first.size())
-               .ToLocal(&field)) {
-        continue;
-      }
-
-      if (flags_map->Set(context, field, value).IsEmpty()) {
+      if (!AddOptionTypeToMap(
+              isolate, context, flags_map, item.first, item.second.type)) {
         return;
       }
     }
   }
   args.GetReturnValue().Set(flags_map);
+}
+
+// This function returns a two-level nested map containing all the available
+// options grouped by their namespaces along with their input types. This is
+// used for config file JSON schema generation
+void GetNamespaceOptionsInputType(const FunctionCallbackInfo<Value>& args) {
+  Isolate* isolate = args.GetIsolate();
+  Local<Context> context = isolate->GetCurrentContext();
+  Environment* env = Environment::GetCurrent(context);
+
+  if (!env->has_run_bootstrapping_code()) {
+    // No code because this is an assertion.
+    THROW_ERR_OPTIONS_BEFORE_BOOTSTRAPPING(
+        isolate, "Should not query options before bootstrapping is done");
+  }
+
+  Mutex::ScopedLock lock(per_process::cli_options_mutex);
+
+  Local<Map> namespaces_map = Map::New(isolate);
+
+  // Get the mapping of namespaces to their options and types
+  auto namespace_options = options_parser::MapNamespaceOptionsAssociations();
+
+  for (const auto& ns_entry : namespace_options) {
+    const std::string& namespace_name = ns_entry.first;
+    const auto& options_map = ns_entry.second;
+
+    Local<Map> options_type_map = Map::New(isolate);
+
+    for (const auto& opt_entry : options_map) {
+      const std::string& option_name = opt_entry.first;
+      const options_parser::OptionType& option_type = opt_entry.second;
+
+      if (!AddOptionTypeToMap(
+              isolate, context, options_type_map, option_name, option_type)) {
+        return;
+      }
+    }
+
+    // Only add namespaces that have options
+    if (options_type_map->Size() > 0) {
+      Local<String> namespace_key;
+      if (!String::NewFromUtf8(isolate,
+                               namespace_name.data(),
+                               v8::NewStringType::kNormal,
+                               namespace_name.size())
+               .ToLocal(&namespace_key)) {
+        continue;
+      }
+
+      if (namespaces_map->Set(context, namespace_key, options_type_map)
+              .IsEmpty()) {
+        return;
+      }
+    }
+  }
+
+  args.GetReturnValue().Set(namespaces_map);
 }
 
 void Initialize(Local<Object> target,
@@ -1659,6 +1813,10 @@ void Initialize(Local<Object> target,
       context, target, "getEmbedderOptions", GetEmbedderOptions);
   SetMethodNoSideEffect(
       context, target, "getEnvOptionsInputType", GetEnvOptionsInputType);
+  SetMethodNoSideEffect(context,
+                        target,
+                        "getNamespaceOptionsInputType",
+                        GetNamespaceOptionsInputType);
   Local<Object> env_settings = Object::New(isolate);
   NODE_DEFINE_CONSTANT(env_settings, kAllowedInEnvvar);
   NODE_DEFINE_CONSTANT(env_settings, kDisallowedInEnvvar);
@@ -1685,6 +1843,7 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(GetCLIOptionsInfo);
   registry->Register(GetEmbedderOptions);
   registry->Register(GetEnvOptionsInputType);
+  registry->Register(GetNamespaceOptionsInputType);
 }
 }  // namespace options_parser
 
