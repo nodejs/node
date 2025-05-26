@@ -2421,9 +2421,11 @@ closed, although the server has already stopped allowing new sessions. See
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.
