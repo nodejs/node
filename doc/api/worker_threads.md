@@ -1863,6 +1863,79 @@ Calling `unref()` on a worker allows the thread to exit if this is the only
 active handle in the event system. If the worker is already `unref()`ed calling
 `unref()` again has no effect.
 
+## `worker.makeSync(buffer[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {SharedArrayBuffer} A shared memory buffer to use for communication.
+* `options` {Object}
+  * `timeout` {number} The timeout in milliseconds for synchronous calls. **Default:** `5000`.
+  * `expandable` {boolean} Whether the buffer can be resized. **Default:** `true` if the buffer
+    supports `growable` option.
+* Returns: {Object} An object with synchronous methods mirroring those exposed through [`worker.wire()`][].
+
+Creates a synchronous API facade that communicates with a worker thread over a shared memory buffer.
+The worker thread must call [`worker.wire()`][] on the same buffer to register the methods that can be called.
+
+This function enables making synchronous calls to a worker thread, which is particularly useful
+when code requires blocking operations but still wants to benefit from the worker thread's isolation.
+
+```js
+const { Worker, makeSync } = require('node:worker_threads');
+
+// Create a SharedArrayBuffer for communication
+const buffer = new SharedArrayBuffer(1024, {
+  maxByteLength: 64 * 1024 * 1024,
+});
+
+// Create a worker, passing the buffer
+const worker = new Worker('worker-script.js', {
+  workerData: { buffer },
+});
+
+// Create a synchronous API facade
+const api = makeSync(buffer);
+
+// Call a method synchronously - this will block until the worker responds
+const result = api.methodName(arg1, arg2);
+```
+
+## `worker.wire(buffer, methods)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `buffer` {SharedArrayBuffer} A shared memory buffer to use for communication.
+* `methods` {Object} An object whose properties are methods to expose to the main thread.
+
+Exposes methods to the main thread that can be called synchronously using [`worker.makeSync()`][].
+The methods can be async functions or return promises, and the main thread will wait
+for the promise to resolve or reject.
+
+```js
+const { workerData, wire } = require('node:worker_threads');
+
+// Expose methods synchronously to the main thread
+wire(workerData.buffer, {
+  async methodName(arg1, arg2) {
+    // Do work asynchronously
+    return result;
+  },
+
+  syncMethod(arg) {
+    // Do synchronous work
+    return result;
+  },
+});
+```
+
+The `wire()` function should be called early in the worker's lifecycle to register
+the methods before the main thread attempts to call them. Any values returned by
+these methods are serialized and passed back to the main thread.
+
 ## Notes
 
 ### Synchronous blocking of stdio
@@ -1970,10 +2043,12 @@ thread spawned will spawn another until the application crashes.
 [`v8.getHeapStatistics()`]: v8.md#v8getheapstatistics
 [`vm`]: vm.md
 [`worker.SHARE_ENV`]: #workershare_env
+[`worker.makeSync()`]: #workermakesyncbuffer-options
 [`worker.on('message')`]: #event-message_1
 [`worker.postMessage()`]: #workerpostmessagevalue-transferlist
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid_1
+[`worker.wire()`]: #workerwirebuffer-methods
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.md
