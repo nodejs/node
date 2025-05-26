@@ -196,3 +196,5 @@ added: v0.10.0
 This event is emitted on instances of `SomeClass`, not on the module itself.
 
 ````
+
+[`doc/api/`]: https://github.com/nodejs/node/tree/main/doc/api

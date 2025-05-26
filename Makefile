@@ -23,13 +23,15 @@ GCOV ?= gcov
 PWD = $(CURDIR)
 BUILD_WITH ?= make
 FIND ?= find
-# Amount of worker threads to create for generating documentation files
-DOC_THREADS ?= 12
 
 ifdef JOBS
 	PARALLEL_ARGS = -j $(JOBS)
+
+	# Amount of worker threads to create for generating documentation files
+	DOC_JOBS = $(JOBS)
 else
 	PARALLEL_ARGS =
+	DOC_JOBS = 12
 endif
 
 ifdef ENABLE_V8_TAP
@@ -814,7 +816,7 @@ doc-only: tools/doc/node_modules \
 			--no-lint \
 			-c $(call available-node, -p 'url.pathToFileURL("CHANGELOG.md")') \
 			-v $(VERSION) \
-			-p $(DOC_THREADS) \
+			-p $(DOC_JOBS) \
 		) \
 	fi
 
