@@ -832,18 +832,19 @@ out/doc/api: doc/api
 	cp -r doc/api out/doc
 
 # For generating individual doc files instead of all at once
-out/doc/api/%.html:
-	mkdir -p $(dir $@)
+out/doc/api:
+  mkdir -p $@
 
+out/doc/api/%.html: doc/api/%.md tools/doc/node_modules | out/doc/api
 	$(call available-node, \
 		$(NPX) --prefix tools/doc api-docs-tooling generate \
 		-t legacy-html \
-		-i $(patsubst out/doc/api/%.html, doc/api/%.md, $@) \
+		-i $< \
 		-i lib/*.js \
 		--ignore $(skip_apidoc_files) \
-		-o out/doc/api/ \
+		-o $(@D) \
 		--no-lint \
-		-c file://$(PWD)/CHANGELOG.md \
+		-c $(call available-node, -p 'url.pathToFileURL("CHANGELOG.md")') \
 		-v $(VERSION) \
 	) \
 
