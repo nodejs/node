@@ -380,9 +380,11 @@ provided, it is added as a listener for the [`'close'`][] event.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`socket.close()`][] and returns a promise that fulfills when the
 socket has closed.

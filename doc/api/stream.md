@@ -983,9 +983,11 @@ Getter for the property `objectMode` of a given `Writable` stream.
 added:
 - v22.4.0
 - v20.16.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`writable.destroy()`][writable-destroy] with an `AbortError` and returns
 a promise that fulfills when the stream is finished.
@@ -1996,9 +1998,11 @@ has less then 64 KiB of data because no `highWaterMark` option is provided to
 added:
  - v20.4.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`readable.destroy()`][readable-destroy] with an `AbortError` and returns
 a promise that fulfills when the stream is finished.

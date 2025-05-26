@@ -859,9 +859,11 @@ the end of the file.
 added:
  - v20.4.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls `filehandle.close()` and returns a promise that fulfills when the
 filehandle is closed.
@@ -6750,20 +6752,24 @@ included in the iteration results.
 
 <!-- YAML
 added: v24.1.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls `dir.close()` and returns a promise that fulfills when the
 dir is closed.
 
-#### `dir[Symbol.Dispose]()`
+#### `dir[Symbol.dispose]()`
 
 <!-- YAML
 added: v24.1.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/58467
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls `dir.closeSync()` and returns `undefined`.
 
