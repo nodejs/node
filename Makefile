@@ -23,6 +23,8 @@ GCOV ?= gcov
 PWD = $(CURDIR)
 BUILD_WITH ?= make
 FIND ?= find
+# Amount of worker threads to create for generating documentation files
+DOC_THREADS ?= 12
 
 ifdef JOBS
 	PARALLEL_ARGS = -j $(JOBS)
@@ -812,6 +814,7 @@ doc-only: tools/doc/node_modules \
 			--no-lint \
 			-c file://$(PWD)/CHANGELOG.md \
 			-v $(VERSION) \
+			-p $(DOC_THREADS) \
 		) \
 	fi
 
