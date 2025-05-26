@@ -823,7 +823,7 @@ static ExitCode InitializeNodeWithArgsInternal(
     std::vector<std::string>* exec_argv,
     std::vector<std::string>* errors,
     ProcessInitializationFlags::Flags flags) {
-  // Make sure InitializeNodeWithArgs() is called only once.
+  // Make sure InitializeNodeWithArgsInternal() is called only once.
   CHECK(!init_called.exchange(true));
 
   // Initialize node_start_time to get relative uptime.
@@ -1019,14 +1019,6 @@ static ExitCode InitializeNodeWithArgsInternal(
   // able to set it and native addons will not load for them.
   node_is_initialized = true;
   return ExitCode::kNoFailure;
-}
-
-int InitializeNodeWithArgs(std::vector<std::string>* argv,
-                           std::vector<std::string>* exec_argv,
-                           std::vector<std::string>* errors,
-                           ProcessInitializationFlags::Flags flags) {
-  return static_cast<int>(
-      InitializeNodeWithArgsInternal(argv, exec_argv, errors, flags));
 }
 
 static std::shared_ptr<InitializationResultImpl>
