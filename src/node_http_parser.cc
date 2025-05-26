@@ -711,7 +711,8 @@ class Parser : public AsyncWrap, public StreamListener {
   static void PauseFast(Local<Value> receiver,
                         // NOLINTNEXTLINE(runtime/references) This is V8 api.
                         v8::FastApiCallbackOptions& options) {
-    Environment* env = Environment::GetCurrent(options.isolate);
+    Environment* env = Environment::GetCurrent(options.data);
+    CHECK_NOT_NULL(env);
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, receiver);
     // Should always be called from the same context.
@@ -726,7 +727,8 @@ class Parser : public AsyncWrap, public StreamListener {
 
   template <bool should_pause>
   static void Pause(const FunctionCallbackInfo<Value>& args) {
-    Environment* env = Environment::GetCurrent(args);
+    Environment* env = Environment::GetCurrent(args.Data());
+    CHECK_NOT_NULL(env);
     Parser* parser;
     ASSIGN_OR_RETURN_UNWRAP(&parser, args.This());
     // Should always be called from the same context.
@@ -1323,18 +1325,19 @@ void CreatePerIsolateProperties(IsolateData* isolate_data,
   t->Set(FIXED_ONE_BYTE_STRING(isolate, "kLenientAll"),
          Integer::NewFromUnsigned(isolate, kLenientAll));
 
+  auto context = isolate->GetCurrentContext();
   t->Inherit(AsyncWrap::GetConstructorTemplate(isolate_data));
-  SetFastProtoMethod(isolate, t, "close", Parser::Close, &close_fast_);
-  SetFastProtoMethod(isolate, t, "free", Parser::Free, &free_fast_);
-  SetFastProtoMethod(isolate, t, "remove", Parser::Remove, &remove_fast_);
+  SetFastProtoMethod(context, t, "close", Parser::Close, &close_fast_);
+  SetFastProtoMethod(context, t, "free", Parser::Free, &free_fast_);
+  SetFastProtoMethod(context, t, "remove", Parser::Remove, &remove_fast_);
   SetProtoMethod(isolate, t, "execute", Parser::Execute);
   SetProtoMethod(isolate, t, "finish", Parser::Finish);
   SetProtoMethod(isolate, t, "initialize", Parser::Initialize);
-  SetFastProtoMethod(isolate, t, "pause", Parser::Pause<true>, &pause_fast_);
-  SetFastProtoMethod(isolate, t, "resume", Parser::Pause<false>, &resume_fast_);
+  SetFastProtoMethod(context, t, "pause", Parser::Pause<true>, &pause_fast_);
+  SetFastProtoMethod(context, t, "resume", Parser::Pause<false>, &resume_fast_);
   SetProtoMethod(isolate, t, "consume", Parser::Consume);
   SetFastProtoMethod(
-      isolate, t, "unconsume", Parser::Unconsume, &unconsume_fast_);
+      isolate->GetCurrentContext(), t, "unconsume", Parser::Unconsume, &unconsume_fast_);
   SetProtoMethod(isolate, t, "getCurrentBuffer", Parser::GetCurrentBuffer);
 
   SetConstructorFunction(isolate, target, "HTTPParser", t);

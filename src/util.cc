@@ -618,16 +618,20 @@ void SetProtoMethod(v8::Isolate* isolate,
   t->SetClassName(name_string);  // NODE_SET_PROTOTYPE_METHOD() compatibility.
 }
 
-void SetFastProtoMethod(Isolate* isolate,
+void SetFastProtoMethod(Local<Context> context,
                         Local<FunctionTemplate> that,
                         const std::string_view name,
                         v8::FunctionCallback slow_callback,
                         const v8::CFunction* c_function) {
+  Environment* env = Environment::GetCurrent(context);
+  CHECK_NOT_NULL(env);
+  auto isolate = context->GetIsolate();
+  auto external_env = v8::External::New(isolate, env);
   Local<v8::Signature> signature = v8::Signature::New(isolate, that);
   Local<FunctionTemplate> t =
       FunctionTemplate::New(isolate,
                             slow_callback,
-                            Local<Value>(),
+                            external_env,
                             signature,
                             0,
                             v8::ConstructorBehavior::kThrow,

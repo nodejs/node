@@ -174,6 +174,13 @@ inline bool TickInfo::has_rejection_to_warn() const {
   return fields_[kHasRejectionToWarn] == 1;
 }
 
+inline Environment* Environment::GetCurrent(v8::Local<v8::Value> value) {
+  if (!value->IsExternal()) {
+    return nullptr;
+  }
+  return static_cast<Environment*>(value.As<v8::External>()->Value());
+}
+
 inline Environment* Environment::GetCurrent(v8::Isolate* isolate) {
   if (!isolate->InContext()) [[unlikely]]
     return nullptr;
