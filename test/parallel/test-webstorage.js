@@ -1,4 +1,6 @@
 'use strict';
+
+// Flags: --localstorage-file=./test/fixtures/localstoragefile-global-test
 const { skipIfSQLiteMissing, spawnPromisified } = require('../common');
 skipIfSQLiteMissing();
 const tmpdir = require('../common/tmpdir');
