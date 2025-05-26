@@ -1769,14 +1769,17 @@ not handle all certificate subjects correctly and should not be used.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v9.0.0
     pr-url: https://github.com/nodejs/node/pull/13948
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-`Module._debug()` is deprecated.
+`Module._debug()` has been removed.
 
 The `Module._debug()` function was never documented as an officially
 supported API.
