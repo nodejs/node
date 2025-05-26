@@ -1144,9 +1144,32 @@ test('changes mocked property value dynamically', (t) => {
 
   const prop = t.mock.property(obj, 'foo', 2);
   assert.strictEqual(obj.foo, 2);
+  assert.strictEqual(prop.mock.accessCount(), 1);
 
   prop.mock.mockImplementation(99);
   assert.strictEqual(obj.foo, 99);
+  assert.strictEqual(prop.mock.accessCount(), 3);
+
+  prop.mock.mockImplementationOnce(42);
+  assert.strictEqual(obj.foo, 42);
+  assert.strictEqual(obj.foo, 99);
+  assert.strictEqual(prop.mock.accessCount(), 5);
+
+  assert.throws(() => {
+    prop.mock.mockImplementationOnce(55, 4);
+  }, /The value of "onAccess" is out of range\. It must be >= 5/);
+
+  prop.mock.mockImplementationOnce(100, 5);
+  prop.mock.mockImplementationOnce(200, 6);
+  assert.strictEqual(obj.foo, 100);
+  assert.strictEqual(obj.foo, 200);
+  assert.strictEqual(obj.foo, 99);
+  assert.strictEqual(prop.mock.accessCount(), 8);
+
+  prop.mock.mockImplementationOnce(555, 10);
+  assert.strictEqual(obj.foo, 99);
+  assert.strictEqual(obj.foo, 99);
+  assert.strictEqual(obj.foo, 555);
 
   prop.mock.mockImplementation(undefined);
   assert.strictEqual(obj.foo, undefined);
