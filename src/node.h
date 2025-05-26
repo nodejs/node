@@ -832,19 +832,12 @@ NODE_EXTERN void GetNodeReport(Environment* env,
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(Environment* env);
 NODE_EXTERN MultiIsolatePlatform* GetMultiIsolatePlatform(IsolateData* env);
 
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN MultiIsolatePlatform* CreatePlatform(
-        int thread_pool_size,
-        v8::TracingController* tracing_controller));
-NODE_DEPRECATED("Use MultiIsolatePlatform::Create() instead",
-    NODE_EXTERN void FreePlatform(MultiIsolatePlatform* platform));
-
-// Get/set the currently active tracing controller. Using CreatePlatform()
-// will implicitly set this by default. This is global and should be initialized
-// along with the v8::Platform instance that is being used. `controller`
-// is allowed to be `nullptr`.
-// This is used for tracing events from Node.js itself. V8 uses the tracing
-// controller returned from the active `v8::Platform` instance.
+// Get/set the currently active tracing controller. Using
+// MultiIsolatePlatform::Create() will implicitly set this by default. This is
+// global and should be initialized along with the v8::Platform instance that is
+// being used. `controller` is allowed to be `nullptr`. This is used for tracing
+// events from Node.js itself. V8 uses the tracing controller returned from the
+// active `v8::Platform` instance.
 NODE_EXTERN v8::TracingController* GetTracingController();
 NODE_EXTERN void SetTracingController(v8::TracingController* controller);
 
