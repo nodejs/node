@@ -1936,9 +1936,11 @@ affects new connections to the server, not any existing connections.
 
 <!-- YAML
 added: v20.4.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.

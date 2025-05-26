@@ -69,9 +69,11 @@ invoked. Calling `immediate.unref()` multiple times will have no effect.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Cancels the immediate. This is similar to calling `clearImmediate()`.
 
@@ -175,9 +177,11 @@ thread. This allows enhanced compatibility with browser
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Cancels the timeout.
 

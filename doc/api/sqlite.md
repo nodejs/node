@@ -424,9 +424,11 @@ targetDb.applyChangeset(changeset);
 added:
   - v23.11.0
   - v22.15.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Closes the database connection. If the database connection is already closed
 then this is a no-op.

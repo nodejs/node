@@ -402,9 +402,11 @@ was not open when it was closed.
 added:
  - v20.5.0
  - v18.18.0
+changes:
+ - version: REPLACEME
+   pr-url: https://github.com/nodejs/node/pull/00000
+   description: No longer experimental.
 -->
-
-> Stability: 1 - Experimental
 
 Calls [`server.close()`][] and returns a promise that fulfills when the
 server has closed.
