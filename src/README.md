@@ -1193,7 +1193,7 @@ MyWrap* MyWrap::New(Environment* env, v8::Local<v8::Object> object) {
   // pointer with this, as this is not managed by the native memory
   // allocator but by V8.
   return cppgc::MakeGarbageCollected<MyWrap>(
-      env->isolate()->GetCppHeap()->GetAllocationHandle(), env, object);
+      env->cppgc_allocation_handle(), env, object);
 }
 
 // Binding method to be invoked by JavaScript.
