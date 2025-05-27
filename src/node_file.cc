@@ -3588,11 +3588,11 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
         if (preserve_timestamps) {
           uv_fs_t req;
           auto cleanup = OnScopeLeave([&req]() { uv_fs_req_cleanup(&req); });
-          const char* dir_path = dir_entry.path().c_str();
 
-          int result = uv_fs_stat(nullptr, &req, dir_path, nullptr);
+          auto dir_entry_path = PathToString(dir_entry.path());
+          int result = uv_fs_stat(nullptr, &req, dir_entry_path.c_str(), nullptr);
           if (is_uv_error(result)) {
-            env->ThrowUVException(result, "stat", nullptr, dir_path);
+            env->ThrowUVException(result, "stat", nullptr, dir_entry_path.c_str());
             return false;
           }
 
@@ -3602,11 +3602,11 @@ static void CpSyncCopyDir(const FunctionCallbackInfo<Value>& args) {
           const double source_mtime =
               s->st_mtim.tv_sec + s->st_mtim.tv_nsec / 1e9;
 
-          const char* path = dest_entry_path.c_str();
+          auto path = PathToString(dir_entry.path());
           int utime_result = uv_fs_utime(
-              nullptr, &req, path, source_atime, source_mtime, nullptr);
+              nullptr, &req, path.c_str(), source_atime, source_mtime, nullptr);
           if (is_uv_error(utime_result)) {
-            env->ThrowUVException(utime_result, "utime", nullptr, path);
+            env->ThrowUVException(utime_result, "utime", nullptr, path.c_str());
             return false;
           }
         }
