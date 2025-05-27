@@ -37,17 +37,14 @@ class WorkerStartedRequest : public Request {
 
 class EmitProtocolResponseRequest : public Request {
  public:
-  EmitProtocolResponseRequest(
-    int session_id,
-    std::string_view params,
-    int call_id):
-      session_id_(session_id),
-      call_id_(call_id),
-      params_(params) {}
+  EmitProtocolResponseRequest(int session_id,
+                              std::string_view params,
+                              int call_id)
+      : session_id_(session_id), call_id_(call_id), params_(params) {}
 
   void Call(MainThreadInterface* thread) override {
-    thread->inspector_agent()
-      ->EmitProtocolResponse(session_id_,  params_, call_id_);
+    thread->inspector_agent()->EmitProtocolResponse(
+        session_id_, params_, call_id_);
   }
 
  private:
@@ -55,7 +52,6 @@ class EmitProtocolResponseRequest : public Request {
   int call_id_;
   std::string params_;
 };
-
 
 void Report(const std::unique_ptr<WorkerDelegate>& delegate,
             const WorkerInfo& info, bool waiting) {
@@ -100,10 +96,11 @@ void ParentInspectorHandle::WorkerStarted(
   parent_thread_->Post(std::move(request));
 }
 
-void ParentInspectorHandle::EmitProtocolResponse(
-    int session_id, std::string_view params, int call_id) {
-  parent_thread_->Post(
-    std::make_unique<EmitProtocolResponseRequest>(session_id, params, call_id));
+void ParentInspectorHandle::EmitProtocolResponse(int session_id,
+                                                 std::string_view params,
+                                                 int call_id) {
+  parent_thread_->Post(std::make_unique<EmitProtocolResponseRequest>(
+      session_id, params, call_id));
 }
 
 std::unique_ptr<inspector::InspectorSession> ParentInspectorHandle::Connect(

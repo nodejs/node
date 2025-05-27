@@ -348,14 +348,13 @@ void AddFallThroughListener(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsFunction());
   Local<Function> local_callback = args[0].As<Function>();
   auto global_callback =
-    std::make_shared<v8::Global<Function>>(isolate, local_callback);
+      std::make_shared<v8::Global<Function>>(isolate, local_callback);
 
   env->inspector_agent()->AddFallThroughListener([env, global_callback](
-    int session_id,
-    int call_id,
-    std::string_view method,
-    std::string_view message
-  ) {
+                                                     int session_id,
+                                                     int call_id,
+                                                     std::string_view method,
+                                                     std::string_view message) {
     Isolate* isolate = env->isolate();
     HandleScope handle_scope(isolate);
     Local<Context> context = env->context();
@@ -364,19 +363,15 @@ void AddFallThroughListener(const FunctionCallbackInfo<Value>& args) {
     Local<v8::Integer> session_id_value = Uint32::New(isolate, session_id);
     Local<v8::Integer> call_id_value = Uint32::New(isolate, call_id);
     Local<String> method_string =
-      String::NewFromUtf8(
-        isolate, method.data(), v8::NewStringType::kNormal, method.size())
-        .ToLocalChecked();
+        String::NewFromUtf8(
+            isolate, method.data(), v8::NewStringType::kNormal, method.size())
+            .ToLocalChecked();
     Local<String> message_string =
-      String::NewFromUtf8(
-        isolate, message.data(), v8::NewStringType::kNormal, message.size())
-        .ToLocalChecked();
+        String::NewFromUtf8(
+            isolate, message.data(), v8::NewStringType::kNormal, message.size())
+            .ToLocalChecked();
     Local<Value> argv[] = {
-      session_id_value,
-      call_id_value ,
-      method_string,
-      message_string
-    };
+        session_id_value, call_id_value, method_string, message_string};
     callback->Call(context, Undefined(isolate), 4, argv).ToLocalChecked();
   });
 }
@@ -397,8 +392,7 @@ void EmitProtocolResponseInParent(const FunctionCallbackInfo<Value>& args) {
     return;
   }
   env->inspector_agent()->EmitProtocolResponseInParent(
-      call_id->Value(),
-      params_str, session_id);
+      call_id->Value(), params_str, session_id);
 }
 
 void AddIoData(const FunctionCallbackInfo<Value>& args) {
@@ -409,8 +403,7 @@ void AddIoData(const FunctionCallbackInfo<Value>& args) {
   std::string data_str(*utf8);
   int streamId = protocol::IoAgent::setData(data_str);
 
-  args.GetReturnValue().Set(
-      v8::Integer::New(env->isolate(), streamId));
+  args.GetReturnValue().Set(v8::Integer::New(env->isolate(), streamId));
 }
 
 void Initialize(Local<Object> target, Local<Value> unused,
@@ -459,7 +452,7 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethod(context,
             target,
             "emitProtocolResponseInParent",
-    EmitProtocolResponseInParent);
+            EmitProtocolResponseInParent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
   SetMethod(context, target, "addFallThroughListener", AddFallThroughListener);
   SetMethod(context, target, "addIoData", AddIoData);
