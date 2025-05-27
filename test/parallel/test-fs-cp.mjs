@@ -248,7 +248,7 @@ function nextdir(dirname) {
   );
 }
 
-// It allows copying when is not a directory
+// It allows cpSync copying symlinks in src to locations in dest with existing synlinks not pointing to a directory.
 {
   const src = nextdir();
   const dest = nextdir();
@@ -257,6 +257,23 @@ function nextdir(dirname) {
   symlinkSync(resolve(`${src}/test.txt`), join(src, 'link.txt'));
   cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
   cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
+}
+
+// It allows cp copying symlinks in src to locations in dest with existing synlinks not pointing to a directory.
+{
+  const src = nextdir();
+  const dest = nextdir();
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(`${src}/test.txt`, 'test');
+  symlinkSync(resolve(`${src}/test.txt`), join(src, 'link.txt'));
+  cp(src, dest, { recursive: true },
+     mustCall((err) => {
+       assert.strictEqual(err, null);
+
+       cp(src, dest, { recursive: true }, mustCall((err) => {
+         assert.strictEqual(err, null);
+       }));
+     }));
 }
 
 // It throws error if symlink in dest points to location in src.
