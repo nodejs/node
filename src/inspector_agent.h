@@ -79,8 +79,8 @@ class Agent {
                          v8::Local<v8::Object> params);
 
   void EmitProtocolResponse(int call_id,
-                          std::string_view params,
-                          int session_id);
+                            std::string_view params,
+                            int session_id);
   void EmitProtocolResponseInParent(
       int session_id, std::string_view params, int call_id);
 
