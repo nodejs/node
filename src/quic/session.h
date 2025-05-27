@@ -55,7 +55,7 @@ class Endpoint;
 // is created. This ngtcp2_conn is destroyed when the session object is freed.
 // However, the session can be in a closed/destroyed state and still have a
 // valid ngtcp2_conn pointer. This is important because the ngtcp2 still might
-// be processsing data within the scope of an ngtcp2_conn after the session
+// be procsessing data within the scope of an ngtcp2_conn after the session
 // object itself is closed/destroyed by user code.
 class Session final : public AsyncWrap, private SessionTicket::AppData::Source {
  public:

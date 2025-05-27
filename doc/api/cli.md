@@ -2625,7 +2625,7 @@ changes:
     - v23.4.0
     - v22.13.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Regenerates the snapshot files used by the test runner for [snapshot testing][].
