@@ -121,7 +121,8 @@ test('disabled with --no-experimental-webstorage', async () => {
       '--no-experimental-webstorage',
       '--localstorage-file',
       './test/fixtures/localstoragefile-global-test',
-      '-e', api
+      '-e',
+      api,
     ]);
 
     assert.strictEqual(cp.code, 1);
