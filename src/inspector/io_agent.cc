@@ -1,4 +1,5 @@
 #include "io_agent.h"
+#include <algorithm>
 #include <string>
 #include "crdtp/dispatch.h"
 #include "node_mutex.h"

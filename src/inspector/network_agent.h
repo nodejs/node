@@ -96,8 +96,6 @@ class NetworkAgent : public protocol::Network::Backend {
                                                v8::Local<v8::Object>);
   std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;
   std::map<protocol::String, RequestEntry> requests_;
-  std::shared_ptr<protocol::IoAgent> io_agent_;
-  int load_id_counter_ = 1;
 };
 
 }  // namespace inspector
