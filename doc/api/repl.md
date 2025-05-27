@@ -645,14 +645,35 @@ buffered but not yet executed. This method is primarily intended to be
 called from within the action function for commands registered using the
 `replServer.defineCommand()` method.
 
-### `replServer.setupHistory(historyPath, callback)`
+### `replServer.setupHistory(historyConfig, callback)`
 
 <!-- YAML
 added: v11.10.0
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58225
+    description: Updated the `historyConfig` parameter to accept an object
+                 with `filePath`, `size`, `removeHistoryDuplicates` and
+                 `onHistoryFileLoaded` properties.
 -->
 
-* `historyPath` {string} the path to the history file
+* `historyConfig` {Object|string} the path to the history file
+  If it is a string, it is the path to the history file.
+  If it is an object, it can have the following properties:
+  * `filePath` {string} the path to the history file
+  * `size` {number} Maximum number of history lines retained. To disable
+    the history set this value to `0`. This option makes sense only if
+    `terminal` is set to `true` by the user or by an internal `output` check,
+    otherwise the history caching mechanism is not initialized at all.
+    **Default:** `30`.
+  * `removeHistoryDuplicates` {boolean} If `true`, when a new input line added
+    to the history list duplicates an older one, this removes the older line
+    from the list. **Default:** `false`.
+  * `onHistoryFileLoaded` {Function} called when history writes are ready or upon error
+    * `err` {Error}
+    * `repl` {repl.REPLServer}
 * `callback` {Function} called when history writes are ready or upon error
+  (Optional if provided as `onHistoryFileLoaded` in `historyConfig`)
   * `err` {Error}
   * `repl` {repl.REPLServer}
 

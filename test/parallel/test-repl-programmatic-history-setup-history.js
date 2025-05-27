@@ -74,21 +74,25 @@ const replFailedRead = '\nError: Could not open history file.\n' +
                        'REPL session history will not be persisted.\n';
 
 const tests = [
+  // Makes sure that, if the history file is empty, the history is disabled
   {
     env: { NODE_REPL_HISTORY: '' },
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
+  // Makes sure that, if the history file is empty (when trimmed), the history is disabled
   {
     env: { NODE_REPL_HISTORY: ' ' },
     test: [UP],
     expected: [prompt, replDisabled, prompt]
   },
+  // Properly loads the history file
   {
     env: { NODE_REPL_HISTORY: historyPath },
     test: [UP, CLEAR],
     expected: [prompt, `${prompt}'you look fabulous today'`, prompt]
   },
+  // Properly navigates newly added history items
   {
     env: {},
     test: [UP, '21', ENTER, "'42'", ENTER],
@@ -99,7 +103,7 @@ const tests = [
     ],
     clean: false
   },
-  { // Requires the above test case
+  { // Requires the above test case, because navigating old history
     env: {},
     test: [UP, UP, UP, DOWN, ENTER],
     expected: [
@@ -112,6 +116,7 @@ const tests = [
       prompt,
     ]
   },
+  // Making sure that only the configured number of history items are kept
   {
     env: { NODE_REPL_HISTORY: historyPath,
            NODE_REPL_HISTORY_SIZE: 1 },
@@ -124,12 +129,14 @@ const tests = [
       prompt,
     ]
   },
+  // Making sure that the history file is not written to if it is not writable
   {
     env: { NODE_REPL_HISTORY: historyPathFail,
            NODE_REPL_HISTORY_SIZE: 1 },
     test: [UP],
     expected: [prompt, replFailedRead, prompt, replDisabled, prompt]
   },
+  // Checking the history file permissions
   {
     before: function before() {
       if (common.isWindows) {
@@ -143,16 +150,8 @@ const tests = [
     test: [UP],
     expected: [prompt]
   },
+  // Checking failures when os.homedir() fails
   {
-    before: function before() {
-      if (!common.isWindows)
-        fs.symlinkSync('/dev/null', devNullHistoryPath);
-    },
-    env: { NODE_REPL_HISTORY: devNullHistoryPath },
-    test: [UP],
-    expected: [prompt]
-  },
-  { // Make sure this is always the last test, since we change os.homedir()
     before: function before() {
       // Mock os.homedir() failure
       os.homedir = function() {
@@ -162,6 +161,16 @@ const tests = [
     env: {},
     test: [UP],
     expected: [prompt, homedirErr, prompt, replDisabled, prompt]
+  },
+  // Checking that the history file can be set to /dev/null
+  {
+    before: function before() {
+      if (!common.isWindows)
+        fs.symlinkSync('/dev/null', devNullHistoryPath);
+    },
+    env: { NODE_REPL_HISTORY: devNullHistoryPath },
+    test: [UP],
+    expected: [prompt]
   },
 ];
 const numtests = tests.length;
@@ -203,8 +212,8 @@ function runTest(assertCleaned) {
   const expected = opts.expected;
   const clean = opts.clean;
   const before = opts.before;
-  const historySize = opts.env.NODE_REPL_HISTORY_SIZE;
-  const file = opts.env.NODE_REPL_HISTORY;
+  const size = opts.env.NODE_REPL_HISTORY_SIZE;
+  const filePath = opts.env.NODE_REPL_HISTORY;
 
   if (before) before();
 
@@ -230,10 +239,16 @@ function runTest(assertCleaned) {
     prompt: prompt,
     useColors: false,
     terminal: true,
-    historySize
   });
 
-  repl.setupHistory(file, function(err, repl) {
+  repl.setupHistory({
+    size,
+    filePath,
+    onHistoryFileLoaded,
+    removeHistoryDuplicates: false
+  });
+
+  function onHistoryFileLoaded(err, repl) {
     if (err) {
       console.error(`Failed test # ${numtests - tests.length}`);
       throw err;
@@ -262,5 +277,5 @@ function runTest(assertCleaned) {
     }
 
     repl.inputStream.run(test);
-  });
+  }
 }
