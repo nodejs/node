@@ -183,11 +183,9 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 }
 
 NetworkAgent::NetworkAgent(NetworkInspector* inspector,
-                           v8_inspector::V8Inspector* v8_inspector,
-                           Environment* env)
+                           v8_inspector::V8Inspector* v8_inspector)
     : inspector_(inspector),
-      v8_inspector_(v8_inspector),
-      env_(env) {
+      v8_inspector_(v8_inspector) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -242,105 +240,6 @@ protocol::DispatchResponse NetworkAgent::streamResourceContent(
     requests_.erase(in_requestId);
   }
   return protocol::DispatchResponse::Success();
-}
-
-std::tuple<int, std::string, std::string> NetworkAgent::spawnFetchProcess(
-    std::string_view code, Environment* env, std::string_view url) {
-  std::string stdout_result;
-  std::string stderr_result;
-  uv_loop_t* loop = new uv_loop_t;
-  uv_loop_init(loop);
-  uv_process_t child;
-  uv_pipe_t stdout_pipe;
-  uv_pipe_init(loop, &stdout_pipe, 0);
-  uv_pipe_t stderr_pipe;
-  uv_pipe_init(loop, &stderr_pipe, 0);
-
-  uv_process_options_t uv_process_options;
-  std::string command =
-      env->exec_path() + " --eval \"" + code.data() + "\" -- " + url.data();
-
-  const char* file = env->exec_path().c_str();
-  char* args[] = {const_cast<char*>(file),
-                  const_cast<char*>("--eval"),
-                  reinterpret_cast<char*>(const_cast<char*>(code.data())),
-                  reinterpret_cast<char*>(const_cast<char*>(url.data())),
-                  nullptr};
-
-  uv_stdio_container_t stdio[3];
-  uv_process_options.file = file;
-  uv_process_options.args = args;
-  uv_process_options.flags = 0;
-  uv_process_options.stdio_count = 3;
-  uv_process_options.stdio = stdio;
-  uv_process_options.cwd = nullptr;
-  uv_process_options.env = nullptr;
-
-  uv_process_options.exit_cb =
-      [](uv_process_t* req, int64_t exit_status, int term_signal) {
-        uv_close(reinterpret_cast<uv_handle_t*>(req), nullptr);
-      };
-
-  stdio[0].flags = UV_INHERIT_FD;
-  stdio[0].data.fd = 0;
-  stdio[1].flags =
-      static_cast<uv_stdio_flags>(UV_CREATE_PIPE | UV_WRITABLE_PIPE);
-  stdio[1].data.stream = reinterpret_cast<uv_stream_t*>(&stdout_pipe);
-  stdio[2].flags =
-      static_cast<uv_stdio_flags>(UV_CREATE_PIPE | UV_WRITABLE_PIPE);
-  stdio[2].data.stream = reinterpret_cast<uv_stream_t*>(&stderr_pipe);
-
-  int r = uv_spawn(loop, &child, &uv_process_options);
-
-  if (r != 0) {
-    uv_loop_close(loop);
-    delete loop;
-    return {r, stdout_result, stderr_result};
-  }
-
-  auto alloc_cb =
-      [](uv_handle_t* handle, size_t suggested_size, uv_buf_t* buf) {
-        buf->base = static_cast<char*>(malloc(suggested_size));
-        buf->len = suggested_size;
-      };
-
-  auto read_cb = [](uv_stream_t* stream, ssize_t nread, const uv_buf_t* buf) {
-    auto* response = static_cast<std::string*>(stream->data);
-    if (nread > 0) {
-      response->append(buf->base, nread);
-    } else if (nread < 0) {
-      if (!response->empty() && response->back() == '\n') {
-        response->pop_back();
-      }
-      uv_close(reinterpret_cast<uv_handle_t*>(stream), nullptr);
-    }
-    if (buf->base) free(buf->base);
-  };
-
-  stdout_pipe.data = &stdout_result;
-  uv_read_start(
-      reinterpret_cast<uv_stream_t*>(&stdout_pipe), alloc_cb, read_cb);
-
-  stderr_pipe.data = &stderr_result;
-  uv_read_start(
-      reinterpret_cast<uv_stream_t*>(&stderr_pipe), alloc_cb, read_cb);
-
-  uv_run(loop, UV_RUN_DEFAULT);
-
-  uv_walk(
-      loop,
-      [](uv_handle_t* handle, void*) {
-        if (!uv_is_closing(handle)) {
-          uv_close(handle, nullptr);
-        }
-      },
-      nullptr);
-
-  uv_run(loop, UV_RUN_DEFAULT);
-
-  uv_loop_close(loop);
-  delete loop;
-  return {r, stdout_result, stderr_result};
 }
 
 protocol::DispatchResponse NetworkAgent::loadNetworkResource(

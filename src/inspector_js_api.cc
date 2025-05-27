@@ -381,12 +381,6 @@ void AddFallThroughListener(const FunctionCallbackInfo<Value>& args) {
   });
 }
 
-void RegisterInspectWorker(const FunctionCallbackInfo<Value>& args) {
-  worker::Worker* w;
-  auto js_worker =  args[0];
-  ASSIGN_OR_RETURN_UNWRAP(&w, js_worker);
-}
-
 void EmitProtocolResponseInParent(const FunctionCallbackInfo<Value>& args) {
   Environment* env = Environment::GetCurrent(args);
   auto isolate = env->isolate();
@@ -463,12 +457,11 @@ void Initialize(Local<Object> target, Local<Value> unused,
   SetMethodNoSideEffect(context, target, "isEnabled", IsEnabled);
   SetMethod(context, target, "emitProtocolEvent", EmitProtocolEvent);
   SetMethod(context,
-        target,
-        "emitProtocolResponseInParent",
+            target,
+            "emitProtocolResponseInParent",
     EmitProtocolResponseInParent);
   SetMethod(context, target, "setupNetworkTracking", SetupNetworkTracking);
   SetMethod(context, target, "addFallThroughListener", AddFallThroughListener);
-  SetMethod(context, target, "registerInspectWorker", RegisterInspectWorker);
   SetMethod(context, target, "addIoData", AddIoData);
 
   Local<String> console_string = FIXED_ONE_BYTE_STRING(isolate, "console");
@@ -507,7 +500,6 @@ void RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(EmitProtocolResponseInParent);
   registry->Register(SetupNetworkTracking);
   registry->Register(AddFallThroughListener);
-  registry->Register(RegisterInspectWorker);
   registry->Register(AddIoData);
 
   registry->Register(JSBindingsConnection<LocalConnection>::New);

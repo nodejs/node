@@ -23,8 +23,7 @@ struct RequestEntry {
 class NetworkAgent : public protocol::Network::Backend {
  public:
   explicit NetworkAgent(NetworkInspector* inspector,
-                        v8_inspector::V8Inspector* v8_inspector,
-                        Environment* env);
+                        v8_inspector::V8Inspector* v8_inspector);
 
   void Wire(protocol::UberDispatcher* dispatcher);
 
@@ -61,12 +60,9 @@ class NetworkAgent : public protocol::Network::Backend {
                     v8::Local<v8::Object> params);
 
  private:
-  std::tuple<int, std::string, std::string> spawnFetchProcess(
-      std::string_view code, Environment* env, std::string_view url);
   NetworkInspector* inspector_;
   v8_inspector::V8Inspector* v8_inspector_;
   std::shared_ptr<protocol::Network::Frontend> frontend_;
-  Environment* env_;
   using EventNotifier = void (NetworkAgent::*)(v8::Local<v8::Context> context,
                                                v8::Local<v8::Object>);
   std::unordered_map<protocol::String, EventNotifier> event_notifier_map_;

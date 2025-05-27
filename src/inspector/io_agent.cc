@@ -38,12 +38,12 @@ DispatchResponse IoAgent::read(const String& in_handle,
   bool is_number = std::all_of(in_handle_str.begin(),
                                 in_handle_str.end(),
                                 ::isdigit);
-  if (is_number) {
-    stream_id = std::stoi(in_handle_str);
-  } else {
+  if (!is_number) {
     out_data = new String("");
     *out_eof = true;
+    return DispatchResponse::Success();
   }
+  stream_id = std::stoi(in_handle_str);
 
   std::string txt = data_map_[stream_id];
   int offset = 0;
