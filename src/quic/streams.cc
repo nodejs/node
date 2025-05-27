@@ -69,7 +69,7 @@ namespace quic {
   V(ACKED_AT, acked_at)                                                        \
   /* Marks the timestamp when the stream was destroyed */                      \
   V(DESTROYED_AT, destroyed_at)                                                \
-  /* Records the total number of bytes received by the stream */                \
+  /* Records the total number of bytes received by the stream */               \
   V(BYTES_RECEIVED, bytes_received)                                            \
   /* Records the total number of bytes sent by the stream */                   \
   V(BYTES_SENT, bytes_sent)                                                    \
