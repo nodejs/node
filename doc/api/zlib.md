@@ -599,7 +599,6 @@ Allowed flush values.
 * `zlib.constants.Z_FULL_FLUSH`
 * `zlib.constants.Z_FINISH`
 * `zlib.constants.Z_BLOCK`
-* `zlib.constants.Z_TREES`
 
 Return codes for the compression/decompression functions. Negative
 values are errors, positive values are used for special but normal
