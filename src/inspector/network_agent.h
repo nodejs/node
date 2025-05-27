@@ -42,8 +42,7 @@ class NetworkAgent : public protocol::Network::Backend {
  public:
   explicit NetworkAgent(NetworkInspector* inspector,
                         v8_inspector::V8Inspector* v8_inspector,
-                        Environment* env,
-                        std::shared_ptr<protocol::IoAgent> io_agent);
+                        Environment* env);
 
   void Wire(protocol::UberDispatcher* dispatcher);
 
