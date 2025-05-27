@@ -442,7 +442,7 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
       main_thread_->Post(
         std::unique_ptr<Request>(
             new FallThroughRequest(
-             session_id_, call_id, method_str, json)));
+              session_id_, call_id, method_str, json)));
   }
 
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
