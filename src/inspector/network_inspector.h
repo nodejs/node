@@ -13,8 +13,7 @@ class NetworkInspector {
  public:
   explicit NetworkInspector(
       Environment* env,
-      v8_inspector::V8Inspector* v8_inspector,
-      std::shared_ptr<protocol::IoAgent> io_agent = nullptr);
+      v8_inspector::V8Inspector* v8_inspector);
   ~NetworkInspector();
 
   void Wire(protocol::UberDispatcher* dispatcher);

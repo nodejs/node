@@ -184,12 +184,10 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 
 NetworkAgent::NetworkAgent(NetworkInspector* inspector,
                            v8_inspector::V8Inspector* v8_inspector,
-                           Environment* env,
-                           std::shared_ptr<protocol::IoAgent> io_agent)
+                           Environment* env)
     : inspector_(inspector),
       v8_inspector_(v8_inspector),
-      env_(env),
-      io_agent_(io_agent) {
+      env_(env) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;
@@ -349,41 +347,7 @@ protocol::DispatchResponse NetworkAgent::loadNetworkResource(
     const protocol::String& in_url,
     std::unique_ptr<protocol::Network::LoadNetworkResourcePageResult>*
         out_resource) {
-  if (!env_->options()->experimental_inspector_network_resource) {
-    return protocol::DispatchResponse::MethodNotFound(
-        "Network.loadNetworkResource is not supported in this environment. "
-        "Please enable the experimental-inspector-network-resource option.");
-  }
-  DCHECK(io_agent_);
-
-  std::string code = R"(
-      fetch(process.argv[1], {signal: AbortSignal.timeout(2000) }).then(res => {
-        if (res.ok) {
-          res.text().then(console.log)
-        } else {
-          throw new Error('Network error: ' + res.status);
-        }
-      })
-    )";
-
-  auto [r, response, err] = spawnFetchProcess(code, env_, in_url);
-  if (r == 0 && err.empty()) {
-    std::string uuid = std::to_string(load_id_counter_);
-    load_id_counter_++;
-    io_agent_->setData(uuid, response);
-    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
-                      .setSuccess(true)
-                      .setStream(uuid)
-                      .build();
-    out_resource->reset(result.release());
-  } else {
-    auto result = protocol::Network::LoadNetworkResourcePageResult::create()
-                      .setSuccess(false)
-                      .build();
-    out_resource->reset(result.release());
-  }
-
-  return protocol::DispatchResponse::Success();
+  return protocol::DispatchResponse::FallThrough();
 }
 
 void NetworkAgent::requestWillBeSent(v8::Local<v8::Context> context,

@@ -188,7 +188,6 @@ experimental domain Network
   # Enables network tracking, network events will now be delivered to the client.
   command enable
 
-<<<<<<< HEAD
   # Enables streaming of the response for the given requestId.
   # If enabled, the dataReceived event contains the data that was received during streaming.
   experimental command streamResourceContent
@@ -198,7 +197,6 @@ experimental domain Network
     returns
       # Data that has been buffered until streaming is enabled.
       binary bufferedData
-=======
   # Fetches the resource and returns the content.
   command loadNetworkResource
     parameters
@@ -206,7 +204,6 @@ experimental domain Network
       string url
     returns
       LoadNetworkResourcePageResult resource
->>>>>>> ba6277dcf1 (inspector: initial support for Network.loadNetworkResource)
 
   # Fired when page is about to send HTTP request.
   event requestWillBeSent
