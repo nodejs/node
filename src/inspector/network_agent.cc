@@ -209,8 +209,7 @@ std::unique_ptr<protocol::Network::Response> createResponseFromObject(
 
 NetworkAgent::NetworkAgent(NetworkInspector* inspector,
                            v8_inspector::V8Inspector* v8_inspector)
-    : inspector_(inspector),
-      v8_inspector_(v8_inspector) {
+    : inspector_(inspector), v8_inspector_(v8_inspector) {
   event_notifier_map_["requestWillBeSent"] = &NetworkAgent::requestWillBeSent;
   event_notifier_map_["responseReceived"] = &NetworkAgent::responseReceived;
   event_notifier_map_["loadingFailed"] = &NetworkAgent::loadingFailed;

@@ -35,9 +35,8 @@ DispatchResponse IoAgent::read(const String& in_handle,
   Mutex::ScopedReadLock lock(data_mutex_);
   std::string in_handle_str = in_handle;
   int stream_id = 0;
-  bool is_number = std::all_of(in_handle_str.begin(),
-                                in_handle_str.end(),
-                                ::isdigit);
+  bool is_number =
+      std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
   if (!is_number) {
     out_data = new String("");
     *out_eof = true;
@@ -74,9 +73,8 @@ DispatchResponse IoAgent::close(const String& in_handle) {
   Mutex::ScopedWriteLock lock(data_mutex_);
   std::string in_handle_str = in_handle;
   int stream_id = 0;
-  bool is_number = std::all_of(in_handle_str.begin(),
-                               in_handle_str.end(),
-                               ::isdigit);
+  bool is_number =
+      std::all_of(in_handle_str.begin(), in_handle_str.end(), ::isdigit);
   if (is_number) {
     stream_id = std::stoi(in_handle_str);
     offset_map_.erase(stream_id);

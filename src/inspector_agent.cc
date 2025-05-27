@@ -406,20 +406,18 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
 
   class FallThroughRequest : public Request {
    public:
-    explicit FallThroughRequest(
-      int session_id,
-      int call_id,
-      std::string method,
-      std::string message):
-        session_id_(session_id),
-        call_id_(call_id),
-        method_(method), message_(message)
-        {}
+    explicit FallThroughRequest(int session_id,
+                                int call_id,
+                                std::string method,
+                                std::string message)
+        : session_id_(session_id),
+          call_id_(call_id),
+          method_(method),
+          message_(message) {}
 
     void Call(MainThreadInterface* thread) override {
       thread->inspector_agent()->FallThrough(
-        session_id_,
-        call_id_, method_, message_);
+          session_id_, call_id_, method_, message_);
     }
 
    private:
@@ -430,19 +428,15 @@ class ChannelImpl final : public v8_inspector::V8Inspector::Channel,
   };
 
   // crdtp::FrontendChannel
-  void FallThrough(
-                   int call_id,
+  void FallThrough(int call_id,
                    crdtp::span<uint8_t> method,
                    crdtp::span<uint8_t> message) override {
-      std::string method_str(
-        reinterpret_cast<const char*>(method.data()),
-        method.size());
-      std::string json;
-      ConvertCBORToJSON(message, &json);
-      main_thread_->Post(
-        std::unique_ptr<Request>(
-            new FallThroughRequest(
-              session_id_, call_id, method_str, json)));
+    std::string method_str(reinterpret_cast<const char*>(method.data()),
+                           method.size());
+    std::string json;
+    ConvertCBORToJSON(message, &json);
+    main_thread_->Post(std::unique_ptr<Request>(
+        new FallThroughRequest(session_id_, call_id, method_str, json)));
   }
 
   std::unique_ptr<protocol::RuntimeAgent> runtime_agent_;
@@ -760,12 +754,8 @@ class NodeInspectorClient : public V8InspectorClient {
     }
   }
 
-  void emitResponse(
-    int call_id,
-    std::string_view params,
-                  int session_id) {
-      channels_[session_id]->sendResponse(
-          call_id, Utf8ToStringView(params));
+  void emitResponse(int call_id, std::string_view params, int session_id) {
+    channels_[session_id]->sendResponse(call_id, Utf8ToStringView(params));
   }
 
   std::shared_ptr<MainThreadHandle> getThreadHandle() {
@@ -988,16 +978,15 @@ void Agent::EmitProtocolEvent(v8::Local<v8::Context> context,
   client_->emitNotification(context, event, params);
 }
 
-void Agent::EmitProtocolResponse(
-  int call_id,
-  std::string_view params,
-  int session_id) {
-    client_->emitResponse(call_id, params, session_id);
+void Agent::EmitProtocolResponse(int call_id,
+                                 std::string_view params,
+                                 int session_id) {
+  client_->emitResponse(call_id, params, session_id);
 }
 
-void Agent::EmitProtocolResponseInParent(
-  int session_id, std::string_view params, int call_id
-) {
+void Agent::EmitProtocolResponseInParent(int session_id,
+                                         std::string_view params,
+                                         int call_id) {
   if (parent_handle_) {
     parent_handle_->EmitProtocolResponse(session_id, params, call_id);
   }
@@ -1296,19 +1285,17 @@ std::string Agent::GetWsUrl() const {
   return io_->GetWsUrl();
 }
 
-void Agent::FallThrough(
-  int session_id,
-  int call_id,
-  std::string_view method,
-  std::string_view message
-) {
+void Agent::FallThrough(int session_id,
+                        int call_id,
+                        std::string_view method,
+                        std::string_view message) {
   if (fallThroughListeners_.empty()) {
     pending_fall_through_requests_.push_back(
-      PendingFallThroughRequest(session_id, call_id, method, message));
+        PendingFallThroughRequest(session_id, call_id, method, message));
     return;
   }
   for (auto& callback : fallThroughListeners_) {
-      callback(session_id, call_id, method, message);
+    callback(session_id, call_id, method, message);
   }
 }
 

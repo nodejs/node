@@ -42,9 +42,8 @@ class InspectorSessionDelegate {
                                      = 0;
 };
 
-using fallThroughCallback =
-  std::function<
-    void(int session_id, int call_id, std::string_view, std::string_view)>;
+using fallThroughCallback = std::function<void(
+    int session_id, int call_id, std::string_view, std::string_view)>;
 class Agent {
  public:
   explicit Agent(node::Environment* env);
@@ -81,8 +80,9 @@ class Agent {
   void EmitProtocolResponse(int call_id,
                             std::string_view params,
                             int session_id);
-  void EmitProtocolResponseInParent(
-      int session_id, std::string_view params, int call_id);
+  void EmitProtocolResponseInParent(int session_id,
+                                    std::string_view params,
+                                    int call_id);
 
   void SetupNetworkTracking(v8::Local<v8::Function> enable_function,
                             v8::Local<v8::Function> disable_function);
@@ -138,11 +138,10 @@ class Agent {
   std::shared_ptr<WorkerManager> GetWorkerManager();
 
   inline Environment* env() const { return parent_env_; }
-  void FallThrough(
-    int session_id,
-    int call_id,
-    std::string_view method,
-    std::string_view message);
+  void FallThrough(int session_id,
+                   int call_id,
+                   std::string_view method,
+                   std::string_view message);
   void AddFallThroughListener(fallThroughCallback fn);
 
  private:
