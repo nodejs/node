@@ -117,7 +117,12 @@ describe('webstorage quota for localStorage and sessionStorage', () => {
 
 test('disabled with --no-experimental-webstorage', async () => {
   for (const api of ['Storage', 'localStorage', 'sessionStorage']) {
-    const cp = await spawnPromisified(process.execPath, ['--no-experimental-webstorage', '-e', api]);
+    const cp = await spawnPromisified(process.execPath, [
+      '--no-experimental-webstorage',
+      '--localstorage-file',
+      './test/fixtures/localstoragefile-global-test',
+      '-e', api
+    ]);
 
     assert.strictEqual(cp.code, 1);
     assert.strictEqual(cp.signal, null);
