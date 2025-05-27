@@ -15,7 +15,7 @@ const {
   writeFileSync,
 } = fs;
 import net from 'net';
-import { join } from 'path';
+import { join, resolve } from 'path';
 import { pathToFileURL } from 'url';
 import { setTimeout } from 'timers/promises';
 
@@ -246,6 +246,17 @@ function nextdir(dirname) {
       code: 'ERR_FS_CP_EINVAL'
     }
   );
+}
+
+// It allows copying when is not a directory
+{
+  const src = nextdir();
+  const dest = nextdir();
+  mkdirSync(src, mustNotMutateObjectDeep({ recursive: true }));
+  writeFileSync(`${src}/test.txt`, 'test');
+  symlinkSync(resolve(`${src}/test.txt`), join(src, 'link.txt'));
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
+  cpSync(src, dest, mustNotMutateObjectDeep({ recursive: true }));
 }
 
 // It throws error if symlink in dest points to location in src.
