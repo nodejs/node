@@ -1231,7 +1231,7 @@ added: v23.8.0
 
 * {bigint|number}
 
-Specifies the maxumum session flow-control window size.
+Specifies the maximum session flow-control window size.
 
 #### `sessionOptions.minVersion`
 
