@@ -1069,6 +1069,7 @@ Each Zstd-based class takes an `options` object. All options are optional.
 * `params` {Object} Key-value object containing indexed [Zstd parameters][].
 * `maxOutputLength` {integer} Limits output size when using
   [convenience methods][]. **Default:** [`buffer.kMaxLength`][]
+* `info` {boolean} If `true`, returns an object with `buffer` and `engine`. **Default:** `false`
 
 For example:
 
