@@ -32,6 +32,9 @@ V8_NOINLINE V8_EXPORT_PRIVATE bool IsSubtypeOfImpl(
 //   equivalent (aka their canonicalized indices are equal).
 V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
                                                    ValueType type2,
+                                                   const WasmModule* module);
+V8_NOINLINE V8_EXPORT_PRIVATE bool EquivalentTypes(ValueType type1,
+                                                   ValueType type2,
                                                    const WasmModule* module1,
                                                    const WasmModule* module2);
 
@@ -84,20 +87,6 @@ V8_INLINE bool IsSubtypeOf(CanonicalValueType subtype,
   return IsSubtypeOfImpl(subtype, supertype);
 }
 
-V8_INLINE bool TypesUnrelated(ValueType type1, ValueType type2,
-                              const WasmModule* module1,
-                              const WasmModule* module2) {
-  return !IsSubtypeOf(type1, type2, module1, module2) &&
-         !IsSubtypeOf(type2, type1, module2, module1);
-}
-
-V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
-                               const WasmModule* sub_module,
-                               const WasmModule* super_module) {
-  if (subtype == supertype && sub_module == super_module) return true;
-  return IsSubtypeOfImpl(subtype, supertype, sub_module, super_module);
-}
-
 // Checks if {subtype} is a subtype of {supertype} (both defined in {module}).
 V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
                                const WasmModule* module) {
@@ -107,10 +96,9 @@ V8_INLINE bool IsHeapSubtypeOf(HeapType subtype, HeapType supertype,
 }
 
 V8_INLINE bool HeapTypesUnrelated(HeapType heap1, HeapType heap2,
-                                  const WasmModule* module1,
-                                  const WasmModule* module2) {
-  return !IsHeapSubtypeOf(heap1, heap2, module1, module2) &&
-         !IsHeapSubtypeOf(heap2, heap1, module2, module1);
+                                  const WasmModule* module) {
+  return !IsHeapSubtypeOf(heap1, heap2, module) &&
+         !IsHeapSubtypeOf(heap2, heap1, module);
 }
 
 // Checks whether {subtype_index} is valid as a declared subtype of
@@ -126,14 +114,7 @@ V8_INLINE bool HeapTypesUnrelated(HeapType heap1, HeapType heap2,
 //   respective parameter types, covariance for respective return types.
 V8_EXPORT_PRIVATE bool ValidSubtypeDefinition(ModuleTypeIndex subtype_index,
                                               ModuleTypeIndex supertype_index,
-                                              const WasmModule* sub_module,
-                                              const WasmModule* super_module);
-
-// TODO(jkummerow): Deprecated, just inline it everywhere.
-V8_EXPORT_PRIVATE inline bool IsShared(ValueType type,
-                                       const WasmModule* module) {
-  return type.is_shared();
-}
+                                              const WasmModule* module);
 
 struct TypeInModule {
   ValueType type;
@@ -157,22 +138,10 @@ inline std::ostream& operator<<(std::ostream& oss, TypeInModule type) {
 // Returns the common ancestor of {type1} and {type2}. Returns kTop if they
 // don't have a common ancestor.
 V8_EXPORT_PRIVATE TypeInModule Union(ValueType type1, ValueType type2,
-                                     const WasmModule* module1,
-                                     const WasmModule* module2);
-
-V8_INLINE V8_EXPORT_PRIVATE TypeInModule Union(TypeInModule type1,
-                                               TypeInModule type2) {
-  return Union(type1.type, type2.type, type1.module, type2.module);
-}
+                                     const WasmModule* module);
 
 V8_EXPORT_PRIVATE TypeInModule Intersection(ValueType type1, ValueType type2,
-                                            const WasmModule* module1,
-                                            const WasmModule* module2);
-
-V8_INLINE V8_EXPORT_PRIVATE TypeInModule Intersection(TypeInModule type1,
-                                                      TypeInModule type2) {
-  return Intersection(type1.type, type2.type, type1.module, type2.module);
-}
+                                            const WasmModule* module);
 
 // Returns the matching abstract null type (none, nofunc, noextern).
 ValueType ToNullSentinel(TypeInModule type);

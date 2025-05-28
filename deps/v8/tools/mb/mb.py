@@ -1326,9 +1326,12 @@ class MBErr(Exception):
   pass
 
 
-# See http://goo.gl/l5NPDW and http://goo.gl/4Diozm for the painful
-# details of this next section, which handles escaping command lines
-# so that they can be copied and pasted into a cmd window.
+# See the following links for the painful details of this next section, which
+# handles escaping command lines so that they can be copied and pasted into a
+# cmd window.
+# https://learn.microsoft.com/en-gb/archive/blogs/twistylittlepassagesallalike/everyone-quotes-command-line-arguments-the-wrong-way
+# https://web.archive.org/web/20171006061221/http://www.microsoft.com/resources/documentation/windows/xp/all/proddocs/en-us/set.mspx?mfr=true
+# https://learn.microsoft.com/en-us/windows-server/administration/windows-commands/set_1
 UNSAFE_FOR_SET = set('^<>&|')
 UNSAFE_FOR_CMD = UNSAFE_FOR_SET.union(set('()%'))
 ALL_META_CHARS = UNSAFE_FOR_CMD.union(set('"'))

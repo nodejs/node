@@ -365,8 +365,17 @@ class ActivationsFinder : public ThreadVisitor {
           DCHECK_IMPLIES(code.SafeEquals(topmost_), safe_to_deopt_);
           static_assert(SafepointEntry::kNoTrampolinePC == -1);
           CHECK_GE(trampoline_pc, 0);
-          if (!it.frame()->InFastCCall()) {
-            Address new_pc = code->instruction_start() + trampoline_pc;
+          Address new_pc = code->instruction_start() + trampoline_pc;
+          if (it.frame()->InFastCCall()) {
+            // Fast C calls call directly to C++, so there may not be a return
+            // address on the stack. Instead we patch the code after the call.
+            // For C calls the caller has to pop parameters off the stack. This
+            // has to happen before deoptimization. Therefore we add the offset
+            // here that is needed for popping the arguments.
+            Address pc =
+                *it.frame()->pc_address() + kMaxSizeOfMoveAfterFastCall;
+            Deoptimizer::PatchToJump(pc, new_pc);
+          } else {
             if (v8_flags.cet_compatible) {
               Address pc = *it.frame()->pc_address();
               Deoptimizer::PatchToJump(pc, new_pc);
@@ -465,7 +474,7 @@ void Deoptimizer::DeoptimizeAll(Isolate* isolate) {
 void Deoptimizer::DeoptimizeFunction(Tagged<JSFunction> function,
                                      LazyDeoptimizeReason reason,
                                      Tagged<Code> code) {
-  Isolate* isolate = function->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   RCS_SCOPE(isolate, RuntimeCallCounterId::kDeoptimizeCode);
   TimerEventScope<TimerEventDeoptimizeCode> timer(isolate);
   TRACE_EVENT0("v8", "V8.DeoptimizeCode");
@@ -570,12 +579,21 @@ Address Deoptimizer::EnsureValidReturnAddress(Isolate* isolate,
 
 void Deoptimizer::ComputeOutputFrames(Deoptimizer* deoptimizer) {
   deoptimizer->DoComputeOutputFrames();
+#if V8_ENABLE_WEBASSEMBLY
+  // TODO(mliedtke,415707239): Ideally we'd only reset this when destroying this
+  // object, however when calling the WasmLiftoffDeoptFinish builtin, we read
+  // from the heap (probably in DEBUG-only code).
+  deoptimizer->no_sandbox_access_during_wasm_deopt_.reset();
+#endif
 }
 
 const char* Deoptimizer::MessageFor(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return "deopt-eager";
+    case DeoptimizeKind::kLazyAfterFastCall:
+      return "deopt-lazy-after-fastcall";
+
     case DeoptimizeKind::kLazy:
       return "deopt-lazy";
   }
@@ -627,10 +645,10 @@ Deoptimizer::Deoptimizer(Isolate* isolate, Tagged<JSFunction> function,
 
 #if V8_ENABLE_WEBASSEMBLY
   if (v8_flags.wasm_deopt && function.is_null()) {
-#if V8_ENABLE_SANDBOX
-    no_heap_access_during_wasm_deopt_ =
-        SandboxHardwareSupport::MaybeBlockAccess();
-#endif
+    // From now on we should not be accessing any in-sandbox data as all deopt
+    // data is trusted and so stored outside the heap.
+    no_sandbox_access_during_wasm_deopt_.emplace();
+
     wasm::WasmCode* code =
         wasm::GetWasmCodeManager()->LookupCode(isolate, from);
     compiled_optimized_wasm_code_ = code;
@@ -769,6 +787,8 @@ Builtin Deoptimizer::GetDeoptimizationEntry(DeoptimizeKind kind) {
   switch (kind) {
     case DeoptimizeKind::kEager:
       return Builtin::kDeoptimizationEntry_Eager;
+    case DeoptimizeKind::kLazyAfterFastCall:
+      return Builtin::kDeoptimizationEntry_LazyAfterFastCall;
     case DeoptimizeKind::kLazy:
       return Builtin::kDeoptimizationEntry_Lazy;
   }
@@ -1254,32 +1274,19 @@ FrameDescription* Deoptimizer::DoComputeWasmLiftoffFrame(
       base_offset + WasmLiftoffFrameConstants::kFrameTypeOffset;
   output_frame->SetFrameSlot(frame_type_offset,
                              StackFrame::TypeToMarker(StackFrame::WASM));
-  // Store feedback vector in stack slot.
-  Tagged<FixedArray> module_feedback =
-      wasm_trusted_instance->feedback_vectors();
+  // Fill feedback vector stack slot.
+  // Instead of storing the actual feedback vector, we simply store the declared
+  // function index of the wasm function. This is done because the feedback
+  // vector may not exist yet (in case of multiple instantiations of the same
+  // wasm module) and heap allocations during a deoptimization aren't allowed.
+  // The Smi in the feedback vector slot will be overwritten with the actual
+  // feedback vector object in the runtime function WasmLiftoffDeoptFinish.
   uint32_t feedback_offset =
       base_offset - WasmLiftoffFrameConstants::kFeedbackVectorOffset;
   uint32_t fct_feedback_index = wasm::declared_function_index(
       native_module->module(), frame.wasm_function_index());
-  CHECK_LT(fct_feedback_index, module_feedback->length());
-  Tagged<Object> feedback_vector = module_feedback->get(fct_feedback_index);
-  if (IsSmi(feedback_vector)) {
-    if (verbose_tracing_enabled()) {
-      PrintF(trace_scope()->file(),
-             "Deopt with uninitialized feedback vector for function %s [%d]\n",
-             wasm_code->DebugName().c_str(), frame.wasm_function_index());
-    }
-    // Not having a feedback vector can happen with multiple instantiations of
-    // the same module as the type feedback is separate per instance but the
-    // code is shared (even cross-isolate).
-    // Note that we cannot allocate the feedback vector here. Instead, store
-    // the function index, so that the feedback vector can be populated by the
-    // deopt finish builtin called from Liftoff.
-    output_frame->SetFrameSlot(feedback_offset,
-                               Smi::FromInt(fct_feedback_index).ptr());
-  } else {
-    output_frame->SetFrameSlot(feedback_offset, feedback_vector.ptr());
-  }
+  output_frame->SetFrameSlot(feedback_offset,
+                             Smi::FromInt(fct_feedback_index).ptr());
 
   // Instead of a builtin continuation for wasm the deopt builtin will
   // call a c function to destroy the Deoptimizer object and then directly
@@ -1686,9 +1693,9 @@ void Deoptimizer::DoComputeOutputFrames() {
       (compiled_code_->osr_offset().IsNone()
            ? function_->code(isolate()).SafeEquals(compiled_code_)
            : (!osr_early_exit &&
-              DeoptExitIsInsideOsrLoop(isolate(), function_,
-                                       bytecode_offset_in_outermost_frame_,
-                                       compiled_code_->osr_offset())))) {
+              DeoptExitIsInsideOsrLoop(
+                  isolate(), function_, bytecode_offset_in_outermost_frame_,
+                  compiled_code_->osr_offset(), compiled_code_->kind())))) {
     if (v8_flags.profile_guided_optimization &&
         function_->shared()->cached_tiering_decision() !=
             CachedTieringDecision::kDelayMaglev) {
@@ -1733,7 +1740,8 @@ void Deoptimizer::DoComputeOutputFrames() {
 bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
                                            Tagged<JSFunction> function,
                                            BytecodeOffset deopt_exit_offset,
-                                           BytecodeOffset osr_offset) {
+                                           BytecodeOffset osr_offset,
+                                           CodeKind code_kind) {
   DisallowGarbageCollection no_gc;
   HandleScope scope(isolate);
   DCHECK(!deopt_exit_offset.IsNone());
@@ -1746,6 +1754,7 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
 
   interpreter::BytecodeArrayIterator it(bytecode_array, osr_offset.ToInt());
   CHECK(it.CurrentBytecodeIsValidOSREntry());
+  const int osr_loop_nesting_level = it.GetImmediateOperand(1);
 
   for (; !it.done(); it.Advance()) {
     const int current_offset = it.current_offset();
@@ -1764,6 +1773,11 @@ bool Deoptimizer::DeoptExitIsInsideOsrLoop(Isolate* isolate,
     // top-level loop.
     const int loop_nesting_level = it.GetImmediateOperand(1);
     if (loop_nesting_level == 0) return false;
+    // Maglev never jumps above the OSR loop.
+    if (code_kind == CodeKind::MAGLEV &&
+        loop_nesting_level < osr_loop_nesting_level) {
+      return false;
+    }
   }
 
   UNREACHABLE();

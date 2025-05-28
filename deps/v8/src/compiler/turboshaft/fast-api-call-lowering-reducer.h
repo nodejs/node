@@ -101,7 +101,7 @@ class FastApiCallLoweringReducer : public Next {
       const TSCallDescriptor* call_descriptor = TSCallDescriptor::Create(
           Linkage::GetSimplifiedCDescriptor(__ graph_zone(), builder.Get(),
                                             CallDescriptor::kNeedsFrameState),
-          CanThrow::kNo, LazyDeoptOnThrow::kNo, __ graph_zone());
+          CanThrow::kYes, LazyDeoptOnThrow::kNo, __ graph_zone());
       OpIndex c_call_result = WrapFastCall(call_descriptor, callee, frame_state,
                                            context, base::VectorOf(args));
 
@@ -403,8 +403,8 @@ class FastApiCallLoweringReducer : public Next {
     GOTO_IF(__ WordPtrEqual(pointer, 0), done,
             __ HeapConstant(factory_->null_value()));
 
-    Uninitialized<HeapObject> external =
-        __ Allocate(JSExternalObject::kHeaderSize, AllocationType::kYoung);
+    Uninitialized<HeapObject> external = __ Allocate(
+        JSExternalObject::kHeaderSize, AllocationType::kYoung, kTaggedAligned);
     __ InitializeField(external, AccessBuilder::ForMap(),
                        __ HeapConstant(factory_->external_map()));
     V<FixedArray> empty_fixed_array =
@@ -469,8 +469,7 @@ class FastApiCallLoweringReducer : public Next {
 #if DEBUG
     // Reset the context again after the call, to make sure nobody is using the
     // leftover context in the isolate.
-    __ StoreOffHeap(context_address,
-                    __ WordPtrConstant(Context::kInvalidContext),
+    __ StoreOffHeap(context_address, __ WordPtrConstant(Context::kNoContext),
                     MemoryRepresentation::UintPtr());
 #endif
 

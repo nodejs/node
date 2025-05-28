@@ -131,6 +131,7 @@ enum SectionCode : int8_t {
   kInstTraceSectionCode,          // Instruction trace section
   kCompilationHintsSectionCode,   // Compilation hints section
   kBranchHintsSectionCode,        // Branch hints section
+  kDescriptorsSectionCode,        // Descriptors section
 
   // Helper values
   kFirstSectionInModule = kTypeSectionCode,

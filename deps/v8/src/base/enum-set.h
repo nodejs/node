@@ -18,7 +18,7 @@ namespace base {
 // values), fitting into an integral type T.
 template <class E, class T = int>
 class EnumSet {
-  static_assert(std::is_enum<E>::value, "EnumSet can only be used with enums");
+  static_assert(std::is_enum_v<E>, "EnumSet can only be used with enums");
 
  public:
   using StorageType = T;
@@ -94,7 +94,7 @@ class EnumSet {
 
   static constexpr T Mask(E element) {
     DCHECK_GT(sizeof(T) * 8, static_cast<size_t>(element));
-    return T{1} << static_cast<typename std::underlying_type<E>::type>(element);
+    return T{1} << static_cast<std::underlying_type_t<E>>(element);
   }
 
   T bits_ = 0;

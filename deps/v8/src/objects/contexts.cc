@@ -8,6 +8,7 @@
 #include <limits>
 #include <optional>
 
+#include "include/v8-internal.h"
 #include "src/ast/modules.h"
 #include "src/common/globals.h"
 #include "src/debug/debug.h"
@@ -19,10 +20,9 @@
 #include "src/objects/dependent-code.h"
 #include "src/objects/heap-number.h"
 #include "src/objects/module-inl.h"
-#include "src/objects/property-cell.h"
+#include "src/objects/objects-inl.h"
 #include "src/objects/string-set-inl.h"
 #include "src/utils/boxed-float.h"
-#include "v8-internal.h"
 
 namespace v8::internal {
 
@@ -241,7 +241,7 @@ Handle<Object> Context::Lookup(Handle<Context> context, Handle<String> name,
                                InitializationFlag* init_flag,
                                VariableMode* variable_mode,
                                bool* is_sloppy_function_name) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::Current();
 
   bool follow_context_chain = (flags & FOLLOW_CONTEXT_CHAIN) != 0;
   bool has_seen_debug_evaluate_context = false;
@@ -569,6 +569,19 @@ void Context::Set(DirectHandle<Context> context, int index,
     return;
   }
 
+  if (IsUndefinedContextCell(*old_value, isolate)) {
+    if (IsUndefined(*new_value)) return;
+    if (IsTheHole(*new_value)) {
+      // This can happened in let-variable in function contexts.
+      context->set(index, *new_value);
+      return;
+    }
+    DirectHandle<ContextCell> cell =
+        isolate->factory()->NewContextCell(Cast<JSAny>(new_value));
+    context->set(index, *cell);
+    return;
+  }
+
   DirectHandle<ContextCell> cell = Cast<ContextCell>(old_value);
   switch (cell->state()) {
     case ContextCell::kConst:
@@ -658,7 +671,7 @@ bool NativeContext::HasTemplateLiteralObject(Tagged<JSArray> array) {
 }
 
 Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   Handle<Object> result(error_message_for_code_gen_from_strings(), isolate);
   if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
@@ -666,7 +679,7 @@ Handle<Object> Context::ErrorMessageForCodeGenerationFromStrings() {
 }
 
 DirectHandle<Object> Context::ErrorMessageForWasmCodeGeneration() {
-  Isolate* isolate = GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<Object> result(error_message_for_wasm_code_gen(), isolate);
   if (!IsUndefined(*result, isolate)) return result;
   return isolate->factory()->NewStringFromStaticChars(
@@ -720,7 +733,7 @@ bool Context::IsBootstrappingOrValidParentContext(Tagged<Object> object,
                                                   Tagged<Context> child) {
   // During bootstrapping we allow all objects to pass as
   // contexts. This is necessary to fix circular dependencies.
-  if (child->GetIsolate()->bootstrapper()->IsActive()) return true;
+  if (Isolate::Current()->bootstrapper()->IsActive()) return true;
   if (!IsContext(object)) return false;
   Tagged<Context> context = Cast<Context>(object);
   return IsNativeContext(context) || context->IsScriptContext() ||
@@ -761,7 +774,7 @@ static_assert(NativeContext::kSize ==
 void NativeContext::RunPromiseHook(PromiseHookType type,
                                    DirectHandle<JSPromise> promise,
                                    DirectHandle<Object> parent) {
-  Isolate* isolate = promise->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DCHECK(isolate->HasContextPromiseHooks());
   int contextSlot;
 

@@ -433,7 +433,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
       if (index.valid()) {
         DCHECK(scale >= 0 && scale <= 3);
         inputs[(*input_count)++] =
-            UseRegisterWithMode(this->value(index), register_mode);
+            UseRegisterWithMode(index.value(), register_mode);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMRnI_modes[] = {kMode_MR1I, kMode_MR2I,
@@ -456,7 +456,7 @@ class IA32OperandGeneratorT final : public OperandGeneratorT {
       DCHECK(scale >= 0 && scale <= 3);
       if (index.valid()) {
         inputs[(*input_count)++] =
-            UseRegisterWithMode(this->value(index), register_mode);
+            UseRegisterWithMode(index.value(), register_mode);
         if (displacement != 0) {
           inputs[(*input_count)++] = TempImmediate(displacement);
           static const AddressingMode kMnI_modes[] = {kMode_MRI, kMode_M2I,

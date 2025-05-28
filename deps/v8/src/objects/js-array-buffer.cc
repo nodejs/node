@@ -123,7 +123,7 @@ void JSArrayBuffer::Setup(SharedFlag shared, ResizableFlag resizable,
 Maybe<bool> JSArrayBuffer::Detach(DirectHandle<JSArrayBuffer> buffer,
                                   bool force_for_wasm_memory,
                                   DirectHandle<Object> maybe_key) {
-  Isolate* const isolate = buffer->GetIsolate();
+  Isolate* const isolate = Isolate::Current();
 
   DirectHandle<Object> detach_key(buffer->detach_key(), isolate);
 
@@ -294,8 +294,7 @@ void JSArrayBuffer::YoungMarkExtensionPromoted() {
   }
 }
 
-Handle<JSArrayBuffer> JSTypedArray::GetBuffer() {
-  Isolate* isolate = GetIsolate();
+Handle<JSArrayBuffer> JSTypedArray::GetBuffer(Isolate* isolate) {
   DirectHandle<JSTypedArray> self(*this, isolate);
   DCHECK(IsTypedArrayOrRabGsabTypedArrayElementsKind(self->GetElementsKind()));
   Handle<JSArrayBuffer> array_buffer(Cast<JSArrayBuffer>(self->buffer()),

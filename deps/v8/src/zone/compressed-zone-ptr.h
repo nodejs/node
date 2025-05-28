@@ -84,7 +84,7 @@ class CompressedZonePtr {
 // This requirement is necessary for being able to use memcopy in containers
 // of zone pointers.
 // TODO(ishell): Re-enable once compressed pointers are supported in containers.
-// static_assert(std::is_trivially_copyable<CompressedZonePtr<int>>::value,
+// static_assert(std::is_trivially_copyable_v<CompressedZonePtr<int>>,
 //               "CompressedZonePtr must be trivially copyable");
 
 }  // namespace internal

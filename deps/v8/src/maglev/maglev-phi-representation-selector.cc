@@ -404,7 +404,15 @@ Opcode GetOpcodeForConversion(ValueRepresentation from, ValueRepresentation to,
           // don't have to handle this case.
           UNREACHABLE();
         case ValueRepresentation::kHoleyFloat64:
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+          // When converting to kHoleyFloat64 representation, we need to turn
+          // those NaN patterns that have a special interpretation in
+          // HoleyFloat64 (e.g. undefined and hole) into the canonical NaN so
+          // that they keep representing NaNs in the new representation.
+          return Opcode::kFloat64ToHoleyFloat64;
+#else
           return Opcode::kIdentity;
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
         case ValueRepresentation::kFloat64:
         case ValueRepresentation::kTagged:
@@ -514,6 +522,14 @@ void MaglevPhiRepresentationSelector::ConvertTaggedPhiTo(
                     input, phi, input_index);
             break;
           }
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+          case Opcode::kFloat64ToHoleyFloat64: {
+            new_input =
+                GetReplacementForPhiInputConversion<Float64ToHoleyFloat64>(
+                    input, phi, input_index);
+            break;
+          }
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
           case Opcode::kIdentity:
             TRACE_UNTAGGING(TRACE_INPUT_LABEL << ": Bypassing conversion");
             new_input = bypassed_input;
@@ -697,7 +713,8 @@ template <class NodeT>
 ValueNode* MaglevPhiRepresentationSelector::GetReplacementForPhiInputConversion(
     ValueNode* input, Phi* phi, uint32_t input_index) {
   TRACE_UNTAGGING(TRACE_INPUT_LABEL
-                  << ": Replacing old conversion with a ChangeInt32ToFloat64");
+                  << ": Replacing old conversion with a "
+                  << OpcodeToString(NodeBase::opcode_of<NodeT>));
   ValueNode* new_node =
       NodeBase::New<NodeT>(builder_->zone(), {input->input(0).node()});
   return AddNodeAtBlockEnd(new_node, phi->predecessor_at(input_index));

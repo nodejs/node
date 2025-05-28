@@ -24,8 +24,6 @@ namespace internal {
 
 #include "torque-generated/src/objects/allocation-site-tq-inl.inc"
 
-NEVER_READ_ONLY_SPACE_IMPL(AllocationSite)
-
 inline Tagged<UnionOf<Smi, JSObject>>
 AllocationSite::transition_info_or_boilerplate() const {
   return transition_info_or_boilerplate_.load();
@@ -190,7 +188,7 @@ inline void AllocationSite::set_memento_found_count(int count) {
   int32_t value = pretenure_data(kRelaxedLoad);
   // Verify that we can count more mementos than we can possibly find in one
   // new space collection.
-  DCHECK((GetHeap()->MaxSemiSpaceSize() /
+  DCHECK((Isolate::Current()->heap()->MaxSemiSpaceSize() /
           (Heap::kMinObjectSizeInTaggedWords * kTaggedSize +
            sizeof(AllocationSiteWithWeakNext))) < MementoFoundCountBits::kMax);
   DCHECK_LT(count, MementoFoundCountBits::kMax);

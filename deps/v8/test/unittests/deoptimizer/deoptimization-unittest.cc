@@ -126,7 +126,7 @@ namespace {
 void CheckJsInt32(int expected, const char* variable_name,
                   v8::Local<v8::Context> context) {
   v8::Local<v8::String> str =
-      v8::String::NewFromUtf8(context->GetIsolate(), variable_name)
+      v8::String::NewFromUtf8(v8::Isolate::GetCurrent(), variable_name)
           .ToLocalChecked();
   CHECK_EQ(expected, context->Global()
                          ->Get(context, str)

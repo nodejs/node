@@ -161,8 +161,6 @@ class V8_EXPORT_PRIVATE BreakIterator {
  private:
   int BreakIndexFromPosition(int position);
 
-  Isolate* isolate();
-
   Handle<DebugInfo> debug_info_;
   int break_index_;
   int position_;

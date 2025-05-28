@@ -177,6 +177,16 @@ constexpr int kRegisterPassedArguments = arraysize(kCArgRegs);
   V(ymm14)               \
   V(ymm15)
 
+#ifdef V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, rdi, rsi, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  xmm6, xmm7, xmm8, xmm9, xmm10, xmm11, xmm12, xmm13, xmm14, xmm15
+
+#else  // V8_TARGET_OS_WIN
+#define C_CALL_CALLEE_SAVE_REGISTERS rbx, r12, r13, r14, r15
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS
+#endif  // V8_TARGET_OS_WIN
+
 // Returns the number of padding slots needed for stack pointer alignment.
 constexpr int ArgumentPaddingSlots(int argument_count) {
   // No argument padding required.

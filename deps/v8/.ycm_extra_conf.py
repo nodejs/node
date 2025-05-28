@@ -132,7 +132,11 @@ def GetClangCommandFromNinjaForFilename(v8_root, filename):
   # Ninja might execute several commands to build something. We want the last
   # clang command.
   clang_line = None
-  for line in reversed(stdout.decode('utf-8').splitlines()):
+  for line in reversed(stdout.splitlines()):
+    try:
+      line = line.decode('utf-8')
+    except UnicodeDecodeError:
+      continue
     if 'clang' in line:
       clang_line = line
       break

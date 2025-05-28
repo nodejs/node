@@ -18,7 +18,10 @@
 #include "src/heap/factory.h"
 #include "src/objects/intl-objects.h"
 #include "src/objects/js-date-time-format-inl.h"
+#ifdef V8_TEMPORAL_SUPPORT
 #include "src/objects/js-temporal-objects-inl.h"
+#include "third_party/rust/chromium_crates_io/vendor/temporal_capi-v0_0/bindings/cpp/temporal_rs/Instant.hpp"
+#endif  // V8_TEMPORAL_SUPPORT
 #include "src/objects/managed-inl.h"
 #include "src/objects/option-utils.h"
 #include "unicode/calendar.h"
@@ -800,6 +803,7 @@ namespace {
 
 // #sec-temporal-istemporalobject
 bool IsTemporalObject(DirectHandle<Object> value) {
+#ifdef V8_TEMPORAL_SUPPORT
   // 1. If Type(value) is not Object, then
   if (!IsJSReceiver(*value)) {
     // a. Return false.
@@ -820,10 +824,14 @@ bool IsTemporalObject(DirectHandle<Object> value) {
   }
   // 3. Return true.
   return true;
+#else   // V8_TEMPORAL_SUPPORT
+  return false;
+#endif  // V8_TEMPORAL_SUPPORT
 }
 
 // #sec-temporal-sametemporaltype
 bool SameTemporalType(DirectHandle<Object> x, DirectHandle<Object> y) {
+#ifdef V8_TEMPORAL_SUPPORT
   // 1. If either of ! IsTemporalObject(x) or ! IsTemporalObject(y) is false,
   // return false.
   if (!IsTemporalObject(x)) return false;
@@ -859,6 +867,9 @@ bool SameTemporalType(DirectHandle<Object> x, DirectHandle<Object> y) {
   if (IsJSTemporalInstant(*x) && !IsJSTemporalInstant(*y)) return false;
   // 9. Return true.
   return true;
+#else   // V8_TEMPORAL_SUPPORT
+  return false;
+#endif  // V8_TEMPORAL_SUPPORT
 }
 
 enum class PatternKind {
@@ -876,43 +887,18 @@ struct DateTimeValueRecord {
   PatternKind kind;
 };
 
+#ifdef V8_TEMPORAL_SUPPORT
 DateTimeValueRecord TemporalInstantToRecord(
     Isolate* isolate, DirectHandle<JSTemporalInstant> instant,
     PatternKind kind) {
-  double milliseconds =
-      BigInt::Divide(isolate, direct_handle(instant->nanoseconds(), isolate),
-                     BigInt::FromInt64(isolate, 1000000))
-          .ToHandleChecked()
-          ->AsInt64();
+  double milliseconds = instant->instant()->raw()->epoch_milliseconds();
   return {milliseconds, kind};
 }
-
 Maybe<DateTimeValueRecord> TemporalPlainDateTimeToRecord(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     PatternKind kind, DirectHandle<JSTemporalPlainDateTime> plain_date_time,
     const char* method_name) {
-  // 8. Let timeZone be ! CreateTemporalTimeZone(dateTimeFormat.[[TimeZone]]).
-  DirectHandle<Object> time_zone_obj = GetTimeZone(isolate, date_time_format);
-  // TODO(ftang): we should change the return type of GetTimeZone() to
-  // Handle<String> by ensure it will not return undefined.
-  CHECK(IsString(*time_zone_obj));
-  DirectHandle<JSTemporalTimeZone> time_zone =
-      temporal::CreateTemporalTimeZone(isolate, Cast<String>(time_zone_obj))
-          .ToHandleChecked();
-  // 9. Let instant be ? BuiltinTimeZoneGetInstantFor(timeZone, plainDateTime,
-  // "compatible").
-  DirectHandle<JSTemporalInstant> instant;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, instant,
-      temporal::BuiltinTimeZoneGetInstantForCompatible(
-          isolate, time_zone, plain_date_time, method_name),
-      Nothing<DateTimeValueRecord>());
-  // 10. If pattern is null, throw a TypeError exception.
-
-  // 11. Return the Record { [[pattern]]: pattern.[[pattern]],
-  // [[rangePatterns]]: pattern.[[rangePatterns]], [[epochNanoseconds]]:
-  // instant.[[Nanoseconds]] }.
-  return Just(TemporalInstantToRecord(isolate, instant, kind));
+  UNIMPLEMENTED();
 }
 
 template <typename T>
@@ -920,20 +906,7 @@ Maybe<DateTimeValueRecord> TemporalToRecord(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     PatternKind kind, DirectHandle<T> temporal,
     DirectHandle<JSReceiver> calendar, const char* method_name) {
-  // 7. Let plainDateTime be ? CreateTemporalDateTime(temporalDate.[[ISOYear]],
-  // temporalDate.[[ISOMonth]], temporalDate.[[ISODay]], 12, 0, 0, 0, 0, 0,
-  // calendarOverride).
-  DirectHandle<JSTemporalPlainDateTime> plain_date_time;
-  ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-      isolate, plain_date_time,
-      temporal::CreateTemporalDateTime(
-          isolate,
-          {{temporal->iso_year(), temporal->iso_month(), temporal->iso_day()},
-           {12, 0, 0, 0, 0, 0}},
-          calendar),
-      Nothing<DateTimeValueRecord>());
-  return TemporalPlainDateTimeToRecord(isolate, date_time_format, kind,
-                                       plain_date_time, method_name);
+  UNIMPLEMENTED();
 }
 
 // #sec-temporal-handledatetimevaluetemporaldate
@@ -963,10 +936,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalDate(
                             isolate->factory()->iso8601_string())) {
     // a. Let calendarOverride be ?
     // GetBuiltinCalendar(dateTimeFormat.[[Calendar]]).
-    ASSIGN_RETURN_ON_EXCEPTION_VALUE(
-        isolate, calendar_override,
-        temporal::GetBuiltinCalendar(isolate, date_time_format_calendar),
-        Nothing<DateTimeValueRecord>());
+    UNIMPLEMENTED();
     // 6. Else,
   } else {
     // a. Throw a RangeError exception.
@@ -1077,7 +1047,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalZonedDateTime(
   }
   // 7. Let instant be ! CreateTemporalInstant(zonedDateTime.[[Nanoseconds]]).
   DirectHandle<JSTemporalInstant> instant =
-      temporal::CreateTemporalInstant(
+      temporal::CreateTemporalInstantWithValidityCheck(
           isolate, direct_handle(zoned_date_time->nanoseconds(), isolate))
           .ToHandleChecked();
   // 8. If pattern is null, throw a TypeError exception.
@@ -1110,7 +1080,6 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
 
   // 3. Let isoCalendar be ! GetISO8601Calendar().
 
-  DirectHandle<JSReceiver> iso_calendar = temporal::GetISO8601Calendar(isolate);
   // 4. Let plainDateTime be ? CreateTemporalDateTime(1970, 1, 1,
   // temporalTime.[[ISOHour]], temporalTime.[[ISOMinute]],
   // temporalTime.[[ISOSecond]], temporalTime.[[ISOMillisecond]],
@@ -1124,8 +1093,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalTime(
           {{1970, 1, 1},
            {temporal_time->iso_hour(), temporal_time->iso_minute(),
             temporal_time->iso_second(), temporal_time->iso_millisecond(),
-            temporal_time->iso_microsecond(), temporal_time->iso_nanosecond()}},
-          iso_calendar),
+            temporal_time->iso_microsecond(),
+            temporal_time->iso_nanosecond()}}),
       Nothing<DateTimeValueRecord>());
   return TemporalPlainDateTimeToRecord(isolate, date_time_format,
                                        PatternKind::kPlainTime, plain_date_time,
@@ -1181,6 +1150,8 @@ Maybe<DateTimeValueRecord> HandleDateTimeTemporalMonthDay(
       PatternKind::kPlainMonthDay, temporal_month_day, method_name);
 }
 
+#endif  // V8_TEMPORAL_SUPPORT
+
 // #sec-temporal-handledatetimeothers
 Maybe<DateTimeValueRecord> HandleDateTimeOthers(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
@@ -1224,6 +1195,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
     Isolate* isolate, const icu::SimpleDateFormat& date_time_format,
     DirectHandle<String> date_time_format_calendar, DirectHandle<Object> x,
     const char* method_name) {
+#ifdef V8_TEMPORAL_SUPPORT
   if (IsTemporalObject(x)) {
     // a. If x has an [[InitializedTemporalDate]] internal slot, then
     if (IsJSTemporalPlainDate(*x)) {
@@ -1272,7 +1244,7 @@ Maybe<DateTimeValueRecord> HandleDateTimeValue(
         isolate, date_time_format, date_time_format_calendar,
         Cast<JSTemporalZonedDateTime>(x), method_name);
   }
-
+#endif  // V8_TEMPORAL_SUPPORT
   // 2. Return ? HandleDateTimeOthers(dateTimeFormat, x).
   return HandleDateTimeOthers(isolate, date_time_format, x, method_name);
 }
@@ -2316,7 +2288,7 @@ MaybeDirectHandle<JSDateTimeFormat> JSDateTimeFormat::CreateDateTimeFormat(
   if (hour_cycle == HourCycle::kUndefined) {
     auto hc_extension_it = r.extensions.find("hc");
     if (hc_extension_it != r.extensions.end()) {
-      hc = ToHourCycle(hc_extension_it->second.c_str());
+      hc = ToHourCycle(hc_extension_it->second);
     }
   } else {
     hc = hour_cycle;

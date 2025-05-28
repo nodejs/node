@@ -129,6 +129,51 @@ void ResetFeedbackVectorOsrUrgency(MacroAssembler* masm,
 
 }  // namespace
 
+void Builtins::Generate_DeoptimizationEntry_LazyAfterFastCall(
+    MacroAssembler* masm) {
+  // The deoptimizer may have been triggered right after the return of a fast
+  // API call. In that case, exception handling and possible stack unwinding
+  // did not happen yet.
+  // We check here if a there is a pending exception by comparing the
+  // exception stored in the isolate with the no-exception sentinel
+  // (the_hole_value). If there is an exception, we call PropagateException to
+  // trigger stack unwinding.
+  Label no_exception;
+  Register scratch = r3;
+  __ LoadU64(scratch,
+             __ ExternalReferenceAsOperand(
+                 ExternalReference::Create(IsolateAddressId::kExceptionAddress,
+                                           __ isolate()),
+                 scratch));
+  __ CompareRoot(scratch, RootIndex::kTheHoleValue);
+
+  __ beq(&no_exception);
+  const RegList kCalleeSaveRegisters = {C_CALL_CALLEE_SAVE_REGISTERS};
+  const DoubleRegList kCalleeSaveFPRegisters = {
+      C_CALL_CALLEE_SAVE_FP_REGISTERS};
+  __ EnterFrame(StackFrame::INTERNAL);
+  __ MultiPushDoubles(kCalleeSaveFPRegisters);
+  __ MultiPush(kCalleeSaveRegisters);
+  __ mov(kContextRegister, Operand(Context::kNoContext));
+  // We have to reset IsolateData::fast_c_call_caller_fp(), because otherwise
+  // the  stack unwinder thinks that we are still within the fast C call.
+  if (v8_flags.debug_code) {
+    __ LoadU64(scratch, __ ExternalReferenceAsOperand(
+                            IsolateFieldId::kFastCCallCallerFP));
+    __ CmpU64(scratch, Operand::Zero());
+    __ Assert(ne, AbortReason::kFastCallFallbackInvalid);
+  }
+  __ mov(scratch, Operand::Zero());
+  __ StoreU64(scratch, __ ExternalReferenceAsOperand(
+                           IsolateFieldId::kFastCCallCallerFP));
+  __ CallRuntime(Runtime::FunctionId::kPropagateException);
+  __ MultiPop(kCalleeSaveRegisters);
+  __ MultiPopDoubles(kCalleeSaveFPRegisters);
+  __ LeaveFrame(StackFrame::BUILTIN);
+  __ bind(&no_exception);
+  __ TailCallBuiltin(Builtin::kDeoptimizationEntry_Lazy);
+}
+
 // If there is baseline code on the shared function info, converts an
 // interpreter frame into a baseline frame and continues execution in baseline
 // code. Otherwise execution continues with bytecode.
@@ -1044,6 +1089,10 @@ static void Generate_JSEntryTrampolineHelper(MacroAssembler* masm,
         IsolateAddressId::kContextAddress, masm->isolate());
     __ Move(cp, context_address);
     __ LoadU64(cp, MemOperand(cp));
+#ifdef DEBUG
+    __ mov(r7, Operand(Context::kNoContext));
+    __ StoreU64(r7, __ ExternalReferenceAsOperand(context_address, no_reg));
+#endif
 
     // Push the function
     __ Push(r4);

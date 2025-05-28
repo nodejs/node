@@ -21,6 +21,8 @@
 #include "unicode/uchar.h"
 #endif
 
+#include "third_party/simdutf/simdutf.h"
+
 namespace unibrow {
 
 #ifndef V8_INTL_SUPPORT
@@ -232,43 +234,16 @@ uchar Utf8::ValueOfIncrementalFinish(State* state) {
 }
 
 bool Utf8::ValidateEncoding(const uint8_t* bytes, size_t length) {
-  State state = State::kAccept;
-  Utf8IncrementalBuffer throw_away = 0;
-  for (size_t i = 0; i < length && state != State::kReject; i++) {
-    Utf8DfaDecoder::Decode(bytes[i], &state, &throw_away);
-  }
-  return state == State::kAccept;
+  return simdutf::validate_utf8(reinterpret_cast<const char*>(bytes), length);
 }
 
 // static
 void Utf16::ReplaceUnpairedSurrogates(const uint16_t* source_code_units,
                                       uint16_t* dest_code_units,
                                       size_t length) {
-  // U+FFFD (REPLACEMENT CHARACTER)
-  constexpr uint16_t kReplacement = 0xFFFD;
-
-  for (size_t i = 0; i < length; i++) {
-    const uint16_t source_code_unit = source_code_units[i];
-    const size_t copy_index = i;
-    uint16_t dest_code_unit = source_code_unit;
-    if (IsLeadSurrogate(source_code_unit)) {
-      // The current code unit is a leading surrogate. If it's not followed by a
-      // trailing surrogate, replace it with the replacement character.
-      if (i == length - 1 || !IsTrailSurrogate(source_code_units[i + 1])) {
-        dest_code_unit = kReplacement;
-      } else {
-        // Copy the paired trailing surrogate. The paired leading surrogate will
-        // be copied below.
-        ++i;
-        dest_code_units[i] = source_code_units[i];
-      }
-    } else if (IsTrailSurrogate(source_code_unit)) {
-      // All paired trailing surrogates are skipped above, so this branch is
-      // only for those that are unpaired.
-      dest_code_unit = kReplacement;
-    }
-    dest_code_units[copy_index] = dest_code_unit;
-  }
+  simdutf::to_well_formed_utf16(
+      reinterpret_cast<const char16_t*>(source_code_units), length,
+      reinterpret_cast<char16_t*>(dest_code_units));
 }
 
 #if V8_ENABLE_WEBASSEMBLY

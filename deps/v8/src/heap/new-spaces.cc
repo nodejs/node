@@ -791,7 +791,6 @@ std::optional<std::pair<Address, Address>> SemiSpaceNewSpace::Allocate(
   if (AddFreshPage()) {
     Address start = allocation_top();
     Address end = to_space_.page_high();
-    DCHECK_EQ(0, Heap::GetFillToAlign(start, alignment));
     IncrementAllocationTop(end);
     return std::pair(start, end);
   }
@@ -912,10 +911,10 @@ void PagedSpaceForNewSpace::RemovePage(PageMetadata* page) {
   PagedSpaceBase::RemovePage(page);
 }
 
-void PagedSpaceForNewSpace::ReleasePage(PageMetadata* page) {
+void PagedSpaceForNewSpace::RemovePageFromSpace(PageMetadata* page) {
   DCHECK_LE(PageMetadata::kPageSize, current_capacity_);
   current_capacity_ -= PageMetadata::kPageSize;
-  PagedSpaceBase::ReleasePageImpl(page, MemoryAllocator::FreeMode::kPool);
+  PagedSpaceBase::RemovePageFromSpaceImpl(page);
 }
 
 bool PagedSpaceForNewSpace::ShouldReleaseEmptyPage() const {

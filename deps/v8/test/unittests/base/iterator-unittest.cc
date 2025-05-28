@@ -64,7 +64,7 @@ TEST(IteratorTest, IteratorTypeDeduction) {
   // Check that this compiles and does the correct thing even if the iterators
   // are lvalues:
   auto r3 = make_iterator_range(I, E);
-  EXPECT_TRUE((std::is_same<decltype(r2), decltype(r3)>::value));
+  EXPECT_TRUE((std::is_same_v<decltype(r2), decltype(r3)>));
   EXPECT_EQ(r3.begin(), r.begin());
   EXPECT_EQ(r3.end(), r2.end());
 }

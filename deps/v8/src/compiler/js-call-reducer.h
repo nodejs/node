@@ -160,8 +160,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
   Reduction ReduceStringPrototypeSubstring(Node* node);
   Reduction ReduceStringPrototypeSlice(Node* node);
   Reduction ReduceStringPrototypeSubstr(Node* node);
-  Reduction ReduceStringPrototypeStringAt(
-      const Operator* string_access_operator, Node* node);
+  Reduction ReduceStringPrototypeStringCharCodeAt(Node* node);
+  Reduction ReduceStringPrototypeStringCodePointAt(Node* node);
   Reduction ReduceStringPrototypeCharAt(Node* node);
   Reduction ReduceStringPrototypeStartsWith(Node* node);
   Reduction ReduceStringPrototypeEndsWith(Node* node);
@@ -240,6 +240,8 @@ class V8_EXPORT_PRIVATE JSCallReducer final : public AdvancedReducer {
                                  ExternalArrayType element_type);
 
   Reduction ReduceDatePrototypeGetTime(Node* node);
+  Reduction ReduceDatePrototypeGetField(Node* node, JSDate::FieldIndex field);
+
   Reduction ReduceDateNow(Node* node);
   Reduction ReduceNumberParseInt(Node* node);
 

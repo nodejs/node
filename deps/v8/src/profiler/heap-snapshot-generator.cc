@@ -28,6 +28,7 @@
 #include "src/objects/js-array-buffer-inl.h"
 #include "src/objects/js-array-inl.h"
 #include "src/objects/js-collection-inl.h"
+#include "src/objects/js-disposable-stack-inl.h"
 #include "src/objects/js-generator-inl.h"
 #include "src/objects/js-objects.h"
 #include "src/objects/js-promise-inl.h"
@@ -964,6 +965,8 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
   } else if (InstanceTypeChecker::IsOddball(instance_type)) {
     Tagged<String> name = Cast<Oddball>(object)->to_string();
     return AddEntry(object, HeapEntry::kHidden, names_->GetName(name));
+  } else if (InstanceTypeChecker::IsCppHeapExternalObject(instance_type)) {
+    return AddEntry(object, HeapEntry::kObject, "system / CppHeapExternal");
   }
 #if V8_ENABLE_WEBASSEMBLY
   if (InstanceTypeChecker::IsWasmObject(instance_type)) {
@@ -1038,6 +1041,15 @@ HeapEntry* V8HeapExplorer::AddEntry(Tagged<HeapObject> object) {
         break;
       case kDisplayNamesInternalTag:
         name = "system / Managed<DisplayNamesInternal>";
+        break;
+      case kTemporalInstantTag:
+        name = "system / Managed<temporal_rs::Instant>";
+        break;
+      case kD8WorkerTag:
+        name = "system / Managed<d8::Worker>";
+        break;
+      case kD8ModuleEmbedderDataTag:
+        name = "system / Managed<d8::ModuleEmbedderData>";
         break;
       default:
         DCHECK(!kAnyManagedExternalPointerTagRange.Contains(tag));
@@ -1375,6 +1387,9 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
       ExtractJSGeneratorObjectReferences(entry, Cast<JSGeneratorObject>(obj));
     } else if (IsJSWeakRef(obj)) {
       ExtractJSWeakRefReferences(entry, Cast<JSWeakRef>(obj));
+    } else if (IsJSDisposableStackBase(obj)) {
+      ExtractJSDisposableStackReferences(entry,
+                                         Cast<JSDisposableStackBase>(obj));
 #if V8_ENABLE_WEBASSEMBLY
     } else if (IsWasmInstanceObject(obj)) {
       ExtractWasmInstanceObjectReferences(Cast<WasmInstanceObject>(obj), entry);
@@ -1447,6 +1462,8 @@ void V8HeapExplorer::ExtractReferences(HeapEntry* entry,
     ExtractBytecodeArrayReferences(entry, Cast<BytecodeArray>(obj));
   } else if (IsScopeInfo(obj)) {
     ExtractScopeInfoReferences(entry, Cast<ScopeInfo>(obj));
+  } else if (IsCppHeapExternalObject(obj)) {
+    ExtractCppHeapExternalReferences(entry, Cast<CppHeapExternalObject>(obj));
 #if V8_ENABLE_WEBASSEMBLY
   } else if (IsWasmStruct(obj)) {
     ExtractWasmStructReferences(Cast<WasmStruct>(obj), entry);
@@ -1661,6 +1678,17 @@ void V8HeapExplorer::ExtractEphemeronHashTableReferences(
           HeapEntry::kEphemeron);
     }
   }
+}
+
+void V8HeapExplorer::ExtractJSDisposableStackReferences(
+    HeapEntry* entry, Tagged<JSDisposableStackBase> disposable_stack) {
+  SetInternalReference(entry, "stack", disposable_stack->stack(),
+                       JSDisposableStackBase::kStackOffset);
+  SetInternalReference(entry, "error", disposable_stack->error(),
+                       JSDisposableStackBase::kErrorOffset);
+  SetInternalReference(entry, "error_message",
+                       disposable_stack->error_message(),
+                       JSDisposableStackBase::kErrorMessageOffset);
 }
 
 // These static arrays are used to prevent excessive code-size in
@@ -2167,7 +2195,7 @@ void V8HeapExplorer::ExtractWeakArrayReferences(int header_size,
 
 void V8HeapExplorer::ExtractPropertyReferences(Tagged<JSObject> js_obj,
                                                HeapEntry* entry) {
-  Isolate* isolate = js_obj->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   if (js_obj->HasFastProperties()) {
     Tagged<DescriptorArray> descs =
         js_obj->map()->instance_descriptors(isolate);
@@ -2289,6 +2317,11 @@ void V8HeapExplorer::ExtractInternalReferences(Tagged<JSObject> js_obj,
     Tagged<Object> o = js_obj->GetEmbedderField(i);
     SetInternalReference(entry, i, o, js_obj->GetEmbedderFieldOffset(i));
   }
+}
+
+void V8HeapExplorer::ExtractCppHeapExternalReferences(
+    HeapEntry* entry, Tagged<CppHeapExternalObject> obj) {
+  generator_->GetCppHeapExternalObjects().insert(obj);
 }
 
 #if V8_ENABLE_WEBASSEMBLY
@@ -3177,7 +3210,8 @@ bool NativeObjectsExplorer::IterateAndExtractReferences(
     v8::HandleScope scope(reinterpret_cast<v8::Isolate*>(isolate_));
     DisallowGarbageCollection no_gc;
     EmbedderGraphImpl graph;
-    snapshot_->profiler()->BuildEmbedderGraph(isolate_, &graph);
+    snapshot_->profiler()->BuildEmbedderGraph(
+        isolate_, &graph, generator_->TakeCppHeapExternalObjects());
     for (const auto& node : graph.nodes()) {
       // Only add embedder nodes as V8 nodes have been added already by the
       // V8HeapExplorer.
@@ -3257,6 +3291,7 @@ bool HeapSnapshotGenerator::GenerateSnapshot() {
   EmbedderStackStateScope stack_scope(
       heap_, EmbedderStackStateOrigin::kImplicitThroughTask, stack_state_);
   heap_->CollectAllAvailableGarbage(GarbageCollectionReason::kHeapProfiler);
+  heap_->CompleteSweepingFull();
 
   // No allocation that could trigger GC from here onwards. We cannot use a
   // DisallowGarbageCollection scope as the HeapObjectIterator used during
@@ -3495,7 +3530,7 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
   writer_->AddString(
         JSON_S("detachedness")
     "],"
-    JSON_S("node_types") ":" JSON_A(
+    JSON_S("node_types") ":["
         JSON_A(
             JSON_S("hidden") ","
             JSON_S("array") ","
@@ -3512,12 +3547,14 @@ void HeapSnapshotJSONSerializer::SerializeSnapshot() {
             JSON_S("symbol") ","
             JSON_S("bigint") ","
             JSON_S("object shape")) ","
-        JSON_S("string") ","
+        JSON_S("string") ",");
+  if (trace_function_count_) writer_->AddString(JSON_S("number") ",");
+  writer_->AddString(
         JSON_S("number") ","
         JSON_S("number") ","
         JSON_S("number") ","
-        JSON_S("number") ","
-        JSON_S("number")) ","
+        JSON_S("number")
+      "],"
     JSON_S("edge_fields") ":" JSON_A(
         JSON_S("type") ","
         JSON_S("name_or_index") ","

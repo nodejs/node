@@ -26,7 +26,7 @@ namespace {
 
 #define CHECK_SELF_OR_THROW_FAST(return_value)                              \
   if (!self) {                                                              \
-    receiver->GetIsolate()->ThrowError(                                     \
+    v8::Isolate::GetCurrent()->ThrowError(                                  \
         "This method is not defined on objects inheriting from FastCAPI."); \
     return return_value;                                                    \
   }
@@ -280,7 +280,7 @@ class FastCApiObject {
     Local<Array> array = seq_arg.As<Array>();
     uint32_t length = array->Length();
     if (length > 1024) {
-      receiver->GetIsolate()->ThrowError(
+      options.isolate->ThrowError(
           "Invalid length of array, must be between 0 and 1024.");
       return 0;
     }
@@ -289,7 +289,7 @@ class FastCApiObject {
     bool result = TryToCopyAndConvertArrayToCppBuffer<
         CTypeInfoBuilder<Type>::Build().GetId(), Type>(array, buffer, 1024);
     if (!result) {
-      return AddAllSequenceJSArrayHelper(receiver->GetIsolate(), array);
+      return AddAllSequenceJSArrayHelper(options.isolate, array);
     }
     DCHECK_EQ(array->Length(), length);
 
@@ -551,6 +551,7 @@ class FastCApiObject {
     if (result < INT_MIN) return INT_MIN;
     return static_cast<int>(result);
   }
+
   static int AddAll32BitIntFastCallback_5Args(
       Local<Object> receiver, int32_t arg1_i32, int32_t arg2_i32,
       int32_t arg3_i32, uint32_t arg4_u32, uint32_t arg5_u32,
@@ -944,6 +945,36 @@ class FastCApiObject {
     info.GetReturnValue().Set(result);
   }
 
+  static void CallToNumberFastCallback(Local<Object> receiver,
+                                       Local<Object> arg,
+                                       FastApiCallbackOptions& options) {
+    FastCApiObject* self = UnwrapObject(receiver);
+    CHECK_SELF_OR_THROW_FAST_OPTIONS();
+    self->fast_call_count_++;
+
+    HandleScope handle_scope(options.isolate);
+    USE(arg->ToNumber(options.isolate->GetCurrentContext()));
+  }
+
+  static void CallToNumberSlowCallback(
+      const FunctionCallbackInfo<Value>& info) {
+    DCHECK(i::ValidateCallbackInfo(info));
+    Isolate* isolate = info.GetIsolate();
+
+    FastCApiObject* self = UnwrapObject(info.This());
+    CHECK_SELF_OR_THROW_SLOW();
+    self->slow_call_count_++;
+
+    HandleScope handle_scope(isolate);
+
+    if (info.Length() < 1) {
+      info.GetIsolate()->ThrowError(
+          "is_valid_api_object should be called with an argument");
+      return;
+    }
+    USE(info[0]->ToNumber(info.GetIsolate()->GetCurrentContext()));
+  }
+
   static bool TestWasmMemoryFastCallback(Local<Object> receiver,
                                          uint32_t address,
                                          FastApiCallbackOptions& options) {
@@ -954,7 +985,7 @@ class FastCApiObject {
     if (i::v8_flags.fuzzing) {
       return true;
     }
-    v8::Isolate* isolate = receiver->GetIsolate();
+    v8::Isolate* isolate = v8::Isolate::GetCurrent();
     v8::HandleScope handle_scope(isolate);
     v8::Local<v8::Context> context = isolate->GetCurrentContext();
     v8::Local<v8::String> mem_string =
@@ -1827,6 +1858,15 @@ Local<FunctionTemplate> Shell::CreateTestFastCApiTemplate(Isolate* isolate) {
             isolate, FastCApiObject::IsFastCApiObjectSlowCallback,
             Local<Value>(), signature, 1, ConstructorBehavior::kThrow,
             SideEffectType::kHasSideEffect, &is_valid_api_object_c_func));
+
+    CFunction call_to_number_c_func =
+        CFunction::Make(FastCApiObject::CallToNumberFastCallback);
+    api_obj_ctor->PrototypeTemplate()->Set(
+        isolate, "call_to_number",
+        FunctionTemplate::New(
+            isolate, FastCApiObject::CallToNumberSlowCallback, Local<Value>(),
+            signature, 1, ConstructorBehavior::kThrow,
+            SideEffectType::kHasSideEffect, &call_to_number_c_func));
 
     CFunction test_wasm_memory_c_func =
         CFunction::Make(FastCApiObject::TestWasmMemoryFastCallback);

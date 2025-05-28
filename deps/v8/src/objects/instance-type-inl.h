@@ -11,9 +11,9 @@
 #include <optional>
 
 #include "src/base/bounds.h"
-#include "src/execution/isolate-utils-inl.h"
+#include "src/common/ptr-compr-inl.h"
 #include "src/objects/instance-type-checker.h"
-#include "src/objects/map-inl.h"
+#include "src/objects/map.h"
 
 // Has to be the last include (doesn't have include guards):
 #include "src/objects/object-macros.h"
@@ -85,7 +85,7 @@ constexpr std::array<std::pair<InstanceTypeRange, TaggedAddressRange>, 9>
           {InstanceTypeChecker::kStringMapLowerBound,
            InstanceTypeChecker::kStringMapUpperBound}},
          {{FIRST_NAME_TYPE, LAST_NAME_TYPE},
-          {StaticReadOnlyRoot::kSeqTwoByteStringMap,
+          {InstanceTypeChecker::kStringMapLowerBound,
            StaticReadOnlyRoot::kSymbolMap}},
          {{ODDBALL_TYPE, ODDBALL_TYPE},
           {StaticReadOnlyRoot::kUndefinedMap, StaticReadOnlyRoot::kBooleanMap}},
@@ -115,7 +115,7 @@ struct kUniqueMapRangeOfStringType {
       StaticReadOnlyRoot::kUncachedExternalInternalizedOneByteStringMap};
   static constexpr TaggedAddressRange kExternalString = {
       StaticReadOnlyRoot::kExternalInternalizedTwoByteStringMap,
-      StaticReadOnlyRoot::kSharedExternalOneByteStringMap};
+      StaticReadOnlyRoot::kExternalOneByteStringMap};
   static constexpr TaggedAddressRange kUncachedExternalString = {
       StaticReadOnlyRoot::kUncachedExternalInternalizedTwoByteStringMap,
       StaticReadOnlyRoot::kSharedUncachedExternalOneByteStringMap};
@@ -128,6 +128,18 @@ struct kUniqueMapRangeOfStringType {
   static constexpr TaggedAddressRange kThinString = {
       StaticReadOnlyRoot::kThinTwoByteStringMap,
       StaticReadOnlyRoot::kThinOneByteStringMap};
+  static constexpr TaggedAddressRange kSharedSeqString = {
+      InstanceTypeChecker::kStringMapLowerBound,
+      StaticReadOnlyRoot::kSharedSeqOneByteStringMap};
+  static constexpr TaggedAddressRange kSharedExternalString = {
+      StaticReadOnlyRoot::kSharedUncachedExternalTwoByteStringMap,
+      StaticReadOnlyRoot::kSharedExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kDirectString = {
+      InstanceTypeChecker::kStringMapLowerBound,
+      StaticReadOnlyRoot::kExternalOneByteStringMap};
+  static constexpr TaggedAddressRange kIndirectString = {
+      StaticReadOnlyRoot::kConsTwoByteStringMap,
+      StaticReadOnlyRoot::kThinOneByteStringMap};
 };
 
 // This one is very sneaky. String maps are laid out sequentially, and
@@ -137,11 +149,11 @@ struct kUniqueMapRangeOfStringType {
 // addresses, and therefore is on/off for all two-byte/one-byte strings. Which
 // of the two has the on-bit depends on the current RO heap layout, so just
 // sniff this by checking an arbitrary one-byte map's value.
-static constexpr int kStringMapEncodingMask =
+static constexpr uint32_t kStringMapEncodingMask =
     1 << base::bits::CountTrailingZerosNonZero(Map::kSize);
-static constexpr int kOneByteStringMapBit =
+static constexpr uint32_t kOneByteStringMapBit =
     StaticReadOnlyRoot::kSeqOneByteStringMap & kStringMapEncodingMask;
-static constexpr int kTwoByteStringMapBit =
+static constexpr uint32_t kTwoByteStringMapBit =
     StaticReadOnlyRoot::kSeqTwoByteStringMap & kStringMapEncodingMask;
 
 inline constexpr std::optional<TaggedAddressRange>
@@ -177,10 +189,13 @@ inline bool CheckInstanceMap(RootIndex expected, Tagged<Map> map) {
          StaticReadOnlyRootsPointerTable[static_cast<size_t>(expected)];
 }
 
-inline bool CheckInstanceMapRange(TaggedAddressRange expected,
-                                  Tagged<Map> map) {
+inline constexpr bool CheckInstanceMapRange(TaggedAddressRange expected,
+                                            Tagged<Map> map) {
   Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map.ptr());
-  return base::IsInRange(ptr, expected.first, expected.second);
+  // Make the upper limit be the end of the map object, rather than the start;
+  // this helps the C++ optimizer realize there are no "holes" between
+  // neighbouring map ranges, such as string map ranges.
+  return base::IsInRange(ptr, expected.first, expected.second + Map::kSize - 1);
 }
 
 #else
@@ -423,11 +438,61 @@ V8_INLINE constexpr bool IsTwoByteString(InstanceType instance_type) {
 V8_INLINE bool IsTwoByteString(Tagged<Map> map_object) {
 #if V8_STATIC_ROOTS_BOOL
   DCHECK(IsStringMap(map_object));
-
   Tagged_t ptr = V8HeapCompressionScheme::CompressObject(map_object.ptr());
   return (ptr & kStringMapEncodingMask) == kTwoByteStringMapBit;
 #else
   return IsTwoByteString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE bool IsSharedString(InstanceType instance_type) {
+  DCHECK(IsString(instance_type));
+  // TODO(v8:12007): Set is_shared to true on internalized string when
+  // v8_flags.shared_string_table is removed.
+  return (instance_type & kSharedStringMask) == kSharedStringTag ||
+         (v8_flags.shared_string_table && IsInternalizedString(instance_type));
+}
+
+V8_INLINE bool IsSharedString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  DCHECK(IsStringMap(map_object));
+  // TODO(v8:12007): Set is_shared to true on internalized string when
+  // v8_flags.shared_string_table is removed.
+  return (CheckInstanceMapRange(kUniqueMapRangeOfStringType::kSharedSeqString,
+                                map_object) ||
+          CheckInstanceMapRange(
+              kUniqueMapRangeOfStringType::kSharedExternalString,
+              map_object)) ||
+         (v8_flags.shared_string_table && IsInternalizedString(map_object));
+#else
+  return IsSharedString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsIndirectString(InstanceType instance_type) {
+  return (instance_type & (kIsNotStringMask | kIsIndirectStringMask)) ==
+         kIsIndirectStringTag;
+}
+
+V8_INLINE bool IsIndirectString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kIndirectString,
+                               map_object);
+#else
+  return IsIndirectString(map_object->instance_type());
+#endif
+}
+
+V8_INLINE constexpr bool IsDirectString(InstanceType instance_type) {
+  return !IsIndirectString(instance_type);
+}
+
+V8_INLINE bool IsDirectString(Tagged<Map> map_object) {
+#if V8_STATIC_ROOTS_BOOL
+  return CheckInstanceMapRange(kUniqueMapRangeOfStringType::kDirectString,
+                               map_object);
+#else
+  return IsDirectString(map_object->instance_type());
 #endif
 }
 
@@ -456,8 +521,22 @@ V8_INLINE constexpr bool IsFreeSpaceOrFiller(InstanceType instance_type) {
   return instance_type == FREE_SPACE_TYPE || instance_type == FILLER_TYPE;
 }
 
-V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map_object) {
-  return IsFreeSpaceOrFiller(map_object->instance_type());
+V8_INLINE bool IsFreeSpaceOrFiller(Tagged<Map> map) {
+#if V8_STATIC_ROOTS_BOOL
+  static_assert(StaticReadOnlyRoot::kFreeSpaceMap + Map::kSize ==
+                StaticReadOnlyRoot::kOnePointerFillerMap);
+  static_assert(StaticReadOnlyRoot::kOnePointerFillerMap + Map::kSize ==
+                StaticReadOnlyRoot::kTwoPointerFillerMap);
+  // Make sure that we can use fast immediate constants on arm64.
+  static_assert(StaticReadOnlyRoot::kTwoPointerFillerMap <=
+                kMaxFastImmediateConstantArm64);
+  return CheckInstanceMapRange(
+      TaggedAddressRange(StaticReadOnlyRoot::kFreeSpaceMap,
+                         StaticReadOnlyRoot::kTwoPointerFillerMap),
+      map);
+#else   // !V8_STATIC_ROOTS_BOOL
+  return IsFreeSpaceOrFiller(map->instance_type());
+#endif  // !V8_STATIC_ROOTS_BOOL
 }
 
 // These JSObject types are wrappers around a set of primitive values

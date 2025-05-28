@@ -54,6 +54,9 @@ const SKIPPED_FILES = [
 
     // Empty test that just sets flags.
     'regress-392928803.js',
+
+    // Tests for differential-fuzzing internals are not useful to re-fuzz.
+    /foozzie.*\.js/,
 ];
 
 const SKIPPED_DIRECTORIES = [

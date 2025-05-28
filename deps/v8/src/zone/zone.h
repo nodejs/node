@@ -127,7 +127,10 @@ class V8_EXPORT_PRIVATE Zone final {
   T* AllocateArray(size_t length) {
     static_assert(alignof(T) <= kAlignmentInBytes);
     DCHECK_IMPLIES(is_compressed_pointer<T>::value, supports_compression());
-    DCHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
+    // Defense-in-depth: ensure that the multiplication does not overflow as
+    // that would result in a too-small allocation and (likely) memory
+    // corruption afterwards.
+    CHECK_LT(length, std::numeric_limits<size_t>::max() / sizeof(T));
     return static_cast<T*>(Allocate<TypeTag>(length * sizeof(T)));
   }
 

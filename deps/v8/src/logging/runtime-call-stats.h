@@ -7,124 +7,26 @@
 
 #include <optional>
 
+// These includes are needed for the macro lists defining the
+// RuntimeCallCounterId enum, and for the dummy types defined below.
 #include "src/base/macros.h"
+#include "src/builtins/builtins-definitions.h"
+#include "src/init/heap-symbols.h"
+#include "src/runtime/runtime.h"
 
 #ifdef V8_RUNTIME_CALL_STATS
 
 #include "src/base/atomic-utils.h"
 #include "src/base/platform/platform.h"
 #include "src/base/platform/time.h"
-#include "src/builtins/builtins-definitions.h"
 #include "src/execution/thread-id.h"
-#include "src/init/heap-symbols.h"
 #include "src/logging/tracing-flags.h"
-#include "src/runtime/runtime.h"
 #include "src/tracing/traced-value.h"
 #include "src/tracing/tracing-category-observer.h"
 
 #endif  // V8_RUNTIME_CALL_STATS
 
-namespace v8 {
-namespace internal {
-
-#ifdef V8_RUNTIME_CALL_STATS
-
-class RuntimeCallCounter final {
- public:
-  RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
-  explicit RuntimeCallCounter(const char* name)
-      : name_(name), count_(0), time_(0) {}
-  V8_NOINLINE void Reset();
-  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
-  void Add(RuntimeCallCounter* other);
-
-  const char* name() const { return name_; }
-  int64_t count() const { return count_; }
-  base::TimeDelta time() const {
-    return base::TimeDelta::FromMicroseconds(time_);
-  }
-  void Increment() { count_++; }
-  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
-
- private:
-  friend class RuntimeCallStats;
-
-  const char* name_;
-  int64_t count_;
-  // Stored as int64_t so that its initialization can be deferred.
-  int64_t time_;
-};
-
-// RuntimeCallTimer is used to keep track of the stack of currently active
-// timers used for properly measuring the own time of a RuntimeCallCounter.
-class RuntimeCallTimer final {
- public:
-  RuntimeCallCounter* counter() { return counter_; }
-  void set_counter(RuntimeCallCounter* counter) { counter_ = counter; }
-  RuntimeCallTimer* parent() const { return parent_.Value(); }
-  void set_parent(RuntimeCallTimer* timer) { parent_.SetValue(timer); }
-  const char* name() const { return counter_->name(); }
-
-  inline bool IsStarted() const { return start_ticks_ != base::TimeTicks(); }
-
-  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
-    DCHECK(!IsStarted());
-    counter_ = counter;
-    parent_.SetValue(parent);
-    if (TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
-        v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
-      return;
-    }
-    base::TimeTicks now = RuntimeCallTimer::Now();
-    if (parent) parent->Pause(now);
-    Resume(now);
-    DCHECK(IsStarted());
-  }
-
-  void Snapshot();
-
-  inline RuntimeCallTimer* Stop() {
-    if (!IsStarted()) return parent();
-    base::TimeTicks now = RuntimeCallTimer::Now();
-    Pause(now);
-    counter_->Increment();
-    CommitTimeToCounter();
-
-    RuntimeCallTimer* parent_timer = parent();
-    if (parent_timer) {
-      parent_timer->Resume(now);
-    }
-    return parent_timer;
-  }
-
-  // Make the time source configurable for testing purposes.
-  V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
-
-  // Helper to switch over to CPU time.
-  static base::TimeTicks NowCPUTime();
-
- private:
-  inline void Pause(base::TimeTicks now) {
-    DCHECK(IsStarted());
-    elapsed_ += (now - start_ticks_);
-    start_ticks_ = base::TimeTicks();
-  }
-
-  inline void Resume(base::TimeTicks now) {
-    DCHECK(!IsStarted());
-    start_ticks_ = now;
-  }
-
-  inline void CommitTimeToCounter() {
-    counter_->Add(elapsed_);
-    elapsed_ = base::TimeDelta();
-  }
-
-  RuntimeCallCounter* counter_ = nullptr;
-  base::AtomicValue<RuntimeCallTimer*> parent_;
-  base::TimeTicks start_ticks_;
-  base::TimeDelta elapsed_;
-};
+namespace v8::internal {
 
 #define FOR_EACH_GC_COUNTER(V) \
   TRACER_SCOPES(V)             \
@@ -383,9 +285,10 @@ class RuntimeCallTimer final {
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftWasmInJSInlining)        \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftCsaEarlyMachineOptimization)          \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaEffectsComputation)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLateEscapeAnalysis)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaLoadElimination)      \
-  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaOptimize)             \
+  ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftCsaMemoryOptimization)   \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize, TurboshaftDebugFeatureLowering)    \
   ADD_THREAD_SPECIFIC_COUNTER(V, Optimize,                                    \
                               TurboshaftDecompressionOptimization)            \
@@ -469,6 +372,8 @@ class RuntimeCallTimer final {
   V(DeserializeIsolate)                        \
   V(FinalizationRegistryCleanupFromTask)       \
   V(FunctionCallback)                          \
+  V(FunctionArgumentsGetter)                   \
+  V(FunctionCallerGetter)                      \
   V(FunctionLengthGetter)                      \
   V(FunctionPrototypeGetter)                   \
   V(FunctionPrototypeSetter)                   \
@@ -595,29 +500,129 @@ class RuntimeCallTimer final {
   V(StoreInArrayLiteralIC_SlowStub)
 
 enum class RuntimeCallCounterId {
+// clang-format off
 #define CALL_RUNTIME_COUNTER(name) kGC_##name,
   FOR_EACH_GC_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
 #define CALL_RUNTIME_COUNTER(name) k##name,
-      FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
+  FOR_EACH_MANUAL_COUNTER(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
-#define CALL_RUNTIME_COUNTER(name, nargs, ressize) kRuntime_##name,
-          FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
+#define CALL_RUNTIME_COUNTER(name, nargs, ressize, ...) kRuntime_##name,
+  FOR_EACH_INTRINSIC(CALL_RUNTIME_COUNTER)
 #undef CALL_RUNTIME_COUNTER
 #define CALL_BUILTIN_COUNTER(name, Argc) kBuiltin_##name,
-              BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
+  BUILTIN_LIST_C(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kAPI_##name,
-                  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
+  FOR_EACH_API_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 #define CALL_BUILTIN_COUNTER(name) kHandler_##name,
-                      FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
+  FOR_EACH_HANDLER_COUNTER(CALL_BUILTIN_COUNTER)
 #undef CALL_BUILTIN_COUNTER
 #define THREAD_SPECIFIC_COUNTER(name) k##name,
-                          FOR_EACH_THREAD_SPECIFIC_COUNTER(
-                              THREAD_SPECIFIC_COUNTER)
+  FOR_EACH_THREAD_SPECIFIC_COUNTER(THREAD_SPECIFIC_COUNTER)
 #undef THREAD_SPECIFIC_COUNTER
-                              kNumberOfCounters,
+  kNumberOfCounters,
+  // clang-format on
+};
+
+#ifdef V8_RUNTIME_CALL_STATS
+
+class RuntimeCallCounter final {
+ public:
+  RuntimeCallCounter() : RuntimeCallCounter(nullptr) {}
+  explicit RuntimeCallCounter(const char* name)
+      : name_(name), count_(0), time_(0) {}
+  V8_NOINLINE void Reset();
+  V8_NOINLINE void Dump(v8::tracing::TracedValue* value);
+  void Add(RuntimeCallCounter* other);
+
+  const char* name() const { return name_; }
+  int64_t count() const { return count_; }
+  base::TimeDelta time() const {
+    return base::TimeDelta::FromMicroseconds(time_);
+  }
+  void Increment() { count_++; }
+  void Add(base::TimeDelta delta) { time_ += delta.InMicroseconds(); }
+
+ private:
+  friend class RuntimeCallStats;
+
+  const char* name_;
+  int64_t count_;
+  // Stored as int64_t so that its initialization can be deferred.
+  int64_t time_;
+};
+
+// RuntimeCallTimer is used to keep track of the stack of currently active
+// timers used for properly measuring the own time of a RuntimeCallCounter.
+class RuntimeCallTimer final {
+ public:
+  RuntimeCallCounter* counter() { return counter_; }
+  void set_counter(RuntimeCallCounter* counter) { counter_ = counter; }
+  RuntimeCallTimer* parent() const { return parent_.Value(); }
+  void set_parent(RuntimeCallTimer* timer) { parent_.SetValue(timer); }
+  const char* name() const { return counter_->name(); }
+
+  inline bool IsStarted() const { return start_ticks_ != base::TimeTicks(); }
+
+  inline void Start(RuntimeCallCounter* counter, RuntimeCallTimer* parent) {
+    DCHECK(!IsStarted());
+    counter_ = counter;
+    parent_.SetValue(parent);
+    if (TracingFlags::runtime_stats.load(std::memory_order_relaxed) ==
+        v8::tracing::TracingCategoryObserver::ENABLED_BY_SAMPLING) {
+      return;
+    }
+    base::TimeTicks now = RuntimeCallTimer::Now();
+    if (parent) parent->Pause(now);
+    Resume(now);
+    DCHECK(IsStarted());
+  }
+
+  void Snapshot();
+
+  inline RuntimeCallTimer* Stop() {
+    if (!IsStarted()) return parent();
+    base::TimeTicks now = RuntimeCallTimer::Now();
+    Pause(now);
+    counter_->Increment();
+    CommitTimeToCounter();
+
+    RuntimeCallTimer* parent_timer = parent();
+    if (parent_timer) {
+      parent_timer->Resume(now);
+    }
+    return parent_timer;
+  }
+
+  // Make the time source configurable for testing purposes.
+  V8_EXPORT_PRIVATE static base::TimeTicks (*Now)();
+
+  // Helper to switch over to CPU time.
+  static base::TimeTicks NowCPUTime();
+
+ private:
+  inline void Pause(base::TimeTicks now) {
+    DCHECK(IsStarted());
+    elapsed_ += (now - start_ticks_);
+    start_ticks_ = base::TimeTicks();
+  }
+
+  inline void Resume(base::TimeTicks now) {
+    DCHECK(!IsStarted());
+    start_ticks_ = now;
+  }
+
+  inline void CommitTimeToCounter() {
+    counter_->Add(elapsed_);
+    elapsed_ = base::TimeDelta();
+  }
+
+  RuntimeCallCounter* counter_ = nullptr;
+  base::AtomicValue<RuntimeCallTimer*> parent_;
+  base::TimeTicks start_ticks_;
+  base::TimeDelta elapsed_;
 };
 
 class RuntimeCallStats final {
@@ -830,7 +835,6 @@ class WorkerThreadRuntimeCallStatsScope {
 
 #endif  // RUNTIME_CALL_STATS
 
-}  // namespace internal
-}  // namespace v8
+}  // namespace v8::internal
 
 #endif  // V8_LOGGING_RUNTIME_CALL_STATS_H_

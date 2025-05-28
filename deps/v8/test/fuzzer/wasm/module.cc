@@ -38,6 +38,11 @@ extern "C" int LLVMFuzzerTestOneInput(const uint8_t* data, size_t size) {
   // pass Wasm modules unmodified to this fuzzer).
   v8_flags.liftoff = size & 1;
 
+  // Disable wasm deoptimizations. Deoptimizations only make sense with both
+  // Liftoff and Turbofan enabled while this fuzzer only tests for either one of
+  // them,
+  v8_flags.wasm_deopt = false;
+
   Isolate* i_isolate = reinterpret_cast<Isolate*>(isolate);
 
   v8::Isolate::Scope isolate_scope(isolate);

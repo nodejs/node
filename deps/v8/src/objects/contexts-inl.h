@@ -57,7 +57,6 @@ Tagged<Context> ScriptContextTable::get(int i, AcquireLoadTag tag) const {
 }
 
 TQ_OBJECT_CONSTRUCTORS_IMPL(Context)
-NEVER_READ_ONLY_SPACE_IMPL(Context)
 
 RELAXED_SMI_ACCESSORS(Context, length, kLengthOffset)
 
@@ -205,7 +204,7 @@ bool Context::IsScriptContext() const {
 }
 
 inline bool Context::HasContextCells() const {
-  return v8_flags.script_context_cells && IsScriptContext();
+  return scope_info()->HasContextCells();
 }
 
 bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
@@ -213,7 +212,9 @@ bool Context::HasSameSecurityTokenAs(Tagged<Context> that) const {
          that->native_context()->security_token();
 }
 
-bool Context::IsDetached() const { return global_object()->IsDetached(); }
+bool Context::IsDetached(Isolate* isolate) const {
+  return global_object()->IsDetached(isolate);
+}
 
 #define NATIVE_CONTEXT_FIELD_ACCESSORS(index, type, name)          \
   void Context::set_##name(Tagged<UNPAREN(type)> value) {          \

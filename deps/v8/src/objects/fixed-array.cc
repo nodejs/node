@@ -305,12 +305,14 @@ int WeakArrayList::CountLiveElements() const {
 bool WeakArrayList::RemoveOne(MaybeObjectDirectHandle value) {
   int last_index = length() - 1;
   // Optimize for the most recently added element to be removed again.
+  Tagged<ClearedWeakValue> cleared_value =
+      ClearedValue(PtrComprCageBase{Isolate::Current()});
   for (int i = last_index; i >= 0; --i) {
     if (Get(i) != *value) continue;
     // Move the last element into this slot (or no-op, if this is the last
     // slot).
     Set(i, Get(last_index));
-    Set(last_index, ClearedValue(GetIsolate()));
+    Set(last_index, cleared_value);
     set_length(last_index);
     return true;
   }

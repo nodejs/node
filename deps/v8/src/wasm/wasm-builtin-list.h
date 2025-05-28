@@ -146,6 +146,12 @@ namespace v8::internal::wasm {
   V(DeoptimizationEntry_Eager)                                                 \
   V(WasmLiftoffDeoptFinish)                                                    \
   V(WasmPropagateException)                                                    \
+  V(WasmLiftoffIsEqRefUnshared)                                                \
+  V(WasmLiftoffIsArrayRefUnshared)                                             \
+  V(WasmLiftoffIsStructRefUnshared)                                            \
+  V(WasmLiftoffCastEqRefUnshared)                                              \
+  V(WasmLiftoffCastArrayRefUnshared)                                           \
+  V(WasmLiftoffCastStructRefUnshared)                                          \
   IF_SHADOW_STACK(V, AdaptShadowStackForDeopt)
 
 // Other wasm builtins that are not called via the far jump table, but need the

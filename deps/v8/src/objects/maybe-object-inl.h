@@ -46,8 +46,8 @@ inline Tagged<ClearedWeakValue> ClearedTrustedValue() {
 template <typename THeapObjectSlot>
 void UpdateHeapObjectReferenceSlot(THeapObjectSlot slot,
                                    Tagged<HeapObject> value) {
-  static_assert(std::is_same<THeapObjectSlot, FullHeapObjectSlot>::value ||
-                    std::is_same<THeapObjectSlot, HeapObjectSlot>::value,
+  static_assert(std::is_same_v<THeapObjectSlot, FullHeapObjectSlot> ||
+                    std::is_same_v<THeapObjectSlot, HeapObjectSlot>,
                 "Only FullHeapObjectSlot and HeapObjectSlot are expected here");
   Address old_value = (*slot).ptr();
   DCHECK(!HAS_SMI_TAG(old_value));

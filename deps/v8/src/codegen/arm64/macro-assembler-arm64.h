@@ -1605,8 +1605,9 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   void AtomicDecompressTaggedSigned(const Register& destination,
                                     const Register& base, const Register& index,
                                     const Register& temp);
-  void AtomicDecompressTagged(const Register& destination, const Register& base,
-                              const Register& index, const Register& temp);
+  // Returns the pc offset of the atomic load instruction.
+  int AtomicDecompressTagged(const Register& destination, const Register& base,
+                             const Register& index, const Register& temp);
 
   // Restore FP and LR from the values stored in the current frame. This will
   // authenticate the LR when pointer authentication is enabled.
@@ -2027,10 +2028,11 @@ class V8_EXPORT_PRIVATE MacroAssembler : public MacroAssemblerBase {
   inline void AssertFeedbackVector(Register object);
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure);
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id);
 #ifndef V8_ENABLE_LEAPTIERING
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure);
   Condition LoadFeedbackVectorFlagsAndCheckIfNeedsProcessing(
       Register flags, Register feedback_vector, CodeKind current_code_kind);
   void LoadFeedbackVectorFlagsAndJumpIfNeedsProcessing(

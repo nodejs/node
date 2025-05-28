@@ -237,6 +237,12 @@ using SandboxedPointer_t = Address;
 // virtual address space for userspace. As such, limit the sandbox to 128GB (a
 // quarter of the total available address space).
 constexpr size_t kSandboxSizeLog2 = 37;  // 128 GB
+#elif defined(V8_TARGET_OS_IOS)
+// On iOS, we only get 64 GB of usable virtual address space even with the
+// "jumbo" extended virtual addressing entitlement. Limit the sandbox size to
+// 16 GB so that the base address + size for the emulated virtual address space
+// lies within the 64 GB total virtual address space.
+constexpr size_t kSandboxSizeLog2 = 34;  // 16 GB
 #else
 // Everywhere else use a 1TB sandbox.
 constexpr size_t kSandboxSizeLog2 = 40;  // 1 TB
@@ -423,6 +429,19 @@ constexpr size_t kMaxCppHeapPointers = 0;
 // which all subtypes of a given supertype use contiguous tags. This struct can
 // then be used to represent such a type range.
 //
+// As an example, consider the following type hierarchy:
+//
+//          A     F
+//         / \
+//        B   E
+//       / \
+//      C   D
+//
+// A potential type id assignment for range-based type checks is
+// {A: 0, B: 1, C: 2, D: 3, E: 4, F: 5}. With that, the type check for type A
+// would check for the range [A, E], while the check for B would check range
+// [B, D], and for F it would simply check [F, F].
+//
 // In addition, there is an option for performance tweaks: if the size of the
 // type range corresponding to a supertype is a power of two and starts at a
 // power of two (e.g. [0x100, 0x13f]), then the compiler can often optimize
@@ -582,11 +601,7 @@ enum ExternalPointerTag : uint16_t {
 
   kLastMaybeReadOnlyExternalPointerTag = kLastInterceptorInfoExternalPointerTag,
 
-  kWasmInternalFunctionCallTargetTag,
-  kWasmTypeInfoNativeTypeTag,
-  kWasmExportedFunctionDataSignatureTag,
   kWasmStackMemoryTag,
-  kWasmIndirectFunctionTargetTag,
 
   // Foreigns
   kFirstForeignExternalPointerTag,
@@ -620,6 +635,7 @@ enum ExternalPointerTag : uint16_t {
   kIcuLocalizedNumberFormatterTag,
   kIcuPluralRulesTag,
   kIcuCollatorTag,
+  kTemporalInstantTag,
   kDisplayNamesInternalTag,
   kD8WorkerTag,
   kD8ModuleEmbedderDataTag,
@@ -815,6 +831,9 @@ constexpr bool kAllCodeObjectsLiveInTrustedSpace =
 
 // {obj} must be the raw tagged pointer representation of a HeapObject
 // that's guaranteed to never be in ReadOnlySpace.
+V8_DEPRECATE_SOON(
+    "Use GetCurrentIsolate() instead, which is guaranteed to return the same "
+    "isolate since https://crrev.com/c/6458560.")
 V8_EXPORT internal::Isolate* IsolateFromNeverReadOnlySpaceObject(Address obj);
 
 // Returns if we need to throw when an error occurs. This infers the language
@@ -880,8 +899,13 @@ class Internals {
 
   // ExternalPointerTable and TrustedPointerTable layout guarantees.
   static const int kExternalPointerTableBasePointerOffset = 0;
-  static const int kExternalPointerTableSize = 2 * kApiSystemPointerSize;
-  static const int kTrustedPointerTableSize = 2 * kApiSystemPointerSize;
+  static const int kSegmentedTableSegmentPoolSize = 4;
+  static const int kExternalPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
+  static const int kTrustedPointerTableSize =
+      4 * kApiSystemPointerSize +
+      kSegmentedTableSegmentPoolSize * sizeof(uint32_t);
   static const int kTrustedPointerTableBasePointerOffset = 0;
 
   // IsolateData layout guarantees.
@@ -948,8 +972,10 @@ class Internals {
   static const int kIsolateApiCallbackThunkArgumentOffset =
       kIsolateEmbedderDataOffset + kNumIsolateDataSlots * kApiSystemPointerSize;
 #endif  // V8_COMPRESS_POINTERS
-  static const int kIsolateRegexpExecVectorArgumentOffset =
+  static const int kJSDispatchTableOffset =
       kIsolateApiCallbackThunkArgumentOffset + kApiSystemPointerSize;
+  static const int kIsolateRegexpExecVectorArgumentOffset =
+      kJSDispatchTableOffset + kApiSystemPointerSize;
   static const int kContinuationPreservedEmbedderDataOffset =
       kIsolateRegexpExecVectorArgumentOffset + kApiSystemPointerSize;
   static const int kIsolateRootsOffset =
@@ -968,7 +994,7 @@ class Internals {
   V(TrueValue, 0x71)                      \
   V(FalseValue, 0x55)                     \
   V(EmptyString, 0x49)                    \
-  V(TheHoleValue, 0x761)
+  V(TheHoleValue, 0x7d9)
 
   using Tagged_t = uint32_t;
   struct StaticReadOnlyRoot {
@@ -1256,10 +1282,25 @@ class Internals {
 #endif
   }
 
+  V8_DEPRECATE_SOON(
+      "Use GetCurrentIsolateForSandbox() instead, which is guaranteed to "
+      "return the same isolate since https://crrev.com/c/6458560.")
   V8_INLINE static v8::Isolate* GetIsolateForSandbox(Address obj) {
 #ifdef V8_ENABLE_SANDBOX
-    return reinterpret_cast<v8::Isolate*>(
-        internal::IsolateFromNeverReadOnlySpaceObject(obj));
+    return GetCurrentIsolate();
+#else
+    // Not used in non-sandbox mode.
+    return nullptr;
+#endif
+  }
+
+  // Returns v8::Isolate::Current(), but without needing to include the
+  // v8-isolate.h header.
+  V8_EXPORT static v8::Isolate* GetCurrentIsolate();
+
+  V8_INLINE static v8::Isolate* GetCurrentIsolateForSandbox() {
+#ifdef V8_ENABLE_SANDBOX
+    return GetCurrentIsolate();
 #else
     // Not used in non-sandbox mode.
     return nullptr;
@@ -1334,8 +1375,8 @@ void CastCheck<false>::Perform(T* data) {}
 
 template <class T>
 V8_INLINE void PerformCastCheck(T* data) {
-  CastCheck<std::is_base_of<Data, T>::value &&
-            !std::is_same<Data, std::remove_cv_t<T>>::value>::Perform(data);
+  CastCheck<std::is_base_of_v<Data, T> &&
+            !std::is_same_v<Data, std::remove_cv_t<T>>>::Perform(data);
 }
 
 // A base class for backing stores, which is needed due to vagaries of

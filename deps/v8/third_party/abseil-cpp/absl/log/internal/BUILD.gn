@@ -124,6 +124,7 @@ absl_source_set("log_message") {
     "//third_party/abseil-cpp/absl/log:log_sink_registry",
     "//third_party/abseil-cpp/absl/memory",
     "//third_party/abseil-cpp/absl/strings",
+    "//third_party/abseil-cpp/absl/strings:internal",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/time",
     "//third_party/abseil-cpp/absl/types:span",
@@ -134,6 +135,7 @@ absl_source_set("append_truncated") {
   public = [ "append_truncated.h" ]
   deps = [
     "//third_party/abseil-cpp/absl/base:config",
+    "//third_party/abseil-cpp/absl/strings:internal",
     "//third_party/abseil-cpp/absl/strings:string_view",
     "//third_party/abseil-cpp/absl/types:span",
   ]

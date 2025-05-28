@@ -592,14 +592,10 @@ path. Add it with -I<path> to the command line
 // functions.
 // Use like:
 //   V8_NOINLINE V8_PRESERVE_MOST void UnlikelyMethod();
-#if V8_OS_WIN
-# define V8_PRESERVE_MOST
-#else
 #if V8_HAS_ATTRIBUTE_PRESERVE_MOST
 # define V8_PRESERVE_MOST __attribute__((preserve_most))
 #else
 # define V8_PRESERVE_MOST /* NOT SUPPORTED */
-#endif
 #endif
 
 
@@ -909,8 +905,6 @@ V8 shared library set USING_V8_SHARED.
 #define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_ARM64
 #define V8_TARGET_ARCH_64_BIT 1
-#elif V8_TARGET_ARCH_MIPS
-#define V8_TARGET_ARCH_32_BIT 1
 #elif V8_TARGET_ARCH_MIPS64
 #define V8_TARGET_ARCH_64_BIT 1
 #elif V8_TARGET_ARCH_LOONG64

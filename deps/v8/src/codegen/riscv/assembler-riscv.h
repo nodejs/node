@@ -55,6 +55,7 @@
 #include "src/codegen/riscv/extension-riscv-f.h"
 #include "src/codegen/riscv/extension-riscv-m.h"
 #include "src/codegen/riscv/extension-riscv-v.h"
+#include "src/codegen/riscv/extension-riscv-zfh.h"
 #include "src/codegen/riscv/extension-riscv-zicond.h"
 #include "src/codegen/riscv/extension-riscv-zicsr.h"
 #include "src/codegen/riscv/extension-riscv-zifencei.h"
@@ -183,6 +184,7 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
                                     public AssemblerRISCVZifencei,
                                     public AssemblerRISCVZicsr,
                                     public AssemblerRISCVZicond,
+                                    public AssemblerRISCVZfh,
                                     public AssemblerRISCVV {
  public:
   // Create an assembler. Instructions and relocation information are emitted
@@ -729,16 +731,19 @@ class V8_EXPORT_PRIVATE Assembler : public AssemblerBase,
 
   // Block the emission of the trampoline pool before pc_offset.
   void BlockTrampolinePoolBefore(int pc_offset) {
-    if (no_trampoline_pool_before_ < pc_offset)
+    if (no_trampoline_pool_before_ < pc_offset) {
+      DEBUG_PRINTF("\tBlockTrampolinePoolBefore %d\n", pc_offset);
       no_trampoline_pool_before_ = pc_offset;
+    }
   }
 
   void StartBlockTrampolinePool() {
-    DEBUG_PRINTF("\tStartBlockTrampolinePool\n");
+    DEBUG_PRINTF("\tStartBlockTrampolinePool %d\n", pc_offset());
     trampoline_pool_blocked_nesting_++;
   }
 
   void EndBlockTrampolinePool() {
+    DEBUG_PRINTF("\tEndBlockTrampolinePool\n");
     trampoline_pool_blocked_nesting_--;
     DEBUG_PRINTF("\ttrampoline_pool_blocked_nesting:%d\n",
                  trampoline_pool_blocked_nesting_);

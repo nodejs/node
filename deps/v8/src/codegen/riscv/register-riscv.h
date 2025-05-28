@@ -49,6 +49,13 @@ namespace internal {
   V(fs8) V(fs9) V(fs10) V(fs11) V(ft8) V(ft9) V(ft10) V(ft11)
 
 #define FLOAT_REGISTERS DOUBLE_REGISTERS
+
+#define C_CALL_CALLEE_SAVE_REGISTERS \
+  fp, s1, s2, s3, s4, s5, s6, s7, s8, s9, s10, s11
+
+#define C_CALL_CALLEE_SAVE_FP_REGISTERS \
+  fs0, fs1, fs2, fs3, fs4, fs5, fs6, fs7, fs8, fs9, fs10, fs11
+
 #define VECTOR_REGISTERS(V)                               \
   V(v0)  V(v1)  V(v2)  V(v3)  V(v4)  V(v5)  V(v6)  V(v7)  \
   V(v8)  V(v9)  V(v10) V(v11) V(v12) V(v13) V(v14) V(v15) \

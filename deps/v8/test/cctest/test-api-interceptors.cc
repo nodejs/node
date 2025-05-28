@@ -873,7 +873,7 @@ THREADED_TEST(InObjectLiteralDefinitionWithInterceptor) {
 
 THREADED_TEST(InterceptorHasOwnProperty) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -901,7 +901,7 @@ THREADED_TEST(InterceptorHasOwnProperty) {
 
 THREADED_TEST(InterceptorHasOwnPropertyCausingGC) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
   Local<v8::FunctionTemplate> fun_templ = v8::FunctionTemplate::New(isolate);
   Local<v8::ObjectTemplate> instance_templ = fun_templ->InstanceTemplate();
@@ -1434,7 +1434,7 @@ THREADED_TEST(InterceptorLoadGlobalICGlobalWithInterceptor) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      global_proxy->GetIsolate());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   v8::Local<Value> value = CompileRun(
@@ -1498,7 +1498,7 @@ THREADED_TEST(InterceptorLoadICGlobalWithInterceptor) {
   CHECK(IsJSGlobalProxy(*global_proxy));
   i::DirectHandle<i::JSGlobalObject> global(
       i::Cast<i::JSGlobalObject>(global_proxy->map()->prototype()),
-      global_proxy->GetIsolate());
+      CcTest::i_isolate());
   CHECK(global->map()->has_named_interceptor());
 
   ExpectInt32(
@@ -2626,13 +2626,13 @@ void CheckPropertyDefinerCallbackInDefineNamedOwnIC(Local<Context> context,
 THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
   {
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 
@@ -2640,7 +2640,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), true);
   }
 
@@ -2648,7 +2648,7 @@ THREADED_TEST(PropertyDefinerCallbackInDefineNamedOwnIC) {
     i::v8_flags.lazy_feedback_allocation = false;
     i::FlagList::EnforceFlagImplications();
     LocalContext env;
-    v8::HandleScope scope(env->GetIsolate());
+    v8::HandleScope scope(env.isolate());
     CheckPropertyDefinerCallbackInDefineNamedOwnIC(env.local(), false);
   }
 }
@@ -2762,7 +2762,7 @@ THREADED_TEST(IndexedPropertyHandlerGetter) {
 
 THREADED_TEST(PropertyHandlerInPrototype) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -2818,7 +2818,7 @@ THREADED_TEST(PropertyHandlerInPrototype) {
 
 TEST(PropertyHandlerInPrototypeWithDefine) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
 
   v8::Local<v8::FunctionTemplate> templ = v8::FunctionTemplate::New(isolate);
@@ -3302,7 +3302,7 @@ THREADED_TEST(NoSideEffectPropertyHandler) {
 
 THREADED_TEST(HiddenPropertiesWithInterceptors) {
   LocalContext context;
-  v8::Isolate* isolate = context->GetIsolate();
+  v8::Isolate* isolate = context.isolate();
   v8::HandleScope scope(isolate);
 
   interceptor_for_hidden_properties_called = false;
@@ -3612,8 +3612,9 @@ void SloppyArgsIndexedPropertyEnumerator(
   // Have to populate the handle manually, as it's not Cast-able.
   i::DirectHandle<i::JSReceiver> o =
       v8::Utils::OpenDirectHandle<Object, i::JSReceiver>(result);
-  i::DirectHandle<i::JSArray> array(i::UncheckedCast<i::JSArray>(*o),
-                                    o->GetIsolate());
+  i::DirectHandle<i::JSArray> array(
+      i::UncheckedCast<i::JSArray>(*o),
+      reinterpret_cast<i::Isolate*>(info.GetIsolate()));
   info.GetReturnValue().Set(v8::Utils::ToLocal(array));
 }
 
@@ -5106,8 +5107,8 @@ THREADED_TEST(Regress256330) {
   if (!i::v8_flags.turbofan) return;
   i::v8_flags.allow_natives_syntax = true;
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, InterceptorGetter, InterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5234,8 +5235,8 @@ THREADED_TEST(OptimizedInterceptorFieldWrite) {
 
 THREADED_TEST(Regress149912) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -5246,8 +5247,8 @@ THREADED_TEST(Regress149912) {
 
 THREADED_TEST(Regress625155) {
   LocalContext context;
-  v8::HandleScope scope(context->GetIsolate());
-  Local<FunctionTemplate> templ = FunctionTemplate::New(context->GetIsolate());
+  v8::HandleScope scope(context.isolate());
+  Local<FunctionTemplate> templ = FunctionTemplate::New(context.isolate());
   AddInterceptor(templ, EmptyInterceptorGetter, EmptyInterceptorSetter);
   context->Global()
       ->Set(context.local(), v8_str("Bug"),
@@ -6513,7 +6514,7 @@ v8::Intercepted CheckReceiver(Local<Name> name,
 
 TEST(Regress609134Interceptor) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope scope(isolate);
   auto fun_templ = v8::FunctionTemplate::New(isolate);
   fun_templ->InstanceTemplate()->SetHandler(
@@ -6565,7 +6566,7 @@ v8::Intercepted Regress42204611_Definer(
 // Regression test for crbug.com/42204611
 THREADED_TEST(Regress42204611) {
   LocalContext env;
-  v8::Isolate* isolate = env->GetIsolate();
+  v8::Isolate* isolate = env.isolate();
   v8::HandleScope handle_scope(isolate);
 
   std::vector<std::string> calls;

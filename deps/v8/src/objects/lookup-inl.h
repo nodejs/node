@@ -143,8 +143,7 @@ PropertyKey::PropertyKey(Isolate* isolate, double index) {
   } else {
     index_ = LookupIterator::kInvalidIndex;
     name_ = isolate->factory()->InternalizeString(
-        isolate->factory()->HeapNumberToString(
-            isolate->factory()->NewHeapNumber(index), index));
+        isolate->factory()->DoubleToString(index));
   }
 #else
   index_ = static_cast<size_t>(index);
@@ -343,7 +342,7 @@ void LookupIterator::UpdateProtector(Isolate* isolate,
       *name == roots.iterator_symbol() || *name == roots.species_symbol() ||
       *name == roots.match_all_symbol() || *name == roots.replace_symbol() ||
       *name == roots.split_symbol() || *name == roots.to_primitive_symbol() ||
-      *name == roots.valueOf_string() || *name == roots.length_string();
+      *name == roots.valueOf_string();
   DCHECK_EQ(maybe_protector, debug_maybe_protector);
 #endif  // DEBUG
 

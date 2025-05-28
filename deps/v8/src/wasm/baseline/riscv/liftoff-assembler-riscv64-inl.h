@@ -631,8 +631,40 @@ void LiftoffAssembler::AtomicLoad(LiftoffRegister dst, Register src_addr,
       ld(dst.gp(), src_reg, 0);
       sync();
       return;
+    case LoadType::kI32Load8S:
+      lb(dst.gp(), src_reg, 0);
+      sync();
+      return;
+    case LoadType::kI32Load16S:
+      lh(dst.gp(), src_reg, 0);
+      sync();
+      return;
     default:
       UNREACHABLE();
+  }
+}
+
+void LiftoffAssembler::AtomicLoadTaggedPointer(Register dst, Register src_addr,
+                                               Register offset_reg,
+                                               int32_t offset_imm,
+                                               AtomicMemoryOrder memory_order,
+                                               uint32_t* protected_load_pc,
+                                               bool needs_shift) {
+  BlockTrampolinePoolScope block_trampoline_pool(this);
+  MemOperand src_op = liftoff::GetMemOp(this, src_addr, offset_reg, offset_imm);
+  uint32_t pc_offset_of_load = 0;
+#if V8_COMPRESS_POINTERS
+  Lw(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  sync();
+  DecompressTagged(dst, dst);
+#else
+  LoadWord(dst, src_op);
+  pc_offset_of_load = pc_offset() - kInstrSize;
+  sync();
+#endif
+  if (protected_load_pc != nullptr) {
+    *protected_load_pc = pc_offset_of_load;
   }
 }
 
@@ -666,6 +698,42 @@ void LiftoffAssembler::AtomicStore(Register dst_addr, Register offset_reg,
     default:
       UNREACHABLE();
   }
+}
+
+void LiftoffAssembler::AtomicStoreTaggedPointer(
+    Register dst_addr, Register offset_reg, int32_t offset_imm, Register src,
+    LiftoffRegList pinned, AtomicMemoryOrder memory_order,
+    uint32_t* protected_store_pc) {
+  UseScratchRegisterScope temps(this);
+  Register dst_reg = liftoff::CalculateActualAddress(this, temps, dst_addr,
+                                                     offset_reg, offset_imm);
+  auto trapper = [protected_store_pc](int offset) {
+    if (protected_store_pc) *protected_store_pc = static_cast<uint32_t>(offset);
+  };
+
+  if (COMPRESS_POINTERS_BOOL) {
+    Sw(src, MemOperand(dst_reg, 0), trapper);
+  } else {
+    Sd(src, MemOperand(dst_reg, 0), trapper);
+  }
+  sync();
+  if (v8_flags.disable_write_barriers) return;
+  // The write barrier.
+  Label exit;
+  CheckPageFlag(dst_addr, MemoryChunk::kPointersFromHereAreInterestingMask,
+                kZero, &exit);
+  JumpIfSmi(src, &exit);
+  CheckPageFlag(src, MemoryChunk::kPointersToHereAreInterestingMask, eq, &exit);
+  Operand offset_op =
+      offset_reg.is_valid() ? Operand(offset_reg) : Operand(offset_imm);
+  if (offset_reg.is_valid() && offset_imm) {
+    Register effective_offset = kScratchReg;
+    AddWord(effective_offset, offset_reg, offset_imm);
+    offset_op = Operand(effective_offset);
+  }
+  CallRecordWriteStubSaveRegisters(dst_addr, offset_op, SaveFPRegsMode::kSave,
+                                   StubCallMode::kCallWasmRuntimeStub);
+  bind(&exit);
 }
 
 void LiftoffAssembler::AtomicAdd(Register dst_addr, Register offset_reg,

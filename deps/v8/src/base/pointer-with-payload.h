@@ -100,7 +100,7 @@ class PointerWithPayload {
 
  private:
   static constexpr int kAvailableBits = PointerWithPayloadTraits<
-      typename std::remove_const<PointerType>::type>::kAvailableBits;
+      std::remove_const_t<PointerType>>::kAvailableBits;
   static_assert(
       kAvailableBits >= NumPayloadBits,
       "Ptr does not have sufficient alignment for the selected amount of "

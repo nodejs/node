@@ -64,6 +64,26 @@ InspectorTest.runAsyncTestSuite([
     await Protocol.Debugger.resume();
   },
 
+  async function testStepOver() {
+    Protocol.Debugger.pause();
+    let fin = Protocol.Runtime.evaluate({
+      expression: 'testFunction()//# sourceURL=expr.js'}).then(() => false);
+    let result;
+    while (result = await Promise.race([fin, Protocol.Debugger.oncePaused()])) {
+      let { params: { callFrames } } = result;
+      if (callFrames.length === 1) {
+        Protocol.Debugger.stepInto();
+        continue;
+      }
+      session.logCallFrames(callFrames);
+      session.logSourceLocation(callFrames[0].location);
+      Protocol.Debugger.stepOver();
+    }
+    Protocol.Runtime.evaluate({expression: '42'});
+    await Protocol.Debugger.oncePaused();
+    await Protocol.Debugger.resume();
+  },
+
   async function testStepIntoAfterBreakpoint() {
     const {result: {breakpointId}} = await Protocol.Debugger.setBreakpointByUrl({
       lineNumber: 25, columnNumber: 11, url: 'test.js'

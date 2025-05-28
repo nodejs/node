@@ -346,7 +346,7 @@ class JSTypedArray
   ExternalArrayType type();
   V8_EXPORT_PRIVATE size_t element_size() const;
 
-  V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer();
+  V8_EXPORT_PRIVATE Handle<JSArrayBuffer> GetBuffer(Isolate* isolate);
 
   // The `DataPtr` is `base_ptr + external_pointer`, and `base_ptr` is nullptr
   // for off-heap typed arrays.

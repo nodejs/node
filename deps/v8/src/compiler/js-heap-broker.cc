@@ -686,7 +686,14 @@ ProcessedFeedback const& JSHeapBroker::ReadFeedbackForCall(
   {
     Tagged<MaybeObject> maybe_target = nexus.GetFeedback();
     Tagged<HeapObject> target_object;
-    if (maybe_target.GetHeapObject(&target_object)) {
+    if (maybe_target.GetHeapObject(&target_object) &&
+        (!IsJSFunction(target_object) ||
+         // Eval mutates the context on the function, so block specializing for
+         // these functions to avoid accidentally inlining the context as a
+         // constant.
+         Cast<JSFunction>(target_object)
+                 ->shared()
+                 ->function_literal_id(kRelaxedLoad) != 0)) {
       target_ref = TryMakeRef(this, target_object);
     }
   }

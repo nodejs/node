@@ -194,7 +194,7 @@ class ShellArrayBufferAllocator : public ArrayBufferAllocatorBase {
     v8::PageAllocator* page_allocator = GetPageAllocator();
     size_t page_size = page_allocator->AllocatePageSize();
     size_t allocated = RoundUp(length, page_size);
-    return i::AllocatePages(page_allocator, nullptr, allocated, page_size,
+    return i::AllocatePages(page_allocator, allocated, page_size,
                             PageAllocator::kReadWrite);
   }
 
@@ -678,7 +678,7 @@ template <>
 MaybeLocal<Module> Compile(Local<Context> context,
                            ScriptCompiler::Source* source,
                            ScriptCompiler::CompileOptions options) {
-  return ScriptCompiler::CompileModule(context->GetIsolate(), source, options);
+  return ScriptCompiler::CompileModule(Isolate::GetCurrent(), source, options);
 }
 
 }  // namespace
@@ -783,7 +783,7 @@ class ModuleEmbedderData {
   static ModuleType ModuleTypeFromImportSpecifierAndAttributes(
       Local<Context> context, const std::string& specifier,
       Local<FixedArray> import_attributes, bool hasPositions) {
-    Isolate* isolate = context->GetIsolate();
+    Isolate* isolate = Isolate::GetCurrent();
     const int kV8AssertionEntrySize = hasPositions ? 3 : 2;
     for (int i = 0; i < import_attributes->Length();
          i += kV8AssertionEntrySize) {
@@ -833,12 +833,13 @@ enum { kModuleEmbedderDataIndex, kInspectorClientIndex };
 
 std::shared_ptr<ModuleEmbedderData> InitializeModuleEmbedderData(
     Local<Context> context) {
-  i::Isolate* i_isolate = reinterpret_cast<i::Isolate*>(context->GetIsolate());
+  i::Isolate* i_isolate = i::Isolate::Current();
   const size_t kModuleEmbedderDataEstimate = 4 * 1024;  // module map.
   i::DirectHandle<i::Managed<ModuleEmbedderData>> module_data_managed =
       i::Managed<ModuleEmbedderData>::From(
           i_isolate, kModuleEmbedderDataEstimate,
-          std::make_shared<ModuleEmbedderData>(context->GetIsolate()));
+          std::make_shared<ModuleEmbedderData>(
+              reinterpret_cast<v8::Isolate*>(i_isolate)));
   v8::Local<v8::Value> module_data = Utils::ToLocal(module_data_managed);
   context->SetEmbedderData(kModuleEmbedderDataIndex, module_data);
   return module_data_managed->get();
@@ -1141,7 +1142,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
                                          Local<String> specifier,
                                          Local<FixedArray> import_attributes,
                                          Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
   std::string referrer_specifier = module_data->GetModuleSpecifier(referrer);
@@ -1158,7 +1159,7 @@ MaybeLocal<Module> ResolveModuleCallback(Local<Context> context,
 MaybeLocal<Object> ResolveModuleSourceCallback(
     Local<Context> context, Local<String> specifier,
     Local<FixedArray> import_attributes, Local<Module> referrer) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
   std::string referrer_specifier = module_data->GetModuleSpecifier(referrer);
@@ -1180,7 +1181,7 @@ MaybeLocal<Object> Shell::FetchModuleSource(Local<Module> referrer,
                                             Local<Context> context,
                                             const std::string& module_specifier,
                                             ModuleType module_type) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   DCHECK(IsAbsolutePath(module_specifier));
   auto file = ReadFileData(isolate, module_specifier.c_str());
 
@@ -1234,7 +1235,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
                                           Local<Context> context,
                                           const std::string& module_specifier,
                                           ModuleType module_type) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   const bool is_data_url = module_specifier.starts_with(kDataURLPrefix);
   MaybeLocal<String> source_text;
   if (is_data_url) {
@@ -1366,7 +1367,7 @@ MaybeLocal<Module> Shell::FetchModuleTree(Local<Module> referrer,
 
 MaybeLocal<Value> Shell::JSONModuleEvaluationSteps(Local<Context> context,
                                                    Local<Module> module) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   std::shared_ptr<ModuleEmbedderData> module_data =
       GetModuleDataFromContext(context);
@@ -1481,7 +1482,7 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
     Local<Context> context, Local<Data> host_defined_options,
     Local<Value> resource_name, Local<String> specifier,
     ModuleImportPhase phase, Local<FixedArray> import_attributes) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
 
   MaybeLocal<Promise::Resolver> maybe_resolver =
       Promise::Resolver::New(context);
@@ -1508,7 +1509,7 @@ MaybeLocal<Promise> Shell::HostImportModuleWithPhaseDynamically(
 void Shell::HostInitializeImportMetaObject(Local<Context> context,
                                            Local<Module> module,
                                            Local<Object> meta) {
-  Isolate* isolate = context->GetIsolate();
+  Isolate* isolate = Isolate::GetCurrent();
   HandleScope handle_scope(isolate);
 
   std::shared_ptr<ModuleEmbedderData> module_data =
@@ -1524,7 +1525,7 @@ void Shell::HostInitializeImportMetaObject(Local<Context> context,
 
 MaybeLocal<Context> Shell::HostCreateShadowRealmContext(
     Local<Context> initiator_context) {
-  Local<Context> context = v8::Context::New(initiator_context->GetIsolate());
+  Local<Context> context = v8::Context::New(Isolate::GetCurrent());
   std::shared_ptr<ModuleEmbedderData> shadow_realm_data =
       InitializeModuleEmbedderData(context);
   std::shared_ptr<ModuleEmbedderData> initiator_data =
@@ -1894,7 +1895,7 @@ PerIsolateData::~PerIsolateData() {
 void PerIsolateData::RemoveUnhandledPromise(Local<Promise> promise) {
   if (ignore_unhandled_promises_) return;
   // Remove handled promises from the list
-  DCHECK_EQ(promise->GetIsolate(), isolate_);
+  DCHECK_EQ(Isolate::GetCurrent(), isolate_);
   for (auto it = unhandled_promises_.begin(); it != unhandled_promises_.end();
        ++it) {
     v8::Local<v8::Promise> unhandled_promise = std::get<0>(*it).Get(isolate_);
@@ -1908,7 +1909,7 @@ void PerIsolateData::AddUnhandledPromise(Local<Promise> promise,
                                          Local<Message> message,
                                          Local<Value> exception) {
   if (ignore_unhandled_promises_) return;
-  DCHECK_EQ(promise->GetIsolate(), isolate_);
+  DCHECK_EQ(Isolate::GetCurrent(), isolate_);
   unhandled_promises_.emplace_back(v8::Global<v8::Promise>(isolate_, promise),
                                    v8::Global<v8::Message>(isolate_, message),
                                    v8::Global<v8::Value>(isolate_, exception));
@@ -3124,8 +3125,14 @@ void Shell::SetTimeout(const v8::FunctionCallbackInfo<v8::Value>& info) {
 #ifdef V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 void Shell::GetContinuationPreservedEmbedderData(
     const v8::FunctionCallbackInfo<v8::Value>& info) {
-  info.GetReturnValue().Set(
-      info.GetIsolate()->GetContinuationPreservedEmbedderData());
+  Local<Data> data =
+      info.GetIsolate()->GetContinuationPreservedEmbedderDataV2();
+  DCHECK(!data.IsEmpty());
+  if (!data->IsValue()) {
+    data = Undefined(info.GetIsolate());
+  }
+  DCHECK(!data.IsEmpty());
+  info.GetReturnValue().Set(Local<Value>::Cast(data));
 }
 #endif  // V8_ENABLE_CONTINUATION_PRESERVED_EMBEDDER_DATA
 
@@ -4199,6 +4206,7 @@ Local<ObjectTemplate> Shell::CreateD8Template(Isolate* isolate) {
 }
 
 static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
+  Isolate* isolate = Isolate::GetCurrent();
   switch (message->ErrorLevel()) {
     case v8::Isolate::kMessageWarning:
     case v8::Isolate::kMessageLog:
@@ -4208,7 +4216,7 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
     }
 
     case v8::Isolate::kMessageError: {
-      Shell::ReportException(message->GetIsolate(), message, error);
+      Shell::ReportException(isolate, message, error);
       return;
     }
 
@@ -4220,7 +4228,6 @@ static void PrintMessageCallback(Local<Message> message, Local<Value> error) {
   auto ToCString = [](const v8::String::Utf8Value& value) {
     return *value ? *value : "<string conversion failed>";
   };
-  Isolate* isolate = message->GetIsolate();
   v8::String::Utf8Value msg(isolate, message->Get());
   const char* msg_string = ToCString(msg);
   // Print (filename):(line number): (message).
@@ -4240,7 +4247,7 @@ void Shell::PromiseRejectCallback(v8::PromiseRejectMessage data) {
     return;
   }
   v8::Local<v8::Promise> promise = data.GetPromise();
-  v8::Isolate* isolate = promise->GetIsolate();
+  v8::Isolate* isolate = v8::Isolate::GetCurrent();
   PerIsolateData* isolate_data = PerIsolateData::Get(isolate);
 
   if (data.GetEvent() == v8::kPromiseHandlerAddedAfterReject) {
@@ -4807,7 +4814,7 @@ void Shell::RunShell(Isolate* isolate) {
 class InspectorFrontend final : public v8_inspector::V8Inspector::Channel {
  public:
   explicit InspectorFrontend(Local<Context> context) {
-    isolate_ = context->GetIsolate();
+    isolate_ = Isolate::GetCurrent();
     context_.Reset(isolate_, context);
   }
   ~InspectorFrontend() override = default;
@@ -6658,6 +6665,7 @@ int Shell::Main(int argc, char* argv[]) {
 
   Shell::counter_map_ = new CounterMap();
   if (options.dump_counters || options.dump_counters_nvp ||
+      i::v8_flags.trace_number_string_cache ||
       i::TracingFlags::is_gc_stats_enabled()) {
     create_params.counter_lookup_callback = LookupCounter;
     create_params.create_histogram_callback = CreateHistogram;

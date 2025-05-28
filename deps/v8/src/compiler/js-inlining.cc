@@ -692,7 +692,7 @@ Reduction JSInliner::ReduceJSCall(Node* node) {
       MakeRef(broker(), info_->shared_info());
 
   SharedFunctionInfo::Inlineability inlineability =
-      shared_info->GetInlineability(broker());
+      shared_info->GetInlineability(CodeKind::TURBOFAN_JS, broker());
   if (inlineability != SharedFunctionInfo::kIsInlineable) {
     // The function is no longer inlineable. The only way this can happen is if
     // the function had its optimization disabled in the meantime, e.g. because

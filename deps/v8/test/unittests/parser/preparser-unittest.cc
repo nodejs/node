@@ -51,8 +51,7 @@ TEST_F(PreParserTest, LazyFunctionLength) {
 
   DirectHandle<JSFunction> lazy_function = RunJS<JSFunction>(script_source);
 
-  DirectHandle<SharedFunctionInfo> shared(lazy_function->shared(),
-                                          lazy_function->GetIsolate());
+  DirectHandle<SharedFunctionInfo> shared(lazy_function->shared(), i_isolate());
   CHECK_EQ(3, shared->length());
 
   DirectHandle<Smi> length = RunJS<Smi>("lazy.length");

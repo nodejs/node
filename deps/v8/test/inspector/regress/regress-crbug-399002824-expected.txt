@@ -1,0 +1,5 @@
+Don't crash when pausing on the iterator ".next" call
+  function crashMe() {
+    for (const #e of iter()) {
+      () => e;   // Context allocate e.
+

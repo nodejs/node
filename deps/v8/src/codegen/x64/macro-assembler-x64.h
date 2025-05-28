@@ -1068,12 +1068,13 @@ class V8_EXPORT_PRIVATE MacroAssembler
                           Register scratch) NOOP_UNLESS_DEBUG_CODE;
   void AssertFeedbackVector(Register object,
                             Register scratch) NOOP_UNLESS_DEBUG_CODE;
-  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
-                                           Register closure, Register scratch1,
-                                           Register slot_address);
+  // TODO(olivf): Rename to GenerateTailCallToUpdatedFunction.
   void GenerateTailCallToReturnedCode(Runtime::FunctionId function_id,
                                       JumpMode jump_mode = JumpMode::kJump);
 #ifndef V8_ENABLE_LEAPTIERING
+  void ReplaceClosureCodeWithOptimizedCode(Register optimized_code,
+                                           Register closure, Register scratch1,
+                                           Register slot_address);
   Condition CheckFeedbackVectorFlagsNeedsProcessing(Register feedback_vector,
                                                     CodeKind current_code_kind);
   void CheckFeedbackVectorFlagsAndJumpIfNeedsProcessing(

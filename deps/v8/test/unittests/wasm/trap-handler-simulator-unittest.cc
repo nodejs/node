@@ -86,8 +86,7 @@ TEST_F(SimulatorTrapHandlerTest, ProbeMemoryFailWhileInWasm) {
 
 namespace {
 uintptr_t v8_landing_pad() {
-  EmbeddedData embedded_data = EmbeddedData::FromBlob();
-  return embedded_data.InstructionStartOf(Builtin::kWasmTrapHandlerLandingPad);
+  return Builtins::EmbeddedEntryOf(Builtin::kWasmTrapHandlerLandingPad);
 }
 }  // namespace
 

@@ -142,6 +142,8 @@ let kWasmStringRef = -0x19;
 let kWasmStringViewWtf8 = -0x1a;
 let kWasmStringViewWtf16 = -0x20;
 let kWasmStringViewIter = -0x1f;
+const kWasmContRef = -0x18;
+const kWasmNullContRef = -0x0b;
 
 // Use the positive-byte versions inside function bodies.
 let kLeb128Mask = 0x7f;
@@ -162,6 +164,8 @@ let kStringRefCode = kWasmStringRef & kLeb128Mask;
 let kStringViewWtf8Code = kWasmStringViewWtf8 & kLeb128Mask;
 let kStringViewWtf16Code = kWasmStringViewWtf16 & kLeb128Mask;
 let kStringViewIterCode = kWasmStringViewIter & kLeb128Mask;
+const kContRefCode = kWasmContRef & kLeb128Mask;
+const kNullContRefCode = kWasmNullContRef & kLeb128Mask;
 
 let kWasmRefNull = 0x63;
 let kWasmRef = 0x64;
@@ -206,6 +210,9 @@ let kMemoryZero = 0;
 let kSegmentZero = 0;
 
 let kExceptionAttribute = 0;
+
+const kAtomicSeqCst = 0;
+const kAtomicAcqRel = 1;
 
 // Useful signatures
 let kSig_i_i = makeSig([kWasmI32], [kWasmI32]);
@@ -712,6 +719,26 @@ let kExprI64AtomicCompareExchange = 0x49
 let kExprI64AtomicCompareExchange8U = 0x4c;
 let kExprI64AtomicCompareExchange16U = 0x4d;
 let kExprI64AtomicCompareExchange32U = 0x4e;
+
+// Atomic GC opcodes (shared-everything-threads).
+const kExprStructAtomicGet = 0x5c;
+const kExprStructAtomicGetS = 0x5d;
+const kExprStructAtomicGetU = 0x5e;
+const kExprStructAtomicSet = 0x5f;
+const kExprStructAtomicAdd = 0x60;
+const kExprStructAtomicSub = 0x61;
+const kExprStructAtomicAnd = 0x62;
+const kExprStructAtomicOr = 0x63;
+const kExprStructAtomicXor = 0x64;
+const kExprArrayAtomicGet = 0x67;
+const kExprArrayAtomicGetS = 0x68;
+const kExprArrayAtomicGetU = 0x69;
+const kExprArrayAtomicSet = 0x6a;
+const kExprArrayAtomicAdd = 0x6b;
+const kExprArrayAtomicSub = 0x6c;
+const kExprArrayAtomicAnd = 0x6d;
+const kExprArrayAtomicOr = 0x6e;
+const kExprArrayAtomicXor = 0x6f;
 
 // Simd opcodes.
 let kExprS128LoadMem = 0x00;
@@ -2414,6 +2441,17 @@ function wasmS128Const(f) {
   return result;
 }
 
+let wasmEncodeHeapType = function(type) {
+  let result = wasmSignedLeb(type.heap_type, kMaxVarInt32Size);
+  if (type.is_shared) {
+    result = [kWasmSharedTypeForm].concat(result);
+  }
+  if (type.is_exact) {
+    result = [kWasmExact].concat(result);
+  }
+  return result;
+};
+
 let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
 (function() {
   return [
@@ -2426,21 +2464,14 @@ let [wasmBrOnCast, wasmBrOnCastFail, wasmBrOnCastDesc, wasmBrOnCastDescFail] =
     (labelIdx, sourceType, targetType) =>
       wasmBrOnCastImpl(labelIdx, sourceType, targetType, kExprBrOnCastDescFail),
   ];
-  function EncodeHeapType(type) {
-    let result = wasmSignedLeb(type.heap_type, kMaxVarInt32Size);
-    if (type.is_exact) {
-      result = [kWasmExact].concat(result);
-    }
-    return result;
-  }
   function wasmBrOnCastImpl(labelIdx, sourceType, targetType, opcode) {
     labelIdx = wasmUnsignedLeb(labelIdx, kMaxVarInt32Size);
     let srcIsNullable = sourceType.opcode == kWasmRefNull;
     let tgtIsNullable = targetType.opcode == kWasmRefNull;
     flags = (tgtIsNullable << 1) + srcIsNullable;
     return [
-      kGCPrefix, opcode, flags, ...labelIdx, ...EncodeHeapType(sourceType),
-      ...EncodeHeapType(targetType)
+      kGCPrefix, opcode, flags, ...labelIdx, ...wasmEncodeHeapType(sourceType),
+      ...wasmEncodeHeapType(targetType)
     ];
   }
 })();

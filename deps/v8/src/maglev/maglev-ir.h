@@ -6,6 +6,7 @@
 #define V8_MAGLEV_MAGLEV_IR_H_
 
 #include <optional>
+#include <type_traits>
 
 #include "src/base/bit-field.h"
 #include "src/base/bits.h"
@@ -47,6 +48,12 @@
 #include "src/sandbox/js-dispatch-table.h"
 #include "src/utils/utils.h"
 #include "src/zone/zone.h"
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+#define IF_UD(Macro, ...) Macro(__VA_ARGS__)
+#else
+#define IF_UD(Macro, ...)
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 namespace v8 {
 namespace internal {
@@ -147,9 +154,10 @@ class ExceptionHandlerInfo;
   V(TaggedIndexConstant)            \
   V(TrustedConstant)
 
-#define INLINE_BUILTIN_NODE_LIST(V) \
-  V(BuiltinStringFromCharCode)      \
-  V(BuiltinStringPrototypeCharCodeOrCodePointAt)
+#define INLINE_BUILTIN_NODE_LIST(V)              \
+  V(BuiltinStringFromCharCode)                   \
+  V(BuiltinStringPrototypeCharCodeOrCodePointAt) \
+  V(BuiltinSeqOneByteStringCharCodeAt)
 
 #define TURBOLEV_VALUE_NODE_LIST(V) \
   V(CreateFastArrayElements)        \
@@ -203,8 +211,8 @@ class ExceptionHandlerInfo;
   V(InitialValue)                                   \
   V(LoadTaggedField)                                \
   V(LoadTaggedFieldForProperty)                     \
+  V(LoadTaggedFieldForContextSlotNoCells)           \
   V(LoadTaggedFieldForContextSlot)                  \
-  V(LoadTaggedFieldForScriptContextSlot)            \
   V(LoadDoubleField)                                \
   V(LoadFloat64)                                    \
   V(LoadInt32)                                      \
@@ -270,6 +278,9 @@ class ExceptionHandlerInfo;
   V(CheckedNumberToUint8Clamped)                    \
   V(Int32ToNumber)                                  \
   V(Uint32ToNumber)                                 \
+  V(Int32CountLeadingZeros)                         \
+  V(SmiCountLeadingZeros)                           \
+  V(Float64CountLeadingZeros)                       \
   V(IntPtrToBoolean)                                \
   V(IntPtrToNumber)                                 \
   V(Float64ToTagged)                                \
@@ -282,6 +293,8 @@ class ExceptionHandlerInfo;
   V(CheckedNumberOrOddballToHoleyFloat64)           \
   V(CheckedHoleyFloat64ToFloat64)                   \
   V(HoleyFloat64ToMaybeNanFloat64)                  \
+  IF_UD(V, Float64ToHoleyFloat64)                   \
+  IF_UD(V, HoleyFloat64ToFloat64OrUndefined)        \
   V(HoleyFloat64IsHole)                             \
   V(LogicalNot)                                     \
   V(SetPendingMessage)                              \
@@ -289,8 +302,8 @@ class ExceptionHandlerInfo;
   V(StringEqual)                                    \
   V(StringLength)                                   \
   V(StringConcat)                                   \
+  V(SeqOneByteStringAt)                             \
   V(ConsStringMap)                                  \
-  V(UnwrapThinString)                               \
   V(UnwrapStringWrapper)                            \
   V(ToBoolean)                                      \
   V(ToBooleanLogicalNot)                            \
@@ -345,6 +358,7 @@ class ExceptionHandlerInfo;
   V(CheckNumber)                              \
   V(CheckSmi)                                 \
   V(CheckString)                              \
+  V(CheckSeqOneByteString)                    \
   V(CheckStringOrStringWrapper)               \
   V(CheckSymbol)                              \
   V(CheckValue)                               \
@@ -619,19 +633,40 @@ inline constexpr bool IsZeroExtendedRepresentation(ValueRepresentation repr) {
 // TODO(olivf): Rename Unknown to Any.
 
 /* Every object should belong to exactly one of these.*/
-#define LEAF_NODE_TYPE_LIST(V)       \
-  V(Smi, (1 << 0))                   \
-  V(HeapNumber, (1 << 1))            \
-  V(NullOrUndefined, (1 << 2))       \
-  V(Boolean, (1 << 3))               \
-  V(Symbol, (1 << 4))                \
-  V(InternalizedString, (1 << 5))    \
-  V(NonInternalizedString, (1 << 6)) \
-  V(StringWrapper, (1 << 7))         \
-  V(JSArray, (1 << 8))               \
-  V(Callable, (1 << 9))              \
-  V(OtherJSReceiver, (1 << 10))      \
-  V(OtherHeapObject, (1 << 11))
+#define LEAF_NODE_TYPE_LIST(V)                      \
+  V(Smi, (1 << 0))                                  \
+  V(HeapNumber, (1 << 1))                           \
+  V(Null, (1 << 2))                                 \
+  V(Undefined, (1 << 3))                            \
+  V(Boolean, (1 << 4))                              \
+  V(Symbol, (1 << 5))                               \
+  /* String Venn diagram:                        */ \
+  /* ┌String───────────────────────────────────┐ */ \
+  /* │                            OtherString  │ */ \
+  /* │┌InternalizedString───┐                  │ */ \
+  /* ││                     │                  │ */ \
+  /* ││OtherInternalized    │                  │ */ \
+  /* ││String               │                  │ */ \
+  /* │├─────────────────────┼─SeqOneByteString┐│ */ \
+  /* ││                     │                 ││ */ \
+  /* ││OtherSeqInternalized │ OtherSeqOneByte ││ */ \
+  /* ││OneByteString        │ String          ││ */ \
+  /* │├──────────────────┐  │                 ││ */ \
+  /* ││ROSeqInternalized │  │                 ││ */ \
+  /* ││OneByteString     │  │                 ││ */ \
+  /* │└──────────────────┴──┴─────────────────┘│ */ \
+  /* └─────────────────────────────────────────┘ */ \
+  V(ROSeqInternalizedOneByteString, (1 << 6))       \
+  V(OtherSeqInternalizedOneByteString, (1 << 7))    \
+  V(OtherInternalizedString, (1 << 8))              \
+  V(OtherSeqOneByteString, (1 << 9))                \
+  V(OtherString, (1 << 10))                         \
+                                                    \
+  V(StringWrapper, (1 << 11))                       \
+  V(JSArray, (1 << 12))                             \
+  V(Callable, (1 << 13))                            \
+  V(OtherJSReceiver, (1 << 14))                     \
+  V(OtherHeapObject, (1 << 15))
 
 #define COUNT(...) +1
 static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
@@ -640,11 +675,19 @@ static constexpr int kNumberOfLeafNodeTypes = 0 LEAF_NODE_TYPE_LIST(COUNT);
 #define COMBINED_NODE_TYPE_LIST(V)                                        \
   /* A value which has all the above bits set */                          \
   V(Unknown, ((1 << kNumberOfLeafNodeTypes) - 1))                         \
+  V(NullOrUndefined, kNull | kUndefined)                                  \
   V(Oddball, kNullOrUndefined | kBoolean)                                 \
   V(Number, kSmi | kHeapNumber)                                           \
+  V(NumberOrUndefined, kNumber | kUndefined)                              \
   V(NumberOrBoolean, kNumber | kBoolean)                                  \
   V(NumberOrOddball, kNumber | kOddball)                                  \
-  V(String, kNonInternalizedString | kInternalizedString)                 \
+  V(InternalizedString, kROSeqInternalizedOneByteString |                 \
+                            kOtherSeqInternalizedOneByteString |          \
+                            kOtherInternalizedString)                     \
+  V(SeqOneByteString, kROSeqInternalizedOneByteString |                   \
+                          kOtherSeqInternalizedOneByteString |            \
+                          kOtherSeqOneByteString)                         \
+  V(String, kInternalizedString | kSeqOneByteString | kOtherString)       \
   V(StringOrStringWrapper, kString | kStringWrapper)                      \
   V(Name, kString | kSymbol)                                              \
   V(JSReceiver, kJSArray | kCallable | kStringWrapper | kOtherJSReceiver) \
@@ -660,25 +703,134 @@ enum class NodeType : uint32_t {
   NODE_TYPE_LIST(DEFINE_NODE_TYPE)
 #undef DEFINE_NODE_TYPE
 };
+using NodeTypeInt = std::underlying_type_t<NodeType>;
+
+// Some leaf node types only exist to complement other leaf node types in a
+// combined type. We never expect to see these as standalone types.
+inline constexpr bool NodeTypeIsNeverStandalone(NodeType type) {
+  switch (type) {
+    // "Other" string types should be considered internal and never appear as
+    // standalone leaf types.
+    case NodeType::kOtherInternalizedString:
+    case NodeType::kOtherSeqInternalizedOneByteString:
+    case NodeType::kOtherSeqOneByteString:
+    case NodeType::kOtherString:
+      return true;
+    default:
+      return false;
+  }
+}
 
 inline constexpr NodeType EmptyNodeType() { return static_cast<NodeType>(0); }
 
-inline constexpr NodeType CombineType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) &
-                               static_cast<int>(right));
-}
 inline constexpr NodeType IntersectType(NodeType left, NodeType right) {
-  return static_cast<NodeType>(static_cast<int>(left) |
-                               static_cast<int>(right));
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) &
+                               static_cast<NodeTypeInt>(right));
+}
+inline constexpr NodeType UnionType(NodeType left, NodeType right) {
+  DCHECK(!NodeTypeIsNeverStandalone(left));
+  DCHECK(!NodeTypeIsNeverStandalone(right));
+  return static_cast<NodeType>(static_cast<NodeTypeInt>(left) |
+                               static_cast<NodeTypeInt>(right));
 }
 inline constexpr bool NodeTypeIs(NodeType type, NodeType to_check) {
-  int right = static_cast<int>(to_check);
-  return (static_cast<int>(type) & (~right)) == 0;
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  DCHECK(!NodeTypeIsNeverStandalone(to_check));
+  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
+  return (static_cast<NodeTypeInt>(type) & (~right)) == 0;
+}
+inline constexpr bool NodeTypeCanBe(NodeType type, NodeType to_check) {
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  DCHECK(!NodeTypeIsNeverStandalone(to_check));
+  NodeTypeInt right = static_cast<NodeTypeInt>(to_check);
+  return (static_cast<NodeTypeInt>(type) & (right)) != 0;
 }
 
+inline constexpr bool NodeTypeIsUnstable(NodeType type) {
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  // Any type that can be a string might be unstable, if the string part of the
+  // type is unstable.
+  if (NodeTypeCanBe(type, NodeType::kString)) {
+    // Extract out the string part of the node type.
+    NodeType string_type = IntersectType(type, NodeType::kString);
+    // RO-space strings are ok, since they can't change.
+    if (string_type == NodeType::kROSeqInternalizedOneByteString) return false;
+    // The generic internalized string type is ok, since it doesn't consider
+    // seqness and internalized strings stay internalized.
+    if (string_type == NodeType::kInternalizedString) return false;
+    // The generic string type is ok, since it defines all strings.
+    if (string_type == NodeType::kString) return false;
+    // Otherwise, a string can get in-place externalized, or in-place converted
+    // to thin if not already internalized, both of which lose seq-ness.
+    // TODO(leszeks): We could probably consider byteness of internalized
+    // strings to be stable, since we can't change byteness with in-place
+    // externalization.
+    return true;
+  }
+  // All other node types are stable.
+  return false;
+}
+// Seq strings are unstable because they could be in-place converted to thin
+// strings.
+static_assert(NodeTypeIsUnstable(NodeType::kSeqOneByteString));
+// Internalized strings are stable because they have to stay internalized.
+static_assert(!NodeTypeIsUnstable(NodeType::kInternalizedString));
+// RO internalized strings are stable because they are read-only.
+static_assert(!NodeTypeIsUnstable(NodeType::kROSeqInternalizedOneByteString));
+// The generic string type is stable because we've already erased any
+// information about it.
+static_assert(!NodeTypeIsUnstable(NodeType::kString));
+// A type which contains an unstable string should also be unstable.
+static_assert(NodeTypeIsUnstable(UnionType(NodeType::kNumber,
+                                           NodeType::kSeqOneByteString)));
+// A type which contains a stable string should also be stable.
+static_assert(!NodeTypeIsUnstable(UnionType(NodeType::kNumber,
+                                            NodeType::kInternalizedString)));
+
+inline constexpr NodeType MakeTypeStable(NodeType type) {
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+  if (!NodeTypeIsUnstable(type)) return type;
+  // Strings can be in-place internalized, turned into thin strings, and
+  // in-place externalized, and byteness can change from one->two byte (because
+  // of internalized external strings with two-byte encoding of one-byte data)
+  // or two->one byte (because of internalizing a two-byte slice with one-byte
+  // data). The only invariant that we can preserve is that internalized strings
+  // stay internalized.
+  DCHECK(NodeTypeCanBe(type, NodeType::kString));
+  // Extract out the string part of the node type.
+  NodeType string_type = IntersectType(type, NodeType::kString);
+  if (NodeTypeIs(string_type, NodeType::kInternalizedString)) {
+    // Strings that can't be anything but internalized become generic
+    // internalized.
+    type = UnionType(type, NodeType::kInternalizedString);
+  } else {
+    // All other strings become fully generic.
+    type = UnionType(type, NodeType::kString);
+  }
+  DCHECK(!NodeTypeIsUnstable(type));
+  return type;
+}
+// Seq strings become normal strings with unspecified byteness when made stable,
+// because they could have been internalized into a two-byte external string.
+static_assert(MakeTypeStable(NodeType::kSeqOneByteString) == NodeType::kString);
+// Generic internalized strings stay as they are.
+static_assert(MakeTypeStable(NodeType::kInternalizedString) ==
+              NodeType::kInternalizedString);
+// Read-only seq internalized strings become generic.
+static_assert(MakeTypeStable(NodeType::kROSeqInternalizedOneByteString) ==
+              NodeType::kROSeqInternalizedOneByteString);
+// Stabilizing a type which is partially an unstable string should generalize
+// the string part of the type
+static_assert(MakeTypeStable(UnionType(NodeType::kNumber,
+                                       NodeType::kSeqOneByteString)) ==
+              UnionType(NodeType::kNumber, NodeType::kString));
+
 // Assert that the Unknown type is constructed correctly.
-#define ADD_STATIC_ASSERT(Name, Value) \
-  static_assert(NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
+#define ADD_STATIC_ASSERT(Name, Value)                          \
+  static_assert(NodeTypeIsNeverStandalone(NodeType::k##Name) || \
+                NodeTypeIs(NodeType::k##Name, NodeType::kUnknown));
 LEAF_NODE_TYPE_LIST(ADD_STATIC_ASSERT)
 #undef ADD_STATIC_ASSERT
 
@@ -686,7 +838,12 @@ inline NodeType StaticTypeForMap(compiler::MapRef map,
                                  compiler::JSHeapBroker* broker) {
   if (map.IsHeapNumberMap()) return NodeType::kHeapNumber;
   if (map.IsStringMap()) {
-    if (map.IsInternalizedStringMap()) return NodeType::kInternalizedString;
+    if (map.IsInternalizedStringMap()) {
+      return NodeType::kInternalizedString;
+    }
+    if (map.IsSeqStringMap() && map.IsOneByteStringMap()) {
+      return NodeType::kSeqOneByteString;
+    }
     return NodeType::kString;
   }
   if (map.IsStringWrapperMap()) return NodeType::kStringWrapper;
@@ -717,6 +874,12 @@ inline NodeType StaticTypeForConstant(compiler::JSHeapBroker* broker,
   if (ref.IsSmi()) return NodeType::kSmi;
   NodeType type = StaticTypeForMap(ref.AsHeapObject().map(broker), broker);
   DCHECK(!IsEmptyNodeType(type));
+  if (type == NodeType::kInternalizedString && ref.is_read_only()) {
+    if (ref.AsString().IsSeqString() &&
+        ref.AsString().IsOneByteRepresentation()) {
+      type = NodeType::kROSeqInternalizedOneByteString;
+    }
+  }
   return type;
 }
 
@@ -727,16 +890,28 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
       return false;
     case NodeType::kHeapNumber:
       return map.IsHeapNumberMap();
-    case NodeType::kNullOrUndefined:
-      return map.IsOddballMap() && !map.IsBooleanMap(broker);
+    case NodeType::kNull:
+      return map.IsNullMap(broker);
+    case NodeType::kUndefined:
+      return map.IsUndefinedMap(broker);
     case NodeType::kBoolean:
       return map.IsBooleanMap(broker);
     case NodeType::kSymbol:
       return map.IsSymbolMap();
-    case NodeType::kInternalizedString:
-      return map.IsStringMap() && map.IsInternalizedStringMap();
-    case NodeType::kNonInternalizedString:
-      return map.IsStringMap() && !map.IsInternalizedStringMap();
+    case NodeType::kOtherString:
+      // This doesn't exclude other string leaf types, which means one should
+      // never test for this node type alone.
+      return map.IsStringMap();
+    case NodeType::kOtherSeqOneByteString:
+      return map.IsSeqStringMap() && map.IsOneByteStringMap();
+    // We can't prove with a map alone that an object is in RO-space, but
+    // these maps will be potential candidates.
+    case NodeType::kROSeqInternalizedOneByteString:
+    case NodeType::kOtherSeqInternalizedOneByteString:
+      return map.IsInternalizedStringMap() && map.IsSeqStringMap() &&
+             map.IsOneByteStringMap();
+    case NodeType::kOtherInternalizedString:
+      return map.IsInternalizedStringMap();
     case NodeType::kStringWrapper:
       return map.IsStringWrapperMap();
     case NodeType::kJSArray:
@@ -756,23 +931,26 @@ inline bool IsInstanceOfLeafNodeType(compiler::MapRef map, NodeType type,
 
 inline bool IsInstanceOfNodeType(compiler::MapRef map, NodeType type,
                                  compiler::JSHeapBroker* broker) {
-  switch (type) {
-#define CASE(Name, _) case NodeType::k##Name:
-    LEAF_NODE_TYPE_LIST(CASE)
-#undef CASE
-    return IsInstanceOfLeafNodeType(map, type, broker);
-    default:
-      // This is some a composed type.
-#define CASE(Name, _)                                               \
-  if (NodeTypeIs(NodeType::k##Name, type)) {                        \
-    if (IsInstanceOfLeafNodeType(map, NodeType::k##Name, broker)) { \
-      return true;                                                  \
-    }                                                               \
+  DCHECK(!NodeTypeIsNeverStandalone(type));
+
+  // Early return for any heap object.
+  if (NodeTypeIs(NodeType::kAnyHeapObject, type)) {
+    // Unknown types will be handled here too.
+    static_assert(NodeTypeIs(NodeType::kAnyHeapObject, NodeType::kUnknown));
+    return true;
   }
-      LEAF_NODE_TYPE_LIST(CASE)
-#undef CASE
-      return false;
+
+  // Iterate over each leaf type bit in the type bitmask, and check if the map
+  // matches it.
+  NodeTypeInt type_bits = static_cast<NodeTypeInt>(type);
+  while (type_bits != 0) {
+    NodeTypeInt current_bit =
+        1 << base::bits::CountTrailingZerosNonZero(type_bits);
+    NodeType leaf_type = static_cast<NodeType>(current_bit);
+    if (IsInstanceOfLeafNodeType(map, leaf_type, broker)) return true;
+    type_bits = base::bits::ClearLsb(type_bits);
   }
+  return false;
 }
 
 inline std::ostream& operator<<(std::ostream& out, const NodeType& type) {
@@ -1102,7 +1280,8 @@ class OpProperties {
         kAttachedDeoptInfoBits::encode(AttachedDeoptInfo::kCheckpoint));
   }
   static constexpr OpProperties CanThrow() {
-    return OpProperties(kCanThrowBit::encode(true)) | LazyDeopt();
+    return OpProperties(kCanThrowBit::encode(true)) | LazyDeopt() |
+           CanAllocate();
   }
   static constexpr OpProperties CanRead() {
     return OpProperties(kCanReadBit::encode(true));
@@ -1916,7 +2095,10 @@ class NodeBase : public ZoneObject {
   template <class Derived, typename... Args>
   static Derived* New(Zone* zone, std::initializer_list<ValueNode*> inputs,
                       Args&&... args) {
-    static_assert(Derived::kProperties.is_conversion());
+    static_assert(Derived::kProperties.is_conversion(),
+                  "This method does not implicitly convert input types. Use "
+                  "MaglevGraphBuilder::AddNewNode instead or NodeBase::New and "
+                  "initialize and convert inputs manually.");
     Derived* node =
         Allocate<Derived>(zone, inputs.size(), std::forward<Args>(args)...);
 
@@ -2651,7 +2833,7 @@ class ValueNode : public Node {
 
   template <typename T>
   RegListBase<T> result_registers() {
-    if constexpr (std::is_same<T, DoubleRegister>::value) {
+    if constexpr (std::is_same_v<T, DoubleRegister>) {
       DCHECK(use_double_register());
       return double_registers_with_result_;
     } else {
@@ -4263,6 +4445,63 @@ class Float64Abs : public FixedInputValueNodeT<1, Float64Abs> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class Int32CountLeadingZeros
+    : public FixedInputValueNodeT<1, Int32CountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, Int32CountLeadingZeros>;
+
+ public:
+  explicit Int32CountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kInt32};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class SmiCountLeadingZeros
+    : public FixedInputValueNodeT<1, SmiCountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, SmiCountLeadingZeros>;
+
+ public:
+  explicit SmiCountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class Float64CountLeadingZeros
+    : public FixedInputValueNodeT<1, Float64CountLeadingZeros> {
+  using Base = FixedInputValueNodeT<1, Float64CountLeadingZeros>;
+
+ public:
+  static Builtin continuation() { return Builtin::kMathClz32Continuation; }
+
+  explicit Float64CountLeadingZeros(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+  static constexpr OpProperties kProperties = OpProperties::Int32();
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class Float64Round : public FixedInputValueNodeT<1, Float64Round> {
   using Base = FixedInputValueNodeT<1, Float64Round>;
 
@@ -4506,6 +4745,47 @@ class HoleyFloat64ToMaybeNanFloat64
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
+
+#ifdef V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
+class Float64ToHoleyFloat64
+    : public FixedInputValueNodeT<1, Float64ToHoleyFloat64> {
+  using Base = FixedInputValueNodeT<1, Float64ToHoleyFloat64>;
+
+ public:
+  explicit Float64ToHoleyFloat64(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::HoleyFloat64() | OpProperties::ConversionNode();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
+class HoleyFloat64ToFloat64OrUndefined
+    : public FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined> {
+  using Base = FixedInputValueNodeT<1, HoleyFloat64ToFloat64OrUndefined>;
+
+ public:
+  explicit HoleyFloat64ToFloat64OrUndefined(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::HoleyFloat64();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kHoleyFloat64};
+
+  Input& input() { return Node::input(0); }
+
+  int MaxCallStackArgs() const { return 0; }
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+#endif  // V8_ENABLE_EXPERIMENTAL_UNDEFINED_DOUBLE
 
 class HoleyFloat64IsHole : public FixedInputValueNodeT<1, HoleyFloat64IsHole> {
   using Base = FixedInputValueNodeT<1, HoleyFloat64IsHole>;
@@ -6188,7 +6468,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
     size_ += alloc->size();
   }
 
-  void TryPretenure();
+  void TryPretenure(ValueNode* input);
 
   bool elided_write_barriers_depend_on_type() const {
     return elided_write_barriers_depend_on_type_;
@@ -6198,6 +6478,7 @@ class AllocationBlock : public FixedInputValueNodeT<0, AllocationBlock> {
   }
 
  private:
+  void TryPretenure();
   AllocationType allocation_type_;
   int size_ = 0;
   bool elided_write_barriers_depend_on_type_ = false;
@@ -6933,6 +7214,31 @@ class CheckString : public FixedInputNodeT<1, CheckString> {
   using CheckTypeBitField = NextBitField<CheckType, 1>;
 };
 
+class CheckSeqOneByteString : public FixedInputNodeT<1, CheckSeqOneByteString> {
+  using Base = FixedInputNodeT<1, CheckSeqOneByteString>;
+
+ public:
+  explicit CheckSeqOneByteString(uint64_t bitfield, CheckType check_type)
+      : Base(CheckTypeBitField::update(bitfield, check_type)) {}
+
+  static constexpr OpProperties kProperties = OpProperties::EagerDeopt();
+  static constexpr
+      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
+
+  static constexpr int kReceiverIndex = 0;
+  Input& receiver_input() { return input(kReceiverIndex); }
+  CheckType check_type() const { return CheckTypeBitField::decode(bitfield()); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+
+  auto options() const { return std::tuple{check_type()}; }
+
+ private:
+  using CheckTypeBitField = NextBitField<CheckType, 1>;
+};
+
 class CheckStringOrStringWrapper
     : public FixedInputNodeT<1, CheckStringOrStringWrapper> {
   using Base = FixedInputNodeT<1, CheckStringOrStringWrapper>;
@@ -7404,7 +7710,7 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
 
   explicit BuiltinStringPrototypeCharCodeOrCodePointAt(uint64_t bitfield,
                                                        Mode mode)
-      : Base(bitfield), mode_(mode) {}
+      : Base(bitfield | ModeField::encode(mode)) {}
 
   static constexpr OpProperties kProperties =
       OpProperties::CanAllocate() | OpProperties::CanRead() |
@@ -7422,12 +7728,35 @@ class BuiltinStringPrototypeCharCodeOrCodePointAt
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{mode_}; }
+  auto options() const { return std::tuple{mode()}; }
 
-  Mode mode() const { return mode_; }
+  Mode mode() const { return ModeField::decode(bitfield()); }
 
  private:
-  Mode mode_;
+  using ModeField = NextBitField<Mode, 1>;
+};
+
+class BuiltinSeqOneByteStringCharCodeAt
+    : public FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt> {
+  using Base = FixedInputValueNodeT<2, BuiltinSeqOneByteStringCharCodeAt>;
+
+ public:
+  explicit BuiltinSeqOneByteStringCharCodeAt(uint64_t bitfield)
+      : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties =
+      OpProperties::CanRead() | OpProperties::Int32();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
 class MapPrototypeGet : public FixedInputValueNodeT<2, MapPrototypeGet> {
@@ -7799,23 +8128,23 @@ class LoadTaggedFieldForProperty
   compiler::NameRef name_;
 };
 
-class LoadTaggedFieldForContextSlot
-    : public AbstractLoadTaggedField<LoadTaggedFieldForContextSlot> {
-  using Base = AbstractLoadTaggedField<LoadTaggedFieldForContextSlot>;
+class LoadTaggedFieldForContextSlotNoCells
+    : public AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells> {
+  using Base = AbstractLoadTaggedField<LoadTaggedFieldForContextSlotNoCells>;
 
  public:
-  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
+  explicit LoadTaggedFieldForContextSlotNoCells(uint64_t bitfield,
+                                                const int offset)
       : Base(bitfield, offset) {}
 };
 
-class LoadTaggedFieldForScriptContextSlot
-    : public FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot> {
-  using Base = FixedInputValueNodeT<1, LoadTaggedFieldForScriptContextSlot>;
+class LoadTaggedFieldForContextSlot
+    : public FixedInputValueNodeT<1, LoadTaggedFieldForContextSlot> {
+  using Base = FixedInputValueNodeT<1, LoadTaggedFieldForContextSlot>;
 
  public:
-  explicit LoadTaggedFieldForScriptContextSlot(uint64_t bitfield,
-                                               const int index)
-      : Base(bitfield), index_(index) {}
+  explicit LoadTaggedFieldForContextSlot(uint64_t bitfield, const int offset)
+      : Base(bitfield), offset_(offset) {}
 
   static constexpr OpProperties kProperties = OpProperties::CanRead() |
                                               OpProperties::CanAllocate() |
@@ -7823,8 +8152,7 @@ class LoadTaggedFieldForScriptContextSlot
   static constexpr
       typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
 
-  int offset() const { return Context::OffsetOfElementAt(index_); }
-  int index() const { return index_; }
+  int offset() const { return offset_; }
 
   using Base::input;
   static constexpr int kContextIndex = 0;
@@ -7835,12 +8163,12 @@ class LoadTaggedFieldForScriptContextSlot
   void GenerateCode(MaglevAssembler*, const ProcessingState&);
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const;
 
-  auto options() const { return std::tuple{index()}; }
+  auto options() const { return std::tuple{offset()}; }
 
   using Base::decompresses_tagged_result;
 
  private:
-  const int index_;
+  const int offset_;
 };
 
 class LoadDoubleField : public FixedInputValueNodeT<1, LoadDoubleField> {
@@ -8796,7 +9124,7 @@ class StoreContextSlotWithWriteBarrier
 
   static constexpr OpProperties kProperties = OpProperties::CanWrite() |
                                               OpProperties::DeferredCall() |
-                                              OpProperties::EagerDeopt();
+                                              OpProperties::LazyDeopt();
   static constexpr typename Base::InputTypes kInputTypes{
       ValueRepresentation::kTagged, ValueRepresentation::kTagged};
 
@@ -9107,6 +9435,26 @@ class StringAt : public FixedInputValueNodeT<2, StringAt> {
   void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
 };
 
+class SeqOneByteStringAt : public FixedInputValueNodeT<2, SeqOneByteStringAt> {
+  using Base = FixedInputValueNodeT<2, SeqOneByteStringAt>;
+
+ public:
+  explicit SeqOneByteStringAt(uint64_t bitfield) : Base(bitfield) {}
+
+  static constexpr OpProperties kProperties = OpProperties::CanRead();
+  static constexpr typename Base::InputTypes kInputTypes{
+      ValueRepresentation::kTagged, ValueRepresentation::kInt32};
+
+  static constexpr int kStringIndex = 0;
+  static constexpr int kIndexIndex = 1;
+  Input& string_input() { return input(kStringIndex); }
+  Input& index_input() { return input(kIndexIndex); }
+
+  void SetValueLocationConstraints();
+  void GenerateCode(MaglevAssembler*, const ProcessingState&);
+  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
+};
+
 class StringLength : public FixedInputValueNodeT<1, StringLength> {
   using Base = FixedInputValueNodeT<1, StringLength>;
 
@@ -9190,25 +9538,6 @@ class UnwrapStringWrapper
 
  public:
   explicit UnwrapStringWrapper(uint64_t bitfield) : Base(bitfield) {}
-
-  static constexpr OpProperties kProperties = OpProperties::TaggedValue();
-
-  static constexpr
-      typename Base::InputTypes kInputTypes{ValueRepresentation::kTagged};
-
-  Input& value_input() { return Node::input(0); }
-
-  int MaxCallStackArgs() const { return 0; }
-  void SetValueLocationConstraints();
-  void GenerateCode(MaglevAssembler*, const ProcessingState&);
-  void PrintParams(std::ostream&, MaglevGraphLabeller*) const {}
-};
-
-class UnwrapThinString : public FixedInputValueNodeT<1, UnwrapThinString> {
-  using Base = FixedInputValueNodeT<1, UnwrapThinString>;
-
- public:
-  explicit UnwrapThinString(uint64_t bitfield) : Base(bitfield) {}
 
   static constexpr OpProperties kProperties = OpProperties::TaggedValue();
 
@@ -9543,7 +9872,7 @@ class Phi : public ValueNodeT<Phi> {
 
   void merge_post_loop_type(NodeType type) {
     DCHECK(!has_key());
-    post_loop_type_ = IntersectType(post_loop_type_, type);
+    post_loop_type_ = UnionType(post_loop_type_, type);
   }
   void set_post_loop_type(NodeType type) {
     DCHECK(!has_key());
@@ -9559,7 +9888,7 @@ class Phi : public ValueNodeT<Phi> {
 
   void merge_type(NodeType type) {
     DCHECK(!has_key());
-    type_ = IntersectType(type_, type);
+    type_ = UnionType(type_, type);
   }
   void set_type(NodeType type) {
     DCHECK(!has_key());

@@ -3,7 +3,7 @@
 // found in the LICENSE file.
 
 // Flags: --turbofan --allow-natives-syntax --expose-gc --flush-bytecode
-// Flags: --stress-flush-code --flush-bytecode
+// Flags: --stress-flush-code --flush-bytecode --no-flush-baseline-code
 
 function foo(a) {}
 

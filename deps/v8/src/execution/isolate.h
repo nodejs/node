@@ -115,6 +115,7 @@ class AddressToIndexHashMap;
 class AstStringConstants;
 class Bootstrapper;
 class BuiltinsConstantsTableBuilder;
+class BuiltinsEffectsAnalyzer;
 class CancelableTaskManager;
 class Logger;
 class CodeTracer;
@@ -1445,6 +1446,17 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   RuntimeState* runtime_state() { return &runtime_state_; }
 
   Builtins* builtins() { return &builtins_; }
+  BuiltinsEffectsAnalyzer* builtins_effects_analyzer() {
+    return builtins_effects_analyzer_;
+  }
+  void set_builtins_effects_analyzer(
+      BuiltinsEffectsAnalyzer* builtins_effects_analyzer) {
+    // One of builtins_effects_analyzer_ and builtins_effects_analyzer should be
+    // nullptr, but not both.
+    DCHECK((builtins_effects_analyzer_ == nullptr) ^
+           (builtins_effects_analyzer == nullptr));
+    builtins_effects_analyzer_ = builtins_effects_analyzer;
+  }
 
   RegExpStack* regexp_stack() const { return regexp_stack_; }
 
@@ -1624,6 +1636,22 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   void set_date_cache(DateCache* date_cache);
 
+  // Cache stamp used for invalidating caches in JSDate.
+  // We increment the stamp each time when the timezone information changes.
+  // JSDate objects perform stamp check and invalidate their caches if
+  // their saved stamp is not equal to the current stamp.
+  // See v8::Isolate::DateTimeConfigurationChangeNotification(..).
+  Tagged<Smi> date_cache_stamp() const {
+    return Smi::FromInt(isolate_data()->date_cache_stamp_);
+  }
+  // Returns current date_cache_stamp value and records the fact that the
+  // date cache is used (i.e. there are JSDate instances created).
+  Tagged<Smi> GetDateCacheStampAndRecordUsage() {
+    isolate_data()->is_date_cache_used_ = true;
+    return date_cache_stamp();
+  }
+  void IncreaseDateCacheStampAndInvalidateProtector();
+
 #ifdef V8_INTL_SUPPORT
 
   const std::string& DefaultLocale();
@@ -1669,8 +1697,6 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   void UpdateNoElementsProtectorOnSetPrototype(DirectHandle<JSObject> object) {
     UpdateNoElementsProtectorOnSetElement(object);
   }
-  void UpdateTypedArrayLengthLookupChainProtectorOnSetPrototype(
-      DirectHandle<JSObject> object);
   void UpdateTypedArraySpeciesLookupChainProtectorOnSetPrototype(
       DirectHandle<JSObject> object);
   void UpdateNumberStringNotRegexpLikeProtectorOnSetPrototype(
@@ -2434,6 +2460,8 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
 
   std::shared_ptr<v8::TaskRunner> task_runner() const { return task_runner_; }
 
+  void PrintNumberStringCacheStats(const char* comment, bool final_summary);
+
  private:
   explicit Isolate(IsolateGroup* isolate_group);
   ~Isolate();
@@ -2588,6 +2616,7 @@ class V8_EXPORT_PRIVATE Isolate final : private HiddenFactory {
   bigint::Processor* bigint_processor_ = nullptr;
   RuntimeState runtime_state_;
   Builtins builtins_;
+  BuiltinsEffectsAnalyzer* builtins_effects_analyzer_ = nullptr;
   SetupIsolateDelegate* setup_delegate_ = nullptr;
 #if defined(DEBUG) || defined(VERIFY_HEAP)
   std::atomic<int> num_active_deserializers_;

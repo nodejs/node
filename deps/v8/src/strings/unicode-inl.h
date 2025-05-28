@@ -10,6 +10,7 @@
 
 #include "src/base/logging.h"
 #include "src/utils/utils.h"
+#include "third_party/simdutf/simdutf.h"
 
 namespace unibrow {
 
@@ -62,22 +63,8 @@ int Mapping<T, s>::CalculateValue(uchar c, uchar n, uchar* result) {
 #endif  // !V8_INTL_SUPPORT
 
 bool Utf16::HasUnpairedSurrogate(const uint16_t* code_units, size_t length) {
-  for (size_t i = 0; i < length; ++i) {
-    const int code_unit = code_units[i];
-    if (IsLeadSurrogate(code_unit)) {
-      // The current code unit is a leading surrogate. Check if it is followed
-      // by a trailing surrogate.
-      if (i == length - 1) return true;
-      if (!IsTrailSurrogate(code_units[i + 1])) return true;
-      // Skip the paired trailing surrogate.
-      ++i;
-    } else if (IsTrailSurrogate(code_unit)) {
-      // All paired trailing surrogates are skipped above, so this branch is
-      // only for those that are unpaired.
-      return true;
-    }
-  }
-  return false;
+  return !simdutf::validate_utf16(reinterpret_cast<const char16_t*>(code_units),
+                                  length);
 }
 
 // Decodes UTF-8 bytes incrementally, allowing the decoding of bytes as they

@@ -432,13 +432,6 @@ Handle<JSObject> CreateObjectLiteral(
           .Check();
     }
   }
-
-  if (map->is_dictionary_map() && !has_null_prototype) {
-    // TODO(cbruni): avoid making the boilerplate fast again, the clone stub
-    // supports dict-mode objects directly.
-    JSObject::MigrateSlowToFast(
-        boilerplate, boilerplate->map()->UnusedPropertyFields(), "FastLiteral");
-  }
   return boilerplate;
 }
 

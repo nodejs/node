@@ -19,7 +19,7 @@ bool SetupIsolateDelegateForTests::SetupHeap(Isolate* isolate,
 void SetupIsolateDelegateForTests::SetupBuiltins(Isolate* isolate,
                                                  bool compile_builtins) {
   if (!compile_builtins) return;
-  SetupBuiltinsInternal(isolate);
+  SetupBuiltinsInternal(isolate, /* compute_builtins_effects */ false);
 }
 
 }  // namespace internal

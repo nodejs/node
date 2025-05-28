@@ -408,7 +408,7 @@ int StackFrameInfo::GetSourcePosition(DirectHandle<StackFrameInfo> info) {
   if (IsScript(info->shared_or_script())) {
     return info->bytecode_offset_or_source_position();
   }
-  Isolate* isolate = info->GetIsolate();
+  Isolate* isolate = Isolate::Current();
   DirectHandle<SharedFunctionInfo> shared(
       Cast<SharedFunctionInfo>(info->shared_or_script()), isolate);
   SharedFunctionInfo::EnsureSourcePositionsAvailable(isolate, shared);

@@ -498,6 +498,18 @@ class ImmediatesPrinter {
     }
   }
 
+  void MemoryOrder(const MemoryOrderImmediate& memory_order) {
+    switch (memory_order.order) {
+      case AtomicMemoryOrder::kAcqRel:
+        out_ << " acqrel";
+        return;
+      case AtomicMemoryOrder::kSeqCst:
+        out_ << " seqcst";
+        return;
+    }
+    out_ << " INVALID(" << static_cast<int>(memory_order.order) << ')';
+  }
+
   void SimdLane(SimdLaneImmediate& imm) { out_ << " " << uint32_t{imm.lane}; }
 
   void Field(FieldImmediate& imm) {

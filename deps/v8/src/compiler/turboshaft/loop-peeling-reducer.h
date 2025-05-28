@@ -67,24 +67,6 @@ class LoopPeelingReducer : public Next {
     goto no_change;
   }
 
-  // TODO(dmercadier): remove once StackCheckOp are kept in the pipeline until
-  // the very end (which should happen when we have a SimplifiedLowering in
-  // Turboshaft).
-  V<AnyOrNone> REDUCE_INPUT_GRAPH(Call)(V<AnyOrNone> ig_idx,
-                                        const CallOp& call) {
-    LABEL_BLOCK(no_change) { return Next::ReduceInputGraphCall(ig_idx, call); }
-    if (ShouldSkipOptimizationStep()) goto no_change;
-
-    if (IsEmittingPeeledIteration() &&
-        call.IsStackCheck(__ input_graph(), broker_,
-                          StackCheckKind::kJSIterationBody)) {
-      // We remove the stack check of the peeled iteration.
-      return {};
-    }
-
-    goto no_change;
-  }
-
   V<None> REDUCE_INPUT_GRAPH(JSStackCheck)(V<None> ig_idx,
                                            const JSStackCheckOp& stack_check) {
     if (ShouldSkipOptimizationStep() || !IsEmittingPeeledIteration()) {
@@ -191,7 +173,8 @@ class LoopPeelingReducer : public Next {
   PeelingStatus peeling_ = PeelingStatus::kNotPeeling;
   const Block* current_loop_header_ = nullptr;
 
-  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph()};
+  LoopFinder loop_finder_{__ phase_zone(), &__ modifiable_input_graph(),
+                          LoopFinder::Config{}};
   JSHeapBroker* broker_ = __ data() -> broker();
 };
 

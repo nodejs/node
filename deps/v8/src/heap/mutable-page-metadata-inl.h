@@ -10,6 +10,7 @@
 
 #include "src/heap/memory-chunk-metadata-inl.h"
 #include "src/heap/spaces-inl.h"
+#include "src/sandbox/hardware-support.h"
 
 namespace v8 {
 namespace internal {
@@ -52,7 +53,10 @@ void MutablePageMetadata::MoveExternalBackingStoreBytes(
 }
 
 AllocationSpace MutablePageMetadata::owner_identity() const {
-  DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
+  {
+    AllowSandboxAccess temporary_sandbox_access;
+    DCHECK_EQ(owner() == nullptr, Chunk()->InReadOnlySpace());
+  }
   if (!owner()) return RO_SPACE;
   return owner()->identity();
 }
