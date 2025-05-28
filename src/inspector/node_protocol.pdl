@@ -173,6 +173,8 @@ experimental domain Network
       integer status
       string statusText
       Headers headers
+      string mimeType
+      string charset
 
   # Request / response headers as keys / values of JSON object.
   type Headers extends object
