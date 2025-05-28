@@ -41,6 +41,10 @@ test-esm-loader-hooks-inspect-wait: PASS, FLAKY
 # https://github.com/nodejs/node/issues/54534
 test-runner-run-watch: PASS, FLAKY
 
+[$system==linux && $arch==s390x]
+# https://github.com/nodejs/node/issues/58353
+test-http2-debug: PASS, FLAKY
+
 [$system==linux || $system==win32]
 # https://github.com/nodejs/node/issues/49605
 test-runner-watch-mode: PASS,FLAKY
