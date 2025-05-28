@@ -814,7 +814,7 @@ doc-only: tools/doc/node_modules \
 			--ignore $(skip_apidoc_files) \
 			-o out/doc/api/ \
 			--no-lint \
-			-c $(call available-node, -p 'url.pathToFileURL("CHANGELOG.md")') \
+			-c file://$(PWD)/CHANGELOG.md \
 			-v $(VERSION) \
 			-p $(DOC_JOBS) \
 		) \
@@ -843,7 +843,7 @@ out/doc/api/%.html out/doc/api/%.json: doc/api/%.md tools/doc/node_modules | out
 		--ignore $(skip_apidoc_files) \
 		-o $(@D) \
 		--no-lint \
-		-c $(call available-node, -p 'url.pathToFileURL("CHANGELOG.md")') \
+		-c file://$(PWD)/CHANGELOG.md \
 		-v $(VERSION) \
 	) \
 
