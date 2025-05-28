@@ -1,7 +1,7 @@
 #!/bin/sh
 
 if ! [ -x "$NODE" ]; then
-    NODE=$(which node)
+    NODE=$(command -v node)
 
     if ! [ -x "$NODE" ]; then
         echo node not found
@@ -12,7 +12,7 @@ fi
 if ! [ -x "$NPM" ]; then
     NPM=../../deps/npm/bin/npm-cli.js
 
-    if ! [ -x "$NODE" ]; then
+    if ! [ -x "$NPM" ]; then
         echo npm not found
         exit 1
     fi

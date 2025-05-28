@@ -7,7 +7,7 @@ repository.
 It is accessible in this repository from the `tools/doc` directory, where it is installed as an npm package.
 
 The build process (using `make doc` or `make doc-only`) uses this tooling to
-parse the markdown files in \[`doc/api/`]\[] and generate the following:
+parse the markdown files in [`doc/api/`][] and generate the following:
 
 1. Human-readable HTML in `out/doc/api/*.html`
 2. A JSON representation in `out/doc/api/*.json`
