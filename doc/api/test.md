@@ -935,7 +935,7 @@ added: v22.3.0
 changes:
   - version: v23.4.0
     pr-url: https://github.com/nodejs/node/pull/55897
-    description: Snapsnot testing is no longer experimental.
+    description: Snapshot testing is no longer experimental.
 -->
 
 Snapshot tests allow arbitrary values to be serialized into string values and
