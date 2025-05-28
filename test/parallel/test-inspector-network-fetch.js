@@ -36,6 +36,7 @@ const setResponseHeaders = (res) => {
   res.setHeader('etag', 12345);
   res.setHeader('Set-Cookie', ['key1=value1', 'key2=value2']);
   res.setHeader('x-header2', ['value1', 'value2']);
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
 };
 
 const handleRequest = (req, res) => {
@@ -101,6 +102,8 @@ const testHttpGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.response.headers.etag, '12345');
     assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
     assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+    assert.strictEqual(params.response.mimeType, 'text/plain');
+    assert.strictEqual(params.response.charset, 'utf-8');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
@@ -138,6 +141,8 @@ const testHttpsGet = () => new Promise((resolve, reject) => {
     assert.strictEqual(params.response.headers.etag, '12345');
     assert.strictEqual(params.response.headers['Set-Cookie'], 'key1=value1\nkey2=value2');
     assert.strictEqual(params.response.headers['x-header2'], 'value1, value2');
+    assert.strictEqual(params.response.mimeType, 'text/plain');
+    assert.strictEqual(params.response.charset, 'utf-8');
   }));
   session.on('Network.loadingFinished', common.mustCall(({ params }) => {
     assert.ok(params.requestId.startsWith('node-network-event-'));
