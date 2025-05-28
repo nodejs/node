@@ -206,7 +206,7 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
       files: [join(testFixtures, 'default-behavior/test/random.cjs')],
       watch: true,
       signal: controller.signal,
-    }).on('data', function({ type }) {
+    }).on('data', function ({ type }) {
       if (type === 'test:watch:drained') {
         controller.abort();
       }
@@ -650,6 +650,48 @@ describe('require(\'node:test\').run', { concurrency: true }, () => {
   });
 });
 
+describe("with isolation set to 'none'",() => {
+  it('should skip tests not matching testNamePatterns - string', async () => {
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      testNamePatterns: ['executed'],
+      isolation: 'none',
+    })
+      .compose(tap)
+      .toArray();
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
+  });
+
+  it('should skip tests not matching testNamePatterns - RegExp', async () => {
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      testNamePatterns: [/executed/],
+      isolation: 'none',
+    })
+      .compose(tap)
+      .toArray();
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
+  });
+
+  it('should skip tests matching testSkipPatterns', async () => {
+    const result = await run({
+      files: [join(testFixtures, 'default-behavior/test/skip_by_name.cjs')],
+      testSkipPatterns: ['skipped'],
+      isolation: 'none',
+    })
+      .compose(tap)
+      .toArray();
+
+    assert.strictEqual(result[2], 'ok 1 - this should be executed\n');
+    assert.strictEqual(result[4], '1..1\n');
+    assert.strictEqual(result[5], '# tests 1\n');
+  });
+});
+
 describe('forceExit', () => {
   it('throws for non-boolean values', () => {
     [Symbol(), {}, 0, 1, '1', Promise.resolve([])].forEach((forceExit) => {
@@ -667,7 +709,6 @@ describe('forceExit', () => {
     });
   });
 });
-
 
 // exitHandler doesn't run until after the tests / after hooks finish.
 process.on('exit', () => {
