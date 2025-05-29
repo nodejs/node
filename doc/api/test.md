@@ -2330,7 +2330,7 @@ added: REPLACEME
 * `object` {Object} The object whose value is being mocked.
 * `propertyName` {string|symbol} The identifier of the property on `object` to mock.
 * `value` {any} An optional value used as the mock value
-  for `object[valueName]`. **Default:** The original property value.
+  for `object[propertyName]`. **Default:** The original property value.
 * Returns: {Proxy} A proxy to the mocked object. The mocked object contains a
   special `mock` property, which is an instance of [`MockPropertyContext`][], and
   can be used for inspecting and changing the behavior of the mocked property.
