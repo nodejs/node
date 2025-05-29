@@ -330,11 +330,7 @@ ContextifyContext* ContextifyContext::New(Local<Context> v8_context,
     }
     DCHECK_NOT_NULL(env->isolate()->GetCppHeap());
     result = cppgc::MakeGarbageCollected<ContextifyContext>(
-        env->isolate()->GetCppHeap()->GetAllocationHandle(),
-        env,
-        wrapper,
-        v8_context,
-        options);
+        env->cppgc_allocation_handle(), env, wrapper, v8_context, options);
   }
 
   Local<Object> wrapper_holder =
@@ -975,7 +971,7 @@ ContextifyScript* ContextifyScript::New(Environment* env,
                                         Local<Object> object) {
   DCHECK_NOT_NULL(env->isolate()->GetCppHeap());
   return cppgc::MakeGarbageCollected<ContextifyScript>(
-      env->isolate()->GetCppHeap()->GetAllocationHandle(), env, object);
+      env->cppgc_allocation_handle(), env, object);
 }
 
 void ContextifyScript::New(const FunctionCallbackInfo<Value>& args) {

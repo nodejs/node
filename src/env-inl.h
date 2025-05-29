@@ -205,6 +205,10 @@ inline v8::Isolate* Environment::isolate() const {
   return isolate_;
 }
 
+inline cppgc::AllocationHandle& Environment::cppgc_allocation_handle() const {
+  return isolate_->GetCppHeap()->GetAllocationHandle();
+}
+
 inline v8::ExternalMemoryAccounter* Environment::external_memory_accounter()
     const {
   return external_memory_accounter_;
