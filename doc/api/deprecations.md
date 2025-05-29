@@ -3897,10 +3897,54 @@ of built-in modules. This was incomplete and matched the already deprecated
 `repl._builtinLibs` ([DEP0142][]) instead it's better to rely
 upon `require('node:module').builtinModules`.
 
+### DEP0192: `require('node:_tls_common')` and `require('node:_tls_wrap')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/57643
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `node:_tls_common` and `node:_tls_wrap` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:tls` instead.
+
+### DEP0193: `require('node:_stream_*')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58337
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The `node:_stream_duplex`, `node:_stream_passthrough`, `node:_stream_readable`, `node:_stream_transform`,
+`node:_stream_wrap` and `node:_stream_writable` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:stream` instead.
+
+### DEP0194: `require('node:http2').Http2Stream.priority`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58313
+    description: Documentation-only deprecation.
+-->
+
+Type: Documentation-only
+
+The support for priority signaling has been deprecated in the [RFC 9113][], and
+will be removed in future versions of Node.js.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
 [RFC 8247 Section 2.4]: https://www.rfc-editor.org/rfc/rfc8247#section-2.4
+[RFC 9113]: https://datatracker.ietf.org/doc/html/rfc9113#section-5.3.1
 [WHATWG URL API]: url.md#the-whatwg-url-api
 [`"exports"` or `"main"` entry]: packages.md#main-entry-point-export
 [`'uncaughtException'`]: process.md#event-uncaughtexception
