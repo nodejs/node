@@ -71,6 +71,7 @@ const { getSystemErrorName } = require('util');
     delete providers.QUIC_ENDPOINT;
     delete providers.QUIC_SESSION;
     delete providers.QUIC_STREAM;
+    delete providers.LOCKS;
 
     const objKeys = Object.keys(providers);
     if (objKeys.length > 0)

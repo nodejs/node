@@ -147,6 +147,7 @@ if (isMainThread) {
     'NativeModule internal/streams/writable',
     'NativeModule internal/worker',
     'NativeModule internal/worker/io',
+    'NativeModule internal/worker/locks',
     'NativeModule internal/worker/messaging',
     'NativeModule stream',
     'NativeModule stream/promises',
