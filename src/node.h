@@ -844,13 +844,9 @@ NODE_EXTERN void SetTracingController(v8::TracingController* controller);
 // Run `process.emit('beforeExit')` as it would usually happen when Node.js is
 // run in standalone mode.
 NODE_EXTERN v8::Maybe<bool> EmitProcessBeforeExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessBeforeExit) instead",
-    NODE_EXTERN void EmitBeforeExit(Environment* env));
 // Run `process.emit('exit')` as it would usually happen when Node.js is run
 // in standalone mode. The return value corresponds to the exit code.
 NODE_EXTERN v8::Maybe<int> EmitProcessExit(Environment* env);
-NODE_DEPRECATED("Use Maybe version (EmitProcessExit) instead",
-    NODE_EXTERN int EmitExit(Environment* env));
 
 // Runs hooks added through `AtExit()`. This is part of `FreeEnvironment()`,
 // so calling it manually is typically not necessary.
