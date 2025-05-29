@@ -5,12 +5,15 @@
 #include "env-inl.h"
 #include "memory_tracker-inl.h"
 #include "node_bob-inl.h"
+#include "node_debug.h"
 #include "node_errors.h"
 #include "node_external_reference.h"
 #include "node_file.h"
 #include "path.h"
 #include "permission/permission.h"
 #include "util.h"
+#include "v8-fast-api-calls.h"
+#include "v8-value.h"
 #include "v8.h"
 
 #include <algorithm>
@@ -22,7 +25,9 @@ using v8::ArrayBuffer;
 using v8::ArrayBufferView;
 using v8::BackingStore;
 using v8::BackingStoreInitializationMode;
+using v8::CFunction;
 using v8::Context;
+using v8::FastApiCallbackOptions;
 using v8::Function;
 using v8::FunctionCallbackInfo;
 using v8::FunctionTemplate;
@@ -130,7 +135,11 @@ void Blob::CreatePerIsolateProperties(IsolateData* isolate_data,
   SetMethod(isolate, target, "createBlob", New);
   SetMethod(isolate, target, "storeDataObject", StoreDataObject);
   SetMethod(isolate, target, "getDataObject", GetDataObject);
-  SetMethod(isolate, target, "revokeObjectURL", RevokeObjectURL);
+  SetFastMethod(isolate,
+                target,
+                "revokeObjectURL",
+                RevokeObjectURL,
+                &fast_revoke_object_url_method);
   SetMethod(isolate, target, "concat", Concat);
   SetMethod(isolate, target, "createBlobFromFilePath", BlobFromFilePath);
 }
@@ -450,7 +459,6 @@ void Blob::StoreDataObject(const FunctionCallbackInfo<Value>& args) {
         std::string(*type, type.length())));
 }
 
-// TODO(@anonrig): Add V8 Fast API to the following function
 void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
   CHECK_GE(args.Length(), 1);
   CHECK(args[0]->IsString());
@@ -476,6 +484,39 @@ void Blob::RevokeObjectURL(const FunctionCallbackInfo<Value>& args) {
     }
   }
 }
+
+void Blob::FastRevokeObjectURL(Local<Value> receiver,
+                               Local<Value> raw_input,
+                               FastApiCallbackOptions& options) {
+  TRACK_V8_FAST_API_CALL("blob.revokeObjectURL");
+  CHECK(raw_input->IsString());
+
+  auto isolate = options.isolate;
+  HandleScope handleScope(isolate);
+  Realm* realm = Realm::GetCurrent(isolate->GetCurrentContext());
+  BlobBindingData* binding_data = realm->GetBindingData<BlobBindingData>();
+
+  Utf8Value input(isolate, raw_input.As<String>());
+  auto out = ada::parse<ada::url_aggregator>(input.ToStringView());
+
+  if (!out) {
+    return;
+  }
+
+  auto pathname = out->get_pathname();
+  auto start_index = pathname.find(':');
+
+  if (start_index != std::string_view::npos && start_index != pathname.size()) {
+    auto end_index = pathname.find(':', start_index + 1);
+    if (end_index == std::string_view::npos) {
+      auto id = std::string(pathname.substr(start_index + 1));
+      binding_data->revoke_data_object(id);
+    }
+  }
+}
+
+CFunction Blob::fast_revoke_object_url_method =
+    CFunction::Make(Blob::FastRevokeObjectURL);
 
 void Blob::GetDataObject(const FunctionCallbackInfo<Value>& args) {
   CHECK(args[0]->IsString());
@@ -584,9 +625,11 @@ void Blob::RegisterExternalReferences(ExternalReferenceRegistry* registry) {
   registry->Register(Blob::StoreDataObject);
   registry->Register(Blob::GetDataObject);
   registry->Register(Blob::RevokeObjectURL);
+  registry->Register(Blob::FastRevokeObjectURL);
   registry->Register(Blob::Reader::Pull);
   registry->Register(Concat);
   registry->Register(BlobFromFilePath);
+  registry->Register(fast_revoke_object_url_method.GetTypeInfo());
 }
 
 }  // namespace node

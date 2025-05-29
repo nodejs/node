@@ -5,6 +5,9 @@
 #include "v8-template.h"
 #if defined(NODE_WANT_INTERNALS) && NODE_WANT_INTERNALS
 
+#include <string>
+#include <unordered_map>
+#include <vector>
 #include "async_wrap.h"
 #include "base_object.h"
 #include "dataqueue/queue.h"
@@ -13,11 +16,8 @@
 #include "node_internals.h"
 #include "node_snapshotable.h"
 #include "node_worker.h"
+#include "v8-fast-api-calls.h"
 #include "v8.h"
-
-#include <string>
-#include <unordered_map>
-#include <vector>
 
 namespace node {
 
@@ -39,6 +39,11 @@ class Blob : public BaseObject {
   static void StoreDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void GetDataObject(const v8::FunctionCallbackInfo<v8::Value>& args);
   static void RevokeObjectURL(const v8::FunctionCallbackInfo<v8::Value>& args);
+  static void FastRevokeObjectURL(v8::Local<v8::Value> receiver,
+                                  v8::Local<v8::Value> raw_input,
+                                  v8::FastApiCallbackOptions& options);
+
+  static v8::CFunction fast_revoke_object_url_method;
 
   static v8::Local<v8::FunctionTemplate> GetConstructorTemplate(
       Environment* env);
