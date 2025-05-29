@@ -755,6 +755,143 @@ if (isMainThread) {
 }
 ```
 
+## `worker.locks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+* {LockManager}
+
+An instance of a [`LockManager`][LockManager] that can be used to coordinate
+access to resources that may be shared across multiple threads within the same
+process. The API mirrors the semantics of the
+[browser `LockManager`][]
+
+### Class: `Lock`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `Lock` interface provides information about a lock that has been granted via
+[`locks.request()`][locks.request()]
+
+#### `lock.name`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The name of the lock.
+
+#### `lock.mode`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* {string}
+
+The mode of the lock. Either `shared` or `exclusive`.
+
+### Class: `LockManager`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+The `LockManager` interface provides methods for requesting and introspecting
+locks. To obtain a `LockManager` instance use `require('node:worker_threads').locks`.
+
+This implementation matches the [browser `LockManager`][] API.
+
+#### `locks.request(name[, options], callback)`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `name` {string}
+* `options` {Object}
+  * `mode` {string} Either `'exclusive'` or `'shared'`. **Default:** `'exclusive'`.
+  * `ifAvailable` {boolean} If `true`, the request will only be granted if the
+    lock is not already held. If it cannot be granted, `callback` will be
+    invoked with `null` instead of a `Lock` instance. **Default:** `false`.
+  * `steal` {boolean} If `true`, any existing locks with the same name are
+    released and the request is granted immediately, pre-empting any queued
+    requests. **Default:** `false`.
+  * `signal` {AbortSignal} that can be used to abort a
+    pending (but not yet granted) lock request.
+* `callback` {Function} Invoked once the lock is granted (or immediately with
+  `null` if `ifAvailable` is `true` and the lock is unavailable). The lock is
+  released automatically when the function returns, or—if the function returns
+  a promise—when that promise settles.
+* Returns: {Promise} Resolves once the lock has been released.
+
+```mjs
+import { locks } from 'node:worker_threads';
+
+await locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+});
+// The lock has been released here.
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+
+locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+}).then(() => {
+  // The lock has been released here.
+});
+```
+
+#### `locks.query()`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* Returns: {Promise}
+
+Resolves with a `LockManagerSnapshot` describing the currently held and pending
+locks for the current process.
+
+```mjs
+import { locks } from 'node:worker_threads';
+
+const snapshot = await locks.query();
+for (const lock of snapshot.held) {
+  console.log(`held lock: name ${lock.name}, mode ${lock.mode}`);
+}
+for (const pending of snapshot.pending) {
+  console.log(`pending lock: name ${pending.name}, mode ${pending.mode}`);
+}
+```
+
+```cjs
+'use strict';
+
+const { locks } = require('node:worker_threads');
+
+locks.query().then((snapshot) => {
+  for (const lock of snapshot.held) {
+    console.log(`held lock: name ${lock.name}, mode ${lock.mode}`);
+  }
+  for (const pending of snapshot.pending) {
+    console.log(`pending lock: name ${pending.name}, mode ${pending.mode}`);
+  }
+});
+```
+
 ## Class: `BroadcastChannel extends EventTarget`
 
 <!-- YAML
@@ -1937,6 +2074,7 @@ thread spawned will spawn another until the application crashes.
 [Addons worker support]: addons.md#worker-support
 [ECMAScript module loader]: esm.md#data-imports
 [HTML structured clone algorithm]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API/Structured_clone_algorithm
+[LockManager]: #class-lockmanager
 [Signals events]: process.md#signal-events
 [Web Workers]: https://developer.mozilla.org/en-US/docs/Web/API/Web_Workers_API
 [`'close'` event]: #event-close
@@ -1992,7 +2130,9 @@ thread spawned will spawn another until the application crashes.
 [`worker.terminate()`]: #workerterminate
 [`worker.threadId`]: #workerthreadid_1
 [async-resource-worker-pool]: async_context.md#using-asyncresource-for-a-worker-thread-pool
+[browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [browser `MessagePort`]: https://developer.mozilla.org/en-US/docs/Web/API/MessagePort
 [child processes]: child_process.md
 [contextified]: vm.md#what-does-it-mean-to-contextify-an-object
+[locks.request()]: #locksrequestname-options-callback
 [v8.serdes]: v8.md#serialization-api
