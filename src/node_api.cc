@@ -693,9 +693,9 @@ void napi_module_register_by_symbol(v8::Local<v8::Object> exports,
                                     napi_addon_register_func init,
                                     int32_t module_api_version) {
   node::Environment* node_env = node::Environment::GetCurrent(context);
+  CHECK_NOT_NULL(node_env);
   std::string module_filename = "";
   if (init == nullptr) {
-    CHECK_NOT_NULL(node_env);
     node_env->ThrowError("Module has no declared entry point.");
     return;
   }
