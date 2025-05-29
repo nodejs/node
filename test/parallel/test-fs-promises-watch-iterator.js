@@ -1,0 +1,60 @@
+'use strict';
+const common = require('../common');
+
+if (common.isIBMi)
+  common.skip('IBMi does not support `fs.watch()`');
+
+const { watch, writeFile } = require('fs/promises');
+const fs = require('fs');
+const assert = require('assert');
+const { join } = require('path');
+const { setTimeout } = require('timers/promises');
+const tmpdir = require('../common/tmpdir');
+
+class WatchTestCase {
+  constructor(shouldInclude, dirName, files) {
+    this.dirName = dirName;
+    this.files = files;
+    this.shouldSkip = !shouldInclude;
+  }
+  get dirPath() { return tmpdir.resolve(this.dirName); }
+  filePath(fileName) { return join(this.dirPath, fileName); }
+
+  async run() {
+    await Promise.all([this.watchFiles(), this.writeFiles()]);
+    assert(!this.files.length);
+  }
+  async watchFiles() {
+    const watcher = watch(this.dirPath);
+    for await (const evt of watcher) {
+      const idx = this.files.indexOf(evt.filename);
+      if (idx < 0) continue;
+      this.files.splice(idx, 1);
+      await setTimeout(common.platformTimeout(100));
+      if (!this.files.length) break;
+    }
+  }
+  async writeFiles() {
+    for (const fileName of [...this.files]) {
+      await writeFile(this.filePath(fileName), Date.now() + fileName.repeat(1e4));
+    }
+    await setTimeout(common.platformTimeout(100));
+  }
+}
+
+const kCases = [
+  // Watch on a directory should callback with a filename on supported systems
+  new WatchTestCase(
+    common.isLinux || common.isMacOS || common.isWindows || common.isAIX,
+    'watch1',
+    ['foo', 'bar', 'baz']
+  ),
+];
+
+tmpdir.refresh();
+
+for (const testCase of kCases) {
+  if (testCase.shouldSkip) continue;
+  fs.mkdirSync(testCase.dirPath);
+  testCase.run().then(common.mustCall());
+}
