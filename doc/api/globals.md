@@ -768,6 +768,55 @@ consisting of the runtime name and major version number.
 console.log(`The user-agent is ${navigator.userAgent}`); // Prints "Node.js/21"
 ```
 
+### `navigator.locks`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+> Stability: 1 - Experimental
+
+The `navigator.locks` read-only property returns a [`LockManager`][] instance that
+can be used to coordinate access to resources that may be shared across multiple
+threads within the same process. This global implementation matches the semantics
+of the [browser `LockManager`][] API.
+
+```mjs
+// Request an exclusive lock
+await navigator.locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+  console.log(`Lock acquired: ${lock.name}`);
+  // Lock is automatically released when the function returns
+});
+
+// Request a shared lock
+await navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
+  // Multiple shared locks can be held simultaneously
+  console.log(`Shared lock acquired: ${lock.name}`);
+});
+```
+
+```cjs
+// Request an exclusive lock
+navigator.locks.request('my_resource', async (lock) => {
+  // The lock has been acquired.
+  console.log(`Lock acquired: ${lock.name}`);
+  // Lock is automatically released when the function returns
+}).then(() => {
+  console.log('Lock released');
+});
+
+// Request a shared lock
+navigator.locks.request('shared_resource', { mode: 'shared' }, async (lock) => {
+  // Multiple shared locks can be held simultaneously
+  console.log(`Shared lock acquired: ${lock.name}`);
+}).then(() => {
+  console.log('Shared lock released');
+});
+```
+
+See [`worker.locks`][] for detailed API documentation.
+
 ## Class: `PerformanceEntry`
 
 <!-- YAML
@@ -1263,6 +1312,7 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`CountQueuingStrategy`]: webstreams.md#class-countqueuingstrategy
 [`DecompressionStream`]: webstreams.md#class-decompressionstream
 [`EventTarget` and `Event` API]: events.md#eventtarget-and-event-api
+[`LockManager`]: worker_threads.md#class-lockmanager
 [`MessageChannel`]: worker_threads.md#class-messagechannel
 [`MessagePort`]: worker_threads.md#class-messageport
 [`PerformanceEntry`]: perf_hooks.md#class-performanceentry
@@ -1313,6 +1363,8 @@ A browser-compatible implementation of [`WritableStreamDefaultWriter`][].
 [`setTimeout`]: timers.md#settimeoutcallback-delay-args
 [`structuredClone`]: https://developer.mozilla.org/en-US/docs/Web/API/structuredClone
 [`window.navigator`]: https://developer.mozilla.org/en-US/docs/Web/API/Window/navigator
+[`worker.locks`]: worker_threads.md#workerlocks
+[browser `LockManager`]: https://developer.mozilla.org/en-US/docs/Web/API/LockManager
 [buffer section]: buffer.md
 [built-in objects]: https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects
 [timers]: timers.md
