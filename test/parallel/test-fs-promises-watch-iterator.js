@@ -1,9 +1,5 @@
 'use strict';
 const common = require('../common');
-
-if (common.isIBMi)
-  common.skip('IBMi does not support `fs.watch()`');
-
 const { watch, writeFile } = require('fs/promises');
 const fs = require('fs');
 const assert = require('assert');
@@ -12,10 +8,9 @@ const { setTimeout } = require('timers/promises');
 const tmpdir = require('../common/tmpdir');
 
 class WatchTestCase {
-  constructor(shouldInclude, dirName, files) {
+  constructor(dirName, files) {
     this.dirName = dirName;
     this.files = files;
-    this.shouldSkip = !shouldInclude;
   }
   get dirPath() { return tmpdir.resolve(this.dirName); }
   filePath(fileName) { return join(this.dirPath, fileName); }
@@ -45,7 +40,6 @@ class WatchTestCase {
 const kCases = [
   // Watch on a directory should callback with a filename on supported systems
   new WatchTestCase(
-    common.isLinux || common.isMacOS || common.isWindows || common.isAIX,
     'watch1',
     ['foo', 'bar', 'baz']
   ),
@@ -54,7 +48,6 @@ const kCases = [
 tmpdir.refresh();
 
 for (const testCase of kCases) {
-  if (testCase.shouldSkip) continue;
   fs.mkdirSync(testCase.dirPath);
   testCase.run().then(common.mustCall());
 }
