@@ -5878,6 +5878,10 @@ See the POSIX mkdir(2) documentation for more details.
 added: v5.10.0
 changes:
   - version:
+    - TODO
+    pr-url: TODO
+    description: Added the `disposable` option.
+  - version:
     - v20.6.0
     - v18.19.0
     pr-url: https://github.com/nodejs/node/pull/48828
@@ -5892,7 +5896,8 @@ changes:
 * `prefix` {string|Buffer|URL}
 * `options` {string|Object}
   * `encoding` {string} **Default:** `'utf8'`
-* Returns: {string}
+  * `disposable` {boolean} **Default:** `false`
+* Returns: {string|Object}
 
 Returns the created directory path.
 
@@ -5901,6 +5906,11 @@ this API: [`fs.mkdtemp()`][].
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
+
+When `disposable` is true, this instead returns an object with a `path`
+property holding the created directory path as well as a `remove()` method
+which will remove the directory and its contents when called. There is also a
+`[Symbol.dispose]()` method which calls `remove()`.
 
 ### `fs.opendirSync(path[, options])`
 
