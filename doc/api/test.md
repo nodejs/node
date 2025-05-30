@@ -1121,6 +1121,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1166,6 +1169,9 @@ const customReporter = new Transform({
       case 'test:watch:drained':
         callback(null, 'test watch queue drained');
         break;
+      case 'test:watch:restarted':
+        callback(null, 'test watch restarted due to file change');
+        break;
       case 'test:start':
         callback(null, `test ${event.data.name} started`);
         break;
@@ -1210,6 +1216,9 @@ export default async function * customReporter(source) {
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
         break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
+        break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
         break;
@@ -1249,6 +1258,9 @@ module.exports = async function * customReporter(source) {
         break;
       case 'test:watch:drained':
         yield 'test watch queue drained\n';
+        break;
+      case 'test:watch:restarted':
+        yield 'test watch restarted due to file change\n';
         break;
       case 'test:start':
         yield `test ${event.data.name} started\n`;
@@ -3174,6 +3186,10 @@ generated for each test file in addition to a final cumulative summary.
 ### Event: `'test:watch:drained'`
 
 Emitted when no more tests are queued for execution in watch mode.
+
+### Event: `'test:watch:restarted'`
+
+Emitted when one or more tests are restarted due to a file change in watch mode.
 
 ## Class: `TestContext`
 
