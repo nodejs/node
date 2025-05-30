@@ -13,7 +13,7 @@ describe('assertion output', { concurrency: true }, () => {
       .replaceAll(snapshot.replaceWindowsPaths(process.cwd()), '')
       .replaceAll('/', '*')
       .replaceAll(process.version, '*')
-      .replaceAll(/:\d+/g, ':*')
+      .replaceAll(/:\d+/g, ':*');
   }
 
   const common = snapshot
