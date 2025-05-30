@@ -3964,7 +3964,6 @@ Instantiating classes without the `new` qualifier exported by the `node:http` mo
 It is recommended to use the `new` qualifier instead. This applies to all http classes, such as
 `OutgoingMessage`, `IncomingMessage`, `ServerResponse` and `ClientRequest`.
 
-
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
