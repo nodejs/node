@@ -164,7 +164,7 @@ suite('DatabaseSync() constructor', () => {
       db.exec('SELECT "foo";');
     }, {
       code: 'ERR_SQLITE_ERROR',
-      message: /no such column: "foo"/,
+      message: /no such column: "?foo"?/,
     });
   });
 
