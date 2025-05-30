@@ -6,5 +6,6 @@ Error.stackTraceLimit = 3;
 
 const fs = require('fs');
 
-const content = fs.readFileSync(require.resolve('../tabs.js'), 'utf8');
+const content = fs.readFileSync(require.resolve('../tabs-source-url.js'), 'utf8');
+// SourceURL magic comment is hardcoded in the source content.
 eval(content);
