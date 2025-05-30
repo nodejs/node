@@ -1,0 +1,51 @@
+name: Hello World
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push or pull request events but only for the default branch
+  push:
+    branches: [ "main", "master" ]
+  pull_request:
+    branches: [ "main", "master" ]
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# A workflow run is made up of one or more jobs that can run sequentially or in parallel
+jobs:
+  # This workflow contains a single job called "greet"
+  greet:
+    # The type of runner that the job will run on
+    runs-on: ubuntu-latest
+
+    # Steps represent a sequence of tasks that will be executed as part of the job
+    steps:
+      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
+      - uses: actions/checkout@v4
+
+      # Runs a single command using the runners shell
+      - name: Say Hello
+        run: echo "Hello, World! 🌍"
+
+      # Runs a set of commands using the runners shell
+      - name: Multi-line greeting
+        run: |
+          echo "Welcome to GitHub Actions!"
+          echo "Repository: ${{ github.repository }}"
+          echo "Actor: ${{ github.actor }}"
+          echo "Event: ${{ github.event_name }}"
+          echo "Branch: ${{ github.ref_name }}"
+
+      # Example of using environment variables
+      - name: Greet with environment variables
+        env:
+          NAME: "GitHub Actions"
+          EMOJI: "🚀"
+        run: |
+          echo "Hello from $NAME $EMOJI"
+          echo "Current date: $(date)"
+
+      # Example of conditional step
+      - name: Special message for main branch
+        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
+        run: echo "This is running on the main branch! 🎉"
