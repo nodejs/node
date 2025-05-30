@@ -64,7 +64,8 @@ BuiltinLoader::BuiltinLoader()
 #endif  // HAVE_AMARO
 }
 
-auto BuiltinLoader::GetBuiltinIds() const -> decltype(auto) {
+std::ranges::keys_view<std::ranges::ref_view<const BuiltinSourceMap>>
+BuiltinLoader::GetBuiltinIds() const {
   return std::views::keys(*source_.read());
 }
 
