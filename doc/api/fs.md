@@ -1318,6 +1318,37 @@ characters directly to the `prefix` string. For instance, given a directory
 `prefix` must end with a trailing platform-specific path separator
 (`require('node:path').sep`).
 
+### `fsPromises.mkdtempDisposable(prefix[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `prefix` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise} Fulfills with a Promise for an async-disposable Object:
+  * `path` {string} The path of the created directory.
+  * `remove` {AsyncFunction} A function which removes the created directory.
+  * `[Symbol.asyncDispose]` {AsyncFunction} The same as `remove`.
+
+The resulting Promise holds an async-disposable object whose `path` property
+holds the created directory path. When the object is disposed, the directory
+and its contents will be removed asynchronously if it still exists. If the
+directory cannot be deleted, disposal will throw an error. The object has an
+async `remove()` method which will perform the same task.
+
+Both this function and the disposal function on the resulting object are
+async, so it should be used with `await` + `await using` as in
+`await using dir = await fsPromises.mkdtempDisposable('prefix')`.
+
+<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+
+For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
 ### `fsPromises.open(path, flags[, mode])`
 
 <!-- YAML
@@ -5917,6 +5948,36 @@ this API: [`fs.mkdtemp()`][].
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
 
+### `fs.mkdtempDisposableSync(prefix[, options])`
+
+<!-- YAML
+added: REPLACEME
+-->
+
+* `prefix` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Object} A disposable object:
+  * `path` {string} The path of the created directory.
+  * `remove` {Function} A function which removes the created directory.
+  * `[Symbol.dispose]` {Function} The same as `remove`.
+
+Returns a disposable object whose `path` property holds the created directory
+path. When the object is disposed, the directory and its contents will be
+removed if it still exists. If the directory cannot be deleted, disposal will
+throw an error. The object has a `remove()` method which will perform the same
+task.
+
+<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+
+For detailed information, see the documentation of [`fs.mkdtemp()`][].
+
+There is no callback-based version of this API because it is designed for use
+with the `using` syntax.
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
 ### `fs.opendirSync(path[, options])`
 
 <!-- YAML
@@ -8511,6 +8572,7 @@ the file contents.
 [`fs.writev()`]: #fswritevfd-buffers-position-callback
 [`fsPromises.access()`]: #fspromisesaccesspath-mode
 [`fsPromises.copyFile()`]: #fspromisescopyfilesrc-dest-mode
+[`fsPromises.mkdtemp()`]: #fspromisesmkdtempprefix-options
 [`fsPromises.open()`]: #fspromisesopenpath-flags-mode
 [`fsPromises.opendir()`]: #fspromisesopendirpath-options
 [`fsPromises.rm()`]: #fspromisesrmpath-options
