@@ -1175,10 +1175,7 @@ InitializeOncePerProcessInternal(const std::vector<std::string>& args,
     }
 #endif
     if (!crypto::ProcessFipsOptions()) {
-      // XXX: ERR_GET_REASON does not return something that is
-      // useful as an exit code at all.
-      result->exit_code_ =
-          static_cast<ExitCode>(ERR_GET_REASON(ERR_peek_error()));
+      result->exit_code_ = ExitCode::kGenericUserError;
       result->early_return_ = true;
       result->errors_.emplace_back(
           "OpenSSL error when trying to enable FIPS:\n" +
