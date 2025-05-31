@@ -11,7 +11,7 @@ test('expect failure of a .mts file with CommonJS syntax', async () => {
   ]);
 
   strictEqual(result.stdout, '');
-  match(result.stderr, /require is not defined in ES module scope, you can use import instead/);
+  match(result.stderr, /require is not defined in ES module scope, use a static or dynamic import instead\./);
   strictEqual(result.code, 1);
 });
 
