@@ -1,5 +1,5 @@
 /**
- * @fileoverview We shouldn't use global built-in object for security and
+ * @file We shouldn't use global built-in object for security and
  *               performance reason. This linter rule reports replaceable codes
  *               that can be replaced with primordials.
  * @author Leko <leko.noor@gmail.com>

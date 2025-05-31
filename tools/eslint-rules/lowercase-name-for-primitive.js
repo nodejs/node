@@ -1,5 +1,5 @@
 /**
- * @fileoverview Check that TypeError[ERR_INVALID_ARG_TYPE] uses
+ * @file Check that TypeError[ERR_INVALID_ARG_TYPE] uses
  *               lowercase for primitive types
  * @author Weijia Wang <starkwang@126.com>
  */

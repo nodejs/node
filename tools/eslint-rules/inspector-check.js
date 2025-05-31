@@ -1,5 +1,5 @@
 /**
- * @fileoverview Check that common.skipIfInspectorDisabled is used if
+ * @file Check that common.skipIfInspectorDisabled is used if
  *               the inspector module is required.
  * @author Daniel Bevenius <daniel.bevenius@gmail.com>
  */

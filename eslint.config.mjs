@@ -262,16 +262,15 @@ export default [
       // ESLint recommended rules that we disable.
       'no-inner-declarations': 'off',
 
-      // JSDoc recommended rules that we disable.
+      // JSDoc rules that we enable.
       'jsdoc/require-jsdoc': 'off',
       'jsdoc/require-param-description': 'off',
-      'jsdoc/newline-after-description': 'off',
       'jsdoc/require-returns-description': 'off',
       'jsdoc/valid-types': 'off',
       'jsdoc/no-defaults': 'off',
       'jsdoc/no-undefined-types': 'off',
       'jsdoc/require-param': 'off',
-      'jsdoc/check-tag-names': 'off',
+      'jsdoc/check-tag-names': 'error',
       'jsdoc/require-returns': 'off',
 
       // Stylistic rules.
