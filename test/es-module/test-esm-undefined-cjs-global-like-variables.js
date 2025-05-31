@@ -38,5 +38,5 @@ assert.rejects(
 
 assert.rejects(
   import('data:text/javascript,require;//.js'),
-  /^(?:(?!use the '\.cjs' file extension).)*$/s
+  /^(?:(?!use the '\.cjs' file extension)[\s\S])*$/
 ).then(common.mustCall());
