@@ -203,7 +203,7 @@ class Stream : public AsyncWrap,
   std::unique_ptr<Outbound> outbound_;
   std::shared_ptr<DataQueue> inbound_;
 
-  std::vector<v8::Local<v8::Value>> headers_;
+  v8::LocalVector<v8::Value> headers_;
   HeadersKind headers_kind_ = HeadersKind::INITIAL;
   size_t headers_length_ = 0;
 
