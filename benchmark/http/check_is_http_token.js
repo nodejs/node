@@ -1,6 +1,7 @@
 'use strict';
 
 const common = require('../common.js');
+// TODO: benchmark has access to internal modules?
 const _checkIsHttpToken = require('_http_common')._checkIsHttpToken;
 
 const bench = common.createBenchmark(main, {

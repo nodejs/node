@@ -3955,6 +3955,21 @@ Type: Documentation-only
 The support for priority signaling has been deprecated in the [RFC 9113][], and
 will be removed in future versions of Node.js.
 
+### DEP0195: `require('node:_http_*')`
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58535
+    description: Runtime deprecation.
+-->
+
+Type: Runtime
+
+The `node:_http_agent`, `node:_http_client`, `node:_http_common`, `node:_http_incoming`,
+`node:_http_outgoing` and `node:_http_server` modules are deprecated as they should be considered
+an internal nodejs implementation rather than a public facing API, use `node:http` instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
