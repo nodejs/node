@@ -214,7 +214,7 @@ polymorphic, returning different types based on how it was called. This adds
 a lot of complexity to the API and makes it difficult to reason about the
 return value. It also makes it difficult to programmatically detect whether
 the version of the API being used supports ERM capabilities or not. That is,
-`fs.mkdtemp('...', { dispoable: true })` would act differently in older versions
+`fs.mkdtemp('...', { disposable: true })` would act differently in older versions
 of Node.js than in newer versions with no way to detect this at runtime other
 than to inspect the return value.
 
