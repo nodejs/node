@@ -2764,12 +2764,15 @@ legacy parser.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28021
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 Passing a callback to [`worker.terminate()`][] is deprecated. Use the returned
 `Promise` instead, or a listener to the worker's `'exit'` event.
