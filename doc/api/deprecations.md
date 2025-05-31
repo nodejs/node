@@ -3952,6 +3952,30 @@ Type: Documentation-only
 The support for priority signaling has been deprecated in the [RFC 9113][], and
 will be removed in future versions of Node.js.
 
+### DEP0195: Calling `node:child_process` functions with `options.shell` as an empty string
+
+<!-- YAML
+changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58525
+    description: Documentation-only deprecation
+                 with `--pending-deprecation` support.
+-->
+
+Type: Documentation-only (supports [`--pending-deprecation`][])
+
+Calling the process-spawning functions with `{ shell: '' }` is almost certainly
+unintentional, and can cause aberrant behavior.
+
+To make [`child_process.execFile`][] or [`child_process.spawn`][] invoke the
+default shell, use `{ shell: true }`. If the intention is not to invoke a shell
+(default behavior), either omit the `shell` option, or set it to `false` or a
+nullish value.
+
+To make [`child_process.exec`][] invoke the default shell, either omit the
+`shell` option, or set it to a nullish value. If the intention is not to invoke
+a shell, use [`child_process.execFile`][] instead.
+
 [DEP0142]: #dep0142-repl_builtinlibs
 [NIST SP 800-38D]: https://nvlpubs.nist.gov/nistpubs/Legacy/SP/nistspecialpublication800-38d.pdf
 [RFC 6066]: https://tools.ietf.org/html/rfc6066#section-3
@@ -3980,6 +4004,7 @@ will be removed in future versions of Node.js.
 [`asyncResource.runInAsyncScope()`]: async_context.md#asyncresourceruninasyncscopefn-thisarg-args
 [`buffer.subarray`]: buffer.md#bufsubarraystart-end
 [`child_process.execFile`]: child_process.md#child_processexecfilefile-args-options-callback
+[`child_process.exec`]: child_process.md#child_processexeccommand-options-callback
 [`child_process.spawn`]: child_process.md#child_processspawncommand-args-options
 [`child_process`]: child_process.md
 [`clearInterval()`]: timers.md#clearintervaltimeout
