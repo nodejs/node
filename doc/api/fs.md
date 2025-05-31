@@ -476,7 +476,7 @@ Reads data from the file and stores that in the given buffer.
 If the file is not modified concurrently, the end-of-file is reached when the
 number of bytes read is zero.
 
-#### `filehandle.readableWebStream()`
+#### `filehandle.readableWebStream([options])`
 
 <!-- YAML
 added: v17.0.0
@@ -496,6 +496,12 @@ changes:
     description: Added option to create a 'bytes' stream.
 -->
 
+* `options` {Object}
+  * `autoClose` {boolean} When set, the `FileHandle` is automatically closed
+    when the returned `ReadableStream` is completed or canceled.
+    **Default:** `false`
+  * `type` {string} The type of stream to create. Currently only `'bytes'` is
+    supported.
 * Returns: {ReadableStream}
 
 Returns a byte-oriented `ReadableStream` that may be used to read the file's
@@ -534,7 +540,7 @@ const {
 
 While the `ReadableStream` will read the file to completion, it will not
 close the `FileHandle` automatically. User code must still call the
-`fileHandle.close()` method.
+`fileHandle.close()` method unless the `autoClose` option is set to `true`.
 
 #### `filehandle.readFile(options)`
 
