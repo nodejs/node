@@ -415,7 +415,7 @@ assert.throws(() => {
         (answer) => Object.assign({ domain }, answer)
       ),
     }), port, address);
-  }, cases.length * 2 - 1));
+  }, cases.length * 2));
 
   server.bind(0, common.mustCall(() => {
     const address = server.address();
