@@ -8,10 +8,7 @@ const tmpdir = require('../../test/common/tmpdir');
 const bench = common.createBenchmark(main, {
   n: [1, 100, 10_000],
   dereference: ['true', 'false'],
-  // When `force` is `true` the `cpSync` function is called twice the second
-  // time however an `ERR_FS_CP_EINVAL` is thrown, so skip `true` for the time being
-  // TODO: allow `force` to also be `true` once https://github.com/nodejs/node/issues/58468 is addressed
-  force: ['false'],
+  force: ['true', 'false'],
 });
 
 function prepareTestDirectory() {
