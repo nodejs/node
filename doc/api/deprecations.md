@@ -2706,7 +2706,7 @@ Node.js versions.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58527
     description: End-of-Life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27949
