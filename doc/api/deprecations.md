@@ -2606,7 +2606,7 @@ Please use `Server.prototype.setSecureContext()` instead.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58533
     description: End-of-Life.
   - version: v12.0.0
     pr-url: https://github.com/nodejs/node/pull/23329
