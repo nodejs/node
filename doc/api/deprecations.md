@@ -2705,6 +2705,9 @@ Node.js versions.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/58527
+    description: End-of-Life.
   - version: v13.0.0
     pr-url: https://github.com/nodejs/node/pull/27949
     description: Runtime deprecation.
@@ -2713,7 +2716,7 @@ changes:
     description: Documentation-only.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
 The `_channel` property of child process objects returned by `spawn()` and
 similar functions is not intended for public use. Use `ChildProcess.channel`
