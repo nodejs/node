@@ -2765,7 +2765,7 @@ legacy parser.
 <!-- YAML
 changes:
   - version: REPLACEME
-    pr-url: https://github.com/nodejs/node/pull/00000
+    pr-url: https://github.com/nodejs/node/pull/58528
     description: End-of-Life.
   - version: v12.5.0
     pr-url: https://github.com/nodejs/node/pull/28021
