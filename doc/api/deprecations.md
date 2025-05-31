@@ -3137,18 +3137,21 @@ an explicit [`"exports"` or `"main"` entry][] with the exact file extension.
 
 <!-- YAML
 changes:
+  - version: REPLACEME
+    pr-url: https://github.com/nodejs/node/pull/00000
+    description: End-of-Life.
   - version: v16.0.0
     pr-url: https://github.com/nodejs/node/pull/37136
     description: Runtime deprecation.
 -->
 
-Type: Runtime
+Type: End-of-Life
 
-The `'gc'`, `'http2'`, and `'http'` {PerformanceEntry} object types have
+The `'gc'`, `'http2'`, and `'http'` {PerformanceEntry} object types used to have
 additional properties assigned to them that provide additional information.
 These properties are now available within the standard `detail` property
-of the `PerformanceEntry` object. The existing accessors have been
-deprecated and should no longer be used.
+of the `PerformanceEntry` object. The deprecated accessors have been
+removed.
 
 ### DEP0153: `dns.lookup` and `dnsPromises.lookup` options type coercion
 
