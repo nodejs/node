@@ -38,7 +38,6 @@ function test(getBuffer) {
 }
 
 test(() => Buffer(len));
-test(() => Buffer.allocUnsafeSlow(len));
 test(() => Buffer.alloc(len));
 test(() => Buffer.allocUnsafe(len));
 test(() => Buffer.allocUnsafeSlow(len));
