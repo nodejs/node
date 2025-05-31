@@ -1308,6 +1308,38 @@ characters directly to the `prefix` string. For instance, given a directory
 `prefix` must end with a trailing platform-specific path separator
 (`require('node:path').sep`).
 
+### `fsPromises.mkdtempDisposable(prefix[, options])`
+
+<!-- YAML
+added: TODO
+changes:
+  - version:
+      - TODO
+    pr-url: TODO
+    description: Initial version.  <-- this doesn't seem to be common practice but the result is that there is no pr-url for the initial feature
+-->
+
+* `prefix` {string|Buffer|URL}
+* `options` {string|Object}
+  * `encoding` {string} **Default:** `'utf8'`
+* Returns: {Promise} Fulfills with a Promise for an async-disposable object with a "path" property.
+
+The resulting Promise holds an async-disposable object whose `path` property
+holds the created directory path. When the object is disposed, the directory
+and its contents will be removed asynchronously. The object has an async
+`remove()` method which will perform the same task.
+
+Both this function and the disposal function on the resulting object are
+async, so it should be used with `await` + `await using` as in
+`await using dir = await fsPromises.mkdtempDisposable('prefix')`.
+
+<!-- TODO: link MDN docs for disposables once https://github.com/mdn/content/pull/38027 lands -->
+
+For detailed information, see the documentation of [`fsPromises.mkdtemp()`][].
+
+The optional `options` argument can be a string specifying an encoding, or an
+object with an `encoding` property specifying the character encoding to use.
+
 ### `fsPromises.open(path, flags[, mode])`
 
 <!-- YAML
@@ -5901,7 +5933,6 @@ this API: [`fs.mkdtemp()`][].
 
 The optional `options` argument can be a string specifying an encoding, or an
 object with an `encoding` property specifying the character encoding to use.
-
 
 ### `fs.mkdtempDisposableSync(prefix[, options])`
 
